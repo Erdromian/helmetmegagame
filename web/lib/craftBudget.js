@@ -60,6 +60,10 @@ const FRACTION_GLYPHS = {
   "2/3": "⅔",
   "1/4": "¼",
   "3/4": "¾",
+  // Mixed denominators (a ⅓ brew after a ½ one) land on sixths; twelfths
+  // have no glyphs and fall through to "n/m", which is fine.
+  "1/6": "⅙",
+  "5/6": "⅚",
 };
 
 export function formatMoveFraction(num, den) {
@@ -158,7 +162,9 @@ export function craftMoveCost(
 // the Routine is committed to, and how much of the Move is left. Null unless
 // the open turn's Action is a craft Action carrying one.
 export function summarizeCraftBudget(action) {
-  if (!action || action.gmNotes !== "auto:craft" || !action.craftBudget)
+  // `includes`, matching checkCraftMove: other machinery may append to
+  // gmNotes, and an appended note must not hide a live ledger.
+  if (!action || !(action.gmNotes ?? "").includes("auto:craft") || !action.craftBudget)
     return null;
   const left = ledgerRemaining(action.craftBudget);
   return {

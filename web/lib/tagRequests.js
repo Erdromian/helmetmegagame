@@ -104,9 +104,15 @@ export function needsWorkshop(tag) {
 const CRAFT_FAMILIES = ["brewing", "cooking", "smithing", "builder", "crafting"];
 
 export function craftFamily(tag) {
-  for (const skill of tag?.requirementSkills ?? []) {
-    const prefix = (skill?.slug ?? "").split("-")[0];
-    if (CRAFT_FAMILIES.includes(prefix)) return prefix;
+  // Walked in CRAFT_FAMILIES order, not relation order — requirementSkills
+  // comes back from Prisma unordered, and "first matching skill" would make
+  // a two-craft-skill recipe's family depend on row order. No such recipe
+  // exists today; the first one shouldn't find a nondeterministic seam.
+  const prefixes = new Set(
+    (tag?.requirementSkills ?? []).map((skill) => (skill?.slug ?? "").split("-")[0]),
+  );
+  for (const family of CRAFT_FAMILIES) {
+    if (prefixes.has(family)) return family;
   }
   return null;
 }

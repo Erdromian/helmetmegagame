@@ -437,10 +437,16 @@ async function consumeRecipeItems(tx, characterId, plan) {
 // Prerequisite chain, exclusivity, tier replacement, duplicates — the same
 // checks a purchase runs (web/lib/characterCreation.js). Returns the held
 // lower tiers a grant would replace, snapshotted for Undo.
-async function craftGrantChecks(character, tag) {
+//
+// `db` defaults to prisma for the fast fail outside the transaction; the
+// grant paths run it AGAIN inside the tx via recheckGrantsUnderLock below,
+// because a turn can now hold several Move-costing crafts and two of them
+// racing could otherwise both pass an exclusivity or duplicate check that
+// was true when each one read the sheet.
+async function craftGrantChecks(character, tag, db = prisma) {
   // The whole catalog comes down so a chain walk never dead-ends on an
   // ancestor the character doesn't hold.
-  const chainRows = await prisma.tag.findMany({
+  const chainRows = await db.tag.findMany({
     select: {
       id: true,
       name: true,
@@ -497,6 +503,20 @@ async function craftGrantChecks(character, tag) {
       expiresTurn: ct.expiresTurn,
       quantity: ct.quantity,
     }));
+}
+
+// The in-tx re-run, under the Character row lock, against the sheet as it is
+// NOW rather than as it was when the fast fail read it. Stackable recipes
+// skip it — a racing grant there only adds units to a stack, which nothing
+// in craftGrantChecks refuses — so the everyday brews never pay for it.
+// Returns the fresh `replaced` snapshot, which is the one the grant uses.
+async function recheckGrantsUnderLock(tx, character, tag) {
+  if (tag.stackable) return null;
+  const fresh = await tx.characterTag.findMany({
+    where: { characterId: character.id },
+    include: { tag: { select: { name: true } } },
+  });
+  return craftGrantChecks({ ...character, tags: fresh }, tag, tx);
 }
 
 // Who pays: you, a room here, or a person here. Defaults to you.
@@ -639,7 +659,10 @@ function checkCraftMove(action, need) {
   // A recipe with no craft family can neither lock a Routine nor share one, in
   // either direction — so anything already filed stops it.
   if (!need.family) throw new UserError(MOVE_SPENT);
-  if (action.gmNotes !== "auto:craft" || !action.craftBudget)
+  // `includes`, not equality: other machinery APPENDS to gmNotes (the staged
+  // push does, on Actions it claims), and an appended note must not strand a
+  // half-spent ledger behind "Move already used".
+  if (!(action.gmNotes ?? "").includes("auto:craft") || !action.craftBudget)
     throw new UserError(MOVE_SPENT);
   const ledger = action.craftBudget;
   if (ledger.family !== need.family) {
@@ -738,10 +761,15 @@ async function spendCraftMove(
       budget,
     };
   }
-  await tx.action.update({
+  // `updateMany` + count, not `update`: a GM Reject deletes the Action row
+  // without taking the Character lock, and racing it should read as "your
+  // turn was just reset", not as a raw P2025.
+  const { count } = await tx.action.updateMany({
     where: { id: existing.id },
     data: { craftBudget: budget, description: line },
   });
+  if (count === 0)
+    throw new UserError("A GM just reset your turn — try again. ‡");
   return { action: existing, budget };
 }
 
@@ -752,10 +780,12 @@ async function stampLedgerRequest(tx, action, budget, requestId) {
   const entries = budget.entries.map((e, i) =>
     i === budget.entries.length - 1 ? { ...e, requestId } : e,
   );
-  await tx.action.update({
+  const { count } = await tx.action.updateMany({
     where: { id: action.id },
     data: { craftBudget: { ...budget, entries } },
   });
+  if (count === 0)
+    throw new UserError("A GM just reset your turn — try again. ‡");
 }
 
 // The finished thing lands on the sheet: the replaced tiers come off, the
@@ -852,6 +882,12 @@ async function craftRequestImpl({
   // re-checked for membership and possession like everything else a client
   // sends.
   ingredientChoice,
+  // How many units the dialog TOLD the player would bill against their Move
+  // (0 when it showed the craft as free). The server refuses to bill more
+  // than was acknowledged: a stale tab whose free allowance ran out
+  // elsewhere gets a retry, not a silent Move charge. "Declining crafts
+  // nothing" is enforced here, not just in the confirm dialog.
+  billedSeen: rawBilledSeen,
   reason: rawReason,
 }) {
   const { session, character } = await requireCharacter();
@@ -926,20 +962,49 @@ async function craftRequestImpl({
       }
       return priced;
     };
+    const billedSeen = parseCount(rawBilledSeen, { min: 0, max: 99 }) ?? 0;
+    // The player is never billed more than the dialog showed them. Priced
+    // here for the fast fail, and AGAIN inside the transaction, where a
+    // concurrent craft may have eaten the free allowance between the two —
+    // the in-tx copy is what actually holds.
+    const acknowledgeBill = (priced) => {
+      if (priced.billedQty > billedSeen) {
+        throw new UserError(
+          "Your free allowance changed since this page loaded — check the new cost and try again. ‡",
+        );
+      }
+    };
     const moveCost = await priceCraft(prisma);
+    acknowledgeBill(moveCost);
     if (moveCost.kind === "spill")
       await resolveCraftMove(character, openTurn, moveCost);
     await prisma.$transaction(async (tx) => {
-      // One lock for all three racy things: the ration counts, the ingredient
-      // stacks, and the Move ledger (spendCraftMove takes it again, which
-      // costs nothing once this transaction holds it).
-      if (allowance != null || itemPlan.spend.length) {
+      // One lock for all the racy things: the ration counts, the ingredient
+      // stacks, the grant re-check, and the Move ledger (spendCraftMove takes
+      // it again, which costs nothing once this transaction holds it).
+      if (allowance != null || itemPlan.spend.length || !tag.stackable) {
         await lockCharacter(tx, character.id);
       }
       const spend = await priceCraft(tx);
+      acknowledgeBill(spend);
       let action = null;
       let budget = null;
       if (spend.kind === "spill") {
+        // The fast fail only ran resolveCraftMove when the OUTSIDE price
+        // already spilled, so a spill first seen here re-checks the Move
+        // window itself — a craft submitted after Moves lock must not write
+        // a ledger no matter how the race fell.
+        if (moveCost.kind !== "spill") {
+          const config = await tx.gameConfig.findUnique({
+            where: { id: 1 },
+            select: { autoTurnAdvanceDisabled: true },
+          });
+          const { locked } = moveWindow(openTurn, {
+            autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
+          });
+          if (locked)
+            throw new UserError("Moves are locked for this turn. ‡");
+        }
         ({ action, budget } = await spendCraftMove(tx, {
           character,
           openTurn,
@@ -947,6 +1012,8 @@ async function craftRequestImpl({
           entry: craftLedgerEntry(tag, spend),
         }));
       }
+      const replacedNow =
+        (await recheckGrantsUnderLock(tx, character, tag)) ?? replaced;
       const consumed = await consumeRecipeItems(tx, character.id, itemPlan);
       if (cost) await moveResources(tx, payer, -cost);
       const request = await grantCrafted(tx, {
@@ -955,7 +1022,7 @@ async function craftRequestImpl({
         tag,
         quantity,
         openTurn,
-        replaced,
+        replaced: replacedNow,
         payer,
         cost,
         action,
@@ -1021,6 +1088,8 @@ async function craftRequestImpl({
             ? `Crafted ${craftLabel(tag, quantity)}. ‡`
             : `Crafting ${craftLabel(tag, quantity)} (1/${turns}). ‡`,
     });
+    const replacedNow =
+      (await recheckGrantsUnderLock(tx, character, tag)) ?? replaced;
     const consumed = await consumeRecipeItems(tx, character.id, itemPlan);
     if (cost) await moveResources(tx, payer, -cost);
     const project = await tx.craftProject.create({
@@ -1046,7 +1115,7 @@ async function craftRequestImpl({
         tag,
         quantity,
         openTurn,
-        replaced,
+        replaced: replacedNow,
         payer,
         cost,
         project,
@@ -1170,13 +1239,15 @@ async function continueCraftImpl({ projectId, reason: rawReason }) {
         : `Crafting ${craftLabel(tag, project.quantity)} (${next}/${project.turnsNeeded}). ‡`,
     });
     if (done) {
+      const replacedNow =
+        (await recheckGrantsUnderLock(tx, character, tag)) ?? replaced;
       const request = await grantCrafted(tx, {
         session,
         character,
         tag,
         quantity: project.quantity,
         openTurn,
-        replaced,
+        replaced: replacedNow,
         payer,
         cost: project.resourcesCost,
         project,

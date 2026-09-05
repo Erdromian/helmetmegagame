@@ -257,7 +257,10 @@ export default function CraftDialog({
               <p className="text-xs text-muted">
                 {turns === 0
                   ? allowance
-                    ? `No Move needed for the first ${allowance.per} a turn, and ${allowance.left} of those are left today. ‡`
+                    ? // The pool is SHARED across every Dead Simple recipe, so
+                      // the count moves when you make a different simple item —
+                      // said here, or the number reads as a per-recipe cap.
+                      `No Move needed for the first ${allowance.per} simple things a turn — shared across all of them — and ${allowance.left} of those are left today. ‡`
                     : "No Move needed. ‡"
                   : turns === 1
                     ? moveCost?.kind === "share"
@@ -274,7 +277,7 @@ export default function CraftDialog({
                     the overflow to the Move; one without (a butcher's mask)
                     simply cannot go past it. */}
                 {moveCost?.kind === "spill"
-                  ? ` The ${moveCost.billedQty} past that spend ${formatMoveFraction(moveCost.num, moveCost.den)} of your Move. ‡`
+                  ? ` The ${moveCost.billedQty} past that ${moveCost.billedQty === 1 ? "spends" : "spend"} ${formatMoveFraction(moveCost.num, moveCost.den)} of your Move. ‡`
                   : ""}
                 {moveCost?.kind === "capped"
                   ? ` You can't make more than ${moveCost.allowance} in a turn. ‡`

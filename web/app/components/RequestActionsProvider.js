@@ -734,6 +734,11 @@ export default function RequestActionsProvider({
       if (!hasMoved) return null;
       const cost = priceRecipe(tag, 1);
       if (cost.kind === "free" || affordsMove(cost)) return null;
+      // A capped recipe hit its ration, not the Move — bone-mask past its
+      // one-a-turn would otherwise be blamed on a Routine it never touches.
+      if (cost.kind === "capped") {
+        return "You've made all of those a turn allows. ‡";
+      }
       if (craftBudget && craftBudget.family !== cost.family) {
         return `Your Routine is ${craftFamilyLabel(craftBudget.family)} work this turn. ‡`;
       }
@@ -903,9 +908,16 @@ export default function RequestActionsProvider({
             move.freeQty > 0
               ? `The first ${move.freeQty} ${move.freeQty === 1 ? "is" : "are"} free; the rest take ${share}`
               : `That takes ${share}`;
+          // A spill is the one Move spend a player may not have planned as
+          // their day's work, so it alone says what a filed Action always
+          // costs: the day's labor pay (CRAFTING.md §2a).
+          const labor =
+            move.freeQty > 0 && !craftBudget
+              ? " That counts as your day's work — no labor pay today."
+              : "";
           moveLine = craftBudget
             ? `${takes}, on top of the ${family} work you've already put this turn into.`
-            : `${takes}, and locks the rest of your Routine to ${family} work — you can keep at that until the turn is spent.`;
+            : `${takes}. It locks the rest of your Routine to ${family} work — you can keep at that until the turn is spent.${labor}`;
         }
       }
       if (moveLine || cost > 0) {
@@ -1004,6 +1016,10 @@ export default function RequestActionsProvider({
           quantity,
           payerKey,
           ingredientChoice: ingredientChoiceValue,
+          // What the confirm just showed as billable against the Move — 0
+          // when it read as free. The server refuses to bill past this, so a
+          // stale tab gets a retry instead of a silent Move charge.
+          billedSeen: String(craftCost?.billedQty ?? 0),
           reason,
         });
       case "destroy":
@@ -1315,7 +1331,7 @@ export default function RequestActionsProvider({
                     byId={gateById}
                     heldIds={heldIds}
                     blockedReason={recipeBlocked}
-                    emptyLabel="You don't know any recipes you could make right now. ‡"
+                    emptyLabel="Nothing you could make right now. ‡"
                   />
                 }
                 chosen={chosen}
@@ -1329,7 +1345,13 @@ export default function RequestActionsProvider({
                 moveOk={craftMoveOk}
                 ingredientPick={ingredientPick}
                 ingredientChoice={ingredientChoiceValue}
-                onIngredientChoice={setIngredientChoice}
+                onIngredientChoice={(slug) => {
+                  // The quantity cap is per-ingredient (you may hold 5 tea
+                  // and 1 honey), so switching resets the count rather than
+                  // stranding a 5 over a max of 1.
+                  setIngredientChoice(slug);
+                  setQuantity("1");
+                }}
                 payerKey={payerKey}
                 onPayer={setPayerKey}
                 parties={healParties}

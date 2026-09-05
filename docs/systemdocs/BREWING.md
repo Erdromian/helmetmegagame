@@ -157,14 +157,16 @@ to N per turn".
 | `poppy` | 2 | 1 |
 | `cleaning-powder` | 2 | 1 |
 | `mercy` | 2 | 1 |
+| `ravenheart-red` | 2 | 1 |
 | `lavish-meal` | 3 | 1 |
+| `fine-meal` | 4 | 1 |
 | `bone-mask` | 1 | 0 |
 
-**The 0-turn rows are the ones enforced today.** `perTurn` is checked on the
-`turnsCost: 0` path only (`CRAFTING.md` §2); on a 1-turn recipe the Move itself
-is the ration, and the number sits in the catalog waiting for the craft-budget
-pass to spend fractions of a Move against it. Authoring it now means that pass
-has nothing to invent.
+**Every row is enforced now.** A 0-turn recipe's `perTurn` is its free
+allowance, with units past it spilling into the Move; a 1-turn recipe's
+`perTurn` is its batch size, and a batch spends `quantity/perTurn` of the
+Move — three Alcohol is one Routine, one Alcohol leaves two thirds of it for
+other brewing work (`CRAFTING.md` §2a).
 
 `bone-mask` is not a brew, but it is the other recipe the ration exists for: 0
 turns and a `butcher` gate put it outside the Dead Simple pool as well as

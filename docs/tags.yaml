@@ -6674,7 +6674,12 @@ tags:
     consumesInto:
       - ate-meal
     requirement:
+      # Written out for the reason Bliss's was: an absent turnsCost read as 1
+      # by accident, and this recipe's own paper says "up to 4 Fine meals in
+      # one Routine Move" — which is a 1-turn batch, now enforced.
+      turnsCost: 1
       resourceCost: 2
+      perTurn: 4
       skills: [cooking-basic]
       gambit: false
   lavish-meal:
@@ -8639,6 +8644,11 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 4
+      # The paper has always said "yields up to 2 per turn"; every sibling's
+      # yield was written out and enforced in the ingredient pass, and this
+      # one row got missed — at 4 ⬢ against a sell of 14, an unrationed
+      # Routine was the last open version of the hole the pass closed.
+      perTurn: 2
       skills: [brewing-skilled]
       gambit: false
     sellable: true

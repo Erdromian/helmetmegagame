@@ -104,6 +104,11 @@ export const TAG_CHIP_FIELDS = {
   requirementResources: true,
   requirementGambit: true,
   requirementSkills: { select: { id: true, slug: true, name: true } },
+  // The ingredients ("uses Cave Fungus" / "needs a corpse to hand"). Without
+  // this the Tag Catalog's Recipe line silently renders none — the exact
+  // failure CORPSES.md §8 warns about, and the line the craft menu's
+  // ingredient-hiding rule leans on ("the catalog still teaches the recipe").
+  requirementItems: true,
   // A prose {tag:…} reference has no live expiresTurn, so this is the only
   // way to tell a reader how long the tag would last (TagChip.js).
   defaultDurationTurns: true,
