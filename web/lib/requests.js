@@ -1,22 +1,13 @@
 import { prisma } from "@lifeweb/db";
 import { MAX_REASON_LENGTH } from "@/lib/constants";
 import { UserError } from "@/lib/actionResult";
+import { DEAD_SIMPLE_PER_TURN, isDeadSimple } from "@/lib/tagRequests";
 
 // A Request is a change the player already made. There is no approval step:
 // the effect is applied and the row is written in the same transaction, and a
 // GM reviews it afterwards from /gm/turns. See docs/systemdocs/REQUESTS.md.
 
 export { MAX_REASON_LENGTH };
-
-// How many Dead Simple items a character may make in one turn.
-//
-// Dead Simple is the bottom rung of the smithing ladder (SMITHING.md §2) and
-// the only one that costs 0 turns, so nothing was rationing it: a player could
-// file Add Tag requests all turn and walk away with any number of work knives.
-// The cap is on UNITS, not requests — the Dead Simple items are stackable and
-// one request can carry a quantity of 20 — and it is summed across every
-// ADD_TAG request the character has filed this turn.
-export const DEAD_SIMPLE_PER_TURN = 4;
 
 // How many ROUTINE cures a medic may work in one turn, by their highest
 // medical tier (docs/systemdocs/TAGS.md §5c). A doctor's day has a floor and a
@@ -36,23 +27,9 @@ export const MEDICAL_TIER_CAPS = {
   "medical-expert": 4,
 };
 
-// The skills that mark a recipe as smithing/crafting work. Every smithing rung
-// counts, not just the one Dead Simple actually gates on, so a future 0-turn
-// recipe at a higher rung is covered without editing this list.
-const DEAD_SIMPLE_SKILL_SLUGS = (slug) => slug === "crafting" || slug.startsWith("smithing");
-
-// There is no "tier" column — Dead Simple is only a comment header in
-// docs/tags.yaml — so the tier is recognised by its recipe: 0 turns of work,
-// and a smithing or crafting skill gate. That is exactly the craftables
-// under the Dead Simple headers today. The one other tag in the catalog with
-// `turnsCost: 0` is Frostbite, whose requirement block is a CURE (medical
-// skills, the removal direction), so the skill test keeps it out.
-//
-// `tag.requirementSkills` must be loaded ({ slug }) or this reads false.
-export function isDeadSimple(tag) {
-  if (tag?.requirementTurns !== 0) return false;
-  return (tag.requirementSkills ?? []).some((skill) => DEAD_SIMPLE_SKILL_SLUGS(skill.slug));
-}
+// isDeadSimple and DEAD_SIMPLE_PER_TURN live in tagRequests.js now (recipe
+// facts a client component can reach); imported above for the counters below
+// and re-exported further down so server-side imports keep working.
 
 // The free allowance a 0-turn recipe has each turn: its own `perTurn` ration
 // if it sets one, otherwise the shared Dead Simple pool. Null means "no
@@ -153,6 +130,12 @@ export async function craftFreeUnits(db, characterId, turnId, tags) {
 // Defined in requestLabels.js so client components can have them without
 // pulling this module's Prisma import into the browser bundle.
 export { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS, REQUEST_STATUS_TONES } from "@/lib/requestLabels";
+
+// Same split, same reason: the Dead Simple ration is a fact about a RECIPE, so
+// it lives with the other recipe predicates in tagRequests.js where a client
+// component can reach it. Re-exported here so every server-side import of it
+// keeps working unchanged.
+export { DEAD_SIMPLE_PER_TURN, isDeadSimple } from "@/lib/tagRequests";
 
 // Server actions are public endpoints, so the reason is validated here rather
 // than trusted from the dialog that collected it.

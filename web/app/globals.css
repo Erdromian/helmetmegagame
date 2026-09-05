@@ -1716,6 +1716,23 @@ input[type="radio"]:disabled {
   background: var(--row-hover);
 }
 
+/* A heading row inside a long table's body — the Recipes tab's discipline
+   bands. It is a <th>, so it inherits the header row's small uppercase type
+   for free; what this adds is the surface behind it and a rule above, so a
+   band reads as the start of a section rather than as the sticky header
+   having scrolled into the middle of the data. Carries no <td>, so the row
+   hover above never touches it. */
+.data-table tr.row-group th {
+  background: var(--surface);
+  color: var(--text);
+  border-top: 1px solid var(--border);
+  padding-top: var(--sp-3);
+}
+
+.data-table tr.row-group:first-child th {
+  border-top: 0;
+}
+
 /* A panel you pick. Three call sites had copy-pasted the same
    `panel flex w-full items-start gap-3 p-3 text-left` plus an inline outline
    for the selected state, and the third had already drifted to a different
