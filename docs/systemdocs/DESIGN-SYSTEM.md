@@ -125,6 +125,7 @@ Use these instead of rolling one-off markup.
 | `.chip` | Small tag/pill labels. |
 | `.zone-chip` | A `.chip` carrying the zone code on `data-zone`. `data-zone="none"` is the dashed neutral for no faction. |
 | `.data-table` | Tabular data. |
+| `.row-group` | A heading row inside a `.data-table` body, grouping the rows under it. A `<th colSpan>`, so it inherits the header's type. |
 | `.menu-item` | Link-like row actions. |
 | `.control` | The `.field` control surface, without the label column — a `<select>` in a table cell, an input inline in a toolbar. |
 | `.icon-btn` | The one framed icon button — via `IconButton`. |

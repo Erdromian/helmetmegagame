@@ -9,6 +9,7 @@ import { toDocumentPreviewText } from "@/lib/documentPreview";
 import { assignedTo, isWritten, readerFromCharacter } from "@/lib/documentAccess";
 import { getHandbookBody, HANDBOOK_KEY } from "@/lib/handbook";
 import { catalogTags } from "@/lib/tagCatalog";
+import { redactWithheldRecipes } from "@/lib/recipeCatalog";
 
 export const metadata = { title: "Documents" };
 
@@ -52,7 +53,10 @@ export default async function DocumentsPage() {
           },
         },
         requiredTag: { select: { name: true } },
-        requirementSkills: { select: { id: true, slug: true, name: true } },
+        // `category` alongside the name: the Recipes tab reads it to tell the
+        // trade that gates a recipe from a belief that also gates it
+        // (web/lib/recipeCatalog.js#recipeDiscipline).
+        requirementSkills: { select: { id: true, slug: true, name: true, category: true } },
         // The Tag Catalog tab's detail sheet, same block TagChip shows.
         ...DESIRE_UNLOCK_SELECT,
       },
@@ -243,11 +247,22 @@ export default async function DocumentsPage() {
     requirementResources: t.requirementResources,
     requirementGambit: t.requirementGambit,
     requirementSkills: t.requirementSkills,
+    // The rest of the recipe, for the Recipes tab. requirementItems is
+    // redacted below before it reaches anybody — see recipeCatalog.js.
+    requirementPerTurn: t.requirementPerTurn,
+    requirementItems: t.requirementItems,
   }));
 
   const heldTagIds = (characterRow?.tags ?? []).map((ct) => ct.tagId);
   const startingTagSlugs = characterRow?.role?.startingTagSlugs ?? [];
-  const tagCatalogList = catalogTags(mappedTags, { isGm, heldTagIds, startingTagSlugs });
+  // Two passes, in this order. catalogTags decides which TAGS this reader may
+  // see; redactWithheldRecipes then reads that answer back and drops the
+  // recipe off any craftable naming an ingredient the first pass withheld. Both
+  // tabs below take the same list, so a withheld ingredient can no more surface
+  // in a Tag Catalog hover card than in the Recipes table.
+  const tagCatalogList = redactWithheldRecipes(
+    catalogTags(mappedTags, { isGm, heldTagIds, startingTagSlugs }),
+  );
 
   return (
     <PageShell width="wide">
