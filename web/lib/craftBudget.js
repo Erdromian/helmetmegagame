@@ -13,14 +13,14 @@
 
 import { craftFamily } from "./tagRequests";
 
-export const NO_MOVE = { num: 0, den: 1 };
+const NO_MOVE = { num: 0, den: 1 };
 export const WHOLE_MOVE = { num: 1, den: 1 };
 
 function gcd(a, b) {
   return b === 0 ? a : gcd(b, a % b);
 }
 
-export function reduceFraction(num, den) {
+function reduceFraction(num, den) {
   const g = gcd(Math.abs(num), Math.abs(den)) || 1;
   return { num: num / g, den: den / g };
 }
