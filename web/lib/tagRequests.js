@@ -90,6 +90,27 @@ export function needsWorkshop(tag) {
   );
 }
 
+// Which FAMILY of work a recipe is, read off the same `requirementSkills` the
+// forge rule reads. A turn's craft Routine commits to one family and takes
+// nothing else (docs/systemdocs/CRAFTING.md §2a): you cannot spend half a
+// Routine at the still and half at the anvil.
+//
+// The family is the skill slug's prefix, so `brewing-basic` and
+// `brewing-skilled` are one family and a new rung joins it for free. A gate
+// that is not a craft skill is ignored — barbed-net's `fundamentalist` sits
+// beside `crafting` and the recipe is crafting; bone-mask names `butcher` and
+// nothing else, so it has NO family and can neither lock a Move nor spend
+// from one. It stays the free, rationed action it is.
+const CRAFT_FAMILIES = ["brewing", "cooking", "smithing", "builder", "crafting"];
+
+export function craftFamily(tag) {
+  for (const skill of tag?.requirementSkills ?? []) {
+    const prefix = (skill?.slug ?? "").split("-")[0];
+    if (CRAFT_FAMILIES.includes(prefix)) return prefix;
+  }
+  return null;
+}
+
 export function transferableTags(characterTags = []) {
   return characterTags
     .filter((ct) => isTradeable(ct.tag))

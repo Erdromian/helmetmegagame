@@ -54,6 +54,102 @@ export function isDeadSimple(tag) {
   return (tag.requirementSkills ?? []).some((skill) => DEAD_SIMPLE_SKILL_SLUGS(skill.slug));
 }
 
+// The free allowance a 0-turn recipe has each turn: its own `perTurn` ration
+// if it sets one, otherwise the shared Dead Simple pool. Null means "no
+// allowance to count" — either the recipe costs a Move (so the Action rations
+// it) or it is a 0-turn recipe outside both schemes, which stays a free
+// action with no ceiling.
+//
+// Units past the allowance are no longer simply refused: for a recipe with a
+// craft family they spill into the Move at 1/allowance each
+// (web/lib/craftBudget.js, docs/systemdocs/CRAFTING.md §2a). This function is
+// only the number, so the server's enforcement and the page's readout can
+// never disagree about what "free" means.
+export function craftAllowance(tag) {
+  if ((tag?.requirementTurns ?? 1) !== 0) return null;
+  if (tag?.requirementPerTurn != null) return tag.requirementPerTurn;
+  return isDeadSimple(tag) ? DEAD_SIMPLE_PER_TURN : null;
+}
+
+// Units of ONE recipe already made this turn, for a tag that sets its own
+// `perTurn` (Tag.requirementPerTurn). Distinct from the Dead Simple pool
+// below: that one is a shared allowance across every 0-turn recipe, this is a
+// ration on a single item.
+//
+// Both counters read `payload.quantity` — what the player asked for, which is
+// what was granted. They used to disagree (this one read `effect.quantity`),
+// which was harmless while nothing but a cap depended on it and is not now
+// that a count decides how much of a Move a craft spends.
+export async function unitsOfTagThisTurn(db, characterId, turnId, tagId) {
+  const filed = await db.request.findMany({
+    where: { characterId, turnId, type: "ADD_TAG", status: { not: "UNDONE" } },
+    select: { payload: true },
+  });
+  return filed.reduce((sum, r) => {
+    if (r.payload?.tagId !== tagId) return sum;
+    return sum + (Number(r.payload?.quantity) || 0);
+  }, 0);
+}
+
+// Dead Simple units already filed this turn (DEAD_SIMPLE_PER_TURN).
+// EDITED still counts, UNDONE does not. `db` is prisma or a tx client.
+export async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
+  const filed = await db.request.findMany({
+    where: { characterId, turnId, type: "ADD_TAG", status: { not: "UNDONE" } },
+    select: { payload: true },
+  });
+  const filedTagIds = [
+    ...new Set(filed.map((r) => r.payload?.tagId).filter(Boolean)),
+  ];
+  const filedTags = filedTagIds.length
+    ? await db.tag.findMany({
+        where: { id: { in: filedTagIds } },
+        select: {
+          id: true,
+          requirementTurns: true,
+          requirementSkills: { select: { slug: true } },
+        },
+      })
+    : [];
+  const deadSimpleIds = new Set(filedTags.filter(isDeadSimple).map((t) => t.id));
+  return filed.reduce((sum, r) => {
+    if (!deadSimpleIds.has(r.payload?.tagId)) return sum;
+    return sum + (Number(r.payload?.quantity) || 0);
+  }, 0);
+}
+
+// Every rationed recipe's free units left this turn, in one query, keyed by
+// tag id: `{ per, left }`. The Craft dialog's readout, so it can say which
+// units of an order are free and which spill into the Move. `tags` is the
+// page's catalog rows — they must carry `requirementTurns`,
+// `requirementPerTurn` and `requirementSkills.slug` or nothing is rationed.
+export async function craftFreeUnits(db, characterId, turnId, tags) {
+  const out = {};
+  const rationed = tags.filter((t) => craftAllowance(t) != null);
+  if (!turnId || !rationed.length) return out;
+  const filed = await db.request.findMany({
+    where: { characterId, turnId, type: "ADD_TAG", status: { not: "UNDONE" } },
+    select: { payload: true },
+  });
+  const units = new Map();
+  for (const r of filed) {
+    const id = r.payload?.tagId;
+    if (!id) continue;
+    units.set(id, (units.get(id) ?? 0) + (Number(r.payload?.quantity) || 0));
+  }
+  const byId = new Map(tags.map((t) => [t.id, t]));
+  let pool = 0;
+  for (const [id, n] of units) {
+    if (isDeadSimple(byId.get(id))) pool += n;
+  }
+  for (const tag of rationed) {
+    const per = craftAllowance(tag);
+    const used = tag.requirementPerTurn != null ? (units.get(tag.id) ?? 0) : pool;
+    out[tag.id] = { per, left: Math.max(0, per - used) };
+  }
+  return out;
+}
+
 // Defined in requestLabels.js so client components can have them without
 // pulling this module's Prisma import into the browser bundle.
 export { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS, REQUEST_STATUS_TONES } from "@/lib/requestLabels";

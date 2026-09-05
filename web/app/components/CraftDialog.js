@@ -3,6 +3,7 @@
 import PartySelect from "./PartySelect";
 import Select from "./Select";
 import { needsWorkshop } from "@/lib/tagRequests";
+import { craftFamilyLabel, formatMoveFraction } from "@/lib/craftBudget";
 import QuantityField from "./QuantityField";
 
 // The body of the Craft dialog (docs/systemdocs/CRAFTING.md). State lives in
@@ -35,6 +36,17 @@ export default function CraftDialog({
   stacking,
   quantity,
   onQuantity,
+  // The Move budget (docs/systemdocs/CRAFTING.md §2a), all of it priced by the
+  // provider off server-computed numbers: what the turn's Routine is already
+  // committed to (`budget`), what this order costs of the Move (`moveCost`),
+  // the recipe's free ration and what is left of it today (`allowance`),
+  // whether the turn can still pay (`moveOk`), and the count the stepper stops
+  // at (`quantityMax` — ingredients and budget, whichever runs out first).
+  quantityMax = 99,
+  budget = null,
+  moveCost = null,
+  allowance = null,
+  moveOk = true,
   // The one ingredient a recipe leaves to the player: { label, options } for
   // an `anyOf` entry, already narrowed to what this character holds, or null.
   ingredientPick = null,
@@ -182,17 +194,27 @@ export default function CraftDialog({
         </>
       ) : (
         <>
+          {/* What this turn's Routine is already doing, if anything. A craft
+              Routine takes one family of work and a fraction of the Move at a
+              time, so the menu below is narrower than it looks. */}
+          {budget && (
+            <p className="text-xs text-accent">
+              {budget.remainingNum > 0
+                ? `Your Routine this turn is ${craftFamilyLabel(budget.family)} work — ${formatMoveFraction(budget.remainingNum, budget.remainingDen)} of your Move is left. ‡`
+                : `Your Routine this turn is spent on ${craftFamilyLabel(budget.family)} work. ‡`}
+            </p>
+          )}
           {picker}
           {chosen && (
             <>
-              {/* 99 is the server's own clamp (craftRequestImpl's parseCount),
-                  not an arbitrary UI bound. The per-turn caps on Dead Simple
-                  and medical work are enforced server-side and can't be known
-                  here. */}
+              {/* The cap is the first of three to run out: the ingredients on
+                  your own sheet, what the Move can still pay for, and the
+                  server's own clamp of 99 (craftRequestImpl's parseCount).
+                  Typed values past it are refused server-side, not here. */}
               {stacking && (
                 <QuantityField
                   label="How many? ‡"
-                  max={99}
+                  max={quantityMax}
                   value={quantity}
                   onChange={onQuantity}
                 />
@@ -234,11 +256,13 @@ export default function CraftDialog({
               )}
               <p className="text-xs text-muted">
                 {turns === 0
-                  ? chosen.requirementPerTurn != null
-                    ? `No Move needed, up to ${chosen.requirementPerTurn} a turn. ‡`
-                    : "Dead Simple: no Move needed, up to 4 a turn. ‡"
+                  ? allowance
+                    ? `No Move needed for the first ${allowance.per} a turn, and ${allowance.left} of those are left today. ‡`
+                    : "No Move needed. ‡"
                   : turns === 1
-                    ? "One turn of work — this is your Move for the turn. ‡"
+                    ? moveCost?.kind === "share"
+                      ? `One turn of work, and ${formatMoveFraction(moveCost.num, moveCost.den)} of your Move — up to ${moveCost.allowance} a turn. ‡`
+                      : "One turn of work — this is your Move for the turn. ‡"
                     : chosen.placement
                       ? // The crew-turns pitch, said at the point of decision:
                         // a build site is anybody's to advance, which is the
@@ -246,7 +270,22 @@ export default function CraftDialog({
                         `${turns} turns of work, and not necessarily yours alone: anyone standing at the site can put their Move into it. This turn is the first. ‡`
                       : `${turns} turns of work. This turn is the first; come back here to continue. ‡`}
                 {cost > 0 ? ` Costs ${cost} ⬢, paid now. ‡` : " Costs nothing. ‡"}
-                {turns > 0 && hasMoved ? " You've already used your Move this turn. ‡" : ""}
+                {/* Past the free ration: a recipe with a craft family bills
+                    the overflow to the Move; one without (a butcher's mask)
+                    simply cannot go past it. */}
+                {moveCost?.kind === "spill"
+                  ? ` The ${moveCost.billedQty} past that spend ${formatMoveFraction(moveCost.num, moveCost.den)} of your Move. ‡`
+                  : ""}
+                {moveCost?.kind === "capped"
+                  ? ` You can't make more than ${moveCost.allowance} in a turn. ‡`
+                  : ""}
+                {!moveOk && moveCost?.kind !== "capped"
+                  ? budget
+                    ? budget.family !== moveCost?.family
+                      ? ` Your Routine this turn is ${craftFamilyLabel(budget.family)} work, and this isn't. ‡`
+                      : " There isn't enough of your Move left this turn. ‡"
+                    : " You've already used your Move this turn. ‡"
+                  : ""}
               </p>
               {ingredientNote && (
                 <p className="text-xs text-muted">{`${ingredientNote} ‡`}</p>

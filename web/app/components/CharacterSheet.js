@@ -65,6 +65,10 @@ export default function CharacterSheet({
   canTeach = false,
   knownRecipeIds = [],
   craftProjects = [],
+  // The turn's craft Move ledger and each ration's free units left, both
+  // computed in character/page.js (web/lib/craftBudget.js).
+  craftBudget = null,
+  craftAllowances = {},
   // Building (db/lib/structures.js): what stands at this Location, and
   // whether the ground takes anything new. Both built in character/page.js.
   sitesHere = [],
@@ -171,6 +175,8 @@ export default function CharacterSheet({
             canTeach={canTeach}
             knownRecipeIds={knownRecipeIds}
             craftProjects={craftProjects}
+            craftBudget={craftBudget}
+            craftAllowances={craftAllowances}
             sitesHere={sitesHere}
             buildable={buildable}
             teachers={teachers}

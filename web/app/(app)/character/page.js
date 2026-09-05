@@ -51,7 +51,8 @@ import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
-import { MEDICAL_TIER_CAPS } from "@/lib/requests";
+import { MEDICAL_TIER_CAPS, craftFreeUnits } from "@/lib/requests";
+import { summarizeCraftBudget } from "@/lib/craftBudget";
 import {
   evaluateDesireCatalog,
   slotStates,
@@ -769,6 +770,19 @@ export default async function CharacterPage() {
     workedThisTurn: Boolean(openTurn && p.lastTurnId === openTurn.id),
   }));
 
+  // The turn's craft ledger, and how much of each ration is still free
+  // (docs/systemdocs/CRAFTING.md §2a). Both are the SERVER's arithmetic: the
+  // Craft dialog quotes these numbers and clamps its quantity field to them,
+  // but craftRequest re-reads the same rows under a row lock and refuses
+  // regardless, so a stale page can mislead nobody into a craft that lands.
+  const craftBudget = summarizeCraftBudget(currentAction);
+  const craftAllowances = await craftFreeUnits(
+    prisma,
+    character.id,
+    openTurn?.id ?? null,
+    tagCatalog,
+  );
+
   // Building (db/lib/structures.js). EVERY status comes down: the standing-
   // here panel lists a ruin as readily as a finished wall, and the Craft
   // dialog narrows to UNDER_CONSTRUCTION itself. Projected rather than passed
@@ -1278,6 +1292,8 @@ export default async function CharacterPage() {
       canTeach={canTeach}
       knownRecipeIds={knownRecipeIds}
       craftProjects={craftProjects}
+      craftBudget={craftBudget}
+      craftAllowances={craftAllowances}
       sitesHere={sitesHere}
       buildable={buildable}
       teachers={teachers}

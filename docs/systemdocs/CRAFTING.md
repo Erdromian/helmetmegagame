@@ -40,11 +40,11 @@ of it:
   `DEAD_SIMPLE_PER_TURN` units a turn (SMITHING.md §2). **1** is this turn's
   Routine. **2+** is a project (§3).
 - `perTurn` — units of this recipe one character may make in a turn, counted
-  per recipe. **Enforced at `turnsCost: 0` only**; omit it and a Dead Simple
-  recipe falls back to the shared `DEAD_SIMPLE_PER_TURN` pool of 4. Several
-  1-turn recipes carry one anyway (BREWING.md §5) — on those the Move is the
-  ration today, and the number is the batch size a later craft-budget pass
-  will spend fractions of a Move against.
+  per recipe. At `turnsCost: 0` it is the free allowance; omit it and a Dead
+  Simple recipe falls back to the shared `DEAD_SIMPLE_PER_TURN` pool of 4. At
+  `turnsCost: 1` it is the **batch size**: the recipe costs `quantity/perTurn`
+  of the Move instead of all of it, so three Alcohol fill a Routine and one
+  leaves room for two more (§2a).
 - `items` — the ingredients (`CORPSES.md` §8). **Spent by default**,
   `quantity` units per craft, taken off the crafter's own sheet **when the
   work starts** — so a multi-turn project pays up front and `continueCraft`
@@ -68,6 +68,82 @@ The purchase-side checks still apply — prerequisite chain, exclusivity,
 (`craftGrantChecks`). A finished tag lands with `TagSource.CRAFT`, its clock
 stamped by `expiryForGrant`, the tiers below it replaced.
 
+## 2a. The Move budget
+
+A Routine is one Move, and crafting can now spend it in **fractions**. The
+rule is one family of work per turn, and one Move's worth of it.
+
+**What a craft costs.**
+
+| Recipe | Cost of the Move |
+|---|---|
+| `turnsCost: 0`, inside its free allowance | nothing — a free action, as before |
+| `turnsCost: 0`, past the allowance | `1/allowance` per extra unit (a fifth Dead Simple item is ¼ of a Move) |
+| `turnsCost: 1` with `perTurn: N` | `quantity/N` |
+| `turnsCost: 1` with no `perTurn` | the whole Move |
+| `turnsCost: 2+` — a project start or continue | the whole Move, every turn it runs |
+
+The allowance is the recipe's own `perTurn`, or the shared Dead Simple pool of
+4. Going past it used to be refused outright; the ruling (2026-09-05) is that
+the allowance stays free and the units after it come out of the Move. So 4
+work knives are still free, the fifth costs ¼ of a Routine, and the ninth is
+impossible because the Routine is gone.
+
+That fifth knife has a second price worth knowing: spilling files an Action,
+and the auto-labor pass pays only characters with **no** Action
+(`autoLaborPass.js`, `LABORING.md`). Four free knives leave the day's labor
+untouched; the fifth costs it.
+
+**The family.** `craftFamily()` (`web/lib/tagRequests.js`) is the recipe's
+first `requirementSkills` slug whose prefix is one of `brewing`, `cooking`,
+`smithing`, `builder`, `crafting`. Other gates are ignored: barbed-net's
+`fundamentalist` sits beside `crafting` and the recipe is crafting. A recipe
+with **no** craft family — bone-mask, gated on `butcher` alone — can neither
+lock a Routine nor spend from one, so its ration stays a hard wall and going
+past it is refused the way it always was.
+
+A turn's Routine commits to one family. Half a Routine at the still and half
+at the anvil is not a thing, and that includes the Dead Simple pool: spill a
+work knife (`smithing`) into the Move and a sling (`crafting`) is refused for
+the rest of the turn.
+
+**The ledger.** `Action.craftBudget` on the `auto:craft` Action:
+
+```json
+{ "family": "brewing", "usedNum": 2, "usedDen": 3,
+  "entries": [{ "tagId": "…", "name": "Alcohol", "qty": 2, "freeQty": 0,
+                "num": 2, "den": 3, "requestId": "…" }] }
+```
+
+`usedNum/usedDen` is the running total in lowest terms; each entry carries its
+own fraction, and `freeQty` records how much of a straddling order the free
+allowance covered. All of it is integer arithmetic
+(`web/lib/craftBudget.js`) — three thirds have to be exactly one Move.
+
+Nothing is derived and nothing is cached: **the row is the record.** Every
+budget-consuming craft takes the Character `FOR UPDATE` row lock, re-reads the
+Action inside the transaction, re-runs the family and remainder checks there,
+and `fileAutoRoutine`'s `P2002` catch stays the backstop under even that. The
+Action's `description` is rebuilt from the entries each time one lands —
+"Crafting this turn: 2× Alcohol, 1× Cat. ‡" — so the desk reads the whole
+turn's work in one line. A project turn keeps its own "(2/3)" line, because a
+project never shares a turn.
+
+**GM semantics.** **Reject** deletes the Action and the ledger with it
+(`deleteActionRestoringTurn`, which needs to know none of this), and the
+player may craft again that turn from scratch. **Undo** of one craft request
+hands back the tag, the ⬢ and the ingredients but **not** the budget — a
+deliberate asymmetry, Reject being the full reset. Nothing in the turn-end
+push reads `craftBudget`.
+
+**The dialog** quotes all of this before the player commits: the family and
+the fraction left as a header line, cross-family and unaffordable recipes
+greyed with the reason on the row, a quantity field clamped to whichever runs
+out first (ingredients, budget, the server's 99), and a confirm that says
+which units are free and what the rest lock. Every number of it is computed
+server-side in `character/page.js` and re-checked by `craftRequest` under the
+lock — the dialog is a hint, never the gate.
+
 ## 3. Projects
 
 ```
@@ -80,8 +156,9 @@ A table, not an "in progress" pseudo-tag: it has a counter, a payer and a
 link to the Move that last advanced it, and a tag would show on 🔍 inspect
 and count toward carry.
 
-- **Start** (`craftRequest`, `turnsCost ≥ 1`): needs a free Move slot
-  (`moveWindow` open, no Action this turn); charges the payer **and spends the
+- **Start** (`craftRequest`, `turnsCost ≥ 1`): needs a **clean** Move
+  (`moveWindow` open, no Action this turn — and any fraction already spent on
+  a batch craft blocks it, §2a); charges the payer **and spends the
   ingredients**, snapshotting them onto `consumed`; creates the project at
   `turnsDone: 1`; files the Action — `ROUTINE`, `CONFIRMED`, `PASSED`,
   `appliedEffects: {}`, `gmNotes: "auto:craft"`, description "Crafting 4×
@@ -134,7 +211,8 @@ still relies on the Beliefs staying `removable`.
 | Craft / Continue / Cancel / Destroy actions | `web/app/(app)/character/requestActions.js` |
 | Recipe list and projects for the page | `web/app/(app)/character/page.js` (`knownRecipeIds`, `craftProjects`) |
 | Dialog | `web/app/components/CraftDialog.js`, `RequestActionsProvider.js` (`craft`, `destroy`) |
-| Menu filters | `web/lib/tagRequests.js` (`craftableTags`, `destroyableTags`), `web/lib/healRequests.js` (`isHealable`) |
+| Menu filters | `web/lib/tagRequests.js` (`craftableTags`, `destroyableTags`, `craftFamily`), `web/lib/healRequests.js` (`isHealable`) |
+| Move budget | `web/lib/craftBudget.js` (the cost model and the fractions), `web/lib/requests.js` (`craftAllowance`, the two per-turn counters, `craftFreeUnits`), `requestActions.js` (`resolveCraftMove`, `spendCraftMove`) |
 | Flags in sync | `db/lib/syncTags.js`; catalog `docs/tags.yaml` |
 | Kit in reach | `db/lib/equipmentReach.js`, `web/lib/tagRequests.js#needsWorkshop` |
 | Tier replacement | `db/lib/tagWrites.js#replaceLowerTiers` |

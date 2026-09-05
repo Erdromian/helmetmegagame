@@ -99,18 +99,30 @@ recipes still need no Move at all, just the per-turn unit cap below
 (`CRAFTING.md`).
 
 A recipe may also set **`requirement.perTurn`**, its own ration, counted per
-recipe rather than against the shared Dead Simple pool below. Only meaningful
-at `turnsCost: 0` — anything costing a Move is already rationed to one by the
-turn's single Action.
+recipe rather than against the shared Dead Simple pool below. At `turnsCost:
+0` it replaces that pool as the free allowance; at `turnsCost: 1` it is a
+batch size, and the recipe spends `quantity/perTurn` of the Move
+([`CRAFTING.md`](CRAFTING.md) §2a).
 
-**Dead Simple is capped at 4 items per character per turn.** It is the only
-rung that costs 0 turns, so nothing else rations it. The cap counts *units*,
-not requests — these tags are stackable and one Add Tag request can carry any
-quantity — and it is summed across every Add Tag request filed in the open
-turn. Enforced in `addTagRequestImpl`; the constant is
-`DEAD_SIMPLE_PER_TURN` in `web/lib/requests.js`, which also holds
-`isDeadSimple()` — the tier has no column of its own, so it is recognised as
-"0 turns of work plus a smithing or crafting skill gate".
+**Dead Simple gives you 4 free items per character per turn.** It is the only
+rung that costs 0 turns, so nothing else rations it. The allowance counts
+*units*, not requests — these tags are stackable and one Craft request can
+carry any quantity — and it is summed across every ADD_TAG request filed in
+the open turn. The constant is `DEAD_SIMPLE_PER_TURN` in
+`web/lib/requests.js`, which also holds `isDeadSimple()` — the tier has no
+column of its own, so it is recognised as "0 turns of work plus a smithing or
+crafting skill gate" — and `craftAllowance()`, which is the one place that
+decides what a recipe's free ration actually is.
+
+**Over the cap, the work comes out of your Move.** This is the rule Milestone
+A deferred to here. Units past the allowance are not refused: each one costs
+**1/4 of the Routine** (1/`perTurn` for a recipe with its own ration), spent
+against the ledger on the turn's Action and locking that Routine to the
+recipe's family of work — so a smith can make 4 knives free and 4 more on
+their Move, but not a knife, a sling and a Simple sword all in one day.
+[`CRAFTING.md`](CRAFTING.md) §2a is the full rule, including the one case
+where the ration is still a hard wall: a recipe with no craft skill in its
+gate (bone-mask's `butcher`) has no family to bill the overflow to.
 
 The Skill gate itself (a recipe's `requirementSkills`) is an **AND list and is
 enforced** — see [`TAGS.md`](TAGS.md) §3b. The rung splits by material:

@@ -28,7 +28,19 @@ import {
   consumableTags,
   addRequirementSatisfied,
   placementOfferedHere,
+  craftFamily,
 } from "@/lib/tagRequests";
+// The craft Move budget. Pure arithmetic, no prisma — the same module the
+// server enforces with, so the dialog's numbers and the server's refusals
+// come from one place (docs/systemdocs/CRAFTING.md §2a).
+import {
+  WHOLE_MOVE,
+  craftFamilyLabel,
+  craftMoveCost,
+  fitsInRemaining,
+  formatMoveFraction,
+  unitsAffordable,
+} from "@/lib/craftBudget";
 import RequestDialog from "./RequestDialog";
 import CheckField from "./CheckField";
 import PartySelect from "./PartySelect";
@@ -108,6 +120,10 @@ function TagPicker({
   byId = null,
   heldIds = null,
   emptyLabel = "Nothing available.",
+  // (tag) => why this row can't be picked right now, or null. Craft's Move
+  // budget uses it; the row stays listed and says why rather than vanishing,
+  // because "where did my recipe go" is a worse question than a greyed row.
+  blockedReason = null,
 }) {
   const [query, setQuery] = useState("");
 
@@ -190,11 +206,13 @@ function TagPicker({
       >
         {visible.map((tag) => {
           const isSelected = tag.id === selectedId;
+          const blocked = blockedReason?.(tag) ?? null;
           return (
             <button
               key={tag.id}
               type="button"
               aria-pressed={isSelected}
+              disabled={Boolean(blocked)}
               onClick={() => onSelect(isSelected ? null : tag.id)}
               className="select-card panel flex w-full items-start gap-3 p-3 text-left"
               style={{
@@ -262,6 +280,14 @@ function TagPicker({
                 {byId && tag.placement && (
                   <span className="mt-1 block text-xs text-muted">
                     Built where you stand ‡
+                  </span>
+                )}
+                {blocked && (
+                  <span
+                    className="mt-1 block text-xs"
+                    style={{ color: "var(--accent-text)" }}
+                  >
+                    {blocked}
                   </span>
                 )}
               </span>
@@ -367,6 +393,13 @@ export default function RequestActionsProvider({
   // server-side, and your projects in progress.
   knownRecipeIds = [],
   craftProjects = [],
+  // The craft Move budget (CRAFTING.md §2a), both server-computed in
+  // character/page.js. `craftBudget` is this turn's ledger — which family of
+  // work the Routine is committed to and how much of the Move is left, or
+  // null. `craftAllowances` is `{ [tagId]: { per, left } }` for every rationed
+  // 0-turn recipe. Advisory: craftRequest re-checks all of it under a lock.
+  craftBudget = null,
+  craftAllowances = {},
   // Building (db/lib/structures.js). `sitesHere` is every structure at this
   // Location, all statuses; `buildable` is whether the ground takes anything
   // new at all. Both decided server-side in character/page.js, and both are
@@ -648,6 +681,109 @@ export default function RequestActionsProvider({
       ? ingredientPick.options[0].slug
       : "");
 
+  // --- Craft's Move budget ------------------------------------------------
+  //
+  // Everything here is a READOUT. The numbers come off the two server-computed
+  // props, the arithmetic is the same module craftRequest enforces with, and
+  // every refusal below is repeated server-side under a row lock. A greyed row
+  // is a hint; the server is the lock.
+  const craftQty =
+    mode === "craft" && chosen?.stackable
+      ? Math.max(1, Number(quantity) || 1)
+      : 1;
+  const craftRemaining = useMemo(
+    () =>
+      craftBudget
+        ? { num: craftBudget.remainingNum, den: craftBudget.remainingDen }
+        : hasMoved
+          ? { num: 0, den: 1 }
+          : WHOLE_MOVE,
+    [craftBudget, hasMoved],
+  );
+  // What one recipe costs of the Move at a given count, priced against the
+  // free units this turn has left.
+  const priceRecipe = useCallback(
+    (tag, units) =>
+      craftMoveCost(tag, {
+        quantity: units,
+        allowance: craftAllowances[tag.id]?.per ?? null,
+        freeLeft: craftAllowances[tag.id]?.left ?? null,
+      }),
+    [craftAllowances],
+  );
+  // Can the turn still pay for this? A free craft always can.
+  const affordsMove = useCallback(
+    (cost) => {
+      if (!cost || cost.kind === "free") return true;
+      if (cost.kind === "capped") return false;
+      if (craftBudget && craftBudget.family !== cost.family) return false;
+      return fitsInRemaining(cost, craftRemaining);
+    },
+    [craftBudget, craftRemaining],
+  );
+  const craftCost = useMemo(
+    () => (mode === "craft" && chosen ? priceRecipe(chosen, craftQty) : null),
+    [mode, chosen, craftQty, priceRecipe],
+  );
+  const craftAllowance = chosen ? (craftAllowances[chosen.id] ?? null) : null;
+  const craftMoveOk = affordsMove(craftCost);
+  // Why a recipe can't be picked at all right now — only ever asked once the
+  // turn's Move is spoken for, so an untouched turn greys nothing.
+  const recipeBlocked = useCallback(
+    (tag) => {
+      if (!hasMoved) return null;
+      const cost = priceRecipe(tag, 1);
+      if (cost.kind === "free" || affordsMove(cost)) return null;
+      if (craftBudget && craftBudget.family !== cost.family) {
+        return `Your Routine is ${craftFamilyLabel(craftBudget.family)} work this turn. ‡`;
+      }
+      if (!craftBudget) return "You've already used your Move this turn. ‡";
+      return "There isn't enough of your Move left for that. ‡";
+    },
+    [hasMoved, craftBudget, priceRecipe, affordsMove],
+  );
+  // What the quantity stepper stops at: the ingredients on your own sheet, and
+  // what the Move can still pay for. The 99 is craftRequest's own clamp.
+  const heldBySlug = useMemo(
+    () =>
+      new Map(
+        characterTags
+          .filter((ct) => ct.tag?.slug)
+          .map((ct) => [ct.tag.slug, ct.quantity ?? 1]),
+      ),
+    [characterTags],
+  );
+  const craftQuantityMax = useMemo(() => {
+    if (mode !== "craft" || !chosen) return 99;
+    let max = 99;
+    for (const item of chosen.requirementItems ?? []) {
+      if (item.keep || item.kind === "group") continue;
+      const slug = item.kind === "anyOf" ? ingredientChoiceValue : item.slug;
+      if (!slug) continue;
+      max = Math.min(max, heldBySlug.get(slug) ?? 0);
+    }
+    const per = craftAllowances[chosen.id]?.per ?? null;
+    const left = craftAllowances[chosen.id]?.left ?? 0;
+    const family = craftFamily(chosen);
+    if ((chosen.requirementTurns ?? 1) === 0 && per != null) {
+      // Free units first, then whatever the Move can still buy at 1/per each.
+      max = Math.min(
+        max,
+        family ? left + unitsAffordable(craftRemaining, per) : left,
+      );
+    } else if (per != null && family) {
+      max = Math.min(max, unitsAffordable(craftRemaining, per));
+    }
+    return Math.max(1, max);
+  }, [
+    mode,
+    chosen,
+    heldBySlug,
+    ingredientChoiceValue,
+    craftAllowances,
+    craftRemaining,
+  ]);
+
   function pick(nextTagId) {
     setTagId(nextTagId);
     setQuantity("1");
@@ -745,10 +881,34 @@ export default function RequestActionsProvider({
   async function submit(reason) {
     if (mode === "craft" && !projectId && !siteId && chosen) {
       const turns = chosen.requirementTurns ?? 1;
-      const qty = chosen.stackable ? Math.max(1, Number(quantity) || 1) : 1;
+      const qty = craftQty;
       const cost = (chosen.requirementResources ?? 0) * qty;
       const what = qty > 1 ? `${qty}× ${chosen.name}` : chosen.name;
-      if (turns > 0 || cost > 0) {
+      // What this costs of the Move, in the player's words. Three shapes: it
+      // locks the Routine to a family of work, it spends from a lock already
+      // taken, or — the new one — it spills past a free allowance into the
+      // Move. Declining crafts nothing.
+      const move = craftCost;
+      const family = craftFamilyLabel(move?.family);
+      const share =
+        move && move.num < move.den
+          ? `${formatMoveFraction(move.num, move.den)} of your Move`
+          : "your whole Move for the turn";
+      let moveLine = null;
+      if (move && move.kind !== "free" && move.kind !== "capped") {
+        if (move.kind === "whole" && !craftBudget) {
+          moveLine = "This is your Move for the turn.";
+        } else {
+          const takes =
+            move.freeQty > 0
+              ? `The first ${move.freeQty} ${move.freeQty === 1 ? "is" : "are"} free; the rest take ${share}`
+              : `That takes ${share}`;
+          moveLine = craftBudget
+            ? `${takes}, on top of the ${family} work you've already put this turn into.`
+            : `${takes}, and locks the rest of your Routine to ${family} work — you can keep at that until the turn is spent.`;
+        }
+      }
+      if (moveLine || cost > 0) {
         const ok = await confirm({
           title: turns > 1 ? "Start the work?" : "Make it?",
           message: [
@@ -758,7 +918,7 @@ export default function RequestActionsProvider({
             cost > 0
               ? `${cost} ⬢ are paid now by ${payerLabel(healParties, payerKey)}, and not refunded if you stop.`
               : null,
-            turns > 0 ? "This is your Move for the turn." : null,
+            moveLine,
             "‡",
           ]
             .filter(Boolean)
@@ -1003,13 +1163,11 @@ export default function RequestActionsProvider({
         if (!chosen) return false;
         // A recipe with a pick and nothing to pick from cannot be made at all.
         if (ingredientPick && !ingredientChoiceValue) return false;
-        const cost =
-          (chosen.requirementResources ?? 0) *
-          (chosen.stackable ? Math.max(1, Number(quantity) || 1) : 1);
-        return (
-          Boolean(cost === 0 || payerKey) &&
-          ((chosen.requirementTurns ?? 1) === 0 || !hasMoved)
-        );
+        const cost = (chosen.requirementResources ?? 0) * craftQty;
+        // A 0-turn craft inside its free allowance never needed a Move and
+        // still doesn't; everything else has to fit in what the turn has left
+        // (CRAFTING.md §2a). craftRequest refuses the same cases regardless.
+        return Boolean(cost === 0 || payerKey) && craftMoveOk;
       }
       case "learn":
       case "teach":
@@ -1156,6 +1314,7 @@ export default function RequestActionsProvider({
                     onSelect={pick}
                     byId={gateById}
                     heldIds={heldIds}
+                    blockedReason={recipeBlocked}
                     emptyLabel="You don't know any recipes you could make right now. ‡"
                   />
                 }
@@ -1163,6 +1322,11 @@ export default function RequestActionsProvider({
                 stacking={stacking}
                 quantity={quantity}
                 onQuantity={setQuantity}
+                quantityMax={craftQuantityMax}
+                budget={craftBudget}
+                moveCost={craftCost}
+                allowance={craftAllowance}
+                moveOk={craftMoveOk}
                 ingredientPick={ingredientPick}
                 ingredientChoice={ingredientChoiceValue}
                 onIngredientChoice={setIngredientChoice}
