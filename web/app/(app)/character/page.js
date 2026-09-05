@@ -321,6 +321,11 @@ export default async function CharacterPage() {
         requirementTurns: true,
         requirementResources: true,
         requirementPerTurn: true,
+        // The ingredients, so the Craft dialog can say what a recipe spends
+        // and offer the picker an `anyOf` entry needs. Every surface that
+        // renders a Recipe line has to select this or it silently renders none
+        // (CORPSES.md §8).
+        requirementItems: true,
         // So the Craft menu can say what a piece of armour is worth before
         // somebody spends two turns and 26 ⬢ finding out.
         meleeArmor: true,
@@ -654,11 +659,86 @@ export default async function CharacterPage() {
   // Craft (CRAFTING.md): the recipes whose every skill this character holds
   // (or a higher tier of), decided here and re-checked by craftRequest. The
   // client filters its picker to these ids and nothing else.
+  //
+  // Ingredient hiding is menu hygiene, not secrecy (planning/crafting-pass-
+  // goals.md): the recipe's DESCRIPTION and the public Tag Catalog's Recipe
+  // line still name every ingredient, GM-only or not — that's the recipe
+  // teaching itself. This only keeps a recipe you have no path to yet out of
+  // the picker, so a fresh crafter isn't offered Miasma before they've ever
+  // seen a corpse. The tagCatalog query above never selects
+  // `catalogVisibility` (it isn't craftable/purchasable itself, and an
+  // ingredient tag usually is neither), so the slugs and groups a craftable
+  // recipe's requirementItems name are resolved with one more targeted query.
+  const restrictedTagSlugs = new Set();
+  const restrictedGroupSlugs = new Set();
+  for (const t of tagCatalog) {
+    if (!t.craftable) continue;
+    for (const item of t.requirementItems ?? []) {
+      if (item.kind === "group") restrictedGroupSlugs.add(item.slug);
+      else if (item.kind === "anyOf")
+        item.slugs.forEach((s) => restrictedTagSlugs.add(s));
+      else restrictedTagSlugs.add(item.slug);
+    }
+  }
+  const ingredientVisibilityRows =
+    restrictedTagSlugs.size || restrictedGroupSlugs.size
+      ? await prisma.tag.findMany({
+          where: {
+            OR: [
+              restrictedTagSlugs.size
+                ? { slug: { in: [...restrictedTagSlugs] } }
+                : null,
+              restrictedGroupSlugs.size
+                ? { group: { slug: { in: [...restrictedGroupSlugs] } } }
+                : null,
+            ].filter(Boolean),
+          },
+          select: {
+            slug: true,
+            catalogVisibility: true,
+            group: { select: { slug: true } },
+          },
+        })
+      : [];
+  const visibilityBySlug = new Map(
+    ingredientVisibilityRows.map((r) => [r.slug, r.catalogVisibility]),
+  );
+  // A group entry (miasma/bone-mask's corpse) is non-public the moment ANY
+  // tag currently wearing that group is non-ALL — which for `items-corpse`
+  // is every row: the authored monster corpses are `catalog: secret`, and a
+  // corpse minted at death (db/lib/corpseMint.js) is never in docs/tags.yaml
+  // at all, so it carries the schema default (`GM`).
+  const nonAllGroupSlugs = new Set(
+    ingredientVisibilityRows
+      .filter((r) => r.group && r.catalogVisibility !== "ALL")
+      .map((r) => r.group.slug),
+  );
+  function isNonPublicRecipe(tag) {
+    return (tag.requirementItems ?? []).some((item) => {
+      if (item.kind === "group") return nonAllGroupSlugs.has(item.slug);
+      const slugs = item.kind === "anyOf" ? item.slugs : [item.slug];
+      return slugs.some((s) => visibilityBySlug.get(s) !== "ALL");
+    });
+  }
+  // Mirrors resolveRecipeItems' HOLD semantics (requestActions.js), at
+  // quantity 1 — a hidden recipe only has to prove itself known, not
+  // affordable, so this checks "holds one" rather than resolving a spend
+  // plan or an anyOf choice.
+  function satisfiesIngredientsAtQuantityOne(tag) {
+    return (tag.requirementItems ?? []).every((item) => {
+      if (item.kind === "group") {
+        return character.tags.some((ct) => ct.tag.group?.slug === item.slug);
+      }
+      const slugs = item.kind === "anyOf" ? item.slugs : [item.slug];
+      return character.tags.some((ct) => slugs.includes(ct.tag.slug));
+    });
+  }
   const knownRecipeIds = tagCatalog
     .filter(
       (t) =>
         t.craftable &&
-        (t.requirementSkills ?? []).every((skill) => satisfied.has(skill.id)),
+        (t.requirementSkills ?? []).every((skill) => satisfied.has(skill.id)) &&
+        (!isNonPublicRecipe(t) || satisfiesIngredientsAtQuantityOne(t)),
     )
     .map((t) => t.id);
   const craftProjects = (

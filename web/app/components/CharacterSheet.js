@@ -215,6 +215,7 @@ export default function CharacterSheet({
                 zoneMovesReason={zoneMovesReason}
                 pendingOffers={pendingOffers}
                 sitesHere={sitesHere}
+                craftProjects={craftProjects}
               />
 
               <TagsPanel
