@@ -187,17 +187,38 @@ export const REQUEST_EFFECTS = {
           );
           effect.replacedRestored = true;
         }
+        // The ingredients a craft spent come back with the thing they made —
+        // same snapshot shape, same flag pattern, so a second Confirm can't
+        // hand them out twice.
+        if (effect.consumed?.length && !effect.consumedRestored) {
+          for (const snapshot of effect.consumed) {
+            await restoreCharacterTag(tx, request.characterId, snapshot);
+          }
+          notes.push(
+            `Returned ${effect.consumed.map((c) => formatStack(c.tagName, c.quantity)).join(", ")}.`,
+          );
+          effect.consumedRestored = true;
+        }
       }
 
       return { effect, note: notes.join(" ") || "No changes.", changed: notes.length > 0 };
     },
     async undo(tx, request) {
-      const { tagId, tagName, resourcesSpent, quantity, replaced = [], payer = null, projectId = null } = request.effect;
+      const { tagId, tagName, resourcesSpent, quantity, replaced = [], consumed = [], payer = null, projectId = null } = request.effect;
       if (tagId && !request.effect.tagRemovedByGm) {
         await dropCharacterTag(tx, request.characterId, tagId, quantity ?? 1);
       }
       if (!request.effect.replacedRestored) {
         for (const snapshot of replaced) {
+          await restoreCharacterTag(tx, request.characterId, snapshot);
+        }
+      }
+      // A craft's ingredients are refunded with its ⬢ — the goods-vs-Resources
+      // rule is the same one either way: nothing was really made, so nothing
+      // was really spent. Cancelling the work yourself is the case that keeps
+      // neither (CRAFTING.md §3).
+      if (!request.effect.consumedRestored) {
+        for (const snapshot of consumed) {
           await restoreCharacterTag(tx, request.characterId, snapshot);
         }
       }
@@ -213,8 +234,12 @@ export const REQUEST_EFFECTS = {
         !request.effect.replacedRestored && replaced.length
           ? `, restored ${replaced.map((r) => r.tagName ?? "a replaced tier").join(", ")},`
           : "";
+      const consumedNote =
+        !request.effect.consumedRestored && consumed.length
+          ? `, returned ${consumed.map((c) => formatStack(c.tagName, c.quantity)).join(", ")},`
+          : "";
       const refundNote = resourcesSpent ? ` and refunded ${resourcesSpent} ⬢ to ${payer?.name ?? "them"}` : "";
-      return `Removed ${formatStack(tagName, quantity)}${restoredNote}${refundNote}.`;
+      return `Removed ${formatStack(tagName, quantity)}${restoredNote}${consumedNote}${refundNote}.`;
     },
   },
 

@@ -500,7 +500,8 @@ async function syncTagsFromYaml(prisma) {
       selfSlug: t.slug,
       knownSlugs: allTagSlugs,
     });
-    // requirement.items — the enforced, non-consuming ingredient check.
+    // requirement.items — the enforced ingredient block: spent by default,
+    // held where the entry says `keep` (docs/systemdocs/CORPSES.md §8).
     validateRequirementItems(
       normalizeRequirementItems(t.requirement?.items, { tagNameBySlug, groupNameBySlug }),
       {
@@ -508,6 +509,7 @@ async function syncTagsFromYaml(prisma) {
         tagSlugs: allTagSlugs,
         groupSlugs: allGroupSlugs,
         craftable: t.craftable ?? false,
+        placement: t.placement ?? null,
       },
     );
     // laborBonus — the tools table (docs/systemdocs/LABORING.md). A bonus that

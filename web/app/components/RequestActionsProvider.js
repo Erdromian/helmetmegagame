@@ -437,6 +437,8 @@ export default function RequestActionsProvider({
   // A build site standing here, picked from the same dropdown as a project.
   const [siteId, setSiteId] = useState("");
   const [projectChoice, setProjectChoice] = useState("continue");
+  // Which member of a recipe's `anyOf` ingredient goes in (Craft only).
+  const [ingredientChoice, setIngredientChoice] = useState("");
   const [recipient, setRecipient] = useState("");
   const [patientId, setPatientId] = useState("");
   const [payerKey, setPayerKey] = useState("");
@@ -623,9 +625,33 @@ export default function RequestActionsProvider({
     })
     .filter(Boolean);
 
+  // An `anyOf` ingredient (Tag.requirementItems) is the one part of a recipe
+  // the catalog cannot decide for the player: which delicacy goes into the
+  // Lavish Meal. Only members they are actually holding are offered — the
+  // server re-checks both membership and possession, so this is a shortlist,
+  // not a gate. At most one per recipe; the sync refuses a second.
+  const ingredientPick = useMemo(() => {
+    if (mode !== "craft") return null;
+    const entry = (chosen?.requirementItems ?? []).find(
+      (i) => i?.kind === "anyOf",
+    );
+    if (!entry) return null;
+    return {
+      label: entry.label,
+      options: (entry.options ?? []).filter((o) => heldSlugs.has(o.slug)),
+    };
+  }, [mode, chosen, heldSlugs]);
+  // One option needs no decision, so it is taken as made rather than asked for.
+  const ingredientChoiceValue =
+    ingredientChoice ||
+    (ingredientPick?.options.length === 1
+      ? ingredientPick.options[0].slug
+      : "");
+
   function pick(nextTagId) {
     setTagId(nextTagId);
     setQuantity("1");
+    setIngredientChoice("");
   }
 
   // Loot takes a mix, so its picks are a checkbox set rather than one choice.
@@ -813,7 +839,13 @@ export default function RequestActionsProvider({
             : continueCraft({ projectId, reason });
         }
         // Always sent; the server pins it to 1 for a non-stackable tag anyway.
-        return craftRequest({ tagId, quantity, payerKey, reason });
+        return craftRequest({
+          tagId,
+          quantity,
+          payerKey,
+          ingredientChoice: ingredientChoiceValue,
+          reason,
+        });
       case "destroy":
         return destroyTagRequest({ tagId, quantity, reason });
       case "learn":
@@ -969,6 +1001,8 @@ export default function RequestActionsProvider({
           );
         }
         if (!chosen) return false;
+        // A recipe with a pick and nothing to pick from cannot be made at all.
+        if (ingredientPick && !ingredientChoiceValue) return false;
         const cost =
           (chosen.requirementResources ?? 0) *
           (chosen.stackable ? Math.max(1, Number(quantity) || 1) : 1);
@@ -1129,6 +1163,9 @@ export default function RequestActionsProvider({
                 stacking={stacking}
                 quantity={quantity}
                 onQuantity={setQuantity}
+                ingredientPick={ingredientPick}
+                ingredientChoice={ingredientChoiceValue}
+                onIngredientChoice={setIngredientChoice}
                 payerKey={payerKey}
                 onPayer={setPayerKey}
                 parties={healParties}

@@ -111,72 +111,133 @@ function rollTagChain(normalized) {
   return slugs;
 }
 
-// requirement.items — the INGREDIENT half of a recipe, and the first one this
-// game has ever actually enforced (docs/systemdocs/BREWING.md was explicit
-// that nothing did). Two entry shapes, because the two recipes that use it
-// want different things:
+// requirement.items — the INGREDIENT half of a recipe. Three entry shapes:
 //
-//     items: [skinless-brain]              a specific tag
-//     items: [{ group: items-corpse }]     any tag in a group
+//     items: [cave-fungus]                 a specific tag, SPENT
+//     items: [{ group: items-corpse }]     any tag in a group, KEPT
+//     items: [{ anyOf: [tea, sweets] }]    the player picks one, SPENT
 //
 // The group form is not a convenience — it is the only thing that can work for
 // Miasma. A person's corpse tag is written at death (db/lib/corpseMint.js) and
 // never appears in docs/tags.yaml, so no authored slug could ever name one.
 // That is also why the stored column is Json rather than a Tag[] relation.
 //
-// HOLDING IT IS THE CHECK. Nothing here is consumed, no quantity moves, and
-// crafting twice off one corpse is allowed: the recipe says you need one to
-// hand, not that you use it up.
+// CONSUMED OR KEPT, and the default differs by shape. A slug (or an `anyOf`
+// pick) is SPENT — `quantity` units per craft, scaled the same way ⬢ is. A
+// GROUP entry is KEPT: a body has its own lifecycle, and "any member of a
+// group" has no single stack to decrement, so `keep: false` on a group is
+// refused rather than guessed at. `keep: true` on a slug turns it back into
+// the old hold-check (dreamers-draught's brain used to be one).
 //
 // `label` on each normalized entry is DENORMALIZED on purpose.
 // formatTagRequirement() is pure and synchronous and is called from four
 // surfaces with four different selects; resolving a group's name at render
 // time would mean widening every one of them and giving the bot an extra
 // query. The sync rewrites the label every run, which is the same freshness
-// contract every other denormalized field in the catalog has.
+// contract every other denormalized field in the catalog has. An `anyOf`
+// entry carries `options: [{ slug, name }]` for the same reason: the Craft
+// dialog's picker needs the members' names and has only the recipe row.
+function joinWithOr(names) {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
+}
+
 function normalizeRequirementItems(entries, { tagNameBySlug = null, groupNameBySlug = null } = {}, label = "docs/tags.yaml") {
   if (entries == null) return null;
   if (!Array.isArray(entries)) throw new Error(`${label}: requirement.items must be a list`);
   if (entries.length === 0) return null;
   return entries.map((entry) => {
     if (typeof entry === "string") {
-      return { kind: "tag", slug: entry, label: tagNameBySlug?.get(entry) ?? entry };
+      return { kind: "tag", slug: entry, label: tagNameBySlug?.get(entry) ?? entry, keep: false };
     }
     const hasTag = typeof entry?.tag === "string";
     const hasGroup = typeof entry?.group === "string";
-    if (hasTag === hasGroup) {
-      throw new Error(`${label}: a requirement.items entry needs exactly one of \`tag:\` or \`group:\``);
+    const hasAnyOf = entry?.anyOf != null;
+    if ([hasTag, hasGroup, hasAnyOf].filter(Boolean).length !== 1) {
+      throw new Error(`${label}: a requirement.items entry needs exactly one of \`tag:\`, \`group:\` or \`anyOf:\``);
+    }
+    if (entry.keep != null && typeof entry.keep !== "boolean") {
+      throw new Error(`${label}: a requirement.items \`keep:\` must be a boolean`);
     }
     if (hasTag) {
-      return { kind: "tag", slug: entry.tag, label: entry.as ?? tagNameBySlug?.get(entry.tag) ?? entry.tag };
+      return {
+        kind: "tag",
+        slug: entry.tag,
+        label: entry.as ?? tagNameBySlug?.get(entry.tag) ?? entry.tag,
+        keep: entry.keep === true,
+      };
+    }
+    if (hasAnyOf) {
+      if (!Array.isArray(entry.anyOf) || entry.anyOf.length < 2 || entry.anyOf.some((s) => typeof s !== "string")) {
+        throw new Error(`${label}: a requirement.items \`anyOf:\` must list 2 or more tag slugs`);
+      }
+      const slugs = [...entry.anyOf];
+      const options = slugs.map((slug) => ({ slug, name: tagNameBySlug?.get(slug) ?? slug }));
+      return {
+        kind: "anyOf",
+        slugs,
+        options,
+        label: entry.as ?? joinWithOr(options.map((o) => o.name)),
+        keep: entry.keep === true,
+      };
+    }
+    // A group is HELD, never spent: there is no one stack to take it out of.
+    if (entry.keep === false) {
+      throw new Error(
+        `${label}: a requirement.items \`group:\` entry cannot set \`keep: false\` — a group names no single stack to spend`,
+      );
     }
     // "Corpses" -> "a corpse". Graceless for some group names, which is what
     // the `as:` override is there for.
     const name = groupNameBySlug?.get(entry.group) ?? entry.group;
     const derived = name.replace(/s$/i, "").toLowerCase();
-    return { kind: "group", slug: entry.group, label: entry.as ?? `a ${derived}` };
+    return { kind: "group", slug: entry.group, label: entry.as ?? `a ${derived}`, keep: true };
   });
 }
 
-function validateRequirementItems(normalized, { selfSlug, tagSlugs, groupSlugs, craftable, label = "docs/tags.yaml" }) {
+function validateRequirementItems(normalized, { selfSlug, tagSlugs, groupSlugs, craftable, placement = null, label = "docs/tags.yaml" }) {
   if (!normalized) return;
   const seen = new Set();
+  let pickers = 0;
   for (const entry of normalized) {
-    const known = entry.kind === "tag" ? tagSlugs : groupSlugs;
-    if (!known?.has(entry.slug)) {
-      throw new Error(`${label}: tag "${selfSlug}" references unknown requirement item ${entry.kind} "${entry.slug}"`);
+    const slugs = entry.kind === "anyOf" ? entry.slugs : [entry.slug];
+    const known = entry.kind === "group" ? groupSlugs : tagSlugs;
+    for (const slug of slugs) {
+      if (!known?.has(slug)) {
+        throw new Error(`${label}: tag "${selfSlug}" references unknown requirement item ${entry.kind} "${slug}"`);
+      }
     }
-    const key = `${entry.kind}:${entry.slug}`;
+    if (entry.kind === "anyOf" && new Set(slugs).size !== slugs.length) {
+      throw new Error(`${label}: tag "${selfSlug}" lists the same slug twice inside one anyOf`);
+    }
+    if (entry.kind === "anyOf") pickers += 1;
+    const key = entry.kind === "anyOf" ? `anyOf:${[...slugs].sort().join("|")}` : `${entry.kind}:${entry.slug}`;
     if (seen.has(key)) {
-      throw new Error(`${label}: tag "${selfSlug}" lists requirement item "${entry.slug}" twice`);
+      throw new Error(`${label}: tag "${selfSlug}" lists requirement item "${slugs.join("/")}" twice`);
     }
     seen.add(key);
+  }
+  // ONE picker per recipe. The Craft dialog posts a single `ingredientChoice`,
+  // so a second anyOf would have no way to be answered — refuse it here rather
+  // than ship a recipe nobody can file.
+  if (pickers > 1) {
+    throw new Error(`${label}: tag "${selfSlug}" has ${pickers} anyOf ingredients — the Craft dialog posts one choice`);
   }
   // Not pedantry. The only enforcement point is the Craft path, so an `items`
   // block on anything else would sit in the catalog looking enforced and do
   // nothing — which is the exact failure mode this field exists to end.
   if (!craftable) {
     throw new Error(`${label}: tag "${selfSlug}" declares requirement.items but is not craftable — nothing would ever check it`);
+  }
+  // A `placement:` recipe is raised by a CREW over several turns
+  // (openBuildSiteImpl / joinBuildSite), and nothing on that path spends an
+  // ingredient — whose stack would it come out of, on turn three, when a
+  // second builder lends the Move? Refusing at sync is cheaper than inventing
+  // crew-turn ingredient semantics nobody asked for.
+  if (placement) {
+    throw new Error(
+      `${label}: tag "${selfSlug}" declares requirement.items and placement — a build site never spends an ingredient`,
+    );
   }
 }
 

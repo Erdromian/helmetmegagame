@@ -35,6 +35,11 @@ export default function CraftDialog({
   stacking,
   quantity,
   onQuantity,
+  // The one ingredient a recipe leaves to the player: { label, options } for
+  // an `anyOf` entry, already narrowed to what this character holds, or null.
+  ingredientPick = null,
+  ingredientChoice = "",
+  onIngredientChoice,
   payerKey,
   onPayer,
   parties,
@@ -59,6 +64,26 @@ export default function CraftDialog({
   // grants the same fieldwork exemption the server does, or the hint would
   // warn about a kit a drying rack never needed.
   const wantsWorkshop = chosen ? needsWorkshop(chosen) && !chosen.placement?.fieldwork : false;
+  // Ingredients (Tag.requirementItems). Spent and kept are said separately,
+  // because they are different bargains: a spend scales with the count and
+  // leaves the sheet, a keep is a thing you have to be holding and still have
+  // afterwards. Said here rather than only on the chip, since this is the
+  // moment it costs something.
+  const units = chosen?.stackable ? qty : 1;
+  const spends = (chosen?.requirementItems ?? [])
+    .filter((i) => !i.keep)
+    .map((i) => (units > 1 ? `${units} × ${i.label}` : i.label));
+  const keeps = (chosen?.requirementItems ?? [])
+    .filter((i) => i.keep)
+    .map((i) => i.label);
+  const ingredientNote = [
+    spends.length ? `Uses up ${spends.join(" and ")}.` : null,
+    keeps.length
+      ? `Needs ${keeps.join(" and ")} to hand, which isn't used up.`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <>
@@ -172,6 +197,30 @@ export default function CraftDialog({
                   onChange={onQuantity}
                 />
               )}
+              {ingredientPick &&
+                (ingredientPick.options.length > 0 ? (
+                  <label className="field">
+                    <span className="field-label">
+                      Which goes in? ‡
+                    </span>
+                    <Select
+                      value={ingredientChoice}
+                      onChange={(e) => onIngredientChoice(e.target.value)}
+                    >
+                      <option value="">Choose one… ‡</option>
+                      {ingredientPick.options.map((o) => (
+                        <option key={o.slug} value={o.slug}>
+                          {o.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                ) : (
+                  <p className="text-xs text-accent">
+                    This needs {ingredientPick.label}, and you have none of
+                    them. ‡
+                  </p>
+                ))}
               {cost > 0 && (
                 <PartySelect
                   label="Paid for by ‡"
@@ -199,6 +248,9 @@ export default function CraftDialog({
                 {cost > 0 ? ` Costs ${cost} ⬢, paid now. ‡` : " Costs nothing. ‡"}
                 {turns > 0 && hasMoved ? " You've already used your Move this turn. ‡" : ""}
               </p>
+              {ingredientNote && (
+                <p className="text-xs text-muted">{`${ingredientNote} ‡`}</p>
+              )}
               {/* An edge-holding structure is a map edit, and the person
                   paying 40 ⬢ for one deserves to hear it before the
                   confirm — even though WHICH way (if any) depends on the

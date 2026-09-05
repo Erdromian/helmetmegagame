@@ -68,11 +68,16 @@ names a `smithing-*` or `builder-*` skill **and does not offer `crafting`**. A
 recipe whose type carries `placement.fieldwork: true` — a light field
 structure — skips the workshop rule entirely.
 
-That second half matters. Every Dead Simple recipe lists
-`skills: [crafting, smithing]`, and the `crafting` half is what says a work
-knife or a sling is something you can whittle. So the whole Dead Simple rung
-stays anvil-free, and what is gated is the real forge work: 32 recipes today —
-every Simple rung and up, plus the Cart and the Plow.
+That second half matters, and **this paragraph used to get it wrong**. It said
+every Dead Simple recipe listed `skills: [crafting, smithing]`, so none of them
+needed a forge. The rung was written that way meaning "either skill", but
+`requirementSkills` is an AND, so it demanded both — and it was split by
+material to fix that. Nothing in the catalog lists the pair now. A sling or a
+club lists `skills: [crafting]` and stays something you whittle; the five metal
+Dead Simple recipes (work knife, hatchet, cudgel, pitchfork, armored gloves)
+list `skills: [smithing]` and went behind a forge for the first time as a side
+effect of the split. What is gated, then, is every Simple rung and up, those
+five, plus the Cart and the Plow.
 
 The rule is read off the recipe's own skills rather than a per-tag flag, so a
 new sword is gated the moment it names a smithing skill and nobody has to

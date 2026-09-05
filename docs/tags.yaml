@@ -4541,8 +4541,8 @@ tags:
 
   # Same shape as the Graga Sac above — a monster organ that is an ingredient
   # and nothing else: stackable, tradeable, sellable, and NOT consumable,
-  # because the brewing Move is what spends it (the GM takes it off the sheet),
-  # not the holder drinking it. Priced above a Graga Sac: a Graga is slow and
+  # because the brewing Move is what spends it (the Craft path takes it off the
+  # sheet now, not a GM by hand), not the holder drinking it. Priced above a Graga Sac: a Graga is slow and
   # easily escaped, while the Skinless travel in packs and used to be people.
   skinless-brain:
     catalog: gm
@@ -4564,8 +4564,8 @@ tags:
     # instead, and a single organ standing near a whole day's industry was
     # reading the Skinless as a shortcut past it. Still well above a Graga Sac:
     # they are the only ingredient in the catalog that has to be talked out of
-    # being a person first, and they are one of only two enforced ingredients
-    # (Tag.requirementItems), so it can never be hand-waved. ‡
+    # being a person first — and the Dreamer's Draught SPENDS one now
+    # (Tag.requirementItems), so that decision is taken per bottle. ‡
     sellablePrice: 25
 
   # --- Corpses -----------------------------------------------------------
@@ -4646,6 +4646,72 @@ tags:
     removable: true
     sellable: true
     sellablePrice: 3
+
+  # --- Three brewing ingredients that used to be prose ---------------------
+  #
+  # Nightshade's "forest herb", Pure Luck's Aberrant heart and Raven Draught's
+  # raven's eye were named in their recipes and tracked by nothing. They are
+  # tags now, and their recipes SPEND them (`requirement.items`), so the
+  # ingredient is a real gate instead of an honour-system one.
+  #
+  # Same shape as the Graga Sac above — an ingredient and nothing else:
+  # stackable, tradeable, sellable, and NOT consumable, because the brewing
+  # Move is what spends it, not the holder eating it.
+  #
+  # NOTHING DROPS THESE YET. The laboring loot-table pass wires acquisition;
+  # our job was to make the slugs exist. Until then a GM grants them.
+  aberrant-heart:
+    catalog: gm
+    name: Aberrant Heart
+    category: items
+    group: items-gear
+    description: "Cut out of a dead Aberrant. The one thing {tag:pure-luck} cannot be brewed without. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    sellable: true
+    # The dearest of the three by a wide margin: an Aberrant has to fall first,
+    # and the recipe it feeds costs 0 ⬢ because the heart is the price. ‡
+    sellablePrice: 20
+
+  ravens-eye:
+    catalog: gm
+    name: Raven's Eye
+    category: items
+    group: items-gear
+    description: "Taken from a bird that saw a great deal. Brewed into {tag:raven-draught}. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    sellable: true
+    sellablePrice: 4
+
+  nightshade-herb:
+    catalog: all
+    name: Nightshade Herb
+    category: items
+    group: items-gear
+    description: "A dark forest herb, harmless until it is refined into {tag:nightshade}. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    sellable: true
+    sellablePrice: 2
 
   # The generator's proper fuel. Imported, so the Merchant has to buy it off
   # the station with the profit he makes selling everything else — which is the
@@ -6616,7 +6682,7 @@ tags:
     name: Lavish Meal
     category: items
     group: items-food
-    description: "A worthy meal! Makes anyone happy, Nobility included, and can be used as a Desire. Needs 1 hard-to-get exotic ingredient on top of the resource cost."
+    description: "A worthy meal! Makes anyone happy, Nobility included, and can be used as a Desire. Takes one imported delicacy on top of the resource cost — {tag:tea}, {tag:sweets} or {tag:honey}, cook's choice. ‡"
     pointCost: 0
     tradeable: true
     weight: 2
@@ -6630,9 +6696,19 @@ tags:
     consumesInto:
       - ate-meal
     requirement:
+      # Written out rather than left to the `?? 1` fallback — an absent
+      # turnsCost is how Bliss quietly cost a Move it wasn't meant to.
+      turnsCost: 1
       resourceCost: 3
+      # Its own copy has always said "up to 3 per Routine"; now the catalog
+      # says it too.
+      perTurn: 3
       skills: [cooking-skilled]
       gambit: false
+      # The one recipe the cook chooses an ingredient for. All three are Depot
+      # imports, so the delicacy is a real errand rather than a foraging trip.
+      items:
+        - anyOf: [tea, sweets, honey]
 
   # --- The two kits -------------------------------------------------------
   # Neither is gear you wear; both are gear you have to GET TO. Each is
@@ -8478,6 +8554,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
+      perTurn: 3
       skills: [brewing-basic]
       gambit: false
     sellable: true
@@ -8529,9 +8606,15 @@ tags:
       - slug: high
         durationTurns: 3
     requirement:
+      # turnsCost was ABSENT, which reads as `null` and falls back to 1 — so
+      # Bliss quietly cost a whole Move, contradicting both BREWING.md §2 and
+      # the player's own paper. Written out, with the yield §5 always claimed.
+      turnsCost: 0
       resourceCost: 0
+      perTurn: 2
       skills: [brewing-basic]
       gambit: false
+      items: [cave-fungus]
     sellable: true
     sellablePrice: 3
 
@@ -8613,7 +8696,11 @@ tags:
     craftable: true
     consumable: true
     requirement:
+      # Free and needing nothing, so the ration is the only thing between this
+      # and an unlimited request faucet. Same 2 the other 0-turn brews get.
+      turnsCost: 0
       resourceCost: 0
+      perTurn: 2
       skills: [brewing-basic]
       gambit: false
 
@@ -8636,6 +8723,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
+      perTurn: 2
       skills: [brewing-basic]
       gambit: false
     sellable: true
@@ -8665,6 +8753,7 @@ tags:
       resourceCost: 3
       skills: [brewing-basic]
       gambit: false
+      items: [alcohol]
     sellable: true
     sellablePrice: 7
 
@@ -8689,6 +8778,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
+      perTurn: 2
       skills: [brewing-basic]
       gambit: false
     sellable: true
@@ -8711,9 +8801,14 @@ tags:
     craftable: true
     consumable: true
     requirement:
+      # turnsCost written out for the same reason Bliss's is: absent read as 1
+      # and made this a whole Move, which is not what §2 or the paper says.
+      turnsCost: 0
       resourceCost: 2
+      perTurn: 2
       skills: [brewing-basic]
       gambit: false
+      items: [alcohol]
     sellable: true
     sellablePrice: 4
 
@@ -8722,7 +8817,7 @@ tags:
     name: Nightshade
     category: items
     group: items-drink
-    description: "Refined from a common forest herb. Whoever takes it dies frothing in public — it inflicts {tag:choking}."
+    description: "Refined from {tag:nightshade-herb}. Whoever takes it dies frothing in public — it inflicts {tag:choking}. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -8738,6 +8833,7 @@ tags:
       resourceCost: 3
       skills: [brewing-basic]
       gambit: false
+      items: [nightshade-herb]
     sellable: true
     sellablePrice: 7
 
@@ -8763,6 +8859,7 @@ tags:
       resourceCost: 6
       skills: [brewing-skilled]
       gambit: false
+      items: [saltpeter]
     sellable: true
     sellablePrice: 14
 
@@ -8814,6 +8911,7 @@ tags:
       resourceCost: 4
       skills: [brewing-skilled]
       gambit: false
+      items: [poppy]
     sellable: true
     sellablePrice: 10
 
@@ -8840,6 +8938,7 @@ tags:
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
+      items: [graga-sac]
     sellable: true
     sellablePrice: 6
 
@@ -8864,6 +8963,7 @@ tags:
       resourceCost: 6
       skills: [brewing-skilled]
       gambit: false
+      items: [cave-fungus]
     sellable: true
     sellablePrice: 14
 
@@ -8872,7 +8972,7 @@ tags:
     name: White Honey
     category: items
     group: items-drink
-    description: "Cures a poisoning of any kind. Made with the heart of a rainbow trout, which somebody has to have caught."
+    description: "Boiled pale and thick over a long afternoon. Cures a poisoning of any kind. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -8885,7 +8985,9 @@ tags:
     consumable: true
     requirement:
       turnsCost: 1
-      resourceCost: 2
+      # 2 -> 6. The trout's heart was the gate and it is gone, so the ⬢ is the
+      # gate now: a cure-anything at 2 ⬢ and no ingredient would be a steal. ‡
+      resourceCost: 6
       skills: [brewing-skilled]
       gambit: false
     sellable: true
@@ -8914,6 +9016,7 @@ tags:
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
+      items: [cave-fungus]
     sellable: true
     sellablePrice: 5
 
@@ -8938,8 +9041,10 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
+      perTurn: 2
       skills: [brewing-skilled]
       gambit: false
+      items: [cave-fungus]
     sellable: true
     sellablePrice: 4
 
@@ -8948,7 +9053,7 @@ tags:
     name: Distilled Coca
     category: items
     group: items-drink
-    description: "Brewed from leaves found in the forest. Consume for {tag:stimulant-high}."
+    description: "Distilled down to a bitter green syrup. Consume for {tag:stimulant-high}. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -8993,6 +9098,7 @@ tags:
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
+      items: [cave-fungus]
     sellable: true
     sellablePrice: 5
 
@@ -9041,6 +9147,7 @@ tags:
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
+      items: [graga-sac]
     sellable: true
     sellablePrice: 8
 
@@ -9069,7 +9176,7 @@ tags:
     name: Succubus Draught
     category: items
     group: items-drink
-    description: "Needs the blood of a willing lover. Grants {tag:mindreading}."
+    description: "Weeks of patient work in a warm, dark cupboard. Grants {tag:mindreading}. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -9084,7 +9191,9 @@ tags:
       - mindreading
     requirement:
       turnsCost: 1
-      resourceCost: 2
+      # 2 -> 8. The lover's blood was the gate and it is gone; mindreading for
+      # 2 ⬢ and nothing else would be the cheapest power in the game. ‡
+      resourceCost: 8
       skills: [brewing-skilled]
       gambit: false
     sellable: true
@@ -9095,7 +9204,7 @@ tags:
     name: Raven Draught
     category: items
     group: items-drink
-    description: "Made with the eye of a raven. If consumed, you can send a single message to anyone anywhere. DM the GMs the message."
+    description: "Made with a {tag:ravens-eye}. If consumed, you can send a single message to anyone anywhere. DM the GMs the message. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -9111,6 +9220,7 @@ tags:
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
+      items: [ravens-eye]
     sellable: true
     sellablePrice: 6
 
@@ -9119,7 +9229,7 @@ tags:
     name: Pure Luck
     category: items
     group: items-drink
-    description: "Made with the heart of an Aberrant. For 3 turns straight, every Gambit you roll is a 6 — {tag:aberrant-luck}."
+    description: "Made with an {tag:aberrant-heart}. For 3 turns straight, every Gambit you roll is a 6 — {tag:aberrant-luck}. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -9134,15 +9244,19 @@ tags:
       - aberrant-luck
     requirement:
       turnsCost: 1
+      # Still 0 ⬢, and deliberately: the heart IS the price, and an Aberrant
+      # has to fall before anyone holds one. ‡
       resourceCost: 0
       skills: [brewing-skilled]
       gambit: false
+      items: [aberrant-heart]
     sellable: true
     sellablePrice: 14
 
-  # The three tonics. Each one needs something the brewer cannot simply buy,
-  # named in its description — that ingredient is the actual gate, and getting
-  # hold of it is meant to be a scene rather than a purchase.
+  # The three tonics. Each one needed something the brewer could not simply
+  # buy. Two of those three ingredients were prose and are gone (Forgiveness
+  # and Flawless Skin pay in ⬢ instead); the Dreamer's Draught keeps its
+  # Skinless Brain, and now SPENDS it.
   dreamers-draught:
     catalog: all
     name: Dreamer's Draught
@@ -9163,7 +9277,7 @@ tags:
       turnsCost: 1
       resourceCost: 6
       skills: [brewing-skilled]
-      # Enforced, and not consumed — you still have the brain afterwards.
+      # Spent now, not just held: the brain goes into the bottle.
       items: [skinless-brain]
     sellable: true
     # 60, up from 16, and deliberately above the Brain's own 40: the whole
@@ -9175,7 +9289,7 @@ tags:
     name: Forgiveness
     category: items
     group: items-drink
-    description: "Requires someone's tears. Whoever drinks it forgets the last 3 days."
+    description: "Clear, and colder than the room it sits in. Whoever drinks it forgets the last 3 days. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -9199,7 +9313,7 @@ tags:
     name: Flawless Skin
     category: items
     group: items-drink
-    description: "Needs a lock of hair from {tag:nobility}. You are granted supreme beauty for 3 turns."
+    description: "A pale cream, and a great deal of work for 3 turns of it. You are granted supreme beauty. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -9499,7 +9613,13 @@ tags:
     requirement:
       turnsCost: 0
       resourceCost: 3
+      # 0 turns and a `butcher` gate means this escapes BOTH the Dead Simple
+      # pool (which only counts crafting/smithing recipes) and any Move cost —
+      # one corpse would otherwise mint unlimited masks. One a turn.
+      perTurn: 1
       skills: [butcher]
+      # A group entry, so any corpse serves — and always KEPT: a body has its
+      # own lifecycle, and a group names no single stack to spend.
       items:
         - group: items-corpse
 
@@ -10432,9 +10552,10 @@ tags:
     craftable: true
     consumable: true
     consumesInto: [tipsy, blind-drunk, damaged-vision]
-    # Costs no ⬢ at all — the marsh gives you the ingredient. Holding one
-    # {tag:godflesh} is the check; it is not consumed, the same as every other
-    # enforced recipe (docs/systemdocs/BREWING.md). ‡
+    # Costs no ⬢ at all — the marsh gives you the ingredient. One
+    # {tag:godflesh} goes INTO the bottle now and does not come back, which is
+    # also what stops this from undercutting the Factory's refining
+    # (docs/systemdocs/BREWING.md, FACTORY.md §8). ‡
     requirement:
       turnsCost: 1
       resourceCost: 0

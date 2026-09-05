@@ -40,8 +40,19 @@ of it:
   `DEAD_SIMPLE_PER_TURN` units a turn (SMITHING.md §2). **1** is this turn's
   Routine. **2+** is a project (§3).
 - `perTurn` — units of this recipe one character may make in a turn, counted
-  per recipe. Only meaningful at `turnsCost: 0`; omit it and a Dead Simple
-  recipe falls back to the shared `DEAD_SIMPLE_PER_TURN` pool of 4.
+  per recipe. **Enforced at `turnsCost: 0` only**; omit it and a Dead Simple
+  recipe falls back to the shared `DEAD_SIMPLE_PER_TURN` pool of 4. Several
+  1-turn recipes carry one anyway (BREWING.md §5) — on those the Move is the
+  ration today, and the number is the batch size a later craft-budget pass
+  will spend fractions of a Move against.
+- `items` — the ingredients (`CORPSES.md` §8). **Spent by default**,
+  `quantity` units per craft, taken off the crafter's own sheet **when the
+  work starts** — so a multi-turn project pays up front and `continueCraft`
+  does not re-check them. A `group:` entry is *kept* instead: any corpse to
+  hand satisfies Miasma, and none is used up. An `anyOf:` entry is a spend the
+  player chooses, posted from the dialog as `ingredientChoice` and re-checked
+  server-side for membership and possession. A `placement:` recipe may not
+  carry `items` at all; the sync refuses the pair.
 - `gambit` is ignored: crafting is always a Routine. The sweep cleared it on
   the two brews that carried one (BREWING.md).
 
@@ -61,7 +72,8 @@ stamped by `expiryForGrant`, the tiers below it replaced.
 
 ```
 CraftProject { characterId, tagId, quantity, turnsNeeded, turnsDone, resourcesCost,
-               payerKey, payerName, status ACTIVE|DONE|CANCELLED, startedTurnId, lastTurnId, requestId }
+               consumed, payerKey, payerName, status ACTIVE|DONE|CANCELLED,
+               startedTurnId, lastTurnId, requestId }
 ```
 
 A table, not an "in progress" pseudo-tag: it has a counter, a payer and a
@@ -69,20 +81,27 @@ link to the Move that last advanced it, and a tag would show on 🔍 inspect
 and count toward carry.
 
 - **Start** (`craftRequest`, `turnsCost ≥ 1`): needs a free Move slot
-  (`moveWindow` open, no Action this turn); charges the payer; creates the
-  project at `turnsDone: 1`; files the Action — `ROUTINE`, `CONFIRMED`,
-  `PASSED`, `appliedEffects: {}`, `gmNotes: "auto:craft"`, description
-  "Crafting 4× Arrow (1/3). ‡". A one-turn recipe finishes on the spot.
+  (`moveWindow` open, no Action this turn); charges the payer **and spends the
+  ingredients**, snapshotting them onto `consumed`; creates the project at
+  `turnsDone: 1`; files the Action — `ROUTINE`, `CONFIRMED`, `PASSED`,
+  `appliedEffects: {}`, `gmNotes: "auto:craft"`, description "Crafting 4×
+  Arrow (1/3). ‡". A one-turn recipe finishes on the spot and puts the
+  snapshot straight on the request.
 - **Continue** (`continueCraft`): the Craft dialog lists active projects;
   pick one, choose *Keep working on it*. Same Move check; one advance per
   turn (`lastTurnId`); a claim on `turnsDone` so two clicks can't double an
-  advance. Turns needn't be consecutive. The recipe's skills are re-checked —
-  losing the skill stops the work where it stands.
+  advance. Turns needn't be consecutive. The recipe's skills and the workshop
+  are re-checked — losing either stops the work where it stands — and so is
+  incapacitation, which this path was quietly missing. The **ingredients are
+  not** re-checked, and must not be: they were spent at the start, so the
+  check would fail on turn 2 for a project that is doing nothing wrong.
 - **Finish**: the last advance grants the tag and writes the `ADD_TAG`
   Request (`effect { tagId, quantity, resourcesSpent, payer, projectId,
-  turnsNeeded, actionId, replaced }`), and the Action reads "Crafted …".
+  turnsNeeded, actionId, replaced, consumed }`), and the Action reads
+  "Crafted …".
 - **Cancel** (`cancelCraft`): status CANCELLED, audit `craft_cancelled`, no
-  refund. Death cancels ACTIVE projects (`characterDeath.js`).
+  refund — of ⬢ or of ingredients. Death cancels ACTIVE projects
+  (`characterDeath.js`), on the same terms.
 
 The only Request is the completion. Mid-project turns leave audit rows
 (`craft_started`, `craft_continued`) and the Actions themselves, which the
@@ -91,9 +110,15 @@ desk shows like any Routine.
 ## 4. Undo
 
 `web/lib/requestEffects.js` `ADD_TAG.undo`: the tag comes off, replaced tiers
-come back, `resourcesSpent` is refunded to `effect.payer` (an older row
-without one refunds the character), and a project is marked CANCELLED. The
-auto-filed Actions stay — a GM who wants the Move back uses Reject.
+come back, `effect.consumed` ingredients come back, `resourcesSpent` is
+refunded to `effect.payer` (an older row without one refunds the character),
+and a project is marked CANCELLED. The auto-filed Actions stay — a GM who
+wants the Move back uses Reject.
+
+The GM edit path (`applyEdit`, *Remove the tag*) restores the same two lists,
+each behind its own already-done flag — `replacedRestored` and
+`consumedRestored` — so a second Confirm cannot hand either out twice. `undo`
+reads those flags before restoring, for the same reason.
 
 ## 5. Destroy
 

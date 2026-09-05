@@ -179,7 +179,7 @@ async function requireCharacter() {
   if (!session?.discordUserId) redirect("/");
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    // The held tags carry their GROUP as well as themselves: requireRecipeItems
+    // The held tags carry their GROUP as well as themselves: resolveRecipeItems
     // matches a recipe's `{ group: … }` ingredient against it, and
     // db/lib/corpses.js#isCorpseTag is a group check too.
     include: {
@@ -294,7 +294,7 @@ async function loadRecipe(tagId) {
     },
   });
   // requirementItems rides along on the full row `include` gives us — see
-  // requireRecipeItems below. Nothing to add here; noted because a narrower
+  // resolveRecipeItems below. Nothing to add here; noted because a narrower
   // `select` on this query would silently disable ingredient checking.
   if (!tag) throw new UserError("Unknown tag.");
   // Re-checked here because the client's filtered list is only advisory.
@@ -339,37 +339,126 @@ async function requireWorkshop(character, tag) {
   );
 }
 
-// The recipe's INGREDIENTS (Tag.requirementItems). Two recipes carry one, and
-// they are the first ingredients this game has ever actually enforced —
-// BREWING.md was explicit that nothing did.
+// The recipe's INGREDIENTS (Tag.requirementItems), resolved against what the
+// crafter is holding. Runs OUTSIDE the transaction, so somebody who can't make
+// it is told before a single ⬢ moves.
 //
-// HOLDING IT IS THE CHECK. Nothing is consumed, no quantity moves, and
-// crafting twice off the same corpse is fine: the recipe says you need one to
-// hand, not that you use it up.
+// Most ingredients are SPENT, `quantity` units per craft — three molotovs take
+// three Alcohol, the same way they take three lots of ⬢. An entry marked
+// `keep` is the old hold-check instead: a body has its own lifecycle, so
+// bottling a second Miasma over the same corpse is still allowed. A `group`
+// entry is always kept, and is the only thing that can name a corpse written
+// at death (that tag is not in docs/tags.yaml, so no authored slug could ever
+// have named it). An `anyOf` entry is a spend the PLAYER picks — the Craft
+// dialog posts `ingredientChoice`, and the membership check here is what makes
+// that dialog a hint rather than a lock.
 //
-// Your OWN sheet only — never a room stash you could reach. A multi-turn
-// project re-runs this on every continue, and "there was a corpse in a room
-// nearby at the time" would mean something different on turn 3 than it did on
-// turn 1. An ingredient given away mid-project stops the work, the same way a
-// skill lost mid-project already does.
-//
-// A `group` entry matches any tag in that group, which is the only way miasma
-// can accept a corpse written at death: that tag is not in docs/tags.yaml, so
-// no authored slug could ever have named it.
-async function requireRecipeItems(character, tag) {
+// Your OWN sheet only — never a room stash you could reach. Spending happens
+// once, when the work STARTS: a multi-turn project pays its ingredients up
+// front, the rule its ⬢ already lived under, so a continue re-checks nothing
+// about them.
+function resolveRecipeItems(character, tag, quantity, ingredientChoice) {
   const items = Array.isArray(tag.requirementItems) ? tag.requirementItems : [];
-  if (!items.length) return;
-  const held = character.tags.map((ct) => ct.tag).filter(Boolean);
-  const heldSlugs = new Set(held.map((t) => t.slug));
-  const heldGroups = new Set(held.map((t) => t.group?.slug).filter(Boolean));
-  const missing = items.filter((i) =>
-    i.kind === "group" ? !heldGroups.has(i.slug) : !heldSlugs.has(i.slug),
-  );
-  if (missing.length) {
-    throw new UserError(
-      `Making that needs ${missing.map((i) => i.label).join(" and ")}. ‡`,
-    );
+  const plan = { spend: [], hold: [] };
+  if (!items.length) return plan;
+  const held = character.tags.filter((ct) => ct.tag);
+  const bySlug = new Map(held.map((ct) => [ct.tag.slug, ct]));
+  for (const item of items) {
+    if (item.kind === "group") {
+      if (!held.some((ct) => ct.tag.group?.slug === item.slug)) {
+        throw new UserError(`Making that needs ${item.label}. ‡`);
+      }
+      plan.hold.push({ kind: "group", slug: item.slug, label: item.label });
+      continue;
+    }
+    let slug = item.slug;
+    if (item.kind === "anyOf") {
+      const choice =
+        typeof ingredientChoice === "string" ? ingredientChoice.trim() : "";
+      if (!choice || !item.slugs.includes(choice)) {
+        throw new UserError(`Choose which of ${item.label} goes into it. ‡`);
+      }
+      slug = choice;
+    }
+    const ct = bySlug.get(slug);
+    const name = ct?.tag?.name ?? item.label;
+    if (item.keep) {
+      if (!ct) throw new UserError(`Making that needs ${item.label}. ‡`);
+      plan.hold.push({ kind: "tag", slug, label: item.label });
+      continue;
+    }
+    if (!ct || ct.quantity < quantity) {
+      throw new UserError(
+        quantity > 1
+          ? `Making ${quantity} of those takes ${quantity} × ${name}, and you have ${ct?.quantity ?? 0}. ‡`
+          : `Making that needs ${name}. ‡`,
+      );
+    }
+    plan.spend.push({ tagId: ct.tagId, tagName: name, quantity });
   }
+  return plan;
+}
+
+// The serializer every craft that touches a ration or a stack takes first.
+// Postgres holds it to the end of the transaction, so two tabs submitting at
+// once queue up instead of both reading the same count.
+function lockCharacter(tx, characterId) {
+  return tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${characterId} FOR UPDATE`;
+}
+
+// Spends what resolveRecipeItems planned, inside the SAME transaction as the
+// payment and under the row lock above.
+//
+// **The write is the check.** A conditional `updateMany` matches only while
+// the stack still covers the draw, and a count of 0 refuses the craft.
+// `dropCharacterTag` is deliberately not used here: it silently deletes the
+// row on an overdraw rather than refusing (db/lib/tagWrites.js), which would
+// turn "make 3 off a stack of 2" into a free third one.
+//
+// Returns the `replaced`-shaped snapshot Undo restores from, so
+// requestEffects.js#restoreCharacterTag serves both with one shape.
+async function consumeRecipeItems(tx, characterId, plan) {
+  for (const item of plan.hold) {
+    const still = await tx.characterTag.count({
+      where: {
+        characterId,
+        tag:
+          item.kind === "group"
+            ? { group: { slug: item.slug } }
+            : { slug: item.slug },
+      },
+    });
+    if (!still) throw new UserError(`Making that needs ${item.label}. ‡`);
+  }
+  const consumed = [];
+  for (const { tagId, tagName, quantity } of plan.spend) {
+    const row = await tx.characterTag.findUnique({
+      where: { characterId_tagId: { characterId, tagId } },
+    });
+    const short = () =>
+      new UserError(`You don't have enough ${tagName} left for that. ‡`);
+    if (!row || row.quantity < quantity) throw short();
+    if (row.quantity === quantity) {
+      const { count } = await tx.characterTag.deleteMany({
+        where: { id: row.id, quantity },
+      });
+      if (count === 0) throw short();
+    } else {
+      const { count } = await tx.characterTag.updateMany({
+        where: { characterId, tagId, quantity: { gte: quantity } },
+        data: { quantity: { decrement: quantity } },
+      });
+      if (count === 0) throw short();
+    }
+    consumed.push({
+      tagId,
+      tagName,
+      quantity,
+      source: row.source,
+      expiresTurn: row.expiresTurn,
+    });
+  }
+  return consumed;
 }
 
 // Prerequisite chain, exclusivity, tier replacement, duplicates — the same
@@ -520,6 +609,7 @@ async function grantCrafted(
     cost,
     project = null,
     action = null,
+    consumed = [],
     reason,
   },
 ) {
@@ -558,6 +648,11 @@ async function grantCrafted(
         : {}),
       ...(action ? { actionId: action.id } : {}),
       ...(replaced.length ? { replaced } : {}),
+      // What the ingredients cost, in the `replaced` shape, so a GM Undo hands
+      // them back the same way it hands back a replaced tier. A multi-turn
+      // project spent these when it STARTED and carried the snapshot on
+      // CraftProject.consumed until now.
+      ...(consumed?.length ? { consumed } : {}),
     },
   });
   await logRequest(tx, {
@@ -589,6 +684,10 @@ async function craftRequestImpl({
   tagId,
   quantity: rawQuantity,
   payerKey,
+  // Which member of an `anyOf` ingredient goes in — a slug the dialog posts,
+  // re-checked for membership and possession like everything else a client
+  // sends.
+  ingredientChoice,
   reason: rawReason,
 }) {
   const { session, character } = await requireCharacter();
@@ -607,10 +706,10 @@ async function craftRequestImpl({
   // heavy works and wrong for stakes and drying racks.
   const placement = placementOf(tag);
   if (!placement?.fieldwork) await requireWorkshop(character, tag);
-  await requireRecipeItems(character, tag);
   // A `placement:` recipe is BUILT ON SITE and never lands on a sheet, so the
   // tag-tier gates below — prerequisites, exclusivity, tier replacement,
-  // stacks — have nothing to say about it.
+  // stacks — have nothing to say about it. It never carries ingredients
+  // either; the sync refuses that pairing (db/lib/tagShapes.js).
   if (placement)
     return openBuildSiteImpl(character, session, tag, { payerKey, reason });
   const replaced = await craftGrantChecks(character, tag);
@@ -618,6 +717,13 @@ async function craftRequestImpl({
   const quantity = tag.stackable
     ? (parseCount(rawQuantity, { min: 1, max: 99 }) ?? 1)
     : 1;
+  // Resolved once the count is known, since a spend scales with it.
+  const itemPlan = resolveRecipeItems(
+    character,
+    tag,
+    quantity,
+    ingredientChoice,
+  );
   const turns = tag.requirementTurns ?? 1;
   const cost = (tag.requirementResources ?? 0) * quantity;
   const payer = await resolveCraftPayer(character, payerKey, cost);
@@ -660,8 +766,12 @@ async function craftRequestImpl({
       }
     }
     await prisma.$transaction(async (tx) => {
+      // One lock for all three racy things: the two rations and the
+      // ingredient stacks.
+      if ((openTurn && perTurn != null) || deadSimple || itemPlan.spend.length) {
+        await lockCharacter(tx, character.id);
+      }
       if (openTurn && perTurn != null) {
-        await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
         const already = await unitsOfTagThisTurn(
           tx,
           character.id,
@@ -675,7 +785,6 @@ async function craftRequestImpl({
         }
       }
       if (deadSimple) {
-        await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
         const already = await deadSimpleUnitsThisTurn(
           tx,
           character.id,
@@ -687,6 +796,7 @@ async function craftRequestImpl({
           );
         }
       }
+      const consumed = await consumeRecipeItems(tx, character.id, itemPlan);
       if (cost) await moveResources(tx, payer, -cost);
       await grantCrafted(tx, {
         session,
@@ -697,6 +807,7 @@ async function craftRequestImpl({
         replaced,
         payer,
         cost,
+        consumed,
         reason,
       });
     });
@@ -713,6 +824,11 @@ async function craftRequestImpl({
   await requireFreeMove(character, openTurn);
   let done = false;
   await prisma.$transaction(async (tx) => {
+    // Ingredients go in when the work starts, the same moment the ⬢ do — and
+    // like the ⬢ they never come back if the project is abandoned. A project
+    // longer than a turn carries the snapshot on itself until it finishes.
+    if (itemPlan.spend.length) await lockCharacter(tx, character.id);
+    const consumed = await consumeRecipeItems(tx, character.id, itemPlan);
     if (cost) await moveResources(tx, payer, -cost);
     const project = await tx.craftProject.create({
       data: {
@@ -722,6 +838,7 @@ async function craftRequestImpl({
         turnsNeeded: turns,
         turnsDone: 1,
         resourcesCost: cost,
+        consumed: consumed.length ? consumed : undefined,
         payerKey: `${payer.kind}:${payer.id}`,
         payerName: payer.name,
         startedTurnId: openTurn.id,
@@ -750,6 +867,7 @@ async function craftRequestImpl({
         cost,
         project,
         action,
+        consumed,
         reason,
       });
       await tx.craftProject.update({
@@ -805,14 +923,24 @@ async function loadOwnProject(character, projectId) {
 
 // Another turn on a project. The recipe's gates are re-run: a skill lost
 // since the start stops the work where it stands.
+//
+// The INGREDIENTS are not re-checked, and must not be — they were spent when
+// the work started, so an honest continue would fail its own check on turn 2.
 async function continueCraftImpl({ projectId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
+
+  // Bound, Dying, Paralyzed, Catatonic, mid-Seizure — the same gate starting
+  // the work passes (craftRequestImpl). Somebody tied up does not get to keep
+  // working, and this path was quietly missing it.
+  if (character.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))) {
+    throw new UserError("You're in no state to be working. ‡");
+  }
+
   const project = await loadOwnProject(character, projectId);
   const tag = project.tag;
   await requireRecipeSkills(character, tag);
   await requireWorkshop(character, tag);
-  await requireRecipeItems(character, tag);
   const openTurn = await getOpenTurn();
   await requireFreeMove(character, openTurn);
   if (project.lastTurnId === openTurn.id)
@@ -856,6 +984,9 @@ async function continueCraftImpl({ projectId, reason: rawReason }) {
         cost: project.resourcesCost,
         project,
         action,
+        // Spent back when the work began; carried here so Undo of the
+        // completion can hand them back.
+        consumed: Array.isArray(project.consumed) ? project.consumed : [],
         reason,
       });
       await tx.craftProject.update({
@@ -890,7 +1021,8 @@ async function continueCraftImpl({ projectId, reason: rawReason }) {
       };
 }
 
-// Stopping keeps nothing: the ⬢ went into materials when the work began.
+// Stopping keeps nothing: the ⬢ AND the ingredients went into materials when
+// the work began, and neither comes back.
 async function cancelCraftImpl({ projectId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);

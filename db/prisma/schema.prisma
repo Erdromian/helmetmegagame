@@ -2706,6 +2706,13 @@ model Action {
   // migration. Null means nothing has been pushed yet.
   appliedEffects Json?
 
+  // The craft ledger for this turn: which skill family the Move was spent in
+  // and how much of it is left, so several small crafts can share one Routine.
+  // Deliberately NOT folded into appliedEffects above, which the turn-end
+  // staged push owns and claims rows through. Written and read by the Craft
+  // path only. Null on every Action that is not a craft.
+  craftBudget Json?
+
   // The Result box — the GM-facing canon of what happened, never auto-sent
   // (players are told through StagedMessages at the push; ADJUDICATION.md).
   resultMessage      String?
@@ -3068,6 +3075,17 @@ model CraftProject {
   resourcesCost Int     @default(0)
   payerKey      String?
   payerName     String?
+
+  // What the ingredients cost, snapshotted when the work STARTED — the same
+  // rule resourcesCost lives under, because a multi-turn project spends both
+  // up front. Shape is the `replaced` snapshot list
+  // (`[{ tagId, tagName, quantity, source, expiresTurn }]`) so a GM Undo of
+  // the finishing request can hand it back through
+  // requestEffects.js#restoreCharacterTag without a second shape to learn.
+  // Copied onto the completing ADD_TAG request's `effect.consumed`; null on a
+  // recipe with no spent ingredient, and on every project filed before this
+  // column existed.
+  consumed      Json?
 
   status        CraftStatus @default(ACTIVE)
   startedTurnId String

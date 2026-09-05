@@ -835,20 +835,24 @@ them).
   `requiresTag` naming a tag that does not exist — a typo'd `kind` would
   otherwise make a tool silently worthless. Full rules in `LABORING.md` §5.
 - `requirementItems` (YAML: `requirement.items`) — the recipe's
-  **ingredients**, and the first ones this game ever actually enforced. Only
-  two recipes carry one: `miasma` needs a corpse, `dreamers-draught` needs a
-  Skinless Brain. **Holding it is the check — nothing is consumed**, so you
-  keep the corpse you bottled the Miasma over, and a second craft off the same
-  body is allowed. An entry is either a tag slug (`items: [skinless-brain]`) or
-  a whole **group** (`items: [{ group: items-corpse }]`); the group form is not
-  a convenience but a necessity, since a corpse written at death is never in
-  `docs/tags.yaml` for a slug to name. Stored as Json rather than a relation
-  for that reason, with a denormalized display `label` the sync rewrites every
-  run. Validated in `db/lib/tagShapes.js` — which throws on an `items` block on
-  a tag that is not `craftable`, because the Craft path is the only enforcement
-  point and an `items` block anywhere else would look enforced and do nothing.
-  Enforced against the crafter's **own sheet only**, never a room stash. Full
-  writeup in [`CORPSES.md`](CORPSES.md) §8.
+  **ingredients**, and the only ones the game has. **Spent by default**:
+  `quantity` units come off the crafter's sheet per craft, the same scaling ⬢
+  has, and they go when the work *starts* rather than when it finishes. Three
+  entry shapes — a tag slug (`items: [cave-fungus]`), a whole **group**
+  (`items: [{ group: items-corpse }]`), or a player's pick
+  (`items: [{ anyOf: [tea, sweets, honey] }]`). The group form is not a
+  convenience but a necessity, since a corpse written at death is never in
+  `docs/tags.yaml` for a slug to name — and it is always **kept**, never spent,
+  because a group names no single stack to decrement (`keep: false` on one is
+  refused). `keep: true` turns a slug entry back into a hold-check. Stored as
+  Json rather than a relation, with a denormalized display `label` — and, on an
+  `anyOf`, denormalized member `options` — that the sync rewrites every run.
+  Validated in `db/lib/tagShapes.js`, which throws on an `items` block on a tag
+  that is not `craftable` (the Craft path is the only enforcement point), on
+  one paired with `placement:` (a build site has no one sheet to spend from),
+  and on a second `anyOf` in one recipe (the dialog posts one choice). Enforced
+  against the crafter's **own sheet only**, never a room stash. Full writeup in
+  [`CORPSES.md`](CORPSES.md) §8.
 - `requirementTurns` / `requirementResources` / `requirementGambit` /
   `requirementPerTurn` / `requirementSkills` (YAML: nested under
   `requirement:` as `turnsCost` / `resourceCost` / `gambit` / `perTurn` /
