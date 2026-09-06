@@ -19,6 +19,17 @@ const { soundRange } = require("./locationGraph");
 const DEVICE_SLUG = "nuclear-device";
 const DATACARD_SLUG = "nuclear-datacard";
 
+// What a destroying room (the Spillway, the Latrines — Room.destroysContents)
+// refuses to eat. Both halves are already `removable: false`, which keeps them
+// off the Destroy menu, but that flag could not be reused here: 103 tags carry
+// it, and three of them are monster corpses players are entitled to tip down a
+// latrine. So this is a deliberately short, explicit list rather than a flag.
+//
+// Tipped in, the bomb is written to the room's stash like anything else and
+// simply sits there. That is the whole rule — there is no way to remove the
+// device from the game, only ways to move it somewhere inconvenient.
+const INDESTRUCTIBLE_SLUGS = new Set([DEVICE_SLUG, DATACARD_SLUG]);
+
 // Turns between arming and the fireball. Two, counted the way every other
 // duration in the game counts (TAGS.md §5): armed while turn T is open, it
 // fires as turn T+1 closes — two turn-closes away from the player pressing it.
@@ -112,6 +123,7 @@ function pointerLine(reading) {
 module.exports = {
   DEVICE_SLUG,
   DATACARD_SLUG,
+  INDESTRUCTIBLE_SLUGS,
   NUKE_FUSE_TURNS,
   deviceLocationId,
   pointerReading,

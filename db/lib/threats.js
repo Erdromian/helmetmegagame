@@ -220,7 +220,19 @@ const THREATS = [
     ],
     assign: {
       tagPoints: 10,
-      tagSlugs: ["ordinator-insignia", "heavy-infantry-armor", "tribunal-ordinator-helmet"],
+      // Mirrors the tribunal-ordinator Role's starting_tags (docs/roles.yaml).
+      // Assign and Spawn are separate lists over the same seat, so a kit change
+      // has to land in both or a GM's two buttons hand out different soldiers.
+      tagSlugs: [
+        "ordinator-insignia",
+        "cataphract-armor",
+        "tribunal-ordinator-helmet",
+        "nuclear-datacard",
+        "elevator-key",
+        "fragmentation-grenade",
+        "motorcycle",
+        "supply-kit",
+      ],
     },
     spawn: {
       gender: "NEUTRAL",
@@ -245,7 +257,16 @@ const THREATS = [
     ],
     assign: {
       tagPoints: 10,
-      tagSlugs: ["tribunal-helmet", "heavy-infantry-armor"],
+      // Mirrors the tribune Role's starting_tags (docs/roles.yaml) — see the
+      // Ordinator's note above on why both lists have to move together.
+      tagSlugs: [
+        "tribunal-helmet",
+        "heavy-infantry-armor",
+        "c4",
+        "fragmentation-grenade",
+        "motorcycle",
+        "supply-kit",
+      ],
     },
     spawn: {
       gender: "NEUTRAL",

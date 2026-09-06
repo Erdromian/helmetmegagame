@@ -7380,6 +7380,36 @@ tags:
     purchasableAfterStart: false
     removable: true
 
+  fragmentation-grenade:
+    catalog: gm
+    name: Fragmentation Grenade
+    category: items
+    group: items-special
+    description: "A standard-issue fragmentation grenade."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  c4:
+    catalog: gm
+    name: C4
+    category: items
+    group: items-special
+    description: "A plastic explosive, good at breaching walls."
+    pointCost: 0
+    tradeable: true
+    weight: 4
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
   emp-grenade:
     catalog: gm
     name: EMP Grenade
@@ -8948,6 +8978,31 @@ tags:
   # ("nothing forged in Ravenheart stops a bullet"). Deliberately carries NO
   # equipSlot, exactly like the light set: the two have to compete for the same
   # flat slot rather than being wearable together.
+  # The Ordinator's armour, and the top of the ballistic ladder. Deliberately
+  # 0.93 rather than 0.95: combineArmor caps a COMBINED value at 0.95, so a suit
+  # authored at the cap makes the wearer's helmet worth literally nothing. At
+  # 0.93 the Ordinator Helmet still buys the last two points, which is what
+  # stacking is supposed to do.
+  #
+  # Weight 50 is most of a carry allowance on its own — "slow and heavy" is a
+  # real cost, not flavour.
+  cataphract-armor:
+    catalog: gm
+    name: Cataphract Armor
+    category: items
+    group: items-armor
+    description: "Nearly impenetrable armor. Slow and heavy."
+    pointCost: 0
+    equippable: true
+    melee: 0.93
+    ballistic: 0.93
+    tradeable: true
+    weight: 50
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
   heavy-infantry-armor:
     catalog: gm
     name: Heavy Infantry Armor
@@ -8983,8 +9038,8 @@ tags:
     tradeable: true
     weight: 12
     equippable: true
-    melee: 0.8
-    ballistic: 0.8
+    melee: 0.75
+    ballistic: 0.75
     visible: true
     purchasable: false
     purchasableAfterStart: false

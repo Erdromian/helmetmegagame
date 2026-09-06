@@ -23,37 +23,30 @@ can do, and which ones it carries is the whole taxonomy:
 spawnable, because anything worth giving to a character is worth giving to a
 new one.
 
-**Most opt-ins are decoys.** Nine of the eleven checkboxes carry `optIn` and
-nothing else. That is the point: ticking one tells a GM about consent without
-telling the player which seats are real. Two ship real — **Demoness** and
-**Judge** — and Thanati Leader and Thanatos land later against the same shape.
+**Most opt-ins are decoys**, and which ones are real is not written down here.
+Ticking a checkbox tells a GM about consent without telling the player which
+seats are real, and a doc in the repo that lists the real ones undoes that. The
+roster lives in `SECRETS.md`, which is gitignored.
 
-**The Tribunal arrived on 2026-09-06.** `tribunal-ordinator` and `tribune` are
-assignable and spawnable with **no `optIn`**, exactly as this section promised
-they would be: they are handed out, not consented to on the wizard.
-`tribunal-operations` above stays what it always was, one of the nine decoys —
-these landing did not make it real. Two things about them are new to this file:
+Three mechanisms are worth knowing about regardless of which seat uses them:
 
-- They are the first seats to carry **`spawn.locationSlug`**, so the seat knows
-  its own landing site (Black Pines) and a GM offering one need not remember
-  it. `offerThreatSpawn` prefers a GM's explicit pick, then this, then the
-  role's own start.
-- They are the first to have **real Roles that no player may take**. A spawn
-  needs a Role for its charter, kit and start, so `docs/roles.yaml` carries a
-  `the-tribunal` faction — and both slugs sit in `SPAWN_ONLY_ROLE_SLUGS`
-  (`web/lib/characterCreation.js`), which withholds them from the creation
-  picker outright rather than greying them the way a whitelisted seat is.
-
-Spawning either one tells the **whole map** a shuttle came down — every
-Location channel, via `SHUTTLE_ARRIVAL_SLUGS` and
-`db/lib/worldBroadcast.js#ambientEverywhere`. Adding a future Tribunal seat to
-that broadcast is one line in the set.
+- **`spawn.locationSlug`** lets a seat name its own landing site, so a GM
+  offering it need not remember where that seat arrives. `offerThreatSpawn`
+  prefers a GM's explicit pick, then this, then the role's own start.
+- **A Role no player may take.** A spawn needs a Role for its charter, kit and
+  start, so a seat can own a `docs/roles.yaml` faction whose slugs sit in
+  `SPAWN_ONLY_ROLE_SLUGS` (`web/lib/characterCreation.js`). That withholds them
+  from the creation picker outright, rather than greying them the way a
+  whitelisted seat is greyed.
+- **`SHUTTLE_ARRIVAL_SLUGS`** makes spawning a seat tell the whole map a shuttle
+  came down — every Location channel, via
+  `db/lib/worldBroadcast.js#ambientEverywhere`. Adding a seat to that broadcast
+  is one line in the set.
 
 An entry with neither `optIn` nor `assign` is a **brief**: prose a GM runs
-entirely by hand, no checkbox and no button. Sympathizer, Monsters, Brigand and
-Brigand Leader are these. They are what is left of `docs/threats.md`, which was
-deleted when the catalog took over — a second prose copy of a blurb is a second
-thing to drift.
+entirely by hand, no checkbox and no button. They are what is left of
+`docs/threats.md`, which was deleted when the catalog took over — a second prose
+copy of a blurb is a second thing to drift.
 
 ### Why a code module and not a table
 
@@ -65,9 +58,9 @@ blurb edit ships with a deploy rather than a sync.
 
 `normalizeAntagonistSlugs` and `antagonistNames` both **drop unknown slugs
 silently**, so a `Character.antagonistOptIns` still holding a retired slug
-renders as nothing rather than leaking a stale name. That is what let
-`succubus` become `demoness` and `special-circumstances` become
-`tribunal-operations` with no data work at all.
+renders as nothing rather than leaking a stale name. Seats have been renamed
+this way with no data work at all; the rename history is in `SECRETS.md`, since
+an old name is still a name.
 
 ## 2. Who holds a seat is derived, not stored
 
@@ -220,6 +213,10 @@ somebody else's client.
 
 Blurbs Bascinet dictated carry **no `‡`** — the exemption in CLAUDE.md for
 dictated text. Anything you write around them does, and so does a blurb you
-**drafted** rather than transcribed: the Tribunal's two are Claude's words from
-Bascinet's brief, so each carries one mark at the end of its last line, which is
-where the whole DM ends. One per message, not one per line.
+**drafted** rather than transcribed: that one carries a single mark at the end
+of its last line, which is where the whole DM ends. One per message, not one
+per line.
+
+**The design doc is `SECRETS.md`** — gitignored, superadmin-only. Rationale, the
+real-vs-decoy roster and the round scripts live there. This file stays in the
+repo and stays mechanical: it should name no antagonist it does not have to.

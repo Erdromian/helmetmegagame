@@ -1349,14 +1349,16 @@ zones:
           tribunal-ordinator:
             name: Tribunal Ordinator
             intro: >-
-              You came down with the shuttle. Ravenheart does not know what you are yet, and that is worth more than the armour. ‡
+              Serve the God King.
             description:
               - >-
-                You are an Ordinator of the Tribunal, sent from off-world at the God-King's pleasure. You are better equipped than anything in this barony and you know it. ‡
+                You are the Tribunal Ordinator, one of the God King's elite special forces soldiers. Your job is to organize your men into Ravenheart and represent His Majesty's supremacy.
               - >-
-                You do not have to explain yourself to a Baron. Whether you choose to is a question of how much trouble you want. ‡
+                If the Barony paid the tithe successfully, participate in the customary celebratory feast. If he did not, make your way to the nuclear device and arm it, exploding Ravenheart.
               - >-
-                Your armour turns aside almost anything Ravenheart can forge, and almost anything it can shoot. Almost. Do not mistake that for immortality — a turret does not care who you are. ‡
+                The Tribunal Ordinator has a {tag:nuclear-datacard} which points to Ravenheart's nuclear device (typically found in the Undercroft's vault). Once near the device, you can plug it in to arm the nuke, giving you two turns to get to the caves.
+              - >-
+                You are formidable foes in battle, but if you are swarmed and attacked in melee, you may still die.
             difficulty: hard
             multiple: true
             weight: 1
@@ -1372,9 +1374,14 @@ zones:
               - Tribunal Ordinator Helmet
               - Broadsword
               - Dagger
-              - Heavy Infantry Armor
+              - Cataphract Armor
               - Energy Shield
               - Ordinator Insignia
+              - Nuclear Datacard
+              - Elevator Key
+              - Fragmentation Grenade
+              - Motorcycle
+              - Supply Kit
               - Military Autoinjector x2
               - Relentless
               - Arthritis
@@ -1382,18 +1389,24 @@ zones:
               - Strong
               - Tactician
               - Cruel
+            doc_elements:
+              - godking
+              - ravenhearteconomy
+              - courtstructure
 
           tribune:
             name: Tribune
             intro: >-
-              You came down with the shuttle. Somebody has to write the report. ‡
+              Serve the God King.
             description:
               - >-
-                You are a Tribune of the Tribunal, off-world and out of place. You are here to see what is here, and to be seen doing it. ‡
+                You are a member of the Tribune, the God King's elite special force division. Your job is to represent His Majesty's supremacy.
               - >-
-                You are better armed than anyone in the barony and worse at fighting than the Ordinator beside you. Use the rifle at distance and the knife only if it has already gone wrong. ‡
+                If the Barony paid the tithe successfully, participate in the customary celebratory feast. If he did not, make your way to the nuclear device and arm it, exploding Ravenheart.
               - >-
-                You can patch yourself up in the field, a little. The autoinjectors are for when a little is not enough. ‡
+                The Tribunal Ordinator has a {tag:nuclear-datacard} which points to Ravenheart's nuclear device (typically found in the Undercroft's vault). Once near the device, you can plug it in to arm the nuke, giving you two turns to get to the caves.
+              - >-
+                You are formidable foes in battle, but if you are swarmed and attacked in melee, you may still die.
             difficulty: hard
             multiple: true
             weight: 1
@@ -1409,8 +1422,16 @@ zones:
               - Tribunal Helmet
               - Trench Knife
               - Heavy Infantry Armor
+              - C4
+              - Fragmentation Grenade
+              - Motorcycle
+              - Supply Kit
               - Military Autoinjector x2
               - Tough
+            doc_elements:
+              - godking
+              - ravenhearteconomy
+              - courtstructure
 
       brigands:
         name: Brigands
