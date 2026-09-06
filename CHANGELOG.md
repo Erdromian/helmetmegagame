@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The marshes fish less, the Village fishes more
+
+✎ The five open Marshes fish at 1.0 instead of 1.3
+✎ The marsh Village fishes at 1.3 instead of 1.5 — still the best water in the game
+✎ Corrected the Laboring doc's yield table, which had drifted off the map
+
+
 ## 2026-09-06 · Farming pays 9% more
 
 ✎ Laboring (Farming) now pays 15–21 ⬢ instead of 14–19
