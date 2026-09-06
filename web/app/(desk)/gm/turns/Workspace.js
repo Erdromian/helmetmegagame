@@ -23,6 +23,7 @@ import usePins from "@/app/components/usePins";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { isFieldFocused } from "@/lib/deskKeyGuard";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
+import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
 
 // The adjudication workspace's client shell. Owns selection (which
 // Move/Request shows), inspector (right column + pins), and preview (push
@@ -577,6 +578,9 @@ export default function Workspace({
         }
       />
 
+      {/* The zone view lives in the client from here down, so the queue
+          re-filters on the click rather than on a revalidate. */}
+      <GmZoneViewProvider initialZoneNames={visibleZoneNames}>
       <div className="desk-body">
         <QueueRail
           moves={moves}
@@ -706,6 +710,7 @@ export default function Workspace({
           footer={<GmZoneRail zones={selectableZones} selectedIds={visibleZoneIds} />}
         />
       </div>
+      </GmZoneViewProvider>
 
       <StagingTray
         stagedEffects={stagedEffects}

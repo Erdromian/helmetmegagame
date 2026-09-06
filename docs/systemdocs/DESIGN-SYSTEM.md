@@ -130,6 +130,7 @@ Use these instead of rolling one-off markup.
 | `.icon-btn` | The one framed icon button — via `IconButton`. |
 | `.tab-item` / `.tab-bar` | A tab strip navigating between panels. Keyed on `data-active`. |
 | `.segmented` | A group of mutually exclusive options as one joined pill. Keyed on `aria-pressed`. |
+| `.chip-row` | A wrapping row of chips. The house form for a **multi**-select: each chip is a `<button className="chip">` keyed on `data-active` (plus `aria-pressed`), and `.chip[data-active]` gives it the accent border and label. |
 | `.select-card` | A `.panel` you pick. Selection is `aria-pressed`. Its left rule may carry a group colour set inline per row — a tag group in Point Buy, a desire family in the Desire picker — because those are freeform hexes out of data, not tokens. |
 | `.check-row` / `.switch-row` | A boolean and its label — via `CheckField` / `Switch`. |
 | `.status-pill` | A state, coloured by `data-tone`. |
@@ -155,6 +156,14 @@ Three of these carry a trap:
   between panels and is keyed on `data-active`, a styling hook. A segmented
   control has a *value*, so its pressed state lives in `aria-pressed`, where a
   screen reader can reach it. Picking by looks gets the semantics wrong.
+- **A multi-select is `.chip-row`, never `.segmented`.** A segmented control
+  holds one value; a set of independent toggles is chips. Reaching for
+  `.segmented` because it *looks* like a row of buttons is how the GM zone
+  picker ended up needing a bespoke `.segmented--wrap` to defeat
+  `.segmented`'s own `overflow: hidden`, and wearing a pressed state
+  (`--field-bg`) so quiet that nobody could tell what they had chosen. The
+  audit desk's Family filter and the inspector's "Zones I see" are the
+  reference.
 
 Pick a button variant by how important the action is, rather than defaulting to
 `.btn` everywhere.

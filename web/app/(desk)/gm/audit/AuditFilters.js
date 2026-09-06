@@ -91,7 +91,7 @@ export default function AuditFilters({
       </label>
 
       <Group label="Family">
-        <div className="audit-chips">
+        <div className="chip-row">
           {Object.entries(AUDIT_FAMILIES).map(([key, fam]) => (
             <button
               key={key}
@@ -221,7 +221,7 @@ export default function AuditFilters({
       </Group>
 
       <Group label="When">
-        <div className="audit-chips">
+        <div className="chip-row">
           {Object.entries(DATE_PRESETS).map(([key, label]) => (
             <button
               key={key}

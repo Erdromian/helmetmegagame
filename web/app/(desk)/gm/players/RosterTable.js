@@ -20,6 +20,7 @@ import { bulkTagCharacters } from "@/app/(app)/gm/actions";
 import { sendGmBroadcast } from "./actions";
 import useSubmitOnEnter from "@/app/components/useSubmitOnEnter";
 import { inVisibleZones } from "@/lib/zones";
+import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
 
 // The roster: the whole fleet at once, with the columns a GM actually asks
 // about mid-turn. The old /gm/players table had nine and could not answer
@@ -95,6 +96,8 @@ export default function RosterTable({
   const [devPanel, setDevPanel] = useState(null);
 
   const filterDefs = useMemo(() => FILTER_DEFS, []);
+  // The prop is only the seed — see PlayerRail.
+  const zonesInView = useVisibleZoneNames(visibleZoneNames);
   // The zones this GM chose to see (null = all). Not a default filter — rows
   // outside it never reach the table, so its own Zone dropdown narrows within
   // what is visible rather than reaching past it.
@@ -103,8 +106,8 @@ export default function RosterTable({
   // who wants a hidden one can reach it by URL. The real boundary is the
   // Discord half (GAMEMASTERS.md §6) — this side is about not drowning.
   const inView = useMemo(
-    () => inVisibleZones(characters, visibleZoneNames),
-    [characters, visibleZoneNames],
+    () => inVisibleZones(characters, zonesInView),
+    [characters, zonesInView],
   );
 
   const {

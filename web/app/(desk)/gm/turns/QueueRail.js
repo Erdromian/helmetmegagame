@@ -13,6 +13,7 @@ import { MOVE_REVIEW_TONES, MOVE_REVIEW_LABELS } from "@/lib/moves";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requestLabels";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
 import { inVisibleZones } from "@/lib/zones";
+import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
 
 // The left rail: the work queue as a compact list, using useTableState (the
 // same filter/search/sort engine every table uses) minus the table markup.
@@ -358,7 +359,10 @@ export default function QueueRail({
   // A view rather than enforcement — the server ships every row and a direct
   // link still opens a hidden Move. The boundary that bites is the Discord
   // half (GAMEMASTERS.md §6).
-  const inView = useCallback((rows) => inVisibleZones(rows, visibleZoneNames), [visibleZoneNames]);
+  // The prop is only the seed: once the picker in the inspector has moved,
+  // the live answer is in the client (GmZoneViewProvider).
+  const zonesInView = useVisibleZoneNames(visibleZoneNames);
+  const inView = useCallback((rows) => inVisibleZones(rows, zonesInView), [zonesInView]);
 
   // One numeric key so the generic engine's one-field sort ranks by status
   // first, recency second (status multiplied out of recency's range).
