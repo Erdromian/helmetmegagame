@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Ten equip slots, and the Merchant can crate his own goods
+
+✎ Everyone has 10 equipment slots instead of 6. The one-helmet, one-cuirass, one-shield rule is unchanged  
+✚ Packaging Equipment in the Company's silo in the Cargo Bay, so the Merchant no longer walks to the Factory to pack a crate
+
 ## 2026-09-06 · Tag chips say what a thing weighs
 
 ✎ A tag's hover panel now says what it weighs, and a stack says both the each and the total  
