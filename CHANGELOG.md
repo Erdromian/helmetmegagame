@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The whitelist points at a role that exists
+
+✚ The Whitelist role works again — it was pointing at a role deleted in the pre-launch cleanup, so all 24 whitelisted players were locked out of every whitelisted seat with no error shown  
+− - almost certainly deleted by the pre-launch cleanup and remade with a new snowflake. isLeaderWhitelisted is a plain roles.includes(), so it returned false for everybody: all 24 holders of the real @Whitelist role were locked out of every whitelisted seat, greyed with no error anywhere. The gate fails closed on purpose, which is exactly why it was silent.
+
 ## 2026-09-06 · Playtest mode is gone
 
 − The playtest lever on the dev panel. Both of its lists were empty, so it never locked anything
