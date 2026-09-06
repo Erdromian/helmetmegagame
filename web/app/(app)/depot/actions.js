@@ -60,9 +60,22 @@ import { refreshLiveRooms } from "@lifeweb/db/lib/syncZones";
 const MAX_ORDER_LINES = 40;
 
 // A page gate is advisory; a server action is a public endpoint. Everything
-// below re-checks the licence AND that the Merchant is standing at the Depot.
-// The Depot is a hangar in the caves — you cannot run it by remote.
-async function requireLicensedMerchant({ needsPower = true } = {}) {
+// below re-checks the papers AND that you are standing at the Depot. The
+// Depot is a hangar in the caves — you cannot run it by remote.
+//
+// There are two doors into these actions, and the split is deliberate.
+//
+// `requireLicensedMerchant` is the money and the gun: ordering, the ATM, the
+// credit line, the ⬢ counter, the turret. Those want the Merchant's Licence —
+// the LICENCE and not the merchant ROLE, because the licence is tradeable and
+// a role check would quietly break that.
+//
+// `requireDepotHand` is the labour: calling the shuttle down, sending it back
+// up, feeding the generator and firing it up. A Depot Keycard is enough for
+// those, so a Docker can keep the station moving while the Merchant is
+// asleep — which, on 24-hour turns, is most of the day. None of them spends
+// an obol or points the gun at anybody.
+async function requireDepotStanding({ needsPower = true } = {}) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
@@ -71,28 +84,56 @@ async function requireLicensedMerchant({ needsPower = true } = {}) {
     include: { tags: { include: { tag: true } }, location: { select: { slug: true, id: true } } },
   });
   if (!character) throw new UserError("You need a living character to do that.");
-  if (!character.tags.some((ct) => ct.tag.slug === MERCHANT_LICENSE_SLUG)) {
-    throw new UserError("The Depot only answers to a licensed Merchant. ‡");
-  }
   if (character.location?.slug !== DEPOT_LOCATION_SLUG) {
     throw new UserError("The Depot is its own room in the caves. You have to be standing in it. ‡");
   }
+
+  // Working a console is an ACT. This check used to sit only on the
+  // crate-opening guard below, which meant an incapacitated Merchant could
+  // still order, bank and refuel from the floor.
+  const blocker = blockerFor(character.tags, ACT);
+  if (blocker) throw new UserError(`You can't do that right now — you're ${blocker.name}. ‡`);
 
   const depot = await loadDepot(prisma);
 
   // The generator gates almost everything, and it has to be checked here
   // rather than trusted from the disabled button the client rendered. The
-  // power switch itself is the one action that must work in the dark.
+  // power switch and the fuel hatch are the two that must work in the dark.
   if (needsPower && !depotPowered(depot)) {
     throw new UserError("The generator is out. Nothing here runs without it. ‡");
   }
 
-  return { session, character, depot };
+  const held = heldSlugSet(character);
+  return {
+    session,
+    character,
+    depot,
+    licensed: held.has(MERCHANT_LICENSE_SLUG),
+    keycard: held.has(DEPOT_KEYCARD_SLUG),
+  };
 }
 
-// Opening a crate is the one thing a Docker can do, so it has its own gate:
-// the keycard, not the licence, and no standing requirement — a crate that
-// walked out of the landing pad can be cracked wherever it ended up.
+async function requireLicensedMerchant(opts) {
+  const gate = await requireDepotStanding(opts);
+  if (!gate.licensed) {
+    throw new UserError("That one wants the Merchant's Licence. ‡");
+  }
+  return gate;
+}
+
+// The working half of the console. A licence opens it too, obviously — the
+// Merchant is not locked out of his own winch by holding the better card.
+async function requireDepotHand(opts) {
+  const gate = await requireDepotStanding(opts);
+  if (!gate.licensed && !gate.keycard) {
+    throw new UserError("The Depot answers to a Licence or a Keycard, and you have neither. ‡");
+  }
+  return gate;
+}
+
+// Opening a crate has its own gate, because it is the one keycard job with no
+// standing requirement — a crate that walked out of the landing pad can be
+// cracked wherever it ended up. The card is checked inside `canOpenCrate`.
 async function requireCharacter() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -276,7 +317,11 @@ async function refreshShuttleRoom() {
 // pad; an empty manifest still brings the shuttle, because he also needs it
 // down to load goods going the other way.
 async function depotCallShuttleImpl({ reason: rawReason }) {
-  const { session, character, depot } = await requireLicensedMerchant();
+  // A Docker's job. Calling it down cannot spend anything — the obols left
+  // the account when the manifest was written — so the worst a keycard can do
+  // here is bring the shuttle down early, and the pad is where the goods were
+  // going anyway.
+  const { session, character, depot } = await requireDepotHand();
   const reason = requireReason(rawReason);
 
   if (depot.shuttleState !== "AWAY") {
@@ -355,7 +400,12 @@ async function depotCallShuttleImpl({ reason: rawReason }) {
 // the Depot's own exchange rate. This is the ONLY way Resources become obols,
 // which is what stops the Merchant printing money at a keyboard.
 async function depotSendShuttleImpl({ reason: rawReason }) {
-  const { session, character, depot } = await requireLicensedMerchant();
+  // Also a Docker's job, and the sharper of the two: a keycard can sell
+  // everything on the pad. That is the trade — a card that can load the
+  // shuttle is a card that can load the wrong things onto it. The payout goes
+  // to the station's account either way, so this moves goods, never money out
+  // of the Depot, and the ledger names whoever pressed it.
+  const { session, character, depot } = await requireDepotHand();
   const reason = requireReason(rawReason);
 
   if (depot.shuttleState !== "DOCKED") throw new UserError("The shuttle isn't here. ‡");
@@ -760,11 +810,19 @@ async function depotCreditImpl({ direction: rawDirection, amount: rawAmount, rea
 
 // The power switch. The one action that does NOT require power, for the
 // obvious reason.
+//
+// Asymmetric on purpose. A Docker may START it — that is the rescue, and the
+// whole reason a dead generator should not mean a dead Depot until the
+// Merchant next logs in. Only the licence may SHUT IT DOWN, because switching
+// the lights off also switches the turret off, and handing a keycard the
+// station's off switch hands it the security system.
 async function depotGeneratorImpl({ on, reason: rawReason }) {
-  const { session, character, depot } = await requireLicensedMerchant({ needsPower: false });
+  const wanted = Boolean(on);
+  const { session, character, depot } = wanted
+    ? await requireDepotHand({ needsPower: false })
+    : await requireLicensedMerchant({ needsPower: false });
   const reason = requireReason(rawReason);
 
-  const wanted = Boolean(on);
   if (wanted && (depot.generatorFuel ?? 0) <= 0) {
     throw new UserError("It turns over and dies. There's nothing in the tank. ‡");
   }
@@ -789,7 +847,9 @@ async function depotGeneratorImpl({ on, reason: rawReason }) {
 // Shovelling fuel in. Coal is what it wants; saltpeter burns worse and is
 // there for the night the coal ran out.
 async function depotRefuelImpl({ slug: rawSlug, quantity: rawQuantity, reason: rawReason }) {
-  const { session, character, depot } = await requireLicensedMerchant({ needsPower: false });
+  // A Docker's job, and the one that costs him rather than the station: the
+  // coal comes off his own sheet.
+  const { session, character, depot } = await requireDepotHand({ needsPower: false });
   const reason = requireReason(rawReason);
 
   const slug = rawSlug === SALTPETER_SLUG ? SALTPETER_SLUG : COAL_SLUG;

@@ -72,13 +72,46 @@ Three doors, deliberately different:
 
 | Holder | Can |
 |---|---|
-| **Merchant's Licence** | Everything: order, call and send the shuttle, the ATM, the credit line, the generator, the turret. Must be standing at the Depot, and (except for the power switch) the generator must be running. |
-| **Depot Keycard** | Read the console. Enter the landing pad. Open crates, including sealed ones. Operates nothing. |
+| **Merchant's Licence** | Everything below, plus the money and the gun: order, the ATM, the credit line, the ⬢ counter, arming and disarming the turret, and shutting the generator down. |
+| **Depot Keycard** | Enter the landing pad. Open crates, including sealed ones. Call the shuttle down, load it and send it back up. Feed the generator and fire it up. Spends nothing. |
 | **Superadmin** | Read the console. |
 | Anyone else | Bounced off `/depot`. |
 
 The licence is checked, never the Merchant **role** — the licence is tradeable
-and a role check would quietly break that.
+and a role check would quietly break that. The keycard is checked the same way
+and for the same reason.
+
+Everything except reading needs you **standing at the Depot**, and everything
+except the fuel hatch and the two generator switches needs the generator
+**running**.
+
+**The keycard used to operate nothing.** It read the console and cracked
+crates, and that was all. The turn length is what changed it: one turn is one
+real day, so "the Merchant will call the shuttle down when he wakes up" is a
+day of nothing moving, and a player who paid yesterday is still waiting. The
+split is between **labour and money**. A keycard does the work — three server
+actions plus the crate one, all of them either free or paid for out of the
+Docker's own pocket — and cannot spend an obol, draw on the credit line, or
+point the gun at anybody.
+
+Two edges of that are deliberate rather than accidental:
+
+- **Sending the shuttle up is the sharp one.** A keycard can sell everything
+  standing on the pad. That is the real cost of the change, and it is the same
+  exposure the pad has always had — the room is a stash anyone with a card can
+  walk into and carry off, so a card that can *load* the shuttle is not a new
+  door, only a faster one. The payout lands in the station's account either
+  way, so it moves goods, never money out of the Depot, and the ledger names
+  whoever pressed it.
+- **The generator is split by direction.** A keycard may start it, because a
+  dead generator otherwise takes the whole station down for a day. Only the
+  licence may shut it down, because the lights going out take the **turret**
+  with them, and handing a keycard the off switch would hand it the security
+  system.
+
+The gates live in `web/app/(app)/depot/actions.js`:
+`requireDepotStanding` does the standing, the ACT check and the power, and
+`requireLicensedMerchant` / `requireDepotHand` sit on top of it.
 
 ## 0c. The generator
 

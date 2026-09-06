@@ -93,7 +93,7 @@ function TurretStat({ armed, face }) {
 }
 
 export default function DepotConsole(props) {
-  const { depot, greetingName, readOnly, atDepot, powered } = props;
+  const { depot, greetingName, readOnly, hand, atDepot, powered } = props;
   const [tab, setTab] = useState("order");
 
   const shuttleTurnsLeft =
@@ -137,20 +137,28 @@ export default function DepotConsole(props) {
 
       {/* One banner, in priority order, rather than three stacked. The most
           blocking thing is the only thing worth reading. */}
-      {readOnly ? (
-        <p className="depot-notice">
-          Read-only. You can see the state of the station; running it wants the Merchant&apos;s
-          Licence. ‡
-        </p>
-      ) : !atDepot ? (
+      {!atDepot ? (
         <p className="depot-notice">
           You are not at the Depot. The readings are live, but nothing down here answers a
           keyboard three zones away. ‡
         </p>
       ) : !powered ? (
+        // Ahead of the papers note now, because a keycard can fix this one and
+        // being told what your card cannot do is no use while the lights are
+        // out.
         <p className="depot-notice depot-notice-danger">
           The generator is out. Nothing works until it is running again — the Station tab has the
           switch and the coal. ‡
+        </p>
+      ) : readOnly && hand ? (
+        <p className="depot-notice">
+          Your keycard works the machinery — the shuttle, the generator, the crates — but not the
+          money or the gun. Ordering, the bank and the turret want the Merchant&apos;s Licence. ‡
+        </p>
+      ) : readOnly ? (
+        <p className="depot-notice">
+          Read-only. You can see the state of the station; working it wants a Depot Keycard, and
+          running it wants the Merchant&apos;s Licence. ‡
         </p>
       ) : null}
 

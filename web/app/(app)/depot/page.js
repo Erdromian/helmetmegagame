@@ -30,9 +30,15 @@ import PageShell, { PageHeader } from "@/app/components/PageShell";
 // Three ways in, and they are deliberately different. The Merchant's Licence
 // runs the place — the licence and not the ROLE, because the licence is
 // tradeable and handing it over really does hand over the Depot. A Depot
-// Keycard reads it: a Docker needs to know whether the generator is alive and
-// what is on the pad, and can crack open the crates he is carrying, but
-// operates nothing. A superadmin reads it too. Everyone else is bounced.
+// Keycard works it: a Docker can crack his crates, call the shuttle down,
+// load it and send it back up, and keep the generator fed and running. What a
+// keycard cannot do is spend: no ordering, no ATM, no credit line, no ⬢
+// counter, and never the turret. A superadmin reads it. Everyone else is
+// bounced.
+//
+// The reason the keycard grew teeth is the turn length. One turn is one real
+// day, so "the Merchant will do it when he wakes up" is a day of nothing
+// moving, and every step above is either free or costs the person doing it.
 const TAG_SELECT = { include: { group: { select: { name: true } } } };
 
 // How many ledger rows to hand the client. Enough to be a book, few enough
@@ -203,6 +209,10 @@ export default async function DepotPage() {
   // Read-only unless you hold the licence. Everything below is a hint anyway —
   // the actions re-check all of it.
   const readOnly = !licensed;
+  // A "hand" is anyone who may work the machinery: the licence, or a keycard.
+  // Superadmins are deliberately NOT hands — /gm/dev is the GM's door and this
+  // page is a thing in a room.
+  const hand = licensed || keycard;
 
   return (
     <PageShell width="wide">
@@ -229,12 +239,23 @@ export default async function DepotPage() {
         turnNumber={openTurn?.number ?? null}
         fuelTurnsLeft={fuelTurnsLeft(depot)}
         readOnly={readOnly}
+        hand={hand}
         atDepot={Boolean(atDepot)}
         powered={powered}
-        // One flag for "you may press things": licensed, standing there, and
-        // the lights on. The Station tab overrides it for the power switch,
-        // which has to work in the dark.
+        // Four flags, because there are two levels of authority and two of
+        // them have to survive the lights going out.
+        //
+        //   disabled            the money and the gun — licence only
+        //   handDisabled        the machinery — licence or keycard
+        //   handPoweredDisabled the machinery that works in the dark, which
+        //                       is the fuel hatch and the starter. Without
+        //                       this one a dead generator was unrecoverable
+        //                       from the UI: the Feed button was greyed out
+        //                       by the very outage it existed to fix.
+        //   poweredDisabled     shutting it down — licence only, in the dark
         disabled={readOnly || !atDepot || !powered}
+        handDisabled={!hand || !atDepot || !powered}
+        handPoweredDisabled={!hand || !atDepot}
         poweredDisabled={readOnly || !atDepot}
         wares={wares}
         priceList={priceList}
