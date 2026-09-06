@@ -27,7 +27,9 @@ const {
   randomSpawnName,
   THREAT_SPAWN_ACCEPT_PREFIX,
   THREAT_SPAWN_DECLINE_PREFIX,
+  SHUTTLE_ARRIVAL_SLUGS,
 } = require("./threats");
+const { ambientEverywhere } = require("./worldBroadcast");
 
 // The two buttons on an offer DM. Raw component JSON rather than discord.js
 // builders, because the web sends this one and only the bot has the library —
@@ -170,7 +172,7 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
       const taken = await tx.character.count({
         where: { roleId: spawn.roleId, status: { in: seatHolderStatuses(spawn.role) } },
       });
-      if (taken >= roleCapacity(spawn.role, config?.playerCount ?? 100)) throw new Error("ROLE_FULL");
+      if (taken >= roleCapacity(spawn.role, config?.playerCount ?? 80)) throw new Error("ROLE_FULL");
 
       // Re-read under the lock: two clicks on the same button race here, and
       // the status check above is only an early out.
@@ -234,6 +236,9 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
       discordUserId,
       bareName: formatBareName({ firstName, lastName: null }),
       toLocationId: created.locationId,
+      // Which seat this was, so the side-effect step can tell whether the
+      // whole map should hear a shuttle come down.
+      threatSlug: threat.slug,
     },
     turn: openTurn,
     line: created.locationId
@@ -265,7 +270,7 @@ async function declineThreatSpawn(prisma, spawnId, discordUserId) {
 // access rides the zone role and the Location overwrite instead
 // (CHANNELS.md §3), which is what applyLocationMoveSideEffects hands out.
 async function applySpawnSideEffects(prisma, sideEffects) {
-  const { characterId, discordUserId, bareName, toLocationId } = sideEffects;
+  const { characterId, discordUserId, bareName, toLocationId, threatSlug } = sideEffects;
 
   try {
     const { name, color } = characterRoleAppearance(bareName);
@@ -290,6 +295,18 @@ async function applySpawnSideEffects(prisma, sideEffects) {
   const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
   if (cursedRoleId) {
     await removeMemberRole(discordUserId, cursedRoleId).catch(() => {});
+  }
+
+  // The Tribunal arrives by shuttle, and everybody sees it. Every Location on
+  // the map, not a range from an origin — the sky is not a noise. Last, and
+  // best-effort like everything else here: a failed broadcast must not cost
+  // somebody their character.
+  if (SHUTTLE_ARRIVAL_SLUGS.has(threatSlug)) {
+    await ambientEverywhere(prisma, "You see a shuttle in the sky. It landed nearby.", {
+      signed: false,
+    }).catch((err) =>
+      console.error("Shuttle arrival broadcast failed:", err),
+    );
   }
 }
 

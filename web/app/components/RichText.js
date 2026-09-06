@@ -76,6 +76,15 @@ function CarryToken({ payload, fallback }) {
   return lines[payload.trim()] ?? fallback;
 }
 
+// Payload is a slash command's name without the slash ("play"), so a tag
+// description can say `type {cmd:play}` and have it render as something a
+// player types rather than as a chip naming a thing. Like InfoToken it looks
+// nothing up and can never fail — the payload IS the content. The bot writes
+// plain backticks instead, because Discord renders Markdown and this does not.
+function CmdToken({ payload }) {
+  return <code className="cmd-chip">/{payload.trim()}</code>;
+}
+
 const BUBBLE_KINDS = {
   tag: TagToken,
   resource: ResourceToken,
@@ -83,6 +92,7 @@ const BUBBLE_KINDS = {
   document: DocumentToken,
   char: CharToken,
   info: InfoToken,
+  cmd: CmdToken,
 };
 
 // Renders plain text, except any {kind:payload} token (e.g. {tag:slug} or

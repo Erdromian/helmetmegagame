@@ -43,12 +43,13 @@ const {
   zoneGmRoleName,
 } = require("./zoneChannelSpec");
 const { syncTurnsChannelAccess } = require("./turnsChannelAccess");
-const { locationAnchorRow, locationGateRow } = require("./locationAnchorRow");
+const { locationAnchorRows, locationGateRow } = require("./locationAnchorRow");
 const { collectAttributes } = require("./locationAttributes");
 const { roomStarterRow, WATCHTOWER_ROOM_SLUGS } = require("./roomStarterRow");
 const { collectLive, loadLiveStates, liveLine } = require("./roomLive");
 const { entriesOf } = require("./yamlEntries");
 const { orderEndpoints, linksFor, endpoints, gateOperable } = require("./locationGraph");
+const { canBuildHere, PRESENT_STATUSES } = require("./structures");
 
 const CHANNEL_TYPE_CATEGORY = 4;
 
@@ -428,6 +429,34 @@ function parseStash(raw, roomId, problems) {
   return out;
 }
 
+// A Location's `structures:` — the things that were simply always standing
+// there, like the Square's cross. A flat list of placement-tag slugs; the seed
+// (seedLocationStructures) creates one COMPLETE row each. Slugs are not
+// checked against the catalog here, for the reason `stash:` and `access:`
+// give: tags sync after zones, so the lookup happens at seed time and an
+// unknown slug warns and skips.
+function parseStructures(raw, locationId, problems) {
+  if (raw == null) return [];
+  if (!Array.isArray(raw)) {
+    problems.push(`location "${locationId}" structures: must be a list of tag slugs`);
+    return [];
+  }
+  const out = [];
+  for (const entry of raw) {
+    if (typeof entry !== "string" || !entry.trim()) {
+      problems.push(`location "${locationId}" structures: entries must be tag slugs`);
+      continue;
+    }
+    const slug = entry.trim();
+    if (out.includes(slug)) {
+      problems.push(`location "${locationId}" structures lists "${slug}" twice`);
+      continue;
+    }
+    out.push(slug);
+  }
+  return out;
+}
+
 function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems) {
   for (const [index, location] of entriesOf(zone.locations, "id").entries()) {
     if (!location?.id) {
@@ -443,6 +472,7 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
       sortOrder: index,
       zoneSlug,
       yields: collectYields(location, problems),
+      structures: parseStructures(location.structures, location.id, problems),
     });
     for (const [roomIndex, room] of entriesOf(location.rooms, "id").entries()) {
       if (!room?.id) {
@@ -720,9 +750,10 @@ async function syncLocationAnchor(prisma, location, rooms) {
   if (!location.discordChannelId) return "skipped";
 
   const body = buildAnchorBody(location, rooms);
-  // The whole row, not just the id: the Noticeboard button is conditional on
-  // this location's `attributes` (db/lib/noticeboard.js).
-  const components = [locationAnchorRow(location)];
+  // The whole set of rows, not just the id: the Noticeboard button is
+  // conditional on this location's `attributes` (db/lib/noticeboard.js), and
+  // adding Travel pushed a boarded location onto a second row.
+  const components = locationAnchorRows(location);
   const hash = hashBody(`${body} ${JSON.stringify(components)}`);
 
   if (location.anchorMessageId && location.anchorHash === hash) return "unchanged";
@@ -887,6 +918,7 @@ async function syncZonesFromYaml(prisma) {
     locationsCreated: 0,
     locationsUpdated: 0,
     locationsMoved: [],
+    structuresSeeded: 0,
     yieldsCreated: 0,
     yieldsRebased: 0,
     yieldsDeleted: 0,
@@ -972,6 +1004,54 @@ async function syncZonesFromYaml(prisma) {
     }
     locationsBySlug.set(entry.slug, location);
     await syncLocationYields(prisma, location.id, entry.yields, report);
+    if (entry.structures.length > 0) {
+      await seedLocationStructures(prisma, location, zone, entry.structures, report);
+    }
+  }
+
+  // A Location's seeded structures: the same FLOOR posture as the room stash
+  // below. One COMPLETE row per listed type, created only while nothing of
+  // that type in PRESENT_STATUSES stands there — so a re-sync never doubles
+  // the Square's cross, and a cross the GMs razed (RUINED) or a site somebody
+  // walked away from is re-raised, which is what "always standing there"
+  // means. Nobody paid and nobody built it, so payer and builder stay null.
+  // canBuildHere is a rule for PLAYERS raising things; the YAML is the world,
+  // so an indoors cross is a warning to read, not a refusal.
+  async function seedLocationStructures(prisma, location, zone, slugs, report) {
+    for (const slug of slugs) {
+      const tag = await prisma.tag.findUnique({
+        where: { slug },
+        select: { name: true, placement: true },
+      });
+      if (!tag) {
+        console.warn(`zones.yaml: location "${location.slug}" structures names unknown tag "${slug}" — run db:sync-tags first, then db:sync-zones again.`);
+        continue;
+      }
+      if (!tag.placement) {
+        console.warn(`zones.yaml: location "${location.slug}" structures names "${slug}", which has no placement: block — skipped.`);
+        continue;
+      }
+      const ground = canBuildHere({ ...location, zone: { kind: zone.kind } });
+      if (!ground.ok) {
+        console.warn(`zones.yaml: "${slug}" seeded at "${location.slug}", where players could not build one (${ground.reason}) — authored on purpose?`);
+      }
+      const standing = await prisma.structure.count({
+        where: { locationId: location.id, typeSlug: slug, status: { in: PRESENT_STATUSES } },
+      });
+      if (standing > 0) continue;
+      await prisma.structure.create({
+        data: {
+          locationId: location.id,
+          typeSlug: slug,
+          typeName: tag.name,
+          status: "COMPLETE",
+          turnsNeeded: 1,
+          turnsDone: 1,
+          resourcesCost: 0,
+        },
+      });
+      report.structuresSeeded += 1;
+    }
   }
 
   // A Room's seeded stash: the kit that is simply THERE, like the Sanctuary's

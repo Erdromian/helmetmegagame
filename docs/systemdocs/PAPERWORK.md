@@ -245,6 +245,11 @@ paper and all** — it blew away, which is what makes tearing one down worth
 doing. The `noticeboard` pass in `db/index.js` deletes the `NoticePost` and the
 `ephemeral` Tag row with it.
 
+Wanted and Debtor notices ride this same machinery rather than a bespoke one —
+`db/lib/wantedPoster.js` mints them through `paperMint.js` and pins one copy
+on a board (the Square for Wanted, the Depot/Customs board for Debtor) with
+two more loose sheets scattered in nearby rooms, on a 30-turn clock.
+
 ## 8. Where the code lives
 
 `db/lib/reading.js` (the gate), `db/lib/paper.js` (names, descriptions, the
@@ -258,8 +263,16 @@ stamps start).
 
 ## 9. What this does not do
 
-- **No forgery.** The `forger` tag — "You know how to make letters, seals, and
-  writing appear as though another wrote it" — is the obvious next hook, and
-  this is what makes it possible. Nothing implements it yet.
+- **Forgery is HALF implemented.** The `forger` tag (Brigands only,
+  `general-brigand`) is now a real recipe skill: every one of the six courtier
+  wax seals is `craftable` behind it, at 1 turn and 2 ⬢, so a brigand can make
+  a Fleur-de-Lis and seal a letter with somebody else's mark. The seals stay
+  `exclusive: true`, so a forger holds one at a time and has to hand each off
+  before making the next — a deliberate throttle, not an oversight.
+
+  What is still NOT implemented is forging the **handwriting**: a letter's
+  `paperAuthor` is always the writer's presented name, and nothing lets a
+  forger set it to somebody else's. That is the remaining hook, and §5's
+  presented-name rule is where it would go.
 - **No copying.** There is no way to duplicate a letter. Transcribing one is
   Write plus retyping, which seems right.

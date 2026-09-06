@@ -323,12 +323,26 @@ message a GM deleted by hand 404s and gets reposted. Its shape
 -# An open clearing — …
 
 **Public Rooms**: <#t1> | <#t2>
-[Who's here?] [Secret rooms?] [Converse]
+[Travel] [Who's here?] [Secret rooms?] [Examine] [Converse]
+[Noticeboard]
 ```
 
 Private Rooms are deliberately absent from the index — **Secret rooms?** is
-what surfaces those. The three buttons (`loc:who:{id}`, `loc:secret:{id}`,
-`loc:converse:{id}`, all keyed on the Location's id) are routed by the bot.
+what surfaces those. Four of the buttons (`loc:who:{id}`, `loc:secret:{id}`,
+`loc:examine:{id}`, `loc:converse:{id}`) are keyed on the Location's id and
+routed by prefix; **Noticeboard** appears only where `docs/zones.yaml`
+declared one.
+
+**Travel is the odd one and was added 2026-09-06.** Its id is the bare
+`loc:open`, with no Location in it, because `handleTravelOpen` reads the
+mover's own `locationId` rather than the channel's — which is what lets the
+identical button serve the #turns console, every anchor, and `/travel`. It
+carries **no emoji** here, unlike the console's 🗺️: on an anchor it sits in a
+row of plain-text buttons and the one emoji only made it shout.
+
+Adding it took the boarded Locations to six buttons, past Discord's five-per-
+row cap, so `locationAnchorRows()` now returns the buttons chunked into rows
+rather than one hand-placed row. The next button to arrive needs no thought.
 Rooms are synced **before** the anchor, since the anchor body embeds their
 thread mentions.
 

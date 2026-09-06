@@ -21,6 +21,7 @@ import {
   BUTCHER_SLUG,
   WORKSHOP_EQUIPMENT_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
+  GUILT_RIDDEN_SLUG,
 } from "@lifeweb/db/lib/constants";
 import {
   hasAttribute,
@@ -704,6 +705,21 @@ export default async function CharacterPage() {
 
   // A fact about your own sheet, so this one may grey the button out.
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
+  // Crucify shows only for a Fundamentalist standing at a finished Cross —
+  // your tag and your ground, nothing about who else is here.
+  // crucifyCharacterRequest re-checks both.
+  const canCrucify =
+    heldSlugs.has("fundamentalist") &&
+    sitesHere.some((s) => s.typeSlug === "crucifix" && s.status === "COMPLETE");
+  // Disguise shows only while you are carrying the kit — your own sheet, so
+  // it leaks nothing. disguiseSelfRequest re-checks it, since a hidden button
+  // is a hint and not a lock.
+  const canDisguise = heldSlugs.has("disguise-kit");
+  // The bomb's two halves. Both read off your own sheet and nothing else, so
+  // neither leaks anything about the room; nukeActions.js re-checks both,
+  // since a hidden button is a hint and not a lock.
+  const hasDatacard = heldSlugs.has("nuclear-datacard");
+  const hasDevice = heldSlugs.has("nuclear-device");
   const hasBird = holdsBirdAndLetters(character.tags);
   // Paperwork (docs/systemdocs/PAPERWORK.md). Letters AND eyes — the same
   // predicate the tag chips, the noticeboard and paperActions.js all use, so
@@ -960,14 +976,19 @@ export default async function CharacterPage() {
   const confessors = here
     .filter((c) => c.tags.some((ct) => ct.tag.slug === "chaplain"))
     .map((c) => ({ id: c.id, name: c.name }));
-  const mySins = (
-    await prisma.characterTag.findMany({
-      where: { characterId: character.id, tag: { psychological: true } },
-      select: { tag: { select: { id: true, name: true } } },
-    })
-  )
-    .map((ct) => ct.tag)
-    .sort((a, b) => a.name.localeCompare(b.name));
+  // Guilt Ridden can't bring themself to confess at all — see
+  // db/lib/confession.js#confessableTags, mirrored here so the Confess
+  // button hides itself instead of failing on click.
+  const mySins = heldSlugs.has(GUILT_RIDDEN_SLUG)
+    ? []
+    : (
+        await prisma.characterTag.findMany({
+          where: { characterId: character.id, tag: { psychological: true } },
+          select: { tag: { select: { id: true, name: true } } },
+        })
+      )
+        .map((ct) => ct.tag)
+        .sort((a, b) => a.name.localeCompare(b.name));
 
   const pendingOffers = openTurn
     ? (
@@ -1079,13 +1100,14 @@ export default async function CharacterPage() {
       ).map((z) => ({ id: z.id, name: z.name }))
     : [];
 
-  // Bind and Free split this one list on `bound`.
+  // Bind and Free split this one list on `bound`; Crucify on `crucified`.
   const bindTargets = zoneRoster
     .filter((c) => c.status === "ALIVE")
     .map((c) => ({
       id: c.id,
       name: c.name,
       bound: c.tags.some((ct) => ct.tag.slug === "bound"),
+      crucified: c.tags.some((ct) => ct.tag.slug === "crucified"),
     }));
 
   // `finishable` is the narrower Dying-or-Bound gate on the lethal half.
@@ -1236,6 +1258,10 @@ export default async function CharacterPage() {
       moveTargets={moveTargets}
       moveLocations={moveLocations}
       bindTargets={bindTargets}
+      canCrucify={canCrucify}
+      canDisguise={canDisguise}
+      hasDatacard={hasDatacard}
+      hasDevice={hasDevice}
       harmTargets={harmTargets}
       harmTags={harmTags}
       lastNameLocked={isDynastyMember(character.role?.slug)}

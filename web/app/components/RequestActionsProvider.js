@@ -61,6 +61,8 @@ import {
   moveCharacterRequest,
   bindCharacterRequest,
   freeCharacterRequest,
+  crucifyCharacterRequest,
+  disguiseSelfRequest,
   harmCharacterRequest,
   buryCharacterRequest,
   butcherCorpseRequest,
@@ -69,6 +71,7 @@ import {
   extractGodfleshRequest,
   packageItemsRequest,
 } from "../(app)/character/requestActions";
+import { readPointer, armNuke, disarmNuke } from "@/app/(app)/character/nukeActions";
 // Writing and sealing file no Request, so they live apart from the rest —
 // see web/app/(app)/character/paperActions.js.
 import {
@@ -428,6 +431,16 @@ export default function RequestActionsProvider({
   canExtract = false,
   extractBlocked = null,
   canSeePackage = false,
+  // Crucify: you hold `fundamentalist` and a COMPLETE Cross stands where you
+  // are. Both facts about YOUR sheet and YOUR ground, resolved in
+  // character/page.js; the action re-checks both.
+  canCrucify = false,
+  // Disguise: you are carrying a disguise kit. Hidden rather than greyed —
+  // see actionRegistry.js.
+  canDisguise = false,
+  // The datacard, and the device itself. Both facts about your own sheet.
+  hasDatacard = false,
+  hasDevice = false,
 }) {
   const [mode, setMode] = useState(null);
   const [tagId, setTagId] = useState(null);
@@ -456,6 +469,9 @@ export default function RequestActionsProvider({
   // list of the dead, and this one searches every zone (REQUESTS.md §5d).
   // This input used to belong to Bury, which now picks a corpse instead.
   const [engraveName, setEngraveName] = useState("");
+  // The false name typed into the Disguise dialog. Separate from engraveName
+  // so switching modes never carries one name into the other dialog.
+  const [disguiseName, setDisguiseName] = useState("");
   // Butcher and Bury both act on one corpse, identified by BOTH its tag and
   // where it is standing — the same body can be in two places for two people.
   const [corpseKey, setCorpseKey] = useState("");
@@ -558,9 +574,13 @@ export default function RequestActionsProvider({
     () => lootTargets.find((t) => t.id === targetId) ?? null,
     [lootTargets, targetId],
   );
-  // Bind and Free share one roster, split on who is already tied up.
+  // Bind, Free and Crucify share one roster: Bind wants the untied, Free the
+  // tied, Crucify anyone not already on the cross.
   const bindable = useMemo(
-    () => bindTargets.filter((t) => (mode === "bind" ? !t.bound : t.bound)),
+    () =>
+      bindTargets.filter((t) =>
+        mode === "bind" ? !t.bound : mode === "free" ? t.bound : !t.crucified,
+      ),
     [bindTargets, mode],
   );
 
@@ -677,6 +697,7 @@ export default function RequestActionsProvider({
       setLocationId("");
       setLethal(false);
       setEngraveName("");
+      setDisguiseName("");
       setCorpseKey("");
       setBirdBody("");
       setBirdQuery("");
@@ -873,6 +894,8 @@ export default function RequestActionsProvider({
         return bindCharacterRequest({ targetCharacterId: targetId, reason });
       case "free":
         return freeCharacterRequest({ targetCharacterId: targetId, reason });
+      case "crucify":
+        return crucifyCharacterRequest({ targetCharacterId: targetId, reason });
       case "harm":
         return harmCharacterRequest({
           targetCharacterId: targetId,
@@ -898,6 +921,14 @@ export default function RequestActionsProvider({
       }
       case "engrave":
         return engraveHeadstoneRequest({ firstName: engraveName, reason });
+      case "disguise":
+        return disguiseSelfRequest({ name: disguiseName, reason });
+      case "pointer":
+        return readPointer();
+      case "arm":
+        return armNuke({ reason });
+      case "disarm":
+        return disarmNuke({ reason });
       // Neither files a Request — see web/app/(app)/character/paperActions.js
       // for why. Both still come back as { ok, error } like everything else.
       case "write":
@@ -945,6 +976,7 @@ export default function RequestActionsProvider({
         return Boolean(targetId && locationId);
       case "bind":
       case "free":
+      case "crucify":
         return Boolean(targetId);
       case "harm":
         return Boolean(targetId && (tagId || lethal));
@@ -953,6 +985,15 @@ export default function RequestActionsProvider({
         return Boolean(corpseKey);
       case "engrave":
         return Boolean(engraveName.trim());
+      case "disguise":
+        return Boolean(disguiseName.trim());
+      // The pointer asks nothing and costs nothing, so there is nothing to
+      // fill in before pressing it.
+      case "pointer":
+        return true;
+      case "arm":
+      case "disarm":
+        return hasDevice;
       case "craft": {
         if (siteId) {
           const site = buildSites.find((s) => s.id === siteId);
@@ -1029,6 +1070,10 @@ export default function RequestActionsProvider({
       canSeeExtract,
       canExtract,
       canSeePackage,
+      canCrucify,
+      canDisguise,
+      hasDatacard,
+      hasDevice,
     }),
     [
       craftable,
@@ -1055,6 +1100,10 @@ export default function RequestActionsProvider({
       canSeeExtract,
       canExtract,
       canSeePackage,
+      canCrucify,
+      canDisguise,
+      hasDatacard,
+      hasDevice,
     ],
   );
 
@@ -1737,20 +1786,82 @@ export default function RequestActionsProvider({
               </>
             )}
 
-            {(mode === "bind" || mode === "free") && (
+            {mode === "pointer" && (
+              <p className="text-xs text-muted">
+                The card wakes and swings. Press to read it&mdash;the answer
+                comes to you privately, and nobody here is told you looked. ‡
+              </p>
+            )}
+
+            {(mode === "arm" || mode === "disarm") && (
+              <>
+                {!hasDevice ? (
+                  <NobodyHere>
+                    You have the card, but not the device. You can only work it
+                    with the thing in your hands. ‡
+                  </NobodyHere>
+                ) : mode === "arm" ? (
+                  <p className="text-xs text-muted">
+                    The card goes in and the count begins. It detonates at the
+                    close of the turn after next, and everyone who is not
+                    underground when it does will die&mdash;you included, unless
+                    you are. You can still take the card out before then. ‡
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted">
+                    The card comes out and the count stops. You can put it back
+                    whenever you like. ‡
+                  </p>
+                )}
+              </>
+            )}
+
+            {mode === "disguise" && (
+              <>
+                <label className="field">
+                  <span className="field-label">Go by what name? ‡</span>
+                  <input
+                    type="text"
+                    value={disguiseName}
+                    onChange={(e) => setDisguiseName(e.target.value)}
+                    placeholder="A name"
+                    autoComplete="off"
+                    maxLength={24}
+                    required
+                  />
+                </label>
+                {/* No people-picker: you are disguising yourself, not choosing
+                a target, and the name is free text on purpose — impersonating
+                somebody real is a thing you do by typing their name, and
+                whether you get away with it is a GM's question, not a
+                dropdown's. */}
+                <p className="text-xs text-muted">
+                  For 3 turns nobody sees your name or your face&mdash;you speak
+                  as this instead. You cannot conceal yourself on top of a
+                  disguise, and it wears off on its own. The kit is not used
+                  up. ‡
+                </p>
+              </>
+            )}
+
+            {(mode === "bind" || mode === "free" || mode === "crucify") && (
               <>
                 {bindable.length === 0 ? (
                   <NobodyHere>
                     {mode === "bind"
                       ? "There’s nobody here left to tie up."
-                      : "Nobody here is bound."}
+                      : mode === "free"
+                        ? "Nobody here is bound."
+                        : "There’s nobody here to put on the cross. ‡"}
                   </NobodyHere>
                 ) : (
                   <label className="field">
                     <span className="field-label">
                       {mode === "bind"
                         ? "Who are you tying up?"
-                        : "Who are you cutting loose?"}
+                        : mode === "free"
+                          ? "Who are you cutting loose?"
+                          : "Who are you crucifying? ‡"}
                     </span>
                     <Select
                       value={targetId}
@@ -1771,7 +1882,9 @@ export default function RequestActionsProvider({
                 <p className="text-xs text-muted">
                   {mode === "bind"
                     ? "Once they're Bound you can search them or march them somewhere. Say why."
-                    : "Anyone standing here can do this, including someone who came to rescue them."}
+                    : mode === "free"
+                      ? "Anyone standing here can do this, including someone who came to rescue them."
+                      : "They go up on the cross now. They can still speak, but nothing else — and in a turn they are Dying. It doesn't spend your Move. Say why. ‡"}
                 </p>
               </>
             )}

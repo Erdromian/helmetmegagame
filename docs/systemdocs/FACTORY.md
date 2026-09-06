@@ -166,18 +166,23 @@ world with no recipe to make a third.
 
 ## 6. The numbers, and where they come from
 
-**A cube weighs 20 lb; a crated cube weighs 10.** Working back from the target:
-5 turns of production is ~2.5 producing turns, 3 refugees × 8 cubes × 2.5 = 60
-cubes, and a Banneret with Horse + Cart carries 120 × (1 + 4) = 600 lb. 600/60
-is 10 crated, 20 raw.
+**A cube weighs 17 lb; a crated cube weighs 8.5.** (It was 20/10 until
+2026-09-06, Bascinet's call; the derivation below is the original one, rerun.)
+Working back from the target: 5 turns of production is ~2.5 producing turns,
+3 refugees × 8 cubes × 2.5 = 60 cubes, and a Banneret with Horse + Cart
+carries 120 × (1 + 4) = 600 lb. 60 crated cubes is 510 raw, 255 crated — so a
+wagon now clears a five-turn run with room to spare rather than exactly
+filling.
 
-It checks out through the crate cap too: 150 lb packs 7 cubes into a 70 lb
-crate, and 600/70 ≈ 8.5 crates ≈ 60 cubes. **One full wagon every five turns.**
+Through the crate cap: 150 lb packs **8** cubes into a 68 lb crate (was 7 into
+70), and 600/68 ≈ 8.8 crates ≈ 70 cubes.
 
-A refugee's 8-cube day is 160 lb against a 120 lb cap, so they *cannot walk
-their own output anywhere*. They stash it in the Logistics Room and the carry
-pass handles the overflow. The cart and the silo are the business; that is
-deliberate, not an oversight.
+A refugee's 8-cube day is 136 lb against a 120 lb cap, so they *still* cannot
+walk their own output anywhere — the margin narrowed from 40 lb to 16 lb but
+the rule the design leans on survives. A **7**-cube day (119 lb) now just
+fits, which 6 cubes did before. They stash the rest in the Logistics Room and
+the carry pass handles the overflow. The cart and the silo are the business;
+that is deliberate, not an oversight.
 
 **A cube sells for 4 ⬢.** Farming at coefficient 1.0 with
 `productionCoefficient` 0.93 pays 11–15 ⬢, midpoint 13; a factory day at the
@@ -268,7 +273,7 @@ written, so nothing can be fished back out.
 **There is a third writer into rooms, and it is excluded rather than routed
 through the same seam:** `db/lib/roomStash.js#pickRandomPublicRoom`, which the
 carry pass and corpse placement use to shed overflow. A destroying room is never
-eligible. That is not a nicety — a refining shift makes 160 lb of Squeeze
+eligible. That is not a nicety — a refining shift makes 136 lb of Squeeze
 against a 120 lb cap, so the overflow drop fires on the *intended* loop every
 day, and one of the Factory's three public rooms is the trough. Tipping
 something in has to stay a thing you do on purpose.

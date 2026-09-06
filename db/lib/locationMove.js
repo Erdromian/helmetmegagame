@@ -22,6 +22,7 @@ const { syncCharacterRoomAccess } = require("./roomAccess");
 const { ambientLine } = require("./ambientLine");
 const { settleCarry, deliverCarryDrop } = require("./carry");
 const { parkMountsIndoors, parkedMessage } = require("./indoors");
+const { settlePhobias } = require("./phobias");
 const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW } = require("./zoneChannelSpec");
 const { linkBetween, endpoints, shouldPromptKeyed } = require("./locationGraph");
@@ -189,6 +190,13 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     return [];
   });
 
+  // Whether a place scares this character is a DB fact too, same as parking
+  // a mount above — before the Discord guard, so it lands whether or not
+  // there's a token to talk to Discord with.
+  await settlePhobias(prisma, characterId).catch((err) => {
+    console.error(`Move: phobia settle failed for ${characterId}:`, err.message ?? err);
+  });
+
   // Walking into an armed turret. Before the Discord guard, and before the
   // early return, for the same reason parking a mount is: being shot is a
   // database fact and must not depend on there being a token to announce it
@@ -283,7 +291,16 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     return null;
   });
 
-  await syncCharacterRoomAccess(prisma, { ...character, locationId: toLocationId }).catch((err) =>
+  // `guestsOnly`: a move cannot change what this character is ENTITLED to, and
+  // thread membership follows entitlement now rather than presence
+  // (db/lib/roomAccess.js). What a move does change is guest rows, which are
+  // spent by walking out — so this call sweeps those and touches nothing else.
+  // In the ordinary case it makes no Discord calls at all, which is what
+  // stopped Discord narrating "… added <name> to the thread" into every room
+  // on every arrival.
+  await syncCharacterRoomAccess(prisma, { ...character, locationId: toLocationId }, {
+    guestsOnly: true,
+  }).catch((err) =>
     console.error(`Move: room access sync failed for ${characterId}:`, err.message ?? err),
   );
 

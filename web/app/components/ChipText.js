@@ -53,6 +53,17 @@ export default function ChipText({ text, as: Wrapper = "span", className, inTool
       return <ResourceChip key={`r-${i}`} value={rate.display} />;
     }
 
+    // Safe here as well as in RichText: a <code> is not interactive, so it
+    // nests inside a <button> or a tooltip panel without the problem a
+    // TagChip or an InfoIcon would cause.
+    if (part.kind === "cmd") {
+      return (
+        <code key={`c-${i}`} className="cmd-chip">
+          /{part.payload.trim()}
+        </code>
+      );
+    }
+
     // Plain text either way — a carry sentence has nothing to hover.
     if (part.kind === "carry") return carryLines[part.payload.trim()] ?? part.raw;
 

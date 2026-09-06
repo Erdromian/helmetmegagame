@@ -1525,7 +1525,7 @@ async function handleConcealCommand(interaction) {
   await respond(
     interaction,
     concealed
-      ? `» *You now speak as **${withArticle(concealedAlias(character).toLowerCase())}**. Nobody sees your name until you run /conceal again.* ‡`
+      ? `» *You now speak as **${withArticle(concealedAlias(character).toLowerCase())}**. Nobody sees your name until you run \`/conceal\` again.* ‡`
       : "» *You speak under your own name again.* ‡",
   );
 }
@@ -1602,6 +1602,20 @@ async function handleMoveSubmit(interaction) {
   });
   if (alreadyActed) {
     await respond(interaction, "» *You've already locked in a Move this turn — your submission wasn't recorded.*");
+    return;
+  }
+
+  // The same gate every web action runs (db/lib/incapacitation.js): Bound,
+  // Dying, Crucified, out cold — none of them files a Move. Checked after the
+  // already-acted test so a refusal costs nothing, and before the Action row
+  // so a refused Move never lands on the desk.
+  const heldTags = await prisma.characterTag.findMany({
+    where: { characterId: character.id },
+    select: { tag: { select: { slug: true, name: true } } },
+  });
+  const stuck = blockerFor(heldTags, ACT);
+  if (stuck) {
+    await respond(interaction, `» *You can't act right now — you're ${stuck.name}. Your submission wasn't recorded.* ‡`);
     return;
   }
 
@@ -2135,7 +2149,8 @@ module.exports = {
           return void (await handleThreadMemberCommand(interaction, interaction.commandName));
         }
         if (interaction.commandName === "move") return void (await handleMoveOpen(interaction));
-        if (interaction.commandName === "location") return void (await handleTravelOpen(interaction));
+        if (interaction.commandName === "location" || interaction.commandName === "travel")
+          return void (await handleTravelOpen(interaction));
         if (interaction.commandName === "conceal") return void (await handleConcealCommand(interaction));
         if (interaction.commandName === "message") return void (await handleMessageCommand(interaction));
         if (interaction.commandName === "roll") return void (await handleRollCommand(interaction));

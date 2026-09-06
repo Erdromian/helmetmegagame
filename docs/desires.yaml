@@ -27,8 +27,12 @@
 # bury-a-body, sheriff on imprison-someone). Both lists must be non-empty;
 # notTags/notRoles are never part of the OR. AND remains the default and the
 # common case — the five Lifeweb feed-* entries and all five corrupt ones keep
-# it deliberately (corrupt is visible: false and promises no unlocks, so it
-# reads as a Cerberon tag rather than a broad purchase).
+# it deliberately. Corrupt was briefly switched to `or` on 2026-09-05 when it
+# gained an "Unlocks Desires about corruption." line, and that was a mistake
+# worth recording: under OR a Cerberus or Sheriff qualifies for all five
+# WITHOUT holding Corrupt, so the tag stops meaning anything to the only two
+# seats it is written for, and its own description becomes false for them. The
+# AND is what makes buying it matter.
 #
 # TIER: one of 1, 2, 3, 4, 5, 7. Tier 6 is deliberately absent from the
 # whitelist — don't invent it. Tier doubles as the default Tag Point award
@@ -658,6 +662,7 @@ desires:
     families: [social, vanity]
     requires:
       anyTags: [dancer]
+    cooldownTurns: 7
 
   get-captured:
     name: Get captured
@@ -1543,6 +1548,65 @@ desires:
     requires:
       anyTags: [death-wish]
 
+  # Seven one-shot dares, all gated on Death Wish. Every one is oncePerLife by
+  # hand — only tier 7 gets that automatically — because none of them is a
+  # thing you can meaningfully do twice.
+  climb-the-mountain:
+    name: Figure out how to get on top of the Mountain, and climb there ‡
+    tier: 3
+    oncePerLife: true
+    families: [adventure, bravery]
+    requires:
+      anyTags: [death-wish]
+
+  elevator-over-the-pit:
+    name: Take an elevator ride down over a very deep pit ‡
+    tier: 3
+    oncePerLife: true
+    families: [adventure, mortality]
+    requires:
+      anyTags: [death-wish]
+
+  harvest-godflesh-barehanded:
+    name: Harvest Godflesh without gloves ‡
+    tier: 3
+    oncePerLife: true
+    families: [mortality, stupidity]
+    requires:
+      anyTags: [death-wish]
+
+  enter-the-depths:
+    name: Enter the Depths ‡
+    tier: 2
+    oncePerLife: true
+    families: [adventure]
+    requires:
+      anyTags: [death-wish]
+
+  wrestle-a-giant:
+    name: Wrestle a giant ‡
+    tier: 4
+    oncePerLife: true
+    families: [violence, bravery]
+    requires:
+      anyTags: [death-wish]
+
+  survive-a-turret-shot:
+    name: Take a shot from an automated turret without dying ‡
+    tier: 5
+    oncePerLife: true
+    families: [mortality, stupidity]
+    requires:
+      anyTags: [death-wish]
+
+  kill-a-monster-barehanded:
+    name: Kill a monster barehanded ‡
+    tier: 3
+    oncePerLife: true
+    families: [violence, bravery]
+    requires:
+      anyTags: [death-wish]
+
   # === 4e. ‡ drafted fill-ins ===============================================
   # Corrupt (T: corrupt, R: cerberus/sheriff)
   look-the-other-way:
@@ -1765,6 +1829,33 @@ desires:
     families: [craft, cruelty]
     requires:
       anyRoles: [metalsmith]
+
+  # --- Faith and the cross --------------------------------------------------
+  # Any belief but Atheist: the list is every general-beliefs tag except that
+  # one, so a new belief tag has to be added here by hand.
+  build-wayside-shrine:
+    name: Build a Wayside Shrine
+    tier: 2
+    cooldownTurns: 6
+    families: [faith, craft]
+    requires:
+      anyTags:
+        - post-christian
+        - existentialist
+        - fundamentalist
+        - old-ways-eusoch
+        - old-ways-sylvia
+        - old-ways-thoth
+        - old-ways-bacchus
+        - pilgrim
+        - saint
+
+  crucify-a-heretic:
+    name: Crucify a heretic
+    tier: 2
+    families: [faith, cruelty]
+    requires:
+      anyTags: [fundamentalist]
 
   barons-commission:
     name: Complete a commission for the Baron

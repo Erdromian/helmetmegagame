@@ -79,6 +79,18 @@
 #   room still holds none — so re-syncing can neither undo a player carrying
 #   the anvil off nor quietly duplicate it. Tags sync AFTER zones, so an
 #   unknown slug is skipped with a warning rather than throwing.
+# - structures (locations only): what was simply always STANDING there, like
+#   the Square's cross. A flat list of tag slugs that carry a `placement:`
+#   block in docs/tags.yaml:
+#
+#       structures: [crucifix]
+#
+#   Seeded as one COMPLETE Structure each, with no builder and no payer. The
+#   same FLOOR rule as a stash: nothing is created while one of that type is
+#   already standing or going up, and a razed or abandoned one is re-raised
+#   on the next sync. Tags sync AFTER zones, so on a database that has never
+#   had db:sync-tags the first zone sync warns and skips — run db:sync-zones
+#   again after the tags land (LAUNCH.md §5 does).
 # - access (rooms only): a list of Tag slugs from docs/tags.yaml. Non-empty
 #   makes the room PRIVATE, admitting anyone holding ANY of the listed tags.
 #   Slugs aren't checked against the tag catalog here (tags sync after
@@ -184,6 +196,9 @@ zones:
         # everything in Town gets announced, so it is where things get nailed up.
         attributes:
           noticeboard: true
+        # The cross the description promises is a real Structure, so the
+        # Crucify button works here from day one.
+        structures: [crucifix]
         description: >-
           An open clearing — you can actually see the sky, finally. There's a simple platform with gallows at the center. Since the inquisition's arrival, the gallows beams have come to serve the additional purpose of a crucifix. There's a stagnant pond, still and calm aside from the occasional rat seeking water. A solemn gargoyle perches on the central pillar, its eyes long dry since the waterworks broke down. Follow winding streets and alleyways to domiciles ranging from modest homes to opulent manors.
         rooms:
@@ -309,6 +324,7 @@ zones:
               items:
                 paper: 12
                 inquisitors-wax-stamp: 1
+                bag: 1
                 mace: 1
                 padded-cap: 1
                 crossbow: 1
@@ -818,6 +834,17 @@ zones:
             access: [elevator-key]
             description: >-
               A cage suspended over the darkness. Use the pressure plate to descend.
+          undercroft-vault:
+            name: Vault
+            access: [barons-key]
+            description: >-
+              A hydraulically-operated electric vault door seals off a deep room.
+            stash:
+              resources: 14
+              items:
+                obol: 15
+                painting: 1
+                nuclear-device: 1
       road:
         name: Road
         description: >-
@@ -1031,6 +1058,8 @@ zones:
         description: >-
           Welcome to Ravenheart.
         yield: { hunting: 0.5, farming: 0.5 }
+        # The two men on the Road room's posts hang from this.
+        structures: [crucifix]
         rooms:
           crossroads-road:
             name: Road
@@ -1168,8 +1197,11 @@ zones:
                 shortbow: 1
                 padded-armor: 1
                 padded-cap: 2
+                hood: 2
                 brigandine: 1
                 skinned-cave-rat: 1
+                disguise-kit: 1
+                paper: 4
       hills-black-pines:
         name: Black Pines
         map_node: 27

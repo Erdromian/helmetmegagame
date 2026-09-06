@@ -10,7 +10,7 @@
 // character has ACTIVE, not merely the ones they hold — `equippedSlugs` below
 // is what builds that set, and callers must not hand these functions a bare
 // held-slug set by mistake.
-const FAST_TRAVEL_SLUGS = new Set(["horse", "steam-automobile"]);
+const FAST_TRAVEL_SLUGS = new Set(["horse", "steam-automobile", "motorcycle"]);
 
 // The boat is deliberately NOT a fast-travel mount. It buys the same extra
 // crossing, but only between the three zones the water actually connects, and
@@ -48,10 +48,17 @@ function equippedSlugs(characterTags = []) {
 
 // Seats a mount carries, rider included. Steam Automobile is a fixed 6 and
 // doesn't stack with Cart. A horse alone seats 2; Cart upgrades to 6.
+//
+// The Motorcycle seats 2 and is checked BEFORE the horse, so the Cart upgrade
+// below can never reach it: a hand-cart towed behind a motorcycle is not a
+// thing, and leaving it to fall through would have quietly made one seat six.
+// Somebody holding both a bike and a horse gets the horse's arithmetic, which
+// is the only case where the order matters and is the generous reading.
 function fastTravelCapacity(activeSlugs) {
   if (activeSlugs.has("steam-automobile")) return 6;
-  if (!activeSlugs.has("horse")) return 0;
-  return activeSlugs.has("cart") ? 6 : 2;
+  if (activeSlugs.has("horse")) return activeSlugs.has("cart") ? 6 : 2;
+  if (activeSlugs.has("motorcycle")) return 2;
+  return 0;
 }
 
 function isMounted(activeSlugs) {

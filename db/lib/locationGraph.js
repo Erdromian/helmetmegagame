@@ -226,7 +226,12 @@ const SOUND_HOPS = 4;
 // from how far.
 //
 // The origin itself is included at distance 0 with a null viaName.
-async function soundRange(prisma, originLocationId, maxHops = SOUND_HOPS) {
+// `throughHidden` is the one caller-facing exception to the rule in the
+// viaName comment below, and there is exactly one user: the Nuclear Datacard's
+// pointer (db/lib/nuke.js). That rule is about EARS — a shout must not become
+// the hole in a hidden edge — and a datacard tracking its own warhead is not
+// ears. Left off by default so nothing else can pick it up by accident.
+async function soundRange(prisma, originLocationId, maxHops = SOUND_HOPS, { throughHidden = false } = {}) {
   if (!originLocationId) return [];
 
   // One query for the whole graph. It is ~56 Locations and a few dozen edges,
@@ -276,7 +281,12 @@ async function soundRange(prisma, originLocationId, maxHops = SOUND_HOPS) {
           // a way exists where they have been told none does. A hidden edge is
           // absent from every travel list for exactly that reason
           // (crossingCheck below), and a shout must not be the hole in it.
-          viaName: node.viaHidden ? null : node.via ? (byId.get(node.via)?.name ?? null) : null,
+          viaName:
+            node.viaHidden && !throughHidden
+              ? null
+              : node.via
+                ? (byId.get(node.via)?.name ?? null)
+                : null,
         });
       }
       if (distance === maxHops) continue;

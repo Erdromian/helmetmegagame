@@ -180,10 +180,31 @@ it.
 
 ## 3. Mounts, carts, and indoors
 
-`horse`, `steam-automobile` and `cart` are **equippable**, and give nothing
-while stowed — no carry multiplier, no extra zone move, no passenger seats.
-They compete for the same six `GameConfig.equipSlots` as armour and weapons,
-which is the point: a cart should cost you something to keep out.
+`horse`, `steam-automobile`, `motorcycle` and `cart` are **equippable**, and
+give nothing while stowed — no carry multiplier, no extra zone move, no
+passenger seats. They compete for the same six `GameConfig.equipSlots` as
+armour and weapons, which is the point: a cart should cost you something to
+keep out.
+
+**Seats, from `fastTravelCapacity()`:** the Steam Automobile is a flat 6 and
+does not stack with anything. A Horse alone is 2, and a Cart upgrades that
+pair to 6. The **Motorcycle is 2 and cannot be upgraded** — it is tested
+before the horse for exactly that reason, so the Cart's clause can never reach
+it. A hand-cart towed behind a motorcycle is not a thing, and letting it fall
+through would have quietly turned one seat into six.
+
+The motorcycle was inert loot until 2026-09-06 — 100 lb of flavour with no
+`equippable` at all. Making it a mount was one slug added to
+`FAST_TRAVEL_SLUGS`: the indoors parking, the boat conflict and the Motion
+Sickness refusal below all read that set rather than naming their slugs, so
+every one of them picked it up for free.
+
+**Motion Sickness** refuses equipping any of them outright
+(`web/app/(app)/character/equipActions.js`) — a Motion Sick character never
+rides. A Motion Sick character *dragged along* by someone else's mounted or
+boated crossing doesn't get a say: `db/lib/locationTravel.js#vomitOnTheRide`
+grants them Vomiting (and DMs them) the moment a mounted or boated mover
+crosses a zone with them in tow.
 
 A **connection** can keep a mount out too — `on_foot: true`, which refuses a
 mounted character rather than parking them on arrival (`MAP.md` §2c). The two

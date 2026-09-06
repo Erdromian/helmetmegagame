@@ -37,6 +37,13 @@ import { describeTurn } from "@/lib/turnFormat";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import {
+  DISGUISE_KIT_SLUG,
+  DISGUISE_TURNS,
+  normalizeDisguiseName,
+  mintDisguise,
+  activeDisguise,
+} from "@lifeweb/db/lib/disguiseMint";
+import {
   isTradeable,
   isCrate,
   addRequirementSatisfied,
@@ -2764,6 +2771,192 @@ async function freeCharacterRequestImpl({
   return {};
 }
 
+// --- Crucifixion -----------------------------------------------------------
+
+const CRUCIFIX_SLUG = "crucifix";
+const CRUCIFIED_SLUG = "crucified";
+const FUNDAMENTALIST_SLUG = "fundamentalist";
+
+// Nailing someone to the cross. Three gates and no consent: the actor is a
+// Fundamentalist, a COMPLETE Cross stands where they are (a half-built or
+// damaged one is not a cross), and the target is standing there too. Free
+// like Bind — it spends no Move — and it kills on a clock rather than on the
+// spot: `crucified` becomes Dying at the close of this turn, and the Dying
+// pass kills at the next (docs/tags.yaml, db/lib/dyingDeathPass.js). A GM
+// Undo within the turn takes them down; after the close there is only Dying
+// left to heal, and Undo says so.
+//
+// The ambient line names the VICTIM and never the actor. notifyCharacter's
+// no-attribution rule is about not telling a helpless target who did it; a
+// crucifixion is a public example, and an anonymous one is scenery about
+// nothing.
+async function crucifyCharacterRequestImpl({
+  targetCharacterId,
+  reason: rawReason,
+}) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+  const reason = requireReason(rawReason);
+
+  if (!character.locationId)
+    throw new UserError("You aren't anywhere you could do that.");
+  if (targetCharacterId === character.id)
+    throw new UserError("You can't crucify yourself. ‡");
+  if (!character.tags.some((ct) => ct.tag.slug === FUNDAMENTALIST_SLUG))
+    throw new UserError("Only a Fundamentalist would. ‡");
+
+  const location = await loadBuildGround(character.locationId);
+  const standing = await structuresAt(prisma, character.locationId, {
+    statuses: ["COMPLETE"],
+  });
+  const cross = standing.find((s) => s.typeSlug === CRUCIFIX_SLUG) ?? null;
+  if (!cross) throw new UserError("There is no cross standing here. ‡");
+
+  const target = await prisma.character.findFirst({
+    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      locationId: true,
+      concealed: true,
+      discordUserId: true,
+      tags: { select: { tag: { select: { slug: true } } } },
+    },
+  });
+  if (!target || !isHere(character, target))
+    throw new UserError(notHereMessage(target));
+  if (target.tags.some((ct) => ct.tag.slug === CRUCIFIED_SLUG))
+    throw new UserError(`${target.name} is already on the cross. ‡`);
+
+  const crucified = await prisma.tag.findUnique({
+    where: { slug: CRUCIFIED_SLUG },
+  });
+  if (!crucified)
+    throw new UserError("The Crucified tag is missing from the catalog — tell a GM. ‡");
+
+  const openTurn = await getOpenTurn();
+  if (!openTurn) throw new UserError("No turn is open. ‡");
+  const expiresTurn = await expiryForGrant(prisma, crucified, openTurn);
+
+  const effect = {
+    targetCharacterId: target.id,
+    targetName: target.name,
+    tagId: crucified.id,
+    tagName: crucified.name,
+    expiresTurn,
+    structureId: cross.id,
+    locationId: location?.id ?? character.locationId,
+    locationName: location?.name ?? null,
+  };
+  await prisma.$transaction(async (tx) => {
+    await addToStack(tx, target.id, crucified.id, 1, {
+      source: "EVENT",
+      expiresTurn,
+      stackable: crucified.stackable,
+    });
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn.id,
+      type: "CRUCIFY_CHARACTER",
+      reason,
+      payload: { targetCharacterId: target.id, structureId: cross.id },
+      effect,
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_crucify_character",
+      targetCharacterId: target.id,
+      reason,
+      details: effect,
+    });
+  });
+
+  await afterInventoryChange(target.id);
+  notifyCharacter(target, "You've been put on the cross. ‡");
+  speakAtSite(
+    location?.discordChannelId,
+    ambientLine(`${target.name} hangs on the cross.`),
+  );
+  revalidateAll();
+  return { name: target.name };
+}
+
+// --- Putting on a face that isn't yours ------------------------------------
+
+// The Disguise Kit's one verb. Three turns under a name the player types, and
+// the kit is NOT used up — a disguise kit you can use once is a costume, not a
+// kit.
+//
+// The whole effect is a MINTED tag row carrying Tag.forcedName
+// (db/lib/disguiseMint.js). Nothing on the Character row changes, so every
+// surface that resolves an identity picks it up through the forced branch of
+// presentedIdentity() that Apex Form already uses, and the ordinary expiry
+// sweep takes it off again with no catch-up pass to write.
+//
+// Two things the player is told up front by the tag's own description, because
+// both fall straight out of riding forcedName: they post under a letter plaque
+// rather than their portrait, and /conceal refuses while it is on.
+async function disguiseSelfRequestImpl({ name: rawName, reason: rawReason }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+  const reason = requireReason(rawReason);
+
+  // Re-checked here and not merely in the UI: a server action is a public
+  // endpoint, and page.js's predicate is a hint.
+  if (!character.tags.some((ct) => ct.tag.slug === DISGUISE_KIT_SLUG))
+    throw new UserError("You have no disguise kit. ‡");
+
+  const name = normalizeDisguiseName(rawName);
+  if (!name) throw new UserError("Pick a name to go by. ‡");
+  if (name === character.name)
+    throw new UserError("That is already your name. ‡");
+
+  // One at a time. Two forcedName rows would race, and forcedNameFrom takes
+  // whichever comes back first.
+  const already = await activeDisguise(prisma, character.id);
+  if (already)
+    throw new UserError(
+      `You are already going by ${already.tag.forcedName}. Wait for it to wear off. ‡`,
+    );
+
+  const openTurn = await getOpenTurn();
+  if (!openTurn) throw new UserError("No turn is open. ‡");
+
+  // Minted OUTSIDE the transaction, on purpose: the retry loop it uses cannot
+  // run inside one, because Postgres aborts the whole transaction on the first
+  // failed statement (see db/lib/paperMint.js). Two players picking the same
+  // false name is exactly the collision it retries past.
+  const tag = await mintDisguise(prisma, character.id, name, openTurn);
+  if (!tag) throw new UserError("Couldn't put that name on. Try another. ‡");
+
+  const effect = {
+    tagId: tag.id,
+    tagName: tag.name,
+    disguiseName: name,
+    turns: DISGUISE_TURNS,
+  };
+  await prisma.$transaction(async (tx) => {
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn.id,
+      type: "DISGUISE_SELF",
+      reason,
+      payload: { name },
+      effect,
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_disguise_self",
+      targetCharacterId: character.id,
+      reason,
+      details: effect,
+    });
+  });
+
+  await afterInventoryChange(character.id);
+  revalidateAll();
+  return { name };
+}
+
 // --- Harming someone already helpless -------------------------------------
 
 // Wounding and finishing off in one request, since they're one act. Either
@@ -3864,6 +4057,12 @@ export async function bindCharacterRequest(input) {
 }
 export async function freeCharacterRequest(input) {
   return guarded(() => freeCharacterRequestImpl(input));
+}
+export async function crucifyCharacterRequest(input) {
+  return guarded(() => crucifyCharacterRequestImpl(input));
+}
+export async function disguiseSelfRequest(input) {
+  return guarded(() => disguiseSelfRequestImpl(input));
 }
 export async function harmCharacterRequest(input) {
   return guarded(() => harmCharacterRequestImpl(input));

@@ -18,6 +18,7 @@ import {
   updateCurrentTurn,
   updateNextTurn,
   runDoctorAction,
+  defuseNukeAction,
   bulkMoveCharacters,
 } from "@/app/(app)/gm/dev/actions";
 import EndTurnButton from "@/app/(app)/gm/dev/EndTurnButton";
@@ -871,6 +872,35 @@ export default async function DevPanelPage({ searchParams }) {
 
           {section === "reports" ? (
             <section className="ops-section">
+              {/* Only on screen when there is something to say. A permanent
+                  "no nuke armed" panel would be furniture on every other day
+                  of the game. */}
+              {(config.nukeArmedTurn != null || config.nukeDetonatedTurn != null) && (
+                <div className="ops-section-head">
+                  <h2 className="section-title">The device ‡</h2>
+                  {config.nukeDetonatedTurn != null ? (
+                    <p className="ops-lede">
+                      It went off at the close of turn {config.nukeDetonatedTurn}. Everyone who
+                      was not underground died. Nothing here can undo that. ‡
+                    </p>
+                  ) : (
+                    <>
+                      <p className="ops-lede">
+                        <strong>Armed.</strong> It detonates at the close of turn{" "}
+                        {config.nukeArmedTurn}, and will kill every living character who is not
+                        in the Caves or the Depths. This is the only thing that can stop it
+                        without the datacard. ‡
+                      </p>
+                      <form action={defuseNukeAction}>
+                        <SubmitButton className="btn-secondary" pendingLabel="Defusing…">
+                          Defuse
+                        </SubmitButton>
+                      </form>
+                    </>
+                  )}
+                </div>
+              )}
+
               <div className="ops-section-head">
                 <h2 className="section-title">System Reports</h2>
                 <p className="ops-lede">

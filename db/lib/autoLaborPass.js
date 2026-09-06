@@ -21,6 +21,8 @@ const {
   structureTools,
   toolsFrom,
   yieldMap,
+  lazyYield,
+  lazyExpression,
 } = require("./laborAccess");
 const { placementOf } = require("./structures");
 const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
@@ -189,6 +191,9 @@ async function runAutoLaborPass(prisma, turn) {
     // Rolled here, not left for later: applyMoveEffects reads resourceDelta
     // only, so an unrolled expression would file the Move and pay nothing.
     const roll = rollResourceRange(rate.expression);
+    // Lazy takes its quarter after the roll, not off the range — see
+    // db/lib/laborAccess.js.
+    if (roll) roll.value = lazyYield(roll.value, tagSlugs);
 
     try {
       const action = await prisma.$transaction(async (tx) => {
@@ -203,7 +208,9 @@ async function runAutoLaborPass(prisma, turn) {
             moveReviewStatus: "PASSED",
             description: AUTO_LABOR_DESCRIPTION,
             resourceDelta: roll?.value ?? null,
-            resourceRollExpression: rate.expression,
+            // Cut the same way the value below is, so the printed range
+            // matches a Lazy holder's actual payout. See laborAccess.js#lazyExpression.
+            resourceRollExpression: lazyExpression(rate.expression, tagSlugs),
             resourceRollValue: roll?.value ?? null,
             zoneId: character.zoneId ?? null,
             // Where the work happened, not where they end up — see

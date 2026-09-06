@@ -10,9 +10,31 @@
 // climbs instead: the held rung is cleared and the one above is granted.
 // tipsy -> wasted -> unconscious.
 //
+// Two tags reshape a first drink or a climb, right where the ladder resolves:
+// Lightweight sends the FIRST drink one rung above whatever it would have
+// landed on — for every drink in the catalog that's Sober -> Wasted, skipping
+// Tipsy entirely. Iron Liver does the opposite to a CLIMB
+// (a rung already held moving up): it costs a drink to grant a "steady"
+// marker instead of climbing, and only the drink after that actually climbs
+// (clearing the marker too). Net Iron Liver pace: 1 drink -> Tipsy, two more
+// -> Wasted, two more -> Unconscious. The catalog's conflictsWith keeps a
+// character from holding both; if that were ever bypassed, Lightweight wins
+// on a first drink and Iron Liver wins on a climb, since they check disjoint
+// cases.
+//
 // Deliberately pure (no Prisma) so previews match real grants. A caller
 // needing a stable preview must read consumesIntoOneOf directly, not call
 // this twice — a second call can roll a different outcome.
+//
+// LIGHTWEIGHT_SLUG / IRON_LIVER_SLUG / STEADY_SLUG live only here, on
+// purpose: this file is imported by "use client" components (TagsPanel.js,
+// RequestActionsProvider.js), so pulling in @lifeweb/db/lib/constants would
+// drag the db package into the browser bundle. docs/tags.yaml is the source
+// of truth for the slugs themselves — keep these three in sync with it by
+// hand.
+const LIGHTWEIGHT_SLUG = "lightweight";
+const IRON_LIVER_SLUG = "iron-liver";
+const STEADY_SLUG = "steady";
 
 // `heldSlugs` may be a Set or any iterable of slugs. `ladder` is an optional
 // Map (or plain object) of slug -> escalatesInto, which the caller builds from
@@ -29,6 +51,16 @@ export function resolveConsumeGrants(tag, heldSlugs, ladder = null) {
   const overrides = tag?.consumesIntoDurations ?? null;
   const oneOfList = tag?.consumesIntoOneOf ?? null;
   const nextRung = (slug) => (ladder instanceof Map ? ladder.get(slug) : ladder?.[slug]) ?? null;
+  // Every slug that is a rung on SOME ladder — either it escalates, or
+  // something escalates into it. Needed because `nextRung(x) === null` alone
+  // cannot tell "plain item" from "top rung": Unconscious and Paper both
+  // answer null, and they want opposite things from a repeat.
+  const ladderEntries = ladder instanceof Map ? [...ladder.entries()] : Object.entries(ladder ?? {});
+  const ladderRungs = new Set();
+  for (const [from, to] of ladderEntries) {
+    if (from) ladderRungs.add(from);
+    if (to) ladderRungs.add(to);
+  }
 
   const slugs = [];
   const blocked = [];
@@ -54,10 +86,40 @@ export function resolveConsumeGrants(tag, heldSlugs, ladder = null) {
     }
 
     // Where this rung actually lands, given what they already hold.
-    const climbed = climbLadder(picked, willHold, nextRung);
-    // Already on the top rung: nowhere further to fall, so the drink is
-    // simply wasted on them. Nothing cleared, nothing granted.
-    if (!climbed) continue;
+    let climbed = climbLadder(picked, willHold, nextRung);
+    if (!climbed) {
+      // climbLadder says "already holding this, and nothing sits above it".
+      // For a real ladder that means the top rung: the drink is wasted on
+      // them, nothing cleared and nothing granted.
+      if (ladderRungs.has(picked)) continue;
+      // For anything else it means the list asked for ANOTHER one — TAGS.md
+      // §5b's "repeat a slug to grant several of it". Without this, every
+      // copy after the first was silently dropped, so a Stack of Paper
+      // listing `paper` twenty times handed over a single sheet, and none at
+      // all to somebody already holding one. grantTagSlugs counts the
+      // duplicates into a quantity, and collapses them for a non-stackable
+      // target exactly as the doc says.
+      climbed = { slug: picked, cleared: null };
+    }
+
+    // `picked` sits on a ladder only if it has a successor — a plain
+    // consumable like a meal never does, and neither rule below applies to it.
+    const onLadder = nextRung(picked) != null;
+    if (onLadder && held.has(LIGHTWEIGHT_SLUG) && climbed.cleared === null) {
+      // Lightweight: the first drink lands two rungs up (Sober -> Wasted)
+      // instead of one.
+      climbed = { slug: nextRung(picked), cleared: null };
+    } else if (onLadder && held.has(IRON_LIVER_SLUG) && climbed.cleared !== null) {
+      // Iron Liver: a climb (not a first drink) costs a "steady" marker
+      // before it's allowed to land, doubling the drinks a climb takes.
+      if (!willHold.has(STEADY_SLUG)) {
+        slugs.push(STEADY_SLUG);
+        willHold.add(STEADY_SLUG);
+        continue;
+      }
+      removes.push(STEADY_SLUG);
+      willHold.delete(STEADY_SLUG);
+    }
     const slug = climbed.slug;
     if (climbed.cleared) {
       removes.push(climbed.cleared);

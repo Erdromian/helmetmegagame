@@ -112,6 +112,7 @@ reason.
 | `MOVE_CHARACTER` | Marches a faction member they lead, anyone helpless (Bound/Dying/Paralyzed/Catatonic), or a body, into a neighbouring zone. Does **not** spend the target's turn | — | Restores the previous zone in the DB only |
 | `BIND_CHARACTER` | Ties up anyone at their Location who isn't concealed. A conscious, unhelpless target must accept an Offer first (`LESSONS.md` §3b); a target who is dead or already holds an incapacitating tag is bound on the spot | — | Cuts them loose |
 | `FREE_CHARACTER` | Cuts someone in their zone loose | — | Puts Bound back with its original expiry |
+| `CRUCIFY_CHARACTER` | Puts the `crucified` status on anyone standing at their Location. Needs the `fundamentalist` tag and a `COMPLETE` `crucifix` Structure standing there. **No consent and no Move** — the cross is the gate. Crucified blocks ACT and not SPEAK (`TAGS.md` §5f), becomes Dying at the close of the turn, and the Dying pass kills at the next | — | Drops `crucified`. After the close only Dying is left, and Undo leaves it — heal that |
 | `HARM_CHARACTER` | Inflicts a Health affliction on someone already helpless, **kills** them, or both — see §5b | — | Heals what was inflicted; never revives |
 | `BURY_CHARACTER` | Puts a body into the ground, lifting the **Cursed** role off the dead player's Discord account. Needs their **actual corpse tag**, held or reachable in a room here, and spends the filer's Move | — | Raises the body and puts the corpse back where it came from; does **not** re-curse, and the Move stays spent |
 | `ENGRAVE_HEADSTONE` | Frees a soul with a stone instead of a body, for **4 ⬢** and the filer's Move. Target is **typed**, first name only, matched **game-wide**. Leaves a `{name}'s Headstone` tag | — | Refunds the ⬢, takes the stone, reopens the grave; does **not** re-curse |
@@ -195,7 +196,8 @@ Three notes on deliberate choices:
 - **Every request whose subject is a different character notifies that
   character.** `TRANSFER_TAG`, `TRANSFER_RESOURCES`, `HEAL_CHARACTER`,
   `LOOT_CHARACTER`, `MOVE_CHARACTER`, `BIND_CHARACTER`, `FREE_CHARACTER`,
-  `HARM_CHARACTER`, `BURY_CHARACTER`, `DONATE_BLOOD` and `FEED_PERSON` all DM
+  `CRUCIFY_CHARACTER`, `HARM_CHARACTER`, `BURY_CHARACTER`, `DONATE_BLOOD` and
+  `FEED_PERSON` all DM
   their target through `web/lib/notifyCharacter.js` — one line, fired after
   the transaction commits, same posture as the Dev Panel's own notifier
   (`DEV-PANEL.md`). **The DM never names the actor.** Several of these only
@@ -252,18 +254,6 @@ Three notes on deliberate choices:
   each type would be the `killRequestTarget` treatment for something this
   minor.
 
-  **`BUILD_STRUCTURE` is the deliberate exception, on the after-commit side.**
-  The in-transaction half of the rule stands exactly as written above — its
-  own `undo()` still makes no network call inside the `$transaction`. But
-  `resolveRequestImpl`'s existing after-commit block already reads
-  `effect.linkEndpointIds` generically, for any request type, and reposts
-  both Location anchors it names — because an anchor that lies about a gate
-  is worse than the stale side effects this rule otherwise tolerates: the
-  button itself would be the lie. The restore underneath it is conditional to
-  begin with — `BUILD_STRUCTURE`'s `undo()` only writes `LocationLink.isOpen`
-  back when no `COMPLETE`/`DAMAGED` structure still holds that edge
-  (`HOLDS_EDGE`), so an edge some other structure has since claimed is left
-  exactly as that structure needs it.
 
 ## 4. Hunger and the Gambit modifier
 

@@ -220,6 +220,22 @@ enum RequestType {
   // make that whole loop playable by players instead of by a GM.
   BIND_CHARACTER
   FREE_CHARACTER
+  // Nailing someone up: a Fundamentalist, a COMPLETE `crucifix` Structure at
+  // the filer's Location, and a target standing there. Puts the `crucified`
+  // status on them with no consent and no Move spent — it becomes Dying a
+  // turn later, and the Dying pass kills a turn after that
+  // (db/lib/dyingDeathPass.js). See REQUESTS.md.
+  CRUCIFY_CHARACTER
+  // The Disguise Kit's button: three turns wearing a name that isn't yours.
+  // The effect is a MINTED tag row carrying Tag.forcedName, not a column on
+  // Character — db/lib/disguiseMint.js says why, and it is what lets the
+  // ordinary expiry sweep undo it. Filed as a request so a GM can Undo one.
+  DISGUISE_SELF
+  // Arming and disarming the Nuclear Device. Filed as Requests so both show on
+  // /gm/turns and both can be Undone — the countdown itself is
+  // GameConfig.nukeArmedTurn, so an undo just puts that back where it was.
+  ARM_NUKE
+  DISARM_NUKE
   // Hurting someone already helpless: an affliction inflicted, a kill flagged,
   // or both in one act. Like FEED_PERSON it NEVER kills — effect.lethal only
   // raises the ☠ and the GM's Kill button. See REQUESTS.md §5b.
@@ -467,6 +483,27 @@ model GameConfig {
   // specialisations, which is where the volume is.
   productionCoefficient Float @default(0.93)
 
+  // THE BOMB. Two nullable turn numbers, and nothing else in the schema knows
+  // about it.
+  //
+  // `nukeArmedTurn` is the absolute turn the device goes off on — stamped by
+  // the Arm button as `openTurn + 2`, nulled by Disarm or by a GM defusing it
+  // from /gm/dev. Null means unarmed, and arming/disarming may repeat forever.
+  //
+  // This lives here rather than on a tag with `expiresTurn`, which was the
+  // first design: a tag carries a holder, and a holder can DIE inside the
+  // two-turn window, which would quietly cancel the explosion. The blast is
+  // global — everyone above ground, wherever they stand — so it needs no
+  // location, and the one thing it must survive is the death of whoever armed
+  // it. Where the device physically SITS is still read off the tag rows, by
+  // the datacard's pointer, which is a different question.
+  nukeArmedTurn Int?
+
+  // Set once, on detonation, and never cleared: the turn the world ended. It
+  // is what makes the fireball banner permanent (db/lib/turnAnnouncement.js)
+  // and what a later feature would read to know the game is over.
+  nukeDetonatedTurn Int?
+
   // Base point-buy budget every new character starts with, before the
   // role's own `extra_starting_points` and the Cursed penalty are applied
   // (see web/lib/characterCreation.js#computeBudget). Editable live from
@@ -509,7 +546,6 @@ model GameConfig {
   // bell is one object, and two people taking turns on it would be the same
   // noise either way. Null means it has never been rung.
   bellRungAt DateTime?
-
 
   // When true, the nightly turn-advance cron (bot/src/events/ready.js)
   // skips its automatic advance — bot/src/lib/turnEngine.js#advanceTurn
@@ -602,9 +638,13 @@ model GameConfig {
 
   // Expected total number of players, the denominator for every role's seat
   // cap: a role with `weight: 6` in docs/roles.yaml gets
-  // round(6 * playerCount / 100) seats. Raising this mid-signup widens every
-  // capped role proportionally without touching the YAML.
-  playerCount Int @default(100)
+  // round(6 * playerCount / 100) seats — so the weight is always "seats per
+  // 100 players" no matter what this is set to. Raising it mid-signup widens
+  // every capped role proportionally without touching the YAML.
+  //
+  // roleCapacity() floors a weighted role at 1 seat, so shrinking this never
+  // makes a role in the YAML unpickable.
+  playerCount Int @default(80)
 
   // The narrowcast channels (#cerberon, #intercom) live under a
   // shared Discord "radio" category — see db/lib/specialChannels.js.
@@ -916,8 +956,7 @@ model Zone {
   // a GM sees the zones they picked, not all 56 Locations at once. Granted
   // and revoked per member by db/lib/gmZoneRoles.js from the GmZoneView
   // table. Permissions 0, never hoisted or mentionable, same as the access
-  // role above. A cave LEVEL has none -- its Locations wear the Underground
-  // group's, mirroring Zone.seatZoneId.
+  // role above.
   gmRoleId String? @unique
 
   // Clickable region on the /map plate: a polygon of [x, y] percentage pairs
@@ -960,8 +999,8 @@ model Zone {
 ///
 /// ONE ROW PER ZONE, keyed on discordUserId rather than hung off Character,
 /// because a GM may never roll one -- and should not lose their view when
-/// theirs dies. Only SEAT zones are pickable: a cave level has no GM role of
-/// its own, so a row here pointing at one would open nothing.
+/// theirs dies. Unlike the old seat, a CAVE_LEVEL row is fine here: this is
+/// about which channels you can open, and the cave levels have their own.
 model GmZoneView {
   discordUserId String
   zoneId        String
@@ -1171,7 +1210,6 @@ model LocationLink {
   openUntil DateTime?
 
   onFoot Boolean @default(false)
-
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1701,6 +1739,21 @@ model Character {
   // relation: eleven fixed values that can never differ per environment, so a
   // table would only add a join and a way to drift.
   antagonistOptIns String[] @default([])
+
+  // Which private Room threads this character is currently a MEMBER of, as
+  // Room ids. Not a source of truth about entitlement — that is always
+  // recomputed from tags and RoomGuest rows — but a record of what has actually
+  // been pushed to Discord, so db/lib/roomAccess.js can act on the DIFFERENCE
+  // instead of re-asserting all 66 private rooms every time.
+  //
+  // It exists because membership stopped following presence (2026-09-06) and
+  // the recompute moved onto the tag-change path, which fires on every equip,
+  // meal and transfer. Without this, equipping a hat cost 66 Discord round
+  // trips. With it, an unchanged set costs none.
+  //
+  // Drift is expected and harmless: the channel doctor reads Discord's real
+  // member list and is the backstop, exactly as it was before this column.
+  roomThreadRoomIds String[] @default([])
 
   tags                    CharacterTag[]
   actions                 Action[]
@@ -3135,7 +3188,6 @@ model Structure {
 
   builderCharacterId String?
   builderName        String?
-
 
   // The Request written on completion (BUILD_STRUCTURE), CraftProject's
   // requestId posture.

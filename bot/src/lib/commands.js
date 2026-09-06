@@ -88,6 +88,16 @@ const commandDefinitions = [
     .setName("location")
     .setDescription("Travel to a connected location. ‡")
     .setContexts(ANYWHERE),
+  // The same flow under the name people actually reach for. /location is the
+  // historical name and stays registered so nobody's muscle memory breaks;
+  // both land on handleTravelOpen, and so does the Travel button on the #turns
+  // console and on every Location anchor. If /location is ever retired, note
+  // that the BUTTON's custom_id is still "loc:open" — that id is historical
+  // too and is not worth a migration.
+  new SlashCommandBuilder()
+    .setName("travel")
+    .setDescription("Travel to a connected location. ‡")
+    .setContexts(ANYWHERE),
   // A standing state, not a per-message one: it stays on until it is turned
   // off, so it needs to be reachable from a DM the same way /location is.
   new SlashCommandBuilder()

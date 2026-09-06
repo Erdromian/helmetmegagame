@@ -507,9 +507,17 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
       if (room.kind === "PRIVATE") privateRooms.push({ ...room, label });
     }
 
-    // Private-room membership: exactly the living characters standing in the
-    // room's location who hold one of its access tags OR have been let in by
-    // hand (RoomGuest). Thread-major: one member-list read per private room.
+    // Private-room membership: exactly the living characters ENTITLED to the
+    // room — holding one of its access tags, or let in by hand (RoomGuest).
+    // NOT filtered by where they are standing: membership stopped following
+    // presence on 2026-09-06 (db/lib/roomAccess.js), because a thread is gated
+    // on VIEW_CHANNEL of its parent anyway and the add/remove was only earning
+    // an undeletable "added <name> to the thread" line on every arrival.
+    //
+    // This check is therefore also the BACKFILL: run the doctor once after that
+    // change and every keyholder lands in every thread they are entitled to,
+    // which is what "do it all at game start" means in practice.
+    // Thread-major: one member-list read per private room.
     //
     // Guests are NOT optional here. This check deletes anyone it can't account
     // for, so a doctor that only knew about keys would evict every guest the
@@ -522,7 +530,7 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
       for (const room of privateRooms) {
         const shouldHave = new Set(
           alive
-            .filter((c) => c.locationId === room.locationId && c.discordUserId)
+            .filter((c) => c.discordUserId)
             .filter((c) => {
               const keys = keysByCharacter.get(c.id);
               return accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds).length > 0;

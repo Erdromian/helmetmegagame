@@ -934,6 +934,68 @@ export const REQUEST_EFFECTS = {
       return `Put ${targetName ?? "them"} back in their bonds.`;
     },
   },
+  // Undo has a one-turn window: at the close, `crucified` expires into
+  // `dying` (docs/tags.yaml), so a later Undo finds no row to drop and the
+  // victim stays Dying. dropCharacterTag tolerates the missing row; the
+  // string says what is left.
+  CRUCIFY_CHARACTER: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { targetCharacterId, targetName, tagId } = request.effect;
+      if (targetCharacterId && tagId) await dropCharacterTag(tx, targetCharacterId, tagId);
+      return `Took ${targetName ?? "them"} down off the cross. If the turn has already closed they are Dying, and that stays — heal it. ‡`;
+    },
+  },
+  // Taking the false face off early. The disguise IS a minted Tag row
+  // (db/lib/disguiseMint.js), so undoing it drops the row off the character
+  // AND deletes the catalog row behind it — unlike every other tag here, that
+  // row exists for this one request and nothing else will ever hold it.
+  // deleteMany rather than delete: the expiry sweep may have taken the
+  // CharacterTag already, and an Undo must not throw over something that is
+  // already true.
+  DISGUISE_SELF: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { tagId, disguiseName } = request.effect;
+      if (tagId) {
+        await tx.characterTag.deleteMany({ where: { characterId: request.characterId, tagId } });
+        await tx.tag.deleteMany({ where: { id: tagId, ephemeral: true } });
+      }
+      return `Took the ${disguiseName ?? "false"} name back off. ‡`;
+    },
+  },
+  // The bomb's two buttons. The countdown is GameConfig.nukeArmedTurn, so both
+  // undos are just putting that column back — Arm's undo clears it, Disarm's
+  // restores the turn it was counting to. Neither touches the device or the
+  // datacard, which never moved.
+  //
+  // Undoing an Arm AFTER it has gone off is refused rather than silently
+  // doing nothing: nukeDetonatedTurn is set and permanent, the dead are dead,
+  // and a GM should be told that rather than left thinking they caught it.
+  ARM_NUKE: {
+    editableFields: [],
+    async undo(tx, request) {
+      const config = await tx.gameConfig.findUnique({ where: { id: 1 } });
+      if (config?.nukeDetonatedTurn != null) {
+        return "Too late — it has already gone off, and Undo does not raise the dead. ‡";
+      }
+      await tx.gameConfig.update({ where: { id: 1 }, data: { nukeArmedTurn: null } });
+      return "Countdown stopped. The device is inert again. ‡";
+    },
+  },
+  DISARM_NUKE: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { wasFiringOn } = request.effect ?? {};
+      const config = await tx.gameConfig.findUnique({ where: { id: 1 } });
+      if (config?.nukeDetonatedTurn != null) {
+        return "It has already gone off. Nothing to put back. ‡";
+      }
+      if (wasFiringOn == null) return "No countdown was recorded, so nothing was restored. ‡";
+      await tx.gameConfig.update({ where: { id: 1 }, data: { nukeArmedTurn: wasFiringOn } });
+      return `Countdown restored — it fires at the close of turn ${wasFiringOn}. ‡`;
+    },
+  },
   HARM_CHARACTER: {
     editableFields: [],
     async undo(tx, request) {

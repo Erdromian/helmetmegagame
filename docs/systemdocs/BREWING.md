@@ -168,6 +168,20 @@ The Fighting penalties on all three tags are **prose, not code** — nothing in
 the repo reads `tipsy`. They are numbers a GM weighs while adjudicating, which
 is how Tipsy has always worked.
 
+**Lightweight and Iron Liver** reshape the climb, in `web/lib/
+consumeGrants.js#resolveConsumeGrants`. Lightweight sends the character's
+*first* drink straight to the second rung (Sober → Wasted, skipping Tipsy).
+Iron Liver does the opposite to a climb already underway: it costs a drink to
+grant a hidden `steady` marker instead of climbing, and only the drink after
+that actually climbs (clearing the marker too) — so an Iron Liver drinker
+paces at 1 drink → Tipsy, two more → Wasted, two more → Unconscious. The
+catalog's `conflictsWith` keeps a character from holding both at once. The
+three slugs (`lightweight`, `iron-liver`, `steady`) are duplicated by hand at
+the top of `consumeGrants.js`, because that file is imported by client
+components (`TagsPanel.js`, `RequestActionsProvider.js`) and pulling
+`@lifeweb/db/lib/constants` into the browser bundle isn't an option — keep
+them in sync with `db/lib/constants.js` if either ever changes.
+
 Brewing files its Routine through the Craft button, same as any other
 craftable tag — `phrygian-tears` and `dreamers-draught` no longer carry
 `gambit: true`, since crafting is never a Gambit (`CRAFTING.md`).

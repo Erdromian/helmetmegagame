@@ -39,6 +39,7 @@ Each command declares its contexts:
 |---|---|---|---|---|
 | `/move` | — | Living character | Guild, DM | `handleMoveOpen` |
 | `/location` | — | Living character | Guild, DM | `handleTravelOpen` — the **Location** picker (§4) |
+| `/travel` | — | Living character | Guild, DM | `handleTravelOpen` — the same picker, under the name people reach for |
 | `/conceal` | — | Living character | Guild, DM | `handleConcealCommand` |
 | `/message` | — | Living character | Guild, DM | `handleMessageCommand` |
 | `/play` | — | Living character holding an Instrument | Guild | `handlePlayCommand` |
@@ -55,6 +56,14 @@ Notes:
 
 - `/move`, `/location` and `/message` are the twins of the three console
   buttons in §3. Each opens the same flow.
+- **`/travel` and `/location` are the same command.** `handleTravelOpen`
+  answers both. `/location` is the historical name and stays registered so
+  nobody's muscle memory breaks; `/travel` was added 2026-09-06 because that is
+  what the thing is called everywhere else — the console button, the anchor
+  button and this doc all say Travel. The BUTTON's `custom_id` is still
+  `loc:open` and is not worth a migration; only the surface names changed.
+  Retiring `/location` needs no deregistration step, since
+  `client.application.commands.set` fully replaces the list.
 - `/zone` is the Discord twin of the **Zones** control at the bottom of the
   inspector on `/gm/turns` and `/gm/players`. It takes no options: it opens an
   ephemeral select menu (`min_values: 0`) with the caller's current zones
@@ -173,8 +182,8 @@ the only speech in the game that crosses the Location graph.
 the character *stands* — not from whatever channel the command was typed in;
 those can disagree and only one of them is a place a voice comes from — and
 returns every Location within four hops, each with the distance and the
-direction. **Every edge counts.** Locked, hidden, shut, structural, on-foot —
-sound does not care, because none of those are about sound. A portcullis you
+direction. **Every edge counts.** Locked, hidden, shut, on-foot — sound does
+not care, because none of those are about sound. A portcullis you
 cannot open is still a portcullis you can yell through. It is deliberately the
 one traversal in the game that never calls `crossingCheck`.
 

@@ -68,7 +68,7 @@ const THREATS = [
       "You find normal crosses tacky and boring. Fire scares you somewhat — it definitely hurts. The Silver Cross, on the other hand, terrifies you. If you touch it, your powers are disabled for the rest of the day.",
       "There may be people in the area who want to use your power. They'll take your treasured independence — the demented, servile idiots.",
     ],
-    assign: { tagPoints: 7, tagSlugs: ["demoness", "hungerless"] },
+    assign: { tagPoints: 7, tagSlugs: ["demoness", "hungerless", "beautiful"] },
     spawn: {
       gender: "WOMAN",
       // null: the seat has no default role, so the GM picks one when offering.
@@ -147,6 +147,67 @@ const THREATS = [
       "Be creative. Turn people against each other, convert people, cause incidents that make other people look bad.",
     ],
   },
+  // THE TRIBUNAL, the two seats THREATS.md has been promising since the
+  // catalog was written ("Tribunal and Tribunal Leader, when they arrive...
+  // are simply assignable without a checkbox"). Deliberately NOT optIn for
+  // that reason: they are handed out, not consented to on the wizard.
+  //
+  // `tribunal-operations` above stays exactly as it is — it is one of the nine
+  // decoys, and these landing does not make it real.
+  //
+  // Both carry `spawn.locationSlug`, which nothing else does: the seat knows
+  // where its own shuttle puts down, so a GM offering one does not have to
+  // remember. Black Pines is the corner the map already describes as dense
+  // enough that "sound does not carry, neither do shouts", and it borders both
+  // crossings into the Marshes.
+  {
+    slug: "tribunal-ordinator",
+    name: "Tribunal Ordinator",
+    assignable: true,
+    seatTagSlug: "ordinator-insignia",
+    zone: "Black Hills",
+    blurb: [
+      "You are an Ordinator of the Tribunal, come down off-world at the God-King's pleasure.",
+      "You are better armed and better armoured than anything in this barony, and you know it. Your armour turns aside almost anything Ravenheart can forge and almost anything it can shoot — almost. A turret does not care who you are.",
+      "You do not have to explain yourself to a Baron. Whether you choose to is a question of how much trouble you want.",
+      "Nobody here knows what you are yet. That is worth more than the armour. ‡",
+    ],
+    assign: {
+      tagPoints: 10,
+      tagSlugs: ["ordinator-insignia", "heavy-infantry-armor", "tribunal-ordinator-helmet"],
+    },
+    spawn: {
+      gender: "NEUTRAL",
+      roleSlug: "tribunal-ordinator",
+      locationSlug: "hills-black-pines",
+      resources: 8,
+      tagPoints: 10,
+    },
+  },
+  {
+    slug: "tribune",
+    name: "Tribune",
+    assignable: true,
+    seatTagSlug: "tribunal-helmet",
+    zone: "Black Hills",
+    blurb: [
+      "You are a Tribune of the Tribunal, off-world and out of place. You are here to see what is here, and to be seen doing it.",
+      "Somebody has to write the report.",
+      "You are better armed than anyone in the barony and worse at fighting than the Ordinator beside you. Use the rifle at distance and the knife only once it has already gone wrong.",
+      "You can patch yourself up in the field, a little. The autoinjectors are for when a little is not enough. ‡",
+    ],
+    assign: {
+      tagPoints: 10,
+      tagSlugs: ["tribunal-helmet", "heavy-infantry-armor"],
+    },
+    spawn: {
+      gender: "NEUTRAL",
+      roleSlug: "tribune",
+      locationSlug: "hills-black-pines",
+      resources: 8,
+      tagPoints: 10,
+    },
+  },
   {
     slug: "tribunal-operations",
     name: "Tribunal Operations",
@@ -158,6 +219,11 @@ const THREATS = [
     optIn: true,
   },
 ];
+
+// The seats that arrive by shuttle. Spawning one tells the whole map that
+// something came down — db/lib/threatSpawn.js. A set rather than a flag on the
+// entries so a future Tribunal seat joins by adding one line here.
+const SHUTTLE_ARRIVAL_SLUGS = new Set(["tribunal-ordinator", "tribune"]);
 
 const THREATS_BY_SLUG = new Map(THREATS.map((t) => [t.slug, t]));
 
@@ -241,6 +307,7 @@ const THREAT_SPAWN_ACCEPT_PREFIX = "threat-spawn-accept:";
 const THREAT_SPAWN_DECLINE_PREFIX = "threat-spawn-decline:";
 
 module.exports = {
+  SHUTTLE_ARRIVAL_SLUGS,
   THREATS,
   OPT_IN_THREATS,
   ASSIGNABLE_THREATS,
