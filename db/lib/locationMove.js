@@ -22,6 +22,7 @@ const { syncCharacterRoomAccess } = require("./roomAccess");
 const { ambientLine } = require("./ambientLine");
 const { settleCarry, deliverCarryDrop } = require("./carry");
 const { parkMountsIndoors, parkedMessage } = require("./indoors");
+const { settlePhobias } = require("./phobias");
 const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW } = require("./zoneChannelSpec");
 const { linkBetween, endpoints, shouldPromptKeyed } = require("./locationGraph");
@@ -187,6 +188,13 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
   const parked = await parkMountsIndoors(prisma, characterId, toLocationId).catch((err) => {
     console.error(`Move: parking mounts failed for ${characterId}:`, err.message ?? err);
     return [];
+  });
+
+  // Whether a place scares this character is a DB fact too, same as parking
+  // a mount above — before the Discord guard, so it lands whether or not
+  // there's a token to talk to Discord with.
+  await settlePhobias(prisma, characterId).catch((err) => {
+    console.error(`Move: phobia settle failed for ${characterId}:`, err.message ?? err);
   });
 
   // Walking into an armed turret. Before the Discord guard, and before the

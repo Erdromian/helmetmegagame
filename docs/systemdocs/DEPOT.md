@@ -372,6 +372,17 @@ His float is deliberately thin, and thinner than the rest of the cast's scaled
 with it: the Company's line, 75 ¢, is nearly four times his own purse, and it
 is where most of his first order has to come from. It has to be paid back.
 
+**Debtor** is a separate faucet, off the drawback catalog rather than
+`docs/roles.yaml`: taking the tag grants 20 obols in the creation transaction
+(`DEBTOR_STARTING_OBOLS`, `db/lib/wantedPoster.js`), and the character owes
+40 back. That debt is only ever paper — three notices go up ("DEBTOR:
+{name}. Owes: 40 obols. Send the dockers."), a loose sheet each in the
+Merchant's Office and the Storefront, and one pinned to the Customs
+noticeboard. It shares the Wanted poster machinery (`NOTICE_SPECS.DEBTOR`),
+just with different rooms and no zone name, since the debt is the debt
+wherever the debtor is standing. Nothing collects it automatically — the
+notices are a standing invitation to a GM or another player, not a clock.
+
 ## 0h. The console
 
 `/depot`. A cockpit strip that never scrolls away — greeting, balance,

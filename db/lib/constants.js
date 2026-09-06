@@ -91,6 +91,23 @@ const SEDUCTIVE_DEMONESS_SLUG = "demoness-seductive";
 // viewer — see db/lib/inspectVision.js.
 const INSCRUTABLE_SLUG = "inscrutable";
 
+// The two fear states a phobia can grant — db/lib/phobias.js.
+const AFRAID_SLUG = "afraid";
+const PANIC_SLUG = "panic";
+// What a drawback-triggered ride leaves you as — db/lib/locationTravel.js.
+const VOMITING_SLUG = "vomiting";
+// Drawback slugs read by their scripted mechanics.
+const LAZY_SLUG = "lazy";
+const GUILT_RIDDEN_SLUG = "guilt-ridden";
+const INSOMNIAC_SLUG = "insomniac";
+const MOTION_SICKNESS_SLUG = "motion-sickness";
+// Lightweight / Iron Liver / Steady's slugs live only in
+// web/lib/consumeGrants.js — that file ships to the client, so it keeps its
+// own copies rather than importing from here.
+const DEBTOR_SLUG = "debtor";
+const CLAUSTROPHOBIA_SLUG = "claustrophobia";
+const ACROPHOBIA_SLUG = "acrophobia";
+
 // A ZONE slug, not a tag: the Fortress holds the Lifeweb tower and the PA
 // system, so two separate rules gate on standing there.
 const FORTRESS_SLUG = "fortress";
@@ -147,4 +164,14 @@ module.exports = {
   CONFESSION_THRESHOLD,
   SEDUCTIVE_DEMONESS_SLUG,
   INSCRUTABLE_SLUG,
+  AFRAID_SLUG,
+  PANIC_SLUG,
+  VOMITING_SLUG,
+  LAZY_SLUG,
+  GUILT_RIDDEN_SLUG,
+  INSOMNIAC_SLUG,
+  MOTION_SICKNESS_SLUG,
+  DEBTOR_SLUG,
+  CLAUSTROPHOBIA_SLUG,
+  ACROPHOBIA_SLUG,
 };

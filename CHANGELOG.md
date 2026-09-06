@@ -6,6 +6,17 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Phobias, a Debtor, and a dozen new personality drawbacks
+
+✚ Four phobias. Claustrophobia keeps you Afraid the whole time you are in the caves; Acrophobia makes you Afraid anywhere in the Black Hills and Panic at the Mountain; Pyrophobia and Teratophobia are for the GM to call  
+✚ Guilt Ridden can't confess and now and then wakes Exhausted; Insomniac wakes Exhausted about one dawn in five  
+✚ Lazy earns a quarter less from every day's labor, and the range on the sheet shows it; a chaplain can confess it away  
+✚ Lightweight's first drink lands them Wasted, the next one Unconscious. Iron Liver now takes two drinks per rung after the first  
+✚ Motion Sickness can't ride a horse or a boat, and vomits if somebody drags them across a zone on one  
+✚ Poor Swimmer, and Debtor: 20 obols in hand, 40 owed, with three DEBTOR notices up at Customs the moment they arrive  
+✎ Afraid now lasts one turn instead of two  
+✎ You may take up to 6 drawbacks, claiming back up to 13 points
+
 ## 2026-09-06 · The bell carries by distance now, and there is a trumpet
 
 ✎ The church bell now carries by distance instead of to a fixed list of zones — loud around the Cathedral, faint out at the edges, and silent underground  

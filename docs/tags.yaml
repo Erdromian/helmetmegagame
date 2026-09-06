@@ -1037,12 +1037,14 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
+  # Scripted: every rung above Tipsy takes two drinks, tracked by the hidden
+  # `steady` marker; web/lib/consumeGrants.js.
   iron-liver:
     catalog: all
     name: Iron Liver
     category: general
     group: general-traits
-    description: "You can drink grown men under the table. Grown women, too. Even children."
+    description: "You can drink grown men under the table. Grown women, too. Even children. After the first, it takes two drinks to move you a rung further down the bottle. ‡"
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1494,6 +1496,161 @@ tags:
     desires:
       locks:
         - families: [alcohol, drugs, gambling, romance]
+
+  pyrophobia:
+    catalog: all
+    name: Pyrophobia
+    category: general
+    group: general-personality
+    description: "You possess an intense fear of uncontrolled fire. Significant flames may make you {tag:afraid}, while being trapped near or within them may cause {tag:panic}."
+    pointCost: -2
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # Scripted: Afraid anywhere in the Black Hills, Panic at the Mountain.
+  # db/lib/phobias.js.
+  acrophobia:
+    catalog: all
+    name: Acrophobia
+    category: general
+    group: general-personality
+    description: "You possess an intense fear of heights. Significant drops may make you {tag:afraid}, while precarious ledges or rooftops may cause {tag:panic}."
+    pointCost: -3
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # Scripted: Afraid the whole time you are in the caves. db/lib/phobias.js.
+  claustrophobia:
+    catalog: all
+    name: Claustrophobia
+    category: general
+    group: general-personality
+    description: "You possess an intense fear of enclosed spaces. Tight tunnels or sealed rooms may make you {tag:afraid}, while becoming trapped within one may cause {tag:panic}."
+    pointCost: -3
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  teratophobia:
+    catalog: all
+    name: Teratophobia
+    category: general
+    group: general-personality
+    description: "You possess an intense fear of monsters and unnatural creatures. Seeing one may make you {tag:afraid}, while being threatened or cornered by one may cause {tag:panic}."
+    pointCost: -2
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  poor-swimmer:
+    catalog: all
+    name: Poor Swimmer
+    category: general
+    group: general-personality
+    description: "You can't swim at all."
+    pointCost: -1
+    conflictsWith: [strong-swimmer]
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # Scripted: can't equip a horse, steam automobile or fishing boat; dragged
+  # across a zone by a mounted mover you end up {tag:vomiting}.
+  # web/app/(app)/character/equipActions.js, db/lib/locationTravel.js.
+  motion-sickness:
+    catalog: all
+    name: Motion Sickness
+    category: general
+    group: general-personality
+    description: "You can't use horses or boats."
+    pointCost: -4
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # Scripted: confession refused in db/lib/confession.js; 5% each dawn to
+  # wake Exhausted, db/lib/dawnAfflictionPass.js.
+  guilt-ridden:
+    catalog: all
+    name: Guilt Ridden
+    category: general
+    group: general-personality
+    description: "You can't confess. Rarely, you have nightmares, making you {tag:exhausted}."
+    pointCost: -3
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # Scripted: 20% each dawn, db/lib/dawnAfflictionPass.js.
+  insomniac:
+    catalog: all
+    name: Insomniac
+    category: general
+    group: general-personality
+    description: "You frequently wake up {tag:exhausted}."
+    pointCost: -4
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # requiredTag laboring-basic is the "Laboring OR Commoner" gate —
+  # holdsRequirement walks the tier chain and Commoners start with Laboring
+  # (Skilled). psychological so a chaplain can confess it away. Scripted:
+  # -25% on every labor payout after the roll, db/lib/autoLaborPass.js.
+  lazy:
+    catalog: all
+    name: Lazy
+    category: general
+    group: general-personality
+    description: "You work less hard, producing less resources than others."
+    pointCost: -4
+    requiredTag: laboring-basic
+    psychological: true
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # Scripted: your first drink skips Tipsy and lands you Wasted, the next one
+  # Unconscious; web/lib/consumeGrants.js. Excluded for anyone who couldn't
+  # conceivably drink.
+  lightweight:
+    catalog: all
+    name: Lightweight
+    category: general
+    group: general-personality
+    description: "You get drunk very quickly."
+    pointCost: -2
+    conflictsWith: [prudish, iron-liver]
+    excludedRoles: [chaplain, bishop]
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # Scripted: starts with 20 obols; three DEBTOR notices go up at Customs on
+  # arrival, db/lib/wantedPoster.js.
+  debtor:
+    catalog: all
+    name: Debtor
+    category: general
+    group: general-personality
+    description: "You owe the merchant a big debt, 40 obols. He's coming to collect, don't you know?"
+    pointCost: -5
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
 
   ugly:
     catalog: all
@@ -2586,6 +2743,21 @@ tags:
     durationTurns: 1
     expiresInto: [hangover]
 
+  # The Iron Liver marker: the first drink at a rung sets it, the second
+  # clears it and climbs. web/lib/consumeGrants.js.
+  steady:
+    catalog: gm
+    name: Steady
+    category: status
+    group: status-debuffs
+    description: "You're holding it down. One more and you won't be. ‡"
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 1
+
   # The bottom of the ladder rather than a rung on it: no escalatesInto, so
   # drinking through a hangover starts you over at Tipsy. ‡
   hangover:
@@ -2783,7 +2955,11 @@ tags:
     removable: false
     durationTurns: 2
 
-  # The two fear states, granted by a GM. Can be applied by Demoness
+  # The two fear states, granted by a GM. Can be applied by Demoness. Also
+  # granted automatically by presence for Claustrophobia (the caves) and
+  # Acrophobia (the Black Hills, or Panic at the Mountain) — db/lib/phobias.js.
+  # Those derived rows carry `source: CONDITION` — that's what tells a
+  # phobia-driven grant from a GM-granted one apart, not the expiry.
 
   afraid:
     catalog: gm
@@ -2796,7 +2972,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: false
-    durationTurns: 2
+    durationTurns: 1
 
   panic:
     catalog: gm
@@ -10627,7 +10803,6 @@ tags:
     category: items
     group: items-special
     description: "BRRRR! Produces two Godflesh per extraction."
-    laborBonus: { kind: farming, amount: 2 }
     pointCost: 0
     equippable: true
     tradeable: true

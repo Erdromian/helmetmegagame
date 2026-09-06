@@ -27,6 +27,8 @@ const {
   DYING_DM,
 } = require("./lib/hungerPass");
 const { runCarryPass } = require("./lib/carryPass");
+const { runPhobiaPass } = require("./lib/phobiaPass");
+const { runDawnAfflictionPass } = require("./lib/dawnAfflictionPass");
 const { runDepotPass } = require("./lib/depotPass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
 const { announceTurretBurst } = require("./lib/turretBurst");
@@ -185,7 +187,13 @@ const TURN_PASSES = [
   "catatonicDeath",
   "bird",
   "hunger",
+  // Guilt Ridden and Insomniac's nightly chance of waking Exhausted. After
+  // hunger so it sees the final sheet. See db/lib/dawnAfflictionPass.js.
+  "dawnAfflictions",
   "carry",
+  // Phobia safety net for anyone whose mood went stale off the per-Move
+  // settle. After carry so it sees the final sheet. See db/lib/phobiaPass.js.
+  "phobias",
   // After "carry", because the overflow drop can put a corpse on a floor.
   // Pull-based, so it just re-reads where every body's tag ended up.
   "corpseFollow",
@@ -626,6 +634,34 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Hunger audit log failed:", err));
   }
 
+  // Dawn afflictions: Guilt Ridden and Insomniac each carry a nightly chance
+  // of waking Exhausted. After hunger so it sees the final sheet, same as
+  // carry below. See db/lib/dawnAfflictionPass.js.
+  let dawnAfflictions = null;
+  if (!done.has("dawnAfflictions")) {
+    dawnAfflictions = await runDawnAfflictionPass(prisma, turn).catch(async (err) => {
+      await passFailed("Dawn afflictions", err);
+      return null;
+    });
+    if (dawnAfflictions) await markDone("dawnAfflictions");
+  }
+  const { notices: dawnAfflictionNotices = [], ...dawnAfflictionSummary } = dawnAfflictions ?? {};
+  if (dawnAfflictions) {
+    // Rides the tagExpiry DM channel rather than threading a variable of its
+    // own through runSideEffects/advanceTurn — it is the same kind of notice
+    // ("a tag on your sheet changed"), same as visionDecay above.
+    tagExpiryDms.push(...dawnAfflictionNotices);
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "dawn_afflictions_resolved",
+          details: dawnAfflictionSummary,
+        },
+      })
+      .catch((err) => console.error("Dawn afflictions audit log failed:", err));
+  }
+
   // Carry caps: Overburdened on and off, and overflow drops for anyone whose
   // Cart or Pack Mule left during the turn. After hunger so it sees the
   // final sheet. See db/lib/carryPass.js, CARRY.md.
@@ -648,6 +684,29 @@ async function resolveNeeds(turn, config) {
         },
       })
       .catch((err) => console.error("Carry audit log failed:", err));
+  }
+
+  // Phobia safety net: settlePhobias already runs on every Move
+  // (db/lib/locationMove.js); this catches anyone whose phobia mood went
+  // stale some other way. See db/lib/phobiaPass.js.
+  let phobias = null;
+  if (!done.has("phobias")) {
+    phobias = await runPhobiaPass(prisma, turn).catch(async (err) => {
+      await passFailed("Phobias", err);
+      return null;
+    });
+    if (phobias) await markDone("phobias");
+  }
+  if (phobias) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "phobias_resolved",
+          details: phobias,
+        },
+      })
+      .catch((err) => console.error("Phobias audit log failed:", err));
   }
 
   // Every dead sheet catches up with wherever its corpse ended up. Last of

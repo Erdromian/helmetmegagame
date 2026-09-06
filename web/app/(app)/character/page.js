@@ -21,6 +21,7 @@ import {
   BUTCHER_SLUG,
   WORKSHOP_EQUIPMENT_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
+  GUILT_RIDDEN_SLUG,
 } from "@lifeweb/db/lib/constants";
 import {
   hasAttribute,
@@ -969,14 +970,19 @@ export default async function CharacterPage() {
   const confessors = here
     .filter((c) => c.tags.some((ct) => ct.tag.slug === "chaplain"))
     .map((c) => ({ id: c.id, name: c.name }));
-  const mySins = (
-    await prisma.characterTag.findMany({
-      where: { characterId: character.id, tag: { psychological: true } },
-      select: { tag: { select: { id: true, name: true } } },
-    })
-  )
-    .map((ct) => ct.tag)
-    .sort((a, b) => a.name.localeCompare(b.name));
+  // Guilt Ridden can't bring themself to confess at all — see
+  // db/lib/confession.js#confessableTags, mirrored here so the Confess
+  // button hides itself instead of failing on click.
+  const mySins = heldSlugs.has(GUILT_RIDDEN_SLUG)
+    ? []
+    : (
+        await prisma.characterTag.findMany({
+          where: { characterId: character.id, tag: { psychological: true } },
+          select: { tag: { select: { id: true, name: true } } },
+        })
+      )
+        .map((ct) => ct.tag)
+        .sort((a, b) => a.name.localeCompare(b.name));
 
   const pendingOffers = openTurn
     ? (
