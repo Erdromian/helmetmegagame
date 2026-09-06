@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The handbook and the GM docs know about the lobby
+
+✎ The player handbook explains readying up, the roll, the deadline DM, and joining by hand after the start  
+✚ LOBBY.md, the GM-side reference for phases, the roll, the creation window, End Game and what a restart keeps; the launch runbook now ends with Open lobby instead of a switch  
+✎ THREATS.md says how a seat's forbidden tags work and what Assign refunds; ARCHIVE.md describes the game picker and the folded transcript
+
 ## 2026-09-06 · The archive, remade, with every past game in it
 
 ✚ A game picker on /archive: past games are readable by anyone signed in, with their reveal at the top; the current one still opens when the game ends  

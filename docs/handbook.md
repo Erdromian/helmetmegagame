@@ -117,7 +117,11 @@ What survives:
 If you want to remember something, use the ⭐ reaction on the message before Dawn to save it to your [Notes](https://ravenheart.quest/notes) page.
 
 ## Character Creation
-The first thing you will do is create your character on the website by clicking the **Character** button at the top of the sidebar. Character creation takes place in 5 steps:
+The first thing you will do is open the **Character** page on the website, from the button at the top of the sidebar.
+
+**Before the game starts** that page is the lobby. Set how much you want each role — Off, Low, Med or High, with only one High at a time — say what should happen if none of them is free (join as a Commoner, join as a Migrant, or sit it out and join by hand later), tick any antagonist you are open to being handed, and press **Ready**. Everything saves as you go and is remembered for the next game. When the GMs start the game, the roll hands out seats: players who wanted a role more get it before players who wanted it less, and a role's seats fill until they run out. You get a DM with your seat, a link, and a deadline. Build your character before it, or the seat opens to anyone. ‡
+
+**After the game starts**, or if you missed the roll, you join by hand: pick from whatever seats are open. Character creation takes place in 5 steps:
 
 **Choose Your Role**  
 Your role determines your character's starting location and faction. Roles may come with responsibilities, authority, or benefits. The difficulty shown on the role (easy/normal/hard) is a rough indication of how much effort the role requires to play properly. Most roles have a maximum number allowed in the game, and Leader roles can only be selected if you have been explicitly whitelisted.
@@ -129,7 +133,7 @@ Tags represent your character's skills, assets, injuries, and other attributes. 
 Your identity is your character's name, gender, age, and title. Names must be a single word, and titles must be earned or granted by your role.
 
 **Antagonists**  
-Antagonists are secret villain roles that may be granted by a GM. You can select one or more of these options to indicate you're open to receiving one.
+Antagonists are secret villain roles that may be granted by a GM. You can select one or more of these options to indicate you're open to receiving one. A few need the whitelist, like the leader roles do. ‡
 
 **Confirm**  
 Once you've made your selections and reviewed your character details, clicking Confirm will create the character and assign it to your Discord account. It will also take you to the Character page, which is your full character sheet.

@@ -15,7 +15,7 @@ can do, and which ones it carries is the whole taxonomy:
 
 | Piece | What it means |
 |---|---|
-| `optIn: true` | A checkbox on the creation wizard. Consent data, nothing else. |
+| `optIn: true` or `{ name, whitelist }` | A checkbox in the lobby and on the wizard's Antagonists step. Consent data, nothing else. `name` is the PUBLIC name the box wears when it differs from the seat's — "Succubus" for the Demoness so the 18+ nature is said out loud, "Cultist" / "Cultist Leader" for the two Thanati seats so the word never appears; `whitelist: true` greys the box for anyone without the Whitelist Discord role (the same role that gates leader seats) and drops the slug server-side. `optInName()` / `optInWhitelisted()` read the shape; `antagonistNames()` returns public names, which is what every GM table shows. |
 | `assign: {…}` | A real seat a GM can hand to an existing character. |
 | `spawn: {…}` | The same seat, handed to somebody with no character at all. |
 
@@ -23,7 +23,7 @@ can do, and which ones it carries is the whole taxonomy:
 spawnable, because anything worth giving to a character is worth giving to a
 new one.
 
-**Most opt-ins are decoys**, and which ones are real is not written down here.
+**Half the opt-ins are decoys**, and which ones are real is not written down here.
 Ticking a checkbox tells a GM about consent without telling the player which
 seats are real, and a doc in the repo that lists the real ones undoes that. The
 roster lives in `SECRETS.md`, which is gitignored.
@@ -35,9 +35,11 @@ Three mechanisms are worth knowing about regardless of which seat uses them:
   prefers a GM's explicit pick, then this, then the role's own start.
 - **A Role no player may take.** A spawn needs a Role for its charter, kit and
   start, so a seat can own a `docs/roles.yaml` faction whose slugs sit in
-  `SPAWN_ONLY_ROLE_SLUGS` (`web/lib/characterCreation.js`). That withholds them
-  from the creation picker outright, rather than greying them the way a
-  whitelisted seat is greyed.
+  `SPAWN_ONLY_ROLE_SLUGS` (`db/lib/roleCapacity.js`, re-exported by
+  `web/lib/characterCreation.js`). That withholds them from the creation
+  picker outright, rather than greying them the way a whitelisted seat is
+  greyed — and keeps them out of the lobby's roll and its hand-set dropdown
+  (`LOBBY.md` §3).
 - **`SHUTTLE_ARRIVAL_SLUGS`** makes spawning a seat tell the whole map a shuttle
   came down — every Location channel, via
   `db/lib/worldBroadcast.js#ambientEverywhere`. Adding a seat to that broadcast
@@ -81,10 +83,27 @@ column for free.
 `assignable` itself — a server action is a public endpoint and the dropdown is
 a hint, not a lock.
 
-One transaction: the seat's tags, then the points. Tags are **upserted**, not
-created, because a GM may have granted the seat tag by hand already and a
-duplicate would violate `CharacterTag`'s `(characterId, tagId)` unique. Then one
-`threat_assigned` audit row.
+One transaction: the seat's tags, then the points, then the conflicts. Tags
+are **upserted**, not created, because a GM may have granted the seat tag by
+hand already and a duplicate would violate `CharacterTag`'s
+`(characterId, tagId)` unique. Then one `threat_assigned` audit row.
+
+**A seat's incompatible tags are `conflictsWith` edges on the seat tag** in
+`docs/tags.yaml` (Judge and Demoness against Pacifist, Charitable and Saint;
+the `thanati` Belief against those and Pilgrim, plus every other Belief by
+the group's `exclusive` rule). That is what makes the store and Add Tag refuse
+them for a holder without knowing what a threat is. What the character
+*already* holds is settled by `db/lib/seatConflicts.js#resolveSeatConflicts`,
+in the same transaction:
+
+- a pairwise conflict that **cost points** is removed and its `pointCost`
+  goes back to `Character.tagPoints` — refunded;
+- a pairwise conflict with a zero or negative cost is **kept** — a refunded
+  drawback would be a farmed one;
+- a second **Belief** always goes, refunding `max(cost, 0)`.
+
+The DM lists what was refunded, dropped and kept; the audit row carries the
+same three lists.
 
 The DM goes out **post-commit**, in `after()`, so a Discord outage can never
 cost the grant:

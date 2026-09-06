@@ -233,6 +233,7 @@ you pick the right doc — they are never enough to change code with.
 | [`PAPERWORK.md`](docs/systemdocs/PAPERWORK.md) | You're touching paper, writing, wax seals, noticeboards, or **anything that asks whether a character can read** (`db/lib/reading.js`) |
 | [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the arbitration workspace, staging, or the turn-end push |
 | [`PLAYER-DESK.md`](docs/systemdocs/PLAYER-DESK.md) | You're working on `/gm/players` — the merged roster + conversations desk, GM notes, or ⌘K |
+| [`LOBBY.md`](docs/systemdocs/LOBBY.md) | You're touching the game phases (`GameState.phase`), readying up, role priorities, the assignment roll, the creation window, Start Game / End Game, the epilogue, or what Restart Game keeps |
 | [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, or `/gm/dev/tags` |
 | [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, or the `/map` panel |
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
@@ -369,6 +370,11 @@ npm run db:prune-stale-channels      # deletes categories, channels and zone/
                                      #   that no DB row references. db:sync-
                                      #   zones cannot see these. DRY RUN unless
                                      #   given `-- --apply`.
+npm run db:check-config              # the GameConfig field registry vs. the
+                                     #   schema (db/lib/gameConfigFields.js).
+                                     #   push.sh runs it; exits 1 on drift.
+npm test --workspace=db              # node --test over db/test/ (the
+                                     #   assignment roll, so far).
 npm run db:report-inactive-characters  # read-only inactivity report
 npm run db:open-rp-channels          # between games: open every roleplay
                                      #   channel to the guild. DRY RUN unless
@@ -419,7 +425,8 @@ Environment variables (see `.env.example`): `DATABASE_URL`, `DISCORD_TOKEN`,
 The player and spectator role IDs are **not** env vars. They're hardcoded in
 `db/lib/roleIds.js` — see "Discord permission model" below for why.
 
-Neither package has any test setup yet.
+`db/` has `node --test` under `db/test/`; the web app and the bot have no test
+setup.
 
 ## How the bot populates the database
 
@@ -493,8 +500,8 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 | **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | A mentionable **name token only** (`PROXYING.md` §6) — held by nobody and granting nothing. Channel access is the **zone role and the Location overwrite** instead (`CHANNELS.md` §3). |
 | **GM role** | `DISCORD_GM_ROLE_ID` env var, **or** `TRIAL_GM_ROLE_ID` in `db/lib/roleIds.js` | `/gm` pages, the `/gm` and `/message` slash commands, and the GM's standing channel overwrites. Checked via REST (`isGm`), not stored on any model. The two are access-identical — `gmRoleIds()` is the only list, and the roster on `/gm/dev?s=gamemasters` is the one surface that tells them apart. |
 | **Spectator role** | `SPECTATOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A standing read-only observer seat, applied at provisioning time. See `CHANNELS.md`. |
-| **Player role** | `PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may create a character, paired with `GameConfig.openToPlayers` (`CHARACTERS.md` §4b). |
-| **Leader Whitelist role** | `LEADER_WHITELIST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may pick a role flagged `leader: true` at character creation — unless `GameConfig.leaderWhitelistEnabled` is switched off on `/gm/dev` (`CHARACTERS.md` §2). |
+| **Player role** | `PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may ready up in the lobby or create a character, paired with `GameState.phase` (`LOBBY.md` §1, `CHARACTERS.md` §4b). |
+| **Leader Whitelist role** | `LEADER_WHITELIST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may pick or prioritise a role flagged `whitelist: true`, and tick a whitelisted antagonist box — unless `GameConfig.leaderWhitelistEnabled` is switched off on `/gm/dev` (`CHARACTERS.md` §2, `THREATS.md` §1). |
 | **Cursed role** | `DISCORD_CURSED_ROLE_ID` env var | What a player may re-roll as after a death (`CHARACTERS.md` §4), **and** the ghost seat: read-only view of every zone (cave levels included; private threads stay invisible), and no voice at all — the 🌬️ whisper is gone, an unburied body reports itself instead. Its color is pinned to 0 so ghosts aren't outed in the member list (`CHANNELS.md` §3, `COMMANDS.md` §6). |
 | **Turn-ping role** | `DISCORD_TURN_PING_ROLE_ID` env var | Plain opt-in notification, toggled from `/character`. |
 
@@ -697,7 +704,8 @@ wipe. Until Bascinet says the game is live, treat production as a sandbox:
 - **Push and deploy destructive changes without asking.** Migrations that
   drop columns, `db:sync-zones`, `db:sync-documents`, `db:prune-tags --
   --apply`, a Restart Game wipe, a `#info` rebuild — all fine. Just do it and
-  say what you did afterwards.
+  say what you did afterwards. The game's phase (`GameState.phase`,
+  `LOBBY.md` §1) is part of that sandbox: flip it for a test and put it back.
 - **Don't stop for confirmation** on Railway, Prisma, or Discord work.
   Bascinet is usually away from the keyboard and would rather come back to
   finished work than to a question.

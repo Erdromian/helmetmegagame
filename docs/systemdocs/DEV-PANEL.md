@@ -493,7 +493,7 @@ and refreshes the desk, instead of the page's own navigation away.
 Superadmin-only, and a different page — the game-level one, not this doc's
 character panel. It is the fourth page in the `(desk)` family (`DESIGN-
 SYSTEM.md` §6): a two-column settings workspace, `OpsNav.js` picking one
-section down the left over a validated `?s=` param (`turn` when absent or
+section down the left over a validated `?s=` param (`game` when absent or
 unrecognised), one settings surface on the right. Each section fetches only
 its own data — `listGuildMembers()` and the role/seat maths only load for the
 two Threats sections, instead of on every visit regardless of which section a
@@ -508,15 +508,25 @@ superadmin gate lives in `page.js` itself rather than the layout, because
 `(desk)/layout.js` only checks GM membership — `/gm/players` and `/gm/turns`
 share that layout and are meant to stay GM-open.
 
-Nine sections: **Turn**, **Configuration** and **The Depot** under "Game";
-**Bulk move**, **Send a letter** and **System reports** under "Operations";
-**Assignments** and **Antagonists** under "Threats"; **Restart game** on its
-own under "Danger".
-The two Threats sections replaced the old Antagonist Roster popup and have
-their own doc — `THREATS.md`. `LAUNCH.md` covers Restart Game itself, and the
-Depot section is this doc's appendix.
+Ten sections: **Game**, **Turn**, **Configuration** and **The Depot** under
+"Game"; **Bulk move**, **Send a letter**, **System reports** and
+**Gamemasters** under "Operations"; **Assignments** and **Antagonists** under
+"Threats"; **Restart game** on its own under "Danger".
+The Game section — phase, lobby roster, the assignment preview, Start and End
+— is `LOBBY.md`. The two Threats sections replaced the old Antagonist Roster
+popup and have their own doc — `THREATS.md`. `LAUNCH.md` covers Restart Game
+itself, and the Depot section is this doc's appendix.
 
-**Game Config knobs documented nowhere else**, all reset by a wipe:
+**Configuration is rendered from a registry.** Every `GameConfig` knob is
+declared once in `db/lib/gameConfigFields.js` — key, type, group, label, help,
+clamp, default — and `ConfigForm.js` renders that list while
+`updateGameConfig` parses it (`parseConfigForm`). A column without an entry is
+unreachable from the panel, so `npm run db:check-config` (run by `push.sh`)
+diffs the registry against the schema. None of it is reset by a wipe any more;
+per-game state lives on `GameState` and is edited on the Game section (the
+Lifeweb blood override) or the Turn section (next-turn overrides).
+
+**Knobs documented nowhere else:**
 
 | Knob | Does |
 |---|---|
