@@ -8,6 +8,7 @@
 // amount a player is shown and the amount applied cannot drift.
 
 const { NOBILITY_SLUG, COURTIER_SLUG } = require("./constants");
+const { getGameState } = require("./gameState");
 
 const BLOOD_MAX = 100;
 
@@ -60,12 +61,12 @@ function applyBlood(current, amount) {
 // as db/lib/dm.js.
 async function bumpBlood(tx, amount) {
   if (!amount) {
-    const state = await tx.gameState.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+    const state = await getGameState(tx);
     const current = Math.max(0, Math.min(BLOOD_MAX, state.lifewebBlood ?? 0));
     return { before: current, after: current, delta: 0 };
   }
 
-  await tx.gameState.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+  await getGameState(tx);
 
   const rows = await tx.$queryRaw`
     WITH prev AS (

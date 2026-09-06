@@ -289,9 +289,25 @@ export default async function CharacterPage({ searchParams }) {
         prisma.lobbyEntry.findUnique({ where: { discordUserId: session.discordUserId } }),
         prisma.lobbyEntry.count({ where: { status: "READY" } }),
       ]);
+      // Seven fields per role, not the wizard's whole card — the lobby shows
+      // names and pitches, never tags or seat counts.
+      const lobbyGroups = creation.groups.map((g) => ({
+        slug: g.slug,
+        name: g.name,
+        roles: g.roles.map((r) => ({
+          id: r.id,
+          slug: r.slug,
+          name: r.name,
+          intro: r.intro,
+          factionName: r.factionName,
+          startingZoneName: r.startingZoneName,
+          grantsLeader: r.grantsLeader,
+          whitelistBlocked: r.whitelistBlocked,
+        })),
+      }));
       return (
         <Lobby
-          groups={creation.groups}
+          groups={lobbyGroups}
           initial={{
             rolePriorities: preference?.rolePriorities ?? {},
             antagonistOptIns: creation.initialAntagonists,

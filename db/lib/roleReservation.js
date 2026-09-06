@@ -9,8 +9,8 @@
 // into the @lifeweb/db barrel for the same reason: db/lib/roleCapacity.js
 // (the seat-cap math this module builds on) IS in the barrel, so requiring
 // this by path keeps the two call shapes distinct rather than colliding.
-const { roleCapacity, isPermanentSeat } = require("./roleCapacity");
-const { heldSeats, assignedCountsByRole } = require("./seatCount");
+const { roleCapacity } = require("./roleCapacity");
+const { heldSeats, heldSeatsByRole } = require("./seatCount");
 
 // 30 minutes: long enough to read the tag menu carefully, short enough that
 // an abandoned tab frees a unique seat the same session. Refreshed on every
@@ -65,29 +65,10 @@ async function reserveRole(prisma, discordUserId, roleId, playerCount) {
 // statuses count.
 async function takenCounts(prisma, roles, excludeDiscordUserId) {
   if (roles.length === 0) return new Map();
-  const roleIds = roles.map((r) => r.id);
-  const permanentIds = roles.filter(isPermanentSeat).map((r) => r.id);
   await prisma.roleReservation.deleteMany({
-    where: { roleId: { in: roleIds }, expiresAt: { lt: new Date() } },
+    where: { roleId: { in: roles.map((r) => r.id) }, expiresAt: { lt: new Date() } },
   });
-  const [aliveRows, deadRows, reservedRows, assignedByRole] = await Promise.all([
-    prisma.character.groupBy({ by: ["roleId"], where: { roleId: { in: roleIds }, status: "ALIVE" }, _count: true }),
-    permanentIds.length === 0
-      ? []
-      : prisma.character.groupBy({ by: ["roleId"], where: { roleId: { in: permanentIds }, status: "DEAD" }, _count: true }),
-    prisma.roleReservation.groupBy({
-      by: ["roleId"],
-      where: { roleId: { in: roleIds }, discordUserId: { not: excludeDiscordUserId ?? "" } },
-      _count: true,
-    }),
-    assignedCountsByRole(prisma, roleIds, { excludeDiscordUserId }),
-  ]);
-  const counts = new Map();
-  for (const row of [...aliveRows, ...deadRows, ...reservedRows]) {
-    counts.set(row.roleId, (counts.get(row.roleId) ?? 0) + row._count);
-  }
-  for (const [roleId, n] of assignedByRole) counts.set(roleId, (counts.get(roleId) ?? 0) + n);
-  return counts;
+  return heldSeatsByRole(prisma, roles, { excludeDiscordUserId: excludeDiscordUserId ?? null });
 }
 
 async function releaseRole(prisma, discordUserId) {

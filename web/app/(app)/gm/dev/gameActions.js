@@ -11,8 +11,12 @@ import {
   returnedMessage,
   startedLine,
   declineComponents,
+  markNotified,
+  ROLL_PHASES,
 } from "@lifeweb/db/lib/lobby";
+import { isSpawnOnly } from "@lifeweb/db/lib/roleCapacity";
 import { newSeed } from "@lifeweb/db/lib/roleAssignment";
+import { endGameInDb, resumeGameInDb, postGameEnded } from "@lifeweb/db/lib/gameEnd";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { auth, CANONICAL_ORIGIN } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -88,7 +92,7 @@ async function memberRoleMap() {
 export async function previewAssignment() {
   await requireSuperadmin();
   const state = await getGameState(prisma);
-  if (state.phase !== "LOBBY") return { ok: false, error: "Preview needs an open lobby. ‡" };
+  if (!ROLL_PHASES.has(state.phase)) return { ok: false, error: "Preview needs a lobby, open or frozen. ‡" };
   const draft = await buildDraft(prisma, await memberRoleMap(), { seed: newSeed() });
   await prisma.gameState.update({ where: { id: 1 }, data: { assignmentDraft: draft } });
   refresh();
@@ -102,10 +106,12 @@ export async function setDraftRow({ discordUserId, roleSlug }) {
   await requireSuperadmin();
   const state = await getGameState(prisma);
   const draft = state.assignmentDraft;
-  if (state.phase !== "LOBBY" || !draft?.rows) return { ok: false, error: "There is no preview to edit. ‡" };
+  if (!ROLL_PHASES.has(state.phase) || !draft?.rows) return { ok: false, error: "There is no preview to edit. ‡" };
   const slug = roleSlug ? String(roleSlug) : null;
-  if (slug && !(await prisma.role.findUnique({ where: { slug }, select: { id: true } }))) {
-    return { ok: false, error: "No such role. ‡" };
+  if (slug) {
+    const role = await prisma.role.findUnique({ where: { slug }, select: { id: true, slug: true } });
+    if (!role) return { ok: false, error: "No such role. ‡" };
+    if (isSpawnOnly(role)) return { ok: false, error: "That seat can only be spawned, never assigned. ‡" };
   }
   const rows = draft.rows.map((r) =>
     r.discordUserId === discordUserId ? { ...r, roleSlug: slug, source: "GM" } : r,
@@ -124,7 +130,7 @@ export async function setDraftRow({ discordUserId, roleSlug }) {
 export async function startGame() {
   const session = await requireSuperadmin();
   const state = await getGameState(prisma);
-  if (state.phase !== "LOBBY") return { ok: false, error: "Start Game needs an open lobby. ‡" };
+  if (!ROLL_PHASES.has(state.phase)) return { ok: false, error: "Start Game needs a lobby, open or frozen. ‡" };
 
   const ready = await prisma.lobbyEntry.count({ where: { status: "READY" } });
   let draft = state.assignmentDraft;
@@ -138,7 +144,7 @@ export async function startGame() {
     if (err.message === "DRAFT_STALE") {
       return { ok: false, error: `The lobby changed since the preview. Preview again. ${(err.problems ?? []).join(" ")}` };
     }
-    if (err.message === "NOT_LOBBY") return { ok: false, error: "Start Game needs an open lobby. ‡" };
+    if (err.message === "NOT_LOBBY") return { ok: false, error: "Start Game needs a lobby, open or frozen. ‡" };
     throw err;
   }
 
@@ -146,11 +152,15 @@ export async function startGame() {
   after(async () => {
     // Sequential on purpose: eighty DMs at once is a rate-limit incident.
     for (const a of outcome.assigned) {
+      // Stamped only on success: the sweep resends anything still unstamped
+      // five minutes on (db/lib/lobbySweep.js).
       await sendDm(a.discordUserId, assignmentMessage(a, CANONICAL_ORIGIN), {
         authorDiscordUserId: session.discordUserId,
         source: "lobby_assignment",
         components: declineComponents(a.entryId),
-      }).catch((err) => console.error(`Assignment DM failed for ${a.discordUserId}:`, err));
+      })
+        .then(() => markNotified(prisma, a.entryId))
+        .catch((err) => console.error(`Assignment DM failed for ${a.discordUserId}:`, err));
     }
     for (const r of outcome.returned) {
       await sendDm(r.discordUserId, returnedMessage(CANONICAL_ORIGIN), {
@@ -168,8 +178,9 @@ export async function startGame() {
   return { ok: true, assigned: outcome.assigned.length, returned: outcome.returned.length };
 }
 
-// Stops the clock and opens the archive. The closing note is the superadmin's
-// epilogue, shown above the reveal.
+// Stops the clock, opens the archive, writes the reveal (db/lib/gameEnd.js)
+// and posts it to #turns. The closing note is the superadmin's epilogue,
+// shown above the roster.
 export async function endGame(formData) {
   const session = await requireSuperadmin();
   const state = await getGameState(prisma);
@@ -177,13 +188,11 @@ export async function endGame(formData) {
     return { ok: false, error: "Only a running game can be ended. ‡" };
   }
   const closingNote = formData?.get("closingNote")?.toString().trim().slice(0, 4000) || null;
-  await prisma.gameState.update({
-    where: { id: 1 },
-    data: { phase: "ENDED", endedAt: new Date(), closingNote, archiveVisible: true },
-  });
-  await audit(session, "game_ended", { closingNote });
+  const result = await endGameInDb(prisma, { closingNote, reason: "gm", actorDiscordUserId: session.discordUserId });
+  if (!result.ended) return { ok: false, error: "The game had already ended. ‡" };
   refresh();
   revalidatePath("/archive");
+  after(() => postGameEnded(prisma, result.post).catch((err) => console.error("Game Ended post failed:", err)));
   return { ok: true };
 }
 
@@ -191,15 +200,8 @@ export async function endGame(formData) {
 // re-hide what every player has already seen.
 export async function resumeGame() {
   const session = await requireSuperadmin();
-  const state = await getGameState(prisma);
-  if (state.phase !== "ENDED") {
-    return { ok: false, error: "Only an ended game can be resumed. ‡" };
-  }
-  await prisma.gameState.update({
-    where: { id: 1 },
-    data: { phase: "RUNNING", endedAt: null },
-  });
-  await audit(session, "game_resumed");
+  const result = await resumeGameInDb(prisma, { actorDiscordUserId: session.discordUserId });
+  if (!result.resumed) return { ok: false, error: "Only an ended game can be resumed. ‡" };
   refresh();
   return { ok: true };
 }

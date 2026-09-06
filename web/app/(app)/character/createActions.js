@@ -60,6 +60,7 @@ import {
 
 import { reserveRole, releaseRole } from "@lifeweb/db/lib/roleReservation";
 import { heldSeats } from "@lifeweb/db/lib/seatCount";
+import { settleLobbyEntry } from "@lifeweb/db/lib/lobby";
 import { recordArchiveEvent } from "@/lib/archive";
 import {
   AGE_MIN,
@@ -123,10 +124,14 @@ export async function createCharacter(formData) {
   // (docs/systemdocs/LOBBY.md §4). The whitelist and Cursed gates are skipped
   // for it: the roll honoured the whitelist, and a hand-set row is the
   // superadmin's override.
-  const assignedEntry = await prisma.lobbyEntry.findFirst({
-    where: { discordUserId, status: "ASSIGNED", expiresAt: { gt: new Date() } },
-    select: { id: true, assignedRoleId: true },
-  });
+  // An entry whose role has since left the catalog (Role rows cascade to
+  // null) is no assignment at all — treating it as one would lift the gates
+  // below for whatever role the form named.
+  const assignedEntry = await prisma.lobbyEntry
+    .findFirst({
+      where: { discordUserId, status: "ASSIGNED", expiresAt: { gt: new Date() }, assignedRoleId: { not: null } },
+      select: { id: true, assignedRoleId: true },
+    });
   const roleId = assignedEntry?.assignedRoleId ?? postedRoleId;
   if (!roleId) return { error: "Pick a role before confirming." };
 
@@ -161,7 +166,9 @@ export async function createCharacter(formData) {
   // Never pickable, config switch or not — a server action is a public
   // endpoint and the picker simply not listing these is a hint, not a lock.
   if (isSpawnOnly(role)) {
-    return { error: "That role isn't open to anyone." };
+    return assignedEntry
+      ? { error: "Your assigned seat can only be spawned by a GM, not built here. Ask one. ‡" }
+      : { error: "That role isn't open to anyone." };
   }
 
   // Split so each rejection gets its own message. `=== false` rather than
@@ -396,14 +403,9 @@ export async function createCharacter(formData) {
         })),
       });
 
-      // The assigned seat is spent: the entry records which character it
-      // became, and stops holding the seat.
-      if (assignedEntry) {
-        await tx.lobbyEntry.update({
-          where: { id: assignedEntry.id },
-          data: { status: "CREATED", characterId: character.id },
-        });
-      }
+      // Any assigned seat this player held is spent by this character, whether
+      // or not it is the seat they built (db/lib/lobby.js#settleLobbyEntry).
+      await settleLobbyEntry(tx, discordUserId, character.id);
 
       // The lobby preference keeps the same answer, so a later game opens
       // with it ticked already (docs/systemdocs/LOBBY.md §2).

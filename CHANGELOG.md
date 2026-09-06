@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Ending the game, and games that outlive the wipe
+
+✚ The bomb going off ends the game: the clock stops, the archive opens, and the reveal follows the fireball into #turns  
+✚ End Game writes a reveal — your closing note, how long it lasted, who was who with antagonist seats named and the dead marked — and posts it to #turns  
+✎ Restart Game keeps the transcript now: every game is numbered and its archive stays readable; the game picker lands with the archive remake  
+✎ Close lobby freezes it: Preview and Start work on a closed lobby, so nobody can ready up under a preview  
+✎ An assignment DM that failed to send goes out again on the next sweep, and the reminder carries the link  
+✎ From review: a rolled seat is spent by any character its player makes, spawn-only seats can't be hand-set, and the lobby's ready count refreshes itself
+
 ## 2026-09-06 · Start Game rolls the lobby into seats
 
 ✚ Preview on the Game section shows who would get what and warns about leader seats nobody wants; hand-set any row, re-roll for a fresh seed, and Start commits exactly that table  

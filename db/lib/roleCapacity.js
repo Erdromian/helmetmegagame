@@ -60,6 +60,18 @@ const PERMANENT_SEAT_ROLE_SLUGS = [
   "brigand",
 ];
 
+// Roles that exist ONLY as a GM spawn: never on the wizard's roster, never
+// rolled by the lobby, never hand-set into a draft. Unconditional — no config
+// switch turns it off. The Tribunal seats are the whole list; they carry real
+// roles because a spawn needs one for its charter, kit and landing site. Kept
+// here rather than in web/ so the roll (db/lib/roleAssignment.js) and the
+// picker read one list.
+const SPAWN_ONLY_ROLE_SLUGS = ["tribunal-ordinator", "tribune"];
+
+function isSpawnOnly(role) {
+  return SPAWN_ONLY_ROLE_SLUGS.includes(role?.slug);
+}
+
 function isPermanentSeat(role) {
   return PERMANENT_SEAT_ROLE_SLUGS.includes(role?.slug);
 }
@@ -74,4 +86,12 @@ function seatHolderStatuses(role) {
   return isPermanentSeat(role) ? ["ALIVE", "DEAD"] : ["ALIVE"];
 }
 
-module.exports = { roleCapacity, formatCapacity, PERMANENT_SEAT_ROLE_SLUGS, isPermanentSeat, seatHolderStatuses };
+module.exports = {
+  roleCapacity,
+  formatCapacity,
+  PERMANENT_SEAT_ROLE_SLUGS,
+  SPAWN_ONLY_ROLE_SLUGS,
+  isSpawnOnly,
+  isPermanentSeat,
+  seatHolderStatuses,
+};

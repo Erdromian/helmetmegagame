@@ -57,4 +57,4 @@ function pickedNothing(priorities) {
   return Object.keys(priorities ?? {}).length === 0;
 }
 
-module.exports = { LEVELS, JOBLESS_ROLES, setPriority, normalizePriorities, normalizeJoblessRole, pickedNothing };
+module.exports = { LEVELS, setPriority, normalizePriorities, normalizeJoblessRole, pickedNothing };

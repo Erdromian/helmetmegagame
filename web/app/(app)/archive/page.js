@@ -28,7 +28,7 @@ export default async function ArchivePage({ searchParams }) {
   // is presentation and the check is enforcement.
   const [{ isGm: gm }, config] = await Promise.all([
     getGmSession(),
-    prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
+    prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true, gameId: true } }),
   ]);
   if (!gm && !config?.archiveVisible) redirect("/character");
 
@@ -56,6 +56,9 @@ export default async function ArchivePage({ searchParams }) {
     dayNumber && dayNumber > 0 ? [dayNumber * 2 - 1, dayNumber * 2] : null;
 
   const where = {
+    // The current game only: past games keep their rows under their own id
+    // (the game picker lands with the archive remake, LOBBY.md §13c).
+    gameId: config?.gameId ?? "",
     ...(kind ? { kind } : {}),
     ...(zoneId ? { zoneId } : {}),
     ...(characterId ? { characterId } : {}),

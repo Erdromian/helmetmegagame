@@ -18,6 +18,7 @@
 const { parseStartingTag } = require("./startingTags");
 const { roleCapacity } = require("./roleCapacity");
 const { heldSeats } = require("./seatCount");
+const { settleLobbyEntry } = require("./lobby");
 const { readGameState, effectivePlayerCount } = require("./gameState");
 const { formatCharacterName, formatBareName } = require("./characterName");
 const { expiryForGrant } = require("./grantExpiry");
@@ -212,6 +213,8 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
         where: { id: spawn.id },
         data: { status: "ACCEPTED", characterId: character.id, resolvedAt: new Date() },
       });
+      // A rolled seat this player was still holding is spent by this character.
+      await settleLobbyEntry(tx, discordUserId, character.id);
 
       return character;
     });

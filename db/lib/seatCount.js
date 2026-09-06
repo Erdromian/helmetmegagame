@@ -9,7 +9,7 @@
 // re-reserving to slide an expiry never fails against itself and an assigned
 // player's own seat reads as available to them.
 
-const { seatHolderStatuses } = require("./roleCapacity");
+const { seatHolderStatuses, isPermanentSeat } = require("./roleCapacity");
 
 async function heldSeats(db, role, { excludeDiscordUserId = null, now = new Date() } = {}) {
   const others = excludeDiscordUserId ? { discordUserId: { not: excludeDiscordUserId } } : {};
@@ -23,20 +23,36 @@ async function heldSeats(db, role, { excludeDiscordUserId = null, now = new Date
   return seated + reserved + assigned;
 }
 
-// The lobby assignments alone, grouped by role id — the picker's takenCounts
-// folds this in beside its own groupBys.
-async function assignedCountsByRole(db, roleIds, { excludeDiscordUserId = null, now = new Date() } = {}) {
-  const rows = await db.lobbyEntry.groupBy({
-    by: ["assignedRoleId"],
-    where: {
-      assignedRoleId: { in: roleIds },
-      status: "ASSIGNED",
-      expiresAt: { gt: now },
-      ...(excludeDiscordUserId ? { discordUserId: { not: excludeDiscordUserId } } : {}),
-    },
-    _count: true,
-  });
-  return new Map(rows.map((r) => [r.assignedRoleId, r._count]));
+// The same count for MANY roles at once, as three groupBys rather than three
+// queries per role: the picker, the roll and the draft check all want the
+// whole board. Takes role rows ({ id, slug }) because the slug decides which
+// statuses count. Returns Map<roleId, held>.
+async function heldSeatsByRole(db, roles, { excludeDiscordUserId = null, now = new Date() } = {}) {
+  if (roles.length === 0) return new Map();
+  const roleIds = roles.map((r) => r.id);
+  const permanentIds = roles.filter(isPermanentSeat).map((r) => r.id);
+  const others = excludeDiscordUserId ? { discordUserId: { not: excludeDiscordUserId } } : {};
+  const [alive, dead, reserved, assigned] = await Promise.all([
+    db.character.groupBy({ by: ["roleId"], where: { roleId: { in: roleIds }, status: "ALIVE" }, _count: true }),
+    permanentIds.length === 0
+      ? []
+      : db.character.groupBy({ by: ["roleId"], where: { roleId: { in: permanentIds }, status: "DEAD" }, _count: true }),
+    db.roleReservation.groupBy({
+      by: ["roleId"],
+      where: { roleId: { in: roleIds }, expiresAt: { gt: now }, ...others },
+      _count: true,
+    }),
+    db.lobbyEntry.groupBy({
+      by: ["assignedRoleId"],
+      where: { assignedRoleId: { in: roleIds }, status: "ASSIGNED", expiresAt: { gt: now }, ...others },
+      _count: true,
+    }),
+  ]);
+  const counts = new Map();
+  const bump = (id, n) => counts.set(id, (counts.get(id) ?? 0) + n);
+  for (const row of [...alive, ...dead, ...reserved]) bump(row.roleId, row._count);
+  for (const row of assigned) bump(row.assignedRoleId, row._count);
+  return counts;
 }
 
-module.exports = { heldSeats, assignedCountsByRole };
+module.exports = { heldSeats, heldSeatsByRole };

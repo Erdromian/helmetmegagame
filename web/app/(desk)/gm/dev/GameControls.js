@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import FormError from "@/app/components/FormError";
+import useActionRunner from "@/app/components/useActionRunner";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { openLobby, closeLobby, startGame, endGame, resumeGame } from "@/app/(app)/gm/dev/gameActions";
 
@@ -15,20 +15,7 @@ import { openLobby, closeLobby, startGame, endGame, resumeGame } from "@/app/(ap
 // a second transition.
 export default function GameControls({ phase, readyCount, hasDraft }) {
   const confirm = useConfirm();
-  const [error, setError] = useState(null);
-  const [pending, startTransition] = useTransition();
-
-  function run(action, formData) {
-    setError(null);
-    startTransition(async () => {
-      try {
-        const res = await action(formData);
-        if (!res?.ok) setError(res?.error ?? "Something went wrong. ‡");
-      } catch {
-        setError("Could not reach the server. Nothing was changed. ‡");
-      }
-    });
-  }
+  const { run, pending, error } = useActionRunner();
 
   async function onStart() {
     const ok = await confirm({
@@ -63,6 +50,16 @@ export default function GameControls({ phase, readyCount, hasDraft }) {
           <button type="button" className="btn" onClick={() => run(openLobby)} disabled={pending}>
             {pending ? "Opening…" : "Open lobby"}
           </button>
+          {readyCount > 0 ? (
+            <>
+              <button type="button" className="btn" onClick={onStart} disabled={pending || !hasDraft}>
+                {pending ? "Starting…" : "Start game"}
+              </button>
+              <span className="text-xs text-muted">
+                {hasDraft ? "The lobby is frozen; Start commits the preview below. ‡" : "The lobby is frozen. Preview below, then Start. ‡"}
+              </span>
+            </>
+          ) : null}
         </div>
       ) : null}
 
@@ -74,9 +71,11 @@ export default function GameControls({ phase, readyCount, hasDraft }) {
           <button type="button" className="btn" onClick={onStart} disabled={pending || (readyCount > 0 && !hasDraft)}>
             {pending ? "Starting…" : "Start game"}
           </button>
-          {readyCount > 0 && !hasDraft ? (
-            <span className="text-xs text-muted">Preview the assignment before starting. ‡</span>
-          ) : null}
+          <span className="text-xs text-muted">
+            {readyCount > 0 && !hasDraft
+              ? "Preview the assignment before starting. ‡"
+              : "Close the lobby first if you want it frozen while you check the preview. ‡"}
+          </span>
         </div>
       ) : null}
 

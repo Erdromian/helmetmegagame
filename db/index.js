@@ -41,6 +41,7 @@ const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
 const { runVisionDecayPass } = require("./lib/visionDecayPass");
 const { runDyingDeathPass } = require("./lib/dyingDeathPass");
 const { runNukeExplosionPass } = require("./lib/nukeExplosionPass");
+const { endGameInDb, postGameEnded } = require("./lib/gameEnd");
 const { broadcastToZones } = require("./lib/worldBroadcast");
 const { runBirdPass } = require("./lib/birdPass");
 // By path, not the barrel — see the note at the top of db/lib/accessSweep.js.
@@ -480,6 +481,12 @@ async function resolveNeeds(turn, config) {
     broadcast: nukeBroadcast = null,
     ...nukeSummary
   } = nukeExplosion ?? {};
+  // The bomb ends the game (docs/systemdocs/LOBBY.md §7): the clock stops
+  // after this advance, the archive opens, and the reveal follows the
+  // fireball into #turns. The new turn still opens below so the banner has
+  // somewhere to hang. Ended locks only the clock — the survivors in the
+  // caves keep playing until the wipe.
+  let gameEndedPost = null;
   if (nukeExplosion?.detonated) {
     await prisma.auditLog
       .create({
@@ -490,6 +497,15 @@ async function resolveNeeds(turn, config) {
         },
       })
       .catch((err) => console.error("Nuke audit log failed:", err));
+    try {
+      const ended = await endGameInDb(prisma, {
+        closingNote: `The device went off at the close of turn ${turn.number}. Everyone above ground died. ‡`,
+        reason: "nuke",
+      });
+      if (ended.ended) gameEndedPost = ended.post;
+    } catch (err) {
+      console.error("Ending the game after the detonation failed:", err);
+    }
   }
 
   // The Bird's stranded letters (db/lib/birdPass.js), after both auto-kills
@@ -960,6 +976,7 @@ async function resolveNeeds(turn, config) {
     dyingDeathWarnings,
     nukeDeaths,
     nukeBroadcast,
+    gameEndedPost,
     birdNotices,
     carryDrops,
     privateDeliveries,
@@ -1034,6 +1051,7 @@ async function advanceTurn() {
   let dyingDeaths = [];
   let nukeDeaths = [];
   let nukeBroadcast = null;
+  let gameEndedPost = null;
   let dyingDeathWarnings = [];
   let birdNotices = [];
   let carryDrops = [];
@@ -1078,6 +1096,7 @@ async function advanceTurn() {
       dyingDeathWarnings,
       nukeDeaths,
       nukeBroadcast,
+      gameEndedPost,
       birdNotices,
       carryDrops,
       privateDeliveries,
@@ -1166,6 +1185,7 @@ async function advanceTurn() {
         dyingDeathWarnings,
         nukeDeaths,
         nukeBroadcast,
+        gameEndedPost,
         birdNotices,
         carryDrops,
         privateDeliveries,
@@ -1564,6 +1584,11 @@ async function advanceTurn() {
         return { sent: 0, failed: [] };
       });
       console.log(`Nuke broadcast: ${sent} zones, ${failed.length} failed.`);
+    }
+
+    // The reveal, after the sky and before anything else — the game is over.
+    if (gameEndedPost) {
+      await postGameEnded(prisma, gameEndedPost).catch((err) => console.error("Game Ended post failed:", err));
     }
 
     for (const post of publicPosts) {

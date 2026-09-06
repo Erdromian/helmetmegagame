@@ -134,4 +134,4 @@ function newSeed() {
   return `${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
 }
 
-module.exports = { assignRoles, newSeed, LEVEL_ORDER, OVERFLOW_SLUG };
+module.exports = { assignRoles, newSeed };
