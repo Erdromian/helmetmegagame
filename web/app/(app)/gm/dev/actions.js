@@ -344,8 +344,8 @@ export async function wipeGameData(formData) {
       // StructureWork first, since it has a required FK to Structure.
       prisma.structureWork.deleteMany({}),
       prisma.structure.deleteMany({}),
-      // Link state back to its born values: a gate somebody shut, a way a
-      // structure flipped, a keyed door somebody propped — all play state.
+      // Link state back to its born values: a gate somebody shut, a keyed
+      // door somebody propped — all play state.
       // Raw SQL because column-to-column isn't expressible in updateMany.
       // No anchor reposts needed: finishGameWipe re-syncs zones afterwards
       // and anchors hash their own gate state, so they self-heal there.

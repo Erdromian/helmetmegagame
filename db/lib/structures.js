@@ -20,7 +20,6 @@
 
 const { ambientLine } = require("./ambientLine");
 const { hasAttribute } = require("./locationAttributes");
-const { postMessage } = require("./discordRest");
 
 // placement with its defaults applied. Normalisation/validation happen at
 // sync time (db/lib/tagShapes.js); this is the read-side accessor, and the
@@ -36,7 +35,6 @@ function placementOf(tag) {
     defenseNote: typeof p.defenseNote === "string" ? p.defenseNote : null,
     laborBonus: p.laborBonus ?? null,
     provides: Array.isArray(p.provides) ? p.provides : [],
-    link: p.link === "hold_open" || p.link === "hold_shut" ? p.link : null,
   };
 }
 
@@ -113,13 +111,12 @@ function statusWord(status) {
 // (web/lib/tagRequests.js#placementOfferedHere) can never drift apart.
 const PRESENT_STATUSES = ["UNDER_CONSTRUCTION", "COMPLETE", "DAMAGED"];
 
-// The statuses that HOLD an edge (Structure.linkId): a damaged palisade
-// still stands and its gate still answers; only completion grants the hold
-// and only destruction (RUINED) or abandonment releases it. Distinct from
-// PRESENT_STATUSES on purpose — an UNDER_CONSTRUCTION site CLAIMS its edge
-// (the binding check) but does not yet hold it (the edge stays in its
-// unbuilt state until the last crew-turn).
-const HOLDS_EDGE = ["COMPLETE", "DAMAGED"];
+// The statuses in which a structure actually WORKS: a damaged palisade still
+// stands and its defenseNote still applies; a rising site and a wreck do
+// nothing yet or nothing any more. web/lib/moveRows.js prints the note only
+// for these, and the labor bonus (laborAccess.js) is stricter still —
+// COMPLETE only.
+const WORKING_STATUSES = ["COMPLETE", "DAMAGED"];
 
 // --- The lines a site speaks -------------------------------------------
 //
@@ -174,30 +171,6 @@ function structureClearedLine(structure) {
   return ambientLine(`The remains of the ${structure.typeName} here have been cleared away.`);
 }
 
-// BOTH banks hear a crossing change state. The build or ruling that flipped
-// the edge already speaks at its own site; this is the road's own line,
-// spoken into each endpoint's channel — the far side must not discover a
-// shut way by walking into it (the same reason a gate crossing announces).
-// Caller runs it POST-COMMIT; every send is catch-logged.
-async function announceEdgeState(prisma, endpointIds, nowOpen) {
-  const ids = (endpointIds ?? []).filter(Boolean);
-  if (ids.length < 2) return;
-  const spots = await prisma.location.findMany({
-    where: { id: { in: ids } },
-    select: { id: true, name: true, discordChannelId: true },
-  });
-  const byId = new Map(spots.map((s) => [s.id, s]));
-  for (const id of ids) {
-    const here = byId.get(id);
-    const far = byId.get(ids.find((other) => other !== id));
-    if (!here?.discordChannelId || !far) continue;
-    await postMessage(
-      here.discordChannelId,
-      ambientLine(nowOpen ? `The way to ${far.name} stands open.` : `The way to ${far.name} is shut.`),
-    ).catch((err) => console.error("Edge state line failed:", err));
-  }
-}
-
 // The notification list: everyone with a StructureWork row, plus the payer
 // when the payer is a character — a structure has no owner, but the people
 // whose turns raised it hear when something happens to it. Returns
@@ -216,7 +189,7 @@ async function stakeholderCharacterIds(prisma, structureId, { except = null, pay
 
 module.exports = {
   PRESENT_STATUSES,
-  HOLDS_EDGE,
+  WORKING_STATUSES,
   placementOf,
   structuresAt,
   canBuildHere,
@@ -229,6 +202,5 @@ module.exports = {
   structureRepairedLine,
   structureDestroyedLine,
   structureClearedLine,
-  announceEdgeState,
   stakeholderCharacterIds,
 };

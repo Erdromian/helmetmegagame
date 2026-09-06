@@ -310,9 +310,6 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
   if (raw.provides != null && (!Array.isArray(raw.provides) || raw.provides.some((s) => typeof s !== "string"))) {
     throw new Error(`${label}: placement.provides must be a list of tag slugs`);
   }
-  if (raw.link != null && raw.link !== "hold_open" && raw.link !== "hold_shut") {
-    throw new Error(`${label}: placement.link must be "hold_open" or "hold_shut"`);
-  }
   let laborBonus = null;
   if (raw.laborBonus != null) {
     if (typeof raw.laborBonus !== "object" || Array.isArray(raw.laborBonus)) {
@@ -338,7 +335,6 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     defenseNote: raw.defenseNote ?? null,
     laborBonus,
     provides: raw.provides ?? [],
-    link: raw.link ?? null,
   };
 }
 

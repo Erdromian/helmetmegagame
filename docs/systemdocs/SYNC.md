@@ -12,7 +12,7 @@ running the sync is the only way these rows change.
 
 | Master | Script | Table(s) | Match key | Removal behaviour |
 |---|---|---|---|---|
-| `docs/zones.yaml` | `db:sync-zones` | `Zone`, `Location`, `Room`, `LocationYield` | `slug` | **Destructive** — a dropped Zone loses its DB row, its category, its `#summary` and its `Zone: {Name}` role; a dropped Location loses its channel and its `Location: {Name}` role; a dropped Room loses its thread and its stash (`RoomTag` cascades, `CARRY.md` §5). A `yield:` kind that leaves the YAML has its `LocationYield` row deleted; `base` is always written, but live drifted `current` is only reset when `base` itself changed (`LABORING.md` §3) |
+| `docs/zones.yaml` | `db:sync-zones` | `Zone`, `Location`, `Room`, `LocationYield`, `Structure` (create-only, see §2) | `slug` | **Destructive** — a dropped Zone loses its DB row, its category, its `#summary` and its `Zone: {Name}` role; a dropped Location loses its channel and its `Location: {Name}` role; a dropped Room loses its thread and its stash (`RoomTag` cascades, `CARRY.md` §5). A `yield:` kind that leaves the YAML has its `LocationYield` row deleted; `base` is always written, but live drifted `current` is only reset when `base` itself changed (`LABORING.md` §3) |
 | `docs/tags.yaml` + `docs/taggroups.yaml` | `db:sync-tags` | `Tag`, `TagGroup` | `slug` | **Upsert-only** — never deletes; a removed entry just stops receiving updates. `db:prune-tags` is the opt-in destructive half (§3b): it prunes a tag absent from `docs/tags.yaml`, and once no surviving tag sits in it, a group absent from `docs/taggroups.yaml` too |
 | `docs/roles.yaml` | `db:sync-roles` | `Faction`, `Role` | `slug` | **Prunes only if unreferenced** — a Faction with members or roles is left in place and reported |
 | `docs/desires.yaml` | `db:sync-desires` | `DesireTemplate` | `slug` | **Soft-retire** — a dropped slug is never deleted, only marked `retired: true` (hidden from every picker; existing `Desire` rows referencing it keep running). A slug that comes back has it cleared. See `DESIRES.md` §10 |
@@ -88,6 +88,16 @@ count. A stack already at or above the authored quantity is left alone, and
 `resources` is written only while the room holds none — so a re-sync can
 neither undo a player carrying the anvil off nor quietly duplicate it.
 
+A Location's `structures:` is the third promise of that shape. It lists the
+slugs of placement tags that were always standing there (the Square's cross),
+and the sync creates one `COMPLETE` `Structure` row per slug — no builder, no
+payer — only while nothing of that type in `PRESENT_STATUSES` stands there.
+A razed (`RUINED`) or abandoned one is re-raised on the next run; a standing or
+half-built one is left alone. The sync never deletes a `Structure`. Because
+tags sync after zones, a database that has never seen `db:sync-tags` warns and
+skips on its first zone sync; `LAUNCH.md` §5 runs the zone sync a second time
+for exactly this reason.
+
 ### One-time vs every-run
 
 `syncZones` is the one with a split personality:
@@ -99,8 +109,8 @@ neither undo a player carrying the anvil off nor quietly duplicate it.
   someone deleted it by hand, the doctor reports it, this repairs it.)
 - **Every run:** channel topics, permission overwrites, category and channel
   ordering, each Location's Room threads, its pinned anchor message, the
-  travel graph, `seatZoneId`, the map polygons (dormant), and the cursed
-  role's colour.
+  travel graph, `seatZoneId`, the map polygons (dormant), the cursed
+  role's colour, and the floored seeds (room stashes, Location structures).
 
 The Room threads and the anchors are the every-run items that also cover
 *freshly* provisioned Locations — provisioning creates channels, never
@@ -180,7 +190,6 @@ because one real edge is a manned gate *and* a modular one at once:
 | `locked: <tag-slug>` | crossing needs the tag; the way is still **listed** |
 | `hidden: <tag-slug>` | needs the tag **and** is absent from the travel list |
 | `modular: { roles, tags, open }` | an Open/Close button on both anchors, impassable while shut |
-| `modular.structural: true` | a structure-controlled edge: waives the opener requirement above — a ford or a gateway has nobody who can open it by hand until something is built — and the button appears only once a `COMPLETE`/`DAMAGED` structure claims it and openers are authored (`MAP.md` §2a, `db/lib/locationGraph.js#gateOperable`). Forbidden together with `hidden` — the unbuilt way IS the discovery hook, and `hidden` would swallow it. At most **one** structural edge may touch a Location — a hard sync refusal, since the build-site binding (`openBuildSiteImpl`) has no picker to choose between two |
 | `keyed: true` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — needs a `locked` or `hidden` tag, since an open way has nothing to hold |
 | `on_foot: true` | no horse or cart fits: a **mounted** character is refused at the threshold (`MAP.md` §2c) |
 
@@ -194,23 +203,11 @@ otherwise every sync would silently reopen the Gatehouse. `openUntil` is left
 alone for the same reason — a keyed way somebody is holding open keeps standing
 open for its 24 hours.
 
-`modular.open` is now stored as `LocationLink.authoredOpen` and **re-asserted
-on every sync run**, unlike `isOpen` itself, which stays play state the sync
-never touches. That split is what lets a destroyed holding structure revert
-its edge to the born state (`ADJUDICATION.md` §6) without needing to know what
-the YAML currently says. A Restart Game wipe resets `isOpen` back to
-`authoredOpen` and clears `openUntil` on every edge, the same as any other
-play state the wipe returns to its authored default. A structural edge must
-also be **spannable** — at least one endpoint has to accept a build at all
-(not indoors, not a cave level, no `noBuild` attribute) — or the sync refuses
-it: an edge nothing could ever claim would be a crossing shut forever.
-
-**Re-slugging a structural edge orphans the structure holding it.** The sync
-deletes any link absent from the YAML and creates the re-named one fresh, and
-`Structure.linkId` goes `SetNull` with the deletion — so a standing Bridge
-over a renamed ford keeps Examining as a bridge while the crossing reads as
-unbuilt, and nothing can rebind it. The remedy is a GM Destroy + rebuild
-(`/gm/structures`); the real fix is not renaming an edge something stands on.
+`modular.open` is stored as `LocationLink.authoredOpen` and **re-asserted on
+every sync run**, unlike `isOpen` itself, which stays play state the sync never
+touches. A Restart Game wipe resets `isOpen` back to `authoredOpen` and clears
+`openUntil` on every edge, the same as any other play state the wipe returns
+to its authored default.
 
 A `kind: group` zone may carry `levels:` but **not** `locations:` (locations
 belong on its levels), and its own id may never appear in `connections` — it

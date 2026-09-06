@@ -49,6 +49,7 @@ const { roomStarterRow, WATCHTOWER_ROOM_SLUGS } = require("./roomStarterRow");
 const { collectLive, loadLiveStates, liveLine } = require("./roomLive");
 const { entriesOf } = require("./yamlEntries");
 const { orderEndpoints, linksFor, endpoints, gateOperable } = require("./locationGraph");
+const { canBuildHere, PRESENT_STATUSES } = require("./structures");
 
 const CHANNEL_TYPE_CATEGORY = 4;
 
@@ -158,46 +159,6 @@ function parseZonesYaml(doc) {
     if (entry) connections.push(entry);
   }
 
-  // At most ONE structural edge per location, refused at author time — the
-  // open-site binding rule (openBuildSiteImpl) has no picker, so a second
-  // ford at one location would make every hold_open build there ambiguous.
-  // A HARD failure on purpose: failing in the file being edited beats a
-  // runtime refusal a player discovers.
-  const structuralCount = new Map();
-  for (const entry of connections) {
-    if (!entry.structural) continue;
-    for (const slug of [entry.a, entry.b]) {
-      structuralCount.set(slug, (structuralCount.get(slug) ?? 0) + 1);
-    }
-  }
-  for (const [slug, count] of structuralCount) {
-    if (count > 1) {
-      problems.push(`location "${slug}" touches ${count} structural edges — a build site could not tell which one to claim (max 1)`);
-    }
-  }
-
-  // A structural edge must be SPANNABLE: at least one endpoint has to
-  // accept a build at all (the mirror of db/lib/structures.js#canBuildHere's
-  // derived rule — not indoors, not a cave level, no noBuild attribute), or
-  // nothing could ever claim the edge and it is a crossing shut forever.
-  const zoneKindBySlug = new Map(zoneEntries.map((z) => [z.slug, z.kind]));
-  const buildableEndpoint = (slug) => {
-    const loc = locationEntries.find((l) => l.slug === slug);
-    if (!loc) return false;
-    if (zoneKindBySlug.get(loc.zoneSlug) === "CAVE_LEVEL") return false;
-    if (loc.indoors) return false;
-    if (loc.attributes?.noBuild) return false;
-    return true;
-  };
-  for (const entry of connections) {
-    if (!entry.structural) continue;
-    if (!buildableEndpoint(entry.a) && !buildableEndpoint(entry.b)) {
-      problems.push(
-        `connections ${entry.a} <-> ${entry.b} is structural but neither endpoint can be built on — nothing could ever span it`,
-      );
-    }
-  }
-
   // Two entries for one pair would each try to claim the same unique row,
   // and the later one would silently win. Almost always a copy-paste of a
   // mirrored edge that the format no longer wants stated twice.
@@ -289,7 +250,6 @@ function parseConnection(raw, locationByRef, problems) {
     requiredTagSlug: null,
     hidden: false,
     modular: false,
-    structural: false,
     isOpen: true,
     openerRoleSlugs: [],
     openerTagSlugs: [],
@@ -366,21 +326,7 @@ function parseConnection(raw, locationByRef, problems) {
       entry.openerRoleSlugs = slugList(modular.roles, "roles");
       entry.openerTagSlugs = slugList(modular.tags, "tags");
       entry.isOpen = modular.open !== false;
-      // `structural: true` marks a structure-controlled edge (a ford a
-      // Bridge will span, a gateway a Palisade will hold —
-      // db/lib/structures.js). It waives the opener rule: nobody CAN open
-      // it until something is built, and the button only appears once a
-      // holding structure stands and openers are authored.
-      if (modular.structural != null && typeof modular.structural !== "boolean") {
-        problems.push(`connections ${entry.a} <-> ${entry.b} has a non-boolean modular.structural`);
-      }
-      entry.structural = modular.structural === true;
-      if (entry.structural && entry.hidden) {
-        problems.push(
-          `connections ${entry.a} <-> ${entry.b} is structural but hidden — the unbuilt way IS the discovery hook, and hidden would swallow it`,
-        );
-      }
-      if (!entry.structural && entry.openerRoleSlugs.length === 0 && entry.openerTagSlugs.length === 0) {
+      if (entry.openerRoleSlugs.length === 0 && entry.openerTagSlugs.length === 0) {
         problems.push(
           `connections ${entry.a} <-> ${entry.b} is modular but names no roles or tags — nobody could ever open it`,
         );
@@ -483,6 +429,34 @@ function parseStash(raw, roomId, problems) {
   return out;
 }
 
+// A Location's `structures:` — the things that were simply always standing
+// there, like the Square's cross. A flat list of placement-tag slugs; the seed
+// (seedLocationStructures) creates one COMPLETE row each. Slugs are not
+// checked against the catalog here, for the reason `stash:` and `access:`
+// give: tags sync after zones, so the lookup happens at seed time and an
+// unknown slug warns and skips.
+function parseStructures(raw, locationId, problems) {
+  if (raw == null) return [];
+  if (!Array.isArray(raw)) {
+    problems.push(`location "${locationId}" structures: must be a list of tag slugs`);
+    return [];
+  }
+  const out = [];
+  for (const entry of raw) {
+    if (typeof entry !== "string" || !entry.trim()) {
+      problems.push(`location "${locationId}" structures: entries must be tag slugs`);
+      continue;
+    }
+    const slug = entry.trim();
+    if (out.includes(slug)) {
+      problems.push(`location "${locationId}" structures lists "${slug}" twice`);
+      continue;
+    }
+    out.push(slug);
+  }
+  return out;
+}
+
 function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems) {
   for (const [index, location] of entriesOf(zone.locations, "id").entries()) {
     if (!location?.id) {
@@ -498,6 +472,7 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
       sortOrder: index,
       zoneSlug,
       yields: collectYields(location, problems),
+      structures: parseStructures(location.structures, location.id, problems),
     });
     for (const [roomIndex, room] of entriesOf(location.rooms, "id").entries()) {
       if (!room?.id) {
@@ -738,8 +713,6 @@ async function syncRoomThread(prisma, room, location, snapshot, liveState) {
 // The modular gates on one location, shaped for locationGateRow. Reads the
 // graph rather than taking it from the sync's own state, because the button
 // handler refreshes an anchor too and has no sync state to hand.
-// gateOperable is what keeps a structural edge button-less until something
-// built holds it — and puts the button on BOTH endpoints once one does.
 async function gatesFor(prisma, locationId) {
   const links = await linksFor(prisma, locationId);
   return links
@@ -944,6 +917,7 @@ async function syncZonesFromYaml(prisma) {
     locationsCreated: 0,
     locationsUpdated: 0,
     locationsMoved: [],
+    structuresSeeded: 0,
     yieldsCreated: 0,
     yieldsRebased: 0,
     yieldsDeleted: 0,
@@ -1029,6 +1003,54 @@ async function syncZonesFromYaml(prisma) {
     }
     locationsBySlug.set(entry.slug, location);
     await syncLocationYields(prisma, location.id, entry.yields, report);
+    if (entry.structures.length > 0) {
+      await seedLocationStructures(prisma, location, zone, entry.structures, report);
+    }
+  }
+
+  // A Location's seeded structures: the same FLOOR posture as the room stash
+  // below. One COMPLETE row per listed type, created only while nothing of
+  // that type in PRESENT_STATUSES stands there — so a re-sync never doubles
+  // the Square's cross, and a cross the GMs razed (RUINED) or a site somebody
+  // walked away from is re-raised, which is what "always standing there"
+  // means. Nobody paid and nobody built it, so payer and builder stay null.
+  // canBuildHere is a rule for PLAYERS raising things; the YAML is the world,
+  // so an indoors cross is a warning to read, not a refusal.
+  async function seedLocationStructures(prisma, location, zone, slugs, report) {
+    for (const slug of slugs) {
+      const tag = await prisma.tag.findUnique({
+        where: { slug },
+        select: { name: true, placement: true },
+      });
+      if (!tag) {
+        console.warn(`zones.yaml: location "${location.slug}" structures names unknown tag "${slug}" — run db:sync-tags first, then db:sync-zones again.`);
+        continue;
+      }
+      if (!tag.placement) {
+        console.warn(`zones.yaml: location "${location.slug}" structures names "${slug}", which has no placement: block — skipped.`);
+        continue;
+      }
+      const ground = canBuildHere({ ...location, zone: { kind: zone.kind } });
+      if (!ground.ok) {
+        console.warn(`zones.yaml: "${slug}" seeded at "${location.slug}", where players could not build one (${ground.reason}) — authored on purpose?`);
+      }
+      const standing = await prisma.structure.count({
+        where: { locationId: location.id, typeSlug: slug, status: { in: PRESENT_STATUSES } },
+      });
+      if (standing > 0) continue;
+      await prisma.structure.create({
+        data: {
+          locationId: location.id,
+          typeSlug: slug,
+          typeName: tag.name,
+          status: "COMPLETE",
+          turnsNeeded: 1,
+          turnsDone: 1,
+          resourcesCost: 0,
+        },
+      });
+      report.structuresSeeded += 1;
+    }
   }
 
   // A Room's seeded stash: the kit that is simply THERE, like the Sanctuary's
@@ -1126,10 +1148,8 @@ async function syncZonesFromYaml(prisma) {
       requiredTagSlug: entry.requiredTagSlug,
       hidden: entry.hidden,
       modular: entry.modular,
-      structural: entry.structural,
       // The born state, re-asserted as authoring (isOpen itself never is):
-      // it is what the Restart wipe resets isOpen to, and what a destroyed
-      // holding structure reverts its edge to.
+      // it is what the Restart wipe resets isOpen to.
       authoredOpen: entry.isOpen,
       openerRoleSlugs: entry.openerRoleSlugs,
       openerTagSlugs: entry.openerTagSlugs,

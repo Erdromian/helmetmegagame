@@ -6,12 +6,9 @@ import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { UserError, guarded } from "@/lib/actionResult";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
-import { refreshLocationAnchor, refreshGateRooms } from "@lifeweb/db/lib/syncZones";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import {
-  HOLDS_EDGE,
   PRESENT_STATUSES,
-  announceEdgeState,
   stakeholderCharacterIds,
   structureDamagedLine,
   structureRepairedLine,
@@ -67,25 +64,6 @@ function dmStakeholders(site, text) {
   });
 }
 
-function repostAnchors(locationIds) {
-  if (!locationIds?.length) return;
-  after(async () => {
-    for (const locationId of locationIds) {
-      await refreshLocationAnchor(prisma, locationId).catch((err) =>
-        console.error(`Structure anchor refresh failed for ${locationId}:`, err?.message ?? err),
-      );
-      // A structural gate's mechanism EXISTS only while something built holds
-      // it, so destroying one takes its button away with it. No-ops unless the
-      // location has a watchtower — a player-built edge out in the forest has
-      // none, and so has no button anywhere. Nothing authors `structural:`
-      // today; give one a control room before anything does.
-      await refreshGateRooms(prisma, locationId).catch((err) =>
-        console.error(`Structure gate room refresh failed for ${locationId}:`, err?.message ?? err),
-      );
-    }
-  });
-}
-
 async function logOp(tx, session, actionType, site, extra = {}) {
   await tx.auditLog.create({
     data: {
@@ -122,8 +100,6 @@ async function damageStructureImpl({ structureId }) {
     if (claim.count === 0) throw new UserError("Only a standing structure can be damaged — reload. ‡");
     await logOp(tx, session, "structure_damaged", site);
   });
-  // Its edge stays held (HOLDS_EDGE includes DAMAGED) — damaged is a word,
-  // not a demolition — so there is no link work and no anchor to repost.
   speak(site, structureDamagedLine(site));
   dmStakeholders(site, `The ${site.typeName} at ${site.location?.name ?? "its ground"} has been damaged. ‡`);
   refreshViews();
@@ -148,13 +124,11 @@ async function repairStructureImpl({ structureId }) {
 }
 
 // Destroy takes any present status — a rising site sabotaged mid-build is
-// destroyed work, never silently (plan §4f) — and reverts a held edge to
-// its born state. The wreck stays on Examine; Clear is what sweeps it.
+// destroyed work, never silently (plan §4f). The wreck stays on Examine;
+// Clear is what sweeps it.
 async function destroyStructureImpl({ structureId }) {
   const session = await requireGm();
   const site = await loadSite(structureId);
-  let anchorIds = [];
-  let linkNowOpen = null;
   await prisma.$transaction(async (tx) => {
     // Lock the row and read the status FRESH — the pre-transaction load is
     // a snapshot, and the audit detail must not record a state another GM
@@ -167,45 +141,8 @@ async function destroyStructureImpl({ structureId }) {
       data: { status: "RUINED" },
     });
     if (claim.count === 0) throw new UserError("That structure is already down — reload. ‡");
-    if (site.linkId) {
-      await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${site.linkId} FOR UPDATE`;
-      const link = await tx.locationLink.findUnique({
-        where: { id: site.linkId },
-        select: { aId: true, bId: true, authoredOpen: true },
-      });
-      if (link) {
-        // Defensive: binding guarantees one holder, but revert only when
-        // nothing in HOLDS_EDGE still holds the edge (our row is RUINED
-        // now, so it no longer counts).
-        const holders = await tx.structure.count({
-          where: { linkId: site.linkId, status: { in: HOLDS_EDGE } },
-        });
-        if (holders === 0) {
-          await tx.locationLink.update({
-            where: { id: site.linkId },
-            data: { isOpen: link.authoredOpen },
-          });
-          anchorIds = [link.aId, link.bId];
-          linkNowOpen = link.authoredOpen;
-        }
-      }
-    }
-    await logOp(tx, session, "structure_destroyed", site, {
-      wasStatus,
-      linkId: site.linkId ?? null,
-      linkReverted: anchorIds.length > 0,
-    });
+    await logOp(tx, session, "structure_destroyed", site, { wasStatus });
   });
-  repostAnchors(anchorIds);
-  if (anchorIds.length > 0) {
-    // Both banks hear the road change — the destruction line below speaks
-    // only at the site, and the far side must not learn by walking into it.
-    after(() =>
-      announceEdgeState(prisma, anchorIds, linkNowOpen).catch((err) =>
-        console.error("Destroy edge announcement failed:", err?.message ?? err),
-      ),
-    );
-  }
   speak(site, structureDestroyedLine(site));
   dmStakeholders(site, `The ${site.typeName} at ${site.location?.name ?? "its ground"} has been destroyed. ‡`);
   refreshViews();

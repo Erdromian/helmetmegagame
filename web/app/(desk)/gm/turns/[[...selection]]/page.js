@@ -118,6 +118,8 @@ function summarize(request) {
       return `Bound ${e.targetName ?? "?"}`;
     case "FREE_CHARACTER":
       return `Freed ${e.targetName ?? "?"}`;
+    case "CRUCIFY_CHARACTER":
+      return `Crucified ${e.targetName ?? "?"}`;
     case "HARM_CHARACTER": {
       const hurt = e.tagName ? `Inflicted ${e.tagName} on ${e.targetName ?? "?"}` : null;
       const kill = e.lethal ? (e.killed ? "killed" : "NOT YET KILLED") : null;

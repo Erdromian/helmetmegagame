@@ -6,6 +6,20 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Crosses, crucifixion, and a leaner structure catalog
+
+✚ A Fundamentalist standing at a finished Cross can Crucify anyone standing there, from the People here actions. No consent and no Move spent. The victim can still speak but do nothing else, becomes Dying at the close of the turn, and dies at the close of the next.  
+✚ Cross: a new structure, 6 ⬢ and one turn, no skill needed. The Square and the Crossroads each start with one standing.  
+✚ Watchtower: an elevated tower with a defence note, 20 ⬢ and two turns with Builder (Skilled).  
+− Library, Jailhouse and Bridge are gone from the structure catalog.  
+− The structural-edge machinery (a Bridge holding a crossing open, a Palisade holding a gate shut) is gone entirely. No edge on the map ever used it.  
+✎ Forge is 15 ⬢ and two turns now (was 30 and four). Palisade takes four turns (was six). Battering Ram takes two (was three).  
+✚ Two Desires: Build a Wayside Shrine (2 points, any belief but Atheist, six-turn cooldown) and Crucify a heretic (2 points, Fundamentalists).  
+✚ The Undercroft has a Vault behind the Baron's key, holding 14 ⬢, 15 obols and a painting.  
+✎ The Inquisitor, Practicus and Preacher role text now says they can crucify people once they build a cross.  
+✎ A character who can't act (Bound, Dying, Crucified, out cold) can no longer lock in a Move from the Discord modal. Labor was already refused there; Routines and Gambits used to go through.  
+✎ A Location in the zones master can now list structures that were always standing there, and the zone sync raises them.
+
 ## 2026-09-06 · Phobias, a Debtor, and a dozen new personality drawbacks
 
 ✚ Four phobias. Claustrophobia keeps you Afraid the whole time you are in the caves; Acrophobia makes you Afraid anywhere in the Black Hills and Panic at the Mountain; Pyrophobia and Teratophobia are for the GM to call  

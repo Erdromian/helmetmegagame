@@ -173,8 +173,8 @@ the only speech in the game that crosses the Location graph.
 the character *stands* — not from whatever channel the command was typed in;
 those can disagree and only one of them is a place a voice comes from — and
 returns every Location within four hops, each with the distance and the
-direction. **Every edge counts.** Locked, hidden, shut, structural, on-foot —
-sound does not care, because none of those are about sound. A portcullis you
+direction. **Every edge counts.** Locked, hidden, shut, on-foot — sound does
+not care, because none of those are about sound. A portcullis you
 cannot open is still a portcullis you can yell through. It is deliberately the
 one traversal in the game that never calls `crossingCheck`.
 

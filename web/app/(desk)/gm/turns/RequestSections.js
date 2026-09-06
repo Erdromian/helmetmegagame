@@ -637,6 +637,27 @@ export const SECTIONS = {
       </>
     ),
   },
+  CRUCIFY_CHARACTER: {
+    heading: "Crucify ‡",
+    render: ({ effect }) => (
+      <>
+        <Line label="Crucified ‡">
+          {effect.targetCharacterId ? (
+            <CharacterLink characterId={effect.targetCharacterId} name={effect.targetName ?? "—"} isGm />
+          ) : (
+            (effect.targetName ?? "—")
+          )}
+        </Line>
+        {effect.locationName && <Line label="Where ‡">{effect.locationName}</Line>}
+        <p className="text-xs text-muted">
+          A Fundamentalist put them on the cross standing here. No consent and no Move: they can still
+          speak, but nothing else. At the close of this turn Crucified becomes Dying, and the turn after
+          that kills them. Undo takes them down while Crucified is still on them; once it has turned into
+          Dying, heal that instead. ‡
+        </p>
+      </>
+    ),
+  },
   FREE_CHARACTER: {
     heading: "Free Character",
     render: ({ effect }) => (

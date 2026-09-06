@@ -75,7 +75,8 @@ const {
 const { refreshLocationAnchor, refreshGateRooms } = require("@lifeweb/db/lib/syncZones");
 const { describeLocation, hasAttribute } = require("@lifeweb/db/lib/locationAttributes");
 const { loadDepot, depotPowered, fuelTurnsLeft } = require("@lifeweb/db/lib/depotState");
-const { structuresAt, HOLDS_EDGE } = require("@lifeweb/db/lib/structures");
+const { structuresAt } = require("@lifeweb/db/lib/structures");
+const { blockerFor, ACT } = require("@lifeweb/db/lib/incapacitation");
 const {
   ROOM_STORAGE_PREFIX,
   ROOM_INTERCOM_PREFIX,
@@ -838,16 +839,9 @@ async function handleGateToggle(interaction, linkId) {
 
   const link = await prisma.locationLink.findUnique({
     where: { id: linkId },
-    include: {
-      a: true,
-      b: true,
-      // gateOperable needs to know whether anything holds a structural edge
-      // — the same HOLDS_EDGE-filtered boolean's-worth LINK_INCLUDE loads.
-      structures: { where: { status: { in: HOLDS_EDGE } }, select: { id: true } },
-    },
+    include: { a: true, b: true },
   });
-  // Covers "not modular" and "structural with nothing built holding it" —
-  // an unheld ford has no mechanism, whatever a stale button claimed.
+  // Covers "not modular" — whatever a stale button claimed.
   if (!gateOperable(link)) {
     await respond(interaction, "» *There's no gate here to work.* ‡");
     return;
@@ -869,18 +863,13 @@ async function handleGateToggle(interaction, linkId) {
 
   const wantOpen = !link.isOpen;
   // The permission verdict above read a snapshot, and the flip must not
-  // trust it across time: a structural gate's mechanism EXISTS only while a
-  // structure holds it, and a destroy or a build-undo can revert the edge
-  // to the very isOpen the clicker saw — so a bare (id, isOpen) claim would
-  // let a stale button work a gate that is no longer there. Lock the row,
-  // re-read the holder-filtered state, and re-run both predicates.
+  // trust it across time: a re-sync can turn the edge into an ordinary
+  // (non-modular) way, and two watchmen can click in the same second. Lock
+  // the row, re-read, and re-run both predicates.
   let outcome = "flipped";
   await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${link.id} FOR UPDATE`;
-    const fresh = await tx.locationLink.findUnique({
-      where: { id: link.id },
-      include: { structures: { where: { status: { in: HOLDS_EDGE } }, select: { id: true } } },
-    });
+    const fresh = await tx.locationLink.findUnique({ where: { id: link.id } });
     if (!gateOperable(fresh)) {
       outcome = "gone";
       return;
@@ -1257,9 +1246,6 @@ async function handleExamine(interaction, locationId) {
     .map((link) => ({
       isOpen: link.isOpen,
       farName: endpoints(link, locationId).far.name,
-      // A shut structural edge with no holding structure (LINK_INCLUDE's
-      // HOLDS_EDGE-filtered `structures`) Examines as unbuilt, not closed.
-      unbuilt: Boolean(link.structural && !link.isOpen && !(link.structures?.length > 0)),
     }));
 
   const byKind = new Map(location.yields.map((row) => [row.kind, row.current]));
@@ -1616,6 +1602,20 @@ async function handleMoveSubmit(interaction) {
   });
   if (alreadyActed) {
     await respond(interaction, "» *You've already locked in a Move this turn — your submission wasn't recorded.*");
+    return;
+  }
+
+  // The same gate every web action runs (db/lib/incapacitation.js): Bound,
+  // Dying, Crucified, out cold — none of them files a Move. Checked after the
+  // already-acted test so a refusal costs nothing, and before the Action row
+  // so a refused Move never lands on the desk.
+  const heldTags = await prisma.characterTag.findMany({
+    where: { characterId: character.id },
+    select: { tag: { select: { slug: true, name: true } } },
+  });
+  const stuck = blockerFor(heldTags, ACT);
+  if (stuck) {
+    await respond(interaction, `» *You can't act right now — you're ${stuck.name}. Your submission wasn't recorded.* ‡`);
     return;
   }
 

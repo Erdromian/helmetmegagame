@@ -48,11 +48,15 @@ const SPEAK = "SPEAK";
 //                second half has been true.
 //   seizure      both. You are on the floor (docs/systemdocs/FACTORY.md).
 //   unconscious  both. The top of the drinking ladder (BREWING.md).
+//   crucified    can't act, CAN speak — nailed up in the Square is the one
+//                place last words are the whole show. Put on by the Crucify
+//                button; becomes Dying after a turn (docs/tags.yaml).
 //   mute         speech only. Acts normally — a mute smith is still a smith.
 const RESTRICTIONS = {
   dying: [ACT],
   "catatonic-afk": [ACT],
   bound: [ACT],
+  crucified: [ACT],
   seizure: [ACT, SPEAK],
   paralyzed: [ACT, SPEAK],
   unconscious: [ACT, SPEAK],

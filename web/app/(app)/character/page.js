@@ -714,6 +714,12 @@ export default async function CharacterPage() {
 
   // A fact about your own sheet, so this one may grey the button out.
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
+  // Crucify shows only for a Fundamentalist standing at a finished Cross —
+  // your tag and your ground, nothing about who else is here.
+  // crucifyCharacterRequest re-checks both.
+  const canCrucify =
+    heldSlugs.has("fundamentalist") &&
+    sitesHere.some((s) => s.typeSlug === "crucifix" && s.status === "COMPLETE");
   const hasBird = holdsBirdAndLetters(character.tags);
   // Paperwork (docs/systemdocs/PAPERWORK.md). Letters AND eyes — the same
   // predicate the tag chips, the noticeboard and paperActions.js all use, so
@@ -1094,13 +1100,14 @@ export default async function CharacterPage() {
       ).map((z) => ({ id: z.id, name: z.name }))
     : [];
 
-  // Bind and Free split this one list on `bound`.
+  // Bind and Free split this one list on `bound`; Crucify on `crucified`.
   const bindTargets = zoneRoster
     .filter((c) => c.status === "ALIVE")
     .map((c) => ({
       id: c.id,
       name: c.name,
       bound: c.tags.some((ct) => ct.tag.slug === "bound"),
+      crucified: c.tags.some((ct) => ct.tag.slug === "crucified"),
     }));
 
   // `finishable` is the narrower Dying-or-Bound gate on the lethal half.
@@ -1251,6 +1258,7 @@ export default async function CharacterPage() {
       moveTargets={moveTargets}
       moveLocations={moveLocations}
       bindTargets={bindTargets}
+      canCrucify={canCrucify}
       harmTargets={harmTargets}
       harmTags={harmTags}
       lastNameLocked={isDynastyMember(character.role?.slug)}

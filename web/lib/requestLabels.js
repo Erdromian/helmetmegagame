@@ -26,6 +26,7 @@ export const REQUEST_TYPE_LABELS = {
   MOVE_CHARACTER: "Move Character",
   BIND_CHARACTER: "Bind Character",
   FREE_CHARACTER: "Free Character",
+  CRUCIFY_CHARACTER: "Crucify ‡",
   HARM_CHARACTER: "Harm Character",
   BURY_CHARACTER: "Bury Person",
   BUTCHER_CORPSE: "Butcher",

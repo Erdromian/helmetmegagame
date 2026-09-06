@@ -2689,6 +2689,28 @@ tags:
     purchasableAfterStart: false
     removable: true
 
+  # Put on by the Crucify button (a Fundamentalist, a Cross standing here).
+  # In RESTRICTIONS as ACT-only (db/lib/incapacitation.js): you hang there and
+  # can still speak, so last words and recantations happen in channel. A
+  # status tag, NOT health, on purpose — the health-wounds/maiming groups feed
+  # the Harm menu, and this must never be something anyone can inflict without
+  # the cross. Neither healable nor removable: a GM takes it off by hand if the
+  # story needs a rescue. After one turn it becomes Dying, and the Dying pass
+  # kills a turn later (db/lib/dyingDeathPass.js).
+  crucified:
+    catalog: gm
+    name: Crucified
+    category: status
+    group: status-debuffs
+    description: "You're crucified. You can't do anything."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 1
+    expiresInto: [dying]
+
   # --- The drinking ladder (docs/systemdocs/BREWING.md) --------------------
   #
   # Three rungs, and every drink in the catalog still consumes into the first
@@ -4501,8 +4523,8 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 4
-      resourceCost: 30
+      turnsCost: 2
+      resourceCost: 15
       skills: [builder-skilled]
       gambit: false
     # Deliberately NOT fieldwork: raising a forge is smith's work itself, so
@@ -4527,21 +4549,42 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      # The deliberate crew flagship: the one structure not meant to be
-      # soloed. Six crew-turns is a week alone or two days with friends.
-      turnsCost: 6
+      # The crew flagship: the one structure not meant to be soloed. Four
+      # crew-turns is most of a week alone or one day with friends.
+      turnsCost: 4
       resourceCost: 40
       skills: [builder-skilled]
       gambit: false
-    # hold_shut is opportunistic: where the map authors a structural gateway
-    # the finished palisade closes it and its gate answers to the authored
-    # openers; anywhere else it builds unbound and the defense prose is the
-    # whole effect. defenseNote is a spliced fragment — no ‡ (sync enforces).
+    # The defense prose is the whole effect. defenseNote is a spliced
+    # fragment — no ‡ (sync enforces).
     placement:
       fieldwork: true
-      link: hold_shut
       examine: "sharpened stakes ring this ground."
       defenseNote: "A ring of sharpened stakes; attackers on foot come over or through it, never past it unseen."
+
+  watchtower:
+    catalog: all
+    name: Watchtower
+    category: assets
+    group: assets-structures
+    description: "An elevated tower of lashed timber, raised where you stand. Whoever climbs it sees the ground around long before anything on it arrives. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 20
+      skills: [builder-skilled]
+      gambit: false
+    # Half a Palisade in every number. Fieldwork by the Palisade's logic: it
+    # is stakes and lashings, not smith's work.
+    placement:
+      fieldwork: true
+      examine: "a timber tower stands over this ground."
+      defenseNote: "Whoever holds the tower sees what comes before it arrives; nothing approaches this ground unseen."
 
   barricade:
     catalog: all
@@ -4580,7 +4623,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 3
+      turnsCost: 2
       resourceCost: 20
       skills: [builder-skilled]
       gambit: false
@@ -4669,53 +4712,6 @@ tags:
       examine: "counterweight hung, arm cocked."
       defenseNote: "a structure at a neighbouring location can be bombarded."
 
-  jailhouse:
-    catalog: all
-    name: Jailhouse
-    category: assets
-    group: assets-structures
-    description: "A strongroom with a bar on the outside of the door and a cot on the inside. A place to hold someone that does not need a guard awake to mean it. ‡"
-    pointCost: 0
-    visible: false
-    tradeable: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 3
-      resourceCost: 25
-      skills: [builder-skilled]
-      gambit: false
-    # The custody advisory (plan §5): extends "the structure is the
-    # compensation for absence" from defense to imprisonment — holding a
-    # bound prisoner credibly no longer ends when the captor logs off.
-    placement:
-      examine: "one door, barred from the outside."
-      defenseNote: "A bound prisoner held here stays held, guard awake or not."
-
-  library:
-    catalog: all
-    name: Library
-    category: assets
-    group: assets-structures
-    description: "Shelves under a sound roof, and somebody's promise to keep them dry. A place for documents to live longer than the people who wrote them. ‡"
-    pointCost: 0
-    visible: false
-    tradeable: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 4
-      resourceCost: 40
-      skills: [builder-skilled]
-      gambit: false
-    # Prose civic structure; a home for GM-planted readable documents. The
-    # literate/gribble.js tie the plan sketches is deliberately FUTURE work
-    # ("grows only if documents grow") — nothing mechanical here yet.
-    placement:
-      examine: "shelves stocked and dry."
-
   gallows:
     catalog: all
     name: Gallows
@@ -4740,31 +4736,31 @@ tags:
       fieldwork: true
       examine: "rope coiled at the post."
 
-  bridge:
+  # Slug is `crucifix`, not `cross`: `cross` is already the wooden-cross ITEM
+  # above, and Structure.typeSlug joins by slug. The name is what players see.
+  # No skill on purpose — none of the Inquisition roles carries a Builder
+  # tier, and this is their tool. The Crucify button on /character needs a
+  # COMPLETE one standing here plus the fundamentalist tag
+  # (web/app/(app)/character/requestActions.js#crucifyCharacterRequestImpl).
+  crucifix:
     catalog: all
-    name: Bridge
+    name: Cross
     category: assets
     group: assets-structures
-    description: "Piles, spans and planking enough to carry a cart over water that used to stop one. It can only be raised where a crossing waits for it. ‡"
+    description: "Two beams and a footrest, raised where you stand. You can crucify people here. ‡"
     pointCost: 0
     visible: false
     tradeable: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
-    # Expert — the tag's own description promises bridges — and workshop-
-    # gated: hauling the kit to the ford is the project's first act.
     requirement:
-      turnsCost: 5
-      resourceCost: 70
-      skills: [builder-expert]
+      turnsCost: 1
+      resourceCost: 6
       gambit: false
-    # hold_open REQUIRES a free structural edge at the ground (the sync's
-    # authored fords, docs/zones.yaml modular.structural) — the build
-    # refuses anywhere else, and the way opens when the work is done.
     placement:
-      link: hold_open
-      examine: "planked and railed, it spans the crossing."
+      fieldwork: true
+      examine: "a cross stands ready."
 
   dog:
     catalog: all
