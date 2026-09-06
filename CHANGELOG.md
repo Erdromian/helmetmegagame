@@ -6,6 +6,19 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Pushing an update deploys the whole site again
+
+✎ Every push now rebuilds both the website and the bot. Half the updates were quietly not deploying at all, which is why the site kept showing yesterday's behaviour until someone redeployed by hand  
+✎ Database changes are applied automatically just before an update goes live, so a page can no longer break with a bare error code because a column was missing
+
+## 2026-09-06 · Let a Depot Keycard work the machinery, not the money
+
+✚ A Depot Keycard now calls the shuttle down, loads it, sends it back up, and feeds and starts the generator  
+✎ The keycard still spends nothing — ordering, the ATM, the credit line, the obol counter and the turret stay on the Merchant's Licence  
+✎ Only the Licence can shut the generator down, because the lights going out take the turret with them  
+✎ The Feed button used to be greyed out by the very outage it existed to fix, so a dead generator was unrecoverable from the console  
+✎ Working the Depot console is an ACT now — an incapacitated Merchant could order, bank and refuel from the floor
+
 ## 2026-09-06 · The whitelist points at a role that exists
 
 ✚ The Whitelist role works again — it was pointing at a role deleted in the pre-launch cleanup, so all 24 whitelisted players were locked out of every whitelisted seat with no error shown  
