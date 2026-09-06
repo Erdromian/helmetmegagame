@@ -576,3 +576,17 @@ export function CrateIcon(props) {
     </svg>
   );
 }
+
+// The Play page: a doorway you speak through — an open door with a small
+// speech mark stepping out of it. A plain speech bubble would have read as
+// MessageIcon at rail size, which is the GM's inbox.
+export function PlayIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M5 20.5V4.5c0-.55.45-1 1-1h7.5c.55 0 1 .45 1 1v16" strokeLinejoin="round" />
+      <path d="M3.5 20.5h12.5" strokeLinecap="round" />
+      <path d="M18 8.5h3v5h-1.5l-1.8 2v-2H18z" strokeLinejoin="round" />
+      <circle cx="11.75" cy="12.5" r=".9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}

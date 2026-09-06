@@ -20,6 +20,7 @@ import {
   MoreIcon,
   StoreIcon,
   SpeakerIcon,
+  PlayIcon,
 } from "./icons";
 import { signOutOfDiscord } from "../actions";
 import { playChime } from "./chime";
@@ -27,6 +28,7 @@ import useChimeMuted from "./useChimeMuted";
 
 const ICONS = {
   character: CharacterIcon,
+  play: PlayIcon,
   players: PlayersIcon,
   turns: ScaleIcon,
   audit: AuditIcon,

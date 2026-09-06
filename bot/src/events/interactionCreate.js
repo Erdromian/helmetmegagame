@@ -56,6 +56,7 @@ const { confirmMove } = require("../lib/moveConfirm");
 const { buildSpeakModal, buildSpeakPicker } = require("../lib/speakModal");
 const { listSpeakTargets, canSpeakInTarget, canSpeakInChannel, isNavValue } = require("../lib/speakTargets");
 const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/interactionGuild");
+const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const { postAsCharacterTo, loadVoiceState } = require("../lib/proxy");
 const { resolveLaborRate, qualityWord } = require("@lifeweb/db");
 const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
@@ -1824,6 +1825,8 @@ async function handleSpeakSubmit(interaction, channelId) {
     content: posted.content,
     character,
     concealedAlias: identity.alias,
+    placeKey: await placeKeyForChannel(prisma, { channelId: channel.id, parentId: channel.parent?.id }),
+    source: "DISCORD",
     ...resolveChannelContext(channel),
   });
   await touchCharacterActivity(prisma, character.id);

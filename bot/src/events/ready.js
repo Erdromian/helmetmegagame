@@ -11,6 +11,7 @@ const { advanceTurn } = require("../lib/turnEngine");
 const { ensureTurnsConsole } = require("../lib/turnsConsole");
 const { ensureReportAnchor } = require("../lib/reportChannel");
 const { refreshLocationChannels } = require("../lib/channels");
+const { startFeedOutbox } = require("../lib/feedOutbox");
 const { runWhisperPoll } = require("../lib/whisperPoll");
 const { runLobbySweep } = require("@lifeweb/db/lib/lobbySweep");
 const { getGameState } = require("@lifeweb/db/lib/gameState");
@@ -83,6 +84,12 @@ module.exports = {
     await getGameState(prisma).catch((err) => console.error("Failed to upsert GameState:", err));
 
     await refreshLocationChannels().catch((err) => console.error("Failed to refresh location channels:", err));
+
+    // The web feed's Discord half: listen for messages typed into /play and
+    // post them into their Location channel, plus a catch-up sweep for
+    // anything sent while the bot was down. After refreshLocationChannels so
+    // the channel ids it resolves are the current ones. Never throws.
+    await startFeedOutbox().catch((err) => console.error("Failed to start the feed outbox:", err));
 
     // The cheap reconciliation pass: role membership (zone, turn-ping,
     // cursed) and structural drift, repaired against the DB. A

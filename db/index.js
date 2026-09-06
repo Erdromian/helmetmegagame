@@ -1716,6 +1716,13 @@ module.exports = {
   buildNarrowcastContext,
   computeNarrowcastAccess,
   syncSpecialChannels,
+  ...require("./lib/placeKey"),
+  // archive.js is deliberately NOT spread whole (it takes prisma by
+  // parameter and its writers are meant to be required by path); these two
+  // are pure shape helpers with no prisma in them, and both faces render the
+  // wire row.
+  feedRowShape: require("./lib/archive").feedRowShape,
+  FEED_ROW_SELECT: require("./lib/archive").FEED_ROW_SELECT,
   ...require("./lib/seatZone"),
   LIFEWEB_SPUTTER_THRESHOLD,
   ...require("./weather"),

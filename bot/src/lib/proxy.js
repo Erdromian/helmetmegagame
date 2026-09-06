@@ -6,6 +6,7 @@ const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { capitalizeSentences, fixContractions } = require("./textCorrection");
 const { babble, STUPID_SLUG } = require("@lifeweb/db/lib/babble");
 const { blockerFor, slugsBlocking, SPEAK } = require("@lifeweb/db/lib/incapacitation");
+const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const { resolveChannelContext } = require("./channels");
 const { sendDm } = require("./dm");
 
@@ -334,6 +335,10 @@ async function sendAsCharacter(channel, character, message, { identity = present
     content: [content, ...attachmentPlaceholders(message)].filter(Boolean).join("\n"),
     character,
     concealedAlias: identity.alias,
+    // What puts a Discord message on the web feed. Memoised in placeKey.js,
+    // so this costs nothing on the hot path once the channel is warm.
+    placeKey: await placeKeyForChannel(prisma, { channelId: channel.id, parentId: channel.parent?.id }),
+    source: "DISCORD",
     ...resolveChannelContext(channel),
   });
   await touchCharacterActivity(prisma, character.id);
