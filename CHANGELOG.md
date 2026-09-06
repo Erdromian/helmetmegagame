@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The Censor can read
+
+✚ The Censor starts Literate, like every other Court seat
+
 ## 2026-09-06 · Depressed only fights the tags that touch Desires
 
 ✎ Lazy, Insomniac, Guilt Ridden, Torturer and the four phobias can sit alongside Depressed again. None of them touches the Desire system, so there was nothing for them to argue with.  
