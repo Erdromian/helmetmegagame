@@ -5269,9 +5269,9 @@ tags:
       skills: [artist]
       gambit: false
     sellable: true
-    # Nerfed 20% from 60. Over its 4 turns that is 12 ⬢/turn, still the best
-    # per-turn rate a craftable pays, just no longer runaway.
-    sellablePrice: 48
+    # Nerfed twice: 20% from 60, then a further 15% from 48. Over its 4 turns
+    # that is ~10 ⬢/turn, still the best per-turn rate a craftable pays.
+    sellablePrice: 41
 
   # --- Caves Update loot -------------------------------------------------
   # New found-only items for the Caving Die's loot table. See
