@@ -12,7 +12,12 @@ npm-debug.log*
 # Copy-rewrite worksheets (scripts/copy) — scratch, regenerate with npm run copy:extract
 worksheets/
 
-# Travel-graph render (scripts/map) — scratch, regenerate with npm run map:dot
+# Travel-graph render (scripts/map) — scratch, regenerate with npm run
+# map:dot / map:png. Named, not a *.png glob: the repo has plenty of PNGs
+# that ARE meant to be committed (web/assets, docs/assets).
 *.dot
+zone.png
+zone.svg
+zone.pdf
 # Antagonist design doc — local only, never committed (see docs/systemdocs/SECRETS.md)
 docs/systemdocs/SECRETS.md
