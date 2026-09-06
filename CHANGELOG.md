@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The bell carries by distance now, and there is a trumpet
+
+✎ The church bell now carries by distance instead of to a fixed list of zones — loud around the Cathedral, faint out at the edges, and silent underground  
+✚ A Trumpet. Carry one and a Sound Trumpet button appears on your Character page; it does what the bell does at three-quarters the range, from wherever you are standing  
+✎ Both wait half an hour between soundings  
+✎ Every noise the world makes now opens 'You hear' — the turret, the gatehouse rotor, the depot generator and shuttle, and whispering all say it the way a shout already did
+
 ## 2026-09-06 · The Teaching tree is a Skill now, and nobody can be taught to teach
 
 ✎ Teaching, Lecturing and Drill Instructor now sit on the Skills tab of the store instead of under General  
