@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The Teaching tree is a Skill now, and nobody can be taught to teach
+
+✎ Teaching, Lecturing and Drill Instructor now sit on the Skills tab of the store instead of under General  
+✎ None of the three can be taught: you can't learn Teaching from a teacher  
+✎ Drill Instructor is still for the Cerberi and the Censor only
+
 ## 2026-09-06 · Selling to the Merchant pays 60% now, not a quarter
 
 ✎ Selling something to the Merchant now pays 60% of its shelf price, up from the ~44% it was before — stocking goods and trading them on is worth doing  
