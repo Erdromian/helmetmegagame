@@ -12,7 +12,7 @@
 //
 // Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { heldTagSlugs } = require("./roomAccess");
-const { isMounted, equippedSlugs } = require("./mounts");
+const { blocksOnFoot, equippedSlugs } = require("./mounts");
 
 // The two endpoints of a link, oriented so `near` is the side you are
 // standing on. Callers only ever want `far`.
@@ -90,10 +90,10 @@ function shouldPromptKeyed(link, { tagSlugs, now = new Date() } = {}) {
 // door somebody held open has to be visible to the people meant to follow
 // them through it.
 //
-// `mounted` is the ONE input here that is not about tags-you-hold but about
-// tags-you-have-out. Pass it from isMounted(equippedSlugs(tags)); a horse in
-// your pocket is not a horse you are riding.
-function crossingCheck(link, { tagSlugs, mounted = false, now = new Date() } = {}) {
+// `onFootBlocked` is the ONE input here that is not about tags-you-hold but
+// about tags-you-have-out. Pass it from blocksOnFoot(equippedSlugs(tags)); a
+// horse or cart in your pocket is not one you are riding or pushing.
+function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date() } = {}) {
   if (!link) {
     return { listed: false, passable: false, refusal: "You can't get there directly from here." };
   }
@@ -120,7 +120,7 @@ function crossingCheck(link, { tagSlugs, mounted = false, now = new Date() } = {
   // way too tight for a horse is listed, and unequipping the horse is the way
   // through. Location.indoors would only have parked the mount on arrival,
   // which is after the free crossing was already spent.
-  if (link.onFoot && mounted) {
+  if (link.onFoot && onFootBlocked) {
     return {
       listed: true,
       passable: false,
@@ -173,7 +173,7 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
         })
       : []);
   const tagSlugs = new Set(tags.map((ct) => ct.tag?.slug).filter(Boolean));
-  const mounted = isMounted(equippedSlugs(tags));
+  const onFootBlocked = blocksOnFoot(equippedSlugs(tags));
 
   const zoneId = fromZoneId ?? character?.zoneId ?? null;
   // One clock for the whole list, so a propped-open way cannot lapse halfway
@@ -187,7 +187,7 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
         location: far,
         link,
         crossesZone: Boolean(zoneId) && far.zoneId !== zoneId,
-        ...crossingCheck(link, { tagSlugs, mounted, now }),
+        ...crossingCheck(link, { tagSlugs, onFootBlocked, now }),
       };
     })
     .sort(

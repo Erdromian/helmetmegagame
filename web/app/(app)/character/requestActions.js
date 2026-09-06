@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { prisma, isDynastyHead, isDynastyMember } from "@lifeweb/db";
 import { resolveParty as dbResolveParty } from "@lifeweb/db/lib/parties";
 import { linkBetween, crossingCheck } from "@lifeweb/db/lib/locationGraph";
-import { isMounted, equippedSlugs } from "@lifeweb/db/lib/mounts";
+import { blocksOnFoot, equippedSlugs } from "@lifeweb/db/lib/mounts";
 import { applyHiddenCures } from "@lifeweb/db/lib/hiddenCures";
 import {
   applyTransfer,
@@ -2415,8 +2415,8 @@ async function moveCharacterRequestImpl({
   );
   const gate = crossingCheck(link, {
     tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
-    // The FILER's mount, since they are the one leading the way through.
-    mounted: isMounted(equippedSlugs(character.tags ?? [])),
+    // The FILER's mount or cart, since they are the one leading the way through.
+    onFootBlocked: blocksOnFoot(equippedSlugs(character.tags ?? [])),
   });
   if (!gate.passable) throw new UserError(gate.refusal);
 

@@ -71,6 +71,17 @@ function isBoated(activeSlugs) {
   return false;
 }
 
+// Too big for an onFoot threshold — the same STOWABLE_SLUGS an indoors
+// Location parks on arrival (db/lib/indoors.js), checked earlier so the
+// crossing refuses instead of spending the free move before parking it
+// (MAP.md §2c). Wider than isMounted: a bare Cart has no rider and buys no
+// free move, but it's still a hand-cart that won't fit through a passage a
+// horse can't either.
+function blocksOnFoot(activeSlugs) {
+  for (const slug of STOWABLE_SLUGS) if (activeSlugs.has(slug)) return true;
+  return false;
+}
+
 // Whether a boat helps with THIS crossing. Both ends have to be on the water,
 // so Forest -> Marshes is free and Forest -> Town is not. A caller that does
 // not know the crossing (the sheet, which shows an allowance before anyone has
@@ -103,6 +114,7 @@ module.exports = {
   fastTravelCapacity,
   isMounted,
   isBoated,
+  blocksOnFoot,
   boatCrossing,
   stowedMounts,
 };
