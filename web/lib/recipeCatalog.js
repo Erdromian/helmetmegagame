@@ -38,18 +38,58 @@ export function ingredientSlugs(items) {
   });
 }
 
-// Run on the OUTPUT of catalogTags(), so "visible" means what this reader was
-// actually sent. A recipe naming a withheld ingredient loses its
-// requirementItems and is marked, which does two jobs at once: recipeRows()
-// below drops the row, and TagChip — which renders these same objects on the
-// Tag Catalog tab — has no ingredient line left to print. The tag itself stays
-// in the catalog; only its recipe goes quiet.
-export function redactWithheldRecipes(tags) {
-  const visible = new Set(tags.map((t) => t.slug));
+function joinWithOr(names) {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
+}
+
+// On /documents this runs on the OUTPUT of catalogTags(), so "visible" means
+// what this reader was actually sent. getVisibleTags() (the site-wide
+// hovercard payload) ships GM-catalog rows to everyone and hides them at
+// render time instead, so it passes `visibleSlugs` explicitly — public tags
+// plus what the viewer holds — rather than letting the list speak for itself.
+//
+// A recipe naming a withheld ingredient loses its requirementItems and is
+// marked, which does two jobs at once: recipeRows() below drops the row, and
+// TagChip — which renders these same objects — has no ingredient line left to
+// print. The tag itself stays; only its recipe goes quiet.
+//
+// An `anyOf` entry is softer: the recipe is makeable with any ONE member, so
+// an unseen member NARROWS the entry (slugs, options and label rebuilt from
+// the visible ones) instead of sinking the recipe — a cook who knows tea and
+// honey reads "Tea or Honey", and only a reader shown no member at all loses
+// the row. Rebuilding the label also covers a hand-written `as:` that might
+// have named the unseen thing.
+export function redactWithheldRecipes(tags, { visibleSlugs = null } = {}) {
+  const visible = visibleSlugs ?? new Set(tags.map((t) => t.slug));
   return tags.map((tag) => {
-    const withheld = ingredientSlugs(tag.requirementItems).some((slug) => !visible.has(slug));
-    if (!withheld) return tag;
-    return { ...tag, requirementItems: null, ingredientsWithheld: true };
+    const items = Array.isArray(tag.requirementItems) ? tag.requirementItems : null;
+    if (!items) return tag;
+    let withheld = false;
+    let narrowed = false;
+    const entries = items.map((entry) => {
+      if (entry?.kind === "group") return entry;
+      if (entry?.kind === "anyOf") {
+        const options = (entry.options ?? []).filter((o) => visible.has(o.slug));
+        if (options.length === (entry.options ?? []).length) return entry;
+        if (options.length === 0) {
+          withheld = true;
+          return entry;
+        }
+        narrowed = true;
+        return {
+          ...entry,
+          slugs: options.map((o) => o.slug),
+          options,
+          label: joinWithOr(options.map((o) => o.name)),
+        };
+      }
+      if (entry?.slug && !visible.has(entry.slug)) withheld = true;
+      return entry;
+    });
+    if (withheld) return { ...tag, requirementItems: null, ingredientsWithheld: true };
+    if (narrowed) return { ...tag, requirementItems: entries };
+    return tag;
   });
 }
 
@@ -74,21 +114,21 @@ export function recipeDiscipline(tag) {
 // Null turns is ONE turn, not zero — the same `?? 1` craftRequest and
 // CraftDialog apply. Only an explicit 0 costs no Move.
 //
-// `ration` says how many units a turn, and it mirrors craftRequest's three
-// cases exactly rather than assuming a 0-turn recipe is rationed at all:
-//   - the recipe's own `perTurn`, counted per recipe, wins where it is set;
+// `ration` says how many units a turn, mirroring the Move-budget rules
+// (docs/systemdocs/CRAFTING.md §2a) rather than assuming:
+//   - the recipe's own `perTurn` wins where it is set. On a 0-turn recipe it
+//     is the free allowance; on a 1-turn recipe it is the BATCH — three
+//     Alcohol is one Routine, and each spends a third of the Move;
 //   - otherwise Dead Simple work draws on the shared pool of 4;
-//   - otherwise there is NO cap. Bone Mask is the one such recipe today — 0
-//     turns, but a butcher's skill rather than a smith's, so isDeadSimple()
-//     reads false and nothing counts it. Saying "up to 4 a turn" there would
-//     be the catalog inventing a rule the server does not enforce.
+//   - otherwise there is NO cap beyond the Move itself.
 export function recipeWork(tag) {
   const turns = tag.requirementTurns ?? 1;
-  if (turns !== 0) return { turns, ration: null, shared: false };
   if (tag.requirementPerTurn != null) {
     return { turns, ration: tag.requirementPerTurn, shared: false };
   }
-  if (isDeadSimple(tag)) return { turns, ration: DEAD_SIMPLE_PER_TURN, shared: true };
+  if (turns === 0 && isDeadSimple(tag)) {
+    return { turns, ration: DEAD_SIMPLE_PER_TURN, shared: true };
+  }
   return { turns, ration: null, shared: false };
 }
 
@@ -113,11 +153,14 @@ export function recipeRows(tags) {
     .map((tag) => {
       const { turns, ration, shared } = recipeWork(tag);
       const skills = tag.requirementSkills ?? [];
-      // Labels only. `label` is denormalized by the sync (db/lib/tagShapes.js)
-      // precisely so a reader of the recipe needs no second query, and nothing
-      // here is consumed today — holding it is the whole check — so there is
-      // no spent-vs-kept distinction to draw yet.
-      const ingredients = (tag.requirementItems ?? []).map((item) => item.label);
+      // Labels only — `label` is denormalized by the sync (db/lib/tagShapes.js)
+      // precisely so a reader of the recipe needs no second query. Spent and
+      // kept are different bargains (CORPSES.md §8): most ingredients go into
+      // the thing made, a `keep` entry only has to be to hand, and the row
+      // says which.
+      const ingredients = (tag.requirementItems ?? []).map((item) =>
+        item.keep ? `${item.label} (kept, not used up)` : item.label,
+      );
       return {
         id: tag.id,
         slug: tag.slug,

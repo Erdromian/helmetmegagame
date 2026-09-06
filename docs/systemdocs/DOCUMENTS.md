@@ -82,6 +82,13 @@ corpse" (`{ group: items-corpse }`) and every member of that group is
 `catalog: secret` — counting groups would erase a public brew from everyone,
 GMs included, over a line that gives away nothing.
 
+An `anyOf:` ingredient is softer still: the recipe is makeable with any one
+member, so an unseen member NARROWS the entry — a cook shown tea and honey
+reads "Tea or Honey" — and only a reader shown no member at all loses the
+row. The same pass, with an explicit public-or-held visibility set, runs
+inside `getVisibleTags()` (`web/lib/referenceData.js`), so the site-wide
+`{tag:…}` hovercards obey the same rule the two catalog tabs do.
+
 Opening a card is a `Modal` (`DESIGN-SYSTEM.md` §8) over `.doc-sheet` — wider
 and more generously set than an ordinary dialog, because it is a page of prose.
 
