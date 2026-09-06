@@ -1451,6 +1451,13 @@ zones:
                     cargo-crate: 1
                     paper: 6
                     merchants-wax-stamp: 1
+                    # The Company's own crating bench, alongside the Factory's
+                    # in factory-logistics-room. The Depot sells the crates and
+                    # the Merchant fills them, so the outfit that ships the
+                    # goods can pack them without walking to the Marshes.
+                    # Untradeable, so it is a fixture here and weighs nothing —
+                    # see the note on the tag in docs/tags.yaml.
+                    packaging-equipment: 1
           caves-narrows:
             name: Narrows
             map_node: 14

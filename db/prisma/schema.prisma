@@ -400,7 +400,11 @@ model GameConfig {
   // transaction that flips CharacterTag.equipped, so two tabs racing on the
   // last slot cannot both win. Editable live from the Dev Panel, same posture
   // as startingTagPoints above.
-  equipSlots Int @default(6)
+  //
+  // Raised 6 -> 10 on 2026-09-06, Bascinet's call. This is the FLAT count only;
+  // the per-body-part rule is separate and unchanged, so ten slots still buys
+  // nobody a second helmet (db/lib/equipSlots.js).
+  equipSlots Int @default(10)
 
   // Carry caps: how many POUNDS of tradeable tags and how many ⬢ a character
   // can hold before they are Overburdened (docs/systemdocs/CARRY.md). Base

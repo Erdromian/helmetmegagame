@@ -115,7 +115,7 @@ export async function toggleEquip(characterTagId) {
     await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Character" WHERE id = ${character.id} FOR UPDATE`;
       const config = await tx.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true } });
-      const slots = config?.equipSlots ?? 6;
+      const slots = config?.equipSlots ?? 10;
       const inUse = await tx.characterTag.count({ where: { characterId: character.id, equipped: true } });
       if (inUse >= slots) throw new Error("NO_SLOTS");
       await tx.characterTag.update({ where: { id: held.id }, data: { equipped: true } });

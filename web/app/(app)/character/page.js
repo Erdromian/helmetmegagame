@@ -1245,7 +1245,7 @@ export default async function CharacterPage() {
       birdSentToday={birdSentToday}
       birdTargets={birdTargets}
       birdZones={birdZoneOptions}
-      equipSlots={gameConfig?.equipSlots ?? 6}
+      equipSlots={gameConfig?.equipSlots ?? 10}
       avatarUploadsEnabled={gameConfig?.avatarUploadsEnabled ?? false}
       portraitMakerEnabled={gameConfig?.portraitMakerEnabled ?? false}
       portraitFantasyPartsEnabled={

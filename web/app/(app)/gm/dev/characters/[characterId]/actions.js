@@ -166,7 +166,7 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
         ops,
         tagsById,
         openTurn,
-        equipSlots: config?.equipSlots ?? 6,
+        equipSlots: config?.equipSlots ?? 10,
       });
     }
 

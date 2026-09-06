@@ -288,7 +288,7 @@ const DEFAULT_GAME_CONFIG = {
   productionCoefficient: 0.93,
   startingTagPoints: 12,
   playerCount: 80,
-  equipSlots: 6,
+  equipSlots: 10,
   carryWeightLbs: 120,
   carryResourceCap: 25,
   freeZoneMovesPerTurn: 1,
