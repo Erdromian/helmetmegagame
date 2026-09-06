@@ -1,6 +1,7 @@
 const { ChannelType, MessageFlags, ThreadAutoArchiveDuration } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const { clearMessagesExcept } = require("@lifeweb/db/lib/discordRest");
+const { gmRoleIds } = require("@lifeweb/db/lib/roleIds");
 const {
   REPORT_CHANNEL_ID,
   OPEN_BUTTON_ID,
@@ -131,26 +132,33 @@ async function handleReportOpen(interaction) {
     await thread.members.add(userId);
 
     // The role's member list is warm: nickname.js fetches every member at
-    // ready. One fetch as a fallback if it somehow isn't.
-    const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
-    let gmRole = gmRoleId ? guild.roles.cache.get(gmRoleId) : null;
-    if (gmRole && gmRole.members.size === 0) {
+    // ready. One fetch as a fallback if it somehow isn't. Both GM seats are
+    // pulled in, and deduped — somebody may hold each.
+    const roles = gmRoleIds().map((id) => guild.roles.cache.get(id)).filter(Boolean);
+    if (roles.some((r) => r.members.size === 0)) {
       await guild.members.fetch().catch(() => {});
-      gmRole = guild.roles.cache.get(gmRoleId);
     }
-    for (const member of gmRole?.members.values() ?? []) {
+    const gms = new Map();
+    for (const id of gmRoleIds()) {
+      for (const member of guild.roles.cache.get(id)?.members.values() ?? []) gms.set(member.id, member);
+    }
+    for (const member of gms.values()) {
       if (member.user.bot || member.id === userId) continue;
       await thread.members.add(member.id).catch((err) =>
         console.error(`Report ticket: couldn't add GM ${member.id}:`, err),
       );
     }
 
+    // Both GM seats get pinged. They are already in the thread from the loop
+    // above, so this is the nudge rather than the delivery.
+    const pingRoleIds = gmRoleIds();
+    const ping = pingRoleIds.map((id) => `<@&${id}>`).join(" ");
     const pinned = await thread.send({
       content:
-        `${gmRoleId ? `<@&${gmRoleId}> — ` : ""}<@${userId}> opened an OOC report.\n` +
+        `${ping ? `${ping} — ` : ""}<@${userId}> opened an OOC report.\n` +
         "Describe the problem here. Press **Close** when it's resolved — that deletes this thread.",
       components: [REPORT_CLOSE_ROW],
-      allowedMentions: { users: [userId], roles: gmRoleId ? [gmRoleId] : [] },
+      allowedMentions: { users: [userId], roles: pingRoleIds },
     });
     await pinned.pin().catch((err) => console.error("Report ticket: pin failed:", err));
   } catch (err) {

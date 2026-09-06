@@ -26,4 +26,30 @@ const SPECTATOR_ROLE_ID = "1540054129752154292";
 // role is handed out by a GM, not earned in-game.
 const LEADER_WHITELIST_ROLE_ID = "1539673757910564864";
 
-module.exports = { PLAYER_ROLE_ID, SPECTATOR_ROLE_ID, LEADER_WHITELIST_ROLE_ID };
+// The trial GM seat. Access-identical to the Gamemaster role everywhere — the
+// web panel, the GM channel overwrites, the bot's /gm and /dm — and the only
+// difference is the word the /gm/gamemasters roster puts next to the name.
+const TRIAL_GM_ROLE_ID = "1545942420271931543";
+
+// Every role that counts as a GM, in one place. Nothing reads
+// DISCORD_GM_ROLE_ID directly any more: two roles meaning the same thing is
+// exactly the shape that drifts, and a site still checking one of them would
+// be a GM who can open the web panel but not the channels, or the reverse.
+function gmRoleIds() {
+  return [process.env.DISCORD_GM_ROLE_ID, TRIAL_GM_ROLE_ID].filter(Boolean);
+}
+
+// Does this list of role ids carry any GM seat?
+function hasGmRole(roleIds) {
+  const ids = gmRoleIds();
+  return (roleIds ?? []).some((id) => ids.includes(id));
+}
+
+module.exports = {
+  PLAYER_ROLE_ID,
+  SPECTATOR_ROLE_ID,
+  LEADER_WHITELIST_ROLE_ID,
+  TRIAL_GM_ROLE_ID,
+  gmRoleIds,
+  hasGmRole,
+};

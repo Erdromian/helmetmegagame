@@ -16,6 +16,7 @@ const {
   PLAYER_ROLE_ID,
   SPECTATOR_ROLE_ID,
   LEADER_WHITELIST_ROLE_ID,
+  gmRoleIds,
 } = require("../../lib/roleIds");
 const { hashNameToColor } = require("../../lib/roleColor");
 const {
@@ -53,7 +54,7 @@ function protectedRoleIds() {
       PLAYER_ROLE_ID,
       SPECTATOR_ROLE_ID,
       LEADER_WHITELIST_ROLE_ID,
-      process.env.DISCORD_GM_ROLE_ID,
+      ...gmRoleIds(),
       process.env.DISCORD_CURSED_ROLE_ID,
       process.env.DISCORD_TURN_PING_ROLE_ID,
     ].filter(Boolean),

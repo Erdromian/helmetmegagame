@@ -20,6 +20,7 @@
 // now handed to one member at a time by applyLocationMoveSideEffects.
 const { spectatorOverwrite } = require("./spectatorAccess");
 const { cursedOverwrite } = require("./cursedAccess");
+const { gmRoleIds } = require("./roleIds");
 
 const CHANNEL_TYPE_TEXT = 0;
 const CHANNEL_TYPE_CATEGORY = 4;
@@ -78,12 +79,19 @@ function roleAllow(roleId, allow) {
   return roleId ? [{ id: roleId, type: 0, allow: allow.toString() }] : [];
 }
 
+// One overwrite per GM seat. There are two roles — Gamemaster and Trial
+// Gamemaster — and they are access-identical, so anywhere a GM used to get an
+// allow, both do (db/lib/roleIds.js#gmRoleIds).
+function gmAllow(allow) {
+  return gmRoleIds().flatMap((id) => roleAllow(id, allow));
+}
+
 // The overwrites EVERY target carries: @everyone's deny (the privacy
 // mechanism), the GM seat, the spectator seat, and the ghost seat.
-function baseOverwrites(guildId, gmRoleId) {
+function baseOverwrites(guildId) {
   return [
     { id: guildId, type: 0, deny: (PERM_VIEW_CHANNEL | PERM_ATTACH_FILES).toString() },
-    ...roleAllow(gmRoleId, PERM_VIEW_CHANNEL | PERM_ATTACH_FILES),
+    ...gmAllow(PERM_VIEW_CHANNEL | PERM_ATTACH_FILES),
     ...spectatorOverwrite(),
     ...cursedOverwrite(),
   ];
@@ -97,8 +105,7 @@ function baseOverwrites(guildId, gmRoleId) {
 //   CAVE_LEVEL  { }   (its Location channels parent to the group's category)
 function zoneChannelSpec(zone) {
   const guildId = process.env.DISCORD_GUILD_ID;
-  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
-  const base = baseOverwrites(guildId, gmRoleId);
+  const base = baseOverwrites(guildId);
   const zoneRoleId = zone.discordRoleId ?? null;
 
   if (zone.kind === "CAVE_LEVEL") return {};
@@ -114,7 +121,7 @@ function zoneChannelSpec(zone) {
       rate_limit_per_user: SUMMARY_SLOWMODE_SECONDS,
       topic: SUMMARY_TOPIC,
       permission_overwrites: [
-        ...roleAllow(gmRoleId, GM_SUMMARY_PERMS),
+        ...gmAllow(GM_SUMMARY_PERMS),
         ...roleAllow(
           zoneRoleId,
           PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_ADD_REACTIONS,
@@ -139,8 +146,7 @@ const LOCATION_MEMBER_ALLOW =
 // why managedOverwriteIds() must never learn to delete a member target.
 function locationChannelSpec(location) {
   const guildId = process.env.DISCORD_GUILD_ID;
-  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
-  const base = baseOverwrites(guildId, gmRoleId);
+  const base = baseOverwrites(guildId);
   const topic = (location.description || "").replace(/\s*\n+\s*/g, " ").trim().slice(0, TOPIC_MAX);
 
   return {
@@ -148,7 +154,7 @@ function locationChannelSpec(location) {
     type: CHANNEL_TYPE_TEXT,
     topic,
     permission_overwrites: [
-      ...roleAllow(gmRoleId, GM_LOCATION_PERMS),
+      ...gmAllow(GM_LOCATION_PERMS),
       {
         id: guildId,
         type: 0,

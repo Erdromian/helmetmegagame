@@ -33,7 +33,7 @@ const {
   listArchivedPrivateThreads,
 } = require("./discordRest");
 const crypto = require("node:crypto");
-const { SPECTATOR_ROLE_ID } = require("./roleIds");
+const { SPECTATOR_ROLE_ID, gmRoleIds } = require("./roleIds");
 const { cursedRoleId, ensureCursedRoleAppearance } = require("./cursedAccess");
 const { docsPath } = require("./repoPaths");
 const {
@@ -534,7 +534,7 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
 // the next sync. Only role ids belong in this set.
 function managedOverwriteIds(roleIds) {
   return new Set(
-    [process.env.DISCORD_GM_ROLE_ID, SPECTATOR_ROLE_ID, cursedRoleId(), ...roleIds].filter(Boolean),
+    [...gmRoleIds(), SPECTATOR_ROLE_ID, cursedRoleId(), ...roleIds].filter(Boolean),
   );
 }
 

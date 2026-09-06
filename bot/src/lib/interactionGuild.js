@@ -1,4 +1,5 @@
 const { prisma } = require("@lifeweb/db");
+const { gmRoleIds } = require("@lifeweb/db/lib/roleIds");
 
 // Every player-facing command is registered globally with a BotDM context
 // (see bot/src/lib/commands.js), so `interaction.guild` and
@@ -29,10 +30,11 @@ async function resolveActingMember(interaction) {
 // as "not a GM" — that is the right answer (no GM command is DM-able, see
 // commands.js), but it should be a decision rather than an accident.
 function isGmMember(interaction) {
-  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
-  if (!gmRoleId) return false;
   if (!interaction.inGuild()) return false;
-  return interaction.member?.roles.cache.has(gmRoleId) ?? false;
+  const roles = interaction.member?.roles.cache;
+  if (!roles) return false;
+  // Either seat: gmRoleIds() carries the Gamemaster role and the Trial one.
+  return gmRoleIds().some((id) => roles.has(id));
 }
 
 async function findAliveCharacter(discordUserId) {

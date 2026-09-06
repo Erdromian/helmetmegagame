@@ -233,6 +233,30 @@ declares no `images.remotePatterns` and `next/image` against
 
 ---
 
+## 6b. The trial seat
+
+There are **two** GM Discord roles, and they grant exactly the same thing:
+Gamemaster (`DISCORD_GM_ROLE_ID`) and **Trial Gamemaster**
+(`TRIAL_GM_ROLE_ID`, hardcoded in `db/lib/roleIds.js`). A trial GM opens every
+`/gm` page, holds the same standing overwrites on every zone, Location,
+`#turns`, narrowcast and report channel, and runs `/gm` and `/dm` in Discord.
+Nothing is withheld.
+
+`db/lib/roleIds.js#gmRoleIds()` is the **only** list of the two, and nothing
+reads `DISCORD_GM_ROLE_ID` directly any more. That matters more than it looks:
+two roles meaning the same thing is the shape that drifts, and a site still
+checking one of them would be a GM who can open the web panel but not see the
+channels — or the reverse, which is worse, because it looks like it works.
+
+The one place they differ is the `/gm/gamemasters` roster, which chips each
+row **Gamemaster** or **Trial GM**, plus **Master** for a superadmin. That
+chip is the whole difference. Everything else — a `GmAssignment` zone seat
+included, since it is keyed on `discordUserId` and knows nothing about roles —
+treats the two identically.
+
+Adding a third seat later means one line in `gmRoleIds()` and one branch in
+that roster's `standing()`.
+
 ## 7. The audit log is everyone's
 
 `/gm/audit` used to be superadmin-only, on the argument that with five GMs the

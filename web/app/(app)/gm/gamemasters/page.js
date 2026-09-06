@@ -4,12 +4,23 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { listGmMembers } from "@/lib/discordGuild";
+import { TRIAL_GM_ROLE_ID } from "@lifeweb/db/lib/roleIds";
 import { listGmAssignments } from "@/lib/gmZone";
 import { sortZones } from "@/lib/zones";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import CharacterLink from "@/app/components/CharacterLink";
 import DiscordAvatar from "@/app/components/DiscordAvatar";
 import GmZonePicker from "./GmZonePicker";
+
+// Which seat someone holds. The two GM roles are access-identical
+// (db/lib/roleIds.js), so this chip is the only place in the app that tells
+// them apart — which is the whole reason the trial role exists.
+function standing(member) {
+  const full = process.env.DISCORD_GM_ROLE_ID;
+  if (full && member.roles.includes(full)) return "Gamemaster";
+  if (member.roles.includes(TRIAL_GM_ROLE_ID)) return "Trial GM";
+  return "Gamemaster";
+}
 
 // The GM roster and their zone seats. Superadmin only — this is the one page
 // that shows Discord identities rather than characters, and the seats it sets
@@ -27,7 +38,10 @@ export default async function GamemastersPage() {
     // group), so a GM seated on the Depths would open every table on an empty
     // filter. This used to be a bare findMany, which is exactly the bug it
     // produced.
-    prisma.zone.findMany({ where: { kind: { not: "CAVE_LEVEL" } }, select: { id: true, name: true } }),
+    prisma.zone.findMany({
+      where: { kind: { not: "CAVE_LEVEL" } },
+      select: { id: true, name: true },
+    }),
     listGmAssignments(),
   ]);
 
@@ -38,7 +52,9 @@ export default async function GamemastersPage() {
     where: { discordUserId: { in: members.map((m) => m.id) }, status: "ALIVE" },
     select: { id: true, name: true, discordUserId: true },
   });
-  const characterByUserId = new Map(characters.map((c) => [c.discordUserId, c]));
+  const characterByUserId = new Map(
+    characters.map((c) => [c.discordUserId, c]),
+  );
 
   // Fortress → Town → Forest → Black Hills → Marshes → Underground, matching
   // the map and roles.yaml, rather than alphabetical.
@@ -88,20 +104,31 @@ export default async function GamemastersPage() {
                       <span>
                         {m.globalName ?? m.username}
                         {m.globalName && (
-                          <span className="block text-xs text-muted mono">@{m.username}</span>
+                          <span className="block text-xs text-muted mono">
+                            @{m.username}
+                          </span>
                         )}
                       </span>
-                      {isSuperadmin(m.id) && <span className="chip">Master</span>}
+                      <span className="chip">{standing(m)}</span>
+                      {isSuperadmin(m.id) && (
+                        <span className="chip">Master</span>
+                      )}
                     </span>
                   </td>
                   <td>
-                    <CharacterLink characterId={character?.id} name={character?.name} isGm />
+                    <CharacterLink
+                      characterId={character?.id}
+                      name={character?.name}
+                      isGm
+                    />
                   </td>
                   <td>
                     <GmZonePicker
                       discordUserId={m.id}
                       zones={ordered}
-                      currentZoneIds={(assignments.get(m.id) ?? []).map((z) => z.id)}
+                      currentZoneIds={(assignments.get(m.id) ?? []).map(
+                        (z) => z.id,
+                      )}
                     />
                   </td>
                 </tr>
@@ -110,7 +137,7 @@ export default async function GamemastersPage() {
             {roster.length === 0 && (
               <tr>
                 <td colSpan={3} className="text-muted">
-                  Nobody holds the GM role — check DISCORD_GM_ROLE_ID.
+                  Nobody holds the Gamemaster or Trial Gamemaster role yet.
                 </td>
               </tr>
             )}

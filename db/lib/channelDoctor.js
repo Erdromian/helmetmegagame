@@ -24,7 +24,7 @@ const {
   addThreadMember,
   removeThreadMember,
 } = require("./discordRest");
-const { PLAYER_ROLE_ID, SPECTATOR_ROLE_ID, LEADER_WHITELIST_ROLE_ID } = require("./roleIds");
+const { PLAYER_ROLE_ID, SPECTATOR_ROLE_ID, LEADER_WHITELIST_ROLE_ID, gmRoleIds } = require("./roleIds");
 const { hashNameToColor } = require("./roleColor");
 const { cursedRoleId, ensureCursedRoleAppearance } = require("./cursedAccess");
 const {
@@ -57,7 +57,7 @@ function standingRoleIds() {
       PLAYER_ROLE_ID,
       SPECTATOR_ROLE_ID,
       LEADER_WHITELIST_ROLE_ID,
-      process.env.DISCORD_GM_ROLE_ID,
+      ...gmRoleIds(),
       process.env.DISCORD_CURSED_ROLE_ID,
       process.env.DISCORD_TURN_PING_ROLE_ID,
     ].filter(Boolean),
@@ -641,7 +641,6 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
         const liveById = new Map(overwrites.map((o) => [o.id, o]));
         const wanted = turnsChannelOverwrites({
           guildId: process.env.DISCORD_GUILD_ID,
-          gmRoleId: process.env.DISCORD_GM_ROLE_ID,
           zoneRoleIds: [...zoneRoleIds],
         });
         // One finding for the channel, not one per target: the repair is a

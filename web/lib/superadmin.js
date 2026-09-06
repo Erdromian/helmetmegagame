@@ -3,6 +3,7 @@
 export const SUPERADMIN_DISCORD_IDS = [
   "1507184027919057108",
   "262426987979735040",
+  "216301927242137600",
 ];
 
 export function isSuperadmin(discordUserId) {

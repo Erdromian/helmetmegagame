@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Trial Gamemaster is a Gamemaster in everything but name
+
+✚ A Trial Gamemaster role that grants exactly what Gamemaster does — every /gm page, every GM channel, and the /gm and /dm commands  
+✎ The Gamemasters roster now says which seat somebody holds: Gamemaster, Trial GM, or Master  
+✚ Two more superadmins
+
 ## 2026-09-06 · A pass over the tag catalog: fighting skills, mountaineering, and softer drawbacks
 
 ✎ Melee (Clubs) and Shield Wall come down to 8, Duelist to 9, and Guerrilla to 5 — the fighting specialisations were priced past what most builds could reach  

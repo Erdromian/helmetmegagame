@@ -491,7 +491,7 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 | **Zone role** | `Zone.discordRoleId`, one per presence zone ("Zone: Town"), created by `db:sync-zones` | Opens the zone's `#summary`, and — via `#turns`'s own role grants — the standing channels. Swapped by travel; reconciled by the channel doctor. |
 | **Location overwrite** (not a role) | A per-member permission overwrite on the Location's channel, written by `db/lib/locationMove.js` | Channel access: holding it is what shows you the one Location channel a character actually stands in. Swapped by every location change; reconciled by the channel doctor's `location-occupancy` check. Locations wear **no** Discord role — 56 of them would have eaten 56 of the guild's 250, and Discord allows 1000 overwrites per channel. |
 | **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | A mentionable **name token only** (`PROXYING.md` §6) — held by nobody and granting nothing. Channel access is the **zone role and the Location overwrite** instead (`CHANNELS.md` §3). |
-| **GM role** | `DISCORD_GM_ROLE_ID` env var | `/gm` pages, the `/gm` and `/message` slash commands. Checked via REST (`isGm`), not stored on any model. |
+| **GM role** | `DISCORD_GM_ROLE_ID` env var, **or** `TRIAL_GM_ROLE_ID` in `db/lib/roleIds.js` | `/gm` pages, the `/gm` and `/message` slash commands, and the GM's standing channel overwrites. Checked via REST (`isGm`), not stored on any model. The two are access-identical — `gmRoleIds()` is the only list, and the `/gm/gamemasters` roster is the one surface that tells them apart. |
 | **Spectator role** | `SPECTATOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A standing read-only observer seat, applied at provisioning time. See `CHANNELS.md`. |
 | **Player role** | `PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may create a character, paired with `GameConfig.openToPlayers` (`CHARACTERS.md` §4b). |
 | **Leader Whitelist role** | `LEADER_WHITELIST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may pick a role flagged `leader: true` at character creation — unless `GameConfig.leaderWhitelistEnabled` is switched off on `/gm/dev` (`CHARACTERS.md` §2). |
@@ -515,12 +515,15 @@ GM**: it used to be the master's alone, on the argument that with five GMs the
 log is a record *of* them, but that left four people unable to answer "who
 changed this", which is what the log is for.
 
-**Why two role IDs live in code instead of env vars:** a role ID is not a
+**Why these role IDs live in code instead of env vars:** a role ID is not a
 secret — anyone in the guild can read it. Bascinet runs in a single guild, so
 there is exactly one correct value, and it can never differ per environment.
 Meanwhile, a missing env var would have failed silently: a deploy where the
-player gate locked everyone out, or the spectator overwrite did nothing.
-`web/lib/superadmin.js` uses the same reasoning. `DISCORD_TOKEN` is a real
+player gate locked everyone out, or the spectator overwrite did nothing. The
+Trial Gamemaster role is there for the same reason, and a sharper version of
+it: half-configured, it would be a GM who can open the web panel but cannot
+see the channels, or the reverse. `web/lib/superadmin.js` uses the same
+reasoning. `DISCORD_TOKEN` is a real
 credential, so it stays in `.env`.
 
 ## Slash commands

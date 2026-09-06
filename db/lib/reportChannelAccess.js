@@ -8,7 +8,7 @@
 // custom ids are routed by exact equality in
 // bot/src/events/interactionCreate.js — change one here and there together.
 const { putChannelOverwrite } = require("./discordRest");
-const { PLAYER_ROLE_ID } = require("./roleIds");
+const { PLAYER_ROLE_ID, gmRoleIds } = require("./roleIds");
 
 const REPORT_CHANNEL_ID = "1543298375250616340";
 
@@ -46,12 +46,13 @@ const GM_ALLOW = PLAYER_ALLOW | PERM_MANAGE_THREADS | PERM_MANAGE_MESSAGES;
 // is disturbed — same reasoning as spectatorAccess.js.
 async function syncReportChannelAccess() {
   const guildId = process.env.DISCORD_GUILD_ID;
-  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
   if (!guildId || !process.env.DISCORD_TOKEN) return { ok: false, reason: "unconfigured" };
 
   await putChannelOverwrite(REPORT_CHANNEL_ID, guildId, { deny: PERM_VIEW_CHANNEL.toString() });
   await putChannelOverwrite(REPORT_CHANNEL_ID, PLAYER_ROLE_ID, { allow: PLAYER_ALLOW.toString() });
-  if (gmRoleId) await putChannelOverwrite(REPORT_CHANNEL_ID, gmRoleId, { allow: GM_ALLOW.toString() });
+  for (const gmRoleId of gmRoleIds()) {
+    await putChannelOverwrite(REPORT_CHANNEL_ID, gmRoleId, { allow: GM_ALLOW.toString() });
+  }
   return { ok: true };
 }
 

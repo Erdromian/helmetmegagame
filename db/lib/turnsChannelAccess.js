@@ -16,7 +16,7 @@ const {
 } = require("./discordRest");
 const { applySpectatorOverwrite, SPECTATOR_ALLOW, SPECTATOR_DENY } = require("./spectatorAccess");
 const { applyCursedOverwrite, cursedRoleId, CURSED_ALLOW, CURSED_DENY } = require("./cursedAccess");
-const { SPECTATOR_ROLE_ID } = require("./roleIds");
+const { SPECTATOR_ROLE_ID, gmRoleIds } = require("./roleIds");
 
 const CHANNEL_TYPE_TEXT = 0;
 
@@ -39,10 +39,12 @@ function isTurnsChannel(channel) {
 // The intended overwrite set, as a Map keyed on target id — what the channel
 // doctor compares the live channel against. Order does not matter; Discord
 // allows exactly one overwrite per target.
-function turnsChannelOverwrites({ guildId, gmRoleId, zoneRoleIds }) {
+function turnsChannelOverwrites({ guildId, zoneRoleIds }) {
   const wanted = new Map();
   if (guildId) wanted.set(guildId, { id: guildId, type: 0, allow: "0", deny: EVERYONE_DENY.toString() });
-  if (gmRoleId) wanted.set(gmRoleId, { id: gmRoleId, type: 0, allow: GM_ALLOW.toString(), deny: "0" });
+  for (const id of gmRoleIds()) {
+    wanted.set(id, { id, type: 0, allow: GM_ALLOW.toString(), deny: "0" });
+  }
   wanted.set(SPECTATOR_ROLE_ID, {
     id: SPECTATOR_ROLE_ID,
     type: 0,
@@ -86,21 +88,24 @@ async function zoneRoleIdsFor(prisma) {
 // overwrite it does not own — same reasoning as spectatorAccess.js.
 async function syncTurnsChannelAccess(prisma, { channelId = null } = {}) {
   const guildId = process.env.DISCORD_GUILD_ID;
-  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
   if (!guildId || !process.env.DISCORD_TOKEN) return { ok: false, reason: "unconfigured" };
 
   const id = channelId ?? (await findTurnsChannelId());
   if (!id) return { ok: false, reason: "missing" };
 
   await putChannelOverwrite(id, guildId, { deny: EVERYONE_DENY.toString() });
-  if (gmRoleId) await putChannelOverwrite(id, gmRoleId, { allow: GM_ALLOW.toString() });
+  for (const gmRoleId of gmRoleIds()) {
+    await putChannelOverwrite(id, gmRoleId, { allow: GM_ALLOW.toString() });
+  }
   await applySpectatorOverwrite(id);
   await applyCursedOverwrite(id);
 
   const zoneRoleIds = await zoneRoleIdsFor(prisma);
   let roleGrants = 0;
   for (const roleId of zoneRoleIds) {
-    if (roleId === gmRoleId || roleId === SPECTATOR_ROLE_ID || roleId === cursedRoleId()) continue;
+    // A GM seat already has GM_ALLOW above; re-granting it the plain view bit
+    // here would narrow it.
+    if (gmRoleIds().includes(roleId) || roleId === SPECTATOR_ROLE_ID || roleId === cursedRoleId()) continue;
     await putChannelOverwrite(id, roleId, { allow: PERM_VIEW_CHANNEL.toString() });
     roleGrants += 1;
   }
@@ -111,7 +116,7 @@ async function syncTurnsChannelAccess(prisma, { channelId = null } = {}) {
   // the per-member overrides GMs added one player at a time, and the Player
   // role's view grant — which said "approved to make a character", not "has
   // one", and so kept the channel open to people with no character at all.
-  const wanted = turnsChannelOverwrites({ guildId, gmRoleId, zoneRoleIds });
+  const wanted = turnsChannelOverwrites({ guildId, zoneRoleIds });
   const botRoleIds = new Set(
     (await getGuildRoles().catch(() => [])).filter((r) => r.tags?.bot_id).map((r) => r.id),
   );

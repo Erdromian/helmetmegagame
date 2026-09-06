@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { discordRequest } from "@lifeweb/db/lib/discordRest";
+import { hasGmRole } from "@lifeweb/db/lib/roleIds";
 
 // The GM roster, with avatars, for the small pfp that sits next to any
 // GM-attributed row in the web app (the lock holder on a queue row, a staged
@@ -32,12 +33,11 @@ function avatarUrlFor(guildId, member) {
 
 async function fetchGmProfiles() {
   const guildId = process.env.DISCORD_GUILD_ID;
-  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
-  if (!process.env.DISCORD_TOKEN || !guildId || !gmRoleId) return [];
+  if (!process.env.DISCORD_TOKEN || !guildId) return [];
 
   const members = await discordRequest(`/guilds/${guildId}/members?limit=1000`);
   return members
-    .filter((m) => (m.roles ?? []).includes(gmRoleId))
+    .filter((m) => hasGmRole(m.roles))
     .map((m) => ({
       discordUserId: m.user.id,
       username: m.user.username,
