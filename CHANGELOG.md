@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Avatars all sit on the same dark stone now
+
+✎ The helm avatars and the built portraits were still lighter than the letter plaques. They all share one ground again, and there is no green left in any of them
+
 ## 2026-09-06 · The Censor can read
 
 ✚ The Censor starts Literate, like every other Court seat
