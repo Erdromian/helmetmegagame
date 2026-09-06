@@ -32,7 +32,7 @@ decision in a different order:
 
 - `prepareSpeech` — where you are (a web send only; Discord's own channel
   permissions are the gate for a Discord one), the speech block, length, the
-  slowmode (web only, 30 s a place, 300 s a zone summary), then the babble and
+  slowmode (web only, none in a Room or Conversation, 300 s in a zone summary), then the babble and
   autocorrect transforms and the presented identity.
 - `recordSpeech` — the `ArchiveEntry` row, with the place key, the source and
   the alias.
@@ -303,10 +303,10 @@ Two things are read-only:
   (`db/lib/gmZoneView.js`; no rows means every zone). Watching is not standing
   there — a GM who wants to say something says it as a GM.
 
-Slowmode is 30 s per character per place, 300 s for a zone summary, enforced in
-`prepareSpeech` by the character's newest row there. Discord's channel slowmode
-is the same number so a player sees one rule; the Room threads carry it as a
-per-thread `rate_limit_per_user`, re-asserted by `db:sync-zones` on every pass
+Slowmode is 300 s per character in a zone summary and nothing anywhere else,
+enforced in `prepareSpeech` by the character's newest row there. Discord's
+channel slowmode is the same: five minutes on `#summary`, none on a Room
+thread, which `db:sync-zones` asserts as `rate_limit_per_user: 0` on every pass
 (§5b).
 
 ### 5b. Decision 5: the Location channel is scenery

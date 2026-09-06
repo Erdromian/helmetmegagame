@@ -638,12 +638,12 @@ async function writeRoomStarter(threadId, chunks, components) {
 // the room body, reconciled by hash. Never locked (players roleplay inside
 // it); the Dawn wipe clears replies but never the starter. Returns
 // "created" | "updated" | "unchanged" | "skipped".
-// A Room thread is where talking actually happens now that a Location channel
-// is scenery (CHANNELS.md §2), so the 30 s slowmode moved down here with it.
-// Discord sets a thread's rate limit per thread, at creation, and there is no
-// inheriting it from the parent — so the sync asserts it on every pass, the
-// same way it asserts `archived: false`.
-const ROOM_SLOWMODE_SECONDS = 30;
+// Rooms carry NO slowmode (Bascinet, 2026-09-06): the 5-minute one belongs to
+// #summary alone, and a Room thread is moment-to-moment talk. Zero is still
+// asserted on every pass, the same way `archived: false` is, because a thread
+// briefly carried 30 s during the Location-goes-quiet change and Discord keeps
+// a thread's rate limit per thread — nothing else would ever clear it.
+const ROOM_SLOWMODE_SECONDS = 0;
 
 async function syncRoomThread(prisma, room, location, snapshot, liveState) {
   if (!location?.discordChannelId) return "skipped";

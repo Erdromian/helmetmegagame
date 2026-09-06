@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Rooms have no slowmode, and a wipe waits for Discord
+
+✎ Room threads and Conversations carry no slowmode after all; the five minutes stays on the zone summary alone. The earlier note saying Rooms got 30 seconds was wrong and is undone here.  
+✎ A Restart Game no longer loses its Room threads and anchors: creating a thread now waits out Discord's minute-long rate limit instead of giving up at 30 seconds, which is what emptied every Location channel twice today.
+
 ## 2026-09-06 · Every place on the Play page, and Location channels go quiet
 
 ✚ The Play page now shows every place you can hear: the Location, its Rooms (the private ones you hold a key or an invitation to), your Conversations, and the zone Summary, each with an unread dot. Three columns on a desk, tabs on a phone.  

@@ -24,6 +24,7 @@ const BREAKER_COOLDOWN_MS = 10 * 60 * 1000;
 // edit can hand back ~600s, which would wedge a whole sequential run behind
 // one call. Past the cap the call fails and the caller's catch moves on.
 const MAX_RETRY_AFTER_MS = 30_000;
+const THREAD_CREATE_MAX_RETRY_AFTER_MS = 180_000;
 
 const invalidTimestamps = [];
 let breakerOpenUntil = 0;
@@ -184,7 +185,7 @@ function discordError(message, { status = null, discordCode = null } = {}) {
 // since a consumed body can't re-send on retry.
 async function discordRequest(
   path,
-  { method = "GET", body, allow404 = false, auth = true, formData = null } = {},
+  { method = "GET", body, allow404 = false, auth = true, formData = null, maxRetryAfterMs = MAX_RETRY_AFTER_MS } = {},
 ) {
   const jsonBody = formData === null && body !== undefined;
   const contentType = jsonBody ? { "Content-Type": "application/json" } : undefined;
@@ -227,10 +228,10 @@ async function discordRequest(
         console.error(`Discord GLOBAL rate limit hit on ${method} ${path}. This is the ban warning shot.`);
       }
       const retryAfterMs = (Number(payload.retry_after) || 1) * 1000;
-      if (retryAfterMs > MAX_RETRY_AFTER_MS) {
+      if (retryAfterMs > maxRetryAfterMs) {
         throw discordError(
           `Discord ${method} ${path} failed: 429 with retry_after ${Math.round(retryAfterMs / 1000)}s, ` +
-            `over the ${MAX_RETRY_AFTER_MS / 1000}s cap — not waiting.`,
+            `over the ${maxRetryAfterMs / 1000}s cap — not waiting.`,
           { status: 429, discordCode: payload.code ?? null },
         );
       }
@@ -402,6 +403,10 @@ async function postDmBatched(discordUserId, text, components = undefined) {
 async function startThread(channelId, name, autoArchiveMinutes = 10080, rateLimitPerUser = null) {
   return discordRequest(`/channels/${channelId}/threads`, {
     method: "POST",
+    // Thread creation is the one route Discord rate-limits by the MINUTE. A
+    // Restart Game wipe creates 129 of them in a row, and giving up at the 30 s
+    // cap is how a wipe ended with no Room threads and no anchors (2026-09-06).
+    maxRetryAfterMs: THREAD_CREATE_MAX_RETRY_AFTER_MS,
     body: {
       name,
       type: 11,
@@ -446,6 +451,10 @@ async function createForumPost(
 async function startPrivateThread(channelId, name, autoArchiveMinutes = 10080, rateLimitPerUser = null) {
   return discordRequest(`/channels/${channelId}/threads`, {
     method: "POST",
+    // Thread creation is the one route Discord rate-limits by the MINUTE. A
+    // Restart Game wipe creates 129 of them in a row, and giving up at the 30 s
+    // cap is how a wipe ended with no Room threads and no anchors (2026-09-06).
+    maxRetryAfterMs: THREAD_CREATE_MAX_RETRY_AFTER_MS,
     body: {
       name,
       type: 12,

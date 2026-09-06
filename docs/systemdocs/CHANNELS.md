@@ -80,12 +80,12 @@ role (§3).
 > alone rather than reposted under a mask), and `/play` draws no composer on a
 > Location (`HALL.md` §5b).
 
-**Room threads carry a 30 s slowmode** (`rate_limit_per_user`), added when the
-talk moved into them. Discord sets a thread's rate limit per
-thread and a thread inherits nothing from its parent, so `db:sync-zones`
-passes it at creation and re-asserts it on every pass, the same way it
-re-asserts `archived: false`. It is the same 30 s `db/lib/say.js` enforces for
-a web send, so a player meets one rule on both faces.
+**Room threads carry no slowmode.** The 5-minute one is `#summary`'s alone; a
+Room is moment-to-moment talk. `db:sync-zones` still asserts `rate_limit_per_user:
+0` on every pass, the same way it re-asserts `archived: false`, because Discord
+keeps a thread's rate limit per thread and nothing else would ever clear one a
+thread once had. `db/lib/say.js` enforces the same: no wait in a Room or a
+Conversation, 300 s in a zone summary.
 
 **Creation is one-time; a lot is reconciled every run.** The sync only creates
 a channel/category/role whose id column is null, and channel *names* are

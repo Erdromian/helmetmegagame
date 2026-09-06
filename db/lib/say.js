@@ -89,6 +89,7 @@ function transformSpeech(text, { babbling, autocorrect }) {
 // Discord had already let through.
 async function slowmodeWaitSeconds(prisma, { characterId, placeKey }) {
   if (!characterId || !placeKey) return 0;
+  if (slowmodeMsFor(placeKey) <= 0) return 0;
   const newest = await prisma.archiveEntry.findFirst({
     where: { placeKey, characterId, kind: "MESSAGE", deletedAt: null },
     orderBy: { seq: "desc" },

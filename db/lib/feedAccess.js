@@ -27,7 +27,9 @@ const { visibleZoneIds } = require("./gmZoneView");
 
 // How long a character waits between two sends in one place, in ms. The zone
 // summary is a slower surface on purpose: it is a whole zone reading.
-const PLACE_SLOWMODE_MS = 30_000;
+// Rooms and Conversations have no slowmode (Bascinet, 2026-09-06); only the
+// zone summary does, matching its Discord channel.
+const PLACE_SLOWMODE_MS = 0;
 const ZONE_SLOWMODE_MS = 300_000;
 
 function slowmodeMsFor(placeKey) {
