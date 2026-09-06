@@ -36,12 +36,12 @@ const GATEHOUSE_TURRET_DM = {
 // db/lib/ambientLine.js, because a machine spinning up is the only warning
 // anyone in the yard is going to get.
 const TURRET_ARMED_LINE = {
-  text: "Something in the yard whirs, and the barrels on the rotor come around to level. ‡",
+  text: "You hear something in the yard whir, and the barrels on the rotor come around to level.",
   signed: false,
 };
 
 const TURRET_DISARMED_LINE = {
-  text: "The rotor in the yard settles, and the barrels drop. ‡",
+  text: "You hear the rotor in the yard settle, and the barrels drop.",
   signed: false,
 };
 

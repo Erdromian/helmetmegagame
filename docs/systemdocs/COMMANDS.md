@@ -226,6 +226,59 @@ there is a 5-minute per-character cooldown, in memory like `/play`'s, and it is
 which is exactly long enough for a second `/shout` to slip past a cooldown
 stamped at the end.
 
+### 2e. The bell and the trumpet
+
+The two things that are *loud* rather than spoken. They share one machine,
+`db/lib/soundBroadcast.js#broadcastSound`, which is `/shout`'s cousin over the
+same `soundRange` BFS — with the two things that make a shout a shout removed.
+
+**Nothing muffles.** A shout loses its words with distance because a shout *is*
+words. Neither of these has any to lose, so all distance changes is whether the
+line lands in the conversation or under it. **And no direction**: `soundRange`
+offers a `viaName` and a shout needs it, but a bell hangs in a tower you can see
+from the square, so naming the way to it tells nobody anything.
+
+So the only thing left is a volume band, and it is purely a formatting call —
+full size near the source, `ambientLine` subtext past it. ‡
+
+| | Origin | Reach | Full size | Cooldown |
+|---|---|---|---|---|
+| **Bell** | the Cathedral, fixed | 7 hops | 0–4 | 30 min, global (`GameConfig.bellRungAt`) |
+| **Trumpet** | wherever the holder stands | 5 hops | 0–3 | 30 min, per character, in memory |
+
+The trumpet's numbers are **derived** from the bell's at 0.75×, rounded, rather
+than written out — the ratio is the design, so retuning the bell moves the
+trumpet with it instead of leaving the two to disagree (`db/lib/trumpet.js`).
+
+From the Cathedral the bell is 20 Locations loud and 16 quiet; the trumpet is
+12 and 16.
+
+**Rock stops sound, and the rule is symmetric** — a Location hears it only if
+its `Zone.kind` matches the origin's. A bell in the Cathedral must not ring in
+the Depths, which any version of this gives you; but a trumpet blown underground
+must still be heard by the people standing next to the trumpeter, and a plain
+"surface only" filter made it audible everywhere *except* down there. Comparing
+against the origin says the actual thing rather than describing the wiring.
+
+That filter replaced an allowlist of four zone slugs posting into zone
+`#summary` channels, which could not say that the Square hears the bell better
+than the far Marshes do, and made the Black Hills deaf to a bell they stand
+close enough to hear.
+
+**Who may.** The bell is whoever can reach the rope — the Bell Tower's `Sound
+Bell` button, confirmed by typing `RING` into a modal, because one click is
+heard across most of the barony and cannot be taken back. The trumpet is
+whoever holds the `trumpet` tag, and its button is on the **web Character
+page**, not in Discord: "only if you have one" is a per-reader question, and a
+Discord button sits on an anchor message everybody shares. It asks for a
+confirm for the same reason the rope does. Sounding it takes ACT, not SPEAK — a
+trumpet needs breath *and* hands, so Bound stops it where it deliberately would
+not stop a shout.
+
+Both write an AuditLog row (`bell_rung`, `trumpet_sounded`), and both claim
+their cooldown **before** the posting loop, for `/shout`'s reason: the loop is
+two or three dozen REST posts and takes real seconds.
+
 ## 3. The `#turns` console
 
 The buttons ride on the rolling turn announcement — `#turns` is one message,

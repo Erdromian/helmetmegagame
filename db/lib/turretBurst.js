@@ -20,10 +20,13 @@
 const { ambientLine } = require("./ambientLine");
 const { postMessage } = require("./discordRest");
 
-// Bascinet's own word, so `signed: false` — a ‡ marks copy Claude drafted and
-// nobody has signed off, and putting one on their line says the opposite of
-// what it means (CLAUDE.md).
-const BURST_TEXT = "RRATATAT!";
+// RRATATAT is Bascinet's own word and keeps its shape. The sentence in front of
+// it is not theirs — it was added so every audible line in the game opens "You
+// hear" — so the whole thing now carries a ‡ where the bare shout did not.
+const BURST_SOUND = "You hear a machinegun open up. RRATATAT!";
+// The room the gun is in gets it full size, so it appends its own mark;
+// ambientLine adds one for the copy that carries.
+const BURST_TEXT = `${BURST_SOUND} ‡`;
 
 async function announceTurretBurst(prisma, locationId) {
   if (!locationId || !process.env.DISCORD_TOKEN) return { sent: 0 };
@@ -56,7 +59,7 @@ async function announceTurretBurst(prisma, locationId) {
     where: { zoneId: here.zoneId, id: { not: here.id }, discordChannelId: { not: null } },
     select: { name: true, discordChannelId: true },
   });
-  const heard = ambientLine(BURST_TEXT, [], { signed: false });
+  const heard = ambientLine(BURST_SOUND);
   for (const location of elsewhere) {
     try {
       await postMessage(location.discordChannelId, heard);

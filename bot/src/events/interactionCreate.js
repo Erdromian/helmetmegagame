@@ -477,7 +477,13 @@ async function handleBellSubmit(interaction, roomId) {
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { bellRungAt: true } });
   const { ok, secondsLeft } = bellCooldown(config?.bellRungAt);
   if (!ok) {
-    await respond(interaction, `» *The bell is still humming from the last pull. ${secondsLeft}s.* ‡`);
+    // Minutes, not the raw seconds this used to print: at a half-hour cooldown
+    // "1487s" is arithmetic homework rather than an answer.
+    const minutes = Math.max(1, Math.ceil(secondsLeft / 60));
+    await respond(
+      interaction,
+      `» *The bell is still humming from the last pull. About ${minutes} more minute${minutes === 1 ? "" : "s"}.* ‡`,
+    );
     return;
   }
 

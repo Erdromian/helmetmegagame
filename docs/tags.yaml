@@ -8108,6 +8108,23 @@ tags:
     purchasableAfterStart: false
     removable: true
 
+  # Heard across the Location graph like the Cathedral bell, at three-quarters
+  # its reach and from wherever the holder stands — db/lib/trumpet.js. The
+  # button for it is on the web Character page, not in Discord.
+  trumpet:
+    catalog: all
+    name: Trumpet
+    category: items
+    group: items-gear
+    description: "A loud brass instrument that can be heard for miles."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
   whip:
     catalog: gm
     name: Whip

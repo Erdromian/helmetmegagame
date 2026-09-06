@@ -20,7 +20,7 @@ const BELL_WORD_FIELD = "bell:word";
 
 const RING_WORD = "RING";
 
-const BELL_HELP = "-# Heard in the Town, the Fortress, the Forest and the Marshes. Nobody is pinged. ‡";
+const BELL_HELP = "-# Heard for a long way around, loudest near the Cathedral. Nobody is pinged. ‡";
 
 function buildBellModal(roomId) {
   return new ModalBuilder()

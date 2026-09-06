@@ -51,6 +51,11 @@ const PACKAGE_MAX_LBS = 150;
 const PACKAGE_MAX_UNITS = 200;
 const PACKAGE_LABEL_MAX = 120;
 const SURGICAL_EQUIPMENT_SLUG = "surgical-equipment";
+
+// Holding one puts a Sound Trumpet button on your own Character page, and
+// sounding it is heard across the Location graph (db/lib/trumpet.js). Held,
+// not equipped: you pick a trumpet up to blow it.
+const TRUMPET_SLUG = "trumpet";
 const HUMAN_FLESH_SLUG = "human-flesh";
 const ENGRAVE_RESOURCE_COST = 4;
 // How many turns a person's corpse stays fresh before it turns. Monster
@@ -127,6 +132,7 @@ module.exports = {
   PACKAGE_MAX_UNITS,
   PACKAGE_LABEL_MAX,
   SURGICAL_EQUIPMENT_SLUG,
+  TRUMPET_SLUG,
   HUMAN_FLESH_SLUG,
   ENGRAVE_RESOURCE_COST,
   CORPSE_ROT_TURNS,
