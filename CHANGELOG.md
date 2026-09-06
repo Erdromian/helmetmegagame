@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The web app's icons are now Lucide
+
+✎ Every icon on the site is redrawn from the Lucide set at the same thin weight, so the rail, the action grid and the GM buttons all match  
+✎ Six game-specific glyphs (the Tower, the ankh, the cleaver, the two headstones, the wax seal) stay hand-drawn
+
 ## 2026-09-06 · The web can speak: a live Play page
 
 ✚ A Play page on the web, right under Character: the channel of the Location you stand in, live, with a box to speak into it. What you type appears at once and reaches everyone else within a blink.  
