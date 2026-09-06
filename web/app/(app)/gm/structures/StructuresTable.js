@@ -13,7 +13,7 @@ import { damageStructure, repairStructure, destroyStructure, clearStructure } fr
 const DESTROY_CONFIRM = {
   title: "Destroy this structure? ‡",
   message:
-    "It becomes a ruin on Examine. A ruin cannot be repaired from this page — only cleared. If this resolves a player assault, remember the two-turn rule: the attack was declared publicly LAST turn — a siege never resolves the turn it is declared. ‡",
+    "It becomes a ruin on Examine and any edge it held reverts. A ruin cannot be repaired from this page — only cleared. If this resolves a player assault, remember the two-turn rule: the attack was declared publicly LAST turn — a siege never resolves the turn it is declared. ‡",
   confirmLabel: "Destroy",
 };
 
@@ -31,7 +31,7 @@ const VERBS = {
       confirm: {
         title: "Damage this structure? ‡",
         message:
-          "It reads as damaged on Examine and the Move card, and its labor bonus or kit stops serving until repaired. ‡",
+          "It reads as damaged on Examine and the Move card, and its labor bonus or kit stops serving until repaired. Any edge it holds stays held. ‡",
         confirmLabel: "Damage",
       },
     },
@@ -134,6 +134,7 @@ export default function StructuresTable({ structures }) {
             <th scope="col">Crew</th>
             <th scope="col">Builder</th>
             <th scope="col">Paid</th>
+            <th scope="col">Edge</th>
             <th scope="col">Rulings</th>
           </tr>
         </thead>
@@ -155,6 +156,16 @@ export default function StructuresTable({ structures }) {
                   <>
                     <span className="mono">{row.resourcesCost} ⬢</span>
                     <span className="text-muted"> — {row.payerName}</span>
+                  </>
+                ) : (
+                  "—"
+                )}
+              </td>
+              <td>
+                {row.edgeLabel ? (
+                  <>
+                    {row.edgeLabel}{" "}
+                    <span className="text-muted">{row.edgeOpen ? "(open) ‡" : "(shut) ‡"}</span>
                   </>
                 ) : (
                   "—"

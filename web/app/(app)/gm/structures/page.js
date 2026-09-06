@@ -21,6 +21,7 @@ export default async function StructuresPage() {
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     include: {
       location: { select: { name: true, zone: { select: { name: true, sortOrder: true } } } },
+      link: { select: { a: { select: { name: true } }, b: { select: { name: true } }, isOpen: true } },
     },
   });
 
@@ -50,6 +51,9 @@ export default async function StructuresPage() {
     payerName: row.payerName ?? "—",
     resourcesCost: row.resourcesCost ?? 0,
     crew: crewBySite.get(row.id) ?? 0,
+    // The bound edge by its endpoint NAMES — a cuid means nothing at a desk.
+    edgeLabel: row.link ? `${row.link.a.name} ↔ ${row.link.b.name}` : null,
+    edgeOpen: row.link?.isOpen ?? null,
     createdAtMs: row.createdAt.getTime(),
   }));
 
@@ -57,7 +61,7 @@ export default async function StructuresPage() {
     <PageShell>
       <PageHeader
         title="Structures"
-        subtitle="Everything built, rising or wrecked, and the rulings on it. Damage stops a structure serving — its bonus, its kit — until Repair; Destroy makes a ruin; Clear sweeps a wreck off the map. ‡"
+        subtitle="Everything built, rising or wrecked, and the rulings on it. Damage stops a structure serving — its bonus, its kit — until Repair; Destroy makes a ruin and reverts any edge it held; Clear sweeps a wreck off the map. ‡"
       />
       <StructuresTable structures={structures} />
     </PageShell>

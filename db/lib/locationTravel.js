@@ -15,10 +15,6 @@ const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
 const { OVERBURDENED_SLUG } = require("./constants");
 const { isMounted, isBoated, boatCrossing, equippedSlugs } = require("./mounts");
 const { linkBetween, crossingCheck } = require("./locationGraph");
-const { MOTION_SICKNESS_SLUG, VOMITING_SLUG } = require("./constants");
-const { expiryForGrant } = require("./grantExpiry");
-const { addToStack } = require("./tagWrites");
-const { sendDm } = require("./dm");
 
 // Legs too badly hurt to walk a whole zone for free. A Peg Leg is absent on
 // purpose — Bascinet's call, a wooden leg still walks. An equipped mount
@@ -57,31 +53,6 @@ function freeMovesLeft(character, config, openTurn) {
   if (!openTurn) return allowance;
   const spent = character?.zoneMovesTurnId === openTurn.id ? (character.zoneMovesUsed ?? 0) : 0;
   return Math.max(0, allowance - spent);
-}
-
-// Motion Sickness can't be equipped onto a mount or a boat (that gate lives
-// in web/app/(app)/character/equipActions.js) — so the only way it ever rides
-// one is being dragged along by someone else's. Best-effort and swallows its
-// own errors: a DM or a tag write going wrong should never break the move
-// itself. Fires once per zone crossing that way, and does nothing if the
-// character already holds vomiting.
-async function vomitOnTheRide(prisma, row, openTurn) {
-  try {
-    const already = row.tags?.some((ct) => ct.tag.slug === VOMITING_SLUG);
-    if (already) return;
-    const tag = await prisma.tag.findUnique({
-      where: { slug: VOMITING_SLUG },
-      select: { id: true, defaultDurationTurns: true },
-    });
-    if (!tag) return;
-    const expiresTurn = await expiryForGrant(prisma, tag, openTurn);
-    await addToStack(prisma, row.id, tag.id, 1, { source: "EVENT", expiresTurn });
-    if (row.discordUserId) {
-      await sendDm(prisma, row.discordUserId, "The ride turns your stomach. You're **Vomiting**. ‡");
-    }
-  } catch (err) {
-    console.error("vomitOnTheRide failed:", err);
-  }
 }
 
 // `crossing` is optional: `{ fromZoneSlug, toZoneSlug }` when the caller knows
@@ -391,13 +362,6 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
     });
   }
 
-  // Whether ANY leg of this move was a free ride, for the Motion Sickness
-  // check below — a dragged passenger who has no mount of their own still
-  // gets sick if the one dragging them does.
-  const ridden =
-    crossedZone &&
-    (isMounted(equippedSlugs(character.tags ?? [])) || isBoated(equippedSlugs(character.tags ?? [])));
-
   const moved = [];
   for (const row of [character, ...outcome.draggedRows]) {
     const fromLocationId = row.id === character.id ? currentLocation?.id ?? null : row.locationId;
@@ -407,12 +371,6 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
     // walked into this turn; kind, open turn and error swallowing all live in
     // the helper.
     const cavingDm = await rollCavingOnArrival(prisma, row, targetLocation);
-    if (ridden && row.id !== character.id && row.status === "ALIVE") {
-      const carsick = row.tags?.some((ct) => ct.tag.slug === MOTION_SICKNESS_SLUG);
-      if (carsick) {
-        await vomitOnTheRide(prisma, row, openTurn);
-      }
-    }
     moved.push({
       character: { id: row.id, name: row.name, discordUserId: row.discordUserId, status: row.status },
       fromLocationId,

@@ -4,7 +4,7 @@
 // (db/lib/intercom.js); Toggle Turret is on exactly one other, the Censor's
 // Office, and works the gun in the fortress yard
 // (db/lib/gatehouseTurret.js); Sound Bell is on the Cathedral's Bell Tower and
-// carries across the Location graph (db/lib/bell.js). The four watchtowers get a SECOND
+// rings across four zones (db/lib/bell.js). The four watchtowers get a SECOND
 // row on top of this one — the gate button — composed by
 // db/lib/syncZones.js#roomComponents rather than here, because it needs the
 // graph and this file has no prisma. Raw component JSON for the same reason as

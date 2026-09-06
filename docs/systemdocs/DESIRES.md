@@ -429,7 +429,7 @@ Four `GameConfig` knobs govern this system, all live-editable from
   the game, so it is the first number to reach for if income is running hot or
   cold. `0` disables the lock entirely, which is a debugging setting, not a
   balance one.
-- **`maxDrawbackTags`** (default 6) — **not** a Desires-system knob itself,
+- **`maxDrawbackTags`** (default 5) — **not** a Desires-system knob itself,
   but the field every drawback counts against at character creation. It caps
   the *count* of point-bought drawback tags, not their combined point value —
   see `TAGS.md` §4a for the full rule and why this replaced the old

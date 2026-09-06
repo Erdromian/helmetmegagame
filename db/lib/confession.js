@@ -20,7 +20,7 @@ const { gambitModifierTotal } = require("./gambitModifier");
 const { moveWindow } = require("./turnClock");
 const { isHere, notHereMessage } = require("./presence");
 const { offerButtonRow } = require("./offerRow");
-const { CHAPLAIN_SLUG, CONFESSION_THRESHOLD, GUILT_RIDDEN_SLUG } = require("./constants");
+const { CHAPLAIN_SLUG, CONFESSION_THRESHOLD } = require("./constants");
 
 // What a confession needs to know about each side. hungerStreak feeds the
 // penitent's Gambit modifier, same as a hand-filed Gambit.
@@ -63,9 +63,6 @@ function isChaplain(character) {
 // docs/tags.yaml. Nothing about the chaplain narrows this — a chaplain is a
 // chaplain — so unlike teachableSkills it takes one character.
 function confessableTags(penitent) {
-  // Guilt Ridden's whole rule: someone drowning in guilt can't bring
-  // themself to name any one sin, so the list is empty rather than filtered.
-  if (heldSlugs(penitent).has(GUILT_RIDDEN_SLUG)) return [];
   return (penitent?.tags ?? [])
     .map((ct) => ct.tag)
     .filter((tag) => tag?.psychological)
@@ -118,8 +115,6 @@ async function validateConfession(
     return "That chaplain isn't around any more. ‡";
   if (!penitent || penitent.status !== "ALIVE")
     return "That penitent isn't around any more. ‡";
-  if (heldSlugs(penitent).has(GUILT_RIDDEN_SLUG))
-    return "You can't bring yourself to confess. ‡";
   if (chaplain.id === penitent.id) return "You can't confess to yourself. ‡";
   if (!isHere(chaplain, penitent)) return notHereMessage(penitent);
   if (!isHere(penitent, chaplain)) return notHereMessage(chaplain);

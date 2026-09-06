@@ -392,7 +392,10 @@ DM: the stakeholders already heard about the destruction or abandonment, and
 **Destroy** takes any of the three present statuses
 (`UNDER_CONSTRUCTION`/`COMPLETE`/`DAMAGED`) to `RUINED`. Sabotaging a site
 still under construction destroys the work done, never silently — the crew
-still get the destruction DM, same as a finished structure's contributors.
+still get the destruction DM, same as a finished structure's contributors. If
+the structure held a `LocationLink` edge (`Structure.linkId`) and nothing else
+in `HOLDS_EDGE` still holds it, the edge reverts to its born (`authoredOpen`)
+state and both endpoints' anchors are reposted.
 
 **Player demolition is a GAMBIT adjudicated at the desk, never an apply-first
 Request.** The GM resolves the die, stages the public outcome through the

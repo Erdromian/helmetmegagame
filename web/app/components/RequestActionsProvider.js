@@ -61,7 +61,6 @@ import {
   moveCharacterRequest,
   bindCharacterRequest,
   freeCharacterRequest,
-  crucifyCharacterRequest,
   harmCharacterRequest,
   buryCharacterRequest,
   butcherCorpseRequest,
@@ -429,10 +428,6 @@ export default function RequestActionsProvider({
   canExtract = false,
   extractBlocked = null,
   canSeePackage = false,
-  // Crucify: you hold `fundamentalist` and a COMPLETE Cross stands where you
-  // are. Both facts about YOUR sheet and YOUR ground, resolved in
-  // character/page.js; the action re-checks both.
-  canCrucify = false,
 }) {
   const [mode, setMode] = useState(null);
   const [tagId, setTagId] = useState(null);
@@ -563,13 +558,9 @@ export default function RequestActionsProvider({
     () => lootTargets.find((t) => t.id === targetId) ?? null,
     [lootTargets, targetId],
   );
-  // Bind, Free and Crucify share one roster: Bind wants the untied, Free the
-  // tied, Crucify anyone not already on the cross.
+  // Bind and Free share one roster, split on who is already tied up.
   const bindable = useMemo(
-    () =>
-      bindTargets.filter((t) =>
-        mode === "bind" ? !t.bound : mode === "free" ? t.bound : !t.crucified,
-      ),
+    () => bindTargets.filter((t) => (mode === "bind" ? !t.bound : t.bound)),
     [bindTargets, mode],
   );
 
@@ -882,8 +873,6 @@ export default function RequestActionsProvider({
         return bindCharacterRequest({ targetCharacterId: targetId, reason });
       case "free":
         return freeCharacterRequest({ targetCharacterId: targetId, reason });
-      case "crucify":
-        return crucifyCharacterRequest({ targetCharacterId: targetId, reason });
       case "harm":
         return harmCharacterRequest({
           targetCharacterId: targetId,
@@ -956,7 +945,6 @@ export default function RequestActionsProvider({
         return Boolean(targetId && locationId);
       case "bind":
       case "free":
-      case "crucify":
         return Boolean(targetId);
       case "harm":
         return Boolean(targetId && (tagId || lethal));
@@ -1041,7 +1029,6 @@ export default function RequestActionsProvider({
       canSeeExtract,
       canExtract,
       canSeePackage,
-      canCrucify,
     }),
     [
       craftable,
@@ -1068,7 +1055,6 @@ export default function RequestActionsProvider({
       canSeeExtract,
       canExtract,
       canSeePackage,
-      canCrucify,
     ],
   );
 
@@ -1751,24 +1737,20 @@ export default function RequestActionsProvider({
               </>
             )}
 
-            {(mode === "bind" || mode === "free" || mode === "crucify") && (
+            {(mode === "bind" || mode === "free") && (
               <>
                 {bindable.length === 0 ? (
                   <NobodyHere>
                     {mode === "bind"
                       ? "There’s nobody here left to tie up."
-                      : mode === "free"
-                        ? "Nobody here is bound."
-                        : "There’s nobody here to put on the cross. ‡"}
+                      : "Nobody here is bound."}
                   </NobodyHere>
                 ) : (
                   <label className="field">
                     <span className="field-label">
                       {mode === "bind"
                         ? "Who are you tying up?"
-                        : mode === "free"
-                          ? "Who are you cutting loose?"
-                          : "Who are you crucifying? ‡"}
+                        : "Who are you cutting loose?"}
                     </span>
                     <Select
                       value={targetId}
@@ -1789,9 +1771,7 @@ export default function RequestActionsProvider({
                 <p className="text-xs text-muted">
                   {mode === "bind"
                     ? "Once they're Bound you can search them or march them somewhere. Say why."
-                    : mode === "free"
-                      ? "Anyone standing here can do this, including someone who came to rescue them."
-                      : "They go up on the cross now. They can still speak, but nothing else — and in a turn they are Dying. It doesn't spend your Move. Say why. ‡"}
+                    : "Anyone standing here can do this, including someone who came to rescue them."}
                 </p>
               </>
             )}

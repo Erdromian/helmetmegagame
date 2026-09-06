@@ -1757,33 +1757,6 @@ desires:
     requires:
       anyRoles: [metalsmith]
 
-  # --- Faith and the cross --------------------------------------------------
-  # Any belief but Atheist: the list is every general-beliefs tag except that
-  # one, so a new belief tag has to be added here by hand.
-  build-wayside-shrine:
-    name: Build a Wayside Shrine
-    tier: 2
-    cooldownTurns: 6
-    families: [faith, craft]
-    requires:
-      anyTags:
-        - post-christian
-        - existentialist
-        - fundamentalist
-        - old-ways-eusoch
-        - old-ways-sylvia
-        - old-ways-thoth
-        - old-ways-bacchus
-        - pilgrim
-        - saint
-
-  crucify-a-heretic:
-    name: Crucify a heretic
-    tier: 2
-    families: [faith, cruelty]
-    requires:
-      anyTags: [fundamentalist]
-
   barons-commission:
     name: Complete a commission for the Baron
     tier: 4

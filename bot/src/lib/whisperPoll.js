@@ -1,4 +1,4 @@
-const { concealedAlias, withArticle } = require("@lifeweb/db/lib/concealedIdentity");
+const { concealedAlias, withArticle, capitalizeFirst } = require("@lifeweb/db/lib/concealedIdentity");
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
 
@@ -79,9 +79,8 @@ async function runWhisperPoll(prisma) {
     const aliases = speakerIds.map((id) =>
       withArticle(concealedAlias(speakers.get(id) ?? {}).toLowerCase()),
     );
-    // "You hear …" leads every audible line in the game, which is also what
-    // retires the is/are agreement and the leading capital this used to need.
-    const line = ambientLine(`You hear ${joinAliases(aliases)} whispering…`);
+    const verb = speakerIds.length === 1 ? "is" : "are";
+    const line = ambientLine(`${capitalizeFirst(joinAliases(aliases))} ${verb} whispering…`);
 
     // Sequential and catch-logged: one unreachable room must not stop the
     // rest of the tick, and a burst of parallel posts is what trips the

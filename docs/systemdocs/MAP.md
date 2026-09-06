@@ -72,9 +72,7 @@ boolean anywhere in the schema: the row is the gate. See `LABORING.md`.
 
 Beyond its name and description, a Location carries a sparse map of
 **attributes** — `Location.attributes`, a JSON object authored as an
-`attributes:` block in `docs/zones.yaml` — and, optionally, a `structures:`
-list of the built things that were always standing there (the Square's cross),
-seeded as `COMPLETE` `Structure` rows by the zone sync (`SYNC.md` §2):
+`attributes:` block in `docs/zones.yaml`:
 
 ```yaml
 customs:
@@ -175,6 +173,16 @@ Two things about the gating that are easy to get wrong:
   makes a hidden one listed. That is not a leak, it is the whole feature: a
   door somebody held open has to be visible to the people meant to follow them
   through it.
+- **A modular edge marked `structural` answers differently while shut,
+  depending on whether anything holds it.** With no `COMPLETE`/`DAMAGED`
+  structure claiming it (`Structure.linkId`, `HOLDS_EDGE`), a shut structural
+  edge is listed and refuses with "Nothing spans the way here — it would have
+  to be built. ‡" — the discovery hook, telling a player the crossing exists
+  but has to be raised, not merely opened. Once something holds it, a shut
+  structural edge answers exactly like an ordinary modular one: "The way is
+  shut. ‡" A **`locked:`** structural edge still answers as locked first,
+  ahead of the structural branch — a key-gated crossing that also happens to
+  be structural stays a locked door, not an unbuilt one, deliberately.
 
 A gate's **announcement is posted from the Discord half**
 (`applyLocationMoveSideEffects`), derived from the edge rather than passed in,
@@ -232,6 +240,18 @@ once means one close and one "somebody just did." Both endpoints' anchors are
 reposted, because the gate has a button on each side. **A re-sync never reopens
 a gate somebody shut in play** — `modular.open` in the YAML is the value a link
 is *born* with, not one the sync re-asserts.
+
+A **structural** edge (`modular.structural` in the YAML, `LocationLink.structural`)
+renders no Open/Close button at all until something built holds it:
+`gateOperable` (`db/lib/locationGraph.js`) requires a `COMPLETE` or `DAMAGED`
+structure claiming the edge **and** at least one authored opener (a Role or a
+tag) before it counts as a working mechanism — an unheld ford is open water
+with nothing to click, and a held one with no openers is a fixture, not a
+gate. Once both hold, the button appears on **both** endpoints exactly like
+any other modular edge. Examine's own gate line (`LABORING.md` §9) reads the
+same verdict: an unheld shut structural edge prints "Nothing spans the way to
+X — it would have to be built. ‡" rather than the ordinary "The way to X is
+closed. ‡".
 
 ## 3. What a move costs
 
@@ -366,4 +386,4 @@ the geography it described no longer exists. The
 | `db/lib/turnFormat.js` | `turnDay` — the in-game day a mount's second crossing is claimed against |
 | `db/lib/locationGraph.js` | `LocationLink` reads and the gating verdict — the only module that touches the edge model |
 | `db/lib/locationAttributes.js` | The attribute registry, its sync-time validation, and the prose Examine prints |
-| `docs/zones.yaml` | The master: zones, Locations (with their seeded `structures:`), Rooms, and `connections:` with its edge types |
+| `docs/zones.yaml` | The master: zones, Locations, Rooms, and `connections:` with its edge types |

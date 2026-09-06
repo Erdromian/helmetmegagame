@@ -81,8 +81,6 @@ export const ACTION_HELP = {
   move: "Forcibly move someone with the Bound tag, from where you stand to somewhere next door. Use this before moving yourself. If you're a Leader, you can also move people within your own faction. It does not spend their turn. Bodies can be dragged by anyone. ‡",
   bind: "Tie someone up. They have to agree — unless they're already helpless. Once they're Bound you can loot them or march them somewhere. ‡",
   free: "Cut someone loose. Anyone standing here can do this, including a rescuer.",
-  crucify:
-    "Put someone standing here on the cross. It needs a Cross built where you stand, and it doesn't spend your Move. They hang there unable to act, and in a turn they are Dying. ‡",
   harm: "Further injure someone who is bound or incapacitated.",
   butcher:
     "Cut up a body — one you're carrying, or one lying in a room you can get into here — for what's inside it. Costs nothing and takes no time, and the body is gone afterwards. It does not free their soul. ‡",
@@ -179,10 +177,6 @@ export const ACTION_SECTIONS = [
       { mode: "loot", icon: LootIcon, label: "Loot" },
       { mode: "bind", icon: ShackleIcon, label: "Bind" },
       { mode: "free", icon: KeyIcon, label: "Free" },
-      // HIDDEN rather than greyed, the Extract rule: whether YOU are a
-      // Fundamentalist standing at a Cross is your own fact, and a dead
-      // Crucify icon on every other sheet would teach nothing.
-      { mode: "crucify", icon: WoundIcon, label: "Crucify ‡", show: "canCrucify" },
       { mode: "harm", icon: WoundIcon, label: "Harm" },
       { mode: "move", icon: MapIcon, label: "Move Player" },
     ],

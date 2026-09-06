@@ -97,15 +97,6 @@ CONFESSION branch, which also names no tag. And `cancelOffersForAction` in
 `lessons.js` is shared, so its GM-reject DM says "confession" and "chaplain"
 when the offer is one.
 
-## 5a. Guilt Ridden can't confess at all
-
-Guilt Ridden blocks Confession outright, on both surfaces: `db/lib/
-confession.js#confessableTags` returns an empty list and `validateConfession`
-refuses the Move if the penitent holds it, and `web/app/(app)/character/
-page.js` hides the Confess button by the same check. The sin someone is
-guilty enough about to feel this way is not one they can bring themselves to
-speak — the character's own drawback shuts the surface, not a GM decision.
-
 ## 6. Edges
 
 - **A GM who writes a result before the push wins.** An Action already

@@ -19,15 +19,7 @@ import { isSuperadmin } from "@/lib/superadmin";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { setMerchantSeal } from "@lifeweb/db/lib/merchantSeal";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
-import {
-  isWanted,
-  postWantedPosters,
-  isDebtor,
-  postDebtorNotices,
-  DEBTOR_STARTING_OBOLS,
-} from "@lifeweb/db/lib/wantedPoster";
-import { addToStack } from "@lifeweb/db/lib/tagWrites";
-import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
+import { isWanted, postWantedPosters } from "@lifeweb/db/lib/wantedPoster";
 import {
   syncCharacterNickname,
   ensureCharacterRole,
@@ -318,13 +310,6 @@ export async function createCharacter(formData) {
     }
   }
 
-  // Hoisted above the transaction so both the obol grant inside it and the
-  // poster/notice fan-out after it read one variable instead of computing it
-  // twice.
-  const heldSlugs = [...selected, ...startingTags]
-    .filter((t) => tagIdsToGrant.has(t.id))
-    .map((t) => t.slug);
-
   let created;
   try {
     created = await prisma.$transaction(async (tx) => {
@@ -378,21 +363,6 @@ export async function createCharacter(formData) {
         })),
       });
 
-      // The Merchant advanced him half of it; the paper says the rest
-      // (db/lib/wantedPoster.js#DEBTOR_STARTING_OBOLS).
-      if (isDebtor(heldSlugs)) {
-        const obolTag = await tx.tag.findUnique({
-          where: { slug: OBOL_SLUG },
-          select: { id: true, stackable: true },
-        });
-        if (obolTag) {
-          await addToStack(tx, character.id, obolTag.id, DEBTOR_STARTING_OBOLS, {
-            source: "EVENT",
-            stackable: obolTag.stackable,
-          });
-        }
-      }
-
       return character;
     });
   } catch (err) {
@@ -420,17 +390,15 @@ export async function createCharacter(formData) {
   // Somebody who arrives already Wanted has three posters go up in the same
   // breath (db/lib/wantedPoster.js). Best-effort like its neighbours: a sheet
   // may never cost a character that already exists.
+  const heldSlugs = [...selected, ...startingTags]
+    .filter((t) => tagIdsToGrant.has(t.id))
+    .map((t) => t.slug);
   if (isWanted(heldSlugs)) {
     await postWantedPosters(
       prisma,
       { ...created, zoneName: role.startingLocation?.zone?.name ?? null },
       openTurn,
     ).catch((err) => console.error("postWantedPosters failed:", err));
-  }
-  // Same shape for Debtor, three sheets in the Merchant's rooms instead.
-  if (isDebtor(heldSlugs)) {
-    await postDebtorNotices(prisma, { ...created, zoneName: role.startingLocation?.zone?.name ?? null }, openTurn)
-      .catch((err) => console.error("postDebtorNotices failed:", err));
   }
   if (!created.locationId) await syncCharacterNarrowcastAccess(created.id).catch(() => {});
   if (cursed) await removeCursedRole(discordUserId).catch(() => {});

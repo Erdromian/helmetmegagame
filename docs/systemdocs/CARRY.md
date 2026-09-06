@@ -185,13 +185,6 @@ while stowed — no carry multiplier, no extra zone move, no passenger seats.
 They compete for the same six `GameConfig.equipSlots` as armour and weapons,
 which is the point: a cart should cost you something to keep out.
 
-**Motion Sickness** refuses equipping any of the three outright
-(`web/app/(app)/character/equipActions.js`) — a Motion Sick character never
-rides. A Motion Sick character *dragged along* by someone else's mounted or
-boated crossing doesn't get a say: `db/lib/locationTravel.js#vomitOnTheRide`
-grants them Vomiting (and DMs them) the moment a mounted or boated mover
-crosses a zone with them in tow.
-
 A **connection** can keep a mount out too — `on_foot: true`, which refuses a
 mounted character rather than parking them on arrival (`MAP.md` §2c). The two
 are complements: `indoors` covers a place, `on_foot` covers a way in.
