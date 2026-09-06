@@ -13,7 +13,9 @@
       "Bash(DATABASE_URL=* npx prisma migrate deploy*)",
       "Bash(DATABASE_URL=* npx prisma migrate status*)",
       "Bash(DATABASE_URL=* node db/scripts/*)",
-      "Bash(DATABASE_URL=* npm run db*)"
+      "Bash(DATABASE_URL=* npm run db*)",
+      "Bash(ssh-keygen)",
+      "Bash(ssh-keygen *)"
     ]
   },
   "autoMode": {
@@ -30,7 +32,9 @@
       "Bash(DATABASE_URL=* npx prisma migrate deploy*)",
       "Bash(DATABASE_URL=* npx prisma migrate status*)",
       "Bash(DATABASE_URL=* node db/scripts/*)",
-      "Bash(DATABASE_URL=* npm run db*)"
+      "Bash(DATABASE_URL=* npm run db*)",
+      "Bash(ssh-keygen)",
+      "Bash(ssh-keygen *)"
     ]
   },
   "hooks": {
