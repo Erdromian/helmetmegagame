@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The Deaf tag is gone, and the trade kits are one-per-character
+
+− The Deaf tag. Hard of Hearing no longer conflicts with it, and the intercom no longer refuses anyone for it  
+✎ The three Commoner kits conflict with each other, and so do the ten Courtier kits, so a character picks one trade at creation  
+✎ Six retired tags pruned from the database: Deaf, Empathetic, Kennelmaster, Navigating, Compromising Letters, Peerless Beauty
+
 ## 2026-09-06 · Four community fixes, merged from Erdromian's and kezzawozza's pull requests
 
 ✎ A bare cart is now refused at an on-foot threshold, the same way a horse is  
