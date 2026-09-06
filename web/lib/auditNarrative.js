@@ -249,6 +249,9 @@ const R = {
   ooc_report_closed: (d) => [actor(), t("closed an OOC report ticket"), ...(d.name ? [t("—"), em(d.name)] : [])],
 
   // ---- System (actor is "system") ----
+  // The weather clause is dead for new rows — weather was deleted — but the
+  // audit log is history, and rows written while it existed still carry the
+  // field. Guarded, so keeping it costs one line and old turns stay readable.
   turn_advanced: (d) => [
     t("Turn"), em(String(d.number ?? "?")), t("opened —"), em(titleCase(d.phase)),
     ...(d.weather ? [t("·"), em(titleCase(d.weather))] : []),

@@ -723,7 +723,7 @@ Both build the context with `buildNarrowcastContext` and run
 | **`#turns` sweep** (`db/lib/turnAnnouncement.js#postTurnsConsole`, via `dawnWipe.js#clearMessagesExcept`) | every turn, Dawn or Dusk | deletes everything in `#turns` except the console message just posted — a stray GM post, an orphaned console from before a config reset |
 
 `#turns` is **not** in `SPECIAL_CHANNELS` and the Dawn wipe never reaches it —
-it is one rolling message (the turn announcement, weather banner, and player
+it is one rolling message (the turn announcement, turn banner, and player
 console) that gets deleted and reposted every turn regardless of
 `messageWipeEnabled`, so its sweep runs on that same cadence rather than the
 Dawn-only one above. It is best-effort: a sweep failure is logged but never

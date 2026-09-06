@@ -51,13 +51,6 @@ import Select from "@/app/components/Select";
 import StatusPill from "@/app/components/StatusPill";
 import EmptyState from "@/app/components/EmptyState";
 
-const WEATHER_OPTIONS = [
-  { value: "CLEAR", label: "Clear" },
-  { value: "FOG", label: "Fog" },
-  { value: "RAIN", label: "Rain" },
-  { value: "STORM", label: "Storm" },
-];
-
 // Eight numeric Depot knobs share one shape, so they share one component
 // rather than eight copies of the same six lines.
 function DepotField({ name, label, value, help }) {
@@ -173,7 +166,7 @@ export default async function DevPanelPage({ searchParams }) {
   const section = SECTIONS.has(s) ? s : "game";
 
   // Always fetched: the header needs the open turn regardless of section,
-  // and the turn section derives day/phase/weather from the same rows.
+  // and the turn section derives day and phase from the same rows.
   const [config, state, openTurnRecord, lastTurn, depot, readyCount, livingCount] = await Promise.all([
     prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
     prisma.gameState.upsert({ where: { id: 1 }, update: {}, create: GAME_STATE_CREATE, include: { game: { select: { number: true } } } }),
@@ -204,7 +197,6 @@ export default async function DevPanelPage({ searchParams }) {
 
   const currentDay = openTurnRecord ? Math.ceil(openTurnRecord.number / 2) : Math.ceil(((lastTurn?.number ?? 0) + 1) / 2);
   const currentPhase = openTurnRecord?.phase ?? (lastTurn?.phase === "DAWN" ? "DUSK" : "DAWN");
-  const currentWeather = openTurnRecord?.weather ?? "CLEAR";
 
   // Mirrors advanceTurn()'s own phase alternation, so the confirm dialog can
   // warn about the Dawn wipe only when the next turn actually triggers one.
@@ -584,14 +576,6 @@ export default async function DevPanelPage({ searchParams }) {
                       <option value="DUSK">DUSK</option>
                     </Select>
                   </label>
-                  <label className="field">
-                    <span className="field-label">Weather</span>
-                    <Select name="weather" defaultValue={currentWeather}>
-                      {WEATHER_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </Select>
-                  </label>
                   <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
                 </form>
 
@@ -605,7 +589,8 @@ export default async function DevPanelPage({ searchParams }) {
                 )}
 
                 <p className="ops-lede">
-                  Save overrides the current turn&apos;s day/phase/weather directly.
+                  Save overrides the current turn&apos;s day and phase directly. Changing the
+                  phase also picks a new banner for it. ‡
                 </p>
               </section>
 
@@ -613,20 +598,10 @@ export default async function DevPanelPage({ searchParams }) {
                 <div className="ops-section-head">
                   <h2 className="section-title">Next Turn</h2>
                   <p className="ops-lede">
-                    {state.nextWeather ? `Weather set to ${state.nextWeather}` : "Weather will be rolled automatically."}
-                    {state.nextTurnNote ? ` — note: "${state.nextTurnNote}"` : ""}
+                    {state.nextTurnNote ? `Note ready for the next turn: "${state.nextTurnNote}"` : "No note set for the next turn. ‡"}
                   </p>
                 </div>
                 <form action={updateNextTurn} className="flex flex-col gap-3">
-                  <label className="field">
-                    <span className="field-label">Weather</span>
-                    <Select name="weather" defaultValue={state.nextWeather ?? ""} className="max-w-48">
-                      <option value="">Random</option>
-                      {WEATHER_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </Select>
-                  </label>
                   <label className="field">
                     <span className="field-label">Note (optional)</span>
                     <textarea name="note" defaultValue={state.nextTurnNote ?? ""} rows={2} />

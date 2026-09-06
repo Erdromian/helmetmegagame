@@ -1,7 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import EmptyState from "@/app/components/EmptyState";
+import Modal from "@/app/components/Modal";
+import HallAside from "./HallAside";
+import HereList from "./HereList";
 import PlacesColumn, { PlacesTabs } from "./PlacesColumn";
 import Feed from "./Feed";
 import { useSeen, markSeen } from "./seenStore";
@@ -53,7 +56,7 @@ function decodeHash(hash) {
   }
 }
 
-export default function Hall({ initialPlaces, initialPlace, initialRows, initialSeq, self }) {
+export default function Hall({ initialPlaces, initialPlace, initialRows, initialSeq, self, aside }) {
   // The server's list is the first paint; the stream replaces it whole from
   // its first `places` event onward.
   const streamed = usePlaces();
@@ -76,6 +79,13 @@ export default function Hall({ initialPlaces, initialPlace, initialRows, initial
   const newest = useCallback((place) => newestSeq(place.placeKey) ?? place.newestSeq ?? null, []);
 
   const onSeen = useCallback((placeKey, seq) => markSeen(placeKey, seq), []);
+
+  // The phone's ⚡ sheet. The right column has no room to stand on a narrow
+  // screen, so it comes up over the scene instead — the same three panels,
+  // rendered by the same component.
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const openSheet = useCallback(() => setSheetOpen(true), []);
+  const closeSheet = useCallback(() => setSheetOpen(false), []);
 
   // One stream for the tab. `since` is the seq the server render was taken at,
   // so the catch-up carries what happened while the page was loading and
@@ -156,13 +166,22 @@ export default function Hall({ initialPlaces, initialPlace, initialRows, initial
       <PlacesColumn places={places} selected={selectedKey} seen={seen} newest={newest} onSelect={onSelect} />
       <div className="hall-centre">
         <PlacesTabs places={places} selected={selectedKey} seen={seen} newest={newest} onSelect={onSelect} />
-        <Feed place={selected} self={self} onSeen={onSeen} />
+        {/* On a phone the people are an avatar strip under the place header,
+            opening the same per-person menu the column's rows do. It draws
+            nowhere else — CSS hides it above 720px. */}
+        {aside && <HereList people={aside.people} selfId={aside.selfId} strip />}
+        <Feed place={selected} self={self} onSeen={onSeen} onOpenSheet={aside ? openSheet : null} />
       </div>
-      {/* Phase 3: the people standing here, the place panel, the You strip. */}
-      <aside className="hall-aside">
-        <p className="hall-section-title">Here ‡</p>
-        <EmptyState>Who is standing here comes next. ‡</EmptyState>
-      </aside>
+      {aside && (
+        <aside className="hall-aside">
+          <HallAside {...aside} />
+        </aside>
+      )}
+      {aside && sheetOpen && (
+        <Modal open title="Here ‡" onClose={closeSheet} panelClassName="modal-panel hall-sheet">
+          <HallAside {...aside} sheet />
+        </Modal>
+      )}
     </div>
   );
 }

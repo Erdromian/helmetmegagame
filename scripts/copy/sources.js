@@ -61,7 +61,7 @@ const YAML_SOURCES = [
 // ---------------------------------------------------------------------------
 
 // Directories walked for inline copy.
-const JS_ROOTS = ["web/app", "web/lib", "bot/src", "db/lib", "db/weather.js"];
+const JS_ROOTS = ["web/app", "web/lib", "bot/src", "db/lib", "db/turnCalendar.js"];
 
 // Never walked. `.claude/worktrees` holds stale duplicate checkouts of bot/
 // and db/ that a repo-wide pass would otherwise rewrite as well.
@@ -137,7 +137,6 @@ const COPY_CALLS = new Set([
 const COPY_CONSTANTS = new Set([
   "HUNGER_DM",
   "CONSOLE_TEXT",
-  "WEATHER_MESSAGES",
   "REQUEST_TYPE_LABELS",
   "REQUEST_STATUS_LABELS",
 ]);
@@ -165,7 +164,7 @@ const EMBED_CALLS = new Set(["addFields", "setFooter", "setAuthor"]);
 const EMBED_KEYS = new Set(["name", "value", "text"]);
 
 // Roots where a final loose pass picks up prose held in a plain variable —
-// the bot composes several of its longest lines that way (db/weather.js's
+// the bot composes several of its longest lines that way (db/turnCalendar.js's
 // turn announcement, for one). The surface is small enough that the noise
 // stays manageable; web/ is left to the targeted matchers.
 const LOOSE_ROOTS = ["bot/src", "db/"];
@@ -226,7 +225,7 @@ const JS_GROUPS = [
   {
     group: "bot-turns",
     test: (f) =>
-      /turnsConsole|turnAnnouncement|turnEngine|turnFormat|moveModal|moveConfirm|autoLaborPass|hungerPass|tagExpiryPass|weather|labor|travel/i.test(
+      /turnsConsole|turnAnnouncement|turnEngine|turnFormat|turnCalendar|turnBanner|moveModal|moveConfirm|autoLaborPass|hungerPass|tagExpiryPass|labor|travel/i.test(
         f,
       ),
   },

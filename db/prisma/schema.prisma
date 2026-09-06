@@ -118,13 +118,6 @@ enum TurnStatus {
   RESOLVED
 }
 
-enum Weather {
-  CLEAR
-  FOG
-  RAIN
-  STORM
-}
-
 // How much of a tag a 🔍 inspect shows to somebody else. HIDDEN is the
 // default and the common case; ALWAYS is worn-or-not; WORN is the concealable
 // middle — a dagger in a pocket, a badge left at home. WORN is only meaningful
@@ -544,8 +537,7 @@ model GameState {
   // The Lifeweb's blood pool, 0-100 (db/lib/lifeweb.js).
   lifewebBlood Int @default(100)
 
-  // GM overrides consumed by the next turn advance, then nulled.
-  nextWeather  Weather?
+  // GM override consumed by the next turn advance, then nulled.
   nextTurnNote String?
 
   // THE BOMB. Two nullable turn numbers, and nothing else in the schema knows
@@ -2663,7 +2655,11 @@ model Turn {
   id         String     @id @default(cuid())
   number     Int        @unique
   phase      TurnPhase
-  weather    Weather    @default(CLEAR)
+  // Which banner #turns posted for this turn — a filename in docs/assets/turn/,
+  // chosen once when the turn opens so a repost shows the same picture rather
+  // than a fresh roll. Null on rows that predate the column; the resolver
+  // picks one on the spot for those (db/lib/turnBanner.js).
+  banner     String?
   gameDate   DateTime
   status     TurnStatus @default(OPEN)
   startedAt  DateTime   @default(now())

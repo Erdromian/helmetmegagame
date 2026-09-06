@@ -15,10 +15,10 @@ const {
 // the ringer is standing. An ephemeral modal outlives somebody walking down
 // out of the tower, so permission is decided at submit, never at open.
 
+const { RING_WORD, bellWordMatches } = require("@lifeweb/db/lib/bell");
+
 const BELL_MODAL_PREFIX = "bell:ring:";
 const BELL_WORD_FIELD = "bell:word";
-
-const RING_WORD = "RING";
 
 const BELL_HELP = "-# Heard for a long way around, loudest near the Cathedral. Nobody is pinged. ‡";
 
@@ -38,11 +38,6 @@ function buildBellModal(roomId) {
         ),
     )
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(BELL_HELP));
-}
-
-// Case and stray spaces forgiven: the word is a speed bump, not a password.
-function bellWordMatches(typed) {
-  return String(typed ?? "").trim().toUpperCase() === RING_WORD;
 }
 
 module.exports = {

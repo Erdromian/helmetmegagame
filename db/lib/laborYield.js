@@ -7,7 +7,7 @@
 // impossible there — the button prints a bare × and the resolver skips it.
 //
 // The model is a mean-reverting random walk with occasional jump events, in
-// the same spirit as db/weather.js's Markov table: most days nothing much
+// the same spirit as a Markov chain: most days nothing much
 // happens, and rarely something does and then wears off. Per turn, per row:
 //
 //   target  = in an event ? eventTarget : base

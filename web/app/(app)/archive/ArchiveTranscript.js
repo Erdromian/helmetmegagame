@@ -26,13 +26,6 @@ function dayLabel(entry) {
   return `Day ${Math.ceil(entry.turnNumber / 2)}`;
 }
 
-// A TURN_START row's content is "Day N — PHASE\n<weather>\n<note>" (db/index.js);
-// the second line is the weather, capitalised for the header.
-function weatherOf(entry) {
-  const line = (entry.content ?? "").split("\n")[1]?.trim();
-  return line ? `${line.charAt(0)}${line.slice(1).toLowerCase()}` : null;
-}
-
 function sceneLabel(entry) {
   const place = entry.zoneName ?? "Elsewhere";
   return entry.threadName ? `${place} · ${entry.threadName}` : place;
@@ -70,13 +63,12 @@ function buildBlocks(entries) {
     if (thisDay !== dayKey) {
       dayKey = thisDay;
       sceneKey = undefined;
-      lastDay = { type: "day", key: `d${entry.id}`, label: dayLabel(entry), phase: phaseWord(entry.turnPhase), weather: null };
+      lastDay = { type: "day", key: `d${entry.id}`, label: dayLabel(entry), phase: phaseWord(entry.turnPhase) };
       blocks.push(lastDay);
     }
     if (entry.kind === "TURN_START") {
-      // The header IS this row: its weather goes on the day line and the row
-      // itself is not rendered.
-      if (lastDay) lastDay.weather = weatherOf(entry);
+      // The header IS this row — the day line above already says everything it
+      // carries, so the row itself is not rendered.
       continue;
     }
     const thisScene = sceneLabel(entry);
@@ -106,7 +98,7 @@ export default function ArchiveTranscript({ entries }) {
         if (b.type === "day") {
           return (
             <div key={b.key} className="archive-day">
-              {[b.label, b.phase, b.weather].filter(Boolean).join(" · ")}
+              {[b.label, b.phase].filter(Boolean).join(" · ")}
             </div>
           );
         }

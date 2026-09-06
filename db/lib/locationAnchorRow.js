@@ -15,7 +15,23 @@
 // bot/src/events/interactionCreate.js — change a prefix here and you must
 // change it there.
 
-const { hasNoticeboard } = require("./noticeboard");
+// The LABELS and the predicates live in db/lib/placeAffordances.js, so the
+// anchor and the Hall's place panel cannot drift about what a place offers.
+// What is left here is Discord's shape: rows, styles and the 5-per-row cap.
+const {
+  GO,
+  DANGER: DANGER_TONE,
+  TRAVEL_CUSTOM_ID,
+  WHOS_HERE_PREFIX,
+  NOTICEBOARD_PREFIX,
+  SECRET_ROOMS_PREFIX,
+  EXAMINE_PREFIX,
+  CONVERSE_PREFIX,
+  GATE_PREFIX,
+  KEYED_PREFIX,
+  locationAffordances,
+  gateLabel,
+} = require("./placeAffordances");
 
 const ACTION_ROW = 1;
 const BUTTON = 2;
@@ -23,17 +39,6 @@ const SECONDARY = 2;
 const SUCCESS = 3;
 const DANGER = 4;
 
-const WHOS_HERE_PREFIX = "loc:who:";
-const NOTICEBOARD_PREFIX = "loc:notice:";
-const SECRET_ROOMS_PREFIX = "loc:secret:";
-const EXAMINE_PREFIX = "loc:examine:";
-const CONVERSE_PREFIX = "loc:converse:";
-// Not a prefix but one fixed id, shared with the #turns console and the
-// /travel command: travel needs no location context, because handleTravelOpen
-// reads the mover's own locationId.
-const TRAVEL_CUSTOM_ID = "loc:open";
-const GATE_PREFIX = "loc:gate:";
-const KEYED_PREFIX = "loc:keyed:";
 
 // Discord's cap on buttons in one action row, and on a button label.
 const ROW_BUTTON_LIMIT = 5;
@@ -54,55 +59,15 @@ const LABEL_MAX = 80;
 // an anchor it sits in a row of plain-text buttons and the one emoji only made
 // it shout. The handler resolves the mover from the interaction rather than
 // the channel, so the identical id works from anywhere.
+const TONE_STYLE = { [GO]: SUCCESS, [DANGER_TONE]: DANGER };
+
 function locationAnchorButtons(location) {
-  const locationId = typeof location === "string" ? location : location?.id;
-  const board = typeof location === "string" ? false : hasNoticeboard(location);
-  return [
-      // Travel is the green one. It is the button people are here to press —
-      // the others answer a question about where you already are, and this one
-      // is how you leave. Who's here? held the green until 2026-09-06 and is
-      // now grey with the rest of the readouts.
-      {
-        type: BUTTON,
-        style: SUCCESS,
-        custom_id: TRAVEL_CUSTOM_ID,
-        label: "Travel",
-      },
-      {
-        type: BUTTON,
-        style: SECONDARY,
-        custom_id: `${WHOS_HERE_PREFIX}${locationId}`,
-        label: "Who's here? ‡",
-      },
-      {
-        type: BUTTON,
-        style: SECONDARY,
-        custom_id: `${SECRET_ROOMS_PREFIX}${locationId}`,
-        label: "Secret rooms? ‡",
-      },
-      {
-        type: BUTTON,
-        style: SECONDARY,
-        custom_id: `${EXAMINE_PREFIX}${locationId}`,
-        label: "Examine",
-      },
-      {
-        type: BUTTON,
-        style: SECONDARY,
-        custom_id: `${CONVERSE_PREFIX}${locationId}`,
-        label: "Converse",
-      },
-      ...(board
-        ? [
-            {
-              type: BUTTON,
-              style: SECONDARY,
-              custom_id: `${NOTICEBOARD_PREFIX}${locationId}`,
-              label: "Noticeboard",
-            },
-          ]
-        : []),
-  ];
+  return locationAffordances(location).map((entry) => ({
+    type: BUTTON,
+    style: TONE_STYLE[entry.tone] ?? SECONDARY,
+    custom_id: entry.customId,
+    label: entry.label.slice(0, LABEL_MAX),
+  }));
 }
 
 // The rows the anchor posts: the buttons above, chunked to Discord's per-row
@@ -141,7 +106,7 @@ function locationGateRow(gates) {
       // Danger on the one that shuts a way, so a misclick reads as one.
       style: gate.isOpen ? DANGER : SUCCESS,
       custom_id: `${GATE_PREFIX}${gate.linkId}`,
-      label: `${gate.isOpen ? "Close" : "Open"} the way to ${gate.farName} ‡`.slice(0, LABEL_MAX),
+      label: gateLabel(gate).slice(0, LABEL_MAX),
     })),
   };
 }

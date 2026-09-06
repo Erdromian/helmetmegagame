@@ -7,21 +7,13 @@
 // keyword, with nothing keeping them in step. They are re-exported from the
 // deep path instead, which resolves without the barrel (and so without Prisma)
 // because @lifeweb/db declares no `exports` map. Everything below is genuinely
-// web-only: themes, weather labels, the turn label a page renders.
+// web-only: themes and the turn label a page renders.
 export { turnsLeft, formatTurnsLeft, tagDuration, expiryFrom, expiryFor } from "@lifeweb/db/lib/turnFormat";
 
-const WEATHER_LABELS = {
-  CLEAR: "Clear",
-  FOG: "Fog",
-  RAIN: "Rain",
-  STORM: "Storm",
-};
-
 export function describeTurn(turn) {
-  if (!turn) return { day: null, phase: null, weather: null, label: "NO TURN OPEN" };
+  if (!turn) return { day: null, phase: null, label: "NO TURN OPEN" };
   const day = Math.ceil(turn.number / 2);
-  const weatherLabel = WEATHER_LABELS[turn.weather] ?? turn.weather;
-  return { day, phase: turn.phase, weather: turn.weather, label: `DAY ${day} · ${turn.phase} · ${weatherLabel}` };
+  return { day, phase: turn.phase, label: `DAY ${day} · ${turn.phase}` };
 }
 
 // The themes globals.css defines. Both phase themes are underground darks;

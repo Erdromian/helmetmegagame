@@ -20,6 +20,7 @@ import {
 } from "@lifeweb/db";
 import { runChannelDoctor } from "@lifeweb/db/lib/channelDoctor";
 import { postTurnsAnnouncement } from "@lifeweb/db/lib/turnAnnouncement";
+import { pickTurnBanner, nextTurnBanner } from "@lifeweb/db/lib/turnBanner";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import {
@@ -161,34 +162,40 @@ export async function updateCurrentTurn(formData) {
 
   const day = intOrNull(formData, "day");
   const phase = str(formData, "phase") || "DAWN";
-  const weather = str(formData, "weather") || "CLEAR";
   if (day == null || day < 1) return;
 
   const number = (day - 1) * 2 + (phase === "DAWN" ? 1 : 2);
 
   const openTurnRecord = await prisma.turn.findFirst({ where: { status: "OPEN" } });
   if (openTurnRecord) {
-    await prisma.turn.update({ where: { id: openTurnRecord.id }, data: { number, phase, weather } });
+    // A phase flip has to re-pick the banner, or a dusk turn keeps riding a
+    // dawn plate. Saving the form unchanged leaves the picture alone, so this
+    // doubles as the GM re-roll: switch the phase and switch it back.
+    const banner =
+      openTurnRecord.phase === phase && openTurnRecord.banner
+        ? openTurnRecord.banner
+        : await nextTurnBanner(prisma, phase);
+    await prisma.turn.update({ where: { id: openTurnRecord.id }, data: { number, phase, banner } });
   } else {
-    await prisma.turn.create({ data: { number, phase, weather, status: "OPEN", gameDate: new Date() } });
+    await prisma.turn.create({
+      data: { number, phase, banner: await nextTurnBanner(prisma, phase), status: "OPEN", gameDate: new Date() },
+    });
   }
 
   revalidatePath("/gm/dev");
   revalidatePath("/", "layout");
 }
 
-// Pending weather/note for the *next* turn, consumed by advanceTurn().
-// Empty string -> null weather means "roll randomly" there.
+// A pending note for the *next* turn, consumed by advanceTurn().
 export async function updateNextTurn(formData) {
   await requireSuperadmin();
 
-  const weather = str(formData, "weather").trim() || null;
   const note = str(formData, "note").trim() || null;
 
   await prisma.gameState.upsert({
     where: { id: 1 },
-    create: { ...GAME_STATE_CREATE, nextWeather: weather, nextTurnNote: note },
-    update: { nextWeather: weather, nextTurnNote: note },
+    create: { ...GAME_STATE_CREATE, nextTurnNote: note },
+    update: { nextTurnNote: note },
   });
 
   revalidatePath("/gm/dev");
@@ -233,7 +240,7 @@ export async function forceAdvanceTurn() {
       data: {
         actorDiscordUserId: session.discordUserId,
         actionType: "superadmin_turn_forced",
-        details: { previousTurnId: previousTurn?.id ?? null, newTurnId: newTurn.id, number: newTurn.number, phase: newTurn.phase, weather: newTurn.weather },
+        details: { previousTurnId: previousTurn?.id ?? null, newTurnId: newTurn.id, number: newTurn.number, phase: newTurn.phase },
       },
     });
 
@@ -372,7 +379,7 @@ export async function wipeGameData(formData) {
     await prisma.faction.deleteMany({ where: { foundedById: { not: null } } });
 
     const firstTurn = await prisma.turn.create({
-      data: { number: 1, phase: "DAWN", weather: "CLEAR", status: "OPEN", gameDate: new Date() },
+      data: { number: 1, phase: "DAWN", banner: pickTurnBanner("DAWN"), status: "OPEN", gameDate: new Date() },
     });
 
     await prisma.auditLog.create({

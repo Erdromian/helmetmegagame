@@ -7,54 +7,21 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { getGuildChannels, postMessage, deleteMessage, postAttachment } = require("./discordRest");
-const { buildTurnAnnouncement } = require("../weather");
+const { buildTurnAnnouncement } = require("../turnCalendar");
 const { clockFrozen, readGameState } = require("./gameState");
 const { TURNS_CONSOLE_ROW, CONSOLE_TEXT } = require("./turnsConsoleRow");
 const { docsPath } = require("./repoPaths");
 const { clearMessagesExcept } = require("./dawnWipe");
 const { isTurnsChannel } = require("./turnsChannelAccess");
+const { TURN_BANNER_DIR, turnBannerPath } = require("./turnBanner");
 
-// One banner per weather per phase, built by docs/assets/make-weather.py in
-// the same 2446x1122 frame as the #info banner. Returns null when the file
-// is absent, which is the whole point of resolving it this way: a missing
-// asset must cost the guild its banner, never its turn announcement.
-const WEATHER_BANNER_DIR = docsPath("assets", "weather");
-
-// After the bomb there is no weather, only the sky. `state` (GameState) is
-// optional so every existing caller keeps working; pass it and a detonated
-// game pins the fireball on for good, which is the whole of the "permanently
-// set for the rest of the game" requirement.
-function weatherBannerPath(turn, state = null) {
-  if (state?.nukeDetonatedTurn != null) {
-    if (!WEATHER_BANNER_DIR) return null;
-    const nuke = path.join(WEATHER_BANNER_DIR, "nuke.jpg");
-    // Falls through to the ordinary weather banner if the asset is missing,
-    // rather than leaving the announcement with no image at all.
-    if (fs.existsSync(nuke)) return nuke;
-    console.error(`Turn announcement: nuke banner missing from ${WEATHER_BANNER_DIR}`);
-  }
-  if (!turn?.weather || !turn?.phase) return null;
-  // docsPath returns null when docs/ can't be found at all; repoPaths.js says
-  // to treat that as "no banner". Guard it here: path.join(null, ...) throws,
-  // and a TypeError here would take the whole turn announcement down with it
-  // — the DAY/PHASE header, console text, and Travel/Move/Speak buttons —
-  // over a missing image. This mainly bites the WEB container, where
-  // Turbopack inlines __dirname as a literal that doesn't exist.
-  if (!WEATHER_BANNER_DIR) return null;
-  const file = path.join(
-    WEATHER_BANNER_DIR,
-    `${turn.weather.toLowerCase()}-${turn.phase.toLowerCase()}.jpg`,
-  );
-  return fs.existsSync(file) ? file : null;
-}
-
-// #turns is ONE rolling message: the turn announcement, the weather banner and
+// #turns is ONE rolling message: the turn announcement, the banner and
 // the player console on a single post, deleted and reposted each turn — one
 // message has no ordering problem to solve. Discord renders content, then
 // attachments, then components, which is exactly the wanted layout:
 //
-//   DAY 4 · DUSK · Rain          <- content
-//   [ weather banner ]           <- attachment
+//   DAY 4 · DUSK                 <- content
+//   [ turn banner ]              <- attachment
 //   Travel   Move   Speak        <- components, always last
 //
 // and the buttons are at the bottom of the channel by construction.
@@ -95,17 +62,17 @@ async function postTurnsConsole(prisma, channelId, text, turn, config, state = n
   // but it must not do so SILENTLY. Both failure modes are logged and
   // distinguished: absent from disk is a deploy problem, a rejected upload is
   // a permissions or payload problem.
-  const bannerFile = weatherBannerPath(turn, state);
+  const bannerFile = turnBannerPath(turn, state);
   if (turn && !bannerFile) {
     console.error(
-      `Turn announcement: no weather banner for ${turn.weather}/${turn.phase} in ${WEATHER_BANNER_DIR}`,
+      `Turn announcement: no banner for ${turn.banner ?? "(unset)"}/${turn.phase} in ${TURN_BANNER_DIR}`,
     );
   }
 
   let sent = null;
   if (bannerFile) {
     sent = await postAttachment(channelId, bannerFile, text, [TURNS_CONSOLE_ROW]).catch((err) => {
-      console.error("Turn announcement: weather banner upload failed:", err);
+      console.error("Turn announcement: banner upload failed:", err);
       return null;
     });
   }
@@ -136,4 +103,4 @@ async function postTurnsConsole(prisma, channelId, text, turn, config, state = n
   return sent;
 }
 
-module.exports = { postTurnsAnnouncement, postTurnsConsole, weatherBannerPath };
+module.exports = { postTurnsAnnouncement, postTurnsConsole };

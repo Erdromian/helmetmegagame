@@ -6,6 +6,22 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The Play page grows its right column: people, the place, and you
+
+✚ Who is standing with you, with the same Look at, Heal, Transfer, Loot, Bind, Free, Harm and Move Player dialogs the sheet has, one tap from their name.  
+✚ Every button the Discord anchor carries is on the Play page too: Travel with drag-along and Turn back, Examine the place, Storage, the Noticeboard, Converse, the Bell, the PA, the turret, gates and keyed doors.  
+✚ Move, a Report to the GMs box, and a Waiting-on-you list of offers, threat seats, letters and lobby seats you can accept or decline from the web.  
+✎ Gates, keyed doors, Move and Who's here now run one implementation for both faces.
+
+## 2026-09-06 · Weather is gone, and every turn opens on a new photograph
+
+− The weather system: no more clear/fog/rain/storm, no roll, and no sentence about it on the turn announcement. It gated nothing.  
+− The GM's "set next turn's weather" control on the Dev Panel. The note box beside it stays.  
+✚ Eight new turn photographs, four for Dawn and four for Dusk, graded to sit together as one set. One is picked when the turn opens.  
+✎ A turn never repeats the picture the last turn of the same half of the day used, so no two mornings running look the same.  
+✎ The picture is remembered on the turn, so a bot restart reposts the same one instead of quietly swapping it mid-turn.  
+✎ Changing a turn's phase by hand on the Dev Panel now picks a fresh picture for it, which doubles as a way to re-roll one you dislike.
+
 ## 2026-09-06 · Weights back up, made real, and the carry cap down to 84 lb
 
 ✎ The 30% weight cut was an accident and is undone: everything is back on the old scale  

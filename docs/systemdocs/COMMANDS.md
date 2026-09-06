@@ -408,7 +408,10 @@ so the handlers need no channel→Location lookup; change a prefix in that
 file and you must change it in `interactionCreate.js` too.
 
 - **Who's here?** (`handleWhosHere`) lists everyone `ALIVE` and standing in
-  this Location: named characters first (with their `roleTitle` shown to a
+  this Location. Since phase 3 of the Hall the rule itself is
+  **`db/lib/whosHere.js#whosHere`**, and the handler only speaks the answer —
+  `/play`'s people column reads the same function, so the street and the page
+  cannot disagree about who a stranger is. Named characters first (with their `roleTitle` shown to a
   fellow member of the same real faction, same rule the 🔍 inspect gate
   uses), then concealed characters as their alias with an article — "a young
   man" — and no title, since a Role is as identifying as a name. Nobody here
@@ -627,6 +630,21 @@ that path is special-cased in `consumeTagRequestImpl` exactly the way a
 `SEALED` letter is, because a photo is a runtime row no `consumesInto:` slug
 could ever name.
 
+### Four handlers that are now only Discord
+
+`handleGateToggle`, `handleKeyedPrompt`, `handleMoveSubmit` and
+`handleWhosHere` hold no game logic any more. Each acknowledges, calls one
+`db/lib` function (`gates.js`, `gates.js`, `moves.js`, `whosHere.js`) and
+says the sentence that comes back — the Hall's dialogs call the same
+functions, so a rule can no longer be true on one face and not the other.
+The one thing that stays bot-side is the **anchor redraw** after a gate
+flips: `refreshLocationAnchor` and `refreshGateRooms` edit Discord messages
+the bot owns, and `toggleGate` hands back the two location ids for whoever
+has messages to redraw. A web flip therefore leaves the Discord anchor a
+click behind until the bot's next redraw or the channel doctor's pass, which
+is the cheaper half of the two options — a NOTIFY would have been a second
+long-lived listener for one message. ‡
+
 ## 7. Where the code lives
 
 | File | Role |
@@ -638,7 +656,13 @@ could ever name.
 | `bot/src/lib/locationTravel.js` | The Location picker/drag/confirm rows, the pending-drag map, `performMove` |
 | `db/lib/locationTravel.js` | `performLocationMove` — validation, the cooldown or the Move, dragging (`MAP.md` §3) |
 | `db/lib/locationMove.js` | `applyLocationMoveSideEffects` — the Discord half of a move, shared by bot and web (`MAP.md` §4) |
-| `db/lib/locationAnchorRow.js` | The three anchor buttons (Who's here? / Secret rooms? / Converse), as shared component JSON |
+| `db/lib/placeAffordances.js` | **The affordance catalog** — the label and the predicate for every place-bound button, plus `affordancesFor(prisma, character)` for the Hall's place panel. Both row builders below read it, so a new button is one entry |
+| `db/lib/locationAnchorRow.js` | The anchor buttons as Discord component JSON, styled off the catalog's tones |
+| `db/lib/roomStarterRow.js` | A Room starter's buttons, the same way |
+| `db/lib/gates.js` | `toggleGate` / `holdKeyedOpen` — the transactional flip and the 24-hour hold, shared with `/play` |
+| `db/lib/moves.js` | `fileMove` — every gate in front of an `Action` row, shared with `/play` |
+| `db/lib/whosHere.js` | `whosHere` / `whosHereLines` — who is standing here, shared with `/play` |
+| `db/lib/examineLocation.js` | `examineLines` — the Examine readout, read by `/play` |
 | `db/lib/roomAccess.js` | `syncCharacterRoomAccess`, `accessibleRooms`, `heldTagSlugs` — private Room membership |
 | `bot/src/lib/converseModal.js` | The Converse modal |
 | `bot/src/lib/whisperPoll.js` | The 15-minute Room whisper cron |

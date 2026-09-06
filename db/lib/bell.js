@@ -43,6 +43,15 @@ const BELL_COOLDOWN_MS = 30 * 60 * 1000;
 // muffles. It opens "You hear" because every audible thing in the game does.
 const BELL_LINE = "You hear a church bell ringing.";
 
+// What somebody types to pull the rope. The word is a speed bump, not a
+// password — case and stray spaces are forgiven — and it lives here rather
+// than in the bot's modal builder so the Hall's confirm asks for the same one.
+const RING_WORD = "RING";
+
+function bellWordMatches(typed) {
+  return String(typed ?? "").trim().toUpperCase() === RING_WORD;
+}
+
 // Null until somebody has rung it. Returns { ok } or { ok: false, secondsLeft }
 // so the caller can say how long the rope has left to hang still.
 function bellCooldown(bellRungAt, now = Date.now()) {
@@ -74,6 +83,8 @@ module.exports = {
   BELL_LOUD_HOPS,
   BELL_COOLDOWN_MS,
   BELL_LINE,
+  RING_WORD,
+  bellWordMatches,
   bellCooldown,
   broadcastBell,
 };

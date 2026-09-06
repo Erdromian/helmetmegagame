@@ -694,8 +694,13 @@ export default function RequestActionsProvider({
   }
 
   // `presetTagId` lets a sheet-chip click open this dialog pre-selected.
+  // `presets` seeds the one field a caller already knows: the Hall's people
+  // column opens Heal or Loot from a person's own row, and asking them to
+  // pick that person again out of a dropdown would be a worse dialog than
+  // the sheet's. Only `targetId` / `patientId` / `toKey` are seedable —
+  // everything else in a dialog is a decision, not a context.
   const open = useCallback(
-    (next, presetTagId = null) => {
+    (next, presetTagId = null, presets = null) => {
       setMode(next);
       setTagId(presetTagId);
       setQuantity("1");
@@ -729,6 +734,11 @@ export default function RequestActionsProvider({
       setPaperExisting(null);
       setStampId("");
       setError(null);
+      // After the resets above, never before — a preset is the exception to
+      // the blank slate, not part of it.
+      if (presets?.patientId) setPatientId(presets.patientId);
+      if (presets?.targetId) setTargetId(presets.targetId);
+      if (presets?.toKey) setToKey(presets.toKey);
     },
     [selfId],
   );

@@ -2,8 +2,15 @@ import { redirect } from "next/navigation";
 import { prisma, feedRowShape, FEED_ROW_SELECT } from "@lifeweb/db";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 import EmptyState from "@/app/components/EmptyState";
+import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
+import { whosHere } from "@lifeweb/db/lib/whosHere";
+import { linksFor } from "@lifeweb/db/lib/locationGraph";
+import { carryStatus } from "@lifeweb/db/lib/carry";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
+import { loadPeoplePools } from "@/lib/peoplePools";
+import RequestActionsProvider from "@/app/components/RequestActionsProvider";
 import Hall from "./Hall";
+import { waitingOnYou } from "./actions";
 
 // /play — the Hall. Three columns on a desktop, one on a phone: everywhere
 // this character can hear on the left, the open scene in the middle, and (in
@@ -69,7 +76,59 @@ export default async function PlayPage() {
     ? presentedIdentity(viewer.character, { forcedName, concealment })
     : { name: null };
 
-  return (
+  // The right column. Everything in it is a fact about where this character
+  // is standing, so it is loaded here and re-checked by every action the
+  // panels call — a disabled button is a hint, never a lock.
+  //
+  // A GM watching a zone has no character, and therefore nothing to stand in,
+  // nobody to act on and no Move to file. They get the feed and no column.
+  const aside = viewer.character
+    ? await (async () => {
+        const [people, affordances, links, waiting, pools] = await Promise.all([
+          whosHere(prisma, viewer.character),
+          affordancesFor(prisma, viewer.character),
+          viewer.character.locationId ? linksFor(prisma, viewer.character.locationId) : [],
+          waitingOnYou(),
+          // The people dialogs the sheet has, over the same pools the sheet
+          // builds (web/lib/peoplePools.js) so the two cannot disagree about
+          // who is standing near you.
+          loadPeoplePools(viewer.character, {
+            discordUserId: viewer.discordUserId,
+            openTurn: await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, phase: true } }),
+          }),
+        ]);
+        // What this character is carrying, and what it weighs against their
+        // cap — the Transfer dialog projects a hand-over off both, and an
+        // empty pair would offer nothing to give away.
+        const [sheet, gameConfig] = await Promise.all([
+          prisma.character.findUnique({
+            where: { id: viewer.character.id },
+            select: {
+              resources: true,
+              tags: { select: { tagId: true, quantity: true, equipped: true, tag: true } },
+            },
+          }),
+          prisma.gameConfig.findUnique({ where: { id: 1 } }),
+        ]);
+        const rooms = viewer.character.locationId
+          ? await prisma.room.count({ where: { locationId: viewer.character.locationId } })
+          : 0;
+        return {
+          people,
+          affordances,
+          rooms,
+          exits: links.length,
+          place: viewer.character.location ?? null,
+          waiting: waiting.ok ? waiting.rows : [],
+          selfId: viewer.character.id,
+          pools,
+          sheet,
+          carry: carryStatus({ ...viewer.character, ...sheet }, gameConfig),
+        };
+      })()
+    : null;
+
+  const hall = (
     <Hall
       initialPlaces={places}
       initialPlace={first.placeKey}
@@ -80,6 +139,37 @@ export default async function PlayPage() {
         name: identity.name,
         avatarVersion: viewer.character?.updatedAt?.getTime?.() ?? null,
       }}
+      aside={aside}
     />
+  );
+
+  // Look at, Heal, Transfer, Loot, Bind, Free, Harm and Move Player are the
+  // SHEET's dialogs, mounted here over the same pools rather than rebuilt.
+  // Only the people half is handed down: the rest of the sheet's pools —
+  // craft, paper, the bird, the Factory — belong to the sheet, and ActionGrid
+  // is not mounted here at all.
+  if (!aside) return hall;
+  return (
+    <RequestActionsProvider
+      selfId={viewer.character.id}
+      selfName={viewer.character.name}
+      characterTags={aside.sheet?.tags ?? []}
+      resources={aside.sheet?.resources ?? 0}
+      carry={aside.carry}
+      examineBlocked={aside.pools.examineBlocked}
+      canHeal={aside.pools.canHeal}
+      healsLeft={aside.pools.healsLeft}
+      healTargets={aside.pools.healTargets}
+      healParties={{ characters: aside.pools.peopleParties, rooms: [] }}
+      transferParties={{ characters: aside.pools.peopleParties, rooms: [] }}
+      lootTargets={aside.pools.lootTargets}
+      moveTargets={aside.pools.moveTargets}
+      moveLocations={aside.pools.moveLocations}
+      bindTargets={aside.pools.bindTargets}
+      harmTargets={aside.pools.harmTargets}
+      harmTags={aside.pools.harmTags}
+    >
+      {hall}
+    </RequestActionsProvider>
   );
 }

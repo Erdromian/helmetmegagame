@@ -839,6 +839,42 @@ The tag menu inside the Add and Harm dialogs shares `filterTagsByQuery` with
 for the same words, and its pane is `60vh` rather than the 16rem box that used
 to show three rows of a hundred-tag catalog.
 
+### 6a. The same dialogs on `/play`
+
+Since phase 3 of the Hall (`HALL.md` §5) the **people** dialogs have a second
+home. `/play`'s HERE column mounts the same `RequestActionsProvider` with the
+same pools and calls `open(mode, null, { targetId })` from a person's own row,
+so clicking somebody standing in the Keep opens the very dialog the sheet
+opens, already pointed at them. Nothing is forked, and no rule is stated twice.
+
+Two things carry that:
+
+- **`web/lib/peoplePools.js#loadPeoplePools(character, { discordUserId,
+  openTurn })`** is now the ONE build of the people pools — the roster
+  standing here, the medical gate and its day's allowance, and the Loot /
+  Move / Bind / Harm lists. `character/page.js` calls it too. It lived inside
+  that page while the sheet was the only surface that could act on somebody
+  near you; a second copy of "who is helpless" would have been a second
+  answer. ‡
+- **`open()` takes an optional third argument**, `{ targetId | patientId |
+  toKey }`, applied AFTER the dialog's own reset — a preset is the exception
+  to the blank slate, not part of it. Only those three fields are seedable:
+  everything else in a dialog is a decision, not a context. ‡
+
+The sheet keeps everything else. Craft, the paperwork verbs, the Bird and the
+Factory are not mounted in the Hall, and `ActionGrid` is not either — the
+column is a list of people, not a second grid.
+
+`/play` also carries three player actions that were Discord-only, all of them
+in `play/actions.js` and all of them re-checking every gate the panel drew:
+**Move** (`db/lib/moves.js#fileMove`, the same call the `#turns` Move modal
+makes), **Report to the GMs** (an INBOUND `DirectMessage` prefixed `[Play] `,
+sent nowhere near Discord, so it lands in `/gm/players`), and **Waiting on
+you** — the Accept/Decline for a pending offer, a threat spawn or a lobby
+seat, calling the same `db/lib` functions the DM's buttons call. None of the
+three files an `Action` twice: `fileMove` is guarded by
+`@@unique([characterId, turnId])`, and the rest write no Move at all. ‡
+
 One consequence worth knowing: `CharacterSheet#groupTagsByCategory` now groups
 the **`CharacterTag` rows**, not the bare `Tag`s. The wrapper carries
 `expiresTurn`, which the per-tag countdowns need; the old version discarded it.

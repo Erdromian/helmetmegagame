@@ -271,7 +271,7 @@ function extractStrings(code, file) {
       }
     }
 
-    // Bare string/array members of a copy constant (e.g. WEATHER_MESSAGES).
+    // Bare string/array members of a copy constant (e.g. CONSOLE_TEXT).
     if (node.type === "VariableDeclarator" && node.id && COPY_CONSTANTS.has(node.id.name)) {
       const init = node.init;
       if (init && init.type === "ArrayExpression") {

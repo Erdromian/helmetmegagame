@@ -216,7 +216,7 @@ each arrived at by getting them wrong first.
    the same thunk loop a GM's staged "Relocate to" uses. Audit action
    `travellers_arrived`.
 9. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
-10. **Open the next turn** with the alternated phase, and roll its weather (§4).
+10. **Open the next turn** with the alternated phase, and pick its banner (§4).
 11. **Write the `TURN_START` archive row** — here, where the turn is created,
    rather than in the side effects, so a failed announcement can't leave two
    days with no boundary in the transcript.
@@ -311,34 +311,36 @@ open. Each also writes exactly **one** summary `AuditLog` row
 players a per-character row would drown every human-authored line in
 `/gm/audit`.
 
-## 4. Weather
+## 4. Turn banners
 
-`db/weather.js`. Weather rolls every turn as a **Markov transition off the
-previous turn's weather**, with separate DAWN and DUSK tables so the roll also
-depends on which phase is being entered. `WEATHER_WEIGHTS` is the base
-distribution, used only for the very first turn the game plays.
+Each turn announcement carries a photograph. There are eight, four per phase, in
+`docs/assets/turn/{dawn,dusk}-{1..4}.jpg`, all cropped to the same 2446×1122
+frame as the `#info` banner so both channels read as one system. They are built
+by `docs/assets/make-turn-banners.js`, which holds the per-plate crop window and
+colour grade — run it again and you get the same eight files.
 
-The tuning is deliberate:
+There used to be a **weather** system here: a Markov chain rolling
+clear/fog/rain/storm off the previous turn, a sentence about it in the
+announcement, and a banner keyed on the result. It gated no mechanic. It is gone,
+and with it `Turn.weather`, `GameState.nextWeather`, the `Weather` enum and the
+GM's next-weather override.
 
-- **The diagonal creates streaks.** CLEAR and RAIN are "spell" states that run
-  several turns together — a clear spell, three turns of rain.
-- **STORM has the highest self-transition in either table.** Every other state
-  enters STORM rarely, but once one kicks off it can rage for days. Rare but
-  genuinely possible, rather than diluted away by restarting each turn.
-- **FOG is the phase-dependent one.** The DAWN table both enters and holds fog
-  far more readily; the DUSK table mostly resolves it back to CLEAR. Mornings
-  are foggy and it burns off by evening.
+**Which plate.** `db/lib/turnBanner.js` picks one when the turn opens and writes
+it to `Turn.banner`. The pick avoids whatever the last turn **of the same phase**
+used — same phase, not simply the previous turn, because turns alternate
+DAWN/DUSK and the turn before a dawn is always a dusk, whose plate was never a
+candidate anyway.
 
-A GM can override the next turn's weather from the Dev Panel
-(`GameConfig.nextWeather`); leaving it unset means "roll randomly".
+**Why it is stored rather than rolled at post time.** The announcement gets
+reposted: the bot rebuilds a missing console on cold start
+(`bot/src/lib/turnsConsole.js`) and `finishGameWipe` reposts it after a wipe. A
+fresh roll in either path would swap the picture out from under players
+mid-turn. A null `banner` — a row from before the column existed, or a creation
+path that forgot — is not "no picture": the resolver picks one on the spot, so a
+Turn 1 never posts bare.
 
-### Weather banners
-
-Each turn announcement carries a photo of the weather,
-one per weather **per phase** — eight images in
-`docs/assets/weather/{weather}-{phase}.jpg`, each a genuine dawn or dusk
-photograph, cropped to the same 2446×1122 frame as the `#info` banner by
-`docs/assets/make-weather.py` so both channels read as one system.
+**After the bomb there is no morning, only the sky.** `GameState.nukeDetonatedTurn`
+pins `nuke.jpg` for the rest of the game, ahead of the ordinary plate.
 
 How it is posted (`db/lib/turnAnnouncement.js`): **`#turns` is ONE rolling
 message**, replaced each turn, carrying the announcement, the banner and the
@@ -346,8 +348,8 @@ player console together. Discord renders content, then attachments, then
 components, which is exactly the order wanted:
 
 ```
-DAY 4 · DUSK · Rain          <- content
-[ weather banner ]           <- attachment
+DAY 4 · DUSK                 <- content
+[ turn banner ]              <- attachment
 Travel   Move   Speak        <- components, always last
 ```
 
@@ -364,10 +366,10 @@ runs the thunk this section describes.) Tracked on `GameConfig.turnsConsoleChann
 `turnsConsoleMessageId`; `turnsAnnouncementMessageId` and
 `turnsBannerMessageId` are no longer written.
 
-A missing image file is not an error — `weatherBannerPath()` returns null and
+A missing image file is not an error — `turnBannerPath()` returns null and
 the announcement posts alone. A banner is worth losing; a turn announcement
 is not. That also covers `docsPath()` itself coming back null: the guard is at
-the top of `weatherBannerPath`, because `path.join(null, …)` throws, and it
+the top of `turnBannerPath`, because `path.join(null, …)` throws, and it
 threw one line above the `existsSync` that was supposed to be the graceful
 exit — taking the announcement, the console text and the button row with it.
 
@@ -548,7 +550,8 @@ Surfaced to players on the `#turns` announcement (`Moves must be sent by
 | File | Role |
 |---|---|
 | `db/index.js` | `advanceTurn`, `resolveNeeds`, `sweepExpiredStacks` |
-| `db/weather.js` | The Markov tables and `rollWeather` |
+| `db/turnCalendar.js` | The in-fiction calendar and `buildTurnAnnouncement` |
+| `db/lib/turnBanner.js` | Picking and resolving the turn banner (§4) |
 | `db/lib/turnClock.js` | Turn end / Move cutoff derivation (§6a) |
 | `db/lib/stagedPush.js` | The staged push pass (`ADJUDICATION.md`) |
 | `db/lib/autoLaborPass.js` | The auto-labor pass |

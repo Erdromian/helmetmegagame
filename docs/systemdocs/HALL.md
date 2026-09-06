@@ -193,25 +193,28 @@ Desktop, three columns — `15rem minmax(0,1fr) 17rem`:
 
 ```
 ┌──────────────────┬──────────────────────────────────────┬────────────────────┐
-│ TOWN · Dusk 12   │  The Keep                        ⋯   │ (phase 3: people   │
-│──────────────────│  A vaulted hall, damp and echoing…   │  and the place)    │
-│ HERE             │──────────────────────────────────────│                    │
-│ ▸ The Keep       │  -# Somebody has entered from the    │                    │
-│ ROOMS            │     Square.                          │                    │
-│   Throne Room  ● │  ⊙ Cersei · Baroness          12:04  │                    │
-│   Cellar         │    "Shut the door behind you."       │                    │
-│   ▪ Baron's Off. │                                      │                    │
-│ CONVERSATIONS    │  ⊙ a young man                12:05  │                    │
-│   With Old Tom ● │    *pulls his cloak tighter*         │                    │
-│ SUMMARY          │                                      │                    │
-│   Town           │  ▢ Say something in the Throne Room…⌤│                    │
+│ TOWN · Dusk 12   │  The Keep                        ⋯   │ HERE · 7           │
+│──────────────────│  A vaulted hall, damp and echoing…   │ ◉ Cersei · Baroness│
+│ HERE             │──────────────────────────────────────│ ◉ a young man      │
+│ ▸ The Keep       │  -# Somebody has entered from the    │ ◌ a hooded figure  │
+│ ROOMS            │     Square.                          │────────────────────│
+│   Throne Room  ● │  ⊙ Cersei · Baroness          12:04  │ THE KEEP           │
+│   Cellar         │    "Shut the door behind you."       │ 3 rooms · 4 exits  │
+│   ▪ Baron's Off. │                                      │ [Travel][Examine]  │
+│ CONVERSATIONS    │  ⊙ a young man                12:05  │ [Storage][Notices] │
+│   With Old Tom ● │    *pulls his cloak tighter*         │ [Converse][Bell]   │
+│ SUMMARY          │                                      │────────────────────│
+│   Town           │  ▢ Say something in the Throne Room…⌤│ YOU                │
+│                  │                                      │ [Move…] [Sheet ›]  │
+│                  │                                      │ [Report to the GMs]│
+│                  │                                      │ Waiting on you (2) │
 └──────────────────┴──────────────────────────────────────┴────────────────────┘
 ```
 
 Under 720px, one column — the places column becomes a `.tab-bar` of
-`.tab-item`s with unread dots, and the right column is deferred to phase 3
-(its ⚡ button is drawn, disabled, so the composer's shape does not move under
-a player when it arrives):
+`.tab-item`s with unread dots, **HERE** is an avatar strip under the place
+header, and the rest of the right column comes up as a bottom sheet from the
+⚡ button beside the composer:
 
 ```
 ┌────────────────────────────────────┐
@@ -229,6 +232,23 @@ a player when it arrives):
 │   *pulls his cloak tighter*        │
 │────────────────────────────────────│
 │ ▢ Say something…            ⌤   ⚡ │
+└────────────────────────────────────┘
+```
+
+…and ⚡ opens the sheet, which is THE PLACE and YOU in the same order the
+column draws them:
+
+```
+┌────────────────────────────────────┐
+│ THE KEEP                        ✕  │
+│ 3 rooms · 4 exits                  │
+│ [Travel][Examine][Storage][Notices]│
+│ [Converse][Bell]                   │
+│────────────────────────────────────│
+│ YOU                                │
+│ [Move…] [Sheet ›]                  │
+│ [Report to the GMs]                │
+│ Waiting on you (2)                 │
 └────────────────────────────────────┘
 ```
 
@@ -266,6 +286,44 @@ a player when it arrives):
   (`db/lib/ambientLine.js`). Phase 4 is what actually writes them.
 - **The composer is hidden where `canSpeak` is false** — every place for a GM,
   and the Location for everybody (§5a). In its place, one line saying so.
+- **`HallAside.js`** is the right column — and, under 720px, everything
+  inside the ⚡ sheet. One component either way, because the phone's version
+  is the same three panels in the same order; only the box around them
+  changes, and the sheet is a `Modal` wearing `.hall-sheet` rather than a
+  drawer of its own, so it keeps Escape, the focus trap and the backdrop
+  `Modal` already owns.
+- **`HereList.js`** draws **HERE** off `db/lib/whosHere.js#whosHere` — the
+  same function the Discord anchor's "Who's here?" answers with. A named row
+  is an avatar, the presented name and, for a fellow member of a real
+  faction, their Role; a concealed one is the alias and the hood and **no
+  menu**, because there is nobody there to act on until the hood comes off. A
+  named row opens a `.hall-menu` of the SHEET's own people dialogs — Look at,
+  Heal, Transfer, Loot, Bind, Free, Harm, Move Player — by mounting
+  `RequestActionsProvider` on the page with the people pools and calling
+  `open(mode, null, { targetId })`, so the person is already filled in.
+  Nothing is forked: same dialogs, same server actions. The metagaming rule
+  (`actionRegistry.js`) still holds — no row is greyed for a fact about the
+  person it names.
+- **`PlacePanel.js`** draws **THE PLACE** off
+  `db/lib/placeAffordances.js#affordancesFor` (§5c), one dialog per
+  affordance, each calling a server action in `play/actions.js`. Anything
+  that changes a label a button wears — a gate now shut, a door now held —
+  re-reads the whole list rather than patching a row.
+- **`YouPanel.js`** draws **YOU**: the Move dialog (`db/lib/moves.js#fileMove`,
+  the same call the `#turns` console's modal makes), a link to the sheet,
+  **Report to the GMs** and **Waiting on you**. Report writes an INBOUND
+  `DirectMessage` prefixed `[Play] ` and sends nothing to Discord, so it
+  lands in `/gm/players` beside everything else that player has said and the
+  answer comes back down the ordinary DM path. Waiting on you lists the
+  pending offers, threat spawns, unanswered bird letters and a lobby
+  assignment; Accept and Decline call the **same** `db/lib` functions the DM
+  buttons call (`lessons.js`, `bind.js`, `confession.js`, `threatSpawn.js`,
+  `lobby.js`), so an answer given here and one given in Discord are one
+  answer, and the second surface finds nothing left to answer.
+- **`web/lib/peoplePools.js#loadPeoplePools`** is the one build of every
+  people pool — the roster standing here, the medical gate, the Loot / Move /
+  Bind / Harm lists. It came out of `character/page.js`, which calls it too:
+  a second copy of "who is helpless" would have been a second answer.
 - **`feedStore.js`** is a module-level store read through
   `useSyncExternalStore`, modelled on the GM inbox's `liveInbox.js`. Confirmed
   rows are keyed by seq, pending rows by a client id, both per place. A
@@ -328,6 +386,32 @@ are a scene somebody chose to be in. Four changes carry it:
   theirs.
 - On the web the Location place is `canSpeak: false` and draws no composer.
 
+### 5c. One affordance catalog, two faces
+
+`db/lib/placeAffordances.js` is the list of every place-bound button, and it
+is the reason the Discord anchor and the Hall's place panel cannot drift. Each
+entry carries an id, the **label a player reads**, a Discord custom-id prefix
+and a **tone** — `go`, `plain`, `danger`. A tone says what the affordance
+MEANS, never a colour: Discord maps it to a button style and the web maps it
+to a `.btn` variant, so neither face can reach for a look the other cannot
+express.
+
+Two halves, and they cannot be one function. `locationAffordances(location)`
+and `roomAffordances(room)` are what a **place** offers — that is all an
+anchor can carry, because it is one message for everybody standing in the
+street. `db/lib/locationAnchorRow.js` and `db/lib/roomStarterRow.js` are now
+only Discord's shape around those two: rows, styles and the five-per-row cap.
+
+`affordancesFor(prisma, character)` is what a **person** can do where they are
+standing, and it is what `/play` renders: the place's own, plus a Storage
+button per Room this character can actually get into, plus a gate for every
+modular way they can work from a watchtower they can reach, plus a keyed door
+they hold the key to. On Discord those last two are answered by a refusal
+instead, because an anchor cannot know who is reading it.
+
+Adding an affordance is one entry in the catalog, one dialog in
+`PlacePanel.js` and one server action. It is not two lists to keep in step.
+
 ## 6. What comes next, in order
 
 1. ~~**One write path**~~ — done (§2, §4). `db/lib/say.js` decides for both
@@ -343,12 +427,17 @@ are a scene somebody chose to be in. Four changes carry it:
    list becomes the left column; on a phone, tabs. Conversation membership
    moves into a `PlayerThreadMember` table, because today it lives only in
    Discord and a web-only player cannot be in a thread.
-3. **The right column**: the people standing here (presented names, the same
-   people dialogs the sheet has), the place panel with the buttons the anchor
-   carries on Discord (Travel with drag-along, Examine, Storage, Noticeboard,
-   Converse, Bell, Intercom, Turret, gates, keyed doors), rendered from one
-   registry both faces read. Then the console affordances (Move, Speak, the
-   turn line) and a "Report to the GMs" entry that writes a DirectMessage.
+3. ~~**The right column**~~ — done (§5). The people standing here come from
+   `db/lib/whosHere.js` and open the sheet's own people dialogs; the place
+   panel is rendered from `db/lib/placeAffordances.js`, the one registry both
+   faces read (§5c); Travel with drag-along and Turn back, Examine, Storage,
+   Noticeboard, Converse, Bell, Intercom, Turret, gates and keyed doors are
+   all dialogs now. The console affordances came with it — Move
+   (`db/lib/moves.js#fileMove`), the turn line, the Sheet link, "Report to
+   the GMs", and a **Waiting on you** panel answering offers, threat spawns
+   and a lobby seat through the same functions the DM buttons call. What is
+   still Discord-only is **Speak** (the Hall's composer is the same thing)
+   and the anchor redraw after a web gate flip.
 4. **Ambient lines write rows.** None of them archive today, so a web player
    never sees a gate crossing, a smell, a turret burst or a noticeboard pin.
 5. **The "web only" switch** in Bio: `Character.webOnly`, a two-hour

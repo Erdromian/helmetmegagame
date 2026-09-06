@@ -20,12 +20,12 @@ const {
 // the presser is standing. An ephemeral modal outlives somebody walking out of
 // the Garrison, so permission is decided at submit, never at open.
 
+// The two words and the matcher live in db/lib/gatehouseTurret.js, so the
+// Hall's confirm asks for the same one.
+const { ARM_WORD, DISARM_WORD, turretWordMatches } = require("@lifeweb/db/lib/gatehouseTurret");
+
 const TURRET_MODAL_PREFIX = "turret:toggle:";
 const TURRET_WORD_FIELD = "turret:word";
-
-// What they have to type, and what the modal warns them of, per direction.
-const ARM_WORD = "ARM";
-const DISARM_WORD = "DISARM";
 
 const ARM_HELP =
   "-# It fires on everyone standing in the Gatehouse — the Cerberon, the Baron, you. Armour helps; a name does not. ‡";
@@ -49,11 +49,6 @@ function buildTurretModal(roomId, armed) {
         ),
     )
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(armed ? DISARM_HELP : ARM_HELP));
-}
-
-// Case and stray spaces forgiven: the word is a speed bump, not a password.
-function turretWordMatches(typed, armed) {
-  return String(typed ?? "").trim().toUpperCase() === (armed ? DISARM_WORD : ARM_WORD);
 }
 
 module.exports = {

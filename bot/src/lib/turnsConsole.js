@@ -5,10 +5,10 @@ const {
   syncTurnsChannelAccess,
 } = require("@lifeweb/db/lib/turnsChannelAccess");
 const { CONSOLE_TEXT } = require("@lifeweb/db/lib/turnsConsoleRow");
-const { buildTurnAnnouncement } = require("@lifeweb/db/weather");
+const { buildTurnAnnouncement } = require("@lifeweb/db/turnCalendar");
 const { clockFrozen, readGameState } = require("@lifeweb/db/lib/gameState");
 
-// #turns is one rolling message — announcement, weather banner and the
+// #turns is one rolling message — announcement, turn banner and the
 // Travel/Move/Speak buttons on a single post that db/lib/turnAnnouncement.js
 // replaces every turn. See the comment there for why it stopped being three.
 //
@@ -48,8 +48,9 @@ async function ensureTurnsConsole(guild) {
   }
 
   // Nothing tracked, or the tracked message is gone. Repost it against the
-  // open turn so a cold start still shows the current weather; with no turn
-  // open the announcement line is simply omitted.
+  // open turn so a cold start still shows the turn in progress, and the same
+  // banner it opened with (Turn.banner, not a fresh pick — see
+  // db/lib/turnBanner.js). With no turn open the announcement line is omitted.
   const [openTurn, frozen, state] = await Promise.all([
     prisma.turn.findFirst({ where: { status: "OPEN" }, orderBy: { number: "desc" } }),
     clockFrozen(prisma),
