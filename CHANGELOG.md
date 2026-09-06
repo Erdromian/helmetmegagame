@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Depression crowds out everything else about you
+
+✎ Depressed can no longer be combined with almost any other Personality tag, on top of the Addictions it already ruled out. A depressed character is depressed first and everything else second.  
+✎ The six that still sit beside it are Nobility, Eunuch, Debtor, Poor Swimmer, Motion Sickness and Lightweight, none of which is really a disposition.  
+✎ Depressed now gives back 8 points instead of 6, which is what the design notes always said it should be.
+
 ## 2026-09-06 · Pushing an update deploys the whole site again
 
 ✎ Every push now rebuilds both the website and the bot. Half the updates were quietly not deploying at all, which is why the site kept showing yesterday's behaviour until someone redeployed by hand  
