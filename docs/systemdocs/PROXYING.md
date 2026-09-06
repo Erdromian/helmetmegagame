@@ -34,9 +34,12 @@ There is **no name-based marker**. Channel IDs are checked directly.
 ## 2. The proxy itself
 
 `bot/src/events/messageCreate.js` auto-proxies every message from a user with
-an `ALIVE` character in a tupper channel: it reposts through a per-channel
-webhook (`bot/src/lib/proxy.js#sendAsCharacter`) under the character's name and
-avatar, then deletes the original.
+an `ALIVE` character in a tupper channel: `bot/src/lib/proxy.js#sendAsCharacter`
+runs the one write path (`db/lib/say.js` — `prepareSpeech`, post, `recordSpeech`),
+reposting through a per-channel webhook under the character's name and avatar,
+then deletes the original. The gates, the babble and autocorrect passes and the
+identity all live in `say.js` now, so a message typed into `/play` is decided
+by exactly the same code (`HALL.md` §2).
 
 **No bracket or trigger syntax.** Each player has exactly one living character
 at a time, so there is nothing to disambiguate.
@@ -79,9 +82,9 @@ the rate limits it is about to hit, so building one per message meant N
 simultaneous messages in a busy room fired N blind requests into a ~5-per-5s
 bucket.
 
-Tracking through `trackProxy` is not optional for either caller: every
-reaction below is gated on `recentProxies`, so an untracked message is inert
-to all of them.
+Every reaction below finds its message by looking the `ArchiveEntry` row up on
+`discordMessageId`, so a message the transcript has is a message the reactions
+work on — including one posted before the bot last restarted.
 
 `db/lib/discordRest.js#postAsCharacter` is the REST twin, used for staged public
 summaries posted from `advanceTurn`'s side effects.
@@ -96,12 +99,12 @@ already speak in posts straight there; that does not hide the typing
 indicator, since you are already in the channel, but it does stop the message
 existing in plain sight before the proxy removes it.
 
-**`recentProxies`** is the in-memory map tying a proxied message back to its
-player and character — last 20,000, single bot process, no sharding, wiped on
-restart. Every reaction except ⭐ reads it, so a bot restart makes older
-messages inert to all of them. That is the safe direction: a stale mapping
-would let the wrong person delete someone's message. ⭐ is the exception — see
-§7.
+**`recentProxies` is gone** (phase 1 of `HALL.md`). It was an in-memory map
+tying a proxied message back to its player and character — last 20,000, single
+bot process, wiped on restart — so every deploy quietly made the last hour of
+scene inert to ✏️ ❌ 🔍 📸. `ArchiveEntry.discordMessageId` is unique, so the
+transcript is that map now: `bot/src/lib/proxy.js#proxyRowFor` reads the row and
+the character's player off it, and a database row does not forget. ‡
 
 ### Who is allowed to speak at all
 
@@ -201,12 +204,18 @@ should un-flag the activity that already happened.
 
 ## 4. Reactions on a proxied message
 
-All in `bot/src/events/messageReactionAdd.js`, all gated on `recentProxies`.
+All in `bot/src/events/messageReactionAdd.js`. Every one of them looks the
+message up as an `ArchiveEntry` row by `discordMessageId`
+(`bot/src/lib/proxy.js#proxyRowFor`) and checks the reactor against that
+character's own player — so a restart no longer makes an older message inert,
+and a **five-minute window** (`db/lib/say.js#EDIT_WINDOW_MS`) applies to ✏️ and
+❌ on both faces. Past it: *"That was said more than five minutes ago and
+stands."* ‡
 
 | Emoji | Does |
 |---|---|
-| ❌ | Deletes the message. Also deletes its `ArchiveEntry` row. Gated on `proxy.discordUserId`. |
-| ✏️ | Edit, via a DM button and a modal — see below. Mirrors into the archive **only after** Discord accepts the edit. Gated on `proxy.discordUserId`. |
+| ❌ | Soft-deletes the row; `bot/src/lib/feedOutbox.js` removes the Discord message. Owner, or a GM (who is not held to the window). |
+| ✏️ | Edit, via a DM button and a modal — see below. The modal writes the **row**, through `editSpeech`, and the outbox carries the change to Discord. Owner only. |
 | 🔍 | Inspect embed — see §5 and `FACTIONS.md` §4. Same readout as **Look at** on `/character` (§4a). |
 | 📸 / 📷 | The same readout, frozen onto a **Photo** tag in the reactor's hands. Needs an Instant Camera, which is not spent. `COMMANDS.md` §6. |
 | ⭐ | Saves a personal `Note` — see §7. |
@@ -226,8 +235,8 @@ decided once, in that file. Add a field to one and both get it.
 The two differ only in who they can be pointed at, and that is the point of
 the web one existing:
 
-- **🔍 needs a message.** It hangs off `recentProxies`, so it only ever
-  worked on someone who had **spoken**. That was never a hiding rule — a
+- **🔍 needs a message.** It hangs off an archived row, so it only ever
+  works on someone who has **spoken**. That was never a hiding rule — a
   guard on a gate could not size up a silent traveller without first striking
   up a conversation with them.
 - **Look at needs co-presence.** Everyone `ALIVE` standing at your Location,
@@ -255,7 +264,9 @@ The prefill comes from an in-memory stash armed when ✏️ is pressed, not from
 REST fetch, because a fetch could blow Discord's three-second window and there
 is no deferring your way out of it. Both handlers run in a DM, where
 `interaction.guild` and `.member` are null, so ownership is
-`interaction.user.id` against `recentProxies`.
+`interaction.user.id` against the row's own character
+(`bot/src/lib/proxy.js#proxyRowFor`). After a restart the stash is empty and the
+box prefills from the row's text instead of refusing. ‡
 
 **Why it stopped being a DM collector.** ✏️ used to DM "Reply here with the
 new text (60 seconds)" and eat the answer with `awaitMessages`. Sixty seconds
@@ -357,7 +368,10 @@ under a knight's helm is a coif nobody can see.
 `web/public/assets/unknown.png` survives, but only as history: `ArchiveFeed.js`
 still needs it for entries archived before concealment had a face.
 
-`recentProxies` records `concealed`/`alias`, and three handlers read it:
+The row records the alias it was posted under (`ArchiveEntry.concealedAlias`),
+and `proxyRowFor` works out whether that was a hood or a forced name by
+comparing it against the character's current forced name. Three handlers read
+it: ‡
 
 - **🔍** returns a **hardcoded** embed *before* any of the normal field logic:
   the concealed line, plus only the visible ailments and the visible gear —
@@ -529,17 +543,12 @@ GM-visible or shared between players; see below.
 Reacting ⭐ to any guild message saves it as a personal `Note` for whoever
 reacted — not just a proxied one. `handleStarReaction` upserts a row keyed on
 `(discordMessageId, discordUserId)` with a speaker, a zone snapshot, content,
-and `sentAt`. Unlike every other reaction here, ⭐ is exempt from the
-`recentProxies` gate (`messageReactionAdd.js`'s dispatcher), and resolves the
-speaker in three tiers:
+and `sentAt`. Unlike every other reaction here, ⭐ works on a message with no
+archived row at all, and resolves the speaker in two tiers: ‡
 
-1. **Still-tracked proxy** — the common case for a message sent this bot
-   process; character and concealment resolve exactly as for ✏️/❌ above.
-2. **No live proxy, but `ArchiveEntry.discordMessageId` has it** — a character
-   message whose `recentProxies` entry was lost to a bot restart. `ArchiveEntry`
-   is durable (`db/lib/archive.js`), so this repairs starring for any character
-   message ever sent, restart or not.
-3. **Neither** — a bot-as-itself post (turn announcement, GM declaration,
+1. **A character message** — its `ArchiveEntry` row, which is durable
+   (`db/lib/archive.js`), so starring works on anything ever said.
+2. **No row** — a bot-as-itself post (turn announcement, GM declaration,
    `/gm`, ghost whisper) or another webhook's message. Filed under the
    poster's display name with `characterId: null`; a real player's own message
    still isn't starrable.

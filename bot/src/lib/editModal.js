@@ -23,8 +23,8 @@ const {
   TextInputStyle,
 } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
-const { updateArchiveMessage } = require("@lifeweb/db/lib/archive");
-const { recentProxies, webhookClientFor } = require("./proxy");
+const { editSpeech } = require("@lifeweb/db/lib/say");
+const { proxyRowFor } = require("./proxy");
 const { ack, respond } = require("./respond");
 
 const OPEN_PREFIX = "edit:open:";
@@ -45,9 +45,9 @@ const MESSAGE_LIMIT = 2000;
 // reaches the ✏️ branch — so pressing ✏️ again after an edit re-arms this with
 // the new text.
 //
-// In memory, like recentProxies next door, and capped the same way. A restart
-// loses it, but a restart also loses recentProxies, so the button would refuse
-// anyway.
+// In memory and capped. A restart loses it, but the button still works after
+// one — the message is looked up in the transcript now, not in a map — so the
+// modal simply opens with an empty box instead of refusing.
 const MAX_PENDING = 500;
 const PENDING_TTL_MS = 15 * 60_000; // matches an interaction token's life
 const pendingEdits = new Map(); // webhookMessageId -> { content, expiresAt }
@@ -73,7 +73,7 @@ function takeStashed(webhookMessageId) {
 }
 
 // The DM the ✏️ reaction sends. One button, carrying the message id — the
-// submit handler needs no state of its own beyond recentProxies.
+// submit handler needs no state of its own: the row carries the rest.
 function buildEditPrompt(webhookMessageId) {
   return {
     content: "» *Edit that message.*",
@@ -104,61 +104,56 @@ function buildEditModal(webhookMessageId, currentContent) {
     );
 }
 
-// Resolves the proxy a button/modal id points at, and checks the presser owns
-// it. `interaction.guild` and `.member` are null in a DM and this runs in one,
-// so ownership is interaction.user.id against the tracked author — which is
-// all this flow needs.
-function resolveOwnedProxy(interaction, prefix) {
+// Resolves the archived row a button/modal id points at, and checks the
+// presser owns it. `interaction.guild` and `.member` are null in a DM and this
+// runs in one, so ownership is interaction.user.id against the row's own
+// player — which is all this flow needs.
+async function resolveOwnedProxy(interaction, prefix) {
   const messageId = interaction.customId.slice(prefix.length);
-  const proxy = recentProxies.get(messageId);
-  if (!proxy || proxy.discordUserId !== interaction.user.id) return { messageId, proxy: null };
+  const proxy = await proxyRowFor(messageId);
+  if (!proxy || proxy.deletedAt || proxy.discordUserId !== interaction.user.id) {
+    return { messageId, proxy: null };
+  }
   return { messageId, proxy };
 }
 
 // NO ack() here on purpose: showModal is the acknowledgement, and a deferred
 // interaction can no longer open a modal.
 async function handleEditOpen(interaction) {
-  const { messageId, proxy } = resolveOwnedProxy(interaction, OPEN_PREFIX);
+  const { messageId, proxy } = await resolveOwnedProxy(interaction, OPEN_PREFIX);
   if (!proxy) {
     await ack(interaction);
-    await respond(interaction, "» *That message can no longer be edited.*");
+    await respond(interaction, "» *That message can no longer be edited.* ‡");
     return;
   }
-  await interaction.showModal(buildEditModal(messageId, takeStashed(messageId)));
+  // The stash is only a prefill shortcut; after a restart the row's own text
+  // fills the box instead.
+  await interaction.showModal(buildEditModal(messageId, takeStashed(messageId) ?? proxy.content));
 }
 
 async function handleEditSubmit(interaction) {
   await ack(interaction);
 
-  const { messageId, proxy } = resolveOwnedProxy(interaction, MODAL_PREFIX);
+  const { messageId, proxy } = await resolveOwnedProxy(interaction, MODAL_PREFIX);
   if (!proxy) {
-    await respond(interaction, "» *That message can no longer be edited.*");
+    await respond(interaction, "» *That message can no longer be edited.* ‡");
     return;
   }
 
   const content = interaction.fields.getTextInputValue(BODY_ID);
 
-  try {
-    // threadId rides in the options object here. Webhook#deleteMessage takes
-    // it positionally instead, and mixing the two 400'd every ❌ in a thread
-    // until recently — check the signature, don't copy by eye.
-    await webhookClientFor({ id: proxy.webhookId, token: proxy.webhookToken }).editMessage(messageId, {
-      content,
-      threadId: proxy.threadId,
-    });
-  } catch (err) {
-    console.error(`Failed to edit proxied message ${messageId}:`, err);
-    await respond(interaction, "» *Couldn't update that message, it may be too old.*");
+  // The ROW is edited, and nothing here touches Discord. The outbox
+  // (bot/src/lib/feedOutbox.js) sees the notify and carries the change across,
+  // which is the same path a ✎ on /play takes — one writer, one editor, and
+  // the five-minute window enforced in one place (db/lib/say.js).
+  const result = await editSpeech(prisma, { characterId: proxy.characterId, seq: proxy.seq, content });
+  if (!result?.ok) {
+    await respond(interaction, `» *${result?.refusal ?? "Couldn't update that message. ‡"}*`);
     return;
   }
 
-  // Only after Discord has accepted the edit, or /archive would show text that
-  // was never actually posted.
-  await updateArchiveMessage(prisma, messageId, content).catch((err) =>
-    console.error(`Edited message ${messageId} but couldn't mirror it into the archive:`, err),
-  );
-  stashEdit(messageId, content);
-  await respond(interaction, "» *Updated.*");
+  stashEdit(messageId, result.row.content);
+  await respond(interaction, "» *Updated.* ‡");
 }
 
 module.exports = {

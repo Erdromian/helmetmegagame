@@ -1,13 +1,17 @@
 import "server-only";
-import { prisma, placeKeyForLocation } from "@lifeweb/db";
+import { prisma } from "@lifeweb/db";
+import { allowedPlaceKeys, mayReadPlace, mayWritePlace } from "@lifeweb/db/lib/feedAccess";
 
-// The one gate on the live feed: which places a character may read and write.
+// The web's half of the feed gate. The rules moved down to
+// db/lib/feedAccess.js in phase 1, because db/lib/say.js has to ask the same
+// question the SSE route asks and a gate living up here could only ever
+// answer for one face. What is left is the character load, which is web-shaped
+// (it is the row /play and the two routes render from).
 //
-// Both /api/feed and /api/feed/say call this, and neither trusts a posted
-// character id — the character is resolved from the session, the way every
-// server action in this app resolves it. For the spike that is only the
-// Location the character is standing in; rooms, conversations and the zone
-// summary come with phase 1.
+// Neither route trusts a posted character id: the character is resolved from
+// the session, the way every server action in this app resolves it.
+
+export { allowedPlaceKeys, mayReadPlace, mayWritePlace };
 
 export async function loadFeedCharacter(discordUserId) {
   if (!discordUserId) return null;
@@ -24,13 +28,4 @@ export async function loadFeedCharacter(discordUserId) {
       location: { select: { id: true, name: true, description: true } },
     },
   });
-}
-
-export function allowedPlaceKeys(character) {
-  const here = placeKeyForLocation(character?.locationId);
-  return here ? [here] : [];
-}
-
-export function mayReadPlace(character, placeKey) {
-  return Boolean(placeKey) && allowedPlaceKeys(character).includes(placeKey);
 }

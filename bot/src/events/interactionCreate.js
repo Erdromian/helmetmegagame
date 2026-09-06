@@ -58,6 +58,7 @@ const { listSpeakTargets, canSpeakInTarget, canSpeakInChannel, isNavValue } = re
 const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/interactionGuild");
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const { postAsCharacterTo, loadVoiceState } = require("../lib/proxy");
+const { prepareSpeech, recordSpeech } = require("@lifeweb/db/lib/say");
 const { resolveLaborRate, qualityWord } = require("@lifeweb/db");
 const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
@@ -1806,13 +1807,25 @@ async function handleSpeakSubmit(interaction, channelId) {
     return;
   }
 
+  // The one write path (db/lib/say.js): decide, post, record. The same three
+  // calls the proxy makes, in the same order, so the Speak modal and a typed
+  // message are gated and transformed identically.
+  const prepared = await prepareSpeech(prisma, {
+    character,
+    placeKey: await placeKeyForChannel(prisma, { channelId: channel.id, parentId: channel.parent?.id }),
+    content: body,
+    source: "DISCORD",
+  });
+  if (!prepared.ok) {
+    await respond(interaction, `» *${prepared.refusal}*`);
+    return;
+  }
+
   let posted;
   try {
     posted = await postAsCharacterTo(channel, character, {
-      content: body,
-      discordUserId: interaction.user.id,
-      identity,
-      voice,
+      content: prepared.content,
+      identity: prepared.identity,
     });
   } catch (err) {
     console.error("Failed to post a Speak message:", err);
@@ -1820,13 +1833,8 @@ async function handleSpeakSubmit(interaction, channelId) {
     return;
   }
 
-  await recordArchiveMessage(prisma, {
+  await recordSpeech(prisma, prepared, {
     discordMessageId: posted.webhookMessage.id,
-    content: posted.content,
-    character,
-    concealedAlias: identity.alias,
-    placeKey: await placeKeyForChannel(prisma, { channelId: channel.id, parentId: channel.parent?.id }),
-    source: "DISCORD",
     ...resolveChannelContext(channel),
   });
   await touchCharacterActivity(prisma, character.id);

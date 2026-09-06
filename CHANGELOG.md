@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · One write path, and messages you can take back
+
+✎ Everything a character says now goes through one path on both faces, so a Stupid character babbles on the web exactly as on Discord, and the speech gate, the length cap and the autocorrect are decided once.  
+✚ Edit and delete your own message on the Play page, for five minutes after you say it. The Discord ✏️ and ❌ reactions follow the same five-minute rule.  
+✎ A message edited or deleted on either face changes on the other within a second, and a bot restart no longer makes older messages inert to reactions.
+
 ## 2026-09-06 · The web app's icons are now Lucide
 
 ✎ Every icon on the site is redrawn from the Lucide set at the same thin weight, so the rail, the action grid and the GM buttons all match  

@@ -88,7 +88,11 @@ export function seedRows(place, rows) {
 export function applyRow(place, row) {
   if (!place || !row?.seq) return;
   const confirmed = state.confirmed.get(place) ?? new Map();
-  const known = confirmed.has(row.seq);
+  const existing = confirmed.get(row.seq);
+  // An edit arrives as the same seq with a newer editedAt. Known-and-identical
+  // is the only case worth ignoring; known-and-changed has to replace, or the
+  // reader keeps the words their author took back.
+  const known = Boolean(existing) && (existing.editedAt ?? null) === (row.editedAt ?? null);
 
   // The same row reaches this tab twice on a send: once on the stream (no
   // clientId, and often FIRST — a NOTIFY is quicker than the POST's own
@@ -116,6 +120,20 @@ export function applyRow(place, row) {
     state.confirmed.set(place, next);
   }
 
+  rebuild(place);
+  emit();
+}
+
+// A row somebody took back. Dropped rather than tombstoned: the feed is the
+// live scene, and /archive keeps the record.
+export function removeRow(place, seq) {
+  if (!place || !seq) return;
+  const confirmed = state.confirmed.get(place);
+  if (!confirmed?.has(String(seq))) return;
+  const next = new Map(confirmed);
+  next.delete(String(seq));
+  state.confirmed = new Map(state.confirmed);
+  state.confirmed.set(place, next);
   rebuild(place);
   emit();
 }

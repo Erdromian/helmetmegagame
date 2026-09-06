@@ -106,8 +106,57 @@ function parsePlaceKey(placeKey) {
   return { kind, id };
 }
 
+// Where on Discord a place key points, for the outbox: the channel a webhook
+// belongs to, plus the thread to post into when there is one.
+//
+// A webhook cannot be created on a thread — Discord hangs it off the parent
+// channel and the execute call carries `?thread_id=`. So `channelId` here is
+// always the channel that owns the webhook, and `threadId` is non-null only
+// for a Room or a Conversation.
+async function discordTargetForPlaceKey(prisma, placeKey) {
+  const parsed = parsePlaceKey(placeKey);
+  if (!parsed) return null;
+
+  if (parsed.kind === "loc") {
+    const location = await prisma.location.findUnique({
+      where: { id: parsed.id },
+      select: { discordChannelId: true },
+    });
+    return location?.discordChannelId ? { channelId: location.discordChannelId, threadId: null } : null;
+  }
+
+  if (parsed.kind === "room") {
+    const room = await prisma.room.findUnique({
+      where: { id: parsed.id },
+      select: { discordThreadId: true, location: { select: { discordChannelId: true } } },
+    });
+    if (!room?.discordThreadId || !room.location?.discordChannelId) return null;
+    return { channelId: room.location.discordChannelId, threadId: room.discordThreadId };
+  }
+
+  if (parsed.kind === "conv") {
+    const conversation = await prisma.playerThread.findUnique({
+      where: { id: parsed.id },
+      select: { threadId: true, location: { select: { discordChannelId: true } } },
+    });
+    if (!conversation?.threadId || !conversation.location?.discordChannelId) return null;
+    return { channelId: conversation.location.discordChannelId, threadId: conversation.threadId };
+  }
+
+  if (parsed.kind === "zone") {
+    const zone = await prisma.zone.findUnique({
+      where: { id: parsed.id },
+      select: { discordSummaryChannelId: true },
+    });
+    return zone?.discordSummaryChannelId ? { channelId: zone.discordSummaryChannelId, threadId: null } : null;
+  }
+
+  return null;
+}
+
 module.exports = {
   placeKeyForChannel,
+  discordTargetForPlaceKey,
   placeKeyForLocation,
   placeKeyForRoom,
   placeKeyForConversation,

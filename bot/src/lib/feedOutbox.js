@@ -14,10 +14,15 @@
 
 const { Client } = require("pg");
 const { prisma } = require("@lifeweb/db");
-const { postAsCharacter } = require("@lifeweb/db/lib/discordRest");
+const {
+  postAsCharacter,
+  ensureChannelWebhook,
+  editWebhookMessage,
+  deleteWebhookMessage,
+} = require("@lifeweb/db/lib/discordRest");
 const { loadForcedName, loadConcealment } = require("@lifeweb/db/lib/presentedIdentity");
 const { FEED_CHANNEL } = require("@lifeweb/db/lib/feedNotify");
-const { parsePlaceKey } = require("@lifeweb/db/lib/placeKey");
+const { discordTargetForPlaceKey } = require("@lifeweb/db/lib/placeKey");
 
 // How far back the catch-up looks. A row older than this that never reached
 // Discord is not worth posting into a scene that moved on hours ago — the
@@ -55,21 +60,13 @@ function guarded(label, fn) {
   };
 }
 
-// Which Discord channel a place key names. Only `loc:` is wired for the
-// spike; rooms, conversations and zone summaries are phase 1, and a row for
-// one of those is left alone rather than guessed at.
-async function channelIdForPlaceKey(placeKey) {
-  const parsed = parsePlaceKey(placeKey);
-  if (!parsed) return null;
-  if (parsed.kind !== "loc") {
-    console.log(`Feed outbox: no Discord target for place key ${placeKey} yet — skipping.`);
-    return null;
-  }
-  const location = await prisma.location.findUnique({
-    where: { id: parsed.id },
-    select: { discordChannelId: true },
-  });
-  return location?.discordChannelId ?? null;
+// Which Discord channel and thread a place key names. Every kind is wired
+// since phase 1: a Room or a Conversation is a thread, and its webhook lives
+// on the parent channel (db/lib/placeKey.js#discordTargetForPlaceKey).
+async function targetFor(placeKey) {
+  const target = await discordTargetForPlaceKey(prisma, placeKey);
+  if (!target) console.log(`Feed outbox: no Discord target for place key ${placeKey} — skipping.`);
+  return target;
 }
 
 // The identity load messageCreate.js does, for a character the web sent as:
@@ -81,6 +78,27 @@ async function identityPiecesFor(characterId) {
     loadConcealment(prisma, characterId),
   ]);
   return { forcedName, concealment };
+}
+
+const ROW_SELECT = {
+  id: true,
+  seq: true,
+  placeKey: true,
+  characterId: true,
+  content: true,
+  source: true,
+  discordMessageId: true,
+  editedAt: true,
+  deletedAt: true,
+  discordSyncedAt: true,
+};
+
+// Is Discord behind on this row? `discordSyncedAt` is the watermark: an edit
+// or a delete stamped after it has not been carried across yet.
+function behind(stamp, syncedAt) {
+  if (!stamp) return false;
+  if (!syncedAt) return true;
+  return new Date(stamp).getTime() > new Date(syncedAt).getTime();
 }
 
 // One row, posted. Returns true when Discord took it.
@@ -97,8 +115,8 @@ async function pushRow(row) {
   });
   if (!fresh || fresh.discordMessageId || fresh.deletedAt) return false;
 
-  const channelId = await channelIdForPlaceKey(row.placeKey);
-  if (!channelId) return false;
+  const target = await targetFor(row.placeKey);
+  if (!target) return false;
 
   const character = await prisma.character.findUnique({
     where: { id: row.characterId },
@@ -111,7 +129,11 @@ async function pushRow(row) {
 
   const { forcedName, concealment } = await identityPiecesFor(character.id);
 
-  const posted = await postAsCharacter(channelId, character, row.content, { forcedName, concealment });
+  const posted = await postAsCharacter(target.channelId, character, row.content, {
+    forcedName,
+    concealment,
+    threadId: target.threadId,
+  });
   if (!posted?.id) return false;
 
   // updateMany, not update: the row may have been soft-deleted or already
@@ -119,61 +141,113 @@ async function pushRow(row) {
   // idempotent rather than double-posting on a race.
   const claimed = await prisma.archiveEntry.updateMany({
     where: { id: row.id, discordMessageId: null },
-    data: { discordMessageId: posted.id, discordChannelId: channelId, discordSyncedAt: new Date() },
+    data: {
+      discordMessageId: posted.id,
+      discordChannelId: target.threadId ?? target.channelId,
+      discordSyncedAt: new Date(),
+    },
   });
   return claimed.count > 0;
 }
 
-async function pushBySeq(seq) {
-  const row = await prisma.archiveEntry.findUnique({
-    where: { seq },
-    select: {
-      id: true,
-      seq: true,
-      placeKey: true,
-      characterId: true,
-      content: true,
-      source: true,
-      discordMessageId: true,
-      deletedAt: true,
-    },
+// One row, edited on Discord. The row is the source of truth for the text
+// now, so this runs for a ✏️ in Discord exactly as it does for a ✎ on /play.
+async function editRow(row) {
+  if (!row?.discordMessageId || row.deletedAt) return false;
+
+  // Re-read right before acting, the same guard the post path takes: two
+  // edits in a row, or the drain racing a notification, would otherwise
+  // both fire and the second would carry stale text.
+  const fresh = await prisma.archiveEntry.findUnique({
+    where: { id: row.id },
+    select: { content: true, editedAt: true, deletedAt: true, discordSyncedAt: true, discordMessageId: true },
   });
-  await pushRow(row);
+  if (!fresh || fresh.deletedAt || !fresh.discordMessageId) return false;
+  if (!behind(fresh.editedAt, fresh.discordSyncedAt)) return false;
+
+  const target = await targetFor(row.placeKey);
+  if (!target) return false;
+
+  const webhook = await ensureChannelWebhook(target.channelId);
+  await editWebhookMessage(webhook, fresh.discordMessageId, fresh.content, target.threadId);
+
+  await prisma.archiveEntry.update({ where: { id: row.id }, data: { discordSyncedAt: new Date() } });
+  return true;
 }
 
-// Every WEB row of the last day that never reached Discord. Called on ready,
-// so a message sent while the bot was down still lands.
+// One row, deleted on Discord. The row itself stays — the delete is soft, so
+// a browser holding it can reconcile — and `discordMessageId` stays with it so
+// nothing ever reposts what somebody took back.
+async function deleteRow(row) {
+  if (!row?.discordMessageId || !row.deletedAt) return false;
+
+  const fresh = await prisma.archiveEntry.findUnique({
+    where: { id: row.id },
+    select: { deletedAt: true, discordSyncedAt: true, discordMessageId: true },
+  });
+  if (!fresh?.deletedAt || !fresh.discordMessageId) return false;
+  if (!behind(fresh.deletedAt, fresh.discordSyncedAt)) return false;
+
+  const target = await targetFor(row.placeKey);
+  if (!target) return false;
+
+  const webhook = await ensureChannelWebhook(target.channelId);
+  // allow404 inside deleteWebhookMessage: a message a GM already removed by
+  // hand is the outcome this was asking for.
+  await deleteWebhookMessage(webhook, fresh.discordMessageId, target.threadId);
+
+  await prisma.archiveEntry.update({ where: { id: row.id }, data: { discordSyncedAt: new Date() } });
+  return true;
+}
+
+// The three verbs, chosen off the ROW rather than off the notification's
+// `op`. The op is a hint about which one is likely; the row is the truth, and
+// the drain has no op at all.
+async function syncRow(row) {
+  if (!row) return false;
+  if (row.deletedAt) return deleteRow(row);
+  if (!row.discordMessageId) return pushRow(row);
+  if (row.editedAt) return editRow(row);
+  return false;
+}
+
+async function syncBySeq(seq) {
+  const row = await prisma.archiveEntry.findUnique({ where: { seq }, select: ROW_SELECT });
+  await syncRow(row);
+}
+
+// Every row of the last day Discord is behind on — never posted, edited since
+// it was posted, or taken back. Called on ready, so a message sent, edited or
+// deleted while the bot was down still lands.
 async function drainFeedOutbox() {
   try {
     const rows = await prisma.archiveEntry.findMany({
       where: {
-        source: "WEB",
-        discordMessageId: null,
-        deletedAt: null,
         sentAt: { gte: new Date(Date.now() - DRAIN_WINDOW_MS) },
+        OR: [
+          // Never posted: a web message written while the bot was down.
+          { source: "WEB", discordMessageId: null, deletedAt: null },
+          // Edited or taken back while the bot was down. `discordSyncedAt` is
+          // the watermark; Prisma cannot compare two columns in a filter, so
+          // the coarse "has one of the two stamps" test is done here and
+          // syncRow's re-read settles it exactly.
+          { discordMessageId: { not: null }, deletedAt: { not: null } },
+          { discordMessageId: { not: null }, editedAt: { not: null } },
+        ],
       },
       orderBy: { seq: "asc" },
       take: DRAIN_LIMIT,
-      select: {
-        id: true,
-        seq: true,
-        placeKey: true,
-        characterId: true,
-        content: true,
-        source: true,
-        discordMessageId: true,
-        deletedAt: true,
-      },
+      select: ROW_SELECT,
     });
     let sent = 0;
     for (const row of rows) {
       try {
-        if (await pushRow(row)) sent += 1;
+        if (await syncRow(row)) sent += 1;
       } catch (err) {
-        console.error(`Feed outbox couldn't post archive row ${row.id}:`, err);
+        console.error(`Feed outbox couldn't sync archive row ${row.id}:`, err);
       }
     }
-    if (rows.length) console.log(`Feed outbox: ${sent}/${rows.length} pending web message(s) pushed to Discord.`);
+    if (sent) console.log(`Feed outbox: ${sent} archive row(s) carried across to Discord.`);
     return sent;
   } catch (err) {
     console.error("Feed outbox drain failed:", err);
@@ -226,7 +300,7 @@ async function openListener() {
       // The payload carries seq as a string on purpose; a Number would lose
       // precision, and Prisma wants a BigInt for the column anyway.
       const seq = BigInt(parsed.seq);
-      enqueue(() => pushBySeq(seq));
+      enqueue(() => syncBySeq(seq));
     }),
   );
 

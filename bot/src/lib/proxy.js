@@ -1,19 +1,14 @@
 const { WebhookClient, RESTJSONErrorCodes, GuildPremiumTier } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
-const { presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
-const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
+const { loadForcedName, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
+const { archiveRowForMessage } = require("@lifeweb/db/lib/archive");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
-const { capitalizeSentences, fixContractions } = require("./textCorrection");
-const { babble, STUPID_SLUG } = require("@lifeweb/db/lib/babble");
-const { blockerFor, slugsBlocking, SPEAK } = require("@lifeweb/db/lib/incapacitation");
+const { prepareSpeech, recordSpeech, loadVoiceState: loadVoiceStateFor } = require("@lifeweb/db/lib/say");
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const { resolveChannelContext } = require("./channels");
 const { sendDm } = require("./dm");
 
 const WEBHOOK_NAME = "Bascinet Tupper";
-// One entry per proxied message; the ✏️/❌/⭐/🔍 reactions only work on
-// messages still in here (bound: bot's last restart, PROXYING.md §2).
-const MAX_RECENT = 20_000;
 
 // webhookCache: channelId -> { id, token }. clientCache: webhookId ->
 // WebhookClient, kept because a fresh client starts rate-limit-blind
@@ -24,16 +19,6 @@ const clientCache = new Map();
 // Guards a cold channel hit by two messages in the same tick from running
 // fetchWebhooks twice and creating two webhooks.
 const webhookPending = new Map(); // channelId -> Promise<{ id, token }>
-
-const recentProxies = new Map(); // webhookMessageId -> { discordUserId, characterId, webhookId, webhookToken, threadId, concealed, alias }
-
-function trackProxy(webhookMessageId, data) {
-  recentProxies.set(webhookMessageId, data);
-  if (recentProxies.size > MAX_RECENT) {
-    const oldestKey = recentProxies.keys().next().value;
-    recentProxies.delete(oldestKey);
-  }
-}
 
 // Returns the WebhookClient for a webhook, building it at most once.
 function webhookClientFor({ id, token }) {
@@ -96,66 +81,31 @@ function attachmentPlaceholders(message) {
   );
 }
 
-// Everything about a character's voice, read off the sheet in one query.
-//
-// This reads the DATABASE rather than trusting `character.tags`, and that is
-// deliberate: every caller reaches this file through a different include.
-// bot/src/events/messageCreate.js loads a FILTERED tag list for identity
-// (forcedName and equipped concealers only, and it does not even select
-// `slug`), and the Speak modal's findAliveCharacter loads no tags at all.
-//
-// That mismatch was a live bug, not a hypothetical: speaksBabble() reads
-// `ct.tag.slug`, so against messageCreate's include it read undefined and
-// returned false every time. {tag:stupid} has therefore never garbled
-// ordinary channel chat — only the Speak modal, which took the old fallback
-// query. Reading the sheet here fixes that and powers the speech gate with
-// the same round trip.
-const VOICE_SLUGS = [...slugsBlocking(SPEAK), STUPID_SLUG];
-
-async function loadVoiceState(characterId) {
-  if (!characterId) return { block: null, babbling: false };
-  const rows = await prisma.characterTag.findMany({
-    where: { characterId, quantity: { gt: 0 }, tag: { slug: { in: VOICE_SLUGS } } },
-    select: { tag: { select: { slug: true, name: true } } },
-  });
-  return {
-    // Blocked beats garbled: a Stupid Mute is silent, not babbling.
-    block: blockerFor(rows, SPEAK),
-    babbling: rows.some((ct) => ct.tag.slug === STUPID_SLUG),
-  };
+// The speech gate moved to db/lib/say.js#loadVoiceState in phase 1, so the
+// web and Discord ask it the same question. Kept here as a one-argument
+// wrapper because three bot handlers already call it that way.
+function loadVoiceState(characterId) {
+  return loadVoiceStateFor(prisma, characterId);
 }
 
 // The core send: post `content` (and any files) into `channel` as
-// `character`, track it, and write the transcript row. Takes no Message —
-// the Speak modal has no source message, only an interaction.
+// `character`. Takes no Message — the Speak modal has no source message, only
+// an interaction.
+//
+// Since phase 1 this is a POSTER and nothing else. The speech gate, the
+// babble pass, the autocorrect pass and the length check all live in
+// db/lib/say.js#prepareSpeech, which every caller runs first; the tracking
+// map it used to write is gone, because a reaction looks its message up in
+// ArchiveEntry now (PROXYING.md §2) and a database row outlives a restart.
+//
 // `identity` is the resolved presentedIdentity(character, ...) — forced >
-// concealed > own name (db/lib/presentedIdentity.js). Tracking via
-// trackProxy is mandatory: every reaction handler is gated on recentProxies.
-// A caller that passes no identity gets the plain one — never a crash on the
-// hottest path in the bot.
-async function postAsCharacterTo(channel, character, { content, files = [], discordUserId, identity = presentedIdentity(character), voice = null }) {
+// concealed > own name (db/lib/presentedIdentity.js). A caller that passes
+// none gets the plain one rather than a crash on the hottest path in the bot.
+async function postAsCharacterTo(channel, character, { content, files = [], identity = presentedIdentity(character) }) {
   const threadId = channel.isThread() ? channel.id : undefined;
 
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-
-  // The speech gate, and the last one standing: this is the only funnel a
-  // character's words can reach a channel through, so anything that slips
-  // past a caller's own check still stops here. `voice` lets a caller that
-  // already loaded the state hand it over rather than pay for it twice.
-  const { block, babbling } = voice ?? (await loadVoiceState(character?.id));
-  if (block) return { webhookMessage: null, content: null, blocked: block };
-
-  // Stupid (docs/systemdocs/FACTORY.md) reads off the SPEAKER rather than off
-  // GameConfig, and it wins over the autocorrect below — there is nothing left
-  // to capitalise.
-  const text = babbling
-    ? babble(content ?? "")
-    : config?.tupperAutocorrectEnabled
-      ? capitalizeSentences(fixContractions(content ?? ""))
-      : (content ?? "");
-
   const payload = {
-    content: text,
+    content,
     username: identity.name,
     avatarURL: process.env.WEB_BASE_URL ? `${process.env.WEB_BASE_URL}${identity.avatarPath}` : undefined,
     files,
@@ -168,42 +118,59 @@ async function postAsCharacterTo(channel, character, { content, files = [], disc
 
   const send = async () => {
     const info = await fetchOrCreateWebhook(channel);
-    const message = await webhookClientFor(info).send(payload);
-    return { info, message };
+    return webhookClientFor(info).send(payload);
   };
 
-  let info;
   let webhookMessage;
   try {
-    ({ info, message: webhookMessage } = await send());
+    webhookMessage = await send();
   } catch (err) {
     // Only rebuild for a webhook Discord no longer has — retrying a 429
     // makes it worse.
     if (err.code !== RESTJSONErrorCodes.UnknownWebhook) throw err;
     forgetChannelWebhook(webhookChannelFor(channel).id);
-    ({ info, message: webhookMessage } = await send());
+    webhookMessage = await send();
   }
 
-  const { id, token } = info;
-
-  trackProxy(webhookMessage.id, {
-    discordUserId,
-    characterId: character.id,
-    webhookId: id,
-    webhookToken: token,
-    threadId,
-    // Read by messageReactionAdd.js: 🔍 swaps to the anonymous embed, ⭐
-    // files the alias. recentProxies is in-memory and capped, so a restart
-    // makes an old concealed message inert to every reaction — the safe
-    // direction.
-    concealed: identity.concealed,
-    alias: identity.alias,
-  });
-
-  return { webhookMessage, content: text };
+  return { webhookMessage, content };
 }
 
-const DISCORD_MESSAGE_LIMIT = 2000;
+// What a reaction knows about the message it landed on, read out of the
+// transcript rather than an in-memory map. This is what retired
+// `recentProxies`: a bot restart used to make every older message inert to
+// ✏️ ❌ 🔍 📸, and a row does not forget.
+//
+// `concealed` cannot be read straight off `concealedAlias`, because the column
+// holds a FORCED name too and a forced identity is not a concealed one. The
+// character's current forced name settles it: if the alias is that name, this
+// was a forced send and 🔍 answers for the real person, as it always has.
+async function proxyRowFor(discordMessageId) {
+  const row = await archiveRowForMessage(prisma, discordMessageId);
+  if (!row || row.kind !== "MESSAGE" || !row.characterId) return null;
+
+  const character = await prisma.character.findUnique({
+    where: { id: row.characterId },
+    select: { discordUserId: true },
+  });
+
+  let concealed = Boolean(row.concealedAlias);
+  if (concealed) {
+    const forced = await loadForcedName(prisma, row.characterId);
+    if (forced && forced === row.concealedAlias) concealed = false;
+  }
+
+  return {
+    seq: row.seq,
+    sentAt: row.sentAt,
+    deletedAt: row.deletedAt,
+    content: row.content,
+    characterId: row.characterId,
+    discordUserId: character?.discordUserId ?? null,
+    alias: row.concealedAlias,
+    concealed,
+  };
+}
+
 const DM_CHUNK = 1900;
 
 // Discord's per-file upload ceiling for this guild, derived from boost tier
@@ -224,13 +191,6 @@ function uploadLimitBytes(guild) {
 function proxyRefusal(message, content) {
   const text = content ?? "";
 
-  if (text.length > DISCORD_MESSAGE_LIMIT) {
-    return (
-      `That was ${text.length} characters, and a reposted message has to fit Discord's 2000. ` +
-      "Nitro's higher limit is yours, not the bot's. Here it is back:"
-    );
-  }
-
   const limit = uploadLimitBytes(message.guild);
   const tooBig = [...message.attachments.values()].find((a) => a.size > limit);
   if (tooBig) {
@@ -247,13 +207,6 @@ function proxyRefusal(message, content) {
   }
 
   return null;
-}
-
-// What a silenced character is told. One sentence, naming the state, because
-// a player refused without a reason files a GM ticket about it. The tag's own
-// name does the work, so a new gagging tag needs no new copy here.
-function speechRefusal(block) {
-  return `You can't get the words out — you're ${block.name}. Here it is back: ‡`;
 }
 
 // Deleting the original keeps a player's real account off the screen.
@@ -284,26 +237,44 @@ async function handBack(message, reason, text) {
 // including failing ones — a message left under a real Discord name breaks
 // the character/account separation the game depends on. Returns null when
 // the message could not be proxied.
-async function sendAsCharacter(channel, character, message, { identity = presentedIdentity(character), content: override = null } = {}) {
+//
+// Three calls since phase 1, and the order is the whole point:
+// prepareSpeech decides, postAsCharacterTo posts, recordSpeech writes the row
+// with the id it got back. The web takes the same two halves the other way
+// round (row first, outbox posts after), which is what makes them one path
+// rather than two that agree for now.
+async function sendAsCharacter(channel, character, message, { identity: _identity = null, content: override = null } = {}) {
   const text = override ?? message.content;
 
-  // The voice check comes first, and its activity write is the reason. A
-  // player whose words were refused was still HERE, so their catatonic clock
-  // has to move even though nothing reached the channel — otherwise being
-  // Mute or Paralyzed would quietly march them toward the auto-kill in
-  // db/lib/catatonicDeathPass.js for the crime of trying to talk.
-  //
-  // Loaded once and handed to postAsCharacterTo below, rather than paid for
-  // twice on the hottest path in the bot.
-  const voice = await loadVoiceState(character?.id);
-  if (voice.block) {
-    await touchCharacterActivity(prisma, character.id);
+  // What the row will be filed under. Memoised in placeKey.js, so this costs
+  // nothing on the hot path once the channel is warm.
+  const placeKey = await placeKeyForChannel(prisma, {
+    channelId: channel.id,
+    parentId: channel.parent?.id,
+  });
+
+  // The gates, the transforms and the identity, in one call. Its activity
+  // write on a refusal is deliberate: a player whose words were refused was
+  // still HERE, so their catatonic clock has to move even though nothing
+  // reached the channel — otherwise being Mute or Paralyzed would quietly
+  // march them toward the auto-kill in db/lib/catatonicDeathPass.js for the
+  // crime of trying to talk.
+  const prepared = await prepareSpeech(prisma, {
+    character,
+    placeKey,
+    content: text,
+    source: "DISCORD",
+  });
+  if (!prepared.ok) {
+    if (prepared.blocked) await touchCharacterActivity(prisma, character.id);
     await deleteOriginal(message);
-    await handBack(message, speechRefusal(voice.block), text);
+    await handBack(message, prepared.refusal, text);
     return null;
   }
 
-  const refusal = proxyRefusal(message, text);
+  // What is left here needs the Message itself — an oversized attachment, a
+  // sticker-only post — so it cannot live in db/lib with the rest.
+  const refusal = proxyRefusal(message, prepared.content);
   if (refusal) {
     await deleteOriginal(message);
     await handBack(message, refusal, text);
@@ -311,34 +282,25 @@ async function sendAsCharacter(channel, character, message, { identity = present
   }
 
   let webhookMessage;
-  let content;
   try {
-    ({ webhookMessage, content } = await postAsCharacterTo(channel, character, {
-      content: text,
+    ({ webhookMessage } = await postAsCharacterTo(channel, character, {
+      content: prepared.content,
       files: [...message.attachments.values()].map((a) => a.url),
-      discordUserId: message.author.id,
-      identity,
-      voice,
+      identity: prepared.identity,
     }));
   } catch (err) {
     console.error("Failed to proxy message, returning it to its author:", err);
     await deleteOriginal(message);
-    await handBack(message, "Something went wrong reposting that. Here it is back:", text);
+    await handBack(message, "Something went wrong reposting that. Here it is back: ‡", text);
     return null;
   }
 
   // Both halves of a forced or concealed send are kept: alias is what the
-  // room saw, character.name is who it was. recordArchiveMessage swallows
-  // its own failures.
-  await recordArchiveMessage(prisma, {
+  // room saw, character.name is who it was. recordSpeech swallows its own
+  // failures, the way every archive write does.
+  await recordSpeech(prisma, prepared, {
     discordMessageId: webhookMessage.id,
-    content: [content, ...attachmentPlaceholders(message)].filter(Boolean).join("\n"),
-    character,
-    concealedAlias: identity.alias,
-    // What puts a Discord message on the web feed. Memoised in placeKey.js,
-    // so this costs nothing on the hot path once the channel is warm.
-    placeKey: await placeKeyForChannel(prisma, { channelId: channel.id, parentId: channel.parent?.id }),
-    source: "DISCORD",
+    content: [prepared.content, ...attachmentPlaceholders(message)].filter(Boolean).join("\n"),
     ...resolveChannelContext(channel),
   });
   await touchCharacterActivity(prisma, character.id);
@@ -349,8 +311,8 @@ async function sendAsCharacter(channel, character, message, { identity = present
 }
 
 module.exports = {
-  recentProxies,
   loadVoiceState,
+  proxyRowFor,
   sendAsCharacter,
   postAsCharacterTo,
   fetchOrCreateWebhook,
