@@ -502,9 +502,19 @@ and the swatch in its sticky header. The palette rule is written above the
 follows — one hue per group, families step in lightness inside it, every
 value clears 3:1 against `--surface` on dusk and dawn. A family may appear in
 several of a desire's `families`; the picker files it under the **first** one
-and lists the rest beside its name. `{tag:slug}` references inside a Desire's `name` are
-checked against `docs/tags.yaml` the same way any other `{tag:…}` reference
-is.
+and lists the rest beside its name.
+
+**Desire names are plain prose — no `{tag:slug}` tokens.** A `name` may still
+carry one as far as the sync is concerned (it is checked against
+`docs/tags.yaml` like any other `{tag:…}` reference, and `RichText` would
+render it), but none does, and none should. About twenty used to, and *which*
+twenty was the problem: Sake and Ravenheart Red were linked chips while
+alcohol and moonshine sitting beside them in the same family were flat text,
+so the picker looked half-finished rather than deliberate. Write the ware's
+name into the sentence instead. A common noun goes lowercase ("Drink sake",
+"Have a lavish meal"); a proper noun or a named condition keeps its capital
+("Drink Ravenheart Red", "Come back from Dying"), because there the line is
+pointing at the mechanical state.
 
 **Sync behavior — soft-retire, not upsert-only.** `db:sync-desires`
 (`db/lib/syncDesires.js`, run via `npm run db:sync-desires` or automatically

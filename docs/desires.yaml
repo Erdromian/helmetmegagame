@@ -52,7 +52,7 @@
 #      second repetition. What actually throttles a Desire is a per-attempt
 #      COST — ⬢ spent, an item consumed, a risk run.
 #
-# So: a Desire you pay for every time (buy jewelry, win 10 ⬢ gambling, feed
+# So: a Desire you pay for every time (buy jewelry, win 10 ⬢/¢ gambling, feed
 # the poor, host an event) keeps the tier as its cooldown — the spend is the
 # throttle and it needs no help. A Desire that costs nothing but another
 # player's cooperation (a compliment, an argument, a kiss) is a free income
@@ -96,7 +96,12 @@
 # User-dictated text carries no marker. `grep -rn "‡" docs/desires.yaml`
 # finds every line the planner touched; deleting the glyph is sign-off.
 #
-# Every {tag:slug} reference below has been checked against docs/tags.yaml.
+# No Desire NAME carries a {tag:slug} token. About twenty did, and which twenty
+# read as an authoring accident rather than a rule: Sake and Ravenheart Red
+# were linked, alcohol and moonshine sitting right beside them were not. Desire
+# names are plain prose now. The {tag:...} references left in this file are all
+# in COMMENTS, where they point a reader at a catalog row rather than rendering
+# to a player.
 
 # familyGroups: the hue clusters the Desire picker's tab bar shows
 # (web/app/components/DesireCatalog.js). Every family below names one via
@@ -313,7 +318,7 @@ desires:
     cooldownTurns: 3
 
   drink-ravenheart-red:
-    name: Drink {tag:ravenheart-red}
+    name: Drink Ravenheart Red
     tier: 2
     families: [alcohol]
     cooldownTurns: 3
@@ -365,10 +370,11 @@ desires:
     name: Kiss someone
     tier: 3
     families: [romance]
+    cooldownTurns: 4
 
   kill-someone-you-hate:
     name: Kill someone you hate
-    tier: 5
+    tier: 4
     families: [violence]
 
   # Gambling ladder (2026-09-02): a bet, then stakes that climb, then the
@@ -379,22 +385,22 @@ desires:
     families: [gambling]
 
   win-5-gambling:
-    name: Win 5 ⬢ gambling
+    name: Win 5 ⬢/¢ gambling
     tier: 2
     families: [gambling]
 
   win-10-gambling:
-    name: Win 10 ⬢ gambling
+    name: Win 10 ⬢/¢ gambling
     tier: 3
     families: [gambling]
 
   win-25-gambling-one-game:
-    name: Win 25 ⬢ gambling in one game
+    name: Win 25 ⬢/¢ gambling in one game
     tier: 4
     families: [gambling]
 
   win-50-gambling-one-game:
-    name: Win 50 ⬢ gambling in one game
+    name: Win 50 ⬢/¢ gambling in one game
     tier: 5
     families: [gambling]
 
@@ -423,7 +429,7 @@ desires:
     families: [faith]
 
   fine-meal:
-    name: Have a {tag:fine-meal}
+    name: Have a fine meal
     tier: 1
     families: [food]
     requires:
@@ -431,7 +437,7 @@ desires:
     cooldownTurns: 3
 
   lavish-meal:
-    name: Have a {tag:lavish-meal}
+    name: Have a lavish meal
     tier: 2
     families: [food]
     cooldownTurns: 3
@@ -442,7 +448,7 @@ desires:
     families: [scheming, feud]
 
   hold-100:
-    name: Have 100 ⬢ in your inventory at once
+    name: Have 100 ⬢/¢ in your inventory at once
     tier: 4
     families: [wealth]
 
@@ -461,11 +467,13 @@ desires:
     name: Gain a lover
     tier: 3
     families: [romance]
+    cooldownTurns: 4
 
-  forbidden-lover:
-    name: Gain a lover you should not have
+  get-married:
+    name: Get married
     tier: 5
-    families: [romance, scheming]
+    families: [romance]
+    oncePerLife: true
 
   win-a-game:
     name: Win a game of chance with something staked
@@ -486,12 +494,13 @@ desires:
     name: Save someone's life
     tier: 3
     families: [bravery, charity]
-    oncePerLife: true
+    cooldownTurns: 5
 
   save-a-leaders-life:
     name: Save a faction leader's life
     tier: 5
     families: [bravery, charity]
+    oncePerLife: true
 
   win-a-tournament:
     name: Win a tournament
@@ -499,7 +508,7 @@ desires:
     families: [violence, bravery, vanity]
 
   get-jewelry:
-    name: Buy some {tag:jewelry}
+    name: Buy some jewelry
     tier: 2
     families: [vanity, wealth]
 
@@ -525,7 +534,7 @@ desires:
       anyTags: [charitable]
 
   drink-sake:
-    name: Drink {tag:sake}
+    name: Drink sake
     tier: 2
     families: [alcohol]
     cooldownTurns: 3
@@ -537,7 +546,7 @@ desires:
     cooldownTurns: 3
 
   listen-to-boombox:
-    name: Listen to music on a {tag:boombox}
+    name: Listen to music on a boombox
     tier: 1
     families: [social]
     cooldownTurns: 5
@@ -562,7 +571,7 @@ desires:
   # Collision ruling (Task 11): was tier 2, T: glutton. Ungated now — glutton
   # keeps access through its own food carve-out, no separate gated entry.
   eat-sweets:
-    name: Eat {tag:sweets}
+    name: Eat sweets
     tier: 1
     families: [food]
     cooldownTurns: 3
@@ -694,7 +703,7 @@ desires:
       anyTags: [relentless]
 
   pet-a-rat:
-    name: Pet someone else's {tag:rat}
+    name: Pet someone else's rat
     tier: 2
     families: [social]
     requires:
@@ -745,7 +754,7 @@ desires:
       anyTags: [pious, post-christian, fundamentalist, saint, pilgrim, old-ways-eusoch, old-ways-sylvia, old-ways-thoth, old-ways-bacchus]
 
   finish-a-painting:
-    name: Finish a {tag:painting}
+    name: Finish a painting
     tier: 2
     families: [craft]
     requires:
@@ -838,7 +847,7 @@ desires:
       anyRoles: [mortus]
 
   feed-web-beautiful:
-    name: Feed someone with the {tag:pretty} or {tag:beautiful} trait to the Web
+    name: Feed someone with the Pretty or Beautiful trait to the Web
     tier: 4
     families: [mortality, cruelty]
     requires:
@@ -908,7 +917,7 @@ desires:
     oncePerLife: true
 
   sell-stolen-jewelry:
-    name: Sell stolen {tag:jewelry} to the Merchant
+    name: Sell stolen jewelry to the Merchant
     tier: 4
     families: [theft]
     requires:
@@ -1029,7 +1038,7 @@ desires:
       anyRoles: [bishop]
 
   return-silver-cross:
-    name: Return the stolen {tag:silver-cross} to the reliquary
+    name: Return the stolen silver cross to the reliquary
     tier: 5
     families: [faith, duty]
     requires:
@@ -1037,7 +1046,7 @@ desires:
     oncePerLife: true
 
   cup-of-tea:
-    name: Enjoy a cup of {tag:tea}
+    name: Enjoy a cup of tea
     tier: 2
     families: [food]
     requires:
@@ -1067,7 +1076,7 @@ desires:
       anyRoles: [hand]
 
   amass-200:
-    name: Amass a stockpile of 200 ⬢
+    name: Amass a stockpile of 200 ⬢/¢
     tier: 5
     families: [wealth]
     requires:
@@ -1306,7 +1315,7 @@ desires:
   # named here is what makes the Fundamentalist tag advertise the Desire on its
   # own tooltip.
   confess-your-sins:
-    name: Confess your sins
+    name: Successfully confess something
     tier: 2
     families: [faith]
     requires:
@@ -1486,7 +1495,7 @@ desires:
       anyRoles: [cerberus, sheriff]
 
   cook-a-lavish-meal:
-    name: Cook a {tag:lavish-meal}
+    name: Cook a lavish meal
     tier: 1
     families: [food, craft]
     requires:
@@ -1521,14 +1530,14 @@ desires:
       anyTags: [death-wish]
 
   grievous-wound-healed:
-    name: Take a {tag:grievous-wound} and have it healed
+    name: Take a grievous wound and have it healed
     tier: 3
     families: [mortality, medical]
     requires:
       anyTags: [death-wish]
 
   come-back-from-dying:
-    name: Come back from {tag:dying}
+    name: Come back from Dying
     tier: 5
     families: [mortality]
     requires:
@@ -1561,7 +1570,7 @@ desires:
       anyRoles: [cerberus, sheriff]
 
   pocket-60:
-    name: Hold 60 ⬢ that was never yours
+    name: Hold 60 ⬢/¢ that was never yours
     tier: 4
     oncePerLife: true
     families: [theft]
@@ -1658,14 +1667,14 @@ desires:
       anyTags: [demoness]
 
   dem-a-room-in-panic:
-    name: Put a room into {tag:panic} without laying a hand on anyone
+    name: Put a room into Panic without laying a hand on anyone
     tier: 4
     families: [demoness, cruelty]
     requires:
       anyTags: [demoness]
 
   dem-noble-lover:
-    name: Take a lover with {tag:nobility}
+    name: Take a lover with Nobility
     tier: 3
     families: [demoness, romance]
     requires:
@@ -1715,7 +1724,7 @@ desires:
       anyTags: [demoness]
 
   dem-apex:
-    name: Give it all up for the {tag:apex-form}
+    name: Give it all up for the Apex Form
     tier: 7
     families: [demoness, mortality]
     requires:
@@ -1744,7 +1753,7 @@ desires:
 
   # --- Role-flavoured: the Metalsmith ---------------------------------------
   craft-plate-armor:
-    name: Craft {tag:plate-armor}
+    name: Craft plate armor
     tier: 3
     families: [craft]
     requires:
@@ -1907,7 +1916,7 @@ desires:
       anyTags: [demoness]
 
   dem-kiss-a-broken:
-    name: "Kiss a {tag:broken} one"
+    name: "Kiss a Broken one"
     tier: 1
     families: [demoness, romance]
     requires:
@@ -1922,7 +1931,7 @@ desires:
       anyTags: [demoness]
 
   dem-break-a-brokens-heart:
-    name: "Break a {tag:broken}'s heart"
+    name: "Break a Broken's heart"
     tier: 2
     families: [demoness, cruelty]
     requires:
@@ -2102,7 +2111,7 @@ desires:
   # Both need {tag:human-flesh}, which only the Butcher button produces, so
   # the real gate is upstream of `requires` and neither entry restates it.
   eat-human-flesh:
-    name: Eat {tag:human-flesh} ‡
+    name: Eat human flesh ‡
     tier: 2
     families: [cruelty, food]
     requires:
