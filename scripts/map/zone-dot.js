@@ -6,12 +6,18 @@
 //   npm run map:dot                 write zone.dot at the repo root
 //   npm run map:dot -- out.dot      write somewhere else
 //
-//   dashed  = on_foot (no horse or cart)
-//   dotted  = hidden (absent from the travel list without the tag)
-//   bold    = modular (a gate with a winch)
-//   blue    = crosses a zone, so the hop costs the Move
-//   label   = whatever locked/hidden/announce/keyed the edge, so the graph
-//             reads like the travel rules rather than just the map
+//   dashed   = on_foot (no horse, cart or boat fits) — wins over dotted below,
+//              so an edge that's both hidden and on_foot still reads as on_foot
+//   dotted   = hidden and NOT on_foot (absent from the travel list without the tag)
+//   bold     = modular (a gate with a winch)
+//   gray     = hidden
+//   dark cyan = a Fishing Boat's extra crossing works here (both ends are in
+//              db/lib/mounts.js's WATER_ZONE_SLUGS — Forest, Black Hills,
+//              Marshes — and it isn't on_foot, since nothing stowable can
+//              cross one of those at all)
+//   blue     = crosses a zone otherwise, so the hop costs the Move
+//   label    = whatever locked/hidden/announce/keyed the edge, so the graph
+//              reads like the travel rules rather than just the map
 //
 // Each node's label also carries its `yield:` block (LABORING.md §3) — the
 // authored `base` coefficients, one line per LaborKind. A Location with no
@@ -37,6 +43,12 @@ const ZONES_PATH = path.join(ROOT, "docs", "zones.yaml");
 const LABOR_KINDS = ["hunting", "farming", "fishing"];
 const LABOR_EMOJI = { hunting: "🏹", farming: "🌾", fishing: "🎣" };
 
+// Mirrors db/lib/mounts.js#WATER_ZONE_SLUGS — the only zones a Fishing Boat's
+// extra crossing works between. Kept as its own small copy rather than a
+// cross-package require, the same call every other doc-derived script here
+// makes: this reads docs/zones.yaml, not the game's runtime state.
+const WATER_ZONES = new Set(["forest", "hills", "marshes"]);
+
 // `kind: group` zones (Underground) never appear in connections themselves —
 // only their `levels:` do, each one a real zone id (caves, depths). Flatten
 // them here so the returned map is keyed exactly how connections addresses
@@ -58,7 +70,7 @@ function collectZones(doc) {
 function collectLocations(zoneOrLevel) {
   const locations = new Map();
   for (const [locId, loc] of Object.entries(zoneOrLevel.locations ?? {})) {
-    locations.set(locId, { name: loc.name, yield: loc.yield ?? null });
+    locations.set(locId, { name: loc.name, yield: loc.yield ?? null, indoors: Boolean(loc.indoors) });
   }
   return locations;
 }
@@ -97,11 +109,20 @@ function dotId(slug) {
 }
 
 function edgeAttrs(edge) {
-  const crossesZone = edge.a.split("/")[0] !== edge.b.split("/")[0];
+  const zoneA = edge.a.split("/")[0];
+  const zoneB = edge.b.split("/")[0];
+  const crossesZone = zoneA !== zoneB;
+  // Boat-eligible by the zone-pair rule mounts.js#boatCrossing checks — minus
+  // on_foot, since blocksOnFoot() refuses a boat (or anything else stowable)
+  // at one of those regardless of which zones it joins.
+  const boatWater = !edge.onFoot && WATER_ZONES.has(zoneA) && WATER_ZONES.has(zoneB);
 
+  // on_foot always draws dashed, even on a hidden edge — a line SHAPE is the
+  // one signal here that never competes with color, so it's the one thing
+  // guaranteed legible no matter what else is layered on this edge.
   const style = [];
-  if (edge.hidden) style.push("dotted");
-  else if (edge.onFoot) style.push("dashed");
+  if (edge.onFoot) style.push("dashed");
+  else if (edge.hidden) style.push("dotted");
   if (edge.modular) style.push("bold");
 
   const label = [];
@@ -112,8 +133,9 @@ function edgeAttrs(edge) {
 
   const attrs = [];
   if (style.length) attrs.push(`style="${style.join(",")}"`);
-  attrs.push(`color="${edge.hidden ? "gray45" : crossesZone ? "steelblue" : "black"}"`);
-  if (crossesZone) attrs.push("penwidth=1.6");
+  const color = edge.hidden ? "gray45" : boatWater ? "darkcyan" : crossesZone ? "steelblue" : "black";
+  attrs.push(`color="${color}"`);
+  if (boatWater || crossesZone) attrs.push("penwidth=1.6");
   // A real newline here, not the two-character "\n" — JSON.stringify escapes
   // an actual line break into DOT's `\n` for us. Pre-escaping it ourselves
   // double-escaped the backslash, so Graphviz printed "\nkeyed" literally
@@ -137,6 +159,49 @@ const ZONE_FILL = {
   caves: "#e4e4e4",
   depths: "#c8ccd6",
 };
+
+// A standalone HTML-like label rather than literal legend edges: real edges
+// would either fight rankdir=LR for a stacked layout or need invisible rank
+// tricks, and a table gives every row equal weight for free. Two separate
+// lists rather than one combined swatch per row, because style and color are
+// genuinely independent channels here — a dashed edge can be black or gray,
+// and knowing that is the whole point of §7's "dashed always wins" rule.
+function legendLines() {
+  const row = (glyph, glyphColor, text) =>
+    `<TR><TD ALIGN="LEFT"><FONT COLOR="${glyphColor}">${glyph}</FONT></TD>` +
+    `<TD ALIGN="LEFT">${text}</TD></TR>`;
+  const table = [
+    '<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="3" CELLPADDING="1">',
+    '<TR><TD COLSPAN="2"><B>Line style</B></TD></TR>',
+    row("──────", "black", "Open road"),
+    row("╌ ╌ ╌ ╌", "black", "On foot — no horse, cart or boat fits"),
+    row("· · · · · · ·", "black", "Hidden only — and not on foot"),
+    row("━━━━━━", "black", "Modular gate — a winch, shut or open"),
+    '<TR><TD COLSPAN="2"> </TD></TR>',
+    '<TR><TD COLSPAN="2"><B>Line color</B></TD></TR>',
+    row("──────", "black", "Ordinary crossing"),
+    row("──────", "steelblue", "Crosses a zone — costs the Move"),
+    row("──────", "darkcyan", "A Fishing Boat's extra crossing works here"),
+    row("──────", "gray45", "Hidden — always this color, dashed or not"),
+    '<TR><TD COLSPAN="2"> </TD></TR>',
+    '<TR><TD COLSPAN="2"><B>Location border</B></TD></TR>',
+    // A real nested box-in-a-box, matching the peripheries=2 double border
+    // on an indoors node itself — a word or a single-line glyph couldn't
+    // show "two borders" the way the actual node shape does.
+    '<TR><TD ALIGN="LEFT"><TABLE BORDER="1" CELLBORDER="1" CELLSPACING="2" CELLPADDING="6"><TR><TD></TD></TR></TABLE></TD>' +
+      '<TD ALIGN="LEFT">Indoors — a mount/cart/boat is parked at the door</TD></TR>',
+    "</TABLE>",
+  ].join("");
+  return [
+    '  subgraph cluster_legend {',
+    '    label="Legend";',
+    "    style=filled;",
+    '    fillcolor="white";',
+    '    fontname=Helvetica;',
+    `    legend [shape=none, margin=0, fontname=Helvetica, label=<${table}>];`,
+    "  }",
+  ];
+}
 
 function buildDot(zones, edges) {
   // Which nodes have at least one edge to another node in the SAME zone —
@@ -167,7 +232,12 @@ function buildDot(zones, edges) {
       const fullId = `${zoneId}/${locId}`;
       const yieldLine = yieldLabel(loc.yield);
       const label = yieldLine ? `${loc.name}\n${yieldLine}` : loc.name;
-      const nodeLine = `${dotId(fullId)} [label=${JSON.stringify(label)}];`;
+      // A double border, not a color or a word: peripheries is the node-shape
+      // equivalent of an edge's line style, and indoors already has its own
+      // mechanic (a mount is parked at the door — CARRY.md §3) rather than
+      // sharing a channel with something else.
+      const peripheries = loc.indoors ? ", peripheries=2" : "";
+      const nodeLine = `${dotId(fullId)} [label=${JSON.stringify(label)}${peripheries}];`;
       if (clustered.has(fullId)) lines.push(`    ${nodeLine}`);
       else loose.push(`  ${nodeLine}`);
     }
@@ -179,6 +249,7 @@ function buildDot(zones, edges) {
   for (const edge of edges) {
     lines.push(`  ${dotId(edge.a)} -- ${dotId(edge.b)}${edgeAttrs(edge)};`);
   }
+  lines.push("", ...legendLines());
 
   lines.push("}");
   return lines.join("\n") + "\n";
