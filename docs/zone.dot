@@ -1,0 +1,188 @@
+// Undirected connection graph extracted from docs/zones.yaml
+graph Zones {
+  rankdir=TB;
+  node [shape=ellipse];
+
+  subgraph cluster_fortress {
+    "fortress/servant-wing"
+    "fortress/lifeweb"
+    "fortress/undercroft"
+    "fortress/gatehouse"
+    "fortress/keep"
+    "fortress/garrison"
+    "fortress/road"
+    "fortress/manors"
+  }
+
+  // --- Fortress ---------------------------------------------------------
+  "fortress/servant-wing" -- "fortress/lifeweb";
+  "fortress/servant-wing" -- "fortress/keep";
+  "fortress/servant-wing" -- "fortress/undercroft";
+  "fortress/lifeweb" -- "fortress/gatehouse";
+  "fortress/keep" -- "fortress/undercroft";
+  "fortress/keep" -- "fortress/garrison";
+  "fortress/keep" -- "fortress/gatehouse";
+  "fortress/garrison" -- "fortress/gatehouse";
+  "fortress/road" -- "fortress/manors";
+  "fortress/gatehouse" -- "fortress/road" [label="announce=true_name; modular: roles=[cerberus,censor,baron,hand]; tags=[knighted,cerberon,cerberus-key]; open=true"];
+
+subgraph cluster_town {
+  "town/north-gate"
+  "town/cathedral"
+  "town/sanctuary"
+  "town/square"
+  "town/old-cock-inn"
+  "town/underquarter"
+  "town/south-gate"
+}
+
+  // --- Town -------------------------------------------------------------
+  "town/north-gate" -- "town/cathedral";
+  "town/north-gate" -- "town/sanctuary";
+  "town/cathedral" -- "town/square";
+  "town/sanctuary" -- "town/square";
+  "town/sanctuary" -- "town/old-cock-inn";
+  "town/sanctuary" -- "town/underquarter";
+  "town/underquarter" -- "town/old-cock-inn";
+  "town/square" -- "town/old-cock-inn";
+  "town/square" -- "town/south-gate";
+
+subgraph cluster_forest {
+  "forest/forest-headwaters"
+  "forest/forest-cliffs"
+  "forest/forest-north-road"
+  "forest/forest-creekside"
+  "forest/forest-west-riverbank"
+  "forest/forest-deep-forest"
+  "forest/forest-culvert"
+  "forest/forest-east-river"
+  "forest/forest-bend"
+  "forest/forest-crossroads"
+  "forest/farms"
+  "forest/forest-sparse-field"
+}
+
+  // --- Forest -----------------------------------------------------------
+  "forest/forest-headwaters" -- "forest/forest-cliffs";
+  "forest/forest-headwaters" -- "forest/forest-creekside";
+  "forest/forest-cliffs" -- "forest/forest-north-road";
+  "forest/forest-creekside" -- "forest/forest-west-riverbank";
+  "forest/forest-creekside" -- "forest/forest-deep-forest";
+  "forest/forest-north-road" -- "forest/forest-culvert";
+  "forest/forest-west-riverbank" -- "forest/forest-deep-forest";
+  "forest/forest-west-riverbank" -- "forest/forest-bend";
+  "forest/forest-deep-forest" -- "forest/forest-bend";
+  "forest/forest-bend" -- "forest/forest-crossroads";
+  "forest/forest-crossroads" -- "forest/forest-sparse-field";
+  "forest/forest-culvert" -- "forest/forest-east-river";
+
+subgraph cluster_hills {
+  "hills/hills-descent"
+  "hills/hills-ferry"
+  "hills/hills-trails"
+  "hills/hills-ravine"
+  "hills/hills-black-pines"
+  "hills/hills-ruins"
+  "hills/hills-bowl"
+  "hills/hills-scrub"
+}
+
+  // --- Black Hills ------------------------------------------------------
+  "hills/hills-descent" -- "hills/hills-ferry";
+  "hills/hills-descent" -- "hills/hills-trails";
+  "hills/hills-trails" -- "hills/hills-ravine";
+  "hills/hills-trails" -- "hills/hills-black-pines";
+  "hills/hills-ravine" -- "hills/hills-black-pines";
+  "hills/hills-ravine" -- "hills/hills-ruins";
+  "hills/hills-ruins" -- "hills/hills-bowl";
+  "hills/hills-ruins" -- "hills/hills-scrub";
+  "hills/hills-bowl" -- "hills/hills-scrub";
+
+subgraph cluster_marshes {
+  "marshes/marshes-hardground"
+  "marshes/marshes-reedcut"
+  "marshes/marshes-village"
+  "marshes/marshes-duckboards"
+  "marshes/factory"
+  "marshes/marshes-village"
+  "marshes/marshes-sink"
+  "marshes/marshes-pasture"
+}
+
+  // --- Marshes ----------------------------------------------------------
+  "marshes/marshes-hardground" -- "marshes/marshes-reedcut";
+  "marshes/marshes-hardground" -- "marshes/marshes-village";
+  "marshes/marshes-reedcut" -- "marshes/marshes-duckboards";
+  "marshes/marshes-duckboards" -- "marshes/factory";
+  "marshes/marshes-pasture" -- "marshes/marshes-village";
+  "marshes/marshes-pasture" -- "marshes/marshes-sink";
+  "marshes/marshes-sink" -- "marshes/factory";
+  "marshes/marshes-village" -- "marshes/factory";
+
+subgraph cluster_caves {
+  "caves/customs"
+  "caves/caves-narrows"
+  "caves/caves-stairhead"
+  "caves/caves-freight-run"
+  "caves/caves-junction"
+}
+
+  // --- Caves ------------------------------------------------------------
+  "caves/customs" -- "caves/caves-narrows" [label="announce=concealed; modular: roles=[cerberus,censor,baron,hand]; tags=[cerberus-key,cerberon]; open=true"];
+  "caves/caves-narrows" -- "caves/caves-stairhead";
+  "caves/caves-junction" -- "caves/caves-freight-run";
+  "caves/caves-freight-run" -- "caves/caves-stairhead";
+  "caves/customs" -- "caves/caves-freight-run" [label="hidden=caving; on_foot=true"];
+
+subgraph cluster_depths {
+  "depths/depths-runnel"
+  "depths/depths-gallery"
+  "depths/depths-braid"
+  "depths/depths-long-run"
+  "depths/depths-saltrise"
+  "depths/depths-sea-mouth"
+  "depths/depths-blank-face"
+}
+
+  // --- Depths -----------------------------------------------------------
+  "depths/depths-blank-face" -- "depths/depths-runnel";
+  "depths/depths-runnel" -- "depths/depths-gallery";
+  "depths/depths-gallery" -- "depths/depths-braid";
+  "depths/depths-braid" -- "depths/depths-long-run";
+  "depths/depths-long-run" -- "depths/depths-saltrise";
+  "depths/depths-saltrise" -- "depths/depths-sea-mouth";
+
+  // --- Between zones — each of these costs the Move ----------------------
+  "fortress/manors" -- "forest/forest-north-road";
+  "forest/forest-crossroads" -- "forest/farms";
+  "forest/forest-sparse-field" -- "forest/farms";
+  "forest/forest-east-river" -- "forest/farms";
+  "forest/forest-crossroads" -- "caves/customs";
+  "forest/forest-culvert" -- "hills/hills-ferry";
+  "caves/caves-stairhead" -- "depths/depths-gallery";
+  "caves/caves-stairhead" -- "depths/depths-braid";
+  "depths/depths-sea-mouth" -- "hills/hills-scrub";
+  "hills/hills-black-pines" -- "marshes/marshes-hardground";
+  "hills/hills-black-pines" -- "marshes/marshes-reedcut";
+  "hills/hills-scrub" -- "marshes/marshes-hardground";
+
+  // Town gates (both unmanned / concealed)
+  "forest/forest-north-road" -- "town/north-gate" [label="announce=concealed; modular: roles=[cerberus,censor,baron,hand,headman]; tags=[knighted,cerberon,cerberus-key]; open=true"];
+  "forest/forest-crossroads" -- "town/south-gate" [label="announce=concealed; modular: roles=[cerberus,censor,baron,hand,headman]; tags=[knighted,cerberon,cerberus-key]; open=true"];
+
+  // Baron's elevator
+  "fortress/undercroft" -- "forest/forest-cliffs" [label="hidden=elevator-key; keyed=true; on_foot=true"];
+
+  // The three climbs (locked + on foot)
+  "fortress/road" -- "hills/hills-descent" [label="locked=mountaineering; on_foot=true"];
+  "fortress/servant-wing" -- "hills/hills-mountain" [label="locked=mountaineering; on_foot=true"];
+  "forest/forest-headwaters" -- "hills/hills-mountain" [label="locked=mountaineering; on_foot=true"];
+
+  // The four crawls (hidden, on foot)
+  "forest/forest-sparse-field" -- "caves/caves-junction" [label="hidden=caving; on_foot=true"];
+  "caves/caves-junction" -- "marshes/marshes-duckboards" [label="hidden=caving; on_foot=true"];
+  "depths/depths-long-run" -- "marshes/marshes-sink" [label="hidden=caving; on_foot=true"];
+
+  // Culvert into Underquarter's sewers (locked, keyed, on foot)
+  "forest/forest-culvert" -- "town/underquarter" [label="locked=sewer-key; keyed=true; on_foot=true"];
+}
