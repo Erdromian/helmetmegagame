@@ -12,6 +12,8 @@
     "dev:bot": "npm run dev --workspace=bot",
     "dev:session": "node scripts/dev/session.mjs",
     "dev:check": "node scripts/dev/check.mjs",
+    "dev:setup": "node scripts/dev/setup-local.mjs",
+    "dev:seed": "node scripts/dev/seed-test-data.mjs",
     "push": "bash scripts/push.sh",
     "changelog": "node scripts/changelog/log.js",
     "redeploy": "railway redeploy -s web --from-source -y && railway redeploy -s '@lifeweb/bot' --from-source -y",
@@ -39,7 +41,9 @@
     "db:open-rp-channels": "node db/scripts/ops/open-rp-channels.js",
     "db:backup": "bash scripts/db/railway-backup.sh",
     "copy:extract": "node scripts/copy/extract.js",
-    "copy:reinject": "node scripts/copy/reinject.js"
+    "copy:reinject": "node scripts/copy/reinject.js",
+    "map:dot": "node scripts/map/zone-dot.js",
+    "map:png": "node scripts/map/zone-image.js"
   },
   "allowScripts": {
     "@prisma/client@6.19.3": true,
