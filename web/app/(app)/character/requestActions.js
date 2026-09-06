@@ -26,6 +26,7 @@ import {
   createRequest,
   logRequest,
   requireReason,
+  optionalReason,
   MAX_REASON_LENGTH,
   craftAllowance,
   unitsOfTagThisTurn,
@@ -991,7 +992,9 @@ async function craftRequestImpl({
   reason: rawReason,
 }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
+  // Optional since the reason box left the Craft dialog (Chris 2026-09-06):
+  // a craft pays its way in ⬢, Move and ingredients, and waits on no GM.
+  const reason = optionalReason(rawReason);
 
   // Bound, Dying, Paralyzed, Catatonic, mid-Seizure. Somebody tied up does not
   // get to keep working; the same reasoning as the Extract gate below.
@@ -1318,7 +1321,7 @@ async function loadOwnProject(character, projectId) {
 // the work started, so an honest continue would fail its own check on turn 2.
 async function continueCraftImpl({ projectId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
+  const reason = optionalReason(rawReason);
 
   // Bound, Dying, Paralyzed, Catatonic, mid-Seizure — the same gate starting
   // the work passes (craftRequestImpl). Somebody tied up does not get to keep
@@ -1449,7 +1452,7 @@ async function continueCraftImpl({ projectId, reason: rawReason }) {
 // the work began, and neither comes back.
 async function cancelCraftImpl({ projectId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
+  const reason = optionalReason(rawReason);
   const project = await loadOwnProject(character, projectId);
   await prisma.$transaction(async (tx) => {
     await tx.craftProject.update({
@@ -1880,7 +1883,7 @@ async function openBuildSiteImpl(
 // recipe gated the opening, and the ⬢ were all spent then.
 async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
+  const reason = optionalReason(rawReason);
 
   // Read fresh, and matched against the character's OWN locationId rather
   // than anything posted — a server action is a public endpoint.
@@ -2006,7 +2009,7 @@ async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
 // GM pulling a site down is the same desk action as pulling a wall down.
 async function cancelBuildSiteImpl({ structureId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
+  const reason = optionalReason(rawReason);
 
   const site = await prisma.structure.findFirst({
     where: {

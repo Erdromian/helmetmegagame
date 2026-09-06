@@ -154,6 +154,14 @@ export function requireReason(raw) {
   return reason.slice(0, MAX_REASON_LENGTH);
 }
 
+// The craft verbs' variant (Chris 2026-09-06): a craft pays in ⬢, Move and
+// ingredients and waits on no GM, so the recipe itself is the record and the
+// reason box is gone from the dialog. Still trimmed and capped — a server
+// action is a public endpoint — but empty is simply empty.
+export function optionalReason(raw) {
+  return (raw?.toString().trim() ?? "").slice(0, MAX_REASON_LENGTH);
+}
+
 // `payload` is what the player asked for; `effect` is what was actually
 // applied. Undo reads ONLY `effect` — see the model comment in schema.prisma
 // for why re-deriving from live state is unsafe.

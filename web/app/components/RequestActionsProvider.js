@@ -353,8 +353,11 @@ function payerLabel(parties, key) {
 const NO_REQUEST_MODES = new Set(["examine"]);
 
 // Nothing to adjudicate, so nothing to justify. The letter itself is the
-// record a GM reads (docs/systemdocs/PAPERWORK.md).
-const NO_REASON_MODES = new Set(["bird", "write", "seal", "bindbook", "tearbook"]);
+// record a GM reads (docs/systemdocs/PAPERWORK.md). Craft joined the list
+// (Chris 2026-09-06): a craft pays its way in ⬢, Move and ingredients and
+// waits on no GM, so the recipe is the record — the five craft-family
+// server actions take the reason as optional to match.
+const NO_REASON_MODES = new Set(["bird", "write", "seal", "bindbook", "tearbook", "craft"]);
 
 // Why a person is lootable: living cases come from INCAPACITATING_SLUGS
 // (db/lib/incapacitation.js); a corpse says so plainly.

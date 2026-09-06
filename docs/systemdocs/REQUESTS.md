@@ -18,9 +18,12 @@ immediately, and the GM reviews it later:
 
 1. The player clicks a button on their character sheet.
 2. A universal popup asks **"What is your reason?"**, with type-specific
-   fields underneath. (One exception: the Bird's letter passes
-   `reasonRequired={false}`, because the letter it files is already the evidence
-   a GM would read — `BIRD.md` §7.)
+   fields underneath. (Exceptions pass `reasonRequired={false}`: the Bird's
+   letter, because the letter it files is already the evidence a GM would
+   read — `BIRD.md` §7 — and the whole Craft dialog, because a craft pays
+   its way in ⬢, Move and ingredients and waits on no GM; the recipe is the
+   record. The craft-family server actions take the reason as optional to
+   match — `web/lib/requests.js#optionalReason`.)
 3. The player confirms.
 4. The effect is applied and a `Request` row is written, in one transaction.
 5. A GM sees it in the Requests tab of `/gm/turns` and can **Mark reviewed**
