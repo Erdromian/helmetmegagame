@@ -75,6 +75,7 @@ import {
   getGuildMember,
   isApprovedPlayer,
   isCursed,
+  isGm,
   isLeaderWhitelisted,
 } from "@/lib/discordGuild";
 import {
@@ -114,6 +115,7 @@ import {
 import CharacterSheet from "../../components/CharacterSheet";
 import CreateCharacterWizard from "./CreateCharacterWizard";
 import CreationClosed from "./CreationClosed";
+import Lobby from "./lobby/Lobby";
 
 // Everything the creation wizard needs, shaped as the Zone -> Faction -> Role
 // tree it renders. Seat counts are computed here, not the client, so the
@@ -150,11 +152,21 @@ async function loadCreationData(discordUserId) {
   const takenByRole = await takenCounts(prisma, roleRows, discordUserId);
 
   const cursed = isCursed(member);
-  // Presentation only; the server action re-checks regardless.
+  // Presentation only; the server action re-checks regardless. Creation is
+  // open while the game runs (Ended locks only the clock — LOBBY.md §1), and
+  // to a GM during the lobby, which is the Skip button.
   const superadmin = isSuperadmin(discordUserId);
+  const phase = state?.phase ?? "CLOSED";
   const gate = {
-    open: superadmin || state?.phase === "RUNNING",
+    phase,
+    open:
+      superadmin ||
+      phase === "RUNNING" ||
+      phase === "ENDED" ||
+      (phase === "LOBBY" && isGm(member)),
     approved: superadmin || isApprovedPlayer(member),
+    superadmin,
+    gm: isGm(member),
   };
   // `=== false`, not falsy: no config row means the gate stays enforced.
   const leaderWhitelisted =
@@ -230,7 +242,7 @@ async function loadCreationData(discordUserId) {
   };
 }
 
-export default async function CharacterPage() {
+export default async function CharacterPage({ searchParams }) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
@@ -264,11 +276,35 @@ export default async function CharacterPage() {
     },
   });
 
-  // No living character — this IS the create-a-character screen.
+  // No living character — this is the lobby, the wizard, or a closed door,
+  // depending on the phase (docs/systemdocs/LOBBY.md §1).
   if (!character) {
     const { gate, ...creation } = await loadCreationData(session.discordUserId);
-    if (!gate.open || !gate.approved)
-      return <CreationClosed open={gate.open} />;
+    const { create } = (await searchParams) ?? {};
+    const skipping = gate.phase === "LOBBY" && create === "1" && (gate.gm || gate.superadmin);
+    if (gate.phase === "LOBBY" && !skipping) {
+      if (!gate.approved) return <CreationClosed open />;
+      const [preference, entry, readyCount] = await Promise.all([
+        prisma.playerPreference.findUnique({ where: { discordUserId: session.discordUserId } }),
+        prisma.lobbyEntry.findUnique({ where: { discordUserId: session.discordUserId } }),
+        prisma.lobbyEntry.count({ where: { status: "READY" } }),
+      ]);
+      return (
+        <Lobby
+          groups={creation.groups}
+          initial={{
+            rolePriorities: preference?.rolePriorities ?? {},
+            antagonistOptIns: creation.initialAntagonists,
+            joblessRole: preference?.joblessRole ?? "COMMONER",
+          }}
+          entry={entry?.status === "READY" ? { readyAt: entry.readyAt.toISOString() } : null}
+          readyCount={readyCount}
+          whitelisted={creation.whitelisted}
+          canSkip={gate.gm || gate.superadmin}
+        />
+      );
+    }
+    if (!gate.open || !gate.approved) return <CreationClosed open={gate.open} />;
     return <CreateCharacterWizard {...creation} />;
   }
 

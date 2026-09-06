@@ -37,6 +37,7 @@ import {
   isCursed,
   isApprovedPlayer,
   isLeaderWhitelisted,
+  isGm,
   removeCursedRole,
 } from "@/lib/discordGuild";
 import {
@@ -69,6 +70,13 @@ import {
   normalizeEarnedHonorific,
   GENDERS,
 } from "@/lib/characterName";
+
+// When somebody may make a character at all (docs/systemdocs/LOBBY.md §1):
+// while the game runs or has ended, or — for a GM — during the lobby.
+function creationOpen(phase, member) {
+  if (phase === "RUNNING" || phase === "ENDED") return true;
+  return phase === "LOBBY" && isGm(member);
+}
 
 // Creates a character from the wizard's Confirm step. Everything posted is
 // re-derived and re-checked — a server action is a public endpoint.
@@ -128,10 +136,12 @@ export async function createCharacter(formData) {
   ]);
   if (!role) return { error: "That role no longer exists." };
 
-  // Launch gate: the game must be running AND this member approved — the
-  // real enforcement boundary, not the wizard's UI. Superadmin bypasses both.
+  // Launch gate: the game must be running (or ended — Ended locks only the
+  // clock) AND this member approved — the real enforcement boundary, not the
+  // wizard's UI. A GM may skip ahead during the lobby. Superadmin bypasses
+  // both.
   const bypass = isSuperadmin(discordUserId);
-  if (!bypass && state?.phase !== "RUNNING") {
+  if (!bypass && !creationOpen(state?.phase, member)) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
   if (!bypass && !isApprovedPlayer(member)) {
@@ -519,7 +529,7 @@ export async function reserveRoleAction(roleId) {
   if (!role) return { error: "That role no longer exists." };
 
   const bypass = isSuperadmin(discordUserId);
-  if (!bypass && state?.phase !== "RUNNING") {
+  if (!bypass && !creationOpen(state?.phase, member)) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
   if (!bypass && !isApprovedPlayer(member)) {

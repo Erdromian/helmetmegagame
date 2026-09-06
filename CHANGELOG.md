@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · A lobby to ready up in before the game starts
+
+✚ While the game is gathering, /character is the lobby: set Off, Low, Med or High on every role (one High at a time), say what happens if nothing fits, tick antagonist boxes, and press Ready. It saves as you go and remembers you next game  
+✚ The Game section on the Dev Panel lists who readied and what they asked for  
+✚ Gamemasters get a Skip to character creation button in the lobby, for testing  
+✎ Character creation is open while the game is Running or Ended; Ended stops only the clock
+
 ## 2026-09-06 · Giant, Strong and Pack Mule no longer stack
 
 ✎ Giant, Strong and Pack Mule now conflict with each other, so a build can hold only one of the three carry bodies

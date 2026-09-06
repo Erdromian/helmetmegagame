@@ -39,6 +39,8 @@ import { DEPOT_HELP } from "@/app/(app)/gm/dev/devHelp";
 import { getGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
 import GameControls from "./GameControls";
 import ConfigForm from "./ConfigForm";
+import LobbyRoster from "./LobbyRoster";
+import { pickedNothing } from "@lifeweb/db/lib/playerPreferences";
 import DeskHeader from "@/app/components/DeskHeader";
 import OpsNav from "./OpsNav";
 import SendLetterForm from "./SendLetterForm";
@@ -219,8 +221,49 @@ export default async function DevPanelPage({ searchParams }) {
   let spawnLocations = [];
   let seatRows = [];
   let pendingSpawns = [];
+  let lobbyRows = [];
 
   switch (section) {
+    case "game": {
+      // Everyone with a lobby row, joined to their preferences and their
+      // Discord handle. The roll reads the same three tables
+      // (db/lib/roleAssignment.js), so what a GM sees here is what it sees.
+      const [entries, prefs, members, roles] = await Promise.all([
+        prisma.lobbyEntry.findMany({
+          orderBy: { readyAt: "asc" },
+          include: { assignedRole: { select: { name: true } } },
+        }),
+        prisma.playerPreference.findMany(),
+        listGuildMembers(),
+        prisma.role.findMany({ select: { slug: true, name: true } }),
+      ]);
+      const prefByUser = new Map(prefs.map((p) => [p.discordUserId, p]));
+      const memberByUser = new Map(members.map((m) => [m.id, m]));
+      const roleName = new Map(roles.map((r) => [r.slug, r.name]));
+      lobbyRows = entries.map((e) => {
+        const p = prefByUser.get(e.discordUserId);
+        const m = memberByUser.get(e.discordUserId);
+        const pr = p?.rolePriorities ?? {};
+        const levels = Object.entries(pr);
+        const highSlug = levels.find(([, l]) => l === "HIGH")?.[0] ?? null;
+        return {
+          discordUserId: e.discordUserId,
+          handle: m ? m.globalName || m.username : e.discordUserId,
+          readyAt: e.readyAt.toISOString().slice(5, 16).replace("T", " "),
+          high: highSlug ? (roleName.get(highSlug) ?? highSlug) : null,
+          medium: levels.filter(([, l]) => l === "MEDIUM").length,
+          low: levels.filter(([, l]) => l === "LOW").length,
+          nothing: pickedNothing(pr),
+          optIns: antagonistNames(p?.antagonistOptIns ?? []),
+          whitelisted: Boolean(m?.roles.includes(LEADER_WHITELIST_ROLE_ID)),
+          jobless: { COMMONER: "Commoner", MIGRANT: "Migrant", RETURN_TO_LOBBY: "Lobby" }[p?.joblessRole ?? "COMMONER"],
+          status: e.status,
+          assigned: e.assignedRole?.name ?? null,
+          expiresAt: e.expiresAt ? e.expiresAt.toISOString().slice(5, 16).replace("T", " ") : null,
+        };
+      });
+      break;
+    }
     case "move":
       [locations, livingCharacters] = await Promise.all([
         prisma.location.findMany({
@@ -457,6 +500,14 @@ export default async function DevPanelPage({ searchParams }) {
                     » <em>{state.closingNote}</em>
                   </p>
                 ) : null}
+              </section>
+
+              <section className="ops-section ops-section--wide">
+                <div className="ops-section-head">
+                  <h2 className="section-title">Lobby</h2>
+                  <p className="ops-lede">Who readied up and what they asked for. Priorities are the player&apos;s; the roll is on Preview. ‡</p>
+                </div>
+                <LobbyRoster rows={lobbyRows} started={state.phase === "RUNNING" || state.phase === "ENDED"} />
               </section>
 
               <section className="ops-section">
