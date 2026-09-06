@@ -691,6 +691,10 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     carryBonus: 0.75
+    # Giant, Strong and Pack Mule are one fiction — a big body that hauls —
+    # so they never stack. Authored here and on Strong; db:sync-tags mirrors
+    # the edges (TAGS.md §2).
+    conflictsWith: [strong, pack-mule]
 
   # +0.5 on both carry caps, i.e. ×1.5 on its own; adds with Cart
   # (docs/systemdocs/CARRY.md).
@@ -1053,6 +1057,7 @@ tags:
     # honest advice to every player "buy the mule instead". Now Strong is Pack
     # Mule's carry plus being strong at everything else, for one more point.
     carryBonus: 0.5
+    conflictsWith: [pack-mule]
     purchasable: true
     purchasableAfterStart: true
 
