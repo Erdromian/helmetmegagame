@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import {
   prisma,
   roleCapacity,
-  seatHolderStatuses,
   isDynastyHead,
   isDynastyMember,
   normalizeAntagonistSlugs,
@@ -60,6 +59,7 @@ import {
 } from "@/lib/characterCreation";
 
 import { reserveRole, releaseRole } from "@lifeweb/db/lib/roleReservation";
+import { heldSeats } from "@lifeweb/db/lib/seatCount";
 import { recordArchiveEvent } from "@/lib/archive";
 import {
   AGE_MIN,
@@ -102,7 +102,7 @@ export async function createCharacter(formData) {
   const rawAge = Number.parseInt(formData.get("age")?.toString() ?? "", 10);
   const age =
     Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
-  const roleId = formData.get("roleId")?.toString();
+  const postedRoleId = formData.get("roleId")?.toString();
   const tagIds = formData.getAll("tagIds").map((t) => t.toString()).filter(Boolean);
   // Consent for secretly-assigned antagonist seats; normalizeAntagonistSlugs
   // is the boundary that keeps junk slugs out of the column. Whitelisted
@@ -114,11 +114,21 @@ export async function createCharacter(formData) {
   if (/\s/.test(firstName) || /\s/.test(lastName ?? "")) {
     return { error: "First and last names are one word each." };
   }
-  if (!roleId) return { error: "Pick a role before confirming." };
 
   if (await prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" } })) {
     redirect("/character");
   }
+
+  // A seat from the roll, inside its window, is the role whatever was posted
+  // (docs/systemdocs/LOBBY.md §4). The whitelist and Cursed gates are skipped
+  // for it: the roll honoured the whitelist, and a hand-set row is the
+  // superadmin's override.
+  const assignedEntry = await prisma.lobbyEntry.findFirst({
+    where: { discordUserId, status: "ASSIGNED", expiresAt: { gt: new Date() } },
+    select: { id: true, assignedRoleId: true },
+  });
+  const roleId = assignedEntry?.assignedRoleId ?? postedRoleId;
+  if (!roleId) return { error: "Pick a role before confirming." };
 
   const [role, config, state, member, openTurn] = await Promise.all([
     prisma.role.findUnique({
@@ -158,12 +168,12 @@ export async function createCharacter(formData) {
   // falsy: no config row leaves the whitelist enforced.
   const leaderWhitelisted =
     bypass || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
-  if (role.requiresWhitelist && !leaderWhitelisted) {
+  if (!assignedEntry && role.requiresWhitelist && !leaderWhitelisted) {
     return { error: "That role isn't available to you." };
   }
 
   const cursed = isCursed(member);
-  if (!isRoleSelectable({ role, cursed, leaderWhitelisted })) {
+  if (!assignedEntry && !isRoleSelectable({ role, cursed, leaderWhitelisted })) {
     return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
   }
 
@@ -340,14 +350,11 @@ export async function createCharacter(formData) {
   try {
     created = await prisma.$transaction(async (tx) => {
       // The lock that actually closes the race — see the header comment.
+      // heldSeats counts seated characters, others' wizard holds and others'
+      // lobby assignments; the caller's own hold and seat are left out.
       await tx.$queryRaw`SELECT id FROM "Role" WHERE id = ${role.id} FOR UPDATE`;
-      const [taken, reservedByOthers] = await Promise.all([
-        tx.character.count({ where: { roleId: role.id, status: { in: seatHolderStatuses(role) } } }),
-        tx.roleReservation.count({
-          where: { roleId: role.id, discordUserId: { not: discordUserId }, expiresAt: { gt: new Date() } },
-        }),
-      ]);
-      if (taken + reservedByOthers >= roleCapacity(role, effectivePlayerCount(config, state))) {
+      const held = await heldSeats(tx, role, { excludeDiscordUserId: discordUserId });
+      if (held >= roleCapacity(role, effectivePlayerCount(config, state))) {
         throw new Error("ROLE_FULL");
       }
       // Release the caller's own hold in the same transaction.
@@ -388,6 +395,15 @@ export async function createCharacter(formData) {
           quantity: quantity ?? 1,
         })),
       });
+
+      // The assigned seat is spent: the entry records which character it
+      // became, and stops holding the seat.
+      if (assignedEntry) {
+        await tx.lobbyEntry.update({
+          where: { id: assignedEntry.id },
+          data: { status: "CREATED", characterId: character.id },
+        });
+      }
 
       // The lobby preference keeps the same answer, so a later game opens
       // with it ticked already (docs/systemdocs/LOBBY.md §2).

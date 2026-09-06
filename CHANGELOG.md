@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Start Game rolls the lobby into seats
+
+✚ Preview on the Game section shows who would get what and warns about leader seats nobody wants; hand-set any row, re-roll for a fresh seed, and Start commits exactly that table  
+✚ Everyone assigned gets a DM with their seat, a link to build the character, a Discord-clock deadline and a Decline button; the seat is theirs for the creation window  
+✚ A reminder six hours before the window closes; past it the seat is released and late join can take it  
+✎ The wizard opens on the Tags step with the role fixed for an assigned player  
+✎ Every seat count now includes seats held by lobby assignments, so late join and spawns can't double-book one
+
 ## 2026-09-06 · The turret tells armour apart again
 
 ✎ A burst is far deadlier to the unarmoured and far kinder to the well-armoured  

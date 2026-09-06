@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "generate": "prisma generate",
+    "test": "node --test test/*.test.js",
     "migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "postinstall": "prisma generate"

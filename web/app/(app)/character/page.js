@@ -305,7 +305,18 @@ export default async function CharacterPage({ searchParams }) {
       );
     }
     if (!gate.open || !gate.approved) return <CreationClosed open={gate.open} />;
-    return <CreateCharacterWizard {...creation} />;
+    // A seat from the roll, still inside its window: the wizard opens on the
+    // Tags step with the role fixed. createCharacter enforces the same lock.
+    const assigned = await prisma.lobbyEntry.findFirst({
+      where: { discordUserId: session.discordUserId, status: "ASSIGNED", expiresAt: { gt: new Date() } },
+      select: { assignedRoleId: true, expiresAt: true },
+    });
+    const lockedRole =
+      assigned?.assignedRoleId &&
+      creation.groups.some((g) => g.roles.some((r) => r.id === assigned.assignedRoleId))
+        ? { id: assigned.assignedRoleId, expiresAt: assigned.expiresAt.toISOString() }
+        : null;
+    return <CreateCharacterWizard {...creation} lockedRole={lockedRole} />;
   }
 
   const [

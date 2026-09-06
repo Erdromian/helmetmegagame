@@ -1,10 +1,22 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
-import { getGameConfig, getGameState } from "@lifeweb/db/lib/gameState";
-import { auth } from "@/lib/auth";
+import { getGameState } from "@lifeweb/db/lib/gameState";
+import {
+  buildDraft,
+  commitAssignment,
+  assignmentMessage,
+  returnedMessage,
+  startedLine,
+  declineComponents,
+} from "@lifeweb/db/lib/lobby";
+import { newSeed } from "@lifeweb/db/lib/roleAssignment";
+import { postMessage } from "@lifeweb/db/lib/discordRest";
+import { auth, CANONICAL_ORIGIN } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
+import { listGuildMembers, sendDm } from "@/lib/discordGuild";
 
 // The game's lifecycle: CLOSED -> LOBBY -> RUNNING -> ENDED, and the two ways
 // back (Close lobby, Resume). Every transition is superadmin-only and checks
@@ -64,43 +76,96 @@ export async function closeLobby() {
   return { ok: true };
 }
 
-// Starts the clock. Turn 1 is already open — the wipe creates it — so this
-// restamps its date to now and flips the phase; the bot's cron does the rest
-// from the next midnight. The player count is stamped from the readied roster
-// with 9% headroom for late joins; with nobody readied (a GM test game) the
-// config knob keeps standing in.
-export async function startGame() {
-  const session = await requireSuperadmin();
-  const [state, config] = await Promise.all([getGameState(prisma), getGameConfig(prisma)]);
-  if (state.phase !== "LOBBY") {
-    return { ok: false, error: "Start Game needs an open lobby. ‡" };
-  }
+// The Discord roles of every guild member, for the roll's whitelist check.
+async function memberRoleMap() {
+  const members = await listGuildMembers();
+  return new Map(members.map((m) => [m.id, m.roles]));
+}
 
-  const ready = await prisma.lobbyEntry.count({ where: { status: "READY" } });
-  const playerCount = ready > 0 ? Math.ceil(ready * 1.09) : null;
-  const now = new Date();
-
-  await prisma.$transaction(async (tx) => {
-    await tx.gameState.update({
-      where: { id: 1 },
-      data: { phase: "RUNNING", startedAt: now, playerCount },
-    });
-    const open = await tx.turn.findFirst({ where: { status: "OPEN" } });
-    if (open) {
-      await tx.turn.update({ where: { id: open.id }, data: { gameDate: now } });
-    } else {
-      await tx.turn.create({
-        data: { number: 1, phase: "DAWN", weather: "CLEAR", status: "OPEN", gameDate: now },
-      });
-    }
-  });
-
-  await audit(session, "game_started", {
-    readied: ready,
-    playerCount: playerCount ?? config.playerCount,
-  });
+// Rolls the lobby and stores the result as the draft Start will commit
+// (docs/systemdocs/LOBBY.md §3). Called by Preview and by Re-roll — the only
+// difference is the seed.
+export async function previewAssignment() {
+  await requireSuperadmin();
+  const state = await getGameState(prisma);
+  if (state.phase !== "LOBBY") return { ok: false, error: "Preview needs an open lobby. ‡" };
+  const draft = await buildDraft(prisma, await memberRoleMap(), { seed: newSeed() });
+  await prisma.gameState.update({ where: { id: 1 }, data: { assignmentDraft: draft } });
   refresh();
   return { ok: true };
+}
+
+// Hand-sets one row of the draft. A superadmin may name any role, whitelist
+// or not — that is the override — but commit still refuses a seat over
+// capacity. An empty slug sends the player back to the lobby.
+export async function setDraftRow({ discordUserId, roleSlug }) {
+  await requireSuperadmin();
+  const state = await getGameState(prisma);
+  const draft = state.assignmentDraft;
+  if (state.phase !== "LOBBY" || !draft?.rows) return { ok: false, error: "There is no preview to edit. ‡" };
+  const slug = roleSlug ? String(roleSlug) : null;
+  if (slug && !(await prisma.role.findUnique({ where: { slug }, select: { id: true } }))) {
+    return { ok: false, error: "No such role. ‡" };
+  }
+  const rows = draft.rows.map((r) =>
+    r.discordUserId === discordUserId ? { ...r, roleSlug: slug, source: "GM" } : r,
+  );
+  await prisma.gameState.update({ where: { id: 1 }, data: { assignmentDraft: { ...draft, rows } } });
+  refresh();
+  return { ok: true };
+}
+
+// Starts the clock. With readied players this commits the previewed draft —
+// re-validated under a lock, so a lobby that changed since the preview is a
+// refusal rather than a wrong roll. With nobody readied (a GM test game) it
+// just flips the phase. Turn 1 is already open — the wipe creates it — so it
+// is restamped to now; the bot's cron does the rest from the next midnight.
+// The DMs go out after the commit, one at a time.
+export async function startGame() {
+  const session = await requireSuperadmin();
+  const state = await getGameState(prisma);
+  if (state.phase !== "LOBBY") return { ok: false, error: "Start Game needs an open lobby. ‡" };
+
+  const ready = await prisma.lobbyEntry.count({ where: { status: "READY" } });
+  let draft = state.assignmentDraft;
+  if (ready > 0 && !draft?.rows) return { ok: false, error: "Preview the assignment first. ‡" };
+  if (ready === 0) draft = { seed: null, playerCount: null, rows: [], warnings: [] };
+
+  let outcome;
+  try {
+    outcome = await commitAssignment(prisma, draft, { actorDiscordUserId: session.discordUserId });
+  } catch (err) {
+    if (err.message === "DRAFT_STALE") {
+      return { ok: false, error: `The lobby changed since the preview. Preview again. ${(err.problems ?? []).join(" ")}` };
+    }
+    if (err.message === "NOT_LOBBY") return { ok: false, error: "Start Game needs an open lobby. ‡" };
+    throw err;
+  }
+
+  refresh();
+  after(async () => {
+    // Sequential on purpose: eighty DMs at once is a rate-limit incident.
+    for (const a of outcome.assigned) {
+      await sendDm(a.discordUserId, assignmentMessage(a, CANONICAL_ORIGIN), {
+        authorDiscordUserId: session.discordUserId,
+        source: "lobby_assignment",
+        components: declineComponents(a.entryId),
+      }).catch((err) => console.error(`Assignment DM failed for ${a.discordUserId}:`, err));
+    }
+    for (const r of outcome.returned) {
+      await sendDm(r.discordUserId, returnedMessage(CANONICAL_ORIGIN), {
+        authorDiscordUserId: session.discordUserId,
+        source: "lobby_returned",
+      }).catch((err) => console.error(`Return-to-lobby DM failed for ${r.discordUserId}:`, err));
+    }
+    const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { turnsConsoleChannelId: true } });
+    if (config?.turnsConsoleChannelId) {
+      await postMessage(config.turnsConsoleChannelId, startedLine()).catch((err) =>
+        console.error("Game started announcement failed:", err),
+      );
+    }
+  });
+  return { ok: true, assigned: outcome.assigned.length, returned: outcome.returned.length };
 }
 
 // Stops the clock and opens the archive. The closing note is the superadmin's

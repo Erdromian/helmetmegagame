@@ -40,7 +40,9 @@ import { getGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
 import GameControls from "./GameControls";
 import ConfigForm from "./ConfigForm";
 import LobbyRoster from "./LobbyRoster";
+import AssignmentPreview from "./AssignmentPreview";
 import { pickedNothing } from "@lifeweb/db/lib/playerPreferences";
+import { isSpawnOnly } from "@/lib/characterCreation";
 import DeskHeader from "@/app/components/DeskHeader";
 import OpsNav from "./OpsNav";
 import SendLetterForm from "./SendLetterForm";
@@ -222,6 +224,8 @@ export default async function DevPanelPage({ searchParams }) {
   let seatRows = [];
   let pendingSpawns = [];
   let lobbyRows = [];
+  let draftRows = [];
+  let pickableRoles = [];
 
   switch (section) {
     case "game": {
@@ -240,6 +244,17 @@ export default async function DevPanelPage({ searchParams }) {
       const prefByUser = new Map(prefs.map((p) => [p.discordUserId, p]));
       const memberByUser = new Map(members.map((m) => [m.id, m]));
       const roleName = new Map(roles.map((r) => [r.slug, r.name]));
+      pickableRoles = roles.filter((r) => !isSpawnOnly(r)).sort((a, b) => a.name.localeCompare(b.name));
+      draftRows = (state.assignmentDraft?.rows ?? []).map((row) => {
+        const m = memberByUser.get(row.discordUserId);
+        return {
+          discordUserId: row.discordUserId,
+          handle: m ? m.globalName || m.username : row.discordUserId,
+          roleSlug: row.roleSlug,
+          roleName: row.roleSlug ? (roleName.get(row.roleSlug) ?? row.roleSlug) : null,
+          source: row.source,
+        };
+      });
       lobbyRows = entries.map((e) => {
         const p = prefByUser.get(e.discordUserId);
         const m = memberByUser.get(e.discordUserId);
@@ -501,6 +516,16 @@ export default async function DevPanelPage({ searchParams }) {
                   </p>
                 ) : null}
               </section>
+
+              {state.phase === "LOBBY" ? (
+                <section className="ops-section ops-section--wide">
+                  <div className="ops-section-head">
+                    <h2 className="section-title">Preview</h2>
+                    <p className="ops-lede">The roll Start will commit. Hand-set a row to override it; re-roll for a fresh seed. ‡</p>
+                  </div>
+                  <AssignmentPreview draft={state.assignmentDraft} rows={draftRows} roles={pickableRoles} />
+                </section>
+              ) : null}
 
               <section className="ops-section ops-section--wide">
                 <div className="ops-section-head">

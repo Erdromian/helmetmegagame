@@ -152,9 +152,13 @@ export default function CreateCharacterWizard({
   // What they ticked in the lobby (PlayerPreference), so the step opens
   // already filled in. The server writes the final answer back there too.
   initialAntagonists = [],
+  // Start Game gave this player a seat (docs/systemdocs/LOBBY.md §4): the
+  // role step is skipped, the seat is shown as a banner with its deadline,
+  // and createCharacter forces the role whatever the form says.
+  lockedRole = null,
 }) {
 
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(lockedRole ? 1 : 0);
   const [honorific, setHonorific] = useState("");
   // No default: the brief is "choose gender", so an unpicked "" blocks Next
   // rather than quietly filing everyone as NEUTRAL. Fixed for good once the
@@ -163,7 +167,7 @@ export default function CreateCharacterWizard({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [age, setAge] = useState("");
-  const [roleId, setRoleId] = useState(null);
+  const [roleId, setRoleId] = useState(lockedRole?.id ?? null);
   const [selectedIds, setSelectedIds] = useState([]);
   // Opt-in, so nothing ticked is the honest default — a player who walks past
   // the step has consented to nothing. A lobby preference pre-fills it.
@@ -257,7 +261,8 @@ export default function CreateCharacterWizard({
   // cards are the hint, not the lock.
   async function handleNext() {
     if (reserving) return;
-    if (!roleId) {
+    // An assigned seat is held by the lobby entry itself, not a wizard hold.
+    if (!roleId || lockedRole) {
       setStep((s) => s + 1);
       return;
     }
@@ -379,6 +384,22 @@ export default function CreateCharacterWizard({
     <PageShell>
       <PageHeader title="Create Your Character" />
       <StepBar step={step} />
+
+      {lockedRole && role && (
+        <div className="panel flex flex-col gap-1 p-3 text-sm">
+          <span className="flex flex-wrap items-baseline justify-between gap-2">
+            <strong>You are the {role.name}.</strong>
+            <span className="text-muted">
+              {[role.factionName, role.startingZoneName].filter(Boolean).join(" · ")}
+            </span>
+          </span>
+          <span className="text-muted">
+            This seat is yours until{" "}
+            {new Date(lockedRole.expiresAt).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+            . After that it opens to anyone. ‡
+          </span>
+        </div>
+      )}
 
       {step > 0 && heldUntil && (
         <p className="text-sm text-muted">
@@ -686,8 +707,8 @@ export default function CreateCharacterWizard({
         <button
           type="button"
           className="btn-quiet"
-          onClick={() => setStep((s) => Math.max(0, s - 1))}
-          disabled={step === 0 || pending}
+          onClick={() => setStep((s) => Math.max(lockedRole ? 1 : 0, s - 1))}
+          disabled={step === (lockedRole ? 1 : 0) || pending}
         >
           Back
         </button>

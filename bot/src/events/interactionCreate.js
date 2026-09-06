@@ -110,6 +110,8 @@ const {
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
 const { shoutLine } = require("@lifeweb/db/lib/shout");
 const { clockFrozen } = require("@lifeweb/db/lib/gameState");
+const { LOBBY_DECLINE_PREFIX } = require("@lifeweb/db/lib/lobby");
+const { handleLobbyDecline } = require("../lib/lobby");
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { handleRoomStorage } = require("../lib/roomStorage");
 const {
@@ -2252,6 +2254,14 @@ module.exports = {
           return void (await handleThreatSpawnDecline(
             interaction,
             interaction.customId.slice(THREAT_SPAWN_DECLINE_PREFIX.length),
+          ));
+        }
+        // Arrives in a DM on an assignment (docs/systemdocs/LOBBY.md §4), so
+        // guild/member are null and the clicker has no character yet.
+        if (interaction.customId.startsWith(LOBBY_DECLINE_PREFIX)) {
+          return void (await handleLobbyDecline(
+            interaction,
+            interaction.customId.slice(LOBBY_DECLINE_PREFIX.length),
           ));
         }
         // Arrives in a DM on a Bird's letter, so guild/member are null.

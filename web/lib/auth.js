@@ -12,7 +12,7 @@ import { NextRequest } from "next/server";
 // than trusted — anything unrecognised falls back to the canonical origin.
 // Adding a domain means adding it here AND registering its callback URL in
 // the Discord Developer Portal.
-const CANONICAL_ORIGIN = "https://ravenheart.quest";
+export const CANONICAL_ORIGIN = "https://ravenheart.quest";
 
 const ALLOWED_HOSTS = new Set([
   "ravenheart.quest",

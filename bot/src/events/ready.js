@@ -12,6 +12,7 @@ const { ensureTurnsConsole } = require("../lib/turnsConsole");
 const { ensureReportAnchor } = require("../lib/reportChannel");
 const { refreshLocationChannels } = require("../lib/channels");
 const { runWhisperPoll } = require("../lib/whisperPoll");
+const { runLobbySweep } = require("@lifeweb/db/lib/lobbySweep");
 const { startDeathSmell } = require("../lib/deathSmell");
 const { registerCommands } = require("../lib/commands");
 
@@ -188,6 +189,12 @@ module.exports = {
           if (posted > 0) console.log(`Whisper poll: ${posted} room(s) told.`);
         })
         .catch((err) => console.error("Whisper poll failed:", err));
+      // The creation window's reminders and expiries (db/lib/lobbySweep.js).
+      runLobbySweep(prisma)
+        .then(({ reminded, expired }) => {
+          if (reminded || expired) console.log(`Lobby sweep: ${reminded} reminded, ${expired} expired.`);
+        })
+        .catch((err) => console.error("Lobby sweep failed:", err));
     });
   },
 };
