@@ -10803,6 +10803,7 @@ tags:
     category: items
     group: items-special
     description: "BRRRR! Produces two Godflesh per extraction."
+    laborBonus: { kind: farming, amount: 2 }
     pointCost: 0
     equippable: true
     tradeable: true

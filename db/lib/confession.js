@@ -119,7 +119,7 @@ async function validateConfession(
   if (!penitent || penitent.status !== "ALIVE")
     return "That penitent isn't around any more. ‡";
   if (heldSlugs(penitent).has(GUILT_RIDDEN_SLUG))
-    return `${penitent.name} can't bring themself to confess. ‡`;
+    return "You can't bring yourself to confess. ‡";
   if (chaplain.id === penitent.id) return "You can't confess to yourself. ‡";
   if (!isHere(chaplain, penitent)) return notHereMessage(penitent);
   if (!isHere(penitent, chaplain)) return notHereMessage(chaplain);
