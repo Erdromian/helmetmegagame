@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The turret tells armour apart again
+
+✎ A burst is far deadlier to the unarmoured and far kinder to the well-armoured  
+✚ Everyone now has a flat one-in-ten chance to dodge a burst outright, armour or none  
+✎ Light Infantry Armour turns a little less
+
 ## 2026-09-06 · A lobby to ready up in before the game starts
 
 ✚ While the game is gathering, /character is the lobby: set Off, Low, Med or High on every role (one High at a time), say what happens if nothing fits, tick antagonist boxes, and press Ready. It saves as you go and remembers you next game  
