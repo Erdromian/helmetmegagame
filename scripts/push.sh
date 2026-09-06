@@ -48,6 +48,9 @@ if [ "$allow_untracked_migrations" -eq 0 ]; then
   fi
 fi
 
+# A GameConfig column with no registry entry is a knob nobody can reach.
+node db/scripts/ops/check-config-registry.js || exit 1
+
 git add -A
 node scripts/changelog/log.js --staged --message "$subject" \
   ${flags[@]+"${flags[@]}"} ${notes[@]+"${notes[@]}"}

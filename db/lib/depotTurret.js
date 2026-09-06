@@ -39,20 +39,30 @@ const TURRET_SEVERITY_TAGS = {
   dead: null,
 };
 
-// What a burst does to somebody wearing nothing. Roughly: a fifth walk away, two
-// fifths are badly hurt, two fifths are dying or dead. Standing in front of an
-// armed machinegun in shirtsleeves should not be a coin flip on being fine, and
-// for a while it was — the old bare column gave a 35% chance of a graze or a
-// minor wound.
+// What a burst does to somebody wearing nothing. Roughly: a tenth dodge it
+// outright, a third are wounded, three fifths are dying or dead. Standing in
+// front of an armed machinegun in shirtsleeves is very close to fatal, which is
+// the point — it used to leave three in five alive and unmaimed.
+//
+// `graze` is special and is read as a FLAT DODGE, not as the mild end of the
+// curve — see rollTurret. Every wearer gets it at this rate no matter what they
+// have on, so there is always a way to walk out of a burst untouched, and the
+// armour argument happens over the other 90%.
+//
+// The five wound bands are deliberately fat in the middle. The bend below slides
+// a wearer down this ladder in order, so a thin `deep-wound`/`grievous-wound`
+// meant the outcome jumped straight from "dead" to "minor" with nothing legible
+// in between, and no amount of armour ever landed a typical wearer on a real
+// wound.
 //
 // Sums to 1, and validateTurretTable enforces that on the write path.
 const DEFAULT_TURRET_TABLE = {
-  graze: 0.06,
-  "minor-wound": 0.14,
-  "deep-wound": 0.16,
-  "grievous-wound": 0.24,
-  dying: 0.22,
-  dead: 0.18,
+  graze: 0.1,
+  "minor-wound": 0.036,
+  "deep-wound": 0.09,
+  "grievous-wound": 0.162,
+  dying: 0.198,
+  dead: 0.414,
 };
 
 // Floating point will not give you exactly 1.0 from six decimals, so the
@@ -60,19 +70,38 @@ const DEFAULT_TURRET_TABLE = {
 const SUM_EPSILON = 0.0001;
 
 // How hard armour bends the curve. The roll is a uniform draw raised to the
-// power (1 + ARMOR_GAIN * protection): at zero protection the exponent is 1 and
-// the draw is exactly the table above, and every step of armour pushes the
+// power (1 + ARMOR_GAIN * odds), and every step of armour pushes the
 // distribution toward the mild end WITHOUT ever closing the top of it.
 //
 // That last property is why this is an exponent and not a subtraction or a
 // scaling. Both of those hit a point where death becomes literally impossible,
 // and "there exists a jacket that makes a machinegun safe" is a worse rule than
-// any number could fix. Here the best kit in the game still buries about one
-// wearer in twenty.
+// any number could fix.
 //
-// At 3, roughly: nothing -> 18% dead, plate and a helm -> 9%, light infantry
-// armour -> 6%, an energy shield -> 5%. Turn it up to make armour matter more.
-const ARMOR_GAIN = 3;
+// ODDS, not protection. This is the part that changed, and it matters more than
+// the constant. `protection` is bounded by ARMOR_CAP at 0.95, so an exponent
+// linear in it ran from 1 to 3.85 across the entire catalog — and the top of the
+// ladder collapsed. Measured on the old numbers, light infantry armour (0.8),
+// heavy infantry armour (0.9) and the best kit in the game landed within 1.5
+// percentage points of each other on every outcome. Armour above 0.8 bought
+// nothing, and half of all wearers walked away untouched.
+//
+// armorOdds() converts to "how many times less gets through" — 0.75 turns three
+// quarters, so a quarter gets through, so it is 3. That runs 0 -> 0.33 -> 3 -> 9
+// -> 13 across the same catalog, and the tiers finally separate.
+//
+// At 0.25, roughly, chance of surviving a burst: nothing 39%, plate 41%, light
+// infantry 57%, heavy infantry 73%, the Ordinator's cataphract 79%, and 84% with
+// his helmet on too. Turn it up to make armour matter more.
+const ARMOR_GAIN = 0.25;
+
+// Protection as odds. Guarded at 1: a combined value can only reach ARMOR_CAP
+// today, but a caller passing a bare 1.0 should get a very large number rather
+// than a division by zero.
+function armorOdds(protection) {
+  const p = Math.min(0.999, Math.max(0, protection));
+  return p / (1 - p);
+}
 
 // A GM's stored weights over the shipped ones, taken WHOLE rather than merged
 // key-by-key: a half-overridden table would silently stop summing to 1.
@@ -134,11 +163,27 @@ function validateTurretTable(table = DEFAULT_TURRET_TABLE) {
 function rollTurret(characterTags, depot, rng = Math.random) {
   const protection = combineArmor(characterTags, "ballisticArmor");
   const table = turretTable(depot);
-  const bent = Math.pow(rng(), 1 + ARMOR_GAIN * protection);
+
+  // The flat dodge, first and outside the bend. Everyone gets the same chance to
+  // simply not be where the burst was, armour or none — a naked man behind a
+  // crate and an Ordinator in the open are the same problem for a gun. Rolling
+  // it separately is what keeps that rate honest: folded into the curve it
+  // became "the armoured are usually fine", which is a different rule.
+  const grazeFloor = table.graze ?? 0;
+  if (rng() < grazeFloor) return { severity: "graze", protection, tagSlug: null };
+
+  // The wound bands, renormalised over what is left once the dodge is spent, so
+  // the shipped table still reads as whole-population odds rather than as
+  // conditional ones.
+  const wounds = TURRET_SEVERITIES.filter((s) => s !== "graze");
+  const mass = wounds.reduce((sum, s) => sum + (table[s] ?? 0), 0);
+  if (mass <= 0) return { severity: "graze", protection, tagSlug: null };
+
+  const bent = Math.pow(rng(), 1 + ARMOR_GAIN * armorOdds(protection));
 
   let roll = bent;
-  for (const severity of TURRET_SEVERITIES) {
-    roll -= table[severity] ?? 0;
+  for (const severity of wounds) {
+    roll -= (table[severity] ?? 0) / mass;
     if (roll <= 0) {
       return { severity, protection, tagSlug: TURRET_SEVERITY_TAGS[severity] };
     }

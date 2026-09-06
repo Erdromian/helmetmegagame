@@ -8,6 +8,7 @@ const SECTIONS = [
   {
     title: "Game",
     items: [
+      { key: "game", label: "Game" },
       { key: "turn", label: "Turn" },
       { key: "config", label: "Configuration" },
       { key: "depot", label: "The Depot" },

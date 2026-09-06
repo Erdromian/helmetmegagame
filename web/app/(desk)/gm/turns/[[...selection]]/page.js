@@ -4,6 +4,7 @@ import { listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { getOpenTurn } from "@/lib/turn";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
+import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { placementOf } from "@lifeweb/db/lib/structures";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
@@ -68,13 +69,8 @@ export default async function TurnsWorkspacePage({ params }) {
   // server-side here and only the two numbers cross the boundary. The header
   // ticks against cutoffAtMs itself.) The big batch below still waits on
   // openTurn — it filters by turn id.
-  const [openTurn, gameConfig] = await Promise.all([
-    getOpenTurn(),
-    prisma.gameConfig.findFirst({ select: { autoTurnAdvanceDisabled: true } }),
-  ]);
-  const window_ = openTurn
-    ? moveWindow(openTurn, { autoTurnAdvanceDisabled: Boolean(gameConfig?.autoTurnAdvanceDisabled) })
-    : null;
+  const [openTurn, frozen] = await Promise.all([getOpenTurn(), clockFrozen(prisma)]);
+  const window_ = openTurn ? moveWindow(openTurn, { clockFrozen: frozen }) : null;
 
   const [
     actions,

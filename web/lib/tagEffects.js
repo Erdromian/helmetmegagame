@@ -1,6 +1,7 @@
 import { bumpBlood, bumpAccount, OBOL_SLUG } from "@lifeweb/db";
 import { addToStack, dropCharacterTag, grantTagSlugs, addToRoomStack, dropRoomTag } from "@lifeweb/db/lib/tagWrites";
 import { moveParty, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
+import { INDESTRUCTIBLE_SLUGS } from "@lifeweb/db/lib/nuke";
 import { UserError } from "@/lib/actionResult";
 
 // The shared write primitives every player action and GM microaction moves
@@ -107,7 +108,17 @@ export async function giveTagTo(tx, party, snapshot) {
     // The Spillway. Nothing is written, so nothing can be fished back out —
     // which is also why the TRANSFER_TAG undo below skips its `takeTagFrom`
     // on a destroyed line rather than throwing "no longer holds that".
-    if (party.destroysContents) return;
+    //
+    // Except for what the trough cannot eat. The slug lookup only runs on this
+    // branch, which is two rooms in the whole map, so the ordinary transfer
+    // path is untouched.
+    if (party.destroysContents) {
+      const tag = await tx.tag.findUnique({
+        where: { id: snapshot.tagId },
+        select: { slug: true },
+      });
+      if (!INDESTRUCTIBLE_SLUGS.has(tag?.slug)) return;
+    }
     await addToRoomStack(tx, party.id, snapshot.tagId, snapshot.quantity ?? 1, {
       expiresTurn: snapshot.expiresTurn ?? null,
     });

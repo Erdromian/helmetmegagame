@@ -6,6 +6,7 @@ const {
 } = require("@lifeweb/db/lib/turnsChannelAccess");
 const { CONSOLE_TEXT } = require("@lifeweb/db/lib/turnsConsoleRow");
 const { buildTurnAnnouncement } = require("@lifeweb/db/weather");
+const { clockFrozen, readGameState } = require("@lifeweb/db/lib/gameState");
 
 // #turns is one rolling message — announcement, weather banner and the
 // Travel/Move/Speak buttons on a single post that db/lib/turnAnnouncement.js
@@ -49,19 +50,19 @@ async function ensureTurnsConsole(guild) {
   // Nothing tracked, or the tracked message is gone. Repost it against the
   // open turn so a cold start still shows the current weather; with no turn
   // open the announcement line is simply omitted.
-  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, orderBy: { number: "desc" } });
+  const [openTurn, frozen, state] = await Promise.all([
+    prisma.turn.findFirst({ where: { status: "OPEN" }, orderBy: { number: "desc" } }),
+    clockFrozen(prisma),
+    readGameState(prisma, { nukeDetonatedTurn: true }),
+  ]);
   const text = [
-    openTurn
-      ? buildTurnAnnouncement(openTurn, null, {
-          autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
-        })
-      : null,
+    openTurn ? buildTurnAnnouncement(openTurn, null, { clockFrozen: frozen }) : null,
     CONSOLE_TEXT,
   ]
     .filter(Boolean)
     .join("\n");
 
-  await postTurnsConsole(prisma, channel.id, text, openTurn, config);
+  await postTurnsConsole(prisma, channel.id, text, openTurn, config, state);
 }
 
 module.exports = { ensureTurnsConsole, isTurnsChannel };

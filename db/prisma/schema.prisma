@@ -204,18 +204,17 @@ enum ArchiveKind {
   TRAVEL
 }
 
+/// DURABLE host configuration: the knobs and feature switches a GM tunes, plus
+/// the Discord pointers and the REST breaker that have to outlive a process.
+/// Nothing here is game state. Restart Game never touches this row — what a
+/// game does to the world lives on GameState below, which the wipe recreates.
+///
+/// Every editable column here is declared once more in
+/// db/lib/gameConfigFields.js, the registry that drives the /gm/dev form and
+/// its parser. `npm run db:check-config` fails when the two drift.
 model GameConfig {
-  id                         Int      @id @default(1)
-  lifewebBlood               Int      @default(100)
-  lifewebDecayPerTurn        Int      @default(10)
-  nextWeather                Weather?
-  nextTurnNote               String?
-  // No longer written or read (TURN-ENGINE.md) — the rolling-replace
-  // announcement these three backed has been retired. Kept until a
-  // post-wipe cleanup migration.
-  turnsAnnouncementChannelId String?
-  turnsAnnouncementMessageId String?
-  turnsBannerMessageId       String?
+  id                  Int @id @default(1)
+  lifewebDecayPerTurn Int @default(10)
 
   // Gates the whole Dawn message-wipe system (db/lib/dawnWipe.js) — off by
   // default so nothing gets swept until a GM explicitly opts in from the
@@ -236,14 +235,6 @@ model GameConfig {
   // (bot/src/lib/nickname.js, web/lib/discordGuild.js#syncCharacterNickname)
   // — off by default so nobody's nickname is touched until a GM opts in.
   nicknameSyncEnabled Boolean @default(false)
-
-  // Whether players can reach /archive. GMs always can. Off by default and
-  // meant to stay off until the game ends: the archive shows every location
-  // regardless of where a character was, and renders a concealed message as
-  // "Alias (Real Name)" — so turning it on mid-game retroactively unmasks
-  // every /conceal ever used and hands everyone the whole map's history.
-  // Effectively a one-way door; the Dev Panel confirms before flipping it.
-  archiveVisible Boolean @default(false)
 
   // Whether arrivals/departures are recorded as TRAVEL rows in the archive.
   // Off by default: it's what makes a location read like a story, and also
@@ -299,69 +290,27 @@ model GameConfig {
   // specialisations, which is where the volume is.
   productionCoefficient Float @default(0.93)
 
-  // THE BOMB. Two nullable turn numbers, and nothing else in the schema knows
-  // about it.
-  //
-  // `nukeArmedTurn` is the absolute turn the device goes off on — stamped by
-  // the Arm button as `openTurn + 2`, nulled by Disarm or by a GM defusing it
-  // from /gm/dev. Null means unarmed, and arming/disarming may repeat forever.
-  //
-  // This lives here rather than on a tag with `expiresTurn`, which was the
-  // first design: a tag carries a holder, and a holder can DIE inside the
-  // two-turn window, which would quietly cancel the explosion. The blast is
-  // global — everyone above ground, wherever they stand — so it needs no
-  // location, and the one thing it must survive is the death of whoever armed
-  // it. Where the device physically SITS is still read off the tag rows, by
-  // the datacard's pointer, which is a different question.
-  nukeArmedTurn Int?
-
-  // Set once, on detonation, and never cleared: the turn the world ended. It
-  // is what makes the fireball banner permanent (db/lib/turnAnnouncement.js)
-  // and what a later feature would read to know the game is over.
-  nukeDetonatedTurn Int?
-
   // Base point-buy budget every new character starts with, before the
   // role's own `extra_starting_points` and the Cursed penalty are applied
   // (see web/lib/characterCreation.js#computeBudget). Editable live from
   // the Dev Panel so it can be tuned right up to launch.
   startingTagPoints Int @default(12)
 
-  // Master switch for the game being open to players at all. While false,
-  // nobody can create a character — the game has not launched. Turning it on
-  // is not by itself enough: a player also has to hold DISCORD_PLAYER_ROLE_ID
-  // (see web/lib/discordGuild.js#isApprovedPlayer), so the two together are
-  // "the doors are open" AND "you are on the list". Deliberately off by
-  // default, same posture as messageWipeEnabled.
-  //
-  // Note this gates character creation only. /documents stays readable
-  // either way, so players can read the rules before launch.
-  openToPlayers Boolean @default(false)
-
   // Whether a role that grants a faction Leader seat still requires the
   // @Leader Whitelist Discord role (db/lib/roleIds.js). Off means every player
   // may pick a Leader role - read by character/page.js to decide which cards
   // render selectable, and re-checked by createCharacter, the same
-  // presentation/lock split as openToPlayers. Deliberately ON by default: this
-  // gate fails closed, and the reservation is the normal state of the game.
+  // presentation/lock split the game phase uses. Deliberately ON by default:
+  // this gate fails closed, and the reservation is the normal state of the game.
+  // The same role gates the whitelisted antagonist opt-ins in the lobby
+  // (docs/systemdocs/LOBBY.md).
   leaderWhitelistEnabled Boolean @default(true)
 
-  // The triple-barrelled gun on the rotor in the fortress yard. Unlike the
-  // Depot's, it carries no tunable table and no face to spare: armed, it fires
-  // on everyone standing in the Gatehouse (db/lib/gatehouseTurret.js). It lives
-  // here rather than on a model of its own because there is exactly one of it
-  // and its whole state is this boolean. Flipped from the red button in the
-  // Censor's Office thread, never from a web page — the only safeguard on it is
-  // that somebody has to walk up to the wall.
-  //
-  // OFF by default, which is also what the Baron's charter has always claimed:
-  // "It seems to be off."
-  gatehouseTurretArmed Boolean @default(false)
-
-  // When the Cathedral bell was last rung, so the rope has a five-minute
-  // cooldown on it (db/lib/bell.js). Global rather than per-character: the
-  // bell is one object, and two people taking turns on it would be the same
-  // noise either way. Null means it has never been rung.
-  bellRungAt DateTime?
+  // How long an assigned seat stays locked to its player after Start Game
+  // before the lobby sweep releases it (docs/systemdocs/LOBBY.md §4). The
+  // assignment DM carries the deadline as a Discord timestamp; the reminder
+  // goes out six hours before it.
+  creationWindowHours Int @default(24)
 
   // When true, the nightly turn-advance cron (bot/src/events/ready.js)
   // skips its automatic advance — bot/src/lib/turnEngine.js#advanceTurn
@@ -379,7 +328,7 @@ model GameConfig {
   // arrives anyway — everyone falls through to their letter plaque (see
   // "Character proxying" in CLAUDE.md). Existing Character.avatarData is
   // untouched either way; this only gates new uploads. Deliberately off by
-  // default, same posture as messageWipeEnabled/openToPlayers.
+  // default, same posture as messageWipeEnabled.
   avatarUploadsEnabled Boolean @default(false)
 
   // Master switch for the in-app portrait maker (docs/systemdocs/PORTRAITS.md).
@@ -473,9 +422,6 @@ model GameConfig {
   radioCategoryId   String?
   cerberonChannelId String?
   intercomChannelId String?
-  // Orphaned: #mindlink went with the Cult of Bacchus (docs/archive/bacchus.yaml).
-  // Nothing reads or writes it; kept rather than migrated away.
-  mindlinkChannelId String?
 
   // The Catatonic (AFK) pass (db/lib/catatonicPass.js): any ALIVE character
   // with no player-filed Action and no in-character speech for
@@ -511,6 +457,99 @@ model GameConfig {
   // model. On by default, since Desires are the only way Tag Points are
   // earned in play.
   desiresEnabled Boolean @default(true)
+}
+
+/// Where a game is in its life. The turn cron and the force-advance button
+/// both refuse outside RUNNING; readying up is LOBBY only; late join is
+/// RUNNING only (a GM may skip ahead during LOBBY). See
+/// docs/systemdocs/LOBBY.md §1.
+enum GamePhase {
+  CLOSED
+  LOBBY
+  RUNNING
+  ENDED
+}
+
+/// PER-GAME state: everything a game does to the world that is not on a
+/// Character, a Room or a Turn. Restart Game deletes this row and creates a
+/// fresh one, which is what guarantees nothing here can leak into the next
+/// game — the old allowlist on GameConfig missed four columns and nobody
+/// noticed. Read through db/lib/gameState.js#getGameState.
+model GameState {
+  id Int @id @default(1)
+
+  phase         GamePhase @default(CLOSED)
+  lobbyOpenedAt DateTime?
+  startedAt     DateTime?
+  endedAt       DateTime?
+
+  // Stamped by Start Game as ceil(readied players * 1.09), the 9% being
+  // headroom for late joins. The denominator for every weighted seat from
+  // then on; before Start, GameConfig.playerCount stands in
+  // (db/lib/gameState.js#effectivePlayerCount).
+  playerCount Int?
+
+  // The superadmin's epilogue, written when the game is ended and shown above
+  // the reveal roster on /epilogue and in the Game Ended post.
+  closingNote String?
+
+  // The previewed assignment Start Game commits: { seed, playerCount, rows:
+  // [{ discordUserId, roleSlug, source }], warnings }. Written by Preview,
+  // edited row by row by hand-setting, re-validated and cleared by Start. Null
+  // means Start is disabled — there is nothing to commit.
+  assignmentDraft Json?
+
+  // Whether players can reach /archive. GMs always can. Off until the game is
+  // ended, when endGame flips it: the archive shows every location regardless
+  // of where a character was, and renders a concealed message as
+  // "Alias (Real Name)" — so opening it mid-game retroactively unmasks every
+  // /conceal ever used and hands everyone the whole map's history.
+  archiveVisible Boolean @default(false)
+
+  // The Lifeweb's blood pool, 0-100 (db/lib/lifeweb.js).
+  lifewebBlood Int @default(100)
+
+  // GM overrides consumed by the next turn advance, then nulled.
+  nextWeather  Weather?
+  nextTurnNote String?
+
+  // THE BOMB. Two nullable turn numbers, and nothing else in the schema knows
+  // about it.
+  //
+  // `nukeArmedTurn` is the absolute turn the device goes off on — stamped by
+  // the Arm button as `openTurn + 2`, nulled by Disarm or by a GM defusing it
+  // from /gm/dev. Null means unarmed, and arming/disarming may repeat forever.
+  //
+  // This lives here rather than on a tag with `expiresTurn`, which was the
+  // first design: a tag carries a holder, and a holder can DIE inside the
+  // two-turn window, which would quietly cancel the explosion. The blast is
+  // global — everyone above ground, wherever they stand — so it needs no
+  // location, and the one thing it must survive is the death of whoever armed
+  // it. Where the device physically SITS is still read off the tag rows, by
+  // the datacard's pointer, which is a different question.
+  nukeArmedTurn Int?
+
+  // Set once, on detonation, and never cleared: the turn the world ended. It
+  // is what makes the fireball banner permanent (db/lib/turnAnnouncement.js).
+  nukeDetonatedTurn Int?
+
+  // The triple-barrelled gun on the rotor in the fortress yard. Unlike the
+  // Depot's, it carries no tunable table and no face to spare: armed, it fires
+  // on everyone standing in the Gatehouse (db/lib/gatehouseTurret.js). It lives
+  // here rather than on a model of its own because there is exactly one of it
+  // and its whole state is this boolean. Flipped from the red button in the
+  // Censor's Office thread, never from a web page — the only safeguard on it is
+  // that somebody has to walk up to the wall.
+  //
+  // OFF by default, which is also what the Baron's charter has always claimed:
+  // "It seems to be off."
+  gatehouseTurretArmed Boolean @default(false)
+
+  // When the Cathedral bell was last rung, so the rope has a cooldown on it
+  // (db/lib/bell.js). Global rather than per-character: the bell is one
+  // object, and two people taking turns on it would be the same noise either
+  // way. Null means it has never been rung.
+  bellRungAt DateTime?
 }
 
 /// Where the shuttle is. AWAY is the resting state — it lives at the orbital
@@ -2404,6 +2443,7 @@ model Role {
 
   characters   Character[]
   reservations RoleReservation[]
+  lobbyEntries LobbyEntry[]
   threatSpawns ThreatSpawn[]
 
   createdAt DateTime @default(now())
@@ -2430,6 +2470,82 @@ model RoleReservation {
   createdAt     DateTime @default(now())
 
   @@index([roleId, expiresAt])
+}
+
+/// What a player asked for if the roll leaves them with nothing
+/// (docs/systemdocs/LOBBY.md §3). COMMONER and MIGRANT are the two unlimited
+/// seats; RETURN_TO_LOBBY means they late-join by hand after Start.
+enum JoblessRole {
+  COMMONER
+  MIGRANT
+  RETURN_TO_LOBBY
+}
+
+/// A player's lobby preferences, keyed by Discord user and DURABLE — Restart
+/// Game never touches this table, so a returning player only has to ready up.
+/// Priorities are keyed by Role.slug, so a role that leaves docs/roles.yaml
+/// silently drops out rather than dangling on an id.
+model PlayerPreference {
+  discordUserId String @id
+
+  // { [roleSlug]: "LOW" | "MEDIUM" | "HIGH" }; a slug that is absent is Off.
+  // At most one HIGH — db/lib/playerPreferences.js#setPriority demotes the
+  // previous one to MEDIUM, the way SS13's set_job_preference_level does.
+  rolePriorities Json @default("{}")
+
+  // Threat catalog slugs (the REAL slugs, never the public opt-in names —
+  // db/lib/threats.js). Copied onto Character.antagonistOptIns at creation,
+  // where it locks; this row stays editable only while there is no character.
+  antagonistOptIns String[] @default([])
+
+  joblessRole JoblessRole @default(COMMONER)
+  updatedAt   DateTime    @updatedAt
+}
+
+/// READY:      in the lobby, waiting for Start.
+/// ASSIGNED:   Start gave them a seat; the sheet is theirs to build until
+///             expiresAt. An ASSIGNED row with a future expiresAt HOLDS the
+///             seat for capacity purposes (db/lib/seatCount.js).
+/// CREATED:    the character exists; the row is history.
+/// DECLINED:   they pressed Decline in the DM; the seat is free again.
+/// EXPIRED:    the lobby sweep found expiresAt in the past; the seat is free.
+/// UNASSIGNED: nothing matched and they asked to return to the lobby.
+enum LobbyStatus {
+  READY
+  ASSIGNED
+  CREATED
+  DECLINED
+  EXPIRED
+  UNASSIGNED
+}
+
+/// One row per player per GAME: readying up creates it, un-readying deletes
+/// it, Start Game stamps the assignment on it, and Restart Game clears the
+/// table. Everything a game needs to know about a player before they have a
+/// character. See docs/systemdocs/LOBBY.md.
+model LobbyEntry {
+  id            String      @id @default(cuid())
+  discordUserId String      @unique
+  status        LobbyStatus @default(READY)
+  readyAt       DateTime    @default(now())
+
+  assignedRoleId String?
+  assignedRole   Role?     @relation(fields: [assignedRoleId], references: [id], onDelete: SetNull)
+  assignedAt     DateTime?
+  expiresAt      DateTime?
+  // When the six-hours-left reminder went out, so it goes out once.
+  reminderSentAt DateTime?
+  // The Character the ASSIGNED seat became, once it did.
+  characterId    String?
+  // Which pass of the roll seated them — "HIGH" | "MEDIUM" | "LOW" |
+  // "FALLBACK" | "GM" — for the roster and the audit trail.
+  source         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, expiresAt])
+  @@index([assignedRoleId, status])
 }
 
 // Master-sourced from docs/documents.yaml

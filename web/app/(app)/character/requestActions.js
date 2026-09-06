@@ -23,6 +23,7 @@ import {
 } from "@lifeweb/db/lib/bird";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
+import { INDESTRUCTIBLE_SLUGS } from "@lifeweb/db/lib/nuke";
 import {
   logAudit,
   MAX_REASON_LENGTH,
@@ -33,6 +34,7 @@ import {
 import { UserError, guarded } from "@/lib/actionResult";
 import { describeTurn } from "@/lib/turnFormat";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
+import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import {
   DISGUISE_KIT_SLUG,
@@ -481,13 +483,7 @@ async function resolveCraftPayer(character, payerKey, cost) {
 // character per turn, filed by the same rules the modal uses.
 async function requireFreeMove(character, openTurn) {
   if (!openTurn) throw new UserError("No turn is open. ‡");
-  const config = await prisma.gameConfig.findUnique({
-    where: { id: 1 },
-    select: { autoTurnAdvanceDisabled: true },
-  });
-  const { locked } = moveWindow(openTurn, {
-    autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
-  });
+  const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
   if (locked) throw new UserError("Moves are locked for this turn. ‡");
   const acted = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: openTurn.id },
@@ -1876,7 +1872,13 @@ async function transferRequestImpl({
   // The Spillway (Room.destroysContents). Nothing is written on the receiving
   // end — giveTagTo and moveParty both refuse — so the effect has to say so,
   // or a GM repairing this by hand goes looking for goods never stored.
-  const destroyed = to.destroysContents === true;
+  // ...but not everything the trough is handed goes over the edge. The nuclear
+  // device and its datacard settle at the bottom intact (db/lib/nuke.js), so a
+  // transfer of nothing but those is NOT a destruction, and neither the audit
+  // row nor the line the room hears may claim it was.
+  const survives = moves.filter((m) => INDESTRUCTIBLE_SLUGS.has(m.held?.tag?.slug));
+  const destroyed = to.destroysContents === true && survives.length < moves.length;
+  const nothingDestroyed = to.destroysContents === true && survives.length === moves.length;
   const fromCharacterId = from.kind === "character" ? from.id : null;
   const toCharacterId = to.kind === "character" ? to.id : null;
 
@@ -1957,7 +1959,9 @@ async function transferRequestImpl({
         character,
         destroyed
           ? `tips ${goods} into the trough. It is gone. ‡`
-          : `leaves ${goods} here.`,
+          : nothingDestroyed
+            ? `tips ${goods} into the trough. It settles at the bottom, intact. ‡`
+            : `leaves ${goods} here.`,
       ),
     );
   }

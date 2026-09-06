@@ -3,17 +3,28 @@
 // A threat is three things at once, and which ones an entry carries is what
 // tells them apart:
 //
-//   optIn      a checkbox on the creation wizard's Antagonists step. Consent
-//              data — a player says which seats they are open to being handed.
+//   optIn      a checkbox in the lobby and on the wizard's Antagonists step.
+//              Consent data — a player says which seats they are open to being
+//              handed. Either `true`, or `{ name, whitelist }`: `name` is the
+//              PUBLIC name the checkbox wears when it differs from the seat's
+//              ("Succubus" for the Demoness, so the 18+ nature is plain;
+//              "Cultist" for a Thanati, so the word never appears), and
+//              `whitelist: true` locks the box to holders of the Whitelist
+//              Discord role — the same role that gates leader seats.
 //   assign     a real seat a GM can hand to an existing character. Grants the
 //              tags and points named here and DMs the blurb.
 //   spawn      the same seat, handed to somebody with no character: a whole
 //              new one, offered over DM and accepted with a button.
 //
-// MOST OPT-INS ARE DECOYS. They carry `optIn` and nothing else, so ticking one
-// tells a GM about consent without telling the player which seats are real.
-// An entry with neither `assign` nor `optIn` is a brief a GM runs entirely by
-// hand — no checkbox, no button, prose only.
+// HALF THE OPT-INS ARE DECOYS. They carry `optIn` and nothing else, so ticking
+// one tells a GM about consent without telling the player which seats are
+// real. An entry with neither `assign` nor `optIn` is a brief a GM runs
+// entirely by hand — no checkbox, no button, prose only.
+//
+// A seat's INCOMPATIBLE TAGS are not listed here: they are `conflictsWith`
+// edges on the seat tag itself in docs/tags.yaml, so the store and Add Tag
+// refuse them for a holder without knowing what a threat is. Assign resolves
+// what a character already holds (db/lib/seatConflicts.js).
 //
 // Kept in code rather than a table for the same reason as db/lib/roleIds.js:
 // fixed values that can never differ per environment, so a row would only add
@@ -28,14 +39,16 @@
 
 const THREATS = [
   {
-    slug: "aberrant-emissary",
-    name: "Aberrant Emissary",
-    optIn: true,
-  },
-  {
     slug: "archon",
     name: "Archon",
     optIn: true,
+  },
+  // The Bastard is a figure in the Court's story, and the box is whitelisted
+  // because the name alone promises a seat at the top of it.
+  {
+    slug: "bastard",
+    name: "Bastard",
+    optIn: { whitelist: true },
   },
   {
     slug: "brigand",
@@ -52,7 +65,10 @@ const THREATS = [
   {
     slug: "demoness",
     name: "Demoness",
-    optIn: true,
+    // "Succubus" on the checkbox: the word says 18+ and lewd out loud, which
+    // is the consent the box is there to collect. Whitelisted for the same
+    // reason.
+    optIn: { name: "Succubus", whitelist: true },
     assignable: true,
     // How the roster finds who holds this seat. Derived from the tag rather
     // than stored on the character, so a GM granting it by hand from
@@ -79,11 +95,6 @@ const THREATS = [
       // count, not four entries, which a name-set lookup would collapse.
       tagSlugs: ["dagger", "obol x4"],
     },
-  },
-  {
-    slug: "false-chaplain",
-    name: "False Chaplain",
-    optIn: true,
   },
   {
     slug: "judge",
@@ -117,23 +128,18 @@ const THREATS = [
     blurb: ["Monsters in the caves, to be hunted."],
   },
   {
-    slug: "neomorph",
-    name: "Neomorph",
-    optIn: true,
-  },
-  {
     slug: "obsessed",
     name: "Obsessed",
     optIn: true,
   },
   {
-    slug: "phrygian-count",
-    name: "Phrygian Count",
+    slug: "schemer",
+    name: "Schemer",
     optIn: true,
   },
   {
-    slug: "schemer",
-    name: "Schemer",
+    slug: "skinless",
+    name: "Skinless",
     optIn: true,
   },
   {
@@ -147,22 +153,62 @@ const THREATS = [
       "Be creative. Turn people against each other, convert people, cause incidents that make other people look bad.",
     ],
   },
-  // THE TRIBUNAL, the two seats THREATS.md has been promising since the
-  // catalog was written ("Tribunal and Tribunal Leader, when they arrive...
-  // are simply assignable without a checkbox"). Deliberately NOT optIn for
-  // that reason: they are handed out, not consented to on the wizard.
-  //
-  // `tribunal-operations` above stays exactly as it is — it is one of the nine
-  // decoys, and these landing does not make it real.
-  //
-  // Both carry `spawn.locationSlug`, which nothing else does: the seat knows
-  // where its own shuttle puts down, so a GM offering one does not have to
-  // remember. Black Pines is the corner the map already describes as dense
-  // enough that "sound does not carry, neither do shouts", and it borders both
-  // crossings into the Marshes.
+  // THE THANATI. Two real seats behind two public names — "Cultist Leader"
+  // and "Cultist" — so the word Thanati is never on a checkbox. Both grant the
+  // `thanati` Belief (docs/tags.yaml), which is what makes a holder one; the
+  // leader wears the `thanati-leader` tag on top, which is how the roster tells
+  // the two seats apart. Points and kits are first drafts for Bascinet to tune.
+  {
+    slug: "thanati",
+    name: "Thanati",
+    optIn: { name: "Cultist" },
+    assignable: true,
+    seatTagSlug: "thanati",
+    zone: "Anywhere",
+    blurb: [
+      "This reality is cursed. Everyone must die before Tzchernobog can reset it.",
+      "You believe that, and you are not alone. Find the others. Find the one who leads them, or be found by them. ‡",
+      "Nobody outside the faith may know what you are. A Thanati caught is a Thanati burned, and the work goes on without you. ‡",
+    ],
+    assign: { tagPoints: 5, tagSlugs: ["thanati"] },
+    spawn: {
+      gender: "NEUTRAL",
+      roleSlug: null,
+      resources: 3,
+      tagPoints: 5,
+      tagSlugs: ["obol x4"],
+    },
+  },
+  {
+    slug: "thanati-leader",
+    name: "Thanati Leader",
+    optIn: { name: "Cultist Leader", whitelist: true },
+    assignable: true,
+    seatTagSlug: "thanati-leader",
+    zone: "Anywhere",
+    blurb: [
+      "This reality is cursed. Everyone must die before Tzchernobog can reset it.",
+      "You lead the ones who believe it. Gather them, keep them hidden, and give them work that ends lives — quietly at first, and then not. ‡",
+      "The Church will burn you if it learns your name. Make sure it learns everyone else's first. ‡",
+    ],
+    assign: { tagPoints: 10, tagSlugs: ["thanati", "thanati-leader"] },
+    spawn: {
+      gender: "NEUTRAL",
+      roleSlug: null,
+      resources: 3,
+      tagPoints: 10,
+      tagSlugs: ["thanati-mask", "obol x4"],
+    },
+  },
+  // THE TRIBUNAL. Both carry `spawn.locationSlug`, which nothing else does:
+  // the seat knows where its own shuttle puts down, so a GM offering one does
+  // not have to remember. Black Pines is the corner the map already describes
+  // as dense enough that "sound does not carry, neither do shouts", and it
+  // borders both crossings into the Marshes.
   {
     slug: "tribunal-ordinator",
     name: "Tribunal Ordinator",
+    optIn: { whitelist: true },
     assignable: true,
     seatTagSlug: "ordinator-insignia",
     zone: "Black Hills",
@@ -174,7 +220,19 @@ const THREATS = [
     ],
     assign: {
       tagPoints: 10,
-      tagSlugs: ["ordinator-insignia", "heavy-infantry-armor", "tribunal-ordinator-helmet"],
+      // Mirrors the tribunal-ordinator Role's starting_tags (docs/roles.yaml).
+      // Assign and Spawn are separate lists over the same seat, so a kit change
+      // has to land in both or a GM's two buttons hand out different soldiers.
+      tagSlugs: [
+        "ordinator-insignia",
+        "cataphract-armor",
+        "tribunal-ordinator-helmet",
+        "nuclear-datacard",
+        "elevator-key",
+        "fragmentation-grenade",
+        "motorcycle",
+        "supply-kit",
+      ],
     },
     spawn: {
       gender: "NEUTRAL",
@@ -187,6 +245,7 @@ const THREATS = [
   {
     slug: "tribune",
     name: "Tribune",
+    optIn: true,
     assignable: true,
     seatTagSlug: "tribunal-helmet",
     zone: "Black Hills",
@@ -198,7 +257,16 @@ const THREATS = [
     ],
     assign: {
       tagPoints: 10,
-      tagSlugs: ["tribunal-helmet", "heavy-infantry-armor"],
+      // Mirrors the tribune Role's starting_tags (docs/roles.yaml) — see the
+      // Ordinator's note above on why both lists have to move together.
+      tagSlugs: [
+        "tribunal-helmet",
+        "heavy-infantry-armor",
+        "c4",
+        "fragmentation-grenade",
+        "motorcycle",
+        "supply-kit",
+      ],
     },
     spawn: {
       gender: "NEUTRAL",
@@ -208,14 +276,11 @@ const THREATS = [
       tagPoints: 10,
     },
   },
+  // Retired from the live game (docs/archive/windlander.yaml); the box stays as
+  // a decoy.
   {
-    slug: "tribunal-operations",
-    name: "Tribunal Operations",
-    optIn: true,
-  },
-  {
-    slug: "warlock",
-    name: "Warlock",
+    slug: "windlander",
+    name: "Windlander",
     optIn: true,
   },
 ];
@@ -227,9 +292,22 @@ const SHUTTLE_ARRIVAL_SLUGS = new Set(["tribunal-ordinator", "tribune"]);
 
 const THREATS_BY_SLUG = new Map(THREATS.map((t) => [t.slug, t]));
 
-// The wizard's checkbox list. Everything else in the catalog is either a
-// GM-only brief or a seat handed out without asking.
-const OPT_IN_THREATS = THREATS.filter((t) => t.optIn);
+// The public name a checkbox wears, and whether it is whitelisted. Both read
+// off the `optIn` shape so a decoy and a real seat are indistinguishable here.
+function optInName(threat) {
+  return (typeof threat.optIn === "object" && threat.optIn?.name) || threat.name;
+}
+
+function optInWhitelisted(threat) {
+  return typeof threat.optIn === "object" && threat.optIn?.whitelist === true;
+}
+
+// The checkbox list, in PUBLIC-name order so the lobby and the wizard read as
+// an alphabetical list whatever the seats behind it are called. Everything
+// else in the catalog is a GM-only brief.
+const OPT_IN_THREATS = THREATS.filter((t) => t.optIn).sort((a, b) =>
+  optInName(a).localeCompare(optInName(b)),
+);
 const ANTAGONISTS = OPT_IN_THREATS;
 const ANTAGONIST_SLUGS = new Set(OPT_IN_THREATS.map((t) => t.slug));
 
@@ -256,21 +334,31 @@ function threatBySeatTag(tagSlug) {
 // keeps junk out of the column, same posture as normalizeHonorific's
 // allowlist. A slug that has since left the catalog is dropped here, which is
 // why renaming one needs no data migration.
-function normalizeAntagonistSlugs(input) {
+function normalizeAntagonistSlugs(input, { whitelisted = true } = {}) {
   const posted = new Set(
     (Array.isArray(input) ? input : [input])
       .filter((v) => v != null)
       .map((v) => v.toString().trim()),
   );
-  return OPT_IN_THREATS.filter((t) => posted.has(t.slug)).map((t) => t.slug);
+  return OPT_IN_THREATS.filter((t) => posted.has(t.slug))
+    .filter((t) => whitelisted || !optInWhitelisted(t))
+    .map((t) => t.slug);
 }
 
-// Slugs -> display names, in catalog order. Unknown slugs are dropped rather
-// than rendered raw, so a stale value can never leak into the UI.
+// Slugs -> PUBLIC names, in catalog order. Unknown slugs are dropped rather
+// than rendered raw, so a stale value can never leak into the UI. Public
+// rather than real on purpose: this is what a player ticked, and a GM table
+// showing "Demoness" beside a box that said "Succubus" is a puzzle nobody
+// needs.
 function antagonistNames(slugs) {
   const held = new Set(slugs ?? []);
-  return OPT_IN_THREATS.filter((t) => held.has(t.slug)).map((t) => t.name);
+  return OPT_IN_THREATS.filter((t) => held.has(t.slug)).map(optInName);
 }
+
+// The slugs a player without the Whitelist role may not tick. The lobby and
+// the wizard grey these; the server drops them (normalizeAntagonistSlugs's
+// `whitelisted` option) so a hand-posted form cannot slip one through.
+const WHITELISTED_OPT_IN_SLUGS = new Set(OPT_IN_THREATS.filter(optInWhitelisted).map((t) => t.slug));
 
 // A spawned character needs a name and there is nobody to type one, so one is
 // rolled. NO ‡ ANYWHERE IN THESE — a name is written to Character.name, the
@@ -317,6 +405,9 @@ module.exports = {
   THREAT_SPAWN_DECLINE_PREFIX,
   threatBySlug,
   threatBySeatTag,
+  optInName,
+  optInWhitelisted,
+  WHITELISTED_OPT_IN_SLUGS,
   randomSpawnName,
   // Kept under the old names: the column is still Character.antagonistOptIns
   // and every caller of these two is about that column.

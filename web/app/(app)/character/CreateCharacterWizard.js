@@ -29,7 +29,7 @@ import {
   GENDER_LABELS,
 } from "@/lib/characterName";
 import { randomCharacterName } from "@/lib/nameCorpus";
-import { ANTAGONISTS, antagonistNames } from "@/lib/threats";
+import { ANTAGONISTS, antagonistNames, optInName, optInWhitelisted } from "@/lib/threats";
 
 // Identity comes AFTER Role and Tags, and has to: a title is earned from the
 // role you took and the tags you hold (db/lib/titles.js), so there is nothing
@@ -146,9 +146,19 @@ export default function CreateCharacterWizard({
   // The living Baron's surname, or null if nobody holds the seat yet. Only
   // read for a role whose `lastNameLocked` is set — see db/lib/dynasty.js.
   dynastyName = null,
+  // Whether this player holds the Whitelist role. Greys the whitelisted
+  // antagonist boxes; the server drops those slugs regardless.
+  whitelisted = false,
+  // What they ticked in the lobby (PlayerPreference), so the step opens
+  // already filled in. The server writes the final answer back there too.
+  initialAntagonists = [],
+  // Start Game gave this player a seat (docs/systemdocs/LOBBY.md §4): the
+  // role step is skipped, the seat is shown as a banner with its deadline,
+  // and createCharacter forces the role whatever the form says.
+  lockedRole = null,
 }) {
 
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(lockedRole ? 1 : 0);
   const [honorific, setHonorific] = useState("");
   // No default: the brief is "choose gender", so an unpicked "" blocks Next
   // rather than quietly filing everyone as NEUTRAL. Fixed for good once the
@@ -157,11 +167,11 @@ export default function CreateCharacterWizard({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [age, setAge] = useState("");
-  const [roleId, setRoleId] = useState(null);
+  const [roleId, setRoleId] = useState(lockedRole?.id ?? null);
   const [selectedIds, setSelectedIds] = useState([]);
-  // Opt-in, so the empty array is the honest default — a player who walks past
-  // the step has consented to nothing.
-  const [antagonists, setAntagonists] = useState([]);
+  // Opt-in, so nothing ticked is the honest default — a player who walks past
+  // the step has consented to nothing. A lobby preference pre-fills it.
+  const [antagonists, setAntagonists] = useState(initialAntagonists);
   const [error, setError] = useState(null);
   const [pending, setPending] = useState(false);
   // The banner sits above the step content, and both the role list and the
@@ -251,7 +261,8 @@ export default function CreateCharacterWizard({
   // cards are the hint, not the lock.
   async function handleNext() {
     if (reserving) return;
-    if (!roleId) {
+    // An assigned seat is held by the lobby entry itself, not a wizard hold.
+    if (!roleId || lockedRole) {
       setStep((s) => s + 1);
       return;
     }
@@ -373,6 +384,22 @@ export default function CreateCharacterWizard({
     <PageShell>
       <PageHeader title="Create Your Character" />
       <StepBar step={step} />
+
+      {lockedRole && role && (
+        <div className="panel flex flex-col gap-1 p-3 text-sm">
+          <span className="flex flex-wrap items-baseline justify-between gap-2">
+            <strong>You are the {role.name}.</strong>
+            <span className="text-muted">
+              {[role.factionName, role.startingZoneName].filter(Boolean).join(" · ")}
+            </span>
+          </span>
+          <span className="text-muted">
+            This seat is yours until{" "}
+            {new Date(lockedRole.expiresAt).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+            . After that it opens to anyone. ‡
+          </span>
+        </div>
+      )}
 
       {step > 0 && heldUntil && (
         <p className="text-sm text-muted">
@@ -568,21 +595,37 @@ export default function CreateCharacterWizard({
             Threat roles are assigned after game start. You can select the ones you&apos;d be open to receiving here.
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
-            {ANTAGONISTS.map((a) => (
-              <CheckField
-                key={a.slug}
-                checked={antagonists.includes(a.slug)}
-                onChange={() => toggleAntagonist(a.slug)}
-              >
-                {a.name}
-              </CheckField>
-            ))}
+            {ANTAGONISTS.map((a) => {
+              const locked = optInWhitelisted(a) && !whitelisted;
+              const box = (
+                <CheckField
+                  key={a.slug}
+                  checked={antagonists.includes(a.slug)}
+                  onChange={() => toggleAntagonist(a.slug)}
+                  disabled={locked}
+                  className={locked ? "is-locked" : ""}
+                >
+                  {optInName(a)}
+                </CheckField>
+              );
+              // Greyed, not hidden: a whitelisted box is still a thing that
+              // exists, the same way a whitelisted role card is.
+              return locked ? (
+                <Tooltip key={a.slug} text="Whitelist only ‡" className="block">
+                  {box}
+                </Tooltip>
+              ) : (
+                box
+              );
+            })}
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               className="btn-quiet"
-              onClick={() => setAntagonists(ANTAGONISTS.map((a) => a.slug))}
+              onClick={() =>
+                setAntagonists(ANTAGONISTS.filter((a) => whitelisted || !optInWhitelisted(a)).map((a) => a.slug))
+              }
             >
               Select all
             </button>
@@ -664,8 +707,8 @@ export default function CreateCharacterWizard({
         <button
           type="button"
           className="btn-quiet"
-          onClick={() => setStep((s) => Math.max(0, s - 1))}
-          disabled={step === 0 || pending}
+          onClick={() => setStep((s) => Math.max(lockedRole ? 1 : 0, s - 1))}
+          disabled={step === (lockedRole ? 1 : 0) || pending}
         >
           Back
         </button>

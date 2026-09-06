@@ -32,6 +32,7 @@ const { runPhobiaPass } = require("./lib/phobiaPass");
 const { runDawnAfflictionPass } = require("./lib/dawnAfflictionPass");
 const { runDepotPass } = require("./lib/depotPass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
+const { getGameState, readGameState } = require("./lib/gameState");
 const { announceTurretBurst } = require("./lib/turretBurst");
 const { ambientLine } = require("./lib/ambientLine");
 const { deliverCarryDrop } = require("./lib/carry");
@@ -822,7 +823,7 @@ async function resolveNeeds(turn, config) {
   // bumpBlood rather than a computed literal off `config`: that snapshot
   // predates the passes above, so a donation made during the advance would
   // otherwise be discarded by the write-back.
-  let lifewebBlood = config?.lifewebBlood ?? 100;
+  let lifewebBlood = (await readGameState(prisma, { lifewebBlood: true }))?.lifewebBlood ?? 100;
   if (!done.has("lifewebDecay")) {
     try {
       const moved = await bumpBlood(
@@ -835,7 +836,7 @@ async function resolveNeeds(turn, config) {
       await passFailed("Lifeweb decay", err);
     }
   } else {
-    const fresh = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+    const fresh = await readGameState(prisma, { lifewebBlood: true });
     lifewebBlood = fresh?.lifewebBlood ?? lifewebBlood;
   }
 
@@ -994,12 +995,28 @@ async function getConfig() {
 //
 // Returns { advanced, previousTurn, newTurn, note, runSideEffects }.
 // `advanced` is false when another caller won the race to close the open
-// turn; callers must check it before using `newTurn`.
+// turn; callers must check it before using `newTurn`. It is also false, with
+// `refused: "NOT_RUNNING"`, outside the RUNNING phase: a game in the lobby or
+// already ended has no clock (docs/systemdocs/LOBBY.md §1), and both callers
+// — the bot's cron and the Dev Panel's End turn — land here, so this is the
+// one gate rather than two.
 async function advanceTurn() {
   const config = await getConfig();
+  const state = await getGameState(prisma);
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
 
-  let lifewebBlood = config.lifewebBlood;
+  if (state.phase !== "RUNNING") {
+    return {
+      advanced: false,
+      refused: "NOT_RUNNING",
+      previousTurn: null,
+      newTurn: openTurn,
+      note: null,
+      runSideEffects: async () => {},
+    };
+  }
+
+  let lifewebBlood = state.lifewebBlood;
   let hungerNotices = [];
   let disappointedNotices = [];
   let autoLaborDms = [];
@@ -1167,14 +1184,14 @@ async function advanceTurn() {
   const lastTurn =
     openTurn ?? (await prisma.turn.findFirst({ orderBy: { number: "desc" } }));
   const phase = !lastTurn || lastTurn.phase === "DUSK" ? "DAWN" : "DUSK";
-  // A GM override (config.nextWeather) always wins over the rolled weather.
-  const weather = config.nextWeather ?? rollWeather(lastTurn?.weather, phase);
+  // A GM override (GameState.nextWeather) always wins over the rolled weather.
+  const weather = state.nextWeather ?? rollWeather(lastTurn?.weather, phase);
   const lifewebFlavor =
     lifewebBlood <= LIFEWEB_SPUTTER_THRESHOLD
       ? "The Lifeweb sputters, failing."
       : null;
   const note =
-    [lifewebFlavor, config.nextTurnNote].filter(Boolean).join("\n\n") || null;
+    [lifewebFlavor, state.nextTurnNote].filter(Boolean).join("\n\n") || null;
 
   const newTurn = await prisma.turn.create({
     data: {
@@ -1186,7 +1203,7 @@ async function advanceTurn() {
     },
   });
 
-  await prisma.gameConfig.update({
+  await prisma.gameState.update({
     where: { id: 1 },
     data: { nextWeather: null, nextTurnNote: null },
   });
@@ -1690,6 +1707,8 @@ module.exports = {
   ...require("./lib/presentedIdentity"),
   ...require("./lib/threats"),
   ...require("./lib/roleCapacity"),
+  ...require("./lib/gameState"),
+  ...require("./lib/gameConfigFields"),
   ...require("./lib/production"),
   ...require("./lib/depot"),
   ...require("./lib/depotState"),

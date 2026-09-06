@@ -12,6 +12,7 @@ const { ensureTurnsConsole } = require("../lib/turnsConsole");
 const { ensureReportAnchor } = require("../lib/reportChannel");
 const { refreshLocationChannels } = require("../lib/channels");
 const { runWhisperPoll } = require("../lib/whisperPoll");
+const { runLobbySweep } = require("@lifeweb/db/lib/lobbySweep");
 const { startDeathSmell } = require("../lib/deathSmell");
 const { registerCommands } = require("../lib/commands");
 
@@ -77,6 +78,10 @@ module.exports = {
         create: { id: 1 },
       })
       .catch((err) => console.error("Failed to upsert GameConfig:", err));
+    // Same for the per-game row: a brand-new database starts CLOSED.
+    await prisma.gameState
+      .upsert({ where: { id: 1 }, update: {}, create: { id: 1 } })
+      .catch((err) => console.error("Failed to upsert GameState:", err));
 
     await refreshLocationChannels().catch((err) => console.error("Failed to refresh location channels:", err));
 
@@ -184,6 +189,12 @@ module.exports = {
           if (posted > 0) console.log(`Whisper poll: ${posted} room(s) told.`);
         })
         .catch((err) => console.error("Whisper poll failed:", err));
+      // The creation window's reminders and expiries (db/lib/lobbySweep.js).
+      runLobbySweep(prisma)
+        .then(({ reminded, expired }) => {
+          if (reminded || expired) console.log(`Lobby sweep: ${reminded} reminded, ${expired} expired.`);
+        })
+        .catch((err) => console.error("Lobby sweep failed:", err));
     });
   },
 };

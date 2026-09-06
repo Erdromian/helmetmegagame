@@ -6,6 +6,48 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Start Game rolls the lobby into seats
+
+✚ Preview on the Game section shows who would get what and warns about leader seats nobody wants; hand-set any row, re-roll for a fresh seed, and Start commits exactly that table  
+✚ Everyone assigned gets a DM with their seat, a link to build the character, a Discord-clock deadline and a Decline button; the seat is theirs for the creation window  
+✚ A reminder six hours before the window closes; past it the seat is released and late join can take it  
+✎ The wizard opens on the Tags step with the role fixed for an assigned player  
+✎ Every seat count now includes seats held by lobby assignments, so late join and spawns can't double-book one
+
+## 2026-09-06 · The turret tells armour apart again
+
+✎ A burst is far deadlier to the unarmoured and far kinder to the well-armoured  
+✚ Everyone now has a flat one-in-ten chance to dodge a burst outright, armour or none  
+✎ Light Infantry Armour turns a little less
+
+## 2026-09-06 · A lobby to ready up in before the game starts
+
+✚ While the game is gathering, /character is the lobby: set Off, Low, Med or High on every role (one High at a time), say what happens if nothing fits, tick antagonist boxes, and press Ready. It saves as you go and remembers you next game  
+✚ The Game section on the Dev Panel lists who readied and what they asked for  
+✚ Gamemasters get a Skip to character creation button in the lobby, for testing  
+✎ Character creation is open while the game is Running or Ended; Ended stops only the clock
+
+## 2026-09-06 · Giant, Strong and Pack Mule no longer stack
+
+✎ Giant, Strong and Pack Mule now conflict with each other, so a build can hold only one of the three carry bodies
+
+## 2026-09-06 · Twelve antagonist boxes, two of them the Thanati
+
+✚ Cultist and Cultist Leader are real seats now: they grant the Thanati belief, the leader wears a mark on top, and a GM can Assign or Spawn them  
+✎ The Succubus box is the Demoness seat under its own name, so the 18+ nature is plain; the Bastard, Cultist Leader, Succubus and Tribunal Ordinator boxes need the Whitelist role  
+− Aberrant Emissary, False Chaplain, Neomorph, Phrygian Count, Tribunal Operations and Warlock from the opt-in list; Skinless and Windlander join it  
+✎ Assigning a seat now refunds any tag it forbids that cost points, keeps drawbacks, and drops a second Belief; the DM says what went  
+✎ The Assignments table shows lobby opt-ins for players without a character yet, and a WL column
+
+## 2026-09-06 · The game has phases now: Closed, Lobby, Running, Ended
+
+✚ A Game section on the Dev Panel with Open lobby, Start game, End game and Resume  
+✎ Turns only advance while the game is Running, from the nightly cron and from End turn alike  
+✎ Restart Game no longer resets the Configuration knobs; they carry over between games  
+− The Open to players switch; a Running game is what opens character creation  
+✎ Ending the game opens the archive to players  
+✎ The Configuration section is grouped, every knob has a tooltip, and the noticeboard lifespan is finally editable
+
 ## 2026-09-06 · The marshes fish less, the Village fishes more
 
 ✎ The five open Marshes fish at 1.0 instead of 1.3

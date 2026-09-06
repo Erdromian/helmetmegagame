@@ -28,7 +28,7 @@ export default async function ArchivePage({ searchParams }) {
   // is presentation and the check is enforcement.
   const [{ isGm: gm }, config] = await Promise.all([
     getGmSession(),
-    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
+    prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
   ]);
   if (!gm && !config?.archiveVisible) redirect("/character");
 

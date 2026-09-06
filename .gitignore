@@ -14,3 +14,5 @@ worksheets/
 
 # Travel-graph render (scripts/map) — scratch, regenerate with npm run map:dot
 *.dot
+# Antagonist design doc — local only, never committed (see docs/systemdocs/SECRETS.md)
+docs/systemdocs/SECRETS.md

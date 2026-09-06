@@ -1,0 +1,67 @@
+// The two singleton rows a game runs on, and the questions asked of them.
+//
+//   GameConfig  DURABLE host configuration. Knobs, feature switches, Discord
+//               pointers, the REST breaker. Restart Game never touches it.
+//   GameState   PER-GAME state: the phase, when it started, the Lifeweb's
+//               blood, the bomb, the bell. Restart Game deletes and recreates
+//               it (web/app/(app)/gm/dev/actions.js#wipeGameData).
+//
+// Both are read through here rather than by an inline findUnique at every
+// call site, so a reader that needs a moved field cannot reach for the wrong
+// row. Takes the client as a parameter (a tx or the root prisma), the
+// db/lib/dm.js convention.
+
+const PHASES = ["CLOSED", "LOBBY", "RUNNING", "ENDED"];
+
+async function getGameConfig(db) {
+  return db.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+}
+
+async function getGameState(db) {
+  return db.gameState.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+}
+
+// Read-only variants for hot read paths: an upsert takes a write lock on the
+// row, which a page render has no business holding.
+async function readGameConfig(db, select) {
+  return db.gameConfig.findUnique({ where: { id: 1 }, ...(select ? { select } : {}) });
+}
+
+async function readGameState(db, select) {
+  return db.gameState.findUnique({ where: { id: 1 }, ...(select ? { select } : {}) });
+}
+
+// The denominator for every weighted seat. Start Game stamps the real one;
+// until then the GM's "expected players" knob stands in, which is what lets a
+// GM test-create before a lobby has gathered.
+function effectivePlayerCount(config, state) {
+  return state?.playerCount ?? config?.playerCount ?? 80;
+}
+
+// Whether turns tick at all. Both callers of advanceTurn check the phase
+// themselves; this is for everything that derives a DEADLINE from the clock
+// (db/lib/turnClock.js#moveWindow) — a game that is not running has no end
+// time to count back from, exactly as a paused cron does not.
+function isClockRunning(config, state) {
+  return state?.phase === "RUNNING" && !config?.autoTurnAdvanceDisabled;
+}
+
+// One round trip for the readers that only want the boolean.
+async function clockFrozen(db) {
+  const [config, state] = await Promise.all([
+    readGameConfig(db, { autoTurnAdvanceDisabled: true }),
+    readGameState(db, { phase: true }),
+  ]);
+  return !isClockRunning(config, state);
+}
+
+module.exports = {
+  PHASES,
+  getGameConfig,
+  getGameState,
+  readGameConfig,
+  readGameState,
+  effectivePlayerCount,
+  isClockRunning,
+  clockFrozen,
+};

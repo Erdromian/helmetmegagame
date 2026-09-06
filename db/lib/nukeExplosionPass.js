@@ -31,26 +31,26 @@ const DETONATION_LINE =
   "You hear a deafening roar. There's a fireball in the sky. @everyone";
 
 async function runNukeExplosionPass(prisma, turn) {
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  const state = await prisma.gameState.findUnique({ where: { id: 1 } });
 
   // Not armed, or armed for a turn that has not come yet. Returning an object
   // rather than null matters: null means "did not run, retry forever" and
   // would wedge every turn from here on.
-  const armedTurn = config?.nukeArmedTurn ?? null;
+  const armedTurn = state?.nukeArmedTurn ?? null;
   if (armedTurn == null || armedTurn > turn.number) {
     return { turnNumber: turn.number, detonated: false, killed: 0, deaths: [], broadcast: null };
   }
 
   // Already gone off. The stamp is never cleared, so this is what stops a
   // resumed or re-run advance detonating a second time on a dead world.
-  if (config?.nukeDetonatedTurn != null) {
+  if (state?.nukeDetonatedTurn != null) {
     return { turnNumber: turn.number, detonated: false, killed: 0, deaths: [], broadcast: null };
   }
 
   // Claim it first. Disarming clears nukeArmedTurn, so writing the detonation
   // stamp before the killing starts means a crash halfway through cannot
   // leave a world that explodes again on the next close.
-  await prisma.gameConfig.update({
+  await prisma.gameState.update({
     where: { id: 1 },
     data: { nukeDetonatedTurn: turn.number, nukeArmedTurn: null },
   });

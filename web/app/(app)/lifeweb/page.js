@@ -38,12 +38,12 @@ export default async function LifewebPage() {
   });
   if (!mortusCharacter && !gm) redirect("/character");
 
-  const [config, aliveCharacters] = await Promise.all([
+  const [state, aliveCharacters] = await Promise.all([
     // findUnique, not upsert: this is a page render, and the row is created by
     // the bot on ready and by every write path that touches it. Upserting here
     // made a read-only page take a write lock on the game's hottest row on
     // every single load.
-    prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    prisma.gameState.findUnique({ where: { id: 1 }, select: { lifewebBlood: true } }),
     // Tags come down with them so the Donate Blood dialog can price a target
     // (Nobility 40 / Courtier 30 / 20) without a round trip per selection.
     //
@@ -69,7 +69,7 @@ export default async function LifewebPage() {
     }),
   ]);
 
-  const blood = config?.lifewebBlood ?? 0;
+  const blood = state?.lifewebBlood ?? 0;
   const band = bloodBand(blood);
 
   const atFortress = mortusCharacter?.zone?.slug === FORTRESS_SLUG;

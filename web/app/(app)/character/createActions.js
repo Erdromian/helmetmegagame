@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import {
   prisma,
   roleCapacity,
-  seatHolderStatuses,
   isDynastyHead,
   isDynastyMember,
   normalizeAntagonistSlugs,
@@ -17,6 +16,7 @@ import { auth } from "@/lib/auth";
 import { dynastyLastName, propagateDynastyLastName } from "@/lib/dynasty";
 import { isSuperadmin } from "@/lib/superadmin";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
+import { readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
 import { setMerchantSeal } from "@lifeweb/db/lib/merchantSeal";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import {
@@ -36,6 +36,7 @@ import {
   isCursed,
   isApprovedPlayer,
   isLeaderWhitelisted,
+  isGm,
   removeCursedRole,
 } from "@/lib/discordGuild";
 import {
@@ -58,6 +59,7 @@ import {
 } from "@/lib/characterCreation";
 
 import { reserveRole, releaseRole } from "@lifeweb/db/lib/roleReservation";
+import { heldSeats } from "@lifeweb/db/lib/seatCount";
 import { recordArchiveEvent } from "@/lib/archive";
 import {
   AGE_MIN,
@@ -68,6 +70,13 @@ import {
   normalizeEarnedHonorific,
   GENDERS,
 } from "@/lib/characterName";
+
+// When somebody may make a character at all (docs/systemdocs/LOBBY.md §1):
+// while the game runs or has ended, or — for a GM — during the lobby.
+function creationOpen(phase, member) {
+  if (phase === "RUNNING" || phase === "ENDED") return true;
+  return phase === "LOBBY" && isGm(member);
+}
 
 // Creates a character from the wizard's Confirm step. Everything posted is
 // re-derived and re-checked — a server action is a public endpoint.
@@ -93,24 +102,35 @@ export async function createCharacter(formData) {
   const rawAge = Number.parseInt(formData.get("age")?.toString() ?? "", 10);
   const age =
     Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
-  const roleId = formData.get("roleId")?.toString();
+  const postedRoleId = formData.get("roleId")?.toString();
   const tagIds = formData.getAll("tagIds").map((t) => t.toString()).filter(Boolean);
   // Consent for secretly-assigned antagonist seats; normalizeAntagonistSlugs
-  // is the boundary that keeps junk slugs out of the column.
-  const antagonistOptIns = normalizeAntagonistSlugs(formData.getAll("antagonistOptIns"));
+  // is the boundary that keeps junk slugs out of the column. Whitelisted
+  // boxes are dropped below, once the member is known.
+  const postedOptIns = formData.getAll("antagonistOptIns");
 
   if (!firstName) return { error: "Your character needs a first name." };
   // One word each — the wizard gates this too, but the form can be hand-posted.
   if (/\s/.test(firstName) || /\s/.test(lastName ?? "")) {
     return { error: "First and last names are one word each." };
   }
-  if (!roleId) return { error: "Pick a role before confirming." };
 
   if (await prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" } })) {
     redirect("/character");
   }
 
-  const [role, config, member, openTurn] = await Promise.all([
+  // A seat from the roll, inside its window, is the role whatever was posted
+  // (docs/systemdocs/LOBBY.md §4). The whitelist and Cursed gates are skipped
+  // for it: the roll honoured the whitelist, and a hand-set row is the
+  // superadmin's override.
+  const assignedEntry = await prisma.lobbyEntry.findFirst({
+    where: { discordUserId, status: "ASSIGNED", expiresAt: { gt: new Date() } },
+    select: { id: true, assignedRoleId: true },
+  });
+  const roleId = assignedEntry?.assignedRoleId ?? postedRoleId;
+  if (!roleId) return { error: "Pick a role before confirming." };
+
+  const [role, config, state, member, openTurn] = await Promise.all([
     prisma.role.findUnique({
       where: { id: roleId },
       include: {
@@ -120,15 +140,18 @@ export async function createCharacter(formData) {
       },
     }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    readGameState(prisma),
     getGuildMember(discordUserId),
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
   ]);
   if (!role) return { error: "That role no longer exists." };
 
-  // Launch gate: game must be open AND this member approved — the real
-  // enforcement boundary, not the wizard's UI. Superadmin bypasses both.
+  // Launch gate: the game must be running (or ended — Ended locks only the
+  // clock) AND this member approved — the real enforcement boundary, not the
+  // wizard's UI. A GM may skip ahead during the lobby. Superadmin bypasses
+  // both.
   const bypass = isSuperadmin(discordUserId);
-  if (!bypass && !config?.openToPlayers) {
+  if (!bypass && !creationOpen(state?.phase, member)) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
   if (!bypass && !isApprovedPlayer(member)) {
@@ -145,14 +168,16 @@ export async function createCharacter(formData) {
   // falsy: no config row leaves the whitelist enforced.
   const leaderWhitelisted =
     bypass || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
-  if (role.requiresWhitelist && !leaderWhitelisted) {
+  if (!assignedEntry && role.requiresWhitelist && !leaderWhitelisted) {
     return { error: "That role isn't available to you." };
   }
 
   const cursed = isCursed(member);
-  if (!isRoleSelectable({ role, cursed, leaderWhitelisted })) {
+  if (!assignedEntry && !isRoleSelectable({ role, cursed, leaderWhitelisted })) {
     return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
   }
+
+  const antagonistOptIns = normalizeAntagonistSlugs(postedOptIns, { whitelisted: leaderWhitelisted });
 
   // Dynasty seats wear the Baron's last name, never what was typed — not
   // reading the form is the lock. Null until a Baron exists.
@@ -325,14 +350,11 @@ export async function createCharacter(formData) {
   try {
     created = await prisma.$transaction(async (tx) => {
       // The lock that actually closes the race — see the header comment.
+      // heldSeats counts seated characters, others' wizard holds and others'
+      // lobby assignments; the caller's own hold and seat are left out.
       await tx.$queryRaw`SELECT id FROM "Role" WHERE id = ${role.id} FOR UPDATE`;
-      const [taken, reservedByOthers] = await Promise.all([
-        tx.character.count({ where: { roleId: role.id, status: { in: seatHolderStatuses(role) } } }),
-        tx.roleReservation.count({
-          where: { roleId: role.id, discordUserId: { not: discordUserId }, expiresAt: { gt: new Date() } },
-        }),
-      ]);
-      if (taken + reservedByOthers >= roleCapacity(role, config?.playerCount ?? 80)) {
+      const held = await heldSeats(tx, role, { excludeDiscordUserId: discordUserId });
+      if (held >= roleCapacity(role, effectivePlayerCount(config, state))) {
         throw new Error("ROLE_FULL");
       }
       // Release the caller's own hold in the same transaction.
@@ -372,6 +394,23 @@ export async function createCharacter(formData) {
           expiresTurn,
           quantity: quantity ?? 1,
         })),
+      });
+
+      // The assigned seat is spent: the entry records which character it
+      // became, and stops holding the seat.
+      if (assignedEntry) {
+        await tx.lobbyEntry.update({
+          where: { id: assignedEntry.id },
+          data: { status: "CREATED", characterId: character.id },
+        });
+      }
+
+      // The lobby preference keeps the same answer, so a later game opens
+      // with it ticked already (docs/systemdocs/LOBBY.md §2).
+      await tx.playerPreference.upsert({
+        where: { discordUserId },
+        create: { discordUserId, antagonistOptIns },
+        update: { antagonistOptIns },
       });
 
       // The Merchant advanced him half of it; the paper says the rest
@@ -497,15 +536,16 @@ export async function reserveRoleAction(roleId) {
     return { error: "You already have a character." };
   }
 
-  const [role, config, member] = await Promise.all([
+  const [role, config, state, member] = await Promise.all([
     prisma.role.findUnique({ where: { id: roleId }, include: { faction: { include: { zone: true } } } }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    readGameState(prisma),
     getGuildMember(discordUserId),
   ]);
   if (!role) return { error: "That role no longer exists." };
 
   const bypass = isSuperadmin(discordUserId);
-  if (!bypass && !config?.openToPlayers) {
+  if (!bypass && !creationOpen(state?.phase, member)) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
   if (!bypass && !isApprovedPlayer(member)) {
@@ -526,7 +566,7 @@ export async function reserveRoleAction(roleId) {
     return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
   }
 
-  const result = await reserveRole(prisma, discordUserId, roleId, config?.playerCount ?? 80);
+  const result = await reserveRole(prisma, discordUserId, roleId, effectivePlayerCount(config, state));
   if (!result.ok) {
     return { error: `${role.name} was taken while you were deciding. Pick another role.` };
   }

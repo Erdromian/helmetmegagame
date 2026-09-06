@@ -17,7 +17,14 @@ async function advanceTurn() {
     return null;
   }
 
-  const { advanced, previousTurn, newTurn, runSideEffects } = await advanceTurnInDb();
+  const { advanced, refused, previousTurn, newTurn, runSideEffects } = await advanceTurnInDb();
+
+  // The game is not running — in the lobby, or ended. Its clock is stopped
+  // by design (docs/systemdocs/LOBBY.md §1), so this is a quiet skip.
+  if (refused === "NOT_RUNNING") {
+    console.log("Turn-advance cron skipped: the game is not in its Running phase.");
+    return null;
+  }
 
   // Another caller (a GM on the Dev Panel, most likely) won the race and
   // already advanced the turn. Nothing to log, nothing to announce.
