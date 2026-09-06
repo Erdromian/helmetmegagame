@@ -129,10 +129,12 @@ export function recipeWork(tag) {
 
 // The work a unit takes, in the player's words — the one label the Recipes
 // tab and the Craft menu both print, so they cannot disagree. Fractional
-// work reads as its fraction; Dead Simple reads as the free action it is.
+// work reads as its fraction. A 0-turn recipe returns NULL, not a label:
+// the Move isn't a requirement there, so it simply isn't listed (Chris
+// 2026-09-06) — the ration line is that row's whole story.
 export function workLabel(tag) {
   const { turns, workDen } = recipeWork(tag);
-  if (turns === 0) return "No Move";
+  if (turns === 0) return null;
   if (workDen) return `${formatMoveFraction(1, workDen)} turn`;
   return turns === 1 ? "1 turn" : `${turns} turns`;
 }
@@ -141,7 +143,7 @@ export function workLabel(tag) {
 // actually changes for a player: no Move at all, this turn's Move, or a
 // project you come back to (CRAFTING.md §3).
 export function workBand(turns) {
-  if (turns === 0) return "No Move";
+  if (turns === 0) return "Free";
   return turns === 1 ? "One turn" : "Project";
 }
 

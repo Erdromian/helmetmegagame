@@ -273,7 +273,9 @@ function TagPicker({
                     style={{ color: "var(--accent-text)" }}
                   >
                     {[
-                      workLabel(tag),
+                      // Null for a 0-turn recipe — no Move requirement, so
+                      // none is listed.
+                      ...(workLabel(tag) ? [workLabel(tag)] : []),
                       `${tag.requirementResources ?? 0} ⬢`,
                       ...((tag.requirementSkills ?? []).length
                         ? [tag.requirementSkills.map((s) => s.name).join(", ")]

@@ -225,6 +225,8 @@ function RecipeRow({ row, byId, bySlug, onView }) {
         )}
       </td>
       <td className="text-sm">
+        {/* A 0-turn recipe lists no work at all — the Move isn't a
+            requirement there — so its ration line stands alone. */}
         {row.work}
         {row.ration != null && (
           <span className="block text-xs text-muted">
@@ -232,6 +234,9 @@ function RecipeRow({ row, byId, bySlug, onView }) {
               ? `Dead Simple: ${row.ration} a turn across all of it ‡`
               : `Up to ${row.ration} a turn ‡`}
           </span>
+        )}
+        {row.work == null && row.ration == null && (
+          <span className="text-muted">—</span>
         )}
       </td>
       <td className="mono text-sm">{row.resources > 0 ? `${row.resources} ⬢` : "—"}</td>
