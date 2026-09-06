@@ -1243,7 +1243,7 @@ zones:
         name: Village
         description: >-
           Half-submerged houses connected by bridges, their owners gone. Cypress forms a thick treeline all around, their bases packed with cattails. There's big fish in the water.
-        yield: { fishing: 1.5 }
+        yield: { fishing: 1.3 }
         attributes:
           godflesh: true
         rooms:
@@ -1333,7 +1333,7 @@ zones:
         map_node: 31
         description: >-
           Firm ground, barely — a tongue of gravel reaching into the wet, which is why every road in the marsh eventually comes here. Cart ruts fill with brown water and hold their shape for weeks. ‡
-        yield: { hunting: 1.0, fishing: 1.3 }
+        yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
           godflesh: true
         rooms: {}
@@ -1342,7 +1342,7 @@ zones:
         map_node: 32
         description: >-
           Reed beds over your head, cut through by a channel somebody dug straight. Straight is not natural here. Follow it and you are following somebody's intention. ‡
-        yield: { hunting: 1.0, fishing: 1.3 }
+        yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
           godflesh: true
         rooms: {}
@@ -1351,7 +1351,7 @@ zones:
         map_node: 33
         description: >-
           Where the ground gives up pretending. Duckboards run from hummock to hummock, and under them the water is black and warm and moves against the current. ‡
-        yield: { hunting: 1.0, fishing: 1.3 }
+        yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
           godflesh: true
         rooms: {}
@@ -1360,7 +1360,7 @@ zones:
         map_node: 34
         description: >-
           Drowned pasture. Fence posts stand in three feet of water in lines that go on past where you can see, and the animals they were built for have been gone a long time. ‡
-        yield: { hunting: 1.0, fishing: 1.3 }
+        yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
           godflesh: true
         rooms: {}
@@ -1369,7 +1369,7 @@ zones:
         map_node: 35
         description: >-
           The southern sink, where everything the marsh carries finally stops. There is a smell. There is also a stairwell, going down, with water lapping at the fourth step. ‡
-        yield: { hunting: 1.0, fishing: 1.3 }
+        yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
           godflesh: true
         rooms: {}

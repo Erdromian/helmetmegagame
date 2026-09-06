@@ -93,11 +93,11 @@ drifted it, and `current` is the only number a payout or the Examine button
 ever reads.
 
 ```yaml
-    forest-boardwalk:
-      name: Boardwalk
+    forest-west-riverbank:
+      name: West Riverbank
       description: >-
         …
-      yield: { hunting: 0.7, farming: 0.3 }
+      yield: { hunting: 0.8, farming: 0.3 }
 ```
 
 `db:sync-zones` writes these. It always writes `base`. It does **not** write
@@ -117,22 +117,22 @@ Anything not listed has no row and cannot be worked. Locations are addressed by
 slug — open country carries its zone as a prefix, built places do not
 (`docs/zones.yaml`).
 
-**Farming** — Farms 1.0 · Manors 0.6 · `forest-north-road` / `forest-shrine` /
-`forest-terraces` 0.5 · every other Forest place 0.3 · Keep 0.2.
+**Farming** — Farms 1.0 · Manors 0.6 · `forest-north-road` /
+`forest-crossroads` / `forest-sparse-field` 0.5 · every other Forest place 0.3 ·
+Keep 0.2.
 
-**Fishing** — `forest-river` / `forest-crossroads` / `forest-north-road` /
-`forest-charcoal` / `forest-culvert` / `forest-coppice` 0.7 ·
+**Fishing** — `forest-headwaters` / `forest-creekside` / `forest-north-road` /
+`forest-deep-forest` / `forest-culvert` / `forest-east-river` 0.9 ·
 `hills-black-pines` 0.8 · the five open Marshes 1.0.
 
-**Hunting** — Forest 0.5 except `forest-boardwalk` 0.7 · the five open Marshes
-1.0 · Black Hills 1.0 except `hills-scrub` 1.1 and `hills-black-pines` 1.3 ·
-the four Caves 0.4 · Depths 0.6 except `depths-runnel` 1.8 and `depths-saltrise`
-1.6.
+**Hunting** — Forest 0.5 except `forest-west-riverbank` 0.8 · the five open
+Marshes 1.0 · Black Hills 1.0 throughout · the four Caves 0.4 · Depths 0.6
+except `depths-runnel` 1.8 and `depths-saltrise` 1.6.
 
-The marsh Village fishes at 1.2 and does nothing else; the Godard Factory has
-no rows at all and is worked anyway (§3b). Town and Fortress have neither
-hunting nor fishing; their only yield is farming. Nothing farms or fishes
-underground.
+The marsh Village fishes at 1.3 and does nothing else; the Godard Factory has
+no rows at all and is worked anyway (§3b). The Fortress has neither hunting nor
+fishing — the Keep and the Manors farm, and nothing else inside it is worked at
+all. Town carries no rows of any kind. Nothing farms or fishes underground.
 
 **The old blanket "nothing can be produced in the depths" is gone.** Hunting
 down there is now most of the reason to go.
