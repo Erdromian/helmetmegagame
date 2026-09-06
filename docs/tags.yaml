@@ -5536,6 +5536,7 @@ tags:
     name: "Commoner: Fisherman"
     category: items
     onlyRoles: [commoner]
+    conflictsWith: [commoner-farmer, commoner-hunter]
     group: items-gear
     description: "Everything a fisherman owns, waiting at the waterline. Unpacks into a {tag:fishing-boat} and {tag:laboring-fishing}. ‡"
     pointCost: 1
@@ -5553,6 +5554,7 @@ tags:
     name: "Commoner: Farmer"
     category: items
     onlyRoles: [commoner]
+    conflictsWith: [commoner-fisherman, commoner-hunter]
     group: items-gear
     description: "Everything a farmer owns, which is not much. Unpacks into a {tag:work-knife} and {tag:laboring-farming}. ‡"
     pointCost: 0
@@ -5570,6 +5572,7 @@ tags:
     name: "Commoner: Hunter"
     category: items
     onlyRoles: [commoner]
+    conflictsWith: [commoner-fisherman, commoner-farmer]
     group: items-gear
     description: "Everything a hunter owns, and the habit of reading a treeline. Unpacks into {tag:laboring-hunting}, {tag:forester} and a {tag:shortbow}. ‡"
     pointCost: 2
@@ -5608,6 +5611,7 @@ tags:
     name: "Courtier: Herald"
     category: items
     onlyRoles: [courtier]
+    conflictsWith: [courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
     description: "Carry messages for the Baron and tell the day's news. Unpacks into a {tag:horse}, a {tag:trumpet}, a {tag:bird} and four sheets of {tag:paper}. ‡"
     pointCost: 7
@@ -5634,6 +5638,7 @@ tags:
     name: "Courtier: Seasoned Knight"
     category: items
     onlyRoles: [courtier]
+    conflictsWith: [courtier-herald, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
     description: "Reminisce on your valor during the Skinless attack of 1088. Unpacks into knighthood, {tag:plate-armor}, a {tag:broadsword}, a {tag:shield}, a {tag:knights-helmet}, {tag:melee-trained}, {tag:ranged-basic} and a {tag:devoted-follower} — along with the years behind all of it, {tag:old} and {tag:arthritis}. ‡"
     pointCost: 9
@@ -5659,6 +5664,7 @@ tags:
     name: "Courtier: Tutor"
     category: items
     onlyRoles: [courtier]
+    conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
     description: "Train the Successor and the Heir in your skill of choice. Unpacks into {tag:teaching}, {tag:intelligent} and {tag:insightful}. ‡"
     pointCost: 4
@@ -5677,6 +5683,7 @@ tags:
     name: "Courtier: Chaplain"
     category: items
     onlyRoles: [courtier]
+    conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
     description: "An envoy from the church. Unpacks into {tag:chaplain}, {tag:pious} and a {tag:blessing}. ‡"
     pointCost: 4
@@ -5695,6 +5702,7 @@ tags:
     name: "Courtier: Carouser"
     category: items
     onlyRoles: [courtier]
+    conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
     description: "Host marvelous feasts. Unpacks into the skills of a dancer and a {tag:game-master}, an {tag:iron-liver} and two {tag:alcohol}. ‡"
     pointCost: 3
@@ -5718,6 +5726,7 @@ tags:
     name: "Courtier: Manor Lord"
     category: items
     onlyRoles: [courtier]
+    conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
     description: "Run your manor from outside the fortress gates. Unpacks into old blood, an {tag:heirloom}, a {tag:rapier} and two {tag:manor-key}. ‡"
     pointCost: 5
@@ -5738,6 +5747,7 @@ tags:
     name: "Courtier: Debutante"
     category: items
     onlyRoles: [courtier]
+    conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
     description: "A general member of the court, here to try their fate. Unpacks into {tag:pretty}. ‡"
     pointCost: 1
@@ -5754,6 +5764,7 @@ tags:
     name: "Courtier: Court Physician"
     category: items
     onlyRoles: [courtier]
+    conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-artist, courtier-master-engineer]
     group: items-gear
     description: "Treat the Keep's wounded. Unpacks into {tag:medical-skilled} and a {tag:sanctuary-key}, so the Sanctuary is open to you. ‡"
     pointCost: 4
@@ -5771,6 +5782,7 @@ tags:
     name: "Courtier: Court Artist"
     category: items
     onlyRoles: [courtier]
+    conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-master-engineer]
     group: items-gear
     description: "Paint portraits of the Baron. Unpacks into {tag:artist}, {tag:musician}, an {tag:instrument} and the grace of a dancer. ‡"
     pointCost: 5
@@ -5792,6 +5804,7 @@ tags:
     name: "Courtier: Master Engineer"
     category: items
     onlyRoles: [courtier]
+    conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist]
     group: items-gear
     description: "Improve the defenses of Ravenheart. Unpacks into {tag:builder-expert}, a {tag:hatchet}, a {tag:work-knife}, a {tag:purse} and a {tag:cart}. ‡"
     pointCost: 8
