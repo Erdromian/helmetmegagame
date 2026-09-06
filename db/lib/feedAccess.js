@@ -1,47 +1,246 @@
 // Which places a character may read and write, for both faces.
 //
-// Moved down here from web/lib/feedAccess.js in phase 1, because the one write
-// path (db/lib/say.js) has to ask the same question the SSE route asks, and a
-// gate that lived in web/ could only ever answer for one of them.
+// This is the ONE answer. The SSE route asks it to decide what a stream
+// subscribes to, the say route asks it to decide whether a message is allowed,
+// db/lib/say.js asks it inside prepareSpeech, and the page asks it to draw the
+// left column. Re-implementing any of that in a route is how a private Room
+// ends up readable by somebody standing outside it.
 //
-// Phase 1 answers for the Location a character stands in. Rooms,
-// Conversations and the zone Summary arrive in phase 2, when placesFor() takes
-// over from this; the shape here is deliberately the one that grows into it.
+// placesFor() is the primitive and mayReadPlace/mayWritePlace derive from it,
+// rather than the other way round: a rule that only exists in the list can
+// never disagree with the rule that guards a send.
 //
 // Takes `prisma` where it needs it, same reason as archive.js and placeKey.js:
 // db/index.js imports this, so requiring it back would resolve to a partial
 // exports object.
 
-const { placeKeyForLocation, parsePlaceKey } = require("./placeKey");
-
-// The place keys a character may READ. Phase 1: the Location they stand in.
-function allowedPlaceKeys(character) {
-  const here = placeKeyForLocation(character?.locationId);
-  return here ? [here] : [];
-}
-
-function mayReadPlace(character, placeKey) {
-  return Boolean(placeKey) && allowedPlaceKeys(character).includes(placeKey);
-}
-
-// The place keys a character may SPEAK in. The same list for now; decision 5
-// (Location channels become system-only) splits the two in phase 2, when the
-// Location loses its composer and the Rooms gain theirs.
-function mayWritePlace(character, placeKey) {
-  return mayReadPlace(character, placeKey);
-}
+const {
+  placeKeyForLocation,
+  placeKeyForRoom,
+  placeKeyForConversation,
+  placeKeyForZone,
+  parsePlaceKey,
+} = require("./placeKey");
+const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
+const { conversationsFor } = require("./conversations");
+const { visibleZoneIds } = require("./gmZoneView");
 
 // How long a character waits between two sends in one place, in ms. The zone
 // summary is a slower surface on purpose: it is a whole zone reading.
-const PLACE_SLOWMODE_MS = 30_000;
+// Rooms and Conversations have no slowmode (Bascinet, 2026-09-06); only the
+// zone summary does, matching its Discord channel.
+const PLACE_SLOWMODE_MS = 0;
 const ZONE_SLOWMODE_MS = 300_000;
 
 function slowmodeMsFor(placeKey) {
   return parsePlaceKey(placeKey)?.kind === "zone" ? ZONE_SLOWMODE_MS : PLACE_SLOWMODE_MS;
 }
 
+// One line of a place list. `canSpeak` is the composer's gate and the send
+// route's; `slowmodeSeconds` is what the composer tells a player they are
+// waiting for. `roomKind` is null for anything that is not a Room.
+function place({ placeKey, kind, name, description = "", roomKind = null, canSpeak }) {
+  return {
+    placeKey,
+    kind,
+    name,
+    description: description ?? "",
+    roomKind,
+    canSpeak,
+    slowmodeSeconds: Math.round(slowmodeMsFor(placeKey) / 1000),
+  };
+}
+
+// A Location channel is SCENERY now, not speech (the plan's decision 5, and
+// CHANNELS.md §2). Arrivals, smells, the turret and the noticeboard land
+// there; talking happens in a Room thread, a Conversation or the zone
+// summary. Discord enforces the same thing by dropping Send from
+// LOCATION_MEMBER_ALLOW, so a player meets one rule on both faces.
+const LOCATION_CAN_SPEAK = false;
+
+// The places one living character may read, in the order the left column
+// draws them: where you are, the rooms off it, the conversations you are in,
+// then the zone's summary.
+async function placesFor(prisma, character, { gm = false, discordUserId = null } = {}) {
+  if (gm) return gmPlacesFor(prisma, discordUserId);
+  if (!character?.id || !character.locationId) return [];
+
+  const location = await prisma.location.findUnique({
+    where: { id: character.locationId },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      zone: { select: { id: true, name: true, description: true } },
+    },
+  });
+  if (!location) return [];
+
+  const [rooms, keys, conversations] = await Promise.all([
+    prisma.room.findMany({
+      where: { locationId: location.id },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, description: true, kind: true, accessTagSlugs: true },
+    }),
+    roomAccessKeys(prisma, character.id),
+    conversationsFor(prisma, character.id, { locationId: location.id }),
+  ]);
+
+  // The same accessibleRooms() every other door in the game reads, guests
+  // included — a guest who is shown the thread on Discord and refused the
+  // feed on the web would be two answers to one question.
+  const reachable = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds);
+  // Public first, then the private ones a key or a guest row opens: the
+  // column draws them as two sections and the order is what separates them.
+  const ordered = [
+    ...reachable.filter((room) => room.kind !== "PRIVATE"),
+    ...reachable.filter((room) => room.kind === "PRIVATE"),
+  ];
+
+  const list = [
+    place({
+      placeKey: placeKeyForLocation(location.id),
+      kind: "loc",
+      name: location.name,
+      description: location.description,
+      canSpeak: LOCATION_CAN_SPEAK,
+    }),
+    ...ordered.map((room) =>
+      place({
+        placeKey: placeKeyForRoom(room.id),
+        kind: "room",
+        name: room.name,
+        description: room.description,
+        roomKind: room.kind,
+        canSpeak: true,
+      }),
+    ),
+    ...conversations.map((conversation) =>
+      place({
+        placeKey: placeKeyForConversation(conversation.id),
+        kind: "conv",
+        name: conversation.name,
+        canSpeak: true,
+      }),
+    ),
+  ];
+
+  if (location.zone) {
+    list.push(
+      place({
+        placeKey: placeKeyForZone(location.zone.id),
+        kind: "zone",
+        name: location.zone.name,
+        description: location.zone.description ?? "",
+        canSpeak: true,
+      }),
+    );
+  }
+
+  return list;
+}
+
+// A GM reads every place inside the zones they have chosen to see
+// (db/lib/gmZoneView.js — no rows means every zone) and speaks in none of
+// them. Watching is not standing there: a GM who wants to say something in a
+// scene says it as a GM, on Discord or through the desk.
+async function gmPlacesFor(prisma, discordUserId) {
+  const visible = await visibleZoneIds(prisma, discordUserId);
+  const zoneWhere = visible ? { id: { in: [...visible] } } : {};
+
+  const zones = await prisma.zone.findMany({
+    where: zoneWhere,
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      locations: {
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          rooms: {
+            orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+            select: { id: true, name: true, description: true, kind: true },
+          },
+          playerThreads: { orderBy: { createdAt: "asc" }, select: { id: true, name: true } },
+        },
+      },
+    },
+  });
+
+  const list = [];
+  for (const zone of zones) {
+    list.push(
+      place({
+        placeKey: placeKeyForZone(zone.id),
+        kind: "zone",
+        name: zone.name,
+        description: zone.description ?? "",
+        canSpeak: false,
+      }),
+    );
+    for (const location of zone.locations) {
+      list.push(
+        place({
+          placeKey: placeKeyForLocation(location.id),
+          kind: "loc",
+          name: `${zone.name} · ${location.name}`,
+          description: location.description,
+          canSpeak: false,
+        }),
+      );
+      for (const room of location.rooms) {
+        list.push(
+          place({
+            placeKey: placeKeyForRoom(room.id),
+            kind: "room",
+            name: `${location.name} · ${room.name}`,
+            description: room.description,
+            roomKind: room.kind,
+            canSpeak: false,
+          }),
+        );
+      }
+      for (const conversation of location.playerThreads) {
+        list.push(
+          place({
+            placeKey: placeKeyForConversation(conversation.id),
+            kind: "conv",
+            name: `${location.name} · ${conversation.name}`,
+            canSpeak: false,
+          }),
+        );
+      }
+    }
+  }
+  return list;
+}
+
+// Both of these DERIVE from the list. That is the point: there is no second
+// copy of the rule to fall out of step with the column a player is looking at.
+async function findPlace(prisma, character, placeKey, options) {
+  if (!placeKey) return null;
+  const list = await placesFor(prisma, character, options);
+  return list.find((entry) => entry.placeKey === placeKey) ?? null;
+}
+
+async function mayReadPlace(prisma, character, placeKey, options) {
+  return Boolean(await findPlace(prisma, character, placeKey, options));
+}
+
+// Reading and writing parted company in phase 2: a Location is read-only for
+// everybody, and every place is read-only for a GM.
+async function mayWritePlace(prisma, character, placeKey, options) {
+  const found = await findPlace(prisma, character, placeKey, options);
+  return Boolean(found?.canSpeak);
+}
+
 module.exports = {
-  allowedPlaceKeys,
+  placesFor,
+  findPlace,
   mayReadPlace,
   mayWritePlace,
   slowmodeMsFor,

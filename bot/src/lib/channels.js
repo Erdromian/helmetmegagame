@@ -13,6 +13,11 @@ const { prisma, SPECIAL_CHANNELS } = require("@lifeweb/db");
 // in-memory refresh is plenty fresh without a DB round trip on every message.
 let channelIds = { tupperSummary: new Set(), tupperOnly: new Set() };
 
+// The subset of tupperOnly that is a LOCATION channel rather than a special
+// one. Kept separate because the two now behave differently at top level: a
+// special channel is still proxied there, a Location channel is not.
+let locationChannelIds = new Set();
+
 // channelId -> { zoneId, zoneName, locationId, locationName, channelKind },
 // the same refresh feeding the Sets above. It exists so the proxy can stamp
 // an archive row with where a message was said, and so the mention relay can
@@ -38,6 +43,7 @@ async function refreshLocationChannels() {
   ]);
   const tupperSummary = new Set();
   const tupperOnly = new Set();
+  const locationOnly = new Set();
   const contexts = new Map();
   const nowhere = { zoneId: null, zoneName: null, locationId: null, locationName: null };
   const note = (channelId, context) => {
@@ -60,6 +66,7 @@ async function refreshLocationChannels() {
   for (const location of locations) {
     if (!location.discordChannelId) continue;
     tupperOnly.add(location.discordChannelId);
+    locationOnly.add(location.discordChannelId);
     note(location.discordChannelId, {
       zoneId: location.zoneId,
       zoneName: location.zone?.name ?? null,
@@ -76,6 +83,7 @@ async function refreshLocationChannels() {
   }
 
   channelIds = { tupperSummary, tupperOnly };
+  locationChannelIds = locationOnly;
   channelContexts = contexts;
 }
 
@@ -115,12 +123,24 @@ function isTupperChannel(channel) {
 // Messages inside a Room thread or a Conversation report the thread as
 // message.channel, so tupper-proxying has to check the parent channel's ID
 // instead.
+//
+// A top-level LOCATION channel is deliberately not one of them any more (the
+// Hall's decision 5, 2026-09-06). A Location channel is the street's scenery
+// — arrivals, smells, the turret, the noticeboard, the turn line — and its
+// members no longer hold Send there (db/lib/zoneChannelSpec.js). Talk happens
+// in a Room thread, a Conversation or the zone's #summary, all of which are
+// still proxied. What is left at top level is a GM typing in the channel, and
+// a GM's own words are theirs: leave the message alone rather than repost it
+// under a mask.
 function isDesignatedTupperChannel(channel) {
-  if (isTupperChannel(channel)) return true;
+  if (isSummaryChannel(channel)) return true;
   if (channel.isThread() && channel.parent) {
     return channelIds.tupperSummary.has(channel.parent.id) || channelIds.tupperOnly.has(channel.parent.id);
   }
-  return false;
+  // The special channels (#cerberon) are tupper-only and are NOT Locations,
+  // so they keep their top-level proxying.
+  if (channel.type !== ChannelType.GuildText) return false;
+  return channelIds.tupperOnly.has(channel.id) && !locationChannelIds.has(channel.id);
 }
 
 module.exports = {

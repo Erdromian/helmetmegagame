@@ -103,7 +103,7 @@ function carryWeight(characterTags = []) {
 }
 
 function carryCaps(config, milli = MULT_SCALE) {
-  const weightCap = config?.carryWeightLbs ?? 120;
+  const weightCap = config?.carryWeightLbs ?? 84;
   const resourceCap = config?.carryResourceCap ?? 25;
   return {
     weight: Math.floor((weightCap * milli) / MULT_SCALE),
@@ -136,7 +136,7 @@ function carryStatus(character, config) {
     resourcesHardCap: hard.resources,
     multiplier: milli / MULT_SCALE,
     breakdown: carryBreakdown(character?.tags),
-    baseWeightCap: config?.carryWeightLbs ?? 120,
+    baseWeightCap: config?.carryWeightLbs ?? 84,
     over: weightUsed > caps.weight || resources > caps.resources,
   };
 }

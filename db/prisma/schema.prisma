@@ -372,7 +372,7 @@ model GameConfig {
   // allowed up to 1.5× (carry.js HARD_CAP_RATIO); past that the goods cannot
   // enter the sheet at all. Assets — a horse, a cart, a house — are exempt
   // from the weight load entirely. Live on /gm/dev.
-  carryWeightLbs   Int @default(120)
+  carryWeightLbs   Int @default(84)
   carryResourceCap Int @default(25)
 
   // Free zone crossings per character per turn, before a crossing starts

@@ -89,11 +89,14 @@ function roleAllow(roleId, allow) {
 
 // The overwrites EVERY zone-scoped target carries: @everyone's deny (the
 // privacy mechanism), the zone's GM seat, the spectator seat, the ghost seat.
-function baseOverwrites(guildId, zoneGmRoleId) {
+// `spectators` is whether the spectator seat may VIEW right now — the game's
+// phase decides (db/lib/spectatorAccess.js), and every caller reads it once
+// and passes it down, so a spec never has to know about the database.
+function baseOverwrites(guildId, zoneGmRoleId, { spectators = true } = {}) {
   return [
     { id: guildId, type: 0, deny: (PERM_VIEW_CHANNEL | PERM_ATTACH_FILES).toString() },
     ...roleAllow(zoneGmRoleId, PERM_VIEW_CHANNEL | PERM_ATTACH_FILES),
-    ...spectatorOverwrite(),
+    ...spectatorOverwrite({ visible: spectators }),
     ...cursedOverwrite(),
   ];
 }
@@ -104,10 +107,10 @@ function baseOverwrites(guildId, zoneGmRoleId) {
 //   SURFACE     { category, summary }
 //   CAVE_GROUP  { category }
 //   CAVE_LEVEL  { }   (its Location channels parent to the group's category)
-function zoneChannelSpec(zone) {
+function zoneChannelSpec(zone, { spectators = true } = {}) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const zoneGmRoleId = zone.gmRoleId ?? null;
-  const base = baseOverwrites(guildId, zoneGmRoleId);
+  const base = baseOverwrites(guildId, zoneGmRoleId, { spectators });
   const zoneRoleId = zone.discordRoleId ?? null;
 
   if (zone.kind === "CAVE_LEVEL") return {};
@@ -134,21 +137,31 @@ function zoneChannelSpec(zone) {
 }
 
 // What one standing character is granted on the Location channel they are
-// in: talk at top level (the location's open street) and inside its Room
-// threads, but create no thread of either kind — the bot spawns every Room
+// in: READ the street and talk inside its Room threads, but say nothing at
+// top level and create no thread of either kind — the bot spawns every Room
 // and every Conversation, which is what keeps PlayerThread a complete
 // record.
-const LOCATION_MEMBER_ALLOW =
-  PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_SEND_MESSAGES_IN_THREADS | PERM_ADD_REACTIONS;
+//
+// Send came off the top level on 2026-09-06 (the Hall's decision 5, and
+// CHANNELS.md §2). A Location channel is the street's SCENERY now — arrivals,
+// smells, the turret, the noticeboard, the turn line — and talk belongs in a
+// Room thread, a Conversation or the zone summary, all of which are a scene
+// somebody chose to be in. The web face agrees: /play draws no composer on a
+// Location.
+//
+// One `npm run db:doctor -- --apply` rewrites every existing occupant's
+// overwrite to this bit set; the occupancy check compares the allow bits, not
+// just the presence of a target.
+const LOCATION_MEMBER_ALLOW = PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES_IN_THREADS | PERM_ADD_REACTIONS;
 
 // The text channel for one Location. It names no location role: the spec is
 // the channel's STANDING shape, and who is standing here changes every turn.
 // Occupant overwrites are written by the move pipeline and reconciled by the
 // channel doctor's occupancy check — never by this spec, which is exactly
 // why managedOverwriteIds() must never learn to delete a member target.
-function locationChannelSpec(location, zoneGmRoleId = null) {
+function locationChannelSpec(location, zoneGmRoleId = null, { spectators = true } = {}) {
   const guildId = process.env.DISCORD_GUILD_ID;
-  const base = baseOverwrites(guildId, zoneGmRoleId);
+  const base = baseOverwrites(guildId, zoneGmRoleId, { spectators });
   const topic = (location.description || "").replace(/\s*\n+\s*/g, " ").trim().slice(0, TOPIC_MAX);
 
   return {

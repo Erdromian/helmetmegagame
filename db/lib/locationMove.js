@@ -18,6 +18,7 @@ const {
 } = require("./discordRest");
 const { buildNarrowcastContext, computeNarrowcastAccess, SPECIAL_CHANNELS } = require("./specialChannels");
 const { applyPendingInvites } = require("./threadInvites");
+const { notifyPresence } = require("./presenceNotify");
 const { syncCharacterRoomAccess } = require("./roomAccess");
 const { ambientLine } = require("./ambientLine");
 const { settleCarry, deliverCarryDrop } = require("./carry");
@@ -319,6 +320,10 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
   await applyPendingInvites(prisma, { ...character, locationId: toLocationId }).catch((err) =>
     console.error(`Move: thread invite pass failed for ${characterId}:`, err.message ?? err),
   );
+
+  // The feet moved, so the web's place list did too: every open /play tab of
+  // this character re-asks db/lib/feedAccess.js#placesFor (docs HALL.md §3).
+  await notifyPresence(prisma, characterId);
 }
 
 module.exports = { applyLocationMoveSideEffects, reconcileNarrowcastAccess };

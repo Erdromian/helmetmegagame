@@ -2,6 +2,7 @@ import "server-only";
 import { Client } from "pg";
 import { prisma, feedRowShape, FEED_ROW_SELECT } from "@lifeweb/db";
 import { FEED_CHANNEL } from "@lifeweb/db/lib/feedNotify";
+import { PRESENCE_CHANNEL } from "@lifeweb/db/lib/presenceNotify";
 
 // One Postgres LISTEN per web process, fanned out to every open SSE stream.
 //
@@ -23,6 +24,11 @@ function createHub() {
   return {
     // placeKey -> Set<(row) => void>
     subscribers: new Map(),
+    // characterId -> Set<() => void>. The second channel, added in phase 2:
+    // a character's PLACE LIST changes when they walk, when a key opens a
+    // door, or when somebody lets them into a conversation, and an open
+    // stream has to resubscribe rather than wait for the tab to reload.
+    presenceSubscribers: new Map(),
     client: null,
     connecting: false,
     backoffMs: BACKOFF_MIN_MS,
@@ -49,7 +55,32 @@ function fanOut(placeKey, row) {
   }
 }
 
+// Presence carries nothing but a character id on purpose. The stream re-asks
+// db/lib/feedAccess.js#placesFor for itself, so a notification is a nudge and
+// never an authorisation.
+function handlePresence(payload) {
+  let parsed;
+  try {
+    parsed = JSON.parse(payload);
+  } catch {
+    return;
+  }
+  const set = hub().presenceSubscribers.get(parsed?.characterId);
+  if (!set) return;
+  for (const wake of [...set]) {
+    try {
+      wake();
+    } catch (err) {
+      console.error("Presence subscriber failed:", err);
+    }
+  }
+}
+
 async function handleNotification(msg) {
+  if (msg.channel === PRESENCE_CHANNEL) {
+    if (msg.payload) handlePresence(msg.payload);
+    return;
+  }
   if (msg.channel !== FEED_CHANNEL || !msg.payload) return;
   let parsed;
   try {
@@ -127,7 +158,10 @@ async function connect() {
 
   try {
     await client.connect();
+    // Both channels on the ONE client: LISTEN belongs to a session, and a
+    // second connection would double the reconnect logic for no gain.
     await client.query(`LISTEN ${FEED_CHANNEL}`);
+    await client.query(`LISTEN ${PRESENCE_CHANNEL}`);
     h.client = client;
     h.connecting = false;
     h.backoffMs = BACKOFF_MIN_MS;
@@ -155,5 +189,27 @@ export function subscribeToPlace(placeKey, send) {
     if (!current) return;
     current.delete(send);
     if (current.size === 0) h.subscribers.delete(placeKey);
+  };
+}
+
+// The same contract as subscribeToPlace, for the other channel: returns an
+// unsubscribe the SSE route calls from the request's abort handler.
+export function subscribeToPresence(characterId, wake) {
+  const h = hub();
+  if (!characterId) return () => {};
+  let set = h.presenceSubscribers.get(characterId);
+  if (!set) {
+    set = new Set();
+    h.presenceSubscribers.set(characterId, set);
+  }
+  set.add(wake);
+
+  connect().catch((err) => console.error("Feed hub connect failed:", err));
+
+  return () => {
+    const current = h.presenceSubscribers.get(characterId);
+    if (!current) return;
+    current.delete(wake);
+    if (current.size === 0) h.presenceSubscribers.delete(characterId);
   };
 }

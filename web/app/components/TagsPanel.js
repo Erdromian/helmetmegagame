@@ -69,6 +69,8 @@ export default function TagsPanel({
   storeTags = null,
   storeHeldTags = null,
   storeRoleSlug = null,
+  // GameState.nukeArmedTurn, for the one chip that shows it (TagChip.js).
+  nukeArmedTurn = null,
 }) {
   // Null on someone else's sheet, where no provider is mounted — which is
   // also exactly when the chips must stay read-only.
@@ -167,6 +169,7 @@ export default function TagsPanel({
                         consumeHint={clickable ? consumeHintFor(ct.tag) : null}
                         expiresTurn={ct.expiresTurn}
                         currentTurn={currentTurn}
+                        armedTurn={ct.tag.slug === "nuclear-device" ? nukeArmedTurn : null}
                       />
                     </li>
                   );

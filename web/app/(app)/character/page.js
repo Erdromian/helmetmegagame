@@ -51,6 +51,7 @@ import { takenCounts } from "@lifeweb/db/lib/roleReservation";
 import { groupRoles } from "@lifeweb/db/lib/roleGroups";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen, readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
+import { deployVersion } from "@/lib/deployVersion";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
@@ -344,6 +345,9 @@ export default async function CharacterPage({ searchParams }) {
     gameConfig,
     { action: currentAction },
     frozen,
+    // The bomb's clock, for the Nuclear Device chip (TagChip.js). World
+    // state, so every sheet shows it, not just the holder's.
+    nukeState,
   ] = await Promise.all([
     getOpenTurn(),
     // getVisibleTags doesn't select purchasable/craftable, so this comes
@@ -461,6 +465,7 @@ export default async function CharacterPage({ searchParams }) {
     }),
     findOpenTurnAction(prisma, character.id),
     clockFrozen(prisma),
+    readGameState(prisma, { nukeArmedTurn: true }),
   ]);
 
   // Desires. Every evaluation happens HERE, server-side — the client never
@@ -1347,6 +1352,8 @@ export default async function CharacterPage({ searchParams }) {
       canDisguise={canDisguise}
       hasDatacard={hasDatacard}
       hasDevice={hasDevice}
+      nukeArmedTurn={nukeState?.nukeArmedTurn ?? null}
+      deployVersion={deployVersion()}
       harmTargets={harmTargets}
       harmTags={harmTags}
       lastNameLocked={isDynastyMember(character.role?.slug)}

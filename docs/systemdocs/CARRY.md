@@ -14,7 +14,7 @@ A character carries two loads against two caps, both live on `/gm/dev`:
 
 | Load | Counts | Base cap |
 |---|---|---|
-| Weight | `Tag.weightLbs` × quantity, over every `tradeable` tag. Three things weigh nothing: **Assets** (a horse carries itself, a house does not move), **untradeable** items (the Quickened Nerve Braid grafted into your neck), and everything that was never cargo — skills, injuries, statuses, beliefs. | `GameConfig.carryWeightLbs`, default 120 |
+| Weight | `Tag.weightLbs` × quantity, over every `tradeable` tag. Three things weigh nothing: **Assets** (a horse carries itself, a house does not move), **untradeable** items (the Quickened Nerve Braid grafted into your neck), and everything that was never cargo — skills, injuries, statuses, beliefs. | `GameConfig.carryWeightLbs`, default 84 |
 | ⬢ | `Character.resources` | `GameConfig.carryResourceCap`, default 25 |
 
 Both caps are moved by the **sum** of every **active** `Tag.carryBonus`, which
@@ -44,7 +44,7 @@ behaviour lives.
 `db/lib/carry.js` holds the math — `carryMultiplier` (the summing function kept
 its name), `carryWeight`,
 `carryCaps`, `carryHardCaps`, `carryAdmits`, `carryStatus` — with no prisma and
-no I/O, so `/character` can render "84 / 120 lb" without dragging the barrel
+no I/O, so `/character` can render "60 / 84 lb" without dragging the barrel
 into the client bundle. The cap on that row carries a `title=` breakdown: the
 base, then a signed line per active bonus.
 
@@ -92,18 +92,26 @@ nothing.
 
 | Band | lb | Examples |
 |---|---|---|
-| Negligible | 0 | key, letter, badge, coin, spectacles |
-| Trivial | 0.5 | vial, tonic, dagger, sling, Graga sac |
-| Light | 2 | meal, flask, hand tool, cudgel |
-| Medium | 5 | sword, helm, lantern, fishing rod |
-| Heavy | 12 | crossbow, shield, greatsword, trap |
-| Very Heavy | 28 | mail shirt, breastplate, pavise |
-| Massive | 55 | plate armor, a creature's corpse |
-| Immense | 100 | workshop equipment, a motorcycle |
+| Negligible | 0 | key, letter, badge, coin, spectacles, cigarette |
+| Trivial | 0.5–1 | vial, tonic, dagger, sling, Graga sac |
+| Light | 2–3 | meal, flask, sword, bow, cudgel, a book |
+| Medium | 4–6 | spear, mace, helm, halberd, fishing rod |
+| Heavy | 8–12 | crossbow, rifle, shield, bear trap, padded armor |
+| Very Heavy | 20–30 | mail shirt, breastplate, pavise, Godflesh |
+| Massive | 40–75 | plate armor, flamethrower, a creature's corpse |
+| Immense | 100 | workshop equipment, a nuclear device |
 
-At the default 120 lb a full harness (55) plus sword, dagger and shield (17.5)
-plus meals and kit leaves perhaps forty pounds spare. That is the intended
-shape: you can do the knight thing, and not much else.
+**A thing with an obvious real weight gets that weight**, and the band is for
+what has none. A longsword is 3 lb, not 5; a halberd is 6, not 12; a war
+hammer is 5; a crossbow 8; a knight's helm 6. The bands are ranges since the
+realism pass of 2026-09-06 — earlier that day every weight had been cut 30%
+by mistake, and the fix restored the old scale and then went item by item.
+Light things are light (a dagger is 1 lb, a cigarette nothing) and heavy things
+stayed heavy (plate 55, cataphract 65, a Graga corpse 75).
+
+**The base cap is 84 lb** (was 120 until 2026-09-06). A full harness (55)
+plus sword, dagger and shield (14) leaves fifteen pounds for meals and kit.
+That is the intended shape: you can do the knight thing, and not much else.
 
 **`{carry:slug}` in a tag description** renders the sentence Bascinet wrote,
 computed from the live caps: "You can carry 5 more item tags, and 12 ⬢." Pack
@@ -391,7 +399,7 @@ uses) or a Room here you can get into. Nothing is ever taken from another
 person through Transfer, ⬢ included: you can't reach into their pockets, and
 listing what's in them would show their hidden tags. Loot is how you take
 from a person, and only a helpless one (REQUESTS.md §5b). The projection line
-("After this you carry 84 / 120 lb and 6 / 25 ⬢") warns in accent when the
+("After this you carry 60 / 84 lb and 6 / 25 ⬢") warns in accent when the
 result is over a cap and submits anyway — going over is allowed up to the ceiling (§2).
 
 Server side, `transferRequest` in `requestActions.js` resolves both parties

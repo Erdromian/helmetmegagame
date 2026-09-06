@@ -47,6 +47,10 @@ export default function TagChip({
   consumeHint = null,
   expiresTurn = null,
   currentTurn = null,
+  // The Nuclear Device only: the turn it fires on, from GameState.nukeArmedTurn
+  // (db/lib/nuke.js). Armed state is world state rather than a tag, so the
+  // chip has to be told; null means not armed and the row simply isn't there.
+  armedTurn = null,
 }) {
   const stack = quantity > 1 ? quantity : null;
   // Minified "cost to add/remove this tag in play" — see Tag.requirement* in
@@ -66,7 +70,14 @@ export default function TagChip({
   // the clock started when it was granted. Null for a bare catalog reference,
   // which is what makes tagDuration fall back to the catalog wording.
   const left = turnsLeft(expiresTurn, currentTurn);
-  const duration = tagDuration(left, tag.defaultDurationTurns);
+  const duration =
+    armedTurn != null
+      ? {
+          label: `Armed. It fires as turn ${armedTurn} closes. ‡`,
+          badge: `armed · ${turnsLeft(armedTurn, currentTurn) ?? "?"}t`,
+          armed: true,
+        }
+      : tagDuration(left, tag.defaultDurationTurns);
 
   // What it turns into when that runs out, rather than simply going away.
   const becomes = chainTokens(tag.expiresInto);
@@ -100,7 +111,7 @@ export default function TagChip({
         </button>
       )}
       <dl className="tag-meta">
-        {duration && <Meta label="Expires">{duration.label}</Meta>}
+        {duration && <Meta label={duration.armed ? "Armed ‡" : "Expires"}>{duration.label}</Meta>}
         {/* Reinforcement, not the only warning — every tag that gets worse
             says so in its own description too. This is the precise version.
             inTooltip: this text is rendered inside a HoverCard panel (this

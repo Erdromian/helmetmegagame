@@ -6,6 +6,43 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Weights back up, made real, and the carry cap down to 84 lb
+
+✎ The 30% weight cut was an accident and is undone: everything is back on the old scale  
+✎ Then a realism pass, item by item: a dagger is 1 lb, a longsword 3, a halberd 6, a war hammer 5, a crossbow 8, a knight's helm 6, a cigarette nothing  
+✎ Heavy things stayed heavy: plate 55 lb, cataphract 65, a flamethrower 40, a Graga corpse 75, a Squeeze cube 17  
+✎ The base carry cap is 84 lb, down from 120. A knight in full plate with sword, dagger and shield has about fifteen pounds spare  
+✎ A refugee cannot carry a shift's Squeeze any more, and a Horse and Cart clears about four turns of Factory output in one trip rather than five
+
+## 2026-09-06 · Rooms have no slowmode, and a wipe waits for Discord
+
+✎ Room threads and Conversations carry no slowmode after all; the five minutes stays on the zone summary alone. The earlier note saying Rooms got 30 seconds was wrong and is undone here.  
+✎ A Restart Game no longer loses its Room threads and anchors: creating a thread now waits out Discord's minute-long rate limit instead of giving up at 30 seconds, which is what emptied every Location channel twice today.
+
+## 2026-09-06 · Every place on the Play page, and Location channels go quiet
+
+✚ The Play page now shows every place you can hear: the Location, its Rooms (the private ones you hold a key or an invitation to), your Conversations, and the zone Summary, each with an unread dot. Three columns on a desk, tabs on a phone.  
+✎ Location channels are scenery now, not speech. Nobody can type in one; talk happens in the Room threads, which carry a 30-second slowmode, and in the zone summary.  
+✎ Who is in a Conversation is a record the game keeps, and the Discord thread follows it, so a player can be let into one without ever seeing the thread.  
+✎ Moving, gaining a key or being let into a room updates your open Play tabs on the spot.
+
+## 2026-09-06 · Everything weighs about 30% less
+
+✎ Every item in the catalog is roughly 30% lighter; the carry cap stays at 120 lb  
+✎ The weight bands are now 0 / 0.3 / 1.5 / 3.5 / 8 / 20 / 40 / 70  
+✎ A Squeeze cube is 12 lb, so a refugee can now walk a full shift's output out of the Factory
+
+## 2026-09-06 · Spectators only watch while the game is on
+
+✎ The Spectator role sees the channels only while the game is Running or Ended; in Closed or Lobby it is denied view, so testing before launch pings nobody who came to watch  
+✎ Every phase change re-checks it, and the channel doctor's cheap pass repairs any channel that drifted
+
+## 2026-09-06 · Loot the room you're in, a sheet that keeps itself current, and a bomb that says it's armed
+
+✎ The Loot button now lists the rooms here beside the people. Picking a room takes from its stash, the same way Transfer's From-the-room already did.  
+✎ The character page refreshes itself when something on your sheet or in your Location changes, so a move made from Discord no longer leaves the old rooms in the pickers until a reload. It checks a small fingerprint every ten seconds and only reloads the page when that moves.  
+✎ The Nuclear Device tag reads "armed · 2t" while the countdown is running, and its tooltip says which turn it fires on.
+
 ## 2026-09-06 · One write path, and messages you can take back
 
 ✎ Everything a character says now goes through one path on both faces, so a Stupid character babbles on the web exactly as on Discord, and the speech gate, the length cap and the autocorrect are decided once.  

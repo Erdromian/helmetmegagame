@@ -566,9 +566,33 @@ export default function RequestActionsProvider({
     () => patient?.healable.find((h) => h.tagId === tagId) ?? null,
     [patient, tagId],
   );
+  // The room stashes here, in lootTargets' shape, keyed "room:<id>" so the
+  // one picker can hold both and the submit can tell them apart. Same list
+  // Transfer's From uses (accessibleRooms — locked rooms you can't open never
+  // arrive), so looting a room is Transfer's room → you path under Loot's
+  // button, which is where a player looks for it.
+  const lootRooms = useMemo(
+    () =>
+      (transferParties?.rooms ?? []).map((r) => ({
+        id: `room:${r.id}`,
+        name: r.name,
+        room: true,
+        resources: r.resources ?? 0,
+        tags: (r.tags ?? []).map((t) => ({
+          tagId: t.tagId,
+          tagName: t.name,
+          stackable: t.stackable,
+          quantity: t.quantity ?? 1,
+        })),
+      })),
+    [transferParties],
+  );
   const lootTarget = useMemo(
-    () => lootTargets.find((t) => t.id === targetId) ?? null,
-    [lootTargets, targetId],
+    () =>
+      lootTargets.find((t) => t.id === targetId) ??
+      lootRooms.find((r) => r.id === targetId) ??
+      null,
+    [lootTargets, lootRooms, targetId],
   );
   // Bind, Free and Crucify share one roster: Bind wants the untied, Free the
   // tied, Crucify anyone not already on the cross.
@@ -868,6 +892,19 @@ export default function RequestActionsProvider({
           amount,
         });
       case "loot":
+        // A room is Transfer's room → you, so reach, holdings, the audit rows
+        // and the room thread's alias line all come from the one path.
+        if (targetId.startsWith("room:")) {
+          return transferRequest({
+            fromKey: targetId,
+            toKey: `character:${selfId}`,
+            tags: Object.entries(picks).map(([id, q]) => ({
+              tagId: id,
+              quantity: q,
+            })),
+            amount,
+          });
+        }
         return lootCharacterRequest({
           targetCharacterId: targetId,
           tagPicks: Object.entries(picks).map(([id, q]) => ({
@@ -1458,9 +1495,9 @@ export default function RequestActionsProvider({
 
             {mode === "loot" && (
               <>
-                {lootTargets.length === 0 ? (
+                {lootTargets.length === 0 && lootRooms.length === 0 ? (
                   <NobodyHere>
-                    Nobody here is in any state to be searched.
+                    Nothing here to search. ‡
                   </NobodyHere>
                 ) : (
                   <>
@@ -1480,11 +1517,24 @@ export default function RequestActionsProvider({
                         <option value="" disabled>
                           Choose someone here…
                         </option>
-                        {lootTargets.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name} — {targetNote(t)}
-                          </option>
-                        ))}
+                        {lootRooms.length > 0 && (
+                          <optgroup label="Rooms here ‡">
+                            {lootRooms.map((r) => (
+                              <option key={r.id} value={r.id}>
+                                {r.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {lootTargets.length > 0 && (
+                          <optgroup label="People here ‡">
+                            {lootTargets.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name} — {targetNote(t)}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
                       </Select>
                     </label>
 
@@ -1492,7 +1542,9 @@ export default function RequestActionsProvider({
                       <>
                         {lootTarget.tags.length === 0 ? (
                           <p className="text-xs text-muted">
-                            They&apos;re carrying nothing worth taking.
+                            {lootTarget.room
+                              ? "Nothing is stored here. ‡"
+                              : "They\u2019re carrying nothing worth taking."}
                           </p>
                         ) : (
                           <div className="flex flex-col gap-2">
@@ -1530,7 +1582,9 @@ export default function RequestActionsProvider({
                         )}
                         <label className="field" style={{ width: "10rem" }}>
                           <span className="field-label">
-                            Resources (they have {lootTarget.resources})
+                            {lootTarget.room
+                              ? `Resources (${lootTarget.resources} here) ‡`
+                              : `Resources (they have ${lootTarget.resources})`}
                           </span>
                           <input
                             type="number"

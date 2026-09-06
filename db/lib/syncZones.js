@@ -43,6 +43,7 @@ const {
   zoneGmRoleName,
 } = require("./zoneChannelSpec");
 const { syncTurnsChannelAccess } = require("./turnsChannelAccess");
+const { spectatorsVisibleNow } = require("./spectatorAccess");
 const { locationAnchorRows, locationGateRow } = require("./locationAnchorRow");
 const { collectAttributes } = require("./locationAttributes");
 const { roomStarterRow, WATCHTOWER_ROOM_SLUGS } = require("./roomStarterRow");
@@ -637,6 +638,13 @@ async function writeRoomStarter(threadId, chunks, components) {
 // the room body, reconciled by hash. Never locked (players roleplay inside
 // it); the Dawn wipe clears replies but never the starter. Returns
 // "created" | "updated" | "unchanged" | "skipped".
+// Rooms carry NO slowmode (Bascinet, 2026-09-06): the 5-minute one belongs to
+// #summary alone, and a Room thread is moment-to-moment talk. Zero is still
+// asserted on every pass, the same way `archived: false` is, because a thread
+// briefly carried 30 s during the Location-goes-quiet change and Discord keeps
+// a thread's rate limit per thread — nothing else would ever clear it.
+const ROOM_SLOWMODE_SECONDS = 0;
+
 async function syncRoomThread(prisma, room, location, snapshot, liveState) {
   if (!location?.discordChannelId) return "skipped";
 
@@ -656,7 +664,12 @@ async function syncRoomThread(prisma, room, location, snapshot, liveState) {
   }
   if (existing && room.starterMessageId && room.postHash === hash) {
     // The cheap re-assert that keeps a room visible after seven idle days.
-    if (existing.thread_metadata?.archived) await patchThread(room.discordThreadId, { archived: false });
+    if (existing.thread_metadata?.archived || existing.rate_limit_per_user !== ROOM_SLOWMODE_SECONDS) {
+      await patchThread(room.discordThreadId, {
+        archived: false,
+        rate_limit_per_user: ROOM_SLOWMODE_SECONDS,
+      });
+    }
     return "unchanged";
   }
 
@@ -666,10 +679,10 @@ async function syncRoomThread(prisma, room, location, snapshot, liveState) {
     if (!thread) {
       thread =
         room.kind === "PRIVATE"
-          ? await startPrivateThread(location.discordChannelId, title, 10080)
-          : await startThread(location.discordChannelId, title, 10080);
+          ? await startPrivateThread(location.discordChannelId, title, 10080, ROOM_SLOWMODE_SECONDS)
+          : await startThread(location.discordChannelId, title, 10080, ROOM_SLOWMODE_SECONDS);
     } else {
-      await patchThread(thread.id, { archived: false });
+      await patchThread(thread.id, { archived: false, rate_limit_per_user: ROOM_SLOWMODE_SECONDS });
       await clearMessagesExcept(thread.id, null);
     }
     const starterMessageId = await writeRoomStarter(thread.id, chunks, components);
@@ -684,7 +697,7 @@ async function syncRoomThread(prisma, room, location, snapshot, liveState) {
   }
 
   // Rewrite in place: unarchive, drop everything but the starter, edit it.
-  await patchThread(room.discordThreadId, { archived: false });
+  await patchThread(room.discordThreadId, { archived: false, rate_limit_per_user: ROOM_SLOWMODE_SECONDS });
   let starterMessageId = room.starterMessageId;
   if (starterMessageId) {
     await clearMessagesExcept(room.discordThreadId, starterMessageId);
@@ -700,7 +713,11 @@ async function syncRoomThread(prisma, room, location, snapshot, liveState) {
     await clearMessagesExcept(room.discordThreadId, null);
     starterMessageId = await writeRoomStarter(room.discordThreadId, chunks, components);
   }
-  await patchThread(room.discordThreadId, { name: title, archived: false });
+  await patchThread(room.discordThreadId, {
+    name: title,
+    archived: false,
+    rate_limit_per_user: ROOM_SLOWMODE_SECONDS,
+  });
   await prisma.room.update({
     where: { id: room.id },
     data: { starterMessageId, postHash: hash },
@@ -906,6 +923,9 @@ async function syncLocationYields(prisma, locationId, yields, report) {
 }
 
 async function syncZonesFromYaml(prisma) {
+  // Whether the spectator seat may see anything right now (the phase decides
+  // — db/lib/spectatorAccess.js). Read once; every spec below carries it.
+  const spectators = await spectatorsVisibleNow(prisma);
   const yamlPath = requireDocsPath("zones.yaml");
   const doc = yaml.load(fs.readFileSync(yamlPath, "utf8"));
   const { zoneEntries, locationEntries, roomEntries, connections, warnings } = parseZonesYaml(doc);
@@ -1222,7 +1242,7 @@ async function syncZonesFromYaml(prisma) {
     zone?.gmRoleId ?? (zone?.parentZoneId ? zoneById.get(zone.parentZoneId)?.gmRoleId : null) ?? null;
 
   for (const zone of provisionOrder) {
-    const spec = zoneChannelSpec(zone);
+    const spec = zoneChannelSpec(zone, { spectators });
     const updates = {};
 
     // A zone whose KIND changed keeps Discord ids its new kind has no use
@@ -1266,7 +1286,7 @@ async function syncZonesFromYaml(prisma) {
     if (location.discordChannelId) continue;
     const zone = zoneById.get(location.zoneId);
     const channel = await createChannel({
-      ...locationChannelSpec(location, gmRoleIdFor(zone)),
+      ...locationChannelSpec(location, gmRoleIdFor(zone), { spectators }),
       parent_id: categoryIdFor(zone),
     });
     await prisma.location.update({ where: { id: location.id }, data: { discordChannelId: channel.id } });
@@ -1286,7 +1306,7 @@ async function syncZonesFromYaml(prisma) {
 
   for (const zone of zonesBySlug.values()) {
     if (zone.justProvisioned) continue;
-    const spec = zoneChannelSpec(zone);
+    const spec = zoneChannelSpec(zone, { spectators });
     const targets = [
       ["category", zone.discordCategoryId, spec.category],
       ["summary", zone.discordSummaryChannelId, spec.summary],
@@ -1312,7 +1332,7 @@ async function syncZonesFromYaml(prisma) {
   }
   for (const location of locationsBySlug.values()) {
     if (location.justProvisioned || !location.discordChannelId) continue;
-    const want = locationChannelSpec(location, gmRoleIdFor(zoneById.get(location.zoneId)));
+    const want = locationChannelSpec(location, gmRoleIdFor(zoneById.get(location.zoneId)), { spectators });
     await patchChannel(location.discordChannelId, { topic: want.topic ?? "" });
     const removed = await reconcileChannelOverwrites(location.discordChannelId, want, managed);
     for (const id of removed) {

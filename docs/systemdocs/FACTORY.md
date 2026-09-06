@@ -167,22 +167,25 @@ world with no recipe to make a third.
 ## 6. The numbers, and where they come from
 
 **A cube weighs 17 lb; a crated cube weighs 8.5.** (It was 20/10 until
-2026-09-06, Bascinet's call; the derivation below is the original one, rerun.)
-Working back from the target: 5 turns of production is ~2.5 producing turns,
-3 refugees × 8 cubes × 2.5 = 60 cubes, and a Banneret with Horse + Cart
-carries 120 × (1 + 4) = 600 lb. 60 crated cubes is 510 raw, 255 crated — so a
-wagon now clears a five-turn run with room to spare rather than exactly
-filling.
+2026-09-06, Bascinet's call. A catalog-wide 30% cut the same day took it to
+12 by accident and was reverted — `CARRY.md` §1a. What did stick from that
+day is the **base carry cap: 84 lb, down from 120**.) Working back from the
+target: 5 turns of production is ~2.5 producing turns, 3 refugees × 8 cubes ×
+2.5 = 60 cubes, and a Banneret with Horse + Cart carries 84 × (1 + 4) =
+420 lb. 60 cubes is 1020 lb raw, 510 crated — so a wagon **no longer clears a
+five-turn run in one trip**. It takes about 49 cubes, four turns' worth; the
+rest waits in the Logistics Room for the next wagon.
 
-Through the crate cap: 150 lb packs **8** cubes into a 68 lb crate (was 7 into
-70), and 600/68 ≈ 8.8 crates ≈ 70 cubes.
+Through the crate cap: 150 lb packs **8** cubes into a 68 lb crate, and
+420/68 ≈ 6.2 crates ≈ 49 cubes.
 
-A refugee's 8-cube day is 136 lb against a 120 lb cap, so they *still* cannot
-walk their own output anywhere — the margin narrowed from 40 lb to 16 lb but
-the rule the design leans on survives. A **7**-cube day (119 lb) now just
-fits, which 6 cubes did before. They stash the rest in the Logistics Room and
-the carry pass handles the overflow. The cart and the silo are the business;
-that is deliberate, not an oversight.
+A refugee's 8-cube day is 136 lb against an 84 lb cap and a 126 lb ceiling,
+so they cannot even hold their own output, let alone walk it anywhere: past
+the ceiling the overflow drop fires on the *intended* loop every day. **4**
+cubes (68 lb) fit under the cap; **7** (119 lb) fit under the ceiling,
+Overburdened. They stash the rest in the Logistics Room and the carry pass
+handles the overflow. The cart and the silo are the business; that is
+deliberate, not an oversight.
 
 **A cube sells for 4 ⬢.** Farming at coefficient 1.0 with
 `productionCoefficient` 0.93 pays 11–15 ⬢, midpoint 13; a factory day at the
@@ -274,7 +277,7 @@ written, so nothing can be fished back out.
 through the same seam:** `db/lib/roomStash.js#pickRandomPublicRoom`, which the
 carry pass and corpse placement use to shed overflow. A destroying room is never
 eligible. That is not a nicety — a refining shift makes 136 lb of Squeeze
-against a 120 lb cap, so the overflow drop fires on the *intended* loop every
+against an 84 lb cap, so the overflow drop fires on the *intended* loop every
 day, and one of the Factory's three public rooms is the trough. Tipping
 something in has to stay a thing you do on purpose.
 

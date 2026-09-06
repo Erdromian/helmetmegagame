@@ -89,6 +89,7 @@ function transformSpeech(text, { babbling, autocorrect }) {
 // Discord had already let through.
 async function slowmodeWaitSeconds(prisma, { characterId, placeKey }) {
   if (!characterId || !placeKey) return 0;
+  if (slowmodeMsFor(placeKey) <= 0) return 0;
   const newest = await prisma.archiveEntry.findFirst({
     where: { placeKey, characterId, kind: "MESSAGE", deletedAt: null },
     orderBy: { seq: "desc" },
@@ -119,8 +120,12 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
   // send — the player could not have typed it otherwise — and re-deciding that
   // here would only mean refusing a message Discord already accepted. A web
   // send has no such gate in front of it, so this is the one it gets.
-  if (web && !mayWritePlace(character, placeKey)) {
-    return { ok: false, refusal: "You aren't there. ‡" };
+  // placesFor() is what decides, so the composer a player is looking at and
+  // the gate behind it can never disagree. It also decides that a Location
+  // channel is scenery rather than speech (CHANNELS.md §2), which is why this
+  // refusal now has a second wording behind it.
+  if (web && !(await mayWritePlace(prisma, character, placeKey))) {
+    return { ok: false, refusal: "You can't speak there. ‡" };
   }
 
   const voice = await loadVoiceState(prisma, character.id);

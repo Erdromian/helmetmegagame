@@ -94,6 +94,62 @@ async function resolveChannelKey(prisma, channelId, parentId) {
   return null;
 }
 
+// The snapshot columns an ArchiveEntry carries beside its place key, resolved
+// from the key alone. The Discord proxy gets these free from the channel it
+// was typed in (bot/src/lib/channels.js#resolveChannelContext); a web send has
+// only the key, and the two must agree or /archive renders the same scene two
+// different ways.
+//
+// `channelKind` matches what the proxy stamps: "location" for a Location
+// channel and for the threads hanging off it, "summary" for a zone's
+// #summary.
+async function archiveContextForPlaceKey(prisma, placeKey) {
+  const empty = { zoneId: null, zoneName: null, channelKind: null, threadName: null };
+  const parsed = parsePlaceKey(placeKey);
+  if (!parsed) return empty;
+
+  if (parsed.kind === "loc") {
+    const location = await prisma.location.findUnique({
+      where: { id: parsed.id },
+      select: { zoneId: true, zone: { select: { name: true } } },
+    });
+    if (!location) return empty;
+    return { zoneId: location.zoneId, zoneName: location.zone?.name ?? null, channelKind: "location", threadName: null };
+  }
+
+  if (parsed.kind === "room") {
+    const room = await prisma.room.findUnique({
+      where: { id: parsed.id },
+      select: { name: true, location: { select: { zoneId: true, zone: { select: { name: true } } } } },
+    });
+    if (!room) return empty;
+    return {
+      zoneId: room.location?.zoneId ?? null,
+      zoneName: room.location?.zone?.name ?? null,
+      channelKind: "location",
+      threadName: room.name,
+    };
+  }
+
+  if (parsed.kind === "conv") {
+    const conversation = await prisma.playerThread.findUnique({
+      where: { id: parsed.id },
+      select: { name: true, location: { select: { zoneId: true, zone: { select: { name: true } } } } },
+    });
+    if (!conversation) return empty;
+    return {
+      zoneId: conversation.location?.zoneId ?? null,
+      zoneName: conversation.location?.zone?.name ?? null,
+      channelKind: "location",
+      threadName: conversation.name,
+    };
+  }
+
+  const zone = await prisma.zone.findUnique({ where: { id: parsed.id }, select: { id: true, name: true } });
+  if (!zone) return empty;
+  return { zoneId: zone.id, zoneName: zone.name, channelKind: "summary", threadName: null };
+}
+
 // The other direction: what a key points at. Returns { kind, id } or null.
 function parsePlaceKey(placeKey) {
   if (typeof placeKey !== "string") return null;
@@ -157,6 +213,7 @@ async function discordTargetForPlaceKey(prisma, placeKey) {
 module.exports = {
   placeKeyForChannel,
   discordTargetForPlaceKey,
+  archiveContextForPlaceKey,
   placeKeyForLocation,
   placeKeyForRoom,
   placeKeyForConversation,

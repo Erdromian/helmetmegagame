@@ -1,7 +1,7 @@
 import { prisma, feedRowShape } from "@lifeweb/db";
 import { sayInPlace } from "@lifeweb/db/lib/say";
 import { touchCharacterActivity } from "@lifeweb/db/lib/characterActivity";
-import { parsePlaceKey } from "@lifeweb/db/lib/placeKey";
+import { archiveContextForPlaceKey } from "@lifeweb/db/lib/placeKey";
 import { auth } from "@/lib/auth";
 import { loadFeedCharacter } from "@/lib/feedAccess";
 
@@ -34,27 +34,25 @@ export async function POST(request) {
   const clientId = typeof body?.clientId === "string" ? body.clientId : null;
   const content = typeof body?.content === "string" ? body.content : "";
 
-  // The zone name is a snapshot column on the row, so /archive can still read
-  // it after a resync. Only a `loc:` place has one to look up for now.
-  const parsed = parsePlaceKey(place);
-  const location =
-    parsed?.kind === "loc"
-      ? await prisma.location.findUnique({
-          where: { id: parsed.id },
-          select: { zoneId: true, zone: { select: { name: true } } },
-        })
-      : null;
+  // The zone name and the thread name are snapshot columns on the row, so
+  // /archive can still read them after a resync. Resolved from the place key
+  // alone, and shaped to match exactly what the Discord proxy stamps — the
+  // same scene must not render two ways depending on which face said it.
+  const context = await archiveContextForPlaceKey(prisma, place);
 
-  // The gate is inside sayInPlace, and the character it gates on is the
-  // session's — never the request's.
+  // The gate is inside sayInPlace — it asks db/lib/feedAccess.js#placesFor,
+  // which is also what drew the composer the player typed into, so a Location
+  // (scenery, no composer) is refused here too. The character it gates on is
+  // the session's, never the request's.
   const said = await sayInPlace(prisma, {
     character,
     placeKey: place,
     content,
     source: "WEB",
-    zoneId: location?.zoneId ?? null,
-    zoneName: location?.zone?.name ?? null,
-    channelKind: "public",
+    zoneId: context.zoneId,
+    zoneName: context.zoneName,
+    channelKind: context.channelKind,
+    threadName: context.threadName,
   });
 
   if (!said.ok) {

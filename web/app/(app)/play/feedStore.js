@@ -17,7 +17,11 @@ import { useCallback, useSyncExternalStore } from "react";
 
 const EMPTY_ROWS = Object.freeze([]);
 
+const EMPTY_PLACES = Object.freeze([]);
+
 const state = {
+  // The viewer's place list, replaced whole whenever the stream says it moved.
+  places: EMPTY_PLACES,
   // placeKey -> frozen array of rows, ascending by seq, pending rows last
   views: new Map(),
   // placeKey -> Map<seq string, row>
@@ -183,6 +187,53 @@ export function dropPending(place, clientId) {
   state.pending.set(place, next);
   rebuild(place);
   emit();
+}
+
+// The place list, pushed by the stream's `event: places` and seeded by the
+// server render. Replaced whole rather than merged: it IS the answer to
+// "where may you be", and half of an old one is a place you have left.
+export function setPlaces(places) {
+  if (!Array.isArray(places)) return;
+  state.places = Object.freeze(places);
+  emit();
+}
+
+function getPlaces() {
+  return state.places;
+}
+
+function getServerPlaces() {
+  return EMPTY_PLACES;
+}
+
+export function usePlaces() {
+  return useSyncExternalStore(subscribe, getPlaces, getServerPlaces);
+}
+
+// Whether this tab has already asked for a place's history. A place with no
+// rows and no fetch behind it looks exactly like an empty one, so without
+// this the empty state would fire a request on every render.
+const fetched = new Set();
+
+export function markHistoryLoaded(place) {
+  fetched.add(place);
+}
+
+export function historyLoaded(place) {
+  return fetched.has(place);
+}
+
+// The newest confirmed seq this tab holds for a place, as a string, or null.
+// The unread dot compares it against what the reader has seen.
+export function newestSeq(place) {
+  const rows = state.confirmed.get(place);
+  if (!rows || rows.size === 0) return null;
+  let best = 0n;
+  for (const key of rows.keys()) {
+    const seq = BigInt(key);
+    if (seq > best) best = seq;
+  }
+  return String(best);
 }
 
 function getServerRows() {
