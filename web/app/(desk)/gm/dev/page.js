@@ -599,12 +599,6 @@ export default async function DevPanelPage({ searchParams }) {
                     <InfoIcon text={CONFIG_HELP.leaderWhitelistEnabled} />
                   </div>
                   <div className="ops-toggle">
-                    <Switch name="playtestModeEnabled" defaultChecked={config.playtestModeEnabled}>
-                      Playtest mode
-                    </Switch>
-                    <InfoIcon text={CONFIG_HELP.playtestModeEnabled} />
-                  </div>
-                  <div className="ops-toggle">
                     <div className="flex flex-1 min-w-0 flex-col gap-1">
                       <div className="flex items-center gap-3">
                         <Switch name="autoTurnAdvanceDisabled" defaultChecked={config.autoTurnAdvanceDisabled}>

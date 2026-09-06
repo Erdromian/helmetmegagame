@@ -32,12 +32,11 @@ function formatCapacity(cap) {
 // with a single seat at 100 players (Diplomat, Sheriff) — Gunboat confirmed
 // they are one-and-done.
 //
-// A slug list rather than a roles.yaml key + Role column, the same call the
-// playtest lock made (web/lib/characterCreation.js#PLAYTEST_LOCKED_ROLE_SLUGS,
-// CHARACTERS.md "Seat caps"): a static rule over a fixed roster, and a column
-// would mean a live migration for a boolean. Keyed on Role.slug, so renaming
-// a slug in the YAML silently drops the role from this list — same caveat
-// the playtest lock carries.
+// A slug list rather than a roles.yaml key + Role column (CHARACTERS.md "Seat
+// caps"): a static rule over a fixed roster, and a column would mean a live
+// migration for a boolean. The caveat that comes with that: it is keyed on
+// Role.slug, so renaming a slug in the YAML silently drops the role from this
+// list.
 const PERMANENT_SEAT_ROLE_SLUGS = [
   // The Court
   "baron",

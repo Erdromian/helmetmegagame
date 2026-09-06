@@ -510,13 +510,6 @@ model GameConfig {
   // noise either way. Null means it has never been rung.
   bellRungAt DateTime?
 
-  // Playtest lever: locks unfinished roles out of character creation, without
-  // removing them from docs/roles.yaml — flip it back off and the full roster
-  // returns. Which roles it covers lives in web/lib/characterCreation.js
-  // (PLAYTEST_LOCKED_ROLE_SLUGS / PLAYTEST_LOCKED_ZONE_NAMES), not here.
-  // Off by default: this is a temporary content lock, not a permission gate,
-  // so a missing config row means the whole roster is open.
-  playtestModeEnabled Boolean @default(false)
 
   // When true, the nightly turn-advance cron (bot/src/events/ready.js)
   // skips its automatic advance — bot/src/lib/turnEngine.js#advanceTurn

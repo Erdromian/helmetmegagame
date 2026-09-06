@@ -36,15 +36,19 @@ export function negativeTagPoints(tags) {
 // The only roles a cursed player may take. Matched by Role.slug.
 export const CURSED_ROLE_SLUGS = ["migrant", "bum"];
 
-// Roster held back while GameConfig.playtestModeEnabled is on.
-export const PLAYTEST_LOCKED_ROLE_SLUGS = [];
-export const PLAYTEST_LOCKED_ZONE_NAMES = [];
+// Roles that exist ONLY as a GM spawn and are never on the wizard's roster.
+// Unconditional — no config switch turns it off — and HIDDEN rather than
+// greyed, unlike a whitelisted seat, which greys itself and says why. Greying
+// is right for a seat you might get later and wrong for one that is a
+// surprise.
+//
+// The Tribunal seats (db/lib/threats.js) are the whole list. They carry real
+// roles because a spawn needs one for its charter, its starting kit and its
+// landing site; they must simply never be pickable.
+export const SPAWN_ONLY_ROLE_SLUGS = ["tribunal-ordinator", "tribune"];
 
-export function isPlaytestLocked({ role, zoneName }) {
-  return (
-    PLAYTEST_LOCKED_ROLE_SLUGS.includes(role.slug) ||
-    PLAYTEST_LOCKED_ZONE_NAMES.includes(zoneName ?? "")
-  );
+export function isSpawnOnly(role) {
+  return SPAWN_ONLY_ROLE_SLUGS.includes(role?.slug);
 }
 
 // budget = config base + role bonus - curse penalty, clamped at 0.
@@ -207,8 +211,7 @@ export function effectiveTotalCost(tags, tagsById, heldIds = []) {
   return tags.reduce((sum, tag) => sum + effectiveCost(tag, tagsById, heldIds), 0);
 }
 
-export function isRoleSelectable({ role, cursed, leaderWhitelisted, playtestLocked = false }) {
-  if (playtestLocked) return false;
+export function isRoleSelectable({ role, cursed, leaderWhitelisted }) {
   if (role.requiresWhitelist && !leaderWhitelisted) return false;
   if (!cursed) return true;
   return CURSED_ROLE_SLUGS.includes(role.slug);

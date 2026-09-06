@@ -75,7 +75,7 @@ import {
   isLeaderWhitelisted,
 } from "@/lib/discordGuild";
 import {
-  isPlaytestLocked,
+  isSpawnOnly,
   isRoleSelectable,
   DEFAULT_MAX_DRAWBACK_TAGS,
   DEFAULT_MAX_DRAWBACK_POINTS,
@@ -156,8 +156,7 @@ async function loadCreationData(discordUserId) {
     superadmin ||
     config?.leaderWhitelistEnabled === false ||
     isLeaderWhitelisted(member);
-  const playtestMode = config?.playtestModeEnabled === true;
-  const playerCount = config?.playerCount ?? 100;
+  const playerCount = config?.playerCount ?? 80;
 
   return {
     gate,
@@ -180,13 +179,11 @@ async function loadCreationData(discordUserId) {
       .map((group) => ({
         slug: group.slug,
         name: group.name,
-        roles: group.roles.map((role) => {
+        // Spawn-only seats are withheld outright, not greyed — see
+        // characterCreation.js#isSpawnOnly.
+        roles: group.roles.filter((role) => !isSpawnOnly(role)).map((role) => {
           const { faction } = role;
           const cap = roleCapacity(role, playerCount);
-          // Locked roles stay in the tree; the card greys itself and says why.
-          const playtestLocked =
-            playtestMode &&
-            isPlaytestLocked({ role, zoneName: faction.zoneName });
           return {
             id: role.id,
             name: role.name,
@@ -213,13 +210,7 @@ async function loadCreationData(discordUserId) {
             // Infinity doesn't serialize; uncapped roles cross as null -> "∞".
             cap: cap === Infinity ? null : cap,
             taken: takenByRole.get(role.id) ?? 0,
-            selectable: isRoleSelectable({
-              role,
-              cursed,
-              leaderWhitelisted,
-              playtestLocked,
-            }),
-            playtestLocked,
+            selectable: isRoleSelectable({ role, cursed, leaderWhitelisted }),
             // Resolved server-side so a client component never drags
             // PrismaClient into the browser bundle.
             lastNameLocked: isDynastyMember(role.slug),

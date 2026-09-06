@@ -19,7 +19,15 @@ import { isSuperadmin } from "@/lib/superadmin";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { setMerchantSeal } from "@lifeweb/db/lib/merchantSeal";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
-import { isWanted, postWantedPosters } from "@lifeweb/db/lib/wantedPoster";
+import {
+  isWanted,
+  postWantedPosters,
+  isDebtor,
+  postDebtorNotices,
+  DEBTOR_STARTING_OBOLS,
+} from "@lifeweb/db/lib/wantedPoster";
+import { addToStack } from "@lifeweb/db/lib/tagWrites";
+import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
 import {
   syncCharacterNickname,
   ensureCharacterRole,
@@ -32,7 +40,7 @@ import {
 } from "@/lib/discordGuild";
 import {
   computeBudget,
-  isPlaytestLocked,
+  isSpawnOnly,
   isRoleSelectable,
   tagsById as buildTagsById,
   effectiveTotalCost,
@@ -103,7 +111,6 @@ export async function createCharacter(formData) {
   }
 
   const [role, config, member, openTurn] = await Promise.all([
-    // Zone comes along for the playtest lock below.
     prisma.role.findUnique({
       where: { id: roleId },
       include: {
@@ -128,13 +135,10 @@ export async function createCharacter(formData) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
 
-  // Playtest lock from /gm/dev, outside `bypass` on purpose — the host is
-  // locked out too (characterCreation.js).
-  const playtestLocked =
-    config?.playtestModeEnabled === true &&
-    isPlaytestLocked({ role, zoneName: role.faction?.zone?.name });
-  if (playtestLocked) {
-    return { error: "That role is closed for this playtest." };
+  // Never pickable, config switch or not — a server action is a public
+  // endpoint and the picker simply not listing these is a hint, not a lock.
+  if (isSpawnOnly(role)) {
+    return { error: "That role isn't open to anyone." };
   }
 
   // Split so each rejection gets its own message. `=== false` rather than
@@ -483,11 +487,10 @@ export async function reserveRoleAction(roleId) {
   if (!bypass && !isApprovedPlayer(member)) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
-  const playtestLocked =
-    config?.playtestModeEnabled === true &&
-    isPlaytestLocked({ role, zoneName: role.faction?.zone?.name });
-  if (playtestLocked) {
-    return { error: "That role is closed for this playtest." };
+  // Never pickable, config switch or not — a server action is a public
+  // endpoint and the picker simply not listing these is a hint, not a lock.
+  if (isSpawnOnly(role)) {
+    return { error: "That role isn't open to anyone." };
   }
   const leaderWhitelisted =
     bypass || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
@@ -499,7 +502,7 @@ export async function reserveRoleAction(roleId) {
     return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
   }
 
-  const result = await reserveRole(prisma, discordUserId, roleId, config?.playerCount ?? 100);
+  const result = await reserveRole(prisma, discordUserId, roleId, config?.playerCount ?? 80);
   if (!result.ok) {
     return { error: `${role.name} was taken while you were deciding. Pick another role.` };
   }
