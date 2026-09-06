@@ -199,7 +199,7 @@ downward: buying or adding a higher tier **deletes the held lower tier in
 the same transaction** (the store's `buyTags` and `addTagRequest` both do
 this), and every purchase path rejects a tier below one already held. The
 removed tier is snapshotted onto the request's `effect.replaced`, so a GM
-Undo restores exactly what came off — see `web/lib/requestEffects.js`.
+Undo restores exactly what came off — see `web/lib/tagEffects.js`.
 
 Enforced in these places, all reading those same helpers: `PointBuy.js`
 (creation and `/store`), `createActions.js#createCharacter` and
@@ -275,6 +275,12 @@ requirement.
 and this list is an AND), so never author a multi-skill recipe meaning
 "either" — this paragraph claimed the reverse until 2026-09-05 and the Dead
 Simple rung had been authored to match the wrong claim.
+
+Lazy's `requiredTag: laboring-basic` is how "Laboring OR Commoner" gets
+expressed without an OR gate that doesn't exist: `holdsRequirement` walks the
+tier chain, and a Commoner starts with Laboring (Skilled), which already sits
+above Basic — so the single FK is satisfied by either the bare skill or the
+role that starts with a higher rung of it.
 
 A multi-skill recipe is therefore a deliberate conjunction. `barbed-net` is
 the one that exists: `[crafting, fundamentalist]`, i.e. only a zealot who can
@@ -490,15 +496,47 @@ closes everything and opens nothing, so it is that band's floor. Teaching and
 Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
 (`LESSONS.md` §1).
 
+**The Personality batch of 2026-09-05 sits partly off-band too, again
+Bascinet's call rather than a new scale.** Poor Swimmer is −1 (below the −2
+band, alongside Leper). Acrophobia, Claustrophobia and Guilt Ridden are each
+−3 (between −2 and −5). Motion Sickness, Insomniac and Lazy are each −4
+(also between −2 and −5). Pyrophobia and Teratophobia sit on-scale at the
+ordinary −2 band.
+
+**The Tag Redo batch of 2026-09-05 moved a lot of the catalog off-band, and
+that is Bascinet's call rather than a new scale.** Fourteen tags now sit
+between bands: Adventurer 3, Dagger 3, Death Wish 3, Knuckle Duster 3,
+Pickpocket 3, Skeleton Wedge 3 and Nine Lives 3 (between 2 and 5); Brave 4,
+Escape Artist 4, Esoteric 4, Lockpicking 4, Pavise 4 and Camouflage 4 (also
+between 2 and 5); Light Sleeper and Old Blood at 1 (below the 2 band, alongside
+Pilgrim and Instrument). Don't read a pattern into any of them.
+
+**Corrupt at −2 is the one that argues with this section**, and it is
+deliberate. By the income rule below it should be positive: it opens five
+Desires and closes nothing, which is the Interest shape. It is priced as a
+drawback anyway, on the grounds that being on the take is a real liability to
+play.
+
+A `combine: or` on its five Desires was tried as a mitigation the same day and
+**reverted**, because it was worse than what it fixed: OR lets a Cerberus or a
+Sheriff qualify for all five *without* holding Corrupt, which empties the tag
+for the only two seats it is written for and makes its own description false
+to them. The AND stands. What the −2 does leave open is a character outside
+those seats buying Corrupt once for two points and no unlocks; that is bounded
+(once per character, and `removable: false` means it can never be sold back)
+and is accepted.
+
 **At character creation a build faces TWO ceilings on drawbacks, and it stops
 at whichever it reaches first:**
 
 - **`GameConfig.maxDrawbackTags`** — how many drawback tags may be bought.
-  **5** by default.
+  **6** by default (widened from 5 on 2026-09-05, to make room for the new
+  phobia and habit drawbacks).
 - **`GameConfig.maxDrawbackPoints`** — how many points those drawbacks may
-  claim back in total, stored as a **positive magnitude**. **12** by default,
-  matching `startingTagPoints` on purpose, so the rule says itself: *you can
-  never claim back more than you started with.*
+  claim back in total, stored as a **positive magnitude**. **13** by default
+  (widened from 12 the same day) — one point *above* `startingTagPoints`,
+  deliberately: a build carrying six real problems can now buy one point's
+  worth more than the starting budget, rather than the old exact symmetry.
 
 Both are live on `/gm/dev`, and `0` is a real setting on either: no drawbacks
 at all.
@@ -922,7 +960,7 @@ point: every presence check in the codebase — `specialChannels.js`,
 reading "holds it or doesn't" with no change, and `restoreCharacterTag`'s
 upsert stays valid.
 
-Three functions in `web/lib/requestEffects.js` are the only writers that know
+Three functions in `web/lib/tagEffects.js` are the only writers that know
 about `quantity`; everything else goes through them:
 
 | | |
@@ -1051,7 +1089,7 @@ records what was *actually* added per slug (`added: 0` for a grant that was
 skipped as already-held), because Undo may only take back what this request
 really put there.
 
-`grantTagSlugs()` in `web/lib/requestEffects.js` is the single writer, a
+`grantTagSlugs()` in `web/lib/tagEffects.js` is the single writer, a
 fourth sibling to the three stack primitives in §5a.
 
 **This replaced the old `grantsOnExpiry` field**, which did the same
@@ -1364,7 +1402,7 @@ the granted tag's **own** `durationTurns` — Splinted's 4, Drained's 3 — or
 forever for a permanent one (Scarred, Limp).
 
 The grants go through `grantTagSlugs` (`db/lib/tagWrites.js`, re-exported by
-`web/lib/requestEffects.js` — it moved down when the GM paths needed it, since
+`web/lib/tagEffects.js` — it moved down when the GM paths needed it, since
 `db/` cannot import `web/`), so the rules match consuming and the expiry pass:
 a successor the character already holds is left completely alone (`added: 0`
 in the snapshot), and Undo takes back only what the request really added, off
@@ -1588,6 +1626,58 @@ and it
 deliberately holds **no** slugs in `constants.js`: the whole chain is catalog
 data, so `tagExpiryPass.js` never names a tag and a new chain needs no code
 at all.
+
+The Personality batch of 2026-09-05 added a second wave of scripted
+drawbacks, each with its own writer:
+
+- **Claustrophobia and Acrophobia** sustain a mood (Afraid or Panic) for as
+  long as the character stands somewhere that triggers them —
+  `db/lib/phobias.js` (the rule table) and `db/lib/phobiaPass.js` (the
+  turn-close safety net). See "Phobias" below.
+- **Guilt Ridden and Insomniac** each carry a nightly chance of waking
+  Exhausted — `db/lib/dawnAfflictionPass.js`, run right after the hunger pass.
+- **Lazy** takes a quarter off a labor roll's yield, after the roll —
+  `lazyYield()` in `db/lib/laborAccess.js`, called from both
+  `db/lib/autoLaborPass.js` and `bot/src/lib/moveConfirm.js`.
+- **Guilt Ridden** also blocks Confession outright —
+  `db/lib/confession.js#confessableTags`/`validateConfession` (`CONFESSION.md`).
+- **Lightweight and Iron Liver** reshape the drinking ladder —
+  `web/lib/consumeGrants.js` (`BREWING.md` §5a).
+- **Motion Sickness** refuses mounting a horse, steam automobile or fishing
+  boat (`web/app/(app)/character/equipActions.js`), and grants Vomiting to a
+  Motion Sick passenger dragged along a mounted or boated zone crossing
+  (`db/lib/locationTravel.js#vomitOnTheRide`).
+- **Debtor** is scripted at creation only: `db/lib/wantedPoster.js` grants 20
+  starting obols and posts the DEBTOR notices (`DEPOT.md`).
+
+## Phobias
+
+A phobia doesn't act on its own — it sustains a mood tag (`afraid` or
+`panic`) for as long as the character stands somewhere that triggers it. The
+rule table is `PHOBIA_RULES` in `db/lib/phobias.js`: one row per phobia slug,
+reading only the character's current location and zone and returning the
+mood it wants, or `null`. Today that's Claustrophobia (wants Afraid in any
+`CAVE_LEVEL` zone) and Acrophobia (wants Afraid in the Black Hills, Panic at
+the Mountain location specifically).
+
+`settlePhobias` runs on every Move (`db/lib/locationMove.js`), and
+`runPhobiaPass` sweeps everyone else at turn close, right after the carry
+pass, as a safety net for a phobia granted mid-turn or a zone that changed
+under someone without a Move.
+
+A phobia-owned mood row is the one with `source: TagSource.CONDITION` — a
+dedicated `TagSource`, so a GM grant (even a "never expires" one) can
+never be mistaken for the phobia's own row. Every other grant of Afraid or
+Panic — a GM grant, timed or not, a consume — is a person's row, and
+`settlePhobias` leaves it entirely alone rather than rewriting its expiry: it
+just lets the sweep remove it when it expires and puts its own `CONDITION`
+row in on the next settle. A character who isn't ALIVE (dead, Catatonic)
+wants nothing, so this is also what clears a leftover `CONDITION` row off a
+corpse. `afraid` itself is now a 1-turn default duration (down from 2), since
+a phobia keeps refreshing it anyway for as long as it applies.
+
+**Adding a phobia** is one more row in `PHOBIA_RULES` — nothing else in
+either file needs to change.
 
 ## `equippable` / `concealsIdentity`
 
@@ -1878,6 +1968,7 @@ It is now a table. Each slug names the capabilities it removes:
 | `seizure` | ✗ | ✗ | you are on the floor (`FACTORY.md`) |
 | `bound` | ✗ | **✓** | **a hostage can yell for help** |
 | `dying` | ✗ | ✓ | last words are the tradition |
+| `crucified` | ✗ | ✓ | the Crucify button's tag (`REQUESTS.md`); becomes Dying after a turn, and a public death with no last words would be half a spectacle |
 | `catatonic-afk` | ✗ | ✓ | see the trap below |
 | `mute` | ✓ | ✗ | a mute smith is still a smith |
 

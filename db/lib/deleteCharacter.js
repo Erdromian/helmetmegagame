@@ -21,7 +21,6 @@ async function deleteCharacterRow(prisma, characterId) {
     });
 
     await tx.action.deleteMany({ where: { characterId } });
-    await tx.request.deleteMany({ where: { characterId } });
     await tx.desire.deleteMany({ where: { characterId } });
     await tx.characterTag.deleteMany({ where: { characterId } });
 

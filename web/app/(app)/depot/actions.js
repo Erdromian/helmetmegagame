@@ -28,8 +28,8 @@ import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { TURNS_PATH } from "@/lib/routes";
-import { createRequest, logRequest, requireReason } from "@/lib/requests";
-import { addToStack, dropCharacterTag, addToRoomStack, dropRoomTag, moveResources } from "@/lib/requestEffects";
+import { logAudit } from "@/lib/requests";
+import { addToStack, dropCharacterTag, addToRoomStack, dropRoomTag, moveResources } from "@/lib/tagEffects";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { UserError, guarded } from "@/lib/actionResult";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
@@ -202,9 +202,8 @@ async function landingPad(tx = prisma) {
 //
 // The obols leave the account NOW and the goods do not exist yet — that gap is
 // the whole risk of the business, and it is why the shuttle clock matters.
-async function depotOrderImpl({ items: rawItems, reason: rawReason }) {
+async function depotOrderImpl({ items: rawItems }) {
   const { session, character, depot } = await requireLicensedMerchant();
-  const reason = requireReason(rawReason);
 
   if (!Array.isArray(rawItems) || rawItems.length === 0) {
     throw new UserError("Nothing on the manifest. ‡");
@@ -278,19 +277,11 @@ async function depotOrderImpl({ items: rawItems, reason: rawReason }) {
     });
 
     const effect = { lines, total, totalResources, manifestBefore: existing, manifestAfter: [...existing, ...lines] };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DEPOT_ORDER",
-      reason,
-      payload: { lines: lines.map((l) => ({ tagId: l.tagId, quantity: l.quantity })) },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_order",
       targetCharacterId: character.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -316,13 +307,12 @@ async function refreshShuttleRoom() {
 // Calling it down. Everything on the manifest becomes crates on the landing
 // pad; an empty manifest still brings the shuttle, because he also needs it
 // down to load goods going the other way.
-async function depotCallShuttleImpl({ reason: rawReason }) {
+async function depotCallShuttleImpl() {
   // A Docker's job. Calling it down cannot spend anything — the obols left
   // the account when the manifest was written — so the worst a keycard can do
   // here is bring the shuttle down early, and the pad is where the goods were
   // going anyway.
   const { session, character, depot } = await requireDepotHand();
-  const reason = requireReason(rawReason);
 
   if (depot.shuttleState !== "AWAY") {
     throw new UserError("The shuttle is already down. ‡");
@@ -372,19 +362,11 @@ async function depotCallShuttleImpl({ reason: rawReason }) {
     });
 
     const effect = { shipment, crates: crates.length, manifest, roomId: room.id };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DEPOT_SHIP",
-      reason,
-      payload: { direction: "DOWN" },
-      effect: { ...effect, direction: "DOWN" },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_shuttle_call",
       targetCharacterId: character.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -399,14 +381,13 @@ async function depotCallShuttleImpl({ reason: rawReason }) {
 // comes back as obols: tags at their sellablePrice, and the room's ⬢ stash at
 // the Depot's own exchange rate. This is the ONLY way Resources become obols,
 // which is what stops the Merchant printing money at a keyboard.
-async function depotSendShuttleImpl({ reason: rawReason }) {
+async function depotSendShuttleImpl() {
   // Also a Docker's job, and the sharper of the two: a keycard can sell
   // everything on the pad. That is the trade — a card that can load the
   // shuttle is a card that can load the wrong things onto it. The payout goes
   // to the station's account either way, so this moves goods, never money out
   // of the Depot, and the ledger names whoever pressed it.
   const { session, character, depot } = await requireDepotHand();
-  const reason = requireReason(rawReason);
 
   if (depot.shuttleState !== "DOCKED") throw new UserError("The shuttle isn't here. ‡");
 
@@ -490,19 +471,11 @@ async function depotSendShuttleImpl({ reason: rawReason }) {
       payout,
       roomId: room.id,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DEPOT_SHIP",
-      reason,
-      payload: { direction: "UP" },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_shuttle_send",
       targetCharacterId: character.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -520,9 +493,8 @@ async function depotSendShuttleImpl({ reason: rawReason }) {
 // Cracking one open. A Docker may do this — it is the job — but a SEALED
 // crate wants the keycard, which is what makes the dangerous half of a
 // shipment worth guarding.
-async function openCrateImpl({ tagId, reason: rawReason }) {
+async function openCrateImpl({ tagId }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
 
   const held = await prisma.characterTag.findFirst({
     where: { characterId: character.id, tagId: tagId ?? "" },
@@ -576,19 +548,11 @@ async function openCrateImpl({ tagId, reason: rawReason }) {
     await dropCharacterTag(tx, character.id, crate.id, null);
 
     const effect = { crateTagId: crate.id, crateName: crate.name, sealed: crate.sealedShipping, granted, skipped };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DEPOT_CRATE_OPEN",
-      reason,
-      payload: { tagId: crate.id },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_crate_open",
       targetCharacterId: character.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
 
@@ -612,9 +576,8 @@ async function openCrateImpl({ tagId, reason: rawReason }) {
 // The ATM: the account balance on one side, physical coins on the other. This
 // is the only door obols enter and leave the world through, which is what
 // makes the Merchant the only faucet of currency in the game.
-async function depotAtmImpl({ direction: rawDirection, amount: rawAmount, reason: rawReason }) {
+async function depotAtmImpl({ direction: rawDirection, amount: rawAmount }) {
   const { session, character, depot } = await requireLicensedMerchant();
-  const reason = requireReason(rawReason);
 
   const direction = rawDirection === "DEPOSIT" ? "DEPOSIT" : "WITHDRAW";
   const amount = Number(rawAmount);
@@ -649,19 +612,11 @@ async function depotAtmImpl({ direction: rawDirection, amount: rawAmount, reason
     }
 
     const effect = { direction, amount, balanceBefore: moved.before, balanceAfter: moved.after };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DEPOT_ATM",
-      reason,
-      payload: { direction, amount },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_atm",
       targetCharacterId: character.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -681,9 +636,8 @@ async function depotAtmImpl({ direction: rawDirection, amount: rawAmount, reason
 // One obol is one ⬢, so what this really does is change the FORM of a value
 // rather than its amount: a number on a character sheet becomes coins that can
 // be carried, handed over and stolen, and back again. Asking in ⬢ instead would mean flooring somewhere.
-async function depotExchangeImpl({ direction: rawDirection, obols: rawObols, reason: rawReason }) {
+async function depotExchangeImpl({ direction: rawDirection, obols: rawObols }) {
   const { session, character, depot } = await requireLicensedMerchant();
-  const reason = requireReason(rawReason);
 
   const buying = rawDirection === "BUY_RESOURCES";
   const obols = Number(rawObols);
@@ -717,19 +671,11 @@ async function depotExchangeImpl({ direction: rawDirection, obols: rawObols, rea
       balanceBefore: moved.before,
       balanceAfter: moved.after,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DEPOT_EXCHANGE",
-      reason,
-      payload: { direction: effect.direction, obols },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_exchange",
       targetCharacterId: character.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -741,9 +687,8 @@ async function depotExchangeImpl({ direction: rawDirection, obols: rawObols, rea
 // The Company's line, in obols. Drawing puts money in the account; repaying
 // takes it back out. The cap is refused rather than clamped, so he is told
 // he hit the ceiling instead of quietly getting less than he asked for.
-async function depotCreditImpl({ direction: rawDirection, amount: rawAmount, reason: rawReason }) {
+async function depotCreditImpl({ direction: rawDirection, amount: rawAmount }) {
   const { session, character, depot } = await requireLicensedMerchant();
-  const reason = requireReason(rawReason);
 
   const draw = rawDirection !== "REPAY";
   const amount = Number(rawAmount);
@@ -783,19 +728,11 @@ async function depotCreditImpl({ direction: rawDirection, amount: rawAmount, rea
       debtAfter,
       balanceAfter: moved.after,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DEPOT_CREDIT",
-      reason,
-      payload: { direction: effect.direction, amount },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_credit",
       targetCharacterId: character.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -816,12 +753,11 @@ async function depotCreditImpl({ direction: rawDirection, amount: rawAmount, rea
 // Merchant next logs in. Only the licence may SHUT IT DOWN, because switching
 // the lights off also switches the turret off, and handing a keycard the
 // station's off switch hands it the security system.
-async function depotGeneratorImpl({ on, reason: rawReason }) {
+async function depotGeneratorImpl({ on }) {
   const wanted = Boolean(on);
   const { session, character, depot } = wanted
     ? await requireDepotHand({ needsPower: false })
     : await requireLicensedMerchant({ needsPower: false });
-  const reason = requireReason(rawReason);
 
   if (wanted && (depot.generatorFuel ?? 0) <= 0) {
     throw new UserError("It turns over and dies. There's nothing in the tank. ‡");
@@ -831,11 +767,10 @@ async function depotGeneratorImpl({ on, reason: rawReason }) {
 
   await prisma.$transaction(async (tx) => {
     await tx.depot.update({ where: { id: 1 }, data: { generatorOn: wanted } });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: wanted ? "depot_generator_on" : "depot_generator_off",
       targetCharacterId: character.id,
-      reason,
       details: { on: wanted, fuel: depot.generatorFuel ?? 0, turn: openTurn?.number ?? null },
     });
   });
@@ -846,11 +781,10 @@ async function depotGeneratorImpl({ on, reason: rawReason }) {
 
 // Shovelling fuel in. Coal is what it wants; saltpeter burns worse and is
 // there for the night the coal ran out.
-async function depotRefuelImpl({ slug: rawSlug, quantity: rawQuantity, reason: rawReason }) {
+async function depotRefuelImpl({ slug: rawSlug, quantity: rawQuantity }) {
   // A Docker's job, and the one that costs him rather than the station: the
   // coal comes off his own sheet.
   const { session, character, depot } = await requireDepotHand({ needsPower: false });
-  const reason = requireReason(rawReason);
 
   const slug = rawSlug === SALTPETER_SLUG ? SALTPETER_SLUG : COAL_SLUG;
   const quantity = normalizeQuantity(rawQuantity);
@@ -885,19 +819,11 @@ async function depotRefuelImpl({ slug: rawSlug, quantity: rawQuantity, reason: r
       fuelAfter: moved.after,
       wasted: perUnit * quantity - moved.delta,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DEPOT_REFUEL",
-      reason,
-      payload: { slug, quantity },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_refuel",
       targetCharacterId: character.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -911,9 +837,8 @@ async function depotRefuelImpl({ slug: rawSlug, quantity: rawQuantity, reason: r
 // gate. Note what is NOT checked: whether the Merchant is currently wearing
 // his own face. Arming it while concealed is a legal, fatal thing to do, and
 // the UI says so in as many words before you press it.
-async function depotTurretImpl({ armed, reason: rawReason }) {
+async function depotTurretImpl({ armed }) {
   const { session, character, depot } = await requireLicensedMerchant();
-  const reason = requireReason(rawReason);
 
   const wanted = Boolean(armed);
 
@@ -932,11 +857,10 @@ async function depotTurretImpl({ armed, reason: rawReason }) {
 
   await prisma.$transaction(async (tx) => {
     await tx.depot.update({ where: { id: 1 }, data: { turretArmed: wanted } });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: wanted ? "depot_turret_armed" : "depot_turret_disarmed",
       targetCharacterId: character.id,
-      reason,
       details: { armed: wanted, face: depot.merchantFace ?? "", turn: openTurn?.number ?? null },
     });
   });

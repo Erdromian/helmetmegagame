@@ -427,6 +427,10 @@ ephemeral, to anyone standing in the room's Location, in Bascinet's format:
 Reading is free; moving things is the web's Transfer. A Discord select menu
 caps at 25 options, which is why there is no native deposit/withdraw flow.
 
+**Taking things out of a stash is From: the room, To: yourself.** You are in
+your own "To" list — that is the whole of looting a room, and the dialog left
+it out for a while, which made every stash in the game a one-way drop. ‡
+
 ## 9. Where the code lives
 
 | Piece | File |
@@ -441,7 +445,7 @@ caps at 25 options, which is why there is no native deposit/withdraw flow.
 | Corpses in reach (same rule) | `db/lib/corpses.js` (`CORPSES.md`) |
 | Post-commit tail | `web/lib/afterInventoryChange.js` |
 | Merged action | `web/app/(app)/character/requestActions.js#transferRequest` |
-| Undo, party-shaped moves | `web/lib/requestEffects.js#takeTagFrom` / `giveTagTo` |
+| Undo, party-shaped moves | `web/lib/tagEffects.js#takeTagFrom` / `giveTagTo` |
 | Dialog, grid, readout | `TransferDialog.js`, `ActionGrid.js`, `StatusPanel.js`, `PartySelect.js` |
 | `{carry:slug}` | `web/lib/referenceData.js#getCarryReference`, `CarryProvider.js`, `RichText.js`, `ChipText.js` |
 | Free zone moves, travel gate | `db/lib/locationTravel.js#performLocationMove`, `freeZoneMoves`, `freeMovesLeft` |

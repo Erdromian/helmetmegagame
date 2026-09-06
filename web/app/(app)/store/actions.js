@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
-import { createRequest, logRequest } from "@/lib/requests";
+import { logAudit } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import {
@@ -21,7 +21,7 @@ import {
   effectiveCost,
   effectiveTotalCost,
 } from "@/lib/characterCreation";
-import { addToStack, dropCharacterTag } from "@/lib/requestEffects";
+import { addToStack, dropCharacterTag } from "@/lib/tagEffects";
 import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 
@@ -209,21 +209,10 @@ async function buyTagsImpl({ tagIds }) {
         data: { tagPoints: { decrement: totalPoints } },
       });
     }
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "BUY_TAGS",
-      reason: "Point-buy purchase",
-      payload: { tagIds: ids },
-      // `replaced` only when an upgrade displaced something — older effects
-      // without the key keep their exact shape, and Undo treats absence as [].
-      effect: replaced.length ? { items, totalPoints, replaced } : { items, totalPoints },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_buy_tags",
       targetCharacterId: character.id,
-      reason: "Point-buy purchase",
       details: {
         tags: items.map((i) => i.tagName),
         totalPoints,

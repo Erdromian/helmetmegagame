@@ -10,7 +10,6 @@ import useSessionState, { readSession, writeSession } from "@/app/components/use
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { isFieldFocused, hasModifier } from "@/lib/deskKeyGuard";
 import { MOVE_REVIEW_TONES, MOVE_REVIEW_LABELS } from "@/lib/moves";
-import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requestLabels";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
 import { inVisibleZones } from "@/lib/zones";
 import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
@@ -31,8 +30,6 @@ const MOVE_STATUS_OPTIONS = Object.values(MOVE_REVIEW_LABELS).filter(
 const MOVE_STATUS_RANK = { Open: 0, "Waiting for Opponents": 0, Solved: 1, Passed: 2 };
 // Same trick for the Caving lens — see rankedMoves below.
 const CAVING_STATUS_RANK = { "Needs attention": 0, Resolved: 1 };
-const REQUEST_TYPE_OPTIONS = [...new Set(Object.values(REQUEST_TYPE_LABELS))];
-const REQUEST_STATUS_OPTIONS = Object.values(REQUEST_STATUS_LABELS);
 const REVIEWED_OPTIONS = ["Reviewed", "Unreviewed"];
 const CAVING_STATUS_OPTIONS = ["Needs attention", "Resolved"];
 
@@ -58,37 +55,13 @@ function makeMoveSearchMap(tagsById) {
   });
 }
 
-const REQUEST_FILTER_DEFS = [
-  { key: "zone", label: "Zone", value: (r) => r.factionZoneName },
-  { key: "type", label: "Type", value: (r) => r.typeLabel, options: REQUEST_TYPE_OPTIONS },
-  { key: "status", label: "Status", value: (r) => r.statusLabel, options: REQUEST_STATUS_OPTIONS },
-  {
-    key: "reviewed",
-    label: "Reviewed",
-    value: (r) => (r.reviewedByUsername ? "Reviewed" : "Unreviewed"),
-    options: REVIEWED_OPTIONS,
-  },
-];
-const requestSearchMap = (r) => ({
-  name: r.characterName,
-  username: r.discordUsername,
-  role: r.roleTitle,
-  faction: r.factionName,
-  zone: r.factionZoneName,
-  kind: r.typeLabel,
-  status: r.statusLabel,
-  text: [r.reason, r.summary].filter(Boolean).join(" "),
-  notes: r.gmNotes,
-});
-
-const REQUEST_TONES = { Passed: "neutral", Edited: "neutral", Undone: "bad" };
 
 // One sessionStorage key for the CLICK-frequency rail VIEW state — a reload
 // restores it. Workspace.js reads the same key for `lens`.
 export const RAIL_STORAGE_KEY = "gm-turns-rail";
 export const RAIL_STORAGE_DEFAULT = {
   lens: "moves",
-  filters: {}, // { moves, requests, caving, history, "history-caving" } — each an initialFilters-shaped object
+  filters: {}, // { moves, caving, history, "history-caving" } — each an initialFilters-shaped object
   hideTravel: true,
   hideHistoryTravel: true,
   historyKind: "moves", // "moves" | "caving"
@@ -138,10 +111,9 @@ const CAVING_TONES = { "Needs attention": "bad", Resolved: "neutral" };
 
 // The keyboard lens flips, and what ⏎ selects in each lens. The History
 // lens over the OPEN turn selects a live "move" — see historyIsOpenTurn.
-const LENS_FOR_KEY = { m: "moves", r: "requests", c: "caving", h: "history" };
+const LENS_FOR_KEY = { m: "moves", c: "caving", h: "history" };
 const SELECTION_TYPE_FOR_LENS = {
   moves: "move",
-  requests: "request",
   caving: "caving",
   history: "history",
 };
@@ -239,45 +211,6 @@ function MoveRows({
   });
 }
 
-function RequestRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens }) {
-  return rows.map((row) => {
-    const active = selected?.type === "request" && selected.id === row.id;
-    // Both request types that can name a kill; an unkilled row here is the
-    // exception, worth the urgent mark. See killRequestTargetImpl in actions.js.
-    const killPending =
-      (row.type === "FEED_PERSON" || (row.type === "HARM_CHARACTER" && row.effect?.lethal)) &&
-      !row.effect?.killed;
-    return (
-      <button
-        key={row.id}
-        type="button"
-        className="desk-queue-row"
-        data-active={active}
-        data-urgent={killPending || undefined}
-        data-kbd={kbdLens === "requests" && kbdId === row.id ? "" : undefined}
-        data-row-key={row.id}
-        onClick={() => onSelect({ type: "request", id: row.id })}
-      >
-        <span className="flex items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5 truncate font-medium">
-            <CharacterAvatar characterId={row.characterId} name={row.characterName} version={row.avatarVersion} catatonic={row.catatonic} />
-            <span className="truncate">
-              {killPending ? "☠ " : ""}
-              {!row.reviewedByUsername && <span className="desk-dot" aria-label="Not yet reviewed" />}
-              {row.characterName}
-            </span>
-            <MatchHint match={matchFor(row)} />
-          </span>
-          <StatusPill tone={REQUEST_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
-        </span>
-        <span className="block truncate text-xs text-muted">
-          {row.typeLabel} · {row.turnLabel}
-        </span>
-        <span className="block truncate text-xs text-muted">{row.summary || row.reason}</span>
-      </button>
-    );
-  });
-}
 
 function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKey = "caving" }) {
   return rows.map((row) => {
@@ -314,7 +247,6 @@ function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKe
 
 export default function QueueRail({
   moves,
-  requests,
   cavingRolls,
   visibleZoneNames,
   stagedByMove,
@@ -337,7 +269,6 @@ export default function QueueRail({
   historyError,
 }) {
   const moveFilterDefs = useMemo(() => MOVE_FILTER_DEFS, []);
-  const requestFilterDefs = useMemo(() => REQUEST_FILTER_DEFS, []);
   const cavingFilterDefs = useMemo(() => CAVING_FILTER_DEFS, []);
   const moveSearchMap = useMemo(() => makeMoveSearchMap(tagsById), [tagsById]);
 
@@ -384,8 +315,6 @@ export default function QueueRail({
     [historyMoves, inView],
   );
 
-  const gatedRequests = useMemo(() => inView(requests), [requests, inView]);
-
   const rankedCavingRolls = useMemo(
     () =>
       inView(cavingRolls).map((r) => ({
@@ -405,15 +334,6 @@ export default function QueueRail({
     initialSort: { key: "queueOrder", dir: "asc" },
     pageSize: 1000,
     ...makeFiltersProps("moves"),
-  });
-  const requestTable = useTableState({
-    rows: gatedRequests,
-    filterDefs: requestFilterDefs,
-    searchMap: requestSearchMap,
-    rankBySearch: true,
-    initialSort: { key: "createdAtMs", dir: "desc" },
-    pageSize: 1000,
-    ...makeFiltersProps("requests"),
   });
   const cavingTable = useTableState({
     rows: rankedCavingRolls,
@@ -462,7 +382,6 @@ export default function QueueRail({
     setViewRestored(true);
     const storedQuery = readSession(VIEW_STORAGE_KEY, VIEW_STORAGE_DEFAULT).query ?? {};
     if (storedQuery.moves) moveTable.setQuery(storedQuery.moves);
-    if (storedQuery.requests) requestTable.setQuery(storedQuery.requests);
     if (storedQuery.caving) cavingTable.setQuery(storedQuery.caving);
     if (storedQuery.history) historyTable.setQuery(storedQuery.history);
     if (storedQuery["history-caving"]) historyCavingTable.setQuery(storedQuery["history-caving"]);
@@ -476,7 +395,6 @@ export default function QueueRail({
       mergeView({
         query: {
           moves: moveTable.query,
-          requests: requestTable.query,
           caving: cavingTable.query,
           history: historyTable.query,
           "history-caving": historyCavingTable.query,
@@ -491,7 +409,6 @@ export default function QueueRail({
   }, [
     viewRestored,
     moveTable.query,
-    requestTable.query,
     cavingTable.query,
     historyTable.query,
     historyCavingTable.query,
@@ -521,11 +438,10 @@ export default function QueueRail({
   const rowsForLens = useMemo(
     () => ({
       moves: movesShown,
-      requests: requestTable.visible,
       caving: cavingTable.visible,
       history: historyIsCaving ? historyCavingTable.visible : historyShown,
     }),
-    [movesShown, requestTable.visible, cavingTable.visible, historyIsCaving, historyCavingTable.visible, historyShown],
+    [movesShown, cavingTable.visible, historyIsCaving, historyCavingTable.visible, historyShown],
   );
   const visibleRows = rowsForLens[lens] ?? movesShown;
   const historySelectionType = historyIsCaving ? "caving" : historyIsOpenTurn ? "move" : "history";
@@ -641,9 +557,6 @@ export default function QueueRail({
       <div className="segmented desk-rail-lens" role="group" aria-label="Queue lens">
         <button type="button" aria-pressed={lens === "moves" || !lens} onClick={() => onLens?.("moves")}>
           Moves ({movesShown.length})
-        </button>
-        <button type="button" aria-pressed={lens === "requests"} onClick={() => onLens?.("requests")}>
-          Requests
         </button>
         <button type="button" aria-pressed={lens === "caving"} onClick={() => onLens?.("caving")}>
           Caving
@@ -767,25 +680,6 @@ export default function QueueRail({
                 )}
               </>
             )}
-          </div>
-        </>
-      ) : lens === "requests" ? (
-        <>
-          <RailFilters
-            table={requestTable}
-            filterDefs={requestFilterDefs}
-            searchPlaceholder="name, @handle, reason, text:…"
-          />
-          <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
-            <RequestRows
-              rows={requestTable.visible}
-              matchFor={requestTable.matchFor}
-              selected={selected}
-              onSelect={onSelect}
-              kbdId={kbdId}
-              kbdLens={lens}
-            />
-            {requestTable.total === 0 && <p className="p-3 text-sm text-muted">No Requests match.</p>}
           </div>
         </>
       ) : lens === "caving" ? (

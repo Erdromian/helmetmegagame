@@ -265,7 +265,7 @@ letters you never had.
 The Godard Factory's fifth room, and the only room in the game with
 `Room.destroysContents`. Authored as `destroys: true` in `docs/zones.yaml`.
 
-The seam is deliberately **`web/lib/requestEffects.js#giveTagTo` and
+The seam is deliberately **`web/lib/tagEffects.js#giveTagTo` and
 `db/lib/resourceTransfer.js#moveParty`** — the two choke points for putting
 anything into a Room — rather than a branch in `transferRequest`. Nothing is
 written, so nothing can be fished back out.
@@ -299,14 +299,14 @@ about a trough.
 | The labor branch | `db/lib/laborAccess.js`, `db/lib/autoLaborPass.js` |
 | The snapshot | `db/lib/moveEffects.js` (`refined`) |
 | Both server actions | `web/app/(app)/character/requestActions.js` |
-| Undo | `web/lib/requestEffects.js` |
-| GM rows | `web/app/(desk)/gm/turns/RequestSections.js`, `web/lib/requestLabels.js` |
+| Undo | `web/lib/tagEffects.js` |
+| What a GM sees | `/gm/audit`, rendered by `web/lib/auditNarrative.js` |
 | Buttons | `web/app/components/actionRegistry.js`, `RequestActionsProvider.js` |
 | Gates | `web/app/(app)/character/page.js` |
 | Location attributes | `db/lib/locationAttributes.js` (`godflesh`, `refinery`) |
 | Crates, both kinds | `db/lib/depotCrates.js#crateWeight` |
 | Stupid's garble | `db/lib/babble.js`, `bot/src/lib/proxy.js` |
 | Damaged Vision → Blind | `db/lib/visionDecayPass.js` |
-| Spillway | `db/lib/parties.js`, `resourceTransfer.js`, `web/lib/requestEffects.js` |
+| Spillway | `db/lib/parties.js`, `resourceTransfer.js`, `web/lib/tagEffects.js` |
 | Constants | `PACKAGING_EQUIPMENT_SLUG`, `PACKAGE_MAX_LBS`, `PACKAGE_LABEL_MAX` in `db/lib/constants.js` |
 | Geography, roles, papers | `docs/zones.yaml`, `docs/roles.yaml`, `docs/documents.yaml` |

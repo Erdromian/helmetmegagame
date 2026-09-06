@@ -115,7 +115,7 @@ tags:
   # `<name>-expired` marker in consumesInto. dropCharacterTag runs before
   # grantTagSlugs in consumeTagRequestImpl, so the caster keeps the spell and
   # picks up the marker in the same transaction — same idiom as the potion at
-  # requestEffects.js. Markers carry no description (optional field) and sit
+  # tagEffects.js. Markers carry no description (optional field) and sit
   # outside the Spell:/Rite: naming, since nobody reads them as a chip.
   #
   # A status a spell inflicts on someone ELSE — who is usually not a cultist —

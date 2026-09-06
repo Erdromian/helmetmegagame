@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
-import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
 import { getOpenTurn } from "@/lib/turn";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { placementOf } from "@lifeweb/db/lib/structures";
@@ -30,7 +29,6 @@ import Workspace from "../Workspace";
 // through the History lens, but it fetches itself (actions.js#getMoveHistory);
 // all this file ships for it is the picker's list of resolved turns.
 
-const REQUEST_LIMIT = 300;
 
 function turnLabel(turn) {
   if (!turn) return "—";
@@ -42,98 +40,9 @@ function truncate(text, limit) {
   return clean.length > limit ? `${clean.slice(0, limit - 1)}…` : clean;
 }
 
-// A one-line "what actually happened", so a GM can triage without opening
-// every request. Same table the old page carried.
-function summarize(request) {
-  const e = request.effect ?? {};
-  switch (request.type) {
-    case "FULFILL_DESIRE":
-      return `+${e.pointsAwarded ?? 0} Tag Points — ${truncate(e.desireText, 60)}`;
-    case "ADD_TAG":
-      return `+${e.tagName ?? "tag"}${e.resourcesSpent ? ` for ${e.resourcesSpent} ⬢${e.payer?.name ? ` (${e.payer.name})` : ""}` : ""}`;
-    case "BUY_TAGS":
-      return `${(e.items ?? []).map((i) => i.tagName).join(", ")} for ${e.totalPoints ?? 0} Tag Points`;
-    case "REMOVE_TAG":
-      return `-${e.tagName ?? "tag"}${e.resourcesSpent ? ` for ${e.resourcesSpent} ⬢` : ""}`;
-    case "TRANSFER_RESOURCES":
-      return `${e.amount ?? 0} ⬢: ${e.from?.name ?? "?"} → ${e.to?.name ?? "?"}`;
-    case "TRANSFER_TAG":
-      return `${e.tagName ?? "tag"}: ${e.from?.name ?? e.fromName ?? "?"} → ${e.to?.name ?? e.toName ?? "?"}`;
-    case "CONSUME_TAG":
-      return `Used up ${e.tagName ?? "a tag"}${
-        (e.granted ?? []).filter((g) => g.added > 0).length
-          ? ` → ${e.granted
-              .filter((g) => g.added > 0)
-              .map((g) => g.tagName)
-              .join(", ")}`
-          : ""
-      }`;
-    case "DONATE_BLOOD":
-      return `+${e.bloodDelta ?? 0} blood — drained ${e.targetName ?? "?"}${e.tier ? ` (${e.tier})` : ""}`;
-    case "FEED_PERSON":
-      return `+${e.bloodDelta ?? 0} blood — fed ${e.targetName ?? "?"} to the Lifeweb${
-        e.killed ? "" : " · NOT YET KILLED"
-      }`;
-    case "HEAL_CHARACTER":
-      return `Healed ${e.tagName ?? "?"} on ${e.targetName ?? "?"}`;
-    case "CHANGE_NAME":
-      return `${e.previous?.name ?? "?"} → ${e.next?.name ?? "?"}`;
-    case "CAVING_LOOT":
-      return `Found ${e.tagName ?? "something"}`;
-    case "LOOT_CHARACTER": {
-      const took = [
-        ...(e.tags ?? []).map((t) => t.tagName ?? "a tag"),
-        ...(e.amount ? [`${e.amount} ⬢`] : []),
-      ];
-      const what = took.length ? took.join(", ") : "nothing";
-      return `Took ${what} off ${e.targetName ?? "?"}${e.targetStatus === "DEAD" ? "'s body" : ""}`;
-    }
-    case "MOVE_CHARACTER":
-      return `${e.targetStatus === "DEAD" ? "Dragged" : "Moved"} ${e.targetName ?? "?"} to ${
-        e.toLocationName ?? "?"
-      }`;
-    case "BURY_CHARACTER":
-      return `Buried ${e.targetName ?? "?"} — curse lifted`;
-    case "BUTCHER_CORPSE":
-      return `Butchered ${e.corpseTagName ?? "a body"} → ${e.yieldTagName ?? "nothing"}`;
-    case "EXTRACT_GODFLESH":
-      return `Rolled ${e.die ?? "?"} — +${e.quantity ?? 0} Godflesh${
-        e.injuryTagName ? `, and ${e.injuryTagName}` : ""
-      }`;
-    case "PACKAGE_ITEMS":
-      return `Crated ${(e.contents ?? []).length} kind${(e.contents ?? []).length === 1 ? "" : "s"} — ${
-        e.innerLbs ?? 0
-      } lb → ${e.weightLbs ?? 0} lb`;
-    case "ENGRAVE_HEADSTONE":
-      return `Engraved ${e.targetName ?? "?"} — curse lifted, ${e.resourcesSpent ?? 0} ⬢`;
-    case "BIRD_MESSAGE":
-      return `${e.delivered ? "Wrote" : "Missed"} ${e.recipientName ?? "?"} in ${e.guessedZoneName ?? "?"}`;
-    case "DEPOT_BUY":
-      return `Bought ${e.tagName ?? "something"}${(e.quantity ?? 1) > 1 ? ` ×${e.quantity}` : ""} for ${e.total ?? 0} ⬢`;
-    case "DEPOT_SELL":
-      return `Sold ${e.tagName ?? "something"}${(e.quantity ?? 1) > 1 ? ` ×${e.quantity}` : ""} for ${e.total ?? 0} ⬢`;
-    case "DEPOT_CREDIT":
-      return `${e.direction === "DRAW" ? "Drew" : "Repaid"} ${e.amount ?? 0} ⬢ — owes ${e.debtAfter ?? 0} ⬢`;
-    case "BIND_CHARACTER":
-      return `Bound ${e.targetName ?? "?"}`;
-    case "FREE_CHARACTER":
-      return `Freed ${e.targetName ?? "?"}`;
-    case "CRUCIFY_CHARACTER":
-      return `Crucified ${e.targetName ?? "?"}`;
-    case "HARM_CHARACTER": {
-      const hurt = e.tagName ? `Inflicted ${e.tagName} on ${e.targetName ?? "?"}` : null;
-      const kill = e.lethal ? (e.killed ? "killed" : "NOT YET KILLED") : null;
-      return [hurt ?? `Moved to finish ${e.targetName ?? "?"}`, kill].filter(Boolean).join(" · ");
-    }
-    case "BUILD_STRUCTURE":
-      return `Built ${e.typeName ?? "a structure"} at ${e.locationName ?? "?"}`;
-    default:
-      return "";
-  }
-}
 
 // An optional catch-all rather than a [moveId] child route, for two reasons.
-// The desk selects a Move, a Request OR a Caving roll, so the URL has to carry
+// The desk selects a Move OR a Caving roll, so the URL has to carry
 // both halves of Workspace's { type, id }. And a child route would force this
 // file to become a layout, putting the client Workspace above `children` —
 // which cannot then hand tagsById/roster/zones/stagedByMove down to a server
@@ -150,7 +59,7 @@ function summarize(request) {
 function parseSelection(segments) {
   if (!segments || segments.length !== 2) return null;
   const [type, id] = segments;
-  if (!["move", "request", "caving", "history"].includes(type)) return null;
+  if (!["move", "caving", "history"].includes(type)) return null;
   return { type, id };
 }
 
@@ -173,7 +82,6 @@ export default async function TurnsWorkspacePage({ params }) {
 
   const [
     actions,
-    requests,
     cavingRolls,
     stagedEffects,
     stagedMessages,
@@ -195,11 +103,6 @@ export default async function TurnsWorkspacePage({ params }) {
           include: MOVE_INCLUDE,
         })
       : [],
-    prisma.request.findMany({
-      orderBy: { createdAt: "desc" },
-      take: REQUEST_LIMIT,
-      include: { character: { include: { faction: { include: { zone: true } } } }, turn: true },
-    }),
     // The Caving lens — every roll on the open turn. See
     // docs/systemdocs/CAVING.md. No "strays from earlier turns" clause
     // like stagedEffects/stagedMessages below: a CavingRoll is never
@@ -327,33 +230,6 @@ export default async function TurnsWorkspacePage({ params }) {
 
   const moves = actions.map((a) => moveRow(a, { usernameById, now, structuresByLocationId }));
 
-  const requestRows = requests.map((r) => ({
-    id: r.id,
-    characterId: r.characterId,
-    characterName: r.character.name,
-    avatarVersion: r.character.updatedAt.getTime(),
-    catatonic: catatonicIds.has(r.characterId),
-    discordUserId: r.character.discordUserId,
-    discordUsername: nameFor(r.character),
-    roleTitle: r.character.roleTitle ?? "",
-    factionName: r.character.faction?.name ?? "",
-    factionId: r.character.factionId ?? null,
-    factionZoneName: r.character.faction?.zone?.name ?? "",
-    turnLabel: turnLabel(r.turn),
-    type: r.type,
-    typeLabel: REQUEST_TYPE_LABELS[r.type] ?? r.type,
-    statusLabel: REQUEST_STATUS_LABELS[r.status] ?? r.status,
-    reason: r.reason,
-    summary: summarize(r),
-    effect: r.effect ?? {},
-    gmNotes: r.gmNotes ?? "",
-    createdAtMs: r.createdAt.getTime(),
-    reviewedByUsername: r.reviewedByDiscordUserId
-      ? (usernameById.get(r.reviewedByDiscordUserId) ?? r.reviewedByDiscordUserId)
-      : null,
-    reviewedByDiscordUserId: r.reviewedByDiscordUserId ?? null,
-    reviewedAtLabel: r.reviewedAt ? r.reviewedAt.toISOString().slice(0, 16).replace("T", " ") : null,
-  }));
 
   const cavingRows = cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds }));
 
@@ -483,7 +359,6 @@ export default async function TurnsWorkspacePage({ params }) {
       presenceZones={presenceZones}
       stagingLocations={locationRows}
       moves={moves}
-      requests={requestRows}
       cavingRolls={cavingRows}
       stagedEffects={effects}
       stagedMessages={messages}

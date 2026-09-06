@@ -1,8 +1,8 @@
 "use client";
 
 import StatusPill from "@/app/components/StatusPill";
+import { prettifyActionType } from "@/lib/auditNarrative";
 import { MOVE_REVIEW_LABELS, MOVE_REVIEW_TONES, moveKindLabel } from "@/lib/moves";
-import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS, REQUEST_STATUS_TONES } from "@/lib/requestLabels";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -20,11 +20,11 @@ import { TableScroll } from "@/app/components/DataTable";
 // `record` arrives null and fills in: DevPanel fetches these four lists on the
 // first click of this tab rather than loading them with the rest of the panel,
 // since most visits never open Record at all.
-const SECTIONS = ["Moves", "Requests", "Audit", "Messages"];
+const SECTIONS = ["Moves", "Audit", "Messages"];
 
 export default function RecordTab({ record, error, discordUserId }) {
   const [section, setSection] = useState("Moves");
-  const { moves, requests, auditLog, messages } = record ?? {};
+  const { moves, auditLog, messages } = record ?? {};
 
   return (
     <>
@@ -72,28 +72,16 @@ export default function RecordTab({ record, error, discordUserId }) {
         />
       )}
 
-      {record && section === "Requests" && (
-        <Table
-          empty="No Requests made yet."
-          rows={requests}
-          head={["Turn", "Type", "Status", "Reason"]}
-          row={(r) => [
-            r.turn,
-            REQUEST_TYPE_LABELS[r.type] ?? r.type,
-            <StatusPill key="status" tone={REQUEST_STATUS_TONES[r.status] ?? "neutral"}>
-              {REQUEST_STATUS_LABELS[r.status] ?? r.status}
-            </StatusPill>,
-            r.reason ?? "—",
-          ]}
-        />
-      )}
-
       {record && section === "Audit" && (
         <Table
           empty="Nothing recorded against this character."
           rows={auditLog}
-          head={["When", "Action", "Reason"]}
-          row={(a) => [new Date(a.createdAt).toLocaleString(), a.actionType, a.reason ?? "—"]}
+          head={["When", "What happened", "Reason"]}
+          row={(a) => [
+            new Date(a.createdAt).toLocaleString(),
+            prettifyActionType(a.actionType),
+            a.reason ?? "—",
+          ]}
         />
       )}
 

@@ -138,7 +138,7 @@ isn't acceptable either — the loser is told to reload.
 Keyed by **`tagId`, never `characterTagId`**. A `characterTagId` can vanish
 between page load and Apply: the expiry sweep in `resolveNeeds()` deletes rows
 at every turn close. `@@unique([characterId, tagId])` makes `tagId` a stable
-address, and it is what every `requestEffects.js` helper already takes.
+address, and it is what every `tagEffects.js` helper already takes.
 
 ```
 { tagId, op: "add",    quantity?, source?, expiry?, equipped? }
@@ -469,7 +469,7 @@ in the main batch.
 shared jump button everywhere a `CharacterLink` might want one. Given an
 `onOpen` callback it opens the modal instead of navigating to the standalone
 page — the desk's `Workspace.js` owns the open/closed state and passes
-`onOpenDev` down through `MoveDesk`, `RequestDesk`, and `InspectorColumn`.
+`onOpenDev` down through `MoveDesk`, `CavingDesk`, and `InspectorColumn`.
 Without `onOpen` it falls back to the plain `Link`, used everywhere else.
 
 In the `onOpen` branch it also **prefetches at click time**: `onPointerDown`

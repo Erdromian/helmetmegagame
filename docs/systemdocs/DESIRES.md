@@ -429,7 +429,7 @@ Four `GameConfig` knobs govern this system, all live-editable from
   the game, so it is the first number to reach for if income is running hot or
   cold. `0` disables the lock entirely, which is a debugging setting, not a
   balance one.
-- **`maxDrawbackTags`** (default 5) — **not** a Desires-system knob itself,
+- **`maxDrawbackTags`** (default 6) — **not** a Desires-system knob itself,
   but the field every drawback counts against at character creation. It caps
   the *count* of point-bought drawback tags, not their combined point value —
   see `TAGS.md` §4a for the full rule and why this replaced the old
@@ -579,5 +579,5 @@ The section number is kept rather than renumbering everything below it.
 | `web/app/(app)/gm/dev/characters/[characterId]/GoalsTab.js` | GM Dev Panel surface — per-slot Award form (catalog or free text), Revoke on each past row, cooldown readout |
 | `web/app/(app)/gm/dev/characters/[characterId]/actions.js` | `awardDesireGm`/`revokeDesireGm` — gates bypassed, bookkeeping not (§6) |
 | `web/app/(app)/character/requestActions.js` | Player-facing `claimDesire` — the one player action. Gates enforced via `evaluateDesireCatalog`/`slotStates`, re-validated inside the transaction under a `FOR UPDATE` row lock |
-| `web/lib/requestEffects.js` | `FULFILL_DESIRE` re-score (`applyEdit`) and undo — the undo clears `endedTurnNumber`, releasing the slot |
+| `web/lib/tagEffects.js` | `FULFILL_DESIRE` re-score (`applyEdit`) and undo — the undo clears `endedTurnNumber`, releasing the slot |
 | `bot/src/events/messageReactionAdd.js` | The 🔍/⚜️ embeds' `Last Desire` field — the most recent `FULFILLED` row, gated by `db/lib/inspectVision.js` |

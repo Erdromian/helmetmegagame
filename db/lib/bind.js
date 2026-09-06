@@ -44,11 +44,10 @@ function needsNoConsent(target) {
   return target.status === "DEAD" || target.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug));
 }
 
-// Grants `bound`, writes the BIND_CHARACTER Request and its audit row, in one
-// transaction. Returns the effect. `actor` needs id/name/discordUserId;
-// `target` is a BIND_SELECT row. The caller owes afterInventoryChange and the
-// target's DM.
-async function applyBind(prisma, { actor, target, turn, reason, offerId = null }) {
+// Grants `bound` and writes its audit row in one transaction. Returns the
+// effect. `actor` needs id/name/discordUserId; `target` is a BIND_SELECT row.
+// The caller owes afterInventoryChange and the target's DM.
+async function applyBind(prisma, { actor, target, turn, offerId = null }) {
   const bound = await requireBoundTag(prisma);
   const expiresTurn = await expiryForGrant(prisma, bound, turn, { characterId: target.id, where: "bindCharacter" });
   const effect = {
@@ -61,22 +60,12 @@ async function applyBind(prisma, { actor, target, turn, reason, offerId = null }
   };
   await prisma.$transaction(async (tx) => {
     await addToStack(tx, target.id, bound.id, 1, { source: "EVENT", expiresTurn, stackable: bound.stackable });
-    await tx.request.create({
-      data: {
-        characterId: actor.id,
-        turnId: turn?.id ?? null,
-        type: "BIND_CHARACTER",
-        reason,
-        payload: { targetCharacterId: target.id, ...(offerId ? { offerId } : {}) },
-        effect,
-      },
-    });
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: actor.discordUserId ?? "system",
         actionType: "request_bind_character",
         targetCharacterId: target.id,
-        reason,
+        turnId: turn?.id ?? null,
         details: effect,
       },
     });
@@ -85,7 +74,7 @@ async function applyBind(prisma, { actor, target, turn, reason, offerId = null }
 }
 
 // Files the consent offer. Returns { ok, offer, dm } or { ok: false, reason }.
-async function createBindOffer(prisma, { actor, target, turn, reason }) {
+async function createBindOffer(prisma, { actor, target, turn }) {
   if (!target.discordUserId) return { ok: false, reason: `${target.name} can't be reached. ‡` };
   const duplicate = await prisma.offer.findFirst({
     where: { kind: "BIND", status: "PENDING", turnId: turn.id, initiatorId: actor.id, responderId: target.id },
@@ -136,7 +125,7 @@ async function acceptBind(prisma, offer, responder) {
   });
   if (claim.count === 0) return { ok: false, reason: "That offer's gone. ‡", dms: [] };
 
-  await applyBind(prisma, { actor, target, turn, reason: offer.reason ?? "Consented. ‡", offerId: offer.id });
+  await applyBind(prisma, { actor, target, turn, offerId: offer.id });
   await prisma.offer.update({
     where: { id: offer.id },
     data: { status: "RESOLVED", resolvedAt: new Date(), outcome: { bound: true } },

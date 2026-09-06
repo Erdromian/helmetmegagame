@@ -228,7 +228,7 @@ you pick the right doc — they are never enough to change code with.
 | [`BREWING.md`](docs/systemdocs/BREWING.md) | You're pricing a brew, changing a recipe, or touching the Brewing skill family |
 | [`DEPOT.md`](docs/systemdocs/DEPOT.md) | You're pricing an imported ware, touching `/depot` or the Merchant's credit line, or setting a tag's `depotPrice` / `sellablePrice` |
 | [`DESIRES.md`](docs/systemdocs/DESIRES.md) | You're touching the Desire catalog, its gates/cooldowns/locks, `conflictsWith`, or the Desires GM surface on `/gm/dev` |
-| [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet |
+| [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet — and **always** before adding one a per-turn ration counts |
 | [`BIRD.md`](docs/systemdocs/BIRD.md) | You're touching the Bird's letters, the once-a-day send, or the Reply window |
 | [`PAPERWORK.md`](docs/systemdocs/PAPERWORK.md) | You're touching paper, writing, wax seals, noticeboards, or **anything that asks whether a character can read** (`db/lib/reading.js`) |
 | [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the arbitration workspace, staging, or the turn-end push |
@@ -915,6 +915,12 @@ global CLIs. To make one able to build, run, and deploy:
   mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
   filed as one `BUY_TAGS` request. What's still open is the rules for earning
   points during play (Desires are currently the only faucet).
+- **`AuditLog` is the whole record of what a player did.** There is no
+  `Request` table any more — player actions apply their effect and write one
+  audit row, there is no reason field and no Undo, and a GM repairs by hand
+  from `/gm/dev`. Three per-turn rations (the medic's cure cap, Dead Simple,
+  a recipe's own `requirementPerTurn`) COUNT those rows, so a new action a
+  ration covers must set `AuditLog.turnId`. See `REQUESTS.md` §1a.
 - **`prisma migrate diff` proposes dropping `ArchiveEntry_content_trgm_idx`.**
   That index lives only in raw migration SQL, so Prisma's schema doesn't know
   about it. Decline the drop; it is not drift you introduced.
@@ -923,7 +929,8 @@ global CLIs. To make one able to build, run, and deploy:
   cannot express. Decline that drop too — without it a character could hold
   two live applications to one faction. `ThreatSpawn_pending_unique` is the
   third of these, and the same answer: without it a player could hold two live
-  spawn offers (`THREATS.md` §4).
+  spawn offers (`THREATS.md` §4). `AuditLog_details_trgm_idx` is the fourth,
+  and the reason `/gm/audit`'s text search is not a full-table scan.
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
   carries `restInvalidCount` / `restInvalidWindowStart` /
   `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the

@@ -21,7 +21,6 @@ import {
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
-import { REQUEST_TYPE_LABELS } from "@/lib/requestLabels";
 import DepotConsole from "@/app/components/DepotConsole";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 
@@ -45,23 +44,27 @@ const TAG_SELECT = { include: { group: { select: { name: true } } } };
 // that a month-old game does not ship a megabyte of JSON to a browser.
 const LEDGER_LIMIT = 200;
 
-const DEPOT_REQUEST_TYPES = [
-  "DEPOT_BUY",
-  "DEPOT_SELL",
-  "DEPOT_CREDIT",
-  "DEPOT_ORDER",
-  "DEPOT_SHIP",
-  "DEPOT_ATM",
-  "DEPOT_CRATE_OPEN",
-  "DEPOT_REFUEL",
-];
+// The ledger is built from the audit log now that player actions file no
+// Request. The `details` blob IS the old `effect` — every depot action wrote
+// `details: effect` — so the row prose below is unchanged; only the key it
+// switches on moved from Request.type to AuditLog.actionType.
+const DEPOT_LEDGER_KINDS = {
+  request_depot_order: { key: "DEPOT_ORDER", label: "Order" },
+  request_depot_shuttle_call: { key: "DEPOT_SHIP", label: "Shuttle" },
+  request_depot_shuttle_send: { key: "DEPOT_SHIP", label: "Shuttle" },
+  request_depot_atm: { key: "DEPOT_ATM", label: "Cash" },
+  request_depot_exchange: { key: "DEPOT_EXCHANGE", label: "Exchange" },
+  request_depot_credit: { key: "DEPOT_CREDIT", label: "Credit line" },
+  request_depot_crate_open: { key: "DEPOT_CRATE_OPEN", label: "Crate" },
+  request_depot_refuel: { key: "DEPOT_REFUEL", label: "Refuel" },
+};
 
 // One line of prose per ledger row, and the obols it moved. Derived from the
 // `effect` snapshot rather than live state, the same rule Undo follows — a row
 // has to keep reading correctly after the catalog moves under it.
-function ledgerRow(request, who) {
-  const e = request.effect ?? {};
-  switch (request.type) {
+function ledgerRow(entry, who) {
+  const e = entry.details ?? {};
+  switch (DEPOT_LEDGER_KINDS[entry.actionType]?.key) {
     case "DEPOT_ORDER":
       return { detail: (e.lines ?? []).map((l) => `${l.name} ×${l.quantity}`).join(", "), delta: -(e.total ?? 0) };
     case "DEPOT_SHIP":
@@ -133,20 +136,34 @@ export default async function DepotPage() {
       include: { tags: { include: { tag: TAG_SELECT } } },
     }),
     prisma.tag.findUnique({ where: { slug: OBOL_SLUG }, select: { id: true } }),
-    prisma.request.findMany({
-      where: { type: { in: DEPOT_REQUEST_TYPES } },
+    prisma.auditLog.findMany({
+      where: { actionType: { in: Object.keys(DEPOT_LEDGER_KINDS) } },
       orderBy: { createdAt: "desc" },
       take: LEDGER_LIMIT,
       select: {
         id: true,
-        type: true,
-        effect: true,
+        actionType: true,
+        details: true,
         createdAt: true,
-        turn: { select: { number: true } },
-        character: { select: { name: true } },
+        turnId: true,
+        targetCharacter: { select: { name: true } },
       },
     }),
   ]);
+
+  // AuditLog carries a turnId but no relation to Turn, so the numbers come
+  // back in one extra round trip rather than a join.
+  const ledgerTurnIds = [...new Set(ledgerRows.map((r) => r.turnId).filter(Boolean))];
+  const ledgerTurnNumbers = new Map(
+    ledgerTurnIds.length
+      ? (
+          await prisma.turn.findMany({
+            where: { id: { in: ledgerTurnIds } },
+            select: { id: true, number: true },
+          })
+        ).map((t) => [t.id, t.number])
+      : [],
+  );
 
   const heldByTagId = new Map((character?.tags ?? []).map((ct) => [ct.tagId, ct.quantity]));
 
@@ -278,15 +295,15 @@ export default async function DepotPage() {
           sources: fuelSources.map((s) => ({ ...s, held: bySlug.get(s.slug) ?? 0 })),
         }}
         ledger={ledgerRows.map((r) => {
-          const who = r.character?.name ?? "—";
+          const who = r.targetCharacter?.name ?? "—";
           const { detail, delta } = ledgerRow(r, who);
           return {
             id: r.id,
-            label: REQUEST_TYPE_LABELS[r.type] ?? r.type,
+            label: DEPOT_LEDGER_KINDS[r.actionType]?.label ?? r.actionType,
             detail,
             who,
             delta,
-            turn: r.turn?.number ?? null,
+            turn: ledgerTurnNumbers.get(r.turnId) ?? null,
             at: r.createdAt.getTime(),
           };
         })}

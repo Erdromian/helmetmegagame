@@ -2,9 +2,10 @@ import { prisma } from "@lifeweb/db";
 import { MAX_REASON_LENGTH } from "@/lib/constants";
 import { UserError } from "@/lib/actionResult";
 
-// A Request is a change the player already made. There is no approval step:
-// the effect is applied and the row is written in the same transaction, and a
-// GM reviews it afterwards from /gm/turns. See docs/systemdocs/REQUESTS.md.
+// What is left of the old Request system: the per-turn rations, and the one
+// helper every player action writes its audit row through. A player action
+// applies its effect and logs it in the same transaction, and there is no
+// review step and no Undo. See docs/systemdocs/REQUESTS.md.
 
 export { MAX_REASON_LENGTH };
 
@@ -54,10 +55,6 @@ export function isDeadSimple(tag) {
   return (tag.requirementSkills ?? []).some((skill) => DEAD_SIMPLE_SKILL_SLUGS(skill.slug));
 }
 
-// Defined in requestLabels.js so client components can have them without
-// pulling this module's Prisma import into the browser bundle.
-export { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS, REQUEST_STATUS_TONES } from "@/lib/requestLabels";
-
 // Server actions are public endpoints, so the reason is validated here rather
 // than trusted from the dialog that collected it.
 export function requireReason(raw) {
@@ -66,32 +63,21 @@ export function requireReason(raw) {
   return reason.slice(0, MAX_REASON_LENGTH);
 }
 
-// `payload` is what the player asked for; `effect` is what was actually
-// applied. Undo reads ONLY `effect` — see the model comment in schema.prisma
-// for why re-deriving from live state is unsafe.
-export function createRequest(tx, { characterId, turnId, type, reason, payload, effect }) {
-  return tx.request.create({
-    data: {
-      characterId,
-      turnId: turnId ?? null,
-      type,
-      reason,
-      payload: payload ?? {},
-      effect: effect ?? {},
-    },
-  });
-}
 
-// Every request writes an AuditLog row too, carrying the same reason — that's
-// what fills the Reason column on /gm/audit.
-export function logRequest(tx, { actorDiscordUserId, actionType, targetCharacterId, reason, details }) {
+// A player action writes one AuditLog row and nothing else. There is no
+// Request table any more and no Undo: the player acts, the row records what
+// happened, and a GM repairs by hand from /gm/dev if they must. `details` is
+// therefore the ONLY record — where the old Request.effect carried a restore
+// snapshot, that snapshot belongs in here now.
+export function logAudit(tx, { actorDiscordUserId, actionType, targetCharacterId, turnId, details }) {
   return tx.auditLog.create({
     data: {
       actorDiscordUserId,
       actionType,
       targetCharacterId: targetCharacterId ?? null,
-      reason,
+      turnId: turnId ?? null,
       details: details ?? {},
     },
   });
 }
+

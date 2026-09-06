@@ -47,18 +47,38 @@ function tagOpSummary(tags) {
 // first prefix that matches wins, and "superadmin_" has to beat nothing while
 // "request_" has to beat nothing either. They do not overlap today; keep it
 // that way rather than adding precedence rules.
+// `band` splits the log in two, and it is the whole reason /gm/audit is
+// readable: the turn engine writes a row per character per pass, so a hundred
+// players' actual doings sit under thousands of machine lines. "player" is
+// what a person did on their own sheet; "machine" is the engine, the staging
+// desk and GM tooling. The page defaults to the player band.
+//
+// The `request_` prefix outlived the Request table on purpose — renaming ~35
+// action types would orphan every row already written under the old names,
+// and the label below is what a GM actually reads.
 export const AUDIT_FAMILIES = {
-  request: { label: "Request", prefixes: ["request_", "desire_"] },
-  move: { label: "Move", prefixes: ["move_", "caving_roll"] },
-  gm: { label: "GM action", prefixes: ["gm_"] },
-  staging: { label: "Staging", prefixes: ["staged_", "staging_"] },
-  faction: { label: "Faction", prefixes: ["faction_"] },
-  lifeweb: { label: "Lifeweb", prefixes: [] },
-  membership: { label: "Membership", prefixes: ["member_", "player_"] },
-  report: { label: "OOC report", prefixes: ["ooc_report_"] },
-  system: { label: "System", prefixes: ["turn_"] },
-  superadmin: { label: "Superadmin", prefixes: ["superadmin_"] },
+  request: { label: "Player action", band: "player", prefixes: ["request_", "desire_"] },
+  move: { label: "Move", band: "player", prefixes: ["move_", "caving_roll"] },
+  faction: { label: "Faction", band: "player", prefixes: ["faction_"] },
+  lifeweb: { label: "Lifeweb", band: "player", prefixes: [] },
+  membership: { label: "Membership", band: "player", prefixes: ["member_", "player_"] },
+  report: { label: "OOC report", band: "player", prefixes: ["ooc_report_"] },
+  gm: { label: "GM action", band: "machine", prefixes: ["gm_"] },
+  staging: { label: "Staging", band: "machine", prefixes: ["staged_", "staging_"] },
+  system: { label: "System", band: "machine", prefixes: ["turn_"] },
+  superadmin: { label: "Superadmin", band: "machine", prefixes: ["superadmin_"] },
 };
+
+export const AUDIT_BANDS = {
+  player: "What players did",
+  machine: "Engine, staging and GM",
+};
+
+export function familiesInBand(band) {
+  return Object.entries(AUDIT_FAMILIES)
+    .filter(([, fam]) => fam.band === band)
+    .map(([key]) => key);
+}
 
 // The quick date ranges. Here rather than beside the WHERE that consumes them
 // (web/lib/auditQuery.js) because the filter rail is a client component, and
@@ -80,7 +100,7 @@ export const DATE_PRESETS = {
 // destructive; see DESTRUCTIVE below.
 
 const R = {
-  // ---- Requests (web/lib/requests.js#logRequest — these carry `reason`) ----
+  // ---- Player actions (web/lib/requests.js#logAudit) ----
   request_add_tag: (d) => [actor(), t("added"), chip(d.tagName), qty(d.quantity), t("for"), res(d.resourcesSpent)],
   request_remove_tag: (d) => [actor(), t("dropped"), chip(d.tagName), qty(d.quantity), t("for"), res(d.resourcesSpent)],
   request_consume_tag: (d) => [

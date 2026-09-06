@@ -9,7 +9,7 @@ import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
 import { resolveParty, partyLabel } from "@lifeweb/db/lib/parties";
 import { postMessageBatched } from "@lifeweb/db/lib/discordRest";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
-import { REQUEST_EFFECTS } from "@/lib/requestEffects";
+import { dropCharacterTag } from "@/lib/tagEffects";
 import { requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { deleteActionRestoringTurn, MOVE_LOCK_TTL_MS, lockIsLive } from "@/lib/moveEconomy";
@@ -767,164 +767,6 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
   return { description: action.description, deliveryFailed };
 }
 
-async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
-  const session = await requireGm();
-  if (!["confirm", "undo"].includes(mode)) throw new UserError("Unknown mode.");
-
-  const result = await prisma.$transaction(async (tx) => {
-    // One lock order for both modes: the Request row first, then whatever
-    // the handler touches. Confirm used to lock effect rows first and the
-    // Request last while Undo claimed the Request first — a Confirm and an
-    // Undo landing on the same request at the same instant could deadlock.
-    // Locking here also makes both branches' status reads race-free.
-    await tx.$queryRaw`SELECT "id" FROM "Request" WHERE "id" = ${requestId ?? ""} FOR UPDATE`;
-    const request = await tx.request.findUnique({ where: { id: requestId } });
-    if (!request) throw new UserError("Request not found.");
-
-    const handler = REQUEST_EFFECTS[request.type];
-    if (!handler) throw new UserError(`No handler for ${request.type}.`);
-
-    const ctx = {
-      actorDiscordUserId: session.discordUserId,
-      actorName: "GM",
-      turnNumber: null,
-      turnPhase: null,
-    };
-
-    let note = "";
-    let effect = request.effect;
-    let status = request.status;
-    let changed = false;
-
-    if (mode === "undo") {
-      // Idempotent, and safe against two GMs clicking Undo at once: the
-      // status flip is a conditional claim, not a read-then-write. The loser
-      // blocks on the row lock, re-evaluates, matches nothing, and never runs
-      // the handler — so a refunding undo can only ever refund once.
-      const claim = await tx.request.updateMany({
-        where: { id: requestId, status: { not: "UNDONE" } },
-        data: { status: "UNDONE" },
-      });
-      if (claim.count === 0) {
-        // A claim that matched nothing proves the row already reads UNDONE
-        // (it exists — findUnique just returned it), so the final write
-        // below must say UNDONE too, never the status read above.
-        status = "UNDONE";
-        note = "Already undone — no changes made.";
-      } else {
-        status = "UNDONE";
-        note = (await handler.undo(tx, request, ctx)) ?? "Undone.";
-      }
-    } else {
-      if (request.status === "UNDONE") throw new UserError("That request was already undone.");
-      if (handler.applyEdit) {
-        const out = await handler.applyEdit(tx, request, edits, ctx);
-        effect = out.effect ?? request.effect;
-        note = out.note ?? "";
-        changed = Boolean(out.changed);
-      } else {
-        note = "Marked reviewed.";
-      }
-      // gmNotes alone is not an edit — a clean Confirm keeps the earned status.
-      status = changed ? "EDITED" : request.status;
-    }
-
-    const updated = await tx.request.update({
-      where: { id: requestId },
-      data: {
-        status,
-        effect,
-        gmNotes: gmNotes?.toString().trim() || request.gmNotes,
-        reviewedAt: new Date(),
-        reviewedByDiscordUserId: session.discordUserId,
-      },
-    });
-
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: session.discordUserId,
-        actionType: mode === "undo" ? "request_undone" : changed ? "request_edited" : "request_reviewed",
-        targetCharacterId: request.characterId,
-        reason: request.reason,
-        details: { requestId, type: request.type, note },
-      },
-    });
-
-    // Every character the effect could have touched, for the carry settle
-    // below. Read off the effect generically so adding a request type still
-    // costs one REQUEST_EFFECTS entry and nothing here (REQUESTS.md §2).
-    const e = request.effect ?? {};
-    const touched = [
-      request.characterId,
-      e.targetCharacterId,
-      e.fromCharacterId,
-      e.toCharacterId,
-      ...[e.from, e.to, e.payer].filter((p) => p?.kind === "character").map((p) => p.id),
-    ].filter(Boolean);
-
-    return { status: updated.status, note, changed, touched };
-  });
-
-  // An undo moves tags or ⬢ back onto somebody; their carry caps and room
-  // access follow (CARRY.md). Off the critical path, after the commit.
-  const { touched, ...outcome } = result;
-  after(async () => {
-    await afterInventoryChange(touched);
-  });
-
-  revalidatePath("/gm/audit");
-  revalidatePath("/character");
-  revalidatePath("/faction");
-  return outcome;
-}
-
-// Fallback kill path for a request naming a kill not yet claimed (REQUESTS.md
-// §5a); `effect.killed` guards against double-killing.
-async function killRequestTargetImpl({ requestId }) {
-  const session = await requireGm();
-
-  const request = await prisma.request.findUnique({ where: { id: requestId } });
-  if (!request) throw new UserError("Request not found.");
-  const namesAKill =
-    request.type === "FEED_PERSON" ||
-    (request.type === "HARM_CHARACTER" && request.effect?.lethal);
-  if (!namesAKill) throw new UserError("That request doesn't name someone to kill.");
-
-  const effect = request.effect ?? {};
-  if (effect.killed) throw new UserError("They've already been killed.");
-
-  const target = await prisma.character.findUnique({ where: { id: effect.targetCharacterId ?? "" } });
-  if (!target) throw new UserError("That character no longer exists.");
-  if (target.status === "DEAD") throw new UserError(`${target.name} is already dead.`);
-
-  const updated = await prisma.character.update({
-    where: { id: target.id },
-    data: { status: "DEAD" },
-  });
-
-  await killCharacter(updated).catch((err) => console.error("killCharacter failed:", err));
-
-  await prisma.request.update({
-    where: { id: requestId },
-    data: { effect: { ...effect, killed: true, killedAt: new Date().toISOString() } },
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_feed_person_killed",
-      targetCharacterId: target.id,
-      reason: request.reason,
-      details: { requestId, targetName: target.name },
-    },
-  });
-
-  revalidatePath("/gm/players", "layout");
-  revalidatePath("/gm/audit");
-  revalidatePath("/lifeweb");
-  return { targetName: target.name };
-}
-
 async function getCharacterInspectorImpl({ characterId }) {
   await requireGm();
   const character = await prisma.character.findUnique({
@@ -1256,14 +1098,47 @@ export async function resolveMove(input) {
 export async function rejectMove(input) {
   return guarded(() => rejectMoveImpl(input));
 }
+// Taking a Caving find back off the sheet. The roll itself stands — a GM is
+// undoing the loot, not the die. lootUndoneAt is the claim: the update only
+// matches while it is still null, so two clicks drop one tag (CAVING.md §4).
+async function undoCavingFindImpl({ rollId }) {
+  const session = await requireGm();
+  const roll = await prisma.cavingRoll.findUnique({
+    where: { id: rollId ?? "" },
+    include: { lootTag: { select: { name: true } } },
+  });
+  if (!roll) throw new UserError("That roll is gone. ‡");
+  if (!roll.lootTagId) throw new UserError("That roll found nothing. ‡");
+  if (roll.lootUndoneAt) throw new UserError("That find has already been taken back. ‡");
+
+  await prisma.$transaction(async (tx) => {
+    const claimed = await tx.cavingRoll.updateMany({
+      where: { id: roll.id, lootUndoneAt: null },
+      data: { lootUndoneAt: new Date() },
+    });
+    if (claimed.count === 0) throw new UserError("That find has already been taken back. ‡");
+    await dropCharacterTag(tx, roll.characterId, roll.lootTagId, 1);
+    await tx.auditLog.create({
+      data: {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "caving_loot_undone",
+        targetCharacterId: roll.characterId,
+        turnId: roll.turnId,
+        details: { rollId: roll.id, tagId: roll.lootTagId, tagName: roll.lootTag?.name ?? null },
+      },
+    });
+  });
+
+  await afterInventoryChange(roll.characterId);
+  revalidatePath("/gm/turns");
+  return { ok: true };
+}
+
 export async function resolveCavingRoll(input) {
   return guarded(() => resolveCavingRollImpl(input));
 }
-export async function resolveRequest(input) {
-  return guarded(() => resolveRequestImpl(input));
-}
-export async function killRequestTarget(input) {
-  return guarded(() => killRequestTargetImpl(input));
+export async function undoCavingFind(input) {
+  return guarded(() => undoCavingFindImpl(input));
 }
 export async function getCharacterInspector(input) {
   return guarded(() => getCharacterInspectorImpl(input));

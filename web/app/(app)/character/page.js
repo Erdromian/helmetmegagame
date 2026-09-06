@@ -548,6 +548,9 @@ export default async function CharacterPage() {
   // A fact about your own sheet, so the button may grey on it. Resolved here
   // rather than in the client so no slug matching reaches the browser.
   const canButcher = character.tags.some((ct) => ct.tag.slug === BUTCHER_SLUG);
+  // A fact about your own sheet, so the Change name button may grey on it.
+  // changeNameRequestImpl re-checks it under the same predicate.
+  const hasMulligan = character.tags.some((ct) => ct.tag.slug === "mulligan-potion");
 
   // From is you or a room; To is anyone here or a room (TransferDialog.js).
   const transferParties = { characters: peopleParties, rooms };
@@ -881,18 +884,18 @@ export default async function CharacterPage() {
         healCapFor(heldSlugSet, MEDICAL_TIER_CAPS) -
           (openTurn
             ? (
-                await prisma.request.findMany({
+                await prisma.auditLog.findMany({
                   where: {
-                    characterId: character.id,
+                    targetCharacterId: character.id,
+                    actionType: "request_heal_character",
                     turnId: openTurn.id,
-                    type: "HEAL_CHARACTER",
-                    status: { not: "UNDONE" },
                   },
-                  select: { effect: true },
+                  select: { details: true },
                 })
               ).filter(
                 (r) =>
-                  !r.effect?.gambit && (r.effect?.requirement?.turns ?? 0) > 0,
+                  !r.details?.gambit &&
+                  (r.details?.requirement?.turns ?? 0) > 0,
               ).length
             : 0),
       )
@@ -1250,6 +1253,7 @@ export default async function CharacterPage() {
       healParties={healParties}
       corpses={corpses}
       canButcher={canButcher}
+      hasMulligan={hasMulligan}
       canSeeExtract={canSeeExtract}
       canExtract={canExtract}
       extractBlocked={extractBlocked}

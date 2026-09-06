@@ -391,14 +391,8 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
 // off a value the caller resolved from the character row server-side — never
 // off anything the client sent alongside the id.
 export async function loadDevPanelRecord(characterId, discordUserId) {
-  const [moves, requests, auditLog, messages] = await Promise.all([
+  const [moves, auditLog, messages] = await Promise.all([
     prisma.action.findMany({
-      where: { characterId },
-      orderBy: { id: "desc" },
-      take: 100,
-      include: { turn: { select: { number: true, phase: true } } },
-    }),
-    prisma.request.findMany({
       where: { characterId },
       orderBy: { id: "desc" },
       take: 100,
@@ -421,14 +415,6 @@ export async function loadDevPanelRecord(characterId, discordUserId) {
       gmNotes: m.gmNotes,
       status: m.moveReviewStatus,
       resourceDelta: m.resourceDelta,
-    })),
-    requests: requests.map((r) => ({
-      id: r.id,
-      turn: r.turn ? `${r.turn.number} ${r.turn.phase}` : "—",
-      type: r.type,
-      status: r.status,
-      reason: r.reason,
-      reviewedAt: r.reviewedAt?.toISOString() ?? null,
     })),
     auditLog: auditLog.map((a) => ({
       id: a.id,

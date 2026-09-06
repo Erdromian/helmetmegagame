@@ -201,7 +201,8 @@ Four things about these are load-bearing:
   and the stylesheet decides how that looks, so a status cannot reach for a
   colour the themes have not solved. Per-domain label maps stay local — a
   Move's states are not a Request's — but they live in `web/lib/moves.js` and
-  `web/lib/requestLabels.js` so *both* faces can reach them.
+  a Prisma-free module (`web/lib/auditNarrative.js` is the live example) so
+  *both* faces can reach them.
 - **`SubmitButton` works because `useFormStatus` reads from a child.** The page
   keeps its `<form action={...}>` and stays a server component; only the button
   is a client leaf. It cannot see a button wired by `form={id}` from outside the

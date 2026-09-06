@@ -24,9 +24,7 @@ import {
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import {
-  createRequest,
-  logRequest,
-  requireReason,
+  logAudit,
   MAX_REASON_LENGTH,
   isDeadSimple,
   DEAD_SIMPLE_PER_TURN,
@@ -66,7 +64,7 @@ import {
   moveResources,
   takeTagFrom,
   giveTagTo,
-} from "@/lib/requestEffects";
+} from "@/lib/tagEffects";
 import {
   HEAL_SKILL_SLUG,
   buildSkillAncestry,
@@ -250,14 +248,19 @@ function resolveParty(key, opts) {
 // `perTurn` (Tag.requirementPerTurn). Distinct from the Dead Simple pool
 // below: that one is a shared allowance across every 0-turn recipe, this is a
 // ration on a single item.
-async function unitsOfTagThisTurn(db, characterId, turnId, tagId) {
-  const filed = await db.request.findMany({
-    where: { characterId, turnId, type: "ADD_TAG", status: { not: "UNDONE" } },
-    select: { payload: true, effect: true },
+async function craftsThisTurn(db, characterId, turnId) {
+  if (!turnId) return [];
+  return db.auditLog.findMany({
+    where: { targetCharacterId: characterId, actionType: "request_craft_tag", turnId },
+    select: { details: true },
   });
+}
+
+async function unitsOfTagThisTurn(db, characterId, turnId, tagId) {
+  const filed = await craftsThisTurn(db, characterId, turnId);
   return filed.reduce((sum, r) => {
-    if (r.payload?.tagId !== tagId) return sum;
-    return sum + (r.effect?.quantity ?? 1);
+    if (r.details?.tagId !== tagId) return sum;
+    return sum + (r.details?.quantity ?? 1);
   }, 0);
 }
 
@@ -268,29 +271,22 @@ async function unitsOfTagThisTurn(db, characterId, turnId, tagId) {
 // A gambit heal is never in here, because it files a Move instead and the
 // Action unique constraint rations those on its own.
 async function routineHealsThisTurn(db, characterId, turnId) {
-  const filed = await db.request.findMany({
-    where: {
-      characterId,
-      turnId,
-      type: "HEAL_CHARACTER",
-      status: { not: "UNDONE" },
-    },
-    select: { effect: true },
+  if (!turnId) return 0;
+  const filed = await db.auditLog.findMany({
+    where: { targetCharacterId: characterId, actionType: "request_heal_character", turnId },
+    select: { details: true },
   });
   return filed.filter(
-    (r) => !r.effect?.gambit && (r.effect?.requirement?.turns ?? 0) > 0,
+    (r) => !r.details?.gambit && (r.details?.requirement?.turns ?? 0) > 0,
   ).length;
 }
 
 // Dead Simple units already filed this turn (DEAD_SIMPLE_PER_TURN).
-// EDITED still counts, UNDONE does not. `db` is prisma or a tx client.
+// `db` is prisma or a tx client.
 async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
-  const filed = await db.request.findMany({
-    where: { characterId, turnId, type: "ADD_TAG", status: { not: "UNDONE" } },
-    select: { payload: true },
-  });
+  const filed = await craftsThisTurn(db, characterId, turnId);
   const filedTagIds = [
-    ...new Set(filed.map((r) => r.payload?.tagId).filter(Boolean)),
+    ...new Set(filed.map((r) => r.details?.tagId).filter(Boolean)),
   ];
   const filedTags = filedTagIds.length
     ? await db.tag.findMany({
@@ -306,8 +302,8 @@ async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
     filedTags.filter(isDeadSimple).map((t) => t.id),
   );
   return filed.reduce((sum, r) => {
-    if (!deadSimpleIds.has(r.payload?.tagId)) return sum;
-    return sum + (Number(r.payload?.quantity) || 0);
+    if (!deadSimpleIds.has(r.details?.tagId)) return sum;
+    return sum + (Number(r.details?.quantity) || 0);
   }, 0);
 }
 
@@ -549,7 +545,6 @@ async function grantCrafted(
     cost,
     project = null,
     action = null,
-    reason,
   },
 ) {
   for (const snapshot of replaced)
@@ -565,35 +560,13 @@ async function grantCrafted(
     stackable: tag.stackable,
   });
   const payerParty = { kind: payer.kind, id: payer.id, name: payer.name };
-  const request = await createRequest(tx, {
-    characterId: character.id,
-    turnId: openTurn?.id ?? null,
-    type: "ADD_TAG",
-    reason,
-    payload: {
-      tagId: tag.id,
-      quantity,
-      resourcesSpent: cost,
-      payerKey: `${payer.kind}:${payer.id}`,
-    },
-    effect: {
-      tagId: tag.id,
-      tagName: tag.name,
-      quantity,
-      resourcesSpent: cost,
-      payer: payerParty,
-      ...(project
-        ? { projectId: project.id, turnsNeeded: project.turnsNeeded }
-        : {}),
-      ...(action ? { actionId: action.id } : {}),
-      ...(replaced.length ? { replaced } : {}),
-    },
-  });
-  await logRequest(tx, {
+  await logAudit(tx, {
     actorDiscordUserId: session.discordUserId,
     actionType: "request_craft_tag",
     targetCharacterId: character.id,
-    reason,
+    // The ration counters below read this back; without it they cannot tell
+    // this turn's work from last turn's.
+    turnId: openTurn?.id ?? null,
     details: {
       tagId: tag.id,
       tagName: tag.name,
@@ -603,7 +576,6 @@ async function grantCrafted(
       projectId: project?.id ?? null,
     },
   });
-  return request;
 }
 
 function payerNotice(character, payer, cost, tag) {
@@ -618,10 +590,8 @@ async function craftRequestImpl({
   tagId,
   quantity: rawQuantity,
   payerKey,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   const tag = await loadRecipe(tagId);
   await requireRecipeSkills(character, tag);
@@ -635,7 +605,7 @@ async function craftRequestImpl({
   // tag-tier gates below — prerequisites, exclusivity, tier replacement,
   // stacks — have nothing to say about it.
   if (placement)
-    return openBuildSiteImpl(character, session, tag, { payerKey, reason });
+    return openBuildSiteImpl(character, session, tag, { payerKey });
   const replaced = await craftGrantChecks(character, tag);
 
   const quantity = tag.stackable
@@ -720,7 +690,6 @@ async function craftRequestImpl({
         replaced,
         payer,
         cost,
-        reason,
       });
     });
     await afterInventoryChange([
@@ -762,7 +731,7 @@ async function craftRequestImpl({
       "auto:craft",
     );
     if (done) {
-      const request = await grantCrafted(tx, {
+      await grantCrafted(tx, {
         session,
         character,
         tag,
@@ -773,18 +742,16 @@ async function craftRequestImpl({
         cost,
         project,
         action,
-        reason,
       });
       await tx.craftProject.update({
         where: { id: project.id },
-        data: { status: "DONE", requestId: request.id },
+        data: { status: "DONE" },
       });
     } else {
-      await logRequest(tx, {
+      await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,
         actionType: "craft_started",
         targetCharacterId: character.id,
-        reason,
         details: {
           projectId: project.id,
           tagId: tag.id,
@@ -828,9 +795,8 @@ async function loadOwnProject(character, projectId) {
 
 // Another turn on a project. The recipe's gates are re-run: a skill lost
 // since the start stops the work where it stands.
-async function continueCraftImpl({ projectId, reason: rawReason }) {
+async function continueCraftImpl({ projectId }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
   const project = await loadOwnProject(character, projectId);
   const tag = project.tag;
   await requireRecipeSkills(character, tag);
@@ -868,7 +834,7 @@ async function continueCraftImpl({ projectId, reason: rawReason }) {
       "auto:craft",
     );
     if (done) {
-      const request = await grantCrafted(tx, {
+      await grantCrafted(tx, {
         session,
         character,
         tag,
@@ -879,18 +845,16 @@ async function continueCraftImpl({ projectId, reason: rawReason }) {
         cost: project.resourcesCost,
         project,
         action,
-        reason,
       });
       await tx.craftProject.update({
         where: { id: project.id },
-        data: { status: "DONE", requestId: request.id },
+        data: { status: "DONE" },
       });
     } else {
-      await logRequest(tx, {
+      await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,
         actionType: "craft_continued",
         targetCharacterId: character.id,
-        reason,
         details: {
           projectId: project.id,
           tagId: tag.id,
@@ -914,20 +878,18 @@ async function continueCraftImpl({ projectId, reason: rawReason }) {
 }
 
 // Stopping keeps nothing: the ⬢ went into materials when the work began.
-async function cancelCraftImpl({ projectId, reason: rawReason }) {
+async function cancelCraftImpl({ projectId }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
   const project = await loadOwnProject(character, projectId);
   await prisma.$transaction(async (tx) => {
     await tx.craftProject.update({
       where: { id: project.id },
       data: { status: "CANCELLED" },
     });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "craft_cancelled",
       targetCharacterId: character.id,
-      reason,
       details: {
         projectId: project.id,
         tagId: project.tagId,
@@ -1005,7 +967,7 @@ async function notifyStakeholders(
 // may re-read status to decide, or there would be two winners.
 async function finishStructure(
   tx,
-  { session, character, site, location, openTurn, action, reason },
+  { session, character, site, location, openTurn, action },
 ) {
   const contributors = await tx.structureWork.findMany({
     where: { structureId: site.id },
@@ -1033,23 +995,10 @@ async function finishStructure(
     builderName: site.builderName ?? null,
     actionId: action?.id ?? null,
   };
-  const request = await createRequest(tx, {
-    characterId: character.id,
-    turnId: openTurn?.id ?? null,
-    type: "BUILD_STRUCTURE",
-    reason,
-    payload: { structureId: site.id },
-    effect,
-  });
-  await tx.structure.update({
-    where: { id: site.id },
-    data: { requestId: request.id },
-  });
-  await logRequest(tx, {
+  await logAudit(tx, {
     actorDiscordUserId: session.discordUserId,
     actionType: "build_completed",
     targetCharacterId: character.id,
-    reason,
     details: {
       structureId: site.id,
       typeSlug: site.typeSlug,
@@ -1061,7 +1010,6 @@ async function finishStructure(
       actionId: action?.id ?? null,
     },
   });
-  return { request };
 }
 
 // The one-per-place rule. The wreck statuses (RUINED, ABANDONED) are
@@ -1092,7 +1040,7 @@ async function openBuildSiteImpl(
   character,
   session,
   tag,
-  { payerKey, reason },
+  { payerKey },
 ) {
   const placement = placementOf(tag);
   const location = await loadBuildGround(character.locationId);
@@ -1163,14 +1111,12 @@ async function openBuildSiteImpl(
         location,
         openTurn,
         action,
-        reason,
       });
     } else {
-      await logRequest(tx, {
+      await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,
         actionType: "build_started",
         targetCharacterId: character.id,
-        reason,
         details: {
           structureId: site.id,
           tagId: tag.id,
@@ -1208,9 +1154,8 @@ async function openBuildSiteImpl(
 
 // Another crew-turn on somebody's site. No skill check and no payer: the
 // recipe gated the opening, and the ⬢ were all spent then.
-async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
+async function joinBuildSiteImpl({ structureId }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
 
   // Read fresh, and matched against the character's OWN locationId rather
   // than anything posted — a server action is a public endpoint.
@@ -1285,14 +1230,12 @@ async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
         location,
         openTurn,
         action,
-        reason,
       });
     } else {
-      await logRequest(tx, {
+      await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,
         actionType: "build_continued",
         targetCharacterId: character.id,
-        reason,
         details: {
           structureId: site.id,
           typeSlug: site.typeSlug,
@@ -1332,9 +1275,8 @@ async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
 // The plan says "opener or GM"; the GM half is deliberately not here. It
 // arrives with milestone C's Damage/Destroy surface, which subsumes it — a
 // GM pulling a site down is the same desk action as pulling a wall down.
-async function cancelBuildSiteImpl({ structureId, reason: rawReason }) {
+async function cancelBuildSiteImpl({ structureId }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
 
   const site = await prisma.structure.findFirst({
     where: {
@@ -1361,11 +1303,10 @@ async function cancelBuildSiteImpl({ structureId, reason: rawReason }) {
     });
     if (claim.count === 0)
       throw new UserError("The work moved on without you — reload. ‡");
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "build_cancelled",
       targetCharacterId: character.id,
-      reason,
       details: {
         structureId: site.id,
         typeSlug: site.typeSlug,
@@ -1393,14 +1334,13 @@ async function cancelBuildSiteImpl({ structureId, reason: rawReason }) {
 // Learn and Teach are the same offer from opposite ends: the initiator's
 // Move slot is checked now, both sides' when the other accepts. Nothing is
 // filed until then — the offer row and one DM with two buttons.
-async function lessonOfferImpl({ teacherId, learnerId, tagId, reason }) {
+async function lessonOfferImpl({ teacherId, learnerId, tagId }) {
   const { session, character } = await requireCharacter();
   const offer = await createLessonOffer(prisma, {
     initiatorId: character.id,
     teacherId,
     learnerId,
     tagId,
-    reason: requireReason(reason),
   });
   if (!offer.ok) throw new UserError(offer.reason);
   after(() =>
@@ -1424,14 +1364,14 @@ async function lessonOfferImpl({ teacherId, learnerId, tagId, reason }) {
   return { pending: true };
 }
 
-async function learnRequestImpl({ teacherId, tagId, reason }) {
+async function learnRequestImpl({ teacherId, tagId }) {
   const { character } = await requireCharacter({ needs: ACT });
-  return lessonOfferImpl({ teacherId, learnerId: character.id, tagId, reason });
+  return lessonOfferImpl({ teacherId, learnerId: character.id, tagId });
 }
 
-async function teachRequestImpl({ learnerId, tagId, reason }) {
+async function teachRequestImpl({ learnerId, tagId }) {
   const { character } = await requireCharacter({ needs: ACT });
-  return lessonOfferImpl({ teacherId: character.id, learnerId, tagId, reason });
+  return lessonOfferImpl({ teacherId: character.id, learnerId, tagId });
 }
 
 // --- Confession (docs/systemdocs/CONFESSION.md) --------------------------
@@ -1441,13 +1381,12 @@ async function teachRequestImpl({ learnerId, tagId, reason }) {
 // is no way to file a confession on somebody else's behalf, and no chaplain
 // half of this to write. `chaplainId` and `tagId` are re-validated inside
 // createConfessionOffer against the penitent's own row.
-async function confessRequestImpl({ chaplainId, tagId, reason }) {
+async function confessRequestImpl({ chaplainId, tagId }) {
   const { session, character } = await requireCharacter({ needs: ACT });
   const offer = await createConfessionOffer(prisma, {
     penitentId: character.id,
     chaplainId,
     tagId,
-    reason: requireReason(reason),
   });
   if (!offer.ok) throw new UserError(offer.reason);
   after(() =>
@@ -1485,10 +1424,8 @@ async function confessRequestImpl({ chaplainId, tagId, reason }) {
 async function destroyTagRequestImpl({
   tagId,
   quantity: rawQuantity,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   const held = character.tags.find((ct) => ct.tagId === tagId);
   if (!held) throw new UserError("You don't have that tag.");
@@ -1520,31 +1457,18 @@ async function destroyTagRequestImpl({
       aftermathSlugs,
       openTurn?.number ?? null,
     );
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "REMOVE_TAG",
-      reason,
-      payload: { tagId, quantity },
-      effect: {
-        tagId,
-        tagName: held.tag.name,
-        quantity,
-        resourcesSpent: 0,
-        restore,
-        granted,
-      },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_destroy_tag",
       targetCharacterId: character.id,
-      reason,
       details: {
         tagId,
         tagName: held.tag.name,
         quantity,
         granted: granted.map((g) => g.tagName),
+        // The details blob is the only record now, so it carries what a GM
+        // needs to put the tag back AS IT WAS rather than as a fresh grant.
+        restore,
       },
     });
   });
@@ -1564,7 +1488,7 @@ async function destroyTagRequestImpl({
 // Two things come out: the letter, exactly as it was written, and the spent
 // envelope. The envelope is the point of the whole mechanism: it is evidence
 // that somebody opened this, and whose wax was on it when they did.
-async function breakSealRequestImpl({ session, character, held, reason }) {
+async function breakSealRequestImpl({ session, character, held }) {
   const openTurn = await getOpenTurn();
 
   let opened;
@@ -1580,19 +1504,10 @@ async function breakSealRequestImpl({ session, character, held, reason }) {
       envelopeTagId: opened.envelope?.id ?? null,
       envelopeName: opened.envelope?.name ?? null,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "BREAK_SEAL",
-      reason,
-      payload: { tagId: held.tagId },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_break_seal",
       targetCharacterId: character.id,
-      reason,
       details: effect,
     });
   });
@@ -1610,7 +1525,7 @@ async function breakSealRequestImpl({ session, character, held, reason }) {
 // It takes its own road out of consumeTagRequestImpl for breakSeal's reason:
 // the ordinary path reads `consumesInto`, which names CATALOG slugs, and a
 // photo is a runtime row no slug in docs/tags.yaml can ever name.
-async function photographNothingImpl({ session, character, held, reason }) {
+async function photographNothingImpl({ session, character, held }) {
   const openTurn = await getOpenTurn();
 
   // The row is created BEFORE the transaction, because its name-collision
@@ -1641,19 +1556,10 @@ async function photographNothingImpl({ session, character, held, reason }) {
       // above only tells that undo to delete the ROW as well, which is the one
       // thing a runtime print needs that a catalog grant does not.
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "CONSUME_TAG",
-      reason,
-      payload: { tagId: held.tagId },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_consume_tag",
       targetCharacterId: character.id,
-      reason,
       details: effect,
     });
   });
@@ -1663,9 +1569,8 @@ async function photographNothingImpl({ session, character, held, reason }) {
   return { ok: true, name: photo.name };
 }
 
-async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
+async function consumeTagRequestImpl({ tagId }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
 
   const held = character.tags.find((ct) => ct.tagId === tagId);
   if (!held) throw new UserError("You don't have that tag.");
@@ -1676,13 +1581,13 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
   // inside a sealed one is a runtime row that no slug in docs/tags.yaml can
   // ever name. See docs/systemdocs/PAPERWORK.md.
   if (held.tag.paperKind === "SEALED") {
-    return breakSealRequestImpl({ session, character, held, reason });
+    return breakSealRequestImpl({ session, character, held });
   }
 
   // Same reasoning, same road: an Instant Camera consumes into a runtime Photo
   // row rather than into anything the catalog can name.
   if (held.tag.slug === CAMERA_SLUG) {
-    return photographNothingImpl({ session, character, held, reason });
+    return photographNothingImpl({ session, character, held });
   }
 
   const openTurn = await getOpenTurn();
@@ -1764,27 +1669,10 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
     // db/lib/hiddenCures.js. Runs after the ordinary grants and records
     // nothing on the request, on purpose.
     await applyHiddenCures(tx, character.id, held.tag.slug);
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "CONSUME_TAG",
-      reason,
-      payload: { tagId },
-      effect: {
-        tagId,
-        tagName: held.tag.name,
-        restore,
-        granted,
-        resourcesGranted,
-        cleared,
-        climbed,
-      },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_consume_tag",
       targetCharacterId: character.id,
-      reason,
       details: {
         tagId,
         tagName: held.tag.name,
@@ -1817,10 +1705,8 @@ async function transferRequestImpl({
   toKey,
   tags: rawTags,
   amount: rawAmount,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   const amount =
     rawAmount == null || rawAmount === ""
@@ -1982,7 +1868,7 @@ async function transferRequestImpl({
     actorName: character.name,
     turnNumber: openTurn?.number ?? null,
     turnPhase: openTurn?.phase ?? null,
-    note: reason,
+    note: null,
   };
   const fromParty = { kind: from.kind, id: from.id, name: from.name };
   const toParty = { kind: to.kind, id: to.id, name: to.name };
@@ -2008,32 +1894,10 @@ async function transferRequestImpl({
         expiresTurn: held.expiresTurn ?? null,
         source: "EVENT",
       });
-      await createRequest(tx, {
-        characterId: character.id,
-        turnId: openTurn?.id ?? null,
-        type: "TRANSFER_TAG",
-        reason,
-        payload: { tagId, quantity, fromKey, toKey, direction: "SEND" },
-        effect: {
-          tagId,
-          tagName: held.tag.name,
-          quantity,
-          direction: "SEND",
-          restore,
-          destroyed,
-          from: fromParty,
-          to: toParty,
-          fromCharacterId,
-          fromName: from.name,
-          toCharacterId,
-          toName: to.name,
-        },
-      });
-      await logRequest(tx, {
+      await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,
         actionType: "request_transfer_tag",
         targetCharacterId: toCharacterId ?? fromCharacterId,
-        reason,
         details: {
           tagId,
           tagName: held.tag.name,
@@ -2041,6 +1905,7 @@ async function transferRequestImpl({
           from: fromParty,
           to: toParty,
           direction: "SEND",
+          restore,
         },
       });
     }
@@ -2059,19 +1924,10 @@ async function transferRequestImpl({
         direction: "SEND",
         destroyed,
       };
-      await createRequest(tx, {
-        characterId: character.id,
-        turnId: openTurn?.id ?? null,
-        type: "TRANSFER_RESOURCES",
-        reason,
-        payload: { fromKey, toKey, amount, direction: "SEND" },
-        effect,
-      });
-      await logRequest(tx, {
+      await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,
         actionType: "request_transfer_resources",
         targetCharacterId: toCharacterId ?? fromCharacterId ?? character.id,
-        reason,
         details: effect,
       });
     }
@@ -2122,10 +1978,8 @@ async function healCharacterRequestImpl({
   targetCharacterId,
   tagId,
   payerKey,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   if (!character.locationId) {
     throw new UserError("You aren't anywhere you could treat someone.");
@@ -2213,7 +2067,7 @@ async function healCharacterRequestImpl({
     actorName: character.name,
     turnNumber: openTurn?.number ?? null,
     turnPhase: openTurn?.phase ?? null,
-    note: reason,
+    note: null,
   };
 
   const effect = {
@@ -2322,19 +2176,11 @@ async function healCharacterRequestImpl({
       );
     }
 
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "HEAL_CHARACTER",
-      reason,
-      payload: { targetCharacterId: target.id, tagId, payerKey },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_heal_character",
       targetCharacterId: target.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -2377,10 +2223,8 @@ async function lootCharacterRequestImpl({
   targetCharacterId,
   tagPicks: rawTagPicks,
   amount: rawAmount,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
@@ -2473,19 +2317,10 @@ async function lootCharacterRequestImpl({
       })),
       amount,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "LOOT_CHARACTER",
-      reason,
-      payload: { targetCharacterId: target.id, tagPicks: picks, amount },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_loot_character",
       targetCharacterId: target.id,
-      reason,
       details: effect,
     });
   });
@@ -2523,10 +2358,8 @@ async function lootCharacterRequestImpl({
 async function moveCharacterRequestImpl({
   targetCharacterId,
   targetLocationId,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   if (!character.locationId) {
     throw new UserError("You aren't anywhere you could do that.");
@@ -2592,34 +2425,10 @@ async function moveCharacterRequestImpl({
       where: { id: target.id },
       data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId },
     });
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "MOVE_CHARACTER",
-      reason,
-      payload: {
-        targetCharacterId: target.id,
-        targetLocationId: targetLocation.id,
-      },
-      // Undo restores both ids in the DB only — the Discord role swap catches
-      // up next time the player Moves themselves.
-      effect: {
-        targetCharacterId: target.id,
-        targetName: target.name,
-        targetStatus: target.status,
-        fromLocationId,
-        fromZoneId,
-        toLocationId: targetLocation.id,
-        toLocationName: targetLocation.name,
-        toZoneId: targetLocation.zoneId,
-        toZoneName: targetLocation.zone?.name ?? null,
-      },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_move_character",
       targetCharacterId: target.id,
-      reason,
       details: {
         fromLocationId,
         toLocationId: targetLocation.id,
@@ -2649,10 +2458,8 @@ async function moveCharacterRequestImpl({
 // request fires only on Accept (docs/systemdocs/LESSONS.md).
 async function bindCharacterRequestImpl({
   targetCharacterId,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
@@ -2682,7 +2489,6 @@ async function bindCharacterRequestImpl({
       actor,
       target,
       turn: openTurn,
-      reason,
     });
     if (!offer.ok) throw new UserError(offer.reason);
     after(() =>
@@ -2698,7 +2504,6 @@ async function bindCharacterRequestImpl({
         actorDiscordUserId: session.discordUserId,
         actionType: "request_bind_offer",
         targetCharacterId: target.id,
-        reason,
         details: { offerId: offer.offer.id, targetName: target.name },
       },
     });
@@ -2706,7 +2511,7 @@ async function bindCharacterRequestImpl({
     return { pending: true, name: target.name };
   }
 
-  await applyBind(prisma, { actor, target, turn: openTurn, reason });
+  await applyBind(prisma, { actor, target, turn: openTurn });
   await afterInventoryChange(target.id);
   notifyCharacter(target, "Someone bound you.");
   revalidateAll();
@@ -2716,10 +2521,8 @@ async function bindCharacterRequestImpl({
 // The rescue half — anyone standing there may cut someone loose.
 async function freeCharacterRequestImpl({
   targetCharacterId,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
@@ -2748,19 +2551,10 @@ async function freeCharacterRequestImpl({
       source: held.source,
       expiresTurn: held.expiresTurn,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "FREE_CHARACTER",
-      reason,
-      payload: { targetCharacterId: target.id },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_free_character",
       targetCharacterId: target.id,
-      reason,
       details: effect,
     });
   });
@@ -2792,10 +2586,8 @@ const FUNDAMENTALIST_SLUG = "fundamentalist";
 // nothing.
 async function crucifyCharacterRequestImpl({
   targetCharacterId,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
@@ -2854,19 +2646,10 @@ async function crucifyCharacterRequestImpl({
       expiresTurn,
       stackable: crucified.stackable,
     });
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn.id,
-      type: "CRUCIFY_CHARACTER",
-      reason,
-      payload: { targetCharacterId: target.id, structureId: cross.id },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_crucify_character",
       targetCharacterId: target.id,
-      reason,
       details: effect,
     });
   });
@@ -2896,9 +2679,8 @@ async function crucifyCharacterRequestImpl({
 // Two things the player is told up front by the tag's own description, because
 // both fall straight out of riding forcedName: they post under a letter plaque
 // rather than their portrait, and /conceal refuses while it is on.
-async function disguiseSelfRequestImpl({ name: rawName, reason: rawReason }) {
+async function disguiseSelfRequestImpl({ name: rawName }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   // Re-checked here and not merely in the UI: a server action is a public
   // endpoint, and page.js's predicate is a hint.
@@ -2935,19 +2717,10 @@ async function disguiseSelfRequestImpl({ name: rawName, reason: rawReason }) {
     turns: DISGUISE_TURNS,
   };
   await prisma.$transaction(async (tx) => {
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn.id,
-      type: "DISGUISE_SELF",
-      reason,
-      payload: { name },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_disguise_self",
       targetCharacterId: character.id,
-      reason,
       details: effect,
     });
   });
@@ -2969,10 +2742,8 @@ async function harmCharacterRequestImpl({
   targetCharacterId,
   tagId,
   lethal: rawLethal,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
@@ -3059,19 +2830,10 @@ async function harmCharacterRequestImpl({
       killed,
       killedAt: killed ? new Date().toISOString() : null,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "HARM_CHARACTER",
-      reason,
-      payload: { targetCharacterId: target.id, tagId: tag?.id ?? null, lethal },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_harm_character",
       targetCharacterId: target.id,
-      reason,
       details: effect,
     });
   });
@@ -3102,10 +2864,8 @@ async function harmCharacterRequestImpl({
 async function claimDesireImpl({
   slotIndex: rawSlotIndex,
   slug: rawSlug,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
 
   const slug = rawSlug?.toString().trim();
   if (!slug) throw new UserError(DESIRE_NOT_AVAILABLE);
@@ -3226,26 +2986,10 @@ async function claimDesireImpl({
       where: { id: character.id },
       data: { tagPoints: { increment: row.points } },
     });
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "FULFILL_DESIRE",
-      reason,
-      payload: { desireId: row.id },
-      effect: {
-        desireId: row.id,
-        desireText: row.text,
-        pointsAwarded: row.points,
-        desireSlug: template.slug,
-        desireTier: template.tier,
-        slotIndex,
-      },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_fulfill_desire",
       targetCharacterId: character.id,
-      reason,
       details: {
         desireId: row.id,
         pointsAwarded: row.points,
@@ -3273,14 +3017,30 @@ async function claimDesireImpl({
 // The one player-facing rename: an ordinary reason-gated request applying
 // the same allowlist/cap/dynasty-lock rules every writer of Character.name
 // uses. See docs/systemdocs/CHARACTERS.md §1b.
+// Renaming costs a Mulligan Potion, drunk. The gate is the whole point of the
+// item — "a new name and appearance to those with honest regrets" is what its
+// catalog text has always promised — and without it a name is free to change
+// as often as a player likes, which makes every other identity rule (the
+// personal Discord role, a wanted poster, a Disguise that is supposed to be
+// temporary) mean less than it should. A Disguise is the temporary answer;
+// this is the permanent one. See CHARACTERS.md.
+const MULLIGAN_SLUG = "mulligan-potion";
+
 async function changeNameRequestImpl({
   honorific: rawHonorific,
   firstName: rawFirstName,
   lastName: rawLastName,
-  reason: rawReason,
 }) {
-  const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  // Re-checked here and not merely in the UI: a server action is a public
+  // endpoint and page.js's predicate is only a hint.
+  const potion = character.tags.find((ct) => ct.tag.slug === MULLIGAN_SLUG);
+  if (!potion) {
+    throw new UserError(
+      "You need a Mulligan Potion to take a new name. ‡",
+    );
+  }
 
   // Gated by what this character has earned — an unearned word lands as
   // null rather than throwing, so a stale tab renames them untitled instead
@@ -3329,25 +3089,20 @@ async function changeNameRequestImpl({
       where: { id: character.id },
       data: next,
     });
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "CHANGE_NAME",
-      reason,
-      payload: { honorific, firstName, lastName },
-      effect: { previous, next },
-    });
-    await logRequest(tx, {
+    // Drunk, not merely held — one name per bottle.
+    await dropCharacterTag(tx, character.id, potion.tagId, 1);
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_change_name",
       targetCharacterId: character.id,
-      reason,
-      details: { previousName: previous.name, name: next.name },
+      turnId: openTurn?.id ?? null,
+      details: { previousName: previous.name, name: next.name, potionTagId: potion.tagId },
     });
   });
 
-  // Best-effort Discord fan-out, outside the transaction; Undo does not
-  // re-run it, so a reverted name catches up next time the player saves.
+  // Best-effort Discord fan-out, outside the transaction (ARCHITECTURE.md §5
+  // — no network call inside one). The role and the nickname wear the REAL
+  // bare name on purpose, disguise or not (PROXYING.md §6, §8).
   await ensureCharacterRole(updated).catch(() => {});
   await syncCharacterNickname(
     session.discordUserId,
@@ -3418,10 +3173,8 @@ async function takeCorpse(tx, corpse) {
 async function butcherCorpseRequestImpl({
   tagId,
   sourceKey,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   // The gate, re-checked here because a disabled button is a hint, not a lock.
   if (!character.tags.some((ct) => ct.tag?.slug === BUTCHER_SLUG)) {
@@ -3448,31 +3201,10 @@ async function butcherCorpseRequestImpl({
       expiresTurn,
       stackable: yieldTag.stackable,
     });
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "BUTCHER_CORPSE",
-      reason,
-      payload: { tagId, sourceKey },
-      // The source is snapshotted so Undo can put the body back where it came
-      // FROM — a corpse taken off a floor must not reappear in a pocket.
-      effect: {
-        corpseTagId: corpse.tagId,
-        corpseTagName: corpse.tagName,
-        source: corpse.source,
-        yieldTagId: yieldTag.id,
-        yieldTagName: yieldTag.name,
-        yieldExpiresTurn: expiresTurn,
-        human: corpse.human,
-        deadCharacterId: corpse.deadCharacterId,
-        deadName: corpse.deadName,
-      },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_butcher_corpse",
       targetCharacterId: corpse.deadCharacterId ?? character.id,
-      reason,
       details: {
         corpse: corpse.tagName,
         made: yieldTag.name,
@@ -3511,10 +3243,8 @@ async function butcherCorpseRequestImpl({
 async function buryCharacterRequestImpl({
   tagId,
   sourceKey,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
 
   const corpse = await resolveCorpseSource(character, { tagId, sourceKey });
   if (!corpse.human || !corpse.deadCharacterId) {
@@ -3540,30 +3270,10 @@ async function buryCharacterRequestImpl({
       `Buried ${target.name}. ‡`,
       "auto:bury",
     );
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "BURY_CHARACTER",
-      reason,
-      payload: { tagId, sourceKey },
-      // targetDiscordUserId deliberately absent: the curse is not re-granted
-      // on Undo, since no network call may run inside a $transaction.
-      effect: {
-        targetCharacterId: target.id,
-        targetName: target.name,
-        zoneId: character.zoneId,
-        buriedAt: buriedAt.toISOString(),
-        corpseTagId: corpse.tagId,
-        corpseTagName: corpse.tagName,
-        source: corpse.source,
-        actionId: action?.id ?? null,
-      },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_bury_character",
       targetCharacterId: target.id,
-      reason,
       details: { zoneId: character.zoneId, corpse: corpse.tagName },
     });
   });
@@ -3598,10 +3308,8 @@ async function buryCharacterRequestImpl({
 // It is the only thing standing between a mourner and freeing the wrong soul.
 async function engraveHeadstoneRequestImpl({
   firstName: rawFirstName,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   const typed =
     rawFirstName?.toString().trim().slice(0, NAME_LIMITS.firstName) ?? "";
@@ -3656,27 +3364,10 @@ async function engraveHeadstoneRequestImpl({
       `Engraved a headstone for ${target.name}. ‡`,
       "auto:engrave",
     );
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "ENGRAVE_HEADSTONE",
-      reason,
-      payload: { firstName: typed },
-      effect: {
-        targetCharacterId: target.id,
-        targetName: target.name,
-        buriedAt: buriedAt.toISOString(),
-        resourcesSpent: ENGRAVE_RESOURCE_COST,
-        headstoneTagId: headstone.id,
-        headstoneTagName: headstone.name,
-        actionId: action?.id ?? null,
-      },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_engrave_headstone",
       targetCharacterId: target.id,
-      reason,
       details: { spent: ENGRAVE_RESOURCE_COST },
     });
     return { headstone };
@@ -3708,9 +3399,8 @@ async function engraveHeadstoneRequestImpl({
 // Every gate is re-checked here. The button greys itself for a blade and hides
 // itself off a marsh tile, but a server action is a public endpoint and the
 // client's menus are advisory (REQUESTS.md §3).
-async function extractGodfleshRequestImpl({ reason: rawReason }) {
+async function extractGodfleshRequestImpl() {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
 
   const location = character.locationId
     ? await prisma.location.findUnique({
@@ -3787,19 +3477,10 @@ async function extractGodfleshRequestImpl({ reason: rawReason }) {
       "auto:extract",
     );
     effect.actionId = action.id;
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "EXTRACT_GODFLESH",
-      reason,
-      payload: {},
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_extract_godflesh",
       targetCharacterId: character.id,
-      reason,
       details: effect,
     });
   });
@@ -3830,10 +3511,8 @@ async function extractGodfleshRequestImpl({ reason: rawReason }) {
 async function packageItemsRequestImpl({
   lines: rawLines,
   label: rawLabel,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   const label = String(rawLabel ?? "")
     .trim()
@@ -3959,19 +3638,10 @@ async function packageItemsRequestImpl({
       innerLbs,
       contents,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "PACKAGE_ITEMS",
-      reason,
-      payload: { lines, label },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_package_items",
       targetCharacterId: character.id,
-      reason,
       details: effect,
     });
   });
@@ -4202,30 +3872,6 @@ async function birdMessageRequestImpl({
     });
     birdMessageId = row.id;
 
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn.id,
-      type: "BIRD_MESSAGE",
-      reason,
-      payload: {
-        recipientId: recipient.id,
-        guessedZoneId: guessedZone.id,
-        tagId: held.tagId,
-      },
-      effect: {
-        birdMessageId: row.id,
-        recipientId: recipient.id,
-        recipientName: recipient.name,
-        guessedZoneId: guessedZone.id,
-        guessedZoneName: guessedZone.name,
-        tagId: held.tagId,
-        tagName: held.tag.name,
-        // What was written, for the desk. Null on a sealed letter.
-        body,
-        delivered,
-        previousBirdTurnId: character.birdTurnId ?? null,
-      },
-    });
     // THE LETTER ONLY LEAVES YOUR HANDS IF IT ARRIVES. A wrong guess means the
     // bird comes back with it still tied on, and the sender is told a turn
     // later like always. Burning a player's letter as the price of a bad guess
@@ -4236,11 +3882,10 @@ async function birdMessageRequestImpl({
       await addToStack(tx, recipient.id, held.tagId, 1, {});
     }
 
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_bird_message",
       targetCharacterId: recipient.id,
-      reason,
       details: {
         recipientId: recipient.id,
         guessedZoneId: guessedZone.id,

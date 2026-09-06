@@ -121,13 +121,23 @@ ignores `honorific`, `firstName` and `lastName` outright — the three inputs on
 and the server action is the lock. The rest of the Bio form (appearance,
 avatar, opt-ins) is untouched.
 
-The one way through is the **`CHANGE_NAME` request** (`REQUESTS.md` §3),
-reached from the "Change name" button next to those disabled fields: the
-player picks a new honorific/first/last name and gives a reason, it applies
-immediately, and a GM can Undo it from `/gm/turns` like any other request. It
-requires nothing beyond that reason — it used to also spend a Mulligan
-Potion (`docs/tags.yaml`), but that gate has been removed; the tag survives
-as a flavor collectible only. It re-validates the same allowlist/cap/dynasty-
+The one way through is the **Mulligan Potion**, drunk from the "Change name"
+button next to those disabled fields: the player picks a new
+honorific/first/last name, it applies immediately, and **one potion is
+consumed**. There is no reason field and no Undo (`REQUESTS.md` §1) — the
+potion IS the cost, which is the point of gating it on an item rather than on
+a GM reading a justification afterwards.
+
+The gate had been removed at one point, leaving the tag "a flavor collectible
+only" and renaming free. Free renaming quietly undermines every other identity
+rule in the game — the personal Discord role, a wanted poster, a Disguise
+that is supposed to be *temporary* — so it is back. **Mulligan is the
+permanent path and Disguise is the temporary one**, and they do not interact:
+a disguise keeps presenting its `forcedName` over whatever the real name
+becomes (`PROXYING.md` §6).
+
+The potion is brewable (`brewing-skilled`, 2 turns, 8 ⬢) and stocked at the
+Depot, so it is a thing a player can actually get. It re-validates the same allowlist/cap/dynasty-
 lock rules every other writer of `Character.name` enforces, and runs the same
 lightweight Discord fan-out `updateCharacterProfile` used to
 (`ensureCharacterRole`, `syncCharacterNickname`, and

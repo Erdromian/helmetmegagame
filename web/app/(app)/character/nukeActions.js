@@ -6,7 +6,7 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { guarded, UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
-import { createRequest, logRequest } from "@/lib/requests";
+import { logAudit } from "@/lib/requests";
 import {
   DEVICE_SLUG,
   DATACARD_SLUG,
@@ -74,10 +74,8 @@ async function readPointerImpl() {
   return { line, here: Boolean(reading.here) };
 }
 
-async function armNukeImpl({ reason: rawReason }) {
+async function armNukeImpl() {
   const { session, me, slugs } = await holder();
-  const reason = String(rawReason ?? "").trim();
-  if (!reason) throw new UserError("Say why. ‡");
   requireBoth(slugs);
 
   const openTurn = await getOpenTurn();
@@ -95,18 +93,10 @@ async function armNukeImpl({ reason: rawReason }) {
 
   await prisma.$transaction(async (tx) => {
     await tx.gameConfig.update({ where: { id: 1 }, data: { nukeArmedTurn: firesOn } });
-    await createRequest(tx, {
-      characterId: me.id,
-      turnId: openTurn.id,
-      type: "ARM_NUKE",
-      reason,
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_arm_nuke",
       targetCharacterId: me.id,
-      reason,
       details: effect,
     });
   });
@@ -115,10 +105,8 @@ async function armNukeImpl({ reason: rawReason }) {
   return { firesOn };
 }
 
-async function disarmNukeImpl({ reason: rawReason }) {
+async function disarmNukeImpl() {
   const { session, me, slugs } = await holder();
-  const reason = String(rawReason ?? "").trim();
-  if (!reason) throw new UserError("Say why. ‡");
   requireBoth(slugs);
 
   const openTurn = await getOpenTurn();
@@ -134,18 +122,10 @@ async function disarmNukeImpl({ reason: rawReason }) {
 
   await prisma.$transaction(async (tx) => {
     await tx.gameConfig.update({ where: { id: 1 }, data: { nukeArmedTurn: null } });
-    await createRequest(tx, {
-      characterId: me.id,
-      turnId: openTurn.id,
-      type: "DISARM_NUKE",
-      reason,
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_disarm_nuke",
       targetCharacterId: me.id,
-      reason,
       details: effect,
     });
   });

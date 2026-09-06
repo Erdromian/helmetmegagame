@@ -7,7 +7,7 @@ import { prisma } from "@lifeweb/db";
 import { getGmSession, syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { UserError, guarded } from "@/lib/actionResult";
-import { addToStack, dropCharacterTag, grantTagSlugs } from "@/lib/requestEffects";
+import { addToStack, dropCharacterTag, grantTagSlugs } from "@/lib/tagEffects";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 

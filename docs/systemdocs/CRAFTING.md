@@ -90,7 +90,7 @@ desk shows like any Routine.
 
 ## 4. Undo
 
-`web/lib/requestEffects.js` `ADD_TAG.undo`: the tag comes off, replaced tiers
+`web/lib/tagEffects.js` `ADD_TAG.undo`: the tag comes off, replaced tiers
 come back, `resourcesSpent` is refunded to `effect.payer` (an older row
 without one refunds the character), and a project is marked CANCELLED. The
 auto-filed Actions stay — a GM who wants the Move back uses Reject.
@@ -113,4 +113,4 @@ still relies on the Beliefs staying `removable`.
 | Flags in sync | `db/lib/syncTags.js`; catalog `docs/tags.yaml` |
 | Kit in reach | `db/lib/equipmentReach.js`, `web/lib/tagRequests.js#needsWorkshop` |
 | Tier replacement | `db/lib/tagWrites.js#replaceLowerTiers` |
-| Desk | `web/app/(desk)/gm/turns/RequestSections.js` (Craft ‡ / Destroy ‡), `web/lib/requestLabels.js` |
+| What a GM sees | `/gm/audit` (`request_craft_tag`, `request_destroy_tag`) |

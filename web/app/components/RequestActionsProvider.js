@@ -325,12 +325,8 @@ function payerLabel(parties, key) {
 // Look at is the one mode that files no Request AND gets its own plain modal
 // — a local dialog with nothing to review and nothing to undo. Write and Seal
 // file no Request either, but they DO belong in the shared dialog: they have
-// real fields, and reasonRequired={false} is what drops the reason box.
+// real fields, so they still use the shared dialog.
 const NO_REQUEST_MODES = new Set(["examine"]);
-
-// Nothing to adjudicate, so nothing to justify. The letter itself is the
-// record a GM reads (docs/systemdocs/PAPERWORK.md).
-const NO_REASON_MODES = new Set(["bird", "write", "seal", "bindbook", "tearbook"]);
 
 // Why a person is lootable: living cases come from INCAPACITATING_SLUGS
 // (db/lib/incapacitation.js); a corpse says so plainly.
@@ -737,7 +733,7 @@ export default function RequestActionsProvider({
   // Heal-someone-else, Harm's lethal branch, Destroy and any Craft that
   // spends ⬢ or a Move ask twice. Confirm is awaited OUTSIDE
   // startTransition, or the dialog never renders.
-  async function submit(reason) {
+  async function submit() {
     if (mode === "craft" && !projectId && !siteId && chosen) {
       const turns = chosen.requirementTurns ?? 1;
       const qty = chosen.stackable ? Math.max(1, Number(quantity) || 1) : 1;
@@ -804,7 +800,7 @@ export default function RequestActionsProvider({
       const name = harmTargets.find((t) => t.id === targetId)?.name ?? "them";
       const ok = await confirm({
         title: "Finish them off?",
-        message: `This kills ${name}, now and for good. A GM will read your reason afterwards, not before.`,
+        message: `This kills ${name}, now and for good. ‡`,
         confirmLabel: "Kill them",
       });
       if (!ok) return;
@@ -812,41 +808,41 @@ export default function RequestActionsProvider({
 
     setError(null);
     startTransition(async () => {
-      const res = await runAction(reason);
+      const res = await runAction();
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       setMode(null);
     });
   }
 
-  function runAction(reason) {
+  function runAction() {
     switch (mode) {
       case "craft":
         // A build site takes the same two verbs as a project, against the
         // structure instead of the CraftProject.
         if (siteId) {
           return projectChoice === "cancel"
-            ? cancelBuildSite({ structureId: siteId, reason })
-            : joinBuildSite({ structureId: siteId, reason });
+            ? cancelBuildSite({ structureId: siteId })
+            : joinBuildSite({ structureId: siteId });
         }
         if (projectId) {
           return projectChoice === "cancel"
-            ? cancelCraft({ projectId, reason })
-            : continueCraft({ projectId, reason });
+            ? cancelCraft({ projectId })
+            : continueCraft({ projectId });
         }
         // Always sent; the server pins it to 1 for a non-stackable tag anyway.
-        return craftRequest({ tagId, quantity, payerKey, reason });
+        return craftRequest({ tagId, quantity, payerKey });
       case "destroy":
-        return destroyTagRequest({ tagId, quantity, reason });
+        return destroyTagRequest({ tagId, quantity });
       case "learn":
-        return learnRequest({ teacherId: targetId, tagId, reason });
+        return learnRequest({ teacherId: targetId, tagId });
       case "teach":
-        return teachRequest({ learnerId: targetId, tagId, reason });
+        return teachRequest({ learnerId: targetId, tagId });
       case "confess":
-        return confessRequest({ chaplainId: targetId, tagId, reason });
+        return confessRequest({ chaplainId: targetId, tagId });
       case "consume":
-        return consumeTagRequest({ tagId, reason });
+        return consumeTagRequest({ tagId });
       case "extract":
-        return extractGodfleshRequest({ reason });
+        return extractGodfleshRequest();
       case "package":
         return packageItemsRequest({
           lines: Object.entries(packed).map(([id, q]) => ({
@@ -854,14 +850,12 @@ export default function RequestActionsProvider({
             quantity: q,
           })),
           label: crateLabel,
-          reason,
         });
       case "heal":
         return healCharacterRequest({
           targetCharacterId: patientId,
           tagId,
           payerKey,
-          reason,
         });
       case "transfer":
         return transferRequest({
@@ -872,7 +866,6 @@ export default function RequestActionsProvider({
             quantity: q,
           })),
           amount,
-          reason,
         });
       case "loot":
         return lootCharacterRequest({
@@ -882,33 +875,29 @@ export default function RequestActionsProvider({
             quantity: q,
           })),
           amount,
-          reason,
         });
       case "move":
         return moveCharacterRequest({
           targetCharacterId: targetId,
           targetLocationId: locationId,
-          reason,
         });
       case "bind":
-        return bindCharacterRequest({ targetCharacterId: targetId, reason });
+        return bindCharacterRequest({ targetCharacterId: targetId });
       case "free":
-        return freeCharacterRequest({ targetCharacterId: targetId, reason });
+        return freeCharacterRequest({ targetCharacterId: targetId });
       case "crucify":
-        return crucifyCharacterRequest({ targetCharacterId: targetId, reason });
+        return crucifyCharacterRequest({ targetCharacterId: targetId });
       case "harm":
         return harmCharacterRequest({
           targetCharacterId: targetId,
           tagId,
           lethal,
-          reason,
         });
       case "bury": {
         const corpse = corpses.find((c) => corpseIdOf(c) === corpseKey);
         return buryCharacterRequest({
           tagId: corpse?.tagId,
           sourceKey: corpse?.sourceKey,
-          reason,
         });
       }
       case "butcher": {
@@ -916,19 +905,18 @@ export default function RequestActionsProvider({
         return butcherCorpseRequest({
           tagId: corpse?.tagId,
           sourceKey: corpse?.sourceKey,
-          reason,
         });
       }
       case "engrave":
-        return engraveHeadstoneRequest({ firstName: engraveName, reason });
+        return engraveHeadstoneRequest({ firstName: engraveName });
       case "disguise":
-        return disguiseSelfRequest({ name: disguiseName, reason });
+        return disguiseSelfRequest({ name: disguiseName });
       case "pointer":
         return readPointer();
       case "arm":
-        return armNuke({ reason });
+        return armNuke();
       case "disarm":
-        return disarmNuke({ reason });
+        return disarmNuke();
       // Neither files a Request — see web/app/(app)/character/paperActions.js
       // for why. Both still come back as { ok, error } like everything else.
       case "write":
@@ -1143,8 +1131,6 @@ export default function RequestActionsProvider({
             busy={pending}
             error={error}
             canSubmit={canSubmit}
-            // The letter is what a GM reads, so none of the paper verbs ask.
-            reasonRequired={!NO_REASON_MODES.has(mode)}
             onCancel={() => !pending && setMode(null)}
             onConfirm={submit}
           >
