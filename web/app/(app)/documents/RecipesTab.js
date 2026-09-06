@@ -6,7 +6,7 @@ import { EmptyRow } from "@/app/components/EmptyState";
 import TagChip from "@/app/components/TagChip";
 import TagDetailSheet from "@/app/components/TagDetailSheet";
 import { needsWorkshop } from "@/lib/tagRequests";
-import { recipeRows, workLabel } from "@/lib/recipeCatalog";
+import { recipeRows } from "@/lib/recipeCatalog";
 
 // The recipe book, beside the Tag Catalog on /documents and built out of the
 // same rows it is — every craftable tag the reader may see, with its
@@ -225,7 +225,7 @@ function RecipeRow({ row, byId, bySlug, onView }) {
         )}
       </td>
       <td className="text-sm">
-        {workLabel(row.turns)}
+        {row.work}
         {row.ration != null && (
           <span className="block text-xs text-muted">
             {row.rationShared

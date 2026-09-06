@@ -57,6 +57,7 @@ import { useTags } from "./TagsProvider";
 import { heldSlugsOf } from "@/lib/consumeGrants";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import { CUSTOM_SURCHARGE, customCraftFields } from "@/lib/customCraft";
+import { workLabel } from "@/lib/recipeCatalog";
 import {
   craftRequest,
   continueCraft,
@@ -260,20 +261,32 @@ function TagPicker({
                     Requires: {prerequisiteNames(tag).join(", ")}
                   </span>
                 )}
-                {/* The recipe: what it costs and what it needs. Everything
-                    listed already passed the skill check server-side, so
-                    this is the price tag, not a warning. Craft menu only. */}
+                {/* The recipe: what it costs and what it needs — work, ⬢,
+                    skills, INGREDIENTS — all of it the price tag, not a
+                    warning. Everything listed already passed the skill check
+                    server-side. workLabel is the same words the Recipes tab
+                    prints, so the two surfaces cannot disagree. Craft menu
+                    only. */}
                 {byId && tag.craftable && (
                   <span
                     className="mt-1 block text-xs"
                     style={{ color: "var(--accent-text)" }}
                   >
                     {[
-                      `${tag.requirementTurns ?? 1} ${(tag.requirementTurns ?? 1) === 1 ? "turn" : "turns"}`,
+                      workLabel(tag),
                       `${tag.requirementResources ?? 0} ⬢`,
                       ...((tag.requirementSkills ?? []).length
                         ? [tag.requirementSkills.map((s) => s.name).join(", ")]
                         : []),
+                      ...(() => {
+                        const items = tag.requirementItems ?? [];
+                        const spends = items.filter((i) => !i.keep).map((i) => i.label);
+                        const keeps = items.filter((i) => i.keep).map((i) => i.label);
+                        return [
+                          ...(spends.length ? [`uses ${spends.join(" + ")}`] : []),
+                          ...(keeps.length ? [`needs ${keeps.join(" + ")} to hand`] : []),
+                        ];
+                      })(),
                     ].join(" · ")}{" "}
                     ‡
                   </span>

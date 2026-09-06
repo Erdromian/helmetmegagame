@@ -24,6 +24,7 @@
 // from everyone, GMs included, over a line that gives away nothing.
 
 import { DEAD_SIMPLE_PER_TURN, isDeadSimple } from "./tagRequests";
+import { formatMoveFraction } from "./craftBudget";
 
 function joinWithOr(names) {
   if (names.length <= 1) return names[0] ?? "";
@@ -109,22 +110,30 @@ export function recipeDiscipline(tag) {
 //   - otherwise there is NO cap beyond the Move itself.
 export function recipeWork(tag) {
   const turns = tag.requirementTurns ?? 1;
-  // Only 0- and 1-turn recipes read `perTurn` as a per-turn ration. A project
-  // (turns ≥ 2) takes the whole Move every turn it runs, `perTurn` or not —
-  // the same guard craftMoveCost carries (web/lib/craftBudget.js) — so
-  // printing "up to N a turn" on one would be the catalog inventing a rule
-  // the server does not enforce. No such recipe exists today.
-  if (tag.requirementPerTurn != null && turns <= 1) {
-    return { turns, ration: tag.requirementPerTurn, shared: false };
+  const per = tag.requirementPerTurn ?? null;
+  // Two meanings share the perTurn column, told apart by turns (CRAFTING.md
+  // §2): at 0 turns it is a RATION (a hard daily cap); at 1 turn it is the
+  // WORK DENOMINATOR the sync derived from `turnsCost: 1/N` — the fraction
+  // is the story there, not a cap. A project (turns ≥ 2) reads neither.
+  if (turns === 0 && per != null) {
+    return { turns, workDen: null, ration: per, shared: false };
   }
   if (turns === 0 && isDeadSimple(tag)) {
-    return { turns, ration: DEAD_SIMPLE_PER_TURN, shared: true };
+    return { turns, workDen: null, ration: DEAD_SIMPLE_PER_TURN, shared: true };
   }
-  return { turns, ration: null, shared: false };
+  if (turns === 1 && per > 1) {
+    return { turns, workDen: per, ration: null, shared: false };
+  }
+  return { turns, workDen: null, ration: null, shared: false };
 }
 
-export function workLabel(turns) {
+// The work a unit takes, in the player's words — the one label the Recipes
+// tab and the Craft menu both print, so they cannot disagree. Fractional
+// work reads as its fraction; Dead Simple reads as the free action it is.
+export function workLabel(tag) {
+  const { turns, workDen } = recipeWork(tag);
   if (turns === 0) return "No Move";
+  if (workDen) return `${formatMoveFraction(1, workDen)} turn`;
   return turns === 1 ? "1 turn" : `${turns} turns`;
 }
 
@@ -149,6 +158,7 @@ export function recipeRows(tags) {
     .filter((tag) => tag.craftable && !tag.ingredientsWithheld && !tag.placement)
     .map((tag) => {
       const { turns, ration, shared } = recipeWork(tag);
+      const work = workLabel(tag);
       const skills = tag.requirementSkills ?? [];
       // Labels only — `label` is denormalized by the sync (db/lib/tagShapes.js)
       // precisely so a reader of the recipe needs no second query. Spent and
@@ -167,6 +177,7 @@ export function recipeRows(tags) {
         skillLabel: skills.map((s) => s.name).join(" + "),
         kind: tag.groupName ?? "—",
         turns,
+        work,
         ration,
         // A shared ration is spent across every Dead Simple recipe at once, so
         // the row says so rather than implying 4 of THIS one.
