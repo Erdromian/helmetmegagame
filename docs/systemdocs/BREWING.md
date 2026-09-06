@@ -49,19 +49,21 @@ it undercutting the Factory's refining.
 ## 2. Brewing (Basic)
 
 Every ingredient below is **spent** unless the row says *kept*. The Turns
-column is the recipe's own `turnsCost`, written out in the YAML now — three of
-these were missing it, which read as `null` and fell back to a whole Move.
+column is the recipe's own `turnsCost` — a `1/N` is a fraction of a turn's
+work, so three ⅓-turn Alcohol fill one Routine and a spare third takes more
+brewing; a *max N/turn* on a 0-turn row is a `perTurn` ration, the hard cap
+kind (CRAFTING.md §2).
 
 | Brew | ⬢ | Turns | Ingredient | Consumes into |
 |---|---|---|---|---|
-| `bliss` | 0 | 0 (2/turn) | `cave-fungus` | `euphoric`, `high` (3t) |
-| `feces` | 0 | 0 (2/turn) | — | — |
-| `alcohol` | 2 | 1 (3/turn) | — | `tipsy` (and up the ladder — §5a) |
+| `bliss` | 0 | 0 (max 2/turn) | `cave-fungus` | `euphoric`, `high` (3t) |
+| `feces` | 0 | 0 (max 2/turn) | — | — |
+| `alcohol` | 2 | 1/3 | — | `tipsy` (and up the ladder — §5a) |
 | `moonshine` | **0** | 1 | `godflesh` | `tipsy` (ladder, §5a), `blind-drunk` (2t), `damaged-vision` |
 | `miasma` | 2 | 1 | **a corpse** — *kept* | — |
-| `poppy` | 2 | 1 (2/turn) | `poppy-pods` | `opium-high` |
-| `molotov-cocktail` | 2 | 0 (2/turn) | `alcohol` | — |
-| `cleaning-powder` | 2 | 1 (2/turn) | — | — |
+| `poppy` | 2 | 1/2 | `poppy-pods` | `opium-high` |
+| `molotov-cocktail` | 2 | 0 (max 2/turn) | `alcohol` | — |
+| `cleaning-powder` | 2 | 1/2 | — | — |
 | `cat` | 3 | 1 | `alcohol` | `night-vision` (1t) |
 | `nightshade` | 3 | 1 | `nightshade-herb` | — |
 
@@ -72,11 +74,11 @@ these were missing it, which read as `null` and fell back to a whole Move.
 | `pure-luck` | 0 | 1 | `aberrant-heart` | `aberrant-luck` |
 | `graga-sweat` | 2 | 1 | `graga-sac` | `brutish-strength` |
 | `deadeye-drops` | 2 | 1 | `cave-fungus` | `increased-accuracy` |
-| `mercy` | 2 | 1 (2/turn) | `cave-fungus` | `increased-recovery` |
+| `mercy` | 2 | 1/2 | `cave-fungus` | `increased-recovery` |
 | `mindbreaker-toxin` | 2 | 1 | `cave-fungus` | `hallucinating` |
 | `invisibility-potion` | 2 | 1 | `graga-sac` | `invisible` |
 | `raven-draught` | 2 | 1 | `ravens-eye` | — |
-| `ravenheart-red` | 4 | 1 | `alcohol` | `tipsy` (and up the ladder — §5a) |
+| `ravenheart-red` | 4 | 1/2 | `alcohol` | `tipsy` (and up the ladder — §5a) |
 | `distilled-coca` | 4 | 1 | `coca-leaves` | `stimulant-high` |
 | `advanced-poppy` | 4 | 1 | `poppy` | `pain-immunity` |
 | `phrygian-tears` | 4 | 2 | — | — |
@@ -158,35 +160,32 @@ whether somebody's fishing trip counted.
 
 ## 5. Yields
 
-A few brews come out in a batch, and **the ration is enforced now** rather than
-being a sentence in the player's paper: `requirement.perTurn` is the number,
-and a craft past it is refused. The number is still written into the **Alcohol
-& Drugs** document's Turns column, phrased the same way every time — "yields up
-to N per turn".
+Two different numbers used to share one field here; they are two concepts
+now (CRAFTING.md §2, Chris 2026-09-06). A brew that comes out in a batch
+authors its WORK as a fraction — `turnsCost: 1/3` — and the arithmetic does
+the rest: three Alcohol fill one Routine, one Alcohol leaves two thirds of
+it for other brewing work. A hard RATION — `perTurn`, 0-turn recipes only —
+caps a Dead Simple brew below the shared pool of 4.
 
-| Brew | Per turn | Turns |
+| Brew | turnsCost (work each) | perTurn (ration) |
 |---|---|---|
-| `alcohol` | 3 | 1 |
-| `bliss` | 2 | 0 |
-| `feces` | 2 | 0 |
-| `molotov-cocktail` | 2 | 0 |
-| `poppy` | 2 | 1 |
-| `cleaning-powder` | 2 | 1 |
-| `mercy` | 2 | 1 |
-| `ravenheart-red` | 2 | 1 |
-| `lavish-meal` | 3 | 1 |
-| `fine-meal` | 4 | 1 |
-| `bone-mask` | 1 | 0 |
-
-**Every row is enforced now.** A 0-turn recipe's `perTurn` is its free
-allowance, with units past it spilling into the Move; a 1-turn recipe's
-`perTurn` is its batch size, and a batch spends `quantity/perTurn` of the
-Move — three Alcohol is one Routine, one Alcohol leaves two thirds of it for
-other brewing work (`CRAFTING.md` §2a).
+| `alcohol` | 1/3 | — |
+| `lavish-meal` | 1/3 | — |
+| `fine-meal` | 1/4 | — |
+| `poppy` | 1/2 | — |
+| `cleaning-powder` | 1/2 | — |
+| `mercy` | 1/2 | — |
+| `ravenheart-red` | 1/2 | — |
+| `bliss` | 0 | 2 |
+| `feces` | 0 | 2 |
+| `molotov-cocktail` | 0 | 2 |
+| `bone-mask` | 0 | 1 |
 
 `bone-mask` is not a brew, but it is the other recipe the ration exists for: 0
-turns and a `butcher` gate put it outside the Dead Simple pool as well as
-outside the Move, so one corpse would have minted masks forever.
+turns and a `butcher` gate put it outside the Dead Simple pool, so one corpse
+would have minted masks forever. Its skill derives a `butcher` family now
+like any other (CRAFTING.md §2a), so a mask past the ration spills into the
+Move instead of walling.
 
 **The ⬢ cost is per unit, and it multiplies.** Three alcohols in one turn cost
 6 ⬢, not 2. Every yield row in the document carries an `{info:…}` tooltip

@@ -98,11 +98,13 @@ Crafting is always filed as a Routine now, never a Gambit — the Craft button
 recipes still need no Move at all, just the per-turn unit cap below
 (`CRAFTING.md`).
 
-A recipe may also set **`requirement.perTurn`**, its own ration, counted per
-recipe rather than against the shared Dead Simple pool below. At `turnsCost:
-0` it replaces that pool as the free allowance; at `turnsCost: 1` it is a
-batch size, and the recipe spends `quantity/perTurn` of the Move
-([`CRAFTING.md`](CRAFTING.md) §2a).
+A 0-turn recipe may also set **`requirement.perTurn`**, its own RATION,
+replacing the shared Dead Simple pool below as its free allowance (bone-mask
+at 1). Work is never written there: a recipe cheaper than a whole turn
+authors `turnsCost: 1/N`, and `quantity × work` against the Move is the only
+quantity limit a Move-costing recipe has ([`CRAFTING.md`](CRAFTING.md)
+§2–§2a). A plain `turnsCost: 1` rung — every tiered weapon — makes one per
+Routine by that arithmetic.
 
 **Dead Simple gives you 4 free items per character per turn.** It is the only
 rung that costs 0 turns, so nothing else rations it. The allowance counts

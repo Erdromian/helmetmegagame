@@ -79,6 +79,9 @@ const FAMILY_LABELS = {
   smithing: "smith's",
   builder: "building",
   crafting: "crafting",
+  // Off-trade families — any skill prefix can be one now (tagRequests.js).
+  butcher: "butcher's",
+  blessing: "blessing",
 };
 
 export function craftFamilyLabel(family) {
@@ -90,10 +93,18 @@ export function craftFamilyLabel(family) {
 //   free   — no Move at all: a 0-turn recipe inside its free allowance.
 //   spill  — some units free, the rest billed at 1/allowance each. Chris's
 //            ruling: the allowance is free, going past it costs the Move.
-//   capped — past the allowance with no craft family to bill it to (bone-mask
-//            is gated on `butcher` alone), so the ration is a hard wall.
-//   share  — a recipe with a `perTurn` ration and a Move to pay: quantity/N.
-//   whole  — the whole Move. A plain 1-turn recipe, or a turn on a project.
+//   capped — past the allowance with no craft family to bill it to. Every
+//            recipe derives a family now (tagRequests.js), so this is
+//            defensive rather than reachable; kept for rows priced before
+//            the generalization.
+//   share  — a 1-turn recipe with a Move to pay: quantity × its per-unit
+//            work. The work is 1/N of a turn when the YAML writes
+//            `turnsCost: 1/N` (the sync stores that as requirementTurns 1 +
+//            requirementPerTurn N), and a whole turn otherwise — so
+//            `turnsCost: 1` makes one per Routine by plain arithmetic
+//            (Chris 2026-09-06). Before this, "whole" priced the Move and
+//            not the units, and one Routine bought 99 Broadswords.
+//   whole  — the whole Move: a turn on a project.
 //
 // `allowance`/`freeLeft` are only read on a 0-turn recipe: the ration and how
 // much of it today's turn has left. The caller counts those — the server off
@@ -136,15 +147,16 @@ export function craftMoveCost(
   // prices at 1/1, and a start that priced as a fraction would disagree with
   // every turn after it. No such recipe exists today; this keeps the first
   // one from finding the seam.
-  if (turns === 1 && family && perTurn > 0) {
+  if (turns === 1 && family) {
+    const batch = perTurn > 0 ? perTurn : 1;
     return {
       kind: "share",
       family,
       freeQty: 0,
       billedQty: quantity,
       num: quantity,
-      den: perTurn,
-      allowance: perTurn,
+      den: batch,
+      allowance: batch,
     };
   }
   return {

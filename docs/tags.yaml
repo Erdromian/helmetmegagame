@@ -149,9 +149,14 @@
 #                     One shared block covers whichever direction applies to
 #                     a given tag - e.g. crafting a sword only cares about the
 #                     cost to add it, curing Arthritis only about removing it.
-#     turnsCost     - Moves spent. For a craft, 0 means Dead Simple (no Move,
-#                     rationed per turn), 1 means this turn's Routine, more
-#                     means a multi-turn project.
+#     turnsCost     - the WORK one unit takes, in Moves. For a craft, 0 means
+#                     Dead Simple (no Move, rationed per turn), 1 means this
+#                     turn's whole Routine, more means a multi-turn project
+#                     (one unit per project). A FRACTION `1/N` means a unit
+#                     is 1/N of a turn's work, so N of them fill a Routine
+#                     and a spare half-turn takes more work of the same
+#                     family. Quantity is limited by this arithmetic alone -
+#                     never by a separate cap (Chris 2026-09-06).
 #     resourceCost  - ⬢, charged up front by Craft, per unit
 #     skills        - list of skill tag slugs required; multiple accepted
 #     gambit        - cures only: whether the medic rolls a Gambit. Crafting
@@ -159,12 +164,13 @@
 #                     medic's own tier is a Gambit whatever this says; this
 #                     field is for the top rung, which even an Expert rolls
 #                     for (docs/systemdocs/TAGS.md §5c).
-#     perTurn       - units of this recipe one character may make in a turn.
-#                     Only meaningful at turnsCost: 0 — anything costing a
-#                     Move is already rationed to one by the turn's single
-#                     Action. Omit it and a Dead Simple recipe falls back to
-#                     DEAD_SIMPLE_PER_TURN (4), which is what all of them
-#                     used before this was a field.
+#     perTurn       - a RATION: units of this recipe one character may make
+#                     in a turn. ONLY legal at turnsCost: 0, where it caps a
+#                     Dead Simple recipe below the shared pool (bliss at 2).
+#                     Omit it and a Dead Simple recipe falls back to
+#                     DEAD_SIMPLE_PER_TURN (4). It is never a work cost -
+#                     write work as turnsCost: 1/N; the sync refuses perTurn
+#                     on anything that costs a Move.
 #   expiresInto     - what this tag turns INTO when its durationTurns runs
 #                     out, instead of simply being swept away. This is the
 #                     untreated-wound chain: Infected festers, Festering goes
@@ -7426,9 +7432,8 @@ tags:
       # Written out for the reason Bliss's was: an absent turnsCost read as 1
       # by accident, and this recipe's own paper says "up to 4 Fine meals in
       # one Routine Move" — which is a 1-turn batch, now enforced.
-      turnsCost: 1
+      turnsCost: 1/4
       resourceCost: 2
-      perTurn: 4
       skills: [cooking-basic]
       gambit: false
   lavish-meal:
@@ -7453,11 +7458,10 @@ tags:
     requirement:
       # Written out rather than left to the `?? 1` fallback — an absent
       # turnsCost is how Bliss quietly cost a Move it wasn't meant to.
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 3
       # Its own copy has always said "up to 3 per Routine"; now the catalog
       # says it too.
-      perTurn: 3
       skills: [cooking-skilled]
       gambit: false
       # The one recipe the cook chooses an ingredient for. All three are Depot
@@ -9480,9 +9484,8 @@ tags:
     consumesInto:
       - tipsy
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
-      perTurn: 3
       skills: [brewing-basic]
       gambit: false
     sellable: true
@@ -9565,13 +9568,12 @@ tags:
     consumesInto:
       - tipsy
     requirement:
-      turnsCost: 1
+      turnsCost: 1/2
       resourceCost: 4
       # The paper has always said "yields up to 2 per turn"; every sibling's
       # yield was written out and enforced in the ingredient pass, and this
       # one row got missed — at 4 ⬢ against a sell of 14, an unrationed
       # Routine was the last open version of the hole the pass closed.
-      perTurn: 2
       skills: [brewing-skilled]
       gambit: false
       # Wine is made OF something now (Chris 2026-09-05): each bottle spends
@@ -9658,9 +9660,8 @@ tags:
     craftable: true
     consumable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/2
       resourceCost: 2
-      perTurn: 2
       skills: [brewing-basic]
       gambit: false
     sellable: true
@@ -9713,9 +9714,8 @@ tags:
     consumesInto:
       - opium-high
     requirement:
-      turnsCost: 1
+      turnsCost: 1/2
       resourceCost: 2
-      perTurn: 2
       skills: [brewing-basic]
       gambit: false
       items: [poppy-pods]
@@ -9810,7 +9810,10 @@ tags:
       gambit: false
       items: [saltpeter]
     sellable: true
-    sellablePrice: 14
+    # Re-derived at the Skilled rung when the grenade dropped off Gunpowder
+    # (DEPOT.md §4's formula: 6 + round(5 × 1^1.3) = 11; 14 was the
+    # Gunpowder-rate answer).
+    sellablePrice: 11
 
   phrygian-tears:
     catalog: all
@@ -9992,9 +9995,8 @@ tags:
     consumesInto:
       - increased-recovery
     requirement:
-      turnsCost: 1
+      turnsCost: 1/2
       resourceCost: 2
-      perTurn: 2
       skills: [brewing-skilled]
       gambit: false
       items: [cave-fungus]

@@ -24,6 +24,7 @@ const {
   normalizePlacement,
   validatePlacement,
   validateCustomizable,
+  normalizeTurnsCost,
 } = require("./tagShapes");
 const { normalizeDesireLocks, validateDesireLocks } = require("./desireShapes");
 const { desireFamilyKeys } = require("./desireFamilies");
@@ -672,10 +673,12 @@ async function syncTagsFromYaml(prisma) {
       expiresInto: normalizeExpiresInto(entry.expiresInto),
       escalatesInto: entry.escalatesInto ?? null,
       removesInto: normalizeRemovesInto(entry.removesInto),
-      requirementTurns: entry.requirement?.turnsCost ?? null,
+      // turnsCost "1/N" lands as requirementTurns 1 + requirementPerTurn N
+      // (the work fraction); an authored perTurn survives only on a 0-turn
+      // ration — normalizeTurnsCost refuses every other pairing.
+      ...normalizeTurnsCost(entry.requirement, { slug: entry.slug }),
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,
-      requirementPerTurn: entry.requirement?.perTurn ?? null,
       requirementItems: normalizeRequirementItems(entry.requirement?.items, { tagNameBySlug, groupNameBySlug }),
       laborBonus: normalizeLaborBonus(entry.laborBonus),
       placement: normalizePlacement(entry.placement),

@@ -124,11 +124,14 @@ export function needsWorkshop(tag) {
 // Routine at the still and half at the anvil.
 //
 // The family is the skill slug's prefix, so `brewing-basic` and
-// `brewing-skilled` are one family and a new rung joins it for free. A gate
-// that is not a craft skill is ignored — barbed-net's `fundamentalist` sits
-// beside `crafting` and the recipe is crafting; bone-mask names `butcher` and
-// nothing else, so it has NO family and can neither lock a Move nor spend
-// from one. It stays the free, rationed action it is.
+// `brewing-skilled` are one family and a new rung joins it for free —
+// barbed-net's `fundamentalist` sits beside `crafting` and the recipe is
+// crafting. A recipe gated outside the five trades takes its first skill
+// prefix AS its family (bone-mask is `butcher` work, holy water `blessing`
+// work), and a recipe with no skill at all is generic `craft` — EVERY
+// recipe is Move-priced by the same arithmetic (Chris 2026-09-06); before
+// this, a family-less recipe couldn't spend the Move at all, which is what
+// let one Routine hold 99 of a thing.
 const CRAFT_FAMILIES = ["brewing", "cooking", "smithing", "builder", "crafting"];
 
 export function craftFamily(tag) {
@@ -136,13 +139,15 @@ export function craftFamily(tag) {
   // comes back from Prisma unordered, and "first matching skill" would make
   // a two-craft-skill recipe's family depend on row order. No such recipe
   // exists today; the first one shouldn't find a nondeterministic seam.
-  const prefixes = new Set(
-    (tag?.requirementSkills ?? []).map((skill) => (skill?.slug ?? "").split("-")[0]),
+  const prefixes = (tag?.requirementSkills ?? []).map(
+    (skill) => (skill?.slug ?? "").split("-")[0],
   );
+  const set = new Set(prefixes);
   for (const family of CRAFT_FAMILIES) {
-    if (prefixes.has(family)) return family;
+    if (set.has(family)) return family;
   }
-  return null;
+  // Sorted for the same determinism reason as the walk above.
+  return [...set].filter(Boolean).sort()[0] ?? "craft";
 }
 
 export function transferableTags(characterTags = []) {

@@ -36,15 +36,20 @@ of it:
   refunded on cancel or on undo-by-GM of a mid-project turn. Paid by
   **yourself, a Room stash here, or a person standing here** (payer select;
   a person is DM'd "*X paid N ⬢ from your purse toward Y*").
-- `turnsCost` — Moves of work. **0** is Dead Simple: no Move, rationed to
-  `DEAD_SIMPLE_PER_TURN` units a turn (SMITHING.md §2). **1** is this turn's
-  Routine. **2+** is a project (§3).
-- `perTurn` — units of this recipe one character may make in a turn, counted
-  per recipe. At `turnsCost: 0` it is the free allowance; omit it and a Dead
-  Simple recipe falls back to the shared `DEAD_SIMPLE_PER_TURN` pool of 4. At
-  `turnsCost: 1` it is the **batch size**: the recipe costs `quantity/perTurn`
-  of the Move instead of all of it, so three Alcohol fill a Routine and one
-  leaves room for two more (§2a).
+- `turnsCost` — the WORK one unit takes, in Moves. **0** is Dead Simple: no
+  Move, rationed to `DEAD_SIMPLE_PER_TURN` units a turn (SMITHING.md §2).
+  **1** is this turn's whole Routine — one per turn, by arithmetic. **`1/N`**
+  is a fraction of it: an Alcohol is `1/3`, so three fill a Routine and a
+  spare third takes more same-family work. **2+** is a project (§3), one
+  unit per project. Quantity is limited by this arithmetic alone (Chris
+  2026-09-06); the sync stores `1/N` as `requirementTurns: 1` +
+  `requirementPerTurn: N`, the engine's share encoding.
+- `perTurn` — a RATION, and **only legal at `turnsCost: 0`**: a hard daily
+  cap below the Dead Simple pool (bliss at 2, bone-mask at 1). It is never a
+  work cost — the sync refuses it on anything that costs a Move, because
+  for a while it did double duty as the work fraction and the two meanings
+  drifted (one Routine held 99 Broadswords). Work is `turnsCost`; the cap is
+  `perTurn`.
 - `items` — the ingredients (`CORPSES.md` §8). **Spent by default**,
   `quantity` units per craft, taken off the crafter's own sheet **when the
   work starts** — so a multi-turn project pays up front and `continueCraft`
@@ -79,9 +84,9 @@ rule is one family of work per turn, and one Move's worth of it.
 |---|---|
 | `turnsCost: 0`, inside its free allowance | nothing — a free action, as before |
 | `turnsCost: 0`, past the allowance | `1/allowance` per extra unit (a fifth Dead Simple item is ¼ of a Move) |
-| `turnsCost: 1` with `perTurn: N` | `quantity/N` |
-| `turnsCost: 1` with no `perTurn` | the whole Move |
-| `turnsCost: 2+` — a project start or continue | the whole Move, every turn it runs |
+| `turnsCost: 1/N` | `quantity/N` — each unit is 1/N of a turn's work |
+| `turnsCost: 1` | `quantity/1` — one is a turn's work |
+| `turnsCost: 2+` — a project start or continue | the whole Move, every turn it runs — and ONE unit per project, its turns being per piece |
 
 The allowance is the recipe's own `perTurn`, or the shared Dead Simple pool of
 4. Going past it used to be refused outright; the ruling (2026-09-05) is that
@@ -96,11 +101,13 @@ untouched; the fifth costs it.
 
 **The family.** `craftFamily()` (`web/lib/tagRequests.js`) is the recipe's
 first `requirementSkills` slug whose prefix is one of `brewing`, `cooking`,
-`smithing`, `builder`, `crafting`. Other gates are ignored: barbed-net's
-`fundamentalist` sits beside `crafting` and the recipe is crafting. A recipe
-with **no** craft family — bone-mask, gated on `butcher` alone — can neither
-lock a Routine nor spend from one, so its ration stays a hard wall and going
-past it is refused the way it always was.
+`smithing`, `builder`, `crafting` — barbed-net's `fundamentalist` sits
+beside `crafting` and the recipe is crafting. A recipe gated outside the
+five trades takes its first skill prefix AS its family (bone-mask is
+`butcher` work, holy water `blessing` work), and one with no skill at all is
+generic `craft` — so EVERY recipe Move-prices by the same arithmetic (Chris
+2026-09-06). Bone-mask's ration spilling into a butcher's Move, instead of
+walling, is the one behavior this changed.
 
 A turn's Routine commits to one family. Half a Routine at the still and half
 at the anvil is not a thing, and that includes the Dead Simple pool: spill a

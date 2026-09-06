@@ -815,11 +815,18 @@ export default function RequestActionsProvider({
         max,
         family ? left + unitsAffordable(craftRemaining, per) : left,
       );
-    } else if (turns === 1 && family && perTurn > 0) {
-      // A one-turn batch spends quantity/perTurn of the Move (craftMoveCost's
-      // "share"), so the field stops where the Move does — the same clamp the
-      // server enforces with its "more than a turn's work" refusal.
-      max = Math.min(max, unitsAffordable(craftRemaining, perTurn));
+    } else if (turns === 1) {
+      // The server's batch rule: `perTurn` or ONE per turn of work. A family
+      // recipe stops where the Move does; the odd no-family one (holy water)
+      // stops at the count itself.
+      const batch = perTurn > 0 ? perTurn : 1;
+      max = Math.min(
+        max,
+        family ? unitsAffordable(craftRemaining, batch) : batch,
+      );
+    } else {
+      // A project's turns are per piece — it makes one at a time.
+      max = 1;
     }
     return Math.max(1, max);
   }, [

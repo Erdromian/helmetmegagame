@@ -1138,12 +1138,21 @@ async function craftRequestImpl({
 
   // Real work: this turn's Move, and a project if it takes more than one.
   //
-  // A recipe that sets a `perTurn` batch spends a FRACTION of the Move —
-  // quantity/perTurn — so a brewer's Routine holds three Alcohol, or one
-  // Alcohol and two Cats, rather than one bottle and a wasted day. Everything
-  // else takes the Move whole, and a project takes it whole every turn it
-  // runs, so it can never share one.
+  // Quantity is limited by WORK ARITHMETIC and nothing else (Chris
+  // 2026-09-06): a unit costs its `turnsCost` of the Move — a whole turn,
+  // or the 1/N a fractional recipe authors — so a brewer's Routine holds
+  // three ⅓-turn Alcohol and a smith's holds ONE broadsword, and a spare
+  // half-turn takes more same-family work or none. A project takes the Move
+  // whole every turn it runs, so it can never share one — and it makes ONE
+  // unit, its turns being per piece; wanting two means starting it twice.
+  if (turns > 1 && quantity > 1) {
+    throw new UserError(
+      `That's ${turns} turns of work apiece — make them one at a time. ‡`,
+    );
+  }
   const moveCost = craftMoveCost(tag, { quantity });
+  // The cross-submission count — for a fractional recipe, `perTurn` holds
+  // its work denominator, so this and the budget agree by construction.
   const ration = async (db) => {
     if (perTurn == null || !openTurn) return;
     const already = await unitsOfTagThisTurn(

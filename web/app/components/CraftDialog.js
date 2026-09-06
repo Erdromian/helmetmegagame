@@ -348,8 +348,8 @@ export default function CraftDialog({
                         `No Move needed for the first ${allowance.per} simple things a turn — shared across all of them — and ${allowance.left} of those are left today. ‡`
                     : "No Move needed. ‡"
                   : turns === 1
-                    ? moveCost?.kind === "share"
-                      ? `One turn of work, and ${formatMoveFraction(moveCost.num, moveCost.den)} of your Move — up to ${moveCost.allowance} a turn. ‡`
+                    ? moveCost?.kind === "share" && moveCost.allowance > 1
+                      ? `${formatMoveFraction(1, moveCost.allowance)} of a turn's work each — ${formatMoveFraction(moveCost.num, moveCost.den)} of your Move for this order, up to ${moveCost.allowance} a turn. ‡`
                       : "One turn of work — this is your Move for the turn. ‡"
                     : chosen.placement
                       ? // The crew-turns pitch, said at the point of decision:

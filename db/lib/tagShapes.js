@@ -185,6 +185,49 @@ function joinWithOr(names) {
   return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
 }
 
+// requirement.turnsCost carries the WORK one unit takes: an integer number
+// of Moves, or a `1/N` fraction — a brew that is a third of a turn's work is
+// `turnsCost: 1/3`, and three of them fill a Routine (Chris 2026-09-06, the
+// work-arithmetic concept: quantity is limited by work, never by a separate
+// cap). Internally a fraction stores as requirementTurns: 1 +
+// requirementPerTurn: N — the engine's existing share encoding — so this is
+// an authoring surface, not a schema change. `perTurn:` itself is ONLY legal
+// on a 0-turn recipe, where it is a RATION (a hard daily cap below the Dead
+// Simple pool's 4); writing it on anything that costs a Move is refused,
+// because that is the double-duty this function exists to end.
+function normalizeTurnsCost(requirement, { slug }, label = "docs/tags.yaml") {
+  const raw = requirement?.turnsCost;
+  const perTurn = requirement?.perTurn ?? null;
+  let turns = null;
+  let workDen = null;
+  if (raw == null) {
+    turns = null;
+  } else if (Number.isInteger(raw) && raw >= 0) {
+    turns = raw;
+  } else if (typeof raw === "string" && /^1\/[2-9][0-9]*$/.test(raw.trim())) {
+    turns = 1;
+    workDen = Number(raw.trim().slice(2));
+  } else {
+    throw new Error(
+      `${label}: tag "${slug}" requirement.turnsCost must be a whole number of Moves or a "1/N" fraction — got ${JSON.stringify(raw)}`,
+    );
+  }
+  if (perTurn != null) {
+    if (!Number.isInteger(perTurn) || perTurn < 1) {
+      throw new Error(`${label}: tag "${slug}" requirement.perTurn must be a positive integer`);
+    }
+    if ((turns ?? 1) !== 0) {
+      throw new Error(
+        `${label}: tag "${slug}" sets perTurn on a recipe that costs a Move — perTurn is a 0-turn ration; write the work as turnsCost: 1/${perTurn} instead`,
+      );
+    }
+  }
+  return {
+    requirementTurns: turns,
+    requirementPerTurn: workDen ?? perTurn,
+  };
+}
+
 function normalizeRequirementItems(entries, { tagNameBySlug = null, groupNameBySlug = null } = {}, label = "docs/tags.yaml") {
   if (entries == null) return null;
   if (!Array.isArray(entries)) throw new Error(`${label}: requirement.items must be a list`);
@@ -485,6 +528,7 @@ module.exports = {
   validateEscalatesInto,
   validateEscalationChains,
   rollTagChain,
+  normalizeTurnsCost,
   normalizeRequirementItems,
   validateRequirementItems,
   normalizePlacement,

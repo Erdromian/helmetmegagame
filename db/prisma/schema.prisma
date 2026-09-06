@@ -2142,18 +2142,23 @@ model Tag {
   // requirementResources and needs requirementSkills held by the medic;
   // Craft (docs/systemdocs/CRAFTING.md) needs requirementSkills held by the
   // crafter, charges requirementResources up front, and spends
-  // requirementTurns Moves (0 = Dead Simple, no Move). requirementGambit is
-  // a cure-only flag: crafting is always a Routine.
+  // requirementTurns Moves of work per unit (0 = Dead Simple, no Move; the
+  // YAML's fractional `turnsCost: 1/N` stores as 1 here with N in
+  // requirementPerTurn below). requirementGambit is a cure-only flag:
+  // crafting is always a Routine.
   requirementTurns     Int?
   requirementResources Int?
   requirementGambit    Boolean @default(false)
 
-  // How many UNITS of this recipe one character may make in a turn. On a
-  // 0-turn recipe it is the free ration; on a 1-turn recipe it is the BATCH
-  // size — quantity/perTurn of the Move each (web/lib/craftBudget.js). Null
-  // on a 0-turn recipe falls back to DEAD_SIMPLE_PER_TURN
-  // (web/lib/tagRequests.js), which is what every Dead Simple rung used
-  // before this was a field. See SMITHING.md §2, CRAFTING.md §2a.
+  // Two authoring concepts share this column, told apart by requirementTurns
+  // (CRAFTING.md §2). At 0 turns it is a RATION — the YAML's `perTurn:`, a
+  // hard daily cap below the Dead Simple pool; null falls back to
+  // DEAD_SIMPLE_PER_TURN (web/lib/tagRequests.js). At 1 turn it is the WORK
+  // DENOMINATOR the sync derives from `turnsCost: 1/N` — each unit is 1/N
+  // of a turn's work (web/lib/craftBudget.js), and null means a whole turn:
+  // one per Routine by arithmetic. Never authored directly on a Move-costing
+  // recipe (normalizeTurnsCost refuses it). A project (2+ turns) makes one
+  // unit, full stop.
   requirementPerTurn Int?
   requirementSkills  Tag[] @relation("TagRequirementSkill")
   requiredForSkillOf Tag[] @relation("TagRequirementSkill")
