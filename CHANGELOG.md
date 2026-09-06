@@ -6,6 +6,18 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · A pass over the tag catalog: fighting skills, mountaineering, and softer drawbacks
+
+✎ Melee (Clubs) and Shield Wall come down to 8, Duelist to 9, and Guerrilla to 5 — the fighting specialisations were priced past what most builds could reach  
+✎ Mountaineering costs 2 instead of 3, and the Ravine and the Outcrop now open to it rather than to Caving — climbing had one room to Caving's three  
+✎ Caving goes up to 4  
+✎ Depressed, Deaf, Tremor, Arthritis, Night Blind and Migraine all refund fewer points; Glass Jaw refunds one more  
+✎ Pretty and Beautiful cost 3 each and can only be bought at creation  
+✎ Soft Hands no longer forbids the Laboring skills — the half-⬢ penalty is the whole tag  
+✎ Clumsy and Stealth now refuse each other  
+✎ Craven only locks Desires about bravery now, not violence and adventure as well  
+− Insomniac
+
 ## 2026-09-05 · Avatars sit on a plate that falls into shade
 
 ✎ Every avatar background now darkens toward the bottom, so a face, a helm and a letter plaque all read as lit from above instead of pasted onto a flat slab  
