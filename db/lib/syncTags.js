@@ -21,6 +21,7 @@ const {
   validateRemovesInto,
   normalizePlacement,
   validatePlacement,
+  validateCustomizable,
 } = require("./tagShapes");
 const { normalizeDesireLocks, validateDesireLocks } = require("./desireShapes");
 const { desireFamilyKeys } = require("./desireFamilies");
@@ -529,6 +530,9 @@ async function syncTagsFromYaml(prisma) {
       tag: t,
       knownSlugs: allTagSlugs,
     });
+    // customizable — the custom-craft opt-in (CRAFTING.md): craftable and
+    // stackable only, and never alongside placement.
+    validateCustomizable(t, { slug: t.slug });
     // desires.locks — validated via the shared desireShapes rules. A missing
     // docs/desires.yaml yields an empty family set, so this only throws when
     // a tag actually names one.
@@ -651,6 +655,7 @@ async function syncTagsFromYaml(prisma) {
       defaultDurationTurns: entry.durationTurns ?? null,
       removable: entry.removable ?? false,
       craftable: entry.craftable ?? false,
+      customizable: entry.customizable ?? false,
       healable: entry.healable ?? false,
       teachable: entry.teachable ?? false,
       psychological: entry.psychological ?? false,

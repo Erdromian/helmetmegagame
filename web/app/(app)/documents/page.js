@@ -230,6 +230,7 @@ export default async function DocumentsPage() {
     removable: t.removable,
     tradeable: t.tradeable,
     craftable: t.craftable,
+    customizable: t.customizable,
     healable: t.healable,
     teachable: t.teachable,
     purchasable: t.purchasable,

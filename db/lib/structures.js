@@ -37,6 +37,7 @@ function placementOf(tag) {
     laborBonus: p.laborBonus ?? null,
     provides: Array.isArray(p.provides) ? p.provides : [],
     link: p.link === "hold_open" || p.link === "hold_shut" ? p.link : null,
+    inscribable: p.inscribable === true,
   };
 }
 

@@ -4,6 +4,14 @@ import PartySelect from "./PartySelect";
 import Select from "./Select";
 import { needsWorkshop } from "@/lib/tagRequests";
 import { craftFamilyLabel, formatMoveFraction } from "@/lib/craftBudget";
+import {
+  CUSTOM_SURCHARGE,
+  CUSTOM_NAME_MAX,
+  CUSTOM_DESCRIPTION_MAX,
+  INSCRIPTION_MAX,
+  customCraftFields,
+  customCraftName,
+} from "@/lib/customCraft";
 import QuantityField from "./QuantityField";
 
 // The body of the Craft dialog (docs/systemdocs/CRAFTING.md). State lives in
@@ -52,6 +60,15 @@ export default function CraftDialog({
   ingredientPick = null,
   ingredientChoice = "",
   onIngredientChoice,
+  // Custom-item fields on a `customizable` recipe, and the builder's line on
+  // an inscribable placement (CRAFTING.md). Raw as typed — the shared
+  // cleaner in web/lib/customCraft.js is the one verdict on what counts.
+  customName = "",
+  onCustomName,
+  customDescription = "",
+  onCustomDescription,
+  inscription = "",
+  onInscription,
   payerKey,
   onPayer,
   parties,
@@ -70,7 +87,14 @@ export default function CraftDialog({
   ));
   const turns = chosen?.requirementTurns ?? 1;
   const qty = Math.max(1, Number(quantity) || 1);
-  const cost = (chosen?.requirementResources ?? 0) * (chosen?.stackable ? qty : 1);
+  // The same shared verdict the server bills by: customized words are
+  // +CUSTOM_SURCHARGE ⬢ a unit, and blank-after-cleaning fields cost nothing.
+  const custom = chosen?.customizable
+    ? customCraftFields({ customName, customDescription })
+    : null;
+  const cost =
+    ((chosen?.requirementResources ?? 0) + (custom?.active ? CUSTOM_SURCHARGE : 0)) *
+    (chosen?.stackable ? qty : 1);
   // Smith's work needs a forge in reach (SMITHING.md). Said here so a player
   // sees it before committing; craftRequest re-checks it regardless — and
   // grants the same fieldwork exemption the server does, or the hint would
@@ -243,6 +267,54 @@ export default function CraftDialog({
                     them. ‡
                   </p>
                 ))}
+              {chosen.customizable && (
+                <>
+                  <label className="field">
+                    <span className="field-label">Name it (optional) ‡</span>
+                    <input
+                      type="text"
+                      value={customName}
+                      onChange={(e) => onCustomName(e.target.value)}
+                      autoComplete="off"
+                      maxLength={CUSTOM_NAME_MAX}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Describe it (optional) ‡</span>
+                    <textarea
+                      value={customDescription}
+                      onChange={(e) => onCustomDescription(e.target.value)}
+                      rows={2}
+                      maxLength={CUSTOM_DESCRIPTION_MAX}
+                    />
+                  </label>
+                  {custom?.active && (
+                    <p className="text-xs text-muted">
+                      Your words on your work, +{CUSTOM_SURCHARGE} ⬢ each. It
+                      will read as “{customCraftName(chosen.name, custom.name)}”. ‡
+                    </p>
+                  )}
+                </>
+              )}
+              {chosen.placement?.inscribable && (
+                <>
+                  <label className="field">
+                    <span className="field-label">
+                      Write something on it (optional) ‡
+                    </span>
+                    <textarea
+                      value={inscription}
+                      onChange={(e) => onInscription(e.target.value)}
+                      rows={2}
+                      maxLength={INSCRIPTION_MAX}
+                    />
+                  </label>
+                  <p className="text-xs text-muted">
+                    Whoever examines it will read your words in place of the
+                    usual line. ‡
+                  </p>
+                </>
+              )}
               {cost > 0 && (
                 <PartySelect
                   label="Paid for by ‡"

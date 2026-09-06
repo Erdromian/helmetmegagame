@@ -4183,6 +4183,9 @@ tags:
     placement:
       fieldwork: true
       examine: "it stands at the wayside."
+      # The builder may write a line on it (CRAFTING.md): their words REPLACE
+      # the examine above in the readout. Blank keeps the stock text.
+      inscribable: true
 
   drying-racks:
     catalog: all
@@ -5028,10 +5031,39 @@ tags:
       resourceCost: 0
       skills: [artist]
       gambit: false
+    customizable: true
     sellable: true
     # Nerfed 20% from 60. Over its 4 turns that is 12 ⬢/turn, still the best
     # per-turn rate a craftable pays, just no longer runaway.
     sellablePrice: 48
+
+  # Exists to be made CUSTOM (customizable, CRAFTING.md): +1 ⬢ on the base
+  # cost buys the maker's own name and words on the thing — a crew's mark, a
+  # society's pin, a joke. A plain one can be made too. DRAFT numbers
+  # (Chris 2026-09-05), not signed off.
+  badge:
+    catalog: all
+    name: Badge
+    category: items
+    group: items-gear
+    description: "A small emblem worked in tin, pinned where it can be seen. Says who you are without a word. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    customizable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [crafting]
+      gambit: false
+    sellable: true
+    sellablePrice: 2
 
   # --- Caves Update loot -------------------------------------------------
   # New found-only items for the Caving Die's loot table. See
@@ -6741,6 +6773,7 @@ tags:
     purchasableAfterStart: false
     removable: true
     craftable: true
+    customizable: true
     consumable: true
     consumesInto:
       - ate-meal
@@ -6768,6 +6801,7 @@ tags:
     purchasableAfterStart: false
     removable: true
     craftable: true
+    customizable: true
     consumable: true
     consumesInto:
       - ate-meal
@@ -9737,6 +9771,36 @@ tags:
     weight: 1
     purchasable: false
     purchasableAfterStart: false
+
+  # The headgear twin of the Badge above — a flavor piece that exists to be
+  # made CUSTOM (customizable, CRAFTING.md). No concealment, no armor: it is
+  # a statement, not a mask. DRAFT numbers (Chris 2026-09-05).
+  hat:
+    catalog: all
+    name: Hat
+    category: items
+    group: items-headgear
+    description: "A hat with some character to it. Keeps the weather off, and says something about the head underneath. ‡"
+    pointCost: 0
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 4
+    visible: true
+    tradeable: true
+    weight: 1
+    stackable: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    customizable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 3
+      skills: [crafting]
+      gambit: false
+    sellable: true
+    sellablePrice: 3
 
   hood:
     catalog: all

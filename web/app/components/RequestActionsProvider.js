@@ -56,6 +56,7 @@ import { useConfirm } from "./ConfirmProvider";
 import { useTags } from "./TagsProvider";
 import { heldSlugsOf } from "@/lib/consumeGrants";
 import { scoreMatch } from "@/lib/fuzzySearch";
+import { CUSTOM_SURCHARGE, customCraftFields } from "@/lib/customCraft";
 import {
   craftRequest,
   continueCraft,
@@ -472,6 +473,13 @@ export default function RequestActionsProvider({
   const [projectChoice, setProjectChoice] = useState("continue");
   // Which member of a recipe's `anyOf` ingredient goes in (Craft only).
   const [ingredientChoice, setIngredientChoice] = useState("");
+  // The custom-item fields on a `customizable` recipe, and the builder's
+  // line on an inscribable placement (CRAFTING.md). Raw as typed — the
+  // shared cleaner (web/lib/customCraft.js) decides what they amount to, on
+  // both sides, so the +1 ⬢ shown is the +1 ⬢ billed.
+  const [customName, setCustomName] = useState("");
+  const [customDescription, setCustomDescription] = useState("");
+  const [inscription, setInscription] = useState("");
   const [recipient, setRecipient] = useState("");
   const [patientId, setPatientId] = useState("");
   const [payerKey, setPayerKey] = useState("");
@@ -793,6 +801,9 @@ export default function RequestActionsProvider({
     setTagId(nextTagId);
     setQuantity("1");
     setIngredientChoice("");
+    setCustomName("");
+    setCustomDescription("");
+    setInscription("");
   }
 
   // Loot takes a mix, so its picks are a checkbox set rather than one choice.
@@ -851,6 +862,9 @@ export default function RequestActionsProvider({
       setPaperId("");
       setPaperBody("");
       setBookTitle("");
+      setCustomName("");
+      setCustomDescription("");
+      setInscription("");
       setBookBody("");
       setPaperExisting(null);
       setStampId("");
@@ -1015,6 +1029,9 @@ export default function RequestActionsProvider({
           tagId,
           quantity,
           payerKey,
+          customName,
+          customDescription,
+          inscription,
           ingredientChoice: ingredientChoiceValue,
           // What the confirm just showed as billable against the Move — 0
           // when it read as free. The server refuses to bill past this, so a
@@ -1179,7 +1196,14 @@ export default function RequestActionsProvider({
         if (!chosen) return false;
         // A recipe with a pick and nothing to pick from cannot be made at all.
         if (ingredientPick && !ingredientChoiceValue) return false;
-        const cost = (chosen.requirementResources ?? 0) * craftQty;
+        // Custom words are +CUSTOM_SURCHARGE ⬢ a unit — the same shared
+        // verdict the server bills by (web/lib/customCraft.js).
+        const surcharge =
+          chosen.customizable &&
+          customCraftFields({ customName, customDescription }).active
+            ? CUSTOM_SURCHARGE
+            : 0;
+        const cost = ((chosen.requirementResources ?? 0) + surcharge) * craftQty;
         // A 0-turn craft inside its free allowance never needed a Move and
         // still doesn't; everything else has to fit in what the turn has left
         // (CRAFTING.md §2a). craftRequest refuses the same cases regardless.
@@ -1352,6 +1376,12 @@ export default function RequestActionsProvider({
                   setIngredientChoice(slug);
                   setQuantity("1");
                 }}
+                customName={customName}
+                onCustomName={setCustomName}
+                customDescription={customDescription}
+                onCustomDescription={setCustomDescription}
+                inscription={inscription}
+                onInscription={setInscription}
                 payerKey={payerKey}
                 onPayer={setPayerKey}
                 parties={healParties}

@@ -2287,6 +2287,15 @@ model Tag {
   requirementSkills  Tag[] @relation("TagRequirementSkill")
   requiredForSkillOf Tag[] @relation("TagRequirementSkill")
 
+  // This recipe may be crafted as a CUSTOM item: +1 ⬢ a unit, and the player
+  // names and/or describes it. The craft then mints a runtime Tag row —
+  // custom+ephemeral, the paperMint.js door — cloning this tag's mechanics
+  // with the player's words on top, and grants that row instead. YAML
+  // `customizable: true` on the designated recipes only; the sync refuses it
+  // on anything not craftable+stackable, or carrying `placement`
+  // (db/lib/tagShapes.js). See CRAFTING.md.
+  customizable Boolean @default(false)
+
   // The INGREDIENT half of a recipe, and the first of these ever enforced —
   // BREWING.md's "no code enforces a recipe, least of all the ingredient" is
   // no longer true of the two entries that carry this. Authored in
@@ -3087,6 +3096,13 @@ model CraftProject {
   // column existed.
   consumed      Json?
 
+  // Pending custom-item fields (`{ name?, description? }`) for a customizable
+  // recipe's multi-turn project — held here until the finishing turn, when
+  // continueCraftImpl mints the runtime row and grants it. Null on an
+  // ordinary project. The +1 ⬢ a unit was charged into resourcesCost when
+  // the work started, like everything else.
+  custom Json?
+
   status        CraftStatus @default(ACTIVE)
   startedTurnId String
   // The turn whose Routine last advanced it — one advance per turn.
@@ -3152,6 +3168,13 @@ model Structure {
 
   builderCharacterId String?
   builderName        String?
+
+  // The builder's optional line, offered only where the type's
+  // `placement.inscribable` says so (the wayside shrine). When set it
+  // REPLACES placement.examine in the Examine readout — and prints WITHOUT
+  // the ‡, because these are a player's words, not drafted copy. Sanitized
+  // on the way in (web/lib/customCraft.js): no rich tokens, no ‡, no @.
+  inscription String?
 
   // The pre-authored modular LocationLink this structure holds open (a
   // bridge) or shut (a gate a palisade grew). NEVER creates a link —

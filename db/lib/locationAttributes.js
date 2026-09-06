@@ -180,11 +180,21 @@ function structureLines(ctx = {}) {
     // own. They pick the ‡ up on the way out.
     const note = structure.placement?.defenseNote;
     const noteLines = note ? [`**Defense**: ${note} ‡`] : [];
+    // The builder's inscription replaces the stock examine fragment — and
+    // prints WITHOUT the ‡, because these are a player's words, not drafted
+    // copy (sanitized on the way in by web/lib/customCraft.js). » is the
+    // quoted-player-content prefix, same as everywhere else.
+    const inscribed = structure.inscription?.trim();
     switch (structure.status) {
       case "UNDER_CONSTRUCTION":
         return [`**${typeName}**: going up, ${structure.turnsDone} of ${structure.turnsNeeded} days done. ‡`];
       case "COMPLETE":
-        return [`**${typeName}**: ${structure.placement?.examine ?? "it stands here."} ‡`, ...noteLines];
+        return [
+          inscribed
+            ? `**${typeName}**: »${inscribed}`
+            : `**${typeName}**: ${structure.placement?.examine ?? "it stands here."} ‡`,
+          ...noteLines,
+        ];
       case "DAMAGED":
         return [`**${typeName}**: it's damaged. ‡`, ...noteLines];
       case "RUINED":

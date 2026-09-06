@@ -331,6 +331,9 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
   if (raw.link != null && raw.link !== "hold_open" && raw.link !== "hold_shut") {
     throw new Error(`${label}: placement.link must be "hold_open" or "hold_shut"`);
   }
+  if (raw.inscribable != null && typeof raw.inscribable !== "boolean") {
+    throw new Error(`${label}: placement.inscribable must be a boolean`);
+  }
   let laborBonus = null;
   if (raw.laborBonus != null) {
     if (typeof raw.laborBonus !== "object" || Array.isArray(raw.laborBonus)) {
@@ -357,7 +360,33 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     laborBonus,
     provides: raw.provides ?? [],
     link: raw.link ?? null,
+    // The builder may write a line on the finished thing
+    // (Structure.inscription) — their words replace `examine` in the
+    // readout. The wayside shrine's flag; see CRAFTING.md.
+    inscribable: raw.inscribable === true,
   };
+}
+
+// `customizable:` — the recipe may be crafted as a player-named custom item
+// (CRAFTING.md; the craft mints a custom+ephemeral row via the paperMint.js
+// door). Three rules, each closing a real hole rather than expressing taste:
+// not craftable and nothing would ever mint one; not stackable and the
+// one-per-character checks (craftGrantChecks, tier replacement) compare the
+// BASE tag's id against held ids, which a minted row never matches — so a
+// non-stackable custom would dodge its own exclusivity; and a `placement:`
+// recipe is a Structure with its own words (placement.inscribable), not a
+// pocket item to rename.
+function validateCustomizable(entry, { slug, label = "docs/tags.yaml" }) {
+  if (!entry?.customizable) return;
+  if (!entry.craftable) {
+    throw new Error(`${label}: tag "${slug}" is customizable but not craftable — nothing would ever mint one`);
+  }
+  if (!entry.stackable) {
+    throw new Error(`${label}: tag "${slug}" is customizable but not stackable — a minted custom row dodges the base recipe's one-per-character checks`);
+  }
+  if (entry.placement) {
+    throw new Error(`${label}: tag "${slug}" is customizable and carries placement — a structure takes placement.inscribable, not a custom name`);
+  }
 }
 
 // Two things the shape alone can't catch: a placement block on a tag nothing
@@ -419,4 +448,5 @@ module.exports = {
   validateRequirementItems,
   normalizePlacement,
   validatePlacement,
+  validateCustomizable,
 };

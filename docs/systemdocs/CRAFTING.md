@@ -197,6 +197,49 @@ each behind its own already-done flag — `replacedRestored` and
 `consumedRestored` — so a second Confirm cannot hand either out twice. `undo`
 reads those flags before restoring, for the same reason.
 
+## 4a. Custom items (`customizable`)
+
+A recipe flagged `customizable:` in docs/tags.yaml (the two meals, the
+painting, the badge, the hat) can be crafted as the maker's OWN: for
+**+1 ⬢ a unit** (`CUSTOM_SURCHARGE`, web/lib/customCraft.js) the player sets
+a name and/or a description, and either falls back to the base recipe's when
+left blank. The displayed name always carries the base identity —
+`Steak Dinner (Lavish Meal)`, or `Lavish Meal (custom)` for a
+description-only custom — so every surface says what the thing IS and a
+custom name cannot impersonate another item.
+
+Mechanically it is the **fifth runtime authoring door** onto the tag catalog
+(db/lib/paperMint.js lists the other four): `mintCustomCraft` in
+requestActions.js clones the base row — `custom: true` (sync never sees it,
+prune skips it), `ephemeral: true` (Restart Game sweeps it),
+`craftable: false` (an item, never a recipe) — and the craft grants the
+clone. Everything else runs against the BASE recipe: skills, workshop,
+ingredients, the Move budget, and the per-turn rations (the grant records
+`payload.baseTagId`, and all three counters in web/lib/requests.js bill by
+it). Identical words reuse the existing mint, so a second batch of the same
+dish stacks; the mint happens OUTSIDE the craft transaction because the
+name-collision retry cannot run inside one (paperMint.js's 25P02 trap), and
+is deleted again if the transaction fails.
+
+Player words are cleaned by `cleanCustomText` (web/lib/customCraft.js): no
+`{}` (a description must not forge a `{tag:…}` chip), no `‡` (these are the
+player's words — they ship UNMARKED, the paper/book-title precedent), no `@`
+(item names travel into Discord), no control characters, hard length caps.
+There is no GM pre-approval — same posture as paper and book titles — and
+Reject/Undo and the dev panel remain the recourse.
+
+The **wayside shrine** is the structure-side variant: `placement.inscribable`
+lets the builder write an optional line, stored on `Structure.inscription`
+and printed by Examine IN PLACE of `placement.examine`, `»`-prefixed and
+unmarked. Blank keeps the stock text.
+
+Two deliberate exclusions. The Depot's price book filters `ephemeral` rows,
+so a custom painting never becomes a public line with a player's words on it
+(selling one still works — the sell path reads the held row). And
+`customizable` is refused at sync on anything not craftable+stackable or
+carrying `placement` (db/lib/tagShapes.js#validateCustomizable) — a
+non-stackable custom would dodge the base recipe's one-per-character checks.
+
 ## 5. Destroy
 
 `destroyTagRequest`: drops a `removable` tag you hold, rolls `removesInto`

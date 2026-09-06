@@ -141,6 +141,14 @@ import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryAdmits, rowWeight } from "@lifeweb/db/lib/carry";
 import { rollDie } from "@lifeweb/db/lib/moveEffects";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
+import { createWithRetry } from "@lifeweb/db/lib/paperMint";
+import {
+  CUSTOM_SURCHARGE,
+  INSCRIPTION_MAX,
+  cleanCustomText,
+  customCraftFields,
+  customCraftName,
+} from "@/lib/customCraft";
 import { formatManifest } from "@lifeweb/db/lib/roomStash";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
 import {
@@ -790,6 +798,84 @@ async function stampLedgerRequest(tx, action, budget, requestId) {
 
 // The finished thing lands on the sheet: the replaced tiers come off, the
 // tag goes on with its clock, and the ADD_TAG request records all of it.
+// The FIFTH runtime authoring door onto the tag catalog (db/lib/paperMint.js
+// lists the other four): a `customizable` recipe crafted with player words
+// mints a clone of the base row — custom + ephemeral, `craftable: false` so
+// it is an ITEM and never a recipe — and the craft grants THAT row. Runs
+// OUTSIDE the craft transaction, deliberately: createWithRetry's P2002 retry
+// is unusable inside one (paperMint.js documents the 25P02 trap), and the
+// composed name collides ROUTINELY — the same cook naming the same dish
+// twice is the normal case, not the freak one. Two answers, in order: an
+// identical existing mint (same name, same words) is REUSED, so the second
+// batch of "Steak Dinner (Lavish Meal)" stacks onto the first; a same-name,
+// different-words mint picks up a "(2)" via the retry. The caller deletes a
+// freshly minted row if the transaction it fed then fails.
+//
+// What is deliberately NOT copied: the requirement block (an item has no
+// recipe to advertise), depotPrice (the Depot's book must never list a
+// player's words — its query also filters `ephemeral` as a second lock),
+// and catalogVisibility (the GM default keeps a mint out of the public
+// catalog; referenceData ships an ephemeral row only to who holds it).
+async function mintCustomCraft(db, baseTag, { name, description }) {
+  const composedName = customCraftName(baseTag.name, name);
+  const composedDescription = description || baseTag.description;
+  const existing = await db.tag.findFirst({
+    where: {
+      custom: true,
+      ephemeral: true,
+      name: composedName,
+      description: composedDescription,
+    },
+  });
+  if (existing) return { tag: existing, minted: false };
+  const stamp = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 7);
+  const tag = await createWithRetry(db, (attempt) => ({
+    slug: `custom-craft-${stamp}-${rand}${attempt ? `-${attempt}` : ""}`,
+    name: attempt ? `${composedName} (${attempt + 1})` : composedName,
+    description: composedDescription,
+    custom: true,
+    ephemeral: true,
+    craftable: false,
+    customizable: false,
+    pointCost: 0,
+    category: baseTag.category,
+    groupId: baseTag.groupId ?? null,
+    tradeable: baseTag.tradeable,
+    weightLbs: baseTag.weightLbs,
+    stackable: baseTag.stackable,
+    inspectVisibility: baseTag.inspectVisibility,
+    equippable: baseTag.equippable,
+    equipSlot: baseTag.equipSlot,
+    equipLayer: baseTag.equipLayer,
+    removable: baseTag.removable,
+    consumable: baseTag.consumable,
+    consumesInto: baseTag.consumesInto,
+    consumesIntoOneOf: baseTag.consumesIntoOneOf ?? undefined,
+    consumesIntoUnless: baseTag.consumesIntoUnless ?? undefined,
+    consumesIntoDurations: baseTag.consumesIntoDurations ?? undefined,
+    consumesIntoResources: baseTag.consumesIntoResources,
+    sellable: baseTag.sellable,
+    sellablePrice: baseTag.sellablePrice,
+    defaultDurationTurns: baseTag.defaultDurationTurns,
+    expiresInto: baseTag.expiresInto ?? undefined,
+  }));
+  if (!tag)
+    throw new UserError("Couldn't find a free name for that — try different words. ‡");
+  return { tag, minted: true };
+}
+
+// Best-effort undo of a mint whose craft transaction failed: the guard on
+// `custom` means this can never touch a catalog row, and a row somebody
+// already holds is FK-pinned and simply survives (prune's problem, not
+// ours). Failures are swallowed — the craft's own error is the one to show.
+async function unmintCustomCraft(db, grant) {
+  if (!grant?.minted) return;
+  await db.tag
+    .deleteMany({ where: { id: grant.tag.id, custom: true, ephemeral: true } })
+    .catch(() => {});
+}
+
 async function grantCrafted(
   tx,
   {
@@ -804,6 +890,10 @@ async function grantCrafted(
     project = null,
     action = null,
     consumed = [],
+    // The base RECIPE when `tag` is a minted custom row — what the ration
+    // counters bill this grant against (web/lib/requests.js reads
+    // payload.baseTagId), and what a GM reading the request sees it was.
+    baseTag = null,
     reason,
   },
 ) {
@@ -830,6 +920,7 @@ async function grantCrafted(
       quantity,
       resourcesSpent: cost,
       payerKey: `${payer.kind}:${payer.id}`,
+      ...(baseTag ? { baseTagId: baseTag.id } : {}),
     },
     effect: {
       tagId: tag.id,
@@ -837,6 +928,7 @@ async function grantCrafted(
       quantity,
       resourcesSpent: cost,
       payer: payerParty,
+      ...(baseTag ? { baseTagId: baseTag.id, baseTagName: baseTag.name } : {}),
       ...(project
         ? { projectId: project.id, turnsNeeded: project.turnsNeeded }
         : {}),
@@ -882,6 +974,14 @@ async function craftRequestImpl({
   // re-checked for membership and possession like everything else a client
   // sends.
   ingredientChoice,
+  // The custom-item fields (CRAFTING.md), honored only on a `customizable`
+  // recipe. cleanCustomText decides what survives — the same shared helper
+  // the dialog priced the +1 ⬢ with, so client and server cannot disagree
+  // about whether a whitespace-only name counts.
+  customName,
+  customDescription,
+  // The builder's line, honored only where placement.inscribable says so.
+  inscription,
   // How many units the dialog TOLD the player would bill against their Move
   // (0 when it showed the craft as free). The server refuses to bill more
   // than was acknowledged: a stale tab whose free allowance ran out
@@ -911,7 +1011,11 @@ async function craftRequestImpl({
   // stacks — have nothing to say about it. It never carries ingredients
   // either; the sync refuses that pairing (db/lib/tagShapes.js).
   if (placement)
-    return openBuildSiteImpl(character, session, tag, { payerKey, reason });
+    return openBuildSiteImpl(character, session, tag, {
+      payerKey,
+      reason,
+      inscription,
+    });
   const replaced = await craftGrantChecks(character, tag);
 
   const quantity = tag.stackable
@@ -924,8 +1028,16 @@ async function craftRequestImpl({
     quantity,
     ingredientChoice,
   );
+  // Customizing is +CUSTOM_SURCHARGE ⬢ a unit, like every other per-unit
+  // cost. Fields posted against a non-customizable recipe are ignored, not
+  // refused — the same posture as quantity on a non-stackable.
+  const custom = tag.customizable
+    ? customCraftFields({ customName, customDescription })
+    : { name: "", description: "", active: false };
   const turns = tag.requirementTurns ?? 1;
-  const cost = (tag.requirementResources ?? 0) * quantity;
+  const cost =
+    ((tag.requirementResources ?? 0) + (custom.active ? CUSTOM_SURCHARGE : 0)) *
+    quantity;
   const payer = await resolveCraftPayer(character, payerKey, cost);
   const openTurn = await getOpenTurn();
 
@@ -978,6 +1090,10 @@ async function craftRequestImpl({
     acknowledgeBill(moveCost);
     if (moveCost.kind === "spill")
       await resolveCraftMove(character, openTurn, moveCost);
+    // Minted before the transaction (see mintCustomCraft for why), unwound
+    // after it only if the transaction fails and the row was fresh.
+    const grant = custom.active ? await mintCustomCraft(prisma, tag, custom) : null;
+    try {
     await prisma.$transaction(async (tx) => {
       // One lock for all the racy things: the ration counts, the ingredient
       // stacks, the grant re-check, and the Move ledger (spendCraftMove takes
@@ -1019,7 +1135,8 @@ async function craftRequestImpl({
       const request = await grantCrafted(tx, {
         session,
         character,
-        tag,
+        tag: grant?.tag ?? tag,
+        baseTag: grant ? tag : null,
         quantity,
         openTurn,
         replaced: replacedNow,
@@ -1031,13 +1148,17 @@ async function craftRequestImpl({
       });
       await stampLedgerRequest(tx, action, budget, request.id);
     });
+    } catch (err) {
+      await unmintCustomCraft(prisma, grant);
+      throw err;
+    }
     await afterInventoryChange([
       character.id,
       payer.kind === "character" ? payer.id : null,
     ]);
     payerNotice(character, payer, cost, tag);
     revalidateAll();
-    return { made: craftLabel(tag, quantity) };
+    return { made: craftLabel(grant?.tag ?? tag, quantity) };
   }
 
   // Real work: this turn's Move, and a project if it takes more than one.
@@ -1066,6 +1187,12 @@ async function craftRequestImpl({
   await resolveCraftMove(character, openTurn, moveCost);
   const finishes = turns === 1;
   let done = false;
+  // A finishing craft mints now (outside the tx — mintCustomCraft says why);
+  // a longer project carries the words on CraftProject.custom instead, and
+  // continueCraftImpl mints them on the finishing turn.
+  const grant =
+    custom.active && finishes ? await mintCustomCraft(prisma, tag, custom) : null;
+  try {
   await prisma.$transaction(async (tx) => {
     // Ingredients go in when the work starts, the same moment the ⬢ do — and
     // like the ⬢ they never come back if the project is abandoned. A project
@@ -1101,6 +1228,10 @@ async function craftRequestImpl({
         turnsDone: 1,
         resourcesCost: cost,
         consumed: consumed.length ? consumed : undefined,
+        custom:
+          custom.active && !finishes
+            ? { name: custom.name, description: custom.description }
+            : undefined,
         payerKey: `${payer.kind}:${payer.id}`,
         payerName: payer.name,
         startedTurnId: openTurn.id,
@@ -1112,7 +1243,8 @@ async function craftRequestImpl({
       const request = await grantCrafted(tx, {
         session,
         character,
-        tag,
+        tag: grant?.tag ?? tag,
+        baseTag: grant ? tag : null,
         quantity,
         openTurn,
         replaced: replacedNow,
@@ -1147,6 +1279,10 @@ async function craftRequestImpl({
       });
     }
   });
+  } catch (err) {
+    await unmintCustomCraft(prisma, grant);
+    throw err;
+  }
   await afterInventoryChange([
     character.id,
     payer.kind === "character" ? payer.id : null,
@@ -1154,7 +1290,7 @@ async function craftRequestImpl({
   payerNotice(character, payer, cost, tag);
   revalidateAll();
   return done
-    ? { made: craftLabel(tag, quantity) }
+    ? { made: craftLabel(grant?.tag ?? tag, quantity) }
     : { started: craftLabel(tag, quantity), turns };
 }
 
@@ -1213,7 +1349,21 @@ async function continueCraftImpl({ projectId, reason: rawReason }) {
   const next = project.turnsDone + 1;
   const done = next >= project.turnsNeeded;
   const replaced = done ? await craftGrantChecks(character, tag) : [];
-
+  // The words stored when the work began (already cleaned then; cleaned
+  // again here because re-sanitizing is free and stored JSON is still
+  // input). Minted outside the tx — mintCustomCraft says why — and unwound
+  // if the transaction fails.
+  const pendingCustom =
+    done && project.custom && typeof project.custom === "object"
+      ? customCraftFields({
+          customName: project.custom.name,
+          customDescription: project.custom.description,
+        })
+      : { active: false };
+  const grant = pendingCustom.active
+    ? await mintCustomCraft(prisma, tag, pendingCustom)
+    : null;
+  try {
   await prisma.$transaction(async (tx) => {
     const claim = await tx.craftProject.updateMany({
       where: { id: project.id, status: "ACTIVE", turnsDone: project.turnsDone },
@@ -1244,7 +1394,8 @@ async function continueCraftImpl({ projectId, reason: rawReason }) {
       const request = await grantCrafted(tx, {
         session,
         character,
-        tag,
+        tag: grant?.tag ?? tag,
+        baseTag: grant ? tag : null,
         quantity: project.quantity,
         openTurn,
         replaced: replacedNow,
@@ -1279,10 +1430,14 @@ async function continueCraftImpl({ projectId, reason: rawReason }) {
       });
     }
   });
+  } catch (err) {
+    await unmintCustomCraft(prisma, grant);
+    throw err;
+  }
   if (done) await afterInventoryChange(character.id);
   revalidateAll();
   return done
-    ? { made: craftLabel(tag, project.quantity) }
+    ? { made: craftLabel(grant?.tag ?? tag, project.quantity) }
     : {
         continued: craftLabel(tag, project.quantity),
         turnsDone: next,
@@ -1593,9 +1748,16 @@ async function openBuildSiteImpl(
   character,
   session,
   tag,
-  { payerKey, reason },
+  { payerKey, reason, inscription },
 ) {
   const placement = placementOf(tag);
+  // The builder's line, only where the type invites one (the wayside
+  // shrine's placement.inscribable). Cleaned by the shared helper — no rich
+  // tokens, no ‡, no @ — and it prints in Examine in place of the stock
+  // examine fragment (db/lib/locationAttributes.js#structureLines).
+  const inscribed = placement?.inscribable
+    ? cleanCustomText(inscription, INSCRIPTION_MAX)
+    : "";
   const location = await loadBuildGround(character.locationId);
   const ground = canBuildHere(location);
   if (!ground.ok) throw new UserError(ground.reason);
@@ -1640,6 +1802,7 @@ async function openBuildSiteImpl(
         builderName: character.name,
         startedTurnId: openTurn.id,
         linkId: boundLink?.id ?? null,
+        inscription: inscribed || null,
       },
     });
     structureId = site.id;

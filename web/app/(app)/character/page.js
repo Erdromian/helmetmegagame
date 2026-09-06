@@ -299,6 +299,9 @@ export default async function CharacterPage() {
         // undefined and drops purchasable-only tags from the Add Tag menu.
         purchasableAfterStart: true,
         craftable: true,
+        // The custom-item opt-in (CRAFTING.md): the Craft dialog shows its
+        // name/description fields only when this crosses.
+        customizable: true,
         // A craftable carrying `placement` is raised on the ground instead
         // of landing in a pocket (db/lib/structures.js). The whole JSON
         // crosses rather than a boolean: the menu needs `unique` too, and

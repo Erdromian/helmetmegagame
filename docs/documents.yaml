@@ -374,6 +374,14 @@ documents:
         piece of smith's work you can do without a forge, because otherwise
         nobody could ever make the first one. ‡
       - {tag:painting} — 4 turns and nothing else, if you have Artist. ‡
+      - {tag:badge} — 2 ⬢, 1 turn, Crafting. ‡
+      - {tag:hat} — 3 ⬢, 1 turn, Crafting. ‡
+
+      **Make it your own.** A few crafts — the {tag:badge}, the {tag:hat},
+      the {tag:painting}, and a cook's meals — can be made as YOURS: pay 1 ⬢
+      extra per piece and give it your own name and description. A named
+      piece always shows what it is underneath, so a "Dockers' Mark (Badge)"
+      is still plainly a badge. ‡
 
   caving:
     name: Caving
@@ -419,6 +427,8 @@ documents:
 
       **{tag:fine-meal}:** cost 2 ⬢ per meal. You can make up to 4 Fine meals in one Routine Move.
       **{tag:lavish-meal}:** cost 3 ⬢ per meal, plus one imported delicacy per meal — {tag:tea}, {tag:sweets} or {tag:honey}, your pick, and it is used up. You can make up to 3 Lavish meals in one Routine Move. ‡
+
+      **A dish of your own.** Either meal can be cooked as a signature dish for 1 ⬢ extra per meal: you name it and describe it, and it still plainly shows what it is — "Steak Dinner (Lavish Meal)". ‡
   alcoholdrugs:
     name: Alcohol & Drugs
     public: true

@@ -57,13 +57,21 @@ export function craftAllowance(tag) {
 // what was granted. They used to disagree (this one read `effect.quantity`),
 // which was harmless while nothing but a cap depended on it and is not now
 // that a count decides how much of a Move a craft spends.
+// A custom craft grants a MINTED row and records the recipe it came off as
+// `payload.baseTagId` (grantCrafted) — the ration is a fact about the
+// RECIPE, so every counter here bills against that id, or three custom
+// Lavish Meals would dodge the three-a-turn the plain ones obey.
+function effectiveTagId(payload) {
+  return payload?.baseTagId ?? payload?.tagId;
+}
+
 export async function unitsOfTagThisTurn(db, characterId, turnId, tagId) {
   const filed = await db.request.findMany({
     where: { characterId, turnId, type: "ADD_TAG", status: { not: "UNDONE" } },
     select: { payload: true },
   });
   return filed.reduce((sum, r) => {
-    if (r.payload?.tagId !== tagId) return sum;
+    if (effectiveTagId(r.payload) !== tagId) return sum;
     return sum + (Number(r.payload?.quantity) || 0);
   }, 0);
 }
@@ -76,7 +84,7 @@ export async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
     select: { payload: true },
   });
   const filedTagIds = [
-    ...new Set(filed.map((r) => r.payload?.tagId).filter(Boolean)),
+    ...new Set(filed.map((r) => effectiveTagId(r.payload)).filter(Boolean)),
   ];
   const filedTags = filedTagIds.length
     ? await db.tag.findMany({
@@ -90,7 +98,7 @@ export async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
     : [];
   const deadSimpleIds = new Set(filedTags.filter(isDeadSimple).map((t) => t.id));
   return filed.reduce((sum, r) => {
-    if (!deadSimpleIds.has(r.payload?.tagId)) return sum;
+    if (!deadSimpleIds.has(effectiveTagId(r.payload))) return sum;
     return sum + (Number(r.payload?.quantity) || 0);
   }, 0);
 }
@@ -110,7 +118,7 @@ export async function craftFreeUnits(db, characterId, turnId, tags) {
   });
   const units = new Map();
   for (const r of filed) {
-    const id = r.payload?.tagId;
+    const id = effectiveTagId(r.payload);
     if (!id) continue;
     units.set(id, (units.get(id) ?? 0) + (Number(r.payload?.quantity) || 0));
   }

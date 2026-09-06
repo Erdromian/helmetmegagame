@@ -98,6 +98,7 @@ export const TAG_CHIP_FIELDS = {
   },
   removable: true,
   craftable: true,
+  customizable: true,
   healable: true,
   teachable: true,
   // Minified via formatTagRequirement wherever a description renders.
