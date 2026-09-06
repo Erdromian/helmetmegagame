@@ -817,11 +817,46 @@ tags:
     category: general
     group: general-personality
     description: "Nothing is worth wanting. Locks all Desires. Can be cured by a Chaplain."
-    pointCost: -6
+    # The floor of the Personality band: closes the whole catalog, opens
+    # nothing (DESIRES.md §5, the 2026-09-02 sign-off).
+    pointCost: -8
     purchasable: true
     # Curable + maximally valuable would be a point farm otherwise (R-1).
     purchasableAfterStart: false
     removable: false
+    # Nothing is worth wanting, so nothing else about who you are gets a say.
+    # Every other tag in general-personality except six -- nobility, eunuch,
+    # debtor, poor-swimmer, motion-sickness, lightweight -- which are bodies
+    # and circumstances rather than dispositions. A new Personality tag
+    # belongs on this list unless it is that kind. The Addictions carry their
+    # own edge back to us and are not repeated here (sync pass 6 unions both
+    # directions).
+    conflictsWith:
+      - mad-doctor
+      - esoteric
+      - adventurer
+      - cruel
+      - charitable
+      - torturer
+      - death-wish
+      - schemer
+      - craven
+      - kleptomaniac
+      - superstitious
+      - pacifist
+      - desperate
+      - devoted-follower
+      - hypochondriac
+      - prudish
+      - pyrophobia
+      - acrophobia
+      - claustrophobia
+      - teratophobia
+      - guilt-ridden
+      - insomniac
+      - lazy
+      - hot-headed
+      - corrupt
     desires:
       locks:
         - all: true

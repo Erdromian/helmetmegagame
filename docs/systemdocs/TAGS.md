@@ -144,8 +144,26 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
   shape/bypass posture as `exclusiveConflict` above — every caller's `select`
   must include `conflictsWith`/`conflictsWithIds`. The one-per-group rule the
   Addiction and Restriction groups themselves enforce (at most one of each)
-  is plain `exclusive`, not this field — `conflictsWith` is only for the
-  cross-group edges.
+  is plain `exclusive`, not this field.
+
+  **It is not only for cross-group edges.** Depressed carries the catalog's
+  largest conflict list, and almost all of it points *inside* its own
+  `general-personality` group: it conflicts with every tag there except six,
+  on top of the five Addictions that already point at it from their side.
+  Nothing else about who a character is gets a say once nothing is worth
+  wanting. The six exempt are `nobility`, `eunuch`, `debtor`, `poor-swimmer`,
+  `motion-sickness` and `lightweight` — a station, a body, a debt and three
+  physical facts, which sit in this group by grouping convenience rather than
+  because they are dispositions. **Add a new Personality tag and it belongs on
+  Depressed's list** unless it is that kind of not-really-a-disposition; the
+  rule is "all but those six", not a frozen enumeration.
+
+  That list is `conflictsWith` and deliberately **not** `exclusive` on the
+  group, even though it is close to a one-per-group rule. `exclusive` compares
+  every flagged pair, so setting it would also re-forbid Pacifist + Craven —
+  which the 2026-09-01 merge made legal on purpose (see the `Tag.exclusive`
+  bullet above). Only a named list can say "this one tag crowds out the
+  others" without capping the group.
 - **`Tag.excludedRoleSlugs`** — the one gate that ignores what a character
   holds and looks at their **seat** instead. Authored in `docs/tags.yaml` as
   `excludedRoles: [migrant, mercenary, …]`, a list of role slugs from
@@ -459,7 +477,11 @@ call; it is the only tag that changes the *size* of the per-turn upkeep rather
 than exempting somebody from it (`TURN-ENGINE.md` §2 step 8). **Leper is a
 fifth, at −1** — below the −2 band, and the reason is arithmetic rather than
 taste: it is the `requiredTag` on the Leper's Hood, which costs 0, so at −2 the
-pair would have *paid* a player to take a free hood. Teaching and
+pair would have *paid* a player to take a free hood. **Depressed is a sixth,
+at −8** — between the −7 and −9 bands, and the one price on this page set by a
+rule rather than a feel: `DESIRES.md` §5 prices a Personality tag by how much
+of the Desire catalog it closes against how much it opens, and Depressed
+closes everything and opens nothing, so it is that band's floor. Teaching and
 Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
 (`LESSONS.md` §1).
 
