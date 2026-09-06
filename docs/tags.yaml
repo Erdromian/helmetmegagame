@@ -259,7 +259,7 @@ tags:
     catalog: gm
     name: Hungerless
     category: meta
-    description: "Never flagged hungry, even with insufficient resources."
+    description: "Never flagged hungry, even with insufficient Resources."
     pointCost: 0
     purchasable: false
 
@@ -401,7 +401,7 @@ tags:
     catalog: all
     name: Teaching
     category: skills
-    description: "Can train someone in a skill you have. It's a routine move for you; the learner has to make a Gambit. They'll succeed in a 5 or a 6."
+    description: "Can train someone in a skill you have. It's a Routine move for you; the learner has to make a Gambit. They'll succeed in a 5 or a 6."
     pointCost: 5
     visible: false
     purchasable: true
@@ -413,7 +413,7 @@ tags:
     name: Teaching (Lecturing)
     category: skills
     parentTag: teaching
-    description: "Can train up to three people at the same time. It's a routine move for you; the learner(s) have to make a Gambit. They'll succeed in a 5 or a 6."
+    description: "Can train up to 3 people at the same time. It's a Routine move for you; the learner(s) have to make a Gambit. They'll succeed in a 5 or a 6."
     pointCost: 5
     visible: false
     purchasable: true
@@ -502,7 +502,7 @@ tags:
     psychological: true
     category: general
     group: general-addictions
-    description: "Just one more sweet... Your bottom Desire slot is locked to Desires about food."
+    description: "Just one more sweet… Your bottom Desire slot is locked to Desires about food."
     pointCost: -4
     exclusive: true
     purchasable: true
@@ -613,7 +613,7 @@ tags:
     catalog: gm
     name: Chaplain
     category: general
-    description: "You can cure negative psychological tags like addictions. People can Confess to you pressing the Confess button, consuming their turn. If they confessor rolls a 5 or a 6, the tag is removed."
+    description: "You can cure negative psychological tags like addictions. People can Confess to you pressing the Confess button, consuming their turn. If the confessor rolls a 5 or a 6, the tag is removed."
     pointCost: 0
     purchasable: false
 
@@ -1044,7 +1044,7 @@ tags:
     name: Iron Liver
     category: general
     group: general-traits
-    description: "You can drink grown men under the table. Grown women, too. Even children. After the first, it takes two drinks to move you a rung further down the bottle. ‡"
+    description: "You can drink grown men under the table. Grown women, too. Even children. After the first, it takes 2 drinks to move you a rung further down the bottle. ‡"
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1612,7 +1612,7 @@ tags:
     name: Lazy
     category: general
     group: general-personality
-    description: "You work less hard, producing less resources than others."
+    description: "You work less hard, producing fewer Resources than others."
     pointCost: -4
     requiredTag: laboring-basic
     psychological: true
@@ -1717,7 +1717,7 @@ tags:
     name: Hot-Headed
     category: general
     group: general-personality
-    description: "You like split knuckles, cracked teeth, black eyes—though they look better on the other guy! You actively pick fights where they might not be necessary. Unlocks Desires related to picking fights."
+    description: "You like split knuckles, cracked teeth, black eyes — though they look better on the other guy! You actively pick fights where they might not be necessary. Unlocks Desires related to picking fights."
     pointCost: 2
     visible: false
     purchasable: true
@@ -1777,7 +1777,7 @@ tags:
     name: Existentialist
     category: general
     group: general-beliefs
-    description: "You walk on firm ground\u2014if you can be sure of one thing, it's of your responsibility."
+    description: "You walk on firm ground — if you can be sure of one thing, it's of your responsibility."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1792,7 +1792,7 @@ tags:
     name: Fundamentalist
     category: general
     group: general-beliefs
-    description: "You are hardcore about your Post-Christian beliefs—perhaps more hardcore than the Church itself is. Heresy is a thing that burns. ‡"
+    description: "You are hardcore about your Post-Christian beliefs — perhaps more hardcore than the Church itself is. Heresy is a thing that burns. ‡"
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -2157,7 +2157,7 @@ tags:
     category: skills
     group: skills-crafting
     teachable: true
-    description: "Skilled smithing—the Moderate and higher recipes."
+    description: "Skilled smithing — the Moderate and higher recipes."
     pointCost: 5
     parentTag: smithing
     visible: false
@@ -2492,7 +2492,7 @@ tags:
     category: skills
     group: skills-fighting
     teachable: true
-    description: "You can grapple enemies bare handed. Useful for regular weapon fighting too—lots of fights end up on the ground."
+    description: "You can grapple enemies bare handed. Useful for regular weapon fighting too — lots of fights end up on the ground."
     pointCost: 5
     visible: false
     purchasable: true
@@ -2543,7 +2543,7 @@ tags:
     category: skills
     group: skills-medical
     teachable: true
-    description: "Allows you to treat very minor and minor injuries as routine. This may include first aid, bandaging, packing a wound, or setting a simple break. Anything harder is a Gambit."
+    description: "Allows you to treat very minor and minor injuries as Routine. This may include first aid, bandaging, packing a wound, or setting a simple break. Anything harder is a Gambit."
     pointCost: 5
     visible: false
     purchasable: true
@@ -2555,7 +2555,7 @@ tags:
     category: skills
     group: skills-medical
     teachable: true
-    description: "Allows you to treat moderate and severe cases as routine, and the most minor surgery, like closing a large bleed or cutting away dead flesh. Any surgery past that is a Gambit."
+    description: "Allows you to treat moderate and severe cases as Routine, and the most minor surgery, like closing a large bleed or cutting away dead flesh. Any surgery past that is a Gambit."
     pointCost: 5
     parentTag: medical-basic
     visible: false
@@ -2568,7 +2568,7 @@ tags:
     category: skills
     group: skills-medical
     teachable: true
-    description: "Allows you to treat almost everything as routine, difficult surgery included. Only the most complex work counts as a Gambit."
+    description: "Allows you to treat almost everything as Routine, difficult surgery included. Only the most complex work counts as a Gambit."
     pointCost: 5
     parentTag: medical-skilled
     visible: false
@@ -2633,7 +2633,7 @@ tags:
     name: Ate Meal
     category: status
     group: status-food
-    description: "You don't consume any resources today, because you ate a proper meal. Sheds one turn of Hunger."
+    description: "You don't consume any Resources today, because you ate a proper meal. Sheds 1 turn of Hunger."
     pointCost: 0
     purchasable: false
 
@@ -2642,7 +2642,7 @@ tags:
     name: Hungry
     category: status
     group: status-debuffs
-    description: "-1 to the die on all Gambits per turn gone hungry. Eating removes one turn's worth."
+    description: "-1 to the die on all Gambits per turn gone hungry. Eating removes 1 turn's worth."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -2682,7 +2682,7 @@ tags:
     name: Bound
     category: status
     group: status-debuffs
-    description: "Restrained—can't act, can be looted or moved by whoever bound them."
+    description: "Restrained — can't act, can be looted or moved by whoever bound them."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2717,7 +2717,7 @@ tags:
     name: Wasted
     category: status
     group: status-debuffs
-    description: "You're going to regret this... Your Fighting skill counts as 2 tiers lower. ‡"
+    description: "You're going to regret this… Your Fighting skill counts as 2 tiers lower. ‡"
     pointCost: 0
     visible: true
     purchasable: false
@@ -2765,7 +2765,7 @@ tags:
     name: Hangover
     category: status
     group: status-debuffs
-    description: "Ugh... Your Fighting skill counts as 1 tier lower. ‡"
+    description: "Ugh… Your Fighting skill counts as 1 tier lower. ‡"
     pointCost: 0
     visible: true
     purchasable: false
@@ -2867,7 +2867,7 @@ tags:
     name: Stimulant High
     category: status
     group: status-buffs
-    description: "This is so fun! Holy shit, you could do anything!"
+    description: "This is so fun! You could do anything!"
     pointCost: 0
     visible: true
     purchasable: false
@@ -2966,7 +2966,7 @@ tags:
     name: Afraid
     category: status
     group: status-debuffs
-    description: "You're really afraid. This is a bad idea..."
+    description: "You're really afraid. This is a bad idea…"
     pointCost: 0
     visible: true
     purchasable: false
@@ -3246,7 +3246,7 @@ tags:
     name: Dying
     category: health
     group: health-infection
-    description: "You're on death's door. You have one turn. Someone with the very best medicine and a lot of luck could pull you back before it closes, but don't count on it."
+    description: "You're on death's door. You have 1 turn. Someone with the very best medicine and a lot of luck could pull you back before it closes, but don't count on it."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3844,7 +3844,7 @@ tags:
     psychological: true
     category: health
     group: health-mind
-    description: "The trauma from an event is uncurable. Loud noises or sudden bangs jolt you back to that time."
+    description: "The trauma from an event is incurable. Loud noises or sudden bangs jolt you back to that time."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -4934,7 +4934,7 @@ tags:
     name: Instrument
     category: items
     group: items-gear
-    description: "An instrument of your choice—type /play to play it."
+    description: "An instrument of your choice — type /play to play it."
     pointCost: 1
     tradeable: true
     weight: 1
@@ -5080,7 +5080,7 @@ tags:
     name: Disguise Kit
     category: items
     group: items-gear
-    description: "Makeup, a change of clothes, an array of false mustaches... (Change your name temporarily. Takes 1 turn to apply, and lasts 3. You need the {tag:artist} trait to impersonate someone specific.)"
+    description: "Makeup, a change of clothes, an array of false mustaches… (Change your name temporarily. Takes 1 turn to apply, and lasts 3. You need the {tag:artist} trait to impersonate someone specific.)"
     pointCost: 5
     tradeable: true
     weight: 2
@@ -5136,7 +5136,7 @@ tags:
     name: Painting
     category: items
     group: items-gear
-    description: "A painting of middling beauty. It'll fetch a good price—owning it is a valid Desire too, especially for nobles."
+    description: "A painting of middling beauty. It'll fetch a good price — owning it is a valid Desire too, especially for nobles."
     pointCost: 0
     tradeable: true
     weight: 5
@@ -5189,7 +5189,7 @@ tags:
     name: Obol
     category: items
     group: items-gear
-    description: "Obols (¢) are worth 1 ⬢ at the merchant’s depot. They weigh nothing, which is the whole reason to hold them. ‡"
+    description: "Obols (¢) are worth 1 ⬢ at the merchant's depot. They weigh nothing, which is the whole reason to hold them. ‡"
     pointCost: 0
     tradeable: true
     weight: 0
@@ -7192,7 +7192,7 @@ tags:
     name: Baron's Scepter
     category: items
     group: items-special
-    description: "Gold, gems, and filigree. This damn thing must weigh five pounds."
+    description: "Gold, gems, and filigree. This thing must weigh five pounds."
     pointCost: 0
     equippable: true
     visible: true
@@ -7220,7 +7220,7 @@ tags:
     name: Merchant's Garb
     category: items
     group: items-special
-    description: "The elaborate outfit of a wealthy Merchant. Exotic furs and silks go a long way toward disguising the thin breastplate beneath—and the couple bionic pumps, which serve some unknown, impractical purpose."
+    description: "The elaborate outfit of a wealthy Merchant. Exotic furs and silks go a long way toward disguising the thin breastplate beneath — and the couple bionic pumps, which serve some unknown, impractical purpose."
     pointCost: 0
     equippable: true
     visible: true
@@ -7273,7 +7273,7 @@ tags:
     name: Incarn's Key
     category: items
     group: items-keys
-    description: "A elegant silver key worn around the Incarn's neck. It unlocks the Silver Cross's display case."
+    description: "An elegant silver key worn around the Incarn's neck. It unlocks the Silver Cross's display case."
     pointCost: 0
     equippable: true
     visible: worn
@@ -7461,7 +7461,7 @@ tags:
     name: Tea
     category: items
     group: items-drink
-    description: "Its soothing aroma cures minor unpleasant effects—like {tag:afraid} and {tag:panic}. Ravenheart has never grown a leaf of it."
+    description: "Its soothing aroma cures minor unpleasant effects — like {tag:afraid} and {tag:panic}. Ravenheart has never grown a leaf of it."
     pointCost: 0
     depotPrice: 2
     sellable: true
@@ -8165,7 +8165,7 @@ tags:
     name: Firecracker
     category: items
     group: items-gear
-    description: "It'll cause a commotion—maybe enough to get away."
+    description: "It'll cause a commotion — maybe enough to get away."
     pointCost: 0
     depotPrice: 3
     sellable: true
@@ -8381,7 +8381,7 @@ tags:
     name: Microscope
     category: items
     group: items-gear
-    description: "What the hell are those things?!"
+    description: "What are those things?!"
     pointCost: 0
     depotPrice: 29
     sellable: true
@@ -8474,7 +8474,7 @@ tags:
     name: Amoeba Vial
     category: items
     group: items-gear
-    description: "Let them go wherever you like—they'll eat anything. It'll even help you get rid of the tiniest traces of a crime."
+    description: "Let them go wherever you like — they'll eat anything. It'll even help you get rid of the tiniest traces of a crime."
     pointCost: 0
     depotPrice: 52
     sealedShipping: true
@@ -8920,7 +8920,7 @@ tags:
     name: Cat
     category: items
     group: items-drink
-    description: "Distilled with alcohol until it turns pale. Drink it and your eyes flash yellow: gain {tag:night-vision} for 1 turn."
+    description: "Distilled with alcohol until it turns pale. Drink it and your eyes flash yellow: gain {tag:night-vision} for 2 turns."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -9045,7 +9045,7 @@ tags:
     name: Phrygian Tears
     category: items
     group: items-drink
-    description: "The perfect silent killer. Two turns of careful work to make. Inflicts {tag:phrygian-toxin}. ‡"
+    description: "The perfect silent killer. 2 turns of careful work to make. Inflicts {tag:phrygian-toxin}. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -9122,7 +9122,7 @@ tags:
     name: Purifier
     category: items
     group: items-drink
-    description: "Brewed from {tag:cave-fungus}. Clears {tag:infected}, {tag:festering} and {tag:feverish} without medical attention, and greatly improves the conditon of someone with {tag:sepsis}."
+    description: "Brewed from {tag:cave-fungus}. Clears {tag:infected}, {tag:festering} and {tag:feverish} without medical attention, and greatly improves the condition of someone with {tag:sepsis}."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10293,7 +10293,7 @@ tags:
     name: Energy Shield
     category: items
     group: items-armor
-    description: "One of the few things in Ravenheart that can stop firearm fire, but doesn’t completely stop melee damage."
+    description: "One of the few things in Ravenheart that can stop firearm fire, but doesn't completely stop melee damage."
     pointCost: 0
     equippable: true
     equipSlot: SHIELD
@@ -10742,7 +10742,7 @@ tags:
     name: Blind Drunk
     category: status
     group: status-debuffs
-    description: "You can barely see. That drink is shit!"
+    description: "You can barely see. That drink is bad!"
     pointCost: 0
     visible: true
     purchasable: false

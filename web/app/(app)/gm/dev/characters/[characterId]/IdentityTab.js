@@ -216,7 +216,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, location
           </label>
           <label className="field">
             <span className="field-label flex items-center gap-1.5">
-              Unspent tag points
+              Unspent Tag Points
               <InfoIcon text="May go negative on purpose — clamping it at zero would let a broke player take a drawback's points for free." />
             </span>
             <input

@@ -44,9 +44,9 @@
 banner: assets/info-banner.png
 
 main_message: |-
-  Bascinet is a large-scale, rules-light story generator, 70% roleplay and 30% strategy. It’s intended to be serious, grim, heroic, and occasionally funny.
+  Bascinet is a large-scale, rules-light story generator, 70% roleplay and 30% strategy. It's intended to be serious, grim, heroic, and occasionally funny.
 
-  The game runs for 30 real days. Once a day, you declare what your character did, making a Move. Based on dice and your character’s Tags, the GMs adjudicate the resulting consequences. Mechanics are handled on the companion web panel while the roleplay takes place on Discord. ‡
+  The game runs for 30 real days. Once a day, you declare what your character did, making a Move. Based on dice and your character's Tags, the GMs adjudicate the resulting consequences. Mechanics are handled on the companion web panel while the roleplay takes place on Discord. ‡
 
   Bascinet simultaneously plays out on several levels. Kings win wars and move big pieces around the map while commoners try to fulfill their day-to-day desires.
 
@@ -57,20 +57,20 @@ categories:
           ① **Basic** — You must be 18+.
           - Romance is allowed. You can hint at sexual content, but nothing overt (fade to black!).
           - There are no children in Ravenheart.
-          - Mild bigotry is fine. SA and similar aren’t.
+          - Mild bigotry is fine. SA and similar aren't.
 
           ② **Atmosphere** — Everything serves the atmosphere.
           - Act somewhat like a Medieval European. Play out fear (unless you have the **Brave** tag). Ravenheart is your home, your life.
           - Insulting the Baron would mean death, plus having your family ostracized. Think carefully.
 
           ③ **Information** — To support information asymmetry, everything that happens IC stays IC, and OOC stays OOC.
-          - Don’t discuss the game’s happenings OOC. Vague references are okay.
-          - Don’t say who your character is or who you’re playing. People might figure it out eventually, but protect the mystery.
-          - You are allowed to use vague OOC in roleplay channels when necessary — `(OOC: hey, gtg, see ya)` — instead of DM’ing the player.
+          - Don't discuss the game's happenings OOC. Vague references are okay.
+          - Don't say who your character is or who you're playing. People might figure it out eventually, but protect the mystery.
+          - You are allowed to use vague OOC in roleplay channels when necessary — `(OOC: hey, gtg, see ya)` — instead of DM'ing the player.
 
-          ④ **Antagonism** — Fulfill your character’s Desires, but not to the point of crossing your faction’s objectives.
+          ④ **Antagonism** — Fulfill your character's Desires, but not to the point of crossing your faction's objectives.
           - High ranks are expected to be relatively fit for duty and willing to collaborate. Peasants can brawl and do mostly whatever they want.
-          - If things naturally progress to where you betray your faction, that’s fine, but come into the game planning to do mostly good.
+          - If things naturally progress to where you betray your faction, that's fine, but come into the game planning to do mostly good.
       - title: Fates
         body: |-
           Choose a fate at game start, determining your starting tags, faction, and location. Whitelisted roles (★) are reserved for players who can vouch frequent and long-term availability and proficiency in roleplay.
@@ -106,7 +106,7 @@ categories:
     threads:
       - title: Moves
         body: |-
-          One turn is one real day, beginning at midnight US Central. Turns alternate between Dawn and Dusk, so an in-game day takes two of them. Every turn, you can optionally plan a Move that’ll take effect the next turn. ‡
+          One turn is one real day, beginning at midnight US Central. Turns alternate between Dawn and Dusk, so an in-game day takes two of them. Every turn, you can optionally plan a Move that'll take effect the next turn. ‡
 
           Moves are your abstracted intent of what you planned to do over the turn. Moves are reserved for lengthy, time-consuming, or difficult activities. ‡
 
@@ -116,9 +116,9 @@ categories:
           - collecting taxes around the town;
           - going to the inn to fulfill a Desire.
 
-          *You don’t have to Move every turn*. If it didn’t take more than an hour or wasn’t difficult, it’s not a Move. Bandaging people, trading, and talking are not Moves.
+          *You don't have to Move every turn*. If it didn't take more than an hour or wasn't difficult, it's not a Move. Bandaging people, trading, and talking are not Moves.
 
-          Like Mafia, Moves are collectively adjudicated by the Gamemasters at the end of every turn. If the Baron’s move was to stay in his castle, then the Brigand’s move to rob him won’t succeed. If the Baron was wandering in the forest, the Brigand may very well get him.
+          Like Mafia, Moves are collectively adjudicated by the Gamemasters at the end of every turn. If the Baron's move was to stay in his castle, then the Brigand's move to rob him won't succeed. If the Baron was wandering in the forest, the Brigand may very well get him.
 
           Adjudication results are messaged to players at the end of every turn.
 
@@ -133,7 +133,7 @@ categories:
           Unless they do something else or refuse to participate, a Leader can direct members of his faction (even AFK members) as part of his Moves. Their tags are considered during the adjudication. Only one Gambit die is rolled.
       - title: Roleplay
         body: |-
-          The game’s roleplay layer is where the results of last turn’s Moves come to life. If the Gamemaster declared you were bested in a duel, that’s canon; you can describe how it went down in the roleplay channels. You can also use the roleplay channels at any time to chat, exchange information, or coordinate your Moves with other players.
+          The game's roleplay layer is where the results of last turn's Moves come to life. If the Gamemaster declared you were bested in a duel, that's canon; you can describe how it went down in the roleplay channels. You can also use the roleplay channels at any time to chat, exchange information, or coordinate your Moves with other players.
 
           **Channels and Zones**
           There are five surface zones — the Fortress, the Town, the Forest, the Black Hills, and the Marshes — and below them the Underground, which holds two cave levels: the Caves and the Depths. Each is made of Locations, and you stand in exactly one of them. Walking to a connected Location inside your Zone is free (with a short cooldown); crossing into another Zone costs your Move, the cave levels included. ‡
@@ -147,7 +147,7 @@ categories:
           You cannot roleplay in DMs or outside of the server.
 
           **Formatting**
-          Here’s the recommended way to write a post:
+          Here's the recommended way to write a post:
           - `"text"` for dialogue.
           - text for emotes or description.
           - `(text)` for out-of-character text.
@@ -155,25 +155,25 @@ categories:
           You can append `-#` before your OOC text to make it tiny and hidden, or even spoiler it with `||text||`.
       - title: Resources
         body: |-
-          The game’s central currency are Resources (⬢), abstracting food, money, and other bulk goods.
+          The game's central currency are Resources (⬢), abstracting food, money, and other bulk goods.
 
           Players are responsible for producing, taxing, distributing, and trading Resources.
 
-          Characters automatically consume 1 ⬢ a day — 2 if you have a Big Appetite. Come up short and you’ll go **Hungry**, netting you −1 to all rolls until the next time you eat. The penalty increases until you die at −6. ‡
+          Characters automatically consume 1 ⬢ a day — 2 if you have a Big Appetite. Come up short and you'll go **Hungry**, netting you −1 to all rolls until the next time you eat. The penalty increases until you die at −6. ‡
 
           **Laboring**
-          Labor is its own kind of Move, and it takes a skill — without a Laboring tag you produce nothing at all. Submit no Move and you’ll Labor automatically. ‡
+          Labor is its own kind of Move, and it takes a skill — without a Laboring tag you produce nothing at all. Submit no Move and you'll Labor automatically. ‡
 
-          Past the two general tiers there are three specialisations — hunting, farming and fishing — and **where you stand decides what they pay**. Some ground is rich, some is barren, and what a place is worth shifts over the course of the game. Press **Labor?** in any location’s channel to see what it yields today. ‡
+          Past the two general tiers there are three specialisations — hunting, farming and fishing — and **where you stand decides what they pay**. Some ground is rich, some is barren, and what a place is worth shifts over the course of the game. Press **Examine** in any Location's channel to see what it yields today. ‡
 
           Farming feeds Ravenheart, and as such it is taxed by the Baron in order to distribute food through the valley. ‡
       - title: Tags
         body: |-
-          Tags represent your character’s health, items, traits, and skills.
+          Tags represent your character's health, items, traits, and skills.
 
-          The main way to obtain new Tags is to spend tag points. Everyone starts with Tag Points, but gains more through the game as they fulfill Desires. However, you can also create, inflict, and remove tags throughout the game — such as by smithing a sword, poisoning someone, or treating a wound.
+          The main way to obtain new Tags is to spend Tag Points. Everyone starts with Tag Points, but gains more through the game as they fulfill Desires. However, you can also create, inflict, and remove tags throughout the game — such as by smithing a sword, poisoning someone, or treating a wound.
 
           **Desires**
-          You can fulfill Desires to obtain more tag points. You claim one *after* you have done the thing, not before — so play your character, then come and collect.
+          You can fulfill Desires to obtain more Tag Points. You claim one *after* you have done the thing, not before — so play your character, then come and collect.
 
           Desires must be difficult and personal to receive points. For the Baron, even a whole bottle of gin is hardly satisfactory; for the Commoner, one glass is enough. Something you arranged purely in order to claim a Desire does not count.

@@ -8,12 +8,12 @@ documents:
     name: Courtier
     public: false
     tags: []
-    description: As a member of the Baron’s retinue, you may take food from a fellow member whenever you please — within reason (Treasurer and Leader roles can see everyone's Resources, so don’t steal. If you’d like to steal, arrange it with a GM). ‡
+    description: As a member of the Baron's retinue, you may take food from a fellow member whenever you please — within reason (Treasurer and Leader roles can see everyone's Resources, so don't steal. If you'd like to steal, arrange it with a GM). ‡
   church:
     name: Church
     public: false
     tags: []
-    description: As a member of the Church, you may take food from a fellow member whenever you please — within reason (Treasurer and Leader roles can see everyone's Resources, so don’t steal. If you’d like to steal, arrange it with a GM). ‡
+    description: As a member of the Church, you may take food from a fellow member whenever you please — within reason (Treasurer and Leader roles can see everyone's Resources, so don't steal. If you'd like to steal, arrange it with a GM). ‡
   independent:
     name: Independent
     public: false
@@ -24,13 +24,13 @@ documents:
     public: true
     tags: []
     description: |-
-      The Baron protects Ravenheart. In exchange, its commoners farm, fish, and hunt. They keep enough to feed themselves, but the rest is taxed. The town’s laborers aren’t independent contractors; they’re peasants in a feudal system.
+      The Baron protects Ravenheart. In exchange, its commoners farm, fish, and hunt. They keep enough to feed themselves, but the rest is taxed. The town's laborers aren't independent contractors; they're peasants in a feudal system.
   godking:
     name: The God-King
     public: false
     tags: []
     description: |-
-      Ravenheart's liege is God-King Enoch II, a mercurial and unpredictable ruler. Usually, he is quite calm and allows Ravenheart to do whatever it pleases. Wartime is a different matter however—and as of this year, he is busy trading howitzer blows with a rival state several mountain ranges south of Ravenheart. The Arbiter represents his interests in court, and arranges the royal tithe if such a thing becomes necessary.
+      Ravenheart's liege is God-King Enoch II, a mercurial and unpredictable ruler. Usually, he is quite calm and allows Ravenheart to do whatever it pleases. Wartime is a different matter however — and as of this year, he is busy trading howitzer blows with a rival state several mountain ranges south of Ravenheart. The Arbiter represents his interests in court, and arranges the royal tithe if such a thing becomes necessary.
   treasurer:
     name: Treasurer
     public: true
@@ -42,7 +42,7 @@ documents:
 
       **Transferring Resources**
 
-      You can transfer Resources from any source to any recipient, but you have to be able to reach both ends — stand in the same Zone as them. ‡
+      You can transfer Resources from any source to any recipient, but you have to be able to reach both ends — stand in the same Location as them. ‡
   medical:
     name: Medical
     public: true
@@ -55,7 +55,7 @@ documents:
       Resources, your turns, and a skill.
 
       **What you can do in a day.** Treating a case within your skill is
-      routine. You get 2 of them a turn with {tag:medical-basic}, 3 with
+      Routine. You get 2 of them a turn with {tag:medical-basic}, 3 with
       {tag:medical-skilled}, 4 with {tag:medical-expert}. First aid — anything
       the table below lists at 0 turns — costs you nothing at all and never
       counts against that, so bandage as many people as you like.
@@ -161,7 +161,7 @@ documents:
 
       The bottom three need {tag:laboring-skilled} behind them and are side-grades rather than upgrades. Hold as many as you like — laboring always pays the best result you're entitled to where you stand, so there is nothing to switch and nothing to forget. ‡
 
-      Those three numbers are what an ordinary spot pays. Real ground is better or worse, and what a place is worth **changes over the course of the game**. Press **Labor?** in any location's channel to see what it yields right now. Hunting swings hardest; farmland is steady until it isn't. ‡
+      Those three numbers are what an ordinary spot pays. Real ground is better or worse, and what a place is worth **changes over the course of the game**. Press **Examine** in any Location's channel to see what it yields right now. Hunting swings hardest; farmland is steady until it isn't. ‡
 
       Tools raise a yield while you carry them — bows and guns for hunting, a Pitchfork or a Plow for farming, a Rod for fishing. Each says so in its own description. ‡
 
@@ -171,11 +171,11 @@ documents:
     public: true
     tags: []
     description: |-
-      The nitty-gritty of combat is as important as the fighters’ skills. Even a master fencer would struggle against a peasant in plate armor, and just a few horse archers can take out a whole squad of footpads. Different weapons excel in different circumstances, like how much space you have, whether you’re alone or in formation, and whether your opponent is armored.
+      The nitty-gritty of combat is as important as the fighters' skills. Even a master fencer would struggle against a peasant in plate armor, and just a few horse archers can take out a whole squad of footpads. Different weapons excel in different circumstances, like how much space you have, whether you're alone or in formation, and whether your opponent is armored.
 
       **Melee**
       - Polearms are ubiquitous. Their reach means you can keep the opponent away and decide when the battle starts. They come in stabby, crushy, and pokey varieties.
-      - Blunt weapons are useful even against armored targets, but won’t help find weak spots.
+      - Blunt weapons are useful even against armored targets, but won't help find weak spots.
       - Precision weapons, like swords held by the blade (halfswording) or daggers, are useful against armored opponents if you can wrestle them down to the ground.
       - Hidden weapons are useful in social environments.
       - Cutting and stabbing weapons really hurt unarmored people.
@@ -186,7 +186,7 @@ documents:
       - Crossbows take time to reload but are better against armored opponents.
       - Firearms beat everything.
 
-      Shields are very useful. For armor, there’s a few important traits: material, concealability, weight, and donning time. Some items can be worn under regular clothes. Certain items, like plate, will make a long trek through the forest difficult but make you a veritable tank in combat. However, it also has the downside of being hard to equip, so if you’re at a feast and someone pulls out a dagger, you’d better have a padded jack or brigandine underneath.
+      Shields are very useful. For armor, there's a few important traits: material, concealability, weight, and donning time. Some items can be worn under regular clothes. Certain items, like plate, will make a long trek through the forest difficult but make you a veritable tank in combat. However, it also has the downside of being hard to equip, so if you're at a feast and someone pulls out a dagger, you'd better have a padded jack or brigandine underneath.
 
       **Energy Shields**
       - Stop projectiles.
@@ -264,12 +264,12 @@ documents:
     public: true
     tags: []
     description: |-
-      Post-Christianity believes in God and Christ. Its doctrines are non-specific, as different people practice in different ways. However, there’s a few commonalities:
+      Post-Christianity believes in God and Christ. Its doctrines are non-specific, as different people practice in different ways. However, there's a few commonalities:
 
       - The virtues are as important now as they ever were. The world is a dark place, but it still has room for goodness.
       - Christ never returned. The Earth was ruined, and we were left behind. It is our responsibility to redeem ourselves and await the afterlife.
-      - There is a heaven, so we can endure anything that happens here—just remain pure.
-      - There is also a hell, so we must protect others from descending into the spiritual darkness that’s consumed the rest of the world.
+      - There is a heaven, so we can endure anything that happens here — just remain pure.
+      - There is also a hell, so we must protect others from descending into the spiritual darkness that's consumed the rest of the world.
   smithing:
     name: Smithing and Crafting
     public: true
@@ -382,7 +382,7 @@ documents:
     secret: true
     tags: []
     description: |-
-      The Charon is a one-way spaceship. It’ll take its passengers out into space, where a passenger liner called the Leviathan is allegedly waiting for refugees. The Charon’s hatch can be accessed through the Undercroft.
+      The Charon is a one-way spaceship. It'll take its passengers out into space, where a passenger liner called the Leviathan is allegedly waiting for refugees. The Charon's hatch can be accessed through the Undercroft.
   meals:
     name: Meals & Kitchens
     public: true
@@ -528,7 +528,7 @@ documents:
     description: |-
       Run `/conceal` (or use the switch on your Character page) to hide your identity until you turn it off. You need a helmet, a hood, or a mask.
 
-      You’ll appear as a stranger, but people can still see (using the 🔎 reaction) any visible wounds or gear.
+      You'll appear as a stranger, but people can still see (using the 🔎 reaction) any visible wounds or gear.
   thepusher:
     name: Pusher
     public: true
@@ -537,9 +537,9 @@ documents:
       - censor
       - pusher
     description: |-
-      The Pusher sells drugs and runs the town’s gambling den in the Abandoned Theater. It’s his job to keep the peasants satisfied and not rebelling.
+      The Pusher sells drugs and runs the town's gambling den in the Abandoned Theater. It's his job to keep the peasants satisfied and not rebelling.
 
-      He’s exempted from the usual capital punishment for drug possession, but he owes the Baron a cut.
+      He's exempted from the usual capital punishment for drug possession, but he owes the Baron a cut.
   squeeze:
     name: Squeeze
     public: false
@@ -548,15 +548,15 @@ documents:
     description: |-
       A pink substance with similar but less exotic properties to the {tag:skinless-brain}. These are very valuable across Earth.
 
-      The Baron highly values the Banneret’s work on the Squeeze, as it singlehandedly funds Ravenheart’s warchest. Squeeze has no use for anyone in Ravenheart, but without its production, Ravenheart wouldn’t be able to grow at all. Its production is very dangerous.
+      The Baron highly values the Banneret's work on the Squeeze, as it singlehandedly funds Ravenheart's warchest. Squeeze has no use for anyone in Ravenheart, but without its production, Ravenheart wouldn't be able to grow at all. Its production is very dangerous.
   godardfactory:
     name: Godard Factory
     public: false
     tags: []
     factions: [the-factory]
     description: |-
-      Godard’s beauty days are over, but it still functions. The Banneret’s lineage, one of the Baron’s cadet houses, has (usually grudgingly) employed refugees to extract {tag:godflesh} from the marshes and refine it into {tag:squeeze}, which is then shipped off to the merchant. It is generally unknown what Squeeze does or why it’s so valuable. Unfortunately, due to the working conditions, most refugees don’t stay for long and usually try to make it to the town. They’re easily replaced, so it doesn’t matter.
+      Godard's beauty days are over, but it still functions. The Banneret's lineage, one of the Baron's cadet houses, has (usually grudgingly) employed refugees to extract {tag:godflesh} from the marshes and refine it into {tag:squeeze}, which is then shipped off to the merchant. It is generally unknown what Squeeze does or why it's so valuable. Unfortunately, due to the working conditions, most refugees don't stay for long and usually try to make it to the town. They're easily replaced, so it doesn't matter.
 
       Anyone with a hatchet or chainsaw equipped can obtain Godflesh by pressing the Extract button from the character panel while in a marsh wilderness location. You can only do it once per turn. To turn it into {tag:squeeze}, simply labor while in the factory. You must have Godflesh in your inventory or somewhere in the factory. You will then obtain eight Squeeze cubes. Crate these up and load them into a cart!
 
-      Extracting is dangerous, because the Godflesh is a living thing with swarming mouths that try to eat you. You run a risk of getting wounded. On the upside, working at the Factory gives you a chance of social mobility—a good Banneret will pay you much more than the average commoner would make, if only to keep you around.
+      Extracting is dangerous, because the Godflesh is a living thing with swarming mouths that try to eat you. You run a risk of getting wounded. On the upside, working at the Factory gives you a chance of social mobility — a good Banneret will pay you much more than the average commoner would make, if only to keep you around.

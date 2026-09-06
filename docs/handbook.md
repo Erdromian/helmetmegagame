@@ -1,4 +1,4 @@
-# Bascinet Player Handbook 
+# Bascinet Player Handbook
 
 ## Table of Contents
 1. [About Bascinet](#about-bascinet)  
@@ -82,7 +82,7 @@ General questions can be asked in the `#general` channel or by creating a thread
 #### **Channels**  
 | Channel | What it's for |
 |---|---|
-| **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode, not meant for conversations.|
+| **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode and is not meant for conversations. |
 | **A Location** (text channel) | The one place you're standing in. Talk in the channel itself, step into one of its public Rooms (threads), or use the pinned message's buttons: **Who's here?**, **Secret rooms?**, **Converse**. ‡ |
 
 #### **Website**
@@ -190,7 +190,7 @@ If you have the key to one of those, you may be asked in a DM whether to leave i
 Each Location's channel has a pinned message at the top with its description, the list of its public Rooms, and three buttons. ‡
 | Channel | What it's for |
 |---|---|
-| **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode, not meant for conversations.|
+| **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode and is not meant for conversations. |
 | **A Location** (text channel) | The open street. Anyone standing here can talk in the channel itself. ‡ |
 | **Rooms** (threads under the Location) | The places inside a Location — the Old Cock Inn on the Square, the Throne Room in the Keep. Public Rooms are open to everyone here. Private Rooms are hidden: you only see one if you hold the right tag, such as a key. ‡ |
 
@@ -314,7 +314,7 @@ You'll find out how your die fell when the turn ends — the bot DMs you the num
 
 Choose **Labor** to spend the day working. It isn't adjudicated and it doesn't roll — it simply pays, based on your skills and where you're standing. Choosing it means choosing not to do anything else that turn. ‡
 
-The choice between Routine or Gambit is left to you because you know what your character is attempting with your Move. It's not a mechanism to choose whether you succeed, and Moves submitted using the wrong option may be adjusted by the GMs. 
+The choice between Routine or Gambit is left to you because you know what your character is attempting with your Move. It's not a mechanism to choose whether you succeed, and Moves submitted using the wrong option may be adjusted by the GMs.
 
 ### Labor
 
@@ -352,9 +352,9 @@ Tags represent your character's skills, assets, injuries, and all other attribut
 
 Tags are shown on the website as embedded chips, color-coded by their category.
 | Color | Category | Includes Tags Like |
-|---|---| --- |
+|---|---|---|
 | Blue | General | Traits, Drawbacks, Beliefs |
-| Green | Skill| Cooking, Tracking, Brewing |
+| Green | Skill | Cooking, Tracking, Brewing |
 | Amber | Status | Hungry, Ate Meal |
 | Red | Health | Wounds, Illnesses |
 | Teal | Items | Weapons, Armor, Ingredients |
@@ -440,7 +440,7 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 | **Tag Points** | Points available to spend on new tags. |
 | **This turn** | Displays whether you've submitted a Move for this turn. If not, you'll Labor instead — if you can. ‡ |
 
-**Actions:** This is the grid of buttons next to your Status. Each button opens a dialogue that asks for your reason and applies immediately. These operate on a system of trust and verification. Your changes take effect when you submit, but are reviewed by GMs to ensure proper use.
+**Actions:** This is the grid of buttons next to your Status. Each button opens a dialog that asks for your reason and applies immediately. These operate on a system of trust and verification. Your changes take effect when you submit, but are reviewed by GMs to ensure proper use.
 
 **You**
 
@@ -458,10 +458,10 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 | Button | Effect | When You Can Use |
 |---|---|---|
 | **Heal** | Treat an affliction on yourself or another person within reach, based on your medical skill. | {tag:medical-basic} or better. |
-| **Loot** | Search a dead or incapacitated person standing with you and take their ⬢ and whatever they were carrying that can be carried off. Their property, and anything grafted or bound to them, stays with them. | Always, the game will reject invalid targets. |
+| **Loot** | Search a dead or incapacitated person standing with you and take their ⬢ and whatever they were carrying that can be carried off. Their property, and anything grafted or bound to them, stays with them. | Always; the game rejects invalid targets. |
 | **Bind** | Tie up someone within reach. They must agree, unless they're dead or already helpless. ‡ | Always. |
 | **Free** | Cut loose someone within reach. | Always. |
-| **Harm** | Injure a helpless person within reach, or finish off a Dying or bound person. This will never instantly kill, a GM will verify first. | Always. |
+| **Harm** | Injure a helpless person within reach, or finish off a Dying or bound person. This never kills instantly; a GM verifies first. | Always. |
 | **Move Player** | Carry a dead or bound person, or a member of your faction if you're the Leader, to a connected Location. This doesn't spend their Move or yours. The Travel picker on Discord offers the same thing as you go. ‡ | Always. |
 | **Bury Person** | Lift a body's Curse by burying it — type the character's first name to confirm. | Always. |
 

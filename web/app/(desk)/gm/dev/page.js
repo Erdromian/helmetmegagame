@@ -490,7 +490,7 @@ export default async function DevPanelPage({ searchParams }) {
                     <input type="number" step="0.05" name="productionCoefficient" defaultValue={config.productionCoefficient} />
                   </label>
                   <label className="field">
-                    <span className="field-label">Starting tag points</span>
+                    <span className="field-label">Starting Tag Points</span>
                     <input type="number" name="startingTagPoints" min="0" defaultValue={config.startingTagPoints} />
                   </label>
                   <label className="field">

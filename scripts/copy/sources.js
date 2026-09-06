@@ -89,6 +89,7 @@ const IGNORE_FILES = [
   "db/lib/syncZones.js",
   "db/lib/syncRoles.js",
   "db/lib/syncDocuments.js",
+  "db/lib/syncDesires.js",
   "db/lib/archive.js",
   "db/lib/persistence.js",
   "db/lib/roleIds.js",

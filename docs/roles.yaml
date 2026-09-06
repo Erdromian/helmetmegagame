@@ -97,7 +97,7 @@ zones:
   - name: Fortress
     situation:
       - >-
-        The last tithe didn't arrive, and it shows. The banquets are a little less extravagant than usual. Pressure builds on the Meister—go talk to the Headman. Take whatever they can spare from their stores.
+        The last tithe didn't arrive, and it shows. The banquets are a little less extravagant than usual. Pressure builds on the Meister — go talk to the Headman. Take whatever they can spare from their stores.
       - >-
         A letter from the Bastard declaring his intents was found on the table. Since the Watchmen didn't see anyone come in, it's clear someone on the inside brought it in. There must be a traitor.
       - >-
@@ -137,7 +137,7 @@ zones:
               - >-
                 A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
               - >-
-                The town's labor feeds Ravenheart but doesn't produce any surplus. Its true economic surplus comes from Godard Factory’s production of Squeeze. Keep close communication with the Banneret to ensure he’s getting you enough obols to fund the warchest, and buy you nice things from the merchant.
+                The town's labor feeds Ravenheart but doesn't produce any surplus. Its true economic surplus comes from Godard Factory's production of Squeeze. Keep close communication with the Banneret to ensure he's getting you enough obols to fund the warchest, and buy you nice things from the merchant.
             difficulty: hard
             multiple: false
             starting_resources: 5
@@ -267,11 +267,11 @@ zones:
               - >-
                 Win people's loyalty. If your people trust and follow you, there is no danger you cannot overcome.
               - >-
-                Eventually you will be attacked by the Bastard. Besides your personal investment, it's clear that that man cannot be allowed to rule Ravenheart. The self-loving "visionary" that he is — he would lose it all. Ravenheart's survival is a delicate balance, one he cannot possibly hope to ever understand.
+                Eventually you will be attacked by the Bastard. Besides your personal investment, it's clear that that man cannot be allowed to rule Ravenheart. The visionary that he is — he would lose it all. Ravenheart's survival is a delicate balance, one he cannot possibly hope to ever understand.
               - >-
                 A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
               - >-
-                The town's labor feeds Ravenheart but doesn't produce any surplus. Its true economic surplus comes from Godard Factory’s production of Squeeze. Keep close communication with the Banneret to ensure he’s getting you enough obols to fund the warchest, and buy you nice things from the merchant.
+                The town's labor feeds Ravenheart but doesn't produce any surplus. Its true economic surplus comes from Godard Factory's production of Squeeze. Keep close communication with the Banneret to ensure he's getting you enough obols to fund the warchest, and buy you nice things from the merchant.
             difficulty: normal
             multiple: false
             starting_resources: 1
@@ -315,7 +315,7 @@ zones:
               - >-
                 A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
               - >-
-                The town's labor feeds Ravenheart but doesn't produce any surplus. Its true economic surplus comes from Godard Factory’s production of Squeeze. Keep close communication with the Banneret to ensure he’s getting you enough obols to fund the warchest, and buy you nice things from the merchant.
+                The town's labor feeds Ravenheart but doesn't produce any surplus. Its true economic surplus comes from Godard Factory's production of Squeeze. Keep close communication with the Banneret to ensure he's getting you enough obols to fund the warchest, and buy you nice things from the merchant.
             difficulty: normal
             multiple: false
             starting_resources: 2
@@ -346,7 +346,7 @@ zones:
               Represent the God-King Enoch II's interests, support Ravenheart's defense, and advise the Baron.
             description:
               - >-
-                You are on the Baron's side or you dislike him—it's up to you. However, your home and allegiance is back in the Kingdom, and as such, you are here to serve His Majesty God-King Enoch II's interests—primarily by ensuring neither Ravenheart's court nor its peasants get uppity, and secondarily by aiding in the organization of its defenses against both internal and external threats.
+                You are on the Baron's side or you dislike him — it's up to you. However, your home and allegiance is back in the Kingdom, and as such, you are here to serve His Majesty God-King Enoch II's interests — primarily by ensuring neither Ravenheart's court nor its peasants get uppity, and secondarily by aiding in the organization of its defenses against both internal and external threats.
               - >-
                 Unless the God-King orders you otherwise, ensure you're helping the fortress however you can. It is particularly important that you aid in economic matters, such as in the organization of Godard Factory or the town's taxation. Ensure the Meister and the Headman do their jobs.
               - >-
@@ -447,7 +447,7 @@ zones:
               - >-
                 Ravenheart is an ancient bastion of humanity and a beacon of light. It is your solemn duty — at least on paper — to uphold that.
               - >-
-                You win through leadership, proactivity, communication, and organization. Think carefully. Speak with the Baron. Do not ride into battle unless necessary—be a tactician first, a footsoldier second. Always be a step ahead of the darkness. If you have eyes everywhere, plans, if you know and see, nothing can stop you.
+                You win through leadership, proactivity, communication, and organization. Think carefully. Speak with the Baron. Do not ride into battle unless necessary — be a tactician first, a footsoldier second. Always be a step ahead of the darkness. If you have eyes everywhere, plans, if you know and see, nothing can stop you.
               - >-
                 The Cerberi are men, but they are also dogs. Remind them that in service of Ravenheart, they should be capable of the savagery their position demands.
             difficulty: hard
@@ -585,9 +585,9 @@ zones:
   - name: Town
     situation:
       - >-
-        The last tithe wagon didn't return from the Fortress. Brigands, probably. The Meister won't be happy about this; repare to have the Silo drained.
+        The last tithe wagon didn't return from the Fortress. Brigands, probably. The Meister won't be happy about this; prepare to have the Silo drained.
       - >-
-        Last week, Thomas Ciobanta—a respectable tradesman—went inexplicably stupid. He wandered around aimlessly, half-naked and starving. When people tried to help him, he just called them idiots. The Inquisitor tested Thomas's reaction by showing him a cross: he snarled like a dog, so the Inquisitor had him hanged.
+        Last week, Thomas Ciobanta — a respectable tradesman — went inexplicably stupid. He wandered around aimlessly, half-naked and starving. When people tried to help him, he just called them idiots. The Inquisitor tested Thomas's reaction by showing him a cross: he snarled like a dog, so the Inquisitor had him hanged.
     factions:
       the-church:
         name: The Church
@@ -699,7 +699,7 @@ zones:
               - >-
                 With science, the sky's the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment.
               - >-
-                If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners. Brewing potions is especially worthwhile; it can really help it when you get a wave of inmates. Just throw out a few {tag:cleaning-powder}, a few {tag:mercy}, some {tag:poppy}…
+                If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners. Brewing potions is especially worthwhile; it can really help when you get a wave of inmates. Just throw out a few {tag:cleaning-powder}, a few {tag:mercy}, some {tag:poppy}…
               - >-
                 You can perform medicine, removing negative medical tags according to their skill, Resource, and action cost.
             difficulty: normal
@@ -732,7 +732,7 @@ zones:
               - >-
                 With science, the sky's the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment for the good of science.
               - >-
-                If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners. Brewing potions is especially worthwhile; it can really help it when you get a wave of inmates. Just throw out a few {tag:cleaning-powder}, a few {tag:mercy}, some {tag:poppy}…
+                If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners. Brewing potions is especially worthwhile; it can really help when you get a wave of inmates. Just throw out a few {tag:cleaning-powder}, a few {tag:mercy}, some {tag:poppy}…
               - >-
                 You can perform medicine, removing negative medical tags according to their skill, Resource, and action cost.
             difficulty: normal
@@ -1032,7 +1032,7 @@ zones:
           pusher:
             name: Pusher
             intro: >-
-              Sell drugs, run the gambling den, peddle to people's worldly desires. Hell, hire a few bums to be your goons.
+              Sell drugs, run the gambling den, peddle to people's worldly desires. Hire a few bums to be your goons.
             description:
               - >-
                 Sell drugs. The Abandoned Theater in the Underquarter is yours; run a gambling den.
@@ -1244,20 +1244,20 @@ zones:
           banneret:
             name: Banneret
             intro: >-
-              As the Baron’s cousin, begrudgingly serve Ravenheart by organizing the production of the valuable Squeeze and selling it to the merchant.
+              As the Baron's cousin, begrudgingly serve Ravenheart by organizing the production of the valuable Squeeze and selling it to the merchant.
             description:
               - >-
-                You are one of Ravenheart’s cadet houses, carrying only a fraction of the prestige and responsibility.
+                You are one of Ravenheart's cadet houses, carrying only a fraction of the prestige and responsibility.
               - >-
                 You have been charged with Godard Factory. While usually looked down upon as a piece of marsh scum, it is very valuable: Squeeze is how Ravenheart obtains obols, functionally funding its warchest.
               - >-
-                Your whole operation relies on your communication with the merchant and the Keep. It’s your job to go to crate the Squeeze, load it on the cart, and sell it to the merchant—or you can let the Geschef do it. But make sure you’re getting a good price. Keep some to pay your employees and give the rest to the Baron, lest the Watch come knocking.
+                Your whole operation relies on your communication with the merchant and the Keep. It's your job to crate the Squeeze, load it on the cart, and sell it to the merchant — or you can let the Geschef do it. But make sure you're getting a good price. Keep some to pay your employees and give the rest to the Baron, lest the Watch come knocking.
               - >-
-                Keep your refugees happy with {tag:moonshine}, but also by paying them fair wages. They should make more than commoners—after all, you can afford to pay them. Or just don’t pay them and keep them in line.
+                Keep your refugees happy with {tag:moonshine}, but also by paying them fair wages. They should make more than commoners — after all, you can afford to pay them. Or just don't pay them and keep them in line.
               - >-
-                Make sure everyone’s wearing their armored gloves. So many hands lost. Oh, and emphasize to your workers—do not eat the Squeeze! You can’t afford to repeat what happened last time…
+                Make sure everyone's wearing their armored gloves. So many hands lost. Oh, and emphasize to your workers — do not eat the Squeeze! You can't afford to repeat what happened last time…
               - >-
-                There’s a fisherman a couple miles north and obols in your office to pay him. Keep him around so he keeps feeding the Factory.
+                There's a fisherman a couple miles north and obols in your office to pay him. Keep him around so he keeps feeding the Factory.
             difficulty: hard
             multiple: false
             starting_resources: 4
@@ -1291,11 +1291,11 @@ zones:
               - >-
                 Your whole operation relies on your communication with the merchant and the Keep.
               - >-
-                You’ve survived this operation long enough to become the general manager. A good place to be. You can treat some of the wounds that will surely come and brew the workers Moonshine to keep them happy.
+                You've survived this operation long enough to become the general manager. A good place to be. You can treat some of the wounds that will surely come and brew the workers Moonshine to keep them happy.
               - >-
-                Make sure everyone’s wearing their armored gloves. So many hands lost. Oh, and emphasize to your workers—do not eat the Squeeze! You can’t afford to repeat what happened last time…
+                Make sure everyone's wearing their armored gloves. So many hands lost. Oh, and emphasize to your workers — do not eat the Squeeze! You can't afford to repeat what happened last time…
               - >-
-                There’s a fisherman a couple miles north and obols in your office to pay him. Keep him around so he keeps feeding the Factory.
+                There's a fisherman a couple miles north and obols in your office to pay him. Keep him around so he keeps feeding the Factory.
             difficulty: normal
             multiple: false
             starting_resources: 4
@@ -1322,12 +1322,12 @@ zones:
           refugee:
             name: Refugee
             intro: >-
-              Do dangerous work—cutting Godflesh from the marshes—in exchange for good hazard pay and potential social mobility.
+              Do dangerous work — cutting Godflesh from the marshes — in exchange for good hazard pay and potential social mobility.
             description:
               - >-
-                You arrived from the caves. You don’t really have a trade or the ability to labor, so your only opportunity to stay alive is through factory work.
+                You arrived from the caves. You don't really have a trade or the ability to labor, so your only opportunity to stay alive is through factory work.
               - >-
-                Cutting Godflesh out is dangerous. However, as worthwhile as it is to the merchant, the Banneret should be paying you well. If that’s not the case, feel free to do a bit of protesting.
+                Cutting Godflesh out is dangerous. However, as worthwhile as it is to the merchant, the Banneret should be paying you well. If that's not the case, feel free to do a bit of protesting.
               - >-
                 But not too much, you know? Your life is worthless here. And an armed revolt? Pffft.
             difficulty: easy
@@ -1350,7 +1350,7 @@ zones:
               Feed the factory and live a quiet life in the marshes.
             description:
               - >-
-                Godard Factory is a strange place. As much money as they make, none of them know how to feed themselves. It’s your job to bring them some food; the Banneret should pay you in obols.
+                Godard Factory is a strange place. As much money as they make, none of them know how to feed themselves. It's your job to bring them some food; the Banneret should pay you in obols.
             difficulty: easy
             multiple: false
             starting_resources: 2
@@ -1388,7 +1388,7 @@ zones:
               - >-
                 The Brigand Leader is given the sacred task of organizing his small band of scrappy men. Keep them in line; earn their loyalty, buy them booze, or bully them into submission. Also, find a place to make your base.
               - >-
-                You successfully raided a tax caravan. You're rich! But they might be looking for you. Put your resources together and plan your next move.
+                You successfully raided a tax caravan. You're rich! But they might be looking for you. Put your Resources together and plan your next move.
               - >-
                 As a Brigand, you can do whatever you want. But here are some three goals in order of priority in case you need inspiration: 1. Survive, 2. Make money, 3. Find the airship in the Baron's fortress and hitch a ride off this planet! Ha-ha… just kidding. You, in the Keep? Impossible. But imagine…
               - >-
@@ -1422,7 +1422,7 @@ zones:
               - >-
                 Some call you scum. But what do they know of freedom?
               - >-
-                You successfully raided a tax caravan. You're rich! But they might be looking for you. Put your resources together and plan your next move.
+                You successfully raided a tax caravan. You're rich! But they might be looking for you. Put your Resources together and plan your next move.
               - >-
                 As a Brigand, you can do whatever you want. But here are some three goals in order of priority in case you need inspiration: 1. Survive, 2. Make money, 3. Find the airship in the Baron's fortress and hitch a ride off this planet! Ha-ha… just kidding. You, in the Keep? Impossible. But imagine…
               - >-

@@ -228,7 +228,7 @@ zones:
           inn-street:
             name: Street
             description: >-
-              The street outside the inn, where unlucky people end up. There's a porch—a fine place to smoke a cigarette.
+              The street outside the inn, where unlucky people end up. There's a porch — a fine place to smoke a cigarette.
           inn-bar:
             name: Bar
             description: >-
@@ -236,7 +236,7 @@ zones:
           inn-second-floor:
             name: Second Floor
             description: >-
-              Upstairs, there's a felt-padded, multipurpose game table. It's quieter here. You can look down over the railing and onto the bar. A sign says: “DENNIS’S WING”
+              Upstairs, there's a felt-padded, multipurpose game table. It's quieter here. You can look down over the railing and onto the bar. A sign says: "DENNIS'S WING"
           inn-balcony:
             name: Balcony
             description: >-
@@ -918,7 +918,7 @@ zones:
           cliffs-path:
             name: Cliffside Path
             description: >-
-              A dirt path in the shadow of the keep. The river banks are further south. There's a distinctive boulder overhead, twice a person's height. It looks like a head. You can see dark gaps behind it—there are small caves in the cliffside.
+              A dirt path in the shadow of the keep. The river banks are further south. There's a distinctive boulder overhead, twice a person's height. It looks like a head. You can see dark gaps behind it — there are small caves in the cliffside.
           cliffs-den:
             name: Den
             description: >-
@@ -947,7 +947,7 @@ zones:
         name: North Road
         map_node: 4
         description: >-
-          The road starts to climbs up to the keep with rocky switchbacks. The first steep jumps have rock steps.
+          The road starts to climb up to the keep with rocky switchbacks. The first steep jumps have rock steps.
         yield: { hunting: 0.5, farming: 0.5, fishing: 0.9 }
         rooms:
           north-road-ascent:
@@ -958,7 +958,7 @@ zones:
         name: West Riverbank
         map_node: 5
         description: >-
-          The forest creek widens into a river. Planks, docks, and other bits of waterlogged wood mark mark the territory of fishermen.
+          The forest creek widens into a river. Planks, docks, and other bits of waterlogged wood mark the territory of fishermen.
         yield: { hunting: 0.8, farming: 0.3 }
         rooms:
           riverbank-large-dock:
@@ -978,7 +978,7 @@ zones:
         name: Deep Forest
         map_node: 6
         description: >-
-          Trees thickly clustered together. It's hard to move through here—it's thorny and overgrown. There's ferns and spiderwebs in the gloom.
+          Trees thickly clustered together. It's hard to move through here — it's thorny and overgrown. There's ferns and spiderwebs in the gloom.
         yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
         rooms:
           deep-forest-brambles:
@@ -1233,7 +1233,7 @@ zones:
           village-old-hut:
             name: Old Hut
             description: >-
-              A hut elevated over the marsh, half an hour’s walk out of the village proper. The village’s last inhabited building.
+              A hut elevated over the marsh, half an hour's walk out of the village proper. The village's last inhabited building.
             access: [fishermans-key]
             stash:
               items:
@@ -1382,7 +1382,7 @@ zones:
               customs-yard:
                 name: Customs
                 description: >-
-                  Migrants set up tents here, awaiting for someone to create their necessary paperwork.
+                  Migrants set up tents here, awaiting someone to create their necessary paperwork.
                 stash: [skinned-cave-rat]
               customs-storefront:
                 name: Storefront
