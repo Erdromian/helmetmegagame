@@ -201,4 +201,4 @@ Off the ladder:
 | Armor | pt | Notes |
 |---|---|---|
 | Salvage Plate | 2 | No skill gate. |
-| Energy Shield | 0 | GM-granted only. |
+| Energy Shield | 0 | Not smith work at all — Merchant stock at 145 ⬢, or the rarest rung of cave loot. ‡ |

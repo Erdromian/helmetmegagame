@@ -4152,9 +4152,9 @@ tags:
     # The Merchant is the only mid-game source, so the price is meant to hurt:
     # a free zone move every turn is the strongest thing on the assets shelf.
     # Under the Steam Automobile, which does the same job and never spooks.
-    depotPrice: 110
+    depotPrice: 90
     sellable: true
-    sellablePrice: 48
+    sellablePrice: 22
 
   bird:
     catalog: all
@@ -4738,9 +4738,9 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    depotPrice: 8
+    depotPrice: 7
     sellable: true
-    sellablePrice: 3
+    sellablePrice: 2
 
   # A lute, a fiddle, a set of pipes — the player decides which. Off the point
   # scale at 1 (TAGS.md §4a): the tag buys no advantage at all, only /play,
@@ -4931,8 +4931,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 8
-    depotPrice: 16
+    sellablePrice: 3
+    depotPrice: 13
 
   # The one thing an Artist can turn a week of work into. No depotPrice: the
   # station imports nothing Ravenheart makes itself, and a painting is the
@@ -5317,8 +5317,8 @@ tags:
     removable: true
     equippable: true
     sellable: true
-    sellablePrice: 13
-    depotPrice: 30
+    sellablePrice: 6
+    depotPrice: 25
 
   suspicious-game-set:
     catalog: all
@@ -5677,8 +5677,8 @@ tags:
     # The Depot stocks it too, at a price that makes the 6-pt creation pick
     # look like the bargain it is. See docs/systemdocs/DEPOT.md §3.
     sellable: true
-    sellablePrice: 72
-    depotPrice: 164
+    sellablePrice: 34
+    depotPrice: 134
     sealedShipping: true
 
   #Cave weapons
@@ -6594,7 +6594,7 @@ tags:
     group: items-weapons
     description: "A gentleman's cane, filled with three feet of steel."
     pointCost: 7
-    depotPrice: 28
+    depotPrice: 23
     equippable: true
     tradeable: true
     weight: 2
@@ -6603,7 +6603,7 @@ tags:
     purchasableAfterStart: false
     removable: true
     sellable: true
-    sellablePrice: 12
+    sellablePrice: 6
 
   # A Cerberon-issued sidearm — the Censor and every Cerberus start with one.
   # Never bought or built: the batteries are shipped in by the Baron, so
@@ -6752,8 +6752,8 @@ tags:
     tradeable: true
     weight: 12
     sellable: true
-    sellablePrice: 17
-    depotPrice: 38
+    sellablePrice: 8
+    depotPrice: 31
 
   # --- Special ------------------------------------------------------------
   # Relics, grafts and machinery. None of it is purchasable at any price and
@@ -6861,8 +6861,8 @@ tags:
     # sell (the Motorcycle is the other). Everything else on this shelf stays
     # something you have to go down and find. See docs/systemdocs/DEPOT.md §3.
     sellable: true
-    sellablePrice: 104
-    depotPrice: 237
+    sellablePrice: 48
+    depotPrice: 194
     sealedShipping: true
 
   dark-eye-lenses:
@@ -6924,8 +6924,8 @@ tags:
     removable: true
     # The Depot imports these, and it does not have to haul them anywhere.
     sellable: true
-    sellablePrice: 92
-    depotPrice: 209
+    sellablePrice: 43
+    depotPrice: 171
 
   sawn-off-double-barrel:
     catalog: gm
@@ -7260,9 +7260,9 @@ tags:
     group: items-drink
     description: "A Mudghara, special import. Cheap. It has a robust, heavy flavor."
     pointCost: 0
-    depotPrice: 6
+    depotPrice: 5
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 1
     tradeable: true
     weight: 0.5
     stackable: true
@@ -7280,7 +7280,7 @@ tags:
     group: items-drink
     description: "Its soothing aroma cures minor unpleasant effects—like {tag:afraid} and {tag:panic}. Ravenheart has never grown a leaf of it."
     pointCost: 0
-    depotPrice: 3
+    depotPrice: 2
     sellable: true
     sellablePrice: 1
     tradeable: true
@@ -7963,7 +7963,7 @@ tags:
     group: items-drink
     description: "Refreshing and energizing."
     pointCost: 0
-    depotPrice: 3
+    depotPrice: 2
     sellable: true
     sellablePrice: 1
     tradeable: true
@@ -7984,7 +7984,7 @@ tags:
     group: items-gear
     description: "It'll cause a commotion—maybe enough to get away."
     pointCost: 0
-    depotPrice: 4
+    depotPrice: 3
     sellable: true
     sellablePrice: 1
     tradeable: true
@@ -8004,9 +8004,9 @@ tags:
     group: items-food
     description: "What a rarity! There's no sugar in Ravenheart!"
     pointCost: 0
-    depotPrice: 5
+    depotPrice: 4
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 1
     tradeable: true
     weight: 0.5
     stackable: true
@@ -8025,9 +8025,9 @@ tags:
     group: items-food
     description: "What a rarity! Delicious on its own, even better if cooked into a meal."
     pointCost: 0
-    depotPrice: 5
+    depotPrice: 4
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 1
     tradeable: true
     weight: 2
     stackable: true
@@ -8046,9 +8046,9 @@ tags:
     group: items-gear
     description: "Throw a small object into the air or celebrate something special."
     pointCost: 0
-    depotPrice: 5
+    depotPrice: 4
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 1
     tradeable: true
     weight: 2
     stackable: true
@@ -8069,9 +8069,9 @@ tags:
     # Task 11: raised above the plain-alcohol band (5 ⬢) to sit roughly level
     # with ravenheart-red — its only price is sellablePrice 14, since it has
     # no depotPrice of its own (not depot-importable). See DEPOT.md §3.
-    depotPrice: 14
+    depotPrice: 11
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 3
     tradeable: true
     weight: 2
     stackable: true
@@ -8091,9 +8091,9 @@ tags:
     group: items-gear
     description: "A portable speaker."
     pointCost: 0
-    depotPrice: 13
+    depotPrice: 11
     sellable: true
-    sellablePrice: 5
+    sellablePrice: 3
     tradeable: true
     weight: 5
     visible: true
@@ -8108,9 +8108,9 @@ tags:
     group: items-weapons
     description: "Punish the heretics or those who have not paid their taxes."
     pointCost: 0
-    depotPrice: 14
+    depotPrice: 11
     sellable: true
-    sellablePrice: 6
+    sellablePrice: 3
     tradeable: true
     weight: 2
     equippable: true
@@ -8126,9 +8126,9 @@ tags:
     group: items-gear
     description: "Pour a substance into it and watch as it diffuses through the room."
     pointCost: 0
-    depotPrice: 15
+    depotPrice: 12
     sellable: true
-    sellablePrice: 6
+    sellablePrice: 3
     tradeable: true
     weight: 2
     visible: true
@@ -8148,9 +8148,9 @@ tags:
     group: items-gear
     description: "Detects poisons. Multi-use."
     pointCost: 9
-    depotPrice: 27
+    depotPrice: 22
     sellable: true
-    sellablePrice: 12
+    sellablePrice: 6
     tradeable: true
     weight: 0.5
     visible: false
@@ -8165,9 +8165,9 @@ tags:
     group: items-gear
     description: "It muffles whatever goes on inside."
     pointCost: 0
-    depotPrice: 27
+    depotPrice: 22
     sellable: true
-    sellablePrice: 11
+    sellablePrice: 6
     tradeable: true
     weight: 2
     stackable: true
@@ -8183,9 +8183,9 @@ tags:
     group: items-gear
     description: "What the hell are those things?!"
     pointCost: 0
-    depotPrice: 35
+    depotPrice: 29
     sellable: true
-    sellablePrice: 15
+    sellablePrice: 7
     tradeable: true
     weight: 5
     visible: true
@@ -8200,10 +8200,10 @@ tags:
     group: items-armor
     description: "A bulletproof vest and pad combination. Nothing forged in Ravenheart comes close, and nothing forged in Ravenheart stops a bullet."
     pointCost: 0
-    depotPrice: 41
+    depotPrice: 34
     sealedShipping: true
     sellable: true
-    sellablePrice: 18
+    sellablePrice: 8
     tradeable: true
     weight: 12
     equippable: true
@@ -8222,9 +8222,9 @@ tags:
     group: assets-companions
     description: "A pet monkey! Why, how exquisite!"
     pointCost: 0
-    depotPrice: 27
+    depotPrice: 22
     sellable: true
-    sellablePrice: 11
+    sellablePrice: 6
     tradeable: true
     visible: true
     purchasable: false
@@ -8238,9 +8238,9 @@ tags:
     group: assets-companions
     description: "A large, well-trained fighting dog awaits your commands."
     pointCost: 0
-    depotPrice: 46
+    depotPrice: 38
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 10
     tradeable: true
     visible: true
     purchasable: false
@@ -8255,10 +8255,10 @@ tags:
     group: items-drink
     description: "Give someone a few vials of this and they'll be asleep for a while. Inflicts {tag:asleep}."
     pointCost: 0
-    depotPrice: 55
+    depotPrice: 45
     sealedShipping: true
     sellable: true
-    sellablePrice: 24
+    sellablePrice: 11
     tradeable: true
     weight: 0.5
     stackable: true
@@ -8276,10 +8276,10 @@ tags:
     group: items-gear
     description: "Let them go wherever you like—they'll eat anything. It'll even help you get rid of the tiniest traces of a crime."
     pointCost: 0
-    depotPrice: 64
+    depotPrice: 52
     sealedShipping: true
     sellable: true
-    sellablePrice: 28
+    sellablePrice: 13
     tradeable: true
     weight: 0.5
     stackable: true
@@ -8297,10 +8297,10 @@ tags:
     group: items-gear
     description: "Creates an illusion up to human size. It lasts as long as you want."
     pointCost: 0
-    depotPrice: 73
+    depotPrice: 60
     sealedShipping: true
     sellable: true
-    sellablePrice: 32
+    sellablePrice: 15
     tradeable: true
     weight: 0
     visible: false
@@ -8315,10 +8315,10 @@ tags:
     group: items-special
     description: "A hideous little monster that will understand your simple instructions and carry them out."
     pointCost: 0
-    depotPrice: 91
+    depotPrice: 75
     sealedShipping: true
     sellable: true
-    sellablePrice: 40
+    sellablePrice: 19
     tradeable: true
     weight: 2
     visible: true
@@ -8333,9 +8333,9 @@ tags:
     group: items-gear
     description: "Equip to muffle your shots. ‡"
     pointCost: 0
-    depotPrice: 90
+    depotPrice: 74
     sellable: true
-    sellablePrice: 39
+    sellablePrice: 18
     equippable: true
     tradeable: true
     weight: 1
@@ -8352,9 +8352,9 @@ tags:
     group: items-drink
     description: "Immediately cures all stages of infection."
     pointCost: 0
-    depotPrice: 100
+    depotPrice: 82
     sellable: true
-    sellablePrice: 44
+    sellablePrice: 20
     tradeable: true
     weight: 0.5
     stackable: true
@@ -8377,9 +8377,9 @@ tags:
     description: "Fill it with water, warm it up, and move along a straight path without any obstacles. While it's equipped, you get 1 extra free zone move each turn, but you will be easily visible. Do not use through caves. It waits outside indoors. ‡"
     pointCost: 0
     equippable: true
-    depotPrice: 164
+    depotPrice: 134
     sellable: true
-    sellablePrice: 72
+    sellablePrice: 34
     tradeable: true
     visible: true
     purchasable: false
@@ -8394,10 +8394,10 @@ tags:
     description: "A 9mm pistol. Hunting produces +2 ⬢ when equipped. ‡"
     laborBonus: { kind: hunting, amount: 2 }
     pointCost: 0
-    depotPrice: 182
+    depotPrice: 149
     sealedShipping: true
     sellable: true
-    sellablePrice: 80
+    sellablePrice: 37
     tradeable: true
     weight: 2
     equippable: true
@@ -8419,10 +8419,10 @@ tags:
     group: items-weapons
     description: "A semi-automatic rifle chambered in .308."
     pointCost: 0
-    depotPrice: 260
+    depotPrice: 213
     sealedShipping: true
     sellable: true
-    sellablePrice: 114
+    sellablePrice: 53
     tradeable: true
     weight: 5
     equippable: true
@@ -8438,10 +8438,10 @@ tags:
     group: items-weapons
     description: "An experimental fully automatic rifle that belongs to the past."
     pointCost: 0
-    depotPrice: 540
+    depotPrice: 443
     sealedShipping: true
     sellable: true
-    sellablePrice: 237
+    sellablePrice: 111
     tradeable: true
     weight: 5
     equippable: true
@@ -8457,10 +8457,10 @@ tags:
     group: items-weapons
     description: "Fit for the highest of nobility. Light, strong, and unimaginably sharp."
     pointCost: 0
-    depotPrice: 230
+    depotPrice: 189
     sealedShipping: true
     sellable: true
-    sellablePrice: 101
+    sellablePrice: 47
     tradeable: true
     weight: 5
     equippable: true
@@ -8476,9 +8476,9 @@ tags:
     group: items-weapons
     description: "You're no longer afraid of the night."
     pointCost: 0
-    depotPrice: 150
+    depotPrice: 123
     sellable: true
-    sellablePrice: 66
+    sellablePrice: 31
     tradeable: true
     weight: 5
     equippable: true
@@ -8494,9 +8494,9 @@ tags:
     group: items-weapons
     description: "Hurts!"
     pointCost: 0
-    depotPrice: 75
+    depotPrice: 61
     sellable: true
-    sellablePrice: 33
+    sellablePrice: 15
     tradeable: true
     weight: 2
     equippable: true
@@ -9547,9 +9547,9 @@ tags:
     weight: 2
     purchasable: false
     purchasableAfterStart: false
-    depotPrice: 15
+    depotPrice: 12
     sellable: true
-    sellablePrice: 6
+    sellablePrice: 3
 
   bone-mask:
     catalog: gm
@@ -10089,20 +10089,24 @@ tags:
     sellablePrice: 3
 
   energy-shield:
-    catalog: gm
+    catalog: all
     name: Energy Shield
     category: items
     group: items-armor
-    description: "A projected field. It stops bullets, arrows and blasts, and softens a melee blow. A slow needle passes through it. Any liquid touching it destroys it. GM-granted only."
+    description: "One of the few things in Ravenheart that can stop firearm fire, but doesn’t completely stop melee damage."
     pointCost: 0
     equippable: true
     equipSlot: SHIELD
     melee: 0.7
     ballistic: 0.95
     visible: true
-    tradeable: false
+    tradeable: true
+    weight: 2
     purchasable: false
     purchasableAfterStart: false
+    depotPrice: 145
+    sellable: true
+    sellablePrice: 36
 
   silver-cross:
     catalog: gm
@@ -10309,8 +10313,8 @@ tags:
     removable: true
     consumable: true
     sellable: true
-    sellablePrice: 14
-    depotPrice: 32
+    sellablePrice: 6
+    depotPrice: 26
 
   # --- Health: Grievous Wound ---------------------------------------------
   # Tier 5 (Very minor surgery) on the cure ladder — TAGS.md §5c.
@@ -10610,5 +10614,5 @@ tags:
     removable: true
     # Priced at about 65% of a {tag:flamethrower}, the shelf it shares. ‡
     sellable: true
-    sellablePrice: 68
-    depotPrice: 154
+    sellablePrice: 32
+    depotPrice: 126

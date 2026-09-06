@@ -165,7 +165,6 @@ zones:
               - squeeze
               - courtstructure
               - lifewebbasic
-              - fortressstarting
               - cerberon
               - armory
               - ravenhearteconomy
@@ -197,7 +196,6 @@ zones:
               - godking
               - courtstructure
               - lifewebbasic
-              - fortressstarting
           heir:
             name: Heir
             # The seat fixes the holder's gender -> Role.lockedGender.
@@ -225,7 +223,6 @@ zones:
               - godking
               - courtstructure
               - lifewebbasic
-              - fortressstarting
           successor:
             name: Successor
             # The seat fixes the holder's gender -> Role.lockedGender.
@@ -250,7 +247,6 @@ zones:
               - godking
               - courtstructure
               - lifewebbasic
-              - fortressstarting
           hand:
             name: Hand
             intro: >-
@@ -298,7 +294,6 @@ zones:
               - squeeze
               - courtstructure
               - lifewebbasic
-              - fortressstarting
               - courtier
               - cerberon
               - armory
@@ -342,7 +337,6 @@ zones:
               - squeeze
               - courtstructure
               - lifewebbasic
-              - fortressstarting
               - courtier
               - medical
               - ravenhearteconomy
@@ -372,7 +366,6 @@ zones:
             doc_elements:
               - godking
               - courtstructure
-              - fortressstarting
               - ravenhearteconomy
           courtier:
             name: Courtier
@@ -397,7 +390,6 @@ zones:
               - godking
               - courtier
               - courtstructure
-              - fortressstarting
           minstrel:
             name: Minstrel
             intro: >-
@@ -419,7 +411,6 @@ zones:
               - godking
               - courtier
               - courtstructure
-              - fortressstarting
           servant:
             name: Servant
             intro: >-
@@ -443,7 +434,6 @@ zones:
               - godking
               - courtier
               - courtstructure
-              - fortressstarting
       cerberon:
         name: Cerberon
         silo: garrison-mess-hall
@@ -490,7 +480,6 @@ zones:
             doc_elements:
               - godking
               - courtstructure
-              - fortressstarting
               - cerberon
               - armory
               - combat
@@ -528,7 +517,6 @@ zones:
               - Post-Christian
             doc_elements:
               - courtstructure
-              - fortressstarting
               - cerberon
               - postchristianity
               - armory
@@ -565,7 +553,6 @@ zones:
               - Obol x1
             doc_elements:
               - courtstructure
-              - fortressstarting
               - cerberon
               - armory
               - combat
@@ -592,7 +579,6 @@ zones:
               - Post-Christian
             doc_elements:
               - courtstructure
-              - fortressstarting
               - cerberon
               - armory
               - combat

@@ -24,12 +24,7 @@ documents:
     public: true
     tags: []
     description: |-
-      You're welcome to change things, but this is how things have been done for years:
-
-      The town farms, fishes, and hunts. Most of that is taxed by the Headman, who sends a fraction of his tithe to the Bishop and the bulk to the Baron (through the Meister, his tax-man). What little he has left is paid to those on the town's payroll, mostly the Sheriff.
-
-      So, the Fortress survives off of the town's taxes, and provides protection in turn.
-      The Church survives off of the town's taxes, and provides religious services in turn.
+      The Baron protects Ravenheart. In exchange, its commoners farm, fish, and hunt. They keep enough to feed themselves, but the rest is taxed. The town’s laborers aren’t independent contractors; they’re peasants in a feudal system.
   godking:
     name: The God-King
     public: false
@@ -132,7 +127,7 @@ documents:
     name: Sanctuary
     public: true
     description: |-
-      The Sanctuary is perhaps the only part of Ravenheart that hasn't succumbed to feudalism. It's stocked with advanced (roughly modern-day) medical equipment, an absolute treasure of ancient times. There is a set of {tag:surgical-equipment} laid out in the operating theatre, and anyone working in that room has the use of it — though it is a real object, and a determined thief could carry it off. ‡
+      The Sanctuary is perhaps the only part of Ravenheart that hasn't succumbed to feudalism. It's stocked with advanced (roughly modern-day) medical equipment, an absolute treasure of ancient times. There is a set of {tag:surgical-equipment} laid out in the operating theatre, and anyone working in that room has the use of it. ‡
 
       The Sanctuary operates independently from the Baron. Although he could try to gain control over it, it would be unprecedented and pretty pointless. So the Esculap does whatever he wants within his walls.
 
@@ -176,7 +171,7 @@ documents:
     public: true
     tags: []
     description: |-
-      The theory and nitty-gritty of combat — like, the realistic physics — is as important as the skill. Even a master fencer won't be able to do much against a random guy in plate armor, and just a few horse archers can take out a whole squad of footpads. Different weapons excel in different circumstances, like: how much space you have, whether you’re alone or in formation, and whether your opponent is armored.
+      The nitty-gritty of combat is as important as the fighters’ skills. Even a master fencer would struggle against a peasant in plate armor, and just a few horse archers can take out a whole squad of footpads. Different weapons excel in different circumstances, like how much space you have, whether you’re alone or in formation, and whether your opponent is armored.
 
       **Melee**
       - Polearms are ubiquitous. Their reach means you can keep the opponent away and decide when the battle starts. They come in stabby, crushy, and pokey varieties.
@@ -191,7 +186,7 @@ documents:
       - Crossbows take time to reload but are better against armored opponents.
       - Firearms beat everything.
 
-      Shields are very useful. For armor, there’s a few important traits: material, concealability, weight, and donning time. Some items can be worn under regular clothes. Certain items, like plate, will make a long trek through the forest difficult — you’ll get very hot under all that metal — but make you a veritable tank in combat. Seriously, almost nothing can get through plate. However, it also has the downside of being hard to equip, so if you’re, say, at a feast and someone pulls out a dagger, you’d better have a padded jack or brigandine underneath.
+      Shields are very useful. For armor, there’s a few important traits: material, concealability, weight, and donning time. Some items can be worn under regular clothes. Certain items, like plate, will make a long trek through the forest difficult but make you a veritable tank in combat. However, it also has the downside of being hard to equip, so if you’re at a feast and someone pulls out a dagger, you’d better have a padded jack or brigandine underneath.
 
       **Energy Shields**
       - Stop projectiles.
@@ -206,14 +201,8 @@ documents:
       The Headman received a raven saying he didn't receive the last tax wagon. It was probably ambushed by bandits. The Meister won't be happy about this… prepare to be squeezed for it. ‡
 
       Last week, Thomas Ciobanu — a respectable tradesman — was found milky-eyed, giggly, with a profoundly satisfied look. He wandered around aimlessly, going hungry — when people tried to help him, he just called them fools. The Esculap's medicine couldn't do anything for him, so the Inquisitor had him hanged. He fought all the way to the gallows, like a rabid dog.
-  fortressstarting:
-    name: Fortress Starting Packet
-    public: false
-    tags: []
-    description: |-
-      The last tithe didn't arrive.
   lifewebbasic:
-    name: The Lifeweb
+    name: Lifeweb
     public: true
     tags: []
     description: |-
@@ -275,17 +264,12 @@ documents:
     public: true
     tags: []
     description: |-
-      In the darkness, there are sacred things. And what is most sacred? That which remembers. What is darkness but ignorance?
+      Post-Christianity believes in God and Christ. Its doctrines are non-specific, as different people practice in different ways. However, there’s a few commonalities:
 
-      Can you blame them, the writhing monsters, suckling beneath the surface? They are less than animal. They have proven that that essence of purity which God imbued us with is not immutable; to the contrary, people have lost it, spat on it, cursed it.
-
-      … And some people mock it, but what do they know of the stability, the openness of an ennobled mind, the very peace they seek through their perversions? It is good — it is the ultimate good — to love oneself, and through oneself, God.
-
-      It is regrettable, but not reproachable, that God smote the Earth. At the very least, those of us who remained faithful were given this sliver of Paradise.
-
-      The problem with the Heretic is just that: they crawl out from their holes, seeking to turn us against the Truth. But they cannot. Even if they were to murder and devour all of us, we would not forget God — as long as we chose not to. Nothing can take away faith, charity, and virtue, except our own malfeasance.
-
-      In any case, the Afterlife is around the corner, as it always was and it always will be. Only by forgetting that could we prioritize the gratification of the moment.
+      - The virtues are as important now as they ever were. The world is a dark place, but it still has room for goodness.
+      - Christ never returned. The Earth was ruined, and we were left behind. It is our responsibility to redeem ourselves and await the afterlife.
+      - There is a heaven, so we can endure anything that happens here—just remain pure.
+      - There is also a hell, so we must protect others from descending into the spiritual darkness that’s consumed the rest of the world.
   smithing:
     name: Smithing and Crafting
     public: true
@@ -398,7 +382,7 @@ documents:
     secret: true
     tags: []
     description: |-
-      The Charon is a spaceship. It'll take its passengers out into space, where an enormous passenger liner is allegedly waiting for refugees. The Charon's hatch can be accessed through the Undercroft.
+      The Charon is a one-way spaceship. It’ll take its passengers out into space, where a passenger liner called the Leviathan is allegedly waiting for refugees. The Charon’s hatch can be accessed through the Undercroft.
   meals:
     name: Meals & Kitchens
     public: true
@@ -542,20 +526,20 @@ documents:
     public: true
     tags: []
     description: |-
-      Run `/conceal` (or flip the switch on your Character page) to hide your identity until you turn it off.
+      Run `/conceal` (or use the switch on your Character page) to hide your identity until you turn it off. You need a helmet, a hood, or a mask.
 
-      You'll appear as a stranger — in what you say and in Who's here? — but people can still see (using the 🔎 reaction) any visible wounds or gear. ‡
+      You’ll appear as a stranger, but people can still see (using the 🔎 reaction) any visible wounds or gear.
   thepusher:
-    name: The Pusher
+    name: Pusher
     public: true
     tags: []
     roles:
       - censor
       - pusher
     description: |-
-      The Pusher sells drugs and runs the town's gambling den and, well, er, informal drug pub. It's his job to keep the peasants satisfied and not rebelling.
+      The Pusher sells drugs and runs the town’s gambling den in the Abandoned Theater. It’s his job to keep the peasants satisfied and not rebelling.
 
-      He is exempted from the usual capital punishment for drug possession — completely above the law. But he owes the Baron a cut, directly.
+      He’s exempted from the usual capital punishment for drug possession, but he owes the Baron a cut.
   squeeze:
     name: Squeeze
     public: false

@@ -446,6 +446,21 @@ whole of `PAPERWORK.md` is a menu people look at once. It is also the only ware
 with no sell-back price at all: a resale market in blank paper is not a thing
 anybody needs, and 1 ⬢ leaves no room under it anyway.
 
+**Sell-back is 25% of the buy price**, rounded, with a floor of 1 ⬢. It used to
+be ~44%, which made the Merchant a laundry: buy a rifle, sell it back, keep
+nearly half for nothing. Import prices came down ~18% in the same pass, so the
+shelf got cheaper and the round-trip got worse — which is the way round it
+should have been. ‡
+
+Seven wares are off that rule on purpose, and their prices did not move:
+`alcohol`, `distilled-coca`, `fishing-rod`, `trapping-gear`, `phrygian-tears`,
+`gladiator-helmet` and `workshop-equipment`. Each is craftable or brewable, so
+its `sellablePrice` is a **producer's wage** under §4's bands rather than a
+resale value — cutting it to a quarter would price brewing `distilled-coca`
+(4 ⬢ to make) at a loss. The cost of the exemption is that those two brews stay
+the best round-trips in the game, at 80% and 91% back; the fix there is raising
+what the Merchant *charges*, not what he pays. ‡
+
 Six are also creation picks, marked in the Notes column: `jewelry` (2 pt),
 `instant-camera` (2), `sword-cane` (7), `surgical-equipment` (9),
 `poison-snooper` (9) and `neoclassic-rw10` (14). All six are
@@ -458,49 +473,50 @@ buying one mid-game is still a real decision.
 | Ware | ⬢ | Sells back | Notes |
 |---|---|---|---|
 | `paper` | 1 | — | **The cheapest thing on the shelf**, deliberately. Blank stock: writing on it mints the letter (`PAPERWORK.md`). Sells back for nothing, so buying and reselling is pure loss. |
-| `tea` | 3 | 1 | Cures minor nerve effects — `afraid`, `panic`. Adjudicated, not automated. |
-| `coffee` | 3 | 1 | Consumes into `caffeinated` (2t) |
-| `firecracker` | 4 | 1 | |
-| `cigarette` | 6 | 2 | A Mudghara import. Twice the price of `tea`, since it is the pricier vice. ‡ |
+| `coffee` | 2 | 1 | Consumes into `caffeinated` (2t) |
+| `tea` | 2 | 1 | Cures minor nerve effects — `afraid`, `panic`. Adjudicated, not automated. |
+| `firecracker` | 3 | 1 | |
+| `honey` | 4 | 1 | Consumes into `ate-meal` |
+| `sky-lantern` | 4 | 1 | |
+| `sweets` | 4 | 1 | Consumes into `ate-meal` |
 | `alcohol` | 5 | 4 | He stocks the local brew too |
-| `rat-mask` | 15 | 6 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source. |
-| `sweets` | 5 | 2 | Consumes into `ate-meal` |
-| `honey` | 5 | 2 | Consumes into `ate-meal` |
-| `sky-lantern` | 5 | 2 | |
+| `cigarette` | 5 | 1 | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. ‡ |
+| `boombox` | 11 | 3 | |
 | `distilled-coca` | 11 | 10 | Also a Skilled brew, at 4 ⬢ — see §4 |
-| `boombox` | 13 | 5 | |
-| `sake` | 14 | 2 | Consumes into `tipsy`. Priced level with `ravenheart-red`'s 14 — its only price, since it has no `depotPrice` of its own |
-| `whip` | 14 | 6 | Equippable |
-| `censer` | 15 | 6 | |
-| `jewelry` | 16 | 8 | Also a 2-pt creation pick |
-| `black-body-bag` | 27 | 11 | |
-| `poison-snooper` | 27 | 12 | **The exception:** also buyable at creation, 9 pt |
-| `monkey` | 27 | 11 | |
-| `sword-cane` | 28 | 12 | Also a 7-pt creation pick |
-| `instant-camera` | 32 | 14 | Also a 2-pt creation pick |
-| `microscope` | 35 | 15 | |
+| `sake` | 11 | 3 | Consumes into `tipsy`. Under `ravenheart-red`'s 14 — its only price, since it has no `depotPrice` of its own |
+| `whip` | 11 | 3 | Equippable |
+| `censer` | 12 | 3 | |
+| `rat-mask` | 12 | 3 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source. |
+| `jewelry` | 13 | 3 | Also a 2-pt creation pick |
+| `black-body-bag` | 22 | 6 | |
+| `monkey` | 22 | 6 | |
+| `poison-snooper` | 22 | 6 | **The exception:** also buyable at creation, 9 pt |
+| `sword-cane` | 23 | 6 | Also a 7-pt creation pick |
+| `instant-camera` | 26 | 6 | Also a 2-pt creation pick |
+| `microscope` | 29 | 7 | |
+| `surgical-equipment` | 31 | 8 | Also a 9-pt creation pick |
+| `light-infantry-armour` | 34 | 8 | Stops a bullet. Nothing forged here does. |
 | `phrygian-tears` | 36 | 20 | Also a Skilled brew, at 4 ⬢ — see §4 |
-| `surgical-equipment` | 38 | 17 | Also a 9-pt creation pick |
-| `light-infantry-armour` | 41 | 18 | Stops a bullet. Nothing forged here does. |
-| `hound` | 46 | 20 | |
-| `soporific` | 55 | 24 | Inflicts `asleep` (1t) |
-| `amoeba-vial` | 64 | 28 | |
-| `illusion-crystal` | 73 | 32 | |
-| `bb-pistol` | 75 | 33 | Equippable |
-| `silencer` | 90 | 39 | Equippable. The Merchant starts holding one |
-| `homunculus` | 91 | 40 | |
-| `antibiotics` | 100 | 44 | Cures every stage of infection |
-| `horse` | 110 | 48 | **The dearest thing that is not a weapon.** Also a 9-pt creation pick, and `purchasableAfterStart: false` — so mid-game the Merchant is the only horse in Ravenheart |
-| `silver-sword` | 150 | 66 | |
-| `chainsaw` | 154 | 68 | Cuts two Godflesh per Extract, and farms at +2 ⬢ — `FACTORY.md` |
-| `steam-automobile` | 164 | 72 | Fast-travels like a Horse — see below |
-| `neoclassic-rw10` | 164 | 72 | Neoclassic R&W10. Also a 14-pt creation pick. |
-| `ml-23` | 182 | 80 | A 9mm pistol |
-| `motorcycle` | 209 | 92 | Caving loot he also imports |
-| `adamantium-sword` | 230 | 101 | |
-| `flamethrower` | 237 | 104 | Caving loot he also imports |
-| `ctt43-rifle` | 260 | 114 | A .308 semi-automatic |
-| `kpfw-6-avtomat` | 540 | 237 | The dearest thing on the counter |
+| `hound` | 38 | 10 | |
+| `soporific` | 45 | 11 | Inflicts `asleep` (1t) |
+| `amoeba-vial` | 52 | 13 | |
+| `illusion-crystal` | 60 | 15 | |
+| `bb-pistol` | 61 | 15 | Equippable |
+| `silencer` | 74 | 18 | Equippable. The Merchant starts holding one |
+| `homunculus` | 75 | 19 | |
+| `antibiotics` | 82 | 20 | Cures every stage of infection |
+| `horse` | 90 | 22 | **The dearest thing that is not a weapon or armour.** Also a 9-pt creation pick, and `purchasableAfterStart: false` — so mid-game the Merchant is the only horse in Ravenheart |
+| `silver-sword` | 123 | 31 | |
+| `chainsaw` | 126 | 32 | Cuts two Godflesh per Extract, and farms at +2 ⬢ — `FACTORY.md` |
+| `neoclassic-rw10` | 134 | 34 | Neoclassic R&W10. Also a 14-pt creation pick. |
+| `steam-automobile` | 134 | 34 | Fast-travels like a Horse — see below |
+| `energy-shield` | 145 | 36 | **The dearest thing on the shelf that is not a gun.** Stops bullets outright and softens a melee blow — the best odds against the Fortress turret in the game, though a minor wound is still very possible. Caving loot he also imports, and GM-granted until now. ‡ |
+| `ml-23` | 149 | 37 | A 9mm pistol |
+| `motorcycle` | 171 | 43 | Caving loot he also imports |
+| `adamantium-sword` | 189 | 47 | |
+| `flamethrower` | 194 | 48 | Caving loot he also imports |
+| `ctt43-rifle` | 213 | 53 | A .308 semi-automatic |
+| `kpfw-6-avtomat` | 443 | 111 | The dearest thing on the counter |
 
 Three of these need code, not just catalog data:
 
@@ -554,7 +570,7 @@ Four bands, about 106 tags in total:
 | Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9, Moderate 22, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
 | Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
 | Factory goods | a day's output at ~2.2× a good farming day | `squeeze` 4 a cube — 8 cubes is a shift (`FACTORY.md` §6). Buy-only in the other direction: the station sells nobody a cube |
-| Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **48** |
+| Salvage and valuables | what portable wealth is worth | `jewelry` 3, `heirloom` 12, `old-coin` 1, `painting` **48** |
 
 **Three numbers moved in the Butchering change** (`CORPSES.md`), and they are
 off the bands above on purpose. `skinless-brain` went 10 → 40 then **40 → 25**
