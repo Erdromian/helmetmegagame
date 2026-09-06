@@ -50,10 +50,24 @@ node scripts/dev/session.mjs --gm      # print a session cookie for a local supe
 npm run dev:check -- --gm /gm/audit    # load a GM page headlessly, check it actually rendered
 ```
 
-`dev:session` / `dev:check` are covered in `CLAUDE.md`'s "Verifying a change
-locally" — the short version is that a session cookie can be minted directly
-because it's just a JWT signed with `AUTH_SECRET`, so `next dev` can render a
-signed-in page with no OAuth round trip at all.
+There are two ways to actually get a signed-in browser session, and the two
+call for different things:
+
+- **Click "Sign in locally" on the landing page.** Only rendered when
+  `LOCAL_MODE` is on (`web/app/components/HomeScreen.js`), it signs in as
+  the first id in `web/lib/superadmin.js#SUPERADMIN_DISCORD_IDS` through a
+  Credentials provider that `web/lib/auth.js` registers only under
+  `LOCAL_MODE` — the ordinary "Sign in with Discord" button is still there
+  and still tries real Discord, which fails without a real
+  `DISCORD_CLIENT_ID`/`DISCORD_CLIENT_SECRET`. Use this for clicking around
+  the app as a person would, including the character creation flow.
+- **`node scripts/dev/session.mjs --gm`** prints a cookie value to paste
+  into `document.cookie` by hand, or feeds `dev:check` for a headless
+  fetch-and-inspect. This is a session cookie minted directly, since it's
+  just a JWT signed with `AUTH_SECRET` — no request to the app at all, which
+  makes it the right tool for scripted checks (`dev:check`, covered in
+  `CLAUDE.md`'s "Verifying a change locally") rather than something to use
+  from an actual browser tab.
 
 `npm run dev:seed` (`scripts/dev/seed-test-data.mjs`) adds two characters
 named `Seed Alpha (local)` / `Seed Beta (local)` (`discordUserId` prefixed

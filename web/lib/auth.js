@@ -1,6 +1,9 @@
 import NextAuth from "next-auth";
 import Discord from "next-auth/providers/discord";
+import Credentials from "next-auth/providers/credentials";
 import { NextRequest } from "next/server";
+import { isLocalMode } from "@lifeweb/db/lib/localMode";
+import { SUPERADMIN_DISCORD_IDS } from "./superadmin";
 
 // Behind Railway's proxy, Next.js builds `request.url` from the container's
 // own listener and ignores the Host header, so the /api/auth/* route handler
@@ -56,11 +59,33 @@ const nextAuth = NextAuth({
       // here ever reads an email — so don't ask players for one.
       authorization: { params: { scope: "identify" } },
     }),
+    // Registered only under LOCAL_MODE (db/lib/localMode.js), so there is no
+    // "local" provider for signIn("local") to find at all outside dev — the
+    // real guard is that this array simply doesn't contain it, same as every
+    // other LOCAL_MODE branch answering instead of a real Discord call.
+    // Signs in as the first superadmin id (web/lib/superadmin.js), which
+    // LOCAL_MODE's own member-lookup stub already treats as holding every
+    // local role — one click reaches everything a GM page needs.
+    ...(isLocalMode()
+      ? [
+          Credentials({
+            id: "local",
+            name: "Local (dev only)",
+            credentials: {},
+            async authorize() {
+              return { id: SUPERADMIN_DISCORD_IDS[0] };
+            },
+          }),
+        ]
+      : []),
   ],
   callbacks: {
-    async jwt({ token, profile }) {
-      if (profile?.id) {
-        token.discordUserId = profile.id;
+    async jwt({ token, profile, user }) {
+      // `profile` is Discord's OAuth profile; `user` is what the local
+      // Credentials provider's authorize() returned. Never both at once.
+      const discordUserId = profile?.id ?? user?.id;
+      if (discordUserId) {
+        token.discordUserId = discordUserId;
       }
       return token;
     },

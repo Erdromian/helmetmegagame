@@ -1,4 +1,5 @@
-import { signInWithDiscord } from "../actions";
+import { signInWithDiscord, signInLocally } from "../actions";
+import { isLocalMode } from "@lifeweb/db/lib/localMode";
 
 export default function HomeScreen({ turnLabel }) {
   return (
@@ -16,6 +17,14 @@ export default function HomeScreen({ turnLabel }) {
           Sign in with Discord
         </button>
       </form>
+
+      {isLocalMode() && (
+        <form action={signInLocally}>
+          <button type="submit" className="btn-quiet">
+            Sign in locally (LOCAL_MODE, no Discord)
+          </button>
+        </form>
+      )}
     </main>
   );
 }
