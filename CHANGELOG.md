@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Weights back up, made real, and the carry cap down to 84 lb
+
+✎ The 30% weight cut was an accident and is undone: everything is back on the old scale  
+✎ Then a realism pass, item by item: a dagger is 1 lb, a longsword 3, a halberd 6, a war hammer 5, a crossbow 8, a knight's helm 6, a cigarette nothing  
+✎ Heavy things stayed heavy: plate 55 lb, cataphract 65, a flamethrower 40, a Graga corpse 75, a Squeeze cube 17  
+✎ The base carry cap is 84 lb, down from 120. A knight in full plate with sword, dagger and shield has about fifteen pounds spare  
+✎ A refugee cannot carry a shift's Squeeze any more, and a Horse and Cart clears about four turns of Factory output in one trip rather than five
+
 ## 2026-09-06 · Rooms have no slowmode, and a wipe waits for Discord
 
 ✎ Room threads and Conversations carry no slowmode after all; the five minutes stays on the zone summary alone. The earlier note saying Rooms got 30 seconds was wrong and is undone here.  
