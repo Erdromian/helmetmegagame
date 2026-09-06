@@ -38,7 +38,8 @@
     "db:open-rp-channels": "node db/scripts/ops/open-rp-channels.js",
     "db:backup": "bash scripts/db/railway-backup.sh",
     "copy:extract": "node scripts/copy/extract.js",
-    "copy:reinject": "node scripts/copy/reinject.js"
+    "copy:reinject": "node scripts/copy/reinject.js",
+    "map:dot": "node scripts/map/zone-dot.js"
   },
   "allowScripts": {
     "@prisma/client@6.19.3": true,

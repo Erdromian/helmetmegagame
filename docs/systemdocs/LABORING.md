@@ -122,8 +122,9 @@ slug — open country carries its zone as a prefix, built places do not
 Keep 0.2.
 
 **Fishing** — `forest-headwaters` / `forest-creekside` / `forest-north-road` /
-`forest-deep-forest` / `forest-culvert` / `forest-east-river` 0.9 ·
-`hills-black-pines` 0.8 · the five open Marshes 1.0.
+`forest-deep-forest` / `forest-culvert` / `forest-east-river` /
+`forest-west-riverbank` 0.9 · `hills-black-pines` / `hills-ferry` 0.8 · the
+five open Marshes 1.0.
 
 **Hunting** — Forest 0.5 except `forest-west-riverbank` 0.8 · the five open
 Marshes 1.0 · Black Hills 1.0 throughout · the four Caves 0.4 · Depths 0.6

@@ -987,7 +987,7 @@ zones:
         map_node: 5
         description: >-
           The forest creek widens into a river. Planks, docks, and other bits of waterlogged wood mark the territory of fishermen.
-        yield: { hunting: 0.8, farming: 0.3 }
+        yield: { hunting: 0.8, farming: 0.3, fishing: 0.9 }
         rooms:
           riverbank-large-dock:
             name: Large Dock
@@ -1167,7 +1167,7 @@ zones:
         map_node: 13
         description: >-
           The river again, wider and slower, with the far bank invisible in the haze. A ferry rope is still strung across it. There is no ferry. ‡
-        yield: { hunting: 1.0 }
+        yield: { hunting: 1.0, fishing: 0.8 }
         rooms: {}
       hills-trails:
         name: Hunters' Trails

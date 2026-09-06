@@ -11,3 +11,6 @@ npm-debug.log*
 
 # Copy-rewrite worksheets (scripts/copy) — scratch, regenerate with npm run copy:extract
 worksheets/
+
+# Travel-graph render (scripts/map) — scratch, regenerate with npm run map:dot
+*.dot
