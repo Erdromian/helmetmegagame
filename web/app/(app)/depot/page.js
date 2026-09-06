@@ -75,6 +75,11 @@ function ledgerRow(entry, who) {
       return { detail: e.direction === "WITHDRAW" ? "Withdrawn as coin" : "Deposited", delta: e.direction === "WITHDRAW" ? -(e.amount ?? 0) : (e.amount ?? 0) };
     case "DEPOT_CREDIT":
       return { detail: e.direction === "DRAW" ? "Drawn on the line" : "Repaid the line", delta: e.direction === "DRAW" ? (e.amount ?? 0) : -(e.amount ?? 0) };
+    case "DEPOT_EXCHANGE":
+      return {
+        detail: e.direction === "BUY_RESOURCES" ? `Bought ${e.resources ?? 0} ⬢` : `Sold ${e.resources ?? 0} ⬢`,
+        delta: e.direction === "BUY_RESOURCES" ? -(e.obols ?? 0) : (e.obols ?? 0),
+      };
     case "DEPOT_CRATE_OPEN":
       return { detail: `${e.crateName ?? "A crate"} — ${(e.granted ?? []).map((g) => `${g.name} ×${g.quantity}`).join(", ") || "empty"}`, delta: 0 };
     case "DEPOT_REFUEL":

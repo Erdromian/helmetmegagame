@@ -18,6 +18,7 @@
 const { rollDie } = require("./moveEffects");
 const { gambitModifierTotal } = require("./gambitModifier");
 const { moveWindow } = require("./turnClock");
+const { clockFrozen } = require("./gameState");
 const { isHere, notHereMessage } = require("./presence");
 const { offerButtonRow } = require("./offerRow");
 const { CHAPLAIN_SLUG, CONFESSION_THRESHOLD, GUILT_RIDDEN_SLUG } = require("./constants");
@@ -78,17 +79,12 @@ const GONE = "That confession's gone. ‡";
 const LOCKED_IN = "You've already locked in a Move this turn. ‡";
 
 async function openTurnAndWindow(db) {
-  const [turn, config] = await Promise.all([
+  const [turn, frozen] = await Promise.all([
     db.turn.findFirst({ where: { status: "OPEN" } }),
-    db.gameConfig.findUnique({
-      where: { id: 1 },
-      select: { autoTurnAdvanceDisabled: true },
-    }),
+    clockFrozen(db),
   ]);
   if (!turn) return { turn: null, locked: true };
-  const { locked } = moveWindow(turn, {
-    autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
-  });
+  const { locked } = moveWindow(turn, { clockFrozen: frozen });
   return { turn, locked };
 }
 
@@ -160,7 +156,7 @@ async function loadCharacter(db, id) {
 // function, on purpose.
 async function createConfessionOffer(
   prisma,
-  { penitentId, chaplainId, tagId, reason = null },
+  { penitentId, chaplainId, tagId },
 ) {
   const { turn, locked } = await openTurnAndWindow(prisma);
   if (!turn) return { ok: false, reason: "No turn is open. ‡" };
@@ -217,7 +213,6 @@ async function createConfessionOffer(
       teacherId: chaplainId,
       learnerId: penitentId,
       tagId,
-      reason,
     },
   });
 

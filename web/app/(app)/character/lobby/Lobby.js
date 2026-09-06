@@ -1,0 +1,223 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
+import PageShell, { PageHeader } from "@/app/components/PageShell";
+import CheckField from "@/app/components/CheckField";
+import Select from "@/app/components/Select";
+import FormError from "@/app/components/FormError";
+import useActionRunner from "@/app/components/useActionRunner";
+import { ANTAGONISTS, optInName, optInWhitelisted } from "@/lib/threats";
+import { LEVELS, setPriority, pickedNothing } from "@lifeweb/db/lib/playerPreferences";
+import { savePreferences, setReady, setUnready } from "../lobbyActions";
+
+// The pregame lobby (docs/systemdocs/LOBBY.md §2): roles down the left, and
+// on the right — sticky, so it stays in view while scrolling forty roles —
+// the Ready card, the fallback dropdown and the antagonist boxes. Controls
+// and names only; the handbook explains the rest. Preferences save on every
+// change, debounced; Ready is its own button.
+
+const LEVEL_LABEL = { OFF: "Off", LOW: "Low", MEDIUM: "Med", HIGH: "High" };
+const JOBLESS_OPTIONS = [
+  { value: "COMMONER", label: "Join as Commoner" },
+  { value: "MIGRANT", label: "Join as Migrant" },
+  { value: "RETURN_TO_LOBBY", label: "Return to lobby" },
+];
+const NOTHING_LINE = {
+  COMMONER: "Every role is Off: you'll start as a Commoner. ‡",
+  MIGRANT: "Every role is Off: you'll start as a Migrant. ‡",
+  RETURN_TO_LOBBY: "Every role is Off: you'll go back to the lobby. ‡",
+};
+const SAVE_DELAY_MS = 400;
+
+function PriorityControl({ slug, level, onChange }) {
+  return (
+    <div className="chip-row priority-row" role="radiogroup" aria-label="Priority">
+      {["OFF", ...LEVELS].map((value) => {
+        const active = (level ?? "OFF") === value;
+        return (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            className={`chip${value === "HIGH" ? " chip-high" : ""}`}
+            data-active={active ? "true" : undefined}
+            onClick={() => onChange(slug, value)}
+          >
+            {LEVEL_LABEL[value]}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export default function Lobby({ groups, initial, entry, readyCount, whitelisted, canSkip }) {
+  const [priorities, setPriorities] = useState(initial.rolePriorities ?? {});
+  const [optIns, setOptIns] = useState(initial.antagonistOptIns ?? []);
+  const [jobless, setJobless] = useState(initial.joblessRole ?? "COMMONER");
+  const [readyAt, setReadyAt] = useState(entry?.readyAt ?? null);
+  const [openIntro, setOpenIntro] = useState(null);
+  const [, startSaving] = useTransition();
+  const { run, pending, error, setError } = useActionRunner();
+  const timer = useRef(null);
+  const router = useRouter();
+
+  // The ready count is the one live thing on the page; a refresh every half
+  // minute re-renders the server component with the current number.
+  useEffect(() => {
+    const id = setInterval(() => router.refresh(), 30000);
+    return () => clearInterval(id);
+  }, [router]);
+
+  // Debounced: a player sweeping down the list fires one save, not thirty.
+  // Whatever the server normalized comes back and replaces the local copy.
+  function queueSave(next) {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      startSaving(async () => {
+        try {
+          const res = await savePreferences(next);
+          if (!res?.ok) setError(res?.error ?? "Couldn't save. ‡");
+          else {
+            setError(null);
+            setPriorities(res.saved.rolePriorities);
+            setOptIns(res.saved.antagonistOptIns);
+            setJobless(res.saved.joblessRole);
+          }
+        } catch {
+          setError("Couldn't reach the server. Your last change may not have saved. ‡");
+        }
+      });
+    }, SAVE_DELAY_MS);
+  }
+
+  function changeLevel(slug, level) {
+    const next = setPriority(priorities, slug, level);
+    setPriorities(next);
+    queueSave({ priorities: next, antagonistOptIns: optIns, joblessRole: jobless });
+  }
+
+  function toggleOptIn(slug) {
+    const next = optIns.includes(slug) ? optIns.filter((s) => s !== slug) : [...optIns, slug];
+    setOptIns(next);
+    queueSave({ priorities, antagonistOptIns: next, joblessRole: jobless });
+  }
+
+  function changeJobless(value) {
+    setJobless(value);
+    queueSave({ priorities, antagonistOptIns: optIns, joblessRole: value });
+  }
+
+  function toggleReady() {
+    if (readyAt) run(setUnready, undefined, { onOk: () => setReadyAt(null) });
+    else run(setReady, undefined, { onOk: (res) => setReadyAt(res.readyAt) });
+  }
+
+  return (
+    <PageShell width="wide">
+      <PageHeader title="Ravenheart is gathering" />
+
+      <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,1fr)_22rem]">
+        <aside className="flex flex-col gap-4 md:sticky md:top-6 md:order-2">
+          <div className="panel flex flex-col gap-3 p-4" data-ready={readyAt ? "true" : undefined}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="flex items-center gap-2">
+                <span className="lobby-dot" aria-hidden="true" />
+                <strong>{readyAt ? "Ready" : "Not ready"}</strong>
+                {readyAt ? (
+                  <span className="text-sm text-muted">
+                    since {new Date(readyAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                  </span>
+                ) : null}
+              </span>
+              <span className="chip mono">{readyCount} ready</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className={readyAt ? "btn-secondary" : "btn"} onClick={toggleReady} disabled={pending}>
+                {pending ? "…" : readyAt ? "Unready" : "Ready up"}
+              </button>
+              {canSkip ? (
+                <Link href="/character?create=1" className="btn-secondary">
+                  Skip to character creation
+                </Link>
+              ) : null}
+            </div>
+            {pickedNothing(priorities) ? <p className="text-sm text-accent">{NOTHING_LINE[jobless]}</p> : null}
+            <FormError>{error}</FormError>
+          </div>
+
+          <label className="field">
+            <span className="field-label">If nothing fits</span>
+            <Select value={jobless} onChange={(e) => changeJobless(e.target.value)}>
+              {JOBLESS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+
+          <section className="panel flex flex-col gap-2 p-4">
+            <h2 className="panel-header">Antagonists</h2>
+            <div className="flex flex-col gap-1">
+              {ANTAGONISTS.map((a) => {
+                const locked = optInWhitelisted(a) && !whitelisted;
+                return (
+                  <CheckField
+                    key={a.slug}
+                    checked={optIns.includes(a.slug)}
+                    onChange={() => toggleOptIn(a.slug)}
+                    disabled={locked}
+                    className={locked ? "is-locked" : ""}
+                  >
+                    {optInName(a)}
+                    {locked ? <span className="ml-2 text-xs text-muted">Whitelist</span> : null}
+                  </CheckField>
+                );
+              })}
+            </div>
+          </section>
+        </aside>
+
+        <section className="flex flex-col gap-4 md:order-1">
+          {groups.map((group) => (
+            <div key={group.slug} className="flex flex-col gap-1">
+              <h2 className="text-xs uppercase tracking-wide text-muted">{group.name}</h2>
+              <ul className="panel divide-y divide-[var(--border)]">
+                {group.roles.map((role) => (
+                  <li key={role.id} className="lobby-role" data-locked={role.whitelistBlocked ? "true" : undefined}>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-baseline gap-2">
+                        <button
+                          type="button"
+                          className="lobby-role-name"
+                          onClick={() => setOpenIntro(openIntro === role.id ? null : role.id)}
+                          aria-expanded={openIntro === role.id}
+                        >
+                          {role.name}
+                          {role.grantsLeader ? <span title="Leader"> ★</span> : null}
+                        </button>
+                        <span className="text-xs text-muted">{role.factionName}</span>
+                      </div>
+                      {openIntro === role.id && role.intro ? (
+                        <p className="mt-1 text-sm text-muted">{role.intro}</p>
+                      ) : null}
+                    </div>
+                    {role.whitelistBlocked ? (
+                      <span className="text-xs text-muted">Whitelist</span>
+                    ) : (
+                      <PriorityControl slug={role.slug} level={priorities[role.slug]} onChange={changeLevel} />
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </section>
+      </div>
+    </PageShell>
+  );
+}

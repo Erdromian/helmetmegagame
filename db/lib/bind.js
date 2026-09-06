@@ -82,7 +82,7 @@ async function createBindOffer(prisma, { actor, target, turn }) {
   });
   if (duplicate) return { ok: false, reason: "You've already asked. ‡" };
   const offer = await prisma.offer.create({
-    data: { kind: "BIND", turnId: turn.id, initiatorId: actor.id, responderId: target.id, reason },
+    data: { kind: "BIND", turnId: turn.id, initiatorId: actor.id, responderId: target.id },
   });
   return {
     ok: true,

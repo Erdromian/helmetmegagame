@@ -46,11 +46,11 @@ const TURRET_DISARMED_LINE = {
 };
 
 async function gatehouseTurretArmed(prisma) {
-  const config = await prisma.gameConfig.findUnique({
+  const state = await prisma.gameState.findUnique({
     where: { id: 1 },
     select: { gatehouseTurretArmed: true },
   });
-  return config?.gatehouseTurretArmed === true;
+  return state?.gatehouseTurretArmed === true;
 }
 
 // The turn-end sweep. Returns DMs for the caller to send, the way every other

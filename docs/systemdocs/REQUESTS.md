@@ -506,7 +506,7 @@ rule applied to the blood pool. Reversing the nominal 40 would mint 30 blood
 out of nothing.
 
 **Feed Person kills, on the click.** It used to stop short — fill the pool,
-raise a `☠` on the Requests row, and wait for a GM's Kill button — on the
+raise a `☠` in the audit line, and wait for a GM's Kill on the Dev Panel — on the
 argument that a player must not end another player's game from a dropdown.
 What that bought in practice was a character everyone had watched be fed to
 the Tower still walking around until someone worked the queue.
@@ -523,11 +523,11 @@ second cannot both claim it; the Discord half (`killCharacter()`) runs after
 the commit, never inside the transaction. `effect.killed` and `effect.killedAt`
 are stamped there.
 
-The **Kill** button in the Requests tab stays, as a fallback for the rows where
-the claim did not land — the target was already dead when the request was
-filed, or the row predates this change — and `killRequestTargetImpl`'s
-`effect.killed` guard is what stops it double-killing. Undo still reverses the
-blood and **never revives**.
+The **Kill** button that used to sit on the Requests row is gone with the rest
+of that tab, and so is `killRequestTargetImpl`. The fallback it covered — the
+claim not landing because the target was already dead — is a Dev Panel job
+now: `/gm/dev/characters/[characterId]` has Kill directly (`DEV-PANEL.md`).
+Nothing revives on its own. ‡
 
 Both buttons ask twice: the `RequestDialog` reason, then `useConfirm()` before
 anything is written. They act on someone else's character, which is the one

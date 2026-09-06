@@ -5,7 +5,7 @@
 //   - WHERE the device is lives on the tag rows, and is read fresh every time
 //     the pointer is used. Nothing caches it, so carrying the bomb, stashing
 //     it in a room or packing it into a crate all just work.
-//   - WHETHER it is armed lives on GameConfig.nukeArmedTurn — global state,
+//   - WHETHER it is armed lives on GameState.nukeArmedTurn — global state,
 //     not a tag. A tag would have a holder, and a holder can die inside the
 //     two-turn window, which would silently cancel the explosion. The blast
 //     needs no location: it is everyone above ground, wherever they are.
@@ -18,6 +18,17 @@ const { soundRange } = require("./locationGraph");
 
 const DEVICE_SLUG = "nuclear-device";
 const DATACARD_SLUG = "nuclear-datacard";
+
+// What a destroying room (the Spillway, the Latrines — Room.destroysContents)
+// refuses to eat. Both halves are already `removable: false`, which keeps them
+// off the Destroy menu, but that flag could not be reused here: 103 tags carry
+// it, and three of them are monster corpses players are entitled to tip down a
+// latrine. So this is a deliberately short, explicit list rather than a flag.
+//
+// Tipped in, the bomb is written to the room's stash like anything else and
+// simply sits there. That is the whole rule — there is no way to remove the
+// device from the game, only ways to move it somewhere inconvenient.
+const INDESTRUCTIBLE_SLUGS = new Set([DEVICE_SLUG, DATACARD_SLUG]);
 
 // Turns between arming and the fireball. Two, counted the way every other
 // duration in the game counts (TAGS.md §5): armed while turn T is open, it
@@ -112,6 +123,7 @@ function pointerLine(reading) {
 module.exports = {
   DEVICE_SLUG,
   DATACARD_SLUG,
+  INDESTRUCTIBLE_SLUGS,
   NUKE_FUSE_TURNS,
   deviceLocationId,
   pointerReading,

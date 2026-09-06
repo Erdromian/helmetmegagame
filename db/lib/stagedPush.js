@@ -158,7 +158,9 @@ async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
       });
       await tx.character.update({
         where: { id: row.targetCharacterId },
-        data: { locationId, zoneId: location.zoneId },
+        // travelTo* cleared alongside: a staged relocation ends any walk in
+        // progress (db/lib/travelArrivalPass.js).
+        data: { locationId, zoneId: location.zoneId, travelToLocationId: null, travelTurnId: null },
       });
       snapshot.location = {
         from: before?.locationId ?? null,

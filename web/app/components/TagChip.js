@@ -1,6 +1,7 @@
 import { formatCost, costColor, prerequisiteNames } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { formatTagArmor } from "@/lib/formatTagArmor";
+import { formatTagWeight } from "@/lib/formatTagWeight";
 import { turnsLeft, tagDuration } from "@/lib/turnFormat";
 import ChipLabel from "./ChipLabel";
 import DesireUnlocks from "./DesireUnlocks";
@@ -55,6 +56,11 @@ export default function TagChip({
   // "Melee: Good | Ballistic: Meager". Null for everything that turns nothing
   // aside, which is most of the catalog.
   const armor = formatTagArmor(tag);
+
+  // "6 lb", or "1 lb each · 3 lb" for a stack. Null for everything that costs
+  // the carry cap nothing — a skill, a horse, a graft — so the row is simply
+  // omitted rather than reading "0 lb" over most of the catalog.
+  const weight = formatTagWeight(tag, quantity);
 
   // Pass the CharacterTag's expiresTurn (not the Tag's defaultDurationTurns) —
   // the clock started when it was granted. Null for a bare catalog reference,
@@ -122,6 +128,11 @@ export default function TagChip({
           </Meta>
         )}
         {armor && <Meta label="Armour">{armor}</Meta>}
+        {/* What this costs the carry cap (docs/systemdocs/CARRY.md §1). Sat
+            only on the sheet's "84 / 120 lb" total until now, which told a
+            player they were overloaded without telling them what to put
+            down. */}
+        {weight && <Meta label="Weight">{weight}</Meta>}
         {/* Tag.inspectVisibility — whether another player sees this on the 🔍
             inspect embed. Only the affirmative renders; hidden is the default,
             so a "No" on most of the catalog would be noise. "Only while worn"

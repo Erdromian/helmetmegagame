@@ -4,7 +4,7 @@
 //
 // Pure functions only — no Discord, no DB — kept out of the @lifeweb/db
 // barrel so this can be bundled for the browser.
-import { roleCapacity } from "@lifeweb/db/lib/roleCapacity";
+import { roleCapacity, SPAWN_ONLY_ROLE_SLUGS, isSpawnOnly } from "@lifeweb/db/lib/roleCapacity";
 
 // Points forfeited by a cursed player's next character (see isCursed in
 // web/lib/discordGuild.js).
@@ -36,20 +36,12 @@ export function negativeTagPoints(tags) {
 // The only roles a cursed player may take. Matched by Role.slug.
 export const CURSED_ROLE_SLUGS = ["migrant", "bum"];
 
-// Roles that exist ONLY as a GM spawn and are never on the wizard's roster.
-// Unconditional — no config switch turns it off — and HIDDEN rather than
+// Spawn-only seats (the Tribunal) are HIDDEN from the picker rather than
 // greyed, unlike a whitelisted seat, which greys itself and says why. Greying
 // is right for a seat you might get later and wrong for one that is a
-// surprise.
-//
-// The Tribunal seats (db/lib/threats.js) are the whole list. They carry real
-// roles because a spawn needs one for its charter, its starting kit and its
-// landing site; they must simply never be pickable.
-export const SPAWN_ONLY_ROLE_SLUGS = ["tribunal-ordinator", "tribune"];
-
-export function isSpawnOnly(role) {
-  return SPAWN_ONLY_ROLE_SLUGS.includes(role?.slug);
-}
+// surprise. The list itself lives in db/lib/roleCapacity.js so the lobby's
+// roll reads the same one.
+export { SPAWN_ONLY_ROLE_SLUGS, isSpawnOnly };
 
 // budget = config base + role bonus - curse penalty, clamped at 0.
 export function computeBudget({ startingTagPoints, role, cursed }) {

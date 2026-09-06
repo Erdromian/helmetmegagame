@@ -17,11 +17,13 @@ const {
   DRAG_PREFIX,
   CONFIRM_PREFIX,
   CANCEL_ID,
+  TURN_BACK_ID,
   loadMover,
   listNames,
   buildLocationSelectRow,
   buildDragRow,
   buildConfirmRow,
+  buildTurnBackRow,
   rememberDrag,
   takeDrag,
   forgetDrag,
@@ -107,6 +109,9 @@ const {
 } = require("@lifeweb/db/lib/gatehouseTurret");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
 const { shoutLine } = require("@lifeweb/db/lib/shout");
+const { clockFrozen } = require("@lifeweb/db/lib/gameState");
+const { LOBBY_DECLINE_PREFIX } = require("@lifeweb/db/lib/lobby");
+const { handleLobbyDecline } = require("../lib/lobby");
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { handleRoomStorage } = require("../lib/roomStorage");
 const {
@@ -558,8 +563,8 @@ async function handleBellSubmit(interaction, roomId) {
 
   // The cooldown is read AFTER the word, so a modal somebody abandoned never
   // reports a wait they were not going to trigger anyway.
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { bellRungAt: true } });
-  const { ok, secondsLeft } = bellCooldown(config?.bellRungAt);
+  const state = await prisma.gameState.findUnique({ where: { id: 1 }, select: { bellRungAt: true } });
+  const { ok, secondsLeft } = bellCooldown(state?.bellRungAt);
   if (!ok) {
     // Minutes, not the raw seconds this used to print: at a half-hour cooldown
     // "1487s" is arithmetic homework rather than an answer.
@@ -571,7 +576,7 @@ async function handleBellSubmit(interaction, roomId) {
     return;
   }
 
-  await prisma.gameConfig.update({ where: { id: 1 }, data: { bellRungAt: new Date() } });
+  await prisma.gameState.update({ where: { id: 1 }, data: { bellRungAt: new Date() } });
 
   const { sent, failed } = await broadcastBell(prisma);
 
@@ -627,7 +632,7 @@ async function handleTurretSubmit(interaction, roomId) {
   }
 
   const next = !armed;
-  await prisma.gameConfig.update({ where: { id: 1 }, data: { gatehouseTurretArmed: next } });
+  await prisma.gameState.update({ where: { id: 1 }, data: { gatehouseTurretArmed: next } });
 
   // The yard hears it, and that is the only warning anybody in it gets. Best
   // effort — the switch is thrown either way.
@@ -715,7 +720,7 @@ async function handleIntercomSubmit(interaction, roomId) {
   //
   // The speaker IS recorded even though the channel line names nobody: the
   // archive is the record of what happened, and it stays shut to players until
-  // the game ends (GameConfig.archiveVisible, ARCHIVE.md).
+  // the game ends (GameState.archiveVisible, ARCHIVE.md).
   await recordArchiveMessage(prisma, {
     character,
     content: body,
@@ -755,6 +760,24 @@ async function handleTravelOpen(interaction) {
   const character = await loadMover(interaction.user.id);
   if (!character) {
     await respond(interaction, "» *You don't have a living character.* ‡");
+    return;
+  }
+
+  // On the road already. A paid crossing takes the whole day (MAP.md §3), so
+  // there is no picker to offer — only the choice to turn around. The Move
+  // stays spent either way; walking back is not a refund.
+  if (character.travelToLocationId) {
+    const heading = await prisma.location.findUnique({
+      where: { id: character.travelToLocationId },
+      select: { name: true },
+    });
+    await respond(interaction, {
+      content: [
+        `» You're on the road to **${heading?.name ?? "somewhere"}**. You arrive next turn. ‡`,
+        "-# Turn back and you stay where you are — your Move is spent regardless. ‡",
+      ].join("\n"),
+      components: [buildTurnBackRow()],
+    });
     return;
   }
 
@@ -1108,11 +1131,12 @@ async function handleTravelConfirm(interaction, locationId) {
     return;
   }
 
-  const brought = result.moved
+  const brought = (result.deferred ? result.travelers : result.moved)
     .filter((entry) => entry.character.id !== character.id)
     .map((entry) => entry.character.name);
-  const parts = [`» Moved to **${target.name}**.`];
-  if (result.spentTurn) parts.push("Your Move is spent.");
+  const parts = result.deferred
+    ? [`» You set out for **${target.name}**. You arrive next turn.`, "Your Move is spent."]
+    : [`» Moved to **${target.name}**.`];
   if (result.usedFreeMove) {
     parts.push(
       result.freeMovesLeft > 0
@@ -1123,6 +1147,27 @@ async function handleTravelConfirm(interaction, locationId) {
   if (brought.length > 0) parts.push(`Bringing ${listNames(brought)}.`);
 
   await respond(interaction, { content: `${parts.join(" ")} ‡`, components: [] });
+}
+
+// loc:turnback — abandon a journey in progress. Clears the destination and
+// nothing else: the Action is already filed and the Move already spent, so a
+// player who changes their mind has burned their day either way.
+async function handleTravelTurnBack(interaction) {
+  await interaction.deferUpdate();
+
+  const character = await loadMover(interaction.user.id);
+  if (!character?.travelToLocationId) {
+    await respond(interaction, { content: "» *You're not going anywhere.* ‡", components: [] });
+    return;
+  }
+  await prisma.character.update({
+    where: { id: character.id },
+    data: { travelToLocationId: null, travelTurnId: null },
+  });
+  await respond(interaction, {
+    content: "» You turn back. Your Move is still spent. ‡",
+    components: [],
+  });
 }
 
 async function handleTravelCancel(interaction) {
@@ -1533,14 +1578,12 @@ async function handleConcealCommand(interaction) {
 // Moves close MOVE_LOCK_HOURS before the turn ends (db/lib/turnClock.js).
 // Returns the refusal text, or null when Moves are still open.
 async function moveLockNotice() {
-  const [openTurn, config] = await Promise.all([
+  const [openTurn, frozen] = await Promise.all([
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
-    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { autoTurnAdvanceDisabled: true } }),
+    clockFrozen(prisma),
   ]);
   if (!openTurn) return null;
-  const { locked, cutoffAt, endsAt } = moveWindow(openTurn, {
-    autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
-  });
+  const { locked, cutoffAt, endsAt } = moveWindow(openTurn, { clockFrozen: frozen });
   if (!locked) return null;
   return `» *Moves for this turn locked at <t:${epochSeconds(cutoffAt)}:t>. The next turn opens <t:${epochSeconds(endsAt)}:R>.*`;
 }
@@ -1582,13 +1625,7 @@ async function handleMoveSubmit(interaction) {
 
   // Re-checked here, not only at move:open — a modal can sit open across
   // the cutoff. Before the Action row so a refusal costs no turn.
-  const config = await prisma.gameConfig.findUnique({
-    where: { id: 1 },
-    select: { autoTurnAdvanceDisabled: true },
-  });
-  const { locked, cutoffAt, endsAt } = moveWindow(openTurn, {
-    autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
-  });
+  const { locked, cutoffAt, endsAt } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
   if (locked) {
     await respond(
       interaction,
@@ -2159,6 +2196,7 @@ module.exports = {
       } else if (interaction.isButton()) {
         if (interaction.customId === "loc:open") return void (await handleTravelOpen(interaction));
         if (interaction.customId === CANCEL_ID) return void (await handleTravelCancel(interaction));
+        if (interaction.customId === TURN_BACK_ID) return void (await handleTravelTurnBack(interaction));
         if (interaction.customId.startsWith(CONFIRM_PREFIX)) {
           return void (await handleTravelConfirm(interaction, interaction.customId.slice(CONFIRM_PREFIX.length)));
         }
@@ -2216,6 +2254,14 @@ module.exports = {
           return void (await handleThreatSpawnDecline(
             interaction,
             interaction.customId.slice(THREAT_SPAWN_DECLINE_PREFIX.length),
+          ));
+        }
+        // Arrives in a DM on an assignment (docs/systemdocs/LOBBY.md §4), so
+        // guild/member are null and the clicker has no character yet.
+        if (interaction.customId.startsWith(LOBBY_DECLINE_PREFIX)) {
+          return void (await handleLobbyDecline(
+            interaction,
+            interaction.customId.slice(LOBBY_DECLINE_PREFIX.length),
           ));
         }
         // Arrives in a DM on a Bird's letter, so guild/member are null.

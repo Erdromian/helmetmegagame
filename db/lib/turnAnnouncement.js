@@ -8,6 +8,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { getGuildChannels, postMessage, deleteMessage, postAttachment } = require("./discordRest");
 const { buildTurnAnnouncement } = require("../weather");
+const { clockFrozen, readGameState } = require("./gameState");
 const { TURNS_CONSOLE_ROW, CONSOLE_TEXT } = require("./turnsConsoleRow");
 const { docsPath } = require("./repoPaths");
 const { clearMessagesExcept } = require("./dawnWipe");
@@ -19,12 +20,12 @@ const { isTurnsChannel } = require("./turnsChannelAccess");
 // asset must cost the guild its banner, never its turn announcement.
 const WEATHER_BANNER_DIR = docsPath("assets", "weather");
 
-// After the bomb there is no weather, only the sky. `config` is optional so
-// every existing caller keeps working; pass it and a detonated game pins the
-// fireball on for good, which is the whole of the "permanently set for the
-// rest of the game" requirement.
-function weatherBannerPath(turn, config = null) {
-  if (config?.nukeDetonatedTurn != null) {
+// After the bomb there is no weather, only the sky. `state` (GameState) is
+// optional so every existing caller keeps working; pass it and a detonated
+// game pins the fireball on for good, which is the whole of the "permanently
+// set for the rest of the game" requirement.
+function weatherBannerPath(turn, state = null) {
+  if (state?.nukeDetonatedTurn != null) {
     if (!WEATHER_BANNER_DIR) return null;
     const nuke = path.join(WEATHER_BANNER_DIR, "nuke.jpg");
     // Falls through to the ordinary weather banner if the asset is missing,
@@ -66,22 +67,26 @@ async function postTurnsAnnouncement(prisma, newTurn, note) {
   const turnsChannel = channels.find(isTurnsChannel);
   if (!turnsChannel) return;
 
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  // The Move-cutoff clause is omitted when auto-advance is off, since there is
-  // then no scheduled end to count back from (db/lib/turnClock.js).
+  // The Move-cutoff clause is omitted when the clock is frozen — auto-advance
+  // paused, or the game not running — since there is then no scheduled end to
+  // count back from (db/lib/turnClock.js).
   const text = [
-    buildTurnAnnouncement(newTurn, note, { autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false }),
+    buildTurnAnnouncement(newTurn, note, { clockFrozen: await clockFrozen(prisma) }),
     CONSOLE_TEXT,
   ].join("\n");
 
-  const sent = await postTurnsConsole(prisma, turnsChannel.id, text, newTurn, config);
+  const [config, state] = await Promise.all([
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    readGameState(prisma, { nukeDetonatedTurn: true }),
+  ]);
+  const sent = await postTurnsConsole(prisma, turnsChannel.id, text, newTurn, config, state);
   if (!sent) console.error("Turn announcement: nothing could be posted to #turns");
 }
 
 // Posts the rolling message and records its id, replacing whatever was there.
 // Shared with the bot's cold-start path (bot/src/lib/turnsConsole.js) so the
 // console can never exist in two shapes.
-async function postTurnsConsole(prisma, channelId, text, turn, config) {
+async function postTurnsConsole(prisma, channelId, text, turn, config, state = null) {
   if (config?.turnsConsoleChannelId === channelId && config.turnsConsoleMessageId) {
     await deleteMessage(channelId, config.turnsConsoleMessageId).catch(() => {});
   }
@@ -90,7 +95,7 @@ async function postTurnsConsole(prisma, channelId, text, turn, config) {
   // but it must not do so SILENTLY. Both failure modes are logged and
   // distinguished: absent from disk is a deploy problem, a rejected upload is
   // a permissions or payload problem.
-  const bannerFile = weatherBannerPath(turn, config);
+  const bannerFile = weatherBannerPath(turn, state);
   if (turn && !bannerFile) {
     console.error(
       `Turn announcement: no weather banner for ${turn.weather}/${turn.phase} in ${WEATHER_BANNER_DIR}`,

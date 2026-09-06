@@ -65,7 +65,16 @@ async function vacateFactionOffice(prisma, character) {
 async function applyDeathToRow(prisma, character, { turn = null, content = null, expectStatus = "ALIVE" } = {}) {
   const claimed = await prisma.character.updateMany({
     where: { id: character.id, status: expectStatus },
-    data: { status: "DEAD", discordRoleId: null, catatonicSinceTurn: null },
+    // travelTo* cleared with it: dying on the road ends the journey, and the
+    // body stays where it fell for the corpse to be found (a corpse someone
+    // is DRAGGING keeps its own pending destination — nothing dies twice).
+    data: {
+      status: "DEAD",
+      discordRoleId: null,
+      catatonicSinceTurn: null,
+      travelToLocationId: null,
+      travelTurnId: null,
+    },
   });
   if (claimed.count === 0) return { claimed: false };
 

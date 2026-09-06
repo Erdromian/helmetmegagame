@@ -10,8 +10,17 @@ roles).
 
 A player signs in and lands on `/character`. If they have no `ALIVE`
 character — brand new to the server, or their last one died — that page
-renders the **creation wizard** instead of a character sheet. There's no
-separate `/character/new` route; one URL, no redirect bounce.
+renders something other than a sheet, depending on the game's phase
+(`LOBBY.md` §1). There's no separate `/character/new` route; one URL, no
+redirect bounce.
+
+- **Before the game starts** it is the **lobby**: role priorities, a
+  fallback, antagonist opt-ins and a Ready button (`LOBBY.md` §2). Start Game
+  rolls those into seats.
+- **Assigned a seat**, the wizard below opens on step 2 with the role fixed
+  and a deadline banner (`LOBBY.md` §4).
+- **Otherwise** — never readied, a Cursed re-roll, a respawn — it is the
+  wizard as described here: late join, picking from open seats.
 
 The wizard has five steps:
 
@@ -593,9 +602,12 @@ migration.)
 Character creation is behind **two independent locks**, both of which must be
 open:
 
-1. `GameConfig.openToPlayers` — a Dev Panel toggle, off by default. "The doors
-   are open."
-2. The hardcoded `PLAYER_ROLE_ID` (`db/lib/roleIds.js`). "You are on the list."
+1. `GameState.phase` — RUNNING or ENDED (`LOBBY.md` §1). "The doors are
+   open." A GM or a Playtest-role holder may also create during CLOSED or
+   LOBBY, which is the lobby's Skip button. There is no separate switch any
+   more.
+2. The hardcoded `PLAYER_ROLE_ID` (`db/lib/roleIds.js`), or the Playtest role.
+   "You are on the list."
 
 The enforcement boundary is `createCharacter`
 (`web/app/(app)/character/createActions.js`), checked **before** any point-buy

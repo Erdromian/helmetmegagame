@@ -17,6 +17,7 @@ const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { expiryFrom } = require("./lib/turnFormat");
 const { runCorpseRotPass } = require("./lib/corpseRotPass");
 const { reconcileCorpses } = require("./lib/corpseFollow");
+const { runTravelArrivalPass } = require("./lib/travelArrivalPass");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 // By path, not the barrel — same reason as db/lib/dm.js below.
 const { runDawnWipe } = require("./lib/dawnWipe");
@@ -31,6 +32,7 @@ const { runPhobiaPass } = require("./lib/phobiaPass");
 const { runDawnAfflictionPass } = require("./lib/dawnAfflictionPass");
 const { runDepotPass } = require("./lib/depotPass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
+const { getGameState, readGameState } = require("./lib/gameState");
 const { announceTurretBurst } = require("./lib/turretBurst");
 const { ambientLine } = require("./lib/ambientLine");
 const { deliverCarryDrop } = require("./lib/carry");
@@ -39,6 +41,7 @@ const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
 const { runVisionDecayPass } = require("./lib/visionDecayPass");
 const { runDyingDeathPass } = require("./lib/dyingDeathPass");
 const { runNukeExplosionPass } = require("./lib/nukeExplosionPass");
+const { endGameInDb, postGameEnded } = require("./lib/gameEnd");
 const { broadcastToZones } = require("./lib/worldBroadcast");
 const { runBirdPass } = require("./lib/birdPass");
 // By path, not the barrel — see the note at the top of db/lib/accessSweep.js.
@@ -214,6 +217,11 @@ const TURN_PASSES = [
   // from "depot" so a failed Depot pass cannot swallow it, and so a resume
   // re-runs exactly the one that did not finish.
   "gatehouseTurret",
+  // Journeys landing (db/lib/travelArrivalPass.js). LAST, and the order is
+  // load-bearing: every pass above settles the turn that just ended, and a
+  // traveller spent that turn walking. Auto-labor pays them where they left
+  // from, and neither turret shoots somebody still on the road.
+  "travelArrival",
 ];
 
 // How long a resume lease is honoured before another advance may take it
@@ -473,6 +481,12 @@ async function resolveNeeds(turn, config) {
     broadcast: nukeBroadcast = null,
     ...nukeSummary
   } = nukeExplosion ?? {};
+  // The bomb ends the game (docs/systemdocs/LOBBY.md §7): the clock stops
+  // after this advance, the archive opens, and the reveal follows the
+  // fireball into #turns. The new turn still opens below so the banner has
+  // somewhere to hang. Ended locks only the clock — the survivors in the
+  // caves keep playing until the wipe.
+  let gameEndedPost = null;
   if (nukeExplosion?.detonated) {
     await prisma.auditLog
       .create({
@@ -483,6 +497,15 @@ async function resolveNeeds(turn, config) {
         },
       })
       .catch((err) => console.error("Nuke audit log failed:", err));
+    try {
+      const ended = await endGameInDb(prisma, {
+        closingNote: `The device went off at the close of turn ${turn.number}. Everyone above ground died. ‡`,
+        reason: "nuke",
+      });
+      if (ended.ended) gameEndedPost = ended.post;
+    } catch (err) {
+      console.error("Ending the game after the detonation failed:", err);
+    }
   }
 
   // The Bird's stranded letters (db/lib/birdPass.js), after both auto-kills
@@ -816,7 +839,7 @@ async function resolveNeeds(turn, config) {
   // bumpBlood rather than a computed literal off `config`: that snapshot
   // predates the passes above, so a donation made during the advance would
   // otherwise be discarded by the write-back.
-  let lifewebBlood = config?.lifewebBlood ?? 100;
+  let lifewebBlood = (await readGameState(prisma, { lifewebBlood: true }))?.lifewebBlood ?? 100;
   if (!done.has("lifewebDecay")) {
     try {
       const moved = await bumpBlood(
@@ -829,7 +852,7 @@ async function resolveNeeds(turn, config) {
       await passFailed("Lifeweb decay", err);
     }
   } else {
-    const fresh = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+    const fresh = await readGameState(prisma, { lifewebBlood: true });
     lifewebBlood = fresh?.lifewebBlood ?? lifewebBlood;
   }
 
@@ -889,6 +912,36 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Depot audit log failed:", err));
   }
 
+  // Everyone who set out last turn arrives. Discord work is deliberately not
+  // done here — the rows go out with zoneMoves and runSideEffects swaps the
+  // roles and rolls the Caving Die, which needs the NEXT turn open anyway.
+  let travelArrivals = [];
+  if (!done.has("travelArrival")) {
+    const arrived = await runTravelArrivalPass(prisma, config).catch(
+      async (err) => {
+        await passFailed("Travel arrival", err);
+        return null;
+      },
+    );
+    if (arrived) {
+      await markDone("travelArrival");
+      travelArrivals = arrived;
+      if (arrived.length > 0) {
+        await prisma.auditLog
+          .create({
+            data: {
+              actorDiscordUserId: "system",
+              actionType: "travellers_arrived",
+              details: {
+                arrived: arrived.map((a) => ({ name: a.name, to: a.toLocationName })),
+              },
+            },
+          })
+          .catch((err) => console.error("Travel arrival audit log failed:", err));
+      }
+    }
+  }
+
   // needsResolvedAt is the sole selector for advanceTurn()'s resume query,
   // so it's only stamped once every pass in TURN_PASSES has run.
   const outstanding = TURN_PASSES.filter((name) => !done.has(name));
@@ -923,11 +976,13 @@ async function resolveNeeds(turn, config) {
     dyingDeathWarnings,
     nukeDeaths,
     nukeBroadcast,
+    gameEndedPost,
     birdNotices,
     carryDrops,
     privateDeliveries,
     publicPosts,
     zoneMoves,
+    travelArrivals,
     routineNotices,
     gambitRollNotices,
     depotLines: depot?.lines ?? [],
@@ -957,12 +1012,28 @@ async function getConfig() {
 //
 // Returns { advanced, previousTurn, newTurn, note, runSideEffects }.
 // `advanced` is false when another caller won the race to close the open
-// turn; callers must check it before using `newTurn`.
+// turn; callers must check it before using `newTurn`. It is also false, with
+// `refused: "NOT_RUNNING"`, outside the RUNNING phase: a game in the lobby or
+// already ended has no clock (docs/systemdocs/LOBBY.md §1), and both callers
+// — the bot's cron and the Dev Panel's End turn — land here, so this is the
+// one gate rather than two.
 async function advanceTurn() {
   const config = await getConfig();
+  const state = await getGameState(prisma);
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
 
-  let lifewebBlood = config.lifewebBlood;
+  if (state.phase !== "RUNNING") {
+    return {
+      advanced: false,
+      refused: "NOT_RUNNING",
+      previousTurn: null,
+      newTurn: openTurn,
+      note: null,
+      runSideEffects: async () => {},
+    };
+  }
+
+  let lifewebBlood = state.lifewebBlood;
   let hungerNotices = [];
   let disappointedNotices = [];
   let autoLaborDms = [];
@@ -980,12 +1051,14 @@ async function advanceTurn() {
   let dyingDeaths = [];
   let nukeDeaths = [];
   let nukeBroadcast = null;
+  let gameEndedPost = null;
   let dyingDeathWarnings = [];
   let birdNotices = [];
   let carryDrops = [];
   let privateDeliveries = [];
   let publicPosts = [];
   let zoneMoves = [];
+  let travelArrivals = [];
   let routineNotices = [];
   let gambitRollNotices = [];
   if (openTurn) {
@@ -1023,11 +1096,13 @@ async function advanceTurn() {
       dyingDeathWarnings,
       nukeDeaths,
       nukeBroadcast,
+      gameEndedPost,
       birdNotices,
       carryDrops,
       privateDeliveries,
       publicPosts,
       zoneMoves,
+      travelArrivals,
       routineNotices,
       gambitRollNotices,
       depotLines,
@@ -1110,11 +1185,13 @@ async function advanceTurn() {
         dyingDeathWarnings,
         nukeDeaths,
         nukeBroadcast,
+        gameEndedPost,
         birdNotices,
         carryDrops,
         privateDeliveries,
         publicPosts,
         zoneMoves,
+        travelArrivals,
         routineNotices,
         gambitRollNotices,
         depotLines,
@@ -1127,14 +1204,14 @@ async function advanceTurn() {
   const lastTurn =
     openTurn ?? (await prisma.turn.findFirst({ orderBy: { number: "desc" } }));
   const phase = !lastTurn || lastTurn.phase === "DUSK" ? "DAWN" : "DUSK";
-  // A GM override (config.nextWeather) always wins over the rolled weather.
-  const weather = config.nextWeather ?? rollWeather(lastTurn?.weather, phase);
+  // A GM override (GameState.nextWeather) always wins over the rolled weather.
+  const weather = state.nextWeather ?? rollWeather(lastTurn?.weather, phase);
   const lifewebFlavor =
     lifewebBlood <= LIFEWEB_SPUTTER_THRESHOLD
       ? "The Lifeweb sputters, failing."
       : null;
   const note =
-    [lifewebFlavor, config.nextTurnNote].filter(Boolean).join("\n\n") || null;
+    [lifewebFlavor, state.nextTurnNote].filter(Boolean).join("\n\n") || null;
 
   const newTurn = await prisma.turn.create({
     data: {
@@ -1146,7 +1223,7 @@ async function advanceTurn() {
     },
   });
 
-  await prisma.gameConfig.update({
+  await prisma.gameState.update({
     where: { id: 1 },
     data: { nextWeather: null, nextTurnNote: null },
   });
@@ -1388,13 +1465,30 @@ async function advanceTurn() {
 
     const { applyLocationMoveSideEffects } = require("./lib/locationMove");
     const { rollCavingOnArrival } = require("./lib/cavingPass");
-    for (const move of zoneMoves) {
+    // Two kinds of relocation land in the same breath and want the identical
+    // Discord work: a GM's staged "Relocate to" (zoneMoves) and a player's
+    // paid crossing finally arriving (travelArrivals, MAP.md §3).
+    for (const move of [...zoneMoves, ...travelArrivals]) {
       await applyLocationMoveSideEffects(prisma, move).catch((err) =>
         console.error(
-          `Staged relocation side effects failed for ${move.characterId}:`,
+          `Relocation side effects failed for ${move.characterId}:`,
           err,
         ),
       );
+
+      // The traveller pressed Confirm a turn ago and has heard nothing since,
+      // so arriving is the one thing that has to be told. A dragged corpse
+      // gets no letter; `alive` is only set by the travel pass.
+      if (move.toLocationName && move.alive && move.discordUserId) {
+        await sendDm(
+          prisma,
+          move.discordUserId,
+          `» You arrive at **${move.toLocationName}**. ‡`,
+          { source: "system_notice" },
+        ).catch((err) =>
+          console.error(`Arrival DM to ${move.discordUserId} failed:`, err),
+        );
+      }
 
       // The Caving Die, for a GM's staged "Relocate to". It could not run
       // inside applyOneStagedEffect — rollCaving opens its own transaction and
@@ -1412,11 +1506,11 @@ async function advanceTurn() {
             .findUnique({ where: { id: move.toLocationId }, include: { zone: true } })
             .catch(() => null)
         : null;
-      if (landed) {
+      if (landed && move.alive !== false) {
         const dm = await rollCavingOnArrival(prisma, { id: move.characterId, discordUserId: move.discordUserId }, landed);
         if (dm) {
           await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
-            console.error(`Staged relocation caving DM to ${dm.discordUserId} failed:`, err),
+            console.error(`Arrival caving DM to ${dm.discordUserId} failed:`, err),
           );
         }
       }
@@ -1490,6 +1584,11 @@ async function advanceTurn() {
         return { sent: 0, failed: [] };
       });
       console.log(`Nuke broadcast: ${sent} zones, ${failed.length} failed.`);
+    }
+
+    // The reveal, after the sky and before anything else — the game is over.
+    if (gameEndedPost) {
+      await postGameEnded(prisma, gameEndedPost).catch((err) => console.error("Game Ended post failed:", err));
     }
 
     for (const post of publicPosts) {
@@ -1633,6 +1732,8 @@ module.exports = {
   ...require("./lib/presentedIdentity"),
   ...require("./lib/threats"),
   ...require("./lib/roleCapacity"),
+  ...require("./lib/gameState"),
+  ...require("./lib/gameConfigFields"),
   ...require("./lib/production"),
   ...require("./lib/depot"),
   ...require("./lib/depotState"),

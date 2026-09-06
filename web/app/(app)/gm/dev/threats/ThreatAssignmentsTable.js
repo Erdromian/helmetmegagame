@@ -15,7 +15,7 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import { assignThreat, offerThreatSpawn } from "../threatActions";
 import { sendGmDm } from "@/app/(desk)/gm/players/actions";
 
-const COL_COUNT = 8;
+const COL_COUNT = 9;
 
 export default function ThreatAssignmentsTable({ rows, threats, roles, locations }) {
   const [spawnFor, setSpawnFor] = useState(null);
@@ -35,7 +35,7 @@ export default function ThreatAssignmentsTable({ rows, threats, roles, locations
   // means a seat nobody picked still lists, at zero.
   const optInThreats = useMemo(() => threats.filter((t) => t.optIn), [threats]);
   const optInCounts = useMemo(() => {
-    const counts = new Map(optInThreats.map((t) => [t.name, 0]));
+    const counts = new Map(optInThreats.map((t) => [t.optInName, 0]));
     for (const r of rows) for (const name of r.optInNames) counts.set(name, (counts.get(name) ?? 0) + 1);
     return counts;
   }, [rows, optInThreats]);
@@ -46,6 +46,7 @@ export default function ThreatAssignmentsTable({ rows, threats, roles, locations
   const filterDefs = useMemo(
     () => [
       { key: "inGame", label: "In game", options: ["Yes", "No"], value: (r) => (r.characterId ? "Yes" : "No") },
+      { key: "whitelisted", label: "Whitelist", options: ["Yes", "No"], value: (r) => (r.whitelisted ? "Yes" : "No") },
       {
         key: "seat",
         label: "Seat",
@@ -89,8 +90,8 @@ export default function ThreatAssignmentsTable({ rows, threats, roles, locations
           >
             <option value="">All</option>
             {optInThreats.map((t) => (
-              <option key={t.slug} value={t.name}>
-                {t.name} ({optInCounts.get(t.name) ?? 0})
+              <option key={t.slug} value={t.optInName}>
+                {t.optInName} ({optInCounts.get(t.optInName) ?? 0})
               </option>
             ))}
           </Select>
@@ -106,6 +107,7 @@ export default function ThreatAssignmentsTable({ rows, threats, roles, locations
             <SortHeader label="Zone" sortKey="zoneName" sort={sort} onSort={toggleSort} />
             <SortHeader label="Status" sortKey="statusLabel" sort={sort} onSort={toggleSort} />
             <th scope="col">Opted into</th>
+            <th scope="col">WL</th>
             <SortHeader label="Seat" sortKey="seatName" sort={sort} onSort={toggleSort} />
             <th scope="col">Actions</th>
           </tr>
@@ -200,6 +202,7 @@ function Row({ row, threats, onSpawn, onMessage }) {
           </span>
         )}
       </td>
+      <td>{row.whitelisted ? <span className="chip">WL</span> : <span className="text-muted">—</span>}</td>
       <td>{row.seatName ? <span className="chip">{row.seatName}</span> : <span className="text-muted">—</span>}</td>
       <td>
         <div className="flex flex-wrap items-center gap-2">

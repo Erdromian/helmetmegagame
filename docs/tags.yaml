@@ -292,6 +292,9 @@ tags:
   # without a column to keep in sync. `secret` for the same reason Demoness
   # is: an antagonist seat has no business showing up in the player's Tag
   # Catalog.
+  # A seat's INCOMPATIBLE tags are its conflictsWith edges (THREATS.md §3).
+  # The store and Add Tag refuse them for a holder; Assign refunds or
+  # grandfathers what a character already had (db/lib/seatConflicts.js).
   judge:
     catalog: secret
     name: Judge
@@ -299,6 +302,7 @@ tags:
     description: "You are the Judge."
     pointCost: 0
     purchasable: false
+    conflictsWith: [pacifist, charitable, saint]
 
   demoness:
     catalog: secret
@@ -307,10 +311,21 @@ tags:
     description: '"Pleasure is so painful — ah~! I don''t care!" You can Break souls ({tag:broken}), turning their owners into walking, empty shells, by making them fall in love with you — and then sealing it with a (voluntary) kiss. If people want more after that, that''s your business, not mine.'
     pointCost: 0
     purchasable: false
+    conflictsWith: [pacifist, charitable, saint]
     desires:
       locks:
         - all: true
           exceptFamilies: [demoness]
+
+  # The Thanati Leader's mark on top of the thanati Belief below — the roster
+  # tells the two seats apart by this tag (db/lib/threats.js).
+  thanati-leader:
+    catalog: secret
+    name: Thanati Leader
+    category: general
+    description: "The others look to you. ‡"
+    pointCost: 0
+    purchasable: false
 
   # Price is cosmetic (role-granted, not purchasable) — do not "fix" it. The
   # `all + food at tiers 1-2` intent from the design spec isn't expressible
@@ -682,6 +697,10 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     carryBonus: 0.75
+    # Giant, Strong and Pack Mule are one fiction — a big body that hauls —
+    # so they never stack. Authored here and on Strong; db:sync-tags mirrors
+    # the edges (TAGS.md §2).
+    conflictsWith: [strong, pack-mule]
 
   # +0.5 on both carry caps, i.e. ×1.5 on its own; adds with Cart
   # (docs/systemdocs/CARRY.md).
@@ -1044,6 +1063,7 @@ tags:
     # honest advice to every player "buy the mule instead". Now Strong is Pack
     # Mule's carry plus being strong at everything else, for one more point.
     carryBonus: 0.5
+    conflictsWith: [pack-mule]
     purchasable: true
     purchasableAfterStart: true
 
@@ -1933,6 +1953,25 @@ tags:
     requiredTag: pale
     purchasable: true
     purchasableAfterStart: true
+
+  # The Thanati creed. A Belief like the others — exclusive, so a convert
+  # drops whatever they held — but never bought: it arrives with the Thanati
+  # seats (db/lib/threats.js) or from a GM's hand. `secret` keeps it out of
+  # the player's Tag Catalog. Pilgrim and Saint are not exclusive, so they are
+  # named here; every other Belief is ruled out by the group. Bascinet's
+  # wording.
+  thanati:
+    catalog: secret
+    name: Thanati
+    category: general
+    group: general-beliefs
+    description: "This reality is cursed. Everyone must die before Tzchernobog can reset it."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    exclusive: true
+    conflictsWith: [pacifist, charitable, saint, pilgrim]
 
   # --- The Cerberon ---------------------------------------------------------
   cerberon:
@@ -5435,9 +5474,9 @@ tags:
       items: [art-supplies]
     customizable: true
     sellable: true
-    # Nerfed 20% from 60. Over its 4 turns that is 12 ⬢/turn, still the best
-    # per-turn rate a craftable pays, just no longer runaway.
-    sellablePrice: 48
+    # Nerfed twice: 20% from 60, then a further 15% from 48. Over its 4 turns
+    # that is ~10 ⬢/turn, still the best per-turn rate a craftable pays.
+    sellablePrice: 41
 
   # Exists to be made CUSTOM (customizable, CRAFTING.md): +1 ⬢ on the base
   # cost buys the maker's own name and words on the thing — a crew's mark, a
@@ -7553,6 +7592,36 @@ tags:
     purchasableAfterStart: false
     removable: true
 
+  fragmentation-grenade:
+    catalog: gm
+    name: Fragmentation Grenade
+    category: items
+    group: items-special
+    description: "A standard-issue fragmentation grenade."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  c4:
+    catalog: gm
+    name: C4
+    category: items
+    group: items-special
+    description: "A plastic explosive, good at breaching walls."
+    pointCost: 0
+    tradeable: true
+    weight: 4
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
   emp-grenade:
     catalog: gm
     name: EMP Grenade
@@ -8568,6 +8637,20 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  love-lies-and-lays-of-larry-luca-life-1-royal-loyal-lynn:
+    catalog: gm
+    name: "Love, Lies and Lays of Larry Luca: Life 1 — Royal Loyal Lynn"
+    category: items
+    group: items-paper
+    bookText: >-
+      Larry Luca lied his way into Lynn's love and affection, and invited her into his life. Lynn entered Larry's lodging, the locale's light illuminating softly. Larry Luca pulled Lynn in to feel her love in a lip lock. Larry Luca lobbed Lynn, who landed and lay on the bed, as Larry leapt to lick Lynn's royal flesh all over.
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
   # THE SIX COURTIER SEALS are the one place a tag is both bought and made, and
   # TAGS.md §4's "nothing is both" invariant is knowingly bent here. A courtier
   # buys their own mark at creation; a Forger (Brigands only, general-brigand)
@@ -9107,6 +9190,31 @@ tags:
   # ("nothing forged in Ravenheart stops a bullet"). Deliberately carries NO
   # equipSlot, exactly like the light set: the two have to compete for the same
   # flat slot rather than being wearable together.
+  # The Ordinator's armour, and the top of the ballistic ladder. Deliberately
+  # 0.93 rather than 0.95: combineArmor caps a COMBINED value at 0.95, so a suit
+  # authored at the cap makes the wearer's helmet worth literally nothing. At
+  # 0.93 the Ordinator Helmet still buys the last two points, which is what
+  # stacking is supposed to do.
+  #
+  # Weight 50 is most of a carry allowance on its own — "slow and heavy" is a
+  # real cost, not flavour.
+  cataphract-armor:
+    catalog: gm
+    name: Cataphract Armor
+    category: items
+    group: items-armor
+    description: "Nearly impenetrable armor. Slow and heavy."
+    pointCost: 0
+    equippable: true
+    melee: 0.93
+    ballistic: 0.93
+    tradeable: true
+    weight: 50
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
   heavy-infantry-armor:
     catalog: gm
     name: Heavy Infantry Armor
@@ -9142,8 +9250,8 @@ tags:
     tradeable: true
     weight: 12
     equippable: true
-    melee: 0.8
-    ballistic: 0.8
+    melee: 0.75
+    ballistic: 0.75
     visible: true
     purchasable: false
     purchasableAfterStart: false

@@ -74,7 +74,7 @@ async function loadUnreadConversationCount(discordUserId) {
 }
 
 export async function loadNavItems(discordUserId) {
-  const [{ isGm: gm }, hasMortusTag, hasLicenceTag, config] = await Promise.all([
+  const [{ isGm: gm }, hasMortusTag, hasLicenceTag, config, pastGames] = await Promise.all([
     getGmSession(),
     // The Lifeweb's Blood level is a secret the Mortii keep — everyone else
     // only gets the vague public omen line in the turn announcement (see
@@ -87,7 +87,9 @@ export async function loadNavItems(discordUserId) {
     prisma.characterTag.findFirst({
       where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MERCHANT_LICENSE_SLUG } },
     }),
-    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
+    prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
+    // A finished past game is everyone's to read, whatever the current one is.
+    prisma.game.count({ where: { endedAt: { not: null } } }),
   ]);
   const hasMortus = gm || !!hasMortusTag;
 
@@ -102,7 +104,7 @@ export async function loadNavItems(discordUserId) {
   // re-checks — this is presentation, that is enforcement, same posture as
   // /character's creation gate.
   const withArchive =
-    gm || config?.archiveVisible ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
+    gm || config?.archiveVisible || pastGames > 0 ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
   const superadmin = isSuperadmin(discordUserId);
   const withDepot = hasLicenceTag || superadmin ? [...withArchive, DEPOT_NAV_ITEM] : withArchive;
   // Dev is appended last and carries section "gm", so on a GM's rail it lands

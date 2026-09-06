@@ -81,9 +81,9 @@ async function armNukeImpl() {
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("No turn is open. ‡");
 
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  if (config?.nukeDetonatedTurn != null) throw new UserError("It has already gone off. ‡");
-  if (config?.nukeArmedTurn != null) throw new UserError("It is already counting down. ‡");
+  const state = await prisma.gameState.findUnique({ where: { id: 1 } });
+  if (state?.nukeDetonatedTurn != null) throw new UserError("It has already gone off. ‡");
+  if (state?.nukeArmedTurn != null) throw new UserError("It is already counting down. ‡");
 
   // The absolute turn it fires on. Two turns, counted the way every other
   // duration in the game counts: armed while turn T is open, it goes at the
@@ -92,7 +92,7 @@ async function armNukeImpl() {
   const effect = { firesOn, armedOnTurn: openTurn.number, locationId: me.locationId };
 
   await prisma.$transaction(async (tx) => {
-    await tx.gameConfig.update({ where: { id: 1 }, data: { nukeArmedTurn: firesOn } });
+    await tx.gameState.update({ where: { id: 1 }, data: { nukeArmedTurn: firesOn } });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_arm_nuke",
@@ -112,16 +112,16 @@ async function disarmNukeImpl() {
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("No turn is open. ‡");
 
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  if (config?.nukeDetonatedTurn != null) throw new UserError("It has already gone off. ‡");
-  if (config?.nukeArmedTurn == null) throw new UserError("It isn't armed. ‡");
+  const state = await prisma.gameState.findUnique({ where: { id: 1 } });
+  if (state?.nukeDetonatedTurn != null) throw new UserError("It has already gone off. ‡");
+  if (state?.nukeArmedTurn == null) throw new UserError("It isn't armed. ‡");
 
   // Snapshotted so an Undo can put the countdown back exactly where it was
   // rather than guessing at it.
-  const effect = { wasFiringOn: config.nukeArmedTurn, disarmedOnTurn: openTurn.number };
+  const effect = { wasFiringOn: state.nukeArmedTurn, disarmedOnTurn: openTurn.number };
 
   await prisma.$transaction(async (tx) => {
-    await tx.gameConfig.update({ where: { id: 1 }, data: { nukeArmedTurn: null } });
+    await tx.gameState.update({ where: { id: 1 }, data: { nukeArmedTurn: null } });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_disarm_nuke",

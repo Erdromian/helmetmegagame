@@ -17,21 +17,18 @@ Companion to [`SYNC.md`](SYNC.md) §3 (what the wipe re-syncs),
 Read these before touching anything, because two of them are invisible until
 someone complains and the third is irreversible in the wrong order.
 
-**The wipe closes the doors behind you.** `wipeGameData` writes
-`DEFAULT_GAME_CONFIG` (`web/app/(app)/gm/dev/actions.js`) over the config row,
-and that constant sets `openToPlayers: false` and `leaderWhitelistEnabled:
-true`. So the natural opening move — wipe to a clean slate — leaves a game
-nobody can join, with the Leader roles re-locked. It also resets **every
-balance knob**: `playerCount`, `startingTagPoints`, `equipSlots`,
-`maxDrawbackTags`, `desireSlots`, `productionCoefficient`, and the feature switches
-(`nicknameSyncEnabled`, `archiveVisible`, `avatarUploadsEnabled`,
-`portraitMakerEnabled`, `messageWipeEnabled`, `autoReconcileEnabled`).
-**Screenshot the Game Config form before you wipe.** The row is updated, not
-recreated, so anything absent from `DEFAULT_GAME_CONFIG` survives — including
-the special-channel and `#turns` channel pointers.
+**The wipe closes the doors behind you.** `wipeGameData` deletes and
+recreates `GameState` (`web/app/(app)/gm/dev/actions.js`), and a fresh row is
+**CLOSED** (`LOBBY.md` §1): nobody can ready up or make a character until a
+superadmin presses **Open lobby** on the Game section. That is the point —
+the syncs below run before anyone can touch the world.
 
-Note what the last three mean in practice: after a wipe, player topics **never
-expire** and the doctor **never runs post-turn**, until you re-tick them.
+`GameConfig` is **not** touched by the wipe any more. Every knob on the
+Configuration section — player count, starting points, the caps, the feature
+switches — carries over from the last game, so there is nothing to screenshot
+and nothing to re-enter. The per-game state that used to share the row
+(Lifeweb blood, the bomb, the bell, the archive gate, next-turn overrides)
+lives on `GameState` and starts fresh.
 
 **The `#turns` repost is best-effort.** `finishGameWipe` reposts the `#turns` console for the
 fresh Turn 1 itself, so the channel is no longer left empty on Day 1 — but that
@@ -50,8 +47,10 @@ a GM unseated unless you specifically want the default.
 ## 2. What the wipe actually runs
 
 `wipeGameData` does the database half synchronously — every player- and
-turn-scoped row deleted in one transaction (in FK-dependency order),
-`GameConfig` reset, and a fresh Turn 1/DAWN opened. It writes a
+turn-scoped row deleted in one transaction (in FK-dependency order), the old
+`Game` given its epilogue and the next one opened, `GameState` recreated at
+CLOSED, and a fresh Turn 1/DAWN opened. The transcript is **kept** under the
+old game's number (`ARCHIVE.md`). It writes a
 `SystemReport` row (`kind: WIPE`) **before** the Discord half starts, then hands
 that half to `after()` and returns.
 
@@ -117,10 +116,12 @@ The order, and why:
 10. Check `#turns` shows the Turn 1 announcement and its button row. The
     wipe reposts it, but the step is best-effort — restart the bot if the
     channel is empty (§1).
-11. Re-enter Game Config from the screenshot, including the three passes that
-    default to off: message wipe, thread expiry, auto-reconcile.
-12. **Tick "Open to players" last.** A player also needs the player role —
-    the two together are "the doors are open" and "you are on the list".
+11. Check the Configuration section still says what you want. It survives
+    the wipe, so this is a glance, not a re-entry.
+12. **Open the lobby last** (`/gm/dev?s=game`). A player also needs the
+    player role — the two together are "the doors are open" and "you are on
+    the list". Players ready up from here; when the roster is in, Close
+    lobby, Preview, Start (`LOBBY.md` §3).
 
 ## 4. What the wipe does not clear
 
@@ -131,6 +132,9 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 | `#cerberon`, `#info` messages | `runFullChannelWipe` touches `#turns`, `#archive`-named channels and zone channels only. Last game's radio traffic stays readable — clear it by hand if that matters. |
 | The `radio` category and its channel ids | Deliberate: provisioning is one-time, so the pointers persist. |
 | The `#turns` console pointer | Deliberate, and the safety net for step 5 above: a stale id makes the bot repost on its next `ready`. |
+| `GameConfig` | Every knob on the Configuration section. Per-game state is on `GameState`, which is recreated. |
+| `PlayerPreference` rows | Role priorities, opt-ins and the fallback a player set in the lobby, keyed by Discord user. Next game they only press Ready. |
+| `Game` and `ArchiveEntry` rows | The transcript of every past game, readable on `/archive` under its number, with the reveal on top. |
 | `GmZoneView` rows | GMs keep the zones they chose across a restart. Clearing the table is safe: no rows means every zone. |
 | `SystemReport` rows | The operational history is kept on purpose; the panel shows the latest per kind. |
 | `Zone`, `Location`, `Room`, `Faction`, `Tag`, `Role`, `Document` | Re-synced from YAML rather than deleted. |

@@ -34,9 +34,14 @@ export const CROP_X = Math.round((BUST_PX - CANVAS) / 2 - NUDGE_X * CANVAS);
 export const CROP_Y = Math.round(BUST_PX - CANVAS - NUDGE_Y * CANVAS);
 
 export const FADE_HEIGHT = 0.3; // fraction of CANVAS the gradient covers, from the bottom
-// Must match TINT / DARKEN in web/scripts/generate-letters.js.
-export const FADE_TINT = { r: 0x3c, g: 0x3c, b: 0x3c };
-export const FADE_DARKEN = 0.4;
+// Must match TINT / DARKEN in web/scripts/generate-letters.js and
+// FADE_TINT / FADE_DARKEN in web/scripts/generate-helms.js.
+//
+// BLACK as of 2026-09-06: the plate's tone map crushes its bottom edge to zero,
+// so a fade toward anything lighter would lift that edge back up. The fade is
+// still what sinks the bust's chin cut into the plate — that is its job here.
+export const FADE_TINT = { r: 0, g: 0, b: 0 };
+export const FADE_DARKEN = 1;
 
 export const SHEET_DIR = "/assets/portrait";
 // The tinted-stone plate the letter plaques use (web/scripts/generate-letters.js),

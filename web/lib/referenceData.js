@@ -73,6 +73,18 @@ export function stripEmptyUnlocks(tag) {
   return rest;
 }
 
+// The same bargain stripEmptyUnlocks makes, for the weight pair. Barely a
+// third of the catalog carries a weight at all (226 of 629 rows when this was
+// written); on the rest the two columns ship `"weightLbs":null,
+// "tradeable":false` to every browser on every page to say nothing.
+// formatTagWeight() reads a stripped tag as weightless, which is the same
+// answer it would have given.
+export function stripWeightless(tag) {
+  if (tag.tradeable && tag.category !== "Assets" && (tag.weightLbs ?? 0) > 0) return tag;
+  const { weightLbs, tradeable, ...rest } = tag;
+  return rest;
+}
+
 // Exactly the Tag columns TagChip reads. Shared so every TagChip caller
 // (this module, /gm/turns) uses the same shape instead of a copy that drifts.
 export const TAG_CHIP_FIELDS = {
@@ -129,6 +141,11 @@ export const TAG_CHIP_FIELDS = {
   // paper against a rifle, which is the one thing that line exists to say.
   meleeArmor: true,
   ballisticArmor: true,
+  // TagChip's "Weight" line, via formatTagWeight. Both halves: an untradeable
+  // tag weighs nothing against the cap no matter what the column says, so a
+  // weight shown without `tradeable` would contradict the sheet's total.
+  weightLbs: true,
+  tradeable: true,
   // Drives TagChip's "Conceals you" line. Both, not just the first: the row
   // has to say whether the wearer keeps a choice, and concealsIdentity alone
   // cannot tell you that.
@@ -192,7 +209,8 @@ export async function getVisibleTags() {
     tags
       .filter((tag) => !tag.group?.requiredTagId || held.has(tag.group.requiredTagId))
       .map(composePaper(viewer, held))
-      .map(stripEmptyUnlocks),
+      .map(stripEmptyUnlocks)
+      .map(stripWeightless),
     { visibleSlugs: readableSlugs },
   );
 }

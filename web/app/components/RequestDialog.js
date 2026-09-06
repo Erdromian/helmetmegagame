@@ -1,17 +1,17 @@
 "use client";
 
 import FormError from "@/app/components/FormError";
-import { useState } from "react";
-import { MAX_REASON_LENGTH } from "@/lib/constants";
 
 import Modal from "./Modal";
 
-// The universal Requests popup. Every player action that takes effect without
-// One of these opens for any player action with fields to fill in: whatever
-// type-specific fields the caller passes as children. See
-// box for a Request whose own fields already are the evidence a GM reads.
-// The shell only mounts its body while open, so the fields reset
-// between openings for free.
+// The shared confirm-with-fields modal. One of these opens for any player
+// action that needs input before it fires: the caller passes its own
+// type-specific fields as children, and this supplies the title, the confirm
+// button and the error line. It asks for nothing itself — the reason box it
+// used to carry went when player actions stopped being Requests.
+//
+// The shell only mounts its body while open, so the fields reset between
+// openings for free.
 export default function RequestDialog({ open, ...props }) {
   if (!open) return null;
   return <RequestDialogBody {...props} />;

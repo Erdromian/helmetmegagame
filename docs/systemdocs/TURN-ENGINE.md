@@ -24,7 +24,11 @@ else. See `ADJUDICATION.md`.
 | The Dev Panel's "End turn" | `web/app/(app)/gm/dev/actions.js#forceAdvanceTurn` | Hands it to `next/server`'s `after()`, so the response — already carrying the committed new turn — flushes first. |
 
 Each adds its own `AuditLog` entry. **Both must check the returned `advanced`
-flag** before logging or dereferencing `newTurn`.
+flag** before logging or dereferencing `newTurn`. It is also `false`, with
+`refused: "NOT_RUNNING"`, whenever `GameState.phase` is not RUNNING
+(`LOBBY.md` §1) — the one gate for both callers, so a game in the lobby or
+already ended never ticks. `GameConfig.autoTurnAdvanceDisabled` is the
+separate, cron-only pause.
 
 Manual turn control lives only in the Dev Panel, not on `/gm/turns`. The
 Current Turn widget can also overwrite the open turn's day/phase directly
@@ -114,7 +118,7 @@ each arrived at by getting them wrong first.
    pass must not half-run on a resume.
 4c. **Nuke explosion pass** (`db/lib/nukeExplosionPass.js`) — the third
    auto-kill, and the only one that can end most of a game at once. When
-   `GameConfig.nukeArmedTurn` has come due, every ALIVE character whose zone is
+   `GameState.nukeArmedTurn` has come due, every ALIVE character whose zone is
    not a `CAVE_LEVEL` dies: the Caves and the Depths are the whole escape.
    Sits beside 4b for the same reason — **after** the staged push and pass 4,
    so a Disarm filed this close (or a GM defusing it from `/gm/dev`) beats the
@@ -128,7 +132,11 @@ each arrived at by getting them wrong first.
    so a crash halfway through cannot leave a world that explodes again on the
    next close. Discord work — the `@everyone` fireball line into every zone's
    `#summary` — comes back as `broadcast` for the thunk, never posted inside
-   the pass.
+   the pass. **A detonation ends the game**: right after the pass,
+   `advanceTurn` calls `db/lib/gameEnd.js#endGameInDb` (phase ENDED, archive
+   open, the epilogue written) and hands the `**Game Ended**` post to the
+   thunk to follow the fireball (`LOBBY.md` §7). The new turn still opens so
+   the banner has somewhere to hang; the next advance is refused.
 
 5. **Expiry sweep** — delete non-stackable `CharacterTag`s whose `expiresTurn`
    has come due.
@@ -198,6 +206,15 @@ each arrived at by getting them wrong first.
    the turn-close safety net for Claustrophobia/Acrophobia moods that
    `settlePhobias` didn't already settle on a Move this turn (`TAGS.md`).
    Audit action `phobias_resolved`.
+8d. **Travel arrival pass** (`db/lib/travelArrivalPass.js`, `"travelArrival"`
+   in `TURN_PASSES`) — everyone who spent their Move crossing a zone last turn
+   finally lands (`MAP.md` §3). **Last of the passes**, and the slot is
+   load-bearing: every pass above settles the turn that just ended, and the
+   traveller spent that turn walking — auto-labor pays them where they set out
+   from, and neither turret shoots somebody still on the road. It does no
+   Discord work; the arrivals ride back on `travelArrivals` and go out through
+   the same thunk loop a GM's staged "Relocate to" uses. Audit action
+   `travellers_arrived`.
 9. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
 10. **Open the next turn** with the alternated phase, and roll its weather (§4).
 11. **Write the `TURN_START` archive row** — here, where the turn is created,
@@ -505,9 +522,11 @@ does end at the coming midnight, eleven hours later, rather than running a full
 out right — and it fixes a live bug in the announcement, which the bot rebuilds
 on restart and which used to say "ends at noon" six hours after noon.
 
-`moveWindow(turn, { now, autoTurnAdvanceDisabled })` returns
+`moveWindow(turn, { now, clockFrozen })` returns
 `{ endsAt, cutoffAt, locked, hasLock }`. There is **no lock at all**
-(`hasLock: false`) in two cases: `GameConfig.autoTurnAdvanceDisabled` is on, so
+(`hasLock: false`) in two cases: the clock is frozen
+(`db/lib/gameState.js#clockFrozen` — `GameConfig.autoTurnAdvanceDisabled` is
+on, or the game is not RUNNING), so
 there is no scheduled end to count back from; or the turn is shorter than three
 hours, which a manual advance at, say, 11:00 produces — counting back would
 otherwise lock the whole turn the moment it opened. `locked` is true only

@@ -75,15 +75,37 @@ plate with a grey only flattens it again.
 **Two of the three families were rebuilt properly and the third could not be.**
 The plate itself and all 21 helms were regenerated (neither needs a font), so
 only their backgrounds moved and the helm sprites kept their own colour. The 27
-letter plaques were **post-processed in place** — `greyscale()` then
-`linear(1.1767, -42.06)` over the committed WebPs — because the fontconfig trap
-in `generate-letters.js` is still live on Bascinet's Mac and a full run would
-have replaced every blackletter glyph with Helvetica. That linear map is not a
-plain dimming: it is solved to land the plate on the new plate's exact value
-(41.85) while pinning the ink at the top of its old range, so the glyph did not
-darken along with its ground. The next successful run on a font-capable machine
-supersedes all of it and nothing needs undoing first — the constants in the
-script are already the new ones.
+letter plaques were **post-processed in place** over the committed WebPs,
+because the fontconfig trap in `generate-letters.js` is still live on Bascinet's
+Mac and a full run would have replaced every blackletter glyph with Helvetica.
+That map pinned the *top* of a plaque onto the new plate, but the plaques
+already carried the shade ramp, so everything below the top drifted and the
+shadows clipped: the plaques ended up 15–25 luma darker than the plate, the
+helms and the built portraits, and crushed to black at the bottom edge.
+
+**That divergence was closed on 2026-09-06, toward the plaques rather than away
+from them** — Bascinet's call was that the darker ground is the one to keep. The
+plate now carries a final tone map, `TONE_GAIN` / `TONE_OFFSET` in
+`generate-letters.js`, fitted by least squares over all 240 unclipped rows of
+the committed plaques (max residual 2.2 luma). It reproduces the plaque ground
+from the plate, so the plate, the helms and every built portrait land where the
+plaques already were — measured worst-case row difference is now 3.4 luma.
+
+Three things about that map. It is a `linear()` and not a smaller `DARKEN`
+because it raises contrast and subtracts, and `modulate({ brightness })` is a
+pure multiply. It sits **last in `buildPlate()`, on the ground alone** — the
+glyph, the helm sprite and the portrait bust are all composited after it, so the
+ground darkens and the foreground does not. And the 27 plaques are now the
+*reference*, not a debt: nothing is owed to them, and a future run on a
+font-capable machine will produce plaques matching what they already are.
+
+The helm and portrait bottom fade went to **true black** in the same pass
+(`FADE_TINT` `{0,0,0}`, `FADE_DARKEN` `1`, in both `generate-helms.js` and
+`web/lib/portrait/catalog.js`). The plate's tone map crushes its own bottom edge
+to zero, so a fade toward anything lighter would lift that edge back up — the
+same mismatch upside down. The fade still earns its place: it sinks the *sprite
+or bust's* lower edge into the shade, which the plate's ramp cannot do because
+the subject is composited on top of it.
 
 `--plate-only` exists for exactly this split: it rebuilds `plate.webp` and
 stops, so the plate's tuning can change on a machine that cannot render the

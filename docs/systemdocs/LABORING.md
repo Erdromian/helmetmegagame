@@ -31,9 +31,9 @@ bubbles the tag descriptions render through.
 |---|---|---|---|
 | `laboring-basic` | Laboring (Basic) | 0–2 | — |
 | `laboring-skilled` | Laboring (Skilled) | 1–4 | `parentTag: laboring-basic` |
-| `laboring-hunting` | Laboring (Hunting) | 0–19 | `requiredTag: laboring-skilled` |
-| `laboring-farming` | Laboring (Farming) | 13–17 | `requiredTag: laboring-skilled` |
-| `laboring-fishing` | Laboring (Fishing) | 8–15 | `requiredTag: laboring-skilled` |
+| `laboring-hunting` | Laboring (Hunting) | 0–15 | `requiredTag: laboring-skilled` |
+| `laboring-farming` | Laboring (Farming) | 15–21 | `requiredTag: laboring-skilled` |
+| `laboring-fishing` | Laboring (Fishing) | 7–13 | `requiredTag: laboring-skilled` |
 
 The slugs were `laborer-*` before this rework and are `laboring-*` now, because
 `db/lib/syncTags.js` enforces that **a slug is always its name, slugified** — so
@@ -63,6 +63,24 @@ than on the dial, because the dial cannot reach Basic. The two general tiers
 did not move and could not: 8% of a 2 or a 4 rounds back to itself, and the
 smallest real step on those is 25%.
 
+**Then they were pulled apart, later the same day**: Hunting **-20%**
+(0–19 -> 0–15), Fishing **-15%** (8–15 -> 7–13), Farming **+10%**
+(13–17 -> 14–19). They had been close enough to a tie that the choice between
+them was mostly about which ground you happened to stand on, and the
+wilderness paid best for the least settled play. Farming is now the richest
+specialisation on the base rates, and the two that need no fields have to earn
+it back through a Location's coefficient instead (§3).
+
+Whole numbers do not divide into those percentages cleanly, so the endpoints
+are rounded and the averages land at -21.1%, -13.0% and +10.0%. Hunting's
+0–16 would have been only -15.8%, which is further from the intent than
+overshooting to 0–15. The general tiers are untouched again, for the reason
+above.
+
+**Farming was then raised a further 9%** the same day, 14–19 -> **15–21**. The
+average goes 16.5 -> 18.0, which is +9.09% — no whole-number pair lands on 9%
+exactly, and 15–20 would have been only +6%.
+
 ## 3. What a place is worth
 
 Each Location carries up to three `LocationYield` rows, one per `LaborKind`.
@@ -75,11 +93,11 @@ drifted it, and `current` is the only number a payout or the Examine button
 ever reads.
 
 ```yaml
-    forest-boardwalk:
-      name: Boardwalk
+    forest-west-riverbank:
+      name: West Riverbank
       description: >-
         …
-      yield: { hunting: 0.7, farming: 0.3 }
+      yield: { hunting: 0.8, farming: 0.3 }
 ```
 
 `db:sync-zones` writes these. It always writes `base`. It does **not** write
@@ -99,22 +117,22 @@ Anything not listed has no row and cannot be worked. Locations are addressed by
 slug — open country carries its zone as a prefix, built places do not
 (`docs/zones.yaml`).
 
-**Farming** — Farms 1.0 · Manors 0.6 · `forest-north-road` / `forest-shrine` /
-`forest-terraces` 0.5 · every other Forest place 0.3 · Keep 0.2.
+**Farming** — Farms 1.0 · Manors 0.6 · `forest-north-road` /
+`forest-crossroads` / `forest-sparse-field` 0.5 · every other Forest place 0.3 ·
+Keep 0.2.
 
-**Fishing** — `forest-river` / `forest-crossroads` / `forest-north-road` /
-`forest-charcoal` / `forest-culvert` / `forest-coppice` 0.7 ·
+**Fishing** — `forest-headwaters` / `forest-creekside` / `forest-north-road` /
+`forest-deep-forest` / `forest-culvert` / `forest-east-river` 0.9 ·
 `hills-black-pines` 0.8 · the five open Marshes 1.0.
 
-**Hunting** — Forest 0.5 except `forest-boardwalk` 0.7 · the five open Marshes
-1.0 · Black Hills 1.0 except `hills-scrub` 1.1 and `hills-black-pines` 1.3 ·
-the four Caves 0.4 · Depths 0.6 except `depths-runnel` 1.8 and `depths-saltrise`
-1.6.
+**Hunting** — Forest 0.5 except `forest-west-riverbank` 0.8 · the five open
+Marshes 1.0 · Black Hills 1.0 throughout · the four Caves 0.4 · Depths 0.6
+except `depths-runnel` 1.8 and `depths-saltrise` 1.6.
 
-The marsh Village fishes at 1.2 and does nothing else; the Godard Factory has
-no rows at all and is worked anyway (§3b). Town and Fortress have neither
-hunting nor fishing; their only yield is farming. Nothing farms or fishes
-underground.
+The marsh Village fishes at 1.3 and does nothing else; the Godard Factory has
+no rows at all and is worked anyway (§3b). The Fortress has neither hunting nor
+fishing — the Keep and the Manors farm, and nothing else inside it is worked at
+all. Town carries no rows of any kind. Nothing farms or fishes underground.
 
 **The old blanket "nothing can be produced in the depths" is gone.** Hunting
 down there is now most of the reason to go.
@@ -239,9 +257,11 @@ there from `db/index.js` so `db/lib/` modules can reach it):
   sometimes provide for yourself" is nothing with extra steps.
 - Everything else keeps `Math.floor(x * 0.05)`.
 
-In practice that zeroes almost the whole economy. Only the richest hunting in
-the Depths still pays a single ⬢. That is the intent: this used to be flavor
-text on a turn announcement and nothing else.
+In practice that zeroes almost the whole economy. The Farms still pay a
+guaranteed 1 ⬢ — farming is the one specialisation whose *minimum* survives the
+floor — and the best hunting and fishing spots pay 0–1. Everything else is
+nothing. That is the intent: this used to be flavor text on a turn
+announcement and nothing else.
 
 ## 7. Drift — what the land does on its own
 

@@ -26,6 +26,26 @@ async function safely(label, fn) {
   }
 }
 
+// Which game a row belongs to: GameState.gameId, memoised for half a minute
+// so a message costs no extra round trip. The wipe swaps the id; a stale memo
+// for up to thirty seconds after a wipe stamps a row nobody will read, which
+// is fine — the wipe also drops every character who could have written one.
+const GAME_ID_TTL_MS = 30 * 1000;
+let gameIdMemo = { id: null, at: 0 };
+
+async function currentGameId(prisma) {
+  const now = Date.now();
+  if (gameIdMemo.id && now - gameIdMemo.at < GAME_ID_TTL_MS) return gameIdMemo.id;
+  const state = await prisma.gameState.findUnique({ where: { id: 1 }, select: { gameId: true } });
+  if (state?.gameId) gameIdMemo = { id: state.gameId, at: now };
+  return state?.gameId ?? gameIdMemo.id;
+}
+
+// The wipe calls this so the next row lands in the new game at once.
+function forgetGameId() {
+  gameIdMemo = { id: null, at: 0 };
+}
+
 // The open turn, so a row can be stamped with when it happened in the fiction.
 // Callers that already hold the turn (advanceTurn, the auto-labor pass) pass
 // it in to skip the lookup.
@@ -40,10 +60,11 @@ async function resolveTurn(prisma, turn) {
 // who it actually was.
 async function recordArchiveMessage(prisma, entry) {
   return safely("message write", async () => {
-    const turn = await resolveTurn(prisma, entry.turn);
+    const [turn, gameId] = await Promise.all([resolveTurn(prisma, entry.turn), currentGameId(prisma)]);
     return prisma.archiveEntry.create({
       data: {
         kind: "MESSAGE",
+        gameId,
         turnNumber: turn?.number ?? null,
         turnPhase: turn?.phase ?? null,
         sentAt: entry.sentAt ?? new Date(),
@@ -67,10 +88,11 @@ async function recordArchiveMessage(prisma, entry) {
 // diary rather than a chat log with no context.
 async function recordArchiveEvent(prisma, entry) {
   return safely(`${entry.kind} write`, async () => {
-    const turn = await resolveTurn(prisma, entry.turn);
+    const [turn, gameId] = await Promise.all([resolveTurn(prisma, entry.turn), currentGameId(prisma)]);
     return prisma.archiveEntry.create({
       data: {
         kind: entry.kind,
+        gameId,
         turnNumber: turn?.number ?? null,
         turnPhase: turn?.phase ?? null,
         sentAt: entry.sentAt ?? new Date(),
@@ -101,6 +123,8 @@ async function deleteArchiveMessage(prisma, discordMessageId) {
 }
 
 module.exports = {
+  currentGameId,
+  forgetGameId,
   recordArchiveMessage,
   recordArchiveEvent,
   updateArchiveMessage,

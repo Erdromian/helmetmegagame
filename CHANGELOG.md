@@ -6,6 +6,113 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · A Playtest role, and a leaner lobby
+
+✚ A Playtest Discord role, handed to every Contributor: it skips the lobby and creates a character in any phase, like a GM, and counts as on the roster without the Player role  
+✎ The lobby is two columns now — roles on the left, the Ready card, the fallback dropdown and the antagonist boxes on the right — with every explainer and tooltip gone  
+− Starting areas from the lobby's role rows
+
+## 2026-09-06 · The handbook and the GM docs know about the lobby
+
+✎ The player handbook explains readying up, the roll, the deadline DM, and joining by hand after the start  
+✚ LOBBY.md, the GM-side reference for phases, the roll, the creation window, End Game and what a restart keeps; the launch runbook now ends with Open lobby instead of a switch  
+✎ THREATS.md says how a seat's forbidden tags work and what Assign refunds; ARCHIVE.md describes the game picker and the folded transcript
+
+## 2026-09-06 · The archive, remade, with every past game in it
+
+✚ A game picker on /archive: past games are readable by anyone signed in, with their reveal at the top; the current one still opens when the game ends  
+✎ The transcript is a dense day-by-day read now: sticky Day · Dawn · Rain headers, a line per place, one line per thing said at the small size, no avatars  
+✎ Arrivals, deaths, moves and desires fold into one muted line per run that opens on a click; the Show switch picks Speech or Everything  
+✎ Zone and character filters come from the game's own rows, so a past game filters by who and where it actually had
+
+## 2026-09-06 · Ending the game, and games that outlive the wipe
+
+✚ The bomb going off ends the game: the clock stops, the archive opens, and the reveal follows the fireball into #turns  
+✚ End Game writes a reveal — your closing note, how long it lasted, who was who with antagonist seats named and the dead marked — and posts it to #turns  
+✎ Restart Game keeps the transcript now: every game is numbered and its archive stays readable; the game picker lands with the archive remake  
+✎ Close lobby freezes it: Preview and Start work on a closed lobby, so nobody can ready up under a preview  
+✎ An assignment DM that failed to send goes out again on the next sweep, and the reminder carries the link  
+✎ From review: a rolled seat is spent by any character its player makes, spawn-only seats can't be hand-set, and the lobby's ready count refreshes itself
+
+## 2026-09-06 · Start Game rolls the lobby into seats
+
+✚ Preview on the Game section shows who would get what and warns about leader seats nobody wants; hand-set any row, re-roll for a fresh seed, and Start commits exactly that table  
+✚ Everyone assigned gets a DM with their seat, a link to build the character, a Discord-clock deadline and a Decline button; the seat is theirs for the creation window  
+✚ A reminder six hours before the window closes; past it the seat is released and late join can take it  
+✎ The wizard opens on the Tags step with the role fixed for an assigned player  
+✎ Every seat count now includes seats held by lobby assignments, so late join and spawns can't double-book one
+
+## 2026-09-06 · The turret tells armour apart again
+
+✎ A burst is far deadlier to the unarmoured and far kinder to the well-armoured  
+✚ Everyone now has a flat one-in-ten chance to dodge a burst outright, armour or none  
+✎ Light Infantry Armour turns a little less
+
+## 2026-09-06 · A lobby to ready up in before the game starts
+
+✚ While the game is gathering, /character is the lobby: set Off, Low, Med or High on every role (one High at a time), say what happens if nothing fits, tick antagonist boxes, and press Ready. It saves as you go and remembers you next game  
+✚ The Game section on the Dev Panel lists who readied and what they asked for  
+✚ Gamemasters get a Skip to character creation button in the lobby, for testing  
+✎ Character creation is open while the game is Running or Ended; Ended stops only the clock
+
+## 2026-09-06 · Giant, Strong and Pack Mule no longer stack
+
+✎ Giant, Strong and Pack Mule now conflict with each other, so a build can hold only one of the three carry bodies
+
+## 2026-09-06 · Twelve antagonist boxes, two of them the Thanati
+
+✚ Cultist and Cultist Leader are real seats now: they grant the Thanati belief, the leader wears a mark on top, and a GM can Assign or Spawn them  
+✎ The Succubus box is the Demoness seat under its own name, so the 18+ nature is plain; the Bastard, Cultist Leader, Succubus and Tribunal Ordinator boxes need the Whitelist role  
+− Aberrant Emissary, False Chaplain, Neomorph, Phrygian Count, Tribunal Operations and Warlock from the opt-in list; Skinless and Windlander join it  
+✎ Assigning a seat now refunds any tag it forbids that cost points, keeps drawbacks, and drops a second Belief; the DM says what went  
+✎ The Assignments table shows lobby opt-ins for players without a character yet, and a WL column
+
+## 2026-09-06 · The game has phases now: Closed, Lobby, Running, Ended
+
+✚ A Game section on the Dev Panel with Open lobby, Start game, End game and Resume  
+✎ Turns only advance while the game is Running, from the nightly cron and from End turn alike  
+✎ Restart Game no longer resets the Configuration knobs; they carry over between games  
+− The Open to players switch; a Running game is what opens character creation  
+✎ Ending the game opens the archive to players  
+✎ The Configuration section is grouped, every knob has a tooltip, and the noticeboard lifespan is finally editable
+
+## 2026-09-06 · The marshes fish less, the Village fishes more
+
+✎ The five open Marshes fish at 1.0 instead of 1.3
+✎ The marsh Village fishes at 1.3 instead of 1.5 — still the best water in the game
+✎ Corrected the Laboring doc's yield table, which had drifted off the map
+
+
+## 2026-09-06 · Farming pays 9% more
+
+✎ Laboring (Farming) now pays 15–21 ⬢ instead of 14–19
+
+
+## 2026-09-06 · Travel that costs your Move takes a day
+
+✎ A zone crossing that spends your Move now lands NEXT turn: you keep standing where you are until the day turns, so the new zone's channels no longer open the moment you press Confirm  
+✎ Free zone crossings and walks inside a zone are unchanged — still instant  
+✚ A Turn back button for anyone already on the road. It only clears the destination; the Move is spent either way  
+✚ A book on the shelf in the Successor's Chamber
+
+## 2026-09-06 · Ten equip slots, and the Merchant can crate his own goods
+
+✎ Everyone has 10 equipment slots instead of 6. The one-helmet, one-cuirass, one-shield rule is unchanged  
+✚ Packaging Equipment in the Company's silo in the Cargo Bay, so the Merchant no longer walks to the Factory to pack a crate
+
+## 2026-09-06 · Tag chips say what a thing weighs
+
+✎ A tag's hover panel now says what it weighs, and a stack says both the each and the total  
+✎ Nothing weightless shows a line: a skill, a horse, a graft in your neck
+
+## 2026-09-06 · Avatars all sit on the same dark stone now
+
+✎ The helm avatars and the built portraits were still lighter than the letter plaques. They all share one ground again, and there is no green left in any of them
+
+## 2026-09-06 · The Censor can read
+
+✚ The Censor starts Literate, like every other Court seat
+
 ## 2026-09-06 · Depressed only fights the tags that touch Desires
 
 ✎ Lazy, Insomniac, Guilt Ridden, Torturer and the four phobias can sit alongside Depressed again. None of them touches the Desire system, so there was nothing for them to argue with.  

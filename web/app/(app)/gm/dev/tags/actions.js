@@ -332,7 +332,7 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
               ops: [{ tagId: tag.id, op: "add", quantity: 1 }],
               tagsById,
               openTurn,
-              equipSlots: config?.equipSlots ?? 6,
+              equipSlots: config?.equipSlots ?? 10,
             }),
           );
           applied.push(characterId);

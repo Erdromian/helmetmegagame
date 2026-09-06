@@ -11,3 +11,6 @@ npm-debug.log*
 
 # Copy-rewrite worksheets (scripts/copy) — scratch, regenerate with npm run copy:extract
 worksheets/
+
+# Antagonist design doc — local only, never committed (see docs/systemdocs/SECRETS.md)
+docs/systemdocs/SECRETS.md

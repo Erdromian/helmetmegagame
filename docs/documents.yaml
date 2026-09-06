@@ -469,6 +469,7 @@ documents:
       | {tag:dreamers-draught} | 6 | 1 | {tag:skinless-brain} |
       | {tag:succubus-draught} | 8 | 1 | — |
       | {tag:forgiveness} | 8 | 1 | — |
+      | {tag:mulligan-potion} | 8 | 2 | — |
       | {tag:flawless-skin} | 8 | 1 | — |
   # GM-only. The `gamemaster` flag is not a property of any Character — the
   # documents page resolves it against the Discord GM role at request time,
@@ -580,3 +581,17 @@ documents:
       Anyone with a hatchet or chainsaw equipped can obtain Godflesh by pressing the Extract button from the character panel while in a marsh wilderness location. You can only do it once per turn. To turn it into {tag:squeeze}, simply labor while in the factory. You must have Godflesh in your inventory or somewhere in the factory. You will then obtain eight Squeeze cubes. Crate these up and load them into a cart!
 
       Extracting is dangerous, because the Godflesh is a living thing with swarming mouths that try to eat you. You run a risk of getting wounded. On the upside, working at the Factory gives you a chance of social mobility — a good Banneret will pay you much more than the average commoner would make, if only to keep you around.
+
+  # Granted two ways on purpose: by the Elevator Key tag, so anyone who ends up
+  # holding one learns what it opens, and by role to the Baron (whose secret it
+  # is) and the Tribune (who is not given a key but is told the way in). The
+  # Ordinator needs no role entry — they carry the key, so the tag covers them.
+  elevatorkey:
+    name: Elevator Key
+    public: false
+    secret: true
+    tags:
+      - Elevator Key
+    roles: [tribune, baron]
+    description: |-
+      The Undercroft has an elevator which connects it to the nearby Cliffside Road.

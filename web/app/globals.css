@@ -1003,6 +1003,182 @@ input[type="radio"]:disabled {
   cursor: pointer;
 }
 
+/* A whitelisted antagonist box for a player without the whitelist: greyed and
+   inert, but still there to read, the way a whitelisted role card is. */
+.check-row.is-locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* --- The archive transcript (docs/systemdocs/ARCHIVE.md §5) ----------------
+   Dense on purpose: one line per thing said, the audit log's grid at the
+   audit log's sizes. Day headers stick; system rows fold. */
+.archive {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.archive-day {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.archive-scene {
+  padding: var(--sp-2) var(--sp-3) var(--sp-1);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.archive-row {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(7rem, 11rem) minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: 0.2rem var(--sp-3);
+  font-size: var(--fs-sm);
+  border-bottom: 1px solid var(--border);
+}
+
+.archive-row:last-child {
+  border-bottom: 0;
+}
+
+.archive-row-time {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.archive-row-who {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.archive-row-what {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* A run of system rows, one muted line until opened. */
+.archive-fold {
+  padding: 0.2rem var(--sp-3);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.archive-fold > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.archive-fold > summary::before {
+  content: "▸ ";
+}
+
+.archive-fold[open] > summary::before {
+  content: "▾ ";
+}
+
+.archive-fold ul {
+  margin: var(--sp-1) 0 var(--sp-1) var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+@media (max-width: 640px) {
+  .archive-row {
+    grid-template-columns: 3.25rem minmax(0, 1fr);
+  }
+
+  .archive-row-what {
+    grid-column: 1 / -1;
+    padding-left: 0;
+  }
+}
+
+/* --- The pregame lobby (docs/systemdocs/LOBBY.md) ------------------------- */
+
+/* One role per row: the name and its faction on the left, the four-level
+   control on the right. A locked row (whitelist) is greyed and inert but
+   stays readable — nothing is hidden. */
+.lobby-role {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.lobby-role[data-locked] {
+  opacity: 0.55;
+}
+
+.lobby-role[data-locked] .lobby-role-name {
+  cursor: not-allowed;
+}
+
+/* The role's name is a button that unfolds its pitch. */
+.lobby-role-name {
+  font-weight: 600;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* The four-level control: Off / Low / Med / High. The High chip is the one
+   that decides the roll, so it carries more weight when active. */
+.priority-row {
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+}
+
+.priority-row .chip[data-active] {
+  background: var(--accent);
+  color: var(--on-accent, var(--surface));
+  border-color: var(--accent);
+}
+
+.priority-row .chip-high[data-active] {
+  font-weight: 700;
+}
+
+/* The ready card's dot: hollow until readied, filled positive after. */
+.lobby-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  border: 2px solid var(--muted);
+}
+
+[data-ready] .lobby-dot {
+  border-color: var(--positive);
+  background: var(--positive);
+}
+
 /* A switch is the same boolean wearing "setting" rather than "selection". The
    control underneath is a real checkbox, visually hidden rather than replaced,
    so a server-rendered <form action> still submits its name — MovePanel's

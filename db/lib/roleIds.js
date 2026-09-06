@@ -13,8 +13,8 @@
 // in the environment — the token is a real credential, and the others predate
 // this and are still wired through .env.
 
-// Who may create a character. Paired with GameConfig.openToPlayers: the
-// config says the doors are open, this role says who is on the list.
+// Who may create a character or ready up. Paired with GameState.phase: the
+// phase says the doors are open, this role says who is on the list.
 const PLAYER_ROLE_ID = "1539805619903791219";
 
 // The standing read-only observer seat — sees every Location channel and both
@@ -31,6 +31,15 @@ const SPECTATOR_ROLE_ID = "1540054129752154292";
 // whitelisted seat greyed out for everyone with no error anywhere. The gate
 // fails closed on purpose, and that is exactly why it was silent.
 const LEADER_WHITELIST_ROLE_ID = "1545070354295169214";
+
+// The playtest seat. Whoever holds it may skip the lobby and make a character
+// in any phase, the way a GM can, and counts as on the roster whether or not
+// they hold the Player role — so a contributor can test creation and play
+// without being seated as a GM. Grants nothing else. Reads as "Playtest" in
+// the guild; created 2026-09-07 and handed to every Contributor at the time.
+// Unmentionable and uncoloured on purpose, so db:prune-orphan-roles never
+// mistakes it for a character's name token.
+const PLAYTEST_ROLE_ID = "1546259369539280936";
 
 // The trial GM seat. Access-identical to the Gamemaster role everywhere — the
 // web panel, the GM channel overwrites, the bot's /gm and /dm — and the only
@@ -51,11 +60,18 @@ function hasGmRole(roleIds) {
   return (roleIds ?? []).some((id) => ids.includes(id));
 }
 
+// Does this list of role ids carry the playtest seat?
+function hasPlaytestRole(roleIds) {
+  return (roleIds ?? []).includes(PLAYTEST_ROLE_ID);
+}
+
 module.exports = {
   PLAYER_ROLE_ID,
   SPECTATOR_ROLE_ID,
   LEADER_WHITELIST_ROLE_ID,
   TRIAL_GM_ROLE_ID,
+  PLAYTEST_ROLE_ID,
   gmRoleIds,
   hasGmRole,
+  hasPlaytestRole,
 };

@@ -16,7 +16,10 @@
 // nobody is picking: the name is rolled, the gender comes from the seat, and
 // there is no point-buy cart to validate.
 const { parseStartingTag } = require("./startingTags");
-const { roleCapacity, seatHolderStatuses } = require("./roleCapacity");
+const { roleCapacity } = require("./roleCapacity");
+const { heldSeats } = require("./seatCount");
+const { settleLobbyEntry } = require("./lobby");
+const { readGameState, effectivePlayerCount } = require("./gameState");
 const { formatCharacterName, formatBareName } = require("./characterName");
 const { expiryForGrant } = require("./grantExpiry");
 const { createGuildRole, removeMemberRole } = require("./discordRest");
@@ -130,8 +133,9 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
     return { ok: false, reason: "You already have a character. ‡" };
   }
 
-  const [config, openTurn, resolved] = await Promise.all([
+  const [config, state, openTurn, resolved] = await Promise.all([
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    readGameState(prisma, { playerCount: true }),
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } }),
     resolveSpawnTags(prisma, threat, spawn.role),
   ]);
@@ -169,10 +173,8 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
       // The lock that actually closes the seat race — Prisma runs READ
       // COMMITTED, so counting without it can seat two people at once.
       await tx.$queryRaw`SELECT id FROM "Role" WHERE id = ${spawn.roleId} FOR UPDATE`;
-      const taken = await tx.character.count({
-        where: { roleId: spawn.roleId, status: { in: seatHolderStatuses(spawn.role) } },
-      });
-      if (taken >= roleCapacity(spawn.role, config?.playerCount ?? 80)) throw new Error("ROLE_FULL");
+      const taken = await heldSeats(tx, spawn.role, { excludeDiscordUserId: discordUserId });
+      if (taken >= roleCapacity(spawn.role, effectivePlayerCount(config, state))) throw new Error("ROLE_FULL");
 
       // Re-read under the lock: two clicks on the same button race here, and
       // the status check above is only an early out.
@@ -211,6 +213,8 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
         where: { id: spawn.id },
         data: { status: "ACCEPTED", characterId: character.id, resolvedAt: new Date() },
       });
+      // A rolled seat this player was still holding is spent by this character.
+      await settleLobbyEntry(tx, discordUserId, character.id);
 
       return character;
     });

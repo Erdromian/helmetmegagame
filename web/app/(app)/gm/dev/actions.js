@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { isUnaffiliated, UNAFFILIATED_SLUG } from "@lifeweb/db/lib/factionConstants";
 import { after } from "next/server";
+import { parseConfigForm } from "@lifeweb/db/lib/gameConfigFields";
+import { getGameConfig, getGameState, GAME_STATE_CREATE } from "@lifeweb/db/lib/gameState";
+import { buildEpilogue } from "@lifeweb/db/lib/epilogue";
+import { forgetGameId } from "@lifeweb/db/lib/archive";
 import {
   prisma,
   advanceTurn as advanceTurnInDb,
@@ -70,54 +74,16 @@ function intOrZero(formData, key) {
   return intOrNull(formData, key) ?? 0;
 }
 
-function floatOrDefault(formData, key, fallback) {
-  const v = str(formData, key).trim();
-  if (v === "") return fallback;
-  const n = Number.parseFloat(v);
-  return Number.isNaN(n) ? fallback : n;
-}
-
+// Every knob on GameConfig, parsed and clamped by the registry
+// (db/lib/gameConfigFields.js) — the same list the form was rendered from, so
+// a hand-posted field the registry does not name is simply never read.
 export async function updateGameConfig(formData) {
   await requireSuperadmin();
 
-  await prisma.gameConfig.upsert({
+  const current = await getGameConfig(prisma);
+  await prisma.gameConfig.update({
     where: { id: 1 },
-    create: { id: 1 },
-    update: {
-      lifewebBlood: Math.max(0, Math.min(100, intOrZero(formData, "lifewebBlood"))),
-      lifewebDecayPerTurn: intOrZero(formData, "lifewebDecayPerTurn"),
-      openToPlayers: formData.get("openToPlayers") === "on",
-      leaderWhitelistEnabled: formData.get("leaderWhitelistEnabled") === "on",
-      autoTurnAdvanceDisabled: formData.get("autoTurnAdvanceDisabled") === "on",
-      avatarUploadsEnabled: formData.get("avatarUploadsEnabled") === "on",
-      portraitMakerEnabled: formData.get("portraitMakerEnabled") === "on",
-      portraitFantasyPartsEnabled: formData.get("portraitFantasyPartsEnabled") === "on",
-      messageWipeEnabled: formData.get("messageWipeEnabled") === "on",
-      tupperAutocorrectEnabled: formData.get("tupperAutocorrectEnabled") === "on",
-      nicknameSyncEnabled: formData.get("nicknameSyncEnabled") === "on",
-      archiveVisible: formData.get("archiveVisible") === "on",
-      archiveTravelEvents: formData.get("archiveTravelEvents") === "on",
-      catatonicEnabled: formData.get("catatonicEnabled") === "on",
-      catatonicTurns: Math.max(1, intOrNull(formData, "catatonicTurns") ?? 4),
-      // Floored at 0: 0 is the off switch for the death pass (catatonicDeathPass.js).
-      catatonicDeathTurns: Math.max(0, intOrNull(formData, "catatonicDeathTurns") ?? 4),
-      // Floored at 0: 0 means a walk between locations has no cooldown at all.
-      locationMoveCooldownSeconds: Math.max(0, intOrNull(formData, "locationMoveCooldownSeconds") ?? 60),
-      autoReconcileEnabled: formData.get("autoReconcileEnabled") === "on",
-      desiresEnabled: formData.get("desiresEnabled") === "on",
-      productionCoefficient: floatOrDefault(formData, "productionCoefficient", 1),
-      startingTagPoints: intOrZero(formData, "startingTagPoints"),
-      // Floored at 1: it's the denominator of every weighted role's seat cap.
-      playerCount: Math.max(1, intOrZero(formData, "playerCount")),
-      equipSlots: Math.max(1, intOrZero(formData, "equipSlots")),
-      carryWeightLbs: Math.max(1, intOrZero(formData, "carryWeightLbs")),
-      carryResourceCap: Math.max(1, intOrZero(formData, "carryResourceCap")),
-      freeZoneMovesPerTurn: Math.max(0, intOrZero(formData, "freeZoneMovesPerTurn")),
-      maxDrawbackTags: Math.max(0, intOrZero(formData, "maxDrawbackTags")),
-      maxDrawbackPoints: Math.max(0, intOrZero(formData, "maxDrawbackPoints")),
-      desireSlots: Math.max(1, intOrZero(formData, "desireSlots")),
-      desireSlotLockTurns: Math.max(0, intOrZero(formData, "desireSlotLockTurns")),
-    },
+    data: parseConfigForm(formData, current),
   });
 
   revalidatePath("/gm/dev");
@@ -219,13 +185,28 @@ export async function updateNextTurn(formData) {
   const weather = str(formData, "weather").trim() || null;
   const note = str(formData, "note").trim() || null;
 
-  await prisma.gameConfig.upsert({
+  await prisma.gameState.upsert({
     where: { id: 1 },
-    create: { id: 1, nextWeather: weather, nextTurnNote: note },
+    create: { ...GAME_STATE_CREATE, nextWeather: weather, nextTurnNote: note },
     update: { nextWeather: weather, nextTurnNote: note },
   });
 
   revalidatePath("/gm/dev");
+}
+
+// The Lifeweb's blood, as a raw override. Per-game state, so it lives beside
+// the phase on the Game section rather than among the durable knobs.
+export async function updateWorldState(formData) {
+  await requireSuperadmin();
+
+  await prisma.gameState.upsert({
+    where: { id: 1 },
+    create: GAME_STATE_CREATE,
+    update: { lifewebBlood: Math.max(0, Math.min(100, intOrZero(formData, "lifewebBlood"))) },
+  });
+
+  revalidatePath("/gm/dev");
+  revalidatePath("/lifeweb");
 }
 
 // advanceTurnInDb() hands back its Discord side effects as a thunk. That
@@ -235,7 +216,11 @@ export async function forceAdvanceTurn() {
   const session = await requireSuperadmin();
 
   try {
-    const { advanced, previousTurn, newTurn, runSideEffects } = await advanceTurnInDb();
+    const { advanced, refused, previousTurn, newTurn, runSideEffects } = await advanceTurnInDb();
+
+    if (refused === "NOT_RUNNING") {
+      return { ok: false, error: "The game isn't running, so there is no turn to end. Start it from the Game section first. ‡" };
+    }
 
     // Lost the race to the bot's cron or a second click; turn already advanced.
     if (!advanced) {
@@ -268,46 +253,14 @@ export async function forceAdvanceTurn() {
   }
 }
 
-// Matches GameConfig's schema @default values for the balance knobs above.
-// Excludes nextWeather/nextTurnNote and the turns-console pointer, which
-// finishGameWipe reposts and overwrites for itself.
-const DEFAULT_GAME_CONFIG = {
-  lifewebBlood: 100,
-  lifewebDecayPerTurn: 10,
-  openToPlayers: false,
-  leaderWhitelistEnabled: true,
-  autoTurnAdvanceDisabled: false,
-  avatarUploadsEnabled: false,
-  portraitMakerEnabled: false,
-  portraitFantasyPartsEnabled: false,
-  messageWipeEnabled: false,
-  tupperAutocorrectEnabled: true,
-  nicknameSyncEnabled: false,
-  archiveVisible: false,
-  archiveTravelEvents: false,
-  productionCoefficient: 0.93,
-  startingTagPoints: 12,
-  playerCount: 80,
-  equipSlots: 6,
-  carryWeightLbs: 120,
-  carryResourceCap: 25,
-  freeZoneMovesPerTurn: 1,
-  maxDrawbackTags: 6,
-  maxDrawbackPoints: 13,
-  desireSlots: 2,
-  desireSlotLockTurns: 2,
-  catatonicEnabled: true,
-  catatonicTurns: 4,
-  catatonicDeathTurns: 4,
-  locationMoveCooldownSeconds: 60,
-  autoReconcileEnabled: false,
-  desiresEnabled: true,
-};
-
 // Full game restart for dev/testing: wipes every player- and turn-scoped
-// row, resets GameConfig's balance knobs, clears every Discord channel,
+// row, recreates GameState (phase CLOSED), clears every Discord channel,
 // opens Turn 1/DAWN, reposts #turns, then re-syncs every YAML master in
 // dependency order. Requires typing "WIPE" — no undo.
+//
+// GameConfig and PlayerPreference are deliberately NOT touched: the knobs a
+// GM tuned and the priorities a player set are meant to outlive the game
+// (docs/systemdocs/LOBBY.md §6).
 export async function wipeGameData(formData) {
   const session = await requireSuperadmin();
 
@@ -318,12 +271,30 @@ export async function wipeGameData(formData) {
   try {
     // Snapshotted before the deletes — the only handle left on what to
     // clean up once the DB rows are gone.
-    const [characters, members] = await Promise.all([
+    const [characters, members, state] = await Promise.all([
       prisma.character.findMany({
         select: { discordUserId: true, discordRoleId: true, turnPingOptIn: true },
       }),
       listGuildMembers(),
+      prisma.gameState.findUnique({ where: { id: 1 }, include: { game: true } }),
     ]);
+
+    // The game that is ending keeps its record (docs/systemdocs/LOBBY.md §7):
+    // a reveal if it never got one, an end stamp, and its number. The next
+    // game is a fresh row the new GameState points at.
+    const oldGame = state?.game ?? null;
+    if (oldGame && !oldGame.epilogue) {
+      const epilogue = await buildEpilogue(prisma, { game: oldGame, state: { ...state, endedAt: new Date() } }).catch((err) => {
+        console.error("Epilogue snapshot failed:", err);
+        return null;
+      });
+      await prisma.game.update({
+        where: { id: oldGame.id },
+        data: { endedAt: oldGame.endedAt ?? new Date(), startedAt: oldGame.startedAt ?? state.startedAt, playerCount: oldGame.playerCount ?? state.playerCount, ...(epilogue ? { epilogue } : {}) },
+      });
+    }
+    const lastNumber = (await prisma.game.aggregate({ _max: { number: true } }))._max.number ?? 0;
+    const nextGame = await prisma.game.create({ data: { number: lastNumber + 1 } });
     const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
     const cursedMemberIds = cursedRoleId ? members.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [];
 
@@ -385,14 +356,16 @@ export async function wipeGameData(formData) {
       prisma.stagedEffect.deleteMany({}),
       prisma.turn.deleteMany({}),
       prisma.directMessage.deleteMany({}),
-      // The transcript: no foreign keys (snapshot columns only), so it must
-      // be wiped explicitly or a restart leaves the last game readable.
-      prisma.archiveEntry.deleteMany({}),
-      prisma.gameConfig.update({
-        where: { id: 1 },
-        data: { ...DEFAULT_GAME_CONFIG, nextWeather: null, nextTurnNote: null },
-      }),
+      // The transcript is NOT wiped: it belongs to the old Game by its gameId
+      // and stays readable on /archive under that game's number.
+      // The lobby is per game; the preferences behind it are not.
+      prisma.lobbyEntry.deleteMany({}),
+      // Delete and recreate rather than reset a list of columns: a fresh row
+      // cannot carry anything over, which the old allowlist provably could.
+      prisma.gameState.deleteMany({}),
+      prisma.gameState.create({ data: { id: 1, gameId: nextGame.id } }),
     ]);
+    forgetGameId();
 
     // After the character sweep above, so the FK from Character.factionId is
     // already gone and the delete cannot be blocked by a member.
@@ -663,16 +636,16 @@ export async function assignFactionMember(formData) {
 export async function defuseNukeAction() {
   const session = await requireSuperadmin();
 
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  if (config?.nukeDetonatedTurn != null) {
+  const state = await getGameState(prisma);
+  if (state.nukeDetonatedTurn != null) {
     return { ok: false, error: "It already went off. ‡" };
   }
-  if (config?.nukeArmedTurn == null) {
+  if (state.nukeArmedTurn == null) {
     return { ok: false, error: "Nothing is armed. ‡" };
   }
 
-  const wasFiringOn = config.nukeArmedTurn;
-  await prisma.gameConfig.update({ where: { id: 1 }, data: { nukeArmedTurn: null } });
+  const wasFiringOn = state.nukeArmedTurn;
+  await prisma.gameState.update({ where: { id: 1 }, data: { nukeArmedTurn: null } });
   await prisma.auditLog
     .create({
       data: {
@@ -735,7 +708,9 @@ export async function bulkMoveCharacters(formData) {
   // The denormalization contract: locationId and zoneId are written together.
   await prisma.character.updateMany({
     where: { id: { in: characters.map((c) => c.id) } },
-    data: { locationId: location.id, zoneId: location.zoneId },
+    // travelTo* cleared alongside: being put somewhere by a GM ends any walk
+    // in progress, or db/lib/travelArrivalPass.js would undo this at Dawn.
+    data: { locationId: location.id, zoneId: location.zoneId, travelToLocationId: null, travelTurnId: null },
   });
 
   const report = await prisma.systemReport.create({
