@@ -178,7 +178,7 @@ one, and means a crate left on the pad can be stolen.
 
 **A crate is a `Tag` row created at runtime** with `custom: true`, so
 `db:prune-tags` skips it (`db/lib/pruneTags.js`). Being a tag means crates get
-carry weight (15 lb), transfers, room stashes and theft for free. The row is
+carry weight (half what went in, §5 of `FACTORY.md`), transfers, room stashes and theft for free. The row is
 deleted once nothing references it.
 
 The manifest is printed on the crate, in exactly this format:

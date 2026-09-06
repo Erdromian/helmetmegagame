@@ -39,7 +39,7 @@ const sealSlug = (characterId, attempt) => customSlug("envelope", characterId, a
 
 // Every runtime paper row wears the same shape. Weightless on purpose: a sheet
 // of paper against a carry cap measured in pounds is noise, and CARRY.md's
-// band table has no rung below 1 lb for a reason.
+// band table has a 0 rung for exactly this.
 const PAPER_SHAPE = {
   category: "items",
   pointCost: 0,
@@ -178,7 +178,7 @@ async function bindBook(tx, character, blankTagId, title, text) {
     name: attempt ? `${bookName(title)} (${attempt + 1})` : bookName(title),
     // A book has real heft, unlike a sheet — ten of them bound between boards
     // is the first thing in the paper group a carry cap should notice.
-    weightLbs: 1,
+    weightLbs: 0.7,
     // And unlike a note, a book is something anyone can see you carrying, the
     // title included. What it SAYS is still paperDescription's question.
     inspectVisibility: "ALWAYS",

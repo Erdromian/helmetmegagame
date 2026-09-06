@@ -42,8 +42,8 @@ const WORKSHOP_EQUIPMENT_SLUG = "workshop-equipment";
 // Factory's Logistics Room floor and one in the Merchant's Cargo Bay.
 const PACKAGING_EQUIPMENT_SLUG = "packaging-equipment";
 // What one crate holds, and how long the line printed on its side may be.
-// 150 lb is the number the Squeeze economy is balanced on: at 20 lb a cube
-// that is 7 to a crate, 70 lb each, and a Horse-and-Cart takes 8 of them.
+// 150 lb is the number the Squeeze economy is balanced on: at 12 lb a cube
+// that is 12 to a crate, 72 lb each, and a Horse-and-Cart takes 8 of them.
 // See docs/systemdocs/FACTORY.md.
 const PACKAGE_MAX_LBS = 150;
 // The weight cap does not bound the weightless — obols are 0 lb and stackable

@@ -86,7 +86,7 @@ silently.
 
 - **The input** is one Godflesh, in the worker's hands **or** in any Room stash
   at the Location they can get into. `hasEquipmentInReach`'s predicate, so the
-  Logistics Room serves the whole floor and nobody hauls a 28 lb lump around
+  Logistics Room serves the whole floor and nobody hauls a 20 lb lump around
   all day to prove they own it.
 - **The output** is 8 Squeeze, and the Godflesh is consumed.
 - No Laboring tag, no shift. It is work.
@@ -166,23 +166,24 @@ world with no recipe to make a third.
 
 ## 6. The numbers, and where they come from
 
-**A cube weighs 17 lb; a crated cube weighs 8.5.** (It was 20/10 until
-2026-09-06, Bascinet's call; the derivation below is the original one, rerun.)
-Working back from the target: 5 turns of production is ~2.5 producing turns,
-3 refugees × 8 cubes × 2.5 = 60 cubes, and a Banneret with Horse + Cart
-carries 120 × (1 + 4) = 600 lb. 60 crated cubes is 510 raw, 255 crated — so a
-wagon now clears a five-turn run with room to spare rather than exactly
-filling.
+**A cube weighs 12 lb; a crated cube weighs 6.** (It was 20/10 until
+2026-09-06, then 17/8.5 the same day, then every item weight in the catalog
+came down ~30% — `CARRY.md` §1a. The derivation below is the original one,
+rerun.) Working back from the target: 5 turns of production is ~2.5 producing
+turns, 3 refugees × 8 cubes × 2.5 = 60 cubes, and a Banneret with Horse + Cart
+carries 120 × (1 + 4) = 600 lb. 60 crated cubes is 720 raw, 360 crated — so a
+wagon clears a five-turn run with well over half its bed to spare.
 
-Through the crate cap: 150 lb packs **8** cubes into a 68 lb crate (was 7 into
-70), and 600/68 ≈ 8.8 crates ≈ 70 cubes.
+Through the crate cap: 150 lb packs **12** cubes into a 72 lb crate (was 8
+into 68), and 600/72 ≈ 8.3 crates ≈ 100 cubes.
 
-A refugee's 8-cube day is 136 lb against a 120 lb cap, so they *still* cannot
-walk their own output anywhere — the margin narrowed from 40 lb to 16 lb but
-the rule the design leans on survives. A **7**-cube day (119 lb) now just
-fits, which 6 cubes did before. They stash the rest in the Logistics Room and
-the carry pass handles the overflow. The cart and the silo are the business;
-that is deliberate, not an oversight.
+**The refugee-cannot-walk-it rule no longer holds.** An 8-cube day is 96 lb
+against a 120 lb cap, so a refugee *can* now carry a full shift's output out
+of the Factory on their own back, with room for a meal. Two days' output
+(192 lb) cannot. The design used to lean on the overflow drop firing on the
+intended loop every day; it now fires only for a worker who skips the stash
+for a second shift. If that matters, the levers are the cube's `weight:` in
+`docs/tags.yaml` or `GameConfig.carryWeightLbs` — not the crate cap.
 
 **A cube sells for 4 ⬢.** Farming at coefficient 1.0 with
 `productionCoefficient` 0.93 pays 11–15 ⬢, midpoint 13; a factory day at the
@@ -273,10 +274,10 @@ written, so nothing can be fished back out.
 **There is a third writer into rooms, and it is excluded rather than routed
 through the same seam:** `db/lib/roomStash.js#pickRandomPublicRoom`, which the
 carry pass and corpse placement use to shed overflow. A destroying room is never
-eligible. That is not a nicety — a refining shift makes 136 lb of Squeeze
-against a 120 lb cap, so the overflow drop fires on the *intended* loop every
-day, and one of the Factory's three public rooms is the trough. Tipping
-something in has to stay a thing you do on purpose.
+eligible. That is not a nicety — a worker who keeps two shifts of Squeeze on
+their back (192 lb against a 120 lb cap) overflows, and one of the Factory's
+three public rooms is the trough. Tipping something in has to stay a thing you
+do on purpose.
 
 **Undo is the part that needed care.** A destroyed line records `destroyed:
 true` on the effect, and both undos skip their receiving half: the Spillway

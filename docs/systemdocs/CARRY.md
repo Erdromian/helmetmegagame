@@ -93,17 +93,20 @@ nothing.
 | Band | lb | Examples |
 |---|---|---|
 | Negligible | 0 | key, letter, badge, coin, spectacles |
-| Trivial | 0.5 | vial, tonic, dagger, sling, Graga sac |
-| Light | 2 | meal, flask, hand tool, cudgel |
-| Medium | 5 | sword, helm, lantern, fishing rod |
-| Heavy | 12 | crossbow, shield, greatsword, trap |
-| Very Heavy | 28 | mail shirt, breastplate, pavise |
-| Massive | 55 | plate armor, a creature's corpse |
-| Immense | 100 | workshop equipment, a motorcycle |
+| Trivial | 0.3 | vial, tonic, dagger, sling, Graga sac |
+| Light | 1.5 | meal, flask, hand tool, cudgel |
+| Medium | 3.5 | sword, helm, lantern, fishing rod |
+| Heavy | 8 | crossbow, shield, greatsword, trap |
+| Very Heavy | 20 | mail shirt, breastplate, pavise |
+| Massive | 40 | plate armor, a creature's corpse |
+| Immense | 70 | workshop equipment, a motorcycle |
 
-At the default 120 lb a full harness (55) plus sword, dagger and shield (17.5)
-plus meals and kit leaves perhaps forty pounds spare. That is the intended
-shape: you can do the knight thing, and not much else.
+**Every band came down about 30% on 2026-09-06** (Bascinet's call), with the
+caps left where they were. Before that the bands were 0.5 / 2 / 5 / 12 / 28 /
+55 / 100. At the default 120 lb a full harness (40) plus sword, dagger and
+shield (11.8) plus meals and kit leaves perhaps sixty pounds spare. You can do
+the knight thing and still carry a fair bit of kit — a knight in plate is no
+longer at the cap the moment they pick up a lantern.
 
 **`{carry:slug}` in a tag description** renders the sentence Bascinet wrote,
 computed from the live caps: "You can carry 5 more item tags, and 12 ⬢." Pack
