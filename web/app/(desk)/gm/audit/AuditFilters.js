@@ -44,9 +44,13 @@ export default function AuditFilters({
 
   const visibleTypes = useMemo(() => {
     const q = typeQuery.trim().toLowerCase();
+    const byType = new Map(typeCounts.map((t) => [t.actionType, t]));
     // Selected types stay pinned to the top even when the search would hide
-    // them, so a filter can always be taken back off.
-    const selected = typeCounts.filter((t) => filters.types.includes(t.actionType));
+    // them, so a filter can always be taken back off — and even when the
+    // OTHER active filters (a character, an actor…) leave it with zero
+    // matches right now, so the picker never just goes blank while the type
+    // filter is still silently applied underneath it.
+    const selected = filters.types.map((type) => byType.get(type) ?? { actionType: type, count: 0 });
     const rest = typeCounts.filter(
       (t) => !filters.types.includes(t.actionType) && (!q || t.actionType.includes(q)),
     );
