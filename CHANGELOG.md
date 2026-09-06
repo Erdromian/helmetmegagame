@@ -8,7 +8,7 @@ Entries below predate this format and list files instead.
 
 ## 2026-09-06 · Farming pays 9% more
 
-✎ Laboring (Farming) now pays 15–21 ⬡ instead of 14–19
+✎ Laboring (Farming) now pays 15–21 ⬢ instead of 14–19
 
 
 ## 2026-09-06 · Travel that costs your Move takes a day
