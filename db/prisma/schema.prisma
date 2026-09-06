@@ -1169,13 +1169,9 @@ model LocationLink {
   openerRoleSlugs String[]
   openerTagSlugs  String[]
 
-  // Structure-controlled edge (docs/zones.yaml `modular.structural`): the
-  // opener rule is waived at sync, no gate button renders and no hand can
-  // flip it until a structure in HOLDS_EDGE status holds it
-  // (db/lib/structures.js). authoredOpen is the BORN state (`modular.open`),
-  // re-asserted by every sync unlike isOpen: it is what the Restart wipe
-  // resets isOpen to and what a destroyed holding structure reverts to.
-  structural   Boolean @default(false)
+  // The BORN state of a modular gate (`modular.open` in docs/zones.yaml),
+  // re-asserted by every sync unlike isOpen, which is play state: it is
+  // what the Restart wipe resets isOpen to.
   authoredOpen Boolean @default(true)
 
   keyed     Boolean   @default(false)
@@ -1183,8 +1179,6 @@ model LocationLink {
 
   onFoot Boolean @default(false)
 
-  // Structures holding this edge open or shut (Structure.linkId).
-  structures Structure[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2342,8 +2336,7 @@ model Tag {
   //     fieldwork: Bool (default false — true skips needsWorkshop()),
   //     examine: String, defenseNote: String,
   //     laborBonus: { kind: "hunting"|"farming"|"fishing", amount: Int },
-  //     provides: [tagSlug, ...],
-  //     link: "hold_open" | "hold_shut" }
+  //     provides: [tagSlug, ...] }
   //
   // A tag carrying this must be craftable and must NOT be tradeable,
   // stackable, equippable, or carry a carryBonus — db:sync-tags throws on
@@ -3150,13 +3143,6 @@ model Structure {
   builderCharacterId String?
   builderName        String?
 
-  // The pre-authored modular LocationLink this structure holds open (a
-  // bridge) or shut (a gate a palisade grew). NEVER creates a link —
-  // db:sync-zones prunes any row absent from docs/zones.yaml. SetNull so a
-  // re-authored map does not take the structure with it. Unused until the
-  // `structural:` edges land; declared now so the FK rides this migration.
-  linkId String?
-  link   LocationLink? @relation(fields: [linkId], references: [id], onDelete: SetNull)
 
   // The Request written on completion (BUILD_STRUCTURE), CraftProject's
   // requestId posture.
@@ -3174,8 +3160,6 @@ model Structure {
 
   @@index([locationId, status])
   @@index([typeSlug])
-  // The travel path's holder include and every holders-count on an edge.
-  @@index([linkId])
 }
 
 // ABANDONED and RUINED are different events wearing different words: a site

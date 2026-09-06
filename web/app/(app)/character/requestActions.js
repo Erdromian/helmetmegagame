@@ -141,10 +141,9 @@ import {
   siteAdvancedLine,
   siteCompletedLine,
   siteCancelledLine,
-  announceEdgeState,
   stakeholderCharacterIds,
 } from "@lifeweb/db/lib/structures";
-import { refreshLocationAnchor, refreshGateRooms } from "@lifeweb/db/lib/syncZones";
+import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
@@ -974,40 +973,6 @@ function speakAtSite(channelId, line) {
   );
 }
 
-// After a completion flipped an edge, both endpoints' pinned anchors must
-// say so — gate state is part of the anchor's content hash, and the gate
-// button handler already reposts both sides on every flip — and both banks
-// hear the road's own line (announceEdgeState): the far side must not
-// discover a shut way by walking into it. Post-commit and catch-logged,
-// the speakAtSite rule: Discord must never roll back a build.
-function refreshFlippedAnchors(linkFlip) {
-  if (!linkFlip?.linkEndpointIds?.length) return;
-  after(async () => {
-    for (const locationId of linkFlip.linkEndpointIds) {
-      await refreshLocationAnchor(prisma, locationId).catch((err) =>
-        console.error(
-          `Build anchor refresh failed for ${locationId}:`,
-          err?.message ?? err,
-        ),
-      );
-      // The gate's own button lives on the watchtower, not the anchor.
-      await refreshGateRooms(prisma, locationId).catch((err) =>
-        console.error(
-          `Build gate room refresh failed for ${locationId}:`,
-          err?.message ?? err,
-        ),
-      );
-    }
-    await announceEdgeState(
-      prisma,
-      linkFlip.linkEndpointIds,
-      linkFlip.linkNowOpen,
-    ).catch((err) =>
-      console.error("Build edge announcement failed:", err?.message ?? err),
-    );
-  });
-}
-
 // A structure has no owner, but everyone whose turns raised it hears when it
 // changes state. db/lib/structures.js returns characterIds only, so the DM
 // addresses are looked up here.
@@ -1028,101 +993,13 @@ async function notifyStakeholders(
   for (const person of people) notifyCharacter(person, text);
 }
 
-// A structure whose type holds an edge (placement.link) claims the ONE
-// structural LocationLink touching its ground at open time — the sync
-// refuses a location with two, so a second candidate here is defensive.
-// The edge is locked FOR UPDATE before the free-check so two sites opened
-// from the edge's two ENDPOINTS (two different Location locks) cannot both
-// bind it. The edge only FLIPS at completion; the claim is the linkId on
-// the site row.
-async function claimStructuralLink(tx, locationId, intent) {
-  const candidates = await tx.locationLink.findMany({
-    where: { structural: true, OR: [{ aId: locationId }, { bId: locationId }] },
-    select: { id: true },
-  });
-  // Defensive: the sync hard-refuses a location touching two structural
-  // edges, so two candidates means that invariant broke — refuse loudly
-  // rather than bind whichever row the database returned first.
-  if (candidates.length > 1) {
-    throw new UserError(
-      "This ground answers to more than one crossing — tell a GM. ‡",
-    );
-  }
-  for (const candidate of candidates) {
-    // The lock re-checks `structural` — a sync between the read above and
-    // this lock may have rewritten the edge as an ordinary gate (or deleted
-    // it, in which case nothing comes back) and a build must not claim it.
-    const locked =
-      await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${candidate.id} AND "structural" = true FOR UPDATE`;
-    if (!Array.isArray(locked) || locked.length === 0) continue;
-    const taken = await tx.structure.count({
-      where: { linkId: candidate.id, status: { in: PRESENT_STATUSES } },
-    });
-    if (taken === 0) return candidate;
-  }
-  // hold_open exists to span this edge, so no free edge refuses the build;
-  // hold_shut is opportunistic — the structure's prose is its own point,
-  // and it simply builds unbound.
-  if (intent === "hold_open") {
-    throw new UserError("There is nothing here to span. ‡");
-  }
-  return null;
-}
-
 // The finish, recorded inside the SAME transaction that claimed the last
 // crew-turn. The claim is the caller's conditional updateMany — nothing here
 // may re-read status to decide, or there would be two winners.
-//
-// If the site bound an edge at open (site.linkId), completion is what flips
-// it: hold_open opens, hold_shut shuts, and the flip rides the same
-// transaction as the status claim. The pre-flip state is snapshotted into
-// the effect (linkWasOpen) for Undo, with both endpoint ids so the caller
-// and the undo path can repost the anchors AFTER their commits. The intent
-// is re-read off the catalog by typeSlug; a pruned type or a link the sync
-// deleted (SetNull) degrades to completing unbound — never a crash.
 async function finishStructure(
   tx,
   { session, character, site, location, openTurn, action, reason },
 ) {
-  let linkFlip = null;
-  if (site.linkId) {
-    const type = await tx.tag.findFirst({
-      where: { slug: site.typeSlug },
-      select: { placement: true },
-    });
-    const intent = placementOf({ placement: type?.placement })?.link ?? null;
-    if (!intent) {
-      // The type lost its link intent since the site opened (a catalog
-      // prune or edit mid-build). RELEASE the claim rather than completing
-      // as a holder of an edge this completion will never flip — a
-      // half-held edge would render gate buttons for a mechanism that
-      // does not exist.
-      await tx.structure.update({
-        where: { id: site.id },
-        data: { linkId: null },
-      });
-    }
-    if (intent) {
-      await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${site.linkId} FOR UPDATE`;
-      const linkRow = await tx.locationLink.findUnique({
-        where: { id: site.linkId },
-        select: { isOpen: true, aId: true, bId: true },
-      });
-      if (linkRow) {
-        const nowOpen = intent === "hold_open";
-        await tx.locationLink.update({
-          where: { id: site.linkId },
-          data: { isOpen: nowOpen },
-        });
-        linkFlip = {
-          linkId: site.linkId,
-          linkWasOpen: linkRow.isOpen,
-          linkNowOpen: nowOpen,
-          linkEndpointIds: [linkRow.aId, linkRow.bId],
-        };
-      }
-    }
-  }
   const contributors = await tx.structureWork.findMany({
     where: { structureId: site.id },
     select: { characterId: true, characterName: true },
@@ -1148,7 +1025,6 @@ async function finishStructure(
     })),
     builderName: site.builderName ?? null,
     actionId: action?.id ?? null,
-    ...(linkFlip ?? {}),
   };
   const request = await createRequest(tx, {
     characterId: character.id,
@@ -1178,7 +1054,7 @@ async function finishStructure(
       actionId: action?.id ?? null,
     },
   });
-  return { request, linkFlip };
+  return { request };
 }
 
 // The one-per-place rule. The wreck statuses (RUINED, ABANDONED) are
@@ -1227,16 +1103,12 @@ async function openBuildSiteImpl(
 
   const done = turns <= 1;
   let structureId = null;
-  let linkFlip = null;
   await prisma.$transaction(async (tx) => {
     // The ground was judged outside this transaction, so two tabs can both
     // have passed. The Location row is the lock — every open here serialises
     // on it — and the re-check against tx sees whatever the winner committed.
     await tx.$queryRaw`SELECT "id" FROM "Location" WHERE "id" = ${location.id} FOR UPDATE`;
     await refuseSameTypeHere(tx, location, tag, placement);
-    const boundLink = placement.link
-      ? await claimStructuralLink(tx, location.id, placement.link)
-      : null;
     if (cost) await moveResources(tx, payer, -cost);
     // A one-turn build is born finished: the row is created inside this
     // transaction, so nobody else can be racing for its completion and the
@@ -1255,7 +1127,6 @@ async function openBuildSiteImpl(
         builderCharacterId: character.id,
         builderName: character.name,
         startedTurnId: openTurn.id,
-        linkId: boundLink?.id ?? null,
       },
     });
     structureId = site.id;
@@ -1278,7 +1149,7 @@ async function openBuildSiteImpl(
       },
     });
     if (done) {
-      ({ linkFlip } = await finishStructure(tx, {
+      await finishStructure(tx, {
         session,
         character,
         site,
@@ -1286,7 +1157,7 @@ async function openBuildSiteImpl(
         openTurn,
         action,
         reason,
-      }));
+      });
     } else {
       await logRequest(tx, {
         actorDiscordUserId: session.discordUserId,
@@ -1311,7 +1182,6 @@ async function openBuildSiteImpl(
     payer.kind === "character" ? payer.id : null,
   ]);
   payerNotice(character, payer, cost, tag);
-  refreshFlippedAnchors(linkFlip);
   const spoken = { typeName: tag.name, turnsNeeded: turns };
   speakAtSite(
     location.discordChannelId,
@@ -1356,7 +1226,6 @@ async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
   const next = site.turnsDone + 1;
   const done = next >= site.turnsNeeded;
 
-  let linkFlip = null;
   await prisma.$transaction(async (tx) => {
     let work;
     try {
@@ -1402,7 +1271,7 @@ async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
     if (claim.count === 0)
       throw new UserError("The work moved on without you — reload. ‡");
     if (done) {
-      ({ linkFlip } = await finishStructure(tx, {
+      await finishStructure(tx, {
         session,
         character,
         site: { ...site, turnsDone: next },
@@ -1410,7 +1279,7 @@ async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
         openTurn,
         action,
         reason,
-      }));
+      });
     } else {
       await logRequest(tx, {
         actorDiscordUserId: session.discordUserId,
@@ -1432,7 +1301,6 @@ async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
   // No afterInventoryChange: nothing on any sheet moved. A join spends a Move
   // and nothing else, and finishing moves nothing either — a structure is
   // never a CharacterTag, and the ⬢ left the payer when the site opened.
-  refreshFlippedAnchors(linkFlip);
   speakAtSite(
     location?.discordChannelId,
     done ? siteCompletedLine(site) : siteAdvancedLine(site, next),
