@@ -43,6 +43,7 @@ const {
   zoneGmRoleName,
 } = require("./zoneChannelSpec");
 const { syncTurnsChannelAccess } = require("./turnsChannelAccess");
+const { spectatorsVisibleNow } = require("./spectatorAccess");
 const { locationAnchorRows, locationGateRow } = require("./locationAnchorRow");
 const { collectAttributes } = require("./locationAttributes");
 const { roomStarterRow, WATCHTOWER_ROOM_SLUGS } = require("./roomStarterRow");
@@ -906,6 +907,9 @@ async function syncLocationYields(prisma, locationId, yields, report) {
 }
 
 async function syncZonesFromYaml(prisma) {
+  // Whether the spectator seat may see anything right now (the phase decides
+  // — db/lib/spectatorAccess.js). Read once; every spec below carries it.
+  const spectators = await spectatorsVisibleNow(prisma);
   const yamlPath = requireDocsPath("zones.yaml");
   const doc = yaml.load(fs.readFileSync(yamlPath, "utf8"));
   const { zoneEntries, locationEntries, roomEntries, connections, warnings } = parseZonesYaml(doc);
@@ -1222,7 +1226,7 @@ async function syncZonesFromYaml(prisma) {
     zone?.gmRoleId ?? (zone?.parentZoneId ? zoneById.get(zone.parentZoneId)?.gmRoleId : null) ?? null;
 
   for (const zone of provisionOrder) {
-    const spec = zoneChannelSpec(zone);
+    const spec = zoneChannelSpec(zone, { spectators });
     const updates = {};
 
     // A zone whose KIND changed keeps Discord ids its new kind has no use
@@ -1266,7 +1270,7 @@ async function syncZonesFromYaml(prisma) {
     if (location.discordChannelId) continue;
     const zone = zoneById.get(location.zoneId);
     const channel = await createChannel({
-      ...locationChannelSpec(location, gmRoleIdFor(zone)),
+      ...locationChannelSpec(location, gmRoleIdFor(zone), { spectators }),
       parent_id: categoryIdFor(zone),
     });
     await prisma.location.update({ where: { id: location.id }, data: { discordChannelId: channel.id } });
@@ -1286,7 +1290,7 @@ async function syncZonesFromYaml(prisma) {
 
   for (const zone of zonesBySlug.values()) {
     if (zone.justProvisioned) continue;
-    const spec = zoneChannelSpec(zone);
+    const spec = zoneChannelSpec(zone, { spectators });
     const targets = [
       ["category", zone.discordCategoryId, spec.category],
       ["summary", zone.discordSummaryChannelId, spec.summary],
@@ -1312,7 +1316,7 @@ async function syncZonesFromYaml(prisma) {
   }
   for (const location of locationsBySlug.values()) {
     if (location.justProvisioned || !location.discordChannelId) continue;
-    const want = locationChannelSpec(location, gmRoleIdFor(zoneById.get(location.zoneId)));
+    const want = locationChannelSpec(location, gmRoleIdFor(zoneById.get(location.zoneId)), { spectators });
     await patchChannel(location.discordChannelId, { topic: want.topic ?? "" });
     const removed = await reconcileChannelOverwrites(location.discordChannelId, want, managed);
     for (const id of removed) {

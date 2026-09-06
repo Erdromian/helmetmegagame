@@ -17,6 +17,7 @@ const {
   removeMemberRole,
   deleteGuildRole,
   getChannel,
+  getGuildChannels,
   deleteChannelOverwrite,
   putChannelOverwrite,
   patchThread,
@@ -34,6 +35,12 @@ const {
 } = require("./zoneChannelSpec");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { reconcileChannelOverwrites, managedOverwriteIds } = require("./syncZones");
+const {
+  spectatorsVisible,
+  managedSpectatorChannels,
+  spectatorDrift,
+  applySpectatorOverwrite,
+} = require("./spectatorAccess");
 const { SPECIAL_CHANNELS, buildNarrowcastContext, computeNarrowcastAccess } = require("./specialChannels");
 const {
   findTurnsChannelId,
@@ -130,6 +137,10 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     listGuildMembers(),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
   ]);
+  // The spectator seat's view bits follow the phase (db/lib/spectatorAccess.js);
+  // every spec below and the cheap check carry this one answer.
+  const state = await prisma.gameState.findUnique({ where: { id: 1 }, select: { phase: true } });
+  const spectators = spectatorsVisible(state?.phase);
 
   const members = new Map(memberList.map((m) => [m.user.id, m]));
   const rolesById = new Map(liveRoles.map((r) => [r.id, r]));
@@ -401,6 +412,24 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     }
   }
 
+  // The spectator seat's visibility on every managed channel — the backstop
+  // for a phase transition whose sweep died. One channel list, PUTs only on
+  // drift, so it stays in the cheap scope.
+  {
+    const [managedSpectator, liveChannels] = await Promise.all([
+      managedSpectatorChannels(prisma),
+      getGuildChannels(),
+    ]);
+    for (const target of spectatorDrift(managedSpectator, liveChannels, spectators)) {
+      await report(
+        "spectator-visibility",
+        target.label,
+        spectators ? "spectators cannot see a channel they should" : "spectators can see a channel while the game is not on",
+        () => applySpectatorOverwrite(target.id, { visible: spectators }),
+      );
+    }
+  }
+
   // --- full: overwrites + threads --------------------------------------
 
   if (scope === "full") {
@@ -419,7 +448,7 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
 
     const overwriteTargets = [];
     for (const zone of zones) {
-      const spec = zoneChannelSpec(zone);
+      const spec = zoneChannelSpec(zone, { spectators });
       overwriteTargets.push([`${zone.name}/category`, zone.discordCategoryId, spec.category]);
       overwriteTargets.push([`${zone.name}/summary`, zone.discordSummaryChannelId, spec.summary]);
     }
@@ -427,7 +456,7 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
       overwriteTargets.push([
         `${location.zoneName}/${location.name}`,
         location.discordChannelId,
-        locationChannelSpec(location, location.zoneGmRoleId ?? null),
+        locationChannelSpec(location, location.zoneGmRoleId ?? null, { spectators }),
       ]);
     }
     {
@@ -680,6 +709,7 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
         const wanted = turnsChannelOverwrites({
           guildId: process.env.DISCORD_GUILD_ID,
           zoneRoleIds: [...zoneRoleIds],
+          spectators,
         });
         // One finding for the channel, not one per target: the repair is a
         // single idempotent sync, and reporting it per overwrite would re-run

@@ -17,6 +17,7 @@ import {
 import { isSpawnOnly } from "@lifeweb/db/lib/roleCapacity";
 import { newSeed } from "@lifeweb/db/lib/roleAssignment";
 import { endGameInDb, resumeGameInDb, postGameEnded } from "@lifeweb/db/lib/gameEnd";
+import { syncSpectatorAccess } from "@lifeweb/db/lib/spectatorAccess";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { auth, CANONICAL_ORIGIN } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -50,6 +51,15 @@ function refresh() {
   revalidatePath("/", "layout");
 }
 
+// Every phase change re-checks who may watch: spectators see the channels
+// only while the game is on (db/lib/spectatorAccess.js). Post-commit and
+// best-effort; the doctor's cheap scope catches a sweep that died.
+function sweepSpectators() {
+  after(() =>
+    syncSpectatorAccess(prisma).catch((err) => console.error("Spectator sweep failed:", err)),
+  );
+}
+
 export async function openLobby() {
   const session = await requireSuperadmin();
   const state = await getGameState(prisma);
@@ -62,6 +72,7 @@ export async function openLobby() {
   });
   await audit(session, "game_lobby_opened");
   refresh();
+  sweepSpectators();
   return { ok: true };
 }
 
@@ -77,6 +88,7 @@ export async function closeLobby() {
   await prisma.gameState.update({ where: { id: 1 }, data: { phase: "CLOSED" } });
   await audit(session, "game_lobby_closed");
   refresh();
+  sweepSpectators();
   return { ok: true };
 }
 
@@ -149,6 +161,7 @@ export async function startGame() {
   }
 
   refresh();
+  sweepSpectators();
   after(async () => {
     // Sequential on purpose: eighty DMs at once is a rate-limit incident.
     for (const a of outcome.assigned) {
@@ -192,6 +205,7 @@ export async function endGame(formData) {
   if (!result.ended) return { ok: false, error: "The game had already ended. ‡" };
   refresh();
   revalidatePath("/archive");
+  sweepSpectators();
   after(() => postGameEnded(prisma, result.post).catch((err) => console.error("Game Ended post failed:", err)));
   return { ok: true };
 }
@@ -203,5 +217,6 @@ export async function resumeGame() {
   const result = await resumeGameInDb(prisma, { actorDiscordUserId: session.discordUserId });
   if (!result.resumed) return { ok: false, error: "Only an ended game can be resumed. ‡" };
   refresh();
+  sweepSpectators();
   return { ok: true };
 }

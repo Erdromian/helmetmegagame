@@ -89,11 +89,14 @@ function roleAllow(roleId, allow) {
 
 // The overwrites EVERY zone-scoped target carries: @everyone's deny (the
 // privacy mechanism), the zone's GM seat, the spectator seat, the ghost seat.
-function baseOverwrites(guildId, zoneGmRoleId) {
+// `spectators` is whether the spectator seat may VIEW right now — the game's
+// phase decides (db/lib/spectatorAccess.js), and every caller reads it once
+// and passes it down, so a spec never has to know about the database.
+function baseOverwrites(guildId, zoneGmRoleId, { spectators = true } = {}) {
   return [
     { id: guildId, type: 0, deny: (PERM_VIEW_CHANNEL | PERM_ATTACH_FILES).toString() },
     ...roleAllow(zoneGmRoleId, PERM_VIEW_CHANNEL | PERM_ATTACH_FILES),
-    ...spectatorOverwrite(),
+    ...spectatorOverwrite({ visible: spectators }),
     ...cursedOverwrite(),
   ];
 }
@@ -104,10 +107,10 @@ function baseOverwrites(guildId, zoneGmRoleId) {
 //   SURFACE     { category, summary }
 //   CAVE_GROUP  { category }
 //   CAVE_LEVEL  { }   (its Location channels parent to the group's category)
-function zoneChannelSpec(zone) {
+function zoneChannelSpec(zone, { spectators = true } = {}) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const zoneGmRoleId = zone.gmRoleId ?? null;
-  const base = baseOverwrites(guildId, zoneGmRoleId);
+  const base = baseOverwrites(guildId, zoneGmRoleId, { spectators });
   const zoneRoleId = zone.discordRoleId ?? null;
 
   if (zone.kind === "CAVE_LEVEL") return {};
@@ -146,9 +149,9 @@ const LOCATION_MEMBER_ALLOW =
 // Occupant overwrites are written by the move pipeline and reconciled by the
 // channel doctor's occupancy check — never by this spec, which is exactly
 // why managedOverwriteIds() must never learn to delete a member target.
-function locationChannelSpec(location, zoneGmRoleId = null) {
+function locationChannelSpec(location, zoneGmRoleId = null, { spectators = true } = {}) {
   const guildId = process.env.DISCORD_GUILD_ID;
-  const base = baseOverwrites(guildId, zoneGmRoleId);
+  const base = baseOverwrites(guildId, zoneGmRoleId, { spectators });
   const topic = (location.description || "").replace(/\s*\n+\s*/g, " ").trim().slice(0, TOPIC_MAX);
 
   return {

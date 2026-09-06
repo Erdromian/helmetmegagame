@@ -14,7 +14,7 @@ const {
   putChannelOverwrite,
   deleteChannelOverwrite,
 } = require("./discordRest");
-const { applySpectatorOverwrite, SPECTATOR_ALLOW, SPECTATOR_DENY } = require("./spectatorAccess");
+const { applySpectatorOverwrite, spectatorOverwrite, spectatorsVisibleNow } = require("./spectatorAccess");
 const { applyCursedOverwrite, cursedRoleId, CURSED_ALLOW, CURSED_DENY } = require("./cursedAccess");
 const { SPECTATOR_ROLE_ID, gmRoleIds } = require("./roleIds");
 
@@ -39,18 +39,14 @@ function isTurnsChannel(channel) {
 // The intended overwrite set, as a Map keyed on target id — what the channel
 // doctor compares the live channel against. Order does not matter; Discord
 // allows exactly one overwrite per target.
-function turnsChannelOverwrites({ guildId, zoneRoleIds }) {
+function turnsChannelOverwrites({ guildId, zoneRoleIds, spectators = true }) {
   const wanted = new Map();
   if (guildId) wanted.set(guildId, { id: guildId, type: 0, allow: "0", deny: EVERYONE_DENY.toString() });
   for (const id of gmRoleIds()) {
     wanted.set(id, { id, type: 0, allow: GM_ALLOW.toString(), deny: "0" });
   }
-  wanted.set(SPECTATOR_ROLE_ID, {
-    id: SPECTATOR_ROLE_ID,
-    type: 0,
-    allow: SPECTATOR_ALLOW.toString(),
-    deny: SPECTATOR_DENY.toString(),
-  });
+  // Phase-gated: view only while the game is on (db/lib/spectatorAccess.js).
+  wanted.set(SPECTATOR_ROLE_ID, spectatorOverwrite({ visible: spectators })[0]);
   const cursed = cursedRoleId();
   if (cursed) {
     wanted.set(cursed, {
@@ -97,7 +93,7 @@ async function syncTurnsChannelAccess(prisma, { channelId = null } = {}) {
   for (const gmRoleId of gmRoleIds()) {
     await putChannelOverwrite(id, gmRoleId, { allow: GM_ALLOW.toString() });
   }
-  await applySpectatorOverwrite(id);
+  await applySpectatorOverwrite(id, { visible: await spectatorsVisibleNow(prisma) });
   await applyCursedOverwrite(id);
 
   const zoneRoleIds = await zoneRoleIdsFor(prisma);

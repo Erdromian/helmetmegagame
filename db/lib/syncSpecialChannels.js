@@ -20,7 +20,7 @@ const {
   putChannelOverwrite,
   deleteChannelOverwrite,
 } = require("./discordRest");
-const { applySpectatorOverwrite } = require("./spectatorAccess");
+const { applySpectatorOverwrite, spectatorsVisibleNow } = require("./spectatorAccess");
 const { applyCursedOverwrite } = require("./cursedAccess");
 const { SPECIAL_CHANNELS } = require("./specialChannels");
 const { gmRoleIds } = require("./roleIds");
@@ -52,6 +52,8 @@ async function ensureCategory(prisma, config, guildChannels, categoryConfigKey) 
 }
 
 async function syncSpecialChannels(prisma) {
+  // The spectator seat sees these only while the game is on (LOBBY.md §1).
+  const spectatorsVisible = await spectatorsVisibleNow(prisma);
   const guildId = process.env.DISCORD_GUILD_ID;
   if (!guildId || !process.env.DISCORD_TOKEN) {
     throw new Error("DISCORD_GUILD_ID and DISCORD_TOKEN must be set.");
@@ -120,7 +122,7 @@ async function syncSpecialChannels(prisma) {
         allow: (PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_ATTACH_FILES).toString(),
       });
     }
-    await applySpectatorOverwrite(channelId);
+    await applySpectatorOverwrite(channelId, { visible: spectatorsVisible });
     if (entry.ghostsMaySee) await applyCursedOverwrite(channelId);
 
     // The static zone-role floor: every listed zone's role hears the channel.

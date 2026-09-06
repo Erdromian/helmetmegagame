@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Spectators only watch while the game is on
+
+✎ The Spectator role sees the channels only while the game is Running or Ended; in Closed or Lobby it is denied view, so testing before launch pings nobody who came to watch  
+✎ Every phase change re-checks it, and the channel doctor's cheap pass repairs any channel that drifted
+
 ## 2026-09-06 · Loot the room you're in, a sheet that keeps itself current, and a bomb that says it's armed
 
 ✎ The Loot button now lists the rooms here beside the people. Picking a room takes from its stash, the same way Transfer's From-the-room already did.  

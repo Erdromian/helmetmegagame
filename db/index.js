@@ -42,6 +42,7 @@ const { runVisionDecayPass } = require("./lib/visionDecayPass");
 const { runDyingDeathPass } = require("./lib/dyingDeathPass");
 const { runNukeExplosionPass } = require("./lib/nukeExplosionPass");
 const { endGameInDb, postGameEnded } = require("./lib/gameEnd");
+const { syncSpectatorAccess } = require("./lib/spectatorAccess");
 const { broadcastToZones } = require("./lib/worldBroadcast");
 const { runBirdPass } = require("./lib/birdPass");
 // By path, not the barrel — see the note at the top of db/lib/accessSweep.js.
@@ -1589,6 +1590,8 @@ async function advanceTurn() {
     // The reveal, after the sky and before anything else — the game is over.
     if (gameEndedPost) {
       await postGameEnded(prisma, gameEndedPost).catch((err) => console.error("Game Ended post failed:", err));
+      // A phase change, so the spectator seat is re-checked like any other.
+      await syncSpectatorAccess(prisma).catch((err) => console.error("Spectator sweep failed:", err));
     }
 
     for (const post of publicPosts) {

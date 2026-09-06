@@ -32,6 +32,12 @@ callers that feed it — takes `clockFrozen`, which
 `db/lib/gameState.js#clockFrozen` derives as *not RUNNING, or auto-advance
 paused*. A frozen clock means no Move cutoff, the same way a paused cron does.
 
+**Spectators watch only while the game is on.** The Spectator role's view
+overwrite follows the phase (`db/lib/spectatorAccess.js`): allowed in RUNNING
+and ENDED, denied in CLOSED and LOBBY, so pre-launch testing pings nobody who
+only came to watch. Every transition sweeps it; the doctor's cheap scope
+repairs drift (`CHANNELS.md`).
+
 **CLOSED with readied players is a frozen lobby.** Close lobby, Preview, Start
 is the sequence that stops somebody readying up between the preview and the
 commit (`ROLL_PHASES` in `db/lib/lobby.js`).

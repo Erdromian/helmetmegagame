@@ -146,7 +146,14 @@ The overwrites every target carries (`baseOverwrites`):
   these (`GAMEMASTERS.md` §6). The global roles keep their blanket grant on
   everything that is not a zone — `#turns`, the narrowcast channels, the report
   channel.
-- **The spectator seat** (`db/lib/spectatorAccess.js`) — standing read-only.
+- **The spectator seat** (`db/lib/spectatorAccess.js`) — read-only, and
+  **phase-gated**: the overwrite is always present, but it allows View only
+  while `GameState.phase` is RUNNING or ENDED and denies it in CLOSED and
+  LOBBY, so pre-launch testing pings no spectator (`LOBBY.md` §1). Every
+  spec producer takes the flag from its caller (`spectatorsVisibleNow`);
+  every phase transition runs `syncSpectatorAccess`, which PUTs only where
+  the live bits differ; and the doctor's **cheap** scope carries a
+  `spectator-visibility` check as the backstop.
 - **The ghost seat** (`db/lib/cursedAccess.js`) — see §5.
 
 On top of that: the zone role gets `ViewChannel` + `SendMessages` +
