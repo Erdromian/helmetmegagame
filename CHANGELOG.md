@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Depressed only fights the tags that touch Desires
+
+✎ Lazy, Insomniac, Guilt Ridden, Torturer and the four phobias can sit alongside Depressed again. None of them touches the Desire system, so there was nothing for them to argue with.  
+✎ Nobility and Eunuch do lock Desires, so those two now conflict where they did not before.  
+✎ The test is simply whether a Personality tag locks or opens Desires at all, rather than a hand-picked list.
+
 ## 2026-09-06 · Storage and the noticeboards check the character who pressed the button
 
 ✎ Clicking Storage in a room, or opening a noticeboard, checked where somebody else was standing. Almost everyone was told "You're not here" in a room they were plainly in  
