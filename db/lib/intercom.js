@@ -15,6 +15,7 @@
 // Takes `prisma` as a parameter and stays off the @lifeweb/db barrel, the
 // db/lib/dm.js convention; require it by path.
 const { postMessage } = require("./discordRest");
+const { sceneLineAt } = require("./scene");
 
 // The Council Room, hardcoded for the db/lib/roleIds.js reason: one guild, one
 // correct value, and a missing env var would have been a silent no-op.
@@ -72,7 +73,7 @@ async function broadcastIntercom(prisma, text) {
   const content = intercomLine(text);
   const zones = await prisma.zone.findMany({
     where: { discordSummaryChannelId: { not: null }, slug: { notIn: OUT_OF_RANGE_ZONE_SLUGS } },
-    select: { name: true, discordSummaryChannelId: true },
+    select: { id: true, name: true, discordSummaryChannelId: true },
     orderBy: { sortOrder: "asc" },
   });
 
@@ -86,6 +87,16 @@ async function broadcastIntercom(prisma, text) {
       failed.push(zone.name);
       console.error(`Intercom broadcast to ${zone.name} failed:`, err.message ?? err);
     }
+    // ONE ROW PER ZONE, not one for the broadcast. It used to be a single row
+    // written by the Speak handler, which read correctly in /archive and was
+    // invisible in the Hall: a zone feed can only show a row filed against its
+    // own place key. The @here is Discord's alone — a notification is not part
+    // of what was said — and the line already carries its ‡.
+    await sceneLineAt(prisma, {
+      zoneId: zone.id,
+      text: content.replace(/^@here\s+/, ""),
+      signed: false,
+    });
   }
   return { sent, failed };
 }

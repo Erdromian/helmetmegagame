@@ -226,6 +226,11 @@ async function performMove(character, targetLocation, dragged = []) {
 // member; the Location half is REST, because an overwrite is a channel edit
 // rather than a member edit.
 async function restoreStandingRoles(member, character) {
+  // A "web only" character holds no Discord access on purpose, so a rejoin
+  // restores nothing (docs/systemdocs/HALL.md §6). Their sight of the game is
+  // /play, which never went away.
+  if (character.webOnly) return;
+
   const zoneRoleId = character.zone?.discordRoleId ?? null;
   if (zoneRoleId) {
     await member.roles

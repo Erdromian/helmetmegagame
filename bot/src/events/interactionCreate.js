@@ -61,7 +61,6 @@ const { postAsCharacterTo, loadVoiceState } = require("../lib/proxy");
 const { prepareSpeech, recordSpeech } = require("@lifeweb/db/lib/say");
 const { addConversationMember, removeConversationMember } = require("@lifeweb/db/lib/conversations");
 const { resolveLaborRate, qualityWord } = require("@lifeweb/db");
-const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
 const { HEALTH_CATEGORY } = require("@lifeweb/db/lib/medicalVision");
@@ -402,7 +401,10 @@ async function handleThreadMemberCommand(interaction, action) {
     })
     .catch((err) => console.error("Failed to record thread invite:", err));
 
-  if (target.locationId === row.locationId) {
+  // A "web only" target is out of every channel on purpose (HALL.md §6), so
+  // the row above is the whole of the add: they see the conversation on /play
+  // and the invite row replays the Discord half if they ever come back off it.
+  if (target.locationId === row.locationId && !target.webOnly) {
     try {
       await addThreadMember(channel.id, target.discordUserId);
     } catch (err) {
@@ -506,10 +508,15 @@ async function handleRoomGuestCommand(interaction, action, room) {
     })
     .catch((err) => console.error("Failed to record room guest:", err));
 
-  try {
-    await addThreadMember(room.discordThreadId, target.discordUserId);
-  } catch (err) {
-    console.error(`Failed to add ${target.discordUserId} to room ${room.id}:`, err);
+  // The guest ROW above is the grant; thread membership is only Discord's copy
+  // of it, and a "web only" character has no Discord copy of anything
+  // (HALL.md §6). The web feed shows them the room off the guest row regardless.
+  if (!target.webOnly) {
+    try {
+      await addThreadMember(room.discordThreadId, target.discordUserId);
+    } catch (err) {
+      console.error(`Failed to add ${target.discordUserId} to room ${room.id}:`, err);
+    }
   }
   await notifyLetIn(interaction, target, room.name, room.location?.name, room.discordThreadId);
   await respond(interaction, `» *${target.name} was let in. They stay until they leave.* ‡`, {
@@ -717,20 +724,10 @@ async function handleIntercomSubmit(interaction, roomId) {
   }
   const { sent, failed } = await broadcastIntercom(prisma, body);
 
-  // The transcript. The old #intercom was a tupper channel, so PA traffic went
-  // through the proxy and was archived like any other speech; a bot post is
-  // not, so without this the Baron's announcements would be the one kind of
-  // public talk missing from /archive. One row for the broadcast, not one per
-  // zone — it was one thing said, heard in several places.
-  //
-  // The speaker IS recorded even though the channel line names nobody: the
-  // archive is the record of what happened, and it stays shut to players until
-  // the game ends (GameState.archiveVisible, ARCHIVE.md).
-  await recordArchiveMessage(prisma, {
-    character,
-    content: body,
-    channelKind: "intercom",
-  });
+  // The transcript is broadcastIntercom's own job since phase 4: it writes one
+  // SYSTEM row per zone it reached, so the announcement lands in each zone's
+  // feed on /play as well as in /archive. The single row that used to be
+  // written here had no place key and so was invisible in the Hall.
 
   await prisma.auditLog
     .create({
@@ -1323,7 +1320,9 @@ async function handleConverseCreate(interaction, roomId) {
   let thread;
   try {
     thread = await startPrivateThread(room.location.discordChannelId, name);
-    await addThreadMember(thread.id, interaction.user.id);
+    // A "web only" creator stays out of their own thread's member list
+    // (HALL.md §6); the PlayerThreadMember row below is their membership.
+    if (!character.webOnly) await addThreadMember(thread.id, interaction.user.id);
   } catch (err) {
     console.error(`Failed to open a conversation in ${room.location.name}:`, err);
     await respond(interaction, "» *Couldn't open that — try again, or tell a GM.* ‡");

@@ -4650,6 +4650,13 @@ label.chip {
   padding: var(--sp-3);
 }
 
+/* The "Playing from the web" chip at the top of the places column. The column
+   itself has no side padding (its rows draw their own), so the chip supplies
+   its own and sits inline rather than stretching the full width. */
+.hall-webonly {
+  margin: 0 var(--sp-3) var(--sp-2);
+}
+
 /* The centre is itself a column: the phone's tab strip, then the scene. */
 .hall-centre {
   display: flex;

@@ -1,6 +1,7 @@
 const { concealedAlias, withArticle } = require("@lifeweb/db/lib/concealedIdentity");
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
+const { sceneLineAt } = require("@lifeweb/db/lib/scene");
 
 // Every 15 minutes, each Room hears who has been whispering in the
 // Conversations linked to it — "A young man and an old woman are whispering…"
@@ -37,7 +38,7 @@ function joinAliases(aliases) {
 async function runWhisperPoll(prisma) {
   const conversations = await prisma.playerThread.findMany({
     where: { roomId: { not: null } },
-    select: { threadId: true, room: { select: { discordThreadId: true } } },
+    select: { threadId: true, room: { select: { id: true, discordThreadId: true } } },
   });
   if (conversations.length === 0) return 0;
 
@@ -81,7 +82,8 @@ async function runWhisperPoll(prisma) {
     );
     // "You hear …" leads every audible line in the game, which is also what
     // retires the is/are agreement and the leading capital this used to need.
-    const line = ambientLine(`You hear ${joinAliases(aliases)} whispering…`);
+    const heard = `You hear ${joinAliases(aliases)} whispering…`;
+    const line = ambientLine(heard);
 
     // Sequential and catch-logged: one unreachable room must not stop the
     // rest of the tick, and a burst of parallel posts is what trips the
@@ -92,6 +94,8 @@ async function runWhisperPoll(prisma) {
     } catch (err) {
       console.error(`Whisper post to ${conversation.room.discordThreadId} failed:`, err.message ?? err);
     }
+    // The Room's feed hears it too — one row per tick, same as the post.
+    await sceneLineAt(prisma, { roomId: conversation.room.id, text: heard });
   }
   return posted;
 }

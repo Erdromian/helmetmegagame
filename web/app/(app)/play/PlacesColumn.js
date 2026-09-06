@@ -60,7 +60,7 @@ function Section({ title, places, selected, seen, newest, onSelect }) {
   );
 }
 
-export default function PlacesColumn({ places, selected, seen, newest, onSelect }) {
+export default function PlacesColumn({ places, selected, seen, newest, onSelect, webOnly = false }) {
   const here = places.filter((p) => p.kind === "loc");
   const rooms = places.filter((p) => p.kind === "room");
   const conversations = places.filter((p) => p.kind === "conv");
@@ -68,6 +68,10 @@ export default function PlacesColumn({ places, selected, seen, newest, onSelect 
 
   return (
     <nav className="hall-places" aria-label="Places ‡">
+      {/* The quiet reminder that this character's Discord account is out of
+          every channel and this page is the whole of the game for them
+          (docs/systemdocs/HALL.md §6). */}
+      {webOnly && <span className="chip hall-webonly">Playing from the web ‡</span>}
       <Section title="Here ‡" places={here} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Rooms ‡" places={rooms} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section

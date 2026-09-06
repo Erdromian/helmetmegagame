@@ -27,6 +27,7 @@
 const { ambientLine } = require("./ambientLine");
 const { postMessage } = require("./discordRest");
 const { soundRange } = require("./locationGraph");
+const { sceneLineAt } = require("./scene");
 
 // Sound does not cross between the surface and the underground, and that is the
 // one exclusion in here. The test is Zone.kind rather than a list of zone
@@ -111,6 +112,11 @@ async function broadcastSound(prisma, { originLocationId, text, maxHops, loudHop
       failed.push(place.name);
       console.error(`Sound carrying to ${place.name} failed:`, err.message ?? err);
     }
+    // One row per Location that hears it, beside the post (db/lib/scene.js).
+    // The wording is the same at every distance because a bell never muffles
+    // — the only thing distance changed was the `-#`, and the web decides
+    // that for itself.
+    await sceneLineAt(prisma, { locationId: place.locationId, text, signed });
   }
   return { sent, failed };
 }

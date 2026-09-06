@@ -338,6 +338,38 @@ hundreds of calls instead of tens of thousands. Both return counts and failure
 lists rather than nothing, because a revoke that silently fails leaves a
 departed player still reading rooms.
 
+### A web-only character holds no Discord access at all
+
+`Character.webOnly` — the **Play from the web** switch on the Bio card
+(`HALL.md` §6) — is the one state in which a living character standing in a
+Location has none of the grants this section describes. No member overwrite on
+the Location channel, no zone role (so no `#summary` and no `#turns`, whose
+view grants ride the zone roles), no narrowcast overwrite, and no membership in
+any Room or Conversation thread. Their DMs, their turn-ping role and the OOC
+report channel are untouched — the report channel is opened by the Player role
+rather than per character, so there was never anything to take away.
+
+The fiction does not change: they still stand where they stand, they still show
+in Who's here?, they still hold their keys and their guest rows, and they are
+still a member of every Conversation they were in — the `PlayerThreadMember`
+row is the truth and Discord's thread list is only its projection (`§4`,
+`HALL.md` §2a). What changes is that the projection is empty.
+
+**Every re-materialiser checks the flag, or the next pass puts them back.**
+That is the whole maintenance burden of the feature, and it is not optional:
+the mover (`db/lib/locationMove.js#applyLocationMoveSideEffects` skips its
+Discord half), the channel doctor (`location-occupancy`, the zone
+`role-membership`, `room-membership` and `narrowcast` should-have sets all
+exclude them), `db/lib/roomAccess.js#syncCharacterRoomAccess` (entitlement is
+empty, so the diff evicts rather than adds), the invite replay
+(`db/lib/threadInvites.js` writes the membership row and skips the Discord add,
+keeping the invite for the day the switch comes off), the three Conversation
+thread-adds (`/add`, a mention, Converse — the row yes, the account no), the
+guest add in a private Room, the rejoin restore in
+`bot/src/lib/locationTravel.js#restoreStandingRoles`, and nickname sync on both
+faces. Miss one and the doctor's overnight pass quietly un-hides somebody who
+believes they are hidden.
+
 ## 4. Anchors, rooms and conversations
 
 ### The pinned anchor

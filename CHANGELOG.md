@@ -6,6 +6,17 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Play from the web: a switch that takes your Discord account out of every channel
+
+✚ A switch on your Bio, "Play from the web". Turn it on and your Discord account leaves every Location channel, Room thread, Conversation and the turns console, and your nickname is cleared, so nobody in the guild can tell which account is your character. You play from the Play page; DMs still reach you. Turn it off and everything comes back. Switching cools for two hours.  
+✎ Every pass that puts an account back into a channel, from a move to the nightly channel doctor to a key changing hands, now knows to leave a web-only player out.  
+✎ Fixes a fault from earlier today: the record of who is in a Conversation was missing from the deployed schema, which broke the Play page for players.
+
+## 2026-09-06 · The world writes itself down
+
+✎ Everything the world says into a channel is now a line in the Play page's feeds too: arrivals through a gate, smells, sounds and the bell, turret bursts, the PA, noticeboard pins and tears, whispering heard from a Room, the staged public declarations, and the turn opening in every zone.  
+✎ The archive's Speech view keeps those scene lines out of the transcript, where the day dividers already fold them.
+
 ## 2026-09-06 · The Play page grows its right column: people, the place, and you
 
 ✚ Who is standing with you, with the same Look at, Heal, Transfer, Loot, Bind, Free, Harm and Move Player dialogs the sheet has, one tap from their name.  

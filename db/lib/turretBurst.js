@@ -19,6 +19,7 @@
 // Takes `prisma` as a parameter; see db/lib/dm.js for why.
 const { ambientLine } = require("./ambientLine");
 const { postMessage } = require("./discordRest");
+const { sceneLineAt } = require("./scene");
 
 // RRATATAT is Bascinet's own word and keeps its shape. The sentence in front of
 // it is not theirs — it was added so every audible line in the game opens "You
@@ -49,6 +50,7 @@ async function announceTurretBurst(prisma, locationId) {
       console.error(`Turret burst in ${here.name} failed:`, err.message ?? err);
     }
   }
+  await sceneLineAt(prisma, { locationId: here.id, text: BURST_SOUND });
 
   if (!here.zoneId) return { sent };
 
@@ -57,7 +59,7 @@ async function announceTurretBurst(prisma, locationId) {
   // IP-level ban, and a zone can hold a dozen Locations.
   const elsewhere = await prisma.location.findMany({
     where: { zoneId: here.zoneId, id: { not: here.id }, discordChannelId: { not: null } },
-    select: { name: true, discordChannelId: true },
+    select: { id: true, name: true, discordChannelId: true },
   });
   const heard = ambientLine(BURST_SOUND);
   for (const location of elsewhere) {
@@ -67,6 +69,7 @@ async function announceTurretBurst(prisma, locationId) {
     } catch (err) {
       console.error(`Turret burst carrying to ${location.name} failed:`, err.message ?? err);
     }
+    await sceneLineAt(prisma, { locationId: location.id, text: BURST_SOUND });
   }
 
   return { sent };

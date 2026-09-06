@@ -25,6 +25,7 @@ import { readBlock } from "@lifeweb/db/lib/reading";
 import { addToStack, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 import { expiryFrom } from "@lifeweb/db/lib/turnFormat";
 import { ambientLine } from "@lifeweb/db/lib/ambientLine";
+import { sceneLineAt } from "@lifeweb/db/lib/scene";
 import { postMessage, startPrivateThread, addThreadMember } from "@lifeweb/db/lib/discordRest";
 import { addConversationMember } from "@lifeweb/db/lib/conversations";
 import { BELL_ROOM_SLUG, RING_WORD, bellWordMatches, bellCooldown, broadcastBell } from "@lifeweb/db/lib/bell";
@@ -78,6 +79,9 @@ async function actor(select) {
       locationId: true,
       factionId: true,
       discordUserId: true,
+      // "Play from the web" — nothing here may touch Discord for them
+      // (docs/systemdocs/HALL.md §6).
+      webOnly: true,
       // `role` and the tag slugs are what canToggleGate reads, and
       // affordancesFor asks it for every gate this character is standing at.
       role: { select: { slug: true } },
@@ -382,6 +386,9 @@ export async function tearNotice(postId) {
     // already committed (ARCHITECTURE.md §5).
     await postMessage(ctx.location.discordChannelId, ambientLine(tornLine(post.tag.name))).catch(() => {});
   }
+  // The same row the bot's board writes (db/lib/scene.js) — a tear on the web
+  // and a tear on Discord are one event, and the Hall shows both.
+  await sceneLineAt(prisma, { locationId: ctx.location.id, text: tornLine(post.tag.name) });
   return { ok: true, line: `You take ${post.tag.name} down. ‡` };
 }
 
@@ -428,6 +435,7 @@ export async function pinNotice(tagId) {
   if (ctx.location.discordChannelId) {
     await postMessage(ctx.location.discordChannelId, ambientLine(pinnedLine(held.tag.name))).catch(() => {});
   }
+  await sceneLineAt(prisma, { locationId: ctx.location.id, text: pinnedLine(held.tag.name) });
   return { ok: true, line: `You nail ${held.tag.name} up. Anyone here can read it, or take it down. ‡` };
 }
 
@@ -475,7 +483,11 @@ export async function openConversation({ roomId, name } = {}) {
   let thread;
   try {
     thread = await startPrivateThread(room.location.discordChannelId, trimmed);
-    if (me.character.discordUserId) await addThreadMember(thread.id, me.character.discordUserId);
+    // A "web only" creator stays out of their own thread's member list
+    // (docs/systemdocs/HALL.md §6); the membership row below is the truth.
+    if (me.character.discordUserId && !me.character.webOnly) {
+      await addThreadMember(thread.id, me.character.discordUserId);
+    }
   } catch {
     return { ok: false, error: "Couldn't open that — try again, or tell a GM. ‡" };
   }

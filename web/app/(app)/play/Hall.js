@@ -56,7 +56,7 @@ function decodeHash(hash) {
   }
 }
 
-export default function Hall({ initialPlaces, initialPlace, initialRows, initialSeq, self, aside }) {
+export default function Hall({ initialPlaces, initialPlace, initialRows, initialSeq, self, aside, webOnly = false }) {
   // The server's list is the first paint; the stream replaces it whole from
   // its first `places` event onward.
   const streamed = usePlaces();
@@ -163,7 +163,14 @@ export default function Hall({ initialPlaces, initialPlace, initialRows, initial
 
   return (
     <div className="hall-body">
-      <PlacesColumn places={places} selected={selectedKey} seen={seen} newest={newest} onSelect={onSelect} />
+      <PlacesColumn
+        places={places}
+        selected={selectedKey}
+        seen={seen}
+        newest={newest}
+        onSelect={onSelect}
+        webOnly={webOnly}
+      />
       <div className="hall-centre">
         <PlacesTabs places={places} selected={selectedKey} seen={seen} newest={newest} onSelect={onSelect} />
         {/* On a phone the people are an avatar strip under the place header,

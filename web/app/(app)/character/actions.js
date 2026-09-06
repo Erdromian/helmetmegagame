@@ -8,6 +8,8 @@ import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 import { AGE_MIN, AGE_MAX, formatBareName } from "@/lib/characterName";
 import { syncCharacterNickname, setTurnPingRole, ensureCharacterRole } from "@/lib/discordGuild";
+import { setWebOnly } from "@lifeweb/db/lib/webOnly";
+import { clockLabel } from "@/lib/dmTime";
 import { normalizeSelection } from "@/lib/portrait/catalog";
 import { renderPortrait } from "@/lib/portrait/render";
 
@@ -44,6 +46,11 @@ export async function updateCharacterProfile(_prevState, formData) {
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const turnPingOptIn = formData.get("turnPingOptIn") === "on";
+  // "Play from the web" (docs/systemdocs/HALL.md §6). NOT written with the rest
+  // of the form: flipping it is a burst of Discord work on its own cooldown, so
+  // it goes through db/lib/webOnly.js#setWebOnly below and only when the value
+  // actually changed — saving the Bio card twice must not spend the cooldown.
+  const webOnly = formData.get("webOnly") === "on";
   // The conceal toggle. No Discord side effect: the proxy pipeline resolves
   // concealment at send time (PROXYING.md). A forced identity (Tag.forcedName
   // — Apex Form's "Beast") locks it off: the switch renders disabled, and this
@@ -100,12 +107,30 @@ export async function updateCharacterProfile(_prevState, formData) {
   }
 
   const updated = await prisma.character.update({ where: { id: character.id }, data });
+
+  // Before the Discord calls below, because the flag is what decides whether
+  // any of them may run at all. A refusal is returned as it is worded, and the
+  // rest of the save STANDS — the appearance the player just typed is not
+  // thrown away because a cooldown had two minutes left on it.
+  let webOnlyError = null;
+  if (webOnly !== character.webOnly) {
+    const flip = await setWebOnly(prisma, character, webOnly);
+    if (!flip.ok) {
+      webOnlyError = flip.readyAt
+        ? `You switched ${flip.minutes} minutes ago. You can switch again at ${clockLabel(
+            flip.readyAt.getTime(),
+          )}. ‡`
+        : flip.error;
+    }
+  }
+
   await syncCharacterNickname(session.discordUserId, formatBareName(updated)).catch(() => {});
   await setTurnPingRole(session.discordUserId, updated.turnPingOptIn).catch(() => {});
   // Kept as a self-heal, not a rename: the name can no longer change here, so
   // this only ever creates a personal role that went missing.
   await ensureCharacterRole(updated).catch(() => {});
   revalidatePath("/character");
+  if (webOnlyError) return { error: webOnlyError };
   return { ok: true };
 }
 

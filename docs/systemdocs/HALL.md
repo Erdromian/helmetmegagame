@@ -65,6 +65,45 @@ the row's seq, place key and `op` — `new`, `edit` or `delete`
 nothing. The payload is tiny on purpose; every reader loads the row and
 re-checks who may see it.
 
+### What the world says is a row too
+
+Since phase 4, an ambient line writes an `ArchiveEntry` beside the Discord
+post it already made — `source: "SYSTEM"`, no character, `channelKind:
+"scene"`, and the plain sentence with **no `-#`** in it. The prefix is
+Discord's way of rendering subtext; the web renders a SYSTEM row as
+`.hall-subtext` itself, so storing it would put literal `-#` on the page.
+`db/lib/scene.js#sceneLine` / `#sceneLineAt` is the one writer, best-effort
+like every other archive write.
+
+Beside, never instead: the poster still posts. And never through the outbox,
+which handles `WEB` rows only — a SYSTEM row can no more be re-posted into the
+channel it came from than a proxied one can.
+
+| Poster | Where the row lands |
+|---|---|
+| `worldBroadcast.js#ambientEverywhere` | every Location |
+| `worldBroadcast.js#broadcastToZones` | every zone |
+| `soundBroadcast.js#broadcastSound` (so the Cathedral bell too) | one row per Location in earshot — the same words at every distance, since a bell never muffles and all the distance decided was the `-#` |
+| `locationMove.js#announceGateCrossing` | the destination zone |
+| `intercom.js#broadcastIntercom` | one row per zone in range, the `@here` left off — a notification is not part of what was said |
+| `turretBurst.js#announceTurretBurst` | the gun's Location and its neighbours |
+| `deathSmell.js#runDeathSmell` | each Location that stinks |
+| the noticeboard's pin and tear, on **both** faces | the Location |
+| `roomAnnounce.js#announceInRoom` | the Room |
+| `whisperPoll.js` | the Room, one line per fifteen minutes |
+| `advanceTurn`'s staged public declarations | the declaration's zone |
+| the turn opening | one `TURN_START` per zone, `placeKey: zone:<id>`, so every zone feed carries the day line |
+
+The intercom used to write a single row from the Speak handler with no place
+key at all. It read correctly in `/archive` and was invisible in the Hall,
+because a zone feed can only show a row filed against its own place key — so
+it is one row per zone now.
+
+`/archive`'s **Speech** view hides them (`source: { not: "SYSTEM" }` beside the
+`MESSAGE` filter, with `TURN_START` kept for the day divider). The events those
+lines narrate already fold into the muted `<details>` under **Everything**, and
+printing both would show every arrival twice.
+
 ## 2a. Conversation membership is a row now
 
 `PlayerThreadMember (playerThreadId, characterId, createdAt)` — primary key on
@@ -440,17 +479,64 @@ Adding an affordance is one entry in the catalog, one dialog in
    and the anchor redraw after a web gate flip.
 4. **Ambient lines write rows.** None of them archive today, so a web player
    never sees a gate crossing, a smell, a turret burst or a noticeboard pin.
-5. **The "web only" switch** in Bio: `Character.webOnly`, a two-hour
-   cooldown on the travel-cooldown pattern. ON strips **every** Discord
-   channel — the Location overwrite, the zone role, every Room and Conversation
-   thread, `#turns` and the report channel. DMs survive. Every
-   re-materialiser must learn the flag or the doctor undoes it overnight:
-   `channelDoctor.js`, `roomAccess.js`, `threadInvites.js`,
-   `locationMove.js`, `accessSweep.js`. The fiction is untouched: the
-   character still stands there, still appears in Who's here.
+5. ~~**The "web only" switch**~~ — done, and described below.
 6. Typing ("The young man is typing…", presented names only), Discord-style
    markdown with quoted speech tinted, the dawn wipe as a seq watermark, Web
    Push for mentions, and the GM desk embedding the feed for a live
    per-location view.
 
 The desktop and mobile wireframes Bascinet chose are in §5.
+
+### 6a. The "web only" switch
+
+**Play from the web ‡**, a `Switch` under the picture on the Bio card, right
+after the turn ping. It is the answer to §1's first reason: a Discord channel
+lists every account that can see it, so standing in the Keep tells everybody
+else in the Keep which Discord account you are, and the only fix is not being
+there.
+
+`Character.webOnly`, `Character.webOnlyChangedAt`, and
+`GameConfig.webOnlyCooldownSeconds` (7200 — **two hours**). One function flips
+it: `db/lib/webOnly.js#setWebOnly(prisma, character, on)`, returning
+`{ ok: true }` or `{ ok: false, error, minutes, readyAt }`.
+
+**ON** takes the account out of Discord: `revokeAllCharacterAccess(prisma,
+character, { keepGuests: true })` strips the zone role and every per-member
+overwrite (the Location channel, the zone channels, the narrowcast channels),
+then the Room threads named in `Character.roomThreadRoomIds` and every
+Conversation in `PlayerThreadMember` are left, and the column is cleared. The
+new `keepGuests` option is the whole difference from a death sweep: a
+`RoomGuest` row is **game state, not Discord state** — somebody let them into
+that room and they are still standing in it. `PlayerThreadMember` rows survive
+for the same reason, which is what §2a was built for.
+
+**OFF** puts it all back: `db/lib/locationMove.js#materializeDiscordPresence`
+— the Location overwrite, the zone role, narrowcast,
+`syncCharacterRoomAccess`, the Conversation thread adds for where they stand,
+and `applyPendingInvites`. It is built on the same four helpers a move uses
+rather than a second copy of them; the only difference is that there is no
+origin to swap away from, so every call is a pure grant.
+
+**The order is the load-bearing part.** The database flip lands FIRST, inside
+the cooldown guard, and every Discord call after it is best-effort and
+individually logged. A failed REST call must never un-flip the switch: the flag
+is what every re-materialiser reads, so a half-applied ON that stays ON is
+repaired by the doctor's next pass, while one that rolled back would leave a
+player believing they were hidden when they were not.
+
+**The cooldown** is the travel pattern (`db/lib/locationTravel.js`): one
+`updateMany` whose WHERE carries `webOnly: !want` and `OR [{ null }, { lte
+cutoff }]`, so two clicks in one tick cannot both pass and re-saving the Bio
+card in the state you are already in spends nothing. A refusal reads *"You
+switched N minutes ago. You can switch again at HH:MM. ‡"* and **leaves the
+rest of the save standing** — the appearance somebody just typed is not thrown
+away because a cooldown had two minutes left on it.
+
+**What survives either way:** DMs, the turn-ping role (it is a DM, not a
+channel), the OOC report channel (opened by the Player role, not per
+character), guest rows, conversation membership, and the fiction — they still
+stand there and still appear in Who's here?. The places column shows one quiet
+`.chip`, **Playing from the web ‡**.
+
+Which re-materialisers had to learn the flag is in `CHANNELS.md` §3, and it is
+the list to check against when adding another.

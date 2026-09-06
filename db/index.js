@@ -58,6 +58,7 @@ const { runConfessionPass } = require("./lib/confessionPass");
 // are three same-named sendDm exports with three signatures.
 const { sendDm } = require("./lib/dm");
 const { recordArchiveMessage, recordArchiveEvent } = require("./lib/archive");
+const { sceneLineAt } = require("./lib/scene");
 const { loadForcedName } = require("./lib/presentedIdentity");
 const {
   postAsCharacter,
@@ -1231,16 +1232,36 @@ async function advanceTurn() {
     data: { nextTurnNote: null },
   });
 
-  await recordArchiveEvent(prisma, {
-    kind: "TURN_START",
-    turn: newTurn,
-    content: [
-      `Day ${Math.ceil(newTurn.number / 2)} — ${newTurn.phase}`,
-      note,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-  });
+  // One row per zone rather than one for the game, so every zone's feed on
+  // /play carries the day line (HALL.md §5). /archive folds them back into the
+  // single sticky day divider it always drew — a TURN_START row is never
+  // rendered as a row, and the divider keys on the day.
+  const turnStartContent = [
+    `Day ${Math.ceil(newTurn.number / 2)} — ${newTurn.phase}`,
+    note,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const turnStartZones = await prisma.zone
+    .findMany({ select: { id: true, name: true }, orderBy: { sortOrder: "asc" } })
+    .catch(() => []);
+  for (const zone of turnStartZones) {
+    await recordArchiveEvent(prisma, {
+      kind: "TURN_START",
+      turn: newTurn,
+      content: turnStartContent,
+      zoneId: zone.id,
+      zoneName: zone.name,
+      placeKey: `zone:${zone.id}`,
+    });
+  }
+  if (turnStartZones.length === 0) {
+    await recordArchiveEvent(prisma, {
+      kind: "TURN_START",
+      turn: newTurn,
+      content: turnStartContent,
+    });
+  }
 
   // Everything below this line is the only place in the turn-advance path
   // that talks to Discord; every resolveNeeds() pass hands back posts/DMs
@@ -1624,6 +1645,10 @@ async function advanceTurn() {
         // Batched: a declaration over 2000 characters posts as several
         // messages in order rather than being rejected. See ADJUDICATION.md §1.
         await postMessageBatched(targetChannelId, post.content);
+        // The Hall's half: one SYSTEM row in the zone's feed, beside the post.
+        // The declaration is GM-authored and already signed, so it is not
+        // signed again.
+        await sceneLineAt(prisma, { zoneId: post.zoneId, text: post.content, signed: false });
         await prisma.stagedMessage
           .update({
             where: { id: post.stagedMessageId },

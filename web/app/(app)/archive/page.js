@@ -61,7 +61,20 @@ export default async function ArchivePage({ searchParams }) {
     // reconcile. The transcript still honours the retraction: a taken-back
     // message is not in it.
     deletedAt: null,
-    ...(show === "speech" ? { kind: { in: ["MESSAGE", "TURN_START"] } } : {}),
+    // Speech is the default view, and since phase 4 the world writes MESSAGE
+    // rows of its own (db/lib/scene.js — smells, bells, gate crossings). Those
+    // are `source: SYSTEM`, and they are left out here: the events they narrate
+    // already fold into the muted <details> line under "Everything", so showing
+    // both would print every arrival twice. TURN_START stays regardless — it is
+    // the sticky day divider, never a row.
+    ...(show === "speech"
+      ? {
+          OR: [
+            { kind: "TURN_START" },
+            { kind: "MESSAGE", source: { not: "SYSTEM" } },
+          ],
+        }
+      : {}),
     ...(zoneName ? { zoneName } : {}),
     ...(characterId ? { characterId } : {}),
     ...(dayTurns ? { turnNumber: { in: dayTurns } } : {}),

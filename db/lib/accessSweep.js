@@ -67,16 +67,22 @@ async function allAccessChannelIds(prisma) {
 // One character's full revoke: the zone roles they actually hold stripped,
 // then their member overwrites removed from whichever Location, zone and
 // special channels actually carry one.
-async function revokeAllCharacterAccess(prisma, character) {
+// `keepGuests` leaves the RoomGuest rows alone. The web-only switch (HALL.md
+// §6) is the one caller that wants it: it strips a living character's DISCORD
+// access and nothing else, and a guest row is game state — somebody let them
+// into that room, and they are still standing in it.
+async function revokeAllCharacterAccess(prisma, character, { keepGuests = false } = {}) {
   const targetIds = [character.discordUserId, character.discordRoleId].filter(Boolean);
   const failures = [];
   let attempted = 0;
 
   // Any private-Room door somebody held open for them. Rows first, so a
   // Discord failure below can't leave a grant that would readmit a corpse.
-  await prisma.roomGuest
-    .deleteMany({ where: { characterId: character.id } })
-    .catch((err) => console.error(`Room guest revoke for ${character.id} failed:`, err.message ?? err));
+  if (!keepGuests) {
+    await prisma.roomGuest
+      .deleteMany({ where: { characterId: character.id } })
+      .catch((err) => console.error(`Room guest revoke for ${character.id} failed:`, err.message ?? err));
+  }
 
   const strip = async (label, fn) => {
     attempted += 1;

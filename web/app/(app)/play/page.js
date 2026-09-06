@@ -140,6 +140,7 @@ export default async function PlayPage() {
         avatarVersion: viewer.character?.updatedAt?.getTime?.() ?? null,
       }}
       aside={aside}
+      webOnly={Boolean(viewer.character?.webOnly)}
     />
   );
 

@@ -41,6 +41,10 @@ async function syncMemberNickname(member) {
     where: { discordUserId: member.id, status: "ALIVE", firstName: { not: "" } },
   });
   if (!character) return "skipped";
+  // "Play from the web" (docs/systemdocs/HALL.md §6): the whole point is that
+  // this account is not identifiable as this character, and a nickname reading
+  // "someone | Cersei" would hand that back in the member list.
+  if (character.webOnly) return "skipped";
 
   const base = member.user.displayName;
   // Bare (first + last), not the displayed name. The 32-char cap is shared
