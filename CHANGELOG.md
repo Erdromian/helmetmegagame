@@ -6,6 +6,21 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Storage and the noticeboards check the character who pressed the button
+
+✎ Clicking Storage in a room, or opening a noticeboard, checked where somebody else was standing. Almost everyone was told "You're not here" in a room they were plainly in  
+✎ Tearing a notice down would have put the paper in that other character's hands, and pinning one would have taken it out of their pack. Nothing had been pinned yet, so nobody lost anything
+
+## 2026-09-06 · Desire names are plain prose, and thresholds read in both currencies
+
+✎ Desire names no longer link tags — Sake and Ravenheart Red were chips while alcohol and moonshine beside them were plain text, so the picker looked half-finished  
+✎ Gambling wins and Resources thresholds now read in both currencies: Win 5 ⬢/¢, Have 100 ⬢/¢, and so on  
+✎ Kill someone you hate is 4pt  
+✎ Save someone's life is repeatable on a 5-turn cooldown; saving a faction leader's life is the once-a-life one. They were the wrong way round  
+✎ Kiss someone and Gain a lover both get a 4-turn cooldown  
+✚ Get married, once a life — it replaces Gain a lover you should not have, which is retired  
+✎ Confess your sins is now Successfully confess something
+
 ## 2026-09-06 · Depression crowds out everything else about you
 
 ✎ Depressed can no longer be combined with almost any other Personality tag, on top of the Addictions it already ruled out. A depressed character is depressed first and everything else second.  
