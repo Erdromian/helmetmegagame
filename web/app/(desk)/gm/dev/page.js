@@ -36,12 +36,11 @@ import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
 import ThreatAssignmentsTable from "@/app/(app)/gm/dev/threats/ThreatAssignmentsTable";
 import ThreatRosterTable from "@/app/(app)/gm/dev/threats/ThreatRosterTable";
 import { DEPOT_HELP } from "@/app/(app)/gm/dev/devHelp";
-import { getGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
+import { effectivePlayerCount, GAME_STATE_CREATE } from "@lifeweb/db/lib/gameState";
 import GameControls from "./GameControls";
 import ConfigForm from "./ConfigForm";
 import LobbyRoster from "./LobbyRoster";
 import AssignmentPreview from "./AssignmentPreview";
-import { pickedNothing } from "@lifeweb/db/lib/playerPreferences";
 import { isSpawnOnly } from "@/lib/characterCreation";
 import DeskHeader from "@/app/components/DeskHeader";
 import OpsNav from "./OpsNav";
@@ -178,7 +177,7 @@ export default async function DevPanelPage({ searchParams }) {
   // and the turn section derives day/phase/weather from the same rows.
   const [config, state, openTurnRecord, lastTurn, depot, readyCount, livingCount] = await Promise.all([
     prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
-    getGameState(prisma),
+    prisma.gameState.upsert({ where: { id: 1 }, update: {}, create: GAME_STATE_CREATE, include: { game: { select: { number: true } } } }),
     getOpenTurn(),
     prisma.turn.findFirst({ orderBy: { number: "desc" } }),
     loadDepot(prisma),
@@ -268,7 +267,6 @@ export default async function DevPanelPage({ searchParams }) {
           high: highSlug ? (roleName.get(highSlug) ?? highSlug) : null,
           medium: levels.filter(([, l]) => l === "MEDIUM").length,
           low: levels.filter(([, l]) => l === "LOW").length,
-          nothing: pickedNothing(pr),
           optIns: antagonistNames(p?.antagonistOptIns ?? []),
           whitelisted: Boolean(m?.roles.includes(LEADER_WHITELIST_ROLE_ID)),
           jobless: { COMMONER: "Commoner", MIGRANT: "Migrant", RETURN_TO_LOBBY: "Lobby" }[p?.joblessRole ?? "COMMONER"],
@@ -500,6 +498,7 @@ export default async function DevPanelPage({ searchParams }) {
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <StatusPill tone={PHASE_TONE[state.phase]}>{PHASE_LABEL[state.phase]}</StatusPill>
+                  {state.game?.number ? <span className="chip mono">Game {state.game.number}</span> : null}
                   {state.lobbyOpenedAt ? (
                     <span className="text-xs text-muted">Lobby opened {stamp(state.lobbyOpenedAt)}</span>
                   ) : null}
@@ -517,11 +516,11 @@ export default async function DevPanelPage({ searchParams }) {
                 ) : null}
               </section>
 
-              {state.phase === "LOBBY" ? (
+              {state.phase === "LOBBY" || (state.phase === "CLOSED" && readyCount > 0) ? (
                 <section className="ops-section ops-section--wide">
                   <div className="ops-section-head">
                     <h2 className="section-title">Preview</h2>
-                    <p className="ops-lede">The roll Start will commit. Hand-set a row to override it; re-roll for a fresh seed. ‡</p>
+                    <p className="ops-lede">The roll Start will commit. Hand-set a row to override it; re-roll for a fresh seed. Close the lobby first and nobody can change it under you. ‡</p>
                   </div>
                   <AssignmentPreview draft={state.assignmentDraft} rows={draftRows} roles={pickableRoles} />
                 </section>

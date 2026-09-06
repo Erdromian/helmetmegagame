@@ -37,19 +37,24 @@ Five things about it are load-bearing:
   `zoneName`/`characterName` snapshots survive both, and the snapshot is
   the more correct record anyway: who someone was known as *then*.
 
+  **`gameId`** is the same shape: which `Game` the row belongs to, stamped by
+  `db/lib/archive.js#currentGameId` from a thirty-second memo of
+  `GameState.gameId`, never an FK. It is what lets a past game keep its
+  transcript (`LOBBY.md` §7).
+
   The place columns are **`zoneId`/`zoneName`** — a row records the zone it
   was said in, and the Room or Conversation it was said in is `threadName`.
   `channelKind` reads `summary | location | watch | intercom` (a plain
   string field, not a Prisma enum, so old rows can still say `mindlink`
   from before the Cult of Bacchus was archived).
-- **Restart Game clears the table.** `wipeGameData` deletes every
-  `ArchiveEntry` inside the same transaction as Characters and Turns, so a
-  restart starts on an empty transcript. It is the one thing here that is not
-  keyed off a Discord pass — the rows are the record, and no channel wipe
-  touches them. (This was missed originally, and Restart Game left the whole
-  previous game readable at `/archive`.) The Dawn wipe is the opposite: it
-  deletes Discord messages and never the transcript, which is the entire point
-  of recording at send time.
+- **Restart Game keeps the table.** Every game is a `Game` row (`number`,
+  dates, closing note, epilogue), and the wipe snapshots the old game's reveal
+  onto it, opens the next, and points `GameState.gameId` at the new one. The
+  rows of the old game stay under its id and read on `/archive?game=N`. (For
+  a while the wipe deleted the table, after a restart once left the previous
+  game readable as if it were the current one; the game picker is the
+  deliberate version of that.) The Dawn wipe deletes Discord messages and
+  never the transcript, which is the entire point of recording at send time.
 - **Every write is best-effort and swallows its own failure**, logged not
   thrown. `recordArchiveMessage` runs inline with the proxy send; a transcript
   row is never worth breaking a player's message over.
@@ -81,18 +86,38 @@ Five things about it are load-bearing:
   is gone, and pre-existing thread rows (`threadName` set) never had their
   thread id captured anywhere else anyway.
 
-`/archive` (`web/app/(app)/archive/`) is **server-side paged over `?page=`**,
-the second such surface after `/gm/audit` and for the same reason — a
-finished game's worth of rows can't be a client-side `useTableState`. Sorted
-oldest-first by default (it's a diary to read forward, not a log to skim), with
-`id` breaking `sentAt` ties so a burst of same-millisecond messages can't put
-one row on two pages. It renders as a reading experience rather than a table:
-turn headers, scene headers per zone/thread, avatar + name + prose.
+## 5. `/archive`
 
-`GameConfig.archiveVisible` gates it — GMs always, players only when it's on,
-enforced in the page and mirrored in the nav. It is **effectively a one-way
-door** and is meant to stay shut until the game ends: the archive shows every
-zone regardless of where a character stood, and renders a concealed message
-as `Young Man (Sir Alder)`, so opening it retroactively unmasks every
-`/conceal` ever used.
+`web/app/(app)/archive/` is **server-side paged over `?page=`**, the second
+such surface after `/gm/audit` and for the same reason — a finished game's
+worth of rows can't be a client-side `useTableState`. Sorted oldest-first by
+default (it's a diary to read forward, not a log to skim), with `id` breaking
+`sentAt` ties so a burst of same-millisecond messages can't put one row on two
+pages.
+
+**One game at a time.** `?game=N` picks a `Game`; the current one is the
+default. A game with an epilogue shows it on top — the closing note, the
+facts line, and "who was who" folded under a click. The zone and character
+filters are `groupBy`s over the game's own rows, not the live tables: a past
+game's characters are gone and its zones may have been re-synced under new
+ids, but the snapshot names on the rows are exactly what was.
+
+**The transcript is dense** (`ArchiveTranscript.js`): the page's rows grouped
+by consecutive day, then scene, at the audit log's sizes. A `TURN_START` row
+becomes the sticky day line — "Day 12 · Dusk · Rain", the weather read off
+its second content line — and is never a row itself. A scene line is
+`zoneName · threadName`. Speech rows are time / speaker / words, the speaker
+reading `Young Man (Sir Alder)` for a concealed send. A run of system rows
+(arrivals, deaths, moves, desires) folds into one muted `<details>` line
+counted per kind — "3 moved · 1 died" — with the rows inside. The **Show**
+filter is Speech (the default: `MESSAGE` plus the day dividers) or Everything.
+No avatars, no jump links: the Dawn wipe would have killed the links anyway.
+
+**The gate.** A past game is any signed-in user's to read. The current game is
+`GameState.archiveVisible` — GMs always, players only when it's on, enforced
+in the page and mirrored in the nav (which also shows the link whenever a
+finished game exists). Ending the game flips it, and it is **effectively a
+one-way door**: the archive shows every zone regardless of where a character
+stood and names the character behind every `/conceal`, so opening it mid-game
+unmasks the lot.
 

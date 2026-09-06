@@ -143,7 +143,9 @@ Seat counting is unified in **`db/lib/seatCount.js#heldSeats(tx, role, { exclude
 | CLOSED | no | GM/superadmin skip only | refused | Wipe lands here; superadmin **Open lobby** |
 | LOBBY | yes (Player role) | GM/superadmin skip only | refused | superadmin **Start Game** (needs a fresh preview) |
 | RUNNING | no | yes (Player role, Cursed rules) | runs | superadmin **End Game** |
-| ENDED | no | no | refused | superadmin **Resume** (back to RUNNING) |
+| ENDED | no | yes (Cursed rules) | refused | superadmin **Resume** (back to RUNNING), or the nuke |
+
+**Ended locks only the clock** (Bascinet, addendum question 1): late join stays open, Discord and every web action keep working until Restart Game. The stage-1 creation gate (`state.phase !== "RUNNING"` in `createActions.js`, `reserveRoleAction`, and the page's `gate.open`) loosens to `RUNNING || ENDED`.
 
 - `db/index.js#advanceTurn()` refuses unless `phase === RUNNING` (returns `{ advanced: false, reason }`). Bot cron logs the skip; `forceAdvanceTurn` returns an error and the button is hidden.
 - The 14 readers of `autoTurnAdvanceDisabled` that feed `moveWindow(...)` (turnClock, weather, lessons, confession, turnsConsole, character page, requestActions, interactionCreate) pass `!isClockRunning(config, state)` instead, so a frozen phase reads as "no deadline" everywhere the same way a paused cron does.
@@ -283,7 +285,9 @@ bob as Corben Ashe, Courtier — the Judge
 carol as Maeris, Commoner ✝ turn 31
 …
 ```
-Data from `db/lib/epilogue.js#buildEpilogue(prisma)`: every `Character` row any status, Discord display name from `listGuildMembers()` (falls back to the id), role title, seat via `threatBySeatTag` over held tags, death turn from the `DEATH` archive row. Fun facts are cheap counts: days from `startedAt`→`endedAt`, max `Turn.number`, characters, deaths, `BirdMessage` count, `ArchiveEntry` count. The web page `web/app/(app)/epilogue/page.js` renders the same object (gated on ENDED for players, always for GMs), and `navItems.js` links it while ENDED. The archive gate in `archive/page.js` and `navItems.js` reads `GameState.archiveVisible`.
+Data from `db/lib/epilogue.js#buildEpilogue(prisma)`: every `Character` row any status, Discord display name from `listGuildMembers()` (falls back to the id), role title, seat via `threatBySeatTag` over held tags, death turn from the `DEATH` archive row. Fun facts are cheap counts: days from `startedAt`→`endedAt`, max `Turn.number`, characters, deaths, `BirdMessage` count, `ArchiveEntry` count for this game. **The result is stored on `Game.epilogue`** (see §13) so it outlives the wipe, and it renders as the top panel of `/archive` for an ended or past game. There is no separate `/epilogue` route; the Discord post links to `/archive`. The archive gate in `archive/page.js` and `navItems.js` reads `GameState.archiveVisible` for the current game only.
+
+Ending is one shared function, **`db/lib/gameEnd.js#endGameInDb(db, { closingNote, reason })`**: phase ENDED, `endedAt`, `archiveVisible: true`, `Game.endedAt`/`closingNote`/`epilogue`, and it returns the Discord post for the caller to send. The web action calls it from `endGame`; the nuke calls it from inside the turn advance (§13a).
 
 ---
 
@@ -330,14 +334,64 @@ Data from `db/lib/epilogue.js#buildEpilogue(prisma)`: every `Character` row any 
 
 ---
 
+## 13. Addendum (Bascinet, mid-build): the nuke ends the game, archives outlive the wipe, the archive is remade
+
+Three answers taken: Ended locks **only the clock**; past archives are readable by **any signed-in user on `/archive` with a game picker**; the transcript becomes a **dense by-day-and-place view with system lines folded**.
+
+### 13a. Detonation ends the game
+`runNukeExplosionPass` already claims `nukeDetonatedTurn` and kills everyone above ground (`db/lib/nukeExplosionPass.js`). It stays DB-only. In `db/index.js#advanceTurn`, right after that pass returns `detonated: true`, call `endGameInDb(prisma, { reason: "nuke", closingNote })` with the note "The device went off at the close of turn N. Everyone above ground died. ‡" (kept if a GM later writes their own), and push the returned Game Ended post onto `runSideEffects()` after the fireball broadcast. The new turn still opens (the banner needs it); the next advance is refused by the phase gate. `resumeGame` stays available.
+
+### 13b. Games and archives that survive the wipe
+```prisma
+model Game {
+  id          String    @id @default(cuid())
+  number      Int       @unique          // 1, 2, 3 …
+  startedAt   DateTime?
+  endedAt     DateTime?
+  closingNote String?
+  playerCount Int?
+  epilogue    Json?                       // buildEpilogue() snapshot: note, facts, roster
+  createdAt   DateTime  @default(now())
+}
+```
+- `GameState.gameId String` points at the current `Game`. `ArchiveEntry.gameId String` is a **snapshot column, not an FK** (the table's convention), with `@@index([gameId, sentAt, id])`. `db/lib/archive.js`'s two writers stamp it from a 30-second memo of `GameState.gameId` (`currentGameId(db)`), so a message costs no extra round trip.
+- Migration: create `Game`, insert Game 1 (from the live `GameState.startedAt/endedAt/closingNote/playerCount`), backfill every `ArchiveEntry.gameId` to it, then make the column `NOT NULL`. Folder name sorts after `20260911050000_game_state_lobby`.
+- **Restart Game stops deleting `ArchiveEntry`.** In its place: if the current Game has no `epilogue`, snapshot one now (a wiped-while-running game still gets its roster and facts); stamp `endedAt` if null; create Game N+1; recreate `GameState` with the new `gameId`. `AuditLog`, `DirectMessage` and the rest are wiped as before.
+- `endGameInDb` (and the nuke) write `Game.endedAt`, `closingNote`, `epilogue`, `playerCount`.
+
+### 13c. `/archive` remade
+`web/app/(app)/archive/page.js` keeps server paging (`Pager` with `prevHref`/`nextHref`, `PAGE_SIZE` 150) and the search on the trigram index. Changes:
+- **Game picker** (`?game=N`, a `Select` in the filter bar): current game by default. A past game is always readable to any signed-in user; the current game obeys `GameState.archiveVisible` for non-GMs as now. `navItems.js` shows the Archive link whenever a past game exists or the current one is open.
+- **Reveal panel** at the top when the selected game has an `epilogue`: closing note, fun-facts line, "who was who" list (one line per character, ✝ turn N for the dead, the seat after a dash).
+- **Filters:** zone, character, day, search, order, plus **Show: Speech · Everything** replacing the seven-way kind dropdown (the `LIFEWEB` kind has no writer and leaves the UI; the enum stays).
+- **`ArchiveTranscript.js`** replaces `ArchiveFeed.js`. One pre-pass groups the page's rows into **day → scene → runs**. A day header (sticky, `.audit-daymark`) is built from the `TURN_START` row: "Day 12 · Dusk · Rain"; `TURN_START` never renders as a row. A scene header (`text-xs uppercase text-muted`) is `zoneName · threadName` (or channel kind). Speech rows reuse the audit grid: `.desk-queue-row .audit-row` with `.audit-row-time` (`--fs-2xs`, HH:MM), a bold speaker at `--fs-sm` (concealed as "Alias (Real Name)" as today), and the content through `RichText` at `--fs-sm`, `pre-wrap`. **No avatars in rows.** A run of consecutive non-speech rows inside a scene folds into one `<details>` line, muted, `--fs-xs`: "3 arrived · 2 left · 1 died · 1 desire fulfilled ▸", the summary counted per kind, the rows inside rendered as plain muted lines. No client JS needed for the fold.
+- Jump links to Discord stay on speech rows for the current game only (Dawn wipe deletes the messages).
+
+```
+Day 12 · Dusk · Rain                                        ← sticky, --fs-2xs caps
+  THE INN · TOWN
+   14:02  Ada Voss        Pour me another.
+   14:03  Corben Ashe     You've had enough, Ada.
+   14:05  Maeris (Vessa)  *slips out the back*
+   ▸ 3 arrived · 2 left                                     ← <details>, --fs-xs muted
+  THE CATHEDRAL · TOWN
+   15:10  Bishop Orel     Kneel.
+Day 12 · Dawn · Fog
+```
+
+Files: `db/lib/gameEnd.js` (new), `db/lib/archive.js` (gameId stamp), `db/lib/nukeExplosionPass.js` (unchanged), `db/index.js`, `web/app/(app)/gm/dev/actions.js` (wipe), `gameActions.js` (endGame → `endGameInDb`), `web/app/(app)/archive/{page,ArchiveTranscript}.js` (feed deleted), `web/lib/navItems.js`, `docs/systemdocs/ARCHIVE.md`, `LAUNCH.md` (wipe table: archive survives).
+
+---
+
 ## 11. Delivery order (each stage is one push, in this order)
 
-1. **Spec + registry + split.** Commit this design as `docs/superpowers/specs/2026-09-06-lobby-design.md`. Schema migration, `gameState.js`, registry, config form rework, wipe changes, phase gate in the turn engine and clock readers. Game reaches CLOSED/LOBBY/RUNNING by hand from the new Game section (no lobby yet). `db:check-config` green.
-2. **Threats.** Catalog reshape, `thanati` belief + seat tags, `seatConflicts.js` in Assign, assignments table on public names. `db:sync-tags`, `db:prune-tags -- --apply`.
-3. **Lobby.** `PlayerPreference`, `LobbyEntry`, the player lobby, ready/unready, GM roster.
-4. **Assignment.** `roleAssignment.js` + tests, preview/hand-set/re-roll, `startGame`, DMs, Decline button, sweep cron, `heldSeats`, locked-role wizard, late-join gating, GM skip.
-5. **End game.** `endGame`/`resumeGame`, epilogue builder, `/epilogue`, Discord post, archive gate move.
-6. **Docs + handbook.**
+1. **Spec + registry + split.** *Shipped 2026-09-06 as `9f64e2a`.* Schema migration, `gameState.js`, registry, config form rework, wipe changes, phase gate in the turn engine and clock readers.
+2. **Threats.** *Built and verified (lint, build, `db:sync-tags` applied: `thanati`, `thanati-leader`); not yet committed when plan mode re-entered.* Catalog reshape, `thanati` belief + seat tags, `seatConflicts.js` in Assign, assignments table on public names, wizard prefilled from `PlayerPreference`. Commit it first on resuming, with the `scripts/push.sh` mode restored to `100755` (stage 1 wrote it as `100644`). `db:prune-tags` reports five unrelated stale tags (Empathetic, Kennelmaster, Navigating, Compromising Letters, Peerless Beauty) — leave them for Bascinet.
+3. **Lobby.** The player lobby, ready/unready, GM roster. Loosen the creation gate to `RUNNING || ENDED` here.
+4. **Assignment.** `roleAssignment.js` + tests, preview/hand-set/re-roll, `startGame`, DMs, Decline button, sweep cron, `heldSeats`, locked-role wizard, GM skip.
+5. **End game, the nuke, games that outlive the wipe.** `Game` + `gameId` migration, `gameEnd.js`, epilogue builder, Discord post, nuke hook, wipe rewrite (§13a–b).
+6. **Archive remake** (§13c).
+7. **Docs + handbook.**
 
 Every push via `npm run push -- "Subject" "note" …` with GM-facing notes. Migration ships with stage 1 through the deploy's Pre-Deploy Command; `npm run deploy` for stage 1 since it's destructive (backup first).
 
@@ -348,5 +402,7 @@ Every push via `npm run push -- "Subject" "note" …` with GM-facing notes. Migr
 - `npm run db:generate`, restart `dev:web`, `npm run lint --workspace=web`, `npm run build --workspace=web`, `npm test --workspace=db`, `npm run db:check-config`, `npm run audit:contrast --workspace=web`.
 - `npm run dev:check` after each stage; add routes `/character` (as a player in each phase), `/gm/dev?s=game`, `/epilogue`, with the negative cases (player bounced from `/gm/dev`, `/epilogue` closed before ENDED).
 - Manual walk on dev with `npm run dev:session`: CLOSED → Open lobby → ready as two personas with different priorities → preview → hand-set one row → Start → check the two DMs in `/gm/players`, the `<t:>` renders, Decline on one, sheet on the other → seat count on late join reflects the hold → End game → `#turns` post and `/epilogue`.
-- Restart Game, then confirm `GameConfig` is unchanged, `PlayerPreference` rows survive, `GameState` is fresh at CLOSED, and `LobbyEntry` is empty.
+- Restart Game, then confirm `GameConfig` is unchanged, `PlayerPreference` rows survive, `GameState` is fresh at CLOSED with a new `gameId`, `LobbyEntry` is empty, every `ArchiveEntry` is still there under the old game's number, and `/archive?game=<old>` shows its reveal panel.
+- Arm the bomb as a test character, force two advances, and confirm the phase flips to ENDED, the Game Ended post lands in `#turns` after the fireball line, and a further End turn is refused.
+- On `/archive`: a page with speech and system rows folds the system runs, the day header carries the weather, a concealed line reads "Alias (Real Name)", and the Speech/Everything switch hides the folds.
 - Then a **verify** pass in the CLAUDE.md sense (two Opus reviewers: REVIEW and SIMPLIFY) on stages 3–4 before stage 5.

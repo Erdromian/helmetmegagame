@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
+import useActionRunner from "@/app/components/useActionRunner";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import CheckField from "@/app/components/CheckField";
 import Select from "@/app/components/Select";
@@ -57,10 +59,18 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
   const [jobless, setJobless] = useState(initial.joblessRole ?? "COMMONER");
   const [readyAt, setReadyAt] = useState(entry?.readyAt ?? null);
   const [openIntro, setOpenIntro] = useState(null);
-  const [error, setError] = useState(null);
   const [saving, startSaving] = useTransition();
-  const [pending, startPending] = useTransition();
+  const { run, pending, error, setError } = useActionRunner();
   const timer = useRef(null);
+  const router = useRouter();
+
+  // The ready count is the one live thing on the page. A refresh every half
+  // minute re-renders the server component with the current number; nothing
+  // here is unsaved, so it never tramples a player's edits.
+  useEffect(() => {
+    const id = setInterval(() => router.refresh(), 30000);
+    return () => clearInterval(id);
+  }, [router]);
 
   // Debounced: a player sweeping down the list fires one save, not thirty.
   // Whatever the server normalized comes back and replaces the local copy, so
@@ -103,19 +113,17 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
   }
 
   function toggleReady() {
-    setError(null);
-    startPending(async () => {
-      try {
-        const res = readyAt ? await setUnready() : await setReady();
-        if (!res?.ok) setError(res?.error ?? "Something went wrong. ‡");
-        else setReadyAt(readyAt ? null : res.readyAt);
-      } catch {
-        setError("Couldn't reach the server. ‡");
-      }
-    });
+    if (readyAt) run(setUnready, undefined, { onOk: () => setReadyAt(null) });
+    else run(setReady, undefined, { onOk: (res) => setReadyAt(res.readyAt) });
   }
 
-  const nothingPicked = pickedNothing(priorities) && jobless === "RETURN_TO_LOBBY";
+  // Every role Off: the roll has nothing to give but the fallback, and the
+  // player should hear which fallback before they press Ready.
+  const nothingPicked = pickedNothing(priorities);
+  const nothingLine =
+    jobless === "RETURN_TO_LOBBY"
+      ? "You've picked nothing, so you'll be sent back to the lobby at the start. ‡"
+      : `You've picked nothing, so you'll start as a ${jobless === "MIGRANT" ? "Migrant" : "Commoner"}. ‡`;
   const highSlug = Object.entries(priorities).find(([, l]) => l === "HIGH")?.[0] ?? null;
 
   return (
@@ -156,11 +164,7 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
           </button>
         </div>
         <p className="text-sm text-muted">You can change everything below until the game starts. ‡</p>
-        {nothingPicked ? (
-          <p className="text-sm text-accent">
-            You&apos;ve picked nothing, so you&apos;ll be sent back to the lobby at the start. ‡
-          </p>
-        ) : null}
+        {nothingPicked ? <p className="text-sm text-accent">{nothingLine}</p> : null}
         <FormError>{error}</FormError>
       </div>
 
@@ -177,7 +181,7 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
             <ul className="panel divide-y divide-[var(--border)]">
               {group.roles.map((role) => {
                 const locked = role.whitelistBlocked;
-                const row = (
+                return (
                   <li key={role.id} className="lobby-role" data-locked={locked ? "true" : undefined}>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-baseline gap-2">
@@ -200,18 +204,13 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
                       ) : null}
                     </div>
                     {locked ? (
-                      <span className="text-xs text-muted">Whitelist only ‡</span>
+                      <Tooltip text="You need the Whitelist role for this seat. Ask a GM. ‡">
+                        <span className="text-xs text-muted">Whitelist only ‡</span>
+                      </Tooltip>
                     ) : (
                       <PriorityControl slug={role.slug} level={priorities[role.slug]} onChange={changeLevel} />
                     )}
                   </li>
-                );
-                return locked ? (
-                  <Tooltip key={role.id} text="Whitelist only ‡" className="block">
-                    {row}
-                  </Tooltip>
-                ) : (
-                  row
                 );
               })}
             </ul>

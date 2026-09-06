@@ -108,7 +108,7 @@ function moveCutoffAt(turn) {
 // `hasLock` is false — no cutoff at all — in two cases:
 //
 //   * clockFrozen: the cron is paused, or the game is not in its RUNNING
-//     phase (db/lib/gameState.js#isClockRunning) — either way there is no
+//     phase (db/lib/gameState.js#clockFrozen) — either way there is no
 //     real end time to count back from and the derived one would be a lie.
 //   * a turn shorter than MOVE_LOCK_HOURS: a GM advancing manually at, say,
 //     23:00 opens a one-hour turn, and counting three hours back from midnight

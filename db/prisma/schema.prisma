@@ -475,8 +475,32 @@ enum GamePhase {
 /// fresh one, which is what guarantees nothing here can leak into the next
 /// game — the old allowlist on GameConfig missed four columns and nobody
 /// noticed. Read through db/lib/gameState.js#getGameState.
+/// One row per game ever run, and the part of a game that outlives its wipe:
+/// when it ran, how it ended, and the reveal (docs/systemdocs/LOBBY.md §7).
+/// ArchiveEntry rows carry a Game's id as a snapshot column, which is what
+/// lets /archive show a past game after Restart Game has cleared everything
+/// else.
+model Game {
+  id          String    @id @default(cuid())
+  number      Int       @unique
+  startedAt   DateTime?
+  endedAt     DateTime?
+  closingNote String?
+  playerCount Int?
+  // db/lib/epilogue.js#buildEpilogue: { closingNote, facts, roster }. Written
+  // when the game ends, or by the wipe if it never did.
+  epilogue    Json?
+  createdAt   DateTime  @default(now())
+
+  states GameState[]
+}
+
 model GameState {
   id Int @id @default(1)
+
+  // The current Game. The wipe creates the next one and points here at it.
+  gameId String
+  game   Game   @relation(fields: [gameId], references: [id])
 
   phase         GamePhase @default(CLOSED)
   lobbyOpenedAt DateTime?
@@ -2537,9 +2561,9 @@ model LobbyEntry {
   reminderSentAt DateTime?
   // The Character the ASSIGNED seat became, once it did.
   characterId    String?
-  // Which pass of the roll seated them — "HIGH" | "MEDIUM" | "LOW" |
-  // "FALLBACK" | "GM" — for the roster and the audit trail.
-  source         String?
+  // When the assignment DM was delivered; null until it was, which is what the
+  // sweep reads to send it again after a Start that died mid-loop.
+  notifiedAt     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3519,6 +3543,12 @@ model ArchiveEntry {
   // here): Locations are destructively resynced and a rework is coming.
   discordChannelId String?
 
+  // Which game this row belongs to (Game.id). A snapshot column, not an FK,
+  // like every other id here: the transcript outlives the wipe on purpose
+  // (docs/systemdocs/ARCHIVE.md), stamped by db/lib/archive.js from the
+  // current GameState.
+  gameId String
+
   createdAt DateTime @default(now())
 
   // NOTE: ArchiveEntry also carries a trigram GIN index on `content`
@@ -3532,6 +3562,7 @@ model ArchiveEntry {
   // tiebreaker that keeps pagination stable across equal millisecond
   // timestamps. On sentAt alone Postgres still has to sort for the tiebreak.
   @@index([sentAt, id])
+  @@index([gameId, sentAt, id])
   @@index([turnNumber])
   @@index([kind])
   @@index([zoneId, sentAt])

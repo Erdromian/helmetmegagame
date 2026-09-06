@@ -1,50 +1,51 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
+import { factsLine, rosterLine } from "@lifeweb/db/lib/epilogue";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import Pager from "@/app/components/Pager";
 import Select from "@/app/components/Select";
-import ArchiveFeed from "./ArchiveFeed";
+import ArchiveTranscript from "./ArchiveTranscript";
 
-const PAGE_SIZE = 100;
-
-const KIND_OPTIONS = [
-  ["MESSAGE", "Messages"],
-  ["TURN_START", "Turns"],
-  ["CHARACTER_CREATED", "Arrivals"],
-  ["DEATH", "Deaths"],
-  ["DESIRE_FULFILLED", "Desires"],
-  ["LIFEWEB", "Lifeweb"],
-  ["TRAVEL", "Travel"],
-];
+// The transcript, one game at a time (docs/systemdocs/ARCHIVE.md). A past
+// game is readable by any signed-in user; the current one opens when the game
+// ends (GameState.archiveVisible), and to GMs always. Server-paged: this and
+// /gm/audit are the two lists too long for client-side paging.
+const PAGE_SIZE = 150;
 
 export default async function ArchivePage({ searchParams }) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
-  // The real gate. The nav hides the link when it's shut, but a page is a
-  // public URL — same posture as /character's creation gate, where the render
-  // is presentation and the check is enforcement.
-  const [{ isGm: gm }, config] = await Promise.all([
+  const [{ isGm: gm }, state, games] = await Promise.all([
     getGmSession(),
-    prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
+    prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true, gameId: true } }),
+    prisma.game.findMany({
+      orderBy: { number: "desc" },
+      select: { id: true, number: true, startedAt: true, endedAt: true, epilogue: true },
+    }),
   ]);
-  if (!gm && !config?.archiveVisible) redirect("/character");
 
   const params = await searchParams;
-  // Validated against the option list above, not passed through. `kind` is a
-  // Prisma ENUM, so /archive?kind=anything threw a validation error inside the
-  // page render — and with no error boundary anywhere in the app that took the
-  // whole route to Next's raw digest screen. Anyone could do it with a URL.
-  // `order` two lines down was already allowlisted this way; this just joins
-  // it.
-  const requestedKind = params?.kind?.toString().trim() || "";
-  const kind = KIND_OPTIONS.some(([value]) => value === requestedKind) ? requestedKind : "";
-  const zoneId = params?.zoneId?.toString().trim() || "";
-  const characterId = params?.characterId?.toString().trim() || "";
+  const requestedNumber = Number.parseInt(params?.game?.toString() ?? "", 10);
+  const current = games.find((g) => g.id === state?.gameId) ?? games[0] ?? null;
+  const game = games.find((g) => g.number === requestedNumber) ?? current;
+  const isCurrent = Boolean(game && game.id === state?.gameId);
+
+  // The real gate. The nav hides the link when it's shut, but a page is a
+  // public URL — same posture as /character's creation gate. A past game is
+  // over, and its record is everyone's.
+  if (!game) redirect("/character");
+  if (isCurrent && !gm && !state?.archiveVisible) redirect("/character");
+
+  const zoneName = params?.zone?.toString().trim() || "";
+  const characterId = params?.character?.toString().trim() || "";
   const day = params?.day?.toString().trim() || "";
   const q = params?.q?.toString().trim() || "";
+  // Speech only by default is what makes a day readable; Everything folds the
+  // system rows back in (arrivals, deaths, moves) under one line per run.
+  const show = params?.show?.toString() === "all" ? "all" : "speech";
   // Oldest-first by default: this is a diary to be read forward, not a log to
   // be skimmed newest-first like /gm/audit.
   const order = params?.order?.toString() === "desc" ? "desc" : "asc";
@@ -52,21 +53,24 @@ export default async function ArchivePage({ searchParams }) {
 
   // A day is two turns, Dawn first: day 3 is turns 5 and 6.
   const dayNumber = day ? Number.parseInt(day, 10) : null;
-  const dayTurns =
-    dayNumber && dayNumber > 0 ? [dayNumber * 2 - 1, dayNumber * 2] : null;
+  const dayTurns = dayNumber && dayNumber > 0 ? [dayNumber * 2 - 1, dayNumber * 2] : null;
 
   const where = {
-    ...(kind ? { kind } : {}),
-    ...(zoneId ? { zoneId } : {}),
+    gameId: game.id,
+    ...(show === "speech" ? { kind: { in: ["MESSAGE", "TURN_START"] } } : {}),
+    ...(zoneName ? { zoneName } : {}),
     ...(characterId ? { characterId } : {}),
     ...(dayTurns ? { turnNumber: { in: dayTurns } } : {}),
     ...(q ? { content: { contains: q, mode: "insensitive" } } : {}),
   };
 
-  const [entries, total, zones, characters] = await Promise.all([
+  // Filter vocabularies come from the game's own rows, not the live tables:
+  // a past game's characters are gone and its zones may have been re-synced
+  // under new ids, but the snapshot names on the rows are exactly what was.
+  const [entries, total, zoneRows, characterRows] = await Promise.all([
     prisma.archiveEntry.findMany({
       where,
-      // id breaks ties: sentAt is only millisecond-resolution, and a burst of
+      // id breaks ties: sentAt is millisecond-resolution, and a burst of
       // proxied messages can share a timestamp — without it the same row can
       // appear on two pages and another on neither.
       orderBy: [{ sentAt: order }, { id: order }],
@@ -74,67 +78,92 @@ export default async function ArchivePage({ searchParams }) {
       take: PAGE_SIZE,
     }),
     prisma.archiveEntry.count({ where }),
-    // Every zone a row can be stamped with, cave levels included — a line is
-    // filed where it was said, not on the GM seat that owns the place.
-    // Authoring order, so the list reads like the map rather than the alphabet.
-    prisma.zone.findMany({ select: { id: true, name: true }, orderBy: { sortOrder: "asc" } }),
-    prisma.character.findMany({
-      select: { id: true, name: true },
-      orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
+    prisma.archiveEntry.groupBy({ by: ["zoneName"], where: { gameId: game.id, zoneName: { not: null } } }),
+    prisma.archiveEntry.groupBy({
+      by: ["characterId", "characterName"],
+      where: { gameId: game.id, kind: "MESSAGE", characterId: { not: null } },
     }),
   ]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  // Cache-buster for the avatar route, which serves `immutable`. Only the
-  // characters actually on this page, so a 100-row page is one small query
-  // rather than a join against every row.
-  const pageCharacterIds = [...new Set(entries.map((e) => e.characterId).filter(Boolean))];
-  const avatarRows = pageCharacterIds.length
-    ? await prisma.character.findMany({
-        where: { id: { in: pageCharacterIds } },
-        select: { id: true, updatedAt: true },
-      })
-    : [];
-  const avatarVersions = Object.fromEntries(avatarRows.map((c) => [c.id, c.updatedAt.getTime()]));
+  const zones = zoneRows.map((r) => r.zoneName).sort((a, b) => a.localeCompare(b));
+  const characters = characterRows
+    .map((r) => ({ id: r.characterId, name: r.characterName ?? r.characterId }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   function pageHref(newPage) {
-    const next = new URLSearchParams({ kind, zoneId, characterId, day, q, order, page: String(newPage) });
-    for (const key of [...next.keys()]) {
-      if (!next.get(key)) next.delete(key);
-    }
+    const next = new URLSearchParams({
+      game: String(game.number), zone: zoneName, character: characterId, day, q, order, show, page: String(newPage),
+    });
+    for (const key of [...next.keys()]) if (!next.get(key)) next.delete(key);
     return `/archive?${next.toString()}`;
   }
+
+  const epilogue = game.epilogue ?? null;
+  const span = [game.startedAt, game.endedAt]
+    .map((d) => (d ? new Date(d).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" }) : null));
 
   return (
     <PageShell width="wide">
       <PageHeader
-        title="Archive"
-        subtitle={gm && !config?.archiveVisible ? "Hidden from players" : undefined}
+        title={`Archive · Game ${game.number}`}
+        subtitle={
+          isCurrent
+            ? gm && !state?.archiveVisible
+              ? "The current game. Hidden from players until it ends. ‡"
+              : "The current game. ‡"
+            : `${span[0] ?? "?"} – ${span[1] ?? "?"} ‡`
+        }
       />
 
+      {epilogue ? (
+        <section className="panel flex flex-col gap-3 p-4">
+          <h2 className="panel-header">How it ended ‡</h2>
+          {epilogue.closingNote ? <p className="text-sm">» {epilogue.closingNote}</p> : null}
+          <p className="text-sm text-muted">{factsLine(epilogue.facts)}</p>
+          <details className="archive-fold">
+            <summary>Who was who ‡</summary>
+            <ul>
+              {epilogue.roster.map((r) => (
+                <li key={`${r.handle}-${r.name}`}>{rosterLine(r)}</li>
+              ))}
+            </ul>
+          </details>
+        </section>
+      ) : null}
+
       <form className="panel flex flex-wrap items-end gap-3 p-4">
+        <label className="field">
+          <span className="field-label">Game</span>
+          <Select name="game" defaultValue={String(game.number)}>
+            {games.map((g) => (
+              <option key={g.id} value={g.number}>
+                Game {g.number}{g.id === state?.gameId ? " · current" : ""}
+              </option>
+            ))}
+          </Select>
+        </label>
         <label className="field">
           <span className="field-label">Search</span>
           <input name="q" defaultValue={q} placeholder="anything said…" />
         </label>
         <label className="field">
           <span className="field-label">Day</span>
-          <input name="day" type="number" min="1" defaultValue={day} placeholder="any" />
+          <input name="day" type="number" min="1" defaultValue={day} placeholder="any" className="max-w-24" />
         </label>
         <label className="field">
           <span className="field-label">Zone</span>
-          <Select name="zoneId" defaultValue={zoneId}>
+          <Select name="zone" defaultValue={zoneName}>
             <option value="">Anywhere</option>
             {zones.map((z) => (
-              <option key={z.id} value={z.id}>
-                {z.name}
+              <option key={z} value={z}>
+                {z}
               </option>
             ))}
           </Select>
         </label>
         <label className="field">
           <span className="field-label">Character</span>
-          <Select name="characterId" defaultValue={characterId}>
+          <Select name="character" defaultValue={characterId}>
             <option value="">Anyone</option>
             {characters.map((c) => (
               <option key={c.id} value={c.id}>
@@ -144,14 +173,10 @@ export default async function ArchivePage({ searchParams }) {
           </Select>
         </label>
         <label className="field">
-          <span className="field-label">Kind</span>
-          <Select name="kind" defaultValue={kind}>
-            <option value="">Everything</option>
-            {KIND_OPTIONS.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
+          <span className="field-label">Show</span>
+          <Select name="show" defaultValue={show}>
+            <option value="speech">Speech</option>
+            <option value="all">Everything</option>
           </Select>
         </label>
         <label className="field">
@@ -166,7 +191,7 @@ export default async function ArchivePage({ searchParams }) {
         </button>
       </form>
 
-      <ArchiveFeed entries={entries} avatarVersions={avatarVersions} />
+      <ArchiveTranscript entries={entries} />
 
       <Pager
         page={page}

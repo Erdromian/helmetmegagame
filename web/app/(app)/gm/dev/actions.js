@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { isUnaffiliated, UNAFFILIATED_SLUG } from "@lifeweb/db/lib/factionConstants";
 import { after } from "next/server";
 import { parseConfigForm } from "@lifeweb/db/lib/gameConfigFields";
-import { getGameConfig, getGameState } from "@lifeweb/db/lib/gameState";
+import { getGameConfig, getGameState, GAME_STATE_CREATE } from "@lifeweb/db/lib/gameState";
+import { buildEpilogue } from "@lifeweb/db/lib/epilogue";
+import { forgetGameId } from "@lifeweb/db/lib/archive";
 import {
   prisma,
   advanceTurn as advanceTurnInDb,
@@ -185,7 +187,7 @@ export async function updateNextTurn(formData) {
 
   await prisma.gameState.upsert({
     where: { id: 1 },
-    create: { id: 1, nextWeather: weather, nextTurnNote: note },
+    create: { ...GAME_STATE_CREATE, nextWeather: weather, nextTurnNote: note },
     update: { nextWeather: weather, nextTurnNote: note },
   });
 
@@ -199,7 +201,7 @@ export async function updateWorldState(formData) {
 
   await prisma.gameState.upsert({
     where: { id: 1 },
-    create: { id: 1 },
+    create: GAME_STATE_CREATE,
     update: { lifewebBlood: Math.max(0, Math.min(100, intOrZero(formData, "lifewebBlood"))) },
   });
 
@@ -269,12 +271,30 @@ export async function wipeGameData(formData) {
   try {
     // Snapshotted before the deletes — the only handle left on what to
     // clean up once the DB rows are gone.
-    const [characters, members] = await Promise.all([
+    const [characters, members, state] = await Promise.all([
       prisma.character.findMany({
         select: { discordUserId: true, discordRoleId: true, turnPingOptIn: true },
       }),
       listGuildMembers(),
+      prisma.gameState.findUnique({ where: { id: 1 }, include: { game: true } }),
     ]);
+
+    // The game that is ending keeps its record (docs/systemdocs/LOBBY.md §7):
+    // a reveal if it never got one, an end stamp, and its number. The next
+    // game is a fresh row the new GameState points at.
+    const oldGame = state?.game ?? null;
+    if (oldGame && !oldGame.epilogue) {
+      const epilogue = await buildEpilogue(prisma, { game: oldGame, state: { ...state, endedAt: new Date() } }).catch((err) => {
+        console.error("Epilogue snapshot failed:", err);
+        return null;
+      });
+      await prisma.game.update({
+        where: { id: oldGame.id },
+        data: { endedAt: oldGame.endedAt ?? new Date(), startedAt: oldGame.startedAt ?? state.startedAt, playerCount: oldGame.playerCount ?? state.playerCount, ...(epilogue ? { epilogue } : {}) },
+      });
+    }
+    const lastNumber = (await prisma.game.aggregate({ _max: { number: true } }))._max.number ?? 0;
+    const nextGame = await prisma.game.create({ data: { number: lastNumber + 1 } });
     const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
     const cursedMemberIds = cursedRoleId ? members.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [];
 
@@ -336,16 +356,16 @@ export async function wipeGameData(formData) {
       prisma.stagedEffect.deleteMany({}),
       prisma.turn.deleteMany({}),
       prisma.directMessage.deleteMany({}),
-      // The transcript: no foreign keys (snapshot columns only), so it must
-      // be wiped explicitly or a restart leaves the last game readable.
-      prisma.archiveEntry.deleteMany({}),
+      // The transcript is NOT wiped: it belongs to the old Game by its gameId
+      // and stays readable on /archive under that game's number.
       // The lobby is per game; the preferences behind it are not.
       prisma.lobbyEntry.deleteMany({}),
       // Delete and recreate rather than reset a list of columns: a fresh row
       // cannot carry anything over, which the old allowlist provably could.
       prisma.gameState.deleteMany({}),
-      prisma.gameState.create({ data: { id: 1 } }),
+      prisma.gameState.create({ data: { id: 1, gameId: nextGame.id } }),
     ]);
+    forgetGameId();
 
     // After the character sweep above, so the FK from Character.factionId is
     // already gone and the delete cannot be blocked by a member.

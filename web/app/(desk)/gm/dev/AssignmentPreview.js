@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import Select from "@/app/components/Select";
 import FormError from "@/app/components/FormError";
+import useActionRunner from "@/app/components/useActionRunner";
 import { TableScroll } from "@/app/components/DataTable";
 import { previewAssignment, setDraftRow } from "@/app/(app)/gm/dev/gameActions";
 
@@ -13,20 +13,7 @@ import { previewAssignment, setDraftRow } from "@/app/(app)/gm/dev/gameActions";
 const SOURCE_LABEL = { HIGH: "High", MEDIUM: "Medium", LOW: "Low", FALLBACK: "Fallback", GM: "Hand-set" };
 
 export default function AssignmentPreview({ draft, rows, roles }) {
-  const [error, setError] = useState(null);
-  const [pending, startTransition] = useTransition();
-
-  function run(action, arg) {
-    setError(null);
-    startTransition(async () => {
-      try {
-        const res = await action(arg);
-        if (!res?.ok) setError(res?.error ?? "Something went wrong. ‡");
-      } catch {
-        setError("Could not reach the server. Nothing was changed. ‡");
-      }
-    });
-  }
+  const { run, pending, error } = useActionRunner();
 
   if (!draft) {
     return (

@@ -143,7 +143,7 @@ const FIELDS = [
   {
     key: "catatonicEnabled", type: "bool", group: "catatonic", default: true,
     label: "Catatonic (AFK) flagging",
-    help: "Idle turns before a character goes Catatonic (AFK). Flags a character Catatonic (AFK) after that many turns with no move filed and nothing said in character — clears the moment they act or speak again.",
+    help: "Flags a character Catatonic (AFK) after the idle turns below with no move filed and nothing said in character — clears the moment they act or speak again. Off means nobody is ever flagged. ‡",
   },
   {
     key: "catatonicTurns", type: "int", group: "catatonic", default: 4, min: 1, max: 60,
@@ -205,8 +205,6 @@ const INTERNAL_KEYS = [
   "intercomChannelId",
 ];
 
-const FIELDS_BY_KEY = new Map(FIELDS.map((f) => [f.key, f]));
-
 function fieldsInGroup(groupKey) {
   return FIELDS.filter((f) => f.group === groupKey);
 }
@@ -234,4 +232,4 @@ function parseConfigForm(formData, current = {}) {
   return data;
 }
 
-module.exports = { GROUPS, FIELDS, FIELDS_BY_KEY, INTERNAL_KEYS, fieldsInGroup, parseField, parseConfigForm };
+module.exports = { GROUPS, FIELDS, INTERNAL_KEYS, fieldsInGroup, parseConfigForm };

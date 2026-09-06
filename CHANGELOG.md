@@ -6,6 +6,28 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The handbook and the GM docs know about the lobby
+
+✎ The player handbook explains readying up, the roll, the deadline DM, and joining by hand after the start  
+✚ LOBBY.md, the GM-side reference for phases, the roll, the creation window, End Game and what a restart keeps; the launch runbook now ends with Open lobby instead of a switch  
+✎ THREATS.md says how a seat's forbidden tags work and what Assign refunds; ARCHIVE.md describes the game picker and the folded transcript
+
+## 2026-09-06 · The archive, remade, with every past game in it
+
+✚ A game picker on /archive: past games are readable by anyone signed in, with their reveal at the top; the current one still opens when the game ends  
+✎ The transcript is a dense day-by-day read now: sticky Day · Dawn · Rain headers, a line per place, one line per thing said at the small size, no avatars  
+✎ Arrivals, deaths, moves and desires fold into one muted line per run that opens on a click; the Show switch picks Speech or Everything  
+✎ Zone and character filters come from the game's own rows, so a past game filters by who and where it actually had
+
+## 2026-09-06 · Ending the game, and games that outlive the wipe
+
+✚ The bomb going off ends the game: the clock stops, the archive opens, and the reveal follows the fireball into #turns  
+✚ End Game writes a reveal — your closing note, how long it lasted, who was who with antagonist seats named and the dead marked — and posts it to #turns  
+✎ Restart Game keeps the transcript now: every game is numbered and its archive stays readable; the game picker lands with the archive remake  
+✎ Close lobby freezes it: Preview and Start work on a closed lobby, so nobody can ready up under a preview  
+✎ An assignment DM that failed to send goes out again on the next sweep, and the reminder carries the link  
+✎ From review: a rolled seat is spent by any character its player makes, spawn-only seats can't be hand-set, and the lobby's ready count refreshes itself
+
 ## 2026-09-06 · Start Game rolls the lobby into seats
 
 ✚ Preview on the Game section shows who would get what and warns about leader seats nobody wants; hand-set any row, re-roll for a fresh seed, and Start commits exactly that table  

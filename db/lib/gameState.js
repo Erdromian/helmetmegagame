@@ -11,14 +11,20 @@
 // row. Takes the client as a parameter (a tx or the root prisma), the
 // db/lib/dm.js convention.
 
-const PHASES = ["CLOSED", "LOBBY", "RUNNING", "ENDED"];
-
 async function getGameConfig(db) {
   return db.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
 }
 
+// What a brand-new GameState row is: CLOSED, and pointing at Game 1 — made
+// on the spot if a fresh database has no Game yet. Every upsert of the row
+// uses this so none of them can trip on the required gameId.
+const GAME_STATE_CREATE = {
+  id: 1,
+  game: { connectOrCreate: { where: { number: 1 }, create: { number: 1 } } },
+};
+
 async function getGameState(db) {
-  return db.gameState.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+  return db.gameState.upsert({ where: { id: 1 }, update: {}, create: GAME_STATE_CREATE });
 }
 
 // Read-only variants for hot read paths: an upsert takes a write lock on the
@@ -56,12 +62,10 @@ async function clockFrozen(db) {
 }
 
 module.exports = {
-  PHASES,
+  GAME_STATE_CREATE,
   getGameConfig,
   getGameState,
-  readGameConfig,
   readGameState,
   effectivePlayerCount,
-  isClockRunning,
   clockFrozen,
 };
