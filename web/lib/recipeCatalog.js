@@ -81,7 +81,6 @@ export function redactWithheldRecipes(tags, { visibleSlugs = null } = {}) {
 }
 
 // The bucket for a recipe nothing gates — a wayside shrine, a scrap of salvage.
-// Not a trade, so byDiscipline() files it last rather than under "N".
 export const NO_SKILL = "No skill";
 
 // The section a recipe sits under: the discipline of the skill that gates it,
@@ -139,9 +138,15 @@ export function workBand(turns) {
 
 // Flat, sortable row per recipe. `tag` rides along whole so the table can hand
 // it to TagChip and TagDetailSheet unchanged.
+//
+// `placement` is the building system's marker — a craftable carrying it is
+// raised on the ground as a Structure rather than crafted into a pocket
+// (db/lib/structures.js), and building isn't crafting: those rows belong to
+// the building paper, not the recipe book. Same predicate the Craft menu
+// uses to route them to its own build flow.
 export function recipeRows(tags) {
   return tags
-    .filter((tag) => tag.craftable && !tag.ingredientsWithheld)
+    .filter((tag) => tag.craftable && !tag.ingredientsWithheld && !tag.placement)
     .map((tag) => {
       const { turns, ration, shared } = recipeWork(tag);
       const skills = tag.requirementSkills ?? [];
@@ -173,21 +178,4 @@ export function recipeRows(tags) {
         tag,
       };
     });
-}
-
-// Sections in the order they are read: disciplines alphabetically, and the
-// handful of recipes anybody can make last, since "No skill" is not a trade.
-export function byDiscipline(rows) {
-  const sections = new Map();
-  for (const row of rows) {
-    if (!sections.has(row.discipline)) sections.set(row.discipline, []);
-    sections.get(row.discipline).push(row);
-  }
-  return [...sections.entries()]
-    .sort(([a], [b]) => {
-      if (a === NO_SKILL) return 1;
-      if (b === NO_SKILL) return -1;
-      return a.localeCompare(b);
-    })
-    .map(([discipline, items]) => ({ discipline, rows: items }));
 }

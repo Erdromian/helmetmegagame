@@ -353,7 +353,15 @@ documents:
       **Gunpowder — 31 ⬢, 2 turns**
 
       - Weapons: {tag:musketoon}, {tag:bore-pistol}
-      - {tag:bomb}
+      - {tag:bomb} — each one is built around a charge of {tag:black-powder},
+        used up in the making. ‡
+
+      Two smaller pieces of powder-work, at their own prices: ‡
+
+      - {tag:black-powder} — 3 ⬢, 1 turn. Refines one {tag:saltpeter}, used
+        up. ‡
+      - {tag:gunpowder-grenade} — 6 ⬢, 1 turn. Uses up one {tag:saltpeter},
+        raw. ‡
 
       **Odds and ends.** These sit off the tiers above — their own price, their
       own skill: ‡
@@ -437,7 +445,7 @@ documents:
       | {tag:feces} | 0 | — (yields up to 2 per turn) | — |
       | {tag:alcohol} | 2 | 1 (yields up to 3 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
       | {tag:miasma} | 2 | 1 | a corpse {info:You must be holding one. It is not used up.} |
-      | {tag:poppy} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
+      | {tag:poppy} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:poppy-pods} |
       | {tag:molotov-cocktail} | 2 | — (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:alcohol} |
       | {tag:cleaning-powder} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
       | {tag:cat} | 3 | 1 | {tag:alcohol} |
@@ -455,12 +463,11 @@ documents:
       | {tag:mindbreaker-toxin} | 2 | 1 | {tag:cave-fungus} |
       | {tag:invisibility-potion} | 2 | 1 | {tag:graga-sac} |
       | {tag:raven-draught} | 2 | 1 | {tag:ravens-eye} |
-      | {tag:ravenheart-red} | 4 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
-      | {tag:distilled-coca} | 4 | 1 | — |
+      | {tag:ravenheart-red} | 4 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:alcohol} |
+      | {tag:distilled-coca} | 4 | 1 | {tag:coca-leaves} |
       | {tag:advanced-poppy} | 4 | 1 | {tag:poppy} |
-      | {tag:phrygian-tears} | 4 | 2 | Gambit |
+      | {tag:phrygian-tears} | 4 | 2 | — |
       | {tag:white-honey} | 6 | 1 | — |
-      | {tag:gunpowder-grenade} | 6 | 1 | {tag:saltpeter} |
       | {tag:purifier} | 6 | 1 | {tag:cave-fungus} |
       | {tag:dreamers-draught} | 6 | 1 | {tag:skinless-brain} |
       | {tag:succubus-draught} | 8 | 1 | — |

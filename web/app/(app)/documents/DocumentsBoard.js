@@ -159,6 +159,7 @@ export default function DocumentsBoard({
   allDocs = [],
   tagCatalog = [],
   hasCharacter,
+  mySkillIds = null,
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -351,7 +352,7 @@ export default function DocumentsBoard({
       {tab === "tags" ? (
         <TagCatalogTab tags={tagCatalog} />
       ) : tab === "recipes" ? (
-        <RecipesTab tags={tagCatalog} />
+        <RecipesTab tags={tagCatalog} mySkillIds={mySkillIds} />
       ) : (
         <>
           {totalCount > 0 && (

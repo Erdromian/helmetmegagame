@@ -4635,7 +4635,7 @@ tags:
     name: Saltpeter
     category: items
     group: items-gear
-    description: "Mined. Can be refined into {tag:gunpowder-grenade}."
+    description: "Mined. Can be refined into {tag:gunpowder-grenade} or {tag:black-powder}. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -4646,6 +4646,35 @@ tags:
     removable: true
     sellable: true
     sellablePrice: 3
+
+  # Refined saltpeter, and the one ingredient that is itself CRAFTED — the
+  # gunpowder smith's intermediate step on the way to a {tag:bomb}. Public
+  # on purpose (Chris 2026-09-05): the chain is meant to be read off the
+  # catalog, unlike the Honey → White Honey link. Numbers are drafted, not
+  # signed off: 3 ⬢ over a 3-⬢ saltpeter, sells 6.
+  black-powder:
+    catalog: all
+    name: Black Powder
+    category: items
+    group: items-gear
+    description: "Saltpeter ground fine and refined until it is eager to burn. A {tag:bomb} is built around a charge of it. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 3
+      skills: [smithing-gunpowder]
+      gambit: false
+      items: [saltpeter]
+    sellable: true
+    sellablePrice: 6
 
   # --- Three brewing ingredients that used to be prose ---------------------
   #
@@ -4702,6 +4731,45 @@ tags:
     category: items
     group: items-gear
     description: "A dark forest herb, harmless until it is refined into {tag:nightshade}. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    sellable: true
+    sellablePrice: 2
+
+  # Two more of the same shape (Chris 2026-09-05): Poppy and Distilled Coca
+  # used to be brewed out of ⬢ alone, and now spend a raw ingredient the way
+  # Nightshade does. Public like nightshade-herb, and like it, NOTHING DROPS
+  # THESE YET — the laboring loot-table pass wires acquisition; a GM grants
+  # them meanwhile.
+  poppy-pods:
+    catalog: all
+    name: Poppy Pods
+    category: items
+    group: items-gear
+    description: "Dry seed pods weeping a milky sap. Refined into {tag:poppy}. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    sellable: true
+    sellablePrice: 2
+
+  coca-leaves:
+    catalog: all
+    name: Coca Leaves
+    category: items
+    group: items-gear
+    description: "Glossy leaves that numb the tongue. Distilled into {tag:distilled-coca}. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -6574,6 +6642,9 @@ tags:
       resourceCost: 31
       skills: [smithing-gunpowder]
       gambit: false
+      # The proper explosive is built around the refined charge, not raw
+      # saltpeter (Chris 2026-09-05) — {tag:black-powder} is its own recipe.
+      items: [black-powder]
     sellable: true
     sellablePrice: 59
 
@@ -8528,13 +8599,12 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    craftable: true
+    # Foraged in the caves (the Caving paper says how), never crafted — the
+    # old craftable flag minted it from thin air at 0 ⬢ with no skill.
     consumable: true
     consumesInto:
       - slug: high
         durationTurns: 2
-    requirement:
-      resourceCost: 0
     sellable: true
     sellablePrice: 3
 
@@ -8651,6 +8721,10 @@ tags:
       perTurn: 2
       skills: [brewing-skilled]
       gambit: false
+      # Wine is made OF something now (Chris 2026-09-05): each bottle spends
+      # a unit of the tier-below brew, so Red sits at the top of a chain
+      # instead of appearing out of ⬢.
+      items: [alcohol]
     sellable: true
     sellablePrice: 14
 
@@ -8791,6 +8865,7 @@ tags:
       perTurn: 2
       skills: [brewing-basic]
       gambit: false
+      items: [poppy-pods]
     sellable: true
     sellablePrice: 4
 
@@ -8848,11 +8923,17 @@ tags:
     sellablePrice: 7
 
   # --- Advanced tonics — Brewing (Skilled) ---------------------------------
+  # Smith's work now, not a brew (Chris 2026-09-05): a powder device coming
+  # out of a still was always odd, and Smithing (Gunpowder) is where every
+  # other powder item lives. The group moved with the skill — items-weapons
+  # is what routes it to the Smithing paper (db/scripts/ops/audit-craft-docs
+  # assigns papers by group). Still spends RAW saltpeter; only the bigger
+  # {tag:bomb} wants the refined {tag:black-powder}.
   gunpowder-grenade:
     catalog: all
     name: Gunpowder Grenade
     category: items
-    group: items-drink
+    group: items-weapons
     description: "A bomb, and priced like one. Refined from {tag:saltpeter} mined out of the Caves."
     pointCost: 0
     tradeable: true
@@ -8867,7 +8948,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 6
-      skills: [brewing-skilled]
+      skills: [smithing-gunpowder]
       gambit: false
       items: [saltpeter]
     sellable: true
@@ -8995,11 +9076,15 @@ tags:
     consumable: true
     requirement:
       turnsCost: 1
-      # 2 -> 6. The trout's heart was the gate and it is gone, so the ⬢ is the
-      # gate now: a cure-anything at 2 ⬢ and no ingredient would be a steal. ‡
+      # 2 -> 6 when the trout's heart went. The gate is {tag:honey} now
+      # (Chris 2026-09-05) — a gm-catalog tag on purpose, so this recipe is
+      # one of the hidden ones: off the Recipes tab, and out of the Craft
+      # menu until the brewer actually holds Honey. The ⬢ stays at 6 for
+      # now, ruling deferred.
       resourceCost: 6
       skills: [brewing-skilled]
       gambit: false
+      items: [honey]
     sellable: true
     sellablePrice: 6
 
@@ -9063,7 +9148,7 @@ tags:
     name: Distilled Coca
     category: items
     group: items-drink
-    description: "Distilled down to a bitter green syrup. Consume for {tag:stimulant-high}. ‡"
+    description: "Distilled from {tag:coca-leaves} down to a bitter green syrup. Consume for {tag:stimulant-high}. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -9081,6 +9166,7 @@ tags:
       resourceCost: 4
       skills: [brewing-skilled]
       gambit: false
+      items: [coca-leaves]
     sellable: true
     sellablePrice: 10
     depotPrice: 11

@@ -58,7 +58,7 @@ these were missing it, which read as `null` and fell back to a whole Move.
 | `alcohol` | 2 | 1 (3/turn) | — | `tipsy` |
 | `moonshine` | **0** | 1 | `godflesh` | `tipsy`, `blind-drunk` (2t), `damaged-vision` |
 | `miasma` | 2 | 1 | **a corpse** — *kept* | — |
-| `poppy` | 2 | 1 (2/turn) | — | `opium-high` |
+| `poppy` | 2 | 1 (2/turn) | `poppy-pods` | `opium-high` |
 | `molotov-cocktail` | 2 | 0 (2/turn) | `alcohol` | — |
 | `cleaning-powder` | 2 | 1 (2/turn) | — | — |
 | `cat` | 3 | 1 | `alcohol` | `night-vision` (1t) |
@@ -75,12 +75,11 @@ these were missing it, which read as `null` and fell back to a whole Move.
 | `mindbreaker-toxin` | 2 | 1 | `cave-fungus` | `hallucinating` |
 | `invisibility-potion` | 2 | 1 | `graga-sac` | `invisible` |
 | `raven-draught` | 2 | 1 | `ravens-eye` | — |
-| `ravenheart-red` | 4 | 1 | — | `tipsy` |
-| `distilled-coca` | 4 | 1 | — | `stimulant-high` |
+| `ravenheart-red` | 4 | 1 | `alcohol` | `tipsy` |
+| `distilled-coca` | 4 | 1 | `coca-leaves` | `stimulant-high` |
 | `advanced-poppy` | 4 | 1 | `poppy` | `pain-immunity` |
 | `phrygian-tears` | 4 | 2 | — | — |
-| `white-honey` | **6** | 1 | — | — |
-| `gunpowder-grenade` | 6 | 1 | `saltpeter` | — |
+| `white-honey` | **6** | 1 | `honey` | — |
 | `purifier` | 6 | 1 | `cave-fungus` | — |
 | `dreamers-draught` | 6 | 1 | `skinless-brain` | — |
 | `succubus-draught` | **8** | 1 | — | `mindreading` |
@@ -90,7 +89,15 @@ these were missing it, which read as `null` and fell back to a whole Move.
 Four recipes lost a prose ingredient and pay in ⬢ instead, because the
 ingredient was the whole gate: `white-honey` 2 → **6** (it cures any poisoning),
 `succubus-draught` 2 → **8** (it grants mindreading), and `forgiveness` /
-`flawless-skin` keep their 8, which was already doing the work.
+`flawless-skin` keep their 8, which was already doing the work. White Honey
+has since regained a real gate — it spends a `honey`, a gm-catalog Depot
+import, which also makes it one of the HIDDEN recipes (off the Recipes tab,
+out of the Craft menu until the brewer holds one). Its 6 ⬢ stays for now;
+whether it drops back toward 2 is an open ruling.
+
+`gunpowder-grenade` left this table altogether: it is smith's work now
+(Smithing (Gunpowder), `items-weapons`), listed in the Smithing paper beside
+`black-powder` and the `bomb`. See `SMITHING.md`.
 
 An empty **Consumes into** cell is not an oversight. `consumable` with no
 `consumesInto` is set where the brew is spent *by a Move* rather than by the
@@ -104,20 +111,25 @@ either the brewer's sheet carries the thing, or the craft is refused.
 
 | Tag | Where it comes from | How the recipe uses it |
 |---|---|---|
-| `cave-fungus` | foraged in the caves. 0 ⬢. Eaten raw it gives `high` (2t). | spent |
-| `alcohol` | brewed, one tier down | spent |
+| `cave-fungus` | foraged in the caves — never crafted, since the pass that took its 0-⬢ recipe away. Eaten raw it gives `high` (2t). | spent |
+| `alcohol` | brewed, one tier down (also what `ravenheart-red` is made of) | spent |
 | `poppy` | brewed, one tier down | spent |
-| `saltpeter` | mined in the caverns | spent |
 | `graga-sac` | **butchered** out of a {Graga Corpse} | spent |
 | `skinless-brain` | **butchered** out of a {Skinless Corpse} | spent |
 | `godflesh` | hauled out of the marshes (`FACTORY.md`) | spent |
 | `nightshade-herb` | forageable — the loot pass wires it | spent |
+| `poppy-pods` | forageable — the loot pass wires it | spent |
+| `coca-leaves` | forageable — the loot pass wires it | spent |
 | `aberrant-heart` | off a fallen Aberrant | spent |
 | `ravens-eye` | forageable — the loot pass wires it | spent |
+| `honey` | Depot import, gm-catalog — the White Honey link is a secret | spent |
 | `tea` / `sweets` / `honey` | Depot imports; the cook picks one | spent (`anyOf`) |
 | **a corpse** (`items-corpse` group) | died, or was killed | **kept** |
 
-The last three tags in that table are new, and **nothing drops them yet**. The
+(`saltpeter` left this table with the grenade — powder is smith's business
+now, `SMITHING.md`.)
+
+The forageable tags in that table are new, and **nothing drops them yet**. The
 laboring loot-table pass wires acquisition; this pass only had to make the
 slugs exist. Until then they arrive by GM grant.
 
@@ -135,7 +147,9 @@ Nekker Corpse; it lost its `craftable` flag and its row in §2.
 heart and a raven's eye became `nightshade-herb`, `aberrant-heart` and
 `ravens-eye`. A rainbow trout's heart, a willing lover's blood, someone's tears
 and a lock of Nobility hair are simply gone, with the ⬢ carrying the gate
-instead (§3). The old argument for keeping them — that getting one should be a
+instead (§3) — though White Honey's gate has since been re-hung on `honey`,
+and Poppy and Distilled Coca, which never had a prose ingredient at all, now
+spend `poppy-pods` and `coca-leaves`. The old argument for keeping them — that getting one should be a
 scene rather than a purchase — held for the social ones and never held for the
 huntable ones, where there was no player on the other side, just a GM ruling on
 whether somebody's fishing trip counted.

@@ -10,6 +10,7 @@ import { assignedTo, isWritten, readerFromCharacter } from "@/lib/documentAccess
 import { getHandbookBody, HANDBOOK_KEY } from "@/lib/handbook";
 import { catalogTags } from "@/lib/tagCatalog";
 import { redactWithheldRecipes } from "@/lib/recipeCatalog";
+import { buildSkillAncestry, satisfiedSkillIds } from "@/lib/healRequests";
 
 export const metadata = { title: "Documents" };
 
@@ -251,10 +252,20 @@ export default async function DocumentsPage() {
     // redacted below before it reaches anybody — see recipeCatalog.js.
     requirementPerTurn: t.requirementPerTurn,
     requirementItems: t.requirementItems,
+    // The building system's marker; recipeRows drops carriers from the
+    // Recipes tab — a structure is raised, not crafted into a pocket.
+    placement: t.placement,
   }));
 
   const heldTagIds = (characterRow?.tags ?? []).map((ct) => ct.tagId);
   const startingTagSlugs = characterRow?.role?.startingTagSlugs ?? [];
+  // Everything the reader's character counts as having for a recipe's skill
+  // line: held tags plus the tiers they replace, the same ancestry walk the
+  // Craft menu's own verdict runs (character/page.js#knownRecipeIds). Null
+  // without a character, which is what hides the Recipes tab's checkbox.
+  const mySkillIds = characterRow
+    ? [...satisfiedSkillIds(heldTagIds, buildSkillAncestry(mappedTags))]
+    : null;
   // Two passes, in this order. catalogTags decides which TAGS this reader may
   // see; redactWithheldRecipes then reads that answer back and drops the
   // recipe off any craftable naming an ingredient the first pass withheld. Both
@@ -278,6 +289,7 @@ export default async function DocumentsPage() {
         allDocs={allDocs}
         tagCatalog={tagCatalogList}
         hasCharacter={!!character}
+        mySkillIds={mySkillIds}
       />
     </PageShell>
   );

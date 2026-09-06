@@ -172,7 +172,22 @@ Life) used to be the example; they're archived in
 | Crossbow | High Quality | |
 | Musketoon | Gunpowder | Priced at 18 pt, not the tier's 14 — a pre-existing outlier, not introduced by the Combat Update. |
 | Bore Pistol | Gunpowder | Materials cost 20 ⬢, not the tier's 31 — a pre-existing outlier, not introduced by the Combat Update. Priced accordingly in `DEPOT.md` §4. |
-| Bomb | Gunpowder | `purchasable: false` (craft-only) |
+| Bomb | Gunpowder | `purchasable: false` (craft-only). Spends one `black-powder` per unit on top of its 31 ⬢ — the one ladder recipe with an ingredient. |
+
+**Powder-work below the tier.** Two smaller `smithing-gunpowder` recipes sit
+under their own prices, each spending an ingredient (`requirement.items`,
+enforced and consumed like any brew's):
+
+| Recipe | ⬢ | Turns | Spends |
+|---|---|---|---|
+| `black-powder` | 3 | 1 | `saltpeter` (raw, mined) |
+| `gunpowder-grenade` | 6 | 1 | `saltpeter` (raw, mined) |
+
+The grenade came over from Brewing (Skilled) on 2026-09-05 — a powder device
+out of a still was always odd — and its group moved to `items-weapons` with
+it, which is what files it under the Smithing paper in `db:audit-craft-docs`.
+`black-powder` is the refining step between mined saltpeter and the Bomb; its
+numbers (3 ⬢, sells 6) are drafted, not signed off.
 
 Off the ladder — no recipe, no smithing gate:
 
