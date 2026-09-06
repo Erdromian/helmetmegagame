@@ -95,7 +95,7 @@ const THREATS = [
     blurb: [
       '"Whatever in creation exists without my knowledge exists without my consent."',
       "True evil doesn't exist, but you come close. Among the lost, weak, and misunderstood, history contains those who inexplicably choose darkness. That is you.",
-      "Your ultimate goal is to become infamous—not because you care what other people think, but because it sends a message. The more people know, fear, or respect your name, the better.",
+      "Your ultimate goal is to become infamous — not because you care what other people think, but because it sends a message. The more people know, fear, or respect your name, the better.",
       "Immortal or delusional, you treat life like a game. You glory in war and despise weakness. You fear nothing, although people that are genuinely good through and through make you uncomfortable. Fortunately, there are very few of those left.",
       "You can work alone, but you are a natural leader. Take over the Brigands, start an adventurer troop, or rise the ranks of the Bastard's entourage.",
       "Do not hide your nature or commit murders in the dark. You're not a serial killer.",
