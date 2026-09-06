@@ -395,10 +395,19 @@ async function postDmBatched(discordUserId, text, components = undefined) {
 }
 
 // type 11 = GUILD_PUBLIC_THREAD, no starter message — the caller posts it.
-async function startThread(channelId, name, autoArchiveMinutes = 10080) {
+// `rateLimitPerUser` is the thread's own slowmode, in seconds. A thread does
+// NOT inherit its parent channel's, and Discord only takes it at creation or
+// through a PATCH — which is why db/lib/syncZones.js re-asserts it on every
+// pass beside `archived: false`.
+async function startThread(channelId, name, autoArchiveMinutes = 10080, rateLimitPerUser = null) {
   return discordRequest(`/channels/${channelId}/threads`, {
     method: "POST",
-    body: { name, type: 11, auto_archive_duration: autoArchiveMinutes },
+    body: {
+      name,
+      type: 11,
+      auto_archive_duration: autoArchiveMinutes,
+      ...(rateLimitPerUser === null ? {} : { rate_limit_per_user: rateLimitPerUser }),
+    },
   });
 }
 
@@ -434,10 +443,16 @@ async function createForumPost(
 
 // type 12, invitable:false — only ManageThreads (bot, GMs) may add members,
 // which is what keeps /add the only door in.
-async function startPrivateThread(channelId, name, autoArchiveMinutes = 10080) {
+async function startPrivateThread(channelId, name, autoArchiveMinutes = 10080, rateLimitPerUser = null) {
   return discordRequest(`/channels/${channelId}/threads`, {
     method: "POST",
-    body: { name, type: 12, auto_archive_duration: autoArchiveMinutes, invitable: false },
+    body: {
+      name,
+      type: 12,
+      auto_archive_duration: autoArchiveMinutes,
+      invitable: false,
+      ...(rateLimitPerUser === null ? {} : { rate_limit_per_user: rateLimitPerUser }),
+    },
   });
 }
 

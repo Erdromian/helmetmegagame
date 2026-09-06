@@ -11,6 +11,7 @@
 // Takes `prisma` as a parameter — the db/lib/dm.js convention — and is
 // deliberately not on the @lifeweb/db barrel; require it by path.
 const { addThreadMember } = require("./discordRest");
+const { addConversationMember } = require("./conversations");
 
 async function applyPendingInvites(prisma, character) {
   if (!character?.locationId || !character.discordUserId) return 0;
@@ -25,11 +26,16 @@ async function applyPendingInvites(prisma, character) {
       threadId: { in: invites.map((i) => i.threadId) },
       locationId: character.locationId,
     },
-    select: { threadId: true },
+    select: { id: true, threadId: true },
   });
 
   let applied = 0;
-  for (const { threadId } of threads) {
+  for (const { id, threadId } of threads) {
+    // The ROW first, then the account. Membership is a database fact since
+    // phase 2 of the Hall and Discord's thread-member list is its projection
+    // (db/lib/conversations.js), so a Discord call that fails must not be
+    // what decides whether the web feed shows the conversation.
+    await addConversationMember(prisma, { playerThreadId: id, characterId: character.id });
     try {
       await addThreadMember(threadId, character.discordUserId);
       applied += 1;

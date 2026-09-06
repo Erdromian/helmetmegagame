@@ -55,6 +55,7 @@ import {
   Book,
   Package,
   DoorOpen,
+  Zap,
 } from "lucide-react";
 
 const STROKE = 1.6;
@@ -101,6 +102,8 @@ export const MoreIcon = lucide(Ellipsis, "MoreIcon");
 // The Play page: a doorway you speak through. A plain speech bubble would have
 // read as MessageIcon at rail size, which is the GM's inbox.
 export const PlayIcon = lucide(DoorOpen, "PlayIcon");
+// The Hall's action button: the place panel and the You strip live behind it.
+export const ZapIcon = lucide(Zap, "ZapIcon");
 
 // GM inbox chime mute toggle (NavRail.js). One name, two glyphs.
 export function SpeakerIcon({ muted, ...props }) {

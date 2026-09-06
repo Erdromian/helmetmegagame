@@ -65,9 +65,27 @@ level.
 **A Location** — where a character actually stands — is one text channel,
 named after its slug, parented to its zone's category (or the Caves category
 for a cave-level Location). Its topic is the Location's `description`
-(truncated to Discord's 1024-character cap). Top-level messages in it are the
-Location's open street; its Rooms (§4) are threads under it that only the bot
-may create. It is opened by a per-member overwrite, not a role (§3).
+(truncated to Discord's 1024-character cap). Its Rooms (§4) are threads under
+it that only the bot may create. It is opened by a per-member overwrite, not a
+role (§3).
+
+> **The Location channel is the street's SCENERY, not its speech**
+> (Bascinet, 2026-09-06). Standing characters hold no Send at top level: what
+> lands there is arrivals, gate crossings, smells, the turret, the noticeboard
+> and the turn line. **Talk happens in a Room thread, a Conversation or the
+> zone's `#summary`** — all of them a scene somebody chose to be in. Three
+> things carry the rule: `LOCATION_MEMBER_ALLOW` drops Send (§3),
+> `bot/src/lib/channels.js#isDesignatedTupperChannel` stops treating a
+> top-level Location channel as a tupper channel (so a GM typing there is left
+> alone rather than reposted under a mask), and `/play` draws no composer on a
+> Location (`HALL.md` §5b).
+
+**Room threads carry a 30 s slowmode** (`rate_limit_per_user`), added when the
+talk moved into them. Discord sets a thread's rate limit per
+thread and a thread inherits nothing from its parent, so `db:sync-zones`
+passes it at creation and re-asserts it on every pass, the same way it
+re-asserts `archived: false`. It is the same 30 s `db/lib/say.js` enforces for
+a web send, so a player meets one rule on both faces.
 
 **Creation is one-time; a lot is reconciled every run.** The sync only creates
 a channel/category/role whose id column is null, and channel *names* are
@@ -158,12 +176,18 @@ The overwrites every target carries (`baseOverwrites`):
 
 On top of that: the zone role gets `ViewChannel` + `SendMessages` +
 `AddReactions` on `#summary`. Each character standing in a Location gets
-`ViewChannel` + `SendMessages` + `SendMessagesInThreads` + `AddReactions` on
-that channel, as a member overwrite (`LOCATION_MEMBER_ALLOW` in
-`db/lib/zoneChannelSpec.js`) — top-level talk is allowed (the open street),
-and thread talk covers both a public and a private Room. Note that this grant
-is **not** part of `locationChannelSpec`: the spec is the channel's standing
-shape, and who is standing there changes every turn.
+`ViewChannel` + `SendMessagesInThreads` + `AddReactions` on that channel, as a
+member overwrite (`LOCATION_MEMBER_ALLOW` in `db/lib/zoneChannelSpec.js`) —
+**no `SendMessages`**, because the Location channel is scenery rather than
+speech (§2); thread talk covers both a public and a private Room, which is
+where the speech went. Note that this grant is **not** part of
+`locationChannelSpec`: the spec is the channel's standing shape, and who is
+standing there changes every turn.
+
+Send came off that bit set on 2026-09-06, and an overwrite already written
+does not update itself. The doctor's `location-occupancy` check therefore
+compares the **allow bits**, not merely whether a target is present, so one
+`npm run db:doctor -- --apply` rewrites every existing occupant (§6).
 
 **Room and Conversation creation is denied to `@everyone` on every Location
 channel.** `CREATE_PUBLIC_THREADS` and `CREATE_PRIVATE_THREADS` are both
@@ -449,7 +473,20 @@ row and lets them in at once — the Baron waving a visitor into his office.
 A **Conversation** is the one thread a player can open: a private thread
 linked to a Room, created from the anchor's **Converse** button and tracked as
 a `PlayerThread` row (`locationId`, optional `roomId` — the room the
-whispering is heard in, §below). `/add` and `/remove` work here too, and the
+whispering is heard in, §below).
+
+**Membership is a database row now, and Discord's thread member list is its
+projection.** `PlayerThreadMember (playerThreadId, characterId)` is written
+first by all four writers — Converse (the creator), `/add`, a mention into the
+conversation, and the invite replay — and `/remove` deletes it; the Discord
+add follows. All four go through `db/lib/conversations.js`, so there is one
+answer to "who is in this". The reason is `HALL.md` §2a: the web feed could
+not read a Discord member list without a REST call per conversation, and a
+player whose account is out of the channels entirely (the coming "web only"
+switch) could not be in a thread at all. The row cascades with its
+`PlayerThread`, so the Dawn wipe needs no new step.
+
+`/add` and `/remove` work here too, and the
 handler tells the two apart by the channel: a `PlayerThread` row means a
 Conversation, a `Room` row means §4a. A Conversation's `/add` is the looser of
 the two — it takes a character wherever they stand, and a standing

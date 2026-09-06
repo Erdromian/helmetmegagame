@@ -137,12 +137,22 @@ function zoneChannelSpec(zone, { spectators = true } = {}) {
 }
 
 // What one standing character is granted on the Location channel they are
-// in: talk at top level (the location's open street) and inside its Room
-// threads, but create no thread of either kind — the bot spawns every Room
+// in: READ the street and talk inside its Room threads, but say nothing at
+// top level and create no thread of either kind — the bot spawns every Room
 // and every Conversation, which is what keeps PlayerThread a complete
 // record.
-const LOCATION_MEMBER_ALLOW =
-  PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_SEND_MESSAGES_IN_THREADS | PERM_ADD_REACTIONS;
+//
+// Send came off the top level on 2026-09-06 (the Hall's decision 5, and
+// CHANNELS.md §2). A Location channel is the street's SCENERY now — arrivals,
+// smells, the turret, the noticeboard, the turn line — and talk belongs in a
+// Room thread, a Conversation or the zone summary, all of which are a scene
+// somebody chose to be in. The web face agrees: /play draws no composer on a
+// Location.
+//
+// One `npm run db:doctor -- --apply` rewrites every existing occupant's
+// overwrite to this bit set; the occupancy check compares the allow bits, not
+// just the presence of a target.
+const LOCATION_MEMBER_ALLOW = PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES_IN_THREADS | PERM_ADD_REACTIONS;
 
 // The text channel for one Location. It names no location role: the spec is
 // the channel's STANDING shape, and who is standing here changes every turn.

@@ -1,30 +1,29 @@
 import { prisma, feedRowShape, FEED_ROW_SELECT } from "@lifeweb/db";
-import { auth } from "@/lib/auth";
-import { loadFeedCharacter, mayReadPlace } from "@/lib/feedAccess";
-import { subscribeToPlace } from "@/lib/feedHub";
+import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
+import { subscribeToPlace, subscribeToPresence } from "@/lib/feedHub";
 
-// GET /api/feed?place=<key>&since=<seq> — one server-sent event stream per
-// open tab.
+// GET /api/feed?since=<seq> — ONE server-sent event stream per open tab,
+// carrying every place the viewer may read.
+//
+// Phase 0 opened a stream per place, which was fine when there was one place.
+// A Hall has a Location, its Rooms, the conversations you are in and the zone
+// summary, and six EventSources per tab would each hold their own HTTP
+// connection against a browser limit of six per origin — a player with two
+// tabs open would have starved the rest of the site.
 //
 // Never cached, never prerendered: this is a connection that stays open for as
 // long as the tab does.
 export const dynamic = "force-dynamic";
 
-const CATCH_UP_LIMIT = 200;
+const CATCH_UP_LIMIT = 400;
 const PING_MS = 25_000;
 
 export async function GET(request) {
-  const session = await auth();
-  if (!session?.discordUserId) return new Response("Not signed in.", { status: 401 });
-
-  const character = await loadFeedCharacter(session.discordUserId);
-  if (!character) return new Response("No living character.", { status: 403 });
+  const viewer = await loadFeedViewer();
+  if (!viewer.discordUserId) return new Response("Not signed in.", { status: 401 });
+  if (!viewer.character && !viewer.gm) return new Response("No living character.", { status: 403 });
 
   const { searchParams } = new URL(request.url);
-  const place = searchParams.get("place");
-  // The gate. The character comes from the session, never from the query.
-  if (!mayReadPlace(character, place)) return new Response("Not your place.", { status: 403 });
-
   const sinceParam = searchParams.get("since");
   let since = 0n;
   try {
@@ -38,9 +37,11 @@ export async function GET(request) {
   const stream = new ReadableStream({
     async start(controller) {
       let closed = false;
-      // The high-water mark: a row the hub hands us that is not above this is
-      // one the catch-up already sent, and gets dropped rather than repeated.
+      // The high-water mark: a row the hub hands us at or below this was
+      // already sent by a catch-up, and gets dropped rather than repeated.
       let lastSeq = since;
+      // placeKey -> unsubscribe
+      const subscriptions = new Map();
 
       const write = (text) => {
         if (closed) return;
@@ -70,22 +71,73 @@ export async function GET(request) {
         write(`event: message\ndata: ${JSON.stringify(row)}\n\n`);
       };
 
-      // Catch-up first, then subscribe. Doing it the other way round would
-      // leave a gap: a row written between the read and the subscribe would
-      // reach neither.
-      try {
-        const rows = await prisma.archiveEntry.findMany({
-          where: { placeKey: place, deletedAt: null, seq: { gt: since } },
-          orderBy: { seq: "asc" },
-          take: CATCH_UP_LIMIT,
-          select: FEED_ROW_SELECT,
-        });
-        for (const row of rows) sendRow(feedRowShape(row));
-      } catch (err) {
-        console.error("Feed catch-up failed:", err);
-      }
+      const catchUp = async (placeKeys, from) => {
+        if (placeKeys.length === 0) return;
+        try {
+          const rows = await prisma.archiveEntry.findMany({
+            where: { placeKey: { in: placeKeys }, deletedAt: null, seq: { gt: from } },
+            orderBy: { seq: "asc" },
+            take: CATCH_UP_LIMIT,
+            select: FEED_ROW_SELECT,
+          });
+          for (const row of rows) sendRow(feedRowShape(row));
+        } catch (err) {
+          console.error("Feed catch-up failed:", err);
+        }
+      };
 
-      const unsubscribe = subscribeToPlace(place, sendRow);
+      // Recomputes the place list, tells the client, and moves the
+      // subscriptions to match. A newly visible place is caught up from the
+      // stream's own high-water mark rather than from zero, so walking into a
+      // room does not replay a day of it — the page asks for history when the
+      // reader actually opens that place.
+      const refreshPlaces = async ({ announce = true, catchUpNew = false } = {}) => {
+        let places = [];
+        try {
+          places = await placesFor(prisma, viewer.character, viewer.options);
+        } catch (err) {
+          console.error("Feed places failed:", err);
+          return;
+        }
+        if (closed) return;
+
+        const wanted = new Set(places.map((entry) => entry.placeKey));
+        const added = [];
+        for (const key of wanted) {
+          if (subscriptions.has(key)) continue;
+          subscriptions.set(key, subscribeToPlace(key, sendRow));
+          added.push(key);
+        }
+        for (const [key, unsubscribe] of [...subscriptions]) {
+          if (wanted.has(key)) continue;
+          unsubscribe();
+          subscriptions.delete(key);
+        }
+
+        if (announce) write(`event: places\ndata: ${JSON.stringify({ places })}\n\n`);
+        if (catchUpNew && added.length > 0) await catchUp(added, lastSeq);
+      };
+
+      // The list first, so a client that reconnects knows what it is looking
+      // at before any row lands. Then the catch-up, then the subscriptions —
+      // in that order, because subscribing after the read would leave a gap a
+      // row written in between could fall into. refreshPlaces subscribes, so
+      // the catch-up runs against the list it just built.
+      await refreshPlaces({ announce: true });
+      await catchUp([...subscriptions.keys()], since);
+
+      // A presence change means the place list moved: their feet, a key, or
+      // somebody letting them into a conversation. Serialised behind one
+      // promise so two notifications in the same tick cannot interleave two
+      // resubscribes.
+      let queue = Promise.resolve();
+      const unsubscribePresence = viewer.character
+        ? subscribeToPresence(viewer.character.id, () => {
+            queue = queue
+              .then(() => refreshPlaces({ announce: true, catchUpNew: true }))
+              .catch((err) => console.error("Feed presence refresh failed:", err));
+          })
+        : () => {};
 
       // Railway's proxy closes an idle connection, and so do some corporate
       // ones. A comment line keeps it warm and costs nothing to parse.
@@ -96,7 +148,9 @@ export async function GET(request) {
         if (closed) return;
         closed = true;
         clearInterval(ping);
-        unsubscribe();
+        unsubscribePresence();
+        for (const unsubscribe of subscriptions.values()) unsubscribe();
+        subscriptions.clear();
         try {
           controller.close();
         } catch {

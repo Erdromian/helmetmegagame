@@ -36,6 +36,7 @@
 // — the db/lib/dm.js convention — and is deliberately not on the @lifeweb/db
 // barrel; require it by path.
 const { addThreadMember, removeThreadMember } = require("./discordRest");
+const { notifyPresence } = require("./presenceNotify");
 
 // The rooms in `locationId` this character may enter. Shared with the channel
 // doctor, the Secret rooms? button, the Storage button, the Transfer dialog,
@@ -164,6 +165,10 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null, gue
 
   const scope = guestsOnly ? rooms.filter((r) => spentGuestRoomIds.has(r.id)) : rooms;
   const targets = scope.filter((room) => entitled.has(room.id) !== stored.has(room.id));
+  // A door opened or shut, so this character's /play place list changed —
+  // wake their tabs before the Discord calls, which are the slow part and can
+  // fail without changing the answer the web gives (docs HALL.md §3).
+  await notifyPresence(prisma, character.id);
   if (targets.length === 0) return result;
 
   const next = new Set(stored);

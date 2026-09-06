@@ -5,20 +5,27 @@ import CharacterAvatar from "@/app/components/CharacterAvatar";
 import MarkdownContent from "@/app/components/MarkdownContent";
 import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
+import IconButton from "@/app/components/IconButton";
+import { ZapIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import {
   useFeed,
-  seedRows,
   applyRow,
-  removeRow,
   addPending,
   markPendingFailed,
   retryPending,
-  lastSeq,
+  newestSeq,
 } from "./feedStore";
 
-// The live scene: the messages said in this Location, and the box to say one.
+// One place's scene: what has been said here, and — where the place allows it
+// — the box to say something.
+//
+// This was PlayFeed.js, which knew about exactly one Location. It knows about
+// a PLACE now: the Location you are standing in, a Room off it, a conversation
+// you are in, or the zone's summary. What changes between them is the name in
+// the composer, whether there IS a composer, and the slowmode; everything
+// else is the same scene.
 //
 // Nothing here waits on a server round trip to move. Pressing Enter appends
 // the row to the store in the same frame and clears the box; the POST that
@@ -45,6 +52,17 @@ function timeLabel(iso) {
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+// What the world says, rather than what a person says: an arrival, a smell, a
+// turret, the turn line. Drawn as subtext with no face, the same way Discord
+// renders the `-#` these lines go out as (db/lib/ambientLine.js).
+const SystemRow = memo(function SystemRow({ row }) {
+  return (
+    <li className="hall-subtext">
+      <MarkdownContent content={row.content} />
+    </li>
+  );
+});
+
 // memo'd, and the whole point of keying the store by seq: a new message
 // re-renders one of these, not the run of a hundred above it.
 const FeedRow = memo(function FeedRow({ row, startsRun, mine, editing, coarse, onRetry, onEdit, onCancelEdit, onSaveEdit, onDelete }) {
@@ -57,7 +75,7 @@ const FeedRow = memo(function FeedRow({ row, startsRun, mine, editing, coarse, o
 
   return (
     <li
-      className="flex gap-3"
+      className="hall-row"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -145,46 +163,21 @@ function newClientId() {
   return `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export default function PlayFeed({ place, placeName, initialRows, self }) {
-  const rows = useFeed(place);
+export default function Feed({ place, self, onSeen }) {
+  const placeKey = place?.placeKey ?? null;
+  const rows = useFeed(placeKey);
   const coarse = useIsCoarsePointer();
   const confirm = useConfirm();
   const [draft, setDraft] = useState("");
   const [error, setError] = useState(null);
   const [atBottom, setAtBottom] = useState(true);
   const [editingSeq, setEditingSeq] = useState(null);
+  const [expanded, setExpanded] = useState(false);
 
   const scrollerRef = useRef(null);
   // Read inside the scroll handler and the arrival effect, where a stale
   // closure would stick the view to the wrong end of the list.
   const atBottomRef = useRef(true);
-
-  // The server-rendered rows go in before the stream opens, so the cursor the
-  // EventSource asks with is already past them and nothing arrives twice.
-  useEffect(() => {
-    seedRows(place, initialRows);
-    const url = `/api/feed?place=${encodeURIComponent(place)}&since=${encodeURIComponent(lastSeq(place))}`;
-    const source = new EventSource(url);
-    source.addEventListener("message", (event) => {
-      try {
-        applyRow(place, JSON.parse(event.data));
-      } catch {
-        // A malformed frame is not worth tearing the stream down over.
-      }
-    });
-    // A delete carries only a seq: the words somebody took back never come
-    // back down the wire.
-    source.addEventListener("delete", (event) => {
-      try {
-        removeRow(place, JSON.parse(event.data)?.seq);
-      } catch {
-        // Same.
-      }
-    });
-    // EventSource reconnects by itself; the store's cursor means the catch-up
-    // it does on reconnect repeats nothing.
-    return () => source.close();
-  }, [place, initialRows]);
 
   const send = useCallback(
     async (clientId, content) => {
@@ -192,31 +185,31 @@ export default function PlayFeed({ place, placeName, initialRows, self }) {
         const res = await fetch("/api/feed/say", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ place, content, clientId }),
+          body: JSON.stringify({ place: placeKey, content, clientId }),
         });
         const data = await res.json().catch(() => null);
         if (!res.ok) {
           setError(data?.error ?? "That didn't send. ‡");
-          markPendingFailed(place, clientId);
+          markPendingFailed(placeKey, clientId);
           return;
         }
         setError(null);
-        if (data?.row) applyRow(place, data.row);
+        if (data?.row) applyRow(placeKey, data.row);
       } catch {
         setError("That didn't send. ‡");
-        markPendingFailed(place, clientId);
+        markPendingFailed(placeKey, clientId);
       }
     },
-    [place],
+    [placeKey],
   );
 
   const submit = useCallback(() => {
     const content = draft.trim();
-    if (!content) return;
+    if (!content || !placeKey) return;
     const clientId = newClientId();
     setDraft("");
     setError(null);
-    addPending(place, {
+    addPending(placeKey, {
       clientId,
       seq: null,
       characterId: self.characterId,
@@ -228,14 +221,14 @@ export default function PlayFeed({ place, placeName, initialRows, self }) {
     atBottomRef.current = true;
     setAtBottom(true);
     void send(clientId, content);
-  }, [draft, place, self, send]);
+  }, [draft, placeKey, self, send]);
 
   const onRetry = useCallback(
     (clientId) => {
-      const row = retryPending(place, clientId);
+      const row = retryPending(placeKey, clientId);
       if (row) void send(clientId, row.content);
     },
-    [place, send],
+    [placeKey, send],
   );
 
   // The window, checked in an event handler where reading the clock is both
@@ -310,7 +303,11 @@ export default function PlayFeed({ place, placeName, initialRows, self }) {
     const near = el.scrollHeight - el.scrollTop - el.clientHeight <= STICK_PX;
     atBottomRef.current = near;
     setAtBottom(near);
-  }, []);
+    // Reading to the bottom is what clears the unread dot. Written on the
+    // scroll, not on selection, so opening a busy room and scrolling away
+    // still leaves the dot for what you have not read.
+    if (near && placeKey) onSeen?.(placeKey, newestSeq(placeKey));
+  }, [placeKey, onSeen]);
 
   // Scroll follows only a reader who is already at the bottom. Yanking
   // somebody back down while they are reading further up is the single most
@@ -327,6 +324,15 @@ export default function PlayFeed({ place, placeName, initialRows, self }) {
     if (el && atBottomRef.current) el.scrollTop = el.scrollHeight;
   }, [rows]);
 
+  // Changing place lands the reader at the newest line of the new place, the
+  // way opening a channel does. The ref rather than state, so this makes no
+  // render of its own.
+  useEffect(() => {
+    atBottomRef.current = true;
+    const el = scrollerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [placeKey]);
+
   // Looks BACK at the previous row rather than carrying a running variable
   // forward: react-hooks/immutability forbids reassigning a closure variable
   // inside a render, and the answer is the same either way.
@@ -342,25 +348,52 @@ export default function PlayFeed({ place, placeName, initialRows, self }) {
         const prev = i > 0 ? rows[i - 1] : null;
         const at = row.sentAt ? new Date(row.sentAt).getTime() : 0;
         const prevAt = prev?.sentAt ? new Date(prev.sentAt).getTime() : 0;
-        const startsRun = !prev || prev.characterId !== row.characterId || at - prevAt > RUN_GAP_MS;
+        const system = row.source === "SYSTEM";
+        const startsRun =
+          !prev || prev.source === "SYSTEM" || prev.characterId !== row.characterId || at - prevAt > RUN_GAP_MS;
         const mine = Boolean(row.seq) && row.characterId === self.characterId;
-        return { row, startsRun, mine };
+        return { row, startsRun, mine, system };
       }),
     [rows, self.characterId],
   );
 
+  if (!place) {
+    return (
+      <div className="hall-main">
+        <div className="hall-feed">
+          <EmptyState>Nowhere is open. ‡</EmptyState>
+        </div>
+      </div>
+    );
+  }
+
+  const description = place.description ?? "";
+  const oneLine = description.replace(/\s*\n+\s*/g, " ").trim();
+  const long = oneLine.length > 140;
+
   return (
-    <div className="panel flex flex-col gap-3" style={{ position: "relative" }}>
-      <div
-        ref={scrollerRef}
-        onScroll={onScroll}
-        style={{ maxHeight: "60vh", overflowY: "auto" }}
-      >
+    <div className="hall-main">
+      <div className="hall-head">
+        <h1 className="section-title">{place.name}</h1>
+        {oneLine && (
+          <p className="hall-blurb">
+            {long && !expanded ? `${oneLine.slice(0, 140).trimEnd()}… ` : `${oneLine} `}
+            {long && (
+              <button type="button" className="btn-quiet" onClick={() => setExpanded(!expanded)}>
+                {expanded ? "less ‡" : "more ‡"}
+              </button>
+            )}
+          </p>
+        )}
+      </div>
+
+      <div ref={scrollerRef} onScroll={onScroll} className="hall-feed">
         {withRuns.length === 0 ? (
           <EmptyState>Nothing has been said here yet. ‡</EmptyState>
         ) : (
           <ul className="list-none p-0">
-            {withRuns.map(({ row, startsRun, mine }) => {
+            {withRuns.map(({ row, startsRun, mine, system }) => {
+              if (system) return <SystemRow key={row.seq ?? row.clientId} row={row} />;
               const editing = Boolean(row.seq) && row.seq === editingSeq;
               return (
                 <FeedRow
@@ -388,8 +421,7 @@ export default function PlayFeed({ place, placeName, initialRows, self }) {
       {!atBottom && (
         <button
           type="button"
-          className="btn-quiet"
-          style={{ alignSelf: "center" }}
+          className="btn-quiet hall-pill"
           onClick={() => {
             atBottomRef.current = true;
             setAtBottom(true);
@@ -400,33 +432,49 @@ export default function PlayFeed({ place, placeName, initialRows, self }) {
         </button>
       )}
 
-      <div className="flex items-end gap-2">
-        <div className="field min-w-0 flex-1">
-          <label className="field-label" htmlFor="play-composer">
-            Say ‡
-          </label>
-          <textarea
-            id="play-composer"
-            rows={2}
-            value={draft}
-            placeholder={`Say something in ${placeName}… ‡`}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              // A phone keyboard's Enter is a newline, as it is in Discord's
-              // app; the button beside the box is the send there. On a
-              // keyboard Enter sends and Shift+Enter breaks the line.
-              if (coarse || e.key !== "Enter" || e.shiftKey) return;
-              e.preventDefault();
-              submit();
-            }}
-          />
-        </div>
-        {coarse && (
-          <button type="button" className="btn" onClick={submit} disabled={!draft.trim()}>
-            Send ‡
-          </button>
+      <div className="hall-composer">
+        {place.canSpeak ? (
+          <>
+            <div className="field min-w-0 flex-1">
+              <textarea
+                id="hall-composer"
+                aria-label={`Say something in ${place.name} ‡`}
+                rows={2}
+                value={draft}
+                placeholder={`Say something in ${place.name}… ‡`}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  // A phone keyboard's Enter is a newline, as it is in
+                  // Discord's app; the button beside the box is the send
+                  // there. On a keyboard Enter sends and Shift+Enter breaks
+                  // the line.
+                  if (coarse || e.key !== "Enter" || e.shiftKey) return;
+                  e.preventDefault();
+                  submit();
+                }}
+              />
+            </div>
+            {coarse && (
+              <button type="button" className="btn" onClick={submit} disabled={!draft.trim()}>
+                Send ‡
+              </button>
+            )}
+          </>
+        ) : (
+          // A Location is the street's scenery, not its speech (CHANNELS.md
+          // §2). Saying so beats a composer that refuses.
+          <p className="hall-quiet">
+            {place.kind === "loc"
+              ? "This is the open street. Step into a room to speak. ‡"
+              : "You can only watch here. ‡"}
+          </p>
         )}
+        {/* Phase 3 hangs the people, the place panel and the You strip off
+            this. It is drawn now, disabled, so the composer's shape does not
+            move under a player when it arrives. */}
+        <IconButton icon={ZapIcon} label="Soon ‡" disabled />
       </div>
+
       <FormError>{error}</FormError>
     </div>
   );

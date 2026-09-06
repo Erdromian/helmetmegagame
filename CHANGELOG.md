@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Every place on the Play page, and Location channels go quiet
+
+✚ The Play page now shows every place you can hear: the Location, its Rooms (the private ones you hold a key or an invitation to), your Conversations, and the zone Summary, each with an unread dot. Three columns on a desk, tabs on a phone.  
+✎ Location channels are scenery now, not speech. Nobody can type in one; talk happens in the Room threads, which carry a 30-second slowmode, and in the zone summary.  
+✎ Who is in a Conversation is a record the game keeps, and the Discord thread follows it, so a player can be let into one without ever seeing the thread.  
+✎ Moving, gaining a key or being let into a room updates your open Play tabs on the spot.
+
 ## 2026-09-06 · Everything weighs about 30% less
 
 ✎ Every item in the catalog is roughly 30% lighter; the carry cap stays at 120 lb  

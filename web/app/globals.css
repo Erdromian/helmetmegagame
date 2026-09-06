@@ -4586,3 +4586,244 @@ label.chip {
   border: 1px dashed var(--border);
   border-radius: var(--r-md);
 }
+
+/* ---- The Hall (/play) ------------------------------------------------- */
+
+/* The Hall owns its whole screen, the way the (desk) workspaces do: no
+   PageShell, no centred column. A chat that scrolled the DOCUMENT would drag
+   the header off the top every time somebody spoke, so the shell is exactly
+   the viewport and its three regions scroll inside it. */
+.hall-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* "TOWN · DAY 6 · DUSK · CLEAR" — where you are and when it is. */
+.hall-crumb {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.hall-turn {
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hall-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr) 17rem;
+}
+
+.hall-body--empty {
+  display: block;
+  overflow-y: auto;
+  padding: var(--sp-4);
+}
+
+.hall-places,
+.hall-centre,
+.hall-aside {
+  min-height: 0;
+  min-width: 0;
+}
+
+.hall-places {
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  padding: var(--sp-3) 0;
+}
+
+.hall-aside {
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  padding: var(--sp-3);
+}
+
+/* The centre is itself a column: the phone's tab strip, then the scene. */
+.hall-centre {
+  display: flex;
+  flex-direction: column;
+}
+
+.hall-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.hall-section {
+  margin-bottom: var(--sp-3);
+}
+
+.hall-section-title {
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 var(--sp-3);
+  margin-bottom: var(--sp-1);
+}
+
+.hall-place {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  border-left: 2px solid transparent;
+}
+
+.hall-place:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.hall-place:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+}
+
+.hall-place[data-active="true"] {
+  color: var(--accent-text);
+  background: var(--surface);
+  border-left-color: var(--accent-text);
+}
+
+/* Fixed width so every label starts on the same column whether or not its
+   place carries a glyph. */
+.hall-glyph {
+  width: 0.75rem;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.hall-place-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hall-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-solid);
+  flex-shrink: 0;
+  margin-left: var(--sp-2);
+}
+
+.hall-head {
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.hall-blurb {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.hall-quiet {
+  flex: 1;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.hall-feed {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.hall-row {
+  display: flex;
+  gap: var(--sp-3);
+}
+
+/* What the WORLD says: an arrival, a smell, a turret, the turn line. The web
+   half of db/lib/ambientLine.js's `-#`, which is why it wears no face. */
+.hall-subtext {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-top: var(--sp-2);
+  padding-left: calc(32px + var(--sp-3));
+}
+
+.hall-pill {
+  align-self: center;
+  margin-bottom: var(--sp-2);
+}
+
+.hall-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* The place list is the left column on a desktop and a tab strip on a phone;
+   only one of the two is ever drawn. */
+.hall-tabs {
+  display: none;
+  padding: 0 var(--sp-2);
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .hall-shell {
+    /* The 72px comes off because .app-main carries the fixed bottom bar's
+       clearance; a full 100dvh would put the composer underneath it. Unlike
+       .desk-shell, the height contract does NOT invert here — a chat whose
+       feed scrolls the page instead of itself loses its composer the moment
+       anybody says anything. */
+    height: calc(100dvh - 72px - env(safe-area-inset-bottom, 0px));
+  }
+
+  .hall-body {
+    grid-template-columns: 1fr;
+  }
+
+  .hall-places,
+  .hall-aside {
+    display: none;
+  }
+
+  .hall-tabs {
+    display: flex;
+  }
+
+  .hall-head,
+  .hall-feed,
+  .hall-composer,
+  .hall-crumb {
+    padding-left: var(--sp-3);
+    padding-right: var(--sp-3);
+  }
+
+  .hall-subtext {
+    padding-left: 0;
+  }
+}

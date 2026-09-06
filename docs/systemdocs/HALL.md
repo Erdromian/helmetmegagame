@@ -65,20 +65,80 @@ the row's seq, place key and `op` — `new`, `edit` or `delete`
 nothing. The payload is tiny on purpose; every reader loads the row and
 re-checks who may see it.
 
+## 2a. Conversation membership is a row now
+
+`PlayerThreadMember (playerThreadId, characterId, createdAt)` — primary key on
+the pair, cascading with its `PlayerThread`, indexed on `characterId`.
+
+Until phase 2 the answer to "who is in this conversation" lived **only in
+Discord**, as a thread member list. Two things were wrong with that. The web
+feed could not read it without a REST call per conversation per render, and a
+player whose Discord account is out of the channels entirely — the phase 5
+"web only" switch — could not be in one at all.
+
+So the row is the truth and **Discord's thread membership is its projection**.
+Every writer records the row first and then adds the account:
+
+| Writer | Where |
+|---|---|
+| Converse | `handleConverseCreate`, the creator |
+| `/add` on a conversation | `bot/src/events/interactionCreate.js` |
+| A mention into a conversation | `bot/src/events/messageCreate.js` |
+| The invite replay on arrival | `db/lib/threadInvites.js#applyPendingInvites` |
+| `/remove` | deletes the row |
+
+All four go through `db/lib/conversations.js` —
+`addConversationMember` / `removeConversationMember` / `conversationsFor` —
+which is also what fires the presence notify (§3), so a `/add` on Discord makes
+the conversation appear on the target's web page with no reload.
+`PlayerThreadInvite` stays beside it and keeps its old job: it is what replays
+the **Discord** add when the target finally walks into the Location.
+
+The dawn wipe needs no new step — `deletePlayerThread` cascades.
+
 ## 3. Realtime: server-sent events from the web process
 
 `web/lib/feedHub.js` keeps **one** `pg.Client` per web process (on
 `globalThis`, the same trick as the Prisma singleton, so `next dev` does not
-leak a listener per hot reload) with `LISTEN bascinet_feed`, and a map of
-place key → open streams. `GET /api/feed?place=&since=` is one stream per
-tab: it sends the catch-up rows (`seq > since`) first, then subscribes, drops
-anything at or below the last seq it sent, and writes `: ping` every 25 s so
-Railway's proxy keeps the connection. Two event names: `message` carries a
-whole row (a new one, or an edited one the client replaces by seq), `delete`
-carries a seq and nothing else — the words somebody took back never come back
-down the wire. Only a new row moves the high-water mark, since an edit and a
-delete both name a seq the stream has already sent. The browser's `EventSource` reconnects
-on its own, and the client's cursor makes the reconnect repeat nothing.
+leak a listener per hot reload). It holds **two** LISTENs on that one client —
+`bascinet_feed` for messages and `bascinet_presence` for place changes — with
+one reconnect and one backoff between them, and a map of place key → open
+streams beside a map of character id → open streams.
+
+`GET /api/feed?since=` is **one stream per tab, for every place the viewer may
+read**. Phase 0 opened a stream per place, which was fine when there was one;
+a Hall has a Location, its Rooms, the conversations you are in and the zone
+summary, and a browser allows six connections per origin — two tabs would have
+starved the rest of the site.
+
+The stream's order is: send the place list, catch up (`seq > since` across
+every allowed place), then subscribe. Doing the read before the subscribe would
+leave a gap a row written in between could fall into. It drops anything at or
+below the last seq it sent, and writes `: ping` every 25 s so Railway's proxy
+keeps the connection.
+
+Three event names now. `message` carries a whole row (a new one, or an edited
+one the client replaces by seq); `delete` carries a seq and its place and
+nothing else — the words somebody took back never come back down the wire; and
+`places` carries the whole place list. Only a new row moves the high-water
+mark, since an edit and a delete both name a seq the stream has already sent.
+The browser's `EventSource` reconnects on its own, and the client's cursor
+makes the reconnect repeat nothing.
+
+**Presence.** `db/lib/presenceNotify.js#notifyPresence(prisma, characterId)`
+carries a character id and nothing else, because "which places may they see
+now" is a query the listener has to run again anyway — and running it on the
+reader's side is what keeps a notification from being an authorisation. Three
+things fire it: the feet (`applyLocationMoveSideEffects`), a key
+(`syncCharacterRoomAccess`, only when the entitled set actually changes), and
+being let into or out of a conversation (`db/lib/conversations.js`). The
+stream recomputes its place list, moves its subscriptions, sends `places`, and
+catches the newly visible places up from its own high-water mark rather than
+from zero — so walking into a room does not replay a day of it. The page asks
+for that with `GET /api/feed/history?place=` when the reader actually opens it.
+
+`GET /api/feed/places` answers the same list on its own, for a client that has
+reason to think it moved and no stream open to be told.
 
 **Why not a WebSocket service.** Sends are an ordinary `POST` either way, and
 the optimistic append hides their latency, so bidirectional traffic buys
@@ -120,38 +180,153 @@ the same NOTIFY.
 ## 5. The page
 
 `web/app/(app)/play/`. Rail item **Play**, right under Character
-(`web/lib/navItems.js`). Phase 0 is the centre column only: the Location's
-name and description, the last 100 rows, a composer.
+(`web/lib/navItems.js`). Since phase 2 it has **left PageShell**: the Hall owns
+its whole screen the way the `(desk)` workspaces do, as the `.hall-*` family in
+`globals.css` — a `100dvh` column whose regions scroll inside it, because a
+chat that scrolled the document would drag the header off the top every time
+somebody spoke. Tokens only; `npm run audit:contrast --workspace=web` gates it
+like everything else.
 
-- `feedStore.js` is a module-level store read through `useSyncExternalStore`,
-  modelled on the GM inbox's `liveInbox.js`. Confirmed rows are keyed by seq,
-  pending rows by a client id. A confirmed row carrying the same client id
-  evicts its pending twin, **whichever of the stream or the POST answer arrives
-  first** (the stream usually wins).
-- `PlayFeed.js`: Enter appends the pending row in the same frame and clears
-  the box; the POST swaps the real row in behind it. A failed send stays on
-  screen as "Not sent. Retry". Runs group one speaker's messages within seven
-  minutes, the same rule as `DmThread.js`. The list scrolls itself, never the
-  document, and only while the reader is already at the bottom; otherwise a
-  "New messages" pill. On a coarse pointer, Enter is a newline and a Send
-  button appears, as in Discord's app. Your own rows carry ✎ and ✕ — on hover
-  with a mouse, always on a touch screen — and an edited row says "(edited)"
-  after the time. ✕ goes through the shared `useConfirm()` dialog.
-- The gate is `db/lib/feedAccess.js#allowedPlaceKeys`, with the character
-  resolved from the session and never from the request. Phase 1: only `loc:` of
-  the Location you stand in.
-- `POST /api/feed/edit` and `POST /api/feed/delete` take a `seq` and nothing
-  else that matters — the character is the session's. Both answer `{ error }`
-  with a status rather than throwing, and both leave Discord to the outbox.
-- Slowmode is 30 s per character per place (300 s for a zone summary), enforced
-  in `prepareSpeech` by the character's newest row there. Discord's channel
-  slowmode is the same number so a player sees one rule. The speech gate (mute,
-  gag) is the same `db/lib/incapacitation.js` table the proxy uses.
+### The wireframes Bascinet chose
 
-The whole send — the gate, the transforms, the slowmode, the identity — is
-`db/lib/say.js` (§2), so a web message and a Discord one are decided by the
-same code. `web/lib/feedAccess.js` is the character load and re-exports the
-rules, which live in `db/lib/feedAccess.js` where `say.js` can read them too.
+Desktop, three columns — `15rem minmax(0,1fr) 17rem`:
+
+```
+┌──────────────────┬──────────────────────────────────────┬────────────────────┐
+│ TOWN · Dusk 12   │  The Keep                        ⋯   │ (phase 3: people   │
+│──────────────────│  A vaulted hall, damp and echoing…   │  and the place)    │
+│ HERE             │──────────────────────────────────────│                    │
+│ ▸ The Keep       │  -# Somebody has entered from the    │                    │
+│ ROOMS            │     Square.                          │                    │
+│   Throne Room  ● │  ⊙ Cersei · Baroness          12:04  │                    │
+│   Cellar         │    "Shut the door behind you."       │                    │
+│   ▪ Baron's Off. │                                      │                    │
+│ CONVERSATIONS    │  ⊙ a young man                12:05  │                    │
+│   With Old Tom ● │    *pulls his cloak tighter*         │                    │
+│ SUMMARY          │                                      │                    │
+│   Town           │  ▢ Say something in the Throne Room…⌤│                    │
+└──────────────────┴──────────────────────────────────────┴────────────────────┘
+```
+
+Under 720px, one column — the places column becomes a `.tab-bar` of
+`.tab-item`s with unread dots, and the right column is deferred to phase 3
+(its ⚡ button is drawn, disabled, so the composer's shape does not move under
+a player when it arrives):
+
+```
+┌────────────────────────────────────┐
+│ ‹ Town · The Keep                  │
+│ A vaulted hall, damp and… more     │
+│────────────────────────────────────│
+│ Keep● | Throne | Cellar● | Old Tom●│
+│────────────────────────────────────│
+│ -# Somebody has entered from the   │
+│    Square.                         │
+│ ⊙ Cersei · Baroness         12:04  │
+│   "Shut the door behind you."      │
+│                                    │
+│ ⊙ a young man               12:05  │
+│   *pulls his cloak tighter*        │
+│────────────────────────────────────│
+│ ▢ Say something…            ⌤   ⚡ │
+└────────────────────────────────────┘
+```
+
+### The parts
+
+- **`Hall.js`** holds the one `EventSource`, the place list, and which place is
+  open. The open place lives in the **URL hash**, so a reload keeps it and Back
+  leaves the room the way it came; it is read through `useSyncExternalStore`
+  over `hashchange`, never an effect. A hash naming somewhere you have left
+  falls back to the first place.
+- **`PlacesColumn.js`** draws **Here** (the Location), **Rooms** (public, then
+  the private ones a key or a guest row opens, marked `▪`), **Conversations**,
+  **Summary**, and exports `PlacesTabs` — the same list as the phone's
+  `.tab-bar`. Only one of the two is ever drawn.
+- **The unread dot** is one comparison: the newest seq said in a place against
+  the newest seq this browser has seen there. The first half comes down with
+  the place list (`newestSeq`, a string — the column is a bigint) and from
+  whatever the tab has heard live; the second is `hall:seen:<placeKey>` in
+  `localStorage`, read through `useSyncExternalStore` in `seenStore.js` and
+  written when the reader scrolls to the bottom, never merely on selection.
+  It only ever moves forward.
+- **`Feed.js`** (phase 0's `PlayFeed.js`, generalised) draws one place: its
+  name, a one-line description with **more ‡**, the runs, and the composer.
+  Enter appends the pending row in the same frame and clears the box; the POST
+  swaps the real row in behind it. A failed send stays on screen as "Not sent.
+  Retry". Runs group one speaker's messages within seven minutes, the same rule
+  as `DmThread.js`. The list scrolls itself, never the document, and only while
+  the reader is already at the bottom; otherwise a "New messages" pill. On a
+  coarse pointer, Enter is a newline and a Send button appears, as in Discord's
+  app. Your own rows carry ✎ and ✕ — on hover with a mouse, always on a touch
+  screen — and an edited row says "(edited)" after the time. ✕ goes through the
+  shared `useConfirm()` dialog.
+- **A `SYSTEM` row renders as `.hall-subtext`**: muted, small, no face. That is
+  the web half of the `-#` those lines go out as on Discord
+  (`db/lib/ambientLine.js`). Phase 4 is what actually writes them.
+- **The composer is hidden where `canSpeak` is false** — every place for a GM,
+  and the Location for everybody (§5a). In its place, one line saying so.
+- **`feedStore.js`** is a module-level store read through
+  `useSyncExternalStore`, modelled on the GM inbox's `liveInbox.js`. Confirmed
+  rows are keyed by seq, pending rows by a client id, both per place. A
+  confirmed row carrying the same client id evicts its pending twin,
+  **whichever of the stream or the POST answer arrives first** (the stream
+  usually wins). It also holds the place list and which places have had their
+  history fetched.
+
+### 5a. Who may read and speak where
+
+`db/lib/feedAccess.js#placesFor(prisma, character, { gm, discordUserId })` is
+the **one** answer, and `mayReadPlace` / `mayWritePlace` derive from it rather
+than the other way round — a rule that only exists in the list could never
+disagree with the rule that guards a send. The web routes and `db/lib/say.js`
+both call these; no route re-implements them.
+
+Each entry is:
+
+```
+{ placeKey, kind: "loc" | "room" | "conv" | "zone", name, description,
+  roomKind, canSpeak, slowmodeSeconds, newestSeq }
+```
+
+in the order the column draws them: the Location, its public Rooms, the private
+Rooms `accessibleRooms` opens (keys **and** guest rows, the same door every
+other reader of that function sees), the conversations `conversationsFor` says
+you are in **at this Location**, then the zone Summary. `newestSeq` is added by
+`web/lib/feedAccess.js`, not by the rules — the dot is a page concern.
+
+Two things are read-only:
+
+- **A Location is scenery, not speech** (§5b). `canSpeak: false`, no composer.
+- **A GM speaks nowhere.** A GM with no living character gets a read-only Hall
+  over every place inside `visibleZoneIds(prisma, discordUserId)`
+  (`db/lib/gmZoneView.js`; no rows means every zone). Watching is not standing
+  there — a GM who wants to say something says it as a GM.
+
+Slowmode is 30 s per character per place, 300 s for a zone summary, enforced in
+`prepareSpeech` by the character's newest row there. Discord's channel slowmode
+is the same number so a player sees one rule; the Room threads carry it as a
+per-thread `rate_limit_per_user`, re-asserted by `db:sync-zones` on every pass
+(§5b).
+
+### 5b. Decision 5: the Location channel is scenery
+
+Bascinet, 2026-09-06 evening. A Location channel is the open street. What lands
+there is arrivals, smells, the turret, the noticeboard, the turn line — and
+talk belongs in a Room thread, a Conversation or the zone summary, all of which
+are a scene somebody chose to be in. Four changes carry it:
+
+- `LOCATION_MEMBER_ALLOW` in `db/lib/zoneChannelSpec.js` **drops Send**
+  (view, send-in-threads and reactions stay). The doctor's `location-occupancy`
+  check compares the **allow bits**, not just whether a target is present, so
+  one `npm run db:doctor -- --apply` rewrites every existing occupant.
+- Room threads get `rate_limit_per_user: 30` at creation, re-asserted the way
+  `archived: false` is (`db/lib/syncZones.js`).
+- `bot/src/lib/channels.js#isDesignatedTupperChannel` no longer treats a
+  **top-level** Location channel as a tupper channel. Threads and `#summary`
+  still are. What is left at top level is a GM typing, and a GM's own words are
+  theirs.
+- On the web the Location place is `canSpeak: false` and draws no composer.
 
 ## 6. What comes next, in order
 
@@ -189,6 +364,4 @@ rules, which live in `db/lib/feedAccess.js` where `say.js` can read them too.
    Push for mentions, and the GM desk embedding the feed for a live
    per-location view.
 
-The desktop and mobile wireframes Bascinet chose (a three-column Hall, a
-single-column Scene under 720px) are in the 2026-09-06 chat transcript and the
-plan file it came from; copy them here when phase 2 lays the columns out.
+The desktop and mobile wireframes Bascinet chose are in §5.

@@ -10,6 +10,7 @@ const { sendAsCharacter } = require("../lib/proxy");
 const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/channels");
 const { sendDm } = require("../lib/dm");
 const { REPORT_CHANNEL_ID } = require("@lifeweb/db/lib/reportChannelAccess");
+const { addConversationMember } = require("@lifeweb/db/lib/conversations");
 const {
   canHearPing,
   messageLink,
@@ -236,7 +237,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
   // (db/lib/roomAccess.js) — letting a ping hand out a seat there would
   // route straight around the lock.
   const conversation = await prisma.playerThread
-    .findUnique({ where: { threadId: channel.id }, select: { locationId: true } })
+    .findUnique({ where: { threadId: channel.id }, select: { id: true, locationId: true } })
     .catch((err) => {
       console.error("Conversation lookup failed for a mention:", err);
       return null;
@@ -251,6 +252,9 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
       // A mention into a Conversation is an invite, same contract as /add:
       // recorded, applied now if the target already stands in the location,
       // and replayed by applyPendingInvites when they arrive otherwise.
+      // Membership is a DB row now and Discord's member list is its
+      // projection (db/lib/conversations.js), so the row goes first here too.
+      await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: target.id });
       await prisma.playerThreadInvite
         .upsert({
           where: { threadId_characterId: { threadId: channel.id, characterId: target.id } },

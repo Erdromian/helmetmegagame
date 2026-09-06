@@ -638,6 +638,13 @@ async function writeRoomStarter(threadId, chunks, components) {
 // the room body, reconciled by hash. Never locked (players roleplay inside
 // it); the Dawn wipe clears replies but never the starter. Returns
 // "created" | "updated" | "unchanged" | "skipped".
+// A Room thread is where talking actually happens now that a Location channel
+// is scenery (CHANNELS.md §2), so the 30 s slowmode moved down here with it.
+// Discord sets a thread's rate limit per thread, at creation, and there is no
+// inheriting it from the parent — so the sync asserts it on every pass, the
+// same way it asserts `archived: false`.
+const ROOM_SLOWMODE_SECONDS = 30;
+
 async function syncRoomThread(prisma, room, location, snapshot, liveState) {
   if (!location?.discordChannelId) return "skipped";
 
@@ -657,7 +664,12 @@ async function syncRoomThread(prisma, room, location, snapshot, liveState) {
   }
   if (existing && room.starterMessageId && room.postHash === hash) {
     // The cheap re-assert that keeps a room visible after seven idle days.
-    if (existing.thread_metadata?.archived) await patchThread(room.discordThreadId, { archived: false });
+    if (existing.thread_metadata?.archived || existing.rate_limit_per_user !== ROOM_SLOWMODE_SECONDS) {
+      await patchThread(room.discordThreadId, {
+        archived: false,
+        rate_limit_per_user: ROOM_SLOWMODE_SECONDS,
+      });
+    }
     return "unchanged";
   }
 
@@ -667,10 +679,10 @@ async function syncRoomThread(prisma, room, location, snapshot, liveState) {
     if (!thread) {
       thread =
         room.kind === "PRIVATE"
-          ? await startPrivateThread(location.discordChannelId, title, 10080)
-          : await startThread(location.discordChannelId, title, 10080);
+          ? await startPrivateThread(location.discordChannelId, title, 10080, ROOM_SLOWMODE_SECONDS)
+          : await startThread(location.discordChannelId, title, 10080, ROOM_SLOWMODE_SECONDS);
     } else {
-      await patchThread(thread.id, { archived: false });
+      await patchThread(thread.id, { archived: false, rate_limit_per_user: ROOM_SLOWMODE_SECONDS });
       await clearMessagesExcept(thread.id, null);
     }
     const starterMessageId = await writeRoomStarter(thread.id, chunks, components);
@@ -685,7 +697,7 @@ async function syncRoomThread(prisma, room, location, snapshot, liveState) {
   }
 
   // Rewrite in place: unarchive, drop everything but the starter, edit it.
-  await patchThread(room.discordThreadId, { archived: false });
+  await patchThread(room.discordThreadId, { archived: false, rate_limit_per_user: ROOM_SLOWMODE_SECONDS });
   let starterMessageId = room.starterMessageId;
   if (starterMessageId) {
     await clearMessagesExcept(room.discordThreadId, starterMessageId);
@@ -701,7 +713,11 @@ async function syncRoomThread(prisma, room, location, snapshot, liveState) {
     await clearMessagesExcept(room.discordThreadId, null);
     starterMessageId = await writeRoomStarter(room.discordThreadId, chunks, components);
   }
-  await patchThread(room.discordThreadId, { name: title, archived: false });
+  await patchThread(room.discordThreadId, {
+    name: title,
+    archived: false,
+    rate_limit_per_user: ROOM_SLOWMODE_SECONDS,
+  });
   await prisma.room.update({
     where: { id: room.id },
     data: { starterMessageId, postHash: hash },

@@ -307,22 +307,32 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     const shouldHave = new Set(
       alive.filter((c) => c.locationId === location.id).map((c) => c.discordUserId).filter(Boolean),
     );
-    const has = new Set(
+    // The ALLOW BITS come along, not just the id: LOCATION_MEMBER_ALLOW
+    // changes over time (Send came off it when Location channels became
+    // scenery), and an occupant already holding an old overwrite would
+    // otherwise pass a presence-only check forever.
+    const has = new Map(
       (live.permission_overwrites ?? [])
         .filter((o) => Number(o.type) === 1)
-        .map((o) => o.id),
+        .map((o) => [o.id, String(o.allow ?? "0")]),
     );
+    const wantAllow = String(LOCATION_MEMBER_ALLOW);
 
     for (const userId of shouldHave) {
-      if (has.has(userId)) continue;
-      await report("location-occupancy", label, `${userId} stands here but the channel is closed to them`, () =>
+      const allow = has.get(userId);
+      if (allow === wantAllow) continue;
+      const why =
+        allow === undefined
+          ? `${userId} stands here but the channel is closed to them`
+          : `${userId} holds the old permissions here (${allow}, want ${wantAllow})`;
+      await report("location-occupancy", label, why, () =>
         putChannelOverwrite(location.discordChannelId, userId, {
-          allow: String(LOCATION_MEMBER_ALLOW),
+          allow: wantAllow,
           type: 1,
         }),
       );
     }
-    for (const userId of has) {
+    for (const userId of has.keys()) {
       if (shouldHave.has(userId)) continue;
       await report("location-occupancy", label, `${userId} can read this channel but does not stand here`, () =>
         deleteChannelOverwrite(location.discordChannelId, userId),

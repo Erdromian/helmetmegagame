@@ -59,6 +59,7 @@ const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const { postAsCharacterTo, loadVoiceState } = require("../lib/proxy");
 const { prepareSpeech, recordSpeech } = require("@lifeweb/db/lib/say");
+const { addConversationMember, removeConversationMember } = require("@lifeweb/db/lib/conversations");
 const { resolveLaborRate, qualityWord } = require("@lifeweb/db");
 const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
@@ -363,6 +364,9 @@ async function handleThreadMemberCommand(interaction, action) {
   }
 
   if (action === "remove") {
+    // The ROW is what membership is now (db/lib/conversations.js); the thread
+    // member list below is its projection.
+    await removeConversationMember(prisma, { playerThreadId: row.id, characterId: target.id });
     await prisma.playerThreadInvite
       .deleteMany({ where: { threadId: channel.id, characterId: target.id } })
       .catch((err) => console.error("Failed to delete thread invite:", err));
@@ -377,6 +381,11 @@ async function handleThreadMemberCommand(interaction, action) {
     return;
   }
 
+  // Membership first, wherever they are standing. The invite row beside it is
+  // still what replays the DISCORD add when they arrive (db/lib/threadInvites.js)
+  // — but the web feed shows them the conversation the moment they are in it,
+  // which is what makes /add work for a player who never sees the thread.
+  await addConversationMember(prisma, { playerThreadId: row.id, characterId: target.id });
   await prisma.playerThreadInvite
     .upsert({
       where: { threadId_characterId: { threadId: channel.id, characterId: target.id } },
@@ -1472,7 +1481,7 @@ async function handleConverseCreate(interaction, roomId) {
   }
 
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
-  await prisma.playerThread.create({
+  const conversation = await prisma.playerThread.create({
     data: {
       threadId: thread.id,
       name,
@@ -1483,6 +1492,9 @@ async function handleConverseCreate(interaction, roomId) {
       lastActivityTurn: openTurn?.number ?? null,
     },
   });
+  // The creator is a member like anybody else — the thread add above is only
+  // Discord's copy of that fact (db/lib/conversations.js).
+  await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: character.id });
   await prisma.auditLog
     .create({
       data: {
