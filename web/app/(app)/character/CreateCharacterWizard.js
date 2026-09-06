@@ -212,8 +212,12 @@ export default function CreateCharacterWizard({
 
   // Which titles this build has earned, from the role and from every tag it
   // will end up holding — bought and role-granted alike. Recomputed as the
-  // build changes, so buying Knighted on the Tags step puts Sir on the
+  // build changes, so taking a role that grants Nobility puts Lord on the
   // Identity step behind it.
+  //
+  // A tag that arrives inside a KIT is not counted here, because it is not
+  // held yet — a Courtier who buys the Seasoned Knight crate earns Sir when
+  // they unpack it in play, not on this step.
   //
   // ONE word per title, not three: gender picks the form, so a woman sees
   // Lady where a man sees Lord. Changing gender re-reads the whole list, which

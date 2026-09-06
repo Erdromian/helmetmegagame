@@ -380,15 +380,18 @@ tags:
   # The Court — general-court is gated behind `courtier` at the group level,
   # same idiom as general-cerberon/general-brigand, so none of these need their
   # own requiredTag.
+  # Not for sale. Knighthood is something the Baron confers or a Courtier
+  # arrives already carrying (the Seasoned Knight kit below) -- never a line
+  # item on a picker. Free, because every path to it is a grant.
   knighted:
     catalog: gm
     name: Knighted
     category: general
     group: general-court
     description: "You were knighted, and serve the Baron directly."
-    pointCost: 7
+    pointCost: 0
     visible: true
-    purchasable: true
+    purchasable: false
     purchasableAfterStart: false
 
   # --- Teaching (docs/systemdocs/LESSONS.md) -----------------------------
@@ -5441,6 +5444,230 @@ tags:
       - laboring-hunting
       - forester
       - shortbow
+
+  # --- Courtier kits ------------------------------------------------------
+  # A note on the descriptions: Knighted, Old Blood and Dancer are named in
+  # plain prose rather than as {tag:...} chips, unlike everything else these
+  # crates hold. All three live in `general-court`, which is gated behind the
+  # `courtier` tag -- and getVisibleTags (web/lib/referenceData.js) drops a
+  # gated tag for anyone not holding the gate, so a chip for one renders as
+  # the literal token on the creation screen, where NOBODY holds it yet.
+  # The same crate idiom as the Commoner kits above, for the opposite reason.
+  # A Commoner needs a trade; a Courtier needs a REASON to be in the room. The
+  # base seat is three tags and an invitation to invent your own goals, which
+  # is a lot of nothing to hand somebody on turn one -- so each of these is a
+  # courtly life bought whole, in one pick rather than six.
+  #
+  # `onlyRoles: [courtier]` is load-bearing, exactly as it is up there. Each
+  # kit holds far more than it costs (the Tutor is 17 points of tags for 4, the
+  # Seasoned Knight 39 for 9), which is fine for the seat these were written
+  # for and a faucet for anybody else. The `courtier` TAG would be the wrong
+  # gate: the Baron, the Baroness, the Heir, the Successor, the Hand and the
+  # Meister all carry it, and several of them already draw
+  # extra_starting_points. The role slug is the narrow thing meant here.
+  courtier-herald:
+    catalog: all
+    name: "Courtier: Herald"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "Carry messages for the Baron and tell the day's news. Unpacks into a {tag:horse}, a {tag:trumpet}, a {tag:bird} and four sheets of {tag:paper}. ‡"
+    pointCost: 7
+    tradeable: true
+    weight: 2
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - horse
+      - trumpet
+      - bird
+      - paper
+      - paper
+      - paper
+      - paper
+
+  # The one kit that hands over drawbacks. They arrive through a crate rather
+  # than point-buy, so the 5/12 drawback caps never see them -- that is the
+  # intent, not a hole: an old knight IS his bad hip, and pricing the kit at 9
+  # already accounts for the relief the negatives give back.
+  courtier-seasoned-knight:
+    catalog: all
+    name: "Courtier: Seasoned Knight"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "Reminisce on your valor during the Skinless attack of 1088. Unpacks into knighthood, {tag:plate-armor}, a {tag:broadsword}, a {tag:shield}, a {tag:knights-helmet}, {tag:melee-trained}, {tag:ranged-basic} and a {tag:devoted-follower} — along with the years behind all of it, {tag:old} and {tag:arthritis}. ‡"
+    pointCost: 9
+    tradeable: true
+    weight: 3
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - knighted
+      - plate-armor
+      - old
+      - arthritis
+      - broadsword
+      - shield
+      - knights-helmet
+      - melee-trained
+      - ranged-basic
+      - devoted-follower
+
+  courtier-tutor:
+    catalog: all
+    name: "Courtier: Tutor"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "Train the Successor and the Heir in your skill of choice. Unpacks into {tag:teaching}, {tag:intelligent} and {tag:insightful}. ‡"
+    pointCost: 4
+    tradeable: true
+    weight: 1
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - teaching
+      - intelligent
+      - insightful
+
+  courtier-chaplain:
+    catalog: all
+    name: "Courtier: Chaplain"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "An envoy from the church. Unpacks into {tag:chaplain}, {tag:pious} and a {tag:blessing}. ‡"
+    pointCost: 4
+    tradeable: true
+    weight: 1
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - chaplain
+      - pious
+      - blessing
+
+  courtier-carouser:
+    catalog: all
+    name: "Courtier: Carouser"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "Host marvelous feasts. Unpacks into the skills of a dancer and a {tag:game-master}, an {tag:iron-liver} and two {tag:alcohol}. ‡"
+    pointCost: 3
+    tradeable: true
+    weight: 4
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - dancer
+      - game-master
+      - alcohol
+      - alcohol
+      - iron-liver
+
+  # Two manor keys, not one: the Manors are a household, and a lord with no
+  # spare key has nobody to let in. `manor-key` is stackable, so the pair sits
+  # in one row on the sheet.
+  courtier-manor-lord:
+    catalog: all
+    name: "Courtier: Manor Lord"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "Run your manor from outside the fortress gates. Unpacks into old blood, an {tag:heirloom}, a {tag:rapier} and two {tag:manor-key}. ‡"
+    pointCost: 5
+    tradeable: true
+    weight: 2
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - old-blood
+      - manor-key
+      - manor-key
+      - heirloom
+      - rapier
+
+  courtier-debutante:
+    catalog: all
+    name: "Courtier: Debutante"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "A general member of the court, here to try their fate. Unpacks into {tag:pretty}. ‡"
+    pointCost: 1
+    tradeable: true
+    weight: 1
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - pretty
+
+  courtier-court-physician:
+    catalog: all
+    name: "Courtier: Court Physician"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "Treat the Keep's wounded. Unpacks into {tag:medical-skilled} and a {tag:sanctuary-key}, so the Sanctuary is open to you. ‡"
+    pointCost: 4
+    tradeable: true
+    weight: 1
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - medical-skilled
+      - sanctuary-key
+
+  courtier-court-artist:
+    catalog: all
+    name: "Courtier: Court Artist"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "Paint portraits of the Baron. Unpacks into {tag:artist}, {tag:musician}, an {tag:instrument} and the grace of a dancer. ‡"
+    pointCost: 5
+    tradeable: true
+    weight: 2
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - artist
+      - dancer
+      - musician
+      - instrument
+
+  # Builder (Expert) alone, with no Builder (Skilled) beside it: parentTag is a
+  # replacing tier chain, so the top rung is the whole ladder.
+  courtier-master-engineer:
+    catalog: all
+    name: "Courtier: Master Engineer"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "Improve the defenses of Ravenheart. Unpacks into {tag:builder-expert}, a {tag:hatchet}, a {tag:work-knife}, a {tag:purse} and a {tag:cart}. ‡"
+    pointCost: 8
+    tradeable: true
+    weight: 3
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - hatchet
+      - builder-expert
+      - work-knife
+      - purse
+      - cart
 
   # A one-off prop, not a shipment. It sits in the Rockside Washup with the
   # sewer key, and it is written to be indistinguishable from a crate the

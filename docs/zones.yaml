@@ -324,6 +324,7 @@ zones:
               items:
                 paper: 12
                 inquisitors-wax-stamp: 1
+                bag: 1
                 mace: 1
                 padded-cap: 1
                 crossbow: 1
@@ -1195,6 +1196,7 @@ zones:
                 shortbow: 1
                 padded-armor: 1
                 padded-cap: 2
+                hood: 2
                 brigandine: 1
                 skinned-cave-rat: 1
       hills-black-pines:
