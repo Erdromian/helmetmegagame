@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Selling to the Merchant pays 60% now, not a quarter
+
+✎ Selling something to the Merchant now pays 60% of its shelf price, up from the ~44% it was before — stocking goods and trading them on is worth doing  
+✎ Seven craftable or brewable wares keep a wage floor, so 60% never cuts what a maker earns
+
 ## 2026-09-06 · The Merchant stops being a laundry, and sells energy shields
 
 ✎ Depot prices are down about 18% across the board  
