@@ -133,20 +133,23 @@ export default function BioNameFields({ character, lastNameLocked = false, hasMu
         </label>
       </div>
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         <button
           type="button"
           className="btn-quiet"
           onClick={openDialog}
           disabled={!hasMulligan}
-          title={
-            hasMulligan
-              ? "Drinks a Mulligan Potion. ‡"
-              : "You need a Mulligan Potion to take a new name. ‡"
-          }
         >
           Change name
         </button>
+        {/* Said out loud rather than left in a `title`: a disabled button
+            often never fires hover, and a tooltip is invisible on a phone and
+            to anyone using a keyboard. */}
+        <span className="text-xs text-muted">
+          {hasMulligan
+            ? "Drinks a Mulligan Potion. ‡"
+            : "Needs a Mulligan Potion — brew one, or buy one at the Depot. ‡"}
+        </span>
       </div>
 
       <RequestDialog

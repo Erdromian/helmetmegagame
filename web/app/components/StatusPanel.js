@@ -156,6 +156,7 @@ export default function StatusPanel({
   carry = null,
   zoneMoves = null,
   zoneMovesReason = null,
+  travellingTo = null,
   pendingOffers = [],
   // What stands at this Location (db/lib/structures.js), built in
   // character/page.js. Empty on someone else's sheet.
@@ -237,6 +238,16 @@ export default function StatusPanel({
           <Row label="Location">{character.location?.name ?? "Nowhere"}</Row>
 
           <Row label="Zone">{character.zone?.name ?? "Unassigned"}</Row>
+
+          {/* A crossing that cost the Move is a day's walk, and the character
+              stays put until the next turn opens (MAP.md §3). */}
+          {travellingTo && (
+            <Row label="On the road ‡">
+              <span title="You arrive when the turn turns. Turn back from the Travel button on #turns. ‡">
+                walking to {travellingTo} ‡
+              </span>
+            </Row>
+          )}
 
           {/* Free zone crossings left this turn (CARRY.md §2). Past these a
               crossing spends the Move; at zero — which is what Overburdened

@@ -5269,9 +5269,9 @@ tags:
       skills: [artist]
       gambit: false
     sellable: true
-    # Nerfed 20% from 60. Over its 4 turns that is 12 ⬢/turn, still the best
-    # per-turn rate a craftable pays, just no longer runaway.
-    sellablePrice: 48
+    # Nerfed twice: 20% from 60, then a further 15% from 48. Over its 4 turns
+    # that is ~10 ⬢/turn, still the best per-turn rate a craftable pays.
+    sellablePrice: 41
 
   # --- Caves Update loot -------------------------------------------------
   # New found-only items for the Caving Die's loot table. See
@@ -8349,6 +8349,20 @@ tags:
     group: items-paper
     bookText: |-
       Believe in the legs. Legs will save thee, they make thee swift, fast. Thou don't need to fear any enemy, as long as thy legs are stronger than the ones of their horses, for thou are faster.
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  love-lies-and-lays-of-larry-luca-life-1-royal-loyal-lynn:
+    catalog: gm
+    name: "Love, Lies and Lays of Larry Luca: Life 1 — Royal Loyal Lynn"
+    category: items
+    group: items-paper
+    bookText: >-
+      Larry Luca lied his way into Lynn's love and affection, and invited her into his life. Lynn entered Larry's lodging, the locale's light illuminating softly. Larry Luca pulled Lynn in to feel her love in a lip lock. Larry Luca lobbed Lynn, who landed and lay on the bed, as Larry leapt to lick Lynn's royal flesh all over.
     pointCost: 0
     tradeable: true
     weight: 1

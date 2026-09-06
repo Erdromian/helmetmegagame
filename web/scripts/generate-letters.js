@@ -24,24 +24,27 @@
 
 // That trap is live on at least one dev Mac, and FONTCONFIG_FILE does not get
 // around it — this sharp build's bundled fontconfig ignores the config and the
-// `fontfile` both. It has now bitten this file twice, and both times the fix
-// was the same: change the constants here for the future, and post-process the
+// `fontfile` both. It has bitten this file twice, and both times the fix was
+// the same: change the constants here for the future, and post-process the
 // committed plaques to match.
 //
 //   1. The shade ramp. Applied over the finished plaques instead of under the
 //      glyph, which dims the ink's lower half slightly. It reads fine.
 //   2. The 2026-09-06 desaturation (TINT -> null, DARKEN 0.5 -> 0.4). The
 //      plate and the helms were rebuilt properly — neither needs a font — but
-//      the plaques were mapped in place with `greyscale()` then
-//      `linear(1.1767, -42.06)`. That map is solved rather than eyeballed: it
-//      lands the plate on the new plate's exact value while pinning the ink at
-//      the top of its old range, so the glyph did NOT darken with its ground.
-//      A plain brightness multiply was tried first and dimmed the letter into
-//      the plate, which is the thing to avoid if this happens a third time.
+//      the plaques were mapped in place, which left them 15-25 luma darker
+//      than everything else and clipped at the bottom.
+//
+// That second divergence is now closed, and in the direction of the plaques
+// rather than away from them: TONE_GAIN/TONE_OFFSET below reproduce their
+// ground from the plate, so the plate, the helms and the built portraits sit
+// where the plaques already were. Nothing is owed to the 27 committed files —
+// they are the reference, not a debt.
 //
 // The next successful run on a machine with fonts supersedes all of it and
-// nothing needs undoing first — the constants below are already the new ones.
-// Use `--plate-only` (see main) to move the plate without touching a glyph.
+// nothing needs undoing first; the plaques will come out of this pipeline
+// matching what they already are. Use `--plate-only` (see main) to move the
+// plate without touching a glyph.
 
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -81,6 +84,27 @@ const BLUR = 2.5; // abstracts the source photo into mottled stone rather than a
 const SHADE_TOP = 0.0; // opacity where the ramp begins
 const SHADE_BOTTOM = 0.5; // opacity at the bottom edge
 const SHADE_START = 0.15; // fraction down the plate the ramp begins
+// The final tone map, applied to the finished ground and nothing else. It
+// raises contrast and subtracts, which is why it is a linear() and not a
+// smaller DARKEN — modulate({ brightness }) is a pure multiply and cannot
+// express a negative offset or the black crush at the bottom edge.
+//
+// SOLVED, not eyeballed: a least-squares fit over all 240 unclipped rows of the
+// committed plaques against the plate they were cut from, max residual 2.2
+// luma. It exists because the 2026-09-06 desaturation could not re-render the
+// plaques (the fontconfig trap at the top of this file), so they were mapped in
+// place and ended up 15-25 luma darker than the plate, helms and portraits.
+// Rather than lighten 27 files that had already been clipped to black, the
+// pipeline was moved onto THEIR look — Bascinet's call — so the plate, the
+// helms and the built portraits now all land where the plaques already were.
+//
+// Note where this sits in buildPlate(): last, on the ground alone. The glyph,
+// the helm sprite and the portrait bust are all composited AFTER, so the ground
+// darkens and the foreground does not. That is the property the original
+// hand-rolled map was built to preserve, and the reason a plain brightness
+// multiply was rejected then — it dimmed the letter into its own plate.
+const TONE_GAIN = 1.4041;
+const TONE_OFFSET = -39.17;
 // Dusk's --text. Warmer against the teal than pure white; set to "#ffffff" for
 // a colder, harder plaque.
 const INK = "#efe7d6";
@@ -118,7 +142,14 @@ async function buildPlate() {
   // it. Skipped entirely when TINT is null — the stone is already greyscale
   // from the first pass, and .tint() with a grey would only flatten it again.
   const tinted = TINT ? await sharp(stone).tint(TINT).png().toBuffer() : stone;
-  return sharp(tinted).composite([{ input: shadeSvg() }]).png().toBuffer();
+  // The tone map goes last, over a plate that already carries its shade ramp —
+  // it is graded against the FINISHED ground, so it cannot be folded into
+  // DARKEN above without changing what it was fitted to.
+  return sharp(tinted)
+    .composite([{ input: shadeSvg() }])
+    .linear(TONE_GAIN, TONE_OFFSET)
+    .png()
+    .toBuffer();
 }
 
 // The darkening ramp, over the full canvas. Starts at SHADE_START rather than

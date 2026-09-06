@@ -46,6 +46,7 @@ export default function CharacterSheet({
   carry = null,
   zoneMoves = null,
   zoneMovesReason = null,
+  travellingTo = null,
   examineBlocked = null,
   hasWorkshop = false,
   tagCatalog,
@@ -214,6 +215,7 @@ export default function CharacterSheet({
                 carry={carry}
                 zoneMoves={zoneMoves}
                 zoneMovesReason={zoneMovesReason}
+                travellingTo={travellingTo}
                 pendingOffers={pendingOffers}
                 sitesHere={sitesHere}
               />

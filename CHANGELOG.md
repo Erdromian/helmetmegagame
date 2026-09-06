@@ -6,6 +6,27 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Travel that costs your Move takes a day
+
+✎ A zone crossing that spends your Move now lands NEXT turn: you keep standing where you are until the day turns, so the new zone's channels no longer open the moment you press Confirm  
+✎ Free zone crossings and walks inside a zone are unchanged — still instant  
+✚ A Turn back button for anyone already on the road. It only clears the destination; the Move is spent either way  
+✚ A book on the shelf in the Successor's Chamber
+
+## 2026-09-06 · Ten equip slots, and the Merchant can crate his own goods
+
+✎ Everyone has 10 equipment slots instead of 6. The one-helmet, one-cuirass, one-shield rule is unchanged  
+✚ Packaging Equipment in the Company's silo in the Cargo Bay, so the Merchant no longer walks to the Factory to pack a crate
+
+## 2026-09-06 · Tag chips say what a thing weighs
+
+✎ A tag's hover panel now says what it weighs, and a stack says both the each and the total  
+✎ Nothing weightless shows a line: a skill, a horse, a graft in your neck
+
+## 2026-09-06 · Avatars all sit on the same dark stone now
+
+✎ The helm avatars and the built portraits were still lighter than the letter plaques. They all share one ground again, and there is no green left in any of them
+
 ## 2026-09-06 · The Censor can read
 
 ✚ The Censor starts Literate, like every other Court seat

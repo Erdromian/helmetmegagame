@@ -1,5 +1,5 @@
 // Tag writes shared by both faces of the game — the bot's GM `/heal` command
-// and every web/lib/requestEffects.js caller both go through these (which
+// and every web/lib/tagEffects.js caller both go through these (which
 // re-exports them), so a tag write is never implemented twice.
 //
 // Every function here takes a transaction client (`tx`) as its first

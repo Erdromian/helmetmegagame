@@ -28,7 +28,7 @@ import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 // The /store checkout. One cart, one transaction, ONE batched BUY_TAGS
 // request — applied immediately and reviewed by a GM afterwards, the same
 // contract as every other request (REQUESTS.md). Undo lives in
-// web/lib/requestEffects.js and returns the whole cart.
+// web/lib/tagEffects.js and returns the whole cart.
 //
 // A server action is a public endpoint: everything the client enforced is
 // re-derived and re-checked here against the catalog and the character's

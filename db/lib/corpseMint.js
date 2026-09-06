@@ -133,7 +133,7 @@ async function mintCorpse(tx, character, turn = null) {
 //
 // NOT used by Butcher or Bury. Those consume the HOLDING and deliberately
 // leave the Tag row behind, because a GM's Undo has to be able to put the body
-// back — see web/lib/requestEffects.js.
+// back — see web/lib/tagEffects.js.
 async function deleteCorpseFor(db, characterId) {
   const tag = await db.tag.findUnique({ where: { corpseOfCharacterId: characterId }, select: { id: true } });
   if (!tag) return false;

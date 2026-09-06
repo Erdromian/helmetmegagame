@@ -35,10 +35,6 @@ function turnLabel(turn) {
   return `${turn.number} · ${turn.phase === "DAWN" ? "Dawn" : "Dusk"}`;
 }
 
-function truncate(text, limit) {
-  const clean = (text ?? "").trim();
-  return clean.length > limit ? `${clean.slice(0, limit - 1)}…` : clean;
-}
 
 
 // An optional catch-all rather than a [moveId] child route, for two reasons.

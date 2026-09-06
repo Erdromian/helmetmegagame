@@ -160,7 +160,7 @@ async function loadCharacter(db, id) {
 // function, on purpose.
 async function createConfessionOffer(
   prisma,
-  { penitentId, chaplainId, tagId, reason = null },
+  { penitentId, chaplainId, tagId },
 ) {
   const { turn, locked } = await openTurnAndWindow(prisma);
   if (!turn) return { ok: false, reason: "No turn is open. ‡" };
@@ -217,7 +217,6 @@ async function createConfessionOffer(
       teacherId: chaplainId,
       learnerId: penitentId,
       tagId,
-      reason,
     },
   });
 

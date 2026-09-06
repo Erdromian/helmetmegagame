@@ -615,7 +615,7 @@ Four bands, about 106 tags in total:
 | Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9, Moderate 22, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
 | Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
 | Factory goods | a day's output at ~2.2× a good farming day | `squeeze` 4 a cube — 8 cubes is a shift (`FACTORY.md` §6). Buy-only in the other direction: the station sells nobody a cube |
-| Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **48** |
+| Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **41** |
 
 **Three numbers moved in the Butchering change** (`CORPSES.md`), and they are
 off the bands above on purpose. `skinless-brain` went 10 → 40 then **40 → 25**
@@ -626,8 +626,9 @@ with a whole day of industry, and read as a shortcut past it. 25 keeps it well
 clear of a Graga Sac without competing with a wagon.
 `dreamers-draught` went 16 → **60**, staying
 above its own ingredient, because the point of that recipe is that the brain is
-the cheap part. `painting` went 60 → **48**, a flat 20% nerf; over its 4 turns
-that is 12 ⬢/turn, still the best rate a craftable pays.
+the cheap part. `painting` went 60 → 48, a flat 20% nerf, and then 48 →
+**41**, a further 15%; over its 4 turns that is ~10 ⬢/turn, still the best
+rate a craftable pays.
 
 **`human-flesh` is deliberately not sellable at all.** Butchering is free and
 every death mints a corpse, so a price on it would be a code-enforced ⬢ faucet

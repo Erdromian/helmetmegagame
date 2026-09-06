@@ -288,7 +288,7 @@ const DEFAULT_GAME_CONFIG = {
   productionCoefficient: 0.93,
   startingTagPoints: 12,
   playerCount: 80,
-  equipSlots: 6,
+  equipSlots: 10,
   carryWeightLbs: 120,
   carryResourceCap: 25,
   freeZoneMovesPerTurn: 1,
@@ -735,7 +735,9 @@ export async function bulkMoveCharacters(formData) {
   // The denormalization contract: locationId and zoneId are written together.
   await prisma.character.updateMany({
     where: { id: { in: characters.map((c) => c.id) } },
-    data: { locationId: location.id, zoneId: location.zoneId },
+    // travelTo* cleared alongside: being put somewhere by a GM ends any walk
+    // in progress, or db/lib/travelArrivalPass.js would undo this at Dawn.
+    data: { locationId: location.id, zoneId: location.zoneId, travelToLocationId: null, travelTurnId: null },
   });
 
   const report = await prisma.systemReport.create({

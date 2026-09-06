@@ -66,6 +66,9 @@ export default async function DevTagsPage() {
           equipLayer: t.equipLayer,
           meleeArmor: t.meleeArmor,
           ballisticArmor: t.ballisticArmor,
+          // The detail sheet's "Weighs …" flag — `tradeable` below is the
+          // other half of the rule (web/lib/formatTagWeight.js).
+          weightLbs: t.weightLbs,
           forcedName: t.forcedName,
           consumable: t.consumable,
           removable: t.removable,

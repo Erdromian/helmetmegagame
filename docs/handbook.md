@@ -384,7 +384,7 @@ You can go over. Past the cap you're **Overburdened**, which costs you your free
 
 **Carts and horses have to be equipped to do anything**, and they take up an equipment slot like anything else. You can't bring either one indoors — into the Cathedral, the Sanctuary, the Inn, the Keep, the Undercroft, the Factory, the Mountain, or anywhere underground — so they're left at the door for you when you walk in, and you take them up again on the way out. ‡
 
-**Equipment:** Weapons and armor must be **equipped** to use them in a fight. You have 6 slots for equippable tags. Click a tag to equip or unequip it instantly.
+**Equipment:** Weapons and armor must be **equipped** to use them in a fight. You have 10 slots for equippable tags. Click a tag to equip or unequip it instantly. ‡
 
 Equipping is also a public act. Some gear — a dagger, a pistol, a badge — is small enough to keep out of sight, and other people only see it while you have it equipped. A tag's tooltip says which: **Seen by others · Only while worn**. Big things (a sword, a shield, plate, a banner) are seen whether you have them equipped or not, because you can't hide them.
 

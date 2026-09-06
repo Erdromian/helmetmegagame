@@ -342,7 +342,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     // button needs to know — otherwise a re-rolled cursed character is
     // handed back 3 points creation never gave them.
     cursed: isCursed(member),
-    equipSlots: config?.equipSlots ?? 6,
+    equipSlots: config?.equipSlots ?? 10,
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
     maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     startingTagPoints: config?.startingTagPoints ?? 12,

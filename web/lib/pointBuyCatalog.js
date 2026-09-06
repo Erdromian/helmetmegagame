@@ -90,6 +90,10 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
     // see where it ends before they take the points for it.
     defaultDurationTurns: t.defaultDurationTurns,
     expiresInto: t.expiresInto,
+    // TagChip's "Weight" line. Both halves — an untradeable tag weighs nothing
+    // against the carry cap whatever the column says (web/lib/formatTagWeight.js).
+    weightLbs: t.weightLbs,
+    tradeable: t.tradeable,
     // Carried through the projection by hand like everything else here — the
     // relations are on the row but PointBuy only ever sees what this map
     // builds, so omitting them renders an empty Unlocks section everywhere.

@@ -30,7 +30,6 @@ const MOVE_STATUS_OPTIONS = Object.values(MOVE_REVIEW_LABELS).filter(
 const MOVE_STATUS_RANK = { Open: 0, "Waiting for Opponents": 0, Solved: 1, Passed: 2 };
 // Same trick for the Caving lens — see rankedMoves below.
 const CAVING_STATUS_RANK = { "Needs attention": 0, Resolved: 1 };
-const REVIEWED_OPTIONS = ["Reviewed", "Unreviewed"];
 const CAVING_STATUS_OPTIONS = ["Needs attention", "Resolved"];
 
 const MOVE_FILTER_DEFS = [

@@ -64,9 +64,15 @@ const CENTRE_Y = 0.47;
 // and generate-letters.js already keeps its own copy of the same pair for the
 // same reason. Must match TINT/DARKEN in web/scripts/generate-letters.js and
 // FADE_TINT/FADE_DARKEN/FADE_HEIGHT in web/lib/portrait/catalog.js.
+//
+// BLACK as of 2026-09-06: the plate's own tone map now crushes its bottom edge
+// to zero, and a fade toward any lighter colour would LIFT that edge back up —
+// the mismatch this pass was closing, reappearing upside down. The fade still
+// earns its keep, because it sinks the SPRITE's lower edge into the shade; the
+// plate's ramp cannot, since the sprite is composited on top of it.
 const FADE_HEIGHT = 0.3;
-const FADE_TINT = { r: 0x3c, g: 0x3c, b: 0x3c };
-const FADE_DARKEN = 0.4;
+const FADE_TINT = { r: 0, g: 0, b: 0 };
+const FADE_DARKEN = 1;
 
 // Built once — it never varies — and reused across all 21 sprites.
 function fadeSvg() {

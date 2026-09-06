@@ -400,7 +400,11 @@ model GameConfig {
   // transaction that flips CharacterTag.equipped, so two tabs racing on the
   // last slot cannot both win. Editable live from the Dev Panel, same posture
   // as startingTagPoints above.
-  equipSlots Int @default(6)
+  //
+  // Raised 6 -> 10 on 2026-09-06, Bascinet's call. This is the FLAT count only;
+  // the per-body-part rule is separate and unchanged, so ten slots still buys
+  // nobody a second helmet (db/lib/equipSlots.js).
+  equipSlots Int @default(10)
 
   // Carry caps: how many POUNDS of tradeable tags and how many ⬢ a character
   // can hold before they are Overburdened (docs/systemdocs/CARRY.md). Base
@@ -943,6 +947,8 @@ model Location {
 
   rooms            Room[]
   characters       Character[]
+  // Characters walking here right now — Character.travelToLocationId.
+  travellers       Character[]     @relation("CharacterTravelDestination")
   playerThreads    PlayerThread[]
   startingForRoles Role[]          @relation("RoleStartingLocation")
   yields           LocationYield[]
@@ -1385,6 +1391,17 @@ model Character {
   // db/lib/locationTravel.js#performLocationMove; a GM teleport or creation
   // leaves it alone so the character can step at once.
   lastLocationMoveAt DateTime?
+
+  // A journey in progress. A zone crossing that costs the Move no longer
+  // lands at once — the Move is spent now and the character keeps standing
+  // where they are until db/lib/travelArrivalPass.js walks them over at the
+  // next turn advance, so nobody sees the destination's channels a turn early
+  // (docs/systemdocs/MAP.md §3). A free crossing and a same-zone hop are
+  // still instant and never write these. `travelTurnId` is the turn the
+  // journey was declared in, for the sheet's wording.
+  travelToLocationId String?
+  travelTo           Location? @relation("CharacterTravelDestination", fields: [travelToLocationId], references: [id])
+  travelTurnId       String?
 
   // The conceal toggle (/conceal, or the switch on /character). While on,
   // every message proxies under the concealedAlias with the unknown avatar,
@@ -1999,7 +2016,7 @@ model Tag {
   // Supply Kit — a Purse has no tag half at all (consumesInto: []), while a
   // Supply Kit combines both. Null means consuming grants no Resources.
   // Applied by the same consumeTagRequest that reads consumesInto, through
-  // the ordinary creditResources primitive (web/lib/requestEffects.js), and
+  // the ordinary creditResources primitive (web/lib/tagEffects.js), and
   // snapshotted into Request.effect so CONSUME_TAG's undo can debit it back
   // without re-deriving from live state. See docs/systemdocs/CAVING.md.
   consumesIntoResources Int?
@@ -2897,8 +2914,6 @@ model Offer {
 
   // { diceRoll, diceModifier, total, succeeded, gmDecided }
   outcome Json?
-  // The web dialog's reason field, copied onto the BIND_CHARACTER request.
-  reason  String?
 
   createdAt   DateTime  @default(now())
   respondedAt DateTime?
@@ -3063,18 +3078,25 @@ model AuditLog {
   // Player actions stopped asking for a reason when they stopped being
   // Requests, so this is blank for most rows.
   reason    String?
-  // The turn this happened in, when there was one. It exists because the
-  // per-turn rations (MEDICAL_TIER_CAPS, DEAD_SIMPLE_PER_TURN, a tag's own
-  // requirementPerTurn) used to count Request rows, and this table is what
-  // replaced them — a ration has to be a cheap indexed count, not a scan.
-  // /gm/audit's turn filter reads it too, rather than inferring from dates.
+  // The turn this happened in. It exists because the per-turn rations
+  // (MEDICAL_TIER_CAPS, DEAD_SIMPLE_PER_TURN, a tag's own requirementPerTurn)
+  // used to count Request rows, and this table is what replaced them — a
+  // ration has to be a cheap indexed count, not a scan.
+  //
+  // Only the actions a ration counts set it, so it is NULL on most rows and
+  // is not a general "which turn was this" column. /gm/audit's turn filter
+  // does not read it; that still derives the turn from createdAt.
   turnId    String?
   createdAt DateTime @default(now())
 
   @@index([actionType])
   @@index([actorDiscordUserId])
-  // The rationing lookup: one character's actions of one kind in one turn.
+  // The rationing lookups. Craft counts the crafter, which IS the row's
+  // target; healing counts the MEDIC, who is the actor rather than the
+  // target — the target there is the patient — so the two need different
+  // indexes. Getting that axis wrong uncaps the thing being rationed.
   @@index([targetCharacterId, actionType, turnId])
+  @@index([actorDiscordUserId, actionType, turnId])
   // /gm/audit's default view sorts the whole table by createdAt with no
   // filter, and runs a count() beside it. Neither index above can serve that.
   @@index([createdAt])
@@ -3293,7 +3315,7 @@ model Desire {
   characterId     String
   character       Character    @relation(fields: [characterId], references: [id])
   // STAYS non-null: a snapshot of template.name at claim time, so every
-  // existing reader (requestEffects.js, the bot's 🔍/⚜️ embeds, the archive,
+  // existing reader (tagEffects.js, the bot's 🔍/⚜️ embeds, the archive,
   // auditNarrative.js…) stays untouched by the catalog rework.
   text            String
   // The awarded number — a GM re-score writes it, so it can diverge from

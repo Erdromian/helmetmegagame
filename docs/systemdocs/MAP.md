@@ -264,6 +264,27 @@ adds one, and being Overburdened takes them all away — the full rule lives in
 [`CARRY.md`](CARRY.md) §2a. So a peasant walks Town → Forest for nothing,
 spends their Move to reach the Fortress, and the way home waits for next turn.
 
+**A crossing that costs the Move only lands NEXT TURN.** It is a day on the
+road: the Move is spent the moment the player confirms, but
+`Character.locationId` is not written. The destination is parked on
+`Character.travelToLocationId` (with `travelTurnId`, the turn it was declared
+in), and `db/lib/travelArrivalPass.js` — **last** in `TURN_PASSES` — walks the
+traveller and everyone they dragged over at the next advance. That is what
+keeps the destination's channels shut for the rest of the turn they left in,
+instead of opening under them the second they press Confirm. A **free**
+crossing and a same-zone hop are untouched and still instant.
+
+While a journey is pending the character is **frozen where they stood**:
+`performLocationMove` refuses every move with "You're on the road to X", and
+the Travel button offers one **Turn back** control (`loc:turnback`) instead of
+a picker. Turning back clears the destination and nothing else — the `Action`
+is filed and the Move is gone either way, so it is a change of mind, not a
+refund. Nothing is announced at departure; the ordinary arrival lines fire next
+turn, plus a "You arrive at X" DM. Every raw relocation (a GM teleport, Bulk
+Move, the staged "Relocate to", `MOVE_CHARACTER`) clears the pending
+destination too, or the pass would undo the teleport at Dawn, and so does
+death.
+
 Spending the Move is written as a real, auto-resolved `Action`
 (`type: MOVE`, `status: CONFIRMED`, `moveReviewStatus: SOLVED`,
 `gmNotes: "auto:zone_change"`), landing in `/gm/turns`' Moves history rather
@@ -305,11 +326,17 @@ character, on any `CAVE_LEVEL` destination — and arrival is now the *only*
 time it rolls, so walking is what wakes the dark. A Location wearing the
 `safe` attribute is exempt; Customs is the only one (`CAVING.md` §2).
 
+On a deferred crossing the die waits with everything else: nobody has arrived,
+so `travelArrivalPass` rolls it next turn through the thunk.
+
 `performLocationMove` returns `{ ok, oldLocation, oldZone, targetLocation,
 targetZone, crossedZone, spentTurn, usedHorse, moved: [{ character,
 fromLocationId, fromZoneId, toLocationId, toZoneId, zoneChanged, cavingDm },
 ...] }` (mover first) on success, or `{ ok: false, reason,
-retryAfterSeconds? }` on refusal.
+retryAfterSeconds? }` on refusal. A deferred crossing adds `deferred: true`
+and returns **`moved: []`** — every caller drives its role swaps off that list
+and nothing has moved — with the party in `travelers` instead, for the DM that
+tells a passenger they are being walked somewhere.
 
 ## 4. The Discord half
 
@@ -358,6 +385,7 @@ the geography it described no longer exists. The
 | File | Role |
 |---|---|
 | `db/lib/locationTravel.js` | `performLocationMove` — validation, the cooldown or the Move, dragging, the Caving roll; no Discord |
+| `db/lib/travelArrivalPass.js` | the turn pass that lands a paid crossing — the relocation and the archive row; no Discord |
 | `db/lib/locationMove.js` | `applyLocationMoveSideEffects` — the Discord half, shared by every caller |
 | `db/lib/roomAccess.js` | `syncCharacterRoomAccess` — private Room membership |
 | `db/lib/threadInvites.js` | `applyPendingInvites` — replays standing `/add` invites on arrival |
