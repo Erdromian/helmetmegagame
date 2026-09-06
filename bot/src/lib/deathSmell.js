@@ -17,6 +17,7 @@
 // anywhere the wipe treats as an anchor. Do neither and it clears itself.
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
+const { sceneLineAt } = require("@lifeweb/db/lib/scene");
 
 // Four to ten real hours, randomized. It was two to five when a turn was half
 // a day; a turn is a whole day now, so the window doubled to keep a body
@@ -24,7 +25,8 @@ const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
 // turn pass on purpose — see nextDelay() below.
 const MIN_DELAY_MS = 4 * 60 * 60 * 1000;
 const MAX_DELAY_MS = 10 * 60 * 60 * 1000;
-const LINE = ambientLine("It smells like death…");
+const SMELL = "It smells like death…";
+const LINE = ambientLine(SMELL);
 
 function nextDelay() {
   return MIN_DELAY_MS + Math.floor(Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS + 1));
@@ -72,6 +74,8 @@ async function runDeathSmell(prisma) {
     } catch (err) {
       console.error(`Death smell failed for ${loc.name}:`, err.message ?? err);
     }
+    // Beside the post: the Hall shows the same smell as subtext.
+    await sceneLineAt(prisma, { locationId: loc.id, text: SMELL });
   }
   return posted;
 }

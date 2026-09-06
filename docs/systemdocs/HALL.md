@@ -65,6 +65,45 @@ the row's seq, place key and `op` — `new`, `edit` or `delete`
 nothing. The payload is tiny on purpose; every reader loads the row and
 re-checks who may see it.
 
+### What the world says is a row too
+
+Since phase 4, an ambient line writes an `ArchiveEntry` beside the Discord
+post it already made — `source: "SYSTEM"`, no character, `channelKind:
+"scene"`, and the plain sentence with **no `-#`** in it. The prefix is
+Discord's way of rendering subtext; the web renders a SYSTEM row as
+`.hall-subtext` itself, so storing it would put literal `-#` on the page.
+`db/lib/scene.js#sceneLine` / `#sceneLineAt` is the one writer, best-effort
+like every other archive write.
+
+Beside, never instead: the poster still posts. And never through the outbox,
+which handles `WEB` rows only — a SYSTEM row can no more be re-posted into the
+channel it came from than a proxied one can.
+
+| Poster | Where the row lands |
+|---|---|
+| `worldBroadcast.js#ambientEverywhere` | every Location |
+| `worldBroadcast.js#broadcastToZones` | every zone |
+| `soundBroadcast.js#broadcastSound` (so the Cathedral bell too) | one row per Location in earshot — the same words at every distance, since a bell never muffles and all the distance decided was the `-#` |
+| `locationMove.js#announceGateCrossing` | the destination zone |
+| `intercom.js#broadcastIntercom` | one row per zone in range, the `@here` left off — a notification is not part of what was said |
+| `turretBurst.js#announceTurretBurst` | the gun's Location and its neighbours |
+| `deathSmell.js#runDeathSmell` | each Location that stinks |
+| the noticeboard's pin and tear, on **both** faces | the Location |
+| `roomAnnounce.js#announceInRoom` | the Room |
+| `whisperPoll.js` | the Room, one line per fifteen minutes |
+| `advanceTurn`'s staged public declarations | the declaration's zone |
+| the turn opening | one `TURN_START` per zone, `placeKey: zone:<id>`, so every zone feed carries the day line |
+
+The intercom used to write a single row from the Speak handler with no place
+key at all. It read correctly in `/archive` and was invisible in the Hall,
+because a zone feed can only show a row filed against its own place key — so
+it is one row per zone now.
+
+`/archive`'s **Speech** view hides them (`source: { not: "SYSTEM" }` beside the
+`MESSAGE` filter, with `TURN_START` kept for the day divider). The events those
+lines narrate already fold into the muted `<details>` under **Everything**, and
+printing both would show every arrival twice.
+
 ## 2a. Conversation membership is a row now
 
 `PlayerThreadMember (playerThreadId, characterId, createdAt)` — primary key on

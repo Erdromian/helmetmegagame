@@ -357,6 +357,7 @@ async function runStagedPushPass(prisma, turn, config) {
         content: message.content,
         zoneName: message.zone?.name ?? null,
         // Every PUBLIC row carries a real (non-CAVE_GROUP) zone.
+        zoneId: message.zoneId ?? null,
         zoneSummaryChannelId: message.zone?.discordSummaryChannelId ?? null,
       });
       continue;

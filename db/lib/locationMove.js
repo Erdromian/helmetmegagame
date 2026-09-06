@@ -21,6 +21,7 @@ const { applyPendingInvites } = require("./threadInvites");
 const { notifyPresence } = require("./presenceNotify");
 const { syncCharacterRoomAccess } = require("./roomAccess");
 const { ambientLine } = require("./ambientLine");
+const { sceneLineAt } = require("./scene");
 const { settleCarry, deliverCarryDrop } = require("./carry");
 const { parkMountsIndoors, parkedMessage } = require("./indoors");
 const { settlePhobias } = require("./phobias");
@@ -140,7 +141,10 @@ async function announceGateCrossing(prisma, character, fromLocationId, toLocatio
 
   const who = link.announce === "TRUE_NAME" ? character.name : aliasSubject(character);
   if (!who) return;
-  await postMessage(channelId, ambientLine(`${who} has entered ${toLocation.name}.`));
+  const said = `${who} has entered ${toLocation.name}.`;
+  await postMessage(channelId, ambientLine(said));
+  // The Hall's half of the same crossing (db/lib/scene.js), beside the post.
+  await sceneLineAt(prisma, { zoneId: toLocation.zone?.id ?? toLocation.zoneId, text: said });
 }
 
 // The offer to hold a keyed door open behind you.

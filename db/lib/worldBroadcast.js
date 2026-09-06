@@ -21,6 +21,7 @@
 // db/lib/dm.js convention; require it by path.
 const { postMessage } = require("./discordRest");
 const { ambientLine } = require("./ambientLine");
+const { sceneLineAt } = require("./scene");
 
 // Only set for a message that is MEANT to wake people who are offline. The
 // nuke is the one thing in the game that qualifies.
@@ -33,7 +34,7 @@ const EVERYONE = { parse: ["everyone"] };
 async function broadcastToZones(prisma, content, { mentionEveryone = false } = {}) {
   const zones = await prisma.zone.findMany({
     where: { discordSummaryChannelId: { not: null } },
-    select: { name: true, discordSummaryChannelId: true },
+    select: { id: true, name: true, discordSummaryChannelId: true },
     orderBy: { sortOrder: "asc" },
   });
 
@@ -52,6 +53,10 @@ async function broadcastToZones(prisma, content, { mentionEveryone = false } = {
       failed.push(zone.name);
       console.error(`World broadcast to ${zone.name} failed:`, err.message ?? err);
     }
+    // Beside the post, never instead of it (db/lib/scene.js). `content` is
+    // already the finished message, ‡ and all, so the row does not sign it
+    // again. Written even when the post failed: the thing happened.
+    await sceneLineAt(prisma, { zoneId: zone.id, text: content, signed: false });
   }
   return { sent, failed };
 }
@@ -67,7 +72,7 @@ async function ambientEverywhere(prisma, text, { signed = true } = {}) {
   const content = ambientLine(text, [], { signed });
   const locations = await prisma.location.findMany({
     where: { discordChannelId: { not: null } },
-    select: { name: true, discordChannelId: true },
+    select: { id: true, name: true, discordChannelId: true },
     orderBy: { name: "asc" },
   });
 
@@ -81,6 +86,9 @@ async function ambientEverywhere(prisma, text, { signed = true } = {}) {
       failed.push(location.name);
       console.error(`Ambient broadcast to ${location.name} failed:`, err.message ?? err);
     }
+    // The Hall's half of the same line: the plain sentence, no `-#`, which
+    // the web renders as subtext itself.
+    await sceneLineAt(prisma, { locationId: location.id, text, signed });
   }
   return { sent, failed };
 }

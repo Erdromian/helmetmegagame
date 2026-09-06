@@ -4,6 +4,7 @@ const { paperDescription } = require("@lifeweb/db/lib/paper");
 const { addToStack, dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
 const { expiryFrom } = require("@lifeweb/db/lib/turnFormat");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
+const { sceneLineAt } = require("@lifeweb/db/lib/scene");
 const {
   BOARD_OPTION_LIMIT,
   boardText,
@@ -154,6 +155,8 @@ async function handleNoticeTear(interaction, locationId) {
     // already committed (ARCHITECTURE.md §5).
     await postMessage(ctx.location.discordChannelId, ambientLine(tornLine(post.tag.name))).catch(() => {});
   }
+  // Beside the post, so the Hall sees the board change too.
+  await sceneLineAt(prisma, { locationId: ctx.location.id, text: tornLine(post.tag.name) });
   return respond(interaction, { content: `You take ${post.tag.name} down. ‡`, ephemeral: true });
 }
 
@@ -207,6 +210,7 @@ async function handleNoticePin(interaction, locationId) {
   if (ctx.location.discordChannelId) {
     await postMessage(ctx.location.discordChannelId, ambientLine(pinnedLine(held.tag.name))).catch(() => {});
   }
+  await sceneLineAt(prisma, { locationId: ctx.location.id, text: pinnedLine(held.tag.name) });
   return respond(interaction, {
     content: `You nail ${held.tag.name} up. Anyone here can read it, or take it down. ‡`,
     ephemeral: true,
