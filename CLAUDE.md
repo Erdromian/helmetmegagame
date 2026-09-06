@@ -248,6 +248,7 @@ you pick the right doc — they are never enough to change code with.
 | [`CONFESSION.md`](docs/systemdocs/CONFESSION.md) | You're touching Confess, the `psychological` tag flag, who may hear a confession, or the rule that a chaplain is never shown the sin |
 | [`CRAFTING.md`](docs/systemdocs/CRAFTING.md) | You're touching Craft, Destroy, the four tag capability flags (`craftable` / `removable` / `healable` / `teachable`), multi-turn projects, or who pays for a recipe |
 | [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript or `/archive` |
+| [`HALL.md`](docs/systemdocs/HALL.md) | You're touching `/play`, the live feed (`/api/feed`, the SSE hub, the bot's outbox), `ArchiveEntry.seq` / `placeKey`, or the coming "web only" switch |
 | [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents`, `docs/documents.yaml`, `/handbook`, or `docs/handbook.md` |
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
 | [`PORTRAITS.md`](docs/systemdocs/PORTRAITS.md) | You're touching the portrait maker, avatar art, or `Character.avatarData` |
@@ -501,6 +502,7 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 | **GM role** | `DISCORD_GM_ROLE_ID` env var, **or** `TRIAL_GM_ROLE_ID` in `db/lib/roleIds.js` | `/gm` pages, the `/gm` and `/message` slash commands, and the GM's standing channel overwrites. Checked via REST (`isGm`), not stored on any model. The two are access-identical — `gmRoleIds()` is the only list, and the roster on `/gm/dev?s=gamemasters` is the one surface that tells them apart. |
 | **Spectator role** | `SPECTATOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A standing read-only observer seat, applied at provisioning time. See `CHANNELS.md`. |
 | **Player role** | `PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may ready up in the lobby or create a character, paired with `GameState.phase` (`LOBBY.md` §1, `CHARACTERS.md` §4b). |
+| **Playtest role** | `PLAYTEST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | May skip the lobby and create a character in any phase, like a GM, and counts as on the roster without the Player role. Testing access, nothing else (`LOBBY.md` §2). |
 | **Leader Whitelist role** | `LEADER_WHITELIST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may pick or prioritise a role flagged `whitelist: true`, and tick a whitelisted antagonist box — unless `GameConfig.leaderWhitelistEnabled` is switched off on `/gm/dev` (`CHARACTERS.md` §2, `THREATS.md` §1). |
 | **Cursed role** | `DISCORD_CURSED_ROLE_ID` env var | What a player may re-roll as after a death (`CHARACTERS.md` §4), **and** the ghost seat: read-only view of every zone (cave levels included; private threads stay invisible), and no voice at all — the 🌬️ whisper is gone, an unburied body reports itself instead. Its color is pinned to 0 so ghosts aren't outed in the member list (`CHANNELS.md` §3, `COMMANDS.md` §6). |
 | **Turn-ping role** | `DISCORD_TURN_PING_ROLE_ID` env var | Plain opt-in notification, toggled from `/character`. |

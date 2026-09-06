@@ -14,6 +14,50 @@
 // requiring it back would resolve to a partial (prisma-less) exports object.
 // Deliberately NOT spread into the @lifeweb/db barrel — require it by path.
 
+const { notifyFeed } = require("./feedNotify");
+
+// The columns the live feed needs off a row, and nothing else. Kept beside
+// feedRowShape below so the two never drift.
+const FEED_ROW_SELECT = {
+  seq: true,
+  placeKey: true,
+  characterId: true,
+  characterName: true,
+  concealedAlias: true,
+  content: true,
+  sentAt: true,
+  source: true,
+  editedAt: true,
+  deletedAt: true,
+};
+
+// One archived row as the wire shape /play and /api/feed speak.
+//
+// `name` is the PRESENTED name: a concealed or forced send was written under
+// its alias, and that is the only name the room ever heard. `discordUserId`
+// is never sent — the whole point of the proxy is that the web page has no
+// more idea who is behind a character than a Discord channel does.
+//
+// `seq` is a BigInt on the row and a STRING here. JSON.stringify throws on a
+// BigInt, and a Number would lose precision at the far end of the range.
+function feedRowShape(row, extra = {}) {
+  if (!row) return null;
+  return {
+    seq: String(row.seq),
+    placeKey: row.placeKey ?? null,
+    characterId: row.characterId ?? null,
+    name: row.concealedAlias ?? row.characterName ?? null,
+    alias: row.concealedAlias ?? null,
+    avatarVersion: row.avatarVersion ?? (row.sentAt ? new Date(row.sentAt).getTime() : null),
+    content: row.content ?? "",
+    sentAt: row.sentAt ? new Date(row.sentAt).toISOString() : null,
+    source: row.source ?? "DISCORD",
+    editedAt: row.editedAt ? new Date(row.editedAt).toISOString() : null,
+    deletedAt: row.deletedAt ? new Date(row.deletedAt).toISOString() : null,
+    ...extra,
+  };
+}
+
 // Every write here is best-effort and swallows its own failure. A transcript
 // row is never worth breaking a player's message over, and the proxy path
 // calls this inline with the send. Failures are logged, not thrown.
@@ -61,7 +105,7 @@ async function resolveTurn(prisma, turn) {
 async function recordArchiveMessage(prisma, entry) {
   return safely("message write", async () => {
     const [turn, gameId] = await Promise.all([resolveTurn(prisma, entry.turn), currentGameId(prisma)]);
-    return prisma.archiveEntry.create({
+    const row = await prisma.archiveEntry.create({
       data: {
         kind: "MESSAGE",
         gameId,
@@ -78,8 +122,19 @@ async function recordArchiveMessage(prisma, entry) {
         channelKind: entry.channelKind ?? null,
         threadName: entry.threadName ?? null,
         discordChannelId: entry.discordChannelId ?? null,
+        placeKey: entry.placeKey ?? null,
+        source: entry.source ?? "DISCORD",
+        // A row the bot itself just posted is already on Discord, so the
+        // outbox has nothing to do with it. A WEB row leaves this null, which
+        // is exactly what the outbox looks for.
+        discordSyncedAt: entry.discordMessageId ? new Date() : null,
       },
     });
+
+    // After the insert, never inside it: a listener woken before the row is
+    // committed would look it up and find nothing.
+    if (row.placeKey) await notifyFeed(prisma, { seq: row.seq, placeKey: row.placeKey });
+    return row;
   });
 }
 
@@ -89,7 +144,7 @@ async function recordArchiveMessage(prisma, entry) {
 async function recordArchiveEvent(prisma, entry) {
   return safely(`${entry.kind} write`, async () => {
     const [turn, gameId] = await Promise.all([resolveTurn(prisma, entry.turn), currentGameId(prisma)]);
-    return prisma.archiveEntry.create({
+    const row = await prisma.archiveEntry.create({
       data: {
         kind: entry.kind,
         gameId,
@@ -101,8 +156,13 @@ async function recordArchiveEvent(prisma, entry) {
         characterId: entry.character?.id ?? entry.characterId ?? null,
         characterName: entry.character?.name ?? entry.characterName ?? null,
         content: entry.content ?? "",
+        placeKey: entry.placeKey ?? null,
+        source: entry.source ?? "SYSTEM",
       },
     });
+
+    if (row.placeKey) await notifyFeed(prisma, { seq: row.seq, placeKey: row.placeKey });
+    return row;
   });
 }
 
@@ -123,6 +183,8 @@ async function deleteArchiveMessage(prisma, discordMessageId) {
 }
 
 module.exports = {
+  FEED_ROW_SELECT,
+  feedRowShape,
   currentGameId,
   forgetGameId,
   recordArchiveMessage,

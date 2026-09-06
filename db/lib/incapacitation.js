@@ -25,9 +25,8 @@
 // db/lib/inspectVision.js) and answers a different question — what a surface
 // will show you, not what you may do. Hearing cannot be modelled at all: a
 // shout and the intercom are posted into shared Discord channels, and there
-// is no way to hide a channel message from one member of it. {tag:deaf} is
-// therefore enforced on the SENDING side only (it cannot work a radio,
-// db/lib/intercom.js) and not hearing stays roleplay, as it always has.
+// is no way to hide a channel message from one member of it, so not hearing
+// is roleplay, as it always has been.
 const ACT = "ACT";
 const SPEAK = "SPEAK";
 

@@ -6,6 +6,31 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The web can speak: a live Play page
+
+✚ A Play page on the web, right under Character: the channel of the Location you stand in, live, with a box to speak into it. What you type appears at once and reaches everyone else within a blink.  
+✎ Every message a character says is now written down with where it was said, so the web page and Discord read one record.  
+✚ A line typed on the web is posted into the Location's Discord channel by the bot within a second, and a bot restart never loses one.
+
+## 2026-09-06 · The Deaf tag is gone, and the trade kits are one-per-character
+
+− The Deaf tag. Hard of Hearing no longer conflicts with it, and the intercom no longer refuses anyone for it  
+✎ The three Commoner kits conflict with each other, and so do the ten Courtier kits, so a character picks one trade at creation  
+✎ Six retired tags pruned from the database: Deaf, Empathetic, Kennelmaster, Navigating, Compromising Letters, Peerless Beauty
+
+## 2026-09-06 · Four community fixes, merged from Erdromian's and kezzawozza's pull requests
+
+✎ A bare cart is now refused at an on-foot threshold, the same way a horse is  
+✎ The Dev Panel's Kill, Spend turn, Restore turn and Transfer ⬢ dialogs have their reason box back, so Transfer ⬢ works again  
+✎ Faction invites and applications have their note field back, so the 'We said' column finally shows something  
+− Eating a Gunpowder Grenade
+
+## 2026-09-06 · A Playtest role, and a leaner lobby
+
+✚ A Playtest Discord role, handed to every Contributor: it skips the lobby and creates a character in any phase, like a GM, and counts as on the roster without the Player role  
+✎ The lobby is two columns now — roles on the left, the Ready card, the fallback dropdown and the antagonist boxes on the right — with every explainer and tooltip gone  
+− Starting areas from the lobby's role rows
+
 ## 2026-09-06 · The handbook and the GM docs know about the lobby
 
 ✎ The player handbook explains readying up, the roll, the deadline DM, and joining by hand after the start  

@@ -204,6 +204,17 @@ enum ArchiveKind {
   TRAVEL
 }
 
+// Which face wrote an ArchiveEntry. DISCORD is a message proxied out of a
+// Discord channel, WEB one typed into /play, SYSTEM a line the game itself
+// said. The outbox in bot/src/lib/feedOutbox.js only ever posts WEB rows on
+// to Discord, so this is what keeps a proxied message from being echoed back
+// into the channel it came from.
+enum ArchiveSource {
+  DISCORD
+  WEB
+  SYSTEM
+}
+
 /// DURABLE host configuration: the knobs and feature switches a GM tunes, plus
 /// the Discord pointers and the REST breaker that have to outlive a process.
 /// Nothing here is game state. Restart Game never touches this row — what a
@@ -3549,6 +3560,33 @@ model ArchiveEntry {
   // current GameState.
   gameId String
 
+  // The live-feed cursor. Monotonic and assigned by Postgres, so the bot and
+  // the web app never have to agree on a clock — `id` is a cuid and `sentAt`
+  // is whatever the writing process thought the time was. A client asks for
+  // rows above the last seq it holds and can miss nothing.
+  //
+  // BigInt in Prisma, which means it comes back as a JS BigInt: serialise it
+  // as a STRING wherever it crosses into JSON, and compare a cursor with
+  // BigInt(), never Number().
+  seq BigInt @unique @default(autoincrement())
+
+  // Where the row was said, as a snapshot string rather than an FK, matching
+  // every other id column here: `loc:<id>`, `room:<id>`, `conv:<id>`,
+  // `zone:<id>`. db/lib/placeKey.js is the only thing that mints one.
+  placeKey String?
+
+  source ArchiveSource @default(DISCORD)
+
+  editedAt DateTime?
+
+  // Soft delete. A row a client already holds has to be reconcilable, so
+  // /play and /archive filter on this rather than the row going away.
+  deletedAt DateTime?
+
+  // The outbox watermark: when this row was last pushed to Discord. Null on a
+  // WEB row means the bot has not posted it yet.
+  discordSyncedAt DateTime?
+
   createdAt DateTime @default(now())
 
   // NOTE: ArchiveEntry also carries a trigram GIN index on `content`
@@ -3568,6 +3606,7 @@ model ArchiveEntry {
   @@index([zoneId, sentAt])
   @@index([characterId, sentAt])
   @@index([discordChannelId, sentAt])
+  @@index([placeKey, seq])
 }
 
 // A GM's own notes about a player, on the player desk's dossier.
