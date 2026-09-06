@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The bot is back up, and appearance has more room
+
+✎ The bot had been crashing on boot since the phobia pass shipped half-committed; the missing pieces are in  
+✚ Character appearance now takes 400 characters instead of 300
+
 ## 2026-09-06 · Role charters: the contributor's pass
 
 ✎ The Baron, Baroness, Hand and Meister open with new intros; the Baron keeps his intercom and the yard turret  
