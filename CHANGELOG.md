@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The web app is back up
+
+✎ A half-landed change had left the site querying two database columns that no longer existed, which took every page down. The structural-edge system is now properly gone
+
 ## 2026-09-06 · The zone picker answers on the click
 
 ✎ The Zones control now responds to a click straight away, instead of freezing for about twenty seconds  
