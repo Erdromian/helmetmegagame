@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Role charters: the contributor's pass
+
+✎ The Baron, Baroness, Hand and Meister open with new intros; the Baron keeps his intercom and the yard turret  
+✎ Forty-odd charter paragraphs reworded across the Court, the Cerberon, the Church, the Sanctuary, the Town, the Company and the Brigands  
+✎ Every Watchmen mention now says Cerberi  
+− The zone situations (stale opening-state blurbs on every zone)  
+− The You-can-crucify line on the Inquisitor, Practicus and Preacher, now that crucifixion is a structure  
+✎ The Bishop is untouched
+
 ## 2026-09-06 · The Cross structure is called Crucifix
 
 ✎ Tag names have to be unique and a Cross item already exists, so the structure that crucifies people is named Crucifix. Players still read it as the cross in every line about it.
