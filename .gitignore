@@ -21,3 +21,7 @@ zone.svg
 zone.pdf
 # Antagonist design doc — local only, never committed (see docs/systemdocs/SECRETS.md)
 docs/systemdocs/SECRETS.md
+
+# LOCAL_MODE's stubbed-Discord-write log (db/lib/localMode.js) — local dev
+# output, never real
+local-discord-outbox.jsonl

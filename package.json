@@ -12,6 +12,8 @@
     "dev:bot": "npm run dev --workspace=bot",
     "dev:session": "node scripts/dev/session.mjs",
     "dev:check": "node scripts/dev/check.mjs",
+    "dev:setup": "node scripts/dev/setup-local.mjs",
+    "dev:seed": "node scripts/dev/seed-test-data.mjs",
     "push": "bash scripts/push.sh",
     "changelog": "node scripts/changelog/log.js",
     "redeploy": "railway redeploy -s web --from-source -y && railway redeploy -s '@lifeweb/bot' --from-source -y",

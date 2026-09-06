@@ -4,6 +4,7 @@
 
 const { DISCORD_MESSAGE_LIMIT, chunkMessage } = require("./chunkText");
 const { presentedIdentity } = require("./presentedIdentity");
+const { isLocalMode, localDiscordRequest } = require("./localMode");
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -186,6 +187,12 @@ async function discordRequest(
   path,
   { method = "GET", body, allow404 = false, auth = true, formData = null } = {},
 ) {
+  // db/lib/localMode.js — the one place local dev's "no real Discord" toggle
+  // lives. Short-circuits before auth headers, rate limiting or the breaker
+  // even get involved, since none of that means anything without a network
+  // call to protect.
+  if (isLocalMode()) return localDiscordRequest(path, { method, body });
+
   const jsonBody = formData === null && body !== undefined;
   const contentType = jsonBody ? { "Content-Type": "application/json" } : undefined;
   const headers = auth ? authHeaders(contentType) : contentType;

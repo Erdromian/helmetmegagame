@@ -220,6 +220,7 @@ you pick the right doc — they are never enough to change code with.
 | [`COMMANDS.md`](docs/systemdocs/COMMANDS.md) | You're adding or changing a slash command, button, modal or reaction |
 | [`TURN-ENGINE.md`](docs/systemdocs/TURN-ENGINE.md) | You're touching how a turn advances — hunger, auto-labor, weather, the side-effect thunk |
 | [`LAUNCH.md`](docs/systemdocs/LAUNCH.md) | You're opening a game or running a Restart Game wipe — the order that keeps players from being locked out |
+| [`LOCAL-DEV.md`](docs/systemdocs/LOCAL-DEV.md) | You're setting up a local Postgres, testing a GM-gated page with no real Discord credentials, or about to run anything against the live database |
 | [`SYNC.md`](docs/systemdocs/SYNC.md) | You're editing a YAML master or a sync script, or wondering what a sync deletes |
 | [`CHANNELS.md`](docs/systemdocs/CHANNELS.md) | You're changing Discord channel layout, visibility, or the Dawn wipe |
 | [`CHARACTERS.md`](docs/systemdocs/CHARACTERS.md) | You're touching creation, roles, names, the point economy, death, or launch gating |
@@ -312,8 +313,8 @@ npm run db:generate                  # prisma generate. Runs on `npm install`
 npm run db:migrate                   # prisma migrate dev. LOCAL POSTGRES ONLY.
                                      #   Against Railway it offers a full reset
                                      #   on drift, which is how game one died.
-                                     #   .claude/hooks/prisma-guard.sh refuses
-                                     #   it when DATABASE_URL points at Railway.
+                                     #   .claude/hooks/db-guard.py refuses it
+                                     #   when DATABASE_URL points at Railway.
 npm run db:migrate:deploy            # prisma migrate deploy (production).
                                      #   ./migrate.sh wraps it with a Railway
                                      #   backup first.
@@ -422,6 +423,14 @@ someone else's commit lands, since several sessions share this one checkout.
 Environment variables (see `.env.example`): `DATABASE_URL`, `DISCORD_TOKEN`,
 `DISCORD_GUILD_ID`, `DISCORD_GM_ROLE_ID`, `DISCORD_CLIENT_ID`,
 `DISCORD_CLIENT_SECRET`, `AUTH_SECRET`.
+
+**None of the above needs to be real.** `npm run dev:setup` builds a whole
+local stack — a local Postgres, migrated and seeded from the YAML masters —
+and `LOCAL_MODE=true` (also written by that script) answers every Discord
+call locally, so `isGm` and friends pass with no bot token, guild, or GM role
+anywhere. See [`LOCAL-DEV.md`](docs/systemdocs/LOCAL-DEV.md) for the full
+walkthrough — read it before reaching for the live database to check whether
+something works.
 
 The player and spectator role IDs are **not** env vars. They're hardcoded in
 `db/lib/roleIds.js` — see "Discord permission model" below for why.
@@ -697,28 +706,49 @@ it before writing any UI. Four rules apply everywhere:
   clean, and threw only when someone opened the page. That's why the rule is
   on.
 
-## Game state: NOT LAUNCHED — act, don't ask
+## Game state: playtest data is real — ask before anything destructive
 
-**The next game has not started.** There are no players, no live turns, and
-nothing in the database that cannot be rebuilt from the YAML masters and a
-wipe. Until Bascinet says the game is live, treat production as a sandbox:
+**There is a single live production site now, with playtest users whose
+characters, turns and messages are real.** The pre-launch "act, don't ask"
+era described in git history is over. Do not treat production as a sandbox
+you can rebuild from the YAML masters and a wipe — someone's afternoon is in
+that database.
 
-- **Push and deploy destructive changes without asking.** Migrations that
-  drop columns, `db:sync-zones`, `db:sync-documents`, `db:prune-tags --
-  --apply`, a Restart Game wipe, a `#info` rebuild — all fine. Just do it and
-  say what you did afterwards. The game's phase (`GameState.phase`,
-  `LOBBY.md` §1) is part of that sandbox: flip it for a test and put it back.
-- **Don't stop for confirmation** on Railway, Prisma, or Discord work.
-  Bascinet is usually away from the keyboard and would rather come back to
-  finished work than to a question.
+- **Stop and ask before anything that can lose data on the live database.**
+  A migration that drops a column, `db:sync-zones`, `db:sync-documents`,
+  `db:prune-tags -- --apply`, `db:prune-orphan-roles -- --apply`,
+  `db:prune-stale-channels -- --apply`, a `#info` rebuild, a Restart Game
+  wipe — none of these are "just do it" any more. Say exactly what you're
+  about to run and why, in chat, and wait for a real yes before running it.
+  "The user asked me to fix X" is not the same as "the user approved
+  wiping/pruning rows to do it" — a destructive step inside a bigger task
+  still needs its own confirmation.
+- **`.claude/hooks/db-guard.py` backs this up technically, not just in
+  prose.** It refuses the destructive `db:*` scripts above outright when
+  `DATABASE_URL` resolves to the live Railway database, unless the command
+  is prefixed with `CONFIRMED=1`. That prefix exists to be typed by hand
+  *after* the user has actually said yes in chat — reaching for it the
+  moment the hook blocks something defeats the entire point of the hook.
+  A full reset (`prisma migrate dev`/`reset`, `db push`, `npm run
+  db:migrate`) has **no bypass at all**, confirmed or not — see the next
+  bullet.
+- **Test locally first, by default.** There is close to never a reason to
+  need the live database just to check whether a change works.
+  [`LOCAL-DEV.md`](docs/systemdocs/LOCAL-DEV.md) covers `npm run dev:setup`
+  (a local Postgres, migrated and seeded from the YAML masters) and
+  `LOCAL_MODE` (every Discord call answered locally — no real bot token,
+  guild, or GM role needed to test a GM-gated page).
 - **Still never `prisma migrate reset` or accept a `migrate dev` reset
-  prompt.** That is how game one died on day 10, and the habit has to be
-  gone before launch, not after. Author migrations so `migrate deploy`
-  applies them.
+  prompt.** That is how game one died on day 10, and the habit was gone
+  before this launch for exactly that reason — it does not get looser now.
+  Author migrations so `migrate deploy` applies them.
+- **A backup comes first**, even once the user has approved something
+  destructive — `npm run db:backup`, or `npm run deploy`'s automatic one
+  ahead of a migration. Approval is not a reason to skip it.
 
-When the game goes live, Bascinet flips this section and the rules above
-invert: every destructive path needs an explicit go, and a backup taken
-first.
+None of this applies to a local Postgres under `LOCAL_MODE` — that database
+holds nobody's real anything, and the whole point of `LOCAL-DEV.md` is to
+make that the place syncs, wipes and migrations get tried first.
 
 ## Git workflow
 
