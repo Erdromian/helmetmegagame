@@ -48,6 +48,19 @@ export default function CharacterSheet({
   zoneMovesReason = null,
   travellingTo = null,
   examineBlocked = null,
+  // Six flags the page computes off your own sheet and the provider gates
+  // buttons on. They were passed here and dropped for a while, which is why
+  // the Nuclear Datacard never showed its buttons: the provider's default
+  // `false` won, silently.
+  canBindBook = false,
+  bindBlocked = null,
+  bookOptions = [],
+  canCrucify = false,
+  canDisguise = false,
+  hasDatacard = false,
+  hasDevice = false,
+  // Same fate: BioForm's conceal toggle reads it, and it never arrived.
+  concealGear = null,
   hasWorkshop = false,
   tagCatalog,
   desireSlots = 2,
@@ -205,6 +218,13 @@ export default function CharacterSheet({
             harmTargets={harmTargets}
             harmTags={harmTags}
             examineBlocked={examineBlocked}
+            canBindBook={canBindBook}
+            bindBlocked={bindBlocked}
+            bookOptions={bookOptions}
+            canCrucify={canCrucify}
+            canDisguise={canDisguise}
+            hasDatacard={hasDatacard}
+            hasDevice={hasDevice}
           >
             <div className="flex flex-col gap-6">
               <StatusPanel
@@ -263,6 +283,7 @@ export default function CharacterSheet({
                 portraitSelection={portraitSelection}
                 hasCustomAvatar={hasCustomAvatar}
                 forcedIdentity={forcedIdentity}
+                concealGear={concealGear}
               />
             </section>
           )}

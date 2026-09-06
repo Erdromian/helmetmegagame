@@ -12,14 +12,14 @@
 //              `whitelist: true` locks the box to holders of the Whitelist
 //              Discord role — the same role that gates leader seats.
 //   assign     a real seat a GM can hand to an existing character. Grants the
-//              tags and points named here and DMs the blurb.
+//              tags and points named here and DMs the seat's Role charter.
 //   spawn      the same seat, handed to somebody with no character: a whole
 //              new one, offered over DM and accepted with a button.
 //
 // HALF THE OPT-INS ARE DECOYS. They carry `optIn` and nothing else, so ticking
 // one tells a GM about consent without telling the player which seats are
-// real. An entry with neither `assign` nor `optIn` is a brief a GM runs
-// entirely by hand — no checkbox, no button, prose only.
+// real. The hand-run briefs (Brigands, Monsters, the Sympathizer) are not
+// entries at all — they live in SECRETS.md, since nothing here reads prose.
 //
 // A seat's INCOMPATIBLE TAGS are not listed here: they are `conflictsWith`
 // edges on the seat tag itself in docs/tags.yaml, so the store and Add Tag
@@ -34,8 +34,10 @@
 // downstream has to sort. That ordering is also what hides the real seats
 // among the decoys on the wizard.
 //
-// The blurbs are Bascinet's own words and carry no ‡ (CLAUDE.md), except the
-// one Demoness line that was drafted here and still waits on a rewrite.
+// No prose lives here. What a seated player reads is the Role's own charter
+// from docs/roles.yaml (intro + description), sent by the seat DM in
+// web/app/(app)/gm/dev/threatActions.js. The hand-run briefs — Brigands,
+// Monsters, the Sympathizer — are in SECRETS.md.
 
 const THREATS = [
   {
@@ -51,18 +53,6 @@ const THREATS = [
     optIn: { whitelist: true },
   },
   {
-    slug: "brigand",
-    name: "Brigand",
-    zone: "Caves",
-    blurb: ["Loot the caves (dangerous) as a way to fund the Camp's war effort."],
-  },
-  {
-    slug: "brigand-leader",
-    name: "Brigand Leader",
-    zone: "Caves",
-    blurb: ["Loot the caves (dangerous) as a way to fund the Camp's war effort."],
-  },
-  {
     slug: "demoness",
     name: "Demoness",
     // "Succubus" on the checkbox: the word says 18+ and lewd out loud, which
@@ -75,15 +65,6 @@ const THREATS = [
     // /gm/dev/characters/[id] still shows up.
     seatTagSlug: "demoness",
     zone: "Fortress",
-    blurb: [
-      "You live for the thrill of enslaving souls and causing pain.",
-      "You are a being from the Caves. You have been alive for a long time, but your memory is fuzzy.",
-      "You don't need to eat. Instead, you live for the thrill of enslaving souls, manipulating people, and causing pain. You will become unhappy if you don't.",
-      "You can Break souls — see the Demoness tag.",
-      "Your Desires are drawn from the Demoness's own gated catalog entries (`demoness`), a ladder running from encouraging someone to let loose at the low end up to enslaving the soul of the Heir at the top — see `docs/desires.yaml`'s `4g. Demoness` block for the full list. ‡",
-      "You find normal crosses tacky and boring. Fire scares you somewhat — it definitely hurts. The Silver Cross, on the other hand, terrifies you. If you touch it, your powers are disabled for the rest of the day.",
-      "There may be people in the area who want to use your power. They'll take your treasured independence — the demented, servile idiots.",
-    ],
     assign: { tagPoints: 7, tagSlugs: ["demoness", "hungerless", "beautiful"] },
     spawn: {
       gender: "WOMAN",
@@ -103,15 +84,6 @@ const THREATS = [
     assignable: true,
     seatTagSlug: "judge",
     zone: "Town, or Cave",
-    blurb: [
-      '"Whatever in creation exists without my knowledge exists without my consent."',
-      "True evil doesn't exist, but you come close. Among the lost, weak, and misunderstood, history contains those who inexplicably choose darkness. That is you.",
-      "Your ultimate goal is to become infamous — not because you care what other people think, but because it sends a message. The more people know, fear, or respect your name, the better.",
-      "Immortal or delusional, you treat life like a game. You glory in war and despise weakness. You fear nothing, although people that are genuinely good through and through make you uncomfortable. Fortunately, there are very few of those left.",
-      "You can work alone, but you are a natural leader. Take over the Brigands, start an adventurer troop, or rise the ranks of the Bastard's entourage.",
-      "Do not hide your nature or commit murders in the dark. You're not a serial killer.",
-      "People can't help but love you.",
-    ],
     assign: { tagPoints: 17, tagSlugs: ["cruel", "judge"] },
     spawn: {
       gender: "MAN",
@@ -120,12 +92,6 @@ const THREATS = [
       tagPoints: 17,
       tagSlugs: ["neoclassic-duelista", "light-infantry-armour", "obol x4"],
     },
-  },
-  {
-    slug: "monsters",
-    name: "Monsters",
-    zone: "Caves",
-    blurb: ["Monsters in the caves, to be hunted."],
   },
   {
     slug: "obsessed",
@@ -142,17 +108,6 @@ const THREATS = [
     name: "Skinless",
     optIn: true,
   },
-  {
-    slug: "sympathizer",
-    name: "Sympathizer",
-    zone: "Fortress",
-    blurb: [
-      "Install the Bastard on the throne, by any means necessary.",
-      "Your main goal: install the Bastard on the throne. To that end, turn the court against itself, scheme, and so on.",
-      "You must also choose a second, self-serving goal. Ideas: kill the Baron in a dramatic way as revenge; kidnap the Heir or Successor (you're obsessed); take the Manor from the Lord and install yourself in it. In other words, figure out why you are personally invested in seeing this through.",
-      "Be creative. Turn people against each other, convert people, cause incidents that make other people look bad.",
-    ],
-  },
   // THE THANATI. Two real seats behind two public names — "Cultist Leader"
   // and "Cultist" — so the word Thanati is never on a checkbox. Both grant the
   // `thanati` Belief (docs/tags.yaml), which is what makes a holder one; the
@@ -165,11 +120,6 @@ const THREATS = [
     assignable: true,
     seatTagSlug: "thanati",
     zone: "Anywhere",
-    blurb: [
-      "This reality is cursed. Everyone must die before Tzchernobog can reset it.",
-      "You believe that, and you are not alone. Find the others. Find the one who leads them, or be found by them. ‡",
-      "Nobody outside the faith may know what you are. A Thanati caught is a Thanati burned, and the work goes on without you. ‡",
-    ],
     assign: { tagPoints: 5, tagSlugs: ["thanati"] },
     spawn: {
       gender: "NEUTRAL",
@@ -186,11 +136,6 @@ const THREATS = [
     assignable: true,
     seatTagSlug: "thanati-leader",
     zone: "Anywhere",
-    blurb: [
-      "This reality is cursed. Everyone must die before Tzchernobog can reset it.",
-      "You lead the ones who believe it. Gather them, keep them hidden, and give them work that ends lives — quietly at first, and then not. ‡",
-      "The Church will burn you if it learns your name. Make sure it learns everyone else's first. ‡",
-    ],
     assign: { tagPoints: 10, tagSlugs: ["thanati", "thanati-leader"] },
     spawn: {
       gender: "NEUTRAL",
@@ -212,12 +157,6 @@ const THREATS = [
     assignable: true,
     seatTagSlug: "ordinator-insignia",
     zone: "Black Hills",
-    blurb: [
-      "You are an Ordinator of the Tribunal, come down off-world at the God-King's pleasure.",
-      "You are better armed and better armoured than anything in this barony, and you know it. Your armour turns aside almost anything Ravenheart can forge and almost anything it can shoot — almost. A turret does not care who you are.",
-      "You do not have to explain yourself to a Baron. Whether you choose to is a question of how much trouble you want.",
-      "Nobody here knows what you are yet. That is worth more than the armour. ‡",
-    ],
     assign: {
       tagPoints: 10,
       // Mirrors the tribunal-ordinator Role's starting_tags (docs/roles.yaml).
@@ -249,12 +188,6 @@ const THREATS = [
     assignable: true,
     seatTagSlug: "tribunal-helmet",
     zone: "Black Hills",
-    blurb: [
-      "You are a Tribune of the Tribunal, off-world and out of place. You are here to see what is here, and to be seen doing it.",
-      "Somebody has to write the report.",
-      "You are better armed than anyone in the barony and worse at fighting than the Ordinator beside you. Use the rifle at distance and the knife only once it has already gone wrong.",
-      "You can patch yourself up in the field, a little. The autoinjectors are for when a little is not enough. ‡",
-    ],
     assign: {
       tagPoints: 10,
       // Mirrors the tribune Role's starting_tags (docs/roles.yaml) — see the
@@ -303,8 +236,7 @@ function optInWhitelisted(threat) {
 }
 
 // The checkbox list, in PUBLIC-name order so the lobby and the wizard read as
-// an alphabetical list whatever the seats behind it are called. Everything
-// else in the catalog is a GM-only brief.
+// an alphabetical list whatever the seats behind it are called.
 const OPT_IN_THREATS = THREATS.filter((t) => t.optIn).sort((a, b) =>
   optInName(a).localeCompare(optInName(b)),
 );
