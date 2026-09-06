@@ -21,7 +21,6 @@ const LINKS = {
   // The literal URL, not TURNS_PATH — that constant is the route PATTERN for
   // revalidatePath and is not navigable.
   actionId: (v) => `/gm/turns/move/${v}`,
-  requestId: (v) => `/gm/turns/request/${v}`,
   cavingRollId: (v) => `/gm/turns/caving/${v}`,
   characterId: (v) => `/gm/dev/characters/${v}`,
   tagId: () => "/gm/dev/tags",

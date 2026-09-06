@@ -59,7 +59,6 @@ import {
   creditResources,
   debitResources,
   dropCharacterTag,
-  formatStack,
   grantTagSlugs,
   moveResources,
   takeTagFrom,
@@ -135,7 +134,7 @@ import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryAdmits, rowWeight } from "@lifeweb/db/lib/carry";
 import { rollDie } from "@lifeweb/db/lib/moveEffects";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
-import { formatManifest } from "@lifeweb/db/lib/roomStash";
+import { formatManifest, formatStack } from "@lifeweb/db/lib/roomStash";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
 import {
   placementOf,
@@ -270,10 +269,14 @@ async function unitsOfTagThisTurn(db, characterId, turnId, tagId) {
 // that cost a turn of work: a 0-turn cure is a free action (healRequests.js).
 // A gambit heal is never in here, because it files a Move instead and the
 // Action unique constraint rations those on its own.
-async function routineHealsThisTurn(db, characterId, turnId) {
-  if (!turnId) return 0;
+// Keyed on the MEDIC — actorDiscordUserId — and NOT on targetCharacterId,
+// which is the patient the row is about. Counting the patient's axis caps the
+// wrong person: a medic treating other people would never be counted at all,
+// and someone who had been treated four times could not treat anybody.
+async function routineHealsThisTurn(db, discordUserId, turnId) {
+  if (!turnId || !discordUserId) return 0;
   const filed = await db.auditLog.findMany({
-    where: { targetCharacterId: characterId, actionType: "request_heal_character", turnId },
+    where: { actorDiscordUserId: discordUserId, actionType: "request_heal_character", turnId },
     select: { details: true },
   });
   return filed.filter(
@@ -1356,7 +1359,6 @@ async function lessonOfferImpl({ teacherId, learnerId, tagId }) {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_lesson_offer",
       targetCharacterId: offer.offer.responderId,
-      reason: offer.offer.reason,
       details: { offerId: offer.offer.id, teacherId, learnerId, tagId },
     },
   });
@@ -1404,7 +1406,6 @@ async function confessRequestImpl({ chaplainId, tagId }) {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_confession_offer",
       targetCharacterId: offer.offer.responderId,
-      reason: offer.offer.reason,
       details: {
         offerId: offer.offer.id,
         chaplainId,
@@ -1551,7 +1552,7 @@ async function photographNothingImpl({ session, character, held }) {
       },
       photoTagId: photo.id,
       // The shape every other consumable files, so the GM desk's "Became" line
-      // renders the print (web/app/(desk)/gm/turns/RequestSections.js) and the
+      // carries the print, and the
       // shared CONSUME_TAG undo takes it back out of their hands. `photoTagId`
       // above only tells that undo to delete the ROW as well, which is the one
       // thing a runtime print needs that a catalog grant does not.
@@ -1874,7 +1875,7 @@ async function transferRequestImpl({
   const toParty = { kind: to.kind, id: to.id, name: to.name };
   // The Spillway (Room.destroysContents). Nothing is written on the receiving
   // end — giveTagTo and moveParty both refuse — so the effect has to say so,
-  // or Undo goes looking for goods that were never stored (requestEffects.js).
+  // or a GM repairing this by hand goes looking for goods never stored.
   const destroyed = to.destroysContents === true;
   const fromCharacterId = from.kind === "character" ? from.id : null;
   const toCharacterId = to.kind === "character" ? to.id : null;
@@ -2041,7 +2042,7 @@ async function healCharacterRequestImpl({
     const allowance = healCapFor(heldSlugs, MEDICAL_TIER_CAPS);
     const already = await routineHealsThisTurn(
       prisma,
-      character.id,
+      session.discordUserId,
       openTurn.id,
     );
     if (already >= allowance) {
@@ -2117,7 +2118,7 @@ async function healCharacterRequestImpl({
         character.tags.map((ct) => ct.tag?.slug).filter(Boolean),
       );
       const allowance = healCapFor(heldSlugs, MEDICAL_TIER_CAPS);
-      const already = await routineHealsThisTurn(tx, character.id, openTurn.id);
+      const already = await routineHealsThisTurn(tx, session.discordUserId, openTurn.id);
       if (already >= allowance) {
         throw new UserError(
           "You've treated all the cases you can manage this turn. ‡",
@@ -2125,7 +2126,7 @@ async function healCharacterRequestImpl({
       }
     }
 
-    await debitResources(tx, payer, cost, ledger);
+    await debitResources(tx, payer, cost);
 
     if (gambit) {
       // The Move that carries the roll. Same shape as a learner's Lesson
@@ -3085,6 +3086,16 @@ async function changeNameRequestImpl({
 
   let updated;
   await prisma.$transaction(async (tx) => {
+    // The potion was read outside this transaction, so lock the row before
+    // spending it: two submits in flight would both see one bottle, and
+    // dropCharacterTag no-ops silently on the second — one potion, two names.
+    // Craft and Heal in this file take the same lock for the same reason.
+    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
+    const stillHeld = await tx.characterTag.findFirst({
+      where: { characterId: character.id, tagId: potion.tagId, quantity: { gt: 0 } },
+      select: { id: true },
+    });
+    if (!stillHeld) throw new UserError("You need a Mulligan Potion to take a new name. ‡");
     updated = await tx.character.update({
       where: { id: character.id },
       data: next,

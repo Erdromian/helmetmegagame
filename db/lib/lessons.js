@@ -267,7 +267,7 @@ async function loadCharacter(db, id) {
 // { ok: false, reason }.
 async function createLessonOffer(
   prisma,
-  { initiatorId, teacherId, learnerId, tagId, reason = null },
+  { initiatorId, teacherId, learnerId, tagId },
 ) {
   const { turn, locked } = await openTurnAndWindow(prisma);
   if (!turn) return { ok: false, reason: "No turn is open. ‡" };
@@ -325,7 +325,6 @@ async function createLessonOffer(
       teacherId,
       learnerId,
       tagId,
-      reason,
     },
   });
 

@@ -27,7 +27,7 @@ import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 // button, since it has nothing left to resolve, but with its own Undo. The
 // loot landed as a PASSED CAVING_LOOT Request and that row still shows in the
 // Requests lens; Undo here just saves the GM the trip, and goes through the
-// very same REQUEST_EFFECTS.CAVING_LOOT.undo handler (web/lib/requestEffects.js)
+// very same undo the Caving lens runs (undoCavingFind in ./actions.js)
 // so there is exactly one way the tag ever comes back off.
 
 export default function CavingDesk({

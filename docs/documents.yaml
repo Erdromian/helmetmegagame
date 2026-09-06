@@ -452,6 +452,7 @@ documents:
       | {tag:purifier} | 6 | 1 | cave fungus |
       | {tag:dreamers-draught} | 6 | 1 | a {tag:skinless-brain} {info:You must be holding one. It is not used up.} |
       | {tag:forgiveness} | 8 | 1 | someone's tears |
+      | {tag:mulligan-potion} | 8 | 2 | — |
       | {tag:flawless-skin} | 8 | 1 | a lock of Nobility hair |
   # GM-only. The `gamemaster` flag is not a property of any Character — the
   # documents page resolves it against the Discord GM role at request time,

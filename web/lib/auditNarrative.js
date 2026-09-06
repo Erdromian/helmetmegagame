@@ -331,6 +331,10 @@ function auditTone(actionType) {
 
 // Explicit overrides for the handful whose name does not carry their family.
 const FAMILY_OVERRIDES = {
+  // A find is something that happened TO a player, so it belongs in the band
+  // a GM reads by default. Neither name matches the `caving_roll` prefix.
+  caving_loot_granted: "move",
+  caving_loot_undone: "gm",
   request_donate_blood: "lifeweb",
   request_feed_person: "lifeweb",
   request_feed_person_killed: "lifeweb",

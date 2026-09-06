@@ -886,7 +886,9 @@ export default async function CharacterPage() {
             ? (
                 await prisma.auditLog.findMany({
                   where: {
-                    targetCharacterId: character.id,
+                    // The MEDIC's axis, matching routineHealsThisTurn exactly.
+                    // targetCharacterId here is the patient.
+                    actorDiscordUserId: session.discordUserId,
                     actionType: "request_heal_character",
                     turnId: openTurn.id,
                   },

@@ -202,7 +202,10 @@ export default function Workspace({
       setDesk((d) => ({ ...d, historyTurnId: initialCaving.turnId }));
     }
   }
-  const lens = rail.lens ?? "moves";
+  // A tab open across the deploy can still hold the deleted "requests" lens
+  // in sessionStorage, which would render an empty rail until it was clicked.
+  const LENSES = ["moves", "caving", "history"];
+  const lens = LENSES.includes(rail.lens) ? rail.lens : "moves";
   const setLens = useCallback((l) => setRail((r) => ({ ...r, lens: l })), [setRail]);
   const historyKind = rail.historyKind ?? "moves";
   const setHistoryKind = useCallback((k) => setRail((r) => ({ ...r, historyKind: k })), [setRail]);

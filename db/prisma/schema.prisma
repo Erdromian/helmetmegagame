@@ -1999,7 +1999,7 @@ model Tag {
   // Supply Kit — a Purse has no tag half at all (consumesInto: []), while a
   // Supply Kit combines both. Null means consuming grants no Resources.
   // Applied by the same consumeTagRequest that reads consumesInto, through
-  // the ordinary creditResources primitive (web/lib/requestEffects.js), and
+  // the ordinary creditResources primitive (web/lib/tagEffects.js), and
   // snapshotted into Request.effect so CONSUME_TAG's undo can debit it back
   // without re-deriving from live state. See docs/systemdocs/CAVING.md.
   consumesIntoResources Int?
@@ -2897,8 +2897,6 @@ model Offer {
 
   // { diceRoll, diceModifier, total, succeeded, gmDecided }
   outcome Json?
-  // The web dialog's reason field, copied onto the BIND_CHARACTER request.
-  reason  String?
 
   createdAt   DateTime  @default(now())
   respondedAt DateTime?
@@ -3063,18 +3061,25 @@ model AuditLog {
   // Player actions stopped asking for a reason when they stopped being
   // Requests, so this is blank for most rows.
   reason    String?
-  // The turn this happened in, when there was one. It exists because the
-  // per-turn rations (MEDICAL_TIER_CAPS, DEAD_SIMPLE_PER_TURN, a tag's own
-  // requirementPerTurn) used to count Request rows, and this table is what
-  // replaced them — a ration has to be a cheap indexed count, not a scan.
-  // /gm/audit's turn filter reads it too, rather than inferring from dates.
+  // The turn this happened in. It exists because the per-turn rations
+  // (MEDICAL_TIER_CAPS, DEAD_SIMPLE_PER_TURN, a tag's own requirementPerTurn)
+  // used to count Request rows, and this table is what replaced them — a
+  // ration has to be a cheap indexed count, not a scan.
+  //
+  // Only the actions a ration counts set it, so it is NULL on most rows and
+  // is not a general "which turn was this" column. /gm/audit's turn filter
+  // does not read it; that still derives the turn from createdAt.
   turnId    String?
   createdAt DateTime @default(now())
 
   @@index([actionType])
   @@index([actorDiscordUserId])
-  // The rationing lookup: one character's actions of one kind in one turn.
+  // The rationing lookups. Craft counts the crafter, which IS the row's
+  // target; healing counts the MEDIC, who is the actor rather than the
+  // target — the target there is the patient — so the two need different
+  // indexes. Getting that axis wrong uncaps the thing being rationed.
   @@index([targetCharacterId, actionType, turnId])
+  @@index([actorDiscordUserId, actionType, turnId])
   // /gm/audit's default view sorts the whole table by createdAt with no
   // filter, and runs a count() beside it. Neither index above can serve that.
   @@index([createdAt])
@@ -3293,7 +3298,7 @@ model Desire {
   characterId     String
   character       Character    @relation(fields: [characterId], references: [id])
   // STAYS non-null: a snapshot of template.name at claim time, so every
-  // existing reader (requestEffects.js, the bot's 🔍/⚜️ embeds, the archive,
+  // existing reader (tagEffects.js, the bot's 🔍/⚜️ embeds, the archive,
   // auditNarrative.js…) stays untouched by the catalog rework.
   text            String
   // The awarded number — a GM re-score writes it, so it can diverge from
