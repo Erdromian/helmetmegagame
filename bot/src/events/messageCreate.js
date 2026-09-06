@@ -36,10 +36,19 @@ module.exports = {
     // already said in better words.
     //
     // RecipientAdd/RecipientRemove are Discord's group-DM message types reused
-    // for thread membership, which is why the names read oddly here. There is
-    // no flag on PUT /thread-members to suppress the notice and no other
-    // endpoint that joins a private thread, so deleting it afterwards is the
-    // only lever — same reason the two above are handled this way.
+    // for thread membership, which is why the names read oddly here.
+    //
+    // THOSE TWO DO NOT WORK, and are left in deliberately. Discord refuses to
+    // delete a thread member-add notice — the call 400s and lands in the catch
+    // below. There is no flag on PUT /thread-members to suppress it either, so
+    // there is no way to be rid of one after it exists. They stay listed so
+    // nobody proposes this again believing it was never tried.
+    //
+    // The actual fix was to stop CAUSING them: thread membership follows
+    // entitlement rather than presence now, so a character is added once when
+    // they get the key and never again on arrival (db/lib/roomAccess.js). The
+    // pin and thread-created notices above are genuinely deletable and this is
+    // still what clears them.
     //
     // Scoped to notices the BOT itself caused, so a human pinning something in
     // #general still leaves the usual trace. Every in-game add runs on the bot

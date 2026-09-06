@@ -8,7 +8,6 @@ import useReloadTelemetry from "@/app/components/useReloadTelemetry";
 import QueueRail, { RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT } from "./QueueRail";
 import MoveDesk from "./MoveDesk";
 import MoveHistoryDesk from "./MoveHistoryDesk";
-import RequestDesk from "./RequestDesk";
 import CavingDesk from "./CavingDesk";
 import { getMoveHistory } from "./actions";
 import InspectorColumn from "@/app/components/InspectorColumn";
@@ -23,9 +22,10 @@ import usePins from "@/app/components/usePins";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { isFieldFocused } from "@/lib/deskKeyGuard";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
+import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
 
 // The adjudication workspace's client shell. Owns selection (which
-// Move/Request shows), inspector (right column + pins), and preview (push
+// Move shows), inspector (right column + pins), and preview (push
 // dialog). Everything rendered is a DTO from page.js; mutations live in a
 // child that calls a server action and router.refresh()es.
 
@@ -161,7 +161,6 @@ export default function Workspace({
   stagingLocations,
   factions,
   moves,
-  requests,
   cavingRolls,
   stagedEffects,
   stagedMessages,
@@ -207,7 +206,7 @@ export default function Workspace({
   const setLens = useCallback((l) => setRail((r) => ({ ...r, lens: l })), [setRail]);
   const historyKind = rail.historyKind ?? "moves";
   const setHistoryKind = useCallback((k) => setRail((r) => ({ ...r, historyKind: k })), [setRail]);
-  const [selected, setSelected] = useState(initialSelection ?? null); // { type: "move"|"request"|"caving"|"history", id }
+  const [selected, setSelected] = useState(initialSelection ?? null); // { type: "move"|"caving"|"history", id }
 
   // The URL mirrors `selected` via replaceState (not pushState, so Back
   // leaves the desk), avoiding an RSC refetch a router.push would trigger.
@@ -438,7 +437,6 @@ export default function Workspace({
     resolvedTurns?.find((t) => t.id === selectedHistory?.turnId)?.label ?? null;
 
   const selectedMove = selected?.type === "move" ? moves.find((m) => m.id === selected.id) : null;
-  const selectedRequest = selected?.type === "request" ? requests.find((r) => r.id === selected.id) : null;
   // Resolves against live open-turn rolls first; otherwise a History-lens
   // pick found across every loaded turn.
   const liveCaving =
@@ -577,10 +575,12 @@ export default function Workspace({
         }
       />
 
+      {/* The zone view lives in the client from here down, so the queue
+          re-filters on the click rather than on a revalidate. */}
+      <GmZoneViewProvider initialZoneNames={visibleZoneNames}>
       <div className="desk-body">
         <QueueRail
           moves={moves}
-          requests={requests}
           cavingRolls={cavingRolls}
           visibleZoneNames={visibleZoneNames}
           stagedByMove={stagedByMove}
@@ -620,15 +620,6 @@ export default function Workspace({
               registerEscape={registerEscape}
               onOpenDev={onOpenDev}
               gmProfiles={gmProfiles}
-            />
-          ) : selectedRequest ? (
-            <RequestDesk
-              key={selectedRequest.id}
-              request={selectedRequest}
-              onInspect={inspect}
-              onClose={deselect}
-              registerEscape={registerEscape}
-              onOpenDev={onOpenDev}
             />
           ) : selectedHistory ? (
             <MoveHistoryDesk
@@ -680,7 +671,7 @@ export default function Workspace({
                 </p>
               ) : (
                 <p className="text-sm text-muted">
-                  Pick a Move, Request or Caving roll from the queue. Everything you stage —
+                  Pick a Move or a Caving roll from the queue. Everything you stage —
                   messages, effects, public declarations — goes out together when the turn ends.
                   The History lens reads back a turn that has already been pushed.
                 </p>
@@ -706,6 +697,7 @@ export default function Workspace({
           footer={<GmZoneRail zones={selectableZones} selectedIds={visibleZoneIds} />}
         />
       </div>
+      </GmZoneViewProvider>
 
       <StagingTray
         stagedEffects={stagedEffects}

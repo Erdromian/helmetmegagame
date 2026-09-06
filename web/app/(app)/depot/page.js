@@ -21,7 +21,6 @@ import {
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
-import { REQUEST_TYPE_LABELS } from "@/lib/requestLabels";
 import DepotConsole from "@/app/components/DepotConsole";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 
@@ -30,32 +29,42 @@ import PageShell, { PageHeader } from "@/app/components/PageShell";
 // Three ways in, and they are deliberately different. The Merchant's Licence
 // runs the place — the licence and not the ROLE, because the licence is
 // tradeable and handing it over really does hand over the Depot. A Depot
-// Keycard reads it: a Docker needs to know whether the generator is alive and
-// what is on the pad, and can crack open the crates he is carrying, but
-// operates nothing. A superadmin reads it too. Everyone else is bounced.
+// Keycard works it: a Docker can crack his crates, call the shuttle down,
+// load it and send it back up, and keep the generator fed and running. What a
+// keycard cannot do is spend: no ordering, no ATM, no credit line, no ⬢
+// counter, and never the turret. A superadmin reads it. Everyone else is
+// bounced.
+//
+// The reason the keycard grew teeth is the turn length. One turn is one real
+// day, so "the Merchant will do it when he wakes up" is a day of nothing
+// moving, and every step above is either free or costs the person doing it.
 const TAG_SELECT = { include: { group: { select: { name: true } } } };
 
 // How many ledger rows to hand the client. Enough to be a book, few enough
 // that a month-old game does not ship a megabyte of JSON to a browser.
 const LEDGER_LIMIT = 200;
 
-const DEPOT_REQUEST_TYPES = [
-  "DEPOT_BUY",
-  "DEPOT_SELL",
-  "DEPOT_CREDIT",
-  "DEPOT_ORDER",
-  "DEPOT_SHIP",
-  "DEPOT_ATM",
-  "DEPOT_CRATE_OPEN",
-  "DEPOT_REFUEL",
-];
+// The ledger is built from the audit log now that player actions file no
+// Request. The `details` blob IS the old `effect` — every depot action wrote
+// `details: effect` — so the row prose below is unchanged; only the key it
+// switches on moved from Request.type to AuditLog.actionType.
+const DEPOT_LEDGER_KINDS = {
+  request_depot_order: { key: "DEPOT_ORDER", label: "Order" },
+  request_depot_shuttle_call: { key: "DEPOT_SHIP", label: "Shuttle" },
+  request_depot_shuttle_send: { key: "DEPOT_SHIP", label: "Shuttle" },
+  request_depot_atm: { key: "DEPOT_ATM", label: "Cash" },
+  request_depot_exchange: { key: "DEPOT_EXCHANGE", label: "Exchange" },
+  request_depot_credit: { key: "DEPOT_CREDIT", label: "Credit line" },
+  request_depot_crate_open: { key: "DEPOT_CRATE_OPEN", label: "Crate" },
+  request_depot_refuel: { key: "DEPOT_REFUEL", label: "Refuel" },
+};
 
 // One line of prose per ledger row, and the obols it moved. Derived from the
 // `effect` snapshot rather than live state, the same rule Undo follows — a row
 // has to keep reading correctly after the catalog moves under it.
-function ledgerRow(request, who) {
-  const e = request.effect ?? {};
-  switch (request.type) {
+function ledgerRow(entry, who) {
+  const e = entry.details ?? {};
+  switch (DEPOT_LEDGER_KINDS[entry.actionType]?.key) {
     case "DEPOT_ORDER":
       return { detail: (e.lines ?? []).map((l) => `${l.name} ×${l.quantity}`).join(", "), delta: -(e.total ?? 0) };
     case "DEPOT_SHIP":
@@ -127,20 +136,34 @@ export default async function DepotPage() {
       include: { tags: { include: { tag: TAG_SELECT } } },
     }),
     prisma.tag.findUnique({ where: { slug: OBOL_SLUG }, select: { id: true } }),
-    prisma.request.findMany({
-      where: { type: { in: DEPOT_REQUEST_TYPES } },
+    prisma.auditLog.findMany({
+      where: { actionType: { in: Object.keys(DEPOT_LEDGER_KINDS) } },
       orderBy: { createdAt: "desc" },
       take: LEDGER_LIMIT,
       select: {
         id: true,
-        type: true,
-        effect: true,
+        actionType: true,
+        details: true,
         createdAt: true,
-        turn: { select: { number: true } },
-        character: { select: { name: true } },
+        turnId: true,
+        targetCharacter: { select: { name: true } },
       },
     }),
   ]);
+
+  // AuditLog carries a turnId but no relation to Turn, so the numbers come
+  // back in one extra round trip rather than a join.
+  const ledgerTurnIds = [...new Set(ledgerRows.map((r) => r.turnId).filter(Boolean))];
+  const ledgerTurnNumbers = new Map(
+    ledgerTurnIds.length
+      ? (
+          await prisma.turn.findMany({
+            where: { id: { in: ledgerTurnIds } },
+            select: { id: true, number: true },
+          })
+        ).map((t) => [t.id, t.number])
+      : [],
+  );
 
   const heldByTagId = new Map((character?.tags ?? []).map((ct) => [ct.tagId, ct.quantity]));
 
@@ -203,6 +226,10 @@ export default async function DepotPage() {
   // Read-only unless you hold the licence. Everything below is a hint anyway —
   // the actions re-check all of it.
   const readOnly = !licensed;
+  // A "hand" is anyone who may work the machinery: the licence, or a keycard.
+  // Superadmins are deliberately NOT hands — /gm/dev is the GM's door and this
+  // page is a thing in a room.
+  const hand = licensed || keycard;
 
   return (
     <PageShell width="wide">
@@ -229,12 +256,23 @@ export default async function DepotPage() {
         turnNumber={openTurn?.number ?? null}
         fuelTurnsLeft={fuelTurnsLeft(depot)}
         readOnly={readOnly}
+        hand={hand}
         atDepot={Boolean(atDepot)}
         powered={powered}
-        // One flag for "you may press things": licensed, standing there, and
-        // the lights on. The Station tab overrides it for the power switch,
-        // which has to work in the dark.
+        // Four flags, because there are two levels of authority and two of
+        // them have to survive the lights going out.
+        //
+        //   disabled            the money and the gun — licence only
+        //   handDisabled        the machinery — licence or keycard
+        //   handPoweredDisabled the machinery that works in the dark, which
+        //                       is the fuel hatch and the starter. Without
+        //                       this one a dead generator was unrecoverable
+        //                       from the UI: the Feed button was greyed out
+        //                       by the very outage it existed to fix.
+        //   poweredDisabled     shutting it down — licence only, in the dark
         disabled={readOnly || !atDepot || !powered}
+        handDisabled={!hand || !atDepot || !powered}
+        handPoweredDisabled={!hand || !atDepot}
         poweredDisabled={readOnly || !atDepot}
         wares={wares}
         priceList={priceList}
@@ -257,15 +295,15 @@ export default async function DepotPage() {
           sources: fuelSources.map((s) => ({ ...s, held: bySlug.get(s.slug) ?? 0 })),
         }}
         ledger={ledgerRows.map((r) => {
-          const who = r.character?.name ?? "—";
+          const who = r.targetCharacter?.name ?? "—";
           const { detail, delta } = ledgerRow(r, who);
           return {
             id: r.id,
-            label: REQUEST_TYPE_LABELS[r.type] ?? r.type,
+            label: DEPOT_LEDGER_KINDS[r.actionType]?.label ?? r.actionType,
             detail,
             who,
             delta,
-            turn: r.turn?.number ?? null,
+            turn: ledgerTurnNumbers.get(r.turnId) ?? null,
             at: r.createdAt.getTime(),
           };
         })}

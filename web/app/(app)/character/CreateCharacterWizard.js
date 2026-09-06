@@ -106,9 +106,6 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
         </span>
       )}
       <span className="flex flex-wrap gap-2 text-xs text-muted">
-        {/* A disabled card is otherwise just grey, which reads as a bug. This
-            says the role is shut on purpose (GameConfig.playtestModeEnabled). */}
-        {role.playtestLocked && <span className="chip">closed for this playtest</span>}
         {role.difficulty && <span className="chip">{titleCase(role.difficulty)}</span>}
         {/* Said whether or not this player is blocked: a whitelisted seat they
             CAN take should still say what it is. */}
@@ -122,12 +119,12 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
     </button>
   );
 
-  // A disabled card is just grey, which reads as a bug. Playtest locks say so
-  // with a chip inside the card; the whitelist can't, because a disabled
-  // button swallows pointer events for its descendants and the tooltip would
-  // never fire. So the hover goes on a wrapper OUTSIDE the button. `block` is
-  // load-bearing: HoverCard's trigger is an inline span, and an inline grid
-  // child would collapse the card's width.
+  // A disabled card is just grey, which reads as a bug, so a blocked whitelist
+  // seat says why on hover. The hover goes on a wrapper OUTSIDE the button,
+  // because a disabled button swallows pointer events for its descendants and
+  // a tooltip inside it would never fire. `block` is load-bearing: HoverCard's
+  // trigger is an inline span, and an inline grid child would collapse the
+  // card's width.
   if (role.whitelistBlocked) {
     return (
       <Tooltip text="Whitelist only ‡" className="block">
@@ -212,8 +209,12 @@ export default function CreateCharacterWizard({
 
   // Which titles this build has earned, from the role and from every tag it
   // will end up holding — bought and role-granted alike. Recomputed as the
-  // build changes, so buying Knighted on the Tags step puts Sir on the
+  // build changes, so taking a role that grants Nobility puts Lord on the
   // Identity step behind it.
+  //
+  // A tag that arrives inside a KIT is not counted here, because it is not
+  // held yet — a Courtier who buys the Seasoned Knight crate earns Sir when
+  // they unpack it in play, not on this step.
   //
   // ONE word per title, not three: gender picks the form, so a woman sees
   // Lady where a man sees Lord. Changing gender re-reads the whole list, which

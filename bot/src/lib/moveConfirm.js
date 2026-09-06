@@ -1,7 +1,7 @@
 const { prisma } = require("@lifeweb/db");
 const { gambitModifiers, gambitModifierTotal } = require("@lifeweb/db/lib/gambitModifier");
 const { rollDie } = require("@lifeweb/db/lib/moveEffects");
-const { formatLaborBonusNote } = require("@lifeweb/db/lib/laborAccess");
+const { formatLaborBonusNote, lazyYield, lazyExpression } = require("@lifeweb/db/lib/laborAccess");
 const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 
 // Locks in a Move for the modal submit path (and anything later that needs
@@ -30,6 +30,18 @@ async function confirmMove(action, actorDiscordUserId, { laborRate = null } = {}
   // Null for a row written before ranges existed (a leftover "1d4*3"), which
   // then confirms on its flat delta alone rather than throwing.
   const rollResult = action.resourceRollExpression ? rollResourceRange(action.resourceRollExpression) : null;
+  // Lazy takes its quarter after the roll, not off the range — same rule as
+  // the auto-labor pass (db/lib/autoLaborPass.js).
+  // The expression stamped at submit time is the pre-Lazy range (see
+  // bot/src/events/interactionCreate.js). Cut it the same way the rolled
+  // value is, so the sheet and the GM desk print the range the payout is
+  // actually inside rather than the wider pre-cut one.
+  let laborExpression = action.resourceRollExpression;
+  if (rollResult) {
+    const heldSlugs = new Set((action.character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
+    rollResult.value = lazyYield(rollResult.value, heldSlugs);
+    laborExpression = lazyExpression(action.resourceRollExpression, heldSlugs);
+  }
 
   const resourceDelta = rollResult
     ? (action.resourceDelta ?? 0) + rollResult.value
@@ -43,7 +55,9 @@ async function confirmMove(action, actorDiscordUserId, { laborRate = null } = {}
       status: "CONFIRMED",
       confirmedAt: new Date(),
       ...(diceRoll != null ? { diceRoll, diceModifier } : {}),
-      ...(rollResult ? { resourceRollValue: rollResult.value, resourceDelta } : {}),
+      ...(rollResult
+        ? { resourceRollValue: rollResult.value, resourceDelta, resourceRollExpression: laborExpression }
+        : {}),
       // PASSED means "no GM needs to touch this", not "paid" — appliedEffects
       // stays null until the staged push claims it at rollover.
       ...(isRoutine ? { moveReviewStatus: "PASSED" } : {}),
@@ -78,7 +92,7 @@ async function confirmMove(action, actorDiscordUserId, { laborRate = null } = {}
   }
   if (rollResult) {
     lines.push(
-      `**Resource roll (${formatRangeExpression(action.resourceRollExpression)}):** ${rollResult.value > 0 ? "+" : ""}${rollResult.value} ⬢`,
+      `**Resource roll (${formatRangeExpression(laborExpression)}):** ${rollResult.value > 0 ? "+" : ""}${rollResult.value} ⬢`,
     );
     // The range above already has the tools baked in, so say so — otherwise a
     // hunter with a Longbow sees 3-12 and has no way to know it isn't the

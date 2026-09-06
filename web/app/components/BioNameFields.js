@@ -13,12 +13,12 @@ import { changeNameRequest } from "../(app)/character/requestActions";
 // and `updateCharacterProfile` ignores the name keys outright regardless of
 // what this form posts, which (not the greying) is the actual lock. See
 // docs/systemdocs/CHARACTERS.md §1b. The one way a name changes after that is
-// the "Change name" request below, wired through web/lib/requestEffects.js's
-// CHANGE_NAME entry. No per-field InfoIcon: CharacterSheet.js already puts one
+// the "Change name" button below, which drinks a Mulligan Potion. The greying
+// here is a hint; changeNameRequestImpl re-checks the potion server-side. No per-field InfoIcon: CharacterSheet.js already puts one
 // summary tooltip on the "Bio" heading; `title` keeps its own since it explains
 // a different thing (how to get one, not why it's locked).
 
-export default function BioNameFields({ character, lastNameLocked = false }) {
+export default function BioNameFields({ character, lastNameLocked = false, hasMulligan = false }) {
   const [open, setOpen] = useState(false);
   const [honorific, setHonorific] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -66,10 +66,10 @@ export default function BioNameFields({ character, lastNameLocked = false }) {
     if (!lastNameLocked) setLastName(rolled.lastName ?? "");
   }
 
-  function submit(reason) {
+  function submit() {
     setError(null);
     startTransition(async () => {
-      const res = await changeNameRequest({ honorific, firstName, lastName, reason });
+      const res = await changeNameRequest({ honorific, firstName, lastName });
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       setOpen(false);
     });
@@ -134,7 +134,17 @@ export default function BioNameFields({ character, lastNameLocked = false }) {
       </div>
 
       <div className="flex items-center gap-1.5">
-        <button type="button" className="btn-quiet" onClick={openDialog}>
+        <button
+          type="button"
+          className="btn-quiet"
+          onClick={openDialog}
+          disabled={!hasMulligan}
+          title={
+            hasMulligan
+              ? "Drinks a Mulligan Potion. ‡"
+              : "You need a Mulligan Potion to take a new name. ‡"
+          }
+        >
           Change name
         </button>
       </div>

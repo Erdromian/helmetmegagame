@@ -121,13 +121,23 @@ ignores `honorific`, `firstName` and `lastName` outright — the three inputs on
 and the server action is the lock. The rest of the Bio form (appearance,
 avatar, opt-ins) is untouched.
 
-The one way through is the **`CHANGE_NAME` request** (`REQUESTS.md` §3),
-reached from the "Change name" button next to those disabled fields: the
-player picks a new honorific/first/last name and gives a reason, it applies
-immediately, and a GM can Undo it from `/gm/turns` like any other request. It
-requires nothing beyond that reason — it used to also spend a Mulligan
-Potion (`docs/tags.yaml`), but that gate has been removed; the tag survives
-as a flavor collectible only. It re-validates the same allowlist/cap/dynasty-
+The one way through is the **Mulligan Potion**, drunk from the "Change name"
+button next to those disabled fields: the player picks a new
+honorific/first/last name, it applies immediately, and **one potion is
+consumed**. There is no reason field and no Undo (`REQUESTS.md` §1) — the
+potion IS the cost, which is the point of gating it on an item rather than on
+a GM reading a justification afterwards.
+
+The gate had been removed at one point, leaving the tag "a flavor collectible
+only" and renaming free. Free renaming quietly undermines every other identity
+rule in the game — the personal Discord role, a wanted poster, a Disguise
+that is supposed to be *temporary* — so it is back. **Mulligan is the
+permanent path and Disguise is the temporary one**, and they do not interact:
+a disguise keeps presenting its `forcedName` over whatever the real name
+becomes (`PROXYING.md` §6).
+
+The potion is brewable (`brewing-skilled`, 2 turns, 8 ⬢) and stocked at the
+Depot, so it is a thing a player can actually get. It re-validates the same allowlist/cap/dynasty-
 lock rules every other writer of `Character.name` enforces, and runs the same
 lightweight Discord fan-out `updateCharacterProfile` used to
 (`ensureCharacterRole`, `syncCharacterNickname`, and
@@ -407,9 +417,8 @@ Ranger, Master of Parties at 100 players) is one-and-done for the run. "Taken"
 means "a Character row still points at this Role": a GM deleting the dead
 row from the dev panel, or moving the dead holder to another role, frees the
 seat. The GM panel never checks capacity at all, so a GM can always seat
-someone by hand. A slug list rather than a `roles.yaml` key for the same
-reason the playtest lock below is: a static rule over a fixed roster, with
-no column to migrate.
+someone by hand. A slug list rather than a `roles.yaml` key: a static
+rule over a fixed roster, with no column to migrate.
 
 A role at capacity renders disabled. That's advisory only: `createCharacter`
 re-counts inside the transaction that creates the character. A bare count
@@ -438,9 +447,14 @@ to other players and available to its holder.
 
 ### The Leader Whitelist
 
-A role with `leader: true` needs the **Leader Whitelist** Discord role
+A role with `whitelist: true` in `docs/roles.yaml` — carried into the DB as
+`Role.requiresWhitelist` — needs the **Whitelist** Discord role
 (`LEADER_WHITELIST_ROLE_ID` in `db/lib/roleIds.js`, checked by
-`web/lib/discordGuild.js#isLeaderWhitelisted`). Without it the card renders
+`web/lib/discordGuild.js#isLeaderWhitelisted`). Not `leader: true`: the two
+were split, because "the Baron has to lead the Court" and "who may claim this
+seat" are unrelated questions. Every `leader:` seat happens to carry
+`whitelist:` too, but Arbiter, Meister and Hand are whitelisted without
+leading anything. Without it the card renders
 disabled, exactly like a role at capacity, and with no explanation — the
 reservation is explained once in `#info`, not repeated on every card.
 
@@ -453,33 +467,6 @@ Off, every player may take a Leader seat and the Discord role stops mattering �
 both the card and `createCharacter` read the same flag, so a hand-posted request
 gets in too. It is on by default because the gate fails closed; a missing config
 row still enforces it.
-
-### Playtest mode
-
-`GameConfig.playtestModeEnabled` is a second Dev Panel switch, **off** by
-default, that can hold part of the roster back for a short test: any role
-matched by slug, plus any role standing in a named zone. Its card still
-renders, just disabled, carrying a "closed for this playtest" chip — a
-locked role is still worth reading. Nothing is removed from
-`docs/roles.yaml`, so flipping the switch off restores the roster with no
-sync.
-
-Which roles it covers lives in `web/lib/characterCreation.js`
-(`PLAYTEST_LOCKED_ROLE_SLUGS`, `PLAYTEST_LOCKED_ZONE_NAMES`), not in the
-database — a role is matched by `Role.slug`, a zone by **zone name**,
-because nothing marks a role as belonging to a zone — `Role` and `Faction`
-carry no availability column. `Zone` has no slug, so renaming the zone in
-`roles.yaml` means moving the list with it. Both lists are `[]` today. The
-mechanism is live, it just has no target until somebody names one.
-
-Same presentation/enforcement split as everything else here: the card is a
-hint, `createCharacter` re-checks. One difference — **a superadmin does not
-bypass this one.** The other gates are reservations, so the host walks through
-them to roll a test character; this one hides an unfinished role, and bypassing
-it would only let the host roll the broken thing.
-
-The GM surfaces are untouched: `/gm/dev/characters/[characterId]` will still
-assign a locked role by hand.
 
 ### The starting package
 
@@ -522,10 +509,12 @@ completion rule. Every negative-cost tag is `purchasableAfterStart: false` —
 a drawback you could buy mid-game would be a point farm.
 
 Drawbacks face **two** ceilings, and a build stops at whichever it reaches
-first: at most `GameConfig.maxDrawbackTags` of them may be bought (**5** by
+first: at most `GameConfig.maxDrawbackTags` of them may be bought (**6** by
 default), claiming back at most `GameConfig.maxDrawbackPoints` points in total
-(**12** by default, matching `startingTagPoints` — you can never claim back
-more than you started with). Both are live on `/gm/dev`. Either alone leaves a
+(**13** by default). The point cap sits one **above** `startingTagPoints` on
+purpose, not equal to it — so the most a maxed-out build can net from
+drawbacks is one point more than it started with, rather than the old exact
+symmetry. Both are live on `/gm/dev`. Either alone leaves a
 hole: a count cap spends the same slot on a −1 as on a −11, and a point cap
 alone never stops a pile of small ones. The role's own starting tags land as
 `GM_GRANT` and never pass through the purchase path, so the Meister's free

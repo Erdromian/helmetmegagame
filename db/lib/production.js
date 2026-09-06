@@ -15,13 +15,20 @@
 //
 // There is deliberately no `base` tier any more. Holding no Laboring tag at
 // all means you cannot labor, rather than laboring badly.
+// Raised ~8% on 2026-09-06, Bascinet's call, applied to these base values
+// rather than to GameConfig.productionCoefficient — the dial exempts Basic
+// (UNSCALED_TIERS) and would have missed it. The two general tiers did not
+// actually move: 2 x 1.08 = 2.16 and 4 x 1.08 = 4.32 both round back to where
+// they started, and one whole point on those is 25-50%, which is not an 8%
+// boost by any reading. So the rise lands on the three specialisations, which
+// is where the volume is anyway.
 const PRODUCTION_RATES = {
   labor: {
     basic: { min: 0, max: 2 },
     skilled: { min: 1, max: 4 },
-    hunting: { min: 0, max: 18 },
-    farming: { min: 12, max: 16 },
-    fishing: { min: 7, max: 14 },
+    hunting: { min: 0, max: 19 },
+    farming: { min: 13, max: 17 },
+    fishing: { min: 8, max: 15 },
   },
 };
 

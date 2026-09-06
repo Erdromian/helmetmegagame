@@ -88,7 +88,6 @@ export async function updateGameConfig(formData) {
       lifewebDecayPerTurn: intOrZero(formData, "lifewebDecayPerTurn"),
       openToPlayers: formData.get("openToPlayers") === "on",
       leaderWhitelistEnabled: formData.get("leaderWhitelistEnabled") === "on",
-      playtestModeEnabled: formData.get("playtestModeEnabled") === "on",
       autoTurnAdvanceDisabled: formData.get("autoTurnAdvanceDisabled") === "on",
       avatarUploadsEnabled: formData.get("avatarUploadsEnabled") === "on",
       portraitMakerEnabled: formData.get("portraitMakerEnabled") === "on",
@@ -277,7 +276,6 @@ const DEFAULT_GAME_CONFIG = {
   lifewebDecayPerTurn: 10,
   openToPlayers: false,
   leaderWhitelistEnabled: true,
-  playtestModeEnabled: false,
   autoTurnAdvanceDisabled: false,
   avatarUploadsEnabled: false,
   portraitMakerEnabled: false,
@@ -289,13 +287,13 @@ const DEFAULT_GAME_CONFIG = {
   archiveTravelEvents: false,
   productionCoefficient: 0.93,
   startingTagPoints: 12,
-  playerCount: 100,
+  playerCount: 80,
   equipSlots: 6,
   carryWeightLbs: 120,
   carryResourceCap: 25,
   freeZoneMovesPerTurn: 1,
-  maxDrawbackTags: 5,
-  maxDrawbackPoints: 12,
+  maxDrawbackTags: 6,
+  maxDrawbackPoints: 13,
   desireSlots: 2,
   desireSlotLockTurns: 2,
   catatonicEnabled: true,
@@ -335,7 +333,6 @@ export async function wipeGameData(formData) {
     await prisma.$transaction([
       prisma.note.deleteMany({}),
       prisma.action.deleteMany({}),
-      prisma.request.deleteMany({}),
       prisma.desire.deleteMany({}),
       prisma.birdMessage.deleteMany({}),
       prisma.characterTag.deleteMany({}),
@@ -344,8 +341,8 @@ export async function wipeGameData(formData) {
       // StructureWork first, since it has a required FK to Structure.
       prisma.structureWork.deleteMany({}),
       prisma.structure.deleteMany({}),
-      // Link state back to its born values: a gate somebody shut, a way a
-      // structure flipped, a keyed door somebody propped — all play state.
+      // Link state back to its born values: a gate somebody shut, a keyed
+      // door somebody propped — all play state.
       // Raw SQL because column-to-column isn't expressible in updateMany.
       // No anchor reposts needed: finishGameWipe re-syncs zones afterwards
       // and anchors hash their own gate state, so they self-heal there.
@@ -651,6 +648,43 @@ export async function assignFactionMember(formData) {
   revalidatePath("/gm/dev/factions");
   revalidatePath("/faction");
   revalidatePath("/gm/players", "layout");
+}
+
+// --- The bomb ---------------------------------------------------------
+
+// A GM's hand on the countdown, and the only safeguard the feature has: anyone
+// holding the datacard and the device can start it, and this is what can stop
+// it inside the two-turn window. Superadmin-gated like everything else on this
+// panel.
+//
+// Defusing is deliberately not the same as a player's Disarm: it files no
+// Request (there is nobody to review a GM) and it works whoever is holding
+// what, including when the armer is dead or gone.
+export async function defuseNukeAction() {
+  const session = await requireSuperadmin();
+
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  if (config?.nukeDetonatedTurn != null) {
+    return { ok: false, error: "It already went off. ‡" };
+  }
+  if (config?.nukeArmedTurn == null) {
+    return { ok: false, error: "Nothing is armed. ‡" };
+  }
+
+  const wasFiringOn = config.nukeArmedTurn;
+  await prisma.gameConfig.update({ where: { id: 1 }, data: { nukeArmedTurn: null } });
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "nuke_defused",
+        details: { wasFiringOn },
+      },
+    })
+    .catch((err) => console.error("Nuke defuse audit log failed:", err));
+
+  revalidatePath("/gm/dev");
+  return { ok: true, wasFiringOn };
 }
 
 // --- Channel doctor + system reports ----------------------------------

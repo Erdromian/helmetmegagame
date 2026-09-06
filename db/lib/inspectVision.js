@@ -2,8 +2,8 @@
 //
 // Seductive (the Demoness tag, docs/tags.yaml's hidden `demoness` category) is
 // the one tag that buys automatic, free read access to another sheet's last
-// fulfilled Desire. Empathetic and Mindreading read the same fact only via a
-// GM-adjudicated Gambit. Inscrutable is the counter, read off the subject.
+// fulfilled Desire. Mindreading reads the same fact only via a GM-adjudicated
+// Gambit. Inscrutable is the counter, read off the subject.
 //
 // No Prisma import; imported by subpath from both bot/ and web/ so the rule
 // can't drift between the two faces of the game.

@@ -460,6 +460,7 @@ zones:
               - Shield
               - Radio System (Cerberon)
               - Radio Bracelet (Cerberon)
+              - Literate
               - Obol x2
               - Post-Christian
             doc_elements:
@@ -1332,6 +1333,85 @@ zones:
 
   - name: Black Hills
     factions:
+      # THE TRIBUNAL. Not a faction anybody joins: both seats arrive by GM
+      # spawn only (db/lib/threats.js), and both are listed in
+      # SPAWN_ONLY_ROLE_SLUGS so the creation wizard never offers them. They
+      # live under the Black Hills because that is where the shuttle puts them
+      # down — Black Pines, which the map already describes as dense enough
+      # that "sound does not carry, neither do shouts".
+      #
+      # No `silo:` on purpose: a silo is a faction's shared stash in a room
+      # somebody holds a key to, and the Tribunal has no room here. They carry
+      # what they brought.
+      the-tribunal:
+        name: The Tribunal
+        roles:
+          tribunal-ordinator:
+            name: Tribunal Ordinator
+            intro: >-
+              You came down with the shuttle. Ravenheart does not know what you are yet, and that is worth more than the armour. ‡
+            description:
+              - >-
+                You are an Ordinator of the Tribunal, sent from off-world at the God-King's pleasure. You are better equipped than anything in this barony and you know it. ‡
+              - >-
+                You do not have to explain yourself to a Baron. Whether you choose to is a question of how much trouble you want. ‡
+              - >-
+                Your armour turns aside almost anything Ravenheart can forge, and almost anything it can shoot. Almost. Do not mistake that for immortality — a turret does not care who you are. ‡
+            difficulty: hard
+            multiple: true
+            weight: 1
+            starting_resources: 8
+            starting_zone: hills
+            starting_location: hills-black-pines
+            starting_tags:
+              - Melee (Skilled)
+              - Ranged (Skilled)
+              - Medical (Skilled)
+              - Melee (Swords)
+              - ML-23
+              - Tribunal Ordinator Helmet
+              - Broadsword
+              - Dagger
+              - Heavy Infantry Armor
+              - Energy Shield
+              - Ordinator Insignia
+              - Military Autoinjector x2
+              - Relentless
+              - Arthritis
+              - Thick Skull
+              - Strong
+              - Tactician
+              - Cruel
+
+          tribune:
+            name: Tribune
+            intro: >-
+              You came down with the shuttle. Somebody has to write the report. ‡
+            description:
+              - >-
+                You are a Tribune of the Tribunal, off-world and out of place. You are here to see what is here, and to be seen doing it. ‡
+              - >-
+                You are better armed than anyone in the barony and worse at fighting than the Ordinator beside you. Use the rifle at distance and the knife only if it has already gone wrong. ‡
+              - >-
+                You can patch yourself up in the field, a little. The autoinjectors are for when a little is not enough. ‡
+            difficulty: hard
+            multiple: true
+            weight: 1
+            starting_resources: 8
+            starting_zone: hills
+            starting_location: hills-black-pines
+            starting_tags:
+              - Melee (Skilled)
+              - Ranged (Skilled)
+              - Medical (Basic)
+              - CTT4&3 Rifle
+              - Bore Pistol
+              - Tribunal Helmet
+              - Trench Knife
+              - Heavy Infantry Armor
+              - Military Autoinjector x2
+              - Tough
+
       brigands:
         name: Brigands
         silo: ravine-camp

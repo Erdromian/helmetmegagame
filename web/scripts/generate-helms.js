@@ -65,8 +65,8 @@ const CENTRE_Y = 0.47;
 // same reason. Must match TINT/DARKEN in web/scripts/generate-letters.js and
 // FADE_TINT/FADE_DARKEN/FADE_HEIGHT in web/lib/portrait/catalog.js.
 const FADE_HEIGHT = 0.3;
-const FADE_TINT = { r: 0x27, g: 0x44, b: 0x3e };
-const FADE_DARKEN = 0.5;
+const FADE_TINT = { r: 0x3c, g: 0x3c, b: 0x3c };
+const FADE_DARKEN = 0.4;
 
 // Built once — it never varies — and reused across all 21 sprites.
 function fadeSvg() {

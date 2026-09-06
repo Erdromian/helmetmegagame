@@ -228,7 +228,7 @@ you pick the right doc — they are never enough to change code with.
 | [`BREWING.md`](docs/systemdocs/BREWING.md) | You're pricing a brew, changing a recipe, or touching the Brewing skill family |
 | [`DEPOT.md`](docs/systemdocs/DEPOT.md) | You're pricing an imported ware, touching `/depot` or the Merchant's credit line, or setting a tag's `depotPrice` / `sellablePrice` |
 | [`DESIRES.md`](docs/systemdocs/DESIRES.md) | You're touching the Desire catalog, its gates/cooldowns/locks, `conflictsWith`, or the Desires GM surface on `/gm/dev` |
-| [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet |
+| [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet — and **always** before adding one a per-turn ration counts |
 | [`BIRD.md`](docs/systemdocs/BIRD.md) | You're touching the Bird's letters, the once-a-day send, or the Reply window |
 | [`PAPERWORK.md`](docs/systemdocs/PAPERWORK.md) | You're touching paper, writing, wax seals, noticeboards, or **anything that asks whether a character can read** (`db/lib/reading.js`) |
 | [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the arbitration workspace, staging, or the turn-end push |
@@ -818,31 +818,48 @@ migrate first, new columns just sit unused for a few seconds — harmless. If
 you redeploy first, you ship code that queries columns the database doesn't
 have yet, for the whole length of a build.
 
-**Migrations do not run themselves, and a bare `git push` is enough to
-deploy.** Railway builds from this GitHub repo, so pushing to `master`
-triggers a deploy with no chance for any script in this repo to migrate
-first. If that deploy carries a new migration, the shipped code queries
-columns the database doesn't have. The symptom is brutal to diagnose from the
-browser: the page throws `P2022` server-side, and Next redacts it to a bare
-digest (`ERROR 330354103`). The whole route goes down, not just the feature
-that needed the column. **This has happened three times.**
+**A bare `git push` is a complete deploy now.** Railway builds from this
+GitHub repo, so pushing to `master` triggers a deploy. Two settings on the
+Railway services make that deploy correct, and both are set:
 
-The only complete fix is a **Pre-Deploy Command on the `web` service**
-(Railway dashboard → web → Settings → Deploy):
+- **Pre-Deploy Command on `web`: `npm run db:migrate:deploy`.** It runs after
+  the build and before the new version takes traffic, so a failed migration
+  aborts the deploy instead of shipping a half-migrated app. Scoped to `web`
+  on purpose — `bot` shares the database and would only race it. Don't use a
+  root `railway.json`, which would apply to both services.
+- **Watch Paths are empty on both services**, so every push rebuilds both.
 
-```
-npm run db:migrate:deploy
-```
+Neither was set for a long time, and each caused its own outage.
 
-It runs after the build and before the new version takes traffic, so a failed
-migration aborts the deploy instead of shipping a half-migrated app. It's
-scoped to `web` on purpose — `bot` shares the database and would only race
-it. Don't use a root `railway.json`, which would apply to both services.
+Without the Pre-Deploy Command, a deploy carrying a new migration shipped code
+querying columns the database didn't have. The symptom is brutal to diagnose
+from the browser: the page throws `P2022` server-side, and Next redacts it to
+a bare digest (`ERROR 330354103`). The whole route goes down, not just the
+feature that needed the column.
 
-Until that field is set, run `npm run db:migrate:deploy` by hand after any
-deploy that adds a migration. (`db:migrate` is `migrate dev` — **never**
-point that at production.) `./migrate.sh` is the one-liner: it sources the
-root `.env` first, since npm won't load the file for you.
+The Watch Paths were worse, because they failed *silently*. `web` watched
+`/web/**` and `bot` watched `/bot/**`, so **nothing watched `/db/**`** — the
+schema, the migrations, and every shared module in `db/lib/`. A push touching
+only shared code was marked `SKIPPED` and the old container kept running, with
+the old **generated Prisma client** baked into its image. That is
+`PrismaClientValidationError: Unknown argument` in production, for exactly the
+reason the stale-client note under "Verifying a change locally" gives. Nothing
+watched `/docs/**` either, and `web/lib/handbook.js` reads `docs/handbook.md`
+off disk at runtime. Leave the Watch Paths empty; the few build-minutes are
+cheaper than one skipped deploy.
+
+If a route ever throws `P2022` again, check the other direction too: a
+migration applied to production from a working tree whose code was never
+pushed leaves the **database ahead of the deployed build**, and a dropped
+column reads identically from the browser. `scripts/push.sh` refuses a push
+while `db/prisma/migrations/` holds an untracked directory, which is the half
+of that this repo can actually catch.
+
+`npm run deploy` is still the path that takes a **backup** first — the
+Pre-Deploy Command does not. Use it for anything destructive. (`db:migrate` is
+`migrate dev` — **never** point that at production.) `./migrate.sh` is the
+one-liner: it sources the root `.env` first, since npm won't load the file for
+you.
 
 Two more things that cause real problems:
 
@@ -898,6 +915,12 @@ global CLIs. To make one able to build, run, and deploy:
   mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
   filed as one `BUY_TAGS` request. What's still open is the rules for earning
   points during play (Desires are currently the only faucet).
+- **`AuditLog` is the whole record of what a player did.** There is no
+  `Request` table any more — player actions apply their effect and write one
+  audit row, there is no reason field and no Undo, and a GM repairs by hand
+  from `/gm/dev`. Three per-turn rations (the medic's cure cap, Dead Simple,
+  a recipe's own `requirementPerTurn`) COUNT those rows, so a new action a
+  ration covers must set `AuditLog.turnId`. See `REQUESTS.md` §1a.
 - **`prisma migrate diff` proposes dropping `ArchiveEntry_content_trgm_idx`.**
   That index lives only in raw migration SQL, so Prisma's schema doesn't know
   about it. Decline the drop; it is not drift you introduced.
@@ -906,7 +929,8 @@ global CLIs. To make one able to build, run, and deploy:
   cannot express. Decline that drop too — without it a character could hold
   two live applications to one faction. `ThreatSpawn_pending_unique` is the
   third of these, and the same answer: without it a player could hold two live
-  spawn offers (`THREATS.md` §4).
+  spawn offers (`THREATS.md` §4). `AuditLog_details_trgm_idx` is the fourth,
+  and the reason `/gm/audit`'s text search is not a full-table scan.
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
   carries `restInvalidCount` / `restInvalidWindowStart` /
   `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the

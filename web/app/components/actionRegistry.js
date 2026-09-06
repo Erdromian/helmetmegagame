@@ -44,6 +44,7 @@ import {
   QuillIcon,
   SealIcon,
   BookIcon,
+  CharacterIcon,
 } from "./icons";
 
 export const ACTION_HELP = {
@@ -81,12 +82,22 @@ export const ACTION_HELP = {
   move: "Forcibly move someone with the Bound tag, from where you stand to somewhere next door. Use this before moving yourself. If you're a Leader, you can also move people within your own faction. It does not spend their turn. Bodies can be dragged by anyone. ‡",
   bind: "Tie someone up. They have to agree — unless they're already helpless. Once they're Bound you can loot them or march them somewhere. ‡",
   free: "Cut someone loose. Anyone standing here can do this, including a rescuer.",
+  crucify:
+    "Put someone standing here on the cross. It needs a Cross built where you stand, and it doesn't spend your Move. They hang there unable to act, and in a turn they are Dying. ‡",
   harm: "Further injure someone who is bound or incapacitated.",
   butcher:
     "Cut up a body — one you're carrying, or one lying in a room you can get into here — for what's inside it. Costs nothing and takes no time, and the body is gone afterwards. It does not free their soul. ‡",
   bury: "Put a body in the ground. You have to be holding their corpse, or be somewhere you can reach it. Takes your turn. Allows their soul to respawn. ‡",
   engrave:
     "Memorialize someone's name, in case you can't find their body. Frees their soul to respawn. ‡",
+  disguise:
+    "Put on a false name and face for 3 turns. Nobody sees who you are — not your name, not your portrait — and you cannot conceal yourself on top of it. The kit is not used up. ‡",
+  pointer:
+    "Read the datacard. It names the next place on the way to the nuclear device, or tells you the device is already here. Costs nothing, takes no time, and nobody is told you looked. ‡",
+  arm:
+    "Put the datacard into the device and start the countdown. It detonates at the close of the turn after next, and it will kill everyone who is not underground. You can still disarm it before then. ‡",
+  disarm:
+    "Take the datacard out and stop the countdown. Safe again, and you can arm it as many times as you like. ‡",
   extract:
     "Cut Godflesh out of the marsh. Takes your turn, and you need a hatchet, a battle-axe or a chainsaw in your hands. It rolls 1d6: a 6 gives you an extra, and a 1 means it got hold of you first. Wear your Armored Gloves. ‡",
   package:
@@ -116,6 +127,16 @@ export const ACTION_SECTIONS = [
       { mode: "consume", icon: MealIcon, label: "Consume", gate: "canConsume" },
       // No gate: you can always move ⬢ or put something down.
       { mode: "transfer", icon: HandOffIcon, label: "Transfer" },
+      // HIDDEN rather than greyed, the same reasoning Crucify and the Factory
+      // verbs give: whether YOU are carrying a disguise kit is a fact about
+      // your own sheet, and a dead Disguise icon on everybody else's would
+      // teach them nothing except that disguise kits exist.
+      {
+        mode: "disguise",
+        icon: CharacterIcon,
+        label: "Disguise",
+        show: "canDisguise",
+      },
       // Both grey on a list the server already filtered to who could teach
       // YOU (or whom you could teach) — a fact about your own sheet.
       {
@@ -158,6 +179,36 @@ export const ACTION_SECTIONS = [
       },
     ],
   },
+  // The bomb. Its own section rather than three more rows under "You",
+  // because the datacard is the rarest thing in the game and burying it in a
+  // grid of nine everyday verbs would make it read as one of them.
+  //
+  // All three HIDE rather than grey when you have no datacard — the Extract
+  // rule: whether YOU are carrying it is a fact about your own sheet, and a
+  // dead row on everybody else's would only teach them the bomb exists.
+  // Arm and Disarm then additionally GREY when the device itself is not in
+  // your hands, which is the one thing a card-holder needs told.
+  {
+    key: "device",
+    label: "The device ‡",
+    actions: [
+      { mode: "pointer", icon: EyeIcon, label: "Use Pointer ‡", show: "hasDatacard" },
+      {
+        mode: "arm",
+        icon: WoundIcon,
+        label: "Arm Nuke ‡",
+        show: "hasDatacard",
+        gate: "hasDevice",
+      },
+      {
+        mode: "disarm",
+        icon: KeyIcon,
+        label: "Disarm Nuke ‡",
+        show: "hasDatacard",
+        gate: "hasDevice",
+      },
+    ],
+  },
   {
     key: "others",
     label: "People here ‡",
@@ -177,6 +228,10 @@ export const ACTION_SECTIONS = [
       { mode: "loot", icon: LootIcon, label: "Loot" },
       { mode: "bind", icon: ShackleIcon, label: "Bind" },
       { mode: "free", icon: KeyIcon, label: "Free" },
+      // HIDDEN rather than greyed, the Extract rule: whether YOU are a
+      // Fundamentalist standing at a Cross is your own fact, and a dead
+      // Crucify icon on every other sheet would teach nothing.
+      { mode: "crucify", icon: WoundIcon, label: "Crucify ‡", show: "canCrucify" },
       { mode: "harm", icon: WoundIcon, label: "Harm" },
       { mode: "move", icon: MapIcon, label: "Move Player" },
     ],

@@ -6,6 +6,91 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The Censor can read
+
+✚ The Censor starts Literate, like every other Court seat
+
+## 2026-09-06 · Depressed only fights the tags that touch Desires
+
+✎ Lazy, Insomniac, Guilt Ridden, Torturer and the four phobias can sit alongside Depressed again. None of them touches the Desire system, so there was nothing for them to argue with.  
+✎ Nobility and Eunuch do lock Desires, so those two now conflict where they did not before.  
+✎ The test is simply whether a Personality tag locks or opens Desires at all, rather than a hand-picked list.
+
+## 2026-09-06 · Storage and the noticeboards check the character who pressed the button
+
+✎ Clicking Storage in a room, or opening a noticeboard, checked where somebody else was standing. Almost everyone was told "You're not here" in a room they were plainly in  
+✎ Tearing a notice down would have put the paper in that other character's hands, and pinning one would have taken it out of their pack. Nothing had been pinned yet, so nobody lost anything
+
+## 2026-09-06 · Desire names are plain prose, and thresholds read in both currencies
+
+✎ Desire names no longer link tags — Sake and Ravenheart Red were chips while alcohol and moonshine beside them were plain text, so the picker looked half-finished  
+✎ Gambling wins and Resources thresholds now read in both currencies: Win 5 ⬢/¢, Have 100 ⬢/¢, and so on  
+✎ Kill someone you hate is 4pt  
+✎ Save someone's life is repeatable on a 5-turn cooldown; saving a faction leader's life is the once-a-life one. They were the wrong way round  
+✎ Kiss someone and Gain a lover both get a 4-turn cooldown  
+✚ Get married, once a life — it replaces Gain a lover you should not have, which is retired  
+✎ Confess your sins is now Successfully confess something
+
+## 2026-09-06 · Depression crowds out everything else about you
+
+✎ Depressed can no longer be combined with almost any other Personality tag, on top of the Addictions it already ruled out. A depressed character is depressed first and everything else second.  
+✎ The six that still sit beside it are Nobility, Eunuch, Debtor, Poor Swimmer, Motion Sickness and Lightweight, none of which is really a disposition.  
+✎ Depressed now gives back 8 points instead of 6, which is what the design notes always said it should be.
+
+## 2026-09-06 · Pushing an update deploys the whole site again
+
+✎ Every push now rebuilds both the website and the bot. Half the updates were quietly not deploying at all, which is why the site kept showing yesterday's behaviour until someone redeployed by hand  
+✎ Database changes are applied automatically just before an update goes live, so a page can no longer break with a bare error code because a column was missing
+
+## 2026-09-06 · Let a Depot Keycard work the machinery, not the money
+
+✚ A Depot Keycard now calls the shuttle down, loads it, sends it back up, and feeds and starts the generator  
+✎ The keycard still spends nothing — ordering, the ATM, the credit line, the obol counter and the turret stay on the Merchant's Licence  
+✎ Only the Licence can shut the generator down, because the lights going out take the turret with them  
+✎ The Feed button used to be greyed out by the very outage it existed to fix, so a dead generator was unrecoverable from the console  
+✎ Working the Depot console is an ACT now — an incapacitated Merchant could order, bank and refuel from the floor
+
+## 2026-09-06 · The whitelist points at a role that exists
+
+✚ The Whitelist role works again — it was pointing at a role deleted in the pre-launch cleanup, so all 24 whitelisted players were locked out of every whitelisted seat with no error shown  
+− - almost certainly deleted by the pre-launch cleanup and remade with a new snowflake. isLeaderWhitelisted is a plain roles.includes(), so it returned false for everybody: all 24 holders of the real @Whitelist role were locked out of every whitelisted seat, greyed with no error anywhere. The gate fails closed on purpose, which is exactly why it was silent.
+
+## 2026-09-06 · Playtest mode is gone
+
+− The playtest lever on the dev panel. Both of its lists were empty, so it never locked anything
+
+## 2026-09-06 · The web app is back up
+
+✎ A half-landed change had left the site querying two database columns that no longer existed, which took every page down. The structural-edge system is now properly gone
+
+## 2026-09-06 · The zone picker answers on the click
+
+✎ The Zones control now responds to a click straight away, instead of freezing for about twenty seconds  
+✚ A picked zone turns orange, so you can tell at a glance which ones you have  
+✎ Your GM: <Zone> Discord roles now catch up a second or two after the click, rather than holding it up
+
+## 2026-09-06 · The bot is back up, and appearance has more room
+
+✎ The bot had been crashing on boot since the phobia pass shipped half-committed; the missing pieces are in  
+✚ Character appearance now takes 400 characters instead of 300
+
+## 2026-09-06 · The Fisherman starts skilled at Laboring
+
+
+## 2026-09-06 · The turn header is a dated subtext line
+
+
+## 2026-09-06 · Knighthood is back on the picker, for a single point
+
+✎ Knighted is purchasable again at character creation, at 1 ⬢. It stays out of the mid-game store — once play starts, knighting is the Baron's to do
+
+## 2026-09-06 · Ten Courtier kits, and knighthood is no longer for sale
+
+✚ Ten Courtier starting kits — Herald, Seasoned Knight, Tutor, Chaplain, Carouser, Manor Lord, Debutante, Court Physician, Court Artist and Master Engineer. Each is a crate a Courtier buys at creation and unpacks in play, priced well under what it holds  
+− Knighted is off the tag picker. It is free now, and comes from the Seasoned Knight kit or a GM's hand  
+✚ A hostage bag in the Order Chambers, and two hoods in the Ravine Camp  
+✚ Both Brigands start with a Plebeian Hood
+
 ## 2026-09-06 · Role charters: the contributor's pass
 
 ✎ The Baron, Baroness, Hand and Meister open with new intros; the Baron keeps his intercom and the yard turret  

@@ -1,86 +1,91 @@
-# Requests: acting first, reviewing after
+# Player actions: acting, and the record it leaves
 
-How a player changes their own sheet without waiting on a GM, and what a GM
-can do about it afterwards. Companion to `ADJUDICATION.md` (the GM-facing
-review surface), `CHARACTERS.md` (creation and the point economy) and
-`TAGS.md` (the tag catalog).
+How a player changes their own sheet, and what a GM can do about it
+afterwards. Companion to `ADJUDICATION.md` (the GM-facing Moves desk),
+`CHARACTERS.md` (creation and the point economy) and `TAGS.md` (the tag
+catalog).
 
 ## 1. The shape of it
 
-The game runs one turn per real-world day for a month. Any mechanic that
-needs a GM in the loop before it resolves costs a player a day. Most of what
-players do — handing over resources, dropping an illness a medic just cured,
-dropping a cured illness, claiming a Desire — is not contentious enough to be worth
-that.
-
-So the approval order is inverted. The player acts, the change lands
-immediately, and the GM reviews it later:
+The game runs one turn per real-world day for a month. Any mechanic that needs
+a GM in the loop before it resolves costs a player a day. So there is no
+approval step anywhere: the player clicks, the effect lands, and that is the
+whole transaction.
 
 1. The player clicks a button on their character sheet.
-2. A universal popup asks **"What is your reason?"**, with type-specific
-   fields underneath. (One exception: the Bird's letter passes
-   `reasonRequired={false}`, because the letter it files is already the evidence
-   a GM would read — `BIRD.md` §7.)
+2. A popup collects the type-specific fields, if there are any. **It does not
+   ask for a reason.** Nothing is being justified to anybody.
 3. The player confirms.
-4. The effect is applied and a `Request` row is written, in one transaction.
-5. A GM sees it in the Requests tab of `/gm/turns` and can **Mark reviewed**
-   (stamp it seen, no change), **Save edits** (a real change, stamps the
-   status `EDITED`) or **Undo** it.
+4. The effect is applied and **one `AuditLog` row** is written, in the same
+   transaction, through `logAudit()` in `web/lib/requests.js`.
+5. A GM reads it on `/gm/audit`.
 
-The panel says this out loud, in small type: *"To reduce GM load, players can
-make big changes."* The reason field is the whole anti-abuse mechanism — a
-player who cannot justify what they did in writing is a player a GM will
-notice.
+**There is no `Request` table any more, and no Undo.** There used to be: every
+action filed a `Request` row alongside its effect, `/gm/turns` carried a
+Requests tab, and `web/lib/tagEffects.js` held a per-type handler that
+could reverse one. All of it is gone — the row was never an approval gate, only
+a review record, and the reason field it demanded was friction on every single
+action a player took.
 
-## 2. `payload` vs `effect`
+**What replaced Undo is the Dev Panel.** A GM repairs a sheet by hand:
+`TagEditor` adds a tag back or takes one off, "Transfer ⬢" reverses a transfer,
+Teleport reverses a move (`DEV-PANEL.md`). For that to be possible the audit
+`details` blob has to carry enough to rebuild what was destroyed, which is why
+Destroy, Consume, Loot, Break Seal and Transfer all write a `restore`
+snapshot — the tag's original `source`, `expiresTurn` and quantity — into
+`details`. **A new destructive action must do the same**, or a GM can only put
+back a fresh grant with a full duration.
 
-The load-bearing detail of the schema. Every `Request` carries two JSON
-blobs:
+### 1a. Three things that are not audit trail
 
-- **`payload`** — what the player asked for, as submitted.
-- **`effect`** — what was actually applied, as a snapshot.
+`AuditLog` is normally a record. In three places it is read back as live game
+state, so the row has to be written for the rule to work at all:
 
-**Undo reads only `effect`, and never re-derives anything from live state.**
-That matters because state moves on: a GM may edit the resource cost, the
-player may transact again, a tag may be displaced by another. Reversing
-a request by recomputing it from the character's current sheet would quietly
-apply the wrong numbers. Snapshotting the applied deltas is what makes Undo an
-exact inverse.
+| Ration | Counts | Written by |
+|---|---|---|
+| A medic's Routine cures a turn (`MEDICAL_TIER_CAPS`) | `request_heal_character` rows for the open turn | `healCharacterRequestImpl` |
+| Dead Simple units a turn (`DEAD_SIMPLE_PER_TURN`) | `request_craft_tag` rows for the open turn | `grantCrafted` |
+| A single recipe's own `requirementPerTurn` | the same craft rows, filtered to one `tagId` | `grantCrafted` |
 
-The same reasoning drives the restore snapshots: removing a tag stores its
-original `source`, `expiresTurn` and `quantity`, so Undo puts back the tag
-that was there rather than a fresh grant with a full duration. The quantity
-matters for the same reason everything else here does: a player who cooked
-four more meals between the request and the GM getting to it must not have
-the whole new stack clawed back — only what this request moved. See
-`TAGS.md` §5a.
+All three read `AuditLog.turnId`, which exists for exactly this and is indexed
+with `targetCharacterId` and `actionType`. **An action that a ration counts
+must set `turnId`**, or the ration silently reads zero and stops being
+enforceable. The `/depot` ledger reads the audit log too, though only to
+display.
 
-`web/lib/requests.js#createRequest` is the one writer, and every caller
-invokes it inside its own `prisma.$transaction` so a request can never exist
-without its effect, or an effect without its request.
+## 2. What the `details` blob carries
 
-**Status semantics.** `PASSED` means the request stands exactly as the player
-made it, whether or not a GM has looked at it — `reviewedAt`/
-`reviewedByDiscordUserId` are the "seen" stamp, tracked separately from
-status. `EDITED` means a GM made a real change to the numbers. A Confirm that
-adds only `gmNotes`, or that re-confirms with no change, stays `PASSED` (or
-whatever real status it already had) and audits `request_reviewed`, not
-`request_edited`. Each handler's `applyEdit` returns `{ effect, note, changed
-}` (`web/lib/requestEffects.js`); `resolveRequestImpl`
-(`web/app/(desk)/gm/turns/actions.js`) reads `changed` to decide the status
-and the audit `actionType`.
+Every action writes one `AuditLog` row, and its `details` JSON is the entire
+record of what happened. It is written from the **applied** values, never from
+what the player asked for and never re-derived later from live state — a
+character's sheet moves on, and a row that read the current sheet would
+describe the wrong thing a day later.
 
-**Every ⬢ movement goes through `requestEffects.js#moveResources`, and a debit
-the balance no longer covers throws rather than going negative.** The write is
-the check — a conditional `updateMany` matching only while the balance still
-covers the amount. The friendly `amount > from.balance` checks in the request
-actions stay for their better wording, but they are a separate statement from
-the write and two tabs firing at once both passed them: ten sent twice left
-the sender at −10 and the recipient up 20.
-The throw aborts the surrounding transaction, so the tag grant, the `Request`
-row and the audit entry all roll back with it.
+Two rules for anyone adding an action:
 
-## 3. The types
+- **Snapshot what a repair would need.** Anything destructive carries
+  `restore: { tagId, source, expiresTurn, quantity }`, because the Dev Panel is
+  the only way back and a GM can only type in what the row tells them.
+- **Set `turnId` if a ration counts it** (§1a). It is also what `/gm/audit`'s
+  turn filter reads.
+
+The `request_` prefix on most `actionType`s is a fossil of the Request table
+and is kept on purpose: renaming ~35 of them would orphan every row already
+written under the old names, and what a GM reads is the family label
+("Player action") rather than the key.
+
+## 3. The actions
+
+> These were `RequestType` enum values until the Request table was dropped.
+> They are `AuditLog.actionType` strings now — `ADD_TAG` is `request_craft_tag`,
+> `REMOVE_TAG` is `request_destroy_tag`, and so on. The mechanics below are
+> unchanged; only where the row lands has moved.
+>
+> **Everything below that describes an Undo is history.** There is no Undo any
+> more (§1). Those passages are kept because they document what each action
+> actually changed — which is exactly what a GM needs in order to reverse one
+> by hand from the Dev Panel — but no button runs them. This half of the doc
+> has not been reworded line by line yet. ‡
 
 Deliberately uncounted — a stale number outlived three counts here already;
 the table below and the `RequestType` enum are the record. Most live in
@@ -112,6 +117,7 @@ reason.
 | `MOVE_CHARACTER` | Marches a faction member they lead, anyone helpless (Bound/Dying/Paralyzed/Catatonic), or a body, into a neighbouring zone. Does **not** spend the target's turn | — | Restores the previous zone in the DB only |
 | `BIND_CHARACTER` | Ties up anyone at their Location who isn't concealed. A conscious, unhelpless target must accept an Offer first (`LESSONS.md` §3b); a target who is dead or already holds an incapacitating tag is bound on the spot | — | Cuts them loose |
 | `FREE_CHARACTER` | Cuts someone in their zone loose | — | Puts Bound back with its original expiry |
+| `CRUCIFY_CHARACTER` | Puts the `crucified` status on anyone standing at their Location. Needs the `fundamentalist` tag and a `COMPLETE` `crucifix` Structure standing there. **No consent and no Move** — the cross is the gate. Crucified blocks ACT and not SPEAK (`TAGS.md` §5f), becomes Dying at the close of the turn, and the Dying pass kills at the next | — | Drops `crucified`. After the close only Dying is left, and Undo leaves it — heal that |
 | `HARM_CHARACTER` | Inflicts a Health affliction on someone already helpless, **kills** them, or both — see §5b | — | Heals what was inflicted; never revives |
 | `BURY_CHARACTER` | Puts a body into the ground, lifting the **Cursed** role off the dead player's Discord account. Needs their **actual corpse tag**, held or reachable in a room here, and spends the filer's Move | — | Raises the body and puts the corpse back where it came from; does **not** re-curse, and the Move stays spent |
 | `ENGRAVE_HEADSTONE` | Frees a soul with a stone instead of a body, for **4 ⬢** and the filer's Move. Target is **typed**, first name only, matched **game-wide**. Leaves a `{name}'s Headstone` tag | — | Refunds the ⬢, takes the stone, reopens the grave; does **not** re-curse |
@@ -138,10 +144,9 @@ to undo. Both skip `RequestDialog` — `NO_REQUEST_MODES` in
 `RequestActionsProvider.js` — and get their own plain modal, because the
 universal "what is your reason?" popup has nothing to ask them.
 
-The per-type behaviour lives in `web/lib/requestEffects.js` as one
+The per-type behaviour lives in `web/lib/tagEffects.js` as one
 `REQUEST_EFFECTS` entry each. **Adding a type means adding one entry
-there, one entry in `RequestSections.js`'s `SECTIONS` map, one label in
-`requestLabels.js`, one line in the desk's `summarize()`, and one value in the
+there, one renderer in `web/lib/auditNarrative.js`'s table, and one value in the
 `RequestType` enum — nothing else in the adjudication surface changes.** That
 extensibility was an explicit requirement, and every type added since — the
 two Lifeweb ones, the eight of the Actions grid, then the Depot's three — cost
@@ -195,7 +200,8 @@ Three notes on deliberate choices:
 - **Every request whose subject is a different character notifies that
   character.** `TRANSFER_TAG`, `TRANSFER_RESOURCES`, `HEAL_CHARACTER`,
   `LOOT_CHARACTER`, `MOVE_CHARACTER`, `BIND_CHARACTER`, `FREE_CHARACTER`,
-  `HARM_CHARACTER`, `BURY_CHARACTER`, `DONATE_BLOOD` and `FEED_PERSON` all DM
+  `CRUCIFY_CHARACTER`, `HARM_CHARACTER`, `BURY_CHARACTER`, `DONATE_BLOOD` and
+  `FEED_PERSON` all DM
   their target through `web/lib/notifyCharacter.js` — one line, fired after
   the transaction commits, same posture as the Dev Panel's own notifier
   (`DEV-PANEL.md`). **The DM never names the actor.** Several of these only
@@ -252,18 +258,6 @@ Three notes on deliberate choices:
   each type would be the `killRequestTarget` treatment for something this
   minor.
 
-  **`BUILD_STRUCTURE` is the deliberate exception, on the after-commit side.**
-  The in-transaction half of the rule stands exactly as written above — its
-  own `undo()` still makes no network call inside the `$transaction`. But
-  `resolveRequestImpl`'s existing after-commit block already reads
-  `effect.linkEndpointIds` generically, for any request type, and reposts
-  both Location anchors it names — because an anchor that lies about a gate
-  is worse than the stale side effects this rule otherwise tolerates: the
-  button itself would be the lie. The restore underneath it is conditional to
-  begin with — `BUILD_STRUCTURE`'s `undo()` only writes `LocationLink.isOpen`
-  back when no `COMPLETE`/`DAMAGED` structure still holds that edge
-  (`HOLDS_EDGE`), so an edge some other structure has since claimed is left
-  exactly as that structure needs it.
 
 ## 4. Hunger and the Gambit modifier
 
@@ -289,7 +283,7 @@ with no bespoke expiry column to keep in step.
 > cache never earned its complexity — `db/lib/pruneTags.js` had no `zoneCaches`
 > survival check, so a prune could delete a Tag that was lying on the ground.
 > **The three `RequestType` values survive**, because Postgres cannot drop an
-> enum value in place; `requestLabels.js` still names them so a row filed before
+> action type in place; `auditNarrative.js` still names them so a row filed before
 > the removal reads as prose, but nothing renders a body for it and nothing can
 > undo it. GM-authored custom tags at `/gm/dev/tags` are a separate system and
 > are untouched (`TAGS.md` §5d).
@@ -306,7 +300,7 @@ with no bespoke expiry column to keep in step.
 
 Nothing player-initiated ever grants or removes Hunger, the streak, or
 what it leads to — there is no request type, no picker entry, no
-`requestEffects.js` case. `db/lib/hungerPass.js#runHungerPass` is the only
+`tagEffects.js` case. `db/lib/hungerPass.js#runHungerPass` is the only
 writer of all three, called from `resolveNeeds()` at the close of every turn:
 
 1. Holds `hungerless` → **skipped entirely**. No resource taken, no Hunger,
@@ -706,7 +700,7 @@ submit fails closed with "They aren't here" and nothing is written.
 
 It is also the one type whose subject is a different character from the one
 who filed it: `request.characterId` is the medic, `effect.targetCharacterId`
-the patient, and every tag write in `requestEffects.js` takes the latter. A
+the patient, and every tag write in `tagEffects.js` takes the latter. A
 GM can re-price the cure or tick "put the affliction back but keep the
 payment" — the treatment that didn't take, the one partial outcome a full
 Undo can't express.
@@ -865,7 +859,6 @@ over the URL, so a filtered view stays linkable.
 |---|---|
 | Request creation, reason validation, audit helper | `web/lib/requests.js` |
 | `UserError` + `guarded()` result wrapper | `web/lib/actionResult.js` |
-| Per-type Undo/Edit behaviour | `web/lib/requestEffects.js` |
 | The player-facing server actions | `web/app/(app)/character/requestActions.js` |
 | Universal popup | `web/app/components/RequestDialog.js` |
 | Status panel | `web/app/components/StatusPanel.js` |
@@ -885,18 +878,23 @@ over the URL, so a filtered view stays linkable.
 | Lifeweb blood tiers + cap, shared bot/web | `db/lib/lifeweb.js` |
 | Lifeweb requests, GM bypass panel | `web/app/(app)/lifeweb/requestActions.js`, `actions.js` |
 | Lifeweb player buttons | `web/app/components/LifewebRequestButtons.js` |
-| GM kill-the-target fallback (FEED_PERSON + HARM_CHARACTER) | `web/app/(desk)/gm/turns/actions.js#killRequestTarget` |
 | The Dying clock's auto-kill | `db/lib/dyingDeathPass.js` |
-| GM review rows | `web/app/(desk)/gm/turns/RequestSections.js`, `web/lib/requestLabels.js` |
+| The audit feed a GM reads instead | `web/lib/auditNarrative.js`, `web/lib/auditQuery.js`, `web/app/(desk)/gm/audit/` |
+| Shared tag/⬢ write primitives | `web/lib/tagEffects.js` |
 | Gambit roll + modifier | `bot/src/events/interactionCreate.js#handleMoveConfirm` |
 | Expiry sweep | `db/index.js#resolveNeeds` |
 
-## The Depot's request kinds
+## The Depot's kinds
 
-Eight `DEPOT_*` types, all obol-denominated, all moving `Depot.accountObols`
-rather than anyone's `Character.resources`: the three original
-(`DEPOT_BUY`, `DEPOT_SELL`, `DEPOT_CREDIT`) plus `DEPOT_ORDER`, `DEPOT_SHIP`,
-`DEPOT_ATM`, `DEPOT_CRATE_OPEN` and `DEPOT_REFUEL`.
+All obol-denominated, all moving `Depot.accountObols` rather than anyone's
+`Character.resources`. They are audit `actionType`s now
+(`request_depot_order`, `request_depot_atm`, `request_depot_credit`,
+`request_depot_crate_open`, `request_depot_refuel`,
+`request_depot_shuttle_call` / `_send`, `request_depot_exchange`), and the
+Depot's own visible Ledger on `/depot` is built by reading exactly that set
+back out of `AuditLog` — `DEPOT_LEDGER_KINDS` in `web/app/(app)/depot/page.js`
+is the one list, so a new depot verb has to be added there or it moves obols
+invisibly.
 
 **Two have no undo handler, deliberately.** `DEPOT_SHIP` and
 `DEPOT_CRATE_OPEN` are irreversible the way a sent Bird letter is: a shuttle

@@ -112,6 +112,24 @@ each arrived at by getting them wrong first.
    holder warned, so nothing granted before this pass existed dies to a clock
    it was never shown. Own `resolvedPasses` marker, same as 7b: a destructive
    pass must not half-run on a resume.
+4c. **Nuke explosion pass** (`db/lib/nukeExplosionPass.js`) — the third
+   auto-kill, and the only one that can end most of a game at once. When
+   `GameConfig.nukeArmedTurn` has come due, every ALIVE character whose zone is
+   not a `CAVE_LEVEL` dies: the Caves and the Depths are the whole escape.
+   Sits beside 4b for the same reason — **after** the staged push and pass 4,
+   so a Disarm filed this close (or a GM defusing it from `/gm/dev`) beats the
+   clock. It reads GameConfig rather than a tag, so unlike 4b the sweep at 5
+   cannot eat its trigger; it is placed here for the ordering that matters and
+   not the one that doesn't.
+
+   **The countdown is not a tag, deliberately.** A tag has a holder, and a
+   holder can die inside the two-turn window, which would silently cancel the
+   explosion. It also claims `nukeDetonatedTurn` **before** the killing starts,
+   so a crash halfway through cannot leave a world that explodes again on the
+   next close. Discord work — the `@everyone` fireball line into every zone's
+   `#summary` — comes back as `broadcast` for the thunk, never posted inside
+   the pass.
+
 5. **Expiry sweep** — delete non-stackable `CharacterTag`s whose `expiresTurn`
    has come due.
 6. **Stackable sweep** (`sweepExpiredStacks`) — a stack is one row carrying a
@@ -167,12 +185,19 @@ each arrived at by getting them wrong first.
    number, so the sweep clears it a moment before a fresh one may be granted.
    The other order collides with `@@unique([characterId, tagId])` and silently
    drops the re-grant, leaving a tag that expires immediately.
+8a. **Dawn afflictions pass** (`db/lib/dawnAfflictionPass.js`) — right after
+   hunger. Guilt Ridden and Insomniac each roll a nightly chance of waking
+   Exhausted (`TAGS.md`). Audit action `dawn_afflictions_resolved`.
 8b. **Carry pass** (`db/lib/carryPass.js`) — **after** hunger, so it sees the
    final sheet: Labor payouts, staged pushes, the sweep and the ⬢ upkeep all
    happen earlier in the close and none of them may settle in place.
    `settleCarry` for every ALIVE character holding a tradeable tag,
    Overburdened, or more ⬢ than the base cap — one transaction each — and the
    overflow drops ride back for the thunk (`CARRY.md` §3).
+8c. **Phobia pass** (`db/lib/phobiaPass.js`) — right after the carry pass, as
+   the turn-close safety net for Claustrophobia/Acrophobia moods that
+   `settlePhobias` didn't already settle on a Move this turn (`TAGS.md`).
+   Audit action `phobias_resolved`.
 9. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
 10. **Open the next turn** with the alternated phase, and roll its weather (§4).
 11. **Write the `TURN_START` archive row** — here, where the turn is created,
@@ -513,6 +538,9 @@ Surfaced to players on the `#turns` announcement (`Moves must be sent by
 | `db/lib/catatonicPass.js` | The Catatonic (AFK) flagging pass |
 | `db/lib/catatonicDeathPass.js` | The Catatonic death pass (§2 7b) |
 | `db/lib/dyingDeathPass.js` | The Dying death pass (§2 4b) |
+| `db/lib/nukeExplosionPass.js` | The nuke explosion pass (§2 4c) |
+| `db/lib/nuke.js` | Where the device is, and what the datacard's pointer says |
+| `db/lib/worldBroadcast.js` | The two whole-map fan-outs (every `#summary`, every Location) |
 | `db/lib/characterDeath.js` | The shared DB half of death (`applyDeathToRow`) |
 | `db/lib/playerDeparture.js` | Guild-leave marking, shared by the live handler and the startup reconcile |
 | `db/lib/tagExpiryPass.js` | The tag progression pass (`Tag.expiresInto`) |

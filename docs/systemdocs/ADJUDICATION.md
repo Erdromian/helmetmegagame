@@ -22,7 +22,7 @@ day of work survives a refresh):
 | **Private messages** | `StagedMessage` (kind `PRIVATE`) + `StagedMessageRecipient` | One DM per recipient character's player, `»`-prefixed, logged to `DirectMessage` like every DM. |
 | **Public declarations** | `StagedMessage` (kind `PUBLIC`, required `zoneId`) | Posted to **the row's own zone `#summary`**. The composer requires a real, standable zone (the `Caves` group seat is excluded from the picker), so a row always has one to post to. If that zone's summary channel isn't configured, the post is skipped and recorded on `deliveryFailures` — never lost. A post survives the Dawn wipe that runs later in the same push: the wipe only deletes what predates the push (`CHANNELS.md` §8). |
 | **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps?, zoneId? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with, so a staged `remove` leaves the tag's treated-wound aftermath behind (`Tag.removesInto`, `TAGS.md` §5c) and records it as `granted` on the snapshot. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). EffectComposer's `+ Add` row carries a quantity stepper, so a GM can stage several at once; asking for more than one of a non-stackable tag stages `force: true` right alongside it (`TAGS.md` §5a). |
-| **Transfers** | `StagedEffect` — `payload` `{ transfer: { from, to, amount } }`, mutually exclusive with `resources` | A character-to-character ⬢ move, not a mint/burn from nowhere, via `db/lib/parties.js` and `db/lib/resourceTransfer.js#applyTransfer` (the same primitive the player's `TRANSFER_RESOURCES` request and every GM transfer surface use). Staged from the tray's own "+ Transfer" button (`TransferComposer.js`), separate from the multi-target Effect composer because a transfer is 1:1 by nature. |
+| **Transfers** | `StagedEffect` — `payload` `{ transfer: { from, to, amount } }`, mutually exclusive with `resources` | A character-to-character ⬢ move, not a mint/burn from nowhere, via `db/lib/parties.js` and `db/lib/resourceTransfer.js#applyTransfer` (the same primitive a player's Transfer and every GM transfer surface use). Staged from the tray's own "+ Transfer" button (`TransferComposer.js`), separate from the multi-target Effect composer because a transfer is 1:1 by nature. |
 
 ### Long messages split; they are never truncated
 
@@ -124,7 +124,7 @@ tokens and the shared control classes still apply; the `.desk-*` family in
 leave; `/gm/players` is its sibling in the same group.
 
 The route is `/gm/turns/[[...selection]]`, and the URL carries which row is
-open — `/gm/turns/move/<id>`, `/gm/turns/request/<id>`, `/gm/turns/caving/<id>`,
+open — `/gm/turns/move/<id>`, `/gm/turns/caving/<id>`,
 `/gm/turns/history/<id>`.
 An optional catch-all, not `[moveId]`: the desk selects one of four things, so
 the URL has to carry both halves of `{ type, id }`. Selection changes never
@@ -145,14 +145,14 @@ call site follows success with `refresh()` and the pair meant rendering
 ```
 ┌ header: turn chip · push times · Preview push ─────────────────────┐
 │ QUEUE RAIL      │  ARBITRATION DESK          │  INSPECTOR          │
-│ Moves/Requests/ │  the selected Move or      │  Sheet · Tags ·     │
+│ Moves/Caving/   │  the selected Move or      │  Sheet · Tags ·     │
 │ Caving/History  │  Request: result box,      │  Moves · Archive ·  │
 │ lens, zone-seat │  staged items, composers   │  DMs for the last-  │
 │ filters, search │                            │  clicked one + pins │
 ├ PUSH TRAY: counts · every staged row · missed-push banner ─────────┤
 ```
 
-- **Queue rail** — the open turn's Moves and the newest Requests, as
+- **Queue rail** — the open turn's Moves and Caving rolls, as
   selectable rows. **Shows only the zones the GM chose to see**
   (`GAMEMASTERS.md` §1) — a hard gate now, not the soft opening default the
   zone seat used to be, and a search does not lift it. The rail's own Zone
@@ -345,33 +345,21 @@ guarantees: `TURN-ENGINE.md` §2–3). What a GM needs to know:
   the new open turn; anything that slips through lands in the missed-push
   banner. Honest beats locked.
 
-## 5. Requests
+## 5. Where player actions went
 
-Relocated onto the desk, and rebuilt as a quiet feed. Requests are
-**apply-first**: the effect landed when the player filed it, and the GM's
-verdict — Mark reviewed, Save edits, or Undo — executes immediately, not at
-the push (`REQUESTS.md`). The per-type sections live in `RequestSections.js`;
-the Feed-Person kill keeps its confirm-gated immediate path.
+**There is no Requests lens any more.** The desk carries Moves, Caving and
+History; a player action files no `Request` row, asks for no reason, and
+cannot be undone (`REQUESTS.md` §1).
 
-Most requests need nothing more than a glance, so the desk stopped treating
-every one as a problem to solve:
+What a GM watches instead is **`/gm/audit`**, which now defaults to the player
+band — the machine's own per-turn rows are one click away rather than on top
+of everything. A single character's story is the **Audit** tab on
+`/gm/dev/characters/[characterId]`.
 
-- The primary button reads **Mark reviewed** until the GM actually edits a
-  field, at which point it becomes **Save edits** (`RequestDesk.js` tracks
-  this as `touched`). Confirming with no edit stamps `reviewedAt` and leaves
-  the status alone — it does not force `EDITED`.
-- The rail no longer flags a never-reviewed row with a loud "Unreviewed"
-  warn pill. It shows the row's real status (`Passed`/`Edited`/`Undone`) and
-  a small quiet dot before the name for anything not yet reviewed
-  (`QueueRail.js`'s `.desk-dot`). `Edited` reads neutral now too — a GM
-  tweak is routine bookkeeping, not a warning.
-- The tray/rail lens label is just "Requests" — the count badge that used to
-  read like a to-do queue is gone.
-
-`RequestStatus` tones, `payload` vs `effect`, and Undo-reads-only-`effect`
-are otherwise as documented in `REQUESTS.md`, including the `changed`
-field `applyEdit` now returns and how it drives `EDITED` vs. a plain
-`request_reviewed` audit row.
+Correcting a player action is a Dev Panel job, by hand: add the tag back, take
+one off, transfer the ⬢ the other way, teleport them back. The audit row
+carries a `restore` snapshot for exactly this — see `REQUESTS.md` §2, and
+`DEV-PANEL.md` for the controls.
 
 ## 6. Structures at the desk
 
@@ -392,10 +380,7 @@ DM: the stakeholders already heard about the destruction or abandonment, and
 **Destroy** takes any of the three present statuses
 (`UNDER_CONSTRUCTION`/`COMPLETE`/`DAMAGED`) to `RUINED`. Sabotaging a site
 still under construction destroys the work done, never silently — the crew
-still get the destruction DM, same as a finished structure's contributors. If
-the structure held a `LocationLink` edge (`Structure.linkId`) and nothing else
-in `HOLDS_EDGE` still holds it, the edge reverts to its born (`authoredOpen`)
-state and both endpoints' anchors are reposted.
+still get the destruction DM, same as a finished structure's contributors.
 
 **Player demolition is a GAMBIT adjudicated at the desk, never an apply-first
 Request.** The GM resolves the die, stages the public outcome through the
@@ -426,7 +411,7 @@ adjudicable the moment the Ram is a ruin.
 | `.../Workspace.js` | Client shell: selection, inspector context + cache, layout |
 | `.../QueueRail.js` | Lens, filters (zone-seat seeded), the queue |
 | `web/lib/moveRows.js` | The Move / staged-effect / staged-message DTO mappers, shared by `page.js` and the History fetchers so they can't drift |
-| `.../MoveDesk.js` / `RequestDesk.js` | The desks |
+| `.../MoveDesk.js` / `CavingDesk.js` | The desks |
 | `.../MoveHistoryDesk.js` | The read-only desk for a Move on a pushed turn |
 | `.../EffectComposer.js` / `MessageComposer.js` / `PublicComposer.js` | The staging composers (create + edit) |
 | `.../StagedItems.js` / `StagingTray.js` / `PushPreview.js` | Staged-row lists, the tray, the per-recipient preview |
@@ -436,7 +421,7 @@ adjudicable the moment the Ram is a ruin.
 | `web/app/components/useSessionState.js` | The generic `sessionStorage` hook behind rail-state persistence — one key (`gm-turns-rail`) shared by `QueueRail.js`'s filters/toggles and `Workspace.js`'s `lens`, plus the unsubscribed `readSession`/`writeSession` pair behind `gm-turns-view` |
 | `web/app/components/useDeskVersion.js` / `web/lib/deployVersion.js` / `web/app/api/desk-version/route.js` | The deploy-awareness triad: the 45s poll refreshes only on a same-build answer, a deploy shows the reload chip instead of letting Next's build-mismatch fallback hard-reload the desk |
 | `.../useMoveLock.js` | The lock's client half |
-| `.../actions.js` | Every server action: staging CRUD, solve/save/unsolve, unlock, locks, request review, inspector fetchers, the two history fetchers (`getMoveHistory`, `getCharacterMoveHistory`), retarget |
+| `.../actions.js` | Every server action: staging CRUD, solve/save/unsolve, unlock, locks, the Caving find undo, inspector fetchers, the two history fetchers (`getMoveHistory`, `getCharacterMoveHistory`), retarget |
 | `db/lib/stagedPush.js` | The push pass |
 | `db/lib/tagOps.js` | The tag-op engine (shared with the Dev Panel) |
 | `web/lib/tagOpAlgebra.js` | `mergeTagOp`, the client-side staging algebra |

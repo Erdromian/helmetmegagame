@@ -1,7 +1,6 @@
 import { bumpBlood, bumpAccount, OBOL_SLUG } from "@lifeweb/db";
 import { addToStack, dropCharacterTag, grantTagSlugs, addToRoomStack, dropRoomTag } from "@lifeweb/db/lib/tagWrites";
 import { moveParty, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
-import { HOLDS_EDGE } from "@lifeweb/db/lib/structures";
 import { UserError } from "@/lib/actionResult";
 
 // Per-type behaviour of a Request: how a GM's Undo reverses it, and which
@@ -935,6 +934,68 @@ export const REQUEST_EFFECTS = {
       return `Put ${targetName ?? "them"} back in their bonds.`;
     },
   },
+  // Undo has a one-turn window: at the close, `crucified` expires into
+  // `dying` (docs/tags.yaml), so a later Undo finds no row to drop and the
+  // victim stays Dying. dropCharacterTag tolerates the missing row; the
+  // string says what is left.
+  CRUCIFY_CHARACTER: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { targetCharacterId, targetName, tagId } = request.effect;
+      if (targetCharacterId && tagId) await dropCharacterTag(tx, targetCharacterId, tagId);
+      return `Took ${targetName ?? "them"} down off the cross. If the turn has already closed they are Dying, and that stays — heal it. ‡`;
+    },
+  },
+  // Taking the false face off early. The disguise IS a minted Tag row
+  // (db/lib/disguiseMint.js), so undoing it drops the row off the character
+  // AND deletes the catalog row behind it — unlike every other tag here, that
+  // row exists for this one request and nothing else will ever hold it.
+  // deleteMany rather than delete: the expiry sweep may have taken the
+  // CharacterTag already, and an Undo must not throw over something that is
+  // already true.
+  DISGUISE_SELF: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { tagId, disguiseName } = request.effect;
+      if (tagId) {
+        await tx.characterTag.deleteMany({ where: { characterId: request.characterId, tagId } });
+        await tx.tag.deleteMany({ where: { id: tagId, ephemeral: true } });
+      }
+      return `Took the ${disguiseName ?? "false"} name back off. ‡`;
+    },
+  },
+  // The bomb's two buttons. The countdown is GameConfig.nukeArmedTurn, so both
+  // undos are just putting that column back — Arm's undo clears it, Disarm's
+  // restores the turn it was counting to. Neither touches the device or the
+  // datacard, which never moved.
+  //
+  // Undoing an Arm AFTER it has gone off is refused rather than silently
+  // doing nothing: nukeDetonatedTurn is set and permanent, the dead are dead,
+  // and a GM should be told that rather than left thinking they caught it.
+  ARM_NUKE: {
+    editableFields: [],
+    async undo(tx, request) {
+      const config = await tx.gameConfig.findUnique({ where: { id: 1 } });
+      if (config?.nukeDetonatedTurn != null) {
+        return "Too late — it has already gone off, and Undo does not raise the dead. ‡";
+      }
+      await tx.gameConfig.update({ where: { id: 1 }, data: { nukeArmedTurn: null } });
+      return "Countdown stopped. The device is inert again. ‡";
+    },
+  },
+  DISARM_NUKE: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { wasFiringOn } = request.effect ?? {};
+      const config = await tx.gameConfig.findUnique({ where: { id: 1 } });
+      if (config?.nukeDetonatedTurn != null) {
+        return "It has already gone off. Nothing to put back. ‡";
+      }
+      if (wasFiringOn == null) return "No countdown was recorded, so nothing was restored. ‡";
+      await tx.gameConfig.update({ where: { id: 1 }, data: { nukeArmedTurn: wasFiringOn } });
+      return `Countdown restored — it fires at the close of turn ${wasFiringOn}. ‡`;
+    },
+  },
   HARM_CHARACTER: {
     editableFields: [],
     async undo(tx, request) {
@@ -954,38 +1015,14 @@ export const REQUEST_EFFECTS = {
   // The crew's auto-filed Routines stay spent, deliberately — those Moves
   // were really worked, the ADD_TAG precedent, and nothing here or on the
   // desk hands one back.
-  //
-  // An effect carrying `linkId` records the edge this build flipped at
-  // completion; the restore is CONDITIONAL — only when nothing else still
-  // holds the edge after the row delete, or undoing a long-dead build would
-  // swing a newer palisade's gate out from under it. In-transaction writes
-  // only; the anchor reposts ride resolveRequestImpl's after-commit block,
-  // read off the same effect fields.
   BUILD_STRUCTURE: {
     editableFields: [],
     async undo(tx, request) {
-      const { structureId, typeName, locationName, resourcesSpent, payer, linkId, linkWasOpen } =
-        request.effect;
+      const { structureId, typeName, locationName, resourcesSpent, payer } = request.effect;
       // deleteMany, not delete: the row may already be gone (a demolition, a
       // wipe), and an undo must not throw over something already true.
       // StructureWork cascades off it.
       if (structureId) await tx.structure.deleteMany({ where: { id: structureId } });
-      if (linkId && linkWasOpen != null) {
-        // Lock the edge BEFORE counting holders — a new site completing on
-        // this same edge flips it under its own link lock, and this count
-        // must wait for that commit rather than run against a snapshot
-        // from before it (or the restore below would land last and swing
-        // the new holder's gate to the old state).
-        await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${linkId} FOR UPDATE`;
-        const holders = await tx.structure.count({
-          where: { linkId, status: { in: HOLDS_EDGE } },
-        });
-        // updateMany: the sync may have deleted the edge since (SetNull on
-        // the row), and an undo must not throw over something already gone.
-        if (holders === 0) {
-          await tx.locationLink.updateMany({ where: { id: linkId }, data: { isOpen: linkWasOpen } });
-        }
-      }
       if (resourcesSpent) {
         await moveResources(
           tx,

@@ -24,12 +24,24 @@
 
 // That trap is live on at least one dev Mac, and FONTCONFIG_FILE does not get
 // around it — this sharp build's bundled fontconfig ignores the config and the
-// `fontfile` both. So when the shade ramp below was added, the plaques already
-// in public/assets/letters could not be re-rendered here; the ramp was applied
-// over them instead of under the glyph, which dims the ink's lower half
-// slightly. It reads fine. The next successful run of this script on a machine
-// with fonts supersedes them with the plate-baked version, and nothing needs
-// undoing first.
+// `fontfile` both. It has now bitten this file twice, and both times the fix
+// was the same: change the constants here for the future, and post-process the
+// committed plaques to match.
+//
+//   1. The shade ramp. Applied over the finished plaques instead of under the
+//      glyph, which dims the ink's lower half slightly. It reads fine.
+//   2. The 2026-09-06 desaturation (TINT -> null, DARKEN 0.5 -> 0.4). The
+//      plate and the helms were rebuilt properly — neither needs a font — but
+//      the plaques were mapped in place with `greyscale()` then
+//      `linear(1.1767, -42.06)`. That map is solved rather than eyeballed: it
+//      lands the plate on the new plate's exact value while pinning the ink at
+//      the top of its old range, so the glyph did NOT darken with its ground.
+//      A plain brightness multiply was tried first and dimmed the letter into
+//      the plate, which is the thing to avoid if this happens a third time.
+//
+// The next successful run on a machine with fonts supersedes all of it and
+// nothing needs undoing first — the constants below are already the new ones.
+// Use `--plate-only` (see main) to move the plate without touching a glyph.
 
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -50,8 +62,15 @@ const PORTRAIT_PLATE = path.join(ROOT, "public/assets/portrait/plate.webp");
 const SIZE = 256; // matches AVATAR_SIZE in character/actions.js
 // Dusk's --surface-raised and --surface (web/app/globals.css). The plaque is
 // meant to sit in the same lamplit green as the panels behind it.
-const TINT = { r: 0x27, g: 0x44, b: 0x3e };
-const DARKEN = 0.5; // brightness multiplier; the plate has to stay well under the ink
+// NEUTRAL as of 2026-09-06, Bascinet's call: the plate is fully desaturated
+// and no longer teal. `null` rather than a grey triple, because sharp's
+// .tint() on a greyscale image is a colorize and there is no such thing as
+// tinting something its own colour — the pass is skipped entirely instead.
+// Put a { r, g, b } back here to bring a hue back.
+const TINT = null;
+// Brightness multiplier; the plate has to stay well under the ink. Taken down
+// 20% from 0.5 on 2026-09-06, in the same pass that dropped the tint.
+const DARKEN = 0.4;
 const BLUR = 2.5; // abstracts the source photo into mottled stone rather than a legible forest
 // The plate used to be evenly lit, which made anything standing on it look
 // pasted onto a slab rather than sitting on one. A vertical darkening ramp
@@ -96,8 +115,9 @@ async function buildPlate() {
 
   // A third pass, not a link in either chain above: the tint has to be last
   // and alone (see the comment on this function), so the shade goes on after
-  // it, over a plate that is already teal.
-  const tinted = await sharp(stone).tint(TINT).png().toBuffer();
+  // it. Skipped entirely when TINT is null — the stone is already greyscale
+  // from the first pass, and .tint() with a grey would only flatten it again.
+  const tinted = TINT ? await sharp(stone).tint(TINT).png().toBuffer() : stone;
   return sharp(tinted).composite([{ input: shadeSvg() }]).png().toBuffer();
 }
 
@@ -151,8 +171,20 @@ async function renderGlyph(letter) {
     .toBuffer();
 }
 
+// `--plate-only` rebuilds portrait/plate.webp and stops, leaving the 27
+// plaques alone. It exists for the fontconfig trap at the top of this file: on
+// a machine where pango silently substitutes Helvetica, a full run would
+// replace every blackletter plaque with a sans one, and the script would still
+// exit 0. The plate needs no font, so this half is always safe to run — which
+// is what lets the plate's tuning change without a font-capable machine.
+//
+// After a plate-only run, re-run `npm run assets:helms` (they composite onto
+// it) and post-process the existing plaques to match, since they cannot be
+// re-rendered. See PORTRAITS.md.
+const PLATE_ONLY = process.argv.includes("--plate-only");
+
 async function main() {
-  for (const file of [BACKGROUND, FONT_FILE]) {
+  for (const file of PLATE_ONLY ? [BACKGROUND] : [BACKGROUND, FONT_FILE]) {
     try {
       await fs.access(file);
     } catch {
@@ -167,6 +199,11 @@ async function main() {
 
   await fs.mkdir(path.dirname(PORTRAIT_PLATE), { recursive: true });
   await sharp(plate).webp({ quality: WEBP_QUALITY }).toFile(PORTRAIT_PLATE);
+
+  if (PLATE_ONLY) {
+    console.log(`done (plate only -> ${path.relative(ROOT, PORTRAIT_PLATE)})`);
+    return;
+  }
 
   // The fallback: plaque and frame, no glyph. Served for an initial that is
   // not a plain A-Z — an accented or non-Latin first letter, a digit, or a

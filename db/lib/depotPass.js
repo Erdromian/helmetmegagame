@@ -21,17 +21,17 @@ const { sweepTurretAt, applyTurretShot, rollTurretOnArrivalAt, turretDmFor } = r
 // `signed` rides with each line because the two shuttle lines are Bascinet's
 // own words and must not be marked with a ‡ — see db/lib/ambientLine.js.
 const GENERATOR_DIED_LINE = {
-  text: "The generator coughs twice and stops. Every light in the depot goes out at once.",
+  text: "You hear the generator cough twice and stop. Every light in the depot goes out at once.",
   signed: true,
 };
 
 const SHUTTLE_LANDED_LINE = {
-  text: "A shuttle has landed, hissing steam on the landing pad.",
+  text: "You hear a shuttle land, hissing steam on the landing pad.",
   signed: false,
 };
 
 const SHUTTLE_DEPARTED_LINE = {
-  text: "The shuttle departs in a burst of fire.",
+  text: "You hear the shuttle depart in a burst of fire.",
   signed: false,
 };
 

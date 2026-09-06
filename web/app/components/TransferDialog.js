@@ -12,8 +12,10 @@ import QuantityField from "./QuantityField";
 // The source is YOU or a Room here — never another person. You can't reach
 // into someone's pockets, and listing what's in them would show their hidden
 // tags; Loot is how you take from a (helpless) person. The destination is
-// anyone standing here and unconcealed, or a Room here
-// (web/lib/peopleHere.js); the server re-checks the same predicate.
+// anyone standing here and unconcealed — INCLUDING YOURSELF, which is how a
+// stash gets emptied — or a Room here (web/lib/peopleHere.js); the server
+// re-checks the same predicate (db/lib/presence.js#isHere returns true for
+// yourself). You -> you is blocked by sameParty at both ends instead.
 //
 // `rooms` carries each stash's contents, so pulling out of a Room shows
 // what's there; `carry` is this character's load and caps for the projection
@@ -43,7 +45,6 @@ export default function TransferDialog({
   const rooms = parties?.rooms ?? [];
   const people = parties?.characters ?? [];
   const self = people.filter((c) => c.id === selfId);
-  const others = people.filter((c) => c.id !== selfId);
   const fromRoom = fromKey.startsWith("room:") ? rooms.find((r) => `room:${r.id}` === fromKey) : null;
   const toRoom = toKey.startsWith("room:") ? rooms.find((r) => `room:${r.id}` === toKey) : null;
   // The silo when it is the destination: either the elsewhere-in-zone entry
@@ -110,8 +111,9 @@ export default function TransferDialog({
           value={toKey}
           onChange={onTo}
           hint="Choose a destination… ‡"
-          characters={others}
+          characters={people}
           rooms={rooms}
+          selfId={selfId}
           silo={silo && (!silo.here || !silo.canOpen) ? silo : null}
         />
       </div>

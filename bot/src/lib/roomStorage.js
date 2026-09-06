@@ -1,7 +1,7 @@
 const { prisma } = require("@lifeweb/db");
 const { formatStashLine } = require("@lifeweb/db/lib/roomStash");
 const { ack, respond } = require("./respond");
-const { resolveActingMember } = require("./interactionGuild");
+const { actingCharacter } = require("./interactionGuild");
 
 // The Storage button on a Room's starter post (db/lib/roomStarterRow.js):
 // an ephemeral line saying what's lying in the room's stash, in Bascinet's
@@ -9,13 +9,7 @@ const { resolveActingMember } = require("./interactionGuild");
 // things down or picking them up is the web's Transfer (CARRY.md).
 async function handleRoomStorage(interaction, roomId) {
   await ack(interaction, { ephemeral: true });
-  const member = await resolveActingMember(interaction);
-  const character = member
-    ? await prisma.character.findFirst({
-        where: { discordUserId: member.id, status: "ALIVE" },
-        select: { locationId: true },
-      })
-    : null;
+  const character = await actingCharacter(interaction, { select: { locationId: true } });
   const room = await prisma.room.findUnique({
     where: { id: roomId },
     select: {

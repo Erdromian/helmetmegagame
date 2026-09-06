@@ -24,7 +24,10 @@ const FILTER_DEFS = [{ key: "group", label: "Kind", value: (r) => r.groupName ??
 
 // One obol is one ⬢, so a price is the same number on either side of the
 // counter and the cart total is a plain sum. See db/lib/depotState.js.
-export default function DepotOrderTab({ wares, depot, disabled, manifest }) {
+// Two authorities on one tab. Ordering spends the account and wants the
+// licence; calling the shuttle down spends nothing — the obols left when the
+// manifest was written — so a Docker's keycard is enough.
+export default function DepotOrderTab({ wares, depot, disabled, handDisabled, manifest }) {
   const [refresh] = useRefresh();
   const [pending, startTransition] = useTransition();
   const [cart, setCart] = useState(() => new Map());
@@ -241,7 +244,7 @@ export default function DepotOrderTab({ wares, depot, disabled, manifest }) {
             <button
               type="button"
               className="btn-quiet w-full"
-              disabled={disabled || pending || !shuttleAway}
+              disabled={handDisabled || pending || !shuttleAway}
               onClick={() => setConfirming("call")}
             >
               Call the shuttle down

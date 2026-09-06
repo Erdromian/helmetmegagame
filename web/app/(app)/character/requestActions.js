@@ -24,9 +24,7 @@ import {
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import {
-  createRequest,
-  logRequest,
-  requireReason,
+  logAudit,
   MAX_REASON_LENGTH,
   isDeadSimple,
   DEAD_SIMPLE_PER_TURN,
@@ -36,6 +34,13 @@ import { UserError, guarded } from "@/lib/actionResult";
 import { describeTurn } from "@/lib/turnFormat";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
+import {
+  DISGUISE_KIT_SLUG,
+  DISGUISE_TURNS,
+  normalizeDisguiseName,
+  mintDisguise,
+  activeDisguise,
+} from "@lifeweb/db/lib/disguiseMint";
 import {
   isTradeable,
   isCrate,
@@ -59,7 +64,7 @@ import {
   moveResources,
   takeTagFrom,
   giveTagTo,
-} from "@/lib/requestEffects";
+} from "@/lib/tagEffects";
 import {
   HEAL_SKILL_SLUG,
   buildSkillAncestry,
@@ -141,10 +146,9 @@ import {
   siteAdvancedLine,
   siteCompletedLine,
   siteCancelledLine,
-  announceEdgeState,
   stakeholderCharacterIds,
 } from "@lifeweb/db/lib/structures";
-import { refreshLocationAnchor, refreshGateRooms } from "@lifeweb/db/lib/syncZones";
+import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
@@ -244,14 +248,19 @@ function resolveParty(key, opts) {
 // `perTurn` (Tag.requirementPerTurn). Distinct from the Dead Simple pool
 // below: that one is a shared allowance across every 0-turn recipe, this is a
 // ration on a single item.
-async function unitsOfTagThisTurn(db, characterId, turnId, tagId) {
-  const filed = await db.request.findMany({
-    where: { characterId, turnId, type: "ADD_TAG", status: { not: "UNDONE" } },
-    select: { payload: true, effect: true },
+async function craftsThisTurn(db, characterId, turnId) {
+  if (!turnId) return [];
+  return db.auditLog.findMany({
+    where: { targetCharacterId: characterId, actionType: "request_craft_tag", turnId },
+    select: { details: true },
   });
+}
+
+async function unitsOfTagThisTurn(db, characterId, turnId, tagId) {
+  const filed = await craftsThisTurn(db, characterId, turnId);
   return filed.reduce((sum, r) => {
-    if (r.payload?.tagId !== tagId) return sum;
-    return sum + (r.effect?.quantity ?? 1);
+    if (r.details?.tagId !== tagId) return sum;
+    return sum + (r.details?.quantity ?? 1);
   }, 0);
 }
 
@@ -262,29 +271,22 @@ async function unitsOfTagThisTurn(db, characterId, turnId, tagId) {
 // A gambit heal is never in here, because it files a Move instead and the
 // Action unique constraint rations those on its own.
 async function routineHealsThisTurn(db, characterId, turnId) {
-  const filed = await db.request.findMany({
-    where: {
-      characterId,
-      turnId,
-      type: "HEAL_CHARACTER",
-      status: { not: "UNDONE" },
-    },
-    select: { effect: true },
+  if (!turnId) return 0;
+  const filed = await db.auditLog.findMany({
+    where: { targetCharacterId: characterId, actionType: "request_heal_character", turnId },
+    select: { details: true },
   });
   return filed.filter(
-    (r) => !r.effect?.gambit && (r.effect?.requirement?.turns ?? 0) > 0,
+    (r) => !r.details?.gambit && (r.details?.requirement?.turns ?? 0) > 0,
   ).length;
 }
 
 // Dead Simple units already filed this turn (DEAD_SIMPLE_PER_TURN).
-// EDITED still counts, UNDONE does not. `db` is prisma or a tx client.
+// `db` is prisma or a tx client.
 async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
-  const filed = await db.request.findMany({
-    where: { characterId, turnId, type: "ADD_TAG", status: { not: "UNDONE" } },
-    select: { payload: true },
-  });
+  const filed = await craftsThisTurn(db, characterId, turnId);
   const filedTagIds = [
-    ...new Set(filed.map((r) => r.payload?.tagId).filter(Boolean)),
+    ...new Set(filed.map((r) => r.details?.tagId).filter(Boolean)),
   ];
   const filedTags = filedTagIds.length
     ? await db.tag.findMany({
@@ -300,8 +302,8 @@ async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
     filedTags.filter(isDeadSimple).map((t) => t.id),
   );
   return filed.reduce((sum, r) => {
-    if (!deadSimpleIds.has(r.payload?.tagId)) return sum;
-    return sum + (Number(r.payload?.quantity) || 0);
+    if (!deadSimpleIds.has(r.details?.tagId)) return sum;
+    return sum + (Number(r.details?.quantity) || 0);
   }, 0);
 }
 
@@ -543,7 +545,6 @@ async function grantCrafted(
     cost,
     project = null,
     action = null,
-    reason,
   },
 ) {
   for (const snapshot of replaced)
@@ -559,35 +560,13 @@ async function grantCrafted(
     stackable: tag.stackable,
   });
   const payerParty = { kind: payer.kind, id: payer.id, name: payer.name };
-  const request = await createRequest(tx, {
-    characterId: character.id,
-    turnId: openTurn?.id ?? null,
-    type: "ADD_TAG",
-    reason,
-    payload: {
-      tagId: tag.id,
-      quantity,
-      resourcesSpent: cost,
-      payerKey: `${payer.kind}:${payer.id}`,
-    },
-    effect: {
-      tagId: tag.id,
-      tagName: tag.name,
-      quantity,
-      resourcesSpent: cost,
-      payer: payerParty,
-      ...(project
-        ? { projectId: project.id, turnsNeeded: project.turnsNeeded }
-        : {}),
-      ...(action ? { actionId: action.id } : {}),
-      ...(replaced.length ? { replaced } : {}),
-    },
-  });
-  await logRequest(tx, {
+  await logAudit(tx, {
     actorDiscordUserId: session.discordUserId,
     actionType: "request_craft_tag",
     targetCharacterId: character.id,
-    reason,
+    // The ration counters below read this back; without it they cannot tell
+    // this turn's work from last turn's.
+    turnId: openTurn?.id ?? null,
     details: {
       tagId: tag.id,
       tagName: tag.name,
@@ -597,7 +576,6 @@ async function grantCrafted(
       projectId: project?.id ?? null,
     },
   });
-  return request;
 }
 
 function payerNotice(character, payer, cost, tag) {
@@ -612,10 +590,8 @@ async function craftRequestImpl({
   tagId,
   quantity: rawQuantity,
   payerKey,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   const tag = await loadRecipe(tagId);
   await requireRecipeSkills(character, tag);
@@ -629,7 +605,7 @@ async function craftRequestImpl({
   // tag-tier gates below — prerequisites, exclusivity, tier replacement,
   // stacks — have nothing to say about it.
   if (placement)
-    return openBuildSiteImpl(character, session, tag, { payerKey, reason });
+    return openBuildSiteImpl(character, session, tag, { payerKey });
   const replaced = await craftGrantChecks(character, tag);
 
   const quantity = tag.stackable
@@ -714,7 +690,6 @@ async function craftRequestImpl({
         replaced,
         payer,
         cost,
-        reason,
       });
     });
     await afterInventoryChange([
@@ -756,7 +731,7 @@ async function craftRequestImpl({
       "auto:craft",
     );
     if (done) {
-      const request = await grantCrafted(tx, {
+      await grantCrafted(tx, {
         session,
         character,
         tag,
@@ -767,18 +742,16 @@ async function craftRequestImpl({
         cost,
         project,
         action,
-        reason,
       });
       await tx.craftProject.update({
         where: { id: project.id },
-        data: { status: "DONE", requestId: request.id },
+        data: { status: "DONE" },
       });
     } else {
-      await logRequest(tx, {
+      await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,
         actionType: "craft_started",
         targetCharacterId: character.id,
-        reason,
         details: {
           projectId: project.id,
           tagId: tag.id,
@@ -822,9 +795,8 @@ async function loadOwnProject(character, projectId) {
 
 // Another turn on a project. The recipe's gates are re-run: a skill lost
 // since the start stops the work where it stands.
-async function continueCraftImpl({ projectId, reason: rawReason }) {
+async function continueCraftImpl({ projectId }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
   const project = await loadOwnProject(character, projectId);
   const tag = project.tag;
   await requireRecipeSkills(character, tag);
@@ -862,7 +834,7 @@ async function continueCraftImpl({ projectId, reason: rawReason }) {
       "auto:craft",
     );
     if (done) {
-      const request = await grantCrafted(tx, {
+      await grantCrafted(tx, {
         session,
         character,
         tag,
@@ -873,18 +845,16 @@ async function continueCraftImpl({ projectId, reason: rawReason }) {
         cost: project.resourcesCost,
         project,
         action,
-        reason,
       });
       await tx.craftProject.update({
         where: { id: project.id },
-        data: { status: "DONE", requestId: request.id },
+        data: { status: "DONE" },
       });
     } else {
-      await logRequest(tx, {
+      await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,
         actionType: "craft_continued",
         targetCharacterId: character.id,
-        reason,
         details: {
           projectId: project.id,
           tagId: tag.id,
@@ -908,20 +878,18 @@ async function continueCraftImpl({ projectId, reason: rawReason }) {
 }
 
 // Stopping keeps nothing: the ⬢ went into materials when the work began.
-async function cancelCraftImpl({ projectId, reason: rawReason }) {
+async function cancelCraftImpl({ projectId }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
   const project = await loadOwnProject(character, projectId);
   await prisma.$transaction(async (tx) => {
     await tx.craftProject.update({
       where: { id: project.id },
       data: { status: "CANCELLED" },
     });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "craft_cancelled",
       targetCharacterId: character.id,
-      reason,
       details: {
         projectId: project.id,
         tagId: project.tagId,
@@ -974,40 +942,6 @@ function speakAtSite(channelId, line) {
   );
 }
 
-// After a completion flipped an edge, both endpoints' pinned anchors must
-// say so — gate state is part of the anchor's content hash, and the gate
-// button handler already reposts both sides on every flip — and both banks
-// hear the road's own line (announceEdgeState): the far side must not
-// discover a shut way by walking into it. Post-commit and catch-logged,
-// the speakAtSite rule: Discord must never roll back a build.
-function refreshFlippedAnchors(linkFlip) {
-  if (!linkFlip?.linkEndpointIds?.length) return;
-  after(async () => {
-    for (const locationId of linkFlip.linkEndpointIds) {
-      await refreshLocationAnchor(prisma, locationId).catch((err) =>
-        console.error(
-          `Build anchor refresh failed for ${locationId}:`,
-          err?.message ?? err,
-        ),
-      );
-      // The gate's own button lives on the watchtower, not the anchor.
-      await refreshGateRooms(prisma, locationId).catch((err) =>
-        console.error(
-          `Build gate room refresh failed for ${locationId}:`,
-          err?.message ?? err,
-        ),
-      );
-    }
-    await announceEdgeState(
-      prisma,
-      linkFlip.linkEndpointIds,
-      linkFlip.linkNowOpen,
-    ).catch((err) =>
-      console.error("Build edge announcement failed:", err?.message ?? err),
-    );
-  });
-}
-
 // A structure has no owner, but everyone whose turns raised it hears when it
 // changes state. db/lib/structures.js returns characterIds only, so the DM
 // addresses are looked up here.
@@ -1028,101 +962,13 @@ async function notifyStakeholders(
   for (const person of people) notifyCharacter(person, text);
 }
 
-// A structure whose type holds an edge (placement.link) claims the ONE
-// structural LocationLink touching its ground at open time — the sync
-// refuses a location with two, so a second candidate here is defensive.
-// The edge is locked FOR UPDATE before the free-check so two sites opened
-// from the edge's two ENDPOINTS (two different Location locks) cannot both
-// bind it. The edge only FLIPS at completion; the claim is the linkId on
-// the site row.
-async function claimStructuralLink(tx, locationId, intent) {
-  const candidates = await tx.locationLink.findMany({
-    where: { structural: true, OR: [{ aId: locationId }, { bId: locationId }] },
-    select: { id: true },
-  });
-  // Defensive: the sync hard-refuses a location touching two structural
-  // edges, so two candidates means that invariant broke — refuse loudly
-  // rather than bind whichever row the database returned first.
-  if (candidates.length > 1) {
-    throw new UserError(
-      "This ground answers to more than one crossing — tell a GM. ‡",
-    );
-  }
-  for (const candidate of candidates) {
-    // The lock re-checks `structural` — a sync between the read above and
-    // this lock may have rewritten the edge as an ordinary gate (or deleted
-    // it, in which case nothing comes back) and a build must not claim it.
-    const locked =
-      await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${candidate.id} AND "structural" = true FOR UPDATE`;
-    if (!Array.isArray(locked) || locked.length === 0) continue;
-    const taken = await tx.structure.count({
-      where: { linkId: candidate.id, status: { in: PRESENT_STATUSES } },
-    });
-    if (taken === 0) return candidate;
-  }
-  // hold_open exists to span this edge, so no free edge refuses the build;
-  // hold_shut is opportunistic — the structure's prose is its own point,
-  // and it simply builds unbound.
-  if (intent === "hold_open") {
-    throw new UserError("There is nothing here to span. ‡");
-  }
-  return null;
-}
-
 // The finish, recorded inside the SAME transaction that claimed the last
 // crew-turn. The claim is the caller's conditional updateMany — nothing here
 // may re-read status to decide, or there would be two winners.
-//
-// If the site bound an edge at open (site.linkId), completion is what flips
-// it: hold_open opens, hold_shut shuts, and the flip rides the same
-// transaction as the status claim. The pre-flip state is snapshotted into
-// the effect (linkWasOpen) for Undo, with both endpoint ids so the caller
-// and the undo path can repost the anchors AFTER their commits. The intent
-// is re-read off the catalog by typeSlug; a pruned type or a link the sync
-// deleted (SetNull) degrades to completing unbound — never a crash.
 async function finishStructure(
   tx,
-  { session, character, site, location, openTurn, action, reason },
+  { session, character, site, location, openTurn, action },
 ) {
-  let linkFlip = null;
-  if (site.linkId) {
-    const type = await tx.tag.findFirst({
-      where: { slug: site.typeSlug },
-      select: { placement: true },
-    });
-    const intent = placementOf({ placement: type?.placement })?.link ?? null;
-    if (!intent) {
-      // The type lost its link intent since the site opened (a catalog
-      // prune or edit mid-build). RELEASE the claim rather than completing
-      // as a holder of an edge this completion will never flip — a
-      // half-held edge would render gate buttons for a mechanism that
-      // does not exist.
-      await tx.structure.update({
-        where: { id: site.id },
-        data: { linkId: null },
-      });
-    }
-    if (intent) {
-      await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${site.linkId} FOR UPDATE`;
-      const linkRow = await tx.locationLink.findUnique({
-        where: { id: site.linkId },
-        select: { isOpen: true, aId: true, bId: true },
-      });
-      if (linkRow) {
-        const nowOpen = intent === "hold_open";
-        await tx.locationLink.update({
-          where: { id: site.linkId },
-          data: { isOpen: nowOpen },
-        });
-        linkFlip = {
-          linkId: site.linkId,
-          linkWasOpen: linkRow.isOpen,
-          linkNowOpen: nowOpen,
-          linkEndpointIds: [linkRow.aId, linkRow.bId],
-        };
-      }
-    }
-  }
   const contributors = await tx.structureWork.findMany({
     where: { structureId: site.id },
     select: { characterId: true, characterName: true },
@@ -1148,25 +994,11 @@ async function finishStructure(
     })),
     builderName: site.builderName ?? null,
     actionId: action?.id ?? null,
-    ...(linkFlip ?? {}),
   };
-  const request = await createRequest(tx, {
-    characterId: character.id,
-    turnId: openTurn?.id ?? null,
-    type: "BUILD_STRUCTURE",
-    reason,
-    payload: { structureId: site.id },
-    effect,
-  });
-  await tx.structure.update({
-    where: { id: site.id },
-    data: { requestId: request.id },
-  });
-  await logRequest(tx, {
+  await logAudit(tx, {
     actorDiscordUserId: session.discordUserId,
     actionType: "build_completed",
     targetCharacterId: character.id,
-    reason,
     details: {
       structureId: site.id,
       typeSlug: site.typeSlug,
@@ -1178,7 +1010,6 @@ async function finishStructure(
       actionId: action?.id ?? null,
     },
   });
-  return { request, linkFlip };
 }
 
 // The one-per-place rule. The wreck statuses (RUINED, ABANDONED) are
@@ -1209,7 +1040,7 @@ async function openBuildSiteImpl(
   character,
   session,
   tag,
-  { payerKey, reason },
+  { payerKey },
 ) {
   const placement = placementOf(tag);
   const location = await loadBuildGround(character.locationId);
@@ -1227,16 +1058,12 @@ async function openBuildSiteImpl(
 
   const done = turns <= 1;
   let structureId = null;
-  let linkFlip = null;
   await prisma.$transaction(async (tx) => {
     // The ground was judged outside this transaction, so two tabs can both
     // have passed. The Location row is the lock — every open here serialises
     // on it — and the re-check against tx sees whatever the winner committed.
     await tx.$queryRaw`SELECT "id" FROM "Location" WHERE "id" = ${location.id} FOR UPDATE`;
     await refuseSameTypeHere(tx, location, tag, placement);
-    const boundLink = placement.link
-      ? await claimStructuralLink(tx, location.id, placement.link)
-      : null;
     if (cost) await moveResources(tx, payer, -cost);
     // A one-turn build is born finished: the row is created inside this
     // transaction, so nobody else can be racing for its completion and the
@@ -1255,7 +1082,6 @@ async function openBuildSiteImpl(
         builderCharacterId: character.id,
         builderName: character.name,
         startedTurnId: openTurn.id,
-        linkId: boundLink?.id ?? null,
       },
     });
     structureId = site.id;
@@ -1278,21 +1104,19 @@ async function openBuildSiteImpl(
       },
     });
     if (done) {
-      ({ linkFlip } = await finishStructure(tx, {
+      await finishStructure(tx, {
         session,
         character,
         site,
         location,
         openTurn,
         action,
-        reason,
-      }));
+      });
     } else {
-      await logRequest(tx, {
+      await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,
         actionType: "build_started",
         targetCharacterId: character.id,
-        reason,
         details: {
           structureId: site.id,
           tagId: tag.id,
@@ -1311,7 +1135,6 @@ async function openBuildSiteImpl(
     payer.kind === "character" ? payer.id : null,
   ]);
   payerNotice(character, payer, cost, tag);
-  refreshFlippedAnchors(linkFlip);
   const spoken = { typeName: tag.name, turnsNeeded: turns };
   speakAtSite(
     location.discordChannelId,
@@ -1331,9 +1154,8 @@ async function openBuildSiteImpl(
 
 // Another crew-turn on somebody's site. No skill check and no payer: the
 // recipe gated the opening, and the ⬢ were all spent then.
-async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
+async function joinBuildSiteImpl({ structureId }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
 
   // Read fresh, and matched against the character's OWN locationId rather
   // than anything posted — a server action is a public endpoint.
@@ -1356,7 +1178,6 @@ async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
   const next = site.turnsDone + 1;
   const done = next >= site.turnsNeeded;
 
-  let linkFlip = null;
   await prisma.$transaction(async (tx) => {
     let work;
     try {
@@ -1402,21 +1223,19 @@ async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
     if (claim.count === 0)
       throw new UserError("The work moved on without you — reload. ‡");
     if (done) {
-      ({ linkFlip } = await finishStructure(tx, {
+      await finishStructure(tx, {
         session,
         character,
         site: { ...site, turnsDone: next },
         location,
         openTurn,
         action,
-        reason,
-      }));
+      });
     } else {
-      await logRequest(tx, {
+      await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,
         actionType: "build_continued",
         targetCharacterId: character.id,
-        reason,
         details: {
           structureId: site.id,
           typeSlug: site.typeSlug,
@@ -1432,7 +1251,6 @@ async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
   // No afterInventoryChange: nothing on any sheet moved. A join spends a Move
   // and nothing else, and finishing moves nothing either — a structure is
   // never a CharacterTag, and the ⬢ left the payer when the site opened.
-  refreshFlippedAnchors(linkFlip);
   speakAtSite(
     location?.discordChannelId,
     done ? siteCompletedLine(site) : siteAdvancedLine(site, next),
@@ -1457,9 +1275,8 @@ async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
 // The plan says "opener or GM"; the GM half is deliberately not here. It
 // arrives with milestone C's Damage/Destroy surface, which subsumes it — a
 // GM pulling a site down is the same desk action as pulling a wall down.
-async function cancelBuildSiteImpl({ structureId, reason: rawReason }) {
+async function cancelBuildSiteImpl({ structureId }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
 
   const site = await prisma.structure.findFirst({
     where: {
@@ -1486,11 +1303,10 @@ async function cancelBuildSiteImpl({ structureId, reason: rawReason }) {
     });
     if (claim.count === 0)
       throw new UserError("The work moved on without you — reload. ‡");
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "build_cancelled",
       targetCharacterId: character.id,
-      reason,
       details: {
         structureId: site.id,
         typeSlug: site.typeSlug,
@@ -1518,14 +1334,13 @@ async function cancelBuildSiteImpl({ structureId, reason: rawReason }) {
 // Learn and Teach are the same offer from opposite ends: the initiator's
 // Move slot is checked now, both sides' when the other accepts. Nothing is
 // filed until then — the offer row and one DM with two buttons.
-async function lessonOfferImpl({ teacherId, learnerId, tagId, reason }) {
+async function lessonOfferImpl({ teacherId, learnerId, tagId }) {
   const { session, character } = await requireCharacter();
   const offer = await createLessonOffer(prisma, {
     initiatorId: character.id,
     teacherId,
     learnerId,
     tagId,
-    reason: requireReason(reason),
   });
   if (!offer.ok) throw new UserError(offer.reason);
   after(() =>
@@ -1549,14 +1364,14 @@ async function lessonOfferImpl({ teacherId, learnerId, tagId, reason }) {
   return { pending: true };
 }
 
-async function learnRequestImpl({ teacherId, tagId, reason }) {
+async function learnRequestImpl({ teacherId, tagId }) {
   const { character } = await requireCharacter({ needs: ACT });
-  return lessonOfferImpl({ teacherId, learnerId: character.id, tagId, reason });
+  return lessonOfferImpl({ teacherId, learnerId: character.id, tagId });
 }
 
-async function teachRequestImpl({ learnerId, tagId, reason }) {
+async function teachRequestImpl({ learnerId, tagId }) {
   const { character } = await requireCharacter({ needs: ACT });
-  return lessonOfferImpl({ teacherId: character.id, learnerId, tagId, reason });
+  return lessonOfferImpl({ teacherId: character.id, learnerId, tagId });
 }
 
 // --- Confession (docs/systemdocs/CONFESSION.md) --------------------------
@@ -1566,13 +1381,12 @@ async function teachRequestImpl({ learnerId, tagId, reason }) {
 // is no way to file a confession on somebody else's behalf, and no chaplain
 // half of this to write. `chaplainId` and `tagId` are re-validated inside
 // createConfessionOffer against the penitent's own row.
-async function confessRequestImpl({ chaplainId, tagId, reason }) {
+async function confessRequestImpl({ chaplainId, tagId }) {
   const { session, character } = await requireCharacter({ needs: ACT });
   const offer = await createConfessionOffer(prisma, {
     penitentId: character.id,
     chaplainId,
     tagId,
-    reason: requireReason(reason),
   });
   if (!offer.ok) throw new UserError(offer.reason);
   after(() =>
@@ -1610,10 +1424,8 @@ async function confessRequestImpl({ chaplainId, tagId, reason }) {
 async function destroyTagRequestImpl({
   tagId,
   quantity: rawQuantity,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   const held = character.tags.find((ct) => ct.tagId === tagId);
   if (!held) throw new UserError("You don't have that tag.");
@@ -1645,31 +1457,18 @@ async function destroyTagRequestImpl({
       aftermathSlugs,
       openTurn?.number ?? null,
     );
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "REMOVE_TAG",
-      reason,
-      payload: { tagId, quantity },
-      effect: {
-        tagId,
-        tagName: held.tag.name,
-        quantity,
-        resourcesSpent: 0,
-        restore,
-        granted,
-      },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_destroy_tag",
       targetCharacterId: character.id,
-      reason,
       details: {
         tagId,
         tagName: held.tag.name,
         quantity,
         granted: granted.map((g) => g.tagName),
+        // The details blob is the only record now, so it carries what a GM
+        // needs to put the tag back AS IT WAS rather than as a fresh grant.
+        restore,
       },
     });
   });
@@ -1689,7 +1488,7 @@ async function destroyTagRequestImpl({
 // Two things come out: the letter, exactly as it was written, and the spent
 // envelope. The envelope is the point of the whole mechanism: it is evidence
 // that somebody opened this, and whose wax was on it when they did.
-async function breakSealRequestImpl({ session, character, held, reason }) {
+async function breakSealRequestImpl({ session, character, held }) {
   const openTurn = await getOpenTurn();
 
   let opened;
@@ -1705,19 +1504,10 @@ async function breakSealRequestImpl({ session, character, held, reason }) {
       envelopeTagId: opened.envelope?.id ?? null,
       envelopeName: opened.envelope?.name ?? null,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "BREAK_SEAL",
-      reason,
-      payload: { tagId: held.tagId },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_break_seal",
       targetCharacterId: character.id,
-      reason,
       details: effect,
     });
   });
@@ -1735,7 +1525,7 @@ async function breakSealRequestImpl({ session, character, held, reason }) {
 // It takes its own road out of consumeTagRequestImpl for breakSeal's reason:
 // the ordinary path reads `consumesInto`, which names CATALOG slugs, and a
 // photo is a runtime row no slug in docs/tags.yaml can ever name.
-async function photographNothingImpl({ session, character, held, reason }) {
+async function photographNothingImpl({ session, character, held }) {
   const openTurn = await getOpenTurn();
 
   // The row is created BEFORE the transaction, because its name-collision
@@ -1766,19 +1556,10 @@ async function photographNothingImpl({ session, character, held, reason }) {
       // above only tells that undo to delete the ROW as well, which is the one
       // thing a runtime print needs that a catalog grant does not.
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "CONSUME_TAG",
-      reason,
-      payload: { tagId: held.tagId },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_consume_tag",
       targetCharacterId: character.id,
-      reason,
       details: effect,
     });
   });
@@ -1788,9 +1569,8 @@ async function photographNothingImpl({ session, character, held, reason }) {
   return { ok: true, name: photo.name };
 }
 
-async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
+async function consumeTagRequestImpl({ tagId }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
 
   const held = character.tags.find((ct) => ct.tagId === tagId);
   if (!held) throw new UserError("You don't have that tag.");
@@ -1801,13 +1581,13 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
   // inside a sealed one is a runtime row that no slug in docs/tags.yaml can
   // ever name. See docs/systemdocs/PAPERWORK.md.
   if (held.tag.paperKind === "SEALED") {
-    return breakSealRequestImpl({ session, character, held, reason });
+    return breakSealRequestImpl({ session, character, held });
   }
 
   // Same reasoning, same road: an Instant Camera consumes into a runtime Photo
   // row rather than into anything the catalog can name.
   if (held.tag.slug === CAMERA_SLUG) {
-    return photographNothingImpl({ session, character, held, reason });
+    return photographNothingImpl({ session, character, held });
   }
 
   const openTurn = await getOpenTurn();
@@ -1889,27 +1669,10 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
     // db/lib/hiddenCures.js. Runs after the ordinary grants and records
     // nothing on the request, on purpose.
     await applyHiddenCures(tx, character.id, held.tag.slug);
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "CONSUME_TAG",
-      reason,
-      payload: { tagId },
-      effect: {
-        tagId,
-        tagName: held.tag.name,
-        restore,
-        granted,
-        resourcesGranted,
-        cleared,
-        climbed,
-      },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_consume_tag",
       targetCharacterId: character.id,
-      reason,
       details: {
         tagId,
         tagName: held.tag.name,
@@ -1942,10 +1705,8 @@ async function transferRequestImpl({
   toKey,
   tags: rawTags,
   amount: rawAmount,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   const amount =
     rawAmount == null || rawAmount === ""
@@ -2107,7 +1868,7 @@ async function transferRequestImpl({
     actorName: character.name,
     turnNumber: openTurn?.number ?? null,
     turnPhase: openTurn?.phase ?? null,
-    note: reason,
+    note: null,
   };
   const fromParty = { kind: from.kind, id: from.id, name: from.name };
   const toParty = { kind: to.kind, id: to.id, name: to.name };
@@ -2133,32 +1894,10 @@ async function transferRequestImpl({
         expiresTurn: held.expiresTurn ?? null,
         source: "EVENT",
       });
-      await createRequest(tx, {
-        characterId: character.id,
-        turnId: openTurn?.id ?? null,
-        type: "TRANSFER_TAG",
-        reason,
-        payload: { tagId, quantity, fromKey, toKey, direction: "SEND" },
-        effect: {
-          tagId,
-          tagName: held.tag.name,
-          quantity,
-          direction: "SEND",
-          restore,
-          destroyed,
-          from: fromParty,
-          to: toParty,
-          fromCharacterId,
-          fromName: from.name,
-          toCharacterId,
-          toName: to.name,
-        },
-      });
-      await logRequest(tx, {
+      await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,
         actionType: "request_transfer_tag",
         targetCharacterId: toCharacterId ?? fromCharacterId,
-        reason,
         details: {
           tagId,
           tagName: held.tag.name,
@@ -2166,6 +1905,7 @@ async function transferRequestImpl({
           from: fromParty,
           to: toParty,
           direction: "SEND",
+          restore,
         },
       });
     }
@@ -2184,19 +1924,10 @@ async function transferRequestImpl({
         direction: "SEND",
         destroyed,
       };
-      await createRequest(tx, {
-        characterId: character.id,
-        turnId: openTurn?.id ?? null,
-        type: "TRANSFER_RESOURCES",
-        reason,
-        payload: { fromKey, toKey, amount, direction: "SEND" },
-        effect,
-      });
-      await logRequest(tx, {
+      await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,
         actionType: "request_transfer_resources",
         targetCharacterId: toCharacterId ?? fromCharacterId ?? character.id,
-        reason,
         details: effect,
       });
     }
@@ -2247,10 +1978,8 @@ async function healCharacterRequestImpl({
   targetCharacterId,
   tagId,
   payerKey,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   if (!character.locationId) {
     throw new UserError("You aren't anywhere you could treat someone.");
@@ -2338,7 +2067,7 @@ async function healCharacterRequestImpl({
     actorName: character.name,
     turnNumber: openTurn?.number ?? null,
     turnPhase: openTurn?.phase ?? null,
-    note: reason,
+    note: null,
   };
 
   const effect = {
@@ -2447,19 +2176,11 @@ async function healCharacterRequestImpl({
       );
     }
 
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "HEAL_CHARACTER",
-      reason,
-      payload: { targetCharacterId: target.id, tagId, payerKey },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_heal_character",
       targetCharacterId: target.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -2502,10 +2223,8 @@ async function lootCharacterRequestImpl({
   targetCharacterId,
   tagPicks: rawTagPicks,
   amount: rawAmount,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
@@ -2598,19 +2317,10 @@ async function lootCharacterRequestImpl({
       })),
       amount,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "LOOT_CHARACTER",
-      reason,
-      payload: { targetCharacterId: target.id, tagPicks: picks, amount },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_loot_character",
       targetCharacterId: target.id,
-      reason,
       details: effect,
     });
   });
@@ -2648,10 +2358,8 @@ async function lootCharacterRequestImpl({
 async function moveCharacterRequestImpl({
   targetCharacterId,
   targetLocationId,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   if (!character.locationId) {
     throw new UserError("You aren't anywhere you could do that.");
@@ -2717,34 +2425,10 @@ async function moveCharacterRequestImpl({
       where: { id: target.id },
       data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId },
     });
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "MOVE_CHARACTER",
-      reason,
-      payload: {
-        targetCharacterId: target.id,
-        targetLocationId: targetLocation.id,
-      },
-      // Undo restores both ids in the DB only — the Discord role swap catches
-      // up next time the player Moves themselves.
-      effect: {
-        targetCharacterId: target.id,
-        targetName: target.name,
-        targetStatus: target.status,
-        fromLocationId,
-        fromZoneId,
-        toLocationId: targetLocation.id,
-        toLocationName: targetLocation.name,
-        toZoneId: targetLocation.zoneId,
-        toZoneName: targetLocation.zone?.name ?? null,
-      },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_move_character",
       targetCharacterId: target.id,
-      reason,
       details: {
         fromLocationId,
         toLocationId: targetLocation.id,
@@ -2774,10 +2458,8 @@ async function moveCharacterRequestImpl({
 // request fires only on Accept (docs/systemdocs/LESSONS.md).
 async function bindCharacterRequestImpl({
   targetCharacterId,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
@@ -2807,7 +2489,6 @@ async function bindCharacterRequestImpl({
       actor,
       target,
       turn: openTurn,
-      reason,
     });
     if (!offer.ok) throw new UserError(offer.reason);
     after(() =>
@@ -2823,7 +2504,6 @@ async function bindCharacterRequestImpl({
         actorDiscordUserId: session.discordUserId,
         actionType: "request_bind_offer",
         targetCharacterId: target.id,
-        reason,
         details: { offerId: offer.offer.id, targetName: target.name },
       },
     });
@@ -2831,7 +2511,7 @@ async function bindCharacterRequestImpl({
     return { pending: true, name: target.name };
   }
 
-  await applyBind(prisma, { actor, target, turn: openTurn, reason });
+  await applyBind(prisma, { actor, target, turn: openTurn });
   await afterInventoryChange(target.id);
   notifyCharacter(target, "Someone bound you.");
   revalidateAll();
@@ -2841,10 +2521,8 @@ async function bindCharacterRequestImpl({
 // The rescue half — anyone standing there may cut someone loose.
 async function freeCharacterRequestImpl({
   targetCharacterId,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
@@ -2873,19 +2551,10 @@ async function freeCharacterRequestImpl({
       source: held.source,
       expiresTurn: held.expiresTurn,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "FREE_CHARACTER",
-      reason,
-      payload: { targetCharacterId: target.id },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_free_character",
       targetCharacterId: target.id,
-      reason,
       details: effect,
     });
   });
@@ -2894,6 +2563,171 @@ async function freeCharacterRequestImpl({
   notifyCharacter(target, "Someone freed you.");
   revalidateAll();
   return {};
+}
+
+// --- Crucifixion -----------------------------------------------------------
+
+const CRUCIFIX_SLUG = "crucifix";
+const CRUCIFIED_SLUG = "crucified";
+const FUNDAMENTALIST_SLUG = "fundamentalist";
+
+// Nailing someone to the cross. Three gates and no consent: the actor is a
+// Fundamentalist, a COMPLETE Cross stands where they are (a half-built or
+// damaged one is not a cross), and the target is standing there too. Free
+// like Bind — it spends no Move — and it kills on a clock rather than on the
+// spot: `crucified` becomes Dying at the close of this turn, and the Dying
+// pass kills at the next (docs/tags.yaml, db/lib/dyingDeathPass.js). A GM
+// Undo within the turn takes them down; after the close there is only Dying
+// left to heal, and Undo says so.
+//
+// The ambient line names the VICTIM and never the actor. notifyCharacter's
+// no-attribution rule is about not telling a helpless target who did it; a
+// crucifixion is a public example, and an anonymous one is scenery about
+// nothing.
+async function crucifyCharacterRequestImpl({
+  targetCharacterId,
+}) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  if (!character.locationId)
+    throw new UserError("You aren't anywhere you could do that.");
+  if (targetCharacterId === character.id)
+    throw new UserError("You can't crucify yourself. ‡");
+  if (!character.tags.some((ct) => ct.tag.slug === FUNDAMENTALIST_SLUG))
+    throw new UserError("Only a Fundamentalist would. ‡");
+
+  const location = await loadBuildGround(character.locationId);
+  const standing = await structuresAt(prisma, character.locationId, {
+    statuses: ["COMPLETE"],
+  });
+  const cross = standing.find((s) => s.typeSlug === CRUCIFIX_SLUG) ?? null;
+  if (!cross) throw new UserError("There is no cross standing here. ‡");
+
+  const target = await prisma.character.findFirst({
+    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      locationId: true,
+      concealed: true,
+      discordUserId: true,
+      tags: { select: { tag: { select: { slug: true } } } },
+    },
+  });
+  if (!target || !isHere(character, target))
+    throw new UserError(notHereMessage(target));
+  if (target.tags.some((ct) => ct.tag.slug === CRUCIFIED_SLUG))
+    throw new UserError(`${target.name} is already on the cross. ‡`);
+
+  const crucified = await prisma.tag.findUnique({
+    where: { slug: CRUCIFIED_SLUG },
+  });
+  if (!crucified)
+    throw new UserError("The Crucified tag is missing from the catalog — tell a GM. ‡");
+
+  const openTurn = await getOpenTurn();
+  if (!openTurn) throw new UserError("No turn is open. ‡");
+  const expiresTurn = await expiryForGrant(prisma, crucified, openTurn);
+
+  const effect = {
+    targetCharacterId: target.id,
+    targetName: target.name,
+    tagId: crucified.id,
+    tagName: crucified.name,
+    expiresTurn,
+    structureId: cross.id,
+    locationId: location?.id ?? character.locationId,
+    locationName: location?.name ?? null,
+  };
+  await prisma.$transaction(async (tx) => {
+    await addToStack(tx, target.id, crucified.id, 1, {
+      source: "EVENT",
+      expiresTurn,
+      stackable: crucified.stackable,
+    });
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_crucify_character",
+      targetCharacterId: target.id,
+      details: effect,
+    });
+  });
+
+  await afterInventoryChange(target.id);
+  notifyCharacter(target, "You've been put on the cross. ‡");
+  speakAtSite(
+    location?.discordChannelId,
+    ambientLine(`${target.name} hangs on the cross.`),
+  );
+  revalidateAll();
+  return { name: target.name };
+}
+
+// --- Putting on a face that isn't yours ------------------------------------
+
+// The Disguise Kit's one verb. Three turns under a name the player types, and
+// the kit is NOT used up — a disguise kit you can use once is a costume, not a
+// kit.
+//
+// The whole effect is a MINTED tag row carrying Tag.forcedName
+// (db/lib/disguiseMint.js). Nothing on the Character row changes, so every
+// surface that resolves an identity picks it up through the forced branch of
+// presentedIdentity() that Apex Form already uses, and the ordinary expiry
+// sweep takes it off again with no catch-up pass to write.
+//
+// Two things the player is told up front by the tag's own description, because
+// both fall straight out of riding forcedName: they post under a letter plaque
+// rather than their portrait, and /conceal refuses while it is on.
+async function disguiseSelfRequestImpl({ name: rawName }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  // Re-checked here and not merely in the UI: a server action is a public
+  // endpoint, and page.js's predicate is a hint.
+  if (!character.tags.some((ct) => ct.tag.slug === DISGUISE_KIT_SLUG))
+    throw new UserError("You have no disguise kit. ‡");
+
+  const name = normalizeDisguiseName(rawName);
+  if (!name) throw new UserError("Pick a name to go by. ‡");
+  if (name === character.name)
+    throw new UserError("That is already your name. ‡");
+
+  // One at a time. Two forcedName rows would race, and forcedNameFrom takes
+  // whichever comes back first.
+  const already = await activeDisguise(prisma, character.id);
+  if (already)
+    throw new UserError(
+      `You are already going by ${already.tag.forcedName}. Wait for it to wear off. ‡`,
+    );
+
+  const openTurn = await getOpenTurn();
+  if (!openTurn) throw new UserError("No turn is open. ‡");
+
+  // Minted OUTSIDE the transaction, on purpose: the retry loop it uses cannot
+  // run inside one, because Postgres aborts the whole transaction on the first
+  // failed statement (see db/lib/paperMint.js). Two players picking the same
+  // false name is exactly the collision it retries past.
+  const tag = await mintDisguise(prisma, character.id, name, openTurn);
+  if (!tag) throw new UserError("Couldn't put that name on. Try another. ‡");
+
+  const effect = {
+    tagId: tag.id,
+    tagName: tag.name,
+    disguiseName: name,
+    turns: DISGUISE_TURNS,
+  };
+  await prisma.$transaction(async (tx) => {
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_disguise_self",
+      targetCharacterId: character.id,
+      details: effect,
+    });
+  });
+
+  await afterInventoryChange(character.id);
+  revalidateAll();
+  return { name };
 }
 
 // --- Harming someone already helpless -------------------------------------
@@ -2908,10 +2742,8 @@ async function harmCharacterRequestImpl({
   targetCharacterId,
   tagId,
   lethal: rawLethal,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
@@ -2998,19 +2830,10 @@ async function harmCharacterRequestImpl({
       killed,
       killedAt: killed ? new Date().toISOString() : null,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "HARM_CHARACTER",
-      reason,
-      payload: { targetCharacterId: target.id, tagId: tag?.id ?? null, lethal },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_harm_character",
       targetCharacterId: target.id,
-      reason,
       details: effect,
     });
   });
@@ -3041,10 +2864,8 @@ async function harmCharacterRequestImpl({
 async function claimDesireImpl({
   slotIndex: rawSlotIndex,
   slug: rawSlug,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
 
   const slug = rawSlug?.toString().trim();
   if (!slug) throw new UserError(DESIRE_NOT_AVAILABLE);
@@ -3165,26 +2986,10 @@ async function claimDesireImpl({
       where: { id: character.id },
       data: { tagPoints: { increment: row.points } },
     });
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "FULFILL_DESIRE",
-      reason,
-      payload: { desireId: row.id },
-      effect: {
-        desireId: row.id,
-        desireText: row.text,
-        pointsAwarded: row.points,
-        desireSlug: template.slug,
-        desireTier: template.tier,
-        slotIndex,
-      },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_fulfill_desire",
       targetCharacterId: character.id,
-      reason,
       details: {
         desireId: row.id,
         pointsAwarded: row.points,
@@ -3212,14 +3017,30 @@ async function claimDesireImpl({
 // The one player-facing rename: an ordinary reason-gated request applying
 // the same allowlist/cap/dynasty-lock rules every writer of Character.name
 // uses. See docs/systemdocs/CHARACTERS.md §1b.
+// Renaming costs a Mulligan Potion, drunk. The gate is the whole point of the
+// item — "a new name and appearance to those with honest regrets" is what its
+// catalog text has always promised — and without it a name is free to change
+// as often as a player likes, which makes every other identity rule (the
+// personal Discord role, a wanted poster, a Disguise that is supposed to be
+// temporary) mean less than it should. A Disguise is the temporary answer;
+// this is the permanent one. See CHARACTERS.md.
+const MULLIGAN_SLUG = "mulligan-potion";
+
 async function changeNameRequestImpl({
   honorific: rawHonorific,
   firstName: rawFirstName,
   lastName: rawLastName,
-  reason: rawReason,
 }) {
-  const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  // Re-checked here and not merely in the UI: a server action is a public
+  // endpoint and page.js's predicate is only a hint.
+  const potion = character.tags.find((ct) => ct.tag.slug === MULLIGAN_SLUG);
+  if (!potion) {
+    throw new UserError(
+      "You need a Mulligan Potion to take a new name. ‡",
+    );
+  }
 
   // Gated by what this character has earned — an unearned word lands as
   // null rather than throwing, so a stale tab renames them untitled instead
@@ -3268,25 +3089,20 @@ async function changeNameRequestImpl({
       where: { id: character.id },
       data: next,
     });
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "CHANGE_NAME",
-      reason,
-      payload: { honorific, firstName, lastName },
-      effect: { previous, next },
-    });
-    await logRequest(tx, {
+    // Drunk, not merely held — one name per bottle.
+    await dropCharacterTag(tx, character.id, potion.tagId, 1);
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_change_name",
       targetCharacterId: character.id,
-      reason,
-      details: { previousName: previous.name, name: next.name },
+      turnId: openTurn?.id ?? null,
+      details: { previousName: previous.name, name: next.name, potionTagId: potion.tagId },
     });
   });
 
-  // Best-effort Discord fan-out, outside the transaction; Undo does not
-  // re-run it, so a reverted name catches up next time the player saves.
+  // Best-effort Discord fan-out, outside the transaction (ARCHITECTURE.md §5
+  // — no network call inside one). The role and the nickname wear the REAL
+  // bare name on purpose, disguise or not (PROXYING.md §6, §8).
   await ensureCharacterRole(updated).catch(() => {});
   await syncCharacterNickname(
     session.discordUserId,
@@ -3357,10 +3173,8 @@ async function takeCorpse(tx, corpse) {
 async function butcherCorpseRequestImpl({
   tagId,
   sourceKey,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   // The gate, re-checked here because a disabled button is a hint, not a lock.
   if (!character.tags.some((ct) => ct.tag?.slug === BUTCHER_SLUG)) {
@@ -3387,31 +3201,10 @@ async function butcherCorpseRequestImpl({
       expiresTurn,
       stackable: yieldTag.stackable,
     });
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "BUTCHER_CORPSE",
-      reason,
-      payload: { tagId, sourceKey },
-      // The source is snapshotted so Undo can put the body back where it came
-      // FROM — a corpse taken off a floor must not reappear in a pocket.
-      effect: {
-        corpseTagId: corpse.tagId,
-        corpseTagName: corpse.tagName,
-        source: corpse.source,
-        yieldTagId: yieldTag.id,
-        yieldTagName: yieldTag.name,
-        yieldExpiresTurn: expiresTurn,
-        human: corpse.human,
-        deadCharacterId: corpse.deadCharacterId,
-        deadName: corpse.deadName,
-      },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_butcher_corpse",
       targetCharacterId: corpse.deadCharacterId ?? character.id,
-      reason,
       details: {
         corpse: corpse.tagName,
         made: yieldTag.name,
@@ -3450,10 +3243,8 @@ async function butcherCorpseRequestImpl({
 async function buryCharacterRequestImpl({
   tagId,
   sourceKey,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
 
   const corpse = await resolveCorpseSource(character, { tagId, sourceKey });
   if (!corpse.human || !corpse.deadCharacterId) {
@@ -3479,30 +3270,10 @@ async function buryCharacterRequestImpl({
       `Buried ${target.name}. ‡`,
       "auto:bury",
     );
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "BURY_CHARACTER",
-      reason,
-      payload: { tagId, sourceKey },
-      // targetDiscordUserId deliberately absent: the curse is not re-granted
-      // on Undo, since no network call may run inside a $transaction.
-      effect: {
-        targetCharacterId: target.id,
-        targetName: target.name,
-        zoneId: character.zoneId,
-        buriedAt: buriedAt.toISOString(),
-        corpseTagId: corpse.tagId,
-        corpseTagName: corpse.tagName,
-        source: corpse.source,
-        actionId: action?.id ?? null,
-      },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_bury_character",
       targetCharacterId: target.id,
-      reason,
       details: { zoneId: character.zoneId, corpse: corpse.tagName },
     });
   });
@@ -3537,10 +3308,8 @@ async function buryCharacterRequestImpl({
 // It is the only thing standing between a mourner and freeing the wrong soul.
 async function engraveHeadstoneRequestImpl({
   firstName: rawFirstName,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   const typed =
     rawFirstName?.toString().trim().slice(0, NAME_LIMITS.firstName) ?? "";
@@ -3595,27 +3364,10 @@ async function engraveHeadstoneRequestImpl({
       `Engraved a headstone for ${target.name}. ‡`,
       "auto:engrave",
     );
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "ENGRAVE_HEADSTONE",
-      reason,
-      payload: { firstName: typed },
-      effect: {
-        targetCharacterId: target.id,
-        targetName: target.name,
-        buriedAt: buriedAt.toISOString(),
-        resourcesSpent: ENGRAVE_RESOURCE_COST,
-        headstoneTagId: headstone.id,
-        headstoneTagName: headstone.name,
-        actionId: action?.id ?? null,
-      },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_engrave_headstone",
       targetCharacterId: target.id,
-      reason,
       details: { spent: ENGRAVE_RESOURCE_COST },
     });
     return { headstone };
@@ -3647,9 +3399,8 @@ async function engraveHeadstoneRequestImpl({
 // Every gate is re-checked here. The button greys itself for a blade and hides
 // itself off a marsh tile, but a server action is a public endpoint and the
 // client's menus are advisory (REQUESTS.md §3).
-async function extractGodfleshRequestImpl({ reason: rawReason }) {
+async function extractGodfleshRequestImpl() {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
 
   const location = character.locationId
     ? await prisma.location.findUnique({
@@ -3726,19 +3477,10 @@ async function extractGodfleshRequestImpl({ reason: rawReason }) {
       "auto:extract",
     );
     effect.actionId = action.id;
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "EXTRACT_GODFLESH",
-      reason,
-      payload: {},
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_extract_godflesh",
       targetCharacterId: character.id,
-      reason,
       details: effect,
     });
   });
@@ -3769,10 +3511,8 @@ async function extractGodfleshRequestImpl({ reason: rawReason }) {
 async function packageItemsRequestImpl({
   lines: rawLines,
   label: rawLabel,
-  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-  const reason = requireReason(rawReason);
 
   const label = String(rawLabel ?? "")
     .trim()
@@ -3898,19 +3638,10 @@ async function packageItemsRequestImpl({
       innerLbs,
       contents,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "PACKAGE_ITEMS",
-      reason,
-      payload: { lines, label },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_package_items",
       targetCharacterId: character.id,
-      reason,
       details: effect,
     });
   });
@@ -3996,6 +3727,12 @@ export async function bindCharacterRequest(input) {
 }
 export async function freeCharacterRequest(input) {
   return guarded(() => freeCharacterRequestImpl(input));
+}
+export async function crucifyCharacterRequest(input) {
+  return guarded(() => crucifyCharacterRequestImpl(input));
+}
+export async function disguiseSelfRequest(input) {
+  return guarded(() => disguiseSelfRequestImpl(input));
 }
 export async function harmCharacterRequest(input) {
   return guarded(() => harmCharacterRequestImpl(input));
@@ -4135,30 +3872,6 @@ async function birdMessageRequestImpl({
     });
     birdMessageId = row.id;
 
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn.id,
-      type: "BIRD_MESSAGE",
-      reason,
-      payload: {
-        recipientId: recipient.id,
-        guessedZoneId: guessedZone.id,
-        tagId: held.tagId,
-      },
-      effect: {
-        birdMessageId: row.id,
-        recipientId: recipient.id,
-        recipientName: recipient.name,
-        guessedZoneId: guessedZone.id,
-        guessedZoneName: guessedZone.name,
-        tagId: held.tagId,
-        tagName: held.tag.name,
-        // What was written, for the desk. Null on a sealed letter.
-        body,
-        delivered,
-        previousBirdTurnId: character.birdTurnId ?? null,
-      },
-    });
     // THE LETTER ONLY LEAVES YOUR HANDS IF IT ARRIVES. A wrong guess means the
     // bird comes back with it still tied on, and the sender is told a turn
     // later like always. Burning a player's letter as the price of a bad guess
@@ -4169,11 +3882,10 @@ async function birdMessageRequestImpl({
       await addToStack(tx, recipient.id, held.tagId, 1, {});
     }
 
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_bird_message",
       targetCharacterId: recipient.id,
-      reason,
       details: {
         recipientId: recipient.id,
         guessedZoneId: guessedZone.id,

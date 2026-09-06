@@ -14,7 +14,11 @@ import EmptyState from "./EmptyState";
 // this panel is a VIEW of a stash, not a separate inventory. Anything here can
 // also be picked up by hand by anyone who can get into the room, which is the
 // point: a shipment sitting on the pad is a shipment that can be robbed.
-export default function DepotHoldTab({ pad, crates, depot, disabled, shuttleTurnsLeft }) {
+//
+// Sending it up is a HAND action — a Docker with a keycard can do it. The
+// payout lands in the station's account either way, so a keycard moves goods,
+// never money out of the Depot.
+export default function DepotHoldTab({ pad, crates, depot, handDisabled, shuttleTurnsLeft }) {
   const [refresh] = useRefresh();
   const [pending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(null); // "send" | a crate row
@@ -95,7 +99,7 @@ export default function DepotHoldTab({ pad, crates, depot, disabled, shuttleTurn
           <button
             type="button"
             className="btn mt-4"
-            disabled={disabled || pending || !docked}
+            disabled={handDisabled || pending || !docked}
             onClick={() => setConfirming("send")}
           >
             Load it up and send it back

@@ -12,6 +12,7 @@ import { scoreMatch } from "@/lib/fuzzySearch";
 import useNowTick from "@/app/components/useNowTick";
 import { mergeRailRows, useRailPatches } from "./liveInbox";
 import { inVisibleZones } from "@/lib/zones";
+import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
 import {
   markConversationRead,
   searchConversations,
@@ -64,6 +65,10 @@ function relativeTime(ms, now) {
 
 export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNames, myDiscordUserId }) {
   const pathname = usePathname();
+  // The prop is only the seed: once the picker in the inspector has moved,
+  // the live answer is in the client (GmZoneViewProvider), so the rail
+  // re-filters on the click instead of waiting on a revalidate.
+  const zonesInView = useVisibleZoneNames(visibleZoneNames);
   // The live inbox's patches laid over the layout's rows (liveInbox.js), so
   // a new message moves a row, bumps its badge and rewrites its preview
   // within seconds instead of on the next 30s refresh. Done FIRST, before
@@ -76,7 +81,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
   // The zones this GM chose to see (null = all). Unlike the zone dropdown
   // below, this is not a lens: a row outside it is not theirs to work, and a
   // search does NOT lift it.
-  const inView = useMemo(() => inVisibleZones(rows, visibleZoneNames), [rows, visibleZoneNames]);
+  const inView = useMemo(() => inVisibleZones(rows, zonesInView), [rows, zonesInView]);
 
   // A beat for the relative-time chips, so "just now" doesn't stay "just
   // now" for an hour.

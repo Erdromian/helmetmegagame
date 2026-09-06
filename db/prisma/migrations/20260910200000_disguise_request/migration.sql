@@ -1,0 +1,11 @@
+-- One new RequestType value for the Disguise button on /character.
+--
+-- Enum-only, in its own migration for the reason the crucify one gives:
+-- Postgres will not let a value be USED in the same transaction that added
+-- it, and Prisma runs each migration file in one transaction. Nothing here
+-- references the label in SQL.
+--
+-- Dated past the crucify migration on purpose. The folder names in this
+-- directory run ahead of the calendar, and a migration dated today would
+-- sort BEFORE ones already applied, which breaks replay.
+ALTER TYPE "RequestType" ADD VALUE 'DISGUISE_SELF';

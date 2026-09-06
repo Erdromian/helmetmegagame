@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 // Everything here comes from auditNarrative, never from auditQuery: that one
 // imports Prisma, and a client component reaching for one constant in it drags
 // the whole data layer into the browser bundle.
-import { AUDIT_FAMILIES, DATE_PRESETS, prettifyActionType } from "@/lib/auditNarrative";
+import { AUDIT_FAMILIES, AUDIT_BANDS, DATE_PRESETS, prettifyActionType } from "@/lib/auditNarrative";
 import Select from "@/app/components/Select";
 
 // The filter rail. Every control writes into the URL through the `set` the
@@ -90,8 +90,34 @@ export default function AuditFilters({
         />
       </label>
 
+      <Group label="Show">
+        <div className="chip-row">
+          {Object.entries(AUDIT_BANDS).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className="chip"
+              data-active={(filters.band || "player") === key || undefined}
+              aria-pressed={(filters.band || "player") === key}
+              onClick={() => set({ band: key, families: [] })}
+            >
+              {label}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="chip"
+            data-active={filters.band === "all" || undefined}
+            aria-pressed={filters.band === "all"}
+            onClick={() => set({ band: "all", families: [] })}
+          >
+            Everything
+          </button>
+        </div>
+      </Group>
+
       <Group label="Family">
-        <div className="audit-chips">
+        <div className="chip-row">
           {Object.entries(AUDIT_FAMILIES).map(([key, fam]) => (
             <button
               key={key}
@@ -221,7 +247,7 @@ export default function AuditFilters({
       </Group>
 
       <Group label="When">
-        <div className="audit-chips">
+        <div className="chip-row">
           {Object.entries(DATE_PRESETS).map(([key, label]) => (
             <button
               key={key}

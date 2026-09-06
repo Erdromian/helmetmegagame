@@ -11,6 +11,7 @@ import DeskInboxCounts from "./DeskInboxCounts";
 import { deployVersion } from "@/lib/deployVersion";
 import { DeskStaleRefreshGate, DeskStaleChip } from "@/app/components/useDeskVersion";
 import InspectorHost from "./InspectorHost";
+import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
 import BulkMessageButton from "./BulkMessageButton";
 
 // The player desk's server half. Owns the rail's data; the child route
@@ -238,6 +239,10 @@ export default async function PlayerDeskLayout({ children }) {
         }
       />
 
+      {/* The zone view lives in the client from here down, so the rail, the
+          roster (which arrives as {children}) and the picker in the inspector
+          all re-filter on the click rather than on a revalidate. */}
+      <GmZoneViewProvider initialZoneNames={visibleZones?.map((z) => z.name) ?? null}>
       <div className="desk-body desk-body--players">
         <PlayerRail
           rows={rows}
@@ -264,6 +269,7 @@ export default async function PlayerDeskLayout({ children }) {
           tagCatalog={allTags}
         />
       </div>
+      </GmZoneViewProvider>
 
       <InboxPoller deployVersion={deployVersion()} />
       <LiveInboxPoller deployVersion={deployVersion()} />

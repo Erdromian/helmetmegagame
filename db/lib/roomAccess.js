@@ -1,15 +1,35 @@
-// Private-room membership, reconciled the way narrowcast access is: recomputed
-// from the character's CURRENT location and tags at every arrival and every
-// tag change, never pushed from inside a tag writer. A private Room is a
-// private thread whose members should be exactly the characters standing in
-// its Location who hold one of Room.accessTagSlugs — a key tag gained opens
-// the door, a key tag lost closes it.
+// Private-room membership: a private Room is a private thread whose members are
+// exactly the characters ENTITLED to it — holding one of Room.accessTagSlugs,
+// or carrying a RoomGuest row for it. A key gained opens the door, a key lost
+// closes it. Recomputed from tags, never pushed from inside a tag writer.
 //
-// Plus GUESTS. /add in a private Room writes a RoomGuest row, which admits
-// somebody who holds no key at all. The row is spent when they leave: this
-// file deletes every guest row whose Room is not where the character now
-// stands, and every mover already calls in here with the destination, so
-// walking out is what shuts the door behind you.
+// MEMBERSHIP DOES NOT FOLLOW THE FEET, and that is the whole point of this
+// file's 2026-09-06 rewrite. It used to: you were added on arrival and removed
+// on departure, which meant Discord narrated "… added <name> to the thread"
+// into the room mid-scene on every single visit, forever. That notice is a
+// RecipientAdd system message and Discord REFUSES to delete it — the attempt
+// in bot/src/events/messageCreate.js is still there and still fails — so the
+// only lever was to stop generating it.
+//
+// Dropping the presence half costs nothing, because presence is already
+// enforced one layer down: Discord gates a thread on VIEW_CHANNEL of its
+// PARENT, and a character only holds the per-member overwrite on the one
+// Location channel they are standing in (db/lib/locationMove.js, and CLAUDE.md
+// "Discord permission model"). A keyholder standing elsewhere is a member of a
+// thread they cannot see, and it comes back when they walk in. The add/remove
+// was buying a rule the channel already enforced, and paying for it in spam.
+//
+// So a MOVE now issues no thread calls at all. A full recompute runs only when
+// entitlement can actually have changed: creation, a tag grant or loss, death,
+// and the doctor's backstop.
+//
+// Plus GUESTS, which ARE still presence-based — deliberately, because a guest
+// is somebody let in by hand rather than by key, and the door shutting behind
+// them is the point. /add in a private Room writes a RoomGuest row; the row is
+// spent when they leave, and this file deletes every guest row whose Room is
+// not where the character now stands. Every mover calls in here with the
+// destination, which is what that sweep needs and the only reason a move still
+// calls in at all.
 //
 // Pure REST (thread-member calls have no gateway-only form), so both faces
 // and the staged push call this one function. Takes `prisma` as a parameter
@@ -64,30 +84,25 @@ async function roomAccessKeys(prisma, characterId) {
 
 // `character` needs { id, discordUserId, locationId, status }; `tagSlugs` may
 // be passed by a caller that already holds them. Returns { added, removed }.
-// Every private room in the character's location gets exactly one idempotent
-// call (add or remove); private rooms elsewhere get a remove. A miss is
+// Every private room in the game gets at most one idempotent call. A miss is
 // logged and left for the doctor.
 //
-// `locationOnly` drops the elsewhere-removes. Each of those is a Discord round
-// trip, they run one at a time, and there are as many of them as there are
-// private rooms in the game — so a caller that cannot possibly have changed
-// where somebody is standing was paying the whole bill for nothing. Leaving a
-// Location already spends the membership, so there is nothing there to remove.
-// The MOVER must never pass it: crossing a Location is precisely the case those
-// removes exist for. The doctor's room-occupancy check is the backstop either
-// way.
-async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null, locationOnly = false } = {}) {
+// `guestsOnly` is what the MOVER passes. A move cannot change entitlement, so
+// there is nothing to add and nothing to remove — except where the guest sweep
+// above just spent a row, which is the one thing walking out does change. In
+// the ordinary case that set is empty and this makes ZERO Discord calls, which
+// is the entire feature. Everyone else omits it and gets the full recompute.
+//
+// The old `locationOnly` option is gone and must not come back: it narrowed the
+// recompute to the character's current Location, which under the entitlement
+// rule would silently miss a key gained or lost for a room on the other side of
+// the map.
+async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null, guestsOnly = false } = {}) {
   const result = { added: 0, removed: 0 };
   if (!character?.discordUserId) return result;
 
   const rooms = await prisma.room.findMany({
-    where: {
-      kind: "PRIVATE",
-      discordThreadId: { not: null },
-      // Narrowed in the QUERY rather than filtered after it, so a locationOnly
-      // caller does not even read the rows it has no calls to make for.
-      ...(locationOnly && character.locationId ? { locationId: character.locationId } : {}),
-    },
+    where: { kind: "PRIVATE", discordThreadId: { not: null } },
     select: { id: true, name: true, locationId: true, kind: true, accessTagSlugs: true, discordThreadId: true },
   });
 
@@ -102,39 +117,78 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null, loc
   // Nothing else about such a move works either — no overwrite swap, no role
   // swap — and the doctor's room-guest check is the backstop.
   const alive = character.status === "ALIVE";
+  const staleGuestWhere = {
+    characterId: character.id,
+    ...(alive && character.locationId ? { room: { locationId: { not: character.locationId } } } : {}),
+  };
+  // Read the rows before deleting them: `guestsOnly` needs to know which rooms
+  // were actually spent, and deleteMany only returns a count.
+  const spentGuestRoomIds = new Set(
+    (
+      await prisma.roomGuest
+        .findMany({ where: staleGuestWhere, select: { roomId: true } })
+        .catch(() => [])
+    ).map((row) => row.roomId),
+  );
   await prisma.roomGuest
-    .deleteMany({
-      where: {
-        characterId: character.id,
-        ...(alive && character.locationId ? { room: { locationId: { not: character.locationId } } } : {}),
-      },
-    })
+    .deleteMany({ where: staleGuestWhere })
     .catch((err) => console.error(`Room guest sweep failed for ${character.id}:`, err.message ?? err));
 
   if (rooms.length === 0) return result;
   if (!process.env.DISCORD_TOKEN) return result;
 
-  const held = alive && character.locationId ? tagSlugs ?? (await heldTagSlugs(prisma, character.id)) : new Set();
-  const guests = alive && character.locationId ? await guestRoomIds(prisma, character.id) : new Set();
-  const here = alive && character.locationId
-    ? new Set(
-        accessibleRooms(rooms.filter((r) => r.locationId === character.locationId), held, guests).map((r) => r.id),
-      )
+  // A move changes nothing but the guest rows it just spent, so that is all it
+  // touches. Empty in the ordinary case, which means no Discord calls at all.
+  if (guestsOnly && spentGuestRoomIds.size === 0) return result;
+
+  // Entitlement, and deliberately NOT filtered by where they are standing:
+  // holding the key is the whole test. A dead character is entitled to nothing,
+  // which is what removes them everywhere.
+  const held = alive ? tagSlugs ?? (await heldTagSlugs(prisma, character.id)) : new Set();
+  const guests = alive ? await guestRoomIds(prisma, character.id) : new Set();
+  const entitled = alive
+    ? new Set(accessibleRooms(rooms, held, guests).map((r) => r.id))
     : new Set();
 
-  for (const room of rooms) {
+  // What Discord has actually been told, so we can act on the DIFFERENCE. This
+  // is the whole reason the tag-change path is affordable: entitlement is
+  // recomputed constantly (every equip, every meal) and almost never changes,
+  // so the delta is almost always empty and this makes no calls at all.
+  const stored = new Set(
+    (
+      await prisma.character
+        .findUnique({ where: { id: character.id }, select: { roomThreadRoomIds: true } })
+        .catch(() => null)
+    )?.roomThreadRoomIds ?? [],
+  );
+
+  const scope = guestsOnly ? rooms.filter((r) => spentGuestRoomIds.has(r.id)) : rooms;
+  const targets = scope.filter((room) => entitled.has(room.id) !== stored.has(room.id));
+  if (targets.length === 0) return result;
+
+  const next = new Set(stored);
+  for (const room of targets) {
     try {
-      if (here.has(room.id)) {
+      if (entitled.has(room.id)) {
         await addThreadMember(room.discordThreadId, character.discordUserId);
+        next.add(room.id);
         result.added += 1;
       } else {
         await removeThreadMember(room.discordThreadId, character.discordUserId);
+        next.delete(room.id);
         result.removed += 1;
       }
     } catch (err) {
+      // Left OUT of `next` on failure, so the next run retries it rather than
+      // recording a membership Discord never accepted. The doctor is the
+      // backstop either way.
       console.error(`Room access sync failed for ${character.id} in "${room.name}":`, err.message ?? err);
     }
   }
+
+  await prisma.character
+    .update({ where: { id: character.id }, data: { roomThreadRoomIds: [...next] } })
+    .catch((err) => console.error(`Room membership record failed for ${character.id}:`, err.message ?? err));
   return result;
 }
 

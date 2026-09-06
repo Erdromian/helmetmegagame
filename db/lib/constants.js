@@ -51,6 +51,11 @@ const PACKAGE_MAX_LBS = 150;
 const PACKAGE_MAX_UNITS = 200;
 const PACKAGE_LABEL_MAX = 120;
 const SURGICAL_EQUIPMENT_SLUG = "surgical-equipment";
+
+// Holding one puts a Sound Trumpet button on your own Character page, and
+// sounding it is heard across the Location graph (db/lib/trumpet.js). Held,
+// not equipped: you pick a trumpet up to blow it.
+const TRUMPET_SLUG = "trumpet";
 const HUMAN_FLESH_SLUG = "human-flesh";
 const ENGRAVE_RESOURCE_COST = 4;
 // How many turns a person's corpse stays fresh before it turns. Monster
@@ -76,15 +81,32 @@ const CHAPLAIN_SLUG = "chaplain";
 const CONFESSION_THRESHOLD = 5;
 
 // The one "read someone else's sheet" tag — see db/lib/inspectVision.js, the
-// only reader. This is the Demoness Seductive, not its general-category cousin
-// Empathetic (`empathetic`), which is deliberately NOT here; nor is
-// Mindreading, the Succubus Draught's grant. Both of those read a Desire on a
-// Gambit after a conversation, which no code adjudicates.
+// only reader. This is the Demoness Seductive; Mindreading, the Succubus
+// Draught's grant, is deliberately NOT here, because it reads a Desire on a
+// Gambit after a conversation, which no code adjudicates. (Empathetic, a
+// general-category tag that worked the same way, was retired 2026-09-05.)
 const SEDUCTIVE_DEMONESS_SLUG = "demoness-seductive";
 
 // The counter to both of the above, read off the SUBJECT rather than the
 // viewer — see db/lib/inspectVision.js.
 const INSCRUTABLE_SLUG = "inscrutable";
+
+// The two fear states a phobia can grant — db/lib/phobias.js.
+const AFRAID_SLUG = "afraid";
+const PANIC_SLUG = "panic";
+// What a drawback-triggered ride leaves you as — db/lib/locationTravel.js.
+const VOMITING_SLUG = "vomiting";
+// Drawback slugs read by their scripted mechanics.
+const LAZY_SLUG = "lazy";
+const GUILT_RIDDEN_SLUG = "guilt-ridden";
+const INSOMNIAC_SLUG = "insomniac";
+const MOTION_SICKNESS_SLUG = "motion-sickness";
+// Lightweight / Iron Liver / Steady's slugs live only in
+// web/lib/consumeGrants.js — that file ships to the client, so it keeps its
+// own copies rather than importing from here.
+const DEBTOR_SLUG = "debtor";
+const CLAUSTROPHOBIA_SLUG = "claustrophobia";
+const ACROPHOBIA_SLUG = "acrophobia";
 
 // A ZONE slug, not a tag: the Fortress holds the Lifeweb tower and the PA
 // system, so two separate rules gate on standing there.
@@ -127,6 +149,7 @@ module.exports = {
   PACKAGE_MAX_UNITS,
   PACKAGE_LABEL_MAX,
   SURGICAL_EQUIPMENT_SLUG,
+  TRUMPET_SLUG,
   HUMAN_FLESH_SLUG,
   ENGRAVE_RESOURCE_COST,
   CORPSE_ROT_TURNS,
@@ -141,4 +164,14 @@ module.exports = {
   CONFESSION_THRESHOLD,
   SEDUCTIVE_DEMONESS_SLUG,
   INSCRUTABLE_SLUG,
+  AFRAID_SLUG,
+  PANIC_SLUG,
+  VOMITING_SLUG,
+  LAZY_SLUG,
+  GUILT_RIDDEN_SLUG,
+  INSOMNIAC_SLUG,
+  MOTION_SICKNESS_SLUG,
+  DEBTOR_SLUG,
+  CLAUSTROPHOBIA_SLUG,
+  ACROPHOBIA_SLUG,
 };

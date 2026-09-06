@@ -28,6 +28,10 @@ const NOTICEBOARD_PREFIX = "loc:notice:";
 const SECRET_ROOMS_PREFIX = "loc:secret:";
 const EXAMINE_PREFIX = "loc:examine:";
 const CONVERSE_PREFIX = "loc:converse:";
+// Not a prefix but one fixed id, shared with the #turns console and the
+// /travel command: travel needs no location context, because handleTravelOpen
+// reads the mover's own locationId.
+const TRAVEL_CUSTOM_ID = "loc:open";
 const GATE_PREFIX = "loc:gate:";
 const KEYED_PREFIX = "loc:keyed:";
 
@@ -35,19 +39,38 @@ const KEYED_PREFIX = "loc:keyed:";
 const ROW_BUTTON_LIMIT = 5;
 const LABEL_MAX = 80;
 
-// Takes the LOCATION rather than a bare id, because the fifth button is
-// conditional: a Noticeboard only appears where docs/zones.yaml declared one
-// (db/lib/noticeboard.js). Five is exactly Discord's per-row cap, so anything
-// added after this needs a second row.
-function locationAnchorRow(location) {
+// Takes the LOCATION rather than a bare id, because the Noticeboard button is
+// conditional: it only appears where docs/zones.yaml declared one
+// (db/lib/noticeboard.js).
+//
+// This returns the flat BUTTON LIST; locationAnchorRows below chunks it. It
+// used to be one row, with a note that five was Discord's cap and anything
+// more needed a second — then Travel arrived, which with a Noticeboard makes
+// six. Chunking rather than hand-placing the split means the next button to
+// arrive needs no thought either.
+//
+// TRAVEL IS FIRST, and it carries no emoji. It is the same `loc:open` the
+// #turns console offers (db/lib/turnsConsoleRow.js), where it wears a 🗺️ — on
+// an anchor it sits in a row of plain-text buttons and the one emoji only made
+// it shout. The handler resolves the mover from the interaction rather than
+// the channel, so the identical id works from anywhere.
+function locationAnchorButtons(location) {
   const locationId = typeof location === "string" ? location : location?.id;
   const board = typeof location === "string" ? false : hasNoticeboard(location);
-  return {
-    type: ACTION_ROW,
-    components: [
+  return [
+      // Travel is the green one. It is the button people are here to press —
+      // the others answer a question about where you already are, and this one
+      // is how you leave. Who's here? held the green until 2026-09-06 and is
+      // now grey with the rest of the readouts.
       {
         type: BUTTON,
         style: SUCCESS,
+        custom_id: TRAVEL_CUSTOM_ID,
+        label: "Travel",
+      },
+      {
+        type: BUTTON,
+        style: SECONDARY,
         custom_id: `${WHOS_HERE_PREFIX}${locationId}`,
         label: "Who's here? ‡",
       },
@@ -79,8 +102,19 @@ function locationAnchorRow(location) {
             },
           ]
         : []),
-    ],
-  };
+  ];
+}
+
+// The rows the anchor posts: the buttons above, chunked to Discord's per-row
+// cap. Discord allows five rows of five on one message, so there is headroom;
+// the limit that bites first will be the message's, not this.
+function locationAnchorRows(location) {
+  const buttons = locationAnchorButtons(location);
+  const rows = [];
+  for (let i = 0; i < buttons.length; i += ROW_BUTTON_LIMIT) {
+    rows.push({ type: ACTION_ROW, components: buttons.slice(i, i + ROW_BUTTON_LIMIT) });
+  }
+  return rows;
 }
 
 // One button per modular gate on this location, or null when it has none —
@@ -149,7 +183,8 @@ module.exports = {
   CONVERSE_PREFIX,
   GATE_PREFIX,
   KEYED_PREFIX,
-  locationAnchorRow,
+  locationAnchorRows,
+  TRAVEL_CUSTOM_ID,
   locationGateRow,
   keyedPromptRow,
 };

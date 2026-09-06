@@ -238,6 +238,23 @@ The control sits **outside** the inspector's nothing-inspected branch on
 purpose: the column is empty until a row is clicked, and a zone control that
 disappears when nothing is selected is one nobody finds.
 
+**The click does not wait for Discord.** `setVisibleZonesAction` writes the
+`GmZoneView` rows and returns; `syncGmZoneRoles` runs in Next's `after()`, so
+the roles settle a second or two later. It was awaited inline once — one
+`getGuildMember` plus up to seven sequential role PUT/DELETEs, each with its own
+rate-limit budget — and the button took twenty seconds to register.
+
+The action also **revalidates nothing**. It used to end in
+`revalidatePath(…, "layout")` on both desks, which made the click refetch the
+whole desk payload (the loaded 500 moves, the roster, the lot) before it could
+paint. The zone view now lives in the client for the length of a desk session —
+`web/app/components/GmZoneViewProvider.js`, seeded from `getVisibleZones` on
+every fresh load — so the rail publishes the new zone names and `inView` in
+`PlayerRail.js`, `RosterTable.js` and `QueueRail.js` re-filters at once. The
+server stays the source of truth; what the provider buys is the round trip.
+Rapid toggles are coalesced into one write, so picking four zones is one action,
+not four.
+
 ### Why a role per zone
 
 Discord has no way to subtract a role grant from one member, so "everyone sees

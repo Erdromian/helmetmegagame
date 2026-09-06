@@ -19,7 +19,15 @@ import { isSuperadmin } from "@/lib/superadmin";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { setMerchantSeal } from "@lifeweb/db/lib/merchantSeal";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
-import { isWanted, postWantedPosters } from "@lifeweb/db/lib/wantedPoster";
+import {
+  isWanted,
+  postWantedPosters,
+  isDebtor,
+  postDebtorNotices,
+  DEBTOR_STARTING_OBOLS,
+} from "@lifeweb/db/lib/wantedPoster";
+import { addToStack } from "@lifeweb/db/lib/tagWrites";
+import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
 import {
   syncCharacterNickname,
   ensureCharacterRole,
@@ -32,7 +40,7 @@ import {
 } from "@/lib/discordGuild";
 import {
   computeBudget,
-  isPlaytestLocked,
+  isSpawnOnly,
   isRoleSelectable,
   tagsById as buildTagsById,
   effectiveTotalCost,
@@ -103,7 +111,6 @@ export async function createCharacter(formData) {
   }
 
   const [role, config, member, openTurn] = await Promise.all([
-    // Zone comes along for the playtest lock below.
     prisma.role.findUnique({
       where: { id: roleId },
       include: {
@@ -128,13 +135,10 @@ export async function createCharacter(formData) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
 
-  // Playtest lock from /gm/dev, outside `bypass` on purpose — the host is
-  // locked out too (characterCreation.js).
-  const playtestLocked =
-    config?.playtestModeEnabled === true &&
-    isPlaytestLocked({ role, zoneName: role.faction?.zone?.name });
-  if (playtestLocked) {
-    return { error: "That role is closed for this playtest." };
+  // Never pickable, config switch or not — a server action is a public
+  // endpoint and the picker simply not listing these is a hint, not a lock.
+  if (isSpawnOnly(role)) {
+    return { error: "That role isn't open to anyone." };
   }
 
   // Split so each rejection gets its own message. `=== false` rather than
@@ -310,6 +314,13 @@ export async function createCharacter(formData) {
     }
   }
 
+  // Hoisted above the transaction so both the obol grant inside it and the
+  // poster/notice fan-out after it read one variable instead of computing it
+  // twice.
+  const heldSlugs = [...selected, ...startingTags]
+    .filter((t) => tagIdsToGrant.has(t.id))
+    .map((t) => t.slug);
+
   let created;
   try {
     created = await prisma.$transaction(async (tx) => {
@@ -321,7 +332,7 @@ export async function createCharacter(formData) {
           where: { roleId: role.id, discordUserId: { not: discordUserId }, expiresAt: { gt: new Date() } },
         }),
       ]);
-      if (taken + reservedByOthers >= roleCapacity(role, config?.playerCount ?? 100)) {
+      if (taken + reservedByOthers >= roleCapacity(role, config?.playerCount ?? 80)) {
         throw new Error("ROLE_FULL");
       }
       // Release the caller's own hold in the same transaction.
@@ -363,6 +374,21 @@ export async function createCharacter(formData) {
         })),
       });
 
+      // The Merchant advanced him half of it; the paper says the rest
+      // (db/lib/wantedPoster.js#DEBTOR_STARTING_OBOLS).
+      if (isDebtor(heldSlugs)) {
+        const obolTag = await tx.tag.findUnique({
+          where: { slug: OBOL_SLUG },
+          select: { id: true, stackable: true },
+        });
+        if (obolTag) {
+          await addToStack(tx, character.id, obolTag.id, DEBTOR_STARTING_OBOLS, {
+            source: "EVENT",
+            stackable: obolTag.stackable,
+          });
+        }
+      }
+
       return character;
     });
   } catch (err) {
@@ -390,15 +416,17 @@ export async function createCharacter(formData) {
   // Somebody who arrives already Wanted has three posters go up in the same
   // breath (db/lib/wantedPoster.js). Best-effort like its neighbours: a sheet
   // may never cost a character that already exists.
-  const heldSlugs = [...selected, ...startingTags]
-    .filter((t) => tagIdsToGrant.has(t.id))
-    .map((t) => t.slug);
   if (isWanted(heldSlugs)) {
     await postWantedPosters(
       prisma,
       { ...created, zoneName: role.startingLocation?.zone?.name ?? null },
       openTurn,
     ).catch((err) => console.error("postWantedPosters failed:", err));
+  }
+  // Same shape for Debtor, three sheets in the Merchant's rooms instead.
+  if (isDebtor(heldSlugs)) {
+    await postDebtorNotices(prisma, { ...created, zoneName: role.startingLocation?.zone?.name ?? null }, openTurn)
+      .catch((err) => console.error("postDebtorNotices failed:", err));
   }
   if (!created.locationId) await syncCharacterNarrowcastAccess(created.id).catch(() => {});
   if (cursed) await removeCursedRole(discordUserId).catch(() => {});
@@ -483,11 +511,10 @@ export async function reserveRoleAction(roleId) {
   if (!bypass && !isApprovedPlayer(member)) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
-  const playtestLocked =
-    config?.playtestModeEnabled === true &&
-    isPlaytestLocked({ role, zoneName: role.faction?.zone?.name });
-  if (playtestLocked) {
-    return { error: "That role is closed for this playtest." };
+  // Never pickable, config switch or not — a server action is a public
+  // endpoint and the picker simply not listing these is a hint, not a lock.
+  if (isSpawnOnly(role)) {
+    return { error: "That role isn't open to anyone." };
   }
   const leaderWhitelisted =
     bypass || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
@@ -499,7 +526,7 @@ export async function reserveRoleAction(roleId) {
     return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
   }
 
-  const result = await reserveRole(prisma, discordUserId, roleId, config?.playerCount ?? 100);
+  const result = await reserveRole(prisma, discordUserId, roleId, config?.playerCount ?? 80);
   if (!result.ok) {
     return { error: `${role.name} was taken while you were deciding. Pick another role.` };
   }

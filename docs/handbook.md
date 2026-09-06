@@ -410,7 +410,7 @@ Even if you don't possess the skills needed to heal an injury or ailment, you ma
 
 ## Building
 
-Structures are built on the ground where you stand — a bridge, a palisade, a forge, a fishing weir. Once raised, anyone can see them: they show up when someone Examines the Location. ‡
+Structures are built on the ground where you stand — a palisade, a forge, a watchtower, a fishing weir. Once raised, anyone can see them: they show up when someone Examines the Location. ‡
 
 Opening a build site costs the recipe's skill like any other craft, its ⬢ paid up front and never refunded, and your Move for the day. ‡
 

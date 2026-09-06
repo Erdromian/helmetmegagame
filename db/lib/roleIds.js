@@ -21,10 +21,16 @@ const PLAYER_ROLE_ID = "1539805619903791219";
 // narrowcast channels, can never contribute anything anywhere.
 const SPECTATOR_ROLE_ID = "1540054129752154292";
 
-// Who may pick a role flagged `leader: true` in docs/roles.yaml. A leader seat
-// is reserved for players who can vouch for availability and roleplay, so the
+// Who may pick a role flagged `whitelist:` in docs/roles.yaml. Such a seat is
+// reserved for players who can vouch for availability and roleplay, so the
 // role is handed out by a GM, not earned in-game.
-const LEADER_WHITELIST_ROLE_ID = "1539673757910564864";
+//
+// Reads as "Whitelist" in the guild's role list — match it by name if you ever
+// have to check this ID. The previous value here pointed at a role the
+// pre-launch cleanup had deleted, which nobody could hold, so every
+// whitelisted seat greyed out for everyone with no error anywhere. The gate
+// fails closed on purpose, and that is exactly why it was silent.
+const LEADER_WHITELIST_ROLE_ID = "1545070354295169214";
 
 // The trial GM seat. Access-identical to the Gamemaster role everywhere — the
 // web panel, the GM channel overwrites, the bot's /gm and /dm — and the only

@@ -15,7 +15,7 @@ import {
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
-import { createRequest, logRequest, requireReason } from "@/lib/requests";
+import { logAudit } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { killCharacter } from "@/lib/discordGuild";
@@ -82,9 +82,8 @@ function revalidateAll() {
 // Bleeding someone: the pool gains, and they carry Drained until it expires
 // on its own via the turn sweep. Self-targeting is allowed — donating your
 // own blood is the obvious reading of the button.
-async function donateBloodRequestImpl({ targetCharacterId, reason: rawReason }) {
+async function donateBloodRequestImpl({ targetCharacterId }) {
   const { session, character } = await requireMortusCharacter();
-  const reason = requireReason(rawReason);
   const target = await requireLivingTarget(targetCharacterId);
 
   if (target.tags.some((ct) => ct.tag.slug === DRAINED_SLUG)) {
@@ -125,19 +124,10 @@ async function donateBloodRequestImpl({ targetCharacterId, reason: rawReason }) 
       drainedTagId: drainedTag.id,
       expiresTurn,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DONATE_BLOOD",
-      reason,
-      payload: { targetCharacterId: target.id },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_donate_blood",
       targetCharacterId: target.id,
-      reason,
       details: effect,
     });
   });
@@ -165,9 +155,8 @@ async function donateBloodRequestImpl({ targetCharacterId, reason: rawReason }) 
 //
 // Undo does not revive (REQUESTS.md §2): undoing the request draws the blood
 // back out and says so.
-async function feedPersonRequestImpl({ targetCharacterId, reason: rawReason }) {
+async function feedPersonRequestImpl({ targetCharacterId }) {
   const { session, character } = await requireMortusCharacter();
-  const reason = requireReason(rawReason);
   const target = await requireLivingTarget(targetCharacterId);
 
   const openTurn = await getOpenTurn();
@@ -196,19 +185,10 @@ async function feedPersonRequestImpl({ targetCharacterId, reason: rawReason }) {
       killed,
       killedAt: killed ? new Date().toISOString() : null,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "FEED_PERSON",
-      reason,
-      payload: { targetCharacterId: target.id },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_feed_person",
       targetCharacterId: target.id,
-      reason,
       details: effect,
     });
   });
