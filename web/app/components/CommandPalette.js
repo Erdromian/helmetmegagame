@@ -11,7 +11,7 @@ import { getPaletteIndex } from "./paletteActions";
 // Adjudication, type a zone or a faction or the name of a screen.
 //
 // It exists because the rail is 56px of icons and several GM screens
-// (/gm/gamemasters, /gm/dev/tags, /gm/dev/factions, /gm/audit) have no rail
+// (/gm/dev/tags, /gm/dev/factions, /gm/audit) have no rail
 // item at all — they were reachable only by knowing the URL or by hunting a
 // hand-rolled sub-nav on some other page.
 //

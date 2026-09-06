@@ -135,9 +135,17 @@ The overwrites every target carries (`baseOverwrites`):
 - **`@everyone` denied `ViewChannel` + `AttachFiles`.** The `ViewChannel` half
   is the entire privacy mechanism; everything else is an allow layered back on
   top of it.
-- **The GM role**, allowed explicitly on every channel, not just the category —
-  Discord resolves channel overwrites after category ones, and a role with no
-  entry of its own falls through to whatever `@everyone` says there.
+- **The zone's GM role** (`Zone.gmRoleId`, "GM: Town"), allowed explicitly on
+  every channel, not just the category — Discord resolves channel overwrites
+  after category ones, and a role with no entry of its own falls through to
+  whatever `@everyone` says there.
+
+  **Not the global Gamemaster role.** A GM used to hold a blanket grant on all
+  56 Location channels, which is more sidebar than anyone can read; now they
+  hold the `GM: <Zone>` role for the zones they picked, and that is what opens
+  these (`GAMEMASTERS.md` §6). The global roles keep their blanket grant on
+  everything that is not a zone — `#turns`, the narrowcast channels, the report
+  channel.
 - **The spectator seat** (`db/lib/spectatorAccess.js`) — standing read-only.
 - **The ghost seat** (`db/lib/cursedAccess.js`) — see §5.
 

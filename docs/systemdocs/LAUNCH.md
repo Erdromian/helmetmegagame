@@ -138,7 +138,7 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 | `#cerberon`, `#info` messages | `runFullChannelWipe` touches `#turns`, `#archive`-named channels and zone channels only. Last game's radio traffic stays readable — clear it by hand if that matters. |
 | The `radio` category and its channel ids | Deliberate: provisioning is one-time, so the pointers persist. |
 | The `#turns` console pointer | Deliberate, and the safety net for step 5 above: a stale id makes the bot repost on its next `ready`. |
-| `GmAssignment` zone seats | GMs keep their seats across a restart — which also means they keep *losing* the Secret tab (§1). |
+| `GmZoneView` rows | GMs keep the zones they chose across a restart. Clearing the table is safe: no rows means every zone. |
 | `SystemReport` rows | The operational history is kept on purpose; the panel shows the latest per kind. |
 | `Zone`, `Location`, `Room`, `Faction`, `Tag`, `Role`, `Document` | Re-synced from YAML rather than deleted. |
 
@@ -175,7 +175,7 @@ tags, DMs, the per-character dev panel, and the bot's `/gm` `/dm` `/heal`
 A GM-role holder **cannot**: end a turn early, wipe or restart, edit Game
 Config, set next turn's weather or note, edit factions, run the channel doctor
 or a Bulk Move, delete a character or a custom tag, or open `/gm/audit` and
-`/gm/gamemasters`. All of those are superadmin.
+`/gm/dev?s=gamemasters`. All of those are superadmin.
 
 The practical one is **ending a turn**. `forceAdvanceTurn` checks only
 `isSuperadmin` and never consults the GM role, so if the superadmin is away,

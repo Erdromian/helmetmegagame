@@ -19,6 +19,7 @@ const SECTIONS = [
       { key: "move", label: "Bulk move" },
       { key: "letters", label: "Send a letter" },
       { key: "reports", label: "System reports" },
+      { key: "gamemasters", label: "Gamemasters" },
     ],
   },
   {
@@ -34,7 +35,6 @@ const ELSEWHERE = [
   { href: "/gm/dev/characters", label: "Characters" },
   { href: "/gm/dev/factions", label: "Factions" },
   { href: "/gm/dev/tags", label: "Tags" },
-  { href: "/gm/gamemasters", label: "Gamemasters" },
 ];
 
 export default function OpsNav({ section }) {

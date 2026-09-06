@@ -32,7 +32,7 @@ const GM_PAGES = [
   { label: "Dev · Characters", href: "/gm/dev/characters" },
   { label: "Dev · Factions", href: "/gm/dev/factions" },
   { label: "Dev · Tags", href: "/gm/dev/tags" },
-  { label: "Gamemasters", href: "/gm/gamemasters" },
+  { label: "Gamemasters", href: "/gm/dev?s=gamemasters" },
   { label: "Audit log", href: "/gm/audit" },
   { label: "Lifeweb", href: "/lifeweb" },
 ];

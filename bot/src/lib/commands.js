@@ -41,6 +41,14 @@ const commandDefinitions = [
       opt.setName("message").setDescription("What to say").setRequired(true).setMaxLength(1990),
     )
     .setContexts(GUILD_ONLY),
+  // Which zones a GM can see, from Discord — the twin of the Zones control at
+  // the bottom of the inspector on the web desks. No options: the command
+  // opens a picker showing what they have now, because "toggle" is a thing you
+  // do by looking at the current state, not by retyping it.
+  new SlashCommandBuilder()
+    .setName("zone")
+    .setDescription("Choose which zones you can see (GM only).")
+    .setContexts(GUILD_ONLY),
   // Clears afflictions off a character with no cost, no skill check and no
   // co-location — deliberately NOT the player medic path (Heal request), which
   // has all three. A ROLE option for the same reason /add and /remove use one:

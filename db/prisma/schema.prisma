@@ -870,7 +870,7 @@ model FactionApplication {
 // kind decides the Discord footprint (see ZoneKind above). seatZoneId is the
 // denormalized GM-seat key: parentZoneId ?? id, written by the sync. Every
 // query that groups by "which GM's table does this belong on" — factions,
-// GmAssignment, Action/Note/StagedMessage stamping — filters on
+// Action/Note/StagedMessage stamping — filters on
 // seatZoneId, so the four GM seats stay four while presence is six. Writers
 // stamp it via db/lib/seatZone.js#seatZoneIdFor, never by hand.
 //
@@ -917,6 +917,16 @@ model Zone {
   // channels). Permissions 0, color 0, never hoisted or mentionable.
   discordRoleId String? @unique
 
+  // The zone's GM role ("GM: Town"). This is what actually opens the zone's
+  // category, #summary and every one of its Location channels to a GM --
+  // the global Gamemaster role no longer does, which is the whole point:
+  // a GM sees the zones they picked, not all 56 Locations at once. Granted
+  // and revoked per member by db/lib/gmZoneRoles.js from the GmZoneView
+  // table. Permissions 0, never hoisted or mentionable, same as the access
+  // role above. A cave LEVEL has none -- its Locations wear the Underground
+  // group's, mirroring Zone.seatZoneId.
+  gmRoleId String? @unique
+
   // Clickable region on the /map plate: a polygon of [x, y] percentage pairs
   // (0-100 of the 4:3 plate, origin top-left), plus where the label sits.
   // Json because a region is a variable-length point list. Null/empty means
@@ -930,7 +940,7 @@ model Zone {
   characters       Character[]
   actions          Action[]
   notes            Note[]
-  gmAssignments    GmAssignment[]
+  gmZoneViews      GmZoneView[]
   stagedMessages   StagedMessage[]
   startingForRoles Role[]          @relation("RoleStartingZone")
   cavingRolls      CavingRoll[]
@@ -942,40 +952,29 @@ model Zone {
   @@index([parentZoneId])
 }
 
-/// Which zones a GM is the seat for. The game runs with one master (the
-/// superadmin, web/lib/superadmin.js) plus zone-GMs seated over the six SEAT
-/// zones -- Town, Fortress, Forest, Black Hills, Marshes and Underground.
-/// Never a cave level: both levels below belong to the Underground seat via
-/// Zone.seatZoneId, so a row here pointing at a CAVE_LEVEL would be a seat
-/// nothing is ever stamped with. The server action refuses one.
+/// Which zones one GM has chosen to SEE. Replaced GmAssignment, which was a
+/// soft seat -- it picked the default filter on the GM tables and hid
+/// nothing. This is the opposite: it is a real gate, on both faces at once.
+/// The rows decide which "GM: <Zone>" Discord roles the GM holds (so which
+/// Location channels exist for them at all, db/lib/gmZoneRoles.js) and which
+/// rows the adjudication and player desks show.
 ///
-/// ONE ROW PER SEAT. A GM may hold several at once (five GMs, six zones, so
-/// somebody covers two), so the primary key is the pair. Absence of any row is
-/// "no seat", which is also the master's state and reads as All.
+/// NO ROWS MEANS EVERY ZONE. A GM who has never touched the control, or who
+/// unticks the lot, sees everything -- never nothing. The alternative locks
+/// a new GM out of their own job on their first day and looks like a broken
+/// app rather than an unset preference. It is also what makes the migration
+/// off GmAssignment safe: the table lands empty and nobody loses anything.
 ///
-/// Keyed on discordUserId rather than hung off Character, because a GM may
-/// never roll one -- and should not lose their seat when theirs dies.
-///
-/// The near-miss alternative was a nullable Zone.gmDiscordUserId: one column,
-/// no new table. It was rejected because a zone can then hold only one GM, and
-/// assignment becomes clear-everywhere-then-set: a two-statement write whose
-/// partial failure leaves a seat orphaned. The join table makes the set of
-/// seats the unit of the write, replaced wholesale in one transaction.
-///
-/// This is a SOFT gate and the only one in the app that is: it picks the
-/// default filter on the GM tables, it hides nothing. See CLAUDE.md's Discord
-/// permission model table.
-model GmAssignment {
+/// ONE ROW PER ZONE, keyed on discordUserId rather than hung off Character,
+/// because a GM may never roll one -- and should not lose their view when
+/// theirs dies. Only SEAT zones are pickable: a cave level has no GM role of
+/// its own, so a row here pointing at one would open nothing.
+model GmZoneView {
   discordUserId String
   zoneId        String
   zone          Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
 
-  /// Snapshot of the superadmin who set it, per the log-table convention --
-  /// no FK, so it survives the actor leaving the guild.
-  assignedByDiscordUserId String?
-
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@id([discordUserId, zoneId])
   @@index([zoneId])

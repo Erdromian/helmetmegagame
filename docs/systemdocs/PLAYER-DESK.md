@@ -33,7 +33,7 @@ desk — the two are the same tool and should read as one.
 ┌ header: Players · turn chip · N tracked · N unread · N awaiting · Bulk message ┐
 │ RAIL            │  ROSTER TABLE (nobody selected)  │  INSPECTOR     │
 │ search, filters │  ─────────── or ─────────────────│  Sheet · Tags  │
-│ zone scope      │  CONVERSATION                    │  Moves ·Archive│
+│ zone filter     │  CONVERSATION                    │  Moves ·Archive│
 │                 │  thread + composer                │  DMs           │
 └─────────────────┴──────────────────────────────────┴────────────────┘
 ```
@@ -78,9 +78,14 @@ Typing a query widens the candidate set from "has a conversation" to "has a
 conversation **or** a character" — that's what makes a first message
 possible at all, since a character with no DM history still has a working
 `href` to an empty thread. A query also **pauses** the zone filter and the
-Needs-reply toggle rather than composing with them: the zone filter seeds
-from the GM's own zone seat, and without the pause it would silently hide a
-cross-zone search hit, which is exactly the case search exists for. The rail
+Needs-reply toggle rather than composing with them: without the pause a filter
+would silently hide a cross-zone search hit, which is exactly the case search
+exists for.
+
+**The zones a GM chose to see are a different thing and a search does NOT lift
+them** (`GAMEMASTERS.md` §1). A filter is a lens over your desk; the zone view
+is what your desk is. Everything downstream of it reads the gated set —
+mark-all-read included, or one click would handle another zone's mail. The rail
 shows a small "Searching everyone — filters paused." line under the search
 box while a query is active. Sort while searching is match score, then
 conversation-havers before non-havers, then recency — a name hit with a
@@ -91,9 +96,7 @@ engine) over name, role, faction, Discord username **and** global name, zone,
 **held tag names** and message preview. `scoreMatch` tokenizes and folds diacritics, tolerates a
 typo, and takes `field:term` scopes — `role:smith`, `zone:caves`, `@handle`
 as shorthand for `username:handle` — so a bare word still matches anything
-but a scoped one narrows to that field only. The zone filter and
-`ZoneScopeToggle` seed from the GM's zone seat the same way every other GM
-table does.
+but a scoped one narrows to that field only.
 
 The old All/Unread/Awaiting three-way toggle is one **Needs reply** button
 now, filtering to rows where `unreadCount > 0` or the player wrote last
@@ -389,7 +392,7 @@ deliberate migration, not a side effect of this removal.
 
 - **⌘K** (`CommandPalette.js`) — a player, an open Move or Request, a zone, a
   faction, or any page including the ones with no rail item at all
-  (`/gm/gamemasters`, `/gm/dev/tags`, `/gm/dev/factions`). It also offers
+  (`/gm/dev/tags`, `/gm/dev/factions`). It also offers
   "Audit: about <name>" and "Audit: by <name>" per character, which are just
   pre-filtered `/gm/audit` URLs — the audit desk keeps its whole filter state
   in the query string, so anything can link into a view of it. Built

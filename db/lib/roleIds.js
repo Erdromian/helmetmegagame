@@ -28,7 +28,7 @@ const LEADER_WHITELIST_ROLE_ID = "1539673757910564864";
 
 // The trial GM seat. Access-identical to the Gamemaster role everywhere — the
 // web panel, the GM channel overwrites, the bot's /gm and /dm — and the only
-// difference is the word the /gm/gamemasters roster puts next to the name.
+// difference is the word the GM roster on /gm/dev puts next to the name.
 const TRIAL_GM_ROLE_ID = "1545942420271931543";
 
 // Every role that counts as a GM, in one place. Nothing reads

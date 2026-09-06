@@ -2803,6 +2803,31 @@ input[type="radio"]:disabled {
   border-bottom: 1px solid var(--border);
 }
 
+/* The zone multiselect, pinned to the bottom of the inspector on both GM
+   desks. margin-top:auto is what pins it: the column is a flex column, so
+   this pushes it past the tab body however tall that body happens to be, and
+   it stays put when nothing is inspected and the body is empty. */
+.desk-inspector-zones {
+  margin-top: auto;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+/* Seven zones do not fit one 22rem row. .segmented is inline-flex with hidden
+   overflow, which would clip them rather than wrap, so this variant lets the
+   row break instead. */
+.segmented--wrap {
+  display: flex;
+  flex-wrap: wrap;
+  overflow: visible;
+}
+.segmented--wrap button {
+  flex: 1 1 auto;
+}
+
 .desk-inspector-search-results {
   margin-top: 0.375rem;
   display: flex;

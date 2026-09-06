@@ -6,7 +6,7 @@ import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
 import { getOpenTurn } from "@/lib/turn";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { placementOf } from "@lifeweb/db/lib/structures";
-import { getMyZones } from "@/lib/gmZone";
+import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 import { deployVersion } from "@/lib/deployVersion";
 import {
@@ -180,7 +180,8 @@ export default async function TurnsWorkspacePage({ params }) {
     stagingLocations,
     tagCatalog,
     members,
-    myZones,
+    visibleZones,
+    selectableZones,
     gmProfiles,
     resolvedTurns,
     catatonicTagRows,
@@ -262,7 +263,8 @@ export default async function TurnsWorkspacePage({ params }) {
       },
     }),
     listGuildMembers(),
-    getMyZones(),
+    getVisibleZones(),
+    listSelectableZones(),
     getGmProfiles(),
     // The History lens's turn picker. Just the labels — a resolved turn's
     // Moves are fetched on demand by getMoveHistory when a GM actually
@@ -462,7 +464,9 @@ export default async function TurnsWorkspacePage({ params }) {
       initialCaving={initialCaving}
       resolvedTurns={resolvedTurns.map((t) => ({ id: t.id, number: t.number, label: turnLabel(t) }))}
       openTurn={openTurnDto}
-      myZoneNames={myZones.map((z) => z.name)}
+      selectableZones={selectableZones}
+      visibleZoneIds={visibleZones?.map((z) => z.id) ?? []}
+      visibleZoneNames={visibleZones?.map((z) => z.name) ?? null}
       tagsById={tagsById}
       tagCatalog={tagCatalog}
       roster={roster.map((c) => ({

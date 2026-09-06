@@ -96,6 +96,29 @@ module.exports = {
         .catch((err) => console.error("Channel doctor pass failed:", err));
     }
 
+    // Every GM's zone view, materialized as "GM: <Zone>" roles. This is what
+    // seats a BRAND NEW GM without them having to find the control first:
+    // no GmZoneView rows means every zone, and this is what actually hands
+    // them the roles that say so. Also repairs anyone whose grant failed
+    // mid-rate-limit, and anyone who left and came back (Discord strips every
+    // role with the membership). See db/lib/gmZoneRoles.js.
+    {
+      const { syncAllGmZoneRoles } = require("@lifeweb/db/lib/gmZoneRoles");
+      const { hasGmRole } = require("@lifeweb/db/lib/roleIds");
+      const { listGuildMembers } = require("@lifeweb/db/lib/discordRest");
+      await listGuildMembers()
+        .then((members) =>
+          syncAllGmZoneRoles(
+            prisma,
+            members.filter((m) => hasGmRole(m.roles)).map((m) => m.user.id),
+          ),
+        )
+        .then((touched) => {
+          if (touched > 0) console.log(`GM zone views: ${touched} gamemaster(s) re-seated.`);
+        })
+        .catch((err) => console.error("GM zone view pass failed:", err));
+    }
+
     for (const guild of client.guilds.cache.values()) {
       await syncNicknamesForGuild(guild).catch((err) => console.error("Failed to sync nicknames:", err));
       // Departures the bot slept through: guildMemberRemove only fires while

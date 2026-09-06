@@ -1546,6 +1546,7 @@ module.exports = {
   ...require("./weather"),
   ...require("./lib/constants"),
   ...require("./lib/roleIds"),
+  ...require("./lib/gmZoneView"),
   ...require("./lib/roleColor"),
   ...require("./lib/characterRoleAppearance"),
   ...require("./lib/characterName"),

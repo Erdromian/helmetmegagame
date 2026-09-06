@@ -40,6 +40,7 @@ const {
   zoneChannelSpec,
   locationChannelSpec,
   zoneRoleName,
+  zoneGmRoleName,
 } = require("./zoneChannelSpec");
 const { syncTurnsChannelAccess } = require("./turnsChannelAccess");
 const { locationAnchorRow, locationGateRow } = require("./locationAnchorRow");
@@ -1168,6 +1169,25 @@ async function syncZonesFromYaml(prisma) {
     report.rolesCreated.push(zoneRoleName(zone));
   }
 
+  // Pass 2a-bis: the GM seat, one per SEAT zone. The CAVE_GROUP gets one
+  // (it owns the category its levels' Location channels parent to, and gets
+  // no access role because nobody stands in a group); the two cave LEVELS do
+  // not, and instead hand their Locations the group's seat.
+  //
+  // That is the mirror of Zone.seatZoneId (db/lib/seatZone.js): a faction is
+  // keyed to the Underground seat and never to a level, so a GM who picked
+  // "Caves" would have got a desk that could never match a row. One seat,
+  // both faces — pick Underground and you get the cave channels AND the cave
+  // rows.
+  for (const zone of zonesBySlug.values()) {
+    if (zone.kind === "CAVE_LEVEL") continue;
+    if (zone.gmRoleId && liveRoles.has(zone.gmRoleId)) continue;
+    const role = await ensureRole(zoneGmRoleName(zone), liveRoles);
+    await prisma.zone.update({ where: { id: zone.id }, data: { gmRoleId: role.id } });
+    zone.gmRoleId = role.id;
+    report.rolesCreated.push(zoneGmRoleName(zone));
+  }
+
   // Pass 2b: categories + channels, create-only. Groups before levels.
   const provisionOrder = [...zonesBySlug.values()].sort((a, b) => {
     const rank = (z) => (z.kind === "CAVE_GROUP" ? 0 : z.kind === "SURFACE" ? 1 : 2);
@@ -1175,6 +1195,10 @@ async function syncZonesFromYaml(prisma) {
   });
   const categoryIdFor = (zone) =>
     zone.discordCategoryId ?? (zone.parentZoneId ? zoneById.get(zone.parentZoneId)?.discordCategoryId : null) ?? null;
+  // A cave level has no seat of its own — its Locations wear the group's, the
+  // same indirection Zone.seatZoneId makes for stamped rows.
+  const gmRoleIdFor = (zone) =>
+    zone?.gmRoleId ?? (zone?.parentZoneId ? zoneById.get(zone.parentZoneId)?.gmRoleId : null) ?? null;
 
   for (const zone of provisionOrder) {
     const spec = zoneChannelSpec(zone);
@@ -1220,7 +1244,10 @@ async function syncZonesFromYaml(prisma) {
   for (const location of [...locationsBySlug.values()].sort((a, b) => a.sortOrder - b.sortOrder)) {
     if (location.discordChannelId) continue;
     const zone = zoneById.get(location.zoneId);
-    const channel = await createChannel({ ...locationChannelSpec(location), parent_id: categoryIdFor(zone) });
+    const channel = await createChannel({
+      ...locationChannelSpec(location, gmRoleIdFor(zone)),
+      parent_id: categoryIdFor(zone),
+    });
     await prisma.location.update({ where: { id: location.id }, data: { discordChannelId: channel.id } });
     location.discordChannelId = channel.id;
     location.justProvisioned = true;
@@ -1229,7 +1256,12 @@ async function syncZonesFromYaml(prisma) {
 
   // Pass 3: reconcile everything already provisioned. Freshly provisioned
   // targets skip the overwrite reconcile but still get threads + anchors.
-  const managed = managedOverwriteIds([...zonesBySlug.values()].map((z) => z.discordRoleId));
+  const managed = managedOverwriteIds([
+    ...[...zonesBySlug.values()].map((z) => z.discordRoleId),
+    // The per-zone GM seats. Miss these and the reconciler deletes the
+    // overwrite it wrote one pass earlier, every single run.
+    ...[...zonesBySlug.values()].map((z) => z.gmRoleId),
+  ]);
 
   for (const zone of zonesBySlug.values()) {
     if (zone.justProvisioned) continue;
@@ -1259,7 +1291,7 @@ async function syncZonesFromYaml(prisma) {
   }
   for (const location of locationsBySlug.values()) {
     if (location.justProvisioned || !location.discordChannelId) continue;
-    const want = locationChannelSpec(location);
+    const want = locationChannelSpec(location, gmRoleIdFor(zoneById.get(location.zoneId)));
     await patchChannel(location.discordChannelId, { topic: want.topic ?? "" });
     const removed = await reconcileChannelOverwrites(location.discordChannelId, want, managed);
     for (const id of removed) {
@@ -1329,6 +1361,7 @@ async function syncZonesFromYaml(prisma) {
       await deleteChannel(id);
     }
     if (zone.discordRoleId) await deleteGuildRole(zone.discordRoleId);
+    if (zone.gmRoleId) await deleteGuildRole(zone.gmRoleId);
 
     // CavingRoll.zoneId is the one FK into Zone that is required, so it
     // RESTRICTs rather than nulling and would abort the whole prune. Its own

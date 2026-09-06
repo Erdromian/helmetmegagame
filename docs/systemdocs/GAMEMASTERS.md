@@ -1,34 +1,68 @@
 # Gamemasters and the zone code
 
-How five GMs share one game: a master and four zone-GMs, one per zone, plus the
-colour vocabulary that tells them at a glance whose row is whose.
+How several GMs share one game: who sees which zone, how they choose it, and
+the colour vocabulary that tells them at a glance whose row is whose.
 
 ---
 
 ## 1. The shape of it
 
-Lifeweb runs with **one master** — the superadmin (`web/lib/superadmin.js`) —
-and zone-GMs seated over the six **seat** zones: **Fortress, Town, Forest,
-Black Hills, Marshes, Underground**. (Characters stand in seven *presence*
-zones, because the Underground seat covers both cave levels — §2a.)
+Bascinet runs with **one master** — the superadmin (`web/lib/superadmin.js`) —
+and a handful of GMs under them. GMs are **staff, not seated players**: nobody
+assigns them a zone any more, and a GM who also has a character is a person who
+happens to play, not a role the app models.
 
-**A GM may hold more than one seat.** With five GMs and four zones somebody
-covers two, so `GmAssignment` is one row per seat rather than one row per GM.
-Holding none is the master's state, and reads as All.
+**Each GM chooses which zones they see, and the choice is real.** It is stored
+in `GmZoneView`, one row per zone, keyed on `discordUserId` — and it decides
+two things at once:
 
-Zone-GMs also play, so the point is to keep each of them oriented toward their
-own zone without cutting them off from the rest of the game.
+- **Discord.** A GM holds the `GM: <Zone>` role for each zone they picked, and
+  that role is what opens the zone's category, its `#summary` and every one of
+  its Location channels. The global Gamemaster role no longer opens any of
+  them. See §6.
+- **The desks.** `/gm/turns` and `/gm/players` show only rows whose faction sits
+  in a chosen zone. Their own Zone dropdowns still narrow *within* that.
 
-**The seat is a soft default and hides nothing.** It picks which zone a GM's
-tables *open* on. No Prisma query is scoped by it, no row is withheld, and one
-click on Mine/All or the Zone select clears it. A hard gate was considered and
-rejected for two reasons: an Opposed Move crosses zones by nature, and a GM who
-cannot reach a row mid-turn is a worse failure than one who scrolled past a
-zone they did not need.
+**The Discord half is the gate; the desk half is a view.** The desks still
+fetch every row and filter in the client, so a direct link to a hidden Move
+opens it. That is deliberate — an Opposed Move crosses zones by nature, and a
+GM who cannot reach a row mid-turn is a worse failure than one who scrolled too
+far. What the desk filter buys is a workable queue, not a secret.
 
-This makes `GmAssignment` the only gate in the app that is *soft*. Every row in
-CLAUDE.md's Discord permission model table is enforcement; this one is
-ergonomics. Do not "harden" it without re-reading the paragraph above.
+One asymmetry worth knowing: the desks filter on a character's **faction** zone
+(`GAMEMASTERS.md` §2b), while the Discord roles gate the **Location channel**.
+A Town-faction player who walks into the Marshes stays on the Town GM's queue
+while that GM cannot open the channel it happens in. Both answers are the right
+one for their own question — the queue is about whose player it is, the channel
+about where the scene is — but they will not always agree.
+
+**No rows means every zone.** A GM who has never touched the control, or who
+unticks the lot, sees the whole game. That is the only safe default: the
+alternative hands a new GM an empty desk and no channels and lets them conclude
+the app is broken, and it is what made the migration off the old seats safe —
+the table landed empty and nobody lost anything.
+
+Set it from the **Zones** control at the bottom of the inspector on either
+desk, or with **`/zone`** in Discord (§6). Both write the same rows and both
+call the same role sync, so it does not matter which you reach for.
+
+### What this replaced
+
+`GmAssignment` was a *seat*: it picked which zone a GM's tables **opened** on
+and hid nothing — the only soft gate in the app. It is gone, along with
+`/gm/gamemasters`, `web/lib/gmZone.js` and `ZoneScopeToggle.js`. The argument
+for softness was that an Opposed Move crosses zones by nature and a GM who
+cannot reach a row mid-turn is a worse failure than one who scrolled too far.
+That argument is answered rather than ignored: the control is one click away on
+the desk itself, and widening it is instant. What changed is the problem — with
+56 Locations, a GM who can see everything sees nothing.
+
+**A GM who is also a player needs no special case**, and that is the point of
+using roles rather than per-member overwrites. Their character's Location
+overwrite is written by the move pipeline; their GM zone roles are granted by
+`db/lib/gmZoneRoles.js`. Discord unions permissions across every overwrite that
+applies, so they get their character's view of the room *and* the GM-facing
+grant on top, with no code aware of the overlap.
 
 ---
 
@@ -50,7 +84,7 @@ reader every writer goes through. **Never stamp a seat-scoped row with
 `zoneId` is the *seat* zone — a character acting in the Depths who filed
 against the Depths row would file work no Underground GM can see.
 
-The seat pickers list `kind != "CAVE_LEVEL"` (`/gm/turns`, `/gm/gamemasters`),
+The zone pickers on the desks list `kind != "CAVE_LEVEL"` (`/gm/turns`),
 which is the same six rows from the other direction. The channel doctor checks
 the invariant from a third: no stamped `zoneId` may point at a `CAVE_LEVEL`
 row, and it counts the offenders if any exist (`CHANNELS.md` §6).
@@ -134,10 +168,11 @@ reason `audit-contrast.js` can see it.
 
 ## 4. Where the chip and filter appear
 
-| Surface | Column | Filter | Opens on your zone |
+| Surface | Column | Filter | Hidden outside your zones |
 |---|---|---|---|
 | `/gm/turns` Moves | ✓ | ✓ | ✓ |
 | `/gm/turns` Requests | ✓ | ✓ | ✓ |
+| `/gm/turns` Caving | ✓ | ✓ | ✓ |
 | `/gm/players` | ✓ | ✓ | ✓ |
 | `/gm/dev/factions` | ✓ | — | — |
 | `/faction` (player-facing) | ✓ | — | — |
@@ -161,33 +196,29 @@ overwritten on the next sync.
 
 ---
 
-## 5. Mine / All, and the unclaimed count
+## 5. Filtering within what you can see
 
-`ZoneScopeToggle.js` is a `.segmented` control that writes `filters.zone`. It
-**holds no state of its own** — it and the Zone `<select>` in `FilterBar` are
-two faces of one value, and a second `useState` would let them disagree the
-moment someone used the select. It renders nothing when the viewer has no seat.
+There is no Mine/All toggle any more: "mine" is now the whole desk, so a lens
+over it would be a lens over one thing. What remains on both desks is the plain
+**Zone** dropdown, and it narrows *within* the zones you chose — it cannot
+reach past them.
 
-`filters.zone` stays a **single zone name**, because that is what
-`useTableState`'s `filterDefs` match on. So the control shows *one button per
-seat* rather than a combined Mine: a GM with one seat sees the old `Mine / All`
-pair, and a GM with two sees `[Town] [Caves] [All]`. That is also the honest
-control — with two seats there is no one zone that is "mine".
+The gate itself is applied in the client, once, before anything else: `inView`
+in `PlayerRail.js`, `RosterTable.js` and `QueueRail.js`. Three rules worth
+knowing, all of them deliberate:
 
-The opening default follows the same logic, in `openingZoneName()`
-(`web/lib/zones.js`): one seat opens narrowed to it, **two or more open on
-All**. Picking one arbitrarily would hide the other seat's rows behind a filter
-the GM never set.
+- **A search does not lift it.** The Zone dropdown pauses under a query, on the
+  argument that a filter should not hide a hit you went looking for. The zone
+  *view* is not a filter, so it does not pause.
+- **A row with no faction zone stays visible to everyone.** Better seen twice
+  than by nobody.
+- **Mark-all-read only clears what you can see**, or one click would silently
+  handle another zone's mail.
 
-The default itself is `useTableState`'s `initialFilters`, which seeds filter
-state once at mount exactly as `initialSort` already does. It must **not**
-re-apply on prop change: a GM who clicked All would be dragged back to their
-own zone on every `revalidatePath`, i.e. after every adjudication.
-
-`/gm/turns` also carries a count of what is still waiting in your zone. A Move
-under a live lock reads as *In Progress* and drops out on its own, which is
-correct — it is being dealt with. A Request has no lock, so `reviewedAt` is the
-only signal there is; `RequestStatus` has no "unreviewed" value.
+`/gm/turns` also carries a count of what is still waiting. A Move under a live
+lock reads as *In Progress* and drops out on its own, which is correct — it is
+being dealt with. A Request has no lock, so `reviewedAt` is the only signal
+there is; `RequestStatus` has no "unreviewed" value.
 
 **The count is over the loaded 500, not a true total** — right while the game is
 live, wrong after a long backlog. If that ever matters, replace it with
@@ -195,40 +226,58 @@ live, wrong after a long backlog. If that ever matters, replace it with
 
 ---
 
-## 6. Assigning a seat
+## 6. Choosing your zones
 
-`/gm/gamemasters`, superadmin only. Lists everyone holding the GM role with
-their Discord avatar, their character (linked through `CharacterLink`), and a
-segmented multi-toggle for their seats. **"All" is the cleared state**, named
-for what the GM's tables then show rather than for the empty set.
+Two faces, one write. The **Zones** control at the bottom of the inspector on
+`/gm/turns` and `/gm/players` (`web/app/components/GmZoneRail.js` → the
+`footer` slot on the shared `InspectorColumn.js`), and **`/zone`** in Discord,
+which opens an ephemeral select menu with your current zones pre-selected.
+Both go through `setVisibleZones` and then `syncGmZoneRoles`.
 
-`GmAssignment` is keyed on `discordUserId`, not hung off `Character`, because
-**a GM may never roll one** — and should not lose their seat when theirs dies.
-The primary key is the **pair** `(discordUserId, zoneId)`: one row per seat, so
-a GM can hold several. The near-miss alternative was a nullable
-`Zone.gmDiscordUserId`: one column, no new table. It was rejected because a
-zone can then hold only one GM, and assignment becomes
-clear-everywhere-then-set — a two-statement write whose partial failure leaves
-a seat orphaned. The join table makes the *set* of seats the unit of the write,
-replaced wholesale in one `$transaction`. Absence of any row **is** "no seat".
+The control sits **outside** the inspector's nothing-inspected branch on
+purpose: the column is empty until a row is clicked, and a zone control that
+disappears when nothing is selected is one nobody finds.
 
-The FK is `onDelete: Cascade`. It used to be `SetNull`, on the argument that
-`db:sync-zones` is destructive and *will* delete a Zone row that has left
-`docs/zones.yaml` — a cascade would take the GM's seat with it silently. With
-`zoneId` now required that option is gone, and the loss is smaller than it was:
-what cascades away is a seat for a zone that no longer exists, where `SetNull`
-would have left a row meaning nothing.
+### Why a role per zone
 
-`assignGmZones` re-validates everything the picker already applied — a server
-action is a public endpoint. It re-checks that the **target** holds the GM role
-(without that the endpoint would happily seat any Discord ID a caller
-invented), and that every zone is a **seat** zone: a `CAVE_LEVEL` seat is one
-no stamped row can ever match, so it is refused rather than stored.
+Discord has no way to subtract a role grant from one member, so "everyone sees
+Town" and "this GM does not" cannot both be one overwrite. The overwrite is
+therefore unconditional on the channel and the **role** is what varies per
+person — `db/lib/gmZoneRoles.js` grants and revokes `Zone.gmRoleId` to match
+the table.
 
-This is also the only page in the app that renders a **Discord** identity
-rather than an in-game one, and so the only user of `DiscordAvatar.js` — the
-app's one remote image. It is a plain `<img>`, because `next.config.mjs`
-declares no `images.remotePatterns` and `next/image` against
+The obvious alternative, a per-member overwrite on each channel, is a
+**non-starter**: the channel doctor deletes any member overwrite on a zone or
+Location channel as a stray, on every bot start and after every turn, because
+it derives their legitimacy purely from who is standing there (`CHANNELS.md`
+§3). Teaching it a GM exception would have meant teaching `managedOverwriteIds`
+about member targets, and its own comment says why that is how you evict every
+player from the map.
+
+Three places had to learn about the new roles, and missing any one of them
+breaks quietly:
+
+- `syncZones.js#managedOverwriteIds` — or the reconciler deletes the overwrite
+  it wrote one pass earlier, every run.
+- `channelDoctor.js` — as a protected role family, but **not** in the set that
+  seeds `#turns`: every GM already holds a global GM role, which `#turns`
+  grants outright.
+- `prune-orphan-roles.js` — a `GM: <Zone>` role is held by GMs, not characters,
+  so without protection it looks exactly like an orphan.
+
+`syncGmZoneRoles` also runs for every GM-role holder on **bot start**. That is
+what seats a brand-new GM without them finding the control first, repairs a
+grant that failed mid-rate-limit, and re-seats anyone who left and rejoined
+(Discord strips every role with the membership).
+
+`setVisibleZonesAction` never takes a target id. A server action is a public
+endpoint, and the only person anyone may re-scope is themselves.
+
+The GM **roster** — who holds which seat, with the Gamemaster / Trial GM /
+Master chips — moved to `/gm/dev?s=gamemasters`, read-only. It is the only
+surface in the app that renders a Discord identity rather than an in-game one,
+and so the only user of `DiscordAvatar.js` — a plain `<img>`, because
+`next.config.mjs` declares no `images.remotePatterns` and `next/image` against
 `cdn.discordapp.com` would throw at render.
 
 ---
@@ -248,11 +297,11 @@ two roles meaning the same thing is the shape that drifts, and a site still
 checking one of them would be a GM who can open the web panel but not see the
 channels — or the reverse, which is worse, because it looks like it works.
 
-The one place they differ is the `/gm/gamemasters` roster, which chips each
+The one place they differ is the roster on `/gm/dev?s=gamemasters`, which chips each
 row **Gamemaster** or **Trial GM**, plus **Master** for a superadmin. That
-chip is the whole difference. Everything else — a `GmAssignment` zone seat
-included, since it is keyed on `discordUserId` and knows nothing about roles —
-treats the two identically.
+chip is the whole difference. Everything else — a `GmZoneView` row included,
+since it is keyed on `discordUserId` and knows nothing about which GM role you
+hold — treats the two identically.
 
 Adding a third seat later means one line in `gmRoleIds()` and one branch in
 that roster's `standing()`.
@@ -267,7 +316,7 @@ log exists for. Peer visibility is now the feature. **Every GM reads the whole
 log**, and the Actor filter's `GMs` toggle makes reviewing each other a
 first-class view rather than something you squint for.
 
-Dev (`/gm/dev`) and Gamemasters (`/gm/gamemasters`) stay superadmin — those are
+The Dev panel (`/gm/dev`), the GM roster included, stays superadmin — those are
 host access, not game permission.
 
 The page is a **desk** (`web/app/(desk)/gm/audit/`), not a table: filter rail,
@@ -315,15 +364,19 @@ UI, and Solved is Move vocabulary bound to a `MoveReviewStatus` value.
 
 | Path | What |
 |---|---|
-| `web/lib/zones.js` | `zoneKey()`, `ZONE_KEYS`, `sortZones()`, `openingZoneName()` |
-| `web/lib/gmZone.js` | `getMyZones()` (cached), `listGmAssignments()` |
+| `web/lib/zones.js` | `zoneKey()`, `ZONE_KEYS`, `sortZones()` |
+| `web/lib/gmZoneView.js` | `getVisibleZones()` / `getVisibleZoneNames()` (cached, null = all), `listSelectableZones()` |
+| `db/lib/gmZoneView.js` | `visibleZoneIds()`, `setVisibleZones()` — the shared reader/writer |
+| `db/lib/gmZoneRoles.js` | `syncGmZoneRoles()`, `syncAllGmZoneRoles()` — the choice, as Discord roles |
+| `web/app/components/GmZoneRail.js` | The multiselect |
+| `web/app/(desk)/gm/zoneViewActions.js` | `setVisibleZonesAction` |
 | `web/app/components/ZoneChip.js` | The chip |
-| `web/app/components/ZoneScopeToggle.js` | Mine / All |
 | `web/app/components/DiscordAvatar.js` | The one remote image |
-| `web/app/(app)/gm/gamemasters/` | Page, picker, `assignGmZones` |
+| `web/app/(desk)/gm/dev/page.js` | The GM roster, `?s=gamemasters` |
+| `bot/src/events/interactionCreate.js` | `/zone` and its picker |
 | `web/app/(desk)/gm/audit/` | The audit desk — filters, feed, inspector, export |
 | `web/lib/auditNarrative.js` | actionType + details → a sentence |
 | `web/lib/auditQuery.js` | The audit filter parser and WHERE builder |
-| `db/prisma/schema.prisma` | `GmAssignment` |
+| `db/prisma/schema.prisma` | `GmZoneView`, `Zone.gmRoleId` |
 | `web/app/globals.css` | `--zone-*` per theme, `.zone-chip` |
 | `web/scripts/audit-contrast.js` | The 3.0 gate |

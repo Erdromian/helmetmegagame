@@ -153,8 +153,11 @@ call site follows success with `refresh()` and the pair meant rendering
 ```
 
 - **Queue rail** — the open turn's Moves and the newest Requests, as
-  selectable rows. Opens filtered to the GM's zone seat
-  (`GAMEMASTERS.md`), soft as ever. A live lock renders as a small `GmAvatar`
+  selectable rows. **Shows only the zones the GM chose to see**
+  (`GAMEMASTERS.md` §1) — a hard gate now, not the soft opening default the
+  zone seat used to be, and a search does not lift it. The rail's own Zone
+  dropdown narrows within that. The **Zones** control that sets it is at the
+  bottom of the inspector, on the right. A live lock renders as a small `GmAvatar`
   chip beside the row's real status pill — **never as a status of its own**.
   It used to be: a Move under a live lock displayed "In Progress" regardless
   of its actual `moveReviewStatus`, which let a GM's OWN lock on a Move they

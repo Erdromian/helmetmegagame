@@ -2,9 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import StatusPill from "@/app/components/StatusPill";
-import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
 import Select from "@/app/components/Select";
-import { openingZoneName } from "@/lib/zones";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import { useTableState } from "@/app/components/DataTable";
@@ -14,6 +12,7 @@ import { isFieldFocused, hasModifier } from "@/lib/deskKeyGuard";
 import { MOVE_REVIEW_TONES, MOVE_REVIEW_LABELS } from "@/lib/moves";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requestLabels";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
+import { inVisibleZones } from "@/lib/zones";
 
 // The left rail: the work queue as a compact list, using useTableState (the
 // same filter/search/sort engine every table uses) minus the table markup.
@@ -153,7 +152,7 @@ function MatchHint({ match }) {
   return <span className="text-xs text-muted"> · {match.matchedField}</span>;
 }
 
-function RailFilters({ table, filterDefs, myZoneNames, searchPlaceholder, header, children }) {
+function RailFilters({ table, filterDefs, searchPlaceholder, header, children }) {
   return (
     <div className="desk-rail-filters">
       {header}
@@ -183,7 +182,6 @@ function RailFilters({ table, filterDefs, myZoneNames, searchPlaceholder, header
           </label>
         ))}
       </div>
-      <ZoneScopeToggle myZoneNames={myZoneNames} filters={table.filters} setFilters={table.setFilters} />
       {children}
     </div>
   );
@@ -317,7 +315,7 @@ export default function QueueRail({
   moves,
   requests,
   cavingRolls,
-  myZoneNames,
+  visibleZoneNames,
   stagedByMove,
   selected,
   onSelect,
@@ -347,39 +345,50 @@ export default function QueueRail({
   const [rail, setRail] = useSessionState(RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT);
   const makeFiltersProps = useCallback(
     (key) => ({
-      filters: rail.filters[key] ?? { zone: openingZoneName(myZoneNames) },
+      filters: rail.filters[key] ?? {},
       onFiltersChange: (next) => setRail((r) => ({ ...r, filters: { ...r.filters, [key]: next } })),
     }),
-    [rail.filters, myZoneNames, setRail],
+    [rail.filters, setRail],
   );
+
+  // The zones this GM chose to see (null = all), over every lens, applied
+  // before ranking so the counts on the lens tabs match what is in them. Not
+  // the same thing as the Zone dropdown below, which narrows WITHIN this.
+  //
+  // A view rather than enforcement — the server ships every row and a direct
+  // link still opens a hidden Move. The boundary that bites is the Discord
+  // half (GAMEMASTERS.md §6).
+  const inView = useCallback((rows) => inVisibleZones(rows, visibleZoneNames), [visibleZoneNames]);
 
   // One numeric key so the generic engine's one-field sort ranks by status
   // first, recency second (status multiplied out of recency's range).
   const rankedMoves = useMemo(
     () =>
-      moves.map((r) => ({
+      inView(moves).map((r) => ({
         ...r,
         queueOrder: (MOVE_STATUS_RANK[r.statusLabel] ?? 0) * 1e15 - r.createdAtMs,
       })),
-    [moves],
+    [moves, inView],
   );
 
   const rankedHistoryMoves = useMemo(
     () =>
-      (historyMoves ?? []).map((r) => ({
+      inView(historyMoves).map((r) => ({
         ...r,
         queueOrder: (MOVE_STATUS_RANK[r.statusLabel] ?? 0) * 1e15 - r.createdAtMs,
       })),
-    [historyMoves],
+    [historyMoves, inView],
   );
+
+  const gatedRequests = useMemo(() => inView(requests), [requests, inView]);
 
   const rankedCavingRolls = useMemo(
     () =>
-      (cavingRolls ?? []).map((r) => ({
+      inView(cavingRolls).map((r) => ({
         ...r,
         queueOrder: (CAVING_STATUS_RANK[r.statusLabel] ?? 0) * 1e15 - r.createdAtMs,
       })),
-    [cavingRolls],
+    [cavingRolls, inView],
   );
 
   // All four tables mount permanently so lens flips keep each one's filters.
@@ -394,7 +403,7 @@ export default function QueueRail({
     ...makeFiltersProps("moves"),
   });
   const requestTable = useTableState({
-    rows: requests,
+    rows: gatedRequests,
     filterDefs: requestFilterDefs,
     searchMap: requestSearchMap,
     rankBySearch: true,
@@ -645,7 +654,6 @@ export default function QueueRail({
           <RailFilters
             table={historyIsCaving ? historyCavingTable : historyTable}
             filterDefs={historyIsCaving ? cavingFilterDefs : moveFilterDefs}
-            myZoneNames={myZoneNames}
             searchPlaceholder={
               historyIsCaving ? "name, @handle, tag:…" : "name, role, @handle, zone:…"
             }
@@ -762,7 +770,6 @@ export default function QueueRail({
           <RailFilters
             table={requestTable}
             filterDefs={requestFilterDefs}
-            myZoneNames={myZoneNames}
             searchPlaceholder="name, @handle, reason, text:…"
           />
           <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
@@ -782,7 +789,6 @@ export default function QueueRail({
           <RailFilters
             table={cavingTable}
             filterDefs={cavingFilterDefs}
-            myZoneNames={myZoneNames}
             searchPlaceholder="name, @handle, tag:…"
           />
           <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
@@ -802,7 +808,6 @@ export default function QueueRail({
           <RailFilters
             table={moveTable}
             filterDefs={moveFilterDefs}
-            myZoneNames={myZoneNames}
             searchPlaceholder="name, role, @handle, zone:…"
           >
             {hiddenTravelCount > 0 && (

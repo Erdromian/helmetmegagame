@@ -12,6 +12,7 @@ import RequestDesk from "./RequestDesk";
 import CavingDesk from "./CavingDesk";
 import { getMoveHistory } from "./actions";
 import InspectorColumn from "@/app/components/InspectorColumn";
+import GmZoneRail from "@/app/components/GmZoneRail";
 import StagingTray from "./StagingTray";
 import PushPreview from "./PushPreview";
 import DevPanelModal from "@/app/components/DevPanelModal";
@@ -150,7 +151,9 @@ export default function Workspace({
   initialCaving,
   resolvedTurns,
   openTurn,
-  myZoneNames,
+  selectableZones,
+  visibleZoneIds,
+  visibleZoneNames,
   tagsById,
   tagCatalog,
   roster,
@@ -579,7 +582,7 @@ export default function Workspace({
           moves={moves}
           requests={requests}
           cavingRolls={cavingRolls}
-          myZoneNames={myZoneNames}
+          visibleZoneNames={visibleZoneNames}
           stagedByMove={stagedByMove}
           selected={selected}
           onSelect={select}
@@ -700,6 +703,7 @@ export default function Workspace({
           onOpenDev={onOpenDev}
           customTag={customTag}
           requestedTab={tabRequest}
+          footer={<GmZoneRail zones={selectableZones} selectedIds={visibleZoneIds} />}
         />
       </div>
 

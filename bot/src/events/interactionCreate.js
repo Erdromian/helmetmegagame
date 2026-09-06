@@ -1,5 +1,7 @@
 const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
 const { prisma, concealedAlias } = require("@lifeweb/db");
+const { setVisibleZones } = require("@lifeweb/db/lib/gmZoneView");
+const { syncGmZoneRoles } = require("@lifeweb/db/lib/gmZoneRoles");
 const { isUnaffiliated } = require("@lifeweb/db/lib/factionConstants");
 const {
   CONCEALMENT_TAG_FIELDS,
@@ -151,6 +153,87 @@ const CONVERSE_ROOM_PREFIX = "conv:room:";
 // "a young man" / "an old woman" — the alias as it reads mid-sentence.
 function withArticle(word) {
   return `${/^[aeiou]/i.test(word) ? "an" : "a"} ${word}`;
+}
+
+const ZONE_VIEW_ID = "zoneview:pick";
+
+// /zone — the Discord twin of the Zones control at the bottom of the GM
+// desks' inspector. Both write the same GmZoneView rows and both call
+// syncGmZoneRoles, so a GM can toggle from wherever they happen to be.
+//
+// Nothing selected means EVERY zone, which is why the menu's min_values is 0:
+// clearing it is a real answer, not an empty form.
+async function handleZoneCommand(interaction) {
+  if (!isGmMember(interaction)) {
+    await respond(interaction, "» *GMs only.*");
+    return;
+  }
+  await ack(interaction);
+
+  const [zones, current] = await Promise.all([
+    // Only zones with a seat to hand out — see web/lib/gmZoneView.js.
+    prisma.zone.findMany({
+      where: { gmRoleId: { not: null } },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.gmZoneView.findMany({
+      where: { discordUserId: interaction.user.id },
+      select: { zoneId: true },
+    }),
+  ]);
+  if (zones.length === 0) {
+    await respond(interaction, "» *There are no zones yet — run the zone sync first.* ‡");
+    return;
+  }
+  const chosen = new Set(current.map((r) => r.zoneId));
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId(ZONE_VIEW_ID)
+    .setPlaceholder("Which zones do you want to see? ‡")
+    .setMinValues(0)
+    .setMaxValues(zones.length)
+    .addOptions(
+      zones.map((zone) => ({
+        label: zone.name.slice(0, 100),
+        value: zone.id,
+        default: chosen.has(zone.id),
+      })),
+    );
+
+  await respond(interaction, {
+    content:
+      "Which zones do you want to see? ‡\n" +
+      "-# This sets your Discord channels and your desks at once. Pick none to see everything. ‡",
+    components: [new ActionRowBuilder().addComponents(menu)],
+  });
+}
+
+async function handleZoneViewPick(interaction) {
+  if (!isGmMember(interaction)) {
+    await respond(interaction, "» *GMs only.*");
+    return;
+  }
+  await ack(interaction);
+
+  const wanted = interaction.values ?? [];
+  await setVisibleZones(prisma, interaction.user.id, wanted);
+  // Outside the write and best-effort, the same posture every Discord fan-out
+  // in the app takes — a rate limit should not cost the GM their choice.
+  await syncGmZoneRoles(prisma, interaction.user.id).catch((err) =>
+    console.error("/zone: role sync failed:", err.message ?? err),
+  );
+
+  if (wanted.length === 0) {
+    await respond(interaction, "» You can see every zone. ‡");
+    return;
+  }
+  const zones = await prisma.zone.findMany({
+    where: { id: { in: wanted } },
+    orderBy: { sortOrder: "asc" },
+    select: { name: true },
+  });
+  await respond(interaction, `» You can see ${zones.map((z) => z.name).join(", ")}. ‡`);
 }
 
 async function handleGmCommand(interaction) {
@@ -2059,6 +2142,7 @@ module.exports = {
     try {
       if (interaction.isChatInputCommand()) {
         if (interaction.commandName === "gm") return void (await handleGmCommand(interaction));
+        if (interaction.commandName === "zone") return void (await handleZoneCommand(interaction));
         if (interaction.commandName === "dm") return void (await handleGmDmCommand(interaction));
         if (interaction.commandName === "heal") return void (await handleHealCommand(interaction));
         if (interaction.commandName === "add" || interaction.commandName === "remove") {
@@ -2147,6 +2231,7 @@ module.exports = {
         // Arrives in a DM; must NOT be acked first since it opens a modal.
         if (interaction.customId.startsWith(EDIT_OPEN_PREFIX)) return void (await handleEditOpen(interaction));
       } else if (interaction.isStringSelectMenu()) {
+        if (interaction.customId === ZONE_VIEW_ID) return void (await handleZoneViewPick(interaction));
         if (interaction.customId === PICK_ID) return void (await handleTravelPick(interaction));
         if (interaction.customId.startsWith(DRAG_PREFIX)) {
           return void (await handleTravelDrag(interaction, interaction.customId.slice(DRAG_PREFIX.length)));

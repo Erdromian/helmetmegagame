@@ -238,7 +238,7 @@ you pick the right doc — they are never enough to change code with.
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, nicknames, notes |
 | [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, or who can see a member's ⬢ (Leader/Treasurer) |
-| [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, a GM's zone seat, `/gm/gamemasters`, or who can see the audit log |
+| [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, **which zones a GM can see** (`GmZoneView`, the `GM: <Zone>` roles, `/zone`), or who can see the audit log |
 | [`LABORING.md`](docs/systemdocs/LABORING.md) | You're touching Laboring — the tag ladder, a Location's `yield:` coefficients and their drift, the tools (`laborBonus`), the auto-labor pass, or the Examine button |
 | [`FACTORY.md`](docs/systemdocs/FACTORY.md) | You're touching the Godard Factory — Extract, refining Godflesh into Squeeze, the Package button and crate weights, the Spillway, or what eating a cube does |
 | [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
@@ -491,25 +491,29 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 | **Zone role** | `Zone.discordRoleId`, one per presence zone ("Zone: Town"), created by `db:sync-zones` | Opens the zone's `#summary`, and — via `#turns`'s own role grants — the standing channels. Swapped by travel; reconciled by the channel doctor. |
 | **Location overwrite** (not a role) | A per-member permission overwrite on the Location's channel, written by `db/lib/locationMove.js` | Channel access: holding it is what shows you the one Location channel a character actually stands in. Swapped by every location change; reconciled by the channel doctor's `location-occupancy` check. Locations wear **no** Discord role — 56 of them would have eaten 56 of the guild's 250, and Discord allows 1000 overwrites per channel. |
 | **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | A mentionable **name token only** (`PROXYING.md` §6) — held by nobody and granting nothing. Channel access is the **zone role and the Location overwrite** instead (`CHANNELS.md` §3). |
-| **GM role** | `DISCORD_GM_ROLE_ID` env var, **or** `TRIAL_GM_ROLE_ID` in `db/lib/roleIds.js` | `/gm` pages, the `/gm` and `/message` slash commands, and the GM's standing channel overwrites. Checked via REST (`isGm`), not stored on any model. The two are access-identical — `gmRoleIds()` is the only list, and the `/gm/gamemasters` roster is the one surface that tells them apart. |
+| **GM role** | `DISCORD_GM_ROLE_ID` env var, **or** `TRIAL_GM_ROLE_ID` in `db/lib/roleIds.js` | `/gm` pages, the `/gm` and `/message` slash commands, and the GM's standing channel overwrites. Checked via REST (`isGm`), not stored on any model. The two are access-identical — `gmRoleIds()` is the only list, and the roster on `/gm/dev?s=gamemasters` is the one surface that tells them apart. |
 | **Spectator role** | `SPECTATOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A standing read-only observer seat, applied at provisioning time. See `CHANNELS.md`. |
 | **Player role** | `PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may create a character, paired with `GameConfig.openToPlayers` (`CHARACTERS.md` §4b). |
 | **Leader Whitelist role** | `LEADER_WHITELIST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may pick a role flagged `leader: true` at character creation — unless `GameConfig.leaderWhitelistEnabled` is switched off on `/gm/dev` (`CHARACTERS.md` §2). |
 | **Cursed role** | `DISCORD_CURSED_ROLE_ID` env var | What a player may re-roll as after a death (`CHARACTERS.md` §4), **and** the ghost seat: read-only view of every zone (cave levels included; private threads stay invisible), and no voice at all — the 🌬️ whisper is gone, an unburied body reports itself instead. Its color is pinned to 0 so ghosts aren't outed in the member list (`CHANNELS.md` §3, `COMMANDS.md` §6). |
 | **Turn-ping role** | `DISCORD_TURN_PING_ROLE_ID` env var | Plain opt-in notification, toggled from `/character`. |
 
-One more gate exists that is **not** a Discord role, and it's the only soft
-one in the app. `GmAssignment` (one row per seat, keyed on the pair
-`discordUserId` + `zoneId`, set from `/gm/gamemasters`) seats a zone-GM over
-one or more of the six **seat** zones — Town, Fortress, Forest, Black Hills,
-Marshes, Underground — never one of the two cave levels. All it does is decide which zones that GM's
-tables *open* on. No query is scoped by it, and no row is hidden — a Move
-crosses zones by nature, so hiding rows would break the job. Every other row in
-the table above is real enforcement; this one is just convenience. Read
-[`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) before you try to harden
-it.
+There is one more role family, and it is per-zone rather than global. A
+**`GM: <Zone>`** role (`Zone.gmRoleId`, provisioned by `db:sync-zones` beside
+the access role) is what opens that zone's category, `#summary` and Location
+channels to a GM — the global GM roles above no longer open any of them. Which
+ones a GM holds comes from `GmZoneView`, the zones they picked from the
+inspector's Zones control or with `/zone`, materialized as roles by
+`db/lib/gmZoneRoles.js`. **No rows means every zone**, so nobody is ever
+locked out by not having chosen. The same rows hide desk rows on `/gm/turns`
+and `/gm/players`.
 
-`/gm/gamemasters` and `/gm/dev` are **superadmin-only**, not GM-visible —
+This replaced `GmAssignment`, which was a soft seat that picked a default
+filter and hid nothing. Read
+[`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) before changing it — three
+separate sweeps have to know about the new roles or they delete them.
+
+`/gm/dev` (the GM roster included, at `?s=gamemasters`) is **superadmin-only**, not GM-visible —
 those are host access, not game permission. `/gm/audit` is **open to every
 GM**: it used to be the master's alone, on the argument that with five GMs the
 log is a record *of* them, but that left four people unable to answer "who

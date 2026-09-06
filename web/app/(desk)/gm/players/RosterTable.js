@@ -11,8 +11,6 @@ import FactionLink from "@/app/components/FactionLink";
 import Select from "@/app/components/Select";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
 import ZoneChip from "@/app/components/ZoneChip";
-import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
-import { openingZoneName } from "@/lib/zones";
 import FactionsPanel from "./FactionsPanel";
 import Pager from "@/app/components/Pager";
 import { filterTagsByQuery, sortForMode, tagsById as buildTagsById } from "@/lib/characterCreation";
@@ -21,6 +19,7 @@ import { filterTagsByQuery, sortForMode, tagsById as buildTagsById } from "@/lib
 import { bulkTagCharacters } from "@/app/(app)/gm/actions";
 import { sendGmBroadcast } from "./actions";
 import useSubmitOnEnter from "@/app/components/useSubmitOnEnter";
+import { inVisibleZones } from "@/lib/zones";
 
 // The roster: the whole fleet at once, with the columns a GM actually asks
 // about mid-turn. The old /gm/players table had nine and could not answer
@@ -69,7 +68,7 @@ const searchMapFor = (c) => ({
 export default function RosterTable({
   characters,
   tags = [],
-  myZoneNames,
+  visibleZoneNames,
   hasOpenTurn,
   factions,
   factionCount,
@@ -96,6 +95,18 @@ export default function RosterTable({
   const [devPanel, setDevPanel] = useState(null);
 
   const filterDefs = useMemo(() => FILTER_DEFS, []);
+  // The zones this GM chose to see (null = all). Not a default filter — rows
+  // outside it never reach the table, so its own Zone dropdown narrows within
+  // what is visible rather than reaching past it.
+  //
+  // It is a VIEW, not enforcement: the server still ships every row, and a GM
+  // who wants a hidden one can reach it by URL. The real boundary is the
+  // Discord half (GAMEMASTERS.md §6) — this side is about not drowning.
+  const inView = useMemo(
+    () => inVisibleZones(characters, visibleZoneNames),
+    [characters, visibleZoneNames],
+  );
+
   const {
     query,
     setQuery,
@@ -111,11 +122,10 @@ export default function RosterTable({
     total,
     totalPages,
   } = useTableState({
-    rows: characters,
+    rows: inView,
     filterDefs,
     searchMap: searchMapFor,
     initialSort: { key: "name", dir: "asc" },
-    initialFilters: { zone: openingZoneName(myZoneNames) },
   });
 
   const onComposerKeyDown = useSubmitOnEnter();
@@ -178,7 +188,6 @@ export default function RosterTable({
             searchLabel="Search players"
             searchPlaceholder="name, role, faction, zone, @handle…"
           >
-            <ZoneScopeToggle myZoneNames={myZoneNames} filters={filters} setFilters={setFilters} />
             <button
               type="button"
               className="btn"
