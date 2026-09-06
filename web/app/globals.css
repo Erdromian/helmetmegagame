@@ -4784,6 +4784,132 @@ label.chip {
   flex-shrink: 0;
 }
 
+/* ---- The right column: who is here, the place, and you ---- */
+
+.hall-here,
+.hall-place-panel,
+.hall-you {
+  padding-bottom: var(--sp-3);
+  margin-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.hall-you {
+  border-bottom: 0;
+  margin-bottom: 0;
+}
+
+/* A person's row is the button that opens their menu, so the popover has to
+   hang off something positioned. */
+.hall-person-wrap {
+  position: relative;
+}
+
+.hall-person {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  box-sizing: border-box;
+  padding: 3px var(--sp-1);
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.hall-person:hover {
+  background: var(--surface);
+}
+
+.hall-person:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+}
+
+/* A hood is not a person you can act on, so its row is not a button. */
+.hall-person--hooded {
+  cursor: default;
+}
+
+.hall-person-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hall-menu {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  top: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 9rem;
+  padding: var(--sp-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--e-3);
+}
+
+.hall-quiet-line {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-bottom: var(--sp-2);
+}
+
+/* Every place-bound button, wrapping. They are a list of things you can do
+   here, not a toolbar, so they stack rather than scroll. */
+.hall-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.hall-notice-row,
+.hall-waiting-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: 3px 0;
+  font-size: var(--fs-sm);
+}
+
+.hall-waiting-actions {
+  display: flex;
+  gap: var(--sp-3);
+  flex-shrink: 0;
+}
+
+.hall-waiting {
+  margin-top: var(--sp-3);
+}
+
+/* A notice is a thing with edges, and nothing written on it may render as
+   markup. */
+.hall-notice-text {
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  overflow-x: auto;
+}
+
+/* The phone's people strip: faces only, under the place header. Hidden on a
+   desktop, where the column already has them with their names. */
+.hall-strip {
+  display: none;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
 /* The place list is the left column on a desktop and a tab strip on a phone;
    only one of the two is ever drawn. */
 .hall-tabs {
@@ -4825,5 +4951,26 @@ label.chip {
 
   .hall-subtext {
     padding-left: 0;
+  }
+
+  .hall-strip {
+    display: flex;
+  }
+
+  /* The ⚡ sheet: the right column, come up from the bottom over the scene.
+     A dialog rather than a drawer of its own, so it keeps Escape, the focus
+     trap and the backdrop that Modal already owns. */
+  .hall-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    max-width: none;
+    max-height: 80dvh;
+    overflow-y: auto;
+    border-bottom: 0;
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
   }
 }

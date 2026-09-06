@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The Play page grows its right column: people, the place, and you
+
+✚ Who is standing with you, with the same Look at, Heal, Transfer, Loot, Bind, Free, Harm and Move Player dialogs the sheet has, one tap from their name.  
+✚ Every button the Discord anchor carries is on the Play page too: Travel with drag-along and Turn back, Examine the place, Storage, the Noticeboard, Converse, the Bell, the PA, the turret, gates and keyed doors.  
+✚ Move, a Report to the GMs box, and a Waiting-on-you list of offers, threat seats, letters and lobby seats you can accept or decline from the web.  
+✎ Gates, keyed doors, Move and Who's here now run one implementation for both faces.
+
 ## 2026-09-06 · Weather is gone, and every turn opens on a new photograph
 
 − The weather system: no more clear/fog/rain/storm, no roll, and no sentence about it on the turn announcement. It gated nothing.  

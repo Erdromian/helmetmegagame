@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { peopleHere } from "@/lib/peopleHere";
+import { loadPeoplePools } from "@/lib/peoplePools";
 import {
   LESSON_CATALOG_SELECT,
   teachableSkills,
@@ -30,9 +30,7 @@ import {
 } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
-import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { carryStatus } from "@lifeweb/db/lib/carry";
-import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { canRead } from "@lifeweb/db/lib/reading";
 import {
   PAPER_SLUG,
@@ -55,7 +53,6 @@ import { deployVersion } from "@/lib/deployVersion";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
-import { MEDICAL_TIER_CAPS } from "@/lib/requests";
 import {
   evaluateDesireCatalog,
   slotStates,
@@ -90,30 +87,13 @@ import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
 import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
-import { isTradeable } from "@/lib/tagRequests";
 import { canBuildHere, structuresAt } from "@lifeweb/db/lib/structures";
 import {
   canSendBird as holdsBirdAndLetters,
   birdZones as birdZonesOf,
 } from "@lifeweb/db/lib/bird";
 import { describeTurn } from "@/lib/turnFormat";
-import {
-  INCAPACITATING_SLUGS,
-  FINISHABLE_SLUGS,
-} from "@lifeweb/db/lib/incapacitation";
 import { parseSelection } from "@/lib/portrait/catalog";
-import {
-  HEALABLE_CATEGORY,
-  HEAL_SKILL_SLUG,
-  buildSkillAncestry,
-  healCost,
-  isHealable,
-  isInflictable,
-  isGambitHeal,
-  countsAgainstHealCap,
-  healCapFor,
-  satisfiedSkillIds,
-} from "@/lib/healRequests";
 import CharacterSheet from "../../components/CharacterSheet";
 import CreateCharacterWizard from "./CreateCharacterWizard";
 import CreationClosed from "./CreationClosed";
@@ -537,40 +517,29 @@ export default async function CharacterPage({ searchParams }) {
   const storeHeldTags = storeTags
     .filter((t) => heldSet.has(t.id))
     .map((t) => ({ id: t.id, name: t.name }));
-  // The people a sheet can act on: standing at this Location, alive and
-  // unconcealed (web/lib/peopleHere.js). One roster for every picker, so
-  // the menus can't disagree — and the server re-checks the same predicate.
-  // `here` carries what Heal and Learn need; `bodiesAndHelpless` is the
-  // roster for the actions that also work on a corpse.
-  const here = await peopleHere(character, {
-    select: {
-      id: true,
-      name: true,
-      // No `resources` — a balance is nobody else's business.
-      tags: {
-        select: {
-          tagId: true,
-          tag: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              healable: true,
-              requirementTurns: true,
-              requirementResources: true,
-              requirementGambit: true,
-              requirementSkills: { select: { id: true, name: true } },
-            },
-          },
-        },
-      },
-    },
+  // Every people pool the sheet's dialogs act on — the roster standing here,
+  // the medical gate, and the Loot / Move / Bind / Harm lists — built once in
+  // web/lib/peoplePools.js so the Hall's people column (/play) and this sheet
+  // cannot disagree about who is standing near you.
+  const {
+    here,
+    zoneRoster,
+    peopleParties,
+    examineBlocked,
+    satisfied,
+    canHeal,
+    healTargets,
+    healsLeft,
+    lootTargets,
+    moveTargets,
+    moveLocations,
+    bindTargets,
+    harmTargets,
+    harmTags,
+  } = await loadPeoplePools(character, {
+    discordUserId: session.discordUserId,
+    openTurn,
   });
-  const selfEntry = { id: character.id, name: character.name };
-  const peopleParties = [
-    selfEntry,
-    ...here.map(({ id, name }) => ({ id, name })),
-  ];
 
   // Plus every Room stash at this Location the character can get into
   // (CARRY.md) — with its contents, since pulling out of one means seeing
@@ -713,24 +682,6 @@ export default async function CharacterPage({ searchParams }) {
   // no allowance math reaches the client bundle.
   const zoneMoves = freeMovesLeft(character, gameConfig, openTurn);
   const zoneMovesReason = freeZoneMovesReason(character);
-  // Whether their eyes are good enough to look anybody over — Nearsighted
-  // without spectacles on, Sun Sensitivity in daylight. Resolved server-side
-  // so the sentence the grid shows and the one examineActions.js refuses with
-  // are the same sentence.
-  const examineBlocked = examineBlock(character.tags, {
-    phase: openTurn?.phase ?? null,
-    indoors: character.location?.indoors ?? true,
-  });
-  // Healing. The medical gate is resolved here, server-side, so no
-  // tier-chain math reaches the client bundle.
-  const ancestry = buildSkillAncestry(tierRows);
-  const satisfied = satisfiedSkillIds(
-    character.tags.map((ct) => ct.tagId),
-    ancestry,
-  );
-  const healSkillId = tierRows.find((t) => t.slug === HEAL_SKILL_SLUG)?.id;
-  const canHeal = Boolean(healSkillId && satisfied.has(healSkillId));
-
   // Craft (CRAFTING.md): the recipes whose every skill this character holds
   // (or a higher tier of), decided here and re-checked by craftRequest. The
   // client filters its picker to these ids and nothing else.
@@ -925,98 +876,8 @@ export default async function CharacterPage({ searchParams }) {
     Boolean(openTurn) &&
     character.birdTurnId === String(describeTurn(openTurn).day);
 
-  // Patients: yourself and everyone here, filtered to treatable tags HERE,
-  // not the client, so nobody else's full sheet crosses the wire. Skipped for
-  // the majority who aren't medics.
-  const selfAsPatient = {
-    id: character.id,
-    name: character.name,
-    tags: character.tags.map((ct) => ({ tagId: ct.tagId, tag: ct.tag })),
-  };
-  const healTargets = (canHeal ? [selfAsPatient, ...here] : [])
-    .map((t) => ({
-      id: t.id,
-      name: t.name,
-      healable: t.tags
-        .map((ct) => ct.tag)
-        .filter(isHealable)
-        .map((tag) => ({
-          tagId: tag.id,
-          tagName: tag.name,
-          cost: healCost(tag),
-          requirementLabel: formatTagRequirement(tag),
-          // Above your tier, or the ladder's top rung, and it's a roll rather
-          // than a refusal — so the picker offers it, labelled, instead of
-          // greying it out (docs/systemdocs/TAGS.md §5c).
-          gambit: isGambitHeal(tag, satisfied),
-          // A 0-turn cure is a free action and never counts against the day's
-          // allowance (web/lib/requests.js MEDICAL_TIER_CAPS).
-          counts: countsAgainstHealCap(tag),
-        })),
-    }))
-    .filter((t) => t.healable.length > 0);
-
-  // Routine cures left in the medic's day (web/lib/requests.js
-  // MEDICAL_TIER_CAPS). The predicate MUST match routineHealsThisTurn in
-  // requestActions.js exactly — a first-aid cure and a Gambit both cost
-  // nothing here, and a number that disagreed with the one the action
-  // enforces would grey out a treatment the server would have accepted.
-  // Resolved server-side; the action re-checks under a row lock either way.
-  const heldSlugSet = new Set(character.tags.map((ct) => ct.tag.slug));
-  const healsLeft = canHeal
-    ? Math.max(
-        0,
-        healCapFor(heldSlugSet, MEDICAL_TIER_CAPS) -
-          (openTurn
-            ? (
-                await prisma.auditLog.findMany({
-                  where: {
-                    // The MEDIC's axis, matching routineHealsThisTurn exactly.
-                    // targetCharacterId here is the patient.
-                    actorDiscordUserId: session.discordUserId,
-                    actionType: "request_heal_character",
-                    turnId: openTurn.id,
-                  },
-                  select: { details: true },
-                })
-              ).filter(
-                (r) =>
-                  !r.details?.gambit &&
-                  (r.details?.requirement?.turns ?? 0) > 0,
-              ).length
-            : 0),
-      )
-    : 0;
-
   // Who can pay: you, anyone here, or a room stash here (same as Craft).
   const healParties = { characters: peopleParties, rooms };
-
-  // ONE roster for every action on somebody standing here (Loot, Move,
-  // Bind, Free, Harm), including the unburied dead.
-  const zoneRoster = await peopleHere(character, {
-    includeDead: true,
-    select: {
-      id: true,
-      name: true,
-      status: true,
-      resources: true,
-      tags: {
-        select: {
-          tagId: true,
-          quantity: true,
-          tag: {
-            select: {
-              name: true,
-              slug: true,
-              category: true,
-              stackable: true,
-              tradeable: true,
-            },
-          },
-        },
-      },
-    },
-  });
 
   // Lessons (LESSONS.md). `teachers`: everyone here who can teach, each with
   // the skills they could teach ME — computed server-side so only skills I
@@ -1116,61 +977,6 @@ export default async function CharacterPage({ searchParams }) {
       })
     : [];
 
-  // The catalog name of whichever incapacitating tag they hold.
-  function conditionOf(c) {
-    return (
-      c.tags.find((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))?.tag.name ??
-      null
-    );
-  }
-  const helpless = zoneRoster.filter(
-    (c) => c.status === "DEAD" || conditionOf(c),
-  );
-
-  // A body, or anyone who can't stop you. Only `tradeable` tags come off.
-  const lootTargets = helpless.map((c) => ({
-    id: c.id,
-    name: c.name,
-    status: c.status,
-    condition: conditionOf(c),
-    resources: c.resources,
-    tags: c.tags
-      .filter((ct) => isTradeable(ct.tag))
-      .map((ct) => ({
-        tagId: ct.tagId,
-        tagName: ct.tag.name,
-        stackable: ct.tag.stackable,
-        quantity: ct.quantity ?? 1,
-      })),
-  }));
-
-  // Everyone here, not just who you may move: the server's own gate says
-  // who follows, and a menu that narrowed to the bound would announce them.
-  const moveTargets = zoneRoster.map(({ id, name, status }) => ({
-    id,
-    name,
-    status,
-  }));
-
-  // Where you may walk someone: the neighbours of YOUR OWN location, the same
-  // edge an ordinary walk uses, gated the same way. travelOptions drops the
-  // hidden ways this character holds no key to, and `passable` drops the
-  // locked and the shut — a walk-someone dialog has no room to explain a
-  // refusal, so it only ever offers a hop that will actually work. Each
-  // option carries its zone so the dialog can warn that the hop crosses one.
-  const moveLocations = character.locationId
-    ? (await travelOptions(prisma, character, character.locationId))
-        .filter((row) => row.passable)
-        .map((row) => ({
-          id: row.location.id,
-          name: row.location.name,
-          zoneName: row.location.zone?.name ?? null,
-          // The UI says "crosses into Fortress" only for an edge that leaves
-          // the zone you're standing in.
-          crossesZone: row.crossesZone,
-        }))
-    : [];
-
   // Only fetched for someone who holds a bird. Recipient list is EVERY
   // character regardless of status; a letter to a dead name never arrives.
   const birdTargets = hasBird
@@ -1189,47 +995,6 @@ export default async function CharacterPage({ searchParams }) {
         }),
       ).map((z) => ({ id: z.id, name: z.name }))
     : [];
-
-  // Bind and Free split this one list on `bound`; Crucify on `crucified`.
-  const bindTargets = zoneRoster
-    .filter((c) => c.status === "ALIVE")
-    .map((c) => ({
-      id: c.id,
-      name: c.name,
-      bound: c.tags.some((ct) => ct.tag.slug === "bound"),
-      crucified: c.tags.some((ct) => ct.tag.slug === "crucified"),
-    }));
-
-  // `finishable` is the narrower Dying-or-Bound gate on the lethal half.
-  const harmTargets = helpless
-    .filter((c) => c.status === "ALIVE")
-    .map((c) => ({
-      id: c.id,
-      name: c.name,
-      condition: conditionOf(c),
-      finishable: c.tags.some((ct) => FINISHABLE_SLUGS.has(ct.tag.slug)),
-    }));
-
-  // Not the whole Health category (TAGS.md §5c) — isInflictable narrows it
-  // to wounds and maiming. Filtered in JS so this and the server action's
-  // re-check share the same predicate.
-  const harmTags = (
-    await prisma.tag.findMany({
-      where: { category: HEALABLE_CATEGORY, custom: false },
-      orderBy: { name: "asc" },
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        description: true,
-        category: true,
-        custom: true,
-        pointCost: true,
-        stackable: true,
-        group: { select: { slug: true, name: true, color: true } },
-      },
-    })
-  ).filter(isInflictable);
 
   // A forced identity (Tag.forcedName — Apex Form's "Beast") shows the player
   // what the room sees: the forced name's letter plaque, not their own face.

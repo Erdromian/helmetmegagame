@@ -78,6 +78,14 @@ const {
   KEYED_PREFIX,
 } = require("@lifeweb/db/lib/locationAnchorRow");
 const { refreshLocationAnchor, refreshGateRooms } = require("@lifeweb/db/lib/syncZones");
+// Phase 3 moved the game logic these four handlers used to hold down into
+// db/lib, so the Hall's dialogs and these buttons run one implementation.
+// What is left up here is Discord: acknowledge, call, say the sentence back,
+// and — for a gate — redraw the anchor and the watchtower, which is a
+// Discord-only follow-up nothing in db/ could do.
+const { GATE_CHARACTER_SELECT, toggleGate, holdKeyedOpen } = require("@lifeweb/db/lib/gates");
+const { fileMove } = require("@lifeweb/db/lib/moves");
+const { whosHere, whosHereLines } = require("@lifeweb/db/lib/whosHere");
 const { describeLocation, hasAttribute } = require("@lifeweb/db/lib/locationAttributes");
 const { loadDepot, depotPowered, fuelTurnsLeft } = require("@lifeweb/db/lib/depotState");
 const { structuresAt } = require("@lifeweb/db/lib/structures");
@@ -844,85 +852,24 @@ async function handleGateToggle(interaction, linkId) {
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: interaction.user.id, status: "ALIVE" },
-    select: {
-      id: true,
-      name: true,
-      locationId: true,
-      role: { select: { slug: true } },
-      tags: { select: { tag: { select: { slug: true } } } },
-    },
+    select: GATE_CHARACTER_SELECT,
   });
-  if (!character) {
-    await respond(interaction, "» *You don't have a living character.* ‡");
-    return;
-  }
-
-  const link = await prisma.locationLink.findUnique({
-    where: { id: linkId },
-    include: { a: true, b: true },
+  const result = await toggleGate(prisma, {
+    character,
+    linkId,
+    actorDiscordUserId: interaction.user.id,
   });
-  // Covers "not modular" — whatever a stale button claimed.
-  if (!gateOperable(link)) {
-    await respond(interaction, "» *There's no gate here to work.* ‡");
+  if (!result.ok) {
+    await respond(interaction, `» *${result.error}*`);
     return;
   }
-  // You have to be standing on one side of it.
-  if (character.locationId !== link.aId && character.locationId !== link.bId) {
-    await respond(interaction, "» *You aren't standing at that gate.* ‡");
-    return;
-  }
-
-  const allowed = canToggleGate(link, {
-    tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
-    roleSlug: character.role?.slug ?? null,
-  });
-  if (!allowed) {
-    await respond(interaction, "» *The gate's mechanism doesn't answer to you.* ‡");
-    return;
-  }
-
-  const wantOpen = !link.isOpen;
-  // The permission verdict above read a snapshot, and the flip must not
-  // trust it across time: a re-sync can turn the edge into an ordinary
-  // (non-modular) way, and two watchmen can click in the same second. Lock
-  // the row, re-read, and re-run both predicates.
-  let outcome = "flipped";
-  await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${link.id} FOR UPDATE`;
-    const fresh = await tx.locationLink.findUnique({ where: { id: link.id } });
-    if (!gateOperable(fresh)) {
-      outcome = "gone";
-      return;
-    }
-    if (fresh.isOpen !== link.isOpen) {
-      outcome = "raced";
-      return;
-    }
-    await tx.locationLink.update({ where: { id: link.id }, data: { isOpen: wantOpen } });
-  });
-  if (outcome === "gone") {
-    await respond(interaction, "» *There's no gate here to work.* ‡");
-    return;
-  }
-  if (outcome === "raced") {
-    await respond(interaction, "» *Somebody just beat you to it.* ‡");
-    return;
-  }
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: interaction.user.id,
-      actionType: wantOpen ? "gate_opened" : "gate_closed",
-      targetCharacterId: character.id,
-      details: { linkId: link.id, between: [link.a.name, link.b.name], isOpen: wantOpen },
-    },
-  });
 
   // Both sides. The anchor no longer carries the gate at all, but it still
   // lists the ways out, so it is redrawn; the button itself lives on the
-  // watchtower's starter, which is what refreshGateRooms redraws. A gate with a
-  // tower at only one end has nothing to redraw at the other, and that is fine.
-  for (const locationId of [link.aId, link.bId]) {
+  // watchtower's starter, which is what refreshGateRooms redraws. A gate with
+  // a tower at only one end has nothing to redraw at the other, and that is
+  // fine.
+  for (const locationId of result.locationIds) {
     await refreshLocationAnchor(prisma, locationId).catch((err) =>
       console.error(`Gate anchor refresh failed for ${locationId}:`, err.message ?? err),
     );
@@ -931,13 +878,7 @@ async function handleGateToggle(interaction, linkId) {
     );
   }
 
-  const farName = endpoints(link, character.locationId).far.name;
-  await respond(
-    interaction,
-    wantOpen
-      ? `» *You open the way to ${farName}.* ‡`
-      : `» *You shut the way to ${farName}.* ‡`,
-  );
+  await respond(interaction, `» *${result.line}*`);
 }
 
 // loc:keyed:{linkId}:{yes|no} — the answer to "Leave open for the next 24
@@ -953,61 +894,18 @@ async function handleGateToggle(interaction, linkId) {
 async function handleKeyedPrompt(interaction, payload) {
   await ack(interaction, { update: true });
 
-  const [linkId, answer] = [payload.slice(0, payload.lastIndexOf(":")), payload.slice(payload.lastIndexOf(":") + 1)];
-
-  const link = await prisma.locationLink.findUnique({
-    where: { id: linkId },
-    include: { a: true, b: true },
+  const cut = payload.lastIndexOf(":");
+  const result = await holdKeyedOpen(prisma, {
+    discordUserId: interaction.user.id,
+    linkId: payload.slice(0, cut),
+    hold: payload.slice(cut + 1) === "yes",
   });
-  if (!link?.keyed) {
-    await respond(interaction, { content: "» *There's no door here to hold.* ‡", components: [] });
+  if (!result.ok) {
+    await respond(interaction, { content: `» *${result.error}*`, components: [] });
     return;
   }
-  const between = `${link.a.name} and ${link.b.name}`;
-
-  if (answer === "no") {
-    await respond(interaction, { content: `» *You let the way between ${between} fall shut.* ‡`, components: [] });
-    return;
-  }
-
-  const character = await prisma.character.findFirst({
-    where: { discordUserId: interaction.user.id, status: "ALIVE" },
-    select: { id: true, tags: { select: { tag: { select: { slug: true } } } } },
-  });
-  const holdsKey = (character?.tags ?? []).some((ct) => ct.tag?.slug === link.requiredTagSlug);
-  if (!holdsKey) {
-    await respond(interaction, { content: "» *You no longer have what holds that open.* ‡", components: [] });
-    return;
-  }
-
-  if (isHeldOpen(link)) {
-    await respond(interaction, { content: `» *The way between ${between} is already being held open.* ‡`, components: [] });
-    return;
-  }
-
-  const openUntil = new Date(Date.now() + KEYED_OPEN_MS);
-  const claim = await prisma.locationLink.updateMany({
-    where: { id: link.id, OR: [{ openUntil: null }, { openUntil: { lte: new Date() } }] },
-    data: { openUntil },
-  });
-  if (claim.count === 0) {
-    await respond(interaction, { content: `» *Somebody just beat you to it.* ‡`, components: [] });
-    return;
-  }
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: interaction.user.id,
-      actionType: "keyed_way_held_open",
-      targetCharacterId: character.id,
-      details: { linkId: link.id, between: [link.a.name, link.b.name], openUntil: openUntil.toISOString() },
-    },
-  });
-
   await respond(interaction, {
-    content:
-      `» *You leave the way between ${between} open.* ‡\n` +
-      `-# It stands open for 24 hours, and anyone can see and use it until then. ‡`,
+    content: result.note ? `» *${result.line}*\n-# ${result.note}` : `» *${result.line}*`,
     components: [],
   });
 }
@@ -1184,64 +1082,16 @@ async function handleTravelCancel(interaction) {
 async function handleWhosHere(interaction, locationId) {
   await ack(interaction);
 
-  const [viewer, present] = await Promise.all([
-    prisma.character.findFirst({
-      where: { discordUserId: interaction.user.id, status: "ALIVE" },
-      select: { factionId: true },
-    }),
-    prisma.character.findMany({
-      where: { status: "ALIVE", locationId },
-      select: {
-        name: true,
-        roleTitle: true,
-        factionId: true,
-        concealed: true,
-        age: true,
-        gender: true,
-        faction: { select: { name: true, slug: true } },
-        tags: {
-          where: {
-            OR: [{ tag: { forcedName: { not: null } } }, { equipped: true, tag: { concealsIdentity: true } }],
-          },
-          select: { equipped: true, tag: { select: { forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
-        },
-      },
-      orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-    }),
-  ]);
-
-  if (present.length === 0) {
+  const viewer = await prisma.character.findFirst({
+    where: { discordUserId: interaction.user.id, status: "ALIVE" },
+    select: { id: true, factionId: true },
+  });
+  const rows = await whosHere(prisma, viewer, { locationId });
+  const lines = whosHereLines(rows);
+  if (lines.length === 0) {
     await respond(interaction, "» *Nobody is here.* ‡");
     return;
   }
-
-  // Concealed the same way the proxy decides it, not straight off the column:
-  // a row still flagged concealed after the mask came off is speaking under its
-  // own name, and listing it here as a stranger would be a lie the room can
-  // check.
-  const rows = present.map((c) => {
-    const piece = concealmentFrom(c.tags);
-    return { ...c, forcedName: forcedNameFrom(c.tags), concealed: Boolean(piece && (piece.forced || c.concealed)) };
-  });
-  const named = rows
-    .filter((c) => !c.concealed || c.forcedName)
-    .map((c) => {
-      if (c.forcedName) return c.forcedName;
-      const sameFaction =
-        viewer?.factionId &&
-        c.factionId === viewer.factionId &&
-        !isUnaffiliated(c.faction) &&
-        c.roleTitle;
-      return sameFaction ? `${c.name}, ${c.roleTitle}` : c.name;
-    });
-  // No title on a concealed line: a Role is as identifying as a name.
-  const hidden = rows
-    .filter((c) => c.concealed && !c.forcedName)
-    .map((c) => withArticle(concealedAlias(c).toLowerCase()));
-
-  const lines = [];
-  if (named.length > 0) lines.push(`**Here:** ${named.join(" | ")}`);
-  if (hidden.length > 0) lines.push(`**Also here:** ${hidden.join(" | ")}`);
   await respond(interaction, `${lines.join("\n")} ‡`);
 }
 
@@ -1612,119 +1462,23 @@ async function handleMoveSubmit(interaction) {
   await ack(interaction);
 
   const character = await findAliveCharacter(interaction.user.id);
-  if (!character) {
-    await respond(interaction, "» *You don't have a living character.*");
-    return;
-  }
-
-  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-  if (!openTurn) {
-    await respond(interaction, "» *No turn is currently open — your submission wasn't recorded.*");
-    return;
-  }
-
-  // Re-checked here, not only at move:open — a modal can sit open across
-  // the cutoff. Before the Action row so a refusal costs no turn.
-  const { locked, cutoffAt, endsAt } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
-  if (locked) {
-    await respond(
-      interaction,
-      `» *Moves for this turn locked at <t:${epochSeconds(cutoffAt)}:t>. The next turn opens <t:${epochSeconds(endsAt)}:R>.*`,
-    );
-    return;
-  }
-
-  const alreadyActed = await prisma.action.findFirst({
-    where: { characterId: character.id, turnId: openTurn.id },
+  const result = await fileMove(prisma, {
+    character,
+    actorDiscordUserId: interaction.user.id,
+    moveKind: interaction.fields.getRadioGroup("move:kind"),
+    description: interaction.fields.getTextInputValue("move:body"),
   });
-  if (alreadyActed) {
-    await respond(interaction, "» *You've already locked in a Move this turn — your submission wasn't recorded.*");
+  if (!result.ok) {
+    await respond(interaction, `» *${result.error}*`);
     return;
   }
-
-  // The same gate every web action runs (db/lib/incapacitation.js): Bound,
-  // Dying, Crucified, out cold — none of them files a Move. Checked after the
-  // already-acted test so a refusal costs nothing, and before the Action row
-  // so a refused Move never lands on the desk.
-  const heldTags = await prisma.characterTag.findMany({
-    where: { characterId: character.id },
-    select: { tag: { select: { slug: true, name: true } } },
-  });
-  const stuck = blockerFor(heldTags, ACT);
-  if (stuck) {
-    await respond(interaction, `» *You can't act right now — you're ${stuck.name}. Your submission wasn't recorded.* ‡`);
-    return;
-  }
-
-  const raw = interaction.fields.getTextInputValue("move:body").trim();
-  if (!raw) {
-    await respond(interaction, "» *Write something first.*");
-    return;
-  }
-
-  const moveKind = interaction.fields.getRadioGroup("move:kind");
-  const description = raw;
-
-  // Labor is its own kind now, not a checkbox riding along with a Routine —
-  // so picking it IS forgoing the day's other business, and the old
-  // Labor+Gambit refusal is structurally impossible rather than enforced.
-  let resourceRollExpression = null;
-  let laborRate = null;
-  if (moveKind === "LABOR") {
-    laborRate = await resolveLaborRate(prisma, character.id);
-    if (!laborRate.ok) {
-      await respond(interaction, `» *${laborRate.reason}*`);
-      return;
-    }
-    resourceRollExpression = laborRate.expression;
-  }
-
-  // @@unique([characterId, turnId]) is the real gate; a retried interaction
-  // at rollover must not become a second Move.
-  let action;
-  try {
-    action = await prisma.action.create({
-      data: {
-        characterId: character.id,
-        turnId: openTurn.id,
-        type: "MOVE",
-        status: "PENDING_TYPE",
-        moveKind,
-        description,
-        resourceDelta: null,
-        resourceRollExpression,
-        zoneId: character.zoneId ?? null,
-        // Stamped at filing time. A free zone move costs no Action, so by the
-        // time a Labor pays at turn close they may be standing somewhere else
-        // (Action.locationId in schema.prisma).
-        locationId: character.locationId ?? null,
-      },
-    });
-  } catch (err) {
-    if (err.code === "P2002") {
-      await respond(interaction, "» *You've already acted this turn.*");
-      return;
-    }
-    throw err;
-  }
-
-  await touchCharacterActivity(prisma, character.id);
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: interaction.user.id,
-      actionType: "move_submitted",
-      targetCharacterId: character.id,
-      details: { actionId: action.id, kind: moveKind, tier: laborRate?.tier ?? null },
-    },
-  });
 
   const loaded = await prisma.action.findUnique({
-    where: { id: action.id },
+    where: { id: result.action.id },
     include: { character: { include: { tags: { include: { tag: true } } } } },
   });
 
-  const { lines } = await confirmMove(loaded, interaction.user.id, { laborRate });
+  const { lines } = await confirmMove(loaded, interaction.user.id, { laborRate: result.laborRate });
   await respond(interaction, lines.join("\n"));
 }
 

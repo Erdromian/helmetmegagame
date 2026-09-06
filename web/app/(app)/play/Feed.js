@@ -163,7 +163,7 @@ function newClientId() {
   return `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export default function Feed({ place, self, onSeen }) {
+export default function Feed({ place, self, onSeen, onOpenSheet = null }) {
   const placeKey = place?.placeKey ?? null;
   const rows = useFeed(placeKey);
   const coarse = useIsCoarsePointer();
@@ -469,10 +469,11 @@ export default function Feed({ place, self, onSeen }) {
               : "You can only watch here. ‡"}
           </p>
         )}
-        {/* Phase 3 hangs the people, the place panel and the You strip off
-            this. It is drawn now, disabled, so the composer's shape does not
-            move under a player when it arrives. */}
-        <IconButton icon={ZapIcon} label="Soon ‡" disabled />
+        {/* The phone's way to the right column: the people, the place panel
+            and the You strip, as a sheet over the scene. Drawn even on a
+            desktop, where the column is already there, so the composer's
+            shape does not move between the two. */}
+        <IconButton icon={ZapIcon} label="Here and the place ‡" disabled={!onOpenSheet} onClick={onOpenSheet ?? undefined} />
       </div>
 
       <FormError>{error}</FormError>

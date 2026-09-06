@@ -98,7 +98,23 @@ function rollGatehouseTurretOnArrival(prisma, { characterId, toLocationId, turn 
   });
 }
 
+// What somebody types to throw the switch, per direction. Deliberate
+// friction — a misclick on a red button should not be able to shoot the Keep
+// — and it lives here rather than in the bot's modal builder so the Hall's
+// confirm asks for the same word. Case and stray spaces are forgiven.
+const ARM_WORD = "ARM";
+const DISARM_WORD = "DISARM";
+
+// `armed` is the turret's state RIGHT NOW, so the confirm asks for the
+// opposite.
+function turretWordMatches(typed, armed) {
+  return String(typed ?? "").trim().toUpperCase() === (armed ? DISARM_WORD : ARM_WORD);
+}
+
 module.exports = {
+  ARM_WORD,
+  DISARM_WORD,
+  turretWordMatches,
   GATEHOUSE_LOCATION_SLUG,
   GATEHOUSE_TURRET_DM,
   TURRET_ARMED_LINE,
