@@ -696,20 +696,6 @@ async function handleIntercomSubmit(interaction, roomId) {
     await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.* ‡`);
     return;
   }
-  // Deaf is the one impairment enforced on the SENDING side only. A shout and
-  // a PA both land in shared Discord channels, and there is no way to hide a
-  // channel message from one member of it — so a deaf character will read
-  // every broadcast whatever we do, and not hearing stays roleplay. What we
-  // can honestly say is that they don't work a handset they can't hear.
-  const deaf = await prisma.characterTag.findFirst({
-    where: { characterId: character.id, quantity: { gt: 0 }, tag: { slug: "deaf" } },
-    select: { id: true },
-  });
-  if (deaf) {
-    await respond(interaction, "» *You can't hear a thing coming back down the line.* ‡");
-    return;
-  }
-
   const { sent, failed } = await broadcastIntercom(prisma, body);
 
   // The transcript. The old #intercom was a tupper channel, so PA traffic went

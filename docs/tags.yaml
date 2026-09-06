@@ -1360,7 +1360,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: false
-    conflictsWith: [deaf]
 
   glass-jaw:
     catalog: all
@@ -4185,17 +4184,6 @@ tags:
     description: "An old injury never healed quite right. You can walk okay, but people know you're coming."
     pointCost: -2
     visible: true
-    purchasable: true
-    purchasableAfterStart: false
-    removable: false
-
-  deaf:
-    catalog: all
-    name: Deaf
-    category: health
-    group: health-maiming
-    description: "There's no sign language, so good luck."
-    pointCost: -6
     purchasable: true
     purchasableAfterStart: false
     removable: false

@@ -1993,14 +1993,6 @@ block SPEAK.** For the same reason, a refused message still writes the
 speaker's activity (`bot/src/lib/proxy.js`) — being Mute must not march
 somebody toward an auto-kill for trying to talk.
 
-**Deaf, honestly.** `deaf` takes away neither capability. A shout and the
-intercom are both posted into shared Discord channels, and there is no way to
-hide a channel message from one member of it — so a deaf character will read
-every broadcast whatever we do. What is enforced is the sending half: they
-cannot work the intercom, because a handset you cannot hear is no use. Not
-hearing stays roleplay, exactly as it always has. This is a limit of the
-medium, not an omission.
-
 **Composing with Stupid.** `stupid` is not in the table — it garbles speech
 (`db/lib/babble.js`) rather than removing it. The gate runs first: a Stupid
 Mute is silent, not babbling.
