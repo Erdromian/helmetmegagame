@@ -84,7 +84,7 @@ const FIELDS = [
 
   // --- Carrying --------------------------------------------------------------
   {
-    key: "carryWeightLbs", type: "int", group: "carry", default: 120, min: 1, max: 2000,
+    key: "carryWeightLbs", type: "int", group: "carry", default: 84, min: 1, max: 2000,
     label: "Carry cap: lb ‡",
     help: "How many POUNDS of gear a character can carry before they're Overburdened. Skills, injuries and Assets — a horse, a cart, a house — never weigh anything. Strong, Pack Mule and an equipped Cart multiply it. Past 1.5× this, goods can't be theirs at all. ‡",
   },

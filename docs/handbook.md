@@ -382,7 +382,7 @@ Tags are gained, used, and removed via options on your [Character](https://raven
 
 **Stacks:** Some tags can stack, such as meals or ammunition. A stacked chip will show the count, such as `×4`.
 
-**Carrying:** Everything you own has a weight, and you can carry 120 lb of it to start, plus 25 ⬢. Skills and wounds weigh nothing, and neither do your **Assets** — a horse carries itself, and a house doesn't move. Being **Strong**, being a **Pack Mule**, or pulling an equipped **Cart** raises both caps.
+**Carrying:** Everything you own has a weight, and you can carry 84 lb of it to start, plus 25 ⬢. Skills and wounds weigh nothing, and neither do your **Assets** — a horse carries itself, and a house doesn't move. Being **Strong**, being a **Pack Mule**, or pulling an equipped **Cart** raises both caps. ‡
 
 You can go over. Past the cap you're **Overburdened**, which costs you your free Zone moves — you can still travel, you just spend your Move to do it. Past *half again* the cap, though, it simply can't be yours: someone handing it to you is refused, and anything that arrives on its own (a day's harvest, a cave's loot) lands on the floor of a random public room where you stand. ‡
 

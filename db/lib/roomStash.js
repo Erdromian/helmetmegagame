@@ -9,7 +9,7 @@
 // simply gets no announcement.
 // A room that eats what is put into it (Room.destroysContents — the Godard
 // Factory's Spillway) is NEVER eligible. The overflow drop is not a choice
-// anybody made: a refining shift makes 160 lb of Squeeze against a 120 lb cap,
+// anybody made: a refining shift makes 136 lb of Squeeze against an 84 lb cap,
 // so the carry pass fires on the intended loop, every day, and a one-in-three
 // roll would delete a day's work nobody threw away. Tipping something into the
 // trough has to stay a thing you do on purpose (docs/systemdocs/FACTORY.md §9).

@@ -80,7 +80,7 @@ remember a second field. `needsWorkshop()` in `web/lib/tagRequests.js` is the
 one copy, shared by the Craft dialog and `craftRequestImpl`.
 
 `workshop-equipment` is itself a **High Quality** craftable — 9 pt, 26 ⬢, 2
-turns, `smithing-skilled` — and **Immense (70 lb)**, so it is a real decision
+turns, `smithing-skilled` — and **Immense (100 lb)**, so it is a real decision
 to move one. It is the one recipe **exempt from its own gate**, and has to be:
 gating it would mean nobody could ever build the first forge. You raise that
 one in the open, and it is what lets you do the finer work after.

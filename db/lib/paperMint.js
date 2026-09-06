@@ -178,7 +178,7 @@ async function bindBook(tx, character, blankTagId, title, text) {
     name: attempt ? `${bookName(title)} (${attempt + 1})` : bookName(title),
     // A book has real heft, unlike a sheet — ten of them bound between boards
     // is the first thing in the paper group a carry cap should notice.
-    weightLbs: 0.7,
+    weightLbs: 1.5,
     // And unlike a note, a book is something anyone can see you carrying, the
     // title included. What it SAYS is still paperDescription's question.
     inspectVisibility: "ALWAYS",
