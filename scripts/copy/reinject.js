@@ -90,7 +90,7 @@ function main() {
     }
     const issues = checkEntry(entry, entry.value, d.next);
     for (const i of issues) {
-      const rec = { id: d.id, file: entry.file, message: i.message };
+      const rec = { id: d.id, file: entry.file, message: i.message, why: i.why };
       if (i.level === "error") blocking.push(rec);
       else warnings.push(rec);
     }
@@ -116,6 +116,9 @@ function main() {
   if (warnings.length) {
     console.log(`  ${warnings.length} warning(s):`);
     for (const w of warnings) console.log(`    ${w.id}\n      ${w.message}`);
+    const dropped = warnings.filter((w) => w.message.startsWith("drops the ‡")).length;
+    const added = warnings.filter((w) => w.message.startsWith("adds a ‡")).length;
+    console.log(`  ${dropped} mark(s) dropped, ${added} added.`);
     console.log("");
   }
 
@@ -140,10 +143,14 @@ function main() {
   if (blocking.length) {
     console.log(`  ${blocking.length} BLOCKING problem(s) — nothing was written:`);
     for (const b of blocking) console.log(`    ${b.id}\n      ${b.message}`);
-    console.log(
-      "\n  Discord rejects these outright. Because commands are registered with a\n" +
-        "  single full-replace call, one over-long string takes out every command.\n",
-    );
+    if (blocking.some((b) => b.why === "discord-cap")) {
+      console.log(
+        "\n  Discord rejects these outright. Because commands are registered with a\n" +
+          "  single full-replace call, one over-long string takes out every command.\n",
+      );
+    } else {
+      console.log("\n  Fix these in the worksheet and re-run.\n");
+    }
     process.exit(1);
   }
 
@@ -177,12 +184,12 @@ function main() {
   if (touchedYaml.length) {
     console.log("  YAML masters changed — sync them, in this order:\n");
     const order = [
-      ["docs/locations.yaml", "npm run db:sync-locations"],
+      ["docs/zones.yaml", "npm run db:sync-zones"],
       ["docs/tags.yaml", "npm run db:sync-tags"],
       ["docs/taggroups.yaml", "npm run db:sync-tags"],
       ["docs/roles.yaml", "npm run db:sync-roles"],
       ["docs/documents.yaml", "npm run db:sync-documents"],
-      ["docs/systemdocs/infochannel.yaml", "npm run db:rebuild-info-channel"],
+      ["docs/systemdocs/infochannel.yaml", "npm run db:sync-info-channel"],
     ];
     const cmds = [];
     for (const [f, cmd] of order)

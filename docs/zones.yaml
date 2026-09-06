@@ -79,6 +79,18 @@
 #   room still holds none — so re-syncing can neither undo a player carrying
 #   the anvil off nor quietly duplicate it. Tags sync AFTER zones, so an
 #   unknown slug is skipped with a warning rather than throwing.
+# - structures (locations only): what was simply always STANDING there, like
+#   the Square's cross. A flat list of tag slugs that carry a `placement:`
+#   block in docs/tags.yaml:
+#
+#       structures: [crucifix]
+#
+#   Seeded as one COMPLETE Structure each, with no builder and no payer. The
+#   same FLOOR rule as a stash: nothing is created while one of that type is
+#   already standing or going up, and a razed or abandoned one is re-raised
+#   on the next sync. Tags sync AFTER zones, so on a database that has never
+#   had db:sync-tags the first zone sync warns and skips — run db:sync-zones
+#   again after the tags land (LAUNCH.md §5 does).
 # - access (rooms only): a list of Tag slugs from docs/tags.yaml. Non-empty
 #   makes the room PRIVATE, admitting anyone holding ANY of the listed tags.
 #   Slugs aren't checked against the tag catalog here (tags sync after
@@ -184,6 +196,9 @@ zones:
         # everything in Town gets announced, so it is where things get nailed up.
         attributes:
           noticeboard: true
+        # The cross the description promises is a real Structure, so the
+        # Crucify button works here from day one.
+        structures: [crucifix]
         description: >-
           An open clearing — you can actually see the sky, finally. There's a simple platform with gallows at the center. Since the inquisition's arrival, the gallows beams have come to serve the additional purpose of a crucifix. There's a stagnant pond, still and calm aside from the occasional rat seeking water. A solemn gargoyle perches on the central pillar, its eyes long dry since the waterworks broke down. Follow winding streets and alleyways to domiciles ranging from modest homes to opulent manors.
         rooms:
@@ -228,7 +243,7 @@ zones:
           inn-street:
             name: Street
             description: >-
-              The street outside the inn, where unlucky people end up. There's a porch—a fine place to smoke a cigarette.
+              The street outside the inn, where unlucky people end up. There's a porch — a fine place to smoke a cigarette.
           inn-bar:
             name: Bar
             description: >-
@@ -236,7 +251,7 @@ zones:
           inn-second-floor:
             name: Second Floor
             description: >-
-              Upstairs, there's a felt-padded, multipurpose game table. It's quieter here. You can look down over the railing and onto the bar. A sign says: “DENNIS’S WING”
+              Upstairs, there's a felt-padded, multipurpose game table. It's quieter here. You can look down over the railing and onto the bar. A sign says: "DENNIS'S WING"
           inn-balcony:
             name: Balcony
             description: >-
@@ -309,6 +324,7 @@ zones:
               items:
                 paper: 12
                 inquisitors-wax-stamp: 1
+                bag: 1
                 mace: 1
                 padded-cap: 1
                 crossbow: 1
@@ -818,6 +834,17 @@ zones:
             access: [elevator-key]
             description: >-
               A cage suspended over the darkness. Use the pressure plate to descend.
+          undercroft-vault:
+            name: Vault
+            access: [barons-key]
+            description: >-
+              A hydraulically-operated electric vault door seals off a deep room.
+            stash:
+              resources: 14
+              items:
+                obol: 15
+                painting: 1
+                nuclear-device: 1
       road:
         name: Road
         description: >-
@@ -918,7 +945,7 @@ zones:
           cliffs-path:
             name: Cliffside Path
             description: >-
-              A dirt path in the shadow of the keep. The river banks are further south. There's a distinctive boulder overhead, twice a person's height. It looks like a head. You can see dark gaps behind it—there are small caves in the cliffside.
+              A dirt path in the shadow of the keep. The river banks are further south. There's a distinctive boulder overhead, twice a person's height. It looks like a head. You can see dark gaps behind it — there are small caves in the cliffside.
           cliffs-den:
             name: Den
             description: >-
@@ -947,7 +974,7 @@ zones:
         name: North Road
         map_node: 4
         description: >-
-          The road starts to climbs up to the keep with rocky switchbacks. The first steep jumps have rock steps.
+          The road starts to climb up to the keep with rocky switchbacks. The first steep jumps have rock steps.
         yield: { hunting: 0.5, farming: 0.5, fishing: 0.9 }
         rooms:
           north-road-ascent:
@@ -958,7 +985,7 @@ zones:
         name: West Riverbank
         map_node: 5
         description: >-
-          The forest creek widens into a river. Planks, docks, and other bits of waterlogged wood mark mark the territory of fishermen.
+          The forest creek widens into a river. Planks, docks, and other bits of waterlogged wood mark the territory of fishermen.
         yield: { hunting: 0.8, farming: 0.3 }
         rooms:
           riverbank-large-dock:
@@ -978,7 +1005,7 @@ zones:
         name: Deep Forest
         map_node: 6
         description: >-
-          Trees thickly clustered together. It's hard to move through here—it's thorny and overgrown. There's ferns and spiderwebs in the gloom.
+          Trees thickly clustered together. It's hard to move through here — it's thorny and overgrown. There's ferns and spiderwebs in the gloom.
         yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
         rooms:
           deep-forest-brambles:
@@ -1024,13 +1051,15 @@ zones:
             name: Ravine
             description: >-
               The cliffside opens into an open ravine. There's several large puddles in the muddy depressions. To the left, wooden beams support a collapsed mineshaft. There's no getting in there.
-            access: [caving]
+            access: [mountaineering]
       forest-crossroads:
         name: Crossroads
         map_node: 8
         description: >-
           Welcome to Ravenheart.
         yield: { hunting: 0.5, farming: 0.5 }
+        # The two men on the Road room's posts hang from this.
+        structures: [crucifix]
         rooms:
           crossroads-road:
             name: Road
@@ -1051,7 +1080,7 @@ zones:
             name: Outcrop
             description: >-
               Large granite boulders form a natural place to watch the road from.
-            access: [caving]
+            access: [mountaineering]
       forest-culvert:
         name: Culvert
         map_node: 10
@@ -1168,8 +1197,11 @@ zones:
                 shortbow: 1
                 padded-armor: 1
                 padded-cap: 2
+                hood: 2
                 brigandine: 1
                 skinned-cave-rat: 1
+                disguise-kit: 1
+                paper: 4
       hills-black-pines:
         name: Black Pines
         map_node: 27
@@ -1230,6 +1262,15 @@ zones:
               A waterlogged cellar. There's a crate down there — you'd have to be a good swimmer to get it.
             access: [strong-swimmer]
             stash: [flooded-crate]
+          village-old-hut:
+            name: Old Hut
+            description: >-
+              A hut elevated over the marsh, half an hour's walk out of the village proper. The village's last inhabited building.
+            access: [fishermans-key]
+            stash:
+              items:
+                obol: 2
+                rat: 1
       factory:
         name: Godard Factory
         indoors: true
@@ -1285,6 +1326,7 @@ zones:
                 military-autoinjector: 1
                 paper: 9
                 bannerets-wax-stamp: 1
+                cigarette: 1
       marshes-hardground:
         name: Hardground
         map_node: 31
@@ -1372,7 +1414,7 @@ zones:
               customs-yard:
                 name: Customs
                 description: >-
-                  Migrants set up tents here, awaiting for someone to create their necessary paperwork.
+                  Migrants set up tents here, awaiting someone to create their necessary paperwork.
                 stash: [skinned-cave-rat]
               customs-storefront:
                 name: Storefront
@@ -1670,83 +1712,3 @@ connections:
     locked: sewer-key
     keyed: true
     on_foot: true
-
-# ===========================================================================
-# RETIRED PLACES
-#
-# Windlands and the deeper two cave levels came off the map in the Bascinet 2
-# geography rebuild. Their prose is kept here, and only here, because it is
-# good and because a later map may want it back. Nothing below is parsed —
-# it is a comment.
-#
-# --- Zone: Windlands -------------------------------------------------------
-# Little monsters, puddles, and lizards, scorched by foul sunlight and
-# buffeted by hurricane winds. Shadowy, unexplored openings in the mountains
-# lead into the caves.
-#
-#   Warcamp
-#     An arbitrary array of tents, shields, and banners rise against the
-#     mountainside.
-#
-#     War Pavilion — Inside the enormous tent is a round table, with a
-#       parchment map of Ravenheart and its surroundings strewn across it.
-#     Common Grounds — The wide open area features a round sparring ground
-#       with training weapons strewn around the perimeter. Nearby is the
-#       well—don't fall in.
-#     Healer's Tents — A handful of individual bunks under small tents
-#       surround the larger healer's tent. Inside the main tent, a central
-#       slab serves as an operating table, with very basic instruments and
-#       herbal remedies in drawers around it.
-#     Fields — Ranch animals — some distant descendants of the cow — mull
-#       around. The crops grown here are measly and bitter due to the great
-#       distance from the Lifeweb.
-#     Mess Hall — There are tables lined up to form rows with stools situated
-#       on either side. At the far end of the pavilion is a large pot, gently
-#       bubbling over some coals.
-#
-#   Broken Spears Camp
-#     The Broken Spears have claimed this part of the camp as their own.
-#     Despite the signs of revelry — a hookah tent, flagons are scattered
-#     across the tables, tentholes torn in from scuffles — this is clearly a
-#     place of survivors, efficient and minimal.
-#
-#   Windriders Camp
-#     The Windriders have established themselves here. Tents are placed in
-#     orderly rows with equipment in convenient locations, ready to be
-#     equipped at a moments notice. There are banners woven out of human hair.
-#
-#   Mountains
-#     Great peaks which rise above the landscape, shielding the valley from
-#     the worst of the winds. Traversing them will not be easy — the easiest
-#     route would be around and through the river valley, into the Town.
-#
-# --- Cave level: Railroad --------------------------------------------------
-# A powered train station looming over an inscrutable abyss. You could get on,
-# but where would you go? There are openings in the subway tunnels leading
-# into ancient, unused maintenance areas. Where the tunnels break into open
-# air, you can indeed see the pits, deformed and warped into unnatural stone.
-# There's reflective metal down there. Chrome? Ceramite?
-#
-#   Station
-#     A powered train station looming over an inscrutable abyss. You could get
-#     on, but where would you go? Openings in the subway tunnels lead into
-#     ancient, unused maintenance areas; where they break into open air, the
-#     pits show below, deformed and warped into unnatural stone.
-#
-# --- Cave level: Aberrant Pits ---------------------------------------------
-# The start and end of all things. What madness brought you down here? The
-# stone curves into strange, meandering passageways, but ceramite catches your
-# torchlight. Monuments of chrome — cities within the deep.
-#
-#   Chrome City
-#     The stone curves into strange, meandering passageways, but ceramite
-#     catches your torchlight. Monuments of chrome rise ahead — a city within
-#     the deep, and nobody to say who built it.
-#
-# --- Also retired ----------------------------------------------------------
-# Town's Forest location, whose prose became the Forest ZONE's description
-# above. The Depot spent a while as a Location of its own, split out of the
-# Customs description's depot paragraph; it is back inside Customs, because two
-# places at one cave mouth with no edge between them meant a migrant who
-# cleared customs could not walk to the shop.
-# ===========================================================================

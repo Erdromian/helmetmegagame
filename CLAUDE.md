@@ -228,7 +228,7 @@ you pick the right doc — they are never enough to change code with.
 | [`BREWING.md`](docs/systemdocs/BREWING.md) | You're pricing a brew, changing a recipe, or touching the Brewing skill family |
 | [`DEPOT.md`](docs/systemdocs/DEPOT.md) | You're pricing an imported ware, touching `/depot` or the Merchant's credit line, or setting a tag's `depotPrice` / `sellablePrice` |
 | [`DESIRES.md`](docs/systemdocs/DESIRES.md) | You're touching the Desire catalog, its gates/cooldowns/locks, `conflictsWith`, or the Desires GM surface on `/gm/dev` |
-| [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet |
+| [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet — and **always** before adding one a per-turn ration counts |
 | [`BIRD.md`](docs/systemdocs/BIRD.md) | You're touching the Bird's letters, the once-a-day send, or the Reply window |
 | [`PAPERWORK.md`](docs/systemdocs/PAPERWORK.md) | You're touching paper, writing, wax seals, noticeboards, or **anything that asks whether a character can read** (`db/lib/reading.js`) |
 | [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the arbitration workspace, staging, or the turn-end push |
@@ -238,7 +238,7 @@ you pick the right doc — they are never enough to change code with.
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, nicknames, notes |
 | [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, or who can see a member's ⬢ (Leader/Treasurer) |
-| [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, a GM's zone seat, `/gm/gamemasters`, or who can see the audit log |
+| [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, **which zones a GM can see** (`GmZoneView`, the `GM: <Zone>` roles, `/zone`), or who can see the audit log |
 | [`LABORING.md`](docs/systemdocs/LABORING.md) | You're touching Laboring — the tag ladder, a Location's `yield:` coefficients and their drift, the tools (`laborBonus`), the auto-labor pass, or the Examine button |
 | [`FACTORY.md`](docs/systemdocs/FACTORY.md) | You're touching the Godard Factory — Extract, refining Godflesh into Squeeze, the Package button and crate weights, the Spillway, or what eating a cube does |
 | [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
@@ -333,7 +333,15 @@ npm run db:sync-desires              # docs/desires.yaml    (upsert-only; soft-
 npm run db:sync-documents            # docs/documents.yaml  (destructive; last)
 npm run db:sync-narrowcast-channels  # #watch provisioning + reconcile.
                                      #   Run AFTER db:sync-zones.
-npm run db:rebuild-info-channel      # destructive rebuild of #info
+npm run db:sync-info-channel         # #info, edited in place. The default:
+                                     #   an edit notifies nobody, a repost
+                                     #   pings every thread follower.
+                                     #   `-- --dry-run` to preview,
+                                     #   `-- --prune` to delete threads the
+                                     #   YAML no longer names.
+npm run db:rebuild-info-channel      # destructive rebuild of #info. Only when
+                                     #   the ORDER is wrong or the channel is
+                                     #   a mess — it reposts everything.
 
 # Ops. Scripts live in db/scripts/ops/. See SYNC.md §4.
 npm run db:doctor                    # the channel doctor: diffs Discord roles/
@@ -483,36 +491,43 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 | **Zone role** | `Zone.discordRoleId`, one per presence zone ("Zone: Town"), created by `db:sync-zones` | Opens the zone's `#summary`, and — via `#turns`'s own role grants — the standing channels. Swapped by travel; reconciled by the channel doctor. |
 | **Location overwrite** (not a role) | A per-member permission overwrite on the Location's channel, written by `db/lib/locationMove.js` | Channel access: holding it is what shows you the one Location channel a character actually stands in. Swapped by every location change; reconciled by the channel doctor's `location-occupancy` check. Locations wear **no** Discord role — 56 of them would have eaten 56 of the guild's 250, and Discord allows 1000 overwrites per channel. |
 | **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | A mentionable **name token only** (`PROXYING.md` §6) — held by nobody and granting nothing. Channel access is the **zone role and the Location overwrite** instead (`CHANNELS.md` §3). |
-| **GM role** | `DISCORD_GM_ROLE_ID` env var | `/gm` pages, the `/gm` and `/message` slash commands. Checked via REST (`isGm`), not stored on any model. |
+| **GM role** | `DISCORD_GM_ROLE_ID` env var, **or** `TRIAL_GM_ROLE_ID` in `db/lib/roleIds.js` | `/gm` pages, the `/gm` and `/message` slash commands, and the GM's standing channel overwrites. Checked via REST (`isGm`), not stored on any model. The two are access-identical — `gmRoleIds()` is the only list, and the roster on `/gm/dev?s=gamemasters` is the one surface that tells them apart. |
 | **Spectator role** | `SPECTATOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A standing read-only observer seat, applied at provisioning time. See `CHANNELS.md`. |
 | **Player role** | `PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may create a character, paired with `GameConfig.openToPlayers` (`CHARACTERS.md` §4b). |
 | **Leader Whitelist role** | `LEADER_WHITELIST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may pick a role flagged `leader: true` at character creation — unless `GameConfig.leaderWhitelistEnabled` is switched off on `/gm/dev` (`CHARACTERS.md` §2). |
 | **Cursed role** | `DISCORD_CURSED_ROLE_ID` env var | What a player may re-roll as after a death (`CHARACTERS.md` §4), **and** the ghost seat: read-only view of every zone (cave levels included; private threads stay invisible), and no voice at all — the 🌬️ whisper is gone, an unburied body reports itself instead. Its color is pinned to 0 so ghosts aren't outed in the member list (`CHANNELS.md` §3, `COMMANDS.md` §6). |
 | **Turn-ping role** | `DISCORD_TURN_PING_ROLE_ID` env var | Plain opt-in notification, toggled from `/character`. |
 
-One more gate exists that is **not** a Discord role, and it's the only soft
-one in the app. `GmAssignment` (one row per seat, keyed on the pair
-`discordUserId` + `zoneId`, set from `/gm/gamemasters`) seats a zone-GM over
-one or more of the six **seat** zones — Town, Fortress, Forest, Black Hills,
-Marshes, Underground — never one of the two cave levels. All it does is decide which zones that GM's
-tables *open* on. No query is scoped by it, and no row is hidden — a Move
-crosses zones by nature, so hiding rows would break the job. Every other row in
-the table above is real enforcement; this one is just convenience. Read
-[`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) before you try to harden
-it.
+There is one more role family, and it is per-zone rather than global. A
+**`GM: <Zone>`** role (`Zone.gmRoleId`, provisioned by `db:sync-zones` beside
+the access role) is what opens that zone's category, `#summary` and Location
+channels to a GM — the global GM roles above no longer open any of them. Which
+ones a GM holds comes from `GmZoneView`, the zones they picked from the
+inspector's Zones control or with `/zone`, materialized as roles by
+`db/lib/gmZoneRoles.js`. **No rows means every zone**, so nobody is ever
+locked out by not having chosen. The same rows hide desk rows on `/gm/turns`
+and `/gm/players`.
 
-`/gm/gamemasters` and `/gm/dev` are **superadmin-only**, not GM-visible —
+This replaced `GmAssignment`, which was a soft seat that picked a default
+filter and hid nothing. Read
+[`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) before changing it — three
+separate sweeps have to know about the new roles or they delete them.
+
+`/gm/dev` (the GM roster included, at `?s=gamemasters`) is **superadmin-only**, not GM-visible —
 those are host access, not game permission. `/gm/audit` is **open to every
 GM**: it used to be the master's alone, on the argument that with five GMs the
 log is a record *of* them, but that left four people unable to answer "who
 changed this", which is what the log is for.
 
-**Why two role IDs live in code instead of env vars:** a role ID is not a
+**Why these role IDs live in code instead of env vars:** a role ID is not a
 secret — anyone in the guild can read it. Bascinet runs in a single guild, so
 there is exactly one correct value, and it can never differ per environment.
 Meanwhile, a missing env var would have failed silently: a deploy where the
-player gate locked everyone out, or the spectator overwrite did nothing.
-`web/lib/superadmin.js` uses the same reasoning. `DISCORD_TOKEN` is a real
+player gate locked everyone out, or the spectator overwrite did nothing. The
+Trial Gamemaster role is there for the same reason, and a sharper version of
+it: half-configured, it would be a GM who can open the web panel but cannot
+see the channels, or the reverse. `web/lib/superadmin.js` uses the same
+reasoning. `DISCORD_TOKEN` is a real
 credential, so it stays in `.env`.
 
 ## Slash commands
@@ -803,31 +818,48 @@ migrate first, new columns just sit unused for a few seconds — harmless. If
 you redeploy first, you ship code that queries columns the database doesn't
 have yet, for the whole length of a build.
 
-**Migrations do not run themselves, and a bare `git push` is enough to
-deploy.** Railway builds from this GitHub repo, so pushing to `master`
-triggers a deploy with no chance for any script in this repo to migrate
-first. If that deploy carries a new migration, the shipped code queries
-columns the database doesn't have. The symptom is brutal to diagnose from the
-browser: the page throws `P2022` server-side, and Next redacts it to a bare
-digest (`ERROR 330354103`). The whole route goes down, not just the feature
-that needed the column. **This has happened three times.**
+**A bare `git push` is a complete deploy now.** Railway builds from this
+GitHub repo, so pushing to `master` triggers a deploy. Two settings on the
+Railway services make that deploy correct, and both are set:
 
-The only complete fix is a **Pre-Deploy Command on the `web` service**
-(Railway dashboard → web → Settings → Deploy):
+- **Pre-Deploy Command on `web`: `npm run db:migrate:deploy`.** It runs after
+  the build and before the new version takes traffic, so a failed migration
+  aborts the deploy instead of shipping a half-migrated app. Scoped to `web`
+  on purpose — `bot` shares the database and would only race it. Don't use a
+  root `railway.json`, which would apply to both services.
+- **Watch Paths are empty on both services**, so every push rebuilds both.
 
-```
-npm run db:migrate:deploy
-```
+Neither was set for a long time, and each caused its own outage.
 
-It runs after the build and before the new version takes traffic, so a failed
-migration aborts the deploy instead of shipping a half-migrated app. It's
-scoped to `web` on purpose — `bot` shares the database and would only race
-it. Don't use a root `railway.json`, which would apply to both services.
+Without the Pre-Deploy Command, a deploy carrying a new migration shipped code
+querying columns the database didn't have. The symptom is brutal to diagnose
+from the browser: the page throws `P2022` server-side, and Next redacts it to
+a bare digest (`ERROR 330354103`). The whole route goes down, not just the
+feature that needed the column.
 
-Until that field is set, run `npm run db:migrate:deploy` by hand after any
-deploy that adds a migration. (`db:migrate` is `migrate dev` — **never**
-point that at production.) `./migrate.sh` is the one-liner: it sources the
-root `.env` first, since npm won't load the file for you.
+The Watch Paths were worse, because they failed *silently*. `web` watched
+`/web/**` and `bot` watched `/bot/**`, so **nothing watched `/db/**`** — the
+schema, the migrations, and every shared module in `db/lib/`. A push touching
+only shared code was marked `SKIPPED` and the old container kept running, with
+the old **generated Prisma client** baked into its image. That is
+`PrismaClientValidationError: Unknown argument` in production, for exactly the
+reason the stale-client note under "Verifying a change locally" gives. Nothing
+watched `/docs/**` either, and `web/lib/handbook.js` reads `docs/handbook.md`
+off disk at runtime. Leave the Watch Paths empty; the few build-minutes are
+cheaper than one skipped deploy.
+
+If a route ever throws `P2022` again, check the other direction too: a
+migration applied to production from a working tree whose code was never
+pushed leaves the **database ahead of the deployed build**, and a dropped
+column reads identically from the browser. `scripts/push.sh` refuses a push
+while `db/prisma/migrations/` holds an untracked directory, which is the half
+of that this repo can actually catch.
+
+`npm run deploy` is still the path that takes a **backup** first — the
+Pre-Deploy Command does not. Use it for anything destructive. (`db:migrate` is
+`migrate dev` — **never** point that at production.) `./migrate.sh` is the
+one-liner: it sources the root `.env` first, since npm won't load the file for
+you.
 
 Two more things that cause real problems:
 
@@ -883,6 +915,12 @@ global CLIs. To make one able to build, run, and deploy:
   mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
   filed as one `BUY_TAGS` request. What's still open is the rules for earning
   points during play (Desires are currently the only faucet).
+- **`AuditLog` is the whole record of what a player did.** There is no
+  `Request` table any more — player actions apply their effect and write one
+  audit row, there is no reason field and no Undo, and a GM repairs by hand
+  from `/gm/dev`. Three per-turn rations (the medic's cure cap, Dead Simple,
+  a recipe's own `requirementPerTurn`) COUNT those rows, so a new action a
+  ration covers must set `AuditLog.turnId`. See `REQUESTS.md` §1a.
 - **`prisma migrate diff` proposes dropping `ArchiveEntry_content_trgm_idx`.**
   That index lives only in raw migration SQL, so Prisma's schema doesn't know
   about it. Decline the drop; it is not drift you introduced.
@@ -891,7 +929,8 @@ global CLIs. To make one able to build, run, and deploy:
   cannot express. Decline that drop too — without it a character could hold
   two live applications to one faction. `ThreatSpawn_pending_unique` is the
   third of these, and the same answer: without it a player could hold two live
-  spawn offers (`THREATS.md` §4).
+  spawn offers (`THREATS.md` §4). `AuditLog_details_trgm_idx` is the fourth,
+  and the reason `/gm/audit`'s text search is not a full-table scan.
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
   carries `restInvalidCount` / `restInvalidWindowStart` /
   `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the

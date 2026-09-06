@@ -13,7 +13,12 @@ import Tooltip from "./Tooltip";
 // the trap rather than asking a polite "are you sure?" — the failure mode is
 // somebody arming it while concealed and being shot by their own gun, and a
 // vague confirm would not have stopped that.
-export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled }) {
+//
+// The generator is split by direction. A Docker with a keycard can feed it and
+// fire it up, because a dead generator otherwise means a dead Depot until the
+// Merchant next logs in — a whole real day on 24-hour turns. Only the licence
+// can shut it down, because the lights going out take the turret with them.
+export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled, handPoweredDisabled }) {
   const [refresh] = useRefresh();
   const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
@@ -100,7 +105,13 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
         <button
           type="button"
           className={depot.generatorOn ? "btn-quiet mt-4" : "btn mt-4"}
-          disabled={disabled || pending || (!depot.generatorOn && depot.generatorFuel <= 0)}
+          // Starting is a hand's job, stopping is the licence-holder's, and
+          // neither may be gated on the power it is there to restore.
+          disabled={
+            (depot.generatorOn ? poweredDisabled : handPoweredDisabled) ||
+            pending ||
+            (!depot.generatorOn && depot.generatorFuel <= 0)
+          }
           onClick={() => setDialog({ kind: "power" })}
         >
           {depot.generatorOn ? "Shut it down" : "Fire it up"}
@@ -126,7 +137,7 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
                   <button
                     type="button"
                     className="btn-quiet"
-                    disabled={disabled || pending || !source.held}
+                    disabled={handPoweredDisabled || pending || !source.held}
                     onClick={() => {
                       setDialog({ kind: "refuel", ...source });
                       setQuantity(1);

@@ -15,6 +15,7 @@
 // context the caller already has in hand rather than each one costing its own
 // round trip.
 const { computeRate, SPECIALISATION_KINDS } = require("./production");
+const { INCAPACITATING_SLUGS } = require("./incapacitation");
 const { isRefinery, refineryInput, REFINERY_YIELD } = require("./refinery");
 const { LIFEWEB_SPUTTER_THRESHOLD } = require("./lifeweb");
 const { structuresAt } = require("./structures");
@@ -25,7 +26,40 @@ const {
   LABORING_FARMING_SLUG,
   LABORING_HUNTING_SLUG,
   LABORING_FISHING_SLUG,
+  LAZY_SLUG,
 } = require("./constants");
+
+// Lazy takes a quarter off the top. Applied AFTER the roll — it's a cut of
+// whatever Resources actually landed, not a change to the range rolled
+// against. 0.75 is Bascinet's number.
+const LAZY_YIELD_FACTOR = 0.75;
+
+// Rounds a rolled Resource value down for a Lazy holder; passes everything
+// else through unchanged. `heldSlugs` may be a Set or an array.
+function lazyYield(value, heldSlugs) {
+  if (value == null) return value;
+  const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
+  if (!held.has(LAZY_SLUG)) return value;
+  return Math.max(0, Math.floor(value * LAZY_YIELD_FACTOR));
+}
+
+// Scales the STORED expression the same way lazyYield scales the rolled
+// value, so the printed range ("Resource roll (0–13)") matches the range the
+// payout actually lands in rather than showing the pre-cut range with a
+// below-range value. floor(0.75·v) <= floor(0.75·max) for every v <= max, so
+// a value rolled from the raw expression and then cut by lazyYield always
+// falls inside the cut expression returned here. Anything that isn't the
+// plain MACHINE "min-max" shape (a refinery's "0-0" still matches it) is
+// returned unchanged rather than guessed at.
+function lazyExpression(expression, heldSlugs) {
+  if (!expression) return expression;
+  const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
+  if (!held.has(LAZY_SLUG)) return expression;
+  const match = /^(\d+)-(\d+)$/.exec(expression);
+  if (!match) return expression;
+  const [, min, max] = match;
+  return `${Math.floor(Number(min) * LAZY_YIELD_FACTOR)}-${Math.floor(Number(max) * LAZY_YIELD_FACTOR)}`;
+}
 
 // Soft Hands halves what you make, rounded down. It lands AFTER the tools, so
 // it is literally "half the Resources you make": a Soft-Handed hunter with a
@@ -184,6 +218,17 @@ function structureTools(structures) {
 function computeLaborAccess(ctx) {
   if (ctx.tagSlugs.has(EXHAUSTED_SLUG)) {
     return { ok: false, reason: "You're still **Exhausted** from your last labor." };
+  }
+  // Tied up, bleeding out, on the floor or out cold. This is the seam the
+  // manual Labor declaration and the Factory's production tiers share, so one
+  // check here covers both — the auto-labor pass has its own, because it
+  // never asks this function anything.
+  //
+  // Only LABOR. A Routine or a Gambit written as "I lie here and work at the
+  // ropes" is a legitimate move for a bound character and a GM's to judge.
+  const blocked = [...ctx.tagSlugs].find((slug) => INCAPACITATING_SLUGS.has(slug));
+  if (blocked) {
+    return { ok: false, reason: "You're in no state to be working. ‡" };
   }
   return { ok: true };
 }
@@ -399,6 +444,8 @@ async function resolveLaborRate(prisma, characterId) {
 
 module.exports = {
   LIFEWEB_FAILURE_MULTIPLIER,
+  lazyYield,
+  lazyExpression,
   buildLaborContext,
   canLaborAtAll,
   computeLaborAccess,

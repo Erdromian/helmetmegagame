@@ -72,13 +72,46 @@ Three doors, deliberately different:
 
 | Holder | Can |
 |---|---|
-| **Merchant's Licence** | Everything: order, call and send the shuttle, the ATM, the credit line, the generator, the turret. Must be standing at the Depot, and (except for the power switch) the generator must be running. |
-| **Depot Keycard** | Read the console. Enter the landing pad. Open crates, including sealed ones. Operates nothing. |
+| **Merchant's Licence** | Everything below, plus the money and the gun: order, the ATM, the credit line, the ⬢ counter, arming and disarming the turret, and shutting the generator down. |
+| **Depot Keycard** | Enter the landing pad. Open crates, including sealed ones. Call the shuttle down, load it and send it back up. Feed the generator and fire it up. Spends nothing. |
 | **Superadmin** | Read the console. |
 | Anyone else | Bounced off `/depot`. |
 
 The licence is checked, never the Merchant **role** — the licence is tradeable
-and a role check would quietly break that.
+and a role check would quietly break that. The keycard is checked the same way
+and for the same reason.
+
+Everything except reading needs you **standing at the Depot**, and everything
+except the fuel hatch and the two generator switches needs the generator
+**running**.
+
+**The keycard used to operate nothing.** It read the console and cracked
+crates, and that was all. The turn length is what changed it: one turn is one
+real day, so "the Merchant will call the shuttle down when he wakes up" is a
+day of nothing moving, and a player who paid yesterday is still waiting. The
+split is between **labour and money**. A keycard does the work — three server
+actions plus the crate one, all of them either free or paid for out of the
+Docker's own pocket — and cannot spend an obol, draw on the credit line, or
+point the gun at anybody.
+
+Two edges of that are deliberate rather than accidental:
+
+- **Sending the shuttle up is the sharp one.** A keycard can sell everything
+  standing on the pad. That is the real cost of the change, and it is the same
+  exposure the pad has always had — the room is a stash anyone with a card can
+  walk into and carry off, so a card that can *load* the shuttle is not a new
+  door, only a faster one. The payout lands in the station's account either
+  way, so it moves goods, never money out of the Depot, and the ledger names
+  whoever pressed it.
+- **The generator is split by direction.** A keycard may start it, because a
+  dead generator otherwise takes the whole station down for a day. Only the
+  licence may shut it down, because the lights going out take the **turret**
+  with them, and handing a keycard the off switch would hand it the security
+  system.
+
+The gates live in `web/app/(app)/depot/actions.js`:
+`requireDepotStanding` does the standing, the ACT check and the power, and
+`requireLicensedMerchant` / `requireDepotHand` sit on top of it.
 
 ## 0c. The generator
 
@@ -372,6 +405,17 @@ His float is deliberately thin, and thinner than the rest of the cast's scaled
 with it: the Company's line, 75 ¢, is nearly four times his own purse, and it
 is where most of his first order has to come from. It has to be paid back.
 
+**Debtor** is a separate faucet, off the drawback catalog rather than
+`docs/roles.yaml`: taking the tag grants 20 obols in the creation transaction
+(`DEBTOR_STARTING_OBOLS`, `db/lib/wantedPoster.js`), and the character owes
+40 back. That debt is only ever paper — three notices go up ("DEBTOR:
+{name}. Owes: 40 obols. Send the dockers."), a loose sheet each in the
+Merchant's Office and the Storefront, and one pinned to the Customs
+noticeboard. It shares the Wanted poster machinery (`NOTICE_SPECS.DEBTOR`),
+just with different rooms and no zone name, since the debt is the debt
+wherever the debtor is standing. Nothing collects it automatically — the
+notices are a standing invitation to a GM or another player, not a clock.
+
 ## 0h. The console
 
 `/depot`. A cockpit strip that never scrolls away — greeting, balance,
@@ -446,6 +490,22 @@ whole of `PAPERWORK.md` is a menu people look at once. It is also the only ware
 with no sell-back price at all: a resale market in blank paper is not a thing
 anybody needs, and 1 ⬢ leaves no room under it anyway.
 
+**Sell-back is 60% of the buy price**, rounded, with a floor of 1 ⬢. It used to
+be ~44%, and the counter was a bad place to stand: the spread ate so much of a
+resale that stocking goods to trade on was barely a living, and the Merchant's
+own seat is supposed to be a trade. Import prices came down ~18% in the same
+pass, so buying in is cheaper and selling on actually pays. The station still
+takes 40%, which is margin enough that round-tripping a rifle for its own sake
+is a slow way to lose money. ‡
+
+Seven wares carry a **wage floor** instead: `alcohol`, `distilled-coca`,
+`fishing-rod`, `trapping-gear`, `phrygian-tears`, `gladiator-helmet` and
+`workshop-equipment`. Each is craftable or brewable, so its `sellablePrice` is
+what a *maker* earns under §4's bands, not what a reseller gets back. 60% is a
+raise for five of them and would have been a pay cut for `alcohol` (4) and
+`distilled-coca` (10), so those two keep the higher number. The rule is that
+the wage never goes down. ‡
+
 Six are also creation picks, marked in the Notes column: `jewelry` (2 pt),
 `instant-camera` (2), `sword-cane` (7), `surgical-equipment` (9),
 `poison-snooper` (9) and `neoclassic-rw10` (14). All six are
@@ -458,58 +518,62 @@ buying one mid-game is still a real decision.
 | Ware | ⬢ | Sells back | Notes |
 |---|---|---|---|
 | `paper` | 1 | — | **The cheapest thing on the shelf**, deliberately. Blank stock: writing on it mints the letter (`PAPERWORK.md`). Sells back for nothing, so buying and reselling is pure loss. |
-| `tea` | 3 | 1 | Cures minor nerve effects — `afraid`, `panic`. Adjudicated, not automated. |
-| `coffee` | 3 | 1 | Consumes into `caffeinated` (2t) |
-| `firecracker` | 4 | 1 | |
-| `cigarette` | 6 | 2 | A Mudghara import. Twice the price of `tea`, since it is the pricier vice. ‡ |
+| `coffee` | 2 | 1 | Consumes into `caffeinated` (2t) |
+| `tea` | 2 | 1 | Cures minor nerve effects — `afraid`, `panic`. Adjudicated, not automated. |
+| `firecracker` | 3 | 2 | |
+| `honey` | 4 | 2 | Consumes into `ate-meal` |
+| `sky-lantern` | 4 | 2 | |
+| `sweets` | 4 | 2 | Consumes into `ate-meal` |
 | `alcohol` | 5 | 4 | He stocks the local brew too |
-| `rat-mask` | 15 | 6 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source. |
-| `sweets` | 5 | 2 | Consumes into `ate-meal` |
-| `honey` | 5 | 2 | Consumes into `ate-meal` |
-| `sky-lantern` | 5 | 2 | |
+| `cigarette` | 5 | 3 | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. ‡ |
+| `boombox` | 11 | 7 | |
 | `distilled-coca` | 11 | 10 | Also a Skilled brew, at 4 ⬢ — see §4 |
-| `boombox` | 13 | 5 | |
-| `sake` | 14 | 2 | Consumes into `tipsy`. Priced level with `ravenheart-red`'s 14 — its only price, since it has no `depotPrice` of its own |
-| `whip` | 14 | 6 | Equippable |
-| `censer` | 15 | 6 | |
-| `jewelry` | 16 | 8 | Also a 2-pt creation pick |
-| `black-body-bag` | 27 | 11 | |
-| `poison-snooper` | 27 | 12 | **The exception:** also buyable at creation, 9 pt |
-| `monkey` | 27 | 11 | |
-| `sword-cane` | 28 | 12 | Also a 7-pt creation pick |
-| `instant-camera` | 32 | 14 | Also a 2-pt creation pick |
-| `microscope` | 35 | 15 | |
-| `phrygian-tears` | 36 | 20 | Also a Skilled brew, at 4 ⬢ — see §4 |
-| `surgical-equipment` | 38 | 17 | Also a 9-pt creation pick |
-| `light-infantry-armour` | 41 | 18 | Stops a bullet. Nothing forged here does. |
-| `hound` | 46 | 20 | |
-| `soporific` | 55 | 24 | Inflicts `asleep` (1t) |
-| `amoeba-vial` | 64 | 28 | |
-| `illusion-crystal` | 73 | 32 | |
-| `bb-pistol` | 75 | 33 | Equippable |
-| `silencer` | 90 | 39 | Equippable. The Merchant starts holding one |
-| `homunculus` | 91 | 40 | |
-| `antibiotics` | 100 | 44 | Cures every stage of infection |
-| `silver-sword` | 150 | 66 | |
-| `chainsaw` | 154 | 68 | Cuts two Godflesh per Extract, and farms at +2 ⬢ — `FACTORY.md` |
-| `steam-automobile` | 164 | 72 | Fast-travels like a Horse — see below |
-| `neoclassic-rw10` | 164 | 72 | Neoclassic R&W10. Also a 14-pt creation pick. |
-| `ml-23` | 182 | 80 | A 9mm pistol |
-| `motorcycle` | 209 | 92 | Caving loot he also imports |
-| `adamantium-sword` | 230 | 101 | |
-| `flamethrower` | 237 | 104 | Caving loot he also imports |
-| `ctt43-rifle` | 260 | 114 | A .308 semi-automatic |
-| `kpfw-6-avtomat` | 540 | 237 | The dearest thing on the counter |
+| `sake` | 11 | 7 | Consumes into `tipsy`. Under `ravenheart-red`'s 14 — its only price, since it has no `depotPrice` of its own |
+| `whip` | 11 | 7 | Equippable |
+| `censer` | 12 | 7 | |
+| `rat-mask` | 12 | 7 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source. |
+| `jewelry` | 13 | 8 | Also a 2-pt creation pick |
+| `black-body-bag` | 22 | 13 | |
+| `monkey` | 22 | 13 | |
+| `poison-snooper` | 22 | 13 | **The exception:** also buyable at creation, 9 pt |
+| `sword-cane` | 23 | 14 | Also a 7-pt creation pick |
+| `instant-camera` | 26 | 16 | Also a 2-pt creation pick |
+| `microscope` | 29 | 17 | |
+| `surgical-equipment` | 31 | 19 | Also a 9-pt creation pick |
+| `light-infantry-armour` | 34 | 20 | Stops a bullet. Nothing forged here does. |
+| `phrygian-tears` | 36 | 22 | Also a Skilled brew, at 4 ⬢ — see §4 |
+| `hound` | 38 | 23 | |
+| `soporific` | 45 | 27 | Inflicts `asleep` (1t) |
+| `amoeba-vial` | 52 | 31 | |
+| `illusion-crystal` | 60 | 36 | |
+| `bb-pistol` | 61 | 37 | Equippable |
+| `silencer` | 74 | 44 | Equippable. The Merchant starts holding one |
+| `homunculus` | 75 | 45 | |
+| `antibiotics` | 82 | 49 | Cures every stage of infection |
+| `horse` | 90 | 54 | **The dearest thing that is not a weapon or armour.** Also a 9-pt creation pick, and `purchasableAfterStart: false` — so mid-game the Merchant is the only horse in Ravenheart |
+| `silver-sword` | 123 | 74 | |
+| `chainsaw` | 126 | 76 | Cuts two Godflesh per Extract, and farms at +2 ⬢ — `FACTORY.md` |
+| `neoclassic-rw10` | 134 | 80 | Neoclassic R&W10. Also a 14-pt creation pick. |
+| `steam-automobile` | 134 | 80 | Fast-travels like a Horse — see below |
+| `energy-shield` | 145 | 87 | **The dearest thing on the shelf that is not a gun.** Stops bullets outright and softens a melee blow — the best odds against the Fortress turret in the game, though a minor wound is still very possible. Caving loot he also imports, and GM-granted until now. ‡ |
+| `ml-23` | 149 | 89 | A 9mm pistol |
+| `motorcycle` | 171 | 103 | Caving loot he also imports |
+| `adamantium-sword` | 189 | 113 | |
+| `flamethrower` | 194 | 116 | Caving loot he also imports |
+| `ctt43-rifle` | 213 | 128 | A .308 semi-automatic |
+| `kpfw-6-avtomat` | 443 | 266 | The dearest thing on the counter |
 
 Three of these need code, not just catalog data:
 
-- **`steam-automobile`** is in `FAST_TRAVEL_SLUGS`
-  (`web/lib/tagRequests.js`) alongside the two horses. Same request and the
+- **`steam-automobile`** and **`horse`** are `FAST_TRAVEL_SLUGS`
+  (`db/lib/mounts.js`). Same request and the
   same once-a-day limit, which `fastTravelRequestImpl` really does enforce
   along with adjacency. "Easily visible" and "not through the caves" are
   **adjudicated, not enforced** — exactly as they already are for the two
-  horses, whose catalog text says the same thing. Worth knowing, since he buys
-  the thing standing in the Caves.
+  horse, whose catalog text says the same thing. Worth knowing, since he buys
+  the thing standing in the Caves. The Horse is priced under the Automobile on
+  purpose: they buy the same free zone move, and the machine is the one that
+  never spooks, never eats and never has to wait outside.
 - **`coffee`** consumes into `caffeinated`, a status tag that exists only for
   it. **`soporific`** does *not* consume into `asleep`, and that is on purpose:
   you administer it to somebody else, so a self-targeting grant would put the

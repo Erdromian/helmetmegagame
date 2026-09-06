@@ -123,13 +123,23 @@ async function mintLetterFor(tx, recipientId, authorName, text) {
 // deliberately does NOT do is spend anything, so each caller decides what the
 // paper cost.
 async function mintPaperRow(tx, ownerId, authorName, text) {
-  const character = { id: ownerId, name: authorName };
+  const tag = await mintUnownedPaper(tx, ownerId, authorName, text);
+  await addToStack(tx, ownerId, tag.id, 1, {});
+  return tag;
+}
+
+// The same row, in nobody's hands. A sheet that lands in a room stash or on a
+// noticeboard never touches a character, so the owner half of mintPaperRow
+// would be a write it then has to undo. `seed` is only the slug's uniquifier —
+// any stable-ish string does, and a caller with no character passes whatever
+// it has.
+async function mintUnownedPaper(tx, seed, authorName, text) {
   const groupId = await paperGroupId(tx);
 
   const tag = await createWithRetry(tx, (attempt) => ({
     ...PAPER_SHAPE,
     groupId,
-    slug: paperSlug(character.id, attempt),
+    slug: paperSlug(seed, attempt),
     // A fresh code per attempt, so a collision is resolved by re-rolling the
     // waybill rather than by appending "(2)" — two sheets called "A Note
     // (TG-4596)" and "A Note (TG-4596) (2)" would look related and are not.
@@ -139,11 +149,10 @@ async function mintPaperRow(tx, ownerId, authorName, text) {
     description: null,
     paperKind: "PAPER",
     paperText: (text ?? "").trim(),
-    paperAuthor: character.name,
+    paperAuthor: authorName,
   }));
   if (!tag) throw new Error("Could not name the paper.");
 
-  await addToStack(tx, character.id, tag.id, 1, {});
   return tag;
 }
 
@@ -303,6 +312,7 @@ module.exports = {
   bindBook,
   tearUpBook,
   mintLetterFor,
+  mintUnownedPaper,
   sealWithMark,
   appendToPaper,
   sealPaper,

@@ -4,7 +4,7 @@
 // throws at load. Pure helpers a client component needs go in their own
 // import-free file (see stagingReach.js).
 import { CATATONIC_SLUG } from "@lifeweb/db/lib/constants";
-import { statusWord, HOLDS_EDGE } from "@lifeweb/db/lib/structures";
+import { statusWord, WORKING_STATUSES } from "@lifeweb/db/lib/structures";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, rollLabel } from "@/lib/moves";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
@@ -51,8 +51,8 @@ export const STAGED_MESSAGE_INCLUDE = {
 
 // The Caving lens' row shape. Same "one mapper, both callers" rule as the Move
 // rows above: page.js builds the open turn's rows and getMoveHistory builds a
-// past turn's, so cavingRollRow has to be the single source. lootRequest is
-// selected so a FIND can offer Undo (see CAVING.md §4).
+// past turn's, so cavingRollRow has to be the single source. lootTag and
+// lootUndoneAt are what let a FIND offer Undo (see CAVING.md §4).
 export const CAVING_ROLL_INCLUDE = {
   character: {
     select: {
@@ -71,7 +71,6 @@ export const CAVING_ROLL_INCLUDE = {
   // narrate, since "somewhere in the Caves" is not a place to set a scene in.
   location: { select: { name: true } },
   lootTag: { select: { name: true } },
-  lootRequest: { select: { id: true, status: true } },
 };
 
 function isConfirmed(a) {
@@ -110,13 +109,13 @@ export function paidLabel(applied) {
 
 // "Palisade — standing: A ring of sharpened stakes…" — one line per
 // structure at a Location, in creation order. The defenseNote prints ONLY
-// while the structure actually works (HOLDS_EDGE — COMPLETE or DAMAGED):
-// a ruined Battering Ram must not hand the desk a siege licence its wreck
-// no longer grants. The status word still prints for every row, so the
+// while the structure actually works (WORKING_STATUSES — COMPLETE or
+// DAMAGED): a ruined Battering Ram must not hand the desk a siege licence its
+// wreck no longer grants. The status word still prints for every row, so the
 // ruin stays visible as scenery. Imported, not mirrored: this module is
 // server-only (it already imports the db barrel), so there is no reason
 // for a second copy of the list that gates the licence.
-const NOTE_STATUSES = new Set(HOLDS_EDGE);
+const NOTE_STATUSES = new Set(WORKING_STATUSES);
 
 function standingHereLines(structures) {
   if (!structures?.length) return [];
@@ -265,9 +264,9 @@ export function cavingRollRow(c, { usernameById, catatonicIds }) {
     kind: c.kind,
     kindLabel: CAVING_KIND_LABELS[c.kind] ?? c.kind,
     lootTier: c.lootTier ?? null,
+    lootTagId: c.lootTagId ?? null,
     lootTagName: c.lootTag?.name ?? null,
-    lootRequestId: c.lootRequest?.id ?? null,
-    lootRequestStatus: c.lootRequest?.status ?? null,
+    lootUndoneAt: c.lootUndoneAt ? c.lootUndoneAt.getTime() : null,
     statusLabel: c.resolvedAt ? "Resolved" : "Needs attention",
     resolvedAt: c.resolvedAt ? c.resolvedAt.toISOString() : null,
     resolvedByUsername: c.resolvedByDiscordUserId

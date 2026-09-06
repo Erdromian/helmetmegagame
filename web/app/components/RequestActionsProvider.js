@@ -74,6 +74,8 @@ import {
   moveCharacterRequest,
   bindCharacterRequest,
   freeCharacterRequest,
+  crucifyCharacterRequest,
+  disguiseSelfRequest,
   harmCharacterRequest,
   buryCharacterRequest,
   butcherCorpseRequest,
@@ -82,6 +84,7 @@ import {
   extractGodfleshRequest,
   packageItemsRequest,
 } from "../(app)/character/requestActions";
+import { readPointer, armNuke, disarmNuke } from "@/app/(app)/character/nukeActions";
 // Writing and sealing file no Request, so they live apart from the rest —
 // see web/app/(app)/character/paperActions.js.
 import {
@@ -349,15 +352,8 @@ function payerLabel(parties, key) {
 // Look at is the one mode that files no Request AND gets its own plain modal
 // — a local dialog with nothing to review and nothing to undo. Write and Seal
 // file no Request either, but they DO belong in the shared dialog: they have
-// real fields, and reasonRequired={false} is what drops the reason box.
+// real fields, so they still use the shared dialog.
 const NO_REQUEST_MODES = new Set(["examine"]);
-
-// Nothing to adjudicate, so nothing to justify. The letter itself is the
-// record a GM reads (docs/systemdocs/PAPERWORK.md). Craft joined the list
-// (Chris 2026-09-06): a craft pays its way in ⬢, Move and ingredients and
-// waits on no GM, so the recipe is the record — the five craft-family
-// server actions take the reason as optional to match.
-const NO_REASON_MODES = new Set(["bird", "write", "seal", "bindbook", "tearbook", "craft"]);
 
 // Why a person is lootable: living cases come from INCAPACITATING_SLUGS
 // (db/lib/incapacitation.js); a corpse says so plainly.
@@ -465,6 +461,16 @@ export default function RequestActionsProvider({
   canExtract = false,
   extractBlocked = null,
   canSeePackage = false,
+  // Crucify: you hold `fundamentalist` and a COMPLETE Cross stands where you
+  // are. Both facts about YOUR sheet and YOUR ground, resolved in
+  // character/page.js; the action re-checks both.
+  canCrucify = false,
+  // Disguise: you are carrying a disguise kit. Hidden rather than greyed —
+  // see actionRegistry.js.
+  canDisguise = false,
+  // The datacard, and the device itself. Both facts about your own sheet.
+  hasDatacard = false,
+  hasDevice = false,
 }) {
   const [mode, setMode] = useState(null);
   const [tagId, setTagId] = useState(null);
@@ -502,6 +508,9 @@ export default function RequestActionsProvider({
   // list of the dead, and this one searches every zone (REQUESTS.md §5d).
   // This input used to belong to Bury, which now picks a corpse instead.
   const [engraveName, setEngraveName] = useState("");
+  // The false name typed into the Disguise dialog. Separate from engraveName
+  // so switching modes never carries one name into the other dialog.
+  const [disguiseName, setDisguiseName] = useState("");
   // Butcher and Bury both act on one corpse, identified by BOTH its tag and
   // where it is standing — the same body can be in two places for two people.
   const [corpseKey, setCorpseKey] = useState("");
@@ -604,9 +613,13 @@ export default function RequestActionsProvider({
     () => lootTargets.find((t) => t.id === targetId) ?? null,
     [lootTargets, targetId],
   );
-  // Bind and Free share one roster, split on who is already tied up.
+  // Bind, Free and Crucify share one roster: Bind wants the untied, Free the
+  // tied, Crucify anyone not already on the cross.
   const bindable = useMemo(
-    () => bindTargets.filter((t) => (mode === "bind" ? !t.bound : t.bound)),
+    () =>
+      bindTargets.filter((t) =>
+        mode === "bind" ? !t.bound : mode === "free" ? t.bound : !t.crucified,
+      ),
     [bindTargets, mode],
   );
 
@@ -858,6 +871,7 @@ export default function RequestActionsProvider({
       setLocationId("");
       setLethal(false);
       setEngraveName("");
+      setDisguiseName("");
       setCorpseKey("");
       setBirdBody("");
       setBirdQuery("");
@@ -900,7 +914,7 @@ export default function RequestActionsProvider({
   // Heal-someone-else, Harm's lethal branch, Destroy and any Craft that
   // spends ⬢ or a Move ask twice. Confirm is awaited OUTSIDE
   // startTransition, or the dialog never renders.
-  async function submit(reason) {
+  async function submit() {
     if (mode === "craft" && !projectId && !siteId && chosen) {
       const turns = chosen.requirementTurns ?? 1;
       const qty = craftQty;
@@ -998,7 +1012,7 @@ export default function RequestActionsProvider({
       const name = harmTargets.find((t) => t.id === targetId)?.name ?? "them";
       const ok = await confirm({
         title: "Finish them off?",
-        message: `This kills ${name}, now and for good. A GM will read your reason afterwards, not before.`,
+        message: `This kills ${name}, now and for good. ‡`,
         confirmLabel: "Kill them",
       });
       if (!ok) return;
@@ -1006,26 +1020,26 @@ export default function RequestActionsProvider({
 
     setError(null);
     startTransition(async () => {
-      const res = await runAction(reason);
+      const res = await runAction();
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       setMode(null);
     });
   }
 
-  function runAction(reason) {
+  function runAction() {
     switch (mode) {
       case "craft":
         // A build site takes the same two verbs as a project, against the
         // structure instead of the CraftProject.
         if (siteId) {
           return projectChoice === "cancel"
-            ? cancelBuildSite({ structureId: siteId, reason })
-            : joinBuildSite({ structureId: siteId, reason });
+            ? cancelBuildSite({ structureId: siteId })
+            : joinBuildSite({ structureId: siteId });
         }
         if (projectId) {
           return projectChoice === "cancel"
-            ? cancelCraft({ projectId, reason })
-            : continueCraft({ projectId, reason });
+            ? cancelCraft({ projectId })
+            : continueCraft({ projectId });
         }
         // Always sent; the server pins it to 1 for a non-stackable tag anyway.
         return craftRequest({
@@ -1040,20 +1054,19 @@ export default function RequestActionsProvider({
           // when it read as free. The server refuses to bill past this, so a
           // stale tab gets a retry instead of a silent Move charge.
           billedSeen: String(craftCost?.billedQty ?? 0),
-          reason,
         });
       case "destroy":
-        return destroyTagRequest({ tagId, quantity, reason });
+        return destroyTagRequest({ tagId, quantity });
       case "learn":
-        return learnRequest({ teacherId: targetId, tagId, reason });
+        return learnRequest({ teacherId: targetId, tagId });
       case "teach":
-        return teachRequest({ learnerId: targetId, tagId, reason });
+        return teachRequest({ learnerId: targetId, tagId });
       case "confess":
-        return confessRequest({ chaplainId: targetId, tagId, reason });
+        return confessRequest({ chaplainId: targetId, tagId });
       case "consume":
-        return consumeTagRequest({ tagId, reason });
+        return consumeTagRequest({ tagId });
       case "extract":
-        return extractGodfleshRequest({ reason });
+        return extractGodfleshRequest();
       case "package":
         return packageItemsRequest({
           lines: Object.entries(packed).map(([id, q]) => ({
@@ -1061,14 +1074,12 @@ export default function RequestActionsProvider({
             quantity: q,
           })),
           label: crateLabel,
-          reason,
         });
       case "heal":
         return healCharacterRequest({
           targetCharacterId: patientId,
           tagId,
           payerKey,
-          reason,
         });
       case "transfer":
         return transferRequest({
@@ -1079,7 +1090,6 @@ export default function RequestActionsProvider({
             quantity: q,
           })),
           amount,
-          reason,
         });
       case "loot":
         return lootCharacterRequest({
@@ -1089,31 +1099,29 @@ export default function RequestActionsProvider({
             quantity: q,
           })),
           amount,
-          reason,
         });
       case "move":
         return moveCharacterRequest({
           targetCharacterId: targetId,
           targetLocationId: locationId,
-          reason,
         });
       case "bind":
-        return bindCharacterRequest({ targetCharacterId: targetId, reason });
+        return bindCharacterRequest({ targetCharacterId: targetId });
       case "free":
-        return freeCharacterRequest({ targetCharacterId: targetId, reason });
+        return freeCharacterRequest({ targetCharacterId: targetId });
+      case "crucify":
+        return crucifyCharacterRequest({ targetCharacterId: targetId });
       case "harm":
         return harmCharacterRequest({
           targetCharacterId: targetId,
           tagId,
           lethal,
-          reason,
         });
       case "bury": {
         const corpse = corpses.find((c) => corpseIdOf(c) === corpseKey);
         return buryCharacterRequest({
           tagId: corpse?.tagId,
           sourceKey: corpse?.sourceKey,
-          reason,
         });
       }
       case "butcher": {
@@ -1121,11 +1129,18 @@ export default function RequestActionsProvider({
         return butcherCorpseRequest({
           tagId: corpse?.tagId,
           sourceKey: corpse?.sourceKey,
-          reason,
         });
       }
       case "engrave":
-        return engraveHeadstoneRequest({ firstName: engraveName, reason });
+        return engraveHeadstoneRequest({ firstName: engraveName });
+      case "disguise":
+        return disguiseSelfRequest({ name: disguiseName });
+      case "pointer":
+        return readPointer();
+      case "arm":
+        return armNuke();
+      case "disarm":
+        return disarmNuke();
       // Neither files a Request — see web/app/(app)/character/paperActions.js
       // for why. Both still come back as { ok, error } like everything else.
       case "write":
@@ -1173,6 +1188,7 @@ export default function RequestActionsProvider({
         return Boolean(targetId && locationId);
       case "bind":
       case "free":
+      case "crucify":
         return Boolean(targetId);
       case "harm":
         return Boolean(targetId && (tagId || lethal));
@@ -1181,6 +1197,15 @@ export default function RequestActionsProvider({
         return Boolean(corpseKey);
       case "engrave":
         return Boolean(engraveName.trim());
+      case "disguise":
+        return Boolean(disguiseName.trim());
+      // The pointer asks nothing and costs nothing, so there is nothing to
+      // fill in before pressing it.
+      case "pointer":
+        return true;
+      case "arm":
+      case "disarm":
+        return hasDevice;
       case "craft": {
         if (siteId) {
           const site = buildSites.find((s) => s.id === siteId);
@@ -1264,6 +1289,10 @@ export default function RequestActionsProvider({
       canSeeExtract,
       canExtract,
       canSeePackage,
+      canCrucify,
+      canDisguise,
+      hasDatacard,
+      hasDevice,
     }),
     [
       craftable,
@@ -1290,6 +1319,10 @@ export default function RequestActionsProvider({
       canSeeExtract,
       canExtract,
       canSeePackage,
+      canCrucify,
+      canDisguise,
+      hasDatacard,
+      hasDevice,
     ],
   );
 
@@ -1329,8 +1362,6 @@ export default function RequestActionsProvider({
             busy={pending}
             error={error}
             canSubmit={canSubmit}
-            // The letter is what a GM reads, so none of the paper verbs ask.
-            reasonRequired={!NO_REASON_MODES.has(mode)}
             onCancel={() => !pending && setMode(null)}
             onConfirm={submit}
           >
@@ -1993,20 +2024,82 @@ export default function RequestActionsProvider({
               </>
             )}
 
-            {(mode === "bind" || mode === "free") && (
+            {mode === "pointer" && (
+              <p className="text-xs text-muted">
+                The card wakes and swings. Press to read it&mdash;the answer
+                comes to you privately, and nobody here is told you looked. ‡
+              </p>
+            )}
+
+            {(mode === "arm" || mode === "disarm") && (
+              <>
+                {!hasDevice ? (
+                  <NobodyHere>
+                    You have the card, but not the device. You can only work it
+                    with the thing in your hands. ‡
+                  </NobodyHere>
+                ) : mode === "arm" ? (
+                  <p className="text-xs text-muted">
+                    The card goes in and the count begins. It detonates at the
+                    close of the turn after next, and everyone who is not
+                    underground when it does will die&mdash;you included, unless
+                    you are. You can still take the card out before then. ‡
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted">
+                    The card comes out and the count stops. You can put it back
+                    whenever you like. ‡
+                  </p>
+                )}
+              </>
+            )}
+
+            {mode === "disguise" && (
+              <>
+                <label className="field">
+                  <span className="field-label">Go by what name? ‡</span>
+                  <input
+                    type="text"
+                    value={disguiseName}
+                    onChange={(e) => setDisguiseName(e.target.value)}
+                    placeholder="A name"
+                    autoComplete="off"
+                    maxLength={24}
+                    required
+                  />
+                </label>
+                {/* No people-picker: you are disguising yourself, not choosing
+                a target, and the name is free text on purpose — impersonating
+                somebody real is a thing you do by typing their name, and
+                whether you get away with it is a GM's question, not a
+                dropdown's. */}
+                <p className="text-xs text-muted">
+                  For 3 turns nobody sees your name or your face&mdash;you speak
+                  as this instead. You cannot conceal yourself on top of a
+                  disguise, and it wears off on its own. The kit is not used
+                  up. ‡
+                </p>
+              </>
+            )}
+
+            {(mode === "bind" || mode === "free" || mode === "crucify") && (
               <>
                 {bindable.length === 0 ? (
                   <NobodyHere>
                     {mode === "bind"
                       ? "There’s nobody here left to tie up."
-                      : "Nobody here is bound."}
+                      : mode === "free"
+                        ? "Nobody here is bound."
+                        : "There’s nobody here to put on the cross. ‡"}
                   </NobodyHere>
                 ) : (
                   <label className="field">
                     <span className="field-label">
                       {mode === "bind"
                         ? "Who are you tying up?"
-                        : "Who are you cutting loose?"}
+                        : mode === "free"
+                          ? "Who are you cutting loose?"
+                          : "Who are you crucifying? ‡"}
                     </span>
                     <Select
                       value={targetId}
@@ -2027,7 +2120,9 @@ export default function RequestActionsProvider({
                 <p className="text-xs text-muted">
                   {mode === "bind"
                     ? "Once they're Bound you can search them or march them somewhere. Say why."
-                    : "Anyone standing here can do this, including someone who came to rescue them."}
+                    : mode === "free"
+                      ? "Anyone standing here can do this, including someone who came to rescue them."
+                      : "They go up on the cross now. They can still speak, but nothing else — and in a turn they are Dying. It doesn't spend your Move. Say why. ‡"}
                 </p>
               </>
             )}

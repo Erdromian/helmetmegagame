@@ -403,7 +403,7 @@ export default function DocumentsBoard({
                       : "No public documents have been posted yet."}
             </p>
           ) : visibleCount === 0 ? (
-            <p className="panel p-4 empty-state">Nothing matches “{query}” in this tab.</p>
+            <p className="panel p-4 empty-state">Nothing matches &quot;{query}&quot; in this tab.</p>
           ) : (
             renderBoard()
           )}

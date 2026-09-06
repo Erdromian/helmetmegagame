@@ -24,7 +24,7 @@ const {
   addThreadMember,
   removeThreadMember,
 } = require("./discordRest");
-const { PLAYER_ROLE_ID, SPECTATOR_ROLE_ID, LEADER_WHITELIST_ROLE_ID } = require("./roleIds");
+const { PLAYER_ROLE_ID, SPECTATOR_ROLE_ID, LEADER_WHITELIST_ROLE_ID, gmRoleIds } = require("./roleIds");
 const { hashNameToColor } = require("./roleColor");
 const { cursedRoleId, ensureCursedRoleAppearance } = require("./cursedAccess");
 const {
@@ -57,7 +57,7 @@ function standingRoleIds() {
       PLAYER_ROLE_ID,
       SPECTATOR_ROLE_ID,
       LEADER_WHITELIST_ROLE_ID,
-      process.env.DISCORD_GM_ROLE_ID,
+      ...gmRoleIds(),
       process.env.DISCORD_CURSED_ROLE_ID,
       process.env.DISCORD_TURN_PING_ROLE_ID,
     ].filter(Boolean),
@@ -135,7 +135,13 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
   const rolesById = new Map(liveRoles.map((r) => [r.id, r]));
   const alive = characters.filter((c) => c.status === "ALIVE");
   const zonesById = new Map(zones.map((z) => [z.id, z]));
-  const locations = zones.flatMap((z) => z.locations.map((l) => ({ ...l, zoneName: z.name })));
+  // A cave level has no GM seat of its own — its Locations wear the group's,
+  // matching db:sync-zones' gmRoleIdFor and Zone.seatZoneId's indirection.
+  const gmRoleIdForZone = (z) =>
+    z.gmRoleId ?? (z.parentZoneId ? zonesById.get(z.parentZoneId)?.gmRoleId : null) ?? null;
+  const locations = zones.flatMap((z) =>
+    z.locations.map((l) => ({ ...l, zoneName: z.name, zoneGmRoleId: gmRoleIdForZone(z) })),
+  );
   const locationsById = new Map(locations.map((l) => [l.id, l]));
 
   // --- cheap: structure ------------------------------------------------
@@ -347,7 +353,13 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
   // are deleted on apply, same conservatism as prune-orphan-roles.
   const claimedRoleIds = new Set(characters.map((c) => c.discordRoleId).filter(Boolean));
   const standing = standingRoleIds();
+  // The zone ACCESS roles. Kept narrow on purpose: this same set is what
+  // #turns grants view to below, and a GM seat has no business there — every
+  // GM already holds a global GM role, which #turns grants outright.
   const zoneRoleIds = new Set(zones.map((z) => z.discordRoleId).filter(Boolean));
+  // The per-zone GM seats. Not character roles, so the orphan sweep below
+  // must never offer to delete one; nothing else wants them.
+  const zoneGmRoleIds = new Set(zones.map((z) => z.gmRoleId).filter(Boolean));
   for (const c of alive) {
     if (!c.discordRoleId) {
       await report("character-role", c.name, "living character has no Discord role recorded");
@@ -356,7 +368,14 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     }
   }
   for (const role of liveRoles) {
-    if (claimedRoleIds.has(role.id) || standing.has(role.id) || zoneRoleIds.has(role.id)) continue;
+    if (
+      claimedRoleIds.has(role.id) ||
+      standing.has(role.id) ||
+      zoneRoleIds.has(role.id) ||
+      zoneGmRoleIds.has(role.id)
+    ) {
+      continue;
+    }
     if (!looksLikeCharacterRole(role)) continue;
     if (role.managed || role.permissions !== "0") continue;
     const held = memberList.some((m) => m.roles.includes(role.id));
@@ -388,7 +407,14 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     // Zone roles only. A member target must never enter this set — it is the
     // allowlist of overwrites the reconcile may DELETE, and every occupant of
     // every Location channel is a member overwrite (CHANNELS.md §3).
-    const managed = managedOverwriteIds([...zoneRoleIds]);
+    // BOTH role families, and the GM seats matter more than they look. The
+    // set is what the reconcile may DELETE when the spec no longer names a
+    // target — and a zone whose gmRoleId is still null names no GM at all, so
+    // without its seat in here a full run would sweep the live global-GM
+    // overwrite off every one of that zone's channels and put nothing back.
+    // db:sync-zones learned this at syncZones.js#managedOverwriteIds; this is
+    // the same lesson on the doctor's side.
+    const managed = managedOverwriteIds([...zoneRoleIds, ...zoneGmRoleIds]);
     const characterUserIds = new Set(characters.map((c) => c.discordUserId));
 
     const overwriteTargets = [];
@@ -398,7 +424,11 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
       overwriteTargets.push([`${zone.name}/summary`, zone.discordSummaryChannelId, spec.summary]);
     }
     for (const location of locations) {
-      overwriteTargets.push([`${location.zoneName}/${location.name}`, location.discordChannelId, locationChannelSpec(location)]);
+      overwriteTargets.push([
+        `${location.zoneName}/${location.name}`,
+        location.discordChannelId,
+        locationChannelSpec(location, location.zoneGmRoleId ?? null),
+      ]);
     }
     {
       for (const [label, channelId, want] of overwriteTargets) {
@@ -477,9 +507,17 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
       if (room.kind === "PRIVATE") privateRooms.push({ ...room, label });
     }
 
-    // Private-room membership: exactly the living characters standing in the
-    // room's location who hold one of its access tags OR have been let in by
-    // hand (RoomGuest). Thread-major: one member-list read per private room.
+    // Private-room membership: exactly the living characters ENTITLED to the
+    // room — holding one of its access tags, or let in by hand (RoomGuest).
+    // NOT filtered by where they are standing: membership stopped following
+    // presence on 2026-09-06 (db/lib/roomAccess.js), because a thread is gated
+    // on VIEW_CHANNEL of its parent anyway and the add/remove was only earning
+    // an undeletable "added <name> to the thread" line on every arrival.
+    //
+    // This check is therefore also the BACKFILL: run the doctor once after that
+    // change and every keyholder lands in every thread they are entitled to,
+    // which is what "do it all at game start" means in practice.
+    // Thread-major: one member-list read per private room.
     //
     // Guests are NOT optional here. This check deletes anyone it can't account
     // for, so a doctor that only knew about keys would evict every guest the
@@ -492,7 +530,7 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
       for (const room of privateRooms) {
         const shouldHave = new Set(
           alive
-            .filter((c) => c.locationId === room.locationId && c.discordUserId)
+            .filter((c) => c.discordUserId)
             .filter((c) => {
               const keys = keysByCharacter.get(c.id);
               return accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds).length > 0;
@@ -641,7 +679,6 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
         const liveById = new Map(overwrites.map((o) => [o.id, o]));
         const wanted = turnsChannelOverwrites({
           guildId: process.env.DISCORD_GUILD_ID,
-          gmRoleId: process.env.DISCORD_GM_ROLE_ID,
           zoneRoleIds: [...zoneRoleIds],
         });
         // One finding for the channel, not one per target: the repair is a

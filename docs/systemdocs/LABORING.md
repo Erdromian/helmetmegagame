@@ -31,9 +31,9 @@ bubbles the tag descriptions render through.
 |---|---|---|---|
 | `laboring-basic` | Laboring (Basic) | 0–2 | — |
 | `laboring-skilled` | Laboring (Skilled) | 1–4 | `parentTag: laboring-basic` |
-| `laboring-hunting` | Laboring (Hunting) | 0–18 | `requiredTag: laboring-skilled` |
-| `laboring-farming` | Laboring (Farming) | 12–16 | `requiredTag: laboring-skilled` |
-| `laboring-fishing` | Laboring (Fishing) | 7–14 | `requiredTag: laboring-skilled` |
+| `laboring-hunting` | Laboring (Hunting) | 0–19 | `requiredTag: laboring-skilled` |
+| `laboring-farming` | Laboring (Farming) | 13–17 | `requiredTag: laboring-skilled` |
+| `laboring-fishing` | Laboring (Fishing) | 8–15 | `requiredTag: laboring-skilled` |
 
 The slugs were `laborer-*` before this rework and are `laboring-*` now, because
 `db/lib/syncTags.js` enforces that **a slug is always its name, slugified** — so
@@ -54,8 +54,14 @@ The dial ships at **0.93** rather than 1 — laboring was cut about 7% before
 launch. Two things that buys less than it looks like: Basic is exempt as above,
 and Skilled's 1–4 rounds straight back to 1–4, so a small move on the dial
 reaches only the three specialisations. At 0.93 and a location coefficient of
-1.0 those become Hunting 0–17, Farming 11–15, Fishing 7–13. Moving the general
+1.0 those become Hunting 0–18, Farming 12–16, Fishing 7–14. Moving the general
 tiers at all means editing `PRODUCTION_RATES`, where one whole point is 25%.
+
+**The three specialisations were raised ~8% on 2026-09-06** (Hunting 18 -> 19,
+Farming 12–16 -> 13–17, Fishing 7–14 -> 8–15), in `PRODUCTION_RATES` rather
+than on the dial, because the dial cannot reach Basic. The two general tiers
+did not move and could not: 8% of a 2 or a 4 rounds back to itself, and the
+smallest real step on those is 25%.
 
 ## 3. What a place is worth
 
@@ -145,6 +151,17 @@ Exhausted. See `FACTORY.md` §4.
 6. **Soft Hands** halves both ends, floor. It lands *after* the tools, so it is
    literally "half of what you make".
 7. **Lifeweb failure** (§6).
+
+**Lazy** doesn't touch the roll itself — it takes a quarter off the value
+after the range has already produced a number. `lazyYield()` in
+`db/lib/laborAccess.js` floors the rolled value to 75% of what it rolled, and
+both places a Labor roll actually happens call it: `db/lib/
+autoLaborPass.js` (the automatic payout) and `bot/src/lib/moveConfirm.js`
+(the player-filed Labor Move). The *stored* `resourceRollExpression` is cut
+the same way, by `lazyExpression()` in the same file, so the printed range on
+the sheet and the GM desk is the Lazy range rather than the wider pre-cut
+one — otherwise a Lazy character could see a payout below the range it was
+told it rolled against.
 
 The returned `expression` is a **machine format** — `"min-max"`, matched by
 `db/lib/resourceDelta.js#rollResourceRange` against `/^(\d+)-(\d+)$/`. Never

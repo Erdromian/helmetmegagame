@@ -11,16 +11,21 @@
 #
 # --hidden writes nothing and announces nothing. --tell-gms overrides the lore /
 # antagonist hold-back. See scripts/changelog/log.js.
+#
+# The push refuses when db/prisma/migrations/ holds an untracked directory.
+# --allow-untracked-migrations overrides that.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 subject=""
 notes=()
 flags=()
+allow_untracked_migrations=0
 
 for arg in "$@"; do
   case "$arg" in
     --hidden|--secret|--tell-gms) flags+=("$arg") ;;
+    --allow-untracked-migrations) allow_untracked_migrations=1 ;;
     *)
       if [ -z "$subject" ]; then subject="$arg"; else notes+=(--note "$arg"); fi
       ;;
@@ -28,6 +33,20 @@ for arg in "$@"; do
 done
 
 subject="${subject:-wip}"
+
+# A migration that reaches the database but never reaches GitHub leaves
+# production's schema ahead of the code Railway builds, which is how
+# Structure.linkId took the whole site down. Catch it before the push.
+if [ "$allow_untracked_migrations" -eq 0 ]; then
+  untracked_migrations=$(git ls-files --others --exclude-standard \
+    --directory db/prisma/migrations/)
+  if [ -n "$untracked_migrations" ]; then
+    echo "push.sh: these migrations are not in git:" >&2
+    echo "$untracked_migrations" >&2
+    echo "Commit them first, or pass --allow-untracked-migrations." >&2
+    exit 1
+  fi
+fi
 
 git add -A
 node scripts/changelog/log.js --staged --message "$subject" \

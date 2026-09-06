@@ -21,6 +21,7 @@ import {
   BUTCHER_SLUG,
   WORKSHOP_EQUIPMENT_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
+  GUILT_RIDDEN_SLUG,
 } from "@lifeweb/db/lib/constants";
 import {
   hasAttribute,
@@ -46,7 +47,7 @@ import {
   freeZoneMovesReason,
 } from "@lifeweb/db/lib/locationTravel";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
-import { groupFactions } from "@lifeweb/db/lib/roleGroups";
+import { groupRoles } from "@lifeweb/db/lib/roleGroups";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
@@ -76,7 +77,7 @@ import {
   isLeaderWhitelisted,
 } from "@/lib/discordGuild";
 import {
-  isPlaytestLocked,
+  isSpawnOnly,
   isRoleSelectable,
   DEFAULT_MAX_DRAWBACK_TAGS,
   DEFAULT_MAX_DRAWBACK_POINTS,
@@ -157,8 +158,7 @@ async function loadCreationData(discordUserId) {
     superadmin ||
     config?.leaderWhitelistEnabled === false ||
     isLeaderWhitelisted(member);
-  const playtestMode = config?.playtestModeEnabled === true;
-  const playerCount = config?.playerCount ?? 100;
+  const playerCount = config?.playerCount ?? 80;
 
   return {
     gate,
@@ -170,9 +170,10 @@ async function loadCreationData(discordUserId) {
     maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     tags,
     // Seven social buckets, not five zones — db/lib/roleGroups.js says which
-    // faction lands where, and the zone a role starts in is printed on its own
-    // card instead of being a heading over it.
-    groups: groupFactions(
+    // faction lands where (and which single role overrides its faction), and
+    // the zone a role starts in is printed on its own card instead of being a
+    // heading over it.
+    groups: groupRoles(
       zones.flatMap((zone) =>
         zone.factions.map((f) => ({ ...f, zoneName: zone.name })),
       ),
@@ -180,52 +181,43 @@ async function loadCreationData(discordUserId) {
       .map((group) => ({
         slug: group.slug,
         name: group.name,
-        roles: group.factions.flatMap((faction) =>
-          faction.roles.map((role) => {
-            const cap = roleCapacity(role, playerCount);
-            // Locked roles stay in the tree; the card greys itself and says why.
-            const playtestLocked =
-              playtestMode &&
-              isPlaytestLocked({ role, zoneName: faction.zoneName });
-            return {
-              id: role.id,
-              name: role.name,
-              intro: role.intro,
-              slug: role.slug,
-              // Null for ordinary seats; set on the four dynasty roles.
-              lockedGender: role.lockedGender,
-              difficulty: role.difficulty,
-              // Printed on the card itself, now that the faction is no longer
-              // a heading over it.
-              factionName: faction.name,
-              startingLocationName: role.startingLocation?.name ?? null,
-              startingZoneName: role.startingLocation?.zone?.name ?? null,
-              startingResources: role.startingResources,
-              extraStartingPoints: role.extraStartingPoints,
-              // Parsed, because the wizard matches these against catalog tag names
-              // and an entry may carry a count ("Obol x5").
-              startingTagNames: startingTagNames(role.startingTagSlugs),
-              grantsLeader: role.grantsLeader,
-              // Drives the "Whitelist only" hover on a greyed card. Separate
-              // from grantsLeader, which now only means faction Leader.
-              requiresWhitelist: role.requiresWhitelist,
-              whitelistBlocked: role.requiresWhitelist && !leaderWhitelisted,
-              // Infinity doesn't serialize; uncapped roles cross as null -> "∞".
-              cap: cap === Infinity ? null : cap,
-              taken: takenByRole.get(role.id) ?? 0,
-              selectable: isRoleSelectable({
-                role,
-                cursed,
-                leaderWhitelisted,
-                playtestLocked,
-              }),
-              playtestLocked,
-              // Resolved server-side so a client component never drags
-              // PrismaClient into the browser bundle.
-              lastNameLocked: isDynastyMember(role.slug),
-            };
-          }),
-        ),
+        // Spawn-only seats are withheld outright, not greyed — see
+        // characterCreation.js#isSpawnOnly.
+        roles: group.roles.filter((role) => !isSpawnOnly(role)).map((role) => {
+          const { faction } = role;
+          const cap = roleCapacity(role, playerCount);
+          return {
+            id: role.id,
+            name: role.name,
+            intro: role.intro,
+            slug: role.slug,
+            // Null for ordinary seats; set on the four dynasty roles.
+            lockedGender: role.lockedGender,
+            difficulty: role.difficulty,
+            // Printed on the card itself, now that the faction is no longer
+            // a heading over it.
+            factionName: faction.name,
+            startingLocationName: role.startingLocation?.name ?? null,
+            startingZoneName: role.startingLocation?.zone?.name ?? null,
+            startingResources: role.startingResources,
+            extraStartingPoints: role.extraStartingPoints,
+            // Parsed, because the wizard matches these against catalog tag names
+            // and an entry may carry a count ("Obol x5").
+            startingTagNames: startingTagNames(role.startingTagSlugs),
+            grantsLeader: role.grantsLeader,
+            // Drives the "Whitelist only" hover on a greyed card. Separate
+            // from grantsLeader, which now only means faction Leader.
+            requiresWhitelist: role.requiresWhitelist,
+            whitelistBlocked: role.requiresWhitelist && !leaderWhitelisted,
+            // Infinity doesn't serialize; uncapped roles cross as null -> "∞".
+            cap: cap === Infinity ? null : cap,
+            taken: takenByRole.get(role.id) ?? 0,
+            selectable: isRoleSelectable({ role, cursed, leaderWhitelisted }),
+            // Resolved server-side so a client component never drags
+            // PrismaClient into the browser bundle.
+            lastNameLocked: isDynastyMember(role.slug),
+          };
+        }),
       }))
       .filter((g) => g.roles.length > 0),
   };
@@ -565,6 +557,9 @@ export default async function CharacterPage() {
   // A fact about your own sheet, so the button may grey on it. Resolved here
   // rather than in the client so no slug matching reaches the browser.
   const canButcher = character.tags.some((ct) => ct.tag.slug === BUTCHER_SLUG);
+  // A fact about your own sheet, so the Change name button may grey on it.
+  // changeNameRequestImpl re-checks it under the same predicate.
+  const hasMulligan = character.tags.some((ct) => ct.tag.slug === "mulligan-potion");
 
   // From is you or a room; To is anyone here or a room (TransferDialog.js).
   const transferParties = { characters: peopleParties, rooms };
@@ -810,6 +805,21 @@ export default async function CharacterPage() {
 
   // A fact about your own sheet, so this one may grey the button out.
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
+  // Crucify shows only for a Fundamentalist standing at a finished Cross —
+  // your tag and your ground, nothing about who else is here.
+  // crucifyCharacterRequest re-checks both.
+  const canCrucify =
+    heldSlugs.has("fundamentalist") &&
+    sitesHere.some((s) => s.typeSlug === "crucifix" && s.status === "COMPLETE");
+  // Disguise shows only while you are carrying the kit — your own sheet, so
+  // it leaks nothing. disguiseSelfRequest re-checks it, since a hidden button
+  // is a hint and not a lock.
+  const canDisguise = heldSlugs.has("disguise-kit");
+  // The bomb's two halves. Both read off your own sheet and nothing else, so
+  // neither leaks anything about the room; nukeActions.js re-checks both,
+  // since a hidden button is a hint and not a lock.
+  const hasDatacard = heldSlugs.has("nuclear-datacard");
+  const hasDevice = heldSlugs.has("nuclear-device");
   const hasBird = holdsBirdAndLetters(character.tags);
   // Paperwork (docs/systemdocs/PAPERWORK.md). Letters AND eyes — the same
   // predicate the tag chips, the noticeboard and paperActions.js all use, so
@@ -880,7 +890,10 @@ export default async function CharacterPage() {
     }));
   // Books in hand, for the Tear Up picker. No excerpt: a book's NAME is its
   // title and already says which one it is, unlike a note's waybill code.
-  const bookOptions = books.map((ct) => ({ tagId: ct.tagId, name: ct.tag.name }));
+  const bookOptions = books.map((ct) => ({
+    tagId: ct.tagId,
+    name: ct.tag.name,
+  }));
   const sealOptions = {
     stamps: seals.map((ct) => ({
       tagId: ct.tagId,
@@ -968,18 +981,18 @@ export default async function CharacterPage() {
         healCapFor(heldSlugSet, MEDICAL_TIER_CAPS) -
           (openTurn
             ? (
-                await prisma.request.findMany({
+                await prisma.auditLog.findMany({
                   where: {
-                    characterId: character.id,
+                    targetCharacterId: character.id,
+                    actionType: "request_heal_character",
                     turnId: openTurn.id,
-                    type: "HEAL_CHARACTER",
-                    status: { not: "UNDONE" },
                   },
-                  select: { effect: true },
+                  select: { details: true },
                 })
               ).filter(
                 (r) =>
-                  !r.effect?.gambit && (r.effect?.requirement?.turns ?? 0) > 0,
+                  !r.details?.gambit &&
+                  (r.details?.requirement?.turns ?? 0) > 0,
               ).length
             : 0),
       )
@@ -1063,14 +1076,19 @@ export default async function CharacterPage() {
   const confessors = here
     .filter((c) => c.tags.some((ct) => ct.tag.slug === "chaplain"))
     .map((c) => ({ id: c.id, name: c.name }));
-  const mySins = (
-    await prisma.characterTag.findMany({
-      where: { characterId: character.id, tag: { psychological: true } },
-      select: { tag: { select: { id: true, name: true } } },
-    })
-  )
-    .map((ct) => ct.tag)
-    .sort((a, b) => a.name.localeCompare(b.name));
+  // Guilt Ridden can't bring themself to confess at all — see
+  // db/lib/confession.js#confessableTags, mirrored here so the Confess
+  // button hides itself instead of failing on click.
+  const mySins = heldSlugs.has(GUILT_RIDDEN_SLUG)
+    ? []
+    : (
+        await prisma.characterTag.findMany({
+          where: { characterId: character.id, tag: { psychological: true } },
+          select: { tag: { select: { id: true, name: true } } },
+        })
+      )
+        .map((ct) => ct.tag)
+        .sort((a, b) => a.name.localeCompare(b.name));
 
   const pendingOffers = openTurn
     ? (
@@ -1182,13 +1200,14 @@ export default async function CharacterPage() {
       ).map((z) => ({ id: z.id, name: z.name }))
     : [];
 
-  // Bind and Free split this one list on `bound`.
+  // Bind and Free split this one list on `bound`; Crucify on `crucified`.
   const bindTargets = zoneRoster
     .filter((c) => c.status === "ALIVE")
     .map((c) => ({
       id: c.id,
       name: c.name,
       bound: c.tags.some((ct) => ct.tag.slug === "bound"),
+      crucified: c.tags.some((ct) => ct.tag.slug === "crucified"),
     }));
 
   // `finishable` is the narrower Dying-or-Bound gate on the lethal half.
@@ -1333,6 +1352,7 @@ export default async function CharacterPage() {
       healParties={healParties}
       corpses={corpses}
       canButcher={canButcher}
+      hasMulligan={hasMulligan}
       canSeeExtract={canSeeExtract}
       canExtract={canExtract}
       extractBlocked={extractBlocked}
@@ -1341,6 +1361,10 @@ export default async function CharacterPage() {
       moveTargets={moveTargets}
       moveLocations={moveLocations}
       bindTargets={bindTargets}
+      canCrucify={canCrucify}
+      canDisguise={canDisguise}
+      hasDatacard={hasDatacard}
+      hasDevice={hasDevice}
       harmTargets={harmTargets}
       harmTags={harmTags}
       lastNameLocked={isDynastyMember(character.role?.slug)}

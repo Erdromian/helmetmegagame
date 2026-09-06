@@ -12,7 +12,7 @@ import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
-import { resolveCavingRoll, resolveRequest } from "./actions";
+import { resolveCavingRoll, undoCavingFind } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 
 // The arbitration desk for one Caving Die roll — see
@@ -88,13 +88,14 @@ export default function CavingDesk({
     });
   }
 
-  // The Requests lens' Undo, reachable from here. resolveRequestImpl is
-  // already idempotent on an UNDONE row, so a double-click can't re-grant.
+  // Taking the find back. The roll stands; only the loot comes off. Guarded
+  // by CavingRoll.lootUndoneAt server-side, so a double-click drops nothing
+  // twice.
   async function undoFind() {
     setError(null);
     const ok = await confirm({
       title: `Take back ${roll.lootTagName ?? "this find"}?`,
-      message: `${roll.characterName} keeps the roll — only the loot comes off the sheet. This is the same Undo the Requests lens runs.`,
+      message: `${roll.characterName} keeps the roll — only the loot comes off the sheet. ‡`,
       confirmLabel: "Take it back",
       cancelLabel: "Leave it",
     });
@@ -102,7 +103,7 @@ export default function CavingDesk({
 
     startTransition(async () => {
       try {
-        const res = await resolveRequest({ requestId: roll.lootRequestId, mode: "undo" });
+        const res = await undoCavingFind({ rollId: roll.id });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         // Same as resolve() above: GM notes typed but never marked clean
         // would otherwise leave isAnyDirty() stuck true for the rest of the
@@ -149,13 +150,13 @@ export default function CavingDesk({
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
           <p className="text-sm">
             Rolled a {roll.die} and found <strong>{roll.lootTagName ?? "—"}</strong> ({roll.lootTier ?? "—"}).{" "}
-            {roll.lootRequestStatus === "UNDONE"
-              ? "That find has been undone — the tag is off the sheet."
-              : roll.lootRequestId
-                ? "Already granted, and filed as a passed Request."
-                : "Already granted. The Request behind it is gone, so undo it by hand from the Dev Panel."}
+            {roll.lootUndoneAt
+              ? "That find was taken back — the tag is off the sheet. ‡"
+              : roll.lootTagId
+                ? "Already on their sheet. ‡"
+                : "Already granted, but the tag is no longer on record — take it off by hand from the Dev Panel. ‡"}
           </p>
-          {roll.lootRequestId && roll.lootRequestStatus !== "UNDONE" && (
+          {roll.lootTagId && !roll.lootUndoneAt && (
             <button type="button" className="btn-quiet" onClick={undoFind} disabled={pending}>
               {pending ? "Working…" : "Undo this find"}
             </button>

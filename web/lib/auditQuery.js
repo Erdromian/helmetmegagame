@@ -1,5 +1,5 @@
 import { prisma } from "@lifeweb/db";
-import { DATE_PRESETS, auditFamily, familyPrefixes, knownTypesInFamily } from "@/lib/auditNarrative";
+import { DATE_PRESETS, auditFamily, familyPrefixes, knownTypesInFamily, familiesInBand } from "@/lib/auditNarrative";
 import { parseQuery } from "@/lib/fuzzySearch";
 
 // The audit log's filter parser and WHERE builder, shared by the page and the
@@ -45,6 +45,10 @@ export function parseAuditParams(params) {
   return {
     q: one(params?.q),
     families: list(params?.family),
+    // Which half of the log to read. Empty means the default: what players
+    // did. "all" opts into the machine lines too. A named family wins over
+    // both, since picking one is a more specific request than either.
+    band: ["player", "machine", "all"].includes(one(params?.band)) ? one(params.band) : "",
     types: list(params?.type),
     actors: list(params?.actor),
     actorKind: one(params?.actorKind),
@@ -226,6 +230,11 @@ export async function buildAuditWhere(filters, ctx) {
 
   if (filters.families.length) {
     and.push({ OR: filters.families.map(familyClause) });
+  } else if (filters.band !== "all") {
+    // The default view. Without this the turn engine's per-character rows bury
+    // everything a person actually did.
+    const band = filters.band || "player";
+    and.push({ OR: familiesInBand(band).map(familyClause) });
   }
   if (filters.types.length) {
     and.push({ actionType: { in: filters.types } });

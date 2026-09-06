@@ -41,6 +41,14 @@ const commandDefinitions = [
       opt.setName("message").setDescription("What to say").setRequired(true).setMaxLength(1990),
     )
     .setContexts(GUILD_ONLY),
+  // Which zones a GM can see, from Discord — the twin of the Zones control at
+  // the bottom of the inspector on the web desks. No options: the command
+  // opens a picker showing what they have now, because "toggle" is a thing you
+  // do by looking at the current state, not by retyping it.
+  new SlashCommandBuilder()
+    .setName("zone")
+    .setDescription("Choose which zones you can see (GM only).")
+    .setContexts(GUILD_ONLY),
   // Clears afflictions off a character with no cost, no skill check and no
   // co-location — deliberately NOT the player medic path (Heal request), which
   // has all three. A ROLE option for the same reason /add and /remove use one:
@@ -78,6 +86,16 @@ const commandDefinitions = [
     .setContexts(ANYWHERE),
   new SlashCommandBuilder()
     .setName("location")
+    .setDescription("Travel to a connected location. ‡")
+    .setContexts(ANYWHERE),
+  // The same flow under the name people actually reach for. /location is the
+  // historical name and stays registered so nobody's muscle memory breaks;
+  // both land on handleTravelOpen, and so does the Travel button on the #turns
+  // console and on every Location anchor. If /location is ever retired, note
+  // that the BUTTON's custom_id is still "loc:open" — that id is historical
+  // too and is not worth a migration.
+  new SlashCommandBuilder()
+    .setName("travel")
     .setDescription("Travel to a connected location. ‡")
     .setContexts(ANYWHERE),
   // A standing state, not a per-message one: it stays on until it is turned

@@ -19,7 +19,19 @@ const { isTurnsChannel } = require("./turnsChannelAccess");
 // asset must cost the guild its banner, never its turn announcement.
 const WEATHER_BANNER_DIR = docsPath("assets", "weather");
 
-function weatherBannerPath(turn) {
+// After the bomb there is no weather, only the sky. `config` is optional so
+// every existing caller keeps working; pass it and a detonated game pins the
+// fireball on for good, which is the whole of the "permanently set for the
+// rest of the game" requirement.
+function weatherBannerPath(turn, config = null) {
+  if (config?.nukeDetonatedTurn != null) {
+    if (!WEATHER_BANNER_DIR) return null;
+    const nuke = path.join(WEATHER_BANNER_DIR, "nuke.jpg");
+    // Falls through to the ordinary weather banner if the asset is missing,
+    // rather than leaving the announcement with no image at all.
+    if (fs.existsSync(nuke)) return nuke;
+    console.error(`Turn announcement: nuke banner missing from ${WEATHER_BANNER_DIR}`);
+  }
   if (!turn?.weather || !turn?.phase) return null;
   // docsPath returns null when docs/ can't be found at all; repoPaths.js says
   // to treat that as "no banner". Guard it here: path.join(null, ...) throws,
@@ -78,7 +90,7 @@ async function postTurnsConsole(prisma, channelId, text, turn, config) {
   // but it must not do so SILENTLY. Both failure modes are logged and
   // distinguished: absent from disk is a deploy problem, a rejected upload is
   // a permissions or payload problem.
-  const bannerFile = weatherBannerPath(turn);
+  const bannerFile = weatherBannerPath(turn, config);
   if (turn && !bannerFile) {
     console.error(
       `Turn announcement: no weather banner for ${turn.weather}/${turn.phase} in ${WEATHER_BANNER_DIR}`,

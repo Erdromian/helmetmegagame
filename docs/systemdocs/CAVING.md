@@ -202,25 +202,23 @@ before the character; `CavingRoll`/`CharacterTag` cascade).
 
 The grant goes through the same apply-first-review-after machinery every
 player action uses (`REQUESTS.md`), just system-filed instead of
-player-initiated: `rollCaving` grants the tag and writes a `Request` of type
-`CAVING_LOOT`, status `PASSED`, in the same transaction as the `CavingRoll`
-row and the grant — a roll can never exist without its loot, or the reverse.
+player-initiated: `rollCaving` grants the tag and writes the `CavingRoll` row
+and an audit line in the same transaction as the grant — a roll can never
+exist without its loot, or the reverse.
 
-That buys the whole GM workflow for free. A `CAVING_LOOT` request shows up
-in the **Requests** lens exactly like any other, with its own
-`REQUEST_EFFECTS` entry (`web/lib/requestEffects.js`) whose `undo` drops the
-granted tag off the `effect` snapshot — never re-derived from the tag's
-current catalog value, same rule every Undo in the game follows.
+Taking a find back lives **on the Caving lens and nowhere else**, which is
+what the loot is: a caving correction belongs in the caving log, not in a
+general review queue. `undoCavingFind({ rollId })`
+(`web/app/(desk)/gm/turns/actions.js`) drops the granted tag and stamps
+`CavingRoll.lootUndoneAt`. The roll itself stands — a GM is undoing the loot,
+not the die.
 
-A GM can reach that Undo from **either** lens. The Requests row stays where it
-was, and the Caving desk grew an "Undo this find" button of its own so nobody
-has to leave the caving log to correct a caving roll. It is the same call —
-`resolveRequest({ requestId: roll.lootRequestId, mode: "undo" })`, through the
-same `CAVING_LOOT` handler — so there is exactly one way the tag ever comes
-back off, and `resolveRequestImpl` is already idempotent on an `UNDONE` row, so
-pressing it twice cannot re-grant. The desk finds the request through
-`CavingRoll.lootRequestId`; that column is `SetNull`, so a roll whose request
-was deleted shows the find with no button.
+The stamp is the claim, not a flag read beforehand: the update matches only
+while `lootUndoneAt` is still null, so two clicks drop exactly one tag. The
+roll already carries `lootTagId` and `lootTagName`, so nothing else has to be
+looked up — this used to point at a `CAVING_LOOT` Request and go through the
+shared undo handler, until player actions stopped filing Requests at all
+(`REQUESTS.md` §1).
 
 ## 5. The Caving lens
 
@@ -331,7 +329,7 @@ now `radio-system-cerberon` / `radio-bracelet-cerberon` ("Radio System
 | The safe-Location exemption | `db/lib/locationAttributes.js` (`safe`), authored in `docs/zones.yaml` |
 | Arrival DM senders | whichever face's location-move caller runs `performLocationMove` sends `moved[].cavingDm`; the two GM paths send their own |
 | Kind labels | `web/lib/cavingLabels.js` |
-| Loot grant → Request/Undo | `web/lib/requestEffects.js` (`CAVING_LOOT`) |
+| Loot grant, and taking it back | `db/lib/cavingPass.js`, `web/app/(desk)/gm/turns/actions.js#undoCavingFind` |
 | Consume mechanics | `web/lib/consumeGrants.js`, `db/lib/syncTags.js` |
 | The Caving lens | `web/app/(desk)/gm/turns/QueueRail.js`, `CavingDesk.js` |
 | The document | `docs/documents.yaml` (key `caving`) |

@@ -57,7 +57,7 @@ function missingFrom(oldStr, newStr, re) {
  */
 function checkEntry(entry, oldValue, newValue) {
   const issues = [];
-  const add = (level, message) => issues.push({ level, message });
+  const add = (level, message, why) => issues.push({ level, message, ...(why ? { why } : {}) });
 
   // --- hard: Discord length caps -------------------------------------------
   const limit = discordLimit(entry);
@@ -69,6 +69,7 @@ function checkEntry(entry, oldValue, newValue) {
       add(
         "error",
         `${newValue.length} chars exceeds the ${limit.max}-char Discord cap for a ${limit.what}.`,
+        "discord-cap",
       );
     } else if (INTERP_RE.test(newValue) && bare.length > limit.max * 0.8) {
       add(
@@ -107,6 +108,37 @@ function checkEntry(entry, oldValue, newValue) {
     add("warn", "replaces the en dash in a numeric range with a hyphen.");
   if (oldValue.includes("-#") && !newValue.includes("-#"))
     add("warn", "drops the Discord `-#` subtext marker.");
+
+  // --- the ‡ mark -------------------------------------------------------
+  if (/‡/.test(oldValue) && !/‡/.test(newValue))
+    add("warn", "drops the ‡ — fine if the rewrite is confident; it is counted.");
+  if (!/‡/.test(oldValue) && /‡/.test(newValue))
+    add("warn", "adds a ‡ to a line that had none.");
+
+  // --- house style: punctuation ---------------------------------------------
+  if (newValue.includes("..."))
+    add("warn", "uses ... — house style is the … glyph.");
+  if (/[’‘“”]/.test(newValue) && !/[’‘“”]/.test(oldValue))
+    add("warn", "introduces curly quotes — house style is straight.");
+  if ((/[^-]--[^-#]/.test(newValue) || /[^\n][ \t]-\s/.test(newValue)))
+    add("warn", "uses a hyphen as a dash — house style is a spaced em dash ( — ).");
+  if (
+    /\b(fuck|shit|damn|piss|crap|ass)\b/i.test(newValue) &&
+    !/\b(fuck|shit|damn|piss|crap|ass)\b/i.test(oldValue)
+  )
+    add("warn", "introduces profanity.");
+
+  // --- docs/tags.yaml: digits, not spelled-out numbers ----------------------
+  if (
+    entry.file === "docs/tags.yaml" &&
+    /\b(one|two|three|four|five|six|seven|eight|nine|ten)[- ](turns?|tiers?|dice|die|people|⬢)\b/i.test(
+      newValue,
+    )
+  )
+    add(
+      "warn",
+      "spells out a number a player counts with — docs/tags.yaml wants digits (header contract).",
+    );
 
   return issues;
 }

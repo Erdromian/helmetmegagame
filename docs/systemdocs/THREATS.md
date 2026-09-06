@@ -26,9 +26,28 @@ new one.
 **Most opt-ins are decoys.** Nine of the eleven checkboxes carry `optIn` and
 nothing else. That is the point: ticking one tells a GM about consent without
 telling the player which seats are real. Two ship real — **Demoness** and
-**Judge** — and Thanati Leader, Thanatos, Tribunal Leader and Tribunal land
-later against the same shape. The two that are not opt-ins at all (Tribunal and
-Tribunal Leader, when they arrive) are simply assignable without a checkbox.
+**Judge** — and Thanati Leader and Thanatos land later against the same shape.
+
+**The Tribunal arrived on 2026-09-06.** `tribunal-ordinator` and `tribune` are
+assignable and spawnable with **no `optIn`**, exactly as this section promised
+they would be: they are handed out, not consented to on the wizard.
+`tribunal-operations` above stays what it always was, one of the nine decoys —
+these landing did not make it real. Two things about them are new to this file:
+
+- They are the first seats to carry **`spawn.locationSlug`**, so the seat knows
+  its own landing site (Black Pines) and a GM offering one need not remember
+  it. `offerThreatSpawn` prefers a GM's explicit pick, then this, then the
+  role's own start.
+- They are the first to have **real Roles that no player may take**. A spawn
+  needs a Role for its charter, kit and start, so `docs/roles.yaml` carries a
+  `the-tribunal` faction — and both slugs sit in `SPAWN_ONLY_ROLE_SLUGS`
+  (`web/lib/characterCreation.js`), which withholds them from the creation
+  picker outright rather than greying them the way a whitelisted seat is.
+
+Spawning either one tells the **whole map** a shuttle came down — every
+Location channel, via `SHUTTLE_ARRIVAL_SLUGS` and
+`db/lib/worldBroadcast.js#ambientEverywhere`. Adding a future Tribunal seat to
+that broadcast is one line in the set.
 
 An entry with neither `optIn` nor `assign` is a **brief**: prose a GM runs
 entirely by hand, no checkbox and no button. Sympathizer, Monsters, Brigand and
@@ -199,5 +218,8 @@ somebody else's client.
    `npm run db:sync-tags`.
 3. That is all. Both tables, both buttons and the wizard read the catalog.
 
-Blurbs are Bascinet's words and carry **no `‡`** — the exemption in CLAUDE.md
-for dictated text. Anything you write around them does.
+Blurbs Bascinet dictated carry **no `‡`** — the exemption in CLAUDE.md for
+dictated text. Anything you write around them does, and so does a blurb you
+**drafted** rather than transcribed: the Tribunal's two are Claude's words from
+Bascinet's brief, so each carries one mark at the end of its last line, which is
+where the whole DM ends. One per message, not one per line.

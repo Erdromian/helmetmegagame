@@ -1,5 +1,7 @@
 const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
 const { prisma, concealedAlias } = require("@lifeweb/db");
+const { setVisibleZones } = require("@lifeweb/db/lib/gmZoneView");
+const { syncGmZoneRoles } = require("@lifeweb/db/lib/gmZoneRoles");
 const { isUnaffiliated } = require("@lifeweb/db/lib/factionConstants");
 const {
   CONCEALMENT_TAG_FIELDS,
@@ -52,7 +54,7 @@ const { confirmMove } = require("../lib/moveConfirm");
 const { buildSpeakModal, buildSpeakPicker } = require("../lib/speakModal");
 const { listSpeakTargets, canSpeakInTarget, canSpeakInChannel, isNavValue } = require("../lib/speakTargets");
 const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/interactionGuild");
-const { postAsCharacterTo } = require("../lib/proxy");
+const { postAsCharacterTo, loadVoiceState } = require("../lib/proxy");
 const { resolveLaborRate, qualityWord } = require("@lifeweb/db");
 const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
@@ -73,7 +75,8 @@ const {
 const { refreshLocationAnchor, refreshGateRooms } = require("@lifeweb/db/lib/syncZones");
 const { describeLocation, hasAttribute } = require("@lifeweb/db/lib/locationAttributes");
 const { loadDepot, depotPowered, fuelTurnsLeft } = require("@lifeweb/db/lib/depotState");
-const { structuresAt, HOLDS_EDGE } = require("@lifeweb/db/lib/structures");
+const { structuresAt } = require("@lifeweb/db/lib/structures");
+const { blockerFor, ACT } = require("@lifeweb/db/lib/incapacitation");
 const {
   ROOM_STORAGE_PREFIX,
   ROOM_INTERCOM_PREFIX,
@@ -151,6 +154,87 @@ const CONVERSE_ROOM_PREFIX = "conv:room:";
 // "a young man" / "an old woman" — the alias as it reads mid-sentence.
 function withArticle(word) {
   return `${/^[aeiou]/i.test(word) ? "an" : "a"} ${word}`;
+}
+
+const ZONE_VIEW_ID = "zoneview:pick";
+
+// /zone — the Discord twin of the Zones control at the bottom of the GM
+// desks' inspector. Both write the same GmZoneView rows and both call
+// syncGmZoneRoles, so a GM can toggle from wherever they happen to be.
+//
+// Nothing selected means EVERY zone, which is why the menu's min_values is 0:
+// clearing it is a real answer, not an empty form.
+async function handleZoneCommand(interaction) {
+  if (!isGmMember(interaction)) {
+    await respond(interaction, "» *GMs only.*");
+    return;
+  }
+  await ack(interaction);
+
+  const [zones, current] = await Promise.all([
+    // Only zones with a seat to hand out — see web/lib/gmZoneView.js.
+    prisma.zone.findMany({
+      where: { gmRoleId: { not: null } },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.gmZoneView.findMany({
+      where: { discordUserId: interaction.user.id },
+      select: { zoneId: true },
+    }),
+  ]);
+  if (zones.length === 0) {
+    await respond(interaction, "» *There are no zones yet — run the zone sync first.* ‡");
+    return;
+  }
+  const chosen = new Set(current.map((r) => r.zoneId));
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId(ZONE_VIEW_ID)
+    .setPlaceholder("Which zones do you want to see? ‡")
+    .setMinValues(0)
+    .setMaxValues(zones.length)
+    .addOptions(
+      zones.map((zone) => ({
+        label: zone.name.slice(0, 100),
+        value: zone.id,
+        default: chosen.has(zone.id),
+      })),
+    );
+
+  await respond(interaction, {
+    content:
+      "Which zones do you want to see? ‡\n" +
+      "-# This sets your Discord channels and your desks at once. Pick none to see everything. ‡",
+    components: [new ActionRowBuilder().addComponents(menu)],
+  });
+}
+
+async function handleZoneViewPick(interaction) {
+  if (!isGmMember(interaction)) {
+    await respond(interaction, "» *GMs only.*");
+    return;
+  }
+  await ack(interaction);
+
+  const wanted = interaction.values ?? [];
+  await setVisibleZones(prisma, interaction.user.id, wanted);
+  // Outside the write and best-effort, the same posture every Discord fan-out
+  // in the app takes — a rate limit should not cost the GM their choice.
+  await syncGmZoneRoles(prisma, interaction.user.id).catch((err) =>
+    console.error("/zone: role sync failed:", err.message ?? err),
+  );
+
+  if (wanted.length === 0) {
+    await respond(interaction, "» You can see every zone. ‡");
+    return;
+  }
+  const zones = await prisma.zone.findMany({
+    where: { id: { in: wanted } },
+    orderBy: { sortOrder: "asc" },
+    select: { name: true },
+  });
+  await respond(interaction, `» You can see ${zones.map((z) => z.name).join(", ")}. ‡`);
 }
 
 async function handleGmCommand(interaction) {
@@ -477,7 +561,13 @@ async function handleBellSubmit(interaction, roomId) {
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { bellRungAt: true } });
   const { ok, secondsLeft } = bellCooldown(config?.bellRungAt);
   if (!ok) {
-    await respond(interaction, `» *The bell is still humming from the last pull. ${secondsLeft}s.* ‡`);
+    // Minutes, not the raw seconds this used to print: at a half-hour cooldown
+    // "1487s" is arithmetic homework rather than an answer.
+    const minutes = Math.max(1, Math.ceil(secondsLeft / 60));
+    await respond(
+      interaction,
+      `» *The bell is still humming from the last pull. About ${minutes} more minute${minutes === 1 ? "" : "s"}.* ‡`,
+    );
     return;
   }
 
@@ -593,6 +683,25 @@ async function handleIntercomSubmit(interaction, roomId) {
   const body = interaction.fields.getTextInputValue("intercom:body").trim();
   if (!body) {
     await respond(interaction, "» *Say something first.* ‡");
+    return;
+  }
+
+  const voice = await loadVoiceState(character.id);
+  if (voice.block) {
+    await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.* ‡`);
+    return;
+  }
+  // Deaf is the one impairment enforced on the SENDING side only. A shout and
+  // a PA both land in shared Discord channels, and there is no way to hide a
+  // channel message from one member of it — so a deaf character will read
+  // every broadcast whatever we do, and not hearing stays roleplay. What we
+  // can honestly say is that they don't work a handset they can't hear.
+  const deaf = await prisma.characterTag.findFirst({
+    where: { characterId: character.id, quantity: { gt: 0 }, tag: { slug: "deaf" } },
+    select: { id: true },
+  });
+  if (deaf) {
+    await respond(interaction, "» *You can't hear a thing coming back down the line.* ‡");
     return;
   }
 
@@ -730,16 +839,9 @@ async function handleGateToggle(interaction, linkId) {
 
   const link = await prisma.locationLink.findUnique({
     where: { id: linkId },
-    include: {
-      a: true,
-      b: true,
-      // gateOperable needs to know whether anything holds a structural edge
-      // — the same HOLDS_EDGE-filtered boolean's-worth LINK_INCLUDE loads.
-      structures: { where: { status: { in: HOLDS_EDGE } }, select: { id: true } },
-    },
+    include: { a: true, b: true },
   });
-  // Covers "not modular" and "structural with nothing built holding it" —
-  // an unheld ford has no mechanism, whatever a stale button claimed.
+  // Covers "not modular" — whatever a stale button claimed.
   if (!gateOperable(link)) {
     await respond(interaction, "» *There's no gate here to work.* ‡");
     return;
@@ -761,18 +863,13 @@ async function handleGateToggle(interaction, linkId) {
 
   const wantOpen = !link.isOpen;
   // The permission verdict above read a snapshot, and the flip must not
-  // trust it across time: a structural gate's mechanism EXISTS only while a
-  // structure holds it, and a destroy or a build-undo can revert the edge
-  // to the very isOpen the clicker saw — so a bare (id, isOpen) claim would
-  // let a stale button work a gate that is no longer there. Lock the row,
-  // re-read the holder-filtered state, and re-run both predicates.
+  // trust it across time: a re-sync can turn the edge into an ordinary
+  // (non-modular) way, and two watchmen can click in the same second. Lock
+  // the row, re-read, and re-run both predicates.
   let outcome = "flipped";
   await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${link.id} FOR UPDATE`;
-    const fresh = await tx.locationLink.findUnique({
-      where: { id: link.id },
-      include: { structures: { where: { status: { in: HOLDS_EDGE } }, select: { id: true } } },
-    });
+    const fresh = await tx.locationLink.findUnique({ where: { id: link.id } });
     if (!gateOperable(fresh)) {
       outcome = "gone";
       return;
@@ -1149,9 +1246,6 @@ async function handleExamine(interaction, locationId) {
     .map((link) => ({
       isOpen: link.isOpen,
       farName: endpoints(link, locationId).far.name,
-      // A shut structural edge with no holding structure (LINK_INCLUDE's
-      // HOLDS_EDGE-filtered `structures`) Examines as unbuilt, not closed.
-      unbuilt: Boolean(link.structural && !link.isOpen && !(link.structures?.length > 0)),
     }));
 
   const byKind = new Map(location.yields.map((row) => [row.kind, row.current]));
@@ -1431,7 +1525,7 @@ async function handleConcealCommand(interaction) {
   await respond(
     interaction,
     concealed
-      ? `» *You now speak as **${withArticle(concealedAlias(character).toLowerCase())}**. Nobody sees your name until you run /conceal again.* ‡`
+      ? `» *You now speak as **${withArticle(concealedAlias(character).toLowerCase())}**. Nobody sees your name until you run \`/conceal\` again.* ‡`
       : "» *You speak under your own name again.* ‡",
   );
 }
@@ -1508,6 +1602,20 @@ async function handleMoveSubmit(interaction) {
   });
   if (alreadyActed) {
     await respond(interaction, "» *You've already locked in a Move this turn — your submission wasn't recorded.*");
+    return;
+  }
+
+  // The same gate every web action runs (db/lib/incapacitation.js): Bound,
+  // Dying, Crucified, out cold — none of them files a Move. Checked after the
+  // already-acted test so a refusal costs nothing, and before the Action row
+  // so a refused Move never lands on the desk.
+  const heldTags = await prisma.characterTag.findMany({
+    where: { characterId: character.id },
+    select: { tag: { select: { slug: true, name: true } } },
+  });
+  const stuck = blockerFor(heldTags, ACT);
+  if (stuck) {
+    await respond(interaction, `» *You can't act right now — you're ${stuck.name}. Your submission wasn't recorded.* ‡`);
     return;
   }
 
@@ -1664,12 +1772,23 @@ async function handleSpeakSubmit(interaction, channelId) {
   const concealment = await loadConcealment(prisma, character.id);
   const identity = presentedIdentity(character, { forcedName, concealment });
 
+  // Refused here as well as inside postAsCharacterTo. The funnel is the
+  // backstop; this is the courtesy, so a silenced player is told before the
+  // bot goes and builds a webhook for a message it will not send.
+  const voice = await loadVoiceState(character.id);
+  if (voice.block) {
+    await touchCharacterActivity(prisma, character.id);
+    await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.* ‡`);
+    return;
+  }
+
   let posted;
   try {
     posted = await postAsCharacterTo(channel, character, {
       content: body,
       discordUserId: interaction.user.id,
       identity,
+      voice,
     });
   } catch (err) {
     console.error("Failed to post a Speak message:", err);
@@ -1948,6 +2067,17 @@ async function handleShoutCommand(interaction) {
     return;
   }
 
+  // SPEAK, not ACT — and that distinction is the whole point of this gate.
+  // {tag:bound} blocks acting but never speech, so a hostage can still yell
+  // for help, which is the one thing being tied up ought to leave you.
+  // Checked BEFORE the cooldown is claimed below: a refused shout must not
+  // burn the throat timer.
+  const voice = await loadVoiceState(character.id);
+  if (voice.block) {
+    await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.* ‡`);
+    return;
+  }
+
   const since = Date.now() - (lastShouted.get(character.id) ?? 0);
   if (since < SHOUT_COOLDOWN_MS) {
     const minutes = Math.max(1, Math.ceil((SHOUT_COOLDOWN_MS - since) / 60_000));
@@ -2012,13 +2142,15 @@ module.exports = {
     try {
       if (interaction.isChatInputCommand()) {
         if (interaction.commandName === "gm") return void (await handleGmCommand(interaction));
+        if (interaction.commandName === "zone") return void (await handleZoneCommand(interaction));
         if (interaction.commandName === "dm") return void (await handleGmDmCommand(interaction));
         if (interaction.commandName === "heal") return void (await handleHealCommand(interaction));
         if (interaction.commandName === "add" || interaction.commandName === "remove") {
           return void (await handleThreadMemberCommand(interaction, interaction.commandName));
         }
         if (interaction.commandName === "move") return void (await handleMoveOpen(interaction));
-        if (interaction.commandName === "location") return void (await handleTravelOpen(interaction));
+        if (interaction.commandName === "location" || interaction.commandName === "travel")
+          return void (await handleTravelOpen(interaction));
         if (interaction.commandName === "conceal") return void (await handleConcealCommand(interaction));
         if (interaction.commandName === "message") return void (await handleMessageCommand(interaction));
         if (interaction.commandName === "roll") return void (await handleRollCommand(interaction));
@@ -2100,6 +2232,7 @@ module.exports = {
         // Arrives in a DM; must NOT be acked first since it opens a modal.
         if (interaction.customId.startsWith(EDIT_OPEN_PREFIX)) return void (await handleEditOpen(interaction));
       } else if (interaction.isStringSelectMenu()) {
+        if (interaction.customId === ZONE_VIEW_ID) return void (await handleZoneViewPick(interaction));
         if (interaction.customId === PICK_ID) return void (await handleTravelPick(interaction));
         if (interaction.customId.startsWith(DRAG_PREFIX)) {
           return void (await handleTravelDrag(interaction, interaction.customId.slice(DRAG_PREFIX.length)));

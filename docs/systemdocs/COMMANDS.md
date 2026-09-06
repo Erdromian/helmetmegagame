@@ -39,6 +39,7 @@ Each command declares its contexts:
 |---|---|---|---|---|
 | `/move` | — | Living character | Guild, DM | `handleMoveOpen` |
 | `/location` | — | Living character | Guild, DM | `handleTravelOpen` — the **Location** picker (§4) |
+| `/travel` | — | Living character | Guild, DM | `handleTravelOpen` — the same picker, under the name people reach for |
 | `/conceal` | — | Living character | Guild, DM | `handleConcealCommand` |
 | `/message` | — | Living character | Guild, DM | `handleMessageCommand` |
 | `/play` | — | Living character holding an Instrument | Guild | `handlePlayCommand` |
@@ -49,11 +50,28 @@ Each command declares its contexts:
 | `/gm` | `message`, `attachment` | GM | Guild | `handleGmCommand` |
 | `/dm` | `recipient` (user), `message` | GM | Guild | `handleGmDmCommand` |
 | `/heal` | `character` (role) | GM | Guild | `handleHealCommand` |
+| `/zone` | — | GM | Guild | `handleZoneCommand` — the select menu is `handleZoneViewPick` |
 
 Notes:
 
 - `/move`, `/location` and `/message` are the twins of the three console
   buttons in §3. Each opens the same flow.
+- **`/travel` and `/location` are the same command.** `handleTravelOpen`
+  answers both. `/location` is the historical name and stays registered so
+  nobody's muscle memory breaks; `/travel` was added 2026-09-06 because that is
+  what the thing is called everywhere else — the console button, the anchor
+  button and this doc all say Travel. The BUTTON's `custom_id` is still
+  `loc:open` and is not worth a migration; only the surface names changed.
+  Retiring `/location` needs no deregistration step, since
+  `client.application.commands.set` fully replaces the list.
+- `/zone` is the Discord twin of the **Zones** control at the bottom of the
+  inspector on `/gm/turns` and `/gm/players`. It takes no options: it opens an
+  ephemeral select menu (`min_values: 0`) with the caller's current zones
+  pre-selected, because toggling is something you do by looking at the current
+  state rather than by retyping it. Choosing nothing means every zone. Both
+  faces write `GmZoneView` and then call `syncGmZoneRoles`, which is what
+  actually changes which Location channels the GM can see
+  (`GAMEMASTERS.md` §6).
 - `/conceal` toggles `Character.concealed`, a standing state rather than a
   per-message one — that's why it needs a DM context the same way `/location`
   does, rather than living only as a `/character` checkbox. See §2c.
@@ -164,10 +182,16 @@ the only speech in the game that crosses the Location graph.
 the character *stands* — not from whatever channel the command was typed in;
 those can disagree and only one of them is a place a voice comes from — and
 returns every Location within four hops, each with the distance and the
-direction. **Every edge counts.** Locked, hidden, shut, structural, on-foot —
-sound does not care, because none of those are about sound. A portcullis you
+direction. **Every edge counts.** Locked, hidden, shut, on-foot — sound does
+not care, because none of those are about sound. A portcullis you
 cannot open is still a portcullis you can yell through. It is deliberately the
 one traversal in the game that never calls `crossingCheck`.
+
+**Who may shout.** The SPEAK capability (`TAGS.md` §5f) — so Mute, Paralyzed,
+Unconscious and mid-Seizure refuse, and **Bound deliberately does not**. Being
+tied up takes your hands, not your voice, and a hostage nobody can hear is a
+hostage nobody can rescue. The check runs *before* the cooldown is claimed, so
+a refused shout does not burn the throat timer.
 
 **What they hear**, from `db/lib/shout.js`:
 
@@ -219,6 +243,59 @@ there is a 5-minute per-character cooldown, in memory like `/play`'s, and it is
 **claimed before the loop rather than after**: the loop takes real seconds,
 which is exactly long enough for a second `/shout` to slip past a cooldown
 stamped at the end.
+
+### 2e. The bell and the trumpet
+
+The two things that are *loud* rather than spoken. They share one machine,
+`db/lib/soundBroadcast.js#broadcastSound`, which is `/shout`'s cousin over the
+same `soundRange` BFS — with the two things that make a shout a shout removed.
+
+**Nothing muffles.** A shout loses its words with distance because a shout *is*
+words. Neither of these has any to lose, so all distance changes is whether the
+line lands in the conversation or under it. **And no direction**: `soundRange`
+offers a `viaName` and a shout needs it, but a bell hangs in a tower you can see
+from the square, so naming the way to it tells nobody anything.
+
+So the only thing left is a volume band, and it is purely a formatting call —
+full size near the source, `ambientLine` subtext past it. ‡
+
+| | Origin | Reach | Full size | Cooldown |
+|---|---|---|---|---|
+| **Bell** | the Cathedral, fixed | 7 hops | 0–4 | 30 min, global (`GameConfig.bellRungAt`) |
+| **Trumpet** | wherever the holder stands | 5 hops | 0–3 | 30 min, per character, in memory |
+
+The trumpet's numbers are **derived** from the bell's at 0.75×, rounded, rather
+than written out — the ratio is the design, so retuning the bell moves the
+trumpet with it instead of leaving the two to disagree (`db/lib/trumpet.js`).
+
+From the Cathedral the bell is 20 Locations loud and 16 quiet; the trumpet is
+12 and 16.
+
+**Rock stops sound, and the rule is symmetric** — a Location hears it only if
+its `Zone.kind` matches the origin's. A bell in the Cathedral must not ring in
+the Depths, which any version of this gives you; but a trumpet blown underground
+must still be heard by the people standing next to the trumpeter, and a plain
+"surface only" filter made it audible everywhere *except* down there. Comparing
+against the origin says the actual thing rather than describing the wiring.
+
+That filter replaced an allowlist of four zone slugs posting into zone
+`#summary` channels, which could not say that the Square hears the bell better
+than the far Marshes do, and made the Black Hills deaf to a bell they stand
+close enough to hear.
+
+**Who may.** The bell is whoever can reach the rope — the Bell Tower's `Sound
+Bell` button, confirmed by typing `RING` into a modal, because one click is
+heard across most of the barony and cannot be taken back. The trumpet is
+whoever holds the `trumpet` tag, and its button is on the **web Character
+page**, not in Discord: "only if you have one" is a per-reader question, and a
+Discord button sits on an anchor message everybody shares. It asks for a
+confirm for the same reason the rope does. Sounding it takes ACT, not SPEAK — a
+trumpet needs breath *and* hands, so Bound stops it where it deliberately would
+not stop a shout.
+
+Both write an AuditLog row (`bell_rung`, `trumpet_sounded`), and both claim
+their cooldown **before** the posting loop, for `/shout`'s reason: the loop is
+two or three dozen REST posts and takes real seconds.
 
 ## 3. The `#turns` console
 
@@ -469,6 +546,14 @@ The button lives on the Council Room's starter post, and standing in that room
 is the whole gate — there is no tag any more (`CHANNELS.md` §7a). Like Speak,
 the gate is re-checked on **submit**, because an ephemeral modal outlives its
 player walking out of the Keep.
+
+Two tag checks ride along on submit, and never on open (`showModal` *is* the
+acknowledgement, so that handler cannot `ack` first). SPEAK, as everywhere
+else — and **Deaf**, which is the one place in the game that tag does
+anything. A radio is two-way, and a handset you cannot hear is no use to you.
+That is the honest limit of it: a shout and a PA both land in shared Discord
+channels, so a deaf character still reads every broadcast on their screen and
+nothing can change that. See `TAGS.md` §5f.
 
 1200 characters is not arbitrary. The composed line has to fit one Discord
 message per zone: the broadcast pings `@here`, and a chunked message would ping

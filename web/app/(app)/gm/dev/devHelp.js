@@ -6,9 +6,7 @@
 // (<strong>, HTML entities used for JSX-safe quoting) is dropped.
 export const CONFIG_HELP = {
   leaderWhitelistEnabled:
-    "Require the @Leader Whitelist role to pick a whitelisted role. A card without it renders greyed, and says “Whitelist only” on hover. ‡",
-  playtestModeEnabled:
-    "Lock the Merchant and every Windlands role out of character creation. Their cards still show, greyed, so the charters stay readable. Not bypassed for superadmins.",
+    "Require the @Whitelist role to pick a whitelisted role. A card without it renders greyed, and says “Whitelist only” on hover. ‡",
   autoTurnAdvanceDisabled:
     "The nightly cron skips its advance while this is on. “Advance turn now” on the Turn section still works.",
   avatarUploadsEnabled: "Allow players to upload their own profile picture.",

@@ -166,18 +166,23 @@ world with no recipe to make a third.
 
 ## 6. The numbers, and where they come from
 
-**A cube weighs 20 lb; a crated cube weighs 10.** Working back from the target:
-5 turns of production is ~2.5 producing turns, 3 refugees × 8 cubes × 2.5 = 60
-cubes, and a Banneret with Horse + Cart carries 120 × (1 + 4) = 600 lb. 600/60
-is 10 crated, 20 raw.
+**A cube weighs 17 lb; a crated cube weighs 8.5.** (It was 20/10 until
+2026-09-06, Bascinet's call; the derivation below is the original one, rerun.)
+Working back from the target: 5 turns of production is ~2.5 producing turns,
+3 refugees × 8 cubes × 2.5 = 60 cubes, and a Banneret with Horse + Cart
+carries 120 × (1 + 4) = 600 lb. 60 crated cubes is 510 raw, 255 crated — so a
+wagon now clears a five-turn run with room to spare rather than exactly
+filling.
 
-It checks out through the crate cap too: 150 lb packs 7 cubes into a 70 lb
-crate, and 600/70 ≈ 8.5 crates ≈ 60 cubes. **One full wagon every five turns.**
+Through the crate cap: 150 lb packs **8** cubes into a 68 lb crate (was 7 into
+70), and 600/68 ≈ 8.8 crates ≈ 70 cubes.
 
-A refugee's 8-cube day is 160 lb against a 120 lb cap, so they *cannot walk
-their own output anywhere*. They stash it in the Logistics Room and the carry
-pass handles the overflow. The cart and the silo are the business; that is
-deliberate, not an oversight.
+A refugee's 8-cube day is 136 lb against a 120 lb cap, so they *still* cannot
+walk their own output anywhere — the margin narrowed from 40 lb to 16 lb but
+the rule the design leans on survives. A **7**-cube day (119 lb) now just
+fits, which 6 cubes did before. They stash the rest in the Logistics Room and
+the carry pass handles the overflow. The cart and the silo are the business;
+that is deliberate, not an oversight.
 
 **A cube sells for 4 ⬢.** Farming at coefficient 1.0 with
 `productionCoefficient` 0.93 pays 11–15 ⬢, midpoint 13; a factory day at the
@@ -262,7 +267,7 @@ letters you never had.
 The Godard Factory's fifth room, and the only room in the game with
 `Room.destroysContents`. Authored as `destroys: true` in `docs/zones.yaml`.
 
-The seam is deliberately **`web/lib/requestEffects.js#giveTagTo` and
+The seam is deliberately **`web/lib/tagEffects.js#giveTagTo` and
 `db/lib/resourceTransfer.js#moveParty`** — the two choke points for putting
 anything into a Room — rather than a branch in `transferRequest`. Nothing is
 written, so nothing can be fished back out.
@@ -270,7 +275,7 @@ written, so nothing can be fished back out.
 **There is a third writer into rooms, and it is excluded rather than routed
 through the same seam:** `db/lib/roomStash.js#pickRandomPublicRoom`, which the
 carry pass and corpse placement use to shed overflow. A destroying room is never
-eligible. That is not a nicety — a refining shift makes 160 lb of Squeeze
+eligible. That is not a nicety — a refining shift makes 136 lb of Squeeze
 against a 120 lb cap, so the overflow drop fires on the *intended* loop every
 day, and one of the Factory's three public rooms is the trough. Tipping
 something in has to stay a thing you do on purpose.
@@ -296,14 +301,14 @@ about a trough.
 | The labor branch | `db/lib/laborAccess.js`, `db/lib/autoLaborPass.js` |
 | The snapshot | `db/lib/moveEffects.js` (`refined`) |
 | Both server actions | `web/app/(app)/character/requestActions.js` |
-| Undo | `web/lib/requestEffects.js` |
-| GM rows | `web/app/(desk)/gm/turns/RequestSections.js`, `web/lib/requestLabels.js` |
+| Undo | `web/lib/tagEffects.js` |
+| What a GM sees | `/gm/audit`, rendered by `web/lib/auditNarrative.js` |
 | Buttons | `web/app/components/actionRegistry.js`, `RequestActionsProvider.js` |
 | Gates | `web/app/(app)/character/page.js` |
 | Location attributes | `db/lib/locationAttributes.js` (`godflesh`, `refinery`) |
 | Crates, both kinds | `db/lib/depotCrates.js#crateWeight` |
 | Stupid's garble | `db/lib/babble.js`, `bot/src/lib/proxy.js` |
 | Damaged Vision → Blind | `db/lib/visionDecayPass.js` |
-| Spillway | `db/lib/parties.js`, `resourceTransfer.js`, `web/lib/requestEffects.js` |
+| Spillway | `db/lib/parties.js`, `resourceTransfer.js`, `web/lib/tagEffects.js` |
 | Constants | `PACKAGING_EQUIPMENT_SLUG`, `PACKAGE_MAX_LBS`, `PACKAGE_LABEL_MAX` in `db/lib/constants.js` |
 | Geography, roles, papers | `docs/zones.yaml`, `docs/roles.yaml`, `docs/documents.yaml` |

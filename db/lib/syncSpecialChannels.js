@@ -23,6 +23,7 @@ const {
 const { applySpectatorOverwrite } = require("./spectatorAccess");
 const { applyCursedOverwrite } = require("./cursedAccess");
 const { SPECIAL_CHANNELS } = require("./specialChannels");
+const { gmRoleIds } = require("./roleIds");
 
 const PERM_VIEW_CHANNEL = 1024n;
 const PERM_SEND_MESSAGES = 2048n;
@@ -52,7 +53,6 @@ async function ensureCategory(prisma, config, guildChannels, categoryConfigKey) 
 
 async function syncSpecialChannels(prisma) {
   const guildId = process.env.DISCORD_GUILD_ID;
-  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
   if (!guildId || !process.env.DISCORD_TOKEN) {
     throw new Error("DISCORD_GUILD_ID and DISCORD_TOKEN must be set.");
   }
@@ -114,7 +114,8 @@ async function syncSpecialChannels(prisma) {
     await putChannelOverwrite(channelId, guildId, {
       deny: (PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_ATTACH_FILES).toString(),
     });
-    if (gmRoleId) {
+    // One per GM seat — Gamemaster and Trial Gamemaster both hear these.
+    for (const gmRoleId of gmRoleIds()) {
       await putChannelOverwrite(channelId, gmRoleId, {
         allow: (PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_ATTACH_FILES).toString(),
       });

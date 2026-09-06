@@ -300,7 +300,7 @@ A GM's Undo has to be able to put the body back.
 | The smell | `bot/src/lib/deathSmell.js`, armed in `bot/src/events/ready.js` |
 | Headstones | `db/lib/headstone.js` |
 | The three actions | `web/app/(app)/character/requestActions.js` |
-| Undo | `web/lib/requestEffects.js` |
+| Undo | `web/lib/tagEffects.js` |
 | Buttons, dialogs | `actionRegistry.js`, `RequestActionsProvider.js`, `icons.js` |
 | Ingredient shape | `db/lib/tagShapes.js`, `db/lib/syncTags.js`, `db/lib/formatTagRequirement.js` |
 | Constants | `CORPSE_GROUP_SLUG`, `BUTCHER_SLUG`, `HUMAN_FLESH_SLUG`, `ENGRAVE_RESOURCE_COST`, `CORPSE_ROT_TURNS` in `db/lib/constants.js` |

@@ -4,15 +4,15 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import ZoneChip from "@/app/components/ZoneChip";
-import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
 import Select from "@/app/components/Select";
-import { openingZoneName } from "@/lib/zones";
 import usePins from "@/app/components/usePins";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import useNowTick from "@/app/components/useNowTick";
 import { mergeRailRows, useRailPatches } from "./liveInbox";
+import { inVisibleZones } from "@/lib/zones";
+import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
 import {
   markConversationRead,
   searchConversations,
@@ -63,8 +63,12 @@ function relativeTime(ms, now) {
   return `${days}d`;
 }
 
-export default function PlayerRail({ rows: serverRows, rowsAsOfMs, myZoneNames, myDiscordUserId }) {
+export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNames, myDiscordUserId }) {
   const pathname = usePathname();
+  // The prop is only the seed: once the picker in the inspector has moved,
+  // the live answer is in the client (GmZoneViewProvider), so the rail
+  // re-filters on the click instead of waiting on a revalidate.
+  const zonesInView = useVisibleZoneNames(visibleZoneNames);
   // The live inbox's patches laid over the layout's rows (liveInbox.js), so
   // a new message moves a row, bumps its badge and rewrites its preview
   // within seconds instead of on the next 30s refresh. Done FIRST, before
@@ -73,12 +77,18 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, myZoneNames, 
   // when a new message lands.
   const patches = useRailPatches();
   const rows = useMemo(() => mergeRailRows(serverRows, patches, rowsAsOfMs), [serverRows, patches, rowsAsOfMs]);
+
+  // The zones this GM chose to see (null = all). Unlike the zone dropdown
+  // below, this is not a lens: a row outside it is not theirs to work, and a
+  // search does NOT lift it.
+  const inView = useMemo(() => inVisibleZones(rows, zonesInView), [rows, zonesInView]);
+
   // A beat for the relative-time chips, so "just now" doesn't stay "just
   // now" for an hour.
   const now = useNowTick(30_000);
   const [, startTransition] = useTransition();
   const [query, setQuery] = useState("");
-  const [zoneFilter, setZoneFilter] = useState(openingZoneName(myZoneNames));
+  const [zoneFilter, setZoneFilter] = useState("");
   // "Who is waiting on me": unread, or they wrote last and it's been read.
   // A 100-player inbox still needs this one lens; it did not need three
   // mutually exclusive ones where two were sort orders in disguise.
@@ -128,12 +138,12 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, myZoneNames, 
   // "c:" and "u:" pins, not just its own namespace.
   const knownPinIdentities = useMemo(() => {
     const ids = new Set();
-    for (const r of rows) {
+    for (const r of inView) {
       if (r.characterId) ids.add(`c:${r.characterId}`);
       if (r.discordUserId) ids.add(`u:${r.discordUserId}`);
     }
     return ids;
-  }, [rows]);
+  }, [inView]);
   const { isPinned, togglePin } = usePins({ knownIdentities: knownPinIdentities });
 
   const isHandled = useCallback(
@@ -185,8 +195,8 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, myZoneNames, 
   }
 
   const zoneOptions = useMemo(
-    () => [...new Set(rows.map((c) => c.factionZoneName).filter(Boolean))].sort(),
-    [rows],
+    () => [...new Set(inView.map((c) => c.factionZoneName).filter(Boolean))].sort(),
+    [inView],
   );
 
   const visible = useMemo(() => {
@@ -196,8 +206,8 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, myZoneNames, 
     // only way to reach someone who has never written, since their href
     // already works for an empty thread.
     let list = q
-      ? rows.filter((r) => r.hasConversation || r.characterId)
-      : rows.filter((r) => r.hasConversation);
+      ? inView.filter((r) => r.hasConversation || r.characterId)
+      : inView.filter((r) => r.hasConversation);
 
     // Unlike the zone and needs-reply filters, a query does NOT lift this one
     // on its own — a mute is a standing decision about a person, not a lens
@@ -268,7 +278,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, myZoneNames, 
     extra.sort((a, b) => b.row.lastAtMs - a.row.lastAtMs);
     return [...scored, ...extra];
   }, [
-    rows,
+    inView,
     query,
     zoneFilter,
     needsReplyOnly,
@@ -280,13 +290,15 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, myZoneNames, 
   ]);
 
   const mutedCount = useMemo(
-    () => rows.filter((r) => r.hasConversation && isMuted(r)).length,
-    [rows, isMuted],
+    () => inView.filter((r) => r.hasConversation && isMuted(r)).length,
+    [inView, isMuted],
   );
 
+  // Mark-all-read only ever clears what this GM can actually see — otherwise
+  // one click silently marks another zone's unread mail as handled.
   const unreadIds = useMemo(
-    () => rows.filter((c) => c.unreadCount > 0).map((c) => c.discordUserId),
-    [rows],
+    () => inView.filter((c) => c.unreadCount > 0).map((c) => c.discordUserId),
+    [inView],
   );
 
   function markAllRead() {
@@ -326,11 +338,6 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, myZoneNames, 
             </label>
           </div>
         )}
-        <ZoneScopeToggle
-          myZoneNames={myZoneNames}
-          filters={{ zone: zoneFilter }}
-          setFilters={(fn) => setZoneFilter((prev) => fn({ zone: prev }).zone)}
-        />
         <div className="segmented" role="group" aria-label="Reply filter">
           <button
             type="button"
@@ -434,10 +441,18 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, myZoneNames, 
                   )}
                 </div>
                 <div className="desk-queue-preview">
-                  {row.preview || (
-                    <span className="text-muted">
-                      {row.roleTitle || "No messages yet"}
-                    </span>
+                  {/* A conversation whose only traffic is automated — a
+                      turret, a move unlock — has no genuine line to show.
+                      It reads as one muted system line rather than as a row
+                      with a name on it and nothing in it. */}
+                  {row.preview ? (
+                    row.previewIsSystem ? (
+                      <span className="text-muted italic">{row.preview}</span>
+                    ) : (
+                      row.preview
+                    )
+                  ) : (
+                    <span className="text-muted">{row.roleTitle || "No messages yet"}</span>
                   )}
                 </div>
                 {match && match.matchedField !== "name" && match.matchedField !== "username" && (

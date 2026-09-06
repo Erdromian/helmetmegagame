@@ -77,7 +77,7 @@ export default async function LifewebPage() {
 
   return (
     <PageShell width="narrow">
-      <PageHeader title="The Lifeweb" />
+      <PageHeader title="Lifeweb" />
 
       <section className="panel p-5">
         <div className="flex items-baseline justify-between">

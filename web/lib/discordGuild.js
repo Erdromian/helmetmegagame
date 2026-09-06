@@ -9,6 +9,7 @@ import {
   computeNarrowcastAccess,
   PLAYER_ROLE_ID,
   LEADER_WHITELIST_ROLE_ID,
+  hasGmRole,
   SPECIAL_CHANNELS,
 } from "@lifeweb/db";
 import { applyDeathToRow } from "@lifeweb/db/lib/characterDeath";
@@ -201,10 +202,12 @@ export const listGuildChannels = cache(async () => {
   }
 });
 
+// Either GM seat counts — the Gamemaster role and the Trial Gamemaster role
+// are access-identical, and db/lib/roleIds.js#gmRoleIds is the only place that
+// list lives. See docs/systemdocs/GAMEMASTERS.md.
 export function isGm(member) {
-  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
-  if (!member || !gmRoleId) return false;
-  return member.roles?.includes(gmRoleId) ?? false;
+  if (!member) return false;
+  return hasGmRole(member.roles);
 }
 
 // Role ID hardcoded rather than env-configured: this gate fails CLOSED, so a
@@ -226,10 +229,8 @@ export function isLeaderWhitelisted(member) {
 }
 
 export async function listGmMembers() {
-  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
-  if (!gmRoleId) return [];
   const members = await listGuildMembers();
-  return members.filter((m) => m.roles.includes(gmRoleId));
+  return members.filter((m) => hasGmRole(m.roles));
 }
 
 // Shared auth+role lookup for pages (redirect on failure) and server

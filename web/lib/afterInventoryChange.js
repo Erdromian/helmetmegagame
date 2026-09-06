@@ -47,11 +47,13 @@ export async function afterInventoryChange(characters) {
       .findUnique({ where: { id }, select: { id: true, discordUserId: true, locationId: true, status: true } })
       .catch(() => null);
     after(() => syncCharacterNarrowcastAccess(id).catch(() => {}));
-    // `locationOnly`: an inventory change never moves anybody, and leaving a
-    // Location already spends the membership, so the removes for private rooms
-    // elsewhere are no-ops that each cost a Discord round trip. The mover keeps
-    // the full sweep — crossing zones is exactly the case that needs them.
-    if (row) after(() => syncCharacterRoomAccess(prisma, row, { locationOnly: true }).catch(() => {}));
+    // The FULL recompute, deliberately. An inventory change is a tag change, and
+    // a key gained or lost changes what this character may enter anywhere on the
+    // map — this used to pass `locationOnly` and would now silently miss a room
+    // in another zone. It is affordable because entitlement changes are rare;
+    // the per-move cost that made narrowing worth it is gone
+    // (db/lib/roomAccess.js).
+    if (row) after(() => syncCharacterRoomAccess(prisma, row).catch(() => {}));
     if (settled?.drop) after(() => deliverCarryDrop(prisma, settled).catch(() => {}));
   }
   // Once, after the whole batch: a transfer moves a corpse between two

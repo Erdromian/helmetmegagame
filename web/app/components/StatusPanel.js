@@ -1,9 +1,16 @@
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { DISAPPOINTMENT_THRESHOLD } from "@lifeweb/db/lib/hungerPass";
-import { ATE_MEAL_SLUG, CATATONIC_SLUG, DISAPPOINTED_SLUG, NOBILITY_SLUG } from "@lifeweb/db/lib/constants";
+import {
+  ATE_MEAL_SLUG,
+  CATATONIC_SLUG,
+  DISAPPOINTED_SLUG,
+  NOBILITY_SLUG,
+  TRUMPET_SLUG,
+} from "@lifeweb/db/lib/constants";
 import { moveKindLabel, rollLabel } from "@/lib/moves";
 import TagPointsValue from "./TagPointsValue";
 import ActionGrid from "./ActionGrid";
+import SoundTrumpetButton from "./SoundTrumpetButton";
 import ExpandableText from "./ExpandableText";
 import StandingHerePanel from "./StandingHerePanel";
 
@@ -171,6 +178,9 @@ export default function StatusPanel({
   // leaving the player to find one grey chip among their tags.
   const catatonic = character.tags?.some((ct) => (ct?.tag?.slug ?? ct?.slug) === CATATONIC_SLUG);
 
+  // Held, not equipped: you pick a trumpet up to blow it.
+  const hasTrumpet = character.tags?.some((ct) => (ct?.tag?.slug ?? ct?.slug) === TRUMPET_SLUG);
+
   // The Nobility dinner tracker. Same reasoning as the Catatonic row: the
   // disappointed tag is granted by a turn pass (db/lib/hungerPass.js) and
   // cleared by eating, so the sheet explains the state rather than leaving a
@@ -337,6 +347,10 @@ export default function StatusPanel({
         </dl>
 
         {isSelf && <ActionGrid />}
+        {/* Only if you are carrying one. Derived here off the same held-tags
+            array the catatonic row above reads, so no slug matching reaches
+            the browser — and the server action re-checks it anyway. */}
+        {isSelf && hasTrumpet && <SoundTrumpetButton />}
       </div>
     </section>
 

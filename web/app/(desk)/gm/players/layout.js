@@ -1,8 +1,8 @@
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
-import { getMyZones } from "@/lib/gmZone";
+import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { getOpenTurn } from "@/lib/turn";
-import { dmNoiseSql, genuineConversationSql, dmPreviewLabel } from "@/lib/dmThread";
+import { dmNoiseSql, genuineConversationSql, dmPreview } from "@/lib/dmThread";
 import PlayerRail from "./PlayerRail";
 import DeskHeader from "@/app/components/DeskHeader";
 import InboxPoller from "./InboxPoller";
@@ -11,6 +11,7 @@ import DeskInboxCounts from "./DeskInboxCounts";
 import { deployVersion } from "@/lib/deployVersion";
 import { DeskStaleRefreshGate, DeskStaleChip } from "@/app/components/useDeskVersion";
 import InspectorHost from "./InspectorHost";
+import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
 import BulkMessageButton from "./BulkMessageButton";
 
 // The player desk's server half. Owns the rail's data; the child route
@@ -21,10 +22,11 @@ import BulkMessageButton from "./BulkMessageButton";
 export default async function PlayerDeskLayout({ children }) {
   const { session } = await getGmSession();
 
-  const [guildMembers, myZones, openTurn, characters, characterTags, allTags, stagedEffects] =
+  const [guildMembers, visibleZones, selectableZones, openTurn, characters, characterTags, allTags, stagedEffects] =
     await Promise.all([
     listGuildMembers(),
-    getMyZones(),
+    getVisibleZones(),
+    listSelectableZones(),
     getOpenTurn(),
     prisma.character.findMany({
       orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
@@ -164,7 +166,7 @@ export default async function PlayerDeskLayout({ children }) {
     const last = latestByUser.get(discordUserId) ?? null;
     const genuine = genuineByUser.get(discordUserId) ?? null;
     const username = usernameById.get(discordUserId) ?? "";
-    const authorLabel = dmPreviewLabel(genuine, session.discordUserId);
+    const { preview, previewIsSystem } = dmPreview(genuine, last, session.discordUserId);
     return {
       discordUserId,
       characterId: c?.id ?? null,
@@ -181,7 +183,8 @@ export default async function PlayerDeskLayout({ children }) {
       catatonic: c ? catatonicCharacterIds.has(c.id) : false,
       username,
       globalName: globalNameById.get(discordUserId) ?? "",
-      preview: genuine ? `${authorLabel}${genuine.content}` : "",
+      preview,
+      previewIsSystem,
       lastAtMs: last ? last.createdAt.getTime() : 0,
       lastDirection: last?.direction ?? null,
       // Whether a thread exists, not how long — avoids a per-user COUNT scan.
@@ -236,11 +239,15 @@ export default async function PlayerDeskLayout({ children }) {
         }
       />
 
+      {/* The zone view lives in the client from here down, so the rail, the
+          roster (which arrives as {children}) and the picker in the inspector
+          all re-filter on the click rather than on a revalidate. */}
+      <GmZoneViewProvider initialZoneNames={visibleZones?.map((z) => z.name) ?? null}>
       <div className="desk-body desk-body--players">
         <PlayerRail
           rows={rows}
           rowsAsOfMs={rowsAsOfMs}
-          myZoneNames={myZones.map((z) => z.name)}
+          visibleZoneNames={visibleZones?.map((z) => z.name) ?? null}
           myDiscordUserId={session.discordUserId}
         />
         {children}
@@ -248,6 +255,8 @@ export default async function PlayerDeskLayout({ children }) {
             put across a navigation (the roster included), which is the whole
             point of a persistent inspector. */}
         <InspectorHost
+          selectableZones={selectableZones}
+          visibleZoneIds={visibleZones?.map((z) => z.id) ?? []}
           rows={rows}
           stagedEffects={stagedEffects.map((e) => ({
             targetCharacterId: e.targetCharacterId,
@@ -260,6 +269,7 @@ export default async function PlayerDeskLayout({ children }) {
           tagCatalog={allTags}
         />
       </div>
+      </GmZoneViewProvider>
 
       <InboxPoller deployVersion={deployVersion()} />
       <LiveInboxPoller deployVersion={deployVersion()} />

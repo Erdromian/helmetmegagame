@@ -78,12 +78,21 @@ function roleAllow(roleId, allow) {
   return roleId ? [{ id: roleId, type: 0, allow: allow.toString() }] : [];
 }
 
-// The overwrites EVERY target carries: @everyone's deny (the privacy
-// mechanism), the GM seat, the spectator seat, and the ghost seat.
-function baseOverwrites(guildId, gmRoleId) {
+// The global GM roles — Gamemaster and Trial Gamemaster — deliberately do NOT
+// appear on ZONE-SCOPED channels. A GM used to hold a blanket
+// grant on all 56 Location channels at once, which is exactly the "a bit
+// overwhelming" this replaced: a zone's category, #summary and Locations now
+// grant that ZONE's own "GM: <Zone>" role instead, and a GM holds the ones
+// they picked (db/lib/gmZoneRoles.js). The global roles keep their blanket
+// grant on everything that is not a zone — #turns, the narrowcast channels,
+// the report channel — because none of those belong to one place.
+
+// The overwrites EVERY zone-scoped target carries: @everyone's deny (the
+// privacy mechanism), the zone's GM seat, the spectator seat, the ghost seat.
+function baseOverwrites(guildId, zoneGmRoleId) {
   return [
     { id: guildId, type: 0, deny: (PERM_VIEW_CHANNEL | PERM_ATTACH_FILES).toString() },
-    ...roleAllow(gmRoleId, PERM_VIEW_CHANNEL | PERM_ATTACH_FILES),
+    ...roleAllow(zoneGmRoleId, PERM_VIEW_CHANNEL | PERM_ATTACH_FILES),
     ...spectatorOverwrite(),
     ...cursedOverwrite(),
   ];
@@ -97,8 +106,8 @@ function baseOverwrites(guildId, gmRoleId) {
 //   CAVE_LEVEL  { }   (its Location channels parent to the group's category)
 function zoneChannelSpec(zone) {
   const guildId = process.env.DISCORD_GUILD_ID;
-  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
-  const base = baseOverwrites(guildId, gmRoleId);
+  const zoneGmRoleId = zone.gmRoleId ?? null;
+  const base = baseOverwrites(guildId, zoneGmRoleId);
   const zoneRoleId = zone.discordRoleId ?? null;
 
   if (zone.kind === "CAVE_LEVEL") return {};
@@ -114,7 +123,7 @@ function zoneChannelSpec(zone) {
       rate_limit_per_user: SUMMARY_SLOWMODE_SECONDS,
       topic: SUMMARY_TOPIC,
       permission_overwrites: [
-        ...roleAllow(gmRoleId, GM_SUMMARY_PERMS),
+        ...roleAllow(zoneGmRoleId, GM_SUMMARY_PERMS),
         ...roleAllow(
           zoneRoleId,
           PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_ADD_REACTIONS,
@@ -137,10 +146,9 @@ const LOCATION_MEMBER_ALLOW =
 // Occupant overwrites are written by the move pipeline and reconciled by the
 // channel doctor's occupancy check — never by this spec, which is exactly
 // why managedOverwriteIds() must never learn to delete a member target.
-function locationChannelSpec(location) {
+function locationChannelSpec(location, zoneGmRoleId = null) {
   const guildId = process.env.DISCORD_GUILD_ID;
-  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
-  const base = baseOverwrites(guildId, gmRoleId);
+  const base = baseOverwrites(guildId, zoneGmRoleId);
   const topic = (location.description || "").replace(/\s*\n+\s*/g, " ").trim().slice(0, TOPIC_MAX);
 
   return {
@@ -148,7 +156,7 @@ function locationChannelSpec(location) {
     type: CHANNEL_TYPE_TEXT,
     topic,
     permission_overwrites: [
-      ...roleAllow(gmRoleId, GM_LOCATION_PERMS),
+      ...roleAllow(zoneGmRoleId, GM_LOCATION_PERMS),
       {
         id: guildId,
         type: 0,
@@ -164,6 +172,15 @@ function zoneRoleName(zone) {
   return `Zone: ${zone.name}`;
 }
 
+// The GM seat for one zone. A GM holds these for the zones they picked, and
+// they — not the global Gamemaster role — are what opens the zone's channels
+// (db/lib/gmZoneRoles.js). Named with the same "<kind>: <name>" signature as
+// the access role above, so the doctor and prune-orphan-roles can recognise
+// one on sight.
+function zoneGmRoleName(zone) {
+  return `GM: ${zone.name}`;
+}
+
 // Retired: no Location wears a role any more. Kept only so the retirement
 // script and the doctor's orphan sweep can still RECOGNISE the roles an
 // older sync created, and delete them. Nothing creates one.
@@ -177,6 +194,7 @@ module.exports = {
   zoneChannelSpec,
   locationChannelSpec,
   zoneRoleName,
+  zoneGmRoleName,
   locationRoleName,
   LOCATION_ROLE_PREFIX,
   LOCATION_MEMBER_ALLOW,

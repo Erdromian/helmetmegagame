@@ -16,6 +16,7 @@ const {
   PLAYER_ROLE_ID,
   SPECTATOR_ROLE_ID,
   LEADER_WHITELIST_ROLE_ID,
+  gmRoleIds,
 } = require("../../lib/roleIds");
 const { hashNameToColor } = require("../../lib/roleColor");
 const {
@@ -53,7 +54,7 @@ function protectedRoleIds() {
       PLAYER_ROLE_ID,
       SPECTATOR_ROLE_ID,
       LEADER_WHITELIST_ROLE_ID,
-      process.env.DISCORD_GM_ROLE_ID,
+      ...gmRoleIds(),
       process.env.DISCORD_CURSED_ROLE_ID,
       process.env.DISCORD_TURN_PING_ROLE_ID,
     ].filter(Boolean),
@@ -72,10 +73,10 @@ async function main() {
       where: { discordRoleId: { not: null } },
       select: { discordRoleId: true, name: true, status: true },
     }),
-    prisma.zone.findMany({
-      where: { discordRoleId: { not: null } },
-      select: { discordRoleId: true },
-    }),
+    // Both role families a zone owns: its access role and its GM seat. The
+    // GM seats are held by GMs rather than characters, so without this they
+    // look exactly like orphans to the sweep below.
+    prisma.zone.findMany({ select: { discordRoleId: true, gmRoleId: true } }),
     discordRequest(`/guilds/${guildId}/members?limit=1000`),
   ]);
 
@@ -91,13 +92,17 @@ async function main() {
 
   const claimed = new Map(characters.map((c) => [c.discordRoleId, c]));
   const protectedIds = protectedRoleIds();
-  // The zone-access roles ("Zone: Town") are standing infrastructure, owned
-  // by db:sync-zones. Their signature (unmentionable, color 0) already fails
-  // looksLikeCharacterRole, but protecting them by id keeps this script safe
-  // against any future signature change. Locations wear no role at all since
-  // the overwrite rework, so there is nothing of theirs to protect; a
-  // leftover "Location: X" role is db:prune-stale-channels' to retire.
-  for (const zone of zones) protectedIds.add(zone.discordRoleId);
+  // The zone-access roles ("Zone: Town") and the per-zone GM seats
+  // ("GM: Town") are standing infrastructure, owned by db:sync-zones. Their
+  // signature (unmentionable, color 0) already fails looksLikeCharacterRole,
+  // but protecting them by id keeps this script safe against any future
+  // signature change. Locations wear no role at all since the overwrite
+  // rework, so there is nothing of theirs to protect; a leftover
+  // "Location: X" role is db:prune-stale-channels' to retire.
+  for (const zone of zones) {
+    if (zone.discordRoleId) protectedIds.add(zone.discordRoleId);
+    if (zone.gmRoleId) protectedIds.add(zone.gmRoleId);
+  }
 
   // Held by at least one member — never a candidate, whatever else is true.
   const held = new Set();

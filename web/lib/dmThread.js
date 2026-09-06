@@ -70,3 +70,19 @@ export function dmPreviewLabel(genuine, myDiscordUserId) {
   if (!genuine.authorDiscordUserId) return "Bot: ";
   return genuine.authorDiscordUserId === myDiscordUserId ? "You: " : "GM: ";
 }
+
+// The rail's preview line, from the two messages the desk queries for: the
+// last GENUINE one (what a person said) and the last non-noise one (anything
+// at all, automated notices included).
+//
+// A conversation can have the second and not the first, and that used to
+// render as a row with a name on it and nothing in it — which is what a
+// brand-new character looked like the moment a turret or a move-unlock DM'd
+// them. It is a system message, so it says so and reads muted, rather than
+// looking like a message somebody forgot to write. Built here because the
+// desk layout and the live-inbox delta both need it and must not drift.
+export function dmPreview(genuine, latest, myDiscordUserId) {
+  if (genuine) return { preview: `${dmPreviewLabel(genuine, myDiscordUserId)}${genuine.content}`, previewIsSystem: false };
+  if (latest?.content) return { preview: latest.content, previewIsSystem: true };
+  return { preview: "", previewIsSystem: false };
+}

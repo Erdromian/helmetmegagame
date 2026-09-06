@@ -45,6 +45,9 @@ function RichTokenRenderer({ kind, payload, raw }) {
   // lookup key, so it never fails to resolve.
   if (kind === "info") return <InfoIcon text={payload.trim()} />;
 
+  // {cmd:play} — a slash command as literal text to type. See RichText.js.
+  if (kind === "cmd") return <code className="cmd-chip">/{payload.trim()}</code>;
+
   return raw;
 }
 

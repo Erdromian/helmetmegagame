@@ -1,5 +1,5 @@
 import { prisma, Prisma } from "@lifeweb/db";
-import { dmNoiseSql, genuineConversationSql, withoutDmNoise, dmPreviewLabel } from "./dmThread";
+import { dmNoiseSql, genuineConversationSql, withoutDmNoise, dmPreview } from "./dmThread";
 import { listGuildMembers } from "./discordGuild";
 
 // The live half of the player desk: "what changed since the last time you
@@ -63,7 +63,7 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
       ),
       latest AS (
         SELECT DISTINCT ON (dm."discordUserId")
-               dm."discordUserId", dm."direction", dm."createdAt"
+               dm."discordUserId", dm."direction", dm."createdAt", dm."content"
           FROM "DirectMessage" dm
           JOIN touched t ON t."discordUserId" = dm."discordUserId"
          WHERE ${dmNoiseSql("dm")}
@@ -92,6 +92,7 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
       SELECT t."discordUserId",
              l."direction" AS "lastDirection",
              (EXTRACT(EPOCH FROM l."createdAt") * 1000)::double precision AS "lastAtMs",
+             l."content" AS "lastContent",
              g."direction" AS "genuineDirection",
              g."content" AS "genuineContent",
              g."authorDiscordUserId" AS "genuineAuthor",
@@ -178,7 +179,7 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
       discordUserId: r.discordUserId,
       lastAtMs,
       lastDirection: r.lastDirection,
-      preview: genuine ? `${dmPreviewLabel(genuine, gmDiscordUserId)}${genuine.content}` : "",
+      ...dmPreview(genuine, { content: r.lastContent }, gmDiscordUserId),
       unreadCount: Number(r.unreadCount ?? 0),
       handled: r.handledAtMs != null && Number(r.handledAtMs) >= lastAtMs,
       muted: Boolean(r.muted),

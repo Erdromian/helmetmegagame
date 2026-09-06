@@ -271,7 +271,7 @@ own two entries (`break-up-a-fight`, `stop-a-war`) demonstrate.
 | Group | Shape | Price band |
 |---|---|---|
 | `general-addictions` | `exclusive: true`, `removable: false`, `consumable: false` drawbacks. Each shuts the **bottom slot only**, to everything outside its own family — see §3. **One Addiction at a time** — that rule is why this stayed its own group. | −4 flat |
-| `general-personality` | Everything else about who a character is. Nothing here is `exclusive`, so a character can hold Pacifist + Cruel + Schemer, or Pacifist + Craven. Some members close the catalog down (`Depressed` locks everything; `Nobility` locks tier 1; `Eunuch` locks `romance`), some open it up (`Mad Doctor`, `Esoteric`, `Adventurer`, `Cruel`, `Charitable`, `Schemer`, and `Death Wish` — the Interest, not the old Bacchus tag), and the point of the merge is that one tag may do both. | −8…+5 |
+| `general-personality` | Everything else about who a character is. Nothing here is `exclusive`, so a character can hold Pacifist + Cruel + Schemer, or Pacifist + Craven. `Depressed` is the near-exception, and by named conflict rather than by the flag: because it locks the whole catalog it `conflictsWith` every tag here that also touches Desires, and only those — so Lazy, Insomniac, Guilt Ridden, Torturer and the phobias stay legal beside it (`TAGS.md` §3). Some members close the catalog down (`Depressed` locks everything; `Nobility` locks tier 1; `Eunuch` locks `romance`), some open it up (`Mad Doctor`, `Esoteric`, `Adventurer`, `Cruel`, `Charitable`, `Schemer`, and `Death Wish` — the Interest, not the old Bacchus tag), and the point of the merge is that one tag may do both. | −8…+5 |
 
 `general-restrictions` and `general-interests` survive as **orphaned, empty
 groups** in `docs/taggroups.yaml` — group sync is upsert-only and never
@@ -429,7 +429,7 @@ Four `GameConfig` knobs govern this system, all live-editable from
   the game, so it is the first number to reach for if income is running hot or
   cold. `0` disables the lock entirely, which is a debugging setting, not a
   balance one.
-- **`maxDrawbackTags`** (default 5) — **not** a Desires-system knob itself,
+- **`maxDrawbackTags`** (default 6) — **not** a Desires-system knob itself,
   but the field every drawback counts against at character creation. It caps
   the *count* of point-bought drawback tags, not their combined point value —
   see `TAGS.md` §4a for the full rule and why this replaced the old
@@ -502,9 +502,19 @@ and the swatch in its sticky header. The palette rule is written above the
 follows — one hue per group, families step in lightness inside it, every
 value clears 3:1 against `--surface` on dusk and dawn. A family may appear in
 several of a desire's `families`; the picker files it under the **first** one
-and lists the rest beside its name. `{tag:slug}` references inside a Desire's `name` are
-checked against `docs/tags.yaml` the same way any other `{tag:…}` reference
-is.
+and lists the rest beside its name.
+
+**Desire names are plain prose — no `{tag:slug}` tokens.** A `name` may still
+carry one as far as the sync is concerned (it is checked against
+`docs/tags.yaml` like any other `{tag:…}` reference, and `RichText` would
+render it), but none does, and none should. About twenty used to, and *which*
+twenty was the problem: Sake and Ravenheart Red were linked chips while
+alcohol and moonshine sitting beside them in the same family were flat text,
+so the picker looked half-finished rather than deliberate. Write the ware's
+name into the sentence instead. A common noun goes lowercase ("Drink sake",
+"Have a lavish meal"); a proper noun or a named condition keeps its capital
+("Drink Ravenheart Red", "Come back from Dying"), because there the line is
+pointing at the mechanical state.
 
 **Sync behavior — soft-retire, not upsert-only.** `db:sync-desires`
 (`db/lib/syncDesires.js`, run via `npm run db:sync-desires` or automatically
@@ -569,5 +579,5 @@ The section number is kept rather than renumbering everything below it.
 | `web/app/(app)/gm/dev/characters/[characterId]/GoalsTab.js` | GM Dev Panel surface — per-slot Award form (catalog or free text), Revoke on each past row, cooldown readout |
 | `web/app/(app)/gm/dev/characters/[characterId]/actions.js` | `awardDesireGm`/`revokeDesireGm` — gates bypassed, bookkeeping not (§6) |
 | `web/app/(app)/character/requestActions.js` | Player-facing `claimDesire` — the one player action. Gates enforced via `evaluateDesireCatalog`/`slotStates`, re-validated inside the transaction under a `FOR UPDATE` row lock |
-| `web/lib/requestEffects.js` | `FULFILL_DESIRE` re-score (`applyEdit`) and undo — the undo clears `endedTurnNumber`, releasing the slot |
+| `web/lib/tagEffects.js` | `FULFILL_DESIRE` re-score (`applyEdit`) and undo — the undo clears `endedTurnNumber`, releasing the slot |
 | `bot/src/events/messageReactionAdd.js` | The 🔍/⚜️ embeds' `Last Desire` field — the most recent `FULFILLED` row, gated by `db/lib/inspectVision.js` |

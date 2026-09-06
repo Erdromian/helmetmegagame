@@ -47,10 +47,10 @@ The GM sees all of it. The audit rows (`request_confession_offer`,
 A classification, not a capability flag — it fills the penitent's dropdown and
 nothing else. Set in `docs/tags.yaml`, mapped in `db/lib/syncTags.js`.
 
-Sixteen tags carry it: the five addictions (`alcoholic`, `drug-habit`,
+Fifteen tags carry it: the five addictions (`alcoholic`, `drug-habit`,
 `gambler`, `glutton`, `vain`), six compulsions and dispositions (`depressed`,
 `craven`, `devoted-follower`, `prudish`, `nobility`, `kleptomaniac`),
-`insomniac` and `heavy-sleeper`, `green`, and `stutter` and `shell-shocked`
+`heavy-sleeper`, `green`, and `stutter` and `shell-shocked`
 out of `health-mind`.
 
 **`health-mind` could not stand in for the flag**, which is why the flag
@@ -96,6 +96,15 @@ two passes racing the same rows would buy nothing. Its expiry DM has a
 CONFESSION branch, which also names no tag. And `cancelOffersForAction` in
 `lessons.js` is shared, so its GM-reject DM says "confession" and "chaplain"
 when the offer is one.
+
+## 5a. Guilt Ridden can't confess at all
+
+Guilt Ridden blocks Confession outright, on both surfaces: `db/lib/
+confession.js#confessableTags` returns an empty list and `validateConfession`
+refuses the Move if the penitent holds it, and `web/app/(app)/character/
+page.js` hides the Confess button by the same check. The sin someone is
+guilty enough about to feel this way is not one they can bring themselves to
+speak — the character's own drawback shuts the surface, not a GM decision.
 
 ## 6. Edges
 

@@ -12,7 +12,7 @@ const {
   tornLine,
 } = require("@lifeweb/db/lib/noticeboard");
 const { ack, respond } = require("./respond");
-const { resolveActingMember } = require("./interactionGuild");
+const { actingCharacter } = require("./interactionGuild");
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
 
 // The Noticeboard button on a Location's anchor, and the three things it
@@ -34,7 +34,9 @@ const PIN_PREFIX = "notice:pin:";
 // Everything the three handlers need: who is acting, where the board is, and
 // whether they are standing at it.
 async function boardContext(interaction, locationId) {
-  const member = await resolveActingMember(interaction);
+  const character = await actingCharacter(interaction, {
+    include: { tags: { include: { tag: true } } },
+  });
   const [location, openTurn] = await Promise.all([
     prisma.location.findUnique({
       where: { id: locationId },
@@ -45,12 +47,6 @@ async function boardContext(interaction, locationId) {
   if (!location) return { error: "That place is gone. ‡" };
   if (!hasNoticeboard(location)) return { error: "There's no board here. ‡" };
 
-  const character = member
-    ? await prisma.character.findFirst({
-        where: { discordUserId: member.id, status: "ALIVE" },
-        include: { tags: { include: { tag: true } } },
-      })
-    : null;
   // Standing here is the whole permission model. You cannot read a board from
   // three zones away, and you cannot pin to one either.
   if (!character || character.locationId !== location.id) {

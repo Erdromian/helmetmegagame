@@ -3,7 +3,7 @@ import { carryCaps, carryBonusLine, MULT_SCALE } from "@lifeweb/db/lib/carry";
 import { isPaper, paperDescription } from "@lifeweb/db/lib/paper";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
-import { getMyZones } from "@/lib/gmZone";
+import { isSuperadmin } from "@/lib/superadmin";
 import { documentSource, isWritten, readerFromCharacter } from "@/lib/documentAccess";
 import { toDocumentPreviewText } from "@/lib/documentPreview";
 import { redactWithheldRecipes } from "@/lib/recipeCatalog";
@@ -301,10 +301,9 @@ export async function getDocumentIndex() {
   ]);
 
   const character = readerFromCharacter(characterRow);
-  // Holding no seat is the master's state; a GM seated anywhere is a
-  // zone-GM and does not see Secret papers.
-  const myZones = isGm ? await getMyZones() : [];
-  const isMasterGm = isGm && myZones.length === 0;
+  // The host, not every GM — see the same gate in (app)/documents/page.js
+  // for why this stopped being "holds no zone seat".
+  const isMasterGm = isGm && isSuperadmin(session.discordUserId);
 
   return documents.filter(isWritten).map((d) => {
     const source = documentSource(d, { character, isGm, isMasterGm });

@@ -7,6 +7,7 @@ import DevPanelModal from "@/app/components/DevPanelModal";
 import usePins from "@/app/components/usePins";
 import BulkComposer from "./BulkComposer";
 import CanonTab from "./CanonTab";
+import GmZoneRail from "@/app/components/GmZoneRail";
 
 // The player desk's half of the shared inspector (the other is
 // /gm/turns/Workspace.js). Mounted by layout.js, so it survives every
@@ -21,6 +22,8 @@ import CanonTab from "./CanonTab";
 // react-hooks/set-state-in-effect (an error in this repo) exists to catch.
 
 export default function InspectorHost({
+  selectableZones,
+  visibleZoneIds,
   rows,
   stagedEffects,
   currentTurnNumber,
@@ -188,6 +191,7 @@ export default function InspectorHost({
         customTag={customTag}
         requestedTab={tabRequest}
         emptyHint="Pick somebody in the rail, or look them up above, to keep their sheet beside the conversation."
+        footer={<GmZoneRail zones={selectableZones} selectedIds={visibleZoneIds} />}
       />
 
       {bulkOpen && (

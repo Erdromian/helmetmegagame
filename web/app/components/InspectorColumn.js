@@ -570,6 +570,11 @@ export default function InspectorColumn({
   // lands on Moves). A request, not a controlled value: it is honoured once
   // and then the GM is free to click away.
   requestedTab = null,
+  // Desk chrome pinned to the BOTTOM of the column, outside the
+  // nothing-inspected branch — the zone multiselect. It has to render when
+  // no row is selected, because that is exactly the state a GM is in when
+  // they want to change what they can see.
+  footer = null,
 }) {
   const [refresh] = useRefresh();
   // Which tab is showing, plus the token of the last request honoured — one
@@ -698,6 +703,7 @@ export default function InspectorColumn({
           </div>
         </>
       )}
+      {footer}
       {contextEntry && (
         <ArchiveContextModal key={contextEntry} archiveEntryId={contextEntry} onClose={() => setContextEntry(null)} />
       )}

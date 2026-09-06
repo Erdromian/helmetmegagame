@@ -6,6 +6,15 @@
 # entries in this file happen to cost. docs/tag-design.md restates the same
 # scale for players, along with the YAML format and worked examples.
 #
+# NAMING A SLASH COMMAND IN A `description`: write `{cmd:play}`, never a bare
+# /play and never backticks. Tag descriptions render through ChipText.js /
+# RichText.js, which understand the {kind:payload} token grammar and have NO
+# Markdown parser at all — a backtick here prints as a backtick. The token
+# renders the command in the mono face on every surface, the handbook and the
+# documents included. Bot and DM strings are the opposite case: Discord DOES
+# render Markdown and does not render tokens, so those write `/conceal` with
+# real backticks. Added 2026-09-05 for the Instrument line.
+#
 # NUMBERS IN A `description`: digits for anything a player counts, tracks, or
 # computes with (a turn cost, a frequency limiter, a skill-tier shift, a die
 # face or range, a headcount, a resource amount). Words only for idiom
@@ -178,6 +187,21 @@
 #                     Distinct from consumesInto above: that one is chosen by
 #                     the player, this one happens on the clock whether they
 #                     wanted it or not.
+#   escalatesInto   - the rung ABOVE this one on a ladder. Consuming something
+#                     that grants a tag you already hold clears the one you
+#                     hold and gives you this instead, walking up as far as
+#                     the chain goes:
+#                         tipsy:  escalatesInto: wasted
+#                         wasted: escalatesInto: unconscious
+#                     Without it a second drink does nothing at all, because a
+#                     non-stackable tag you already hold is left alone.
+#                     One bare slug, not a list and not a { oneOf } — a ladder
+#                     has exactly one next rung, and a random one would make
+#                     "one more drink" impossible to plan around. The slug must
+#                     exist in this file and the chain may not loop, both
+#                     enforced by db/lib/syncTags.js.
+#                     Only the CONSUME path walks it. A GM granting the same
+#                     tag twice from the Dev Panel is not pouring a drink.
 #
 # THE CURE LADDER. Every tag in the `health` category is priced off one of
 # eight rungs, and nothing in that category should invent its own numbers —
@@ -244,7 +268,7 @@ tags:
     catalog: gm
     name: Hungerless
     category: meta
-    description: "Never flagged hungry, even with insufficient resources."
+    description: "Never flagged hungry, even with insufficient Resources."
     pointCost: 0
     purchasable: false
 
@@ -365,43 +389,49 @@ tags:
   # The Court — general-court is gated behind `courtier` at the group level,
   # same idiom as general-cerberon/general-brigand, so none of these need their
   # own requiredTag.
+  # A token price. Knighthood is mostly conferred -- the Baron's hand, or the
+  # Seasoned Knight kit below -- so the point is not what it buys you but that
+  # you had to spend something to claim it at creation. Creation only: the
+  # Baron does the knighting once play starts.
   knighted:
     catalog: gm
     name: Knighted
     category: general
     group: general-court
     description: "You were knighted, and serve the Baron directly."
-    pointCost: 7
+    pointCost: 1
     visible: true
     purchasable: true
     purchasableAfterStart: false
 
   # --- Teaching (docs/systemdocs/LESSONS.md) -----------------------------
   # Learn Skill / Teach Skill on the sheet. Teaching is the door; Lecturing
-  # widens one Routine to three students; the Drill Instructor rung lives in
-  # general-cerberon. Bascinet's words, unmarked.
+  # widens one Routine to three students; the Drill Instructor rung is gated
+  # by general-cerberon. All three are Skills, standalone like Climbing or
+  # Stealth, and none is teachable: you can't be taught to teach. Bascinet's
+  # words, unmarked.
   teaching:
     catalog: all
     name: Teaching
-    category: general
-    group: general-traits
-    description: "Can train someone in a skill you have. It's a routine move for you; the learner has to make a Gambit. They'll succeed in a 5 or a 6."
+    category: skills
+    description: "Can train someone in a skill you have. It's a Routine move for you; the learner has to make a Gambit. They'll succeed in a 5 or a 6."
     pointCost: 5
     visible: false
     purchasable: true
     purchasableAfterStart: true
+    teachable: false
 
   teaching-lecturing:
     catalog: all
     name: Teaching (Lecturing)
-    category: general
-    group: general-traits
+    category: skills
     parentTag: teaching
-    description: "Can train up to three people at the same time. It's a routine move for you; the learner(s) have to make a Gambit. They'll succeed in a 5 or a 6."
+    description: "Can train up to 3 people at the same time. It's a Routine move for you; the learner(s) have to make a Gambit. They'll succeed in a 5 or a 6."
     pointCost: 5
     visible: false
     purchasable: true
     purchasableAfterStart: true
+    teachable: false
 
   old-blood:
     catalog: gm
@@ -409,7 +439,7 @@ tags:
     category: general
     group: general-court
     description: "Your family has been around a long time."
-    pointCost: 2
+    pointCost: 1
     purchasable: true
     purchasableAfterStart: false
 
@@ -418,7 +448,7 @@ tags:
     name: Dancer
     category: general
     group: general-court
-    description: "You are a fantastic dancer."
+    description: "You are a fantastic dancer. Unlocks Desires about dancing. ‡"
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -428,12 +458,8 @@ tags:
     name: Soft Hands
     category: general
     group: general-court
-    description: "You've never done a day's labor. You make half the ⬢ you otherwise would when laboring. ‡"
+    description: "You've never done a day's labor. You make half the ⬢ you otherwise would when laboring."
     pointCost: -4
-    # Every skill in the skills-labor group. Listed rather than derived,
-    # because conflictsWith is a slug pair — add a sixth Laboring skill and it
-    # belongs on this line too.
-    conflictsWith: [laboring-basic, laboring-skilled, laboring-hunting, laboring-farming, laboring-fishing]
     purchasable: true
     purchasableAfterStart: false
 
@@ -489,7 +515,7 @@ tags:
     psychological: true
     category: general
     group: general-addictions
-    description: "Just one more sweet... Your bottom Desire slot is locked to Desires about food."
+    description: "Just one more sweet… Your bottom Desire slot is locked to Desires about food."
     pointCost: -4
     exclusive: true
     purchasable: true
@@ -527,7 +553,7 @@ tags:
     category: general
     group: general-personality
     description: "What could be worthwhile except the Truth? Unlocks Desires about esotericism."
-    pointCost: 5
+    pointCost: 4
     purchasable: true
     purchasableAfterStart: true
 
@@ -537,7 +563,7 @@ tags:
     category: general
     group: general-personality
     description: "Unlocks Desires about adventuring."
-    pointCost: 5
+    pointCost: 3
     purchasable: true
     purchasableAfterStart: true
 
@@ -563,6 +589,17 @@ tags:
 
   # Ungated on purpose: this wanted "Cruel OR Practicus" and the catalog has no
   # OR gate — requiredTag is a single FK. The conflicts carry it instead.
+  egomaniac:
+    catalog: all
+    name: Egomaniac
+    psychological: true
+    category: general
+    group: general-personality
+    description: "You're always smiling. Nothing can break your spirits. ‡"
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
   torturer:
     catalog: all
     name: Torturer
@@ -581,8 +618,8 @@ tags:
     name: "Death Wish"
     category: general
     group: general-personality
-    description: "You want to see how close you can get. Closer than that."
-    pointCost: 5
+    description: "You want to see how close you can get. Closer than that. Unlocks powerful Desires about extreme risk. ‡"
+    pointCost: 3
     purchasable: true
     purchasableAfterStart: true
 
@@ -600,7 +637,7 @@ tags:
     catalog: gm
     name: Chaplain
     category: general
-    description: "You can cure negative psychological tags like addictions. People can Confess to you pressing the Confess button, consuming their turn. If they confessor rolls a 5 or a 6, the tag is removed."
+    description: "You can cure negative psychological tags like addictions. People can Confess to you pressing the Confess button, consuming their turn. If the confessor rolls a 5 or a 6, the tag is removed."
     pointCost: 0
     purchasable: false
 
@@ -663,11 +700,11 @@ tags:
     name: Pack Mouse
     category: general
     group: general-traits
-    description: "Narrow shoulders, weak legs, and far too much shame about what you'll haul. {carry:pack-mouse} ‡"
+    description: "You carry less than the average person. {carry:pack-mouse}"
     pointCost: -4
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     carryBonus: -0.5
     conflictsWith: [pack-mule]
 
@@ -676,7 +713,7 @@ tags:
     name: Old
     category: general
     group: general-traits
-    description: "Elderly. You're slower, fight slightly worse, and don't heal as well."
+    description: "Elderly. You're slower and fight slightly worse."
     pointCost: -5
     carryBonus: -0.05
     visible: true
@@ -779,7 +816,7 @@ tags:
     category: general
     group: general-traits
     description: "You wake up to noise readily, such as footsteps in the night."
-    pointCost: 2
+    pointCost: 1
     purchasable: true
     purchasableAfterStart: false
 
@@ -804,11 +841,40 @@ tags:
     category: general
     group: general-personality
     description: "Nothing is worth wanting. Locks all Desires. Can be cured by a Chaplain."
+    # The floor of the Personality band: closes the whole catalog, opens
+    # nothing (DESIRES.md §5, the 2026-09-02 sign-off).
     pointCost: -8
     purchasable: true
     # Curable + maximally valuable would be a point farm otherwise (R-1).
     purchasableAfterStart: false
     removable: false
+    # Depressed IS a Desire tag -- it locks the whole catalog. So it conflicts
+    # with the other tags that touch the Desire system: the ones carrying their
+    # own desires: block, and the ones a Desire gates on in docs/desires.yaml.
+    # A tag that never touches Desires has no quarrel with it, which is why
+    # Lazy, Insomniac, Guilt Ridden, the phobias and Torturer sit beside it
+    # quite happily. The Addictions carry their own edge back to us and are not
+    # repeated here (sync pass 6 unions both directions).
+    conflictsWith:
+      - nobility
+      - mad-doctor
+      - esoteric
+      - adventurer
+      - cruel
+      - charitable
+      - death-wish
+      - schemer
+      - craven
+      - kleptomaniac
+      - superstitious
+      - pacifist
+      - eunuch
+      - desperate
+      - devoted-follower
+      - hypochondriac
+      - prudish
+      - hot-headed
+      - corrupt
     desires:
       locks:
         - all: true
@@ -819,7 +885,7 @@ tags:
     psychological: true
     category: general
     group: general-addictions
-    description: "Drink comes first and there is no second. Your bottom Desire slot is locked to drinking Desires."
+    description: "You're addicted to drinking. Your bottom Desire slot is locked to drinking Desires."
     pointCost: -4
     exclusive: true
     purchasable: true
@@ -839,28 +905,19 @@ tags:
   # Desire field on the 🔍 embed for free, and that gap is what the Demoness
   # is paying its extra point for. Deliberately not `visible` — being able to
   # read people is not something people should be able to read off you.
-  empathetic:
-    catalog: all
-    name: Empathetic
-    category: general
-    group: general-social
-    description: "You can use a Gambit to figure out a person's last fulfilled Desire — failure on 1–3, success on 4–6. You must have spoken to them for a while during that turn."
-    pointCost: 9
-    purchasable: true
-    purchasableAfterStart: true
 
   # The counter, and the only rule inspectVision.js reads off the SUBJECT
   # rather than the viewer: it shuts the Desire field for the Demoness
-  # Seductive too, not just for the Empathetic Gambit above. Not `visible`,
-  # for the same reason Empathetic isn't — and the 🔍 embed reports a closed
-  # read as "Nothing you can read.", the same line an empty Desire gets, so
-  # holding it never announces itself.
+  # Seductive and for a Mindreading Gambit alike. Not `visible` — and the 🔍
+  # embed reports a closed read as "Nothing you can read.", the same line an
+  # empty Desire gets, so holding it never announces itself. (Empathetic, the
+  # general-category Gambit this used to name, was retired 2026-09-05.)
   inscrutable:
     catalog: all
     name: Inscrutable
     category: general
     group: general-social
-    description: "You are unreadable, so act like it. People with the {tag:empathetic} trait can't see what your Desires are."
+    description: "You are unreadable, so act like it. Nobody can read what your Desires are — not on a Gambit, and not on a 🔍. ‡"
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -939,7 +996,7 @@ tags:
     category: general
     group: general-traits
     description: "Fearlessness isn't a choice. It's the natural state of your mind. It takes a lot to become {tag:afraid}, and even more to {tag:panic}."
-    pointCost: 5
+    pointCost: 4
     purchasable: true
     purchasableAfterStart: false
 
@@ -1024,12 +1081,14 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
+  # Scripted: every rung above Tipsy takes two drinks, tracked by the hidden
+  # `steady` marker; web/lib/consumeGrants.js.
   iron-liver:
     catalog: all
     name: Iron Liver
     category: general
     group: general-traits
-    description: "You can drink grown men under the table. Grown women, too. Even children."
+    description: "You can drink grown men under the table. Grown women, too. Even children. After the first, it takes 2 drinks to move you a rung further down the bottle. ‡"
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1105,13 +1164,23 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  nine-lives:
+    catalog: all
+    name: Nine Lives
+    category: general
+    group: general-traits
+    description: "Whenever you're about to be executed, you can make a Gambit to magically escape. ‡"
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+
   escape-artist:
     catalog: all
     name: Escape Artist
     category: general
     group: general-traits
     description: "Ropes, chains, and cells barely hold you."
-    pointCost: 5
+    pointCost: 4
     purchasable: true
     purchasableAfterStart: true
 
@@ -1125,10 +1194,10 @@ tags:
     category: general
     group: general-traits
     description: "You are very pretty."
-    pointCost: 5
+    pointCost: 3
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   beautiful:
     catalog: all
@@ -1136,11 +1205,11 @@ tags:
     category: general
     group: general-traits
     description: "Your face and figure are divine, drawing all attention to you, for better or for worse."
-    pointCost: 9
+    pointCost: 3
     parentTag: pretty
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   # Drawbacks, so they GIVE points back — same posture as Frail and Old above,
   # and all creation-only per TAGS.md §4.
@@ -1158,7 +1227,7 @@ tags:
     removable: false
     desires:
       locks:
-        - families: [bravery, violence, adventure]
+        - families: [bravery]
 
   dwarf:
     catalog: all
@@ -1181,6 +1250,7 @@ tags:
     group: general-traits
     description: "You're loud and lack grace."
     pointCost: -5
+    conflictsWith: [stealth]
     purchasable: true
     purchasableAfterStart: false
 
@@ -1203,12 +1273,16 @@ tags:
   # exempting somebody from it — hardcoded by slug in db/lib/hungerPass.js,
   # same as hungerless. Priced at -6, deliberately off the -5/-7 bands
   # (TAGS.md §4a).
+  # keepSlug: renamed from "Fast Metabolism" 2026-09-05, but the slug is
+  # hardcoded in db/lib/constants.js and read by db/lib/hungerPass.js, so it
+  # stays what it is.
   fast-metabolism:
     catalog: all
-    name: Fast Metabolism
+    name: Big Appetite
+    keepSlug: true
     category: general
     group: general-traits
-    description: "You consume 2 ⬢ per turn. ‡"
+    description: "You consume 2 ⬢ per turn."
     pointCost: -6
     purchasable: true
     purchasableAfterStart: false
@@ -1234,7 +1308,7 @@ tags:
     name: Nearsighted
     category: general
     group: general-traits
-    description: "Things get blurry past arm's length. Forget aiming! Make sure you have {tag:spectacles}. ‡"
+    description: "Things get blurry past arm's length. Forget aiming! Make sure you have {tag:spectacles}."
     pointCost: -5
     conflictsWith: [eagle-eyes]
     purchasable: true
@@ -1268,24 +1342,13 @@ tags:
     removable: false
     conflictsWith: [deaf]
 
-  insomniac:
-    catalog: all
-    name: Insomniac
-    psychological: true
-    category: general
-    group: general-traits
-    description: "You sleep badly, and are often tired."
-    pointCost: -2
-    purchasable: true
-    purchasableAfterStart: false
-
   glass-jaw:
     catalog: all
     name: Glass Jaw
     category: general
     group: general-traits
     description: "One good hit to the head and you're down."
-    pointCost: -2
+    pointCost: -3
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -1298,7 +1361,7 @@ tags:
     psychological: true
     category: general
     group: general-addictions
-    description: "You need the poppy and its cousins. It stops the sweating. Your bottom Desire slot is locked to drug-related Desires."
+    description: "You're addicted to drugs. Your bottom Desire slot is locked to drug-related Desires."
     pointCost: -4
     exclusive: true
     purchasable: true
@@ -1388,7 +1451,7 @@ tags:
     name: Desperate
     category: general
     group: general-personality
-    description: "You don't understand why people don't want to be around you. That's why they don't want to be around you."
+    description: "You don't understand why people don't want to be around you. Unlocks Desires about being wanted. ‡"
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1441,7 +1504,7 @@ tags:
     psychological: true
     category: general
     group: general-personality
-    description: "You're incapable of betraying your starting faction, even in the most extreme circumstances. Locks all Desires about scheming. Drifters and hustlers can't take it — you have to be sworn to somebody. ‡"
+    description: "You're incapable of betraying your starting faction, even in the most extreme circumstances. Locks all Desires about scheming."
     pointCost: -2
     visible: false
     purchasable: true
@@ -1478,7 +1541,7 @@ tags:
     psychological: true
     category: general
     group: general-personality
-    description: "You disapprove of drinking, doping, gambling, and whoring, and you intend to let everybody know. Locks Desires about all four."
+    description: "You disapprove of drinking, doping, gambling, and whoring, and you intend to let everybody know. Locks Desires about all four, but gives you some new ones."
     pointCost: -2
     visible: false
     purchasable: true
@@ -1487,6 +1550,161 @@ tags:
     desires:
       locks:
         - families: [alcohol, drugs, gambling, romance]
+
+  pyrophobia:
+    catalog: all
+    name: Pyrophobia
+    category: general
+    group: general-personality
+    description: "You possess an intense fear of uncontrolled fire. Significant flames may make you {tag:afraid}, while being trapped near or within them may cause {tag:panic}."
+    pointCost: -2
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # Scripted: Afraid anywhere in the Black Hills, Panic at the Mountain.
+  # db/lib/phobias.js.
+  acrophobia:
+    catalog: all
+    name: Acrophobia
+    category: general
+    group: general-personality
+    description: "You possess an intense fear of heights. Significant drops may make you {tag:afraid}, while precarious ledges or rooftops may cause {tag:panic}."
+    pointCost: -3
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # Scripted: Afraid the whole time you are in the caves. db/lib/phobias.js.
+  claustrophobia:
+    catalog: all
+    name: Claustrophobia
+    category: general
+    group: general-personality
+    description: "You possess an intense fear of enclosed spaces. Tight tunnels or sealed rooms may make you {tag:afraid}, while becoming trapped within one may cause {tag:panic}."
+    pointCost: -3
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  teratophobia:
+    catalog: all
+    name: Teratophobia
+    category: general
+    group: general-personality
+    description: "You possess an intense fear of monsters and unnatural creatures. Seeing one may make you {tag:afraid}, while being threatened or cornered by one may cause {tag:panic}."
+    pointCost: -2
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  poor-swimmer:
+    catalog: all
+    name: Poor Swimmer
+    category: general
+    group: general-personality
+    description: "You can't swim at all."
+    pointCost: -1
+    conflictsWith: [strong-swimmer]
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # Scripted: can't equip a horse, steam automobile or fishing boat; dragged
+  # across a zone by a mounted mover you end up {tag:vomiting}.
+  # web/app/(app)/character/equipActions.js, db/lib/locationTravel.js.
+  motion-sickness:
+    catalog: all
+    name: Motion Sickness
+    category: general
+    group: general-personality
+    description: "You can't use horses or boats."
+    pointCost: -4
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # Scripted: confession refused in db/lib/confession.js; 5% each dawn to
+  # wake Exhausted, db/lib/dawnAfflictionPass.js.
+  guilt-ridden:
+    catalog: all
+    name: Guilt Ridden
+    category: general
+    group: general-personality
+    description: "You can't confess. Rarely, you have nightmares, making you {tag:exhausted}."
+    pointCost: -3
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # Scripted: 20% each dawn, db/lib/dawnAfflictionPass.js.
+  insomniac:
+    catalog: all
+    name: Insomniac
+    category: general
+    group: general-personality
+    description: "You frequently wake up {tag:exhausted}."
+    pointCost: -4
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # requiredTag laboring-basic is the "Laboring OR Commoner" gate —
+  # holdsRequirement walks the tier chain and Commoners start with Laboring
+  # (Skilled). psychological so a chaplain can confess it away. Scripted:
+  # -25% on every labor payout after the roll, db/lib/autoLaborPass.js.
+  lazy:
+    catalog: all
+    name: Lazy
+    category: general
+    group: general-personality
+    description: "You work less hard, producing fewer Resources than others."
+    pointCost: -4
+    requiredTag: laboring-basic
+    psychological: true
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # Scripted: your first drink skips Tipsy and lands you Wasted, the next one
+  # Unconscious; web/lib/consumeGrants.js. Excluded for anyone who couldn't
+  # conceivably drink.
+  lightweight:
+    catalog: all
+    name: Lightweight
+    category: general
+    group: general-personality
+    description: "You get drunk very quickly."
+    pointCost: -2
+    conflictsWith: [prudish, iron-liver]
+    excludedRoles: [chaplain, bishop]
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # Scripted: starts with 20 obols; three DEBTOR notices go up at Customs on
+  # arrival, db/lib/wantedPoster.js.
+  debtor:
+    catalog: all
+    name: Debtor
+    category: general
+    group: general-personality
+    description: "You owe the merchant a big debt, 40 obols. He's coming to collect, don't you know?"
+    pointCost: -5
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
 
   ugly:
     catalog: all
@@ -1519,7 +1737,7 @@ tags:
     category: general
     group: general-traits
     description: "You have an incurable shake in your hands, making it difficult to wield writing implements, delicate weapons, or precise tools."
-    pointCost: -5
+    pointCost: -3
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1553,7 +1771,7 @@ tags:
     name: Hot-Headed
     category: general
     group: general-personality
-    description: "You like split knuckles, cracked teeth, black eyes—though they look better on the other guy! You actively pick fights where they might not be necessary. Unlocks Desires related to picking fights."
+    description: "You like split knuckles, cracked teeth, black eyes — though they look better on the other guy! You actively pick fights where they might not be necessary. Unlocks Desires related to picking fights."
     pointCost: 2
     visible: false
     purchasable: true
@@ -1578,7 +1796,7 @@ tags:
   # every one of them purchasableAfterStart: false, so the pairing is new
   # rather than copied — a player converts by dropping one and buying another.
   # It is not a point farm: REMOVE_TAG refunds resources, never Tag Points
-  # (web/lib/requestEffects.js), so each conversion costs its price again and
+  # (web/lib/tagEffects.js), so each conversion costs its price again and
   # gives nothing back.
   #
   # None is `visible`. You cannot tell an Atheist from a Post-Christian by
@@ -1613,7 +1831,7 @@ tags:
     name: Existentialist
     category: general
     group: general-beliefs
-    description: "You walk on firm ground\u2014if you can be sure of one thing, it's of your responsibility."
+    description: "You walk on firm ground — if you can be sure of one thing, it's of your responsibility."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1628,7 +1846,7 @@ tags:
     name: Fundamentalist
     category: general
     group: general-beliefs
-    description: "You are hardcore about your Post-Christian beliefs—perhaps more hardcore than the Church itself is. Heresy is a thing that burns. ‡"
+    description: "You are hardcore about your Post-Christian beliefs — perhaps more hardcore than the Church itself is. Heresy is a thing that burns. ‡"
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1731,18 +1949,23 @@ tags:
     name: Corrupt
     category: general
     group: general-personality
-    description: "The good old ways. You prioritize making yourself comfortable over upholding your vows."
-    pointCost: 5
+    description: "The good old ways. You prioritize making yourself comfortable over upholding your vows. Unlocks Desires about corruption. ‡"
+    pointCost: -2
+    # Stated rather than left to the default. TAGS.md §4a: a drawback the store
+    # PAYS for must be one that can never be handed back, or it is a point
+    # farm. This is the only tag in the file that relies on that rule, so the
+    # flag is written out.
+    removable: false
     visible: false
     purchasable: true
     purchasableAfterStart: true
 
-  kennelmaster:
+  houndmaster:
     catalog: gm
-    name: Kennelmaster
+    name: Houndmaster
     category: general
     group: general-cerberon
-    description: "You have access to the Cerberon's dogs and know how to command them."
+    description: "You're excellent at handling dogs. Under your usage, the kennel's {tag:hound}s fight and track even better. ‡"
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1753,7 +1976,7 @@ tags:
     category: general
     group: general-cerberon
     description: "You have rank, which doesn't necessarily mean much."
-    pointCost: 5
+    pointCost: 2
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -1761,11 +1984,15 @@ tags:
   # Reads against the Teaching Skills document (docs/documents.yaml), which
   # sets the teaching baseline at a 6. Change one and change the other.
   # Teaching (Drill Instructor) replaced the old Drillmaster here in 9/2026.
-  # The tree itself sits under general-traits; this rung is the Cerberon's.
+  # A Skill like the rest of the Teaching tree, but it keeps the Cerberon
+  # group so the group's `requiredTag: cerberon` gates it: the Cerberi and the
+  # Censor (who starts with the Cerberon tag) can take it, nobody else can.
+  # PointBuy tabs by the tag's own category, so it shows under Skills. The
+  # tag's own requiredTag slot is spent on Teaching. Not teachable.
   teaching-drill-instructor:
     catalog: gm
     name: Teaching (Drill Instructor)
-    category: general
+    category: skills
     group: general-cerberon
     requiredTag: teaching
     description: "When someone tries to learn a fighting skill from you, they succeed on a 4, 5, or a 6. Stacks with Lecturing."
@@ -1773,6 +2000,7 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+    teachable: false
 
   green:
     catalog: gm
@@ -1799,12 +2027,37 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # Two Brigand-group entries that are skills in everything but their category.
+  # The Brigand gate is a GROUP gate (taggroups.yaml `general-brigand`), and a
+  # group's category has to match its tags', so a brigand-only competence has
+  # to be filed under `general` — same reason Forger and Pickpocket already are.
+  biter:
+    catalog: gm
+    name: Biter
+    category: general
+    group: general-brigand
+    description: "You are a ferocious and uninhibited biter. It works even when you're {tag:bound}. ‡"
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  camouflage:
+    catalog: gm
+    name: Camouflage
+    category: general
+    group: general-brigand
+    teachable: true
+    description: "You're invisible in the forest. Good for ambushes. ‡"
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+
   forger:
     catalog: gm
     name: Forger
     category: general
     group: general-brigand
-    description: "You know how to make letters, seals, and writing appear as though another wrote it."
+    description: "You know how to make letters, seals, and writing appear as though another wrote it. Allows you to craft wax seals. ‡"
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1815,7 +2068,7 @@ tags:
     category: general
     group: general-brigand
     description: "Your hands lighten burdened pockets. Your thefts are very hard to detect."
-    pointCost: 5
+    pointCost: 3
     purchasable: true
     purchasableAfterStart: true
 
@@ -1848,7 +2101,7 @@ tags:
     category: skills
     teachable: true
     description: "You can climb mountains, granting you access to certain locations. ‡"
-    pointCost: 3
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -1871,7 +2124,7 @@ tags:
     category: skills
     teachable: true
     description: "You know about some secret connections between the surface and the caves."
-    pointCost: 3
+    pointCost: 4
     purchasable: true
     purchasableAfterStart: true
 
@@ -1988,7 +2241,7 @@ tags:
     category: skills
     group: skills-crafting
     teachable: true
-    description: "Skilled smithing—the Moderate and higher recipes."
+    description: "Skilled smithing — the Moderate and higher recipes."
     pointCost: 5
     parentTag: smithing
     visible: false
@@ -2023,7 +2276,7 @@ tags:
     category: skills
     teachable: true
     description: "Nothing on one… little click on two… click on three… aha! You can pick locks."
-    pointCost: 7
+    pointCost: 4
     purchasable: true
     purchasableAfterStart: true
 
@@ -2033,16 +2286,6 @@ tags:
     category: skills
     teachable: true
     description: "You used to go up the mountains as a child."
-    pointCost: 5
-    purchasable: true
-    purchasableAfterStart: true
-
-  navigating:
-    catalog: all
-    name: Navigating
-    category: skills
-    teachable: true
-    description: "The universally applicable ability to use compasses, maps, and in general know your location. Broadly useful, but less particular than caving or forestry skills."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -2142,11 +2385,11 @@ tags:
     group: skills-fighting
     teachable: true
     description: "The peak of your generation."
-    pointCost: 0
+    pointCost: 7
     parentTag: melee-expert
     visible: false
     purchasable: false
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   ranged-basic:
     catalog: all
@@ -2206,11 +2449,11 @@ tags:
     group: skills-fighting
     teachable: true
     description: "The peak of your generation."
-    pointCost: 14
+    pointCost: 7
     parentTag: ranged-expert
     visible: false
     purchasable: false
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   melee-shield-wall:
     catalog: all
@@ -2219,7 +2462,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You have practiced this drill. When standing within reach of 2 or more other Watchmen, your melee skill counts as 2 tiers higher."
-    pointCost: 10
+    pointCost: 8
     requiredTag: melee-basic
     visible: false
     purchasable: true
@@ -2232,7 +2475,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You're particularly good at fighting people one-on-one — especially with swords, rapiers, and knives. When dueling, your melee skill counts as 2 tiers higher."
-    pointCost: 10
+    pointCost: 9
     requiredTag: melee-basic
     visible: false
     purchasable: true
@@ -2272,7 +2515,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "While using clubs, your fighting skill counts as 2 tiers higher."
-    pointCost: 10
+    pointCost: 8
     requiredTag: melee-basic
     visible: false
     purchasable: true
@@ -2323,7 +2566,7 @@ tags:
     category: skills
     group: skills-fighting
     teachable: true
-    description: "You can grapple enemies bare handed. Useful for regular weapon fighting too—lots of fights end up on the ground."
+    description: "You can grapple enemies bare handed. Useful for regular weapon fighting too — lots of fights end up on the ground."
     pointCost: 5
     visible: false
     purchasable: true
@@ -2336,7 +2579,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "When you start a fight with a surprise attack in difficult terrain, your fighting skill (whether melee or ranged) counts as 2 tiers higher."
-    pointCost: 10
+    pointCost: 5
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -2374,7 +2617,7 @@ tags:
     category: skills
     group: skills-medical
     teachable: true
-    description: "Allows you to treat very minor and minor injuries as routine. This may include first aid, bandaging, packing a wound, or setting a simple break. Anything harder is a Gambit."
+    description: "Allows you to treat very minor and minor injuries as Routine. This may include first aid, bandaging, packing a wound, or setting a simple break. Anything harder is a Gambit."
     pointCost: 5
     visible: false
     purchasable: true
@@ -2386,7 +2629,7 @@ tags:
     category: skills
     group: skills-medical
     teachable: true
-    description: "Allows you to treat moderate and severe cases as routine, and the most minor surgery, like closing a large bleed or cutting away dead flesh. Any surgery past that is a Gambit."
+    description: "Allows you to treat moderate and severe cases as Routine, and the most minor surgery, like closing a large bleed or cutting away dead flesh. Any surgery past that is a Gambit."
     pointCost: 5
     parentTag: medical-basic
     visible: false
@@ -2399,7 +2642,7 @@ tags:
     category: skills
     group: skills-medical
     teachable: true
-    description: "Allows you to treat almost everything as routine, difficult surgery included. Only the most complex work counts as a Gambit."
+    description: "Allows you to treat almost everything as Routine, difficult surgery included. Only the most complex work counts as a Gambit."
     pointCost: 5
     parentTag: medical-skilled
     visible: false
@@ -2464,7 +2707,7 @@ tags:
     name: Ate Meal
     category: status
     group: status-food
-    description: "You don't consume any resources today, because you ate a proper meal. Sheds one turn of Hunger."
+    description: "You don't consume any Resources today, because you ate a proper meal. Sheds 1 turn of Hunger."
     pointCost: 0
     purchasable: false
 
@@ -2473,7 +2716,7 @@ tags:
     name: Hungry
     category: status
     group: status-debuffs
-    description: "-1 to the die on all Gambits per turn gone hungry. Eating removes one turn's worth."
+    description: "-1 to the die on all Gambits per turn gone hungry. Eating removes 1 turn's worth."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -2513,13 +2756,46 @@ tags:
     name: Bound
     category: status
     group: status-debuffs
-    description: "Restrained—can't act, can be looted or moved by whoever bound them."
+    description: "Restrained — can't act, can be looted or moved by whoever bound them."
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
 
+  # Put on by the Crucify button (a Fundamentalist, a Cross standing here).
+  # In RESTRICTIONS as ACT-only (db/lib/incapacitation.js): you hang there and
+  # can still speak, so last words and recantations happen in channel. A
+  # status tag, NOT health, on purpose — the health-wounds/maiming groups feed
+  # the Harm menu, and this must never be something anyone can inflict without
+  # the cross. Neither healable nor removable: a GM takes it off by hand if the
+  # story needs a rescue. After one turn it becomes Dying, and the Dying pass
+  # kills a turn later (db/lib/dyingDeathPass.js).
+  crucified:
+    catalog: gm
+    name: Crucified
+    category: status
+    group: status-debuffs
+    description: "You're crucified. You can't do anything."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 1
+    expiresInto: [dying]
+
+  # --- The drinking ladder (docs/systemdocs/BREWING.md) --------------------
+  #
+  # Three rungs, and every drink in the catalog still consumes into the first
+  # one. `escalatesInto` is what makes the second drink matter: consuming
+  # something that grants a rung you already hold clears that rung and gives
+  # you the one above instead. So tipsy -> wasted -> unconscious, and the only
+  # way down is to stop.
+  #
+  # None of the Fighting penalties below is enforced in code — no line in the
+  # repo reads `tipsy`. They are numbers a GM weighs while adjudicating a
+  # fight, which is how the original Tipsy has always worked.
   tipsy:
     catalog: gm
     name: Tipsy
@@ -2529,6 +2805,67 @@ tags:
     pointCost: 0
     visible: true
     purchasable: false
+    durationTurns: 1
+    escalatesInto: wasted
+
+  wasted:
+    catalog: gm
+    name: Wasted
+    category: status
+    group: status-debuffs
+    description: "You're going to regret this… Your Fighting skill counts as 2 tiers lower. ‡"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+    escalatesInto: unconscious
+    expiresInto: [hangover]
+
+  # In INCAPACITATING_SLUGS (db/lib/incapacitation.js): out cold is out cold,
+  # so you can be looted, dragged and tied up where you fell. Deliberately NOT
+  # in FINISHABLE_SLUGS — passing out in a tavern should not be a
+  # no-confirmation death sentence, the same call already made for Seizure. ‡
+  unconscious:
+    catalog: gm
+    name: Unconscious
+    category: status
+    group: status-debuffs
+    description: "You drank yourself into unconsciousness. ‡"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+    expiresInto: [hangover]
+
+  # The Iron Liver marker: the first drink at a rung sets it, the second
+  # clears it and climbs. web/lib/consumeGrants.js.
+  steady:
+    catalog: gm
+    name: Steady
+    category: status
+    group: status-debuffs
+    description: "You're holding it down. One more and you won't be. ‡"
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 1
+
+  # The bottom of the ladder rather than a rung on it: no escalatesInto, so
+  # drinking through a hangover starts you over at Tipsy. ‡
+  hangover:
+    catalog: gm
+    name: Hangover
+    category: status
+    group: status-debuffs
+    description: "Ugh… Your Fighting skill counts as 1 tier lower. ‡"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
     durationTurns: 1
 
   # Recreational intoxication, and deliberately a Status tag with NO
@@ -2550,6 +2887,23 @@ tags:
     group: status-buffs
     description: "You can see in the dark as though it were an overcast day."
     pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  # The Fertilizer's effect half. `equipped: false` because there is nothing to
+  # wear — the same shape as the Plow's bonus, minus the horse. db/lib/
+  # tagShapes.js refuses an `equipped: true` bonus on a non-equippable tag.
+  fertilized-fields:
+    catalog: gm
+    name: Fertilized Fields
+    category: status
+    group: status-buffs
+    description: "Your fields are richly fed. Farming produces +4 ⬢. ‡"
+    pointCost: 0
+    laborBonus: { kind: farming, amount: 4, equipped: false }
     visible: false
     purchasable: false
     purchasableAfterStart: false
@@ -2626,7 +2980,7 @@ tags:
     name: Stimulant High
     category: status
     group: status-buffs
-    description: "This is so fun! Holy shit, you could do anything!"
+    description: "This is so fun! You could do anything!"
     pointCost: 0
     visible: true
     purchasable: false
@@ -2714,20 +3068,24 @@ tags:
     removable: false
     durationTurns: 2
 
-  # The two fear states, granted by a GM. Can be applied by Demoness
+  # The two fear states, granted by a GM. Can be applied by Demoness. Also
+  # granted automatically by presence for Claustrophobia (the caves) and
+  # Acrophobia (the Black Hills, or Panic at the Mountain) — db/lib/phobias.js.
+  # Those derived rows carry `source: CONDITION` — that's what tells a
+  # phobia-driven grant from a GM-granted one apart, not the expiry.
 
   afraid:
     catalog: gm
     name: Afraid
     category: status
     group: status-debuffs
-    description: "You're really afraid. This is a bad idea..."
+    description: "You're really afraid. This is a bad idea…"
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: false
-    durationTurns: 2
+    durationTurns: 1
 
   panic:
     catalog: gm
@@ -3001,7 +3359,7 @@ tags:
     name: Dying
     category: health
     group: health-infection
-    description: "You're on death's door. You have one turn. Someone with the very best medicine and a lot of luck could pull you back before it closes, but don't count on it."
+    description: "You're on death's door. You have 1 turn. Someone with the very best medicine and a lot of luck could pull you back before it closes, but don't count on it."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3452,7 +3810,7 @@ tags:
     category: health
     group: health-illness
     description: "Your joints are achy and stiff. It can't be treated."
-    pointCost: -5
+    pointCost: -3
     carryBonus: -0.05
     visible: true
     purchasable: true
@@ -3599,7 +3957,7 @@ tags:
     psychological: true
     category: health
     group: health-mind
-    description: "The trauma from an event is uncurable. Loud noises or sudden bangs jolt you back to that time."
+    description: "The trauma from an event is incurable. Loud noises or sudden bangs jolt you back to that time."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -3678,7 +4036,7 @@ tags:
     name: Mute
     category: health
     group: health-mind
-    description: "You can't speak. You may want to consider picking up sign language."
+    description: "You can't speak."
     pointCost: -7
     visible: true
     purchasable: true
@@ -3797,8 +4155,8 @@ tags:
     name: Deaf
     category: health
     group: health-maiming
-    description: "Best paired with sign language."
-    pointCost: -7
+    description: "There's no sign language, so good luck."
+    pointCost: -6
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -3822,7 +4180,7 @@ tags:
     category: health
     group: health-mind
     description: "You can't see in dim or darkness."
-    pointCost: -5
+    pointCost: -3
     purchasable: true
     purchasableAfterStart: false
     # Blind's removesInto lands here, so the two are the same eye at two
@@ -3964,7 +4322,7 @@ tags:
     category: health
     group: health-minor
     description: "Pain behind your eye and bright lights that come and go. Incurable."
-    pointCost: -4
+    pointCost: -3
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -4087,6 +4445,12 @@ tags:
     visible: true
     purchasableAfterStart: false
     removable: true
+    # The Merchant is the only mid-game source, so the price is meant to hurt:
+    # a free zone move every turn is the strongest thing on the assets shelf.
+    # Under the Steam Automobile, which does the same job and never spooks.
+    depotPrice: 90
+    sellable: true
+    sellablePrice: 54
 
   bird:
     catalog: all
@@ -4141,6 +4505,12 @@ tags:
     purchasable: true
     purchasableAfterStart: true
     removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 40
+      skills: [builder-skilled]
+      gambit: false
 
   cart:
     catalog: all
@@ -4247,8 +4617,8 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 4
-      resourceCost: 30
+      turnsCost: 2
+      resourceCost: 15
       skills: [builder-skilled]
       gambit: false
     # Deliberately NOT fieldwork: raising a forge is smith's work itself, so
@@ -4273,21 +4643,42 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      # The deliberate crew flagship: the one structure not meant to be
-      # soloed. Six crew-turns is a week alone or two days with friends.
-      turnsCost: 6
+      # The crew flagship: the one structure not meant to be soloed. Four
+      # crew-turns is most of a week alone or one day with friends.
+      turnsCost: 4
       resourceCost: 40
       skills: [builder-skilled]
       gambit: false
-    # hold_shut is opportunistic: where the map authors a structural gateway
-    # the finished palisade closes it and its gate answers to the authored
-    # openers; anywhere else it builds unbound and the defense prose is the
-    # whole effect. defenseNote is a spliced fragment — no ‡ (sync enforces).
+    # The defense prose is the whole effect. defenseNote is a spliced
+    # fragment — no ‡ (sync enforces).
     placement:
       fieldwork: true
-      link: hold_shut
       examine: "sharpened stakes ring this ground."
       defenseNote: "A ring of sharpened stakes; attackers on foot come over or through it, never past it unseen."
+
+  watchtower:
+    catalog: all
+    name: Watchtower
+    category: assets
+    group: assets-structures
+    description: "An elevated tower of lashed timber, raised where you stand. Whoever climbs it sees the ground around long before anything on it arrives. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 20
+      skills: [builder-skilled]
+      gambit: false
+    # Half a Palisade in every number. Fieldwork by the Palisade's logic: it
+    # is stakes and lashings, not smith's work.
+    placement:
+      fieldwork: true
+      examine: "a timber tower stands over this ground."
+      defenseNote: "Whoever holds the tower sees what comes before it arrives; nothing approaches this ground unseen."
 
   barricade:
     catalog: all
@@ -4326,7 +4717,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 3
+      turnsCost: 2
       resourceCost: 20
       skills: [builder-skilled]
       gambit: false
@@ -4415,53 +4806,6 @@ tags:
       examine: "counterweight hung, arm cocked."
       defenseNote: "a structure at a neighbouring location can be bombarded."
 
-  jailhouse:
-    catalog: all
-    name: Jailhouse
-    category: assets
-    group: assets-structures
-    description: "A strongroom with a bar on the outside of the door and a cot on the inside. A place to hold someone that does not need a guard awake to mean it. ‡"
-    pointCost: 0
-    visible: false
-    tradeable: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 3
-      resourceCost: 25
-      skills: [builder-skilled]
-      gambit: false
-    # The custody advisory (plan §5): extends "the structure is the
-    # compensation for absence" from defense to imprisonment — holding a
-    # bound prisoner credibly no longer ends when the captor logs off.
-    placement:
-      examine: "one door, barred from the outside."
-      defenseNote: "A bound prisoner held here stays held, guard awake or not."
-
-  library:
-    catalog: all
-    name: Library
-    category: assets
-    group: assets-structures
-    description: "Shelves under a sound roof, and somebody's promise to keep them dry. A place for documents to live longer than the people who wrote them. ‡"
-    pointCost: 0
-    visible: false
-    tradeable: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 4
-      resourceCost: 40
-      skills: [builder-skilled]
-      gambit: false
-    # Prose civic structure; a home for GM-planted readable documents. The
-    # literate/gribble.js tie the plan sketches is deliberately FUTURE work
-    # ("grows only if documents grow") — nothing mechanical here yet.
-    placement:
-      examine: "shelves stocked and dry."
-
   gallows:
     catalog: all
     name: Gallows
@@ -4486,31 +4830,38 @@ tags:
       fieldwork: true
       examine: "rope coiled at the post."
 
-  bridge:
+  # NAMED "Crucifix", not "Cross", and that is not a preference: Tag.name is
+  # @unique, `cross` is already the wooden-cross ITEM above, and
+  # docs/roles.yaml grants that item to the Bishop and the Chaplain BY NAME.
+  # This entry shipped as a second "Cross" on 2026-09-05 and made
+  # db:sync-tags fail outright on P2002 — the whole catalog, not just this row.
+  # Renaming the structure fixes it and makes the slug its own name again, so
+  # no keepSlug is needed (the sync throws on a keepSlug that isn't earning
+  # its keep). Structure.typeSlug still joins on `crucifix`.
+  #
+  # No skill on purpose — none of the Inquisition roles carries a Builder
+  # tier, and this is their tool. The Crucify button on /character needs a
+  # COMPLETE one standing here plus the fundamentalist tag
+  # (web/app/(app)/character/requestActions.js#crucifyCharacterRequestImpl).
+  crucifix:
     catalog: all
-    name: Bridge
+    name: Crucifix
     category: assets
     group: assets-structures
-    description: "Piles, spans and planking enough to carry a cart over water that used to stop one. It can only be raised where a crossing waits for it. ‡"
+    description: "Two beams and a footrest, raised where you stand. You can crucify people here. ‡"
     pointCost: 0
     visible: false
     tradeable: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
-    # Expert — the tag's own description promises bridges — and workshop-
-    # gated: hauling the kit to the ford is the project's first act.
     requirement:
-      turnsCost: 5
-      resourceCost: 70
-      skills: [builder-expert]
+      turnsCost: 1
+      resourceCost: 6
       gambit: false
-    # hold_open REQUIRES a free structural edge at the ground (the sync's
-    # authored fords, docs/zones.yaml modular.structural) — the build
-    # refuses anywhere else, and the way opens when the work is done.
     placement:
-      link: hold_open
-      examine: "planked and railed, it spans the crossing."
+      fieldwork: true
+      examine: "a cross stands ready."
 
   dog:
     catalog: all
@@ -4801,9 +5152,32 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    depotPrice: 8
+    depotPrice: 7
     sellable: true
-    sellablePrice: 3
+    sellablePrice: 4
+
+  # Bought from the Depot rather than made: nothing in Ravenheart produces it,
+  # which is what puts it on the shelf at all (TAGS.md §5, `depotPrice`). It is
+  # deliberately NOT `sellable` — a sell price under the buy price is a loop
+  # that prints ⬢, and there is no honest sell price above 5 for a thing worth
+  # 8 ⬢ of farming.
+  fertilizer:
+    catalog: all
+    name: Fertilizer
+    category: items
+    group: items-gear
+    description: "Consume to fertilize your fields, boosting your farming payout. ‡"
+    pointCost: 2
+    depotPrice: 5
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto: [fertilized-fields]
 
   # A lute, a fiddle, a set of pipes — the player decides which. Off the point
   # scale at 1 (TAGS.md §4a): the tag buys no advantage at all, only /play,
@@ -4814,7 +5188,7 @@ tags:
     name: Instrument
     category: items
     group: items-gear
-    description: "An instrument of your choice—type /play to play it."
+    description: "An instrument of your choice — type {cmd:play} to play it."
     pointCost: 1
     tradeable: true
     weight: 1
@@ -4908,7 +5282,7 @@ tags:
     category: items
     group: items-gear
     description: "Can open a locked door. Afterwards, it's unusable."
-    pointCost: 5
+    pointCost: 3
     tradeable: true
     weight: 0
     stackable: false
@@ -4946,7 +5320,7 @@ tags:
     category: items
     group: items-gear
     description: "You can see the deer on the mountainside."
-    pointCost: 5
+    pointCost: 2
     tradeable: true
     weight: 2
     stackable: true
@@ -4960,8 +5334,8 @@ tags:
     name: Disguise Kit
     category: items
     group: items-gear
-    description: "Makeup, a change of clothes, an array of false mustaches... (Change your name temporarily. Takes 1 turn to apply, and lasts 3. You need the {tag:artist} trait to impersonate someone specific.)"
-    pointCost: 5
+    description: "Makeup, a change of clothes, an array of false mustaches… You can temporarily change your name and appearance — for 3 turns nobody sees your own face or your own name, and you cannot conceal yourself on top of it. The kit is not used up. ‡"
+    pointCost: 2
     tradeable: true
     weight: 2
     stackable: true
@@ -4995,7 +5369,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 8
-    depotPrice: 16
+    depotPrice: 13
 
   # The one thing an Artist can turn a week of work into. No depotPrice: the
   # station imports nothing Ravenheart makes itself, and a painting is the
@@ -5016,7 +5390,7 @@ tags:
     name: Painting
     category: items
     group: items-gear
-    description: "A painting of middling beauty. It'll fetch a good price—owning it is a valid Desire too, especially for nobles."
+    description: "A painting of middling beauty. It'll fetch a good price — owning it is a valid Desire too, especially for nobles."
     pointCost: 0
     tradeable: true
     weight: 5
@@ -5098,7 +5472,7 @@ tags:
     name: Obol
     category: items
     group: items-gear
-    description: "Obols (¢) are worth 1 ⬢ at the merchant’s depot. They weigh nothing, which is the whole reason to hold them. ‡"
+    description: "Obols (¢) are worth 1 ⬢ at the merchant's depot. They weigh nothing, which is the whole reason to hold them. ‡"
     pointCost: 0
     tradeable: true
     weight: 0
@@ -5348,11 +5722,235 @@ tags:
       - forester
       - shortbow
 
+  # --- Courtier kits ------------------------------------------------------
+  # A note on the descriptions: Knighted, Old Blood and Dancer are named in
+  # plain prose rather than as {tag:...} chips, unlike everything else these
+  # crates hold. All three live in `general-court`, which is gated behind the
+  # `courtier` tag -- and getVisibleTags (web/lib/referenceData.js) drops a
+  # gated tag for anyone not holding the gate, so a chip for one renders as
+  # the literal token on the creation screen, where NOBODY holds it yet.
+  # The same crate idiom as the Commoner kits above, for the opposite reason.
+  # A Commoner needs a trade; a Courtier needs a REASON to be in the room. The
+  # base seat is three tags and an invitation to invent your own goals, which
+  # is a lot of nothing to hand somebody on turn one -- so each of these is a
+  # courtly life bought whole, in one pick rather than six.
+  #
+  # `onlyRoles: [courtier]` is load-bearing, exactly as it is up there. Each
+  # kit holds far more than it costs (the Tutor is 17 points of tags for 4, the
+  # Seasoned Knight 39 for 9), which is fine for the seat these were written
+  # for and a faucet for anybody else. The `courtier` TAG would be the wrong
+  # gate: the Baron, the Baroness, the Heir, the Successor, the Hand and the
+  # Meister all carry it, and several of them already draw
+  # extra_starting_points. The role slug is the narrow thing meant here.
+  courtier-herald:
+    catalog: all
+    name: "Courtier: Herald"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "Carry messages for the Baron and tell the day's news. Unpacks into a {tag:horse}, a {tag:trumpet}, a {tag:bird} and four sheets of {tag:paper}. ‡"
+    pointCost: 7
+    tradeable: true
+    weight: 2
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - horse
+      - trumpet
+      - bird
+      - paper
+      - paper
+      - paper
+      - paper
+
+  # The one kit that hands over drawbacks. They arrive through a crate rather
+  # than point-buy, so the 5/12 drawback caps never see them -- that is the
+  # intent, not a hole: an old knight IS his bad hip, and pricing the kit at 9
+  # already accounts for the relief the negatives give back.
+  courtier-seasoned-knight:
+    catalog: all
+    name: "Courtier: Seasoned Knight"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "Reminisce on your valor during the Skinless attack of 1088. Unpacks into knighthood, {tag:plate-armor}, a {tag:broadsword}, a {tag:shield}, a {tag:knights-helmet}, {tag:melee-trained}, {tag:ranged-basic} and a {tag:devoted-follower} — along with the years behind all of it, {tag:old} and {tag:arthritis}. ‡"
+    pointCost: 9
+    tradeable: true
+    weight: 3
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - knighted
+      - plate-armor
+      - old
+      - arthritis
+      - broadsword
+      - shield
+      - knights-helmet
+      - melee-trained
+      - ranged-basic
+      - devoted-follower
+
+  courtier-tutor:
+    catalog: all
+    name: "Courtier: Tutor"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "Train the Successor and the Heir in your skill of choice. Unpacks into {tag:teaching}, {tag:intelligent} and {tag:insightful}. ‡"
+    pointCost: 4
+    tradeable: true
+    weight: 1
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - teaching
+      - intelligent
+      - insightful
+
+  courtier-chaplain:
+    catalog: all
+    name: "Courtier: Chaplain"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "An envoy from the church. Unpacks into {tag:chaplain}, {tag:pious} and a {tag:blessing}. ‡"
+    pointCost: 4
+    tradeable: true
+    weight: 1
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - chaplain
+      - pious
+      - blessing
+
+  courtier-carouser:
+    catalog: all
+    name: "Courtier: Carouser"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "Host marvelous feasts. Unpacks into the skills of a dancer and a {tag:game-master}, an {tag:iron-liver} and two {tag:alcohol}. ‡"
+    pointCost: 3
+    tradeable: true
+    weight: 4
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - dancer
+      - game-master
+      - alcohol
+      - alcohol
+      - iron-liver
+
+  # Two manor keys, not one: the Manors are a household, and a lord with no
+  # spare key has nobody to let in. `manor-key` is stackable, so the pair sits
+  # in one row on the sheet.
+  courtier-manor-lord:
+    catalog: all
+    name: "Courtier: Manor Lord"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "Run your manor from outside the fortress gates. Unpacks into old blood, an {tag:heirloom}, a {tag:rapier} and two {tag:manor-key}. ‡"
+    pointCost: 5
+    tradeable: true
+    weight: 2
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - old-blood
+      - manor-key
+      - manor-key
+      - heirloom
+      - rapier
+
+  courtier-debutante:
+    catalog: all
+    name: "Courtier: Debutante"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "A general member of the court, here to try their fate. Unpacks into {tag:pretty}. ‡"
+    pointCost: 1
+    tradeable: true
+    weight: 1
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - pretty
+
+  courtier-court-physician:
+    catalog: all
+    name: "Courtier: Court Physician"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "Treat the Keep's wounded. Unpacks into {tag:medical-skilled} and a {tag:sanctuary-key}, so the Sanctuary is open to you. ‡"
+    pointCost: 4
+    tradeable: true
+    weight: 1
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - medical-skilled
+      - sanctuary-key
+
+  courtier-court-artist:
+    catalog: all
+    name: "Courtier: Court Artist"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "Paint portraits of the Baron. Unpacks into {tag:artist}, {tag:musician}, an {tag:instrument} and the grace of a dancer. ‡"
+    pointCost: 5
+    tradeable: true
+    weight: 2
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - artist
+      - dancer
+      - musician
+      - instrument
+
+  # Builder (Expert) alone, with no Builder (Skilled) beside it: parentTag is a
+  # replacing tier chain, so the top rung is the whole ladder.
+  courtier-master-engineer:
+    catalog: all
+    name: "Courtier: Master Engineer"
+    category: items
+    onlyRoles: [courtier]
+    group: items-gear
+    description: "Improve the defenses of Ravenheart. Unpacks into {tag:builder-expert}, a {tag:hatchet}, a {tag:work-knife}, a {tag:purse} and a {tag:cart}. ‡"
+    pointCost: 8
+    tradeable: true
+    weight: 3
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - hatchet
+      - builder-expert
+      - work-knife
+      - purse
+      - cart
+
   # A one-off prop, not a shipment. It sits in the Rockside Washup with the
   # sewer key, and it is written to be indistinguishable from a crate the
   # shuttle set down: manifest in crateDescription() format, an ID in
   # shipmentId() format, weight by crateWeight() (2 Coal = 4 lb, a Squeeze
-  # cube = 20 lb, halved and rounded up = 12). Opens on Consume, the way a
+  # cube = 17 lb, halved and rounded up = 11). Opens on Consume, the way a
   # player-packed crate does -- the Depot's openCrate only lives on /depot.
   crate-rv-6207-m:
     catalog: gm
@@ -5362,7 +5960,7 @@ tags:
     description: "[SHIPMENT ID RV-6207-M]: Coal x 2 | Squeeze"
     pointCost: 0
     tradeable: true
-    weight: 12
+    weight: 11
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -5409,8 +6007,8 @@ tags:
     removable: true
     equippable: true
     sellable: true
-    sellablePrice: 13
-    depotPrice: 30
+    sellablePrice: 15
+    depotPrice: 25
 
   suspicious-game-set:
     catalog: all
@@ -5769,8 +6367,8 @@ tags:
     # The Depot stocks it too, at a price that makes the 6-pt creation pick
     # look like the bargain it is. See docs/systemdocs/DEPOT.md §3.
     sellable: true
-    sellablePrice: 72
-    depotPrice: 164
+    sellablePrice: 80
+    depotPrice: 134
     sealedShipping: true
 
   #Cave weapons
@@ -5821,6 +6419,31 @@ tags:
   # wood-and-sinew is still wood-and-sinew even at High Quality.
   #
   # ─── Dead Simple ───────────────────────────────────────────────────────────
+
+  trench-knife:
+    catalog: all
+    name: Trench Knife
+    category: items
+    group: items-weapons
+    description: "A deadly knife with brass knuckles embedded on the grip."
+    pointCost: 5
+    requiredTag: melee-basic
+    equippable: true
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: worn
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [smithing]
+      gambit: false
+    sellable: true
+    sellablePrice: 12
 
   work-knife:
     catalog: all
@@ -5896,7 +6519,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 7
     depotPrice: 12
 
   trapping-gear:
@@ -5922,7 +6545,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 16
     depotPrice: 26
 
   # No `equipped` on the bonus: a plow is not something you hold, it is
@@ -5934,9 +6557,9 @@ tags:
     name: Plow
     category: assets
     group: assets-property
-    description: "It breaks the earth, but something has to pull it. If you also have a {tag:horse}, Farming produces +4 ⬢. ‡"
+    description: "It breaks the earth, but something has to pull it. If you also have a {tag:horse}, Farming produces +3 ⬢. ‡"
     pointCost: 5
-    laborBonus: { kind: farming, amount: 4, equipped: false, requiresTag: horse }
+    laborBonus: { kind: farming, amount: 3, equipped: false, requiresTag: horse }
     tradeable: true
     stackable: true
     visible: true
@@ -6126,7 +6749,7 @@ tags:
     category: items
     group: items-weapons
     description: "A short blade made for stabbing."
-    pointCost: 5
+    pointCost: 3
     requiredTag: melee-basic
     equippable: true
     tradeable: true
@@ -6303,7 +6926,7 @@ tags:
     category: items
     group: items-weapons
     description: "Wrap your fingers with metal."
-    pointCost: 5
+    pointCost: 3
     equippable: true
     tradeable: true
     weight: 0.5
@@ -6689,7 +7312,7 @@ tags:
     group: items-weapons
     description: "A gentleman's cane, filled with three feet of steel."
     pointCost: 7
-    depotPrice: 28
+    depotPrice: 23
     equippable: true
     tradeable: true
     weight: 2
@@ -6698,7 +7321,7 @@ tags:
     purchasableAfterStart: false
     removable: true
     sellable: true
-    sellablePrice: 12
+    sellablePrice: 14
 
   # A Cerberon-issued sidearm — the Censor and every Cerberus start with one.
   # Never bought or built: the batteries are shipped in by the Baron, so
@@ -6847,7 +7470,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 30
+    sellablePrice: 41
     depotPrice: 68
 
   surgical-equipment:
@@ -6864,8 +7487,8 @@ tags:
     tradeable: true
     weight: 12
     sellable: true
-    sellablePrice: 17
-    depotPrice: 38
+    sellablePrice: 19
+    depotPrice: 31
 
   # --- Special ------------------------------------------------------------
   # Relics, grafts and machinery. None of it is purchasable at any price and
@@ -6938,23 +7561,6 @@ tags:
     sellable: true
     sellablePrice: 12
 
-  compromising-letters:
-    catalog: all
-    name: Compromising Letters
-    category: items
-    group: items-special
-    description: "Choose a courtier, servant, the Successor, or the Heir. Not the Hand or the Meister. You have blackmail on them."
-    pointCost: 5
-    requiredTag: courtier
-    tradeable: true
-    weight: 0
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
-    consumable: true
-
-  #Artifacts
-
   flamethrower:
     catalog: gm
     name: Flamethrower
@@ -6973,9 +7579,11 @@ tags:
     # sell (the Motorcycle is the other). Everything else on this shelf stays
     # something you have to go down and find. See docs/systemdocs/DEPOT.md §3.
     sellable: true
-    sellablePrice: 104
-    depotPrice: 237
+    sellablePrice: 116
+    depotPrice: 194
     sealedShipping: true
+
+  #Artifacts
 
   dark-eye-lenses:
     catalog: secret
@@ -7021,13 +7629,55 @@ tags:
     purchasableAfterStart: false
     removable: false
 
+  # A mount, not loot: it sits in FAST_TRAVEL_SLUGS beside the Horse and the
+  # Steam Automobile (db/lib/mounts.js), so equipping it buys the extra
+  # crossing, parks it at any indoors door, refuses to share a hand with the
+  # boat, and turns a Motion Sick rider's stomach — all of that falls out of
+  # the one set membership. It seats 2 like a horse and is checked BEFORE the
+  # horse in fastTravelCapacity, so the Cart's upgrade to 6 can never reach it.
+  # THE BOMB. Two halves that must be found separately: the device is inert on
+  # its own ("there's no way to activate it"), and the datacard is what points
+  # at it and starts the clock. Neither is `removable` — you cannot bin a
+  # nuclear weapon from the Destroy menu.
+  #
+  # The device is Immense (100 lb, CARRY.md's top band, same as the
+  # motorcycle below), so moving it is a project rather than a pocket.
+  nuclear-device:
+    catalog: gm
+    name: Nuclear Device
+    category: items
+    group: items-special
+    description: "A fissile explosive. A gift from God King Enoch II. There's no way to activate it."
+    pointCost: 0
+    tradeable: true
+    weight: 100
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  nuclear-datacard:
+    catalog: gm
+    name: Nuclear Datacard
+    category: items
+    group: items-special
+    description: "This can be inserted into the {tag:nuclear-device} to start a ten minute countdown. It also points to where the device is at all times."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
   motorcycle:
     catalog: gm
     name: Motorcycle
     category: items
     group: items-special
-    description: "Good luck hauling this one out of the Caves."
+    description: "Good luck hauling this one out of the Caves. While it's equipped you get 1 extra free zone move each turn, and you'll be heard coming. Carries 2 people. It waits outside indoors. ‡"
     pointCost: 0
+    equippable: true
     tradeable: true
     weight: 100
     visible: true
@@ -7036,8 +7686,8 @@ tags:
     removable: true
     # The Depot imports these, and it does not have to haul them anywhere.
     sellable: true
-    sellablePrice: 92
-    depotPrice: 209
+    sellablePrice: 103
+    depotPrice: 171
 
   sawn-off-double-barrel:
     catalog: gm
@@ -7121,7 +7771,7 @@ tags:
     name: Baron's Scepter
     category: items
     group: items-special
-    description: "Gold, gems, and filigree. This damn thing must weigh five pounds."
+    description: "Gold, gems, and filigree. This thing must weigh five pounds."
     pointCost: 0
     equippable: true
     visible: true
@@ -7149,7 +7799,7 @@ tags:
     name: Merchant's Garb
     category: items
     group: items-special
-    description: "The elaborate outfit of a wealthy Merchant. Exotic furs and silks go a long way toward disguising the thin breastplate beneath—and the couple bionic pumps, which serve some unknown, impractical purpose."
+    description: "The elaborate outfit of a wealthy Merchant. Exotic furs and silks go a long way toward disguising the thin breastplate beneath — and the couple bionic pumps, which serve some unknown, impractical purpose."
     pointCost: 0
     equippable: true
     visible: true
@@ -7202,7 +7852,7 @@ tags:
     name: Incarn's Key
     category: items
     group: items-keys
-    description: "A elegant silver key worn around the Incarn's neck. It unlocks the Silver Cross's display case."
+    description: "An elegant silver key worn around the Incarn's neck. It unlocks the Silver Cross's display case."
     pointCost: 0
     equippable: true
     visible: worn
@@ -7210,6 +7860,21 @@ tags:
     weight: 0
     purchasable: false
     purchasableAfterStart: false
+
+  ordinator-insignia:
+    catalog: gm
+    name: Ordinator Insignia
+    category: items
+    group: items-special
+    description: "A skull, proudly worn on the infantry armor."
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    weight: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
 
   majors-insignia:
     catalog: gm
@@ -7372,9 +8037,9 @@ tags:
     group: items-drink
     description: "A Mudghara, special import. Cheap. It has a robust, heavy flavor."
     pointCost: 0
-    depotPrice: 6
+    depotPrice: 5
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 3
     tradeable: true
     weight: 0.5
     stackable: true
@@ -7390,9 +8055,9 @@ tags:
     name: Tea
     category: items
     group: items-drink
-    description: "Its soothing aroma cures minor unpleasant effects—like {tag:afraid} and {tag:panic}. Ravenheart has never grown a leaf of it."
+    description: "Its soothing aroma cures minor unpleasant effects — like {tag:afraid} and {tag:panic}. Ravenheart has never grown a leaf of it."
     pointCost: 0
-    depotPrice: 3
+    depotPrice: 2
     sellable: true
     sellablePrice: 1
     tradeable: true
@@ -7419,6 +8084,47 @@ tags:
 
   # The cheapest thing the Depot sells, on purpose. Paper has to be something
   # a scribe buys by the ream without thinking about it, or nobody writes.
+  # A ream, bought once at creation and unpacked when you need it. The twenty
+  # repeats are the mechanism, not a mistake: repeating a slug is the only way
+  # consumesInto asks for several of something, and it multiplies here because
+  # `paper` is stackable (TAGS.md §5b).
+  stack-of-paper:
+    catalog: all
+    name: Stack of Paper
+    category: items
+    group: items-paper
+    description: "A ream of blank sheets, still bound. Consumes into 20 {tag:paper}. ‡"
+    pointCost: 1
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto:
+      - paper
+      - paper
+      - paper
+      - paper
+      - paper
+      - paper
+      - paper
+      - paper
+      - paper
+      - paper
+      - paper
+      - paper
+      - paper
+      - paper
+      - paper
+      - paper
+      - paper
+      - paper
+      - paper
+      - paper
+
   paper:
     catalog: all
     name: Paper
@@ -7836,6 +8542,18 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # THE SIX COURTIER SEALS are the one place a tag is both bought and made, and
+  # TAGS.md §4's "nothing is both" invariant is knowingly bent here. A courtier
+  # buys their own mark at creation; a Forger (Brigands only, general-brigand)
+  # FORGES somebody else's at 1 turn and 2 ⬢. That is the whole feature — the
+  # point cost is the honest route and the recipe is the dishonest one, and
+  # they are meant to reach the same object. It is not an Add Tag loophole:
+  # §3b removed the menu's buy route, so `craftable` here only ever costs
+  # resources and a turn.
+  #
+  # `exclusive: true` still applies on the craft route (craftRequest calls
+  # exclusiveConflict), so a forger holds ONE seal at a time and has to hand
+  # each off before making the next. Deliberate throttle, not a bug.
   wax-seal-three-cups:
     catalog: all
     name: Wax Seal (Three Cups)
@@ -7850,6 +8568,12 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [forger]
+      gambit: false
 
   wax-seal-duo-of-saints:
     catalog: all
@@ -7865,6 +8589,12 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [forger]
+      gambit: false
 
   wax-seal-regal-cross:
     catalog: all
@@ -7880,6 +8610,12 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [forger]
+      gambit: false
 
   wax-seal-fleur-de-lis:
     catalog: all
@@ -7895,6 +8631,12 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [forger]
+      gambit: false
 
   wax-seal-mounted-knight:
     catalog: all
@@ -7910,6 +8652,12 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [forger]
+      gambit: false
 
   wax-seal-ox:
     catalog: all
@@ -7925,6 +8673,12 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [forger]
+      gambit: false
 
   # The offices' own stamps. These are never bought — each one starts in the
   # room the seat works out of (docs/zones.yaml `stash:`) and is `tradeable`
@@ -8075,7 +8829,7 @@ tags:
     group: items-drink
     description: "Refreshing and energizing."
     pointCost: 0
-    depotPrice: 3
+    depotPrice: 2
     sellable: true
     sellablePrice: 1
     tradeable: true
@@ -8094,11 +8848,11 @@ tags:
     name: Firecracker
     category: items
     group: items-gear
-    description: "It'll cause a commotion—maybe enough to get away."
+    description: "It'll cause a commotion — maybe enough to get away."
     pointCost: 0
-    depotPrice: 4
+    depotPrice: 3
     sellable: true
-    sellablePrice: 1
+    sellablePrice: 2
     tradeable: true
     weight: 0.5
     stackable: true
@@ -8116,7 +8870,7 @@ tags:
     group: items-food
     description: "What a rarity! There's no sugar in Ravenheart!"
     pointCost: 0
-    depotPrice: 5
+    depotPrice: 4
     sellable: true
     sellablePrice: 2
     tradeable: true
@@ -8137,7 +8891,7 @@ tags:
     group: items-food
     description: "What a rarity! Delicious on its own, even better if cooked into a meal."
     pointCost: 0
-    depotPrice: 5
+    depotPrice: 4
     sellable: true
     sellablePrice: 2
     tradeable: true
@@ -8158,7 +8912,7 @@ tags:
     group: items-gear
     description: "Throw a small object into the air or celebrate something special."
     pointCost: 0
-    depotPrice: 5
+    depotPrice: 4
     sellable: true
     sellablePrice: 2
     tradeable: true
@@ -8181,9 +8935,9 @@ tags:
     # Task 11: raised above the plain-alcohol band (5 ⬢) to sit roughly level
     # with ravenheart-red — its only price is sellablePrice 14, since it has
     # no depotPrice of its own (not depot-importable). See DEPOT.md §3.
-    depotPrice: 14
+    depotPrice: 11
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 7
     tradeable: true
     weight: 2
     stackable: true
@@ -8203,11 +8957,28 @@ tags:
     group: items-gear
     description: "A portable speaker."
     pointCost: 0
-    depotPrice: 13
+    depotPrice: 11
     sellable: true
-    sellablePrice: 5
+    sellablePrice: 7
     tradeable: true
     weight: 5
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  # Heard across the Location graph like the Cathedral bell, at three-quarters
+  # its reach and from wherever the holder stands — db/lib/trumpet.js. The
+  # button for it is on the web Character page, not in Discord.
+  trumpet:
+    catalog: all
+    name: Trumpet
+    category: items
+    group: items-gear
+    description: "A loud brass instrument that can be heard for miles."
+    pointCost: 0
+    tradeable: true
+    weight: 2
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -8220,9 +8991,9 @@ tags:
     group: items-weapons
     description: "Punish the heretics or those who have not paid their taxes."
     pointCost: 0
-    depotPrice: 14
+    depotPrice: 11
     sellable: true
-    sellablePrice: 6
+    sellablePrice: 7
     tradeable: true
     weight: 2
     equippable: true
@@ -8238,9 +9009,9 @@ tags:
     group: items-gear
     description: "Pour a substance into it and watch as it diffuses through the room."
     pointCost: 0
-    depotPrice: 15
+    depotPrice: 12
     sellable: true
-    sellablePrice: 6
+    sellablePrice: 7
     tradeable: true
     weight: 2
     visible: true
@@ -8260,9 +9031,9 @@ tags:
     group: items-gear
     description: "Detects poisons. Multi-use."
     pointCost: 9
-    depotPrice: 27
+    depotPrice: 22
     sellable: true
-    sellablePrice: 12
+    sellablePrice: 13
     tradeable: true
     weight: 0.5
     visible: false
@@ -8277,9 +9048,9 @@ tags:
     group: items-gear
     description: "It muffles whatever goes on inside."
     pointCost: 0
-    depotPrice: 27
+    depotPrice: 22
     sellable: true
-    sellablePrice: 11
+    sellablePrice: 13
     tradeable: true
     weight: 2
     stackable: true
@@ -8293,17 +9064,43 @@ tags:
     name: Microscope
     category: items
     group: items-gear
-    description: "What the hell are those things?!"
+    description: "What are those things?!"
     pointCost: 0
-    depotPrice: 35
+    depotPrice: 29
     sellable: true
-    sellablePrice: 15
+    sellablePrice: 17
     tradeable: true
     weight: 5
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
+
+  # The Tribunal's own kit, and the best body armour in the game — above Light
+  # Infantry on both numbers, which TAGS.md notes is already the ceiling
+  # ("nothing forged in Ravenheart stops a bullet"). Deliberately carries NO
+  # equipSlot, exactly like the light set: the two have to compete for the same
+  # flat slot rather than being wearable together.
+  heavy-infantry-armor:
+    catalog: gm
+    name: Heavy Infantry Armor
+    category: items
+    group: items-armor
+    description: "A modern set of infantry armor, fully covering the body."
+    pointCost: 0
+    equippable: true
+    melee: 0.9
+    ballistic: 0.9
+    tradeable: true
+    weight: 28
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    depotPrice: 70
+    sealedShipping: true
+    sellable: true
+    sellablePrice: 42
 
   light-infantry-armour:
     catalog: gm
@@ -8312,10 +9109,10 @@ tags:
     group: items-armor
     description: "A bulletproof vest and pad combination. Nothing forged in Ravenheart comes close, and nothing forged in Ravenheart stops a bullet."
     pointCost: 0
-    depotPrice: 41
+    depotPrice: 34
     sealedShipping: true
     sellable: true
-    sellablePrice: 18
+    sellablePrice: 20
     tradeable: true
     weight: 12
     equippable: true
@@ -8334,9 +9131,9 @@ tags:
     group: assets-companions
     description: "A pet monkey! Why, how exquisite!"
     pointCost: 0
-    depotPrice: 27
+    depotPrice: 22
     sellable: true
-    sellablePrice: 11
+    sellablePrice: 13
     tradeable: true
     visible: true
     purchasable: false
@@ -8350,9 +9147,9 @@ tags:
     group: assets-companions
     description: "A large, well-trained fighting dog awaits your commands."
     pointCost: 0
-    depotPrice: 46
+    depotPrice: 38
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 23
     tradeable: true
     visible: true
     purchasable: false
@@ -8367,10 +9164,10 @@ tags:
     group: items-drink
     description: "Give someone a few vials of this and they'll be asleep for a while. Inflicts {tag:asleep}."
     pointCost: 0
-    depotPrice: 55
+    depotPrice: 45
     sealedShipping: true
     sellable: true
-    sellablePrice: 24
+    sellablePrice: 27
     tradeable: true
     weight: 0.5
     stackable: true
@@ -8386,12 +9183,12 @@ tags:
     name: Amoeba Vial
     category: items
     group: items-gear
-    description: "Let them go wherever you like—they'll eat anything. It'll even help you get rid of the tiniest traces of a crime."
+    description: "Let them go wherever you like — they'll eat anything. It'll even help you get rid of the tiniest traces of a crime."
     pointCost: 0
-    depotPrice: 64
+    depotPrice: 52
     sealedShipping: true
     sellable: true
-    sellablePrice: 28
+    sellablePrice: 31
     tradeable: true
     weight: 0.5
     stackable: true
@@ -8409,10 +9206,10 @@ tags:
     group: items-gear
     description: "Creates an illusion up to human size. It lasts as long as you want."
     pointCost: 0
-    depotPrice: 73
+    depotPrice: 60
     sealedShipping: true
     sellable: true
-    sellablePrice: 32
+    sellablePrice: 36
     tradeable: true
     weight: 0
     visible: false
@@ -8427,10 +9224,10 @@ tags:
     group: items-special
     description: "A hideous little monster that will understand your simple instructions and carry them out."
     pointCost: 0
-    depotPrice: 91
+    depotPrice: 75
     sealedShipping: true
     sellable: true
-    sellablePrice: 40
+    sellablePrice: 45
     tradeable: true
     weight: 2
     visible: true
@@ -8445,9 +9242,9 @@ tags:
     group: items-gear
     description: "Equip to muffle your shots. ‡"
     pointCost: 0
-    depotPrice: 90
+    depotPrice: 74
     sellable: true
-    sellablePrice: 39
+    sellablePrice: 44
     equippable: true
     tradeable: true
     weight: 1
@@ -8464,9 +9261,9 @@ tags:
     group: items-drink
     description: "Immediately cures all stages of infection."
     pointCost: 0
-    depotPrice: 100
+    depotPrice: 82
     sellable: true
-    sellablePrice: 44
+    sellablePrice: 49
     tradeable: true
     weight: 0.5
     stackable: true
@@ -8489,9 +9286,9 @@ tags:
     description: "Fill it with water, warm it up, and move along a straight path without any obstacles. While it's equipped, you get 1 extra free zone move each turn, but you will be easily visible. Do not use through caves. It waits outside indoors. ‡"
     pointCost: 0
     equippable: true
-    depotPrice: 164
+    depotPrice: 134
     sellable: true
-    sellablePrice: 72
+    sellablePrice: 80
     tradeable: true
     visible: true
     purchasable: false
@@ -8506,10 +9303,10 @@ tags:
     description: "A 9mm pistol. Hunting produces +2 ⬢ when equipped. ‡"
     laborBonus: { kind: hunting, amount: 2 }
     pointCost: 0
-    depotPrice: 182
+    depotPrice: 149
     sealedShipping: true
     sellable: true
-    sellablePrice: 80
+    sellablePrice: 89
     tradeable: true
     weight: 2
     equippable: true
@@ -8531,10 +9328,10 @@ tags:
     group: items-weapons
     description: "A semi-automatic rifle chambered in .308."
     pointCost: 0
-    depotPrice: 260
+    depotPrice: 213
     sealedShipping: true
     sellable: true
-    sellablePrice: 114
+    sellablePrice: 128
     tradeable: true
     weight: 5
     equippable: true
@@ -8550,10 +9347,10 @@ tags:
     group: items-weapons
     description: "An experimental fully automatic rifle that belongs to the past."
     pointCost: 0
-    depotPrice: 540
+    depotPrice: 443
     sealedShipping: true
     sellable: true
-    sellablePrice: 237
+    sellablePrice: 266
     tradeable: true
     weight: 5
     equippable: true
@@ -8569,10 +9366,10 @@ tags:
     group: items-weapons
     description: "Fit for the highest of nobility. Light, strong, and unimaginably sharp."
     pointCost: 0
-    depotPrice: 230
+    depotPrice: 189
     sealedShipping: true
     sellable: true
-    sellablePrice: 101
+    sellablePrice: 113
     tradeable: true
     weight: 5
     equippable: true
@@ -8588,9 +9385,9 @@ tags:
     group: items-weapons
     description: "You're no longer afraid of the night."
     pointCost: 0
-    depotPrice: 150
+    depotPrice: 123
     sellable: true
-    sellablePrice: 66
+    sellablePrice: 74
     tradeable: true
     weight: 5
     equippable: true
@@ -8606,9 +9403,9 @@ tags:
     group: items-weapons
     description: "Hurts!"
     pointCost: 0
-    depotPrice: 75
+    depotPrice: 61
     sellable: true
-    sellablePrice: 33
+    sellablePrice: 37
     tradeable: true
     weight: 2
     equippable: true
@@ -8852,7 +9649,7 @@ tags:
     name: Cat
     category: items
     group: items-drink
-    description: "Distilled with alcohol until it turns pale. Drink it and your eyes flash yellow: gain {tag:night-vision} for 1 turn."
+    description: "Distilled with alcohol until it turns pale. Drink it and your eyes flash yellow: gain {tag:night-vision} for 2 turns."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -8993,7 +9790,7 @@ tags:
     name: Phrygian Tears
     category: items
     group: items-drink
-    description: "The perfect silent killer. Two turns of careful work to make. Inflicts {tag:phrygian-toxin}. ‡"
+    description: "The perfect silent killer. 2 turns of careful work to make. Inflicts {tag:phrygian-toxin}. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -9009,7 +9806,7 @@ tags:
       resourceCost: 4
       skills: [brewing-skilled]
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 22
     depotPrice: 36
     sealedShipping: true
 
@@ -9072,7 +9869,7 @@ tags:
     name: Purifier
     category: items
     group: items-drink
-    description: "Brewed from {tag:cave-fungus}. Clears {tag:infected}, {tag:festering} and {tag:feverish} without medical attention, and greatly improves the conditon of someone with {tag:sepsis}."
+    description: "Brewed from {tag:cave-fungus}. Clears {tag:infected}, {tag:festering} and {tag:feverish} without medical attention, and greatly improves the condition of someone with {tag:sepsis}."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -9251,7 +10048,16 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: true
+    craftable: true
     consumable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 8
+      skills: [brewing-skilled]
+      gambit: false
+    depotPrice: 14
+    sellable: true
+    sellablePrice: 10
     requiredTag: brigand
 
   invisibility-potion:
@@ -9576,7 +10382,7 @@ tags:
       skills: [smithing-skilled]
     depotPrice: 45
     sellable: true
-    sellablePrice: 18
+    sellablePrice: 27
 
   tribunal-helmet:
     catalog: gm
@@ -9717,9 +10523,9 @@ tags:
     weight: 2
     purchasable: false
     purchasableAfterStart: false
-    depotPrice: 15
+    depotPrice: 12
     sellable: true
-    sellablePrice: 6
+    sellablePrice: 7
 
   bone-mask:
     catalog: gm
@@ -10129,7 +10935,7 @@ tags:
     category: items
     group: items-armor
     description: "A shield tall enough to stand behind. It can be set on the ground as cover."
-    pointCost: 5
+    pointCost: 4
     equippable: true
     equipSlot: SHIELD
     melee: 0.5
@@ -10295,20 +11101,24 @@ tags:
     sellablePrice: 3
 
   energy-shield:
-    catalog: gm
+    catalog: all
     name: Energy Shield
     category: items
     group: items-armor
-    description: "A projected field. It stops bullets, arrows and blasts, and softens a melee blow. A slow needle passes through it. Any liquid touching it destroys it. GM-granted only."
+    description: "One of the few things in Ravenheart that can stop firearm fire, but doesn't completely stop melee damage."
     pointCost: 0
     equippable: true
     equipSlot: SHIELD
     melee: 0.7
     ballistic: 0.95
     visible: true
-    tradeable: false
+    tradeable: true
+    weight: 2
     purchasable: false
     purchasableAfterStart: false
+    depotPrice: 145
+    sellable: true
+    sellablePrice: 87
 
   silver-cross:
     catalog: gm
@@ -10472,24 +11282,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # This one is `visible`, so a bystander reads its NAME off the sheet — which
-  # rules out the "(Demoness)" suffix the Seductive twin carries. It
-  # also cannot simply be called Otherworldly Beauty: that name is taken by the
-  # Flawless Skin tonic's effect half, and docs/documents.yaml grants documents
-  # by tag NAME, so two rows sharing one would be a coin toss. Hence a third
-  # name that gives nothing away.
-  peerless-beauty:
-    catalog: secret
-    name: Peerless Beauty
-    category: demoness
-    group: demoness
-    description: "You are the most beautiful woman in the world."
-    pointCost: 2
-    requiredTag: beautiful
-    visible: true
-    purchasable: true
-    purchasableAfterStart: true
-
   # An Instant Camera can be handed to anyone. Purchasable at
   # start like every other item (TAGS.md §4a: items are never
   # purchasableAfterStart).
@@ -10515,8 +11307,8 @@ tags:
     removable: true
     consumable: true
     sellable: true
-    sellablePrice: 14
-    depotPrice: 32
+    sellablePrice: 16
+    depotPrice: 26
 
   # --- Health: Grievous Wound ---------------------------------------------
   # Tier 5 (Very minor surgery) on the cure ladder — TAGS.md §5c.
@@ -10590,7 +11382,7 @@ tags:
     description: "A gelatinous pink substance. The machines made it into a cube. Do not eat."
     pointCost: 0
     tradeable: true
-    weight: 20
+    weight: 17
     stackable: true
     visible: true
     purchasable: false
@@ -10637,8 +11429,8 @@ tags:
     tradeable: true
     weight: 2
     visible: worn
-    purchasable: true
-    purchasableAfterStart: true
+    purchasable: false
+    purchasableAfterStart: false
     removable: true
     craftable: true
     requirement:
@@ -10670,6 +11462,21 @@ tags:
     category: items
     group: items-keys
     description: "A key to the overseer box."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  fishermans-key:
+    catalog: gm
+    name: Fisherman's Key
+    category: items
+    group: items-keys
+    description: "A key to the old hut out past the village. ‡"
     pointCost: 0
     tradeable: true
     stackable: true
@@ -10730,7 +11537,7 @@ tags:
     name: Blind Drunk
     category: status
     group: status-debuffs
-    description: "You can barely see. That drink is shit!"
+    description: "You can barely see. That drink is bad!"
     pointCost: 0
     visible: true
     purchasable: false
@@ -10791,7 +11598,6 @@ tags:
     category: items
     group: items-special
     description: "BRRRR! Produces two Godflesh per extraction."
-    laborBonus: { kind: farming, amount: 2 }
     pointCost: 0
     equippable: true
     tradeable: true
@@ -10802,5 +11608,5 @@ tags:
     removable: true
     # Priced at about 65% of a {tag:flamethrower}, the shelf it shares. ‡
     sellable: true
-    sellablePrice: 68
-    depotPrice: 154
+    sellablePrice: 76
+    depotPrice: 126

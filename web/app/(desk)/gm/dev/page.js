@@ -5,7 +5,10 @@ import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
 import { describeTurn } from "@/lib/turnFormat";
-import { listGuildMembers } from "@/lib/discordGuild";
+import { listGuildMembers, listGmMembers } from "@/lib/discordGuild";
+import { TRIAL_GM_ROLE_ID } from "@lifeweb/db/lib/roleIds";
+import DiscordAvatar from "@/app/components/DiscordAvatar";
+import CharacterLink from "@/app/components/CharacterLink";
 import { OPT_IN_THREATS, ASSIGNABLE_THREATS, SEAT_TAG_SLUGS, antagonistNames, threatBySeatTag, threatBySlug } from "@/lib/threats";
 import { PLAYER_ROLE_ID } from "@lifeweb/db/lib/roleIds";
 import { roleCapacity, seatHolderStatuses } from "@lifeweb/db/lib/roleCapacity";
@@ -15,6 +18,7 @@ import {
   updateCurrentTurn,
   updateNextTurn,
   runDoctorAction,
+  defuseNukeAction,
   bulkMoveCharacters,
 } from "@/app/(app)/gm/dev/actions";
 import EndTurnButton from "@/app/(app)/gm/dev/EndTurnButton";
@@ -70,7 +74,18 @@ const THREAT_SUMMARY = [...new Set([...OPT_IN_THREATS, ...ASSIGNABLE_THREATS])].
 }));
 const ASSIGNABLE_SUMMARY = ASSIGNABLE_THREATS.map((t) => ({ slug: t.slug, name: t.name }));
 
-const SECTIONS = new Set(["turn", "config", "depot", "move", "letters", "reports", "assignments", "antagonists", "danger"]);
+const SECTIONS = new Set([
+  "turn",
+  "config",
+  "depot",
+  "move",
+  "letters",
+  "reports",
+  "gamemasters",
+  "assignments",
+  "antagonists",
+  "danger",
+]);
 
 // A report's per-step breakdown is the useful half but far too long to dump
 // inline, so the JSON line drops it and the five slowest steps get their own
@@ -96,6 +111,17 @@ function reportLabel(report) {
   return report.ok ? "clean" : "issues";
 }
 
+// Which seat somebody holds. The two GM roles are access-identical
+// (db/lib/roleIds.js), so this chip is the only place in the app that tells
+// them apart — which is the whole reason the trial role exists.
+// Keyed on the trial role alone rather than on DISCORD_GM_ROLE_ID: nothing
+// reads that env var directly any more (db/lib/roleIds.js), and this is a
+// label, not a gate. Somebody holding both roles reads as Trial GM, which is
+// a state nobody should be in — the trial role is what you hold *instead*.
+function gmStanding(member) {
+  return member.roles.includes(TRIAL_GM_ROLE_ID) ? "Trial GM" : "Gamemaster";
+}
+
 export default async function DevPanelPage({ searchParams }) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -112,6 +138,24 @@ export default async function DevPanelPage({ searchParams }) {
     prisma.turn.findFirst({ orderBy: { number: "desc" } }),
     loadDepot(prisma),
   ]);
+
+  // The GM roster, only when its own section is open — it costs a full guild
+  // member fetch, and every other section would pay for it otherwise.
+  const gmRoster =
+    section === "gamemasters"
+      ? [...(await listGmMembers())].sort((a, b) =>
+          (a.globalName ?? a.username).localeCompare(b.globalName ?? b.username),
+        )
+      : [];
+  // GMs may play too, and may not — which is exactly why the roster is keyed
+  // on discordUserId rather than hung off Character.
+  const gmCharacters = gmRoster.length
+    ? await prisma.character.findMany({
+        where: { discordUserId: { in: gmRoster.map((m) => m.id) }, status: "ALIVE" },
+        select: { id: true, name: true, discordUserId: true },
+      })
+    : [];
+  const gmCharacterByUserId = new Map(gmCharacters.map((c) => [c.discordUserId, c]));
 
   const currentDay = openTurnRecord ? Math.ceil(openTurnRecord.number / 2) : Math.ceil(((lastTurn?.number ?? 0) + 1) / 2);
   const currentPhase = openTurnRecord?.phase ?? (lastTurn?.phase === "DAWN" ? "DUSK" : "DAWN");
@@ -239,7 +283,7 @@ export default async function DevPanelPage({ searchParams }) {
         const used = taken
           .filter((t) => t.roleId === role.id && holders.includes(t.status))
           .reduce((n, t) => n + t._count._all, 0);
-        const cap = roleCapacity(role, config?.playerCount ?? 100);
+        const cap = roleCapacity(role, config?.playerCount ?? 80);
         return {
           id: role.id,
           slug: role.slug,
@@ -447,7 +491,7 @@ export default async function DevPanelPage({ searchParams }) {
                     <input type="number" step="0.05" name="productionCoefficient" defaultValue={config.productionCoefficient} />
                   </label>
                   <label className="field">
-                    <span className="field-label">Starting tag points</span>
+                    <span className="field-label">Starting Tag Points</span>
                     <input type="number" name="startingTagPoints" min="0" defaultValue={config.startingTagPoints} />
                   </label>
                   <label className="field">
@@ -554,12 +598,6 @@ export default async function DevPanelPage({ searchParams }) {
                       Require the whitelist for gated roles
                     </Switch>
                     <InfoIcon text={CONFIG_HELP.leaderWhitelistEnabled} />
-                  </div>
-                  <div className="ops-toggle">
-                    <Switch name="playtestModeEnabled" defaultChecked={config.playtestModeEnabled}>
-                      Playtest mode
-                    </Switch>
-                    <InfoIcon text={CONFIG_HELP.playtestModeEnabled} />
                   </div>
                   <div className="ops-toggle">
                     <div className="flex flex-1 min-w-0 flex-col gap-1">
@@ -834,6 +872,35 @@ export default async function DevPanelPage({ searchParams }) {
 
           {section === "reports" ? (
             <section className="ops-section">
+              {/* Only on screen when there is something to say. A permanent
+                  "no nuke armed" panel would be furniture on every other day
+                  of the game. */}
+              {(config.nukeArmedTurn != null || config.nukeDetonatedTurn != null) && (
+                <div className="ops-section-head">
+                  <h2 className="section-title">The device ‡</h2>
+                  {config.nukeDetonatedTurn != null ? (
+                    <p className="ops-lede">
+                      It went off at the close of turn {config.nukeDetonatedTurn}. Everyone who
+                      was not underground died. Nothing here can undo that. ‡
+                    </p>
+                  ) : (
+                    <>
+                      <p className="ops-lede">
+                        <strong>Armed.</strong> It detonates at the close of turn{" "}
+                        {config.nukeArmedTurn}, and will kill every living character who is not
+                        in the Caves or the Depths. This is the only thing that can stop it
+                        without the datacard. ‡
+                      </p>
+                      <form action={defuseNukeAction}>
+                        <SubmitButton className="btn-secondary" pendingLabel="Defusing…">
+                          Defuse
+                        </SubmitButton>
+                      </form>
+                    </>
+                  )}
+                </div>
+              )}
+
               <div className="ops-section-head">
                 <h2 className="section-title">System Reports</h2>
                 <p className="ops-lede">
@@ -892,6 +959,68 @@ export default async function DevPanelPage({ searchParams }) {
                 ))}
                 {latestByKind.size === 0 ? <EmptyState>Nothing has reported yet.</EmptyState> : null}
               </div>
+            </section>
+          ) : null}
+
+          {section === "gamemasters" ? (
+            <section className="ops-section ops-section--wide">
+              <div className="ops-section-head">
+                <h2 className="section-title">Gamemasters</h2>
+                <p className="ops-lede">
+                  Everyone holding a GM seat, read-only. Who runs which zones is nobody&apos;s to
+                  assign any more — each GM picks that for themselves, from the Zones control at the
+                  bottom of the inspector on the players and adjudication desks, or with{" "}
+                  <code>/zone</code> in Discord.
+                </p>
+              </div>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Gamemaster</th>
+                    <th scope="col">Seat</th>
+                    <th scope="col">Character</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gmRoster.map((m) => (
+                    <tr key={m.id}>
+                      <td>
+                        <span className="flex items-center gap-2">
+                          <DiscordAvatar
+                            discordUserId={m.id}
+                            avatar={m.avatar}
+                            name={m.globalName ?? m.username}
+                          />
+                          <span>
+                            {m.globalName ?? m.username}
+                            {m.globalName && (
+                              <span className="block text-xs text-muted mono">@{m.username}</span>
+                            )}
+                          </span>
+                        </span>
+                      </td>
+                      <td>
+                        <span className="chip">{gmStanding(m)}</span>
+                        {isSuperadmin(m.id) && <span className="chip">Master</span>}
+                      </td>
+                      <td>
+                        <CharacterLink
+                          characterId={gmCharacterByUserId.get(m.id)?.id}
+                          name={gmCharacterByUserId.get(m.id)?.name}
+                          isGm
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                  {gmRoster.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="text-muted">
+                        Nobody holds the Gamemaster or Trial Gamemaster role yet.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
             </section>
           ) : null}
 

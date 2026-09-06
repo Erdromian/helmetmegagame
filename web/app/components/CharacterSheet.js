@@ -96,6 +96,7 @@ export default function CharacterSheet({
   // is standing here. Empty on someone else's sheet.
   corpses = [],
   canButcher = false,
+  hasMulligan = false,
   canSeeExtract = false,
   canExtract = false,
   extractBlocked = null,
@@ -260,6 +261,7 @@ export default function CharacterSheet({
               <BioForm
                 character={character}
                 lastNameLocked={lastNameLocked}
+                hasMulligan={hasMulligan}
                 avatarUploadsEnabled={avatarUploadsEnabled}
                 portraitMakerEnabled={portraitMakerEnabled}
                 portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}

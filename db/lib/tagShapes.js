@@ -78,6 +78,49 @@ function validateExpiresInto(normalized, { selfSlug, knownSlugs, durationTurns, 
   }
 }
 
+// escalatesInto — the rung ABOVE this tag on a ladder (docs/tags.yaml's
+// header, docs/systemdocs/BREWING.md). Consuming something that grants a tag
+// you already hold clears the held one and gives you this instead, which is
+// the only reason a second drink does anything at all.
+//
+// One bare slug, not the { oneOf } shape expiresInto uses: a ladder has
+// exactly one next rung, and a random one would make "one more drink"
+// impossible to plan around.
+function validateEscalatesInto(value, { selfSlug, knownSlugs, label = "docs/tags.yaml" }) {
+  if (value == null) return;
+  if (typeof value !== "string" || !value) {
+    throw new Error(`${label}: tag "${selfSlug}" escalatesInto must be a single slug`);
+  }
+  if (!knownSlugs.has(value)) {
+    throw new Error(`${label}: tag "${selfSlug}" escalatesInto references unknown tag "${value}"`);
+  }
+  if (value === selfSlug) {
+    throw new Error(`${label}: tag "${selfSlug}" escalatesInto itself — drinking again would change nothing`);
+  }
+}
+
+// The whole-document half of the check. A per-tag rule can catch a tag
+// pointing at itself, but not tipsy -> wasted -> tipsy, and the resolver
+// walks this chain in a loop — so a cycle there would hang the request rather
+// than fail it. Cheap to prove up front, so it is proved up front.
+//
+// `bySlug` is a Map of slug -> escalatesInto (or null).
+function validateEscalationChains(bySlug, label = "docs/tags.yaml") {
+  for (const start of bySlug.keys()) {
+    const seen = new Set([start]);
+    let at = bySlug.get(start);
+    while (at) {
+      if (seen.has(at)) {
+        throw new Error(
+          `${label}: escalatesInto loops through "${at}" — a ladder has to end, or a drink never stops escalating`,
+        );
+      }
+      seen.add(at);
+      at = bySlug.get(at) ?? null;
+    }
+  }
+}
+
 // removesInto — what a tag turns into when it leaves the sheet through a
 // player-driven removal (the Remove Tag request, or a Heal). Same entry
 // shape as expiresInto; no duration requirement, since the removal itself is
@@ -328,9 +371,6 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
   if (raw.provides != null && (!Array.isArray(raw.provides) || raw.provides.some((s) => typeof s !== "string"))) {
     throw new Error(`${label}: placement.provides must be a list of tag slugs`);
   }
-  if (raw.link != null && raw.link !== "hold_open" && raw.link !== "hold_shut") {
-    throw new Error(`${label}: placement.link must be "hold_open" or "hold_shut"`);
-  }
   if (raw.inscribable != null && typeof raw.inscribable !== "boolean") {
     throw new Error(`${label}: placement.inscribable must be a boolean`);
   }
@@ -359,7 +399,6 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     defenseNote: raw.defenseNote ?? null,
     laborBonus,
     provides: raw.provides ?? [],
-    link: raw.link ?? null,
     // The builder may write a line on the finished thing
     // (Structure.inscription) — their words replace `examine` in the
     // readout. The wayside shrine's flag; see CRAFTING.md.
@@ -443,6 +482,8 @@ module.exports = {
   validateExpiresInto,
   normalizeRemovesInto,
   validateRemovesInto,
+  validateEscalatesInto,
+  validateEscalationChains,
   rollTagChain,
   normalizeRequirementItems,
   validateRequirementItems,

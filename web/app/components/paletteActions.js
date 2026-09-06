@@ -32,12 +32,11 @@ const GM_PAGES = [
   { label: "Dev · Characters", href: "/gm/dev/characters" },
   { label: "Dev · Factions", href: "/gm/dev/factions" },
   { label: "Dev · Tags", href: "/gm/dev/tags" },
-  { label: "Gamemasters", href: "/gm/gamemasters" },
+  { label: "Gamemasters", href: "/gm/dev?s=gamemasters" },
   { label: "Audit log", href: "/gm/audit" },
   { label: "Lifeweb", href: "/lifeweb" },
 ];
 
-const REQUEST_LIMIT = 100;
 
 async function getPaletteIndexImpl() {
   const { session, isGm: gm } = await getGmSession();
@@ -58,7 +57,7 @@ async function getPaletteIndexImpl() {
   if (!gm) return { entries };
 
   const openTurn = await getOpenTurn();
-  const [characters, actions, requests, zones, factions, guildMembers] = await Promise.all([
+  const [characters, actions, zones, factions, guildMembers] = await Promise.all([
     prisma.character.findMany({
       orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
       select: {
@@ -84,11 +83,6 @@ async function getPaletteIndexImpl() {
           },
         })
       : Promise.resolve([]),
-    prisma.request.findMany({
-      orderBy: { createdAt: "desc" },
-      take: REQUEST_LIMIT,
-      select: { id: true, type: true, character: { select: { name: true } } },
-    }),
     prisma.zone.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.faction.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     listGuildMembers(),
@@ -146,16 +140,6 @@ async function getPaletteIndexImpl() {
       hint: a.description ?? "",
       href: `/gm/turns/move/${a.id}`,
       search: { preview: a.description ?? "" },
-    });
-  }
-
-  for (const r of requests) {
-    entries.push({
-      kind: "request",
-      id: r.id,
-      label: `${r.character?.name ?? "(deleted)"} — request`,
-      hint: r.type,
-      href: `/gm/turns/request/${r.id}`,
     });
   }
 

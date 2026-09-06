@@ -173,174 +173,10 @@ enum TagSource {
   LESSON
   // Made through the Craft flow (docs/systemdocs/CRAFTING.md).
   CRAFT
-}
-
-// A Request is a player-initiated change that took effect IMMEDIATELY and is
-// reviewed by a GM afterwards, rather than waiting on approval first. See
-// docs/systemdocs/REQUESTS.md. Adding a type here is one of the two places a
-// new request kind touches (the other is web/lib/requestEffects.js).
-enum RequestType {
-  FULFILL_DESIRE
-  ADD_TAG
-  // The /store checkout: one row for a whole cart of point-buy purchases,
-  // effect.items carrying every tag granted and effect.totalPoints what was
-  // deducted from Character.tagPoints.
-  BUY_TAGS
-  REMOVE_TAG
-  CONSUME_TAG
-  TRANSFER_RESOURCES
-  TRANSFER_TAG
-  DONATE_BLOOD
-  FEED_PERSON
-  HEAL_CHARACTER
-  CHANGE_NAME
-  // A system-filed grant, not a player action — written by db/lib/cavingPass.js
-  // when a Caving Die roll of 6 finds loot. PASSED by default like every
-  // other request; a GM's Undo goes through the ordinary handler in
-  // web/lib/requestEffects.js. See docs/systemdocs/CAVING.md.
-  CAVING_LOOT
-  // Looting a living but incapacitated player (dying/catatonic/paralyzed/
-  // bound) in the filer's zone — tags and/or ⬢ taken in one request. See
-  // db/lib/incapacitation.js and REQUESTS.md.
-  LOOT_CHARACTER
-  // Moving a character who follows the filer: a Leader moving a faction
-  // member, or anyone dragging a body or a helpless one (bound, dying,
-  // paralyzed, catatonic — db/lib/incapacitation.js). DB write happens in the
-  // request transaction; the Discord zone-role swap happens after commit
-  // (ARCHITECTURE.md §5 — no network call inside a transaction).
-  MOVE_CHARACTER
-  // Putting the `bound` tag ON someone in the filer's zone, and taking it off
-  // again. Nothing else in the game grants Bound — it is the one helpless
-  // state a player can inflict deliberately, and LOOT_CHARACTER,
-  // MOVE_CHARACTER and HARM_CHARACTER all accept it — so these two are what
-  // make that whole loop playable by players instead of by a GM.
-  BIND_CHARACTER
-  FREE_CHARACTER
-  // Hurting someone already helpless: an affliction inflicted, a kill flagged,
-  // or both in one act. Like FEED_PERSON it NEVER kills — effect.lethal only
-  // raises the ☠ and the GM's Kill button. See REQUESTS.md §5b.
-  HARM_CHARACTER
-
-  // Putting a body in the ground. Removes the Cursed Discord role from the
-  // dead player's account, which is the one request whose real effect lands
-  // on Discord rather than on a sheet, and sets Character.buriedAt so the
-  // corpse stops being lootable. The target is TYPED, not picked — first name
-  // only, and only a body in the filer's own zone. See REQUESTS.md §5d.
-  BURY_CHARACTER
-  // Memorialising someone whose body nobody can find. Everything BURY_CHARACTER
-  // does to the soul — buriedAt, and the Cursed role lifted off the dead
-  // player's account — for 4 ⬢ and a Routine instead of a body, and it leaves a
-  // Headstone tag behind. This is the one that kept Bury's TYPED first name,
-  // since without a corpse to point at there is nothing to pick from.
-  ENGRAVE_HEADSTONE
-  // Cutting a corpse up for what is in it: a Nekker, Graga or Skinless for its
-  // organ, a person for Human Flesh. Gated on the `butcher` tag, free in both
-  // ⬢ and Moves, and it CONSUMES the corpse — which for a person's corpse also
-  // means the body stops being lootable. See docs/systemdocs/CORPSES.md.
-  BUTCHER_CORPSE
-  // Riding a horse one zone over without spending the Move. The only request
-  // that changes a zone and files no Action; the once-a-day limit lives on
-  // Character.fastTravelTurnId. Gated on the `horse` or `wild-horse`
-  // tag, whose catalog text is what this implements. See REQUESTS.md §5d.
-  FAST_TRAVEL
-
-  // The Merchant's Depot counter (DEPOT.md). BUY and SELL are wholesale
-  // against the orbital station: Tag.depotPrice is what it charges him,
-  // Tag.sellablePrice what it pays him, and only the holder of
-  // `merchants-license` standing at the Depot may file either. CREDIT draws or
-  // repays against the Company's line, tracked on Depot.debtObols. None of the
-  // three is GM-editable — a partial edit would desync the money from the
-  // stock — so Undo is the only correction.
-  DEPOT_BUY
-  DEPOT_SELL
-  DEPOT_CREDIT
-
-  // The Depot rework's five. Everything here is denominated in obols (¢), not
-  // ⬢, and every one of them moves the Depot singleton's account rather than
-  // a character's resources — the licence is tradeable, so the money belongs
-  // to the station, not to whoever is holding the card this week.
-  //   ORDER      — a manifest bought off the orbital station. Debits the
-  //                account at order time; the goods do not exist yet.
-  //   SHIP       — the shuttle sent back up, loaded. Sweeps the landing pad
-  //                stash and credits the account with what was aboard.
-  //   ATM        — obols withdrawn from or deposited into the account, which
-  //                is the only place physical ¢ enters or leaves the game.
-  //   CRATE_OPEN — a crate cracked, its contents handed over. Filed by
-  //                whoever opened it, which need not be the Merchant.
-  //   REFUEL     — coal or saltpeter fed to the generator.
-  // Ledger reads all eight DEPOT_* kinds off Request; there is no separate
-  // ledger table, and Undo works on these the way it works on anything else.
-  DEPOT_ORDER
-  DEPOT_SHIP
-  DEPOT_ATM
-  DEPOT_CRATE_OPEN
-  DEPOT_REFUEL
-  // ⬢ across the counter, both directions, no spread. The one place the
-  // Merchant turns his own Resources into money and back. One obol IS one ⬢,
-  // so it changes the form of a value rather than the amount, and there is no
-  // rounding for a margin to hide in.
-  DEPOT_EXCHANGE
-
-  // One written letter, carried by a bird to a named person in a GUESSED
-  // zone. Gated on holding both `bird` and `literate`; the once-a-day limit
-  // lives on Character.birdTurnId, the same claim-token shape FAST_TRAVEL
-  // uses. The request carries the PLAINTEXT body, because the DM it produces
-  // is otherwise a private channel between two players that no GM can read.
-  // Not undoable in the real sense — a sent DM cannot be recalled, so Undo
-  // hands back the day and says so. See BIRD.md.
-  BIRD_MESSAGE
-
-  // The building system (planning/building-system-plan.md, outside the
-  // repo). BUILD_STRUCTURE is the ONE request a finished build files — the
-  // opening charge and every mid-build turn leave audit rows and auto-filed
-  // Actions instead, the CraftProject pattern. DAMAGE_STRUCTURE is declared
-  // now and written by nothing yet: demolition lands in the same branch and
-  // Postgres cannot drop an enum value, so both ride one migration.
-  BUILD_STRUCTURE
-  DAMAGE_STRUCTURE
-
-  // The Godard Factory's two verbs (docs/systemdocs/FACTORY.md).
-  //   EXTRACT_GODFLESH — cutting Godflesh out of a marsh tile. Spends the
-  //                      Routine, rolls a d6, and on a 1 rolls again on an
-  //                      injury table that Armored Gloves dominate.
-  //   PACKAGE_ITEMS    — packing up to 150 lb of held goods into one crate,
-  //                      halving their weight. The crate is a runtime Tag,
-  //                      the same shape db/lib/depotCrates.js mints.
-  EXTRACT_GODFLESH
-  PACKAGE_ITEMS
-
-  // Breaking the wax on a sealed letter (docs/systemdocs/PAPERWORK.md). Filed
-  // through the Consume button, but its own type because it cannot go through
-  // consumesInto: that field names catalog SLUGS, and the letter inside a
-  // sealed one is a runtime row no slug in docs/tags.yaml could ever name.
-  //
-  // Undoable, and exactly: the letter is resealed and the spent envelope taken
-  // back, so the only trace is the Request row itself.
-  BREAK_SEAL
-
-  // RETIRED, and kept only because Postgres cannot drop an enum value in
-  // place — the same reason MoveReviewStatus.WAITING_FOR_OPPONENTS and
-  // ActionStatus.ADJUDICATED are still here. Nothing writes any of these.
-  //   CREATE_TAG    — a player inventing an Item that wasn't in the catalog.
-  //                   Player-facing tag creation is gone; /gm/dev/tags is
-  //                   still the GM's way to author one.
-  //   DROP_ITEM /   — the zone cache, an Item put down where anyone standing
-  //   PICK_UP_ITEM    in the zone could take it. The ZoneCache table it rode
-  //                   on has been dropped.
-  // requestLabels.js still names all three so a row filed before the removal
-  // reads as prose; there is no REQUEST_EFFECTS entry behind them, so such a
-  // row can be seen but not undone.
-  CREATE_TAG
-  DROP_ITEM
-  PICK_UP_ITEM
-}
-
-// PASSED is the default and means "not yet touched by a GM" — the request
-// stands as the player made it. EDITED/UNDONE are both terminal GM verdicts.
-enum RequestStatus {
-  PASSED
-  EDITED
-  UNDONE
+  // A mood sustained by where the character stands, written only by
+  // db/lib/phobias.js — owned and cleared by that settle, never granted by
+  // a person.
+  CONDITION
 }
 
 // ACTIVE is legacy — the 2026-09-02 retroactive rework removed set/cancel, so
@@ -463,6 +299,27 @@ model GameConfig {
   // specialisations, which is where the volume is.
   productionCoefficient Float @default(0.93)
 
+  // THE BOMB. Two nullable turn numbers, and nothing else in the schema knows
+  // about it.
+  //
+  // `nukeArmedTurn` is the absolute turn the device goes off on — stamped by
+  // the Arm button as `openTurn + 2`, nulled by Disarm or by a GM defusing it
+  // from /gm/dev. Null means unarmed, and arming/disarming may repeat forever.
+  //
+  // This lives here rather than on a tag with `expiresTurn`, which was the
+  // first design: a tag carries a holder, and a holder can DIE inside the
+  // two-turn window, which would quietly cancel the explosion. The blast is
+  // global — everyone above ground, wherever they stand — so it needs no
+  // location, and the one thing it must survive is the death of whoever armed
+  // it. Where the device physically SITS is still read off the tag rows, by
+  // the datacard's pointer, which is a different question.
+  nukeArmedTurn Int?
+
+  // Set once, on detonation, and never cleared: the turn the world ended. It
+  // is what makes the fireball banner permanent (db/lib/turnAnnouncement.js)
+  // and what a later feature would read to know the game is over.
+  nukeDetonatedTurn Int?
+
   // Base point-buy budget every new character starts with, before the
   // role's own `extra_starting_points` and the Cursed penalty are applied
   // (see web/lib/characterCreation.js#computeBudget). Editable live from
@@ -505,16 +362,6 @@ model GameConfig {
   // bell is one object, and two people taking turns on it would be the same
   // noise either way. Null means it has never been rung.
   bellRungAt DateTime?
-
-  // Playtest lever: locks every role in the Windlands out of character
-  // creation, without removing them from docs/roles.yaml — flip it back off
-  // and the full roster returns. (It used to hold the Merchant back too; the
-  // Merchant Update finished that seat, so only the zone lock is left.) Which
-  // roles it covers lives in web/lib/characterCreation.js
-  // (PLAYTEST_LOCKED_ROLE_SLUGS / PLAYTEST_LOCKED_ZONE_NAMES), not here.
-  // Off by default: this is a temporary content lock, not a permission gate,
-  // so a missing config row means the whole roster is open.
-  playtestModeEnabled Boolean @default(false)
 
   // When true, the nightly turn-advance cron (bot/src/events/ready.js)
   // skips its automatic advance — bot/src/lib/turnEngine.js#advanceTurn
@@ -586,14 +433,14 @@ model GameConfig {
 
   // How many drawback TAGS may be bought — a cap on the COUNT of
   // negative-cost tags picked, whatever they are worth.
-  maxDrawbackTags Int @default(5)
+  maxDrawbackTags Int @default(6)
 
   // How many points those drawbacks may claim back in total. Stored as a
   // POSITIVE magnitude — "at most 12 points may be claimed" — even though
   // every drawback carries a negative pointCost, so nothing has to do a sign
   // dance to compare against it. It matches startingTagPoints on purpose:
   // you can never claim back more than you started with.
-  maxDrawbackPoints Int @default(12)
+  maxDrawbackPoints Int @default(13)
 
   // How many Desire slots a character has, each of which can be claimed into
   // once every desireSlotLockTurns turns. Same live-editable posture as
@@ -607,9 +454,13 @@ model GameConfig {
 
   // Expected total number of players, the denominator for every role's seat
   // cap: a role with `weight: 6` in docs/roles.yaml gets
-  // round(6 * playerCount / 100) seats. Raising this mid-signup widens every
-  // capped role proportionally without touching the YAML.
-  playerCount Int @default(100)
+  // round(6 * playerCount / 100) seats — so the weight is always "seats per
+  // 100 players" no matter what this is set to. Raising it mid-signup widens
+  // every capped role proportionally without touching the YAML.
+  //
+  // roleCapacity() floors a weighted role at 1 seat, so shrinking this never
+  // makes a role in the YAML unpickable.
+  playerCount Int @default(80)
 
   // The narrowcast channels (#cerberon, #intercom) live under a
   // shared Discord "radio" category — see db/lib/specialChannels.js.
@@ -868,7 +719,7 @@ model FactionApplication {
 // kind decides the Discord footprint (see ZoneKind above). seatZoneId is the
 // denormalized GM-seat key: parentZoneId ?? id, written by the sync. Every
 // query that groups by "which GM's table does this belong on" — factions,
-// GmAssignment, Action/Note/StagedMessage stamping — filters on
+// Action/Note/StagedMessage stamping — filters on
 // seatZoneId, so the four GM seats stay four while presence is six. Writers
 // stamp it via db/lib/seatZone.js#seatZoneIdFor, never by hand.
 //
@@ -915,6 +766,15 @@ model Zone {
   // channels). Permissions 0, color 0, never hoisted or mentionable.
   discordRoleId String? @unique
 
+  // The zone's GM role ("GM: Town"). This is what actually opens the zone's
+  // category, #summary and every one of its Location channels to a GM --
+  // the global Gamemaster role no longer does, which is the whole point:
+  // a GM sees the zones they picked, not all 56 Locations at once. Granted
+  // and revoked per member by db/lib/gmZoneRoles.js from the GmZoneView
+  // table. Permissions 0, never hoisted or mentionable, same as the access
+  // role above.
+  gmRoleId String? @unique
+
   // Clickable region on the /map plate: a polygon of [x, y] percentage pairs
   // (0-100 of the 4:3 plate, origin top-left), plus where the label sits.
   // Json because a region is a variable-length point list. Null/empty means
@@ -928,7 +788,7 @@ model Zone {
   characters       Character[]
   actions          Action[]
   notes            Note[]
-  gmAssignments    GmAssignment[]
+  gmZoneViews      GmZoneView[]
   stagedMessages   StagedMessage[]
   startingForRoles Role[]          @relation("RoleStartingZone")
   cavingRolls      CavingRoll[]
@@ -940,40 +800,29 @@ model Zone {
   @@index([parentZoneId])
 }
 
-/// Which zones a GM is the seat for. The game runs with one master (the
-/// superadmin, web/lib/superadmin.js) plus zone-GMs seated over the four SEAT
-/// zones -- Town, Fortress, Windlands and Caves. Never a cave level: the three
-/// levels of the Depths all belong to the Caves seat via Zone.seatZoneId, so a
-/// row here pointing at a CAVE_LEVEL would be a seat nothing is ever stamped
-/// with. The server action refuses one.
+/// Which zones one GM has chosen to SEE. Replaced GmAssignment, which was a
+/// soft seat -- it picked the default filter on the GM tables and hid
+/// nothing. This is the opposite: it is a real gate, on both faces at once.
+/// The rows decide which "GM: <Zone>" Discord roles the GM holds (so which
+/// Location channels exist for them at all, db/lib/gmZoneRoles.js) and which
+/// rows the adjudication and player desks show.
 ///
-/// ONE ROW PER SEAT. A GM may hold several at once (five GMs, four zones, and
-/// somebody covers two), so the primary key is the pair. Absence of any row is
-/// "no seat", which is also the master's state and reads as All.
+/// NO ROWS MEANS EVERY ZONE. A GM who has never touched the control, or who
+/// unticks the lot, sees everything -- never nothing. The alternative locks
+/// a new GM out of their own job on their first day and looks like a broken
+/// app rather than an unset preference. It is also what makes the migration
+/// off GmAssignment safe: the table lands empty and nobody loses anything.
 ///
-/// Keyed on discordUserId rather than hung off Character, because a GM may
-/// never roll one -- and should not lose their seat when theirs dies.
-///
-/// The near-miss alternative was a nullable Zone.gmDiscordUserId: one column,
-/// no new table. It was rejected because a zone can then hold only one GM, and
-/// assignment becomes clear-everywhere-then-set: a two-statement write whose
-/// partial failure leaves a seat orphaned. The join table makes the set of
-/// seats the unit of the write, replaced wholesale in one transaction.
-///
-/// This is a SOFT gate and the only one in the app that is: it picks the
-/// default filter on the GM tables, it hides nothing. See CLAUDE.md's Discord
-/// permission model table.
-model GmAssignment {
+/// ONE ROW PER ZONE, keyed on discordUserId rather than hung off Character,
+/// because a GM may never roll one -- and should not lose their view when
+/// theirs dies. Unlike the old seat, a CAVE_LEVEL row is fine here: this is
+/// about which channels you can open, and the cave levels have their own.
+model GmZoneView {
   discordUserId String
   zoneId        String
   zone          Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
 
-  /// Snapshot of the superadmin who set it, per the log-table convention --
-  /// no FK, so it survives the actor leaving the guild.
-  assignedByDiscordUserId String?
-
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@id([discordUserId, zoneId])
   @@index([zoneId])
@@ -1168,22 +1017,15 @@ model LocationLink {
   openerRoleSlugs String[]
   openerTagSlugs  String[]
 
-  // Structure-controlled edge (docs/zones.yaml `modular.structural`): the
-  // opener rule is waived at sync, no gate button renders and no hand can
-  // flip it until a structure in HOLDS_EDGE status holds it
-  // (db/lib/structures.js). authoredOpen is the BORN state (`modular.open`),
-  // re-asserted by every sync unlike isOpen: it is what the Restart wipe
-  // resets isOpen to and what a destroyed holding structure reverts to.
-  structural   Boolean @default(false)
+  // The BORN state of a modular gate (`modular.open` in docs/zones.yaml),
+  // re-asserted by every sync unlike isOpen, which is play state: it is
+  // what the Restart wipe resets isOpen to.
   authoredOpen Boolean @default(true)
 
   keyed     Boolean   @default(false)
   openUntil DateTime?
 
   onFoot Boolean @default(false)
-
-  // Structures holding this edge open or shut (Structure.linkId).
-  structures Structure[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1714,11 +1556,25 @@ model Character {
   // table would only add a join and a way to drift.
   antagonistOptIns String[] @default([])
 
+  // Which private Room threads this character is currently a MEMBER of, as
+  // Room ids. Not a source of truth about entitlement — that is always
+  // recomputed from tags and RoomGuest rows — but a record of what has actually
+  // been pushed to Discord, so db/lib/roomAccess.js can act on the DIFFERENCE
+  // instead of re-asserting all 66 private rooms every time.
+  //
+  // It exists because membership stopped following presence (2026-09-06) and
+  // the recompute moved onto the tag-change path, which fires on every equip,
+  // meal and transfer. Without this, equipping a hat cost 66 Discord round
+  // trips. With it, an unchanged set costs none.
+  //
+  // Drift is expected and harmless: the channel doctor reads Discord's real
+  // member list and is the backstop, exactly as it was before this column.
+  roomThreadRoomIds String[] @default([])
+
   tags                    CharacterTag[]
   actions                 Action[]
   auditLogTargets         AuditLog[]
   notes                   Note[]
-  requests                Request[]
   desires                 Desire[]
   stagedMessageRecipients StagedMessageRecipient[]
   stagedEffects           StagedEffect[]
@@ -2230,6 +2086,20 @@ model Tag {
   // left alone, matching the expiry pass.
   removesInto Json?
 
+  // The drinking ladder (docs/systemdocs/BREWING.md). A STATUS tag names the
+  // rung above it, so consuming something that grants a rung you already hold
+  // moves you up instead of doing nothing: tipsy -> wasted -> unconscious.
+  //
+  // Deliberately a single slug and not the Json { oneOf } shape expiresInto
+  // and removesInto use — a ladder has one next rung, and letting it branch
+  // randomly would make "one more drink" unpredictable in a way no player
+  // could plan around.
+  //
+  // Only the CONSUME path walks it (web/lib/consumeGrants.js). A GM handing
+  // somebody Tipsy twice from the Dev Panel is not pouring them a drink, and
+  // db/lib/tagWrites.js#grantTagSlugs stays deliberately ignorant of this.
+  escalatesInto String?
+
   // The four capability flags. Each one fills exactly one player menu and is
   // re-checked server-side by the matching request; none is derived from the
   // category (docs/systemdocs/TAGS.md §5). All four are explicit in
@@ -2336,8 +2206,7 @@ model Tag {
   //     fieldwork: Bool (default false — true skips needsWorkshop()),
   //     examine: String, defenseNote: String,
   //     laborBonus: { kind: "hunting"|"farming"|"fishing", amount: Int },
-  //     provides: [tagSlug, ...],
-  //     link: "hold_open" | "hold_shut" }
+  //     provides: [tagSlug, ...] }
   //
   // A tag carrying this must be craftable and must NOT be tradeable,
   // stackable, equippable, or carry a carryBonus — db:sync-tags throws on
@@ -2642,7 +2511,6 @@ model Turn {
   resolvedAt DateTime?
 
   actions        Action[]
-  requests       Request[]
   stagedMessages StagedMessage[]
   stagedEffects  StagedEffect[]
   cavingRolls    CavingRoll[]
@@ -3088,12 +2956,11 @@ model CraftProject {
   // What the ingredients cost, snapshotted when the work STARTED — the same
   // rule resourcesCost lives under, because a multi-turn project spends both
   // up front. Shape is the `replaced` snapshot list
-  // (`[{ tagId, tagName, quantity, source, expiresTurn }]`) so a GM Undo of
-  // the finishing request can hand it back through
-  // requestEffects.js#restoreCharacterTag without a second shape to learn.
-  // Copied onto the completing ADD_TAG request's `effect.consumed`; null on a
-  // recipe with no spent ingredient, and on every project filed before this
-  // column existed.
+  // (`[{ tagId, tagName, quantity, source, expiresTurn }]`). Copied onto the
+  // completing `request_craft_tag` audit row's `details.consumed` — the only
+  // record of the spend, what a GM repairing by hand reads. Null on a recipe
+  // with no spent ingredient, and on every project filed before this column
+  // existed.
   consumed      Json?
 
   // Pending custom-item fields (`{ name?, description? }`) for a customizable
@@ -3107,8 +2974,6 @@ model CraftProject {
   startedTurnId String
   // The turn whose Routine last advanced it — one advance per turn.
   lastTurnId    String?
-  // The ADD_TAG Request written on completion.
-  requestId     String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3176,17 +3041,6 @@ model Structure {
   // on the way in (web/lib/customCraft.js): no rich tokens, no ‡, no @.
   inscription String?
 
-  // The pre-authored modular LocationLink this structure holds open (a
-  // bridge) or shut (a gate a palisade grew). NEVER creates a link —
-  // db:sync-zones prunes any row absent from docs/zones.yaml. SetNull so a
-  // re-authored map does not take the structure with it. Unused until the
-  // `structural:` edges land; declared now so the FK rides this migration.
-  linkId String?
-  link   LocationLink? @relation(fields: [linkId], references: [id], onDelete: SetNull)
-
-  // The Request written on completion (BUILD_STRUCTURE), CraftProject's
-  // requestId posture.
-  requestId String?
 
   startedTurnId String?
   // Claim column for a FUTURE decay/upkeep pass; nothing reads it yet. Here
@@ -3200,8 +3054,6 @@ model Structure {
 
   @@index([locationId, status])
   @@index([typeSlug])
-  // The travel path's holder include and every holders-count on an edge.
-  @@index([linkId])
 }
 
 // ABANDONED and RUINED are different events wearing different words: a site
@@ -3248,13 +3100,22 @@ model AuditLog {
   targetCharacter    Character? @relation(fields: [targetCharacterId], references: [id])
   details            Json?
 
-  // Only populated by Request-backed entries (see RequestType) — the
-  // player's own words, surfaced as a column on /gm/audit.
+  // Only GM-facing actions carry one now: a GM transfer, a staging decision.
+  // Player actions stopped asking for a reason when they stopped being
+  // Requests, so this is blank for most rows.
   reason    String?
+  // The turn this happened in, when there was one. It exists because the
+  // per-turn rations (MEDICAL_TIER_CAPS, DEAD_SIMPLE_PER_TURN, a tag's own
+  // requirementPerTurn) used to count Request rows, and this table is what
+  // replaced them — a ration has to be a cheap indexed count, not a scan.
+  // /gm/audit's turn filter reads it too, rather than inferring from dates.
+  turnId    String?
   createdAt DateTime @default(now())
 
   @@index([actionType])
   @@index([actorDiscordUserId])
+  // The rationing lookup: one character's actions of one kind in one turn.
+  @@index([targetCharacterId, actionType, turnId])
   // /gm/audit's default view sorts the whole table by createdAt with no
   // filter, and runs a count() beside it. Neither index above can serve that.
   @@index([createdAt])
@@ -3313,17 +3174,16 @@ model CavingRoll {
   kind CavingRollKind
 
   // Set on a FIND only: the tier drawn (db/lib/cavingLoot.js) and the tag
-  // granted, so the lens can show "Rare -> Spyglass" without a join through
-  // lootRequest.
+  // granted, so the lens can show "Rare -> Spyglass" without a second lookup.
   lootTier  String?
   lootTagId String?
   lootTag   Tag?    @relation(fields: [lootTagId], references: [id])
 
-  // The PASSED-by-default Request the loot grant was filed as (type
-  // CAVING_LOOT), so a GM's Undo goes through the ordinary request handler
-  // in web/lib/requestEffects.js rather than a bespoke path.
-  lootRequestId String?  @unique
-  lootRequest   Request? @relation(fields: [lootRequestId], references: [id], onDelete: SetNull)
+  // Set when a GM takes the find back off the sheet. The roll itself stands —
+  // only the loot comes off — and this is what stops a second click dropping
+  // the tag twice. It replaced a link to a CAVING_LOOT Request, back when
+  // there was a Request table to link to.
+  lootUndoneAt DateTime?
 
   // Only a TROUBLE row is ever left unresolved — QUIET and FIND are stamped
   // at creation, which is what keeps the Caving lens showing the 1s instead
@@ -3339,39 +3199,6 @@ model CavingRoll {
 
   @@unique([characterId, turnId, trigger, locationId])
   @@index([turnId, resolvedAt])
-}
-
-// One row per player action that took effect without GM approval. `payload`
-// is what the player asked for; `effect` is what was actually applied, and is
-// the ONLY thing Undo reads. That split is load-bearing: reversing a request
-// by re-deriving it from current state would corrupt as soon as a GM edits an
-// amount or the character transacts again in the meantime.
-model Request {
-  id          String        @id @default(cuid())
-  characterId String
-  character   Character     @relation(fields: [characterId], references: [id])
-  turnId      String?
-  turn        Turn?         @relation(fields: [turnId], references: [id])
-  type        RequestType
-  status      RequestStatus @default(PASSED)
-  reason      String
-  payload     Json
-  effect      Json
-  gmNotes     String?
-
-  reviewedAt              DateTime?
-  reviewedByDiscordUserId String?
-
-  createdAt DateTime @default(now())
-
-  // Back half of CavingRoll.lootRequestId — a system-filed CAVING_LOOT
-  // request points back at the roll that created it.
-  cavingRoll CavingRoll?
-
-  @@index([status, createdAt])
-  @@index([characterId])
-  // Same reason as Action above: /gm/turns sorts unfiltered by createdAt.
-  @@index([createdAt])
 }
 
 // One letter carried by a bird (docs/systemdocs/BIRD.md). Live state, not a
@@ -3473,8 +3300,8 @@ model DesireTemplate {
   families             String[] @default([])
   // Defaults true for tier 7 in the sync; an explicit YAML value wins.
   onceEver             Boolean  @default(false)
-  // Per-entry override of the tier-derived cooldown (used by
-  // charitable-act-devoted = 3, use-a-censer = 5). Null means "use tier".
+  // Per-entry override of the tier-derived cooldown (used by every consumable
+  // = 3, make-a-merchant-purchase = 5). Null means "use tier".
   cooldownTurns        Int?
   // Real relations, not slug arrays, so db:prune-tags can see the reference
   // and refuse to delete a Tag a live desire depends on.

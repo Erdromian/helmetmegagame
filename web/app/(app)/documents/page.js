@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
-import { getMyZones } from "@/lib/gmZone";
+import { isSuperadmin } from "@/lib/superadmin";
 import PageShell, { PageHeader } from "../../components/PageShell";
 import DocumentsBoard from "./DocumentsBoard";
 import { toDocumentPreviewText } from "@/lib/documentPreview";
@@ -106,10 +106,13 @@ export default async function DocumentsPage() {
     ? written.filter((d) => d.flags.includes("gamemaster")).map((d) => shape(d, "Gamemaster"))
     : [];
 
-  // Holding no seat at all is the master's state; a GM seated anywhere — one
-  // zone or several — is a zone-GM and does not see Secret papers.
-  const myZones = isGm ? await getMyZones() : [];
-  const isMasterGm = isGm && myZones.length === 0;
+  // A Secret paper is the HOST's to read, not every GM's. This used to key on
+  // "holds no zone seat", which meant the same thing back when only the master
+  // was unseated — but a zone seat is now a zone VIEW that every GM sets for
+  // themselves, and an unset one is the default. Left as it was, the first GM
+  // to leave the control alone would have been handed every secret in the
+  // game. It asks the question it always meant: are you the host.
+  const isMasterGm = isGm && isSuperadmin(session.discordUserId);
 
   const secretDocs = isMasterGm
     ? written.filter((d) => d.isSecret).map((d) => shape(d, "Secret"))

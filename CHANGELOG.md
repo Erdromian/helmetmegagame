@@ -6,6 +6,222 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Depressed only fights the tags that touch Desires
+
+✎ Lazy, Insomniac, Guilt Ridden, Torturer and the four phobias can sit alongside Depressed again. None of them touches the Desire system, so there was nothing for them to argue with.  
+✎ Nobility and Eunuch do lock Desires, so those two now conflict where they did not before.  
+✎ The test is simply whether a Personality tag locks or opens Desires at all, rather than a hand-picked list.
+
+## 2026-09-06 · Storage and the noticeboards check the character who pressed the button
+
+✎ Clicking Storage in a room, or opening a noticeboard, checked where somebody else was standing. Almost everyone was told "You're not here" in a room they were plainly in  
+✎ Tearing a notice down would have put the paper in that other character's hands, and pinning one would have taken it out of their pack. Nothing had been pinned yet, so nobody lost anything
+
+## 2026-09-06 · Desire names are plain prose, and thresholds read in both currencies
+
+✎ Desire names no longer link tags — Sake and Ravenheart Red were chips while alcohol and moonshine beside them were plain text, so the picker looked half-finished  
+✎ Gambling wins and Resources thresholds now read in both currencies: Win 5 ⬢/¢, Have 100 ⬢/¢, and so on  
+✎ Kill someone you hate is 4pt  
+✎ Save someone's life is repeatable on a 5-turn cooldown; saving a faction leader's life is the once-a-life one. They were the wrong way round  
+✎ Kiss someone and Gain a lover both get a 4-turn cooldown  
+✚ Get married, once a life — it replaces Gain a lover you should not have, which is retired  
+✎ Confess your sins is now Successfully confess something
+
+## 2026-09-06 · Depression crowds out everything else about you
+
+✎ Depressed can no longer be combined with almost any other Personality tag, on top of the Addictions it already ruled out. A depressed character is depressed first and everything else second.  
+✎ The six that still sit beside it are Nobility, Eunuch, Debtor, Poor Swimmer, Motion Sickness and Lightweight, none of which is really a disposition.  
+✎ Depressed now gives back 8 points instead of 6, which is what the design notes always said it should be.
+
+## 2026-09-06 · Pushing an update deploys the whole site again
+
+✎ Every push now rebuilds both the website and the bot. Half the updates were quietly not deploying at all, which is why the site kept showing yesterday's behaviour until someone redeployed by hand  
+✎ Database changes are applied automatically just before an update goes live, so a page can no longer break with a bare error code because a column was missing
+
+## 2026-09-06 · Let a Depot Keycard work the machinery, not the money
+
+✚ A Depot Keycard now calls the shuttle down, loads it, sends it back up, and feeds and starts the generator  
+✎ The keycard still spends nothing — ordering, the ATM, the credit line, the obol counter and the turret stay on the Merchant's Licence  
+✎ Only the Licence can shut the generator down, because the lights going out take the turret with them  
+✎ The Feed button used to be greyed out by the very outage it existed to fix, so a dead generator was unrecoverable from the console  
+✎ Working the Depot console is an ACT now — an incapacitated Merchant could order, bank and refuel from the floor
+
+## 2026-09-06 · The whitelist points at a role that exists
+
+✚ The Whitelist role works again — it was pointing at a role deleted in the pre-launch cleanup, so all 24 whitelisted players were locked out of every whitelisted seat with no error shown  
+− - almost certainly deleted by the pre-launch cleanup and remade with a new snowflake. isLeaderWhitelisted is a plain roles.includes(), so it returned false for everybody: all 24 holders of the real @Whitelist role were locked out of every whitelisted seat, greyed with no error anywhere. The gate fails closed on purpose, which is exactly why it was silent.
+
+## 2026-09-06 · Playtest mode is gone
+
+− The playtest lever on the dev panel. Both of its lists were empty, so it never locked anything
+
+## 2026-09-06 · The web app is back up
+
+✎ A half-landed change had left the site querying two database columns that no longer existed, which took every page down. The structural-edge system is now properly gone
+
+## 2026-09-06 · The zone picker answers on the click
+
+✎ The Zones control now responds to a click straight away, instead of freezing for about twenty seconds  
+✚ A picked zone turns orange, so you can tell at a glance which ones you have  
+✎ Your GM: <Zone> Discord roles now catch up a second or two after the click, rather than holding it up
+
+## 2026-09-06 · The bot is back up, and appearance has more room
+
+✎ The bot had been crashing on boot since the phobia pass shipped half-committed; the missing pieces are in  
+✚ Character appearance now takes 400 characters instead of 300
+
+## 2026-09-06 · The Fisherman starts skilled at Laboring
+
+
+## 2026-09-06 · The turn header is a dated subtext line
+
+
+## 2026-09-06 · Knighthood is back on the picker, for a single point
+
+✎ Knighted is purchasable again at character creation, at 1 ⬢. It stays out of the mid-game store — once play starts, knighting is the Baron's to do
+
+## 2026-09-06 · Ten Courtier kits, and knighthood is no longer for sale
+
+✚ Ten Courtier starting kits — Herald, Seasoned Knight, Tutor, Chaplain, Carouser, Manor Lord, Debutante, Court Physician, Court Artist and Master Engineer. Each is a crate a Courtier buys at creation and unpacks in play, priced well under what it holds  
+− Knighted is off the tag picker. It is free now, and comes from the Seasoned Knight kit or a GM's hand  
+✚ A hostage bag in the Order Chambers, and two hoods in the Ravine Camp  
+✚ Both Brigands start with a Plebeian Hood
+
+## 2026-09-06 · Role charters: the contributor's pass
+
+✎ The Baron, Baroness, Hand and Meister open with new intros; the Baron keeps his intercom and the yard turret  
+✎ Forty-odd charter paragraphs reworded across the Court, the Cerberon, the Church, the Sanctuary, the Town, the Company and the Brigands  
+✎ Every Watchmen mention now says Cerberi  
+− The zone situations (stale opening-state blurbs on every zone)  
+− The You-can-crucify line on the Inquisitor, Practicus and Preacher, now that crucifixion is a structure  
+✎ The Bishop is untouched
+
+## 2026-09-06 · The Cross structure is called Crucifix
+
+✎ Tag names have to be unique and a Cross item already exists, so the structure that crucifies people is named Crucifix. Players still read it as the cross in every line about it.
+
+## 2026-09-06 · The new Cross structure syncs again
+
+✎ Its slug (crucifix) differs from its name on purpose, because a Cross item already exists; the tag sync now knows that.
+
+## 2026-09-06 · Crosses, crucifixion, and a leaner structure catalog
+
+✚ A Fundamentalist standing at a finished Cross can Crucify anyone standing there, from the People here actions. No consent and no Move spent. The victim can still speak but do nothing else, becomes Dying at the close of the turn, and dies at the close of the next.  
+✚ Cross: a new structure, 6 ⬢ and one turn, no skill needed. The Square and the Crossroads each start with one standing.  
+✚ Watchtower: an elevated tower with a defence note, 20 ⬢ and two turns with Builder (Skilled).  
+− Library, Jailhouse and Bridge are gone from the structure catalog.  
+− The structural-edge machinery (a Bridge holding a crossing open, a Palisade holding a gate shut) is gone entirely. No edge on the map ever used it.  
+✎ Forge is 15 ⬢ and two turns now (was 30 and four). Palisade takes four turns (was six). Battering Ram takes two (was three).  
+✚ Two Desires: Build a Wayside Shrine (2 points, any belief but Atheist, six-turn cooldown) and Crucify a heretic (2 points, Fundamentalists).  
+✚ The Undercroft has a Vault behind the Baron's key, holding 14 ⬢, 15 obols and a painting.  
+✎ The Inquisitor, Practicus and Preacher role text now says they can crucify people once they build a cross.  
+✎ A character who can't act (Bound, Dying, Crucified, out cold) can no longer lock in a Move from the Discord modal. Labor was already refused there; Routines and Gambits used to go through.  
+✎ A Location in the zones master can now list structures that were always standing there, and the zone sync raises them.
+
+## 2026-09-06 · Phobias, a Debtor, and a dozen new personality drawbacks
+
+✚ Four phobias. Claustrophobia keeps you Afraid the whole time you are in the caves; Acrophobia makes you Afraid anywhere in the Black Hills and Panic at the Mountain; Pyrophobia and Teratophobia are for the GM to call  
+✚ Guilt Ridden can't confess and now and then wakes Exhausted; Insomniac wakes Exhausted about one dawn in five  
+✚ Lazy earns a quarter less from every day's labor, and the range on the sheet shows it; a chaplain can confess it away  
+✚ Lightweight's first drink lands them Wasted, the next one Unconscious. Iron Liver now takes two drinks per rung after the first  
+✚ Motion Sickness can't ride a horse or a boat, and vomits if somebody drags them across a zone on one  
+✚ Poor Swimmer, and Debtor: 20 obols in hand, 40 owed, with three DEBTOR notices up at Customs the moment they arrive  
+✎ Afraid now lasts one turn instead of two  
+✎ You may take up to 6 drawbacks, claiming back up to 13 points
+
+## 2026-09-06 · The bell carries by distance now, and there is a trumpet
+
+✎ The church bell now carries by distance instead of to a fixed list of zones — loud around the Cathedral, faint out at the edges, and silent underground  
+✚ A Trumpet. Carry one and a Sound Trumpet button appears on your Character page; it does what the bell does at three-quarters the range, from wherever you are standing  
+✎ Both wait half an hour between soundings  
+✎ Every noise the world makes now opens 'You hear' — the turret, the gatehouse rotor, the depot generator and shuttle, and whispering all say it the way a shout already did
+
+## 2026-09-06 · The Teaching tree is a Skill now, and nobody can be taught to teach
+
+✎ Teaching, Lecturing and Drill Instructor now sit on the Skills tab of the store instead of under General  
+✎ None of the three can be taught: you can't learn Teaching from a teacher  
+✎ Drill Instructor is still for the Cerberi and the Censor only
+
+## 2026-09-06 · Selling to the Merchant pays 60% now, not a quarter
+
+✎ Selling something to the Merchant now pays 60% of its shelf price, up from the ~44% it was before — stocking goods and trading them on is worth doing  
+✎ Seven craftable or brewable wares keep a wage floor, so 60% never cuts what a maker earns
+
+## 2026-09-06 · The Merchant stops being a laundry, and sells energy shields
+
+✎ Depot prices are down about 18% across the board  
+✎ Selling something back to the Merchant now pays a quarter of its price, not nearly half — buying a rifle and reselling it is no longer a living  
+✚ Energy Shields are on the Merchant's shelf at 145 obols, the best protection against a turret that money can buy  
+− The Fortress Starting Packet  
+✎ Rewrites: combat, the Pusher, Ravenheart's economy, Post-Christianity, concealing, the Sanctuary
+
+## 2026-09-06 · Trial Gamemaster is a Gamemaster in everything but name
+
+✚ A Trial Gamemaster role that grants exactly what Gamemaster does — every /gm page, every GM channel, and the /gm and /dm commands  
+✎ The Gamemasters roster now says which seat somebody holds: Gamemaster, Trial GM, or Master  
+✚ Two more superadmins
+
+## 2026-09-06 · A pass over the tag catalog: fighting skills, mountaineering, and softer drawbacks
+
+✎ Melee (Clubs) and Shield Wall come down to 8, Duelist to 9, and Guerrilla to 5 — the fighting specialisations were priced past what most builds could reach  
+✎ Mountaineering costs 2 instead of 3, and the Ravine and the Outcrop now open to it rather than to Caving — climbing had one room to Caving's three  
+✎ Caving goes up to 4  
+✎ Depressed, Deaf, Tremor, Arthritis, Night Blind and Migraine all refund fewer points; Glass Jaw refunds one more  
+✎ Pretty and Beautiful cost 3 each and can only be bought at creation  
+✎ Soft Hands no longer forbids the Laboring skills — the half-⬢ penalty is the whole tag  
+✎ Clumsy and Stealth now refuse each other  
+✎ Craven only locks Desires about bravery now, not violence and adventure as well  
+− Insomniac
+
+## 2026-09-05 · Avatars sit on a plate that falls into shade
+
+✎ Every avatar background now darkens toward the bottom, so a face, a helm and a letter plaque all read as lit from above instead of pasted onto a flat slab  
+✎ Concealed-identity helms are noticeably bigger — they fill their frame the way a portrait does instead of floating in the middle of it
+
+## 2026-09-05 · A fisherman lives out in the marsh village
+
+✚ A new Fisherman fate: one seat, easy, starting alone in the marsh Village with a rod, a boat and the key to his hut  
+✚ The Old Hut, a locked room out past the village with two obols and a pet rat in it  
+✎ The Banneret and the Geschef are both told there is a fisherman up north and obols in the office to pay him with  
+✎ Fast Metabolism is now called Big Appetite, and the Geschef starts with one  
+✎ The Banneret and the Geschef count as Ravenhearters after all  
+✚ A cigarette in the overseer box  
+✎ The Fates thread in #info now groups fates the way the site does, and no longer says which zone anyone starts in  
+✚ A quieter way to push #info: it edits what is already there instead of reposting, so nobody gets pinged for a typo fix
+
+## 2026-09-05 · Drinking has a ladder, and the tags that say you can't now stop you
+
+✚ Drinking while Tipsy makes you Wasted; drinking while Wasted puts you Unconscious on the floor  
+✚ Wasted and Unconscious both wear off into a Hangover  
+✚ Unconscious counts as helpless: you can be looted, dragged and tied up where you fell  
+✎ A GM granting the same tag twice still does nothing — only drinking climbs  
+✚ Bound, Paralyzed, Unconscious, Dying, Catatonic and mid-Seizure can no longer walk out of a room, hand over a purse, butcher, buy, write or work  
+✚ Mute finally does something: it stops you speaking, and nothing else  
+✎ Bound deliberately still lets you shout — a hostage can call for help  
+✚ Deaf can't work the Council Room intercom  
+✎ Stupid now garbles ordinary channel chat, which it never actually did before  
+
+## 2026-09-05 · The Depot's horse comes down to 110
+
+✎ A Horse at the Depot now costs 110 ⬢ and sells back at 48 ⬢, down from 120 and 53.
+
+## 2026-09-05 · The Merchant sells horses, and a builder can make a boat
+
+✚ The Depot now stocks a Horse at 120 ⬢, sells one back at 53 ⬢. Mid-game he is the only horse in Ravenheart, and the price says so.  
+✚ A Skilled Builder can now make a Fishing Boat: 40 ⬢ and one turn, same bench as the Cart.
+
+## 2026-09-05 · Desires that cost nothing now cost a wait
+
+− Six Desires that were impossible or paid for a single click: See the Windlands, Stay 2 turns in the Aberrant Pits, Experience something exciting, Perform a charitable act (the ungated one), Convert someone to the Old Ways, and Convince someone to skip mass  
+✎ Every consumable — drinks, smokes, drugs, meals — now waits 3 turns before it pays again, so trying something new beats repeating the same cigarette  
+✎ The one-line social Desires (a hug, a story, an insult, a chastisement) all settle at 3 turns, down from 5  
+✎ Winning a game of chance now needs something actually staked  
+✎ Saving a life, and a migrant being let through the Town gates, are once ever  
+✎ Buying from the Merchant waits 5 turns, seeing a monster 4, torture 6  
+✎ Converting someone to your religion drops to tier 3, and is now the only Desire covering conversion  
+✎ The Demoness can humiliate somebody privately or publicly — two Desires, not one act paying twice  
+✎ The Windlands are gone from the game's text. #info was still telling players it was one of three surface zones; it now names the five we have, and the two cave levels
+
 ## 2026-09-05 · Changelog notes stop getting cut off mid-sentence
 
 ✎ A note written as a wrapped bullet in a commit message used to lose everything after its first line break, so entries reached Discord as half-sentences ending in 'which may'. The whole bullet is posted now

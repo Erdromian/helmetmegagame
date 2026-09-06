@@ -26,6 +26,17 @@ export const ZONE_KEYS = [
   "depths",
 ];
 
+// Zone NAMES that don't slugify to their own key. Both of these read as
+// unrecognised without the alias, which costs them their chip colour and drops
+// them to the tail of every sorted list — "Black Hills" has been doing exactly
+// that since it was renamed, and the GM zone picker is where it finally showed.
+// "Underground" is the caves SEAT (Zone.seatZoneId), so it wears the caves
+// colour rather than a seventh of its own.
+const ZONE_KEY_ALIASES = {
+  "black-hills": "hills",
+  underground: "caves",
+};
+
 export function zoneKey(zoneName) {
   if (!zoneName) return null;
   const slug = String(zoneName)
@@ -33,7 +44,8 @@ export function zoneKey(zoneName) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  return ZONE_KEYS.includes(slug) ? slug : null;
+  const key = ZONE_KEY_ALIASES[slug] ?? slug;
+  return ZONE_KEYS.includes(key) ? key : null;
 }
 
 // Sorts a list of {name} zones into the canonical order above, with anything
@@ -49,15 +61,19 @@ export function sortZones(zones) {
   });
 }
 
-// Which zone a GM's table should OPEN on, given their seats.
+
+// The zone-view gate, shared by all three GM tables — the players rail, the
+// roster and the adjudication queue. One copy because it is a policy, not a
+// filter: the "no faction zone means everyone sees it" rule below is a real
+// decision, and three copies of it would drift the moment somebody tuned one.
 //
-// One seat is the whole point of the feature: the table opens narrowed to it.
-// Two or more and there is no single right answer — opening on the first would
-// silently hide the other seat's rows behind a filter the GM never set — so the
-// table opens on All and the ZoneScopeToggle offers a button per seat instead.
-// No seat (the master, or an unassigned GM) is All as well.
-//
-// `filters.zone` is a zone NAME, matching useTableState's filterDefs.
-export function openingZoneName(myZoneNames) {
-  return myZoneNames?.length === 1 ? myZoneNames[0] : "";
+// `visibleZoneNames` null means every zone — see web/lib/gmZoneView.js. Rows
+// carry `factionZoneName` on every desk, which is the SEAT zone (the zone
+// their faction answers to), not where they happen to be standing.
+export function inVisibleZones(rows, visibleZoneNames) {
+  if (!visibleZoneNames) return rows ?? [];
+  const allowed = new Set(visibleZoneNames);
+  // A row whose faction has no zone stays visible to everyone. Better seen
+  // twice than by nobody.
+  return (rows ?? []).filter((r) => !r.factionZoneName || allowed.has(r.factionZoneName));
 }

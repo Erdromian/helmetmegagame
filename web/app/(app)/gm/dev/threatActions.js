@@ -174,8 +174,23 @@ export async function offerThreatSpawn({ discordUserId, threatSlug, roleId, loca
     return { error: "They already have an offer waiting. Cancel it first." };
   }
 
-  // Falls back to the role's own start; null only if the role has none either.
-  const finalLocationId = locationId || role.startingLocationId || null;
+  // The GM's pick wins, then the seat's own landing site (only the Tribunal
+  // carries one — db/lib/threats.js), then the role's start. Null only if none
+  // of the three says anything.
+  let seatLocationId = null;
+  if (threat.spawn?.locationSlug) {
+    const seatLocation = await prisma.location.findUnique({
+      where: { slug: threat.spawn.locationSlug },
+      select: { id: true },
+    });
+    if (!seatLocation) {
+      console.error(
+        `Threat ${threat.slug}: spawn.locationSlug "${threat.spawn.locationSlug}" matches no Location — run db:sync-zones.`,
+      );
+    }
+    seatLocationId = seatLocation?.id ?? null;
+  }
+  const finalLocationId = locationId || seatLocationId || role.startingLocationId || null;
 
   const spawn = await prisma.threatSpawn.create({
     data: {

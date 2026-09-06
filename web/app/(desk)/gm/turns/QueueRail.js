@@ -2,9 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import StatusPill from "@/app/components/StatusPill";
-import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
 import Select from "@/app/components/Select";
-import { openingZoneName } from "@/lib/zones";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import { useTableState } from "@/app/components/DataTable";
@@ -12,8 +10,9 @@ import useSessionState, { readSession, writeSession } from "@/app/components/use
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { isFieldFocused, hasModifier } from "@/lib/deskKeyGuard";
 import { MOVE_REVIEW_TONES, MOVE_REVIEW_LABELS } from "@/lib/moves";
-import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requestLabels";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
+import { inVisibleZones } from "@/lib/zones";
+import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
 
 // The left rail: the work queue as a compact list, using useTableState (the
 // same filter/search/sort engine every table uses) minus the table markup.
@@ -31,8 +30,6 @@ const MOVE_STATUS_OPTIONS = Object.values(MOVE_REVIEW_LABELS).filter(
 const MOVE_STATUS_RANK = { Open: 0, "Waiting for Opponents": 0, Solved: 1, Passed: 2 };
 // Same trick for the Caving lens — see rankedMoves below.
 const CAVING_STATUS_RANK = { "Needs attention": 0, Resolved: 1 };
-const REQUEST_TYPE_OPTIONS = [...new Set(Object.values(REQUEST_TYPE_LABELS))];
-const REQUEST_STATUS_OPTIONS = Object.values(REQUEST_STATUS_LABELS);
 const REVIEWED_OPTIONS = ["Reviewed", "Unreviewed"];
 const CAVING_STATUS_OPTIONS = ["Needs attention", "Resolved"];
 
@@ -58,37 +55,13 @@ function makeMoveSearchMap(tagsById) {
   });
 }
 
-const REQUEST_FILTER_DEFS = [
-  { key: "zone", label: "Zone", value: (r) => r.factionZoneName },
-  { key: "type", label: "Type", value: (r) => r.typeLabel, options: REQUEST_TYPE_OPTIONS },
-  { key: "status", label: "Status", value: (r) => r.statusLabel, options: REQUEST_STATUS_OPTIONS },
-  {
-    key: "reviewed",
-    label: "Reviewed",
-    value: (r) => (r.reviewedByUsername ? "Reviewed" : "Unreviewed"),
-    options: REVIEWED_OPTIONS,
-  },
-];
-const requestSearchMap = (r) => ({
-  name: r.characterName,
-  username: r.discordUsername,
-  role: r.roleTitle,
-  faction: r.factionName,
-  zone: r.factionZoneName,
-  kind: r.typeLabel,
-  status: r.statusLabel,
-  text: [r.reason, r.summary].filter(Boolean).join(" "),
-  notes: r.gmNotes,
-});
-
-const REQUEST_TONES = { Passed: "neutral", Edited: "neutral", Undone: "bad" };
 
 // One sessionStorage key for the CLICK-frequency rail VIEW state — a reload
 // restores it. Workspace.js reads the same key for `lens`.
 export const RAIL_STORAGE_KEY = "gm-turns-rail";
 export const RAIL_STORAGE_DEFAULT = {
   lens: "moves",
-  filters: {}, // { moves, requests, caving, history, "history-caving" } — each an initialFilters-shaped object
+  filters: {}, // { moves, caving, history, "history-caving" } — each an initialFilters-shaped object
   hideTravel: true,
   hideHistoryTravel: true,
   historyKind: "moves", // "moves" | "caving"
@@ -138,10 +111,9 @@ const CAVING_TONES = { "Needs attention": "bad", Resolved: "neutral" };
 
 // The keyboard lens flips, and what ⏎ selects in each lens. The History
 // lens over the OPEN turn selects a live "move" — see historyIsOpenTurn.
-const LENS_FOR_KEY = { m: "moves", r: "requests", c: "caving", h: "history" };
+const LENS_FOR_KEY = { m: "moves", c: "caving", h: "history" };
 const SELECTION_TYPE_FOR_LENS = {
   moves: "move",
-  requests: "request",
   caving: "caving",
   history: "history",
 };
@@ -153,7 +125,7 @@ function MatchHint({ match }) {
   return <span className="text-xs text-muted"> · {match.matchedField}</span>;
 }
 
-function RailFilters({ table, filterDefs, myZoneNames, searchPlaceholder, header, children }) {
+function RailFilters({ table, filterDefs, searchPlaceholder, header, children }) {
   return (
     <div className="desk-rail-filters">
       {header}
@@ -183,7 +155,6 @@ function RailFilters({ table, filterDefs, myZoneNames, searchPlaceholder, header
           </label>
         ))}
       </div>
-      <ZoneScopeToggle myZoneNames={myZoneNames} filters={table.filters} setFilters={table.setFilters} />
       {children}
     </div>
   );
@@ -240,45 +211,6 @@ function MoveRows({
   });
 }
 
-function RequestRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens }) {
-  return rows.map((row) => {
-    const active = selected?.type === "request" && selected.id === row.id;
-    // Both request types that can name a kill; an unkilled row here is the
-    // exception, worth the urgent mark. See killRequestTargetImpl in actions.js.
-    const killPending =
-      (row.type === "FEED_PERSON" || (row.type === "HARM_CHARACTER" && row.effect?.lethal)) &&
-      !row.effect?.killed;
-    return (
-      <button
-        key={row.id}
-        type="button"
-        className="desk-queue-row"
-        data-active={active}
-        data-urgent={killPending || undefined}
-        data-kbd={kbdLens === "requests" && kbdId === row.id ? "" : undefined}
-        data-row-key={row.id}
-        onClick={() => onSelect({ type: "request", id: row.id })}
-      >
-        <span className="flex items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5 truncate font-medium">
-            <CharacterAvatar characterId={row.characterId} name={row.characterName} version={row.avatarVersion} catatonic={row.catatonic} />
-            <span className="truncate">
-              {killPending ? "☠ " : ""}
-              {!row.reviewedByUsername && <span className="desk-dot" aria-label="Not yet reviewed" />}
-              {row.characterName}
-            </span>
-            <MatchHint match={matchFor(row)} />
-          </span>
-          <StatusPill tone={REQUEST_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
-        </span>
-        <span className="block truncate text-xs text-muted">
-          {row.typeLabel} · {row.turnLabel}
-        </span>
-        <span className="block truncate text-xs text-muted">{row.summary || row.reason}</span>
-      </button>
-    );
-  });
-}
 
 function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKey = "caving" }) {
   return rows.map((row) => {
@@ -315,9 +247,8 @@ function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKe
 
 export default function QueueRail({
   moves,
-  requests,
   cavingRolls,
-  myZoneNames,
+  visibleZoneNames,
   stagedByMove,
   selected,
   onSelect,
@@ -338,7 +269,6 @@ export default function QueueRail({
   historyError,
 }) {
   const moveFilterDefs = useMemo(() => MOVE_FILTER_DEFS, []);
-  const requestFilterDefs = useMemo(() => REQUEST_FILTER_DEFS, []);
   const cavingFilterDefs = useMemo(() => CAVING_FILTER_DEFS, []);
   const moveSearchMap = useMemo(() => makeMoveSearchMap(tagsById), [tagsById]);
 
@@ -347,39 +277,51 @@ export default function QueueRail({
   const [rail, setRail] = useSessionState(RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT);
   const makeFiltersProps = useCallback(
     (key) => ({
-      filters: rail.filters[key] ?? { zone: openingZoneName(myZoneNames) },
+      filters: rail.filters[key] ?? {},
       onFiltersChange: (next) => setRail((r) => ({ ...r, filters: { ...r.filters, [key]: next } })),
     }),
-    [rail.filters, myZoneNames, setRail],
+    [rail.filters, setRail],
   );
+
+  // The zones this GM chose to see (null = all), over every lens, applied
+  // before ranking so the counts on the lens tabs match what is in them. Not
+  // the same thing as the Zone dropdown below, which narrows WITHIN this.
+  //
+  // A view rather than enforcement — the server ships every row and a direct
+  // link still opens a hidden Move. The boundary that bites is the Discord
+  // half (GAMEMASTERS.md §6).
+  // The prop is only the seed: once the picker in the inspector has moved,
+  // the live answer is in the client (GmZoneViewProvider).
+  const zonesInView = useVisibleZoneNames(visibleZoneNames);
+  const inView = useCallback((rows) => inVisibleZones(rows, zonesInView), [zonesInView]);
 
   // One numeric key so the generic engine's one-field sort ranks by status
   // first, recency second (status multiplied out of recency's range).
   const rankedMoves = useMemo(
     () =>
-      moves.map((r) => ({
+      inView(moves).map((r) => ({
         ...r,
         queueOrder: (MOVE_STATUS_RANK[r.statusLabel] ?? 0) * 1e15 - r.createdAtMs,
       })),
-    [moves],
+    [moves, inView],
   );
 
   const rankedHistoryMoves = useMemo(
     () =>
-      (historyMoves ?? []).map((r) => ({
+      inView(historyMoves).map((r) => ({
         ...r,
         queueOrder: (MOVE_STATUS_RANK[r.statusLabel] ?? 0) * 1e15 - r.createdAtMs,
       })),
-    [historyMoves],
+    [historyMoves, inView],
   );
 
   const rankedCavingRolls = useMemo(
     () =>
-      (cavingRolls ?? []).map((r) => ({
+      inView(cavingRolls).map((r) => ({
         ...r,
         queueOrder: (CAVING_STATUS_RANK[r.statusLabel] ?? 0) * 1e15 - r.createdAtMs,
       })),
-    [cavingRolls],
+    [cavingRolls, inView],
   );
 
   // All four tables mount permanently so lens flips keep each one's filters.
@@ -392,15 +334,6 @@ export default function QueueRail({
     initialSort: { key: "queueOrder", dir: "asc" },
     pageSize: 1000,
     ...makeFiltersProps("moves"),
-  });
-  const requestTable = useTableState({
-    rows: requests,
-    filterDefs: requestFilterDefs,
-    searchMap: requestSearchMap,
-    rankBySearch: true,
-    initialSort: { key: "createdAtMs", dir: "desc" },
-    pageSize: 1000,
-    ...makeFiltersProps("requests"),
   });
   const cavingTable = useTableState({
     rows: rankedCavingRolls,
@@ -449,7 +382,6 @@ export default function QueueRail({
     setViewRestored(true);
     const storedQuery = readSession(VIEW_STORAGE_KEY, VIEW_STORAGE_DEFAULT).query ?? {};
     if (storedQuery.moves) moveTable.setQuery(storedQuery.moves);
-    if (storedQuery.requests) requestTable.setQuery(storedQuery.requests);
     if (storedQuery.caving) cavingTable.setQuery(storedQuery.caving);
     if (storedQuery.history) historyTable.setQuery(storedQuery.history);
     if (storedQuery["history-caving"]) historyCavingTable.setQuery(storedQuery["history-caving"]);
@@ -463,7 +395,6 @@ export default function QueueRail({
       mergeView({
         query: {
           moves: moveTable.query,
-          requests: requestTable.query,
           caving: cavingTable.query,
           history: historyTable.query,
           "history-caving": historyCavingTable.query,
@@ -478,7 +409,6 @@ export default function QueueRail({
   }, [
     viewRestored,
     moveTable.query,
-    requestTable.query,
     cavingTable.query,
     historyTable.query,
     historyCavingTable.query,
@@ -508,11 +438,10 @@ export default function QueueRail({
   const rowsForLens = useMemo(
     () => ({
       moves: movesShown,
-      requests: requestTable.visible,
       caving: cavingTable.visible,
       history: historyIsCaving ? historyCavingTable.visible : historyShown,
     }),
-    [movesShown, requestTable.visible, cavingTable.visible, historyIsCaving, historyCavingTable.visible, historyShown],
+    [movesShown, cavingTable.visible, historyIsCaving, historyCavingTable.visible, historyShown],
   );
   const visibleRows = rowsForLens[lens] ?? movesShown;
   const historySelectionType = historyIsCaving ? "caving" : historyIsOpenTurn ? "move" : "history";
@@ -629,9 +558,6 @@ export default function QueueRail({
         <button type="button" aria-pressed={lens === "moves" || !lens} onClick={() => onLens?.("moves")}>
           Moves ({movesShown.length})
         </button>
-        <button type="button" aria-pressed={lens === "requests"} onClick={() => onLens?.("requests")}>
-          Requests
-        </button>
         <button type="button" aria-pressed={lens === "caving"} onClick={() => onLens?.("caving")}>
           Caving
         </button>
@@ -645,7 +571,6 @@ export default function QueueRail({
           <RailFilters
             table={historyIsCaving ? historyCavingTable : historyTable}
             filterDefs={historyIsCaving ? cavingFilterDefs : moveFilterDefs}
-            myZoneNames={myZoneNames}
             searchPlaceholder={
               historyIsCaving ? "name, @handle, tag:…" : "name, role, @handle, zone:…"
             }
@@ -757,32 +682,11 @@ export default function QueueRail({
             )}
           </div>
         </>
-      ) : lens === "requests" ? (
-        <>
-          <RailFilters
-            table={requestTable}
-            filterDefs={requestFilterDefs}
-            myZoneNames={myZoneNames}
-            searchPlaceholder="name, @handle, reason, text:…"
-          />
-          <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
-            <RequestRows
-              rows={requestTable.visible}
-              matchFor={requestTable.matchFor}
-              selected={selected}
-              onSelect={onSelect}
-              kbdId={kbdId}
-              kbdLens={lens}
-            />
-            {requestTable.total === 0 && <p className="p-3 text-sm text-muted">No Requests match.</p>}
-          </div>
-        </>
       ) : lens === "caving" ? (
         <>
           <RailFilters
             table={cavingTable}
             filterDefs={cavingFilterDefs}
-            myZoneNames={myZoneNames}
             searchPlaceholder="name, @handle, tag:…"
           />
           <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
@@ -802,7 +706,6 @@ export default function QueueRail({
           <RailFilters
             table={moveTable}
             filterDefs={moveFilterDefs}
-            myZoneNames={myZoneNames}
             searchPlaceholder="name, role, @handle, zone:…"
           >
             {hiddenTravelCount > 0 && (

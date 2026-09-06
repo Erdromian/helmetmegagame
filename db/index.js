@@ -27,6 +27,8 @@ const {
   DYING_DM,
 } = require("./lib/hungerPass");
 const { runCarryPass } = require("./lib/carryPass");
+const { runPhobiaPass } = require("./lib/phobiaPass");
+const { runDawnAfflictionPass } = require("./lib/dawnAfflictionPass");
 const { runDepotPass } = require("./lib/depotPass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
 const { announceTurretBurst } = require("./lib/turretBurst");
@@ -36,6 +38,8 @@ const { runCatatonicPass } = require("./lib/catatonicPass");
 const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
 const { runVisionDecayPass } = require("./lib/visionDecayPass");
 const { runDyingDeathPass } = require("./lib/dyingDeathPass");
+const { runNukeExplosionPass } = require("./lib/nukeExplosionPass");
+const { broadcastToZones } = require("./lib/worldBroadcast");
 const { runBirdPass } = require("./lib/birdPass");
 // By path, not the barrel — see the note at the top of db/lib/accessSweep.js.
 const { revokeAllCharacterAccess } = require("./lib/accessSweep");
@@ -173,6 +177,7 @@ const TURN_PASSES = [
   // the rows it deletes are its own. See db/lib/visionDecayPass.js.
   "visionDecay",
   "dyingDeath",
+  "nukeExplosion",
   // Corpses turn before the sweep, and the order is load-bearing: the sweep
   // is a blind deleteMany over expiresTurn, so a body that reached its clock
   // would be deleted instead of rotting. See db/lib/corpseRotPass.js.
@@ -185,7 +190,13 @@ const TURN_PASSES = [
   "catatonicDeath",
   "bird",
   "hunger",
+  // Guilt Ridden and Insomniac's nightly chance of waking Exhausted. After
+  // hunger so it sees the final sheet. See db/lib/dawnAfflictionPass.js.
+  "dawnAfflictions",
   "carry",
+  // Phobia safety net for anyone whose mood went stale off the per-Move
+  // settle. After carry so it sees the final sheet. See db/lib/phobiaPass.js.
+  "phobias",
   // After "carry", because the overflow drop can put a corpse on a floor.
   // Pull-based, so it just re-reads where every body's tag ended up.
   "corpseFollow",
@@ -445,6 +456,35 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Dying death audit log failed:", err));
   }
 
+  // The bomb. Sits here for the reason dyingDeath sits here: after the staged
+  // push and tagExpiry, so a Disarm filed this turn (or a GM defusing it from
+  // /gm/dev) beats the clock, and before the sweep, with its siblings.
+  // See db/lib/nukeExplosionPass.js.
+  let nukeExplosion = null;
+  if (!done.has("nukeExplosion")) {
+    nukeExplosion = await runNukeExplosionPass(prisma, turn).catch(async (err) => {
+      await passFailed("Nuke explosion", err);
+      return null;
+    });
+    if (nukeExplosion) await markDone("nukeExplosion");
+  }
+  const {
+    deaths: nukeDeaths = [],
+    broadcast: nukeBroadcast = null,
+    ...nukeSummary
+  } = nukeExplosion ?? {};
+  if (nukeExplosion?.detonated) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "nuke_detonated",
+          details: nukeSummary,
+        },
+      })
+      .catch((err) => console.error("Nuke audit log failed:", err));
+  }
+
   // The Bird's stranded letters (db/lib/birdPass.js), after both auto-kills
   // so a sender who died this turn is already dead when the notice composes.
   let birdResult = null;
@@ -503,6 +543,28 @@ async function resolveNeeds(turn, config) {
         where: { expiresTurn: { lte: turn.number }, tag: { stackable: false } },
       });
       await sweepExpiredStacks(turn, "roomTag");
+
+      // A worn-off disguise takes its catalog row with it. The row is minted
+      // per disguise (db/lib/disguiseMint.js) and nothing else will ever hold
+      // it, so leaving it behind is an orphan waiting for the next Restart
+      // Game — the accumulation Tag.ephemeral exists to stop, exactly as the
+      // noticeboard block below says. It also matters functionally: Tag.name
+      // is @unique, so an orphan "Disguised (John)" would burn that alias for
+      // the rest of the game.
+      //
+      // `ephemeral` AND the slug prefix, so this can never reach a catalog
+      // tag, and `characters: { none: {} }` so a row still on somebody's sheet
+      // is left alone — the deleteMany above only cleared the ones that
+      // actually expired. Also guards against deleting a live disguise if this
+      // pass is ever re-run out of order.
+      await prisma.tag.deleteMany({
+        where: {
+          ephemeral: true,
+          slug: { startsWith: "custom-disguise-" },
+          characters: { none: {} },
+          roomTags: { none: {} },
+        },
+      });
       await markDone("expirySweep");
     } catch (err) {
       await passFailed("Expiry sweep", err);
@@ -626,6 +688,34 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Hunger audit log failed:", err));
   }
 
+  // Dawn afflictions: Guilt Ridden and Insomniac each carry a nightly chance
+  // of waking Exhausted. After hunger so it sees the final sheet, same as
+  // carry below. See db/lib/dawnAfflictionPass.js.
+  let dawnAfflictions = null;
+  if (!done.has("dawnAfflictions")) {
+    dawnAfflictions = await runDawnAfflictionPass(prisma, turn).catch(async (err) => {
+      await passFailed("Dawn afflictions", err);
+      return null;
+    });
+    if (dawnAfflictions) await markDone("dawnAfflictions");
+  }
+  const { notices: dawnAfflictionNotices = [], ...dawnAfflictionSummary } = dawnAfflictions ?? {};
+  if (dawnAfflictions) {
+    // Rides the tagExpiry DM channel rather than threading a variable of its
+    // own through runSideEffects/advanceTurn — it is the same kind of notice
+    // ("a tag on your sheet changed"), same as visionDecay above.
+    tagExpiryDms.push(...dawnAfflictionNotices);
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "dawn_afflictions_resolved",
+          details: dawnAfflictionSummary,
+        },
+      })
+      .catch((err) => console.error("Dawn afflictions audit log failed:", err));
+  }
+
   // Carry caps: Overburdened on and off, and overflow drops for anyone whose
   // Cart or Pack Mule left during the turn. After hunger so it sees the
   // final sheet. See db/lib/carryPass.js, CARRY.md.
@@ -648,6 +738,29 @@ async function resolveNeeds(turn, config) {
         },
       })
       .catch((err) => console.error("Carry audit log failed:", err));
+  }
+
+  // Phobia safety net: settlePhobias already runs on every Move
+  // (db/lib/locationMove.js); this catches anyone whose phobia mood went
+  // stale some other way. See db/lib/phobiaPass.js.
+  let phobias = null;
+  if (!done.has("phobias")) {
+    phobias = await runPhobiaPass(prisma, turn).catch(async (err) => {
+      await passFailed("Phobias", err);
+      return null;
+    });
+    if (phobias) await markDone("phobias");
+  }
+  if (phobias) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "phobias_resolved",
+          details: phobias,
+        },
+      })
+      .catch((err) => console.error("Phobias audit log failed:", err));
   }
 
   // Every dead sheet catches up with wherever its corpse ended up. Last of
@@ -808,6 +921,8 @@ async function resolveNeeds(turn, config) {
     catatonicDeathWarnings,
     dyingDeaths,
     dyingDeathWarnings,
+    nukeDeaths,
+    nukeBroadcast,
     birdNotices,
     carryDrops,
     privateDeliveries,
@@ -863,6 +978,8 @@ async function advanceTurn() {
   let catatonicDeaths = [];
   let catatonicDeathWarnings = [];
   let dyingDeaths = [];
+  let nukeDeaths = [];
+  let nukeBroadcast = null;
   let dyingDeathWarnings = [];
   let birdNotices = [];
   let carryDrops = [];
@@ -904,6 +1021,8 @@ async function advanceTurn() {
       catatonicDeathWarnings,
       dyingDeaths,
       dyingDeathWarnings,
+      nukeDeaths,
+      nukeBroadcast,
       birdNotices,
       carryDrops,
       privateDeliveries,
@@ -989,6 +1108,8 @@ async function advanceTurn() {
         catatonicDeathWarnings,
         dyingDeaths,
         dyingDeathWarnings,
+        nukeDeaths,
+        nukeBroadcast,
         birdNotices,
         carryDrops,
         privateDeliveries,
@@ -1157,7 +1278,7 @@ async function advanceTurn() {
       );
     }
 
-    const turnDeaths = [...catatonicDeaths, ...dyingDeaths];
+    const turnDeaths = [...catatonicDeaths, ...dyingDeaths, ...nukeDeaths];
 
     // Same teardown web/lib/discordGuild.js#killCharacter performs, plus a
     // membership check up front so a departed player's steps don't just 403
@@ -1357,6 +1478,20 @@ async function advanceTurn() {
       );
     }
 
+    // The fireball, into every zone's #summary. Last of the announcements and
+    // after the deaths above, so nobody reads that the sky is on fire before
+    // their own character has actually died. It carries a real @everyone —
+    // the one message in the game that should wake somebody who is asleep.
+    if (nukeBroadcast) {
+      const { sent, failed } = await broadcastToZones(prisma, nukeBroadcast.content, {
+        mentionEveryone: nukeBroadcast.mentionEveryone,
+      }).catch((err) => {
+        console.error("Nuke broadcast failed:", err);
+        return { sent: 0, failed: [] };
+      });
+      console.log(`Nuke broadcast: ${sent} zones, ${failed.length} failed.`);
+    }
+
     for (const post of publicPosts) {
       const targetChannelId = post.zoneSummaryChannelId;
       if (!targetChannelId) {
@@ -1487,6 +1622,7 @@ module.exports = {
   ...require("./weather"),
   ...require("./lib/constants"),
   ...require("./lib/roleIds"),
+  ...require("./lib/gmZoneView"),
   ...require("./lib/roleColor"),
   ...require("./lib/characterRoleAppearance"),
   ...require("./lib/characterName"),

@@ -30,10 +30,13 @@ cards, in five document tabs — with two catalog tabs alongside them (§2a):
   off a **Discord role** rather than anything on a Character, since a GM
   usually has no character. The tab only exists when the server actually sent
   GM papers, so its absence is never a hint that something is being withheld.
-- **SECRET** — `secret: true` papers (threat briefs), visible **only to master
-  GMs** — those who hold the GM role and hold **no zone seat at all**
-  (`getMyZones().length === 0`). A GM seated anywhere, in one zone or several,
-  never sees this tab. A secret document can
+- **SECRET** — `secret: true` papers (threat briefs), visible **only to the
+  host** — a GM who is also a superadmin (`web/lib/superadmin.js`). This used
+  to ask "holds no zone seat", which meant the same thing back when only the
+  master was unseated; a zone seat is now a zone VIEW that every GM sets for
+  themselves and an unset one is the default, so left alone the first GM to
+  ignore the control would have been handed every secret in the game. It asks
+  the question it always meant. A secret document can
   also be assigned via tags, so a player with the `Demoness` tag still sees the
   Demoness brief in their Assigned tab — the two paths are independent.
 - **ALL** — every written document in the game, on the same Discord-role gate

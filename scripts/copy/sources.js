@@ -23,11 +23,10 @@ const YAML_SOURCES = [
   {
     file: "docs/roles.yaml",
     group: "content-roles",
-    keys: ["intro", "description", "situation"],
+    keys: ["intro", "description"],
     where: {
       intro: "Role intro — the one-line pitch in the character creation wizard, the Roles thread in #info, and the italic first line of the role charter on /documents.",
       description: "Role charter bullet — rendered as one Markdown bullet on the role card in /documents.",
-      situation: "Zone situation — opening-state prose for the zone.",
     },
   },
   {
@@ -89,6 +88,7 @@ const IGNORE_FILES = [
   "db/lib/syncZones.js",
   "db/lib/syncRoles.js",
   "db/lib/syncDocuments.js",
+  "db/lib/syncDesires.js",
   "db/lib/archive.js",
   "db/lib/persistence.js",
   "db/lib/roleIds.js",

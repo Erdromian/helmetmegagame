@@ -186,11 +186,15 @@ desk shows like any Routine.
 
 ## 4. Undo
 
-`web/lib/requestEffects.js` `ADD_TAG.undo`: the tag comes off, replaced tiers
-come back, `effect.consumed` ingredients come back, `resourcesSpent` is
-refunded to `effect.payer` (an older row without one refunds the character),
-and a project is marked CANCELLED. The auto-filed Actions stay — a GM who
-wants the Move back uses Reject.
+`web/lib/tagEffects.js` `ADD_TAG.undo`: the tag comes off, replaced tiers
+come back, `resourcesSpent` is refunded to `effect.payer` (an older row
+without one refunds the character), and a project is marked CANCELLED. The
+auto-filed Actions stay — a GM who wants the Move back uses Reject.
+
+A craft's spent ingredients are snapshotted on its `request_craft_tag` audit
+row (`details.consumed`, the `replaced` shape) — the row is the only record
+of the spend, so a GM reversing a craft by hand from /gm/dev reads what to
+hand back there.
 
 The GM edit path (`applyEdit`, *Remove the tag*) restores the same two lists,
 each behind its own already-done flag — `replacedRestored` and
@@ -226,7 +230,7 @@ Player words are cleaned by `cleanCustomText` (web/lib/customCraft.js): no
 player's words — they ship UNMARKED, the paper/book-title precedent), no `@`
 (item names travel into Discord), no control characters, hard length caps.
 There is no GM pre-approval — same posture as paper and book titles — and
-Reject/Undo and the dev panel remain the recourse.
+the audit row and the dev panel remain the recourse.
 
 The **wayside shrine** is the structure-side variant: `placement.inscribable`
 lets the builder write an optional line, stored on `Structure.inscription`
@@ -259,4 +263,4 @@ still relies on the Beliefs staying `removable`.
 | Flags in sync | `db/lib/syncTags.js`; catalog `docs/tags.yaml` |
 | Kit in reach | `db/lib/equipmentReach.js`, `web/lib/tagRequests.js#needsWorkshop` |
 | Tier replacement | `db/lib/tagWrites.js#replaceLowerTiers` |
-| Desk | `web/app/(desk)/gm/turns/RequestSections.js` (Craft ‡ / Destroy ‡), `web/lib/requestLabels.js` |
+| What a GM sees | `/gm/audit` (`request_craft_tag`, `request_destroy_tag`) |

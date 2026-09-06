@@ -220,6 +220,7 @@ function hrefFor(next) {
   const params = new URLSearchParams();
   const put = (key, value) => value && params.append(key, value);
   put("q", next.q);
+  put("band", next.band);
   for (const v of next.families) put("family", v);
   for (const v of next.types) put("type", v);
   for (const v of next.actors) put("actor", v);
@@ -242,6 +243,7 @@ function hrefFor(next) {
 function emptyFilters() {
   return {
     q: "",
+    band: "",
     families: [],
     types: [],
     actors: [],
@@ -263,6 +265,7 @@ function emptyFilters() {
 function toQueryObject(f) {
   return {
     q: f.q,
+    band: f.band,
     family: f.families,
     type: f.types,
     actor: f.actors,

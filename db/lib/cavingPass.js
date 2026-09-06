@@ -111,14 +111,16 @@ async function rollCaving(prisma, character, turn, location) {
         expiresTurn: expiryFrom(turn.number, tag.defaultDurationTurns),
       });
 
-      const request = await tx.request.create({
+      // The find is recorded on the CavingRoll itself and in the audit log;
+      // taking it back lives on the Caving lens (CavingDesk.js), which is the
+      // only place a GM ever reached for it.
+      await tx.auditLog.create({
         data: {
-          characterId: character.id,
+          actorDiscordUserId: character.discordUserId ?? "system",
+          actionType: "caving_loot_granted",
+          targetCharacterId: character.id,
           turnId: turn.id,
-          type: "CAVING_LOOT",
-          reason: `Caving Die find in ${zone.slug}`,
-          payload: { zoneId: zone.id, tier, die },
-          effect: { tagId: tag.id, tagName: tag.name, added: 1 },
+          details: { tagId: tag.id, tagName: tag.name, added: 1, zoneId: zone.id, tier, die },
         },
       });
 
@@ -133,7 +135,6 @@ async function rollCaving(prisma, character, turn, location) {
           kind: "FIND",
           lootTier: tier,
           lootTagId: tag.id,
-          lootRequestId: request.id,
           resolvedAt: new Date(),
         },
       });

@@ -330,7 +330,7 @@ export default function ActionBar({
           <div className="flex items-center gap-2">
             <IconButton
               icon={PointsIcon}
-              label="Recompute their unspent tag points"
+              label="Recompute their unspent Tag Points"
               disabled={pending}
               onClick={refundPoints}
             />

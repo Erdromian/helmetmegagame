@@ -48,7 +48,7 @@ exceptions, all requiring by path instead:
   (`resolveParty`/`partyKey`/`partyLabel`, `moveParty`/`applyTransfer`), same
   prisma-first-parameter convention. Promoted out of the player-facing
   `TRANSFER_RESOURCES` request (`web/app/(app)/character/requestActions.js`,
-  `web/lib/requestEffects.js`) so the turn-end push (`db/lib/stagedPush.js`,
+  `web/lib/tagEffects.js`) so the turn-end push (`db/lib/stagedPush.js`,
   CommonJS, no Next.js request context) and every GM transfer surface
   (`web/lib/gmTransfer.js`) share the exact same clamp and ordering. See
   `FACTIONS.md` §5 and `ADJUDICATION.md` §1.
@@ -101,7 +101,7 @@ in the output.
 The same rule applies to plain data. `web/lib/requests.js` imports the barrel,
 so its label maps were unreachable from any client component and the Dev
 Panel's Record tab rendered raw DB enums instead; they now live in
-`web/lib/requestLabels.js`, with `requests.js` re-exporting them for its
+a Prisma-free module, with the server-side file re-exporting them for its
 server-side callers. `web/lib/moves.js` is the same idea for Moves.
 
 ## 3. The REST/gateway twin pattern

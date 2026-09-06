@@ -28,8 +28,9 @@ import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { TURNS_PATH } from "@/lib/routes";
-import { createRequest, logRequest, requireReason } from "@/lib/requests";
-import { addToStack, dropCharacterTag, addToRoomStack, dropRoomTag, moveResources } from "@/lib/requestEffects";
+import { logAudit } from "@/lib/requests";
+import { addToStack, dropCharacterTag, addToRoomStack, dropRoomTag, moveResources } from "@/lib/tagEffects";
+import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { UserError, guarded } from "@/lib/actionResult";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { ambientLine } from "@lifeweb/db/lib/ambientLine";
@@ -59,9 +60,22 @@ import { refreshLiveRooms } from "@lifeweb/db/lib/syncZones";
 const MAX_ORDER_LINES = 40;
 
 // A page gate is advisory; a server action is a public endpoint. Everything
-// below re-checks the licence AND that the Merchant is standing at the Depot.
-// The Depot is a hangar in the caves — you cannot run it by remote.
-async function requireLicensedMerchant({ needsPower = true } = {}) {
+// below re-checks the papers AND that you are standing at the Depot. The
+// Depot is a hangar in the caves — you cannot run it by remote.
+//
+// There are two doors into these actions, and the split is deliberate.
+//
+// `requireLicensedMerchant` is the money and the gun: ordering, the ATM, the
+// credit line, the ⬢ counter, the turret. Those want the Merchant's Licence —
+// the LICENCE and not the merchant ROLE, because the licence is tradeable and
+// a role check would quietly break that.
+//
+// `requireDepotHand` is the labour: calling the shuttle down, sending it back
+// up, feeding the generator and firing it up. A Depot Keycard is enough for
+// those, so a Docker can keep the station moving while the Merchant is
+// asleep — which, on 24-hour turns, is most of the day. None of them spends
+// an obol or points the gun at anybody.
+async function requireDepotStanding({ needsPower = true } = {}) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
@@ -70,28 +84,56 @@ async function requireLicensedMerchant({ needsPower = true } = {}) {
     include: { tags: { include: { tag: true } }, location: { select: { slug: true, id: true } } },
   });
   if (!character) throw new UserError("You need a living character to do that.");
-  if (!character.tags.some((ct) => ct.tag.slug === MERCHANT_LICENSE_SLUG)) {
-    throw new UserError("The Depot only answers to a licensed Merchant. ‡");
-  }
   if (character.location?.slug !== DEPOT_LOCATION_SLUG) {
     throw new UserError("The Depot is its own room in the caves. You have to be standing in it. ‡");
   }
+
+  // Working a console is an ACT. This check used to sit only on the
+  // crate-opening guard below, which meant an incapacitated Merchant could
+  // still order, bank and refuel from the floor.
+  const blocker = blockerFor(character.tags, ACT);
+  if (blocker) throw new UserError(`You can't do that right now — you're ${blocker.name}. ‡`);
 
   const depot = await loadDepot(prisma);
 
   // The generator gates almost everything, and it has to be checked here
   // rather than trusted from the disabled button the client rendered. The
-  // power switch itself is the one action that must work in the dark.
+  // power switch and the fuel hatch are the two that must work in the dark.
   if (needsPower && !depotPowered(depot)) {
     throw new UserError("The generator is out. Nothing here runs without it. ‡");
   }
 
-  return { session, character, depot };
+  const held = heldSlugSet(character);
+  return {
+    session,
+    character,
+    depot,
+    licensed: held.has(MERCHANT_LICENSE_SLUG),
+    keycard: held.has(DEPOT_KEYCARD_SLUG),
+  };
 }
 
-// Opening a crate is the one thing a Docker can do, so it has its own gate:
-// the keycard, not the licence, and no standing requirement — a crate that
-// walked out of the landing pad can be cracked wherever it ended up.
+async function requireLicensedMerchant(opts) {
+  const gate = await requireDepotStanding(opts);
+  if (!gate.licensed) {
+    throw new UserError("That one wants the Merchant's Licence. ‡");
+  }
+  return gate;
+}
+
+// The working half of the console. A licence opens it too, obviously — the
+// Merchant is not locked out of his own winch by holding the better card.
+async function requireDepotHand(opts) {
+  const gate = await requireDepotStanding(opts);
+  if (!gate.licensed && !gate.keycard) {
+    throw new UserError("The Depot answers to a Licence or a Keycard, and you have neither. ‡");
+  }
+  return gate;
+}
+
+// Opening a crate has its own gate, because it is the one keycard job with no
+// standing requirement — a crate that walked out of the landing pad can be
+// cracked wherever it ended up. The card is checked inside `canOpenCrate`.
 async function requireCharacter() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -100,6 +142,11 @@ async function requireCharacter() {
     include: { tags: { include: { tag: true } } },
   });
   if (!character) throw new UserError("You need a living character to do that.");
+  // Every consumer of this guard is an ACT — ordering, cracking a crate,
+  // working the ATM, refuelling the generator. None of it is paperwork you do
+  // from a chair, so the gate sits here rather than on ten call sites.
+  const blocker = blockerFor(character.tags, ACT);
+  if (blocker) throw new UserError(`You can't do that right now — you're ${blocker.name}. ‡`);
   return { session, character };
 }
 
@@ -155,9 +202,8 @@ async function landingPad(tx = prisma) {
 //
 // The obols leave the account NOW and the goods do not exist yet — that gap is
 // the whole risk of the business, and it is why the shuttle clock matters.
-async function depotOrderImpl({ items: rawItems, reason: rawReason }) {
+async function depotOrderImpl({ items: rawItems }) {
   const { session, character, depot } = await requireLicensedMerchant();
-  const reason = requireReason(rawReason);
 
   if (!Array.isArray(rawItems) || rawItems.length === 0) {
     throw new UserError("Nothing on the manifest. ‡");
@@ -231,19 +277,11 @@ async function depotOrderImpl({ items: rawItems, reason: rawReason }) {
     });
 
     const effect = { lines, total, totalResources, manifestBefore: existing, manifestAfter: [...existing, ...lines] };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DEPOT_ORDER",
-      reason,
-      payload: { lines: lines.map((l) => ({ tagId: l.tagId, quantity: l.quantity })) },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_order",
       targetCharacterId: character.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -269,9 +307,12 @@ async function refreshShuttleRoom() {
 // Calling it down. Everything on the manifest becomes crates on the landing
 // pad; an empty manifest still brings the shuttle, because he also needs it
 // down to load goods going the other way.
-async function depotCallShuttleImpl({ reason: rawReason }) {
-  const { session, character, depot } = await requireLicensedMerchant();
-  const reason = requireReason(rawReason);
+async function depotCallShuttleImpl() {
+  // A Docker's job. Calling it down cannot spend anything — the obols left
+  // the account when the manifest was written — so the worst a keycard can do
+  // here is bring the shuttle down early, and the pad is where the goods were
+  // going anyway.
+  const { session, character, depot } = await requireDepotHand();
 
   if (depot.shuttleState !== "AWAY") {
     throw new UserError("The shuttle is already down. ‡");
@@ -321,19 +362,11 @@ async function depotCallShuttleImpl({ reason: rawReason }) {
     });
 
     const effect = { shipment, crates: crates.length, manifest, roomId: room.id };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DEPOT_SHIP",
-      reason,
-      payload: { direction: "DOWN" },
-      effect: { ...effect, direction: "DOWN" },
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_shuttle_call",
       targetCharacterId: character.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -348,9 +381,13 @@ async function depotCallShuttleImpl({ reason: rawReason }) {
 // comes back as obols: tags at their sellablePrice, and the room's ⬢ stash at
 // the Depot's own exchange rate. This is the ONLY way Resources become obols,
 // which is what stops the Merchant printing money at a keyboard.
-async function depotSendShuttleImpl({ reason: rawReason }) {
-  const { session, character, depot } = await requireLicensedMerchant();
-  const reason = requireReason(rawReason);
+async function depotSendShuttleImpl() {
+  // Also a Docker's job, and the sharper of the two: a keycard can sell
+  // everything on the pad. That is the trade — a card that can load the
+  // shuttle is a card that can load the wrong things onto it. The payout goes
+  // to the station's account either way, so this moves goods, never money out
+  // of the Depot, and the ledger names whoever pressed it.
+  const { session, character, depot } = await requireDepotHand();
 
   if (depot.shuttleState !== "DOCKED") throw new UserError("The shuttle isn't here. ‡");
 
@@ -434,19 +471,11 @@ async function depotSendShuttleImpl({ reason: rawReason }) {
       payout,
       roomId: room.id,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DEPOT_SHIP",
-      reason,
-      payload: { direction: "UP" },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_shuttle_send",
       targetCharacterId: character.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -464,9 +493,8 @@ async function depotSendShuttleImpl({ reason: rawReason }) {
 // Cracking one open. A Docker may do this — it is the job — but a SEALED
 // crate wants the keycard, which is what makes the dangerous half of a
 // shipment worth guarding.
-async function openCrateImpl({ tagId, reason: rawReason }) {
+async function openCrateImpl({ tagId }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
 
   const held = await prisma.characterTag.findFirst({
     where: { characterId: character.id, tagId: tagId ?? "" },
@@ -520,19 +548,11 @@ async function openCrateImpl({ tagId, reason: rawReason }) {
     await dropCharacterTag(tx, character.id, crate.id, null);
 
     const effect = { crateTagId: crate.id, crateName: crate.name, sealed: crate.sealedShipping, granted, skipped };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DEPOT_CRATE_OPEN",
-      reason,
-      payload: { tagId: crate.id },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_crate_open",
       targetCharacterId: character.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
 
@@ -556,9 +576,8 @@ async function openCrateImpl({ tagId, reason: rawReason }) {
 // The ATM: the account balance on one side, physical coins on the other. This
 // is the only door obols enter and leave the world through, which is what
 // makes the Merchant the only faucet of currency in the game.
-async function depotAtmImpl({ direction: rawDirection, amount: rawAmount, reason: rawReason }) {
+async function depotAtmImpl({ direction: rawDirection, amount: rawAmount }) {
   const { session, character, depot } = await requireLicensedMerchant();
-  const reason = requireReason(rawReason);
 
   const direction = rawDirection === "DEPOSIT" ? "DEPOSIT" : "WITHDRAW";
   const amount = Number(rawAmount);
@@ -593,19 +612,11 @@ async function depotAtmImpl({ direction: rawDirection, amount: rawAmount, reason
     }
 
     const effect = { direction, amount, balanceBefore: moved.before, balanceAfter: moved.after };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DEPOT_ATM",
-      reason,
-      payload: { direction, amount },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_atm",
       targetCharacterId: character.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -625,9 +636,8 @@ async function depotAtmImpl({ direction: rawDirection, amount: rawAmount, reason
 // One obol is one ⬢, so what this really does is change the FORM of a value
 // rather than its amount: a number on a character sheet becomes coins that can
 // be carried, handed over and stolen, and back again. Asking in ⬢ instead would mean flooring somewhere.
-async function depotExchangeImpl({ direction: rawDirection, obols: rawObols, reason: rawReason }) {
+async function depotExchangeImpl({ direction: rawDirection, obols: rawObols }) {
   const { session, character, depot } = await requireLicensedMerchant();
-  const reason = requireReason(rawReason);
 
   const buying = rawDirection === "BUY_RESOURCES";
   const obols = Number(rawObols);
@@ -661,19 +671,11 @@ async function depotExchangeImpl({ direction: rawDirection, obols: rawObols, rea
       balanceBefore: moved.before,
       balanceAfter: moved.after,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DEPOT_EXCHANGE",
-      reason,
-      payload: { direction: effect.direction, obols },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_exchange",
       targetCharacterId: character.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -685,9 +687,8 @@ async function depotExchangeImpl({ direction: rawDirection, obols: rawObols, rea
 // The Company's line, in obols. Drawing puts money in the account; repaying
 // takes it back out. The cap is refused rather than clamped, so he is told
 // he hit the ceiling instead of quietly getting less than he asked for.
-async function depotCreditImpl({ direction: rawDirection, amount: rawAmount, reason: rawReason }) {
+async function depotCreditImpl({ direction: rawDirection, amount: rawAmount }) {
   const { session, character, depot } = await requireLicensedMerchant();
-  const reason = requireReason(rawReason);
 
   const draw = rawDirection !== "REPAY";
   const amount = Number(rawAmount);
@@ -727,19 +728,11 @@ async function depotCreditImpl({ direction: rawDirection, amount: rawAmount, rea
       debtAfter,
       balanceAfter: moved.after,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DEPOT_CREDIT",
-      reason,
-      payload: { direction: effect.direction, amount },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_credit",
       targetCharacterId: character.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -754,11 +747,18 @@ async function depotCreditImpl({ direction: rawDirection, amount: rawAmount, rea
 
 // The power switch. The one action that does NOT require power, for the
 // obvious reason.
-async function depotGeneratorImpl({ on, reason: rawReason }) {
-  const { session, character, depot } = await requireLicensedMerchant({ needsPower: false });
-  const reason = requireReason(rawReason);
-
+//
+// Asymmetric on purpose. A Docker may START it — that is the rescue, and the
+// whole reason a dead generator should not mean a dead Depot until the
+// Merchant next logs in. Only the licence may SHUT IT DOWN, because switching
+// the lights off also switches the turret off, and handing a keycard the
+// station's off switch hands it the security system.
+async function depotGeneratorImpl({ on }) {
   const wanted = Boolean(on);
+  const { session, character, depot } = wanted
+    ? await requireDepotHand({ needsPower: false })
+    : await requireLicensedMerchant({ needsPower: false });
+
   if (wanted && (depot.generatorFuel ?? 0) <= 0) {
     throw new UserError("It turns over and dies. There's nothing in the tank. ‡");
   }
@@ -767,11 +767,10 @@ async function depotGeneratorImpl({ on, reason: rawReason }) {
 
   await prisma.$transaction(async (tx) => {
     await tx.depot.update({ where: { id: 1 }, data: { generatorOn: wanted } });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: wanted ? "depot_generator_on" : "depot_generator_off",
       targetCharacterId: character.id,
-      reason,
       details: { on: wanted, fuel: depot.generatorFuel ?? 0, turn: openTurn?.number ?? null },
     });
   });
@@ -782,9 +781,10 @@ async function depotGeneratorImpl({ on, reason: rawReason }) {
 
 // Shovelling fuel in. Coal is what it wants; saltpeter burns worse and is
 // there for the night the coal ran out.
-async function depotRefuelImpl({ slug: rawSlug, quantity: rawQuantity, reason: rawReason }) {
-  const { session, character, depot } = await requireLicensedMerchant({ needsPower: false });
-  const reason = requireReason(rawReason);
+async function depotRefuelImpl({ slug: rawSlug, quantity: rawQuantity }) {
+  // A Docker's job, and the one that costs him rather than the station: the
+  // coal comes off his own sheet.
+  const { session, character, depot } = await requireDepotHand({ needsPower: false });
 
   const slug = rawSlug === SALTPETER_SLUG ? SALTPETER_SLUG : COAL_SLUG;
   const quantity = normalizeQuantity(rawQuantity);
@@ -819,19 +819,11 @@ async function depotRefuelImpl({ slug: rawSlug, quantity: rawQuantity, reason: r
       fuelAfter: moved.after,
       wasted: perUnit * quantity - moved.delta,
     };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "DEPOT_REFUEL",
-      reason,
-      payload: { slug, quantity },
-      effect,
-    });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_refuel",
       targetCharacterId: character.id,
-      reason,
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -845,9 +837,8 @@ async function depotRefuelImpl({ slug: rawSlug, quantity: rawQuantity, reason: r
 // gate. Note what is NOT checked: whether the Merchant is currently wearing
 // his own face. Arming it while concealed is a legal, fatal thing to do, and
 // the UI says so in as many words before you press it.
-async function depotTurretImpl({ armed, reason: rawReason }) {
+async function depotTurretImpl({ armed }) {
   const { session, character, depot } = await requireLicensedMerchant();
-  const reason = requireReason(rawReason);
 
   const wanted = Boolean(armed);
 
@@ -866,11 +857,10 @@ async function depotTurretImpl({ armed, reason: rawReason }) {
 
   await prisma.$transaction(async (tx) => {
     await tx.depot.update({ where: { id: 1 }, data: { turretArmed: wanted } });
-    await logRequest(tx, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: wanted ? "depot_turret_armed" : "depot_turret_disarmed",
       targetCharacterId: character.id,
-      reason,
       details: { armed: wanted, face: depot.merchantFace ?? "", turn: openTurn?.number ?? null },
     });
   });

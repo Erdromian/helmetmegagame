@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require("discord.js");
 const { prisma, formatTagRequirement, formatTagArmor, turnsLeft, formatTurnsLeft } = require("@lifeweb/db");
 const { getMyFactionRole } = require("@lifeweb/db/lib/factionPermissions");
+const { gmRoleIds } = require("@lifeweb/db/lib/roleIds");
 // The 🔍 readout is shared with the Look at button on /character — see
 // db/lib/examine.js for why it is one module and not two embeds.
 const { EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire } = require("@lifeweb/db/lib/examine");
@@ -386,10 +387,10 @@ async function handleCameraReaction(reaction, proxy, user) {
 }
 
 async function isGm(reaction, userId) {
-  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
-  if (!gmRoleId || !reaction.message.guild) return false;
+  if (!reaction.message.guild) return false;
   const member = await reaction.message.guild.members.fetch(userId).catch(() => null);
-  return member?.roles.cache.has(gmRoleId) ?? false;
+  if (!member) return false;
+  return gmRoleIds().some((id) => member.roles.cache.has(id));
 }
 
 // GM-only: delete the message and repost it as the bot itself (not the

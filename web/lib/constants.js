@@ -1,4 +1,4 @@
-export const APPEARANCE_MAX_LENGTH = 300;
+export const APPEARANCE_MAX_LENGTH = 400;
 
 // Lives here rather than in lib/requests.js because RequestDialog is a client
 // component: importing it from requests.js drags @lifeweb/db (and node:fs)

@@ -3,9 +3,10 @@ import { MAX_REASON_LENGTH } from "@/lib/constants";
 import { UserError } from "@/lib/actionResult";
 import { DEAD_SIMPLE_PER_TURN, isDeadSimple } from "@/lib/tagRequests";
 
-// A Request is a change the player already made. There is no approval step:
-// the effect is applied and the row is written in the same transaction, and a
-// GM reviews it afterwards from /gm/turns. See docs/systemdocs/REQUESTS.md.
+// What is left of the old Request system: the per-turn rations, and the one
+// helper every player action writes its audit row through. A player action
+// applies its effect and logs it in the same transaction, and there is no
+// review step and no Undo. See docs/systemdocs/REQUESTS.md.
 
 export { MAX_REASON_LENGTH };
 
@@ -53,38 +54,44 @@ export function craftAllowance(tag) {
 // below: that one is a shared allowance across every 0-turn recipe, this is a
 // ration on a single item.
 //
-// Both counters read `payload.quantity` — what the player asked for, which is
-// what was granted. They used to disagree (this one read `effect.quantity`),
-// which was harmless while nothing but a cap depended on it and is not now
-// that a count decides how much of a Move a craft spends.
+// Every counter here counts `request_craft_tag` AuditLog rows — the one row
+// grantCrafted writes per grant — because that row is the whole record of a
+// craft now (REQUESTS.md §1a). `AuditLog.turnId` is what separates this
+// turn's work from last turn's.
 // A custom craft grants a MINTED row and records the recipe it came off as
-// `payload.baseTagId` (grantCrafted) — the ration is a fact about the
+// `details.baseTagId` (grantCrafted) — the ration is a fact about the
 // RECIPE, so every counter here bills against that id, or three custom
 // Lavish Meals would dodge the three-a-turn the plain ones obey.
-function effectiveTagId(payload) {
-  return payload?.baseTagId ?? payload?.tagId;
+function effectiveTagId(details) {
+  return details?.baseTagId ?? details?.tagId;
+}
+
+function craftsThisTurn(db, characterId, turnId) {
+  if (!turnId) return [];
+  return db.auditLog.findMany({
+    where: {
+      targetCharacterId: characterId,
+      actionType: "request_craft_tag",
+      turnId,
+    },
+    select: { details: true },
+  });
 }
 
 export async function unitsOfTagThisTurn(db, characterId, turnId, tagId) {
-  const filed = await db.request.findMany({
-    where: { characterId, turnId, type: "ADD_TAG", status: { not: "UNDONE" } },
-    select: { payload: true },
-  });
+  const filed = await craftsThisTurn(db, characterId, turnId);
   return filed.reduce((sum, r) => {
-    if (effectiveTagId(r.payload) !== tagId) return sum;
-    return sum + (Number(r.payload?.quantity) || 0);
+    if (effectiveTagId(r.details) !== tagId) return sum;
+    return sum + (Number(r.details?.quantity) || 0);
   }, 0);
 }
 
 // Dead Simple units already filed this turn (DEAD_SIMPLE_PER_TURN).
-// EDITED still counts, UNDONE does not. `db` is prisma or a tx client.
+// `db` is prisma or a tx client.
 export async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
-  const filed = await db.request.findMany({
-    where: { characterId, turnId, type: "ADD_TAG", status: { not: "UNDONE" } },
-    select: { payload: true },
-  });
+  const filed = await craftsThisTurn(db, characterId, turnId);
   const filedTagIds = [
-    ...new Set(filed.map((r) => effectiveTagId(r.payload)).filter(Boolean)),
+    ...new Set(filed.map((r) => effectiveTagId(r.details)).filter(Boolean)),
   ];
   const filedTags = filedTagIds.length
     ? await db.tag.findMany({
@@ -98,8 +105,8 @@ export async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
     : [];
   const deadSimpleIds = new Set(filedTags.filter(isDeadSimple).map((t) => t.id));
   return filed.reduce((sum, r) => {
-    if (!deadSimpleIds.has(effectiveTagId(r.payload))) return sum;
-    return sum + (Number(r.payload?.quantity) || 0);
+    if (!deadSimpleIds.has(effectiveTagId(r.details))) return sum;
+    return sum + (Number(r.details?.quantity) || 0);
   }, 0);
 }
 
@@ -112,15 +119,12 @@ export async function craftFreeUnits(db, characterId, turnId, tags) {
   const out = {};
   const rationed = tags.filter((t) => craftAllowance(t) != null);
   if (!turnId || !rationed.length) return out;
-  const filed = await db.request.findMany({
-    where: { characterId, turnId, type: "ADD_TAG", status: { not: "UNDONE" } },
-    select: { payload: true },
-  });
+  const filed = await craftsThisTurn(db, characterId, turnId);
   const units = new Map();
   for (const r of filed) {
-    const id = effectiveTagId(r.payload);
+    const id = effectiveTagId(r.details);
     if (!id) continue;
-    units.set(id, (units.get(id) ?? 0) + (Number(r.payload?.quantity) || 0));
+    units.set(id, (units.get(id) ?? 0) + (Number(r.details?.quantity) || 0));
   }
   const byId = new Map(tags.map((t) => [t.id, t]));
   let pool = 0;
@@ -135,16 +139,12 @@ export async function craftFreeUnits(db, characterId, turnId, tags) {
   return out;
 }
 
-// Defined in requestLabels.js so client components can have them without
-// pulling this module's Prisma import into the browser bundle.
-export { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS, REQUEST_STATUS_TONES } from "@/lib/requestLabels";
-
-// Same split, same reason: the Dead Simple ration is a fact about a RECIPE, so
-// it lives with the other recipe predicates in tagRequests.js where a client
-// component can reach it. Re-exported here as the courtesy path — nothing
-// imports it from here today, but this module is where a server-side reader
-// would look first.
+// The Dead Simple ration is a fact about a RECIPE, so it lives with the other
+// recipe predicates in tagRequests.js where a client component can reach it.
+// Re-exported here as the courtesy path — nothing imports it from here today,
+// but this module is where a server-side reader would look first.
 export { DEAD_SIMPLE_PER_TURN, isDeadSimple } from "@/lib/tagRequests";
+
 
 // Server actions are public endpoints, so the reason is validated here rather
 // than trusted from the dialog that collected it.
@@ -154,40 +154,21 @@ export function requireReason(raw) {
   return reason.slice(0, MAX_REASON_LENGTH);
 }
 
-// The craft verbs' variant (Chris 2026-09-06): a craft pays in ⬢, Move and
-// ingredients and waits on no GM, so the recipe itself is the record and the
-// reason box is gone from the dialog. Still trimmed and capped — a server
-// action is a public endpoint — but empty is simply empty.
-export function optionalReason(raw) {
-  return (raw?.toString().trim() ?? "").slice(0, MAX_REASON_LENGTH);
-}
 
-// `payload` is what the player asked for; `effect` is what was actually
-// applied. Undo reads ONLY `effect` — see the model comment in schema.prisma
-// for why re-deriving from live state is unsafe.
-export function createRequest(tx, { characterId, turnId, type, reason, payload, effect }) {
-  return tx.request.create({
-    data: {
-      characterId,
-      turnId: turnId ?? null,
-      type,
-      reason,
-      payload: payload ?? {},
-      effect: effect ?? {},
-    },
-  });
-}
-
-// Every request writes an AuditLog row too, carrying the same reason — that's
-// what fills the Reason column on /gm/audit.
-export function logRequest(tx, { actorDiscordUserId, actionType, targetCharacterId, reason, details }) {
+// A player action writes one AuditLog row and nothing else. There is no
+// Request table any more and no Undo: the player acts, the row records what
+// happened, and a GM repairs by hand from /gm/dev if they must. `details` is
+// therefore the ONLY record — where the old Request.effect carried a restore
+// snapshot, that snapshot belongs in here now.
+export function logAudit(tx, { actorDiscordUserId, actionType, targetCharacterId, turnId, details }) {
   return tx.auditLog.create({
     data: {
       actorDiscordUserId,
       actionType,
       targetCharacterId: targetCharacterId ?? null,
-      reason,
+      turnId: turnId ?? null,
       details: details ?? {},
     },
   });
 }
+

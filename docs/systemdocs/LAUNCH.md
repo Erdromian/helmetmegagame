@@ -24,9 +24,8 @@ true`. So the natural opening move — wipe to a clean slate — leaves a game
 nobody can join, with the Leader roles re-locked. It also resets **every
 balance knob**: `playerCount`, `startingTagPoints`, `equipSlots`,
 `maxDrawbackTags`, `desireSlots`, `productionCoefficient`, and the feature switches
-(`playtestModeEnabled`, `nicknameSyncEnabled`, `archiveVisible`,
-`avatarUploadsEnabled`, `portraitMakerEnabled`, `messageWipeEnabled`,
-`autoReconcileEnabled`).
+(`nicknameSyncEnabled`, `archiveVisible`, `avatarUploadsEnabled`,
+`portraitMakerEnabled`, `messageWipeEnabled`, `autoReconcileEnabled`).
 **Screenshot the Game Config form before you wipe.** The row is updated, not
 recreated, so anything absent from `DEFAULT_GAME_CONFIG` survives — including
 the special-channel and `#turns` channel pointers.
@@ -34,12 +33,7 @@ the special-channel and `#turns` channel pointers.
 Note what the last three mean in practice: after a wipe, player topics **never
 expire** and the doctor **never runs post-turn**, until you re-tick them.
 
-**The wipe resets the playtest lock, and the `#turns` repost is best-effort.**
-`playtestModeEnabled` — the switch that holds back
-`PLAYTEST_LOCKED_ROLE_SLUGS` and `PLAYTEST_LOCKED_ZONE_NAMES`, both empty
-since the Bascinet 2 rebuild — is reset to `false` by the wipe
-like everything else, so a playtest that wants those locked has to re-tick it
-afterwards. Separately, `finishGameWipe` reposts the `#turns` console for the
+**The `#turns` repost is best-effort.** `finishGameWipe` reposts the `#turns` console for the
 fresh Turn 1 itself, so the channel is no longer left empty on Day 1 — but that
 step is retried once and then recorded as a failure, not retried forever. If it
 fails, the stale message pointer is the safety net: the bot reposts on its next
@@ -123,8 +117,7 @@ The order, and why:
 10. Check `#turns` shows the Turn 1 announcement and its button row. The
     wipe reposts it, but the step is best-effort — restart the bot if the
     channel is empty (§1).
-11. Re-enter Game Config from the screenshot, including **Playtest mode** if
-    you have named something for it to hold back, and the three passes that
+11. Re-enter Game Config from the screenshot, including the three passes that
     default to off: message wipe, thread expiry, auto-reconcile.
 12. **Tick "Open to players" last.** A player also needs the player role —
     the two together are "the doors are open" and "you are on the list".
@@ -138,7 +131,7 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 | `#cerberon`, `#info` messages | `runFullChannelWipe` touches `#turns`, `#archive`-named channels and zone channels only. Last game's radio traffic stays readable — clear it by hand if that matters. |
 | The `radio` category and its channel ids | Deliberate: provisioning is one-time, so the pointers persist. |
 | The `#turns` console pointer | Deliberate, and the safety net for step 5 above: a stale id makes the bot repost on its next `ready`. |
-| `GmAssignment` zone seats | GMs keep their seats across a restart — which also means they keep *losing* the Secret tab (§1). |
+| `GmZoneView` rows | GMs keep the zones they chose across a restart. Clearing the table is safe: no rows means every zone. |
 | `SystemReport` rows | The operational history is kept on purpose; the panel shows the latest per kind. |
 | `Zone`, `Location`, `Room`, `Faction`, `Tag`, `Role`, `Document` | Re-synced from YAML rather than deleted. |
 
@@ -155,6 +148,9 @@ Run the masters yourself, in dependency order — roles resolve a
 npm run db:sync-zones                # destructive both ways
 npm run db:sync-narrowcast-channels  # after zones: its grants name the zone roles
 npm run db:sync-tags                 # upsert-only, never deletes
+npm run db:sync-zones                # AGAIN: the first run could not seed a
+                                     #   Location's `structures:` (the tags
+                                     #   did not exist yet); this one does
 npm run db:sync-roles                # prunes unreferenced
 npm run db:sync-documents            # destructive; last
 npm run db:doctor                    # dry run; -- --full --apply to repair
@@ -175,7 +171,7 @@ tags, DMs, the per-character dev panel, and the bot's `/gm` `/dm` `/heal`
 A GM-role holder **cannot**: end a turn early, wipe or restart, edit Game
 Config, set next turn's weather or note, edit factions, run the channel doctor
 or a Bulk Move, delete a character or a custom tag, or open `/gm/audit` and
-`/gm/gamemasters`. All of those are superadmin.
+`/gm/dev?s=gamemasters`. All of those are superadmin.
 
 The practical one is **ending a turn**. `forceAdvanceTurn` checks only
 `isSuperadmin` and never consults the GM role, so if the superadmin is away,

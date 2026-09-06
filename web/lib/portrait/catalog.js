@@ -35,8 +35,8 @@ export const CROP_Y = Math.round(BUST_PX - CANVAS - NUDGE_Y * CANVAS);
 
 export const FADE_HEIGHT = 0.3; // fraction of CANVAS the gradient covers, from the bottom
 // Must match TINT / DARKEN in web/scripts/generate-letters.js.
-export const FADE_TINT = { r: 0x27, g: 0x44, b: 0x3e };
-export const FADE_DARKEN = 0.5;
+export const FADE_TINT = { r: 0x3c, g: 0x3c, b: 0x3c };
+export const FADE_DARKEN = 0.4;
 
 export const SHEET_DIR = "/assets/portrait";
 // The tinted-stone plate the letter plaques use (web/scripts/generate-letters.js),
