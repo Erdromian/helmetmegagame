@@ -273,6 +273,7 @@ function SiloTab({ faction, silo, isOfficer, rooms, run, pending }) {
 function ApplicationsTab({ faction, applications, invites, siloKeys, candidates, run, pending }) {
   const [inviting, setInviting] = useState(false);
   const [inviteId, setInviteId] = useState("");
+  const [inviteNote, setInviteNote] = useState("");
   const [grantKey, setGrantKey] = useState(siloKeys.length === 1 ? siloKeys[0].slug : "");
 
   return (
@@ -393,11 +394,12 @@ function ApplicationsTab({ faction, applications, invites, siloKeys, candidates,
         reasonRequired={false}
         canSubmit={Boolean(inviteId)}
         onCancel={() => setInviting(false)}
-        onConfirm={async (note) => {
-          const done = await run(() => inviteToFaction({ characterId: inviteId, note }));
+        onConfirm={async () => {
+          const done = await run(() => inviteToFaction({ characterId: inviteId, note: inviteNote }));
           if (done) {
             setInviting(false);
             setInviteId("");
+            setInviteNote("");
           }
         }}
       >
@@ -412,6 +414,16 @@ function ApplicationsTab({ faction, applications, invites, siloKeys, candidates,
               </option>
             ))}
           </Select>
+        </label>
+        <label className="field">
+          <span className="field-label">Note (optional) ‡</span>
+          <textarea
+            rows={3}
+            maxLength={500}
+            value={inviteNote}
+            onChange={(e) => setInviteNote(e.target.value)}
+            placeholder="Why them? ‡"
+          />
         </label>
         <p className="text-sm text-muted mt-2">
           They get a DM and answer it on their own faction page. Nothing happens to them until they
@@ -612,6 +624,7 @@ function StandingTab({ faction, isLeader, myApplications, run, pending }) {
 // "You aren't assigned to a faction yet." with nothing to do about it.
 function Directory({ directory, myApplications, run, pending }) {
   const [applying, setApplying] = useState(null);
+  const [applyNote, setApplyNote] = useState("");
   const [founding, setFounding] = useState(false);
   const [name, setName] = useState("");
   const pendingIds = new Set(myApplications.map((a) => a.factionId));
@@ -734,16 +747,33 @@ function Directory({ directory, myApplications, run, pending }) {
         submitLabel="Send it"
         busy={pending}
         reasonRequired={false}
-        onCancel={() => setApplying(null)}
-        onConfirm={async (note) => {
-          const done = await run(() => applyToFaction({ factionId: applying.id, note }));
-          if (done) setApplying(null);
+        onCancel={() => {
+          setApplying(null);
+          setApplyNote("");
+        }}
+        onConfirm={async () => {
+          const done = await run(() => applyToFaction({ factionId: applying.id, note: applyNote }));
+          if (done) {
+            setApplying(null);
+            setApplyNote("");
+          }
         }}
       >
         <p className="text-sm text-muted">
           Their Leader and Treasurer get a DM. Say something worth reading — they can turn you
           down. ‡
         </p>
+        <label className="field">
+          <span className="field-label">Your message ‡</span>
+          <textarea
+            rows={4}
+            maxLength={500}
+            autoFocus
+            value={applyNote}
+            onChange={(e) => setApplyNote(e.target.value)}
+            placeholder="Why you, why them. ‡"
+          />
+        </label>
       </RequestDialog>
 
       <RequestDialog
