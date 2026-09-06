@@ -1,14 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import FormError from "@/app/components/FormError";
+import { MAX_REASON_LENGTH } from "@/lib/constants";
 
 import Modal from "./Modal";
 
 // The shared confirm-with-fields modal. One of these opens for any player
 // action that needs input before it fires: the caller passes its own
 // type-specific fields as children, and this supplies the title, the confirm
-// button and the error line. It asks for nothing itself — the reason box it
-// used to carry went when player actions stopped being Requests.
+// button and the error line. It asks for nothing itself by default — the
+// reason box it used to carry unconditionally went when player actions
+// stopped being Requests (there's no Undo left to point a reason at). A few
+// GM actions still need one to relay to the player or the audit log — pass
+// `reasonRequired` to bring the box back just for that dialog.
 //
 // The shell only mounts its body while open, so the fields reset between
 // openings for free.
@@ -29,12 +34,15 @@ function RequestDialogBody({
   busy = false,
   error = null,
   canSubmit = true,
+  reasonRequired = false,
   onCancel,
   onConfirm,
   children,
 }) {
+  const [reason, setReason] = useState("");
 
-  const ready = !busy && canSubmit;
+  const trimmed = reason.trim();
+  const ready = !busy && canSubmit && (!reasonRequired || trimmed.length > 0);
 
   return (
     <Modal modeless={modeless} title={title} width={width} onClose={() => !busy && onCancel?.()}>
@@ -42,13 +50,29 @@ function RequestDialogBody({
         className="mt-3 flex flex-col gap-3"
         onSubmit={(e) => {
           e.preventDefault();
-          if (ready) onConfirm?.();
+          if (ready) onConfirm?.(trimmed);
         }}
       >
+        {reasonRequired && (
+          <label className="field">
+            <span className="field-label">What&apos;s your reason? ‡</span>
+            <textarea
+              name="reason"
+              rows={3}
+              required
+              autoFocus
+              maxLength={MAX_REASON_LENGTH}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="The GMs will see this. ‡"
+            />
+          </label>
+        )}
 
         {children && (
           <div
-            className="flex flex-col gap-3"
+            className={`flex flex-col gap-3${reasonRequired ? " border-t pt-3" : ""}`}
+            style={reasonRequired ? { borderColor: "var(--border)" } : undefined}
           >
             {children}
           </div>

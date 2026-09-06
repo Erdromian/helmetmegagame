@@ -372,6 +372,7 @@ export default function ActionBar({
           with it — a freed turn they don't know about is a wasted day. */}
       <RequestDialog
         modeless
+        reasonRequired
         open={dialog === "restore"}
         title="Give their turn back"
         submitLabel="Restore turn"
@@ -388,6 +389,7 @@ export default function ActionBar({
           to send along with the notice. */}
       <RequestDialog
         modeless
+        reasonRequired
         open={dialog === "kill"}
         title={`Kill ${character.name}?`}
         submitLabel="Kill them"
@@ -404,6 +406,7 @@ export default function ActionBar({
 
       <RequestDialog
         modeless
+        reasonRequired
         open={dialog === "spend"}
         title="Spend their turn?"
         submitLabel="Spend it"
@@ -496,6 +499,7 @@ export default function ActionBar({
           character. */}
       <RequestDialog
         modeless
+        reasonRequired
         open={dialog === "transfer"}
         title={`Transfer ⬢ for ${character.name}`}
         submitLabel="Transfer"
