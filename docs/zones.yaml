@@ -1024,7 +1024,7 @@ zones:
             name: Ravine
             description: >-
               The cliffside opens into an open ravine. There's several large puddles in the muddy depressions. To the left, wooden beams support a collapsed mineshaft. There's no getting in there.
-            access: [caving]
+            access: [mountaineering]
       forest-crossroads:
         name: Crossroads
         map_node: 8
@@ -1051,7 +1051,7 @@ zones:
             name: Outcrop
             description: >-
               Large granite boulders form a natural place to watch the road from.
-            access: [caving]
+            access: [mountaineering]
       forest-culvert:
         name: Culvert
         map_node: 10

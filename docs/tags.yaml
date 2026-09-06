@@ -443,12 +443,8 @@ tags:
     name: Soft Hands
     category: general
     group: general-court
-    description: "You've never done a day's labor. You make half the ⬢ you otherwise would when laboring. ‡"
+    description: "You've never done a day's labor. You make half the ⬢ you otherwise would when laboring."
     pointCost: -4
-    # Every skill in the skills-labor group. Listed rather than derived,
-    # because conflictsWith is a slug pair — add a sixth Laboring skill and it
-    # belongs on this line too.
-    conflictsWith: [laboring-basic, laboring-skilled, laboring-hunting, laboring-farming, laboring-fishing]
     purchasable: true
     purchasableAfterStart: false
 
@@ -678,11 +674,11 @@ tags:
     name: Pack Mouse
     category: general
     group: general-traits
-    description: "Narrow shoulders, weak legs, and far too much shame about what you'll haul. {carry:pack-mouse} ‡"
+    description: "You carry less than the average person. {carry:pack-mouse}"
     pointCost: -4
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     carryBonus: -0.5
     conflictsWith: [pack-mule]
 
@@ -691,7 +687,7 @@ tags:
     name: Old
     category: general
     group: general-traits
-    description: "Elderly. You're slower, fight slightly worse, and don't heal as well."
+    description: "Elderly. You're slower and fight slightly worse."
     pointCost: -5
     carryBonus: -0.05
     visible: true
@@ -819,7 +815,7 @@ tags:
     category: general
     group: general-personality
     description: "Nothing is worth wanting. Locks all Desires. Can be cured by a Chaplain."
-    pointCost: -8
+    pointCost: -6
     purchasable: true
     # Curable + maximally valuable would be a point farm otherwise (R-1).
     purchasableAfterStart: false
@@ -834,7 +830,7 @@ tags:
     psychological: true
     category: general
     group: general-addictions
-    description: "Drink comes first and there is no second. Your bottom Desire slot is locked to drinking Desires."
+    description: "You're addicted to drinking. Your bottom Desire slot is locked to drinking Desires."
     pointCost: -4
     exclusive: true
     purchasable: true
@@ -1140,10 +1136,10 @@ tags:
     category: general
     group: general-traits
     description: "You are very pretty."
-    pointCost: 5
+    pointCost: 3
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   beautiful:
     catalog: all
@@ -1151,11 +1147,11 @@ tags:
     category: general
     group: general-traits
     description: "Your face and figure are divine, drawing all attention to you, for better or for worse."
-    pointCost: 9
+    pointCost: 3
     parentTag: pretty
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   # Drawbacks, so they GIVE points back — same posture as Frail and Old above,
   # and all creation-only per TAGS.md §4.
@@ -1173,7 +1169,7 @@ tags:
     removable: false
     desires:
       locks:
-        - families: [bravery, violence, adventure]
+        - families: [bravery]
 
   dwarf:
     catalog: all
@@ -1196,6 +1192,7 @@ tags:
     group: general-traits
     description: "You're loud and lack grace."
     pointCost: -5
+    conflictsWith: [stealth]
     purchasable: true
     purchasableAfterStart: false
 
@@ -1227,7 +1224,7 @@ tags:
     keepSlug: true
     category: general
     group: general-traits
-    description: "You consume 2 ⬢ per turn. ‡"
+    description: "You consume 2 ⬢ per turn."
     pointCost: -6
     purchasable: true
     purchasableAfterStart: false
@@ -1253,7 +1250,7 @@ tags:
     name: Nearsighted
     category: general
     group: general-traits
-    description: "Things get blurry past arm's length. Forget aiming! Make sure you have {tag:spectacles}. ‡"
+    description: "Things get blurry past arm's length. Forget aiming! Make sure you have {tag:spectacles}."
     pointCost: -5
     conflictsWith: [eagle-eyes]
     purchasable: true
@@ -1287,24 +1284,13 @@ tags:
     removable: false
     conflictsWith: [deaf]
 
-  insomniac:
-    catalog: all
-    name: Insomniac
-    psychological: true
-    category: general
-    group: general-traits
-    description: "You sleep badly, and are often tired."
-    pointCost: -2
-    purchasable: true
-    purchasableAfterStart: false
-
   glass-jaw:
     catalog: all
     name: Glass Jaw
     category: general
     group: general-traits
     description: "One good hit to the head and you're down."
-    pointCost: -2
+    pointCost: -3
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -1317,7 +1303,7 @@ tags:
     psychological: true
     category: general
     group: general-addictions
-    description: "You need the poppy and its cousins. It stops the sweating. Your bottom Desire slot is locked to drug-related Desires."
+    description: "You're addicted to drugs. Your bottom Desire slot is locked to drug-related Desires."
     pointCost: -4
     exclusive: true
     purchasable: true
@@ -1460,7 +1446,7 @@ tags:
     psychological: true
     category: general
     group: general-personality
-    description: "You're incapable of betraying your starting faction, even in the most extreme circumstances. Locks all Desires about scheming. Drifters and hustlers can't take it — you have to be sworn to somebody. ‡"
+    description: "You're incapable of betraying your starting faction, even in the most extreme circumstances. Locks all Desires about scheming."
     pointCost: -2
     visible: false
     purchasable: true
@@ -1497,7 +1483,7 @@ tags:
     psychological: true
     category: general
     group: general-personality
-    description: "You disapprove of drinking, doping, gambling, and whoring, and you intend to let everybody know. Locks Desires about all four."
+    description: "You disapprove of drinking, doping, gambling, and whoring, and you intend to let everybody know. Locks Desires about all four, but gives you some new ones."
     pointCost: -2
     visible: false
     purchasable: true
@@ -1538,7 +1524,7 @@ tags:
     category: general
     group: general-traits
     description: "You have an incurable shake in your hands, making it difficult to wield writing implements, delicate weapons, or precise tools."
-    pointCost: -5
+    pointCost: -3
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1867,7 +1853,7 @@ tags:
     category: skills
     teachable: true
     description: "You can climb mountains, granting you access to certain locations. ‡"
-    pointCost: 3
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -1890,7 +1876,7 @@ tags:
     category: skills
     teachable: true
     description: "You know about some secret connections between the surface and the caves."
-    pointCost: 3
+    pointCost: 4
     purchasable: true
     purchasableAfterStart: true
 
@@ -2161,11 +2147,11 @@ tags:
     group: skills-fighting
     teachable: true
     description: "The peak of your generation."
-    pointCost: 0
+    pointCost: 7
     parentTag: melee-expert
     visible: false
     purchasable: false
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   ranged-basic:
     catalog: all
@@ -2225,11 +2211,11 @@ tags:
     group: skills-fighting
     teachable: true
     description: "The peak of your generation."
-    pointCost: 14
+    pointCost: 7
     parentTag: ranged-expert
     visible: false
     purchasable: false
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   melee-shield-wall:
     catalog: all
@@ -2238,7 +2224,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You have practiced this drill. When standing within reach of 2 or more other Watchmen, your melee skill counts as 2 tiers higher."
-    pointCost: 10
+    pointCost: 8
     requiredTag: melee-basic
     visible: false
     purchasable: true
@@ -2251,7 +2237,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You're particularly good at fighting people one-on-one — especially with swords, rapiers, and knives. When dueling, your melee skill counts as 2 tiers higher."
-    pointCost: 10
+    pointCost: 9
     requiredTag: melee-basic
     visible: false
     purchasable: true
@@ -2291,7 +2277,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "While using clubs, your fighting skill counts as 2 tiers higher."
-    pointCost: 10
+    pointCost: 8
     requiredTag: melee-basic
     visible: false
     purchasable: true
@@ -2355,7 +2341,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "When you start a fight with a surprise attack in difficult terrain, your fighting skill (whether melee or ranged) counts as 2 tiers higher."
-    pointCost: 10
+    pointCost: 5
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -3528,7 +3514,7 @@ tags:
     category: health
     group: health-illness
     description: "Your joints are achy and stiff. It can't be treated."
-    pointCost: -5
+    pointCost: -3
     carryBonus: -0.05
     visible: true
     purchasable: true
@@ -3754,7 +3740,7 @@ tags:
     name: Mute
     category: health
     group: health-mind
-    description: "You can't speak. You may want to consider picking up sign language."
+    description: "You can't speak."
     pointCost: -7
     visible: true
     purchasable: true
@@ -3873,8 +3859,8 @@ tags:
     name: Deaf
     category: health
     group: health-maiming
-    description: "Best paired with sign language."
-    pointCost: -7
+    description: "There's no sign language, so good luck."
+    pointCost: -6
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -3898,7 +3884,7 @@ tags:
     category: health
     group: health-mind
     description: "You can't see in dim or darkness."
-    pointCost: -5
+    pointCost: -3
     purchasable: true
     purchasableAfterStart: false
     # Blind's removesInto lands here, so the two are the same eye at two
@@ -4040,7 +4026,7 @@ tags:
     category: health
     group: health-minor
     description: "Pain behind your eye and bright lights that come and go. Incurable."
-    pointCost: -4
+    pointCost: -3
     purchasable: true
     purchasableAfterStart: false
     removable: false
