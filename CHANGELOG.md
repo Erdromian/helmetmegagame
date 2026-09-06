@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The web can speak: a live Play page
+
+✚ A Play page on the web, right under Character: the channel of the Location you stand in, live, with a box to speak into it. What you type appears at once and reaches everyone else within a blink.  
+✎ Every message a character says is now written down with where it was said, so the web page and Discord read one record.  
+✚ A line typed on the web is posted into the Location's Discord channel by the bot within a second, and a bot restart never loses one.
+
 ## 2026-09-06 · The Deaf tag is gone, and the trade kits are one-per-character
 
 − The Deaf tag. Hard of Hearing no longer conflicts with it, and the intercom no longer refuses anyone for it  
