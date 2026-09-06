@@ -19,6 +19,7 @@ import { isSuperadmin } from "@/lib/superadmin";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { setMerchantSeal } from "@lifeweb/db/lib/merchantSeal";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
+import { isWanted, postWantedPosters } from "@lifeweb/db/lib/wantedPoster";
 import {
   syncCharacterNickname,
   ensureCharacterRole,
@@ -385,6 +386,20 @@ export async function createCharacter(formData) {
     }).catch(() => {});
   }
   await syncCharacterNickname(discordUserId, formatBareName({ firstName, lastName })).catch(() => {});
+
+  // Somebody who arrives already Wanted has three posters go up in the same
+  // breath (db/lib/wantedPoster.js). Best-effort like its neighbours: a sheet
+  // may never cost a character that already exists.
+  const heldSlugs = [...selected, ...startingTags]
+    .filter((t) => tagIdsToGrant.has(t.id))
+    .map((t) => t.slug);
+  if (isWanted(heldSlugs)) {
+    await postWantedPosters(
+      prisma,
+      { ...created, zoneName: role.startingLocation?.zone?.name ?? null },
+      openTurn,
+    ).catch((err) => console.error("postWantedPosters failed:", err));
+  }
   if (!created.locationId) await syncCharacterNarrowcastAccess(created.id).catch(() => {});
   if (cursed) await removeCursedRole(discordUserId).catch(() => {});
 

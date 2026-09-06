@@ -8,6 +8,7 @@ import { prisma, isDynastyHead, isDynastyMember } from "@lifeweb/db";
 import { resolveParty as dbResolveParty } from "@lifeweb/db/lib/parties";
 import { linkBetween, crossingCheck } from "@lifeweb/db/lib/locationGraph";
 import { isMounted, equippedSlugs } from "@lifeweb/db/lib/mounts";
+import { applyHiddenCures } from "@lifeweb/db/lib/hiddenCures";
 import {
   applyTransfer,
   InsufficientResourcesError,
@@ -1885,6 +1886,9 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
         resourcesGranted,
       );
     }
+    // db/lib/hiddenCures.js. Runs after the ordinary grants and records
+    // nothing on the request, on purpose.
+    await applyHiddenCures(tx, character.id, held.tag.slug);
     await createRequest(tx, {
       characterId: character.id,
       turnId: openTurn?.id ?? null,
