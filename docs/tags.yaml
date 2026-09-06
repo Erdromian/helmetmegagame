@@ -380,18 +380,19 @@ tags:
   # The Court — general-court is gated behind `courtier` at the group level,
   # same idiom as general-cerberon/general-brigand, so none of these need their
   # own requiredTag.
-  # Not for sale. Knighthood is something the Baron confers or a Courtier
-  # arrives already carrying (the Seasoned Knight kit below) -- never a line
-  # item on a picker. Free, because every path to it is a grant.
+  # A token price. Knighthood is mostly conferred -- the Baron's hand, or the
+  # Seasoned Knight kit below -- so the point is not what it buys you but that
+  # you had to spend something to claim it at creation. Creation only: the
+  # Baron does the knighting once play starts.
   knighted:
     catalog: gm
     name: Knighted
     category: general
     group: general-court
     description: "You were knighted, and serve the Baron directly."
-    pointCost: 0
+    pointCost: 1
     visible: true
-    purchasable: false
+    purchasable: true
     purchasableAfterStart: false
 
   # --- Teaching (docs/systemdocs/LESSONS.md) -----------------------------
