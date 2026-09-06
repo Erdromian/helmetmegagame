@@ -17,6 +17,7 @@ import {
   updateDepot,
   updateCurrentTurn,
   updateNextTurn,
+  updateWorldState,
   runDoctorAction,
   defuseNukeAction,
   bulkMoveCharacters,
@@ -25,7 +26,10 @@ import EndTurnButton from "@/app/(app)/gm/dev/EndTurnButton";
 import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
 import ThreatAssignmentsTable from "@/app/(app)/gm/dev/threats/ThreatAssignmentsTable";
 import ThreatRosterTable from "@/app/(app)/gm/dev/threats/ThreatRosterTable";
-import { CONFIG_HELP, DEPOT_HELP } from "@/app/(app)/gm/dev/devHelp";
+import { DEPOT_HELP } from "@/app/(app)/gm/dev/devHelp";
+import { getGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
+import GameControls from "./GameControls";
+import ConfigForm from "./ConfigForm";
 import DeskHeader from "@/app/components/DeskHeader";
 import OpsNav from "./OpsNav";
 import SendLetterForm from "./SendLetterForm";
@@ -74,7 +78,31 @@ const THREAT_SUMMARY = [...new Set([...OPT_IN_THREATS, ...ASSIGNABLE_THREATS])].
 }));
 const ASSIGNABLE_SUMMARY = ASSIGNABLE_THREATS.map((t) => ({ slug: t.slug, name: t.name }));
 
+const PHASE_LABEL = { CLOSED: "Closed", LOBBY: "Lobby", RUNNING: "Running", ENDED: "Ended" };
+const PHASE_TONE = { CLOSED: "neutral", LOBBY: "warn", RUNNING: "good", ENDED: "bad" };
+
+// One sentence saying where the game is, for the Game section's lede.
+function phaseLede(state, readyCount, livingCount) {
+  switch (state.phase) {
+    case "CLOSED":
+      return "Nobody can ready up or join. Open the lobby once the syncs are done. ‡";
+    case "LOBBY":
+      return `${readyCount} readied, ${livingCount} character${livingCount === 1 ? "" : "s"} already in. Turns are frozen until Start. ‡`;
+    case "RUNNING":
+      return `${livingCount} living character${livingCount === 1 ? "" : "s"}. The clock ticks at midnight and late join is open. ‡`;
+    case "ENDED":
+      return "The clock is stopped and the archive is open. Resume if that was a mistake. ‡";
+    default:
+      return "";
+  }
+}
+
+function stamp(date) {
+  return new Date(date).toISOString().slice(0, 16).replace("T", " ");
+}
+
 const SECTIONS = new Set([
+  "game",
   "turn",
   "config",
   "depot",
@@ -128,15 +156,18 @@ export default async function DevPanelPage({ searchParams }) {
   if (!isSuperadmin(session.discordUserId)) redirect("/character");
 
   const { s } = await searchParams;
-  const section = SECTIONS.has(s) ? s : "turn";
+  const section = SECTIONS.has(s) ? s : "game";
 
   // Always fetched: the header needs the open turn regardless of section,
   // and the turn section derives day/phase/weather from the same rows.
-  const [config, openTurnRecord, lastTurn, depot] = await Promise.all([
+  const [config, state, openTurnRecord, lastTurn, depot, readyCount, livingCount] = await Promise.all([
     prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
+    getGameState(prisma),
     getOpenTurn(),
     prisma.turn.findFirst({ orderBy: { number: "desc" } }),
     loadDepot(prisma),
+    prisma.lobbyEntry.count({ where: { status: "READY" } }),
+    prisma.character.count({ where: { status: "ALIVE" } }),
   ]);
 
   // The GM roster, only when its own section is open — it costs a full guild
@@ -283,7 +314,7 @@ export default async function DevPanelPage({ searchParams }) {
         const used = taken
           .filter((t) => t.roleId === role.id && holders.includes(t.status))
           .reduce((n, t) => n + t._count._all, 0);
-        const cap = roleCapacity(role, config?.playerCount ?? 80);
+        const cap = roleCapacity(role, effectivePlayerCount(config, state));
         return {
           id: role.id,
           slug: role.slug,
@@ -383,6 +414,61 @@ export default async function DevPanelPage({ searchParams }) {
       <div className="desk-body desk-body--ops">
         <OpsNav section={section} />
         <main className="ops-main">
+          {section === "game" ? (
+            <div className="flex flex-col gap-8">
+              <section className="ops-section">
+                <div className="ops-section-head">
+                  <h2 className="section-title">Game</h2>
+                  <p className="ops-lede">{phaseLede(state, readyCount, livingCount)}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <StatusPill tone={PHASE_TONE[state.phase]}>{PHASE_LABEL[state.phase]}</StatusPill>
+                  {state.lobbyOpenedAt ? (
+                    <span className="text-xs text-muted">Lobby opened {stamp(state.lobbyOpenedAt)}</span>
+                  ) : null}
+                  {state.startedAt ? <span className="text-xs text-muted">Started {stamp(state.startedAt)}</span> : null}
+                  {state.endedAt ? <span className="text-xs text-muted">Ended {stamp(state.endedAt)}</span> : null}
+                  {state.playerCount != null ? (
+                    <span className="text-xs text-muted">Player count {state.playerCount}</span>
+                  ) : null}
+                </div>
+                <GameControls phase={state.phase} readyCount={readyCount} hasDraft={Boolean(state.assignmentDraft)} />
+                {state.closingNote ? (
+                  <p className="ops-lede">
+                    » <em>{state.closingNote}</em>
+                  </p>
+                ) : null}
+              </section>
+
+              <section className="ops-section">
+                <div className="ops-section-head">
+                  <h2 className="section-title">The world ‡</h2>
+                  <p className="ops-lede">Per-game state. A restart resets all of it; the Configuration section does not. ‡</p>
+                </div>
+                <form action={updateWorldState} className="flex flex-wrap items-end gap-3">
+                  <div className="field">
+                    <span className="flex items-center gap-2">
+                      <label htmlFor="world-lifewebBlood" className="field-label">
+                        Lifeweb Blood
+                      </label>
+                      <InfoIcon text="0-100, raw override." />
+                    </span>
+                    <input
+                      type="number"
+                      id="world-lifewebBlood"
+                      name="lifewebBlood"
+                      min="0"
+                      max="100"
+                      defaultValue={state.lifewebBlood}
+                      className="max-w-24"
+                    />
+                  </div>
+                  <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
+                </form>
+              </section>
+            </div>
+          ) : null}
+
           {section === "turn" ? (
             <div className="flex flex-col gap-8">
               <section className="ops-section">
@@ -416,10 +502,14 @@ export default async function DevPanelPage({ searchParams }) {
                   <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
                 </form>
 
-                <EndTurnButton
-                  turnLabel={openTurnRecord ? describeTurn(openTurnRecord).label : null}
-                  wipesMessages={nextPhase === "DAWN" && config.messageWipeEnabled}
-                />
+                {state.phase === "RUNNING" ? (
+                  <EndTurnButton
+                    turnLabel={openTurnRecord ? describeTurn(openTurnRecord).label : null}
+                    wipesMessages={nextPhase === "DAWN" && config.messageWipeEnabled}
+                  />
+                ) : (
+                  <p className="ops-lede">Turns only advance while the game is running. ‡</p>
+                )}
 
                 <p className="ops-lede">
                   Save overrides the current turn&apos;s day/phase/weather directly.
@@ -430,14 +520,14 @@ export default async function DevPanelPage({ searchParams }) {
                 <div className="ops-section-head">
                   <h2 className="section-title">Next Turn</h2>
                   <p className="ops-lede">
-                    {config.nextWeather ? `Weather set to ${config.nextWeather}` : "Weather will be rolled automatically."}
-                    {config.nextTurnNote ? ` — note: "${config.nextTurnNote}"` : ""}
+                    {state.nextWeather ? `Weather set to ${state.nextWeather}` : "Weather will be rolled automatically."}
+                    {state.nextTurnNote ? ` — note: "${state.nextTurnNote}"` : ""}
                   </p>
                 </div>
                 <form action={updateNextTurn} className="flex flex-col gap-3">
                   <label className="field">
                     <span className="field-label">Weather</span>
-                    <Select name="weather" defaultValue={config.nextWeather ?? ""} className="max-w-48">
+                    <Select name="weather" defaultValue={state.nextWeather ?? ""} className="max-w-48">
                       <option value="">Random</option>
                       {WEATHER_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -446,7 +536,7 @@ export default async function DevPanelPage({ searchParams }) {
                   </label>
                   <label className="field">
                     <span className="field-label">Note (optional)</span>
-                    <textarea name="note" defaultValue={config.nextTurnNote ?? ""} rows={2} />
+                    <textarea name="note" defaultValue={state.nextTurnNote ?? ""} rows={2} />
                   </label>
                   <div className="ops-actions">
                     <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
@@ -462,231 +552,12 @@ export default async function DevPanelPage({ searchParams }) {
           {section === "config" ? (
             <section className="ops-section">
               <div className="ops-section-head">
-                <h2 className="section-title">Game Config</h2>
+                <h2 className="section-title">Configuration</h2>
+                <p className="ops-lede">
+                  Durable knobs. These survive a restart — what a game does to the world lives on the Game section instead. ‡
+                </p>
               </div>
-              <form action={updateGameConfig} className="flex flex-col gap-4">
-                <div className="ops-grid">
-                  <div className="field">
-                    <span className="flex items-center gap-2">
-                      <label htmlFor="config-lifewebBlood" className="field-label">
-                        Lifeweb Blood
-                      </label>
-                      <InfoIcon text={CONFIG_HELP.lifewebBlood} />
-                    </span>
-                    <input
-                      type="number"
-                      id="config-lifewebBlood"
-                      name="lifewebBlood"
-                      min="0"
-                      max="100"
-                      defaultValue={config.lifewebBlood}
-                    />
-                  </div>
-                  <label className="field">
-                    <span className="field-label">Lifeweb decay / turn</span>
-                    <input type="number" name="lifewebDecayPerTurn" defaultValue={config.lifewebDecayPerTurn} />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">Production coefficient</span>
-                    <input type="number" step="0.05" name="productionCoefficient" defaultValue={config.productionCoefficient} />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">Starting Tag Points</span>
-                    <input type="number" name="startingTagPoints" min="0" defaultValue={config.startingTagPoints} />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">Player count</span>
-                    <input type="number" name="playerCount" min="1" defaultValue={config.playerCount} />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">Equip slots</span>
-                    <input type="number" name="equipSlots" min="1" max="20" defaultValue={config.equipSlots} />
-                  </label>
-                  <label className="field">
-                    <span className="field-label panel-header--with-icon">
-                      Carry cap: lb ‡
-                      <InfoIcon text={CONFIG_HELP.carryWeightLbs} />
-                    </span>
-                    <input type="number" name="carryWeightLbs" min="1" defaultValue={config.carryWeightLbs} />
-                  </label>
-                  <label className="field">
-                    <span className="field-label panel-header--with-icon">
-                      Carry cap: ⬢ ‡
-                      <InfoIcon text={CONFIG_HELP.carryResourceCap} />
-                    </span>
-                    <input type="number" name="carryResourceCap" min="1" defaultValue={config.carryResourceCap} />
-                  </label>
-                  <label className="field">
-                    <span className="field-label panel-header--with-icon">
-                      Free zone moves ‡
-                      <InfoIcon text={CONFIG_HELP.freeZoneMovesPerTurn} />
-                    </span>
-                    <input
-                      type="number"
-                      name="freeZoneMovesPerTurn"
-                      min="0"
-                      max="5"
-                      defaultValue={config.freeZoneMovesPerTurn}
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field-label panel-header--with-icon">
-                      Desire slots
-                      <InfoIcon text={CONFIG_HELP.desireSlots} />
-                    </span>
-                    <input type="number" name="desireSlots" min="1" max="5" defaultValue={config.desireSlots} />
-                  </label>
-                  <label className="field">
-                    <span className="field-label panel-header--with-icon">
-                      Desire slot lock
-                      <InfoIcon text={CONFIG_HELP.desireSlotLockTurns} />
-                    </span>
-                    <input
-                      type="number"
-                      name="desireSlotLockTurns"
-                      min="0"
-                      max="20"
-                      defaultValue={config.desireSlotLockTurns}
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">Max drawback tags</span>
-                    <input type="number" name="maxDrawbackTags" min="0" max="20" defaultValue={config.maxDrawbackTags} />
-                  </label>
-                  <label className="field">
-                    {/* A positive magnitude: "at most this many points may be
-                        claimed back". A build stops at whichever of the two
-                        drawback ceilings it reaches first. */}
-                    <span className="field-label">Max drawback points</span>
-                    <input
-                      type="number"
-                      name="maxDrawbackPoints"
-                      min="0"
-                      max="60"
-                      defaultValue={config.maxDrawbackPoints}
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">Catatonic after N idle turns</span>
-                    <input type="number" name="catatonicTurns" min="1" max="60" defaultValue={config.catatonicTurns} />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">Death after N Catatonic turns (0 = off)</span>
-                    <input type="number" name="catatonicDeathTurns" min="0" max="60" defaultValue={config.catatonicDeathTurns} />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">
-                      Walk cooldown (seconds) ‡
-                      <InfoIcon text={CONFIG_HELP.locationMoveCooldownSeconds} />
-                    </span>
-                    <input
-                      type="number"
-                      name="locationMoveCooldownSeconds"
-                      min="0"
-                      max="3600"
-                      defaultValue={config.locationMoveCooldownSeconds}
-                    />
-                  </label>
-                </div>
-
-                <div className="ops-toggles">
-                  <div className="ops-toggle">
-                    <Switch name="openToPlayers" defaultChecked={config.openToPlayers}>Open to players</Switch>
-                  </div>
-                  <div className="ops-toggle">
-                    <Switch name="leaderWhitelistEnabled" defaultChecked={config.leaderWhitelistEnabled}>
-                      Require the whitelist for gated roles
-                    </Switch>
-                    <InfoIcon text={CONFIG_HELP.leaderWhitelistEnabled} />
-                  </div>
-                  <div className="ops-toggle">
-                    <div className="flex flex-1 min-w-0 flex-col gap-1">
-                      <div className="flex items-center gap-3">
-                        <Switch name="autoTurnAdvanceDisabled" defaultChecked={config.autoTurnAdvanceDisabled}>
-                          Pause automatic turn advance
-                        </Switch>
-                        <InfoIcon text={CONFIG_HELP.autoTurnAdvanceDisabled} />
-                      </div>
-                      <p className="ops-toggle-note">&ldquo;Advance turn now&rdquo; on the Turn section still works.</p>
-                    </div>
-                  </div>
-                  <div className="ops-toggle">
-                    <Switch name="avatarUploadsEnabled" defaultChecked={config.avatarUploadsEnabled}>
-                      Player avatar uploads
-                    </Switch>
-                    <InfoIcon text={CONFIG_HELP.avatarUploadsEnabled} />
-                  </div>
-                  <div className="ops-toggle">
-                    <Switch name="portraitMakerEnabled" defaultChecked={config.portraitMakerEnabled}>
-                      Portrait maker
-                    </Switch>
-                    <InfoIcon text={CONFIG_HELP.portraitMakerEnabled} />
-                  </div>
-                  <div className="ops-toggle">
-                    <Switch name="portraitFantasyPartsEnabled" defaultChecked={config.portraitFantasyPartsEnabled}>
-                      Portrait fantasy parts
-                    </Switch>
-                    <InfoIcon text={CONFIG_HELP.portraitFantasyPartsEnabled} />
-                  </div>
-                  <div className="ops-toggle">
-                    <Switch name="messageWipeEnabled" defaultChecked={config.messageWipeEnabled}>
-                      Wipe messages at Dawn
-                    </Switch>
-                    <InfoIcon text={CONFIG_HELP.messageWipeEnabled} />
-                  </div>
-                  <div className="ops-toggle">
-                    <Switch name="catatonicEnabled" defaultChecked={config.catatonicEnabled}>
-                      Catatonic (AFK) flagging
-                    </Switch>
-                    <InfoIcon text={CONFIG_HELP.catatonicEnabled} />
-                  </div>
-                  <div className="ops-toggle">
-                    <Switch name="desiresEnabled" defaultChecked={config.desiresEnabled}>
-                      Desire system
-                    </Switch>
-                    <InfoIcon text={CONFIG_HELP.desiresEnabled} />
-                  </div>
-                  <div className="ops-toggle">
-                    <Switch name="autoReconcileEnabled" defaultChecked={config.autoReconcileEnabled}>
-                      Auto-reconcile after turn advance
-                    </Switch>
-                    <InfoIcon text={CONFIG_HELP.autoReconcileEnabled} />
-                  </div>
-                  <div className="ops-toggle">
-                    <Switch name="tupperAutocorrectEnabled" defaultChecked={config.tupperAutocorrectEnabled}>
-                      Tupper autocorrect
-                    </Switch>
-                    <InfoIcon text={CONFIG_HELP.tupperAutocorrectEnabled} />
-                  </div>
-                  <div className="ops-toggle">
-                    <Switch name="nicknameSyncEnabled" defaultChecked={config.nicknameSyncEnabled}>
-                      Nickname sync
-                    </Switch>
-                    <InfoIcon text={CONFIG_HELP.nicknameSyncEnabled} />
-                  </div>
-                  <div className="ops-toggle">
-                    <div className="flex flex-1 min-w-0 flex-col gap-1">
-                      <div className="flex items-center gap-3">
-                        <Switch name="archiveVisible" defaultChecked={config.archiveVisible}>
-                          Open /archive to players
-                        </Switch>
-                        <InfoIcon text={CONFIG_HELP.archiveVisible} />
-                      </div>
-                      <p className="ops-toggle-note">Effectively one-way — meant for after the game ends.</p>
-                    </div>
-                  </div>
-                  <div className="ops-toggle">
-                    <Switch name="archiveTravelEvents" defaultChecked={config.archiveTravelEvents}>
-                      Archive travel events
-                    </Switch>
-                    <InfoIcon text={CONFIG_HELP.archiveTravelEvents} />
-                  </div>
-                </div>
-
-                <div className="ops-actions">
-                  <SubmitButton pendingLabel="Saving…">Save config</SubmitButton>
-                </div>
-              </form>
+              <ConfigForm config={config} />
             </section>
           ) : null}
 
@@ -875,19 +746,19 @@ export default async function DevPanelPage({ searchParams }) {
               {/* Only on screen when there is something to say. A permanent
                   "no nuke armed" panel would be furniture on every other day
                   of the game. */}
-              {(config.nukeArmedTurn != null || config.nukeDetonatedTurn != null) && (
+              {(state.nukeArmedTurn != null || state.nukeDetonatedTurn != null) && (
                 <div className="ops-section-head">
                   <h2 className="section-title">The device ‡</h2>
-                  {config.nukeDetonatedTurn != null ? (
+                  {state.nukeDetonatedTurn != null ? (
                     <p className="ops-lede">
-                      It went off at the close of turn {config.nukeDetonatedTurn}. Everyone who
+                      It went off at the close of turn {state.nukeDetonatedTurn}. Everyone who
                       was not underground died. Nothing here can undo that. ‡
                     </p>
                   ) : (
                     <>
                       <p className="ops-lede">
                         <strong>Armed.</strong> It detonates at the close of turn{" "}
-                        {config.nukeArmedTurn}, and will kill every living character who is not
+                        {state.nukeArmedTurn}, and will kill every living character who is not
                         in the Caves or the Depths. This is the only thing that can stop it
                         without the datacard. ‡
                       </p>

@@ -17,6 +17,7 @@
 // there is no point-buy cart to validate.
 const { parseStartingTag } = require("./startingTags");
 const { roleCapacity, seatHolderStatuses } = require("./roleCapacity");
+const { readGameState, effectivePlayerCount } = require("./gameState");
 const { formatCharacterName, formatBareName } = require("./characterName");
 const { expiryForGrant } = require("./grantExpiry");
 const { createGuildRole, removeMemberRole } = require("./discordRest");
@@ -130,8 +131,9 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
     return { ok: false, reason: "You already have a character. ‡" };
   }
 
-  const [config, openTurn, resolved] = await Promise.all([
+  const [config, state, openTurn, resolved] = await Promise.all([
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    readGameState(prisma, { playerCount: true }),
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } }),
     resolveSpawnTags(prisma, threat, spawn.role),
   ]);
@@ -172,7 +174,7 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
       const taken = await tx.character.count({
         where: { roleId: spawn.roleId, status: { in: seatHolderStatuses(spawn.role) } },
       });
-      if (taken >= roleCapacity(spawn.role, config?.playerCount ?? 80)) throw new Error("ROLE_FULL");
+      if (taken >= roleCapacity(spawn.role, effectivePlayerCount(config, state))) throw new Error("ROLE_FULL");
 
       // Re-read under the lock: two clicks on the same button race here, and
       // the status check above is only an early out.

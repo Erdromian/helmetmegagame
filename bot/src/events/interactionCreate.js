@@ -109,6 +109,7 @@ const {
 } = require("@lifeweb/db/lib/gatehouseTurret");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
 const { shoutLine } = require("@lifeweb/db/lib/shout");
+const { clockFrozen } = require("@lifeweb/db/lib/gameState");
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { handleRoomStorage } = require("../lib/roomStorage");
 const {
@@ -560,8 +561,8 @@ async function handleBellSubmit(interaction, roomId) {
 
   // The cooldown is read AFTER the word, so a modal somebody abandoned never
   // reports a wait they were not going to trigger anyway.
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { bellRungAt: true } });
-  const { ok, secondsLeft } = bellCooldown(config?.bellRungAt);
+  const state = await prisma.gameState.findUnique({ where: { id: 1 }, select: { bellRungAt: true } });
+  const { ok, secondsLeft } = bellCooldown(state?.bellRungAt);
   if (!ok) {
     // Minutes, not the raw seconds this used to print: at a half-hour cooldown
     // "1487s" is arithmetic homework rather than an answer.
@@ -573,7 +574,7 @@ async function handleBellSubmit(interaction, roomId) {
     return;
   }
 
-  await prisma.gameConfig.update({ where: { id: 1 }, data: { bellRungAt: new Date() } });
+  await prisma.gameState.update({ where: { id: 1 }, data: { bellRungAt: new Date() } });
 
   const { sent, failed } = await broadcastBell(prisma);
 
@@ -629,7 +630,7 @@ async function handleTurretSubmit(interaction, roomId) {
   }
 
   const next = !armed;
-  await prisma.gameConfig.update({ where: { id: 1 }, data: { gatehouseTurretArmed: next } });
+  await prisma.gameState.update({ where: { id: 1 }, data: { gatehouseTurretArmed: next } });
 
   // The yard hears it, and that is the only warning anybody in it gets. Best
   // effort — the switch is thrown either way.
@@ -717,7 +718,7 @@ async function handleIntercomSubmit(interaction, roomId) {
   //
   // The speaker IS recorded even though the channel line names nobody: the
   // archive is the record of what happened, and it stays shut to players until
-  // the game ends (GameConfig.archiveVisible, ARCHIVE.md).
+  // the game ends (GameState.archiveVisible, ARCHIVE.md).
   await recordArchiveMessage(prisma, {
     character,
     content: body,
@@ -1575,14 +1576,12 @@ async function handleConcealCommand(interaction) {
 // Moves close MOVE_LOCK_HOURS before the turn ends (db/lib/turnClock.js).
 // Returns the refusal text, or null when Moves are still open.
 async function moveLockNotice() {
-  const [openTurn, config] = await Promise.all([
+  const [openTurn, frozen] = await Promise.all([
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
-    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { autoTurnAdvanceDisabled: true } }),
+    clockFrozen(prisma),
   ]);
   if (!openTurn) return null;
-  const { locked, cutoffAt, endsAt } = moveWindow(openTurn, {
-    autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
-  });
+  const { locked, cutoffAt, endsAt } = moveWindow(openTurn, { clockFrozen: frozen });
   if (!locked) return null;
   return `» *Moves for this turn locked at <t:${epochSeconds(cutoffAt)}:t>. The next turn opens <t:${epochSeconds(endsAt)}:R>.*`;
 }
@@ -1624,13 +1623,7 @@ async function handleMoveSubmit(interaction) {
 
   // Re-checked here, not only at move:open — a modal can sit open across
   // the cutoff. Before the Action row so a refusal costs no turn.
-  const config = await prisma.gameConfig.findUnique({
-    where: { id: 1 },
-    select: { autoTurnAdvanceDisabled: true },
-  });
-  const { locked, cutoffAt, endsAt } = moveWindow(openTurn, {
-    autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
-  });
+  const { locked, cutoffAt, endsAt } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
   if (locked) {
     await respond(
       interaction,

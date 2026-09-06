@@ -13,8 +13,8 @@
 // in the environment — the token is a real credential, and the others predate
 // this and are still wired through .env.
 
-// Who may create a character. Paired with GameConfig.openToPlayers: the
-// config says the doors are open, this role says who is on the list.
+// Who may create a character or ready up. Paired with GameState.phase: the
+// phase says the doors are open, this role says who is on the list.
 const PLAYER_ROLE_ID = "1539805619903791219";
 
 // The standing read-only observer seat — sees every Location channel and both

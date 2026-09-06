@@ -1,4 +1,4 @@
-// The Lifeweb's blood pool: GameConfig.lifewebBlood, 0-100. Two things feed
+// The Lifeweb's blood pool: GameState.lifewebBlood, 0-100. Two things feed
 // it — a Donate Blood (the donor lives, and takes the Drained tag) and a Feed
 // Person (someone is fed to it whole).
 //
@@ -60,18 +60,18 @@ function applyBlood(current, amount) {
 // as db/lib/dm.js.
 async function bumpBlood(tx, amount) {
   if (!amount) {
-    const config = await tx.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
-    const current = Math.max(0, Math.min(BLOOD_MAX, config.lifewebBlood ?? 0));
+    const state = await tx.gameState.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+    const current = Math.max(0, Math.min(BLOOD_MAX, state.lifewebBlood ?? 0));
     return { before: current, after: current, delta: 0 };
   }
 
-  await tx.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+  await tx.gameState.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
 
   const rows = await tx.$queryRaw`
     WITH prev AS (
-      SELECT "lifewebBlood" AS before FROM "GameConfig" WHERE "id" = 1 FOR UPDATE
+      SELECT "lifewebBlood" AS before FROM "GameState" WHERE "id" = 1 FOR UPDATE
     )
-    UPDATE "GameConfig" g
+    UPDATE "GameState" g
     SET "lifewebBlood" = LEAST(${BLOOD_MAX}, GREATEST(0, prev.before + ${amount}))
     FROM prev
     WHERE g."id" = 1

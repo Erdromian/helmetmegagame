@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The game has phases now: Closed, Lobby, Running, Ended
+
+✚ A Game section on the Dev Panel with Open lobby, Start game, End game and Resume  
+✎ Turns only advance while the game is Running, from the nightly cron and from End turn alike  
+✎ Restart Game no longer resets the Configuration knobs; they carry over between games  
+− The Open to players switch; a Running game is what opens character creation  
+✎ Ending the game opens the archive to players  
+✎ The Configuration section is grouped, every knob has a tooltip, and the noticeboard lifespan is finally editable
+
 ## 2026-09-06 · The marshes fish less, the Village fishes more
 
 ✎ The five open Marshes fish at 1.0 instead of 1.3

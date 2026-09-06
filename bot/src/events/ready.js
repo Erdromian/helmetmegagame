@@ -77,6 +77,10 @@ module.exports = {
         create: { id: 1 },
       })
       .catch((err) => console.error("Failed to upsert GameConfig:", err));
+    // Same for the per-game row: a brand-new database starts CLOSED.
+    await prisma.gameState
+      .upsert({ where: { id: 1 }, update: {}, create: { id: 1 } })
+      .catch((err) => console.error("Failed to upsert GameState:", err));
 
     await refreshLocationChannels().catch((err) => console.error("Failed to refresh location channels:", err));
 

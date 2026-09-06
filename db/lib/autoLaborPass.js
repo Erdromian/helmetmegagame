@@ -59,7 +59,7 @@ async function runAutoLaborPass(prisma, turn) {
   // This decides who works and how well, and it has to scale to a full roster.
   const ids = characters.map((c) => c.id);
   const laborLocationIds = [...new Set(characters.map((c) => c.locationId).filter(Boolean))];
-  const [acted, tagRows, yieldRows, config, structureRows] = await Promise.all([
+  const [acted, tagRows, yieldRows, config, structureRows, state] = await Promise.all([
     prisma.action.findMany({ where: { turnId: turn.id, characterId: { in: ids } }, select: { characterId: true } }),
     prisma.characterTag.findMany({
       where: { characterId: { in: ids } },
@@ -74,7 +74,7 @@ async function runAutoLaborPass(prisma, turn) {
     prisma.locationYield.findMany({ select: { locationId: true, kind: true, current: true } }),
     prisma.gameConfig.findUnique({
       where: { id: 1 },
-      select: { productionCoefficient: true, lifewebBlood: true },
+      select: { productionCoefficient: true },
     }),
     // Structures paying into labor where anyone stands — COMPLETE only, the
     // rule buildLaborContext follows. Bulk rather than structuresAt per
@@ -87,11 +87,12 @@ async function runAutoLaborPass(prisma, turn) {
       // name different structures in the payout DM.
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     }),
+    prisma.gameState.findUnique({ where: { id: 1 }, select: { lifewebBlood: true } }),
   ]);
 
   const actedIds = new Set(acted.map((a) => a.characterId));
   const coefficient = config?.productionCoefficient ?? 1;
-  const lifewebFailing = (config?.lifewebBlood ?? 100) <= LIFEWEB_SPUTTER_THRESHOLD;
+  const lifewebFailing = (state?.lifewebBlood ?? 100) <= LIFEWEB_SPUTTER_THRESHOLD;
 
   const rowsByCharacter = new Map();
   for (const row of tagRows) {

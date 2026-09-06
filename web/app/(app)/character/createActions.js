@@ -17,6 +17,7 @@ import { auth } from "@/lib/auth";
 import { dynastyLastName, propagateDynastyLastName } from "@/lib/dynasty";
 import { isSuperadmin } from "@/lib/superadmin";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
+import { readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
 import { setMerchantSeal } from "@lifeweb/db/lib/merchantSeal";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import {
@@ -110,7 +111,7 @@ export async function createCharacter(formData) {
     redirect("/character");
   }
 
-  const [role, config, member, openTurn] = await Promise.all([
+  const [role, config, state, member, openTurn] = await Promise.all([
     prisma.role.findUnique({
       where: { id: roleId },
       include: {
@@ -120,15 +121,16 @@ export async function createCharacter(formData) {
       },
     }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    readGameState(prisma),
     getGuildMember(discordUserId),
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
   ]);
   if (!role) return { error: "That role no longer exists." };
 
-  // Launch gate: game must be open AND this member approved — the real
-  // enforcement boundary, not the wizard's UI. Superadmin bypasses both.
+  // Launch gate: the game must be running AND this member approved — the
+  // real enforcement boundary, not the wizard's UI. Superadmin bypasses both.
   const bypass = isSuperadmin(discordUserId);
-  if (!bypass && !config?.openToPlayers) {
+  if (!bypass && state?.phase !== "RUNNING") {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
   if (!bypass && !isApprovedPlayer(member)) {
@@ -332,7 +334,7 @@ export async function createCharacter(formData) {
           where: { roleId: role.id, discordUserId: { not: discordUserId }, expiresAt: { gt: new Date() } },
         }),
       ]);
-      if (taken + reservedByOthers >= roleCapacity(role, config?.playerCount ?? 80)) {
+      if (taken + reservedByOthers >= roleCapacity(role, effectivePlayerCount(config, state))) {
         throw new Error("ROLE_FULL");
       }
       // Release the caller's own hold in the same transaction.
@@ -497,15 +499,16 @@ export async function reserveRoleAction(roleId) {
     return { error: "You already have a character." };
   }
 
-  const [role, config, member] = await Promise.all([
+  const [role, config, state, member] = await Promise.all([
     prisma.role.findUnique({ where: { id: roleId }, include: { faction: { include: { zone: true } } } }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    readGameState(prisma),
     getGuildMember(discordUserId),
   ]);
   if (!role) return { error: "That role no longer exists." };
 
   const bypass = isSuperadmin(discordUserId);
-  if (!bypass && !config?.openToPlayers) {
+  if (!bypass && state?.phase !== "RUNNING") {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
   if (!bypass && !isApprovedPlayer(member)) {
@@ -526,7 +529,7 @@ export async function reserveRoleAction(roleId) {
     return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
   }
 
-  const result = await reserveRole(prisma, discordUserId, roleId, config?.playerCount ?? 80);
+  const result = await reserveRole(prisma, discordUserId, roleId, effectivePlayerCount(config, state));
   if (!result.ok) {
     return { error: `${role.name} was taken while you were deciding. Pick another role.` };
   }

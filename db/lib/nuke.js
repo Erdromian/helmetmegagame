@@ -5,7 +5,7 @@
 //   - WHERE the device is lives on the tag rows, and is read fresh every time
 //     the pointer is used. Nothing caches it, so carrying the bomb, stashing
 //     it in a room or packing it into a crate all just work.
-//   - WHETHER it is armed lives on GameConfig.nukeArmedTurn — global state,
+//   - WHETHER it is armed lives on GameState.nukeArmedTurn — global state,
 //     not a tag. A tag would have a holder, and a holder can die inside the
 //     two-turn window, which would silently cancel the explosion. The blast
 //     needs no location: it is everyone above ground, wherever they are.

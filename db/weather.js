@@ -112,12 +112,12 @@ function gameDate(day) {
 // manual "End turn" action so the announcement text (and the ping/weather
 // logic behind it) only exists in one place instead of being duplicated
 // per transport (Discord.js channel.send vs. REST postMessage).
-function buildTurnAnnouncement(turn, note, { autoTurnAdvanceDisabled = false } = {}) {
+function buildTurnAnnouncement(turn, note, { clockFrozen = false } = {}) {
   const day = Math.ceil(turn.number / 2);
   const phaseLabel = turn.phase === "DAWN" ? "Dawn" : "Dusk";
   const pingRoleId = process.env.DISCORD_TURN_PING_ROLE_ID;
   const ping = pingRoleId ? ` <@&${pingRoleId}>` : "";
-  const { endsAt, cutoffAt, hasLock } = moveWindow(turn, { autoTurnAdvanceDisabled });
+  const { endsAt, cutoffAt, hasLock } = moveWindow(turn, { clockFrozen });
   const endEpoch = epochSeconds(endsAt);
   const cutoffEpoch = epochSeconds(cutoffAt);
   // The Move cutoff rides on the turn announcement because that is the one

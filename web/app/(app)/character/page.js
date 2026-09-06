@@ -49,6 +49,7 @@ import {
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
 import { groupRoles } from "@lifeweb/db/lib/roleGroups";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
+import { clockFrozen, readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
@@ -117,7 +118,7 @@ import CreationClosed from "./CreationClosed";
 // tree it renders. Seat counts are computed here, not the client, so the
 // numbers aren't stale-rendered from a cached page.
 async function loadCreationData(discordUserId) {
-  const [zones, tags, config, member, dynastyName] = await Promise.all([
+  const [zones, tags, config, state, member, dynastyName] = await Promise.all([
     prisma.zone.findMany({
       orderBy: { name: "asc" },
       include: {
@@ -134,6 +135,7 @@ async function loadCreationData(discordUserId) {
     }),
     loadPointBuyCatalog([], { includeRoleStartingTags: true }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    readGameState(prisma),
     getGuildMember(discordUserId),
     dynastyLastName(),
   ]);
@@ -149,7 +151,7 @@ async function loadCreationData(discordUserId) {
   // Presentation only; the server action re-checks regardless.
   const superadmin = isSuperadmin(discordUserId);
   const gate = {
-    open: superadmin || config?.openToPlayers === true,
+    open: superadmin || state?.phase === "RUNNING",
     approved: superadmin || isApprovedPlayer(member),
   };
   // `=== false`, not falsy: no config row means the gate stays enforced.
@@ -157,7 +159,7 @@ async function loadCreationData(discordUserId) {
     superadmin ||
     config?.leaderWhitelistEnabled === false ||
     isLeaderWhitelisted(member);
-  const playerCount = config?.playerCount ?? 80;
+  const playerCount = effectivePlayerCount(config, state);
 
   return {
     gate,
@@ -272,6 +274,7 @@ export default async function CharacterPage() {
     desireTemplateRows,
     gameConfig,
     { action: currentAction },
+    frozen,
   ] = await Promise.all([
     getOpenTurn(),
     // getVisibleTags doesn't select purchasable/craftable, so this comes
@@ -385,10 +388,10 @@ export default async function CharacterPage() {
         desireSlotLockTurns: true,
         maxDrawbackTags: true,
         maxDrawbackPoints: true,
-        autoTurnAdvanceDisabled: true,
       },
     }),
     findOpenTurnAction(prisma, character.id),
+    clockFrozen(prisma),
   ]);
 
   // Desires. Every evaluation happens HERE, server-side — the client never
@@ -1183,9 +1186,7 @@ export default async function CharacterPage() {
   const openTurnWithWindow = openTurn
     ? {
         ...openTurn,
-        moveWindow: moveWindow(openTurn, {
-          autoTurnAdvanceDisabled: gameConfig?.autoTurnAdvanceDisabled ?? false,
-        }),
+        moveWindow: moveWindow(openTurn, { clockFrozen: frozen }),
       }
     : openTurn;
 

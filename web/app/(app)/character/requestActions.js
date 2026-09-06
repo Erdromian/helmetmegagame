@@ -33,6 +33,7 @@ import {
 import { UserError, guarded } from "@/lib/actionResult";
 import { describeTurn } from "@/lib/turnFormat";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
+import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import {
   DISGUISE_KIT_SLUG,
@@ -481,13 +482,7 @@ async function resolveCraftPayer(character, payerKey, cost) {
 // character per turn, filed by the same rules the modal uses.
 async function requireFreeMove(character, openTurn) {
   if (!openTurn) throw new UserError("No turn is open. ‡");
-  const config = await prisma.gameConfig.findUnique({
-    where: { id: 1 },
-    select: { autoTurnAdvanceDisabled: true },
-  });
-  const { locked } = moveWindow(openTurn, {
-    autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
-  });
+  const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
   if (locked) throw new UserError("Moves are locked for this turn. ‡");
   const acted = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: openTurn.id },

@@ -430,15 +430,16 @@ function formatLaborBonusNote(
 // Async convenience for the one-character call sites (the Move modal and the
 // Labor? button), which have no context loaded yet.
 async function resolveLaborRate(prisma, characterId) {
-  const [ctx, config] = await Promise.all([
+  const [ctx, config, state] = await Promise.all([
     buildLaborContext(prisma, characterId),
     prisma.gameConfig.findUnique({
       where: { id: 1 },
-      select: { productionCoefficient: true, lifewebBlood: true },
+      select: { productionCoefficient: true },
     }),
+    prisma.gameState.findUnique({ where: { id: 1 }, select: { lifewebBlood: true } }),
   ]);
   return resolveLaborRateFrom(ctx, config?.productionCoefficient ?? 1, {
-    lifewebFailing: (config?.lifewebBlood ?? 100) <= LIFEWEB_SPUTTER_THRESHOLD,
+    lifewebFailing: (state?.lifewebBlood ?? 100) <= LIFEWEB_SPUTTER_THRESHOLD,
   });
 }
 

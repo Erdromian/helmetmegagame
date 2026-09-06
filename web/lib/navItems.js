@@ -87,7 +87,7 @@ export async function loadNavItems(discordUserId) {
     prisma.characterTag.findFirst({
       where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MERCHANT_LICENSE_SLUG } },
     }),
-    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
+    prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
   ]);
   const hasMortus = gm || !!hasMortusTag;
 

@@ -2,8 +2,8 @@ import Link from "next/link";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 
 // Shown in place of the creation wizard when a player can't roll a character
-// yet — either the game hasn't opened (GameConfig.openToPlayers) or they
-// aren't on the roster (PLAYER_ROLE_ID in db/lib/roleIds.js).
+// yet — either the game isn't running (GameState.phase) or they aren't on the
+// roster (PLAYER_ROLE_ID in db/lib/roleIds.js).
 //
 // createCharacter enforces both independently; this exists so the reason is
 // legible up front rather than arriving as an error after four steps of work.
