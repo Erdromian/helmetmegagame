@@ -58,6 +58,7 @@ async function handleNotification(msg) {
     return;
   }
   if (!parsed?.seq || !parsed?.placeKey) return;
+  const op = parsed.op ?? "new";
 
   // Nobody in this process is watching that place, so there is no reason to
   // pay for the row.
@@ -70,8 +71,19 @@ async function handleNotification(msg) {
     where: { seq: BigInt(parsed.seq) },
     select: FEED_ROW_SELECT,
   });
-  if (!row || row.deletedAt) return;
-  fanOut(parsed.placeKey, feedRowShape(row));
+  if (!row) return;
+
+  // A deleted row is still an event — a browser holding it has to be told to
+  // drop it. Only its seq goes out; the words that were taken back do not.
+  if (row.deletedAt || op === "delete") {
+    fanOut(parsed.placeKey, { op: "delete", seq: String(row.seq), placeKey: parsed.placeKey });
+    return;
+  }
+
+  // An edit goes out as the whole row, and the client replaces by seq. That
+  // way there is one shape on the wire for "here is a message" whether it is
+  // the first time or the second.
+  fanOut(parsed.placeKey, feedRowShape(row, { op: op === "edit" ? "edit" : "new" }));
 }
 
 function scheduleReconnect() {

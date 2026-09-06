@@ -697,8 +697,14 @@ async function fetchOrCreateChannelWebhook(channelId) {
 // `auth: false`: the webhook token in the URL IS the credential — a bot auth
 // header alongside it can make Discord reject the request. Bucketed at
 // roughly 5 per 5 seconds per channel, so a 429 here is routine.
-async function executeWebhook({ id, token }, { content, username, avatarUrl }) {
-  return discordRequest(`/webhooks/${id}/${token}?wait=true`, {
+// `threadId` is how a webhook posts into a thread: the webhook itself belongs
+// to the PARENT channel (Discord will not create one on a thread), and the
+// execute call names the thread in the query. `wait=true` stays either way —
+// without it Discord answers 204 and the outbox never learns the message id it
+// has to store to be able to edit or delete the message later.
+async function executeWebhook({ id, token }, { content, username, avatarUrl, threadId = null }) {
+  const query = threadId ? `?wait=true&thread_id=${threadId}` : "?wait=true";
+  return discordRequest(`/webhooks/${id}/${token}${query}`, {
     method: "POST",
     auth: false,
     body: {
@@ -708,6 +714,31 @@ async function executeWebhook({ id, token }, { content, username, avatarUrl }) {
       // Never let player-authored text ping a role or @everyone by typing it.
       allowed_mentions: { parse: ["users"] },
     },
+  });
+}
+
+// Editing and deleting a webhook message need the thread id too, for the same
+// reason: without it Discord looks the message up in the parent channel, does
+// not find it, and 404s. Both are what bot/src/lib/feedOutbox.js uses — since
+// phase 1 the outbox is the ONLY thing that edits or deletes a proxied
+// message, on either face.
+async function editWebhookMessage({ id, token }, messageId, content, threadId = null) {
+  const query = threadId ? `?thread_id=${threadId}` : "";
+  return discordRequest(`/webhooks/${id}/${token}/messages/${messageId}${query}`, {
+    method: "PATCH",
+    auth: false,
+    body: { content, allowed_mentions: { parse: ["users"] } },
+  });
+}
+
+// allow404: a message somebody already removed by hand is the outcome this
+// was asking for, not an error.
+async function deleteWebhookMessage({ id, token }, messageId, threadId = null) {
+  const query = threadId ? `?thread_id=${threadId}` : "";
+  return discordRequest(`/webhooks/${id}/${token}/messages/${messageId}${query}`, {
+    method: "DELETE",
+    auth: false,
+    allow404: true,
   });
 }
 
@@ -723,33 +754,35 @@ async function executeWebhook({ id, token }, { content, username, avatarUrl }) {
 // does NOT ignore is FORCED concealment, because that is not a choice — a
 // character with a sack tied over their head filing a report under their own
 // name and face would hand back exactly the identity the sack took away.
-async function postAsCharacter(channelId, character, content, { forcedName = null, concealment = null } = {}) {
+// `threadId` posts into a Room or Conversation thread under `channelId`. The
+// webhook is still the parent channel's — see executeWebhook.
+async function postAsCharacter(channelId, character, content, { forcedName = null, concealment = null, threadId = null } = {}) {
   const forced = concealment?.forced ? concealment : null;
   const chunks = chunkMessage(String(content ?? ""));
-  if (chunks.length <= 1) return postAsCharacterChunk(channelId, character, content, forcedName, forced);
+  if (chunks.length <= 1) return postAsCharacterChunk(channelId, character, content, forcedName, forced, threadId);
 
   let first = null;
   for (const chunk of chunks) {
-    const sent = await postAsCharacterChunk(channelId, character, chunk, forcedName, forced);
+    const sent = await postAsCharacterChunk(channelId, character, chunk, forcedName, forced, threadId);
     if (!first) first = sent;
   }
   return first;
 }
 
-async function postAsCharacterChunk(channelId, character, content, forcedName, forced) {
+async function postAsCharacterChunk(channelId, character, content, forcedName, forced, threadId = null) {
   try {
-    return await postAsCharacterOnce(channelId, content, character, forcedName, forced);
+    return await postAsCharacterOnce(channelId, content, character, forcedName, forced, threadId);
   } catch (err) {
     // Keyed on the error CODE, never message text — a 429 shouldn't rebuild.
     if (err.discordCode === UNKNOWN_WEBHOOK || err.status === 404) {
       forgetChannelWebhook(channelId);
-      return postAsCharacterOnce(channelId, content, character, forcedName, forced);
+      return postAsCharacterOnce(channelId, content, character, forcedName, forced, threadId);
     }
     throw err;
   }
 }
 
-async function postAsCharacterOnce(channelId, content, character, forcedName, forced = null) {
+async function postAsCharacterOnce(channelId, content, character, forcedName, forced = null, threadId = null) {
   const webhook = await ensureChannelWebhook(channelId);
   const base = process.env.WEB_BASE_URL;
   // `concealed` is overridden rather than read: the column is the player's
@@ -763,6 +796,7 @@ async function postAsCharacterOnce(channelId, content, character, forcedName, fo
     content,
     username: identity.name,
     avatarUrl: base ? `${base}${identity.avatarPath}` : undefined,
+    threadId,
   });
 }
 
@@ -912,5 +946,7 @@ module.exports = {
   deleteChannelOverwrite,
   ensureChannelWebhook,
   executeWebhook,
+  editWebhookMessage,
+  deleteWebhookMessage,
   postAsCharacter,
 };

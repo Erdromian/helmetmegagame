@@ -18,7 +18,34 @@ Two reasons, and both are Bascinet's.
   through a server action, a `revalidatePath`, and a re-render of the whole
   server-component tree. Chat cannot use that path. This page does not.
 
-## 2. The record: every message is a row first
+## 2. One write path, and the record it writes
+
+Everything a character says goes through **`db/lib/say.js`**, on both faces.
+Before phase 1 there were three copies of the decision — the proxy ran the
+speech gate, the babble pass and the autocorrect pass inside the webhook
+poster, the Speak modal ran a second copy of the gate, and the web's say route
+ran neither — so `{tag:stupid}` garbled a Discord message and left a web one
+perfectly articulate.
+
+It splits into deciding and writing, because the two faces need the same
+decision in a different order:
+
+- `prepareSpeech` — where you are (a web send only; Discord's own channel
+  permissions are the gate for a Discord one), the speech block, length, the
+  slowmode (web only, 30 s a place, 300 s a zone summary), then the babble and
+  autocorrect transforms and the presented identity.
+- `recordSpeech` — the `ArchiveEntry` row, with the place key, the source and
+  the alias.
+- `sayInPlace` — both, for the web. **Discord** goes prepare → post the webhook
+  → record with the message id; **the web** goes prepare → record, and the
+  outbox posts it after.
+
+`editSpeech` and `deleteSpeech` sit beside them with the **five-minute window**
+(`EDIT_WINDOW_MS`, Bascinet's call) and the ownership check, and a GM passes
+`{ gm: true }` to skip both. An edit re-runs the transforms; a delete is soft.
+Neither touches Discord — §4 does.
+
+### The record: every message is a row first
 
 `ArchiveEntry` was already written for every proxied message
 (`ARCHIVE.md`). Phase 0 added the columns that make it a live feed:
@@ -28,13 +55,13 @@ Two reasons, and both are Bascinet's.
 | `seq` | `BIGSERIAL`, the cursor. Monotonic and assigned by Postgres, so the bot and the web never need to agree on a clock. A BigInt in Prisma: it crosses JSON as a **string** and is compared with `BigInt()`, never `Number()`. |
 | `placeKey` | Where it was said: `loc:<id>`, `room:<id>`, `conv:<playerThreadId>`, `zone:<id>`. A snapshot string, no FK. `db/lib/placeKey.js` is the only thing that mints one; `placeKeyForChannel` resolves a Discord channel or thread id to one, memoised for a minute. |
 | `source` | `DISCORD`, `WEB` or `SYSTEM`. The outbox (§4) only ever posts `WEB` rows on to Discord, which is what keeps a proxied message from being echoed back into the channel it came from. |
-| `editedAt`, `deletedAt` | Soft delete, so a client holding the row can reconcile. `/archive` and `/play` filter on `deletedAt`. (Phase 0 still hard-deletes on ❌; phase 1 switches it.) |
+| `editedAt`, `deletedAt` | Soft delete everywhere since phase 1, so a client holding the row can reconcile and the outbox has something to read when it goes to remove the Discord message. `/archive` and `/play` filter on `deletedAt`. |
 | `discordSyncedAt` | The outbox watermark. Null on a `WEB` row means the bot has not posted it yet. |
 
 `recordArchiveMessage` / `recordArchiveEvent` (`db/lib/archive.js`) write
 `placeKey` and `source`, then run `SELECT pg_notify('bascinet_feed', …)` with
-the row's seq and place key (`db/lib/feedNotify.js`). After the insert, never
-inside it: a listener woken before the commit would look the row up and find
+the row's seq, place key and `op` — `new`, `edit` or `delete`
+(`db/lib/feedNotify.js`). After the insert, never inside it: a listener woken before the commit would look the row up and find
 nothing. The payload is tiny on purpose; every reader loads the row and
 re-checks who may see it.
 
@@ -46,7 +73,11 @@ leak a listener per hot reload) with `LISTEN bascinet_feed`, and a map of
 place key → open streams. `GET /api/feed?place=&since=` is one stream per
 tab: it sends the catch-up rows (`seq > since`) first, then subscribes, drops
 anything at or below the last seq it sent, and writes `: ping` every 25 s so
-Railway's proxy keeps the connection. The browser's `EventSource` reconnects
+Railway's proxy keeps the connection. Two event names: `message` carries a
+whole row (a new one, or an edited one the client replaces by seq), `delete`
+carries a seq and nothing else — the words somebody took back never come back
+down the wire. Only a new row moves the high-water mark, since an edit and a
+delete both name a seq the stream has already sent. The browser's `EventSource` reconnects
 on its own, and the client's cursor makes the reconnect repeat nothing.
 
 **Why not a WebSocket service.** Sends are an ordinary `POST` either way, and
@@ -56,16 +87,31 @@ replica. Revisit only if that ever becomes more than one.
 
 ## 4. The outbox: the bot owns Discord
 
-`POST /api/feed/say` writes a `WEB` row and returns it. The web never holds a
-Discord token for chat. `bot/src/lib/feedOutbox.js` listens on the same
-channel, and for a `WEB` row with no `discordMessageId` posts it into the
-Location's channel through the REST twin of the proxy
-(`db/lib/discordRest.js#postAsCharacter`), loading the forced name and
-concealment the way `messageCreate.js` does so a hood or a Beast posts under
-the right name from the web too. It re-reads the claim right before posting
-and claims with a guarded `updateMany`, so a row picked up twice posts once.
-`drainFeedOutbox()` sweeps the last 24 h on `ready`, through the same
-serialised queue, which is what makes a bot restart mid-send harmless.
+`bot/src/lib/feedOutbox.js` is the **only** thing that posts, edits or deletes
+a webhook message — since phase 1, on either face. The web never holds a
+Discord token for chat, and neither does the reaction handler: a ✏️ or a ❌ in
+Discord writes the row and lets the outbox do the rest.
+
+Three verbs, chosen off the **row** rather than off the notification's `op`
+(the op is a hint; the drain has no op at all):
+
+| Row looks like | The outbox |
+|---|---|
+| `source = WEB`, no `discordMessageId` | Posts it through `db/lib/discordRest.js#postAsCharacter`, loading the forced name and concealment the way `messageCreate.js` does, and stores the id. |
+| `editedAt` newer than `discordSyncedAt` | `editWebhookMessage`. |
+| `deletedAt` newer than `discordSyncedAt` | `deleteWebhookMessage`. The row and its `discordMessageId` stay, so nothing ever reposts what somebody took back. |
+
+Everything runs through one serialised queue — two posters against one channel
+webhook would interleave a scene — and every verb **re-reads the row right
+before acting** and stamps `discordSyncedAt` after, so a row picked up twice
+acts once. `drainFeedOutbox()` sweeps the last 24 h on `ready` through that
+same queue, which is what makes a bot restart mid-send, mid-edit or
+mid-delete harmless.
+
+Every place kind is wired: `db/lib/placeKey.js#discordTargetForPlaceKey` gives
+back `{ channelId, threadId }`, because a Room or a Conversation is a thread
+and Discord will not hang a webhook off one — the webhook belongs to the parent
+channel and the call carries `?thread_id=`.
 
 Discord-origin messages take the old path: proxy, webhook, then the row, now
 stamped with `placeKey` and `discordSyncedAt`. The web hears about them from
@@ -88,26 +134,35 @@ name and description, the last 100 rows, a composer.
   minutes, the same rule as `DmThread.js`. The list scrolls itself, never the
   document, and only while the reader is already at the bottom; otherwise a
   "New messages" pill. On a coarse pointer, Enter is a newline and a Send
-  button appears, as in Discord's app.
-- The gate is `web/lib/feedAccess.js#allowedPlaceKeys`, called by both routes,
-  with the character resolved from the session and never from the request.
-  Phase 0: only `loc:` of the Location you stand in.
-- Slowmode is 30 s per character per place, enforced in the say route by the
-  character's newest row there. Discord's channel slowmode is the same number
-  so a player sees one rule. The speech gate (mute, gag) is the same
-  `db/lib/incapacitation.js` table the proxy uses.
+  button appears, as in Discord's app. Your own rows carry ✎ and ✕ — on hover
+  with a mouse, always on a touch screen — and an edited row says "(edited)"
+  after the time. ✕ goes through the shared `useConfirm()` dialog.
+- The gate is `db/lib/feedAccess.js#allowedPlaceKeys`, with the character
+  resolved from the session and never from the request. Phase 1: only `loc:` of
+  the Location you stand in.
+- `POST /api/feed/edit` and `POST /api/feed/delete` take a `seq` and nothing
+  else that matters — the character is the session's. Both answer `{ error }`
+  with a status rather than throwing, and both leave Discord to the outbox.
+- Slowmode is 30 s per character per place (300 s for a zone summary), enforced
+  in `prepareSpeech` by the character's newest row there. Discord's channel
+  slowmode is the same number so a player sees one rule. The speech gate (mute,
+  gag) is the same `db/lib/incapacitation.js` table the proxy uses.
 
-Not yet on the web send: the babble and autocorrect passes
-`postAsCharacterTo` runs. They move into one write path with everything else.
+The whole send — the gate, the transforms, the slowmode, the identity — is
+`db/lib/say.js` (§2), so a web message and a Discord one are decided by the
+same code. `web/lib/feedAccess.js` is the character load and re-exports the
+rules, which live in `db/lib/feedAccess.js` where `say.js` can read them too.
 
 ## 6. What comes next, in order
 
-1. **One write path**, `db/lib/say.js`: gates, identity, babble/autocorrect,
-   slowmode, the row, the notify. `messageCreate` becomes "delete the
-   original, then say". `/message`, Speak and the say route call it too.
-   Reactions (✏️ ❌ 🔍 📸) look the row up by `discordMessageId` instead of the
-   in-memory `recentProxies`, which a restart empties. Edit and delete get a
-   **5-minute window on both faces** (Bascinet's call).
+1. ~~**One write path**~~ — done (§2, §4). `db/lib/say.js` decides for both
+   faces, `messageCreate` is "prepare, post, record, delete the original", and
+   `/message` and Speak call the same three. The reactions (✏️ ❌ 🔍 📸) look
+   their message up as an `ArchiveEntry` row by `discordMessageId` instead of
+   the in-memory `recentProxies`, which a restart emptied — so an hour-old
+   message is no longer inert. Edit and delete have a **5-minute window on both
+   faces** (Bascinet's call), `/play` draws ✎ and ✕ on your own rows, and
+   delete is soft everywhere.
 2. **The other places.** Public Rooms, private Rooms you can reach
    (`accessibleRooms`), Conversations you are in, the zone Summary. The place
    list becomes the left column; on a phone, tabs. Conversation membership

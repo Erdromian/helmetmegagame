@@ -75,8 +75,7 @@ function DepotField({ name, label, value, help }) {
 }
 
 // The catalog as the two tables need it. Flattened here rather than passed
-// whole: a client component gets plain data, and the blurbs belong in the DM
-// rather than in a table's props.
+// whole: a client component gets plain data.
 // The union of both, not just the opt-ins: a seat can be assignable without
 // ever having been a checkbox (the Tribunal will be), and the table needs it
 // in the Assign dropdown regardless.

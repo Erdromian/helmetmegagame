@@ -166,20 +166,53 @@ async function recordArchiveEvent(prisma, entry) {
   });
 }
 
-// ✏️ edited a proxied message. Keyed on the Discord message id, so a row the
-// bot no longer has in its in-memory recentProxies map is simply not found —
-// which matches Discord, where that message is already inert to reactions.
-async function updateArchiveMessage(prisma, discordMessageId, content) {
-  return safely("message edit", () =>
-    prisma.archiveEntry.updateMany({ where: { discordMessageId }, data: { content } }),
-  );
+// The row that a Discord message id belongs to. Since phase 1 this is what
+// the reactions look themselves up with, in place of the in-memory
+// recentProxies map that a restart emptied.
+async function archiveRowForMessage(prisma, discordMessageId) {
+  if (!discordMessageId) return null;
+  return prisma.archiveEntry.findUnique({
+    where: { discordMessageId },
+    select: {
+      id: true,
+      seq: true,
+      placeKey: true,
+      characterId: true,
+      characterName: true,
+      concealedAlias: true,
+      content: true,
+      sentAt: true,
+      deletedAt: true,
+      kind: true,
+    },
+  });
 }
 
-// ❌ deleted a proxied message. Delete means gone: the transcript honors it,
-// so a player can trust the button. The cost is that the record is incomplete
-// and someone can quietly retract what they said.
-async function deleteArchiveMessage(prisma, discordMessageId) {
-  return safely("message delete", () => prisma.archiveEntry.deleteMany({ where: { discordMessageId } }));
+// ✏️ and ❌, keyed on the Discord message id. Both are thin now: db/lib/say.js
+// owns the owner check, the five-minute window, the transforms and the notify,
+// and bot/src/lib/feedOutbox.js is the only thing that touches Discord.
+//
+// `require` inside the function, not at the top: say.js requires this module,
+// and a cycle at load time would hand it a half-built exports object.
+async function updateArchiveMessage(prisma, discordMessageId, content, options = {}) {
+  return safely("message edit", async () => {
+    const row = await archiveRowForMessage(prisma, discordMessageId);
+    if (!row) return { ok: false, refusal: "That message is gone. ‡" };
+    const { editSpeech } = require("./say");
+    return editSpeech(prisma, { characterId: row.characterId, seq: row.seq, content, ...options });
+  });
+}
+
+// Soft since phase 1. A client holding the row has to be able to reconcile,
+// and the outbox needs something to read when it goes to remove the Discord
+// message — so the row stays and /archive and /play filter it out.
+async function deleteArchiveMessage(prisma, discordMessageId, options = {}) {
+  return safely("message delete", async () => {
+    const row = await archiveRowForMessage(prisma, discordMessageId);
+    if (!row) return { ok: false, refusal: "That message is gone. ‡" };
+    const { deleteSpeech } = require("./say");
+    return deleteSpeech(prisma, { characterId: row.characterId, seq: row.seq, ...options });
+  });
 }
 
 module.exports = {
@@ -189,6 +222,7 @@ module.exports = {
   forgetGameId,
   recordArchiveMessage,
   recordArchiveEvent,
+  archiveRowForMessage,
   updateArchiveMessage,
   deleteArchiveMessage,
 };

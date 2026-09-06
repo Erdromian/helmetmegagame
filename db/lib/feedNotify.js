@@ -16,14 +16,17 @@
 
 const FEED_CHANNEL = "bascinet_feed";
 
-async function notifyFeed(prisma, { seq, placeKey } = {}) {
+// `op` says what happened to the row: "new" (default), "edit" or "delete".
+// A listener still loads the row and re-checks who may see it — the op only
+// tells it which of the three things to do, never what the row says.
+async function notifyFeed(prisma, { seq, placeKey, op = "new" } = {}) {
   if (seq === null || seq === undefined || !placeKey) return false;
   try {
     // seq is a BigInt off the row; JSON.stringify cannot serialise one, so it
     // goes over the wire as a string and every reader parses it back with
     // BigInt(), never Number() — past 2^53 a Number cursor silently stops
     // moving.
-    const payload = JSON.stringify({ seq: String(seq), placeKey });
+    const payload = JSON.stringify({ seq: String(seq), placeKey, op });
     await prisma.$executeRaw`SELECT pg_notify(${FEED_CHANNEL}, ${payload})`;
     return true;
   } catch (err) {

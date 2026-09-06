@@ -45,16 +45,17 @@ Three mechanisms are worth knowing about regardless of which seat uses them:
   `db/lib/worldBroadcast.js#ambientEverywhere`. Adding a seat to that broadcast
   is one line in the set.
 
-An entry with neither `optIn` nor `assign` is a **brief**: prose a GM runs
-entirely by hand, no checkbox and no button. They are what is left of
-`docs/threats.md`, which was deleted when the catalog took over — a second prose
-copy of a blurb is a second thing to drift.
+**No prose lives in the catalog.** What a seated player reads is the Role's
+own charter — `intro` and `description` from `docs/roles.yaml` — sent by the
+seat DM. The catalog used to carry a `blurb` per seat as well; Bascinet pulled
+it on 2026-09-06 because it was a second, drafted copy of what the role already
+said. The hand-run briefs (Brigands, Monsters, the Sympathizer) are not entries
+at all; they are in `SECRETS.md`.
 
 ### Why a code module and not a table
 
 Same reasoning as `db/lib/roleIds.js`: fixed values that can never differ per
-environment, so a row would only add a join and a way to drift. It also means a
-blurb edit ships with a deploy rather than a sync.
+environment, so a row would only add a join and a way to drift.
 
 ### Renaming a slug needs no migration
 
@@ -110,9 +111,11 @@ cost the grant:
 
 ```
 You are now the {name}!
-{blurb, one line each}
-Check your tags and documents.
+Check your tags and documents. ‡
 ```
+
+No charter here: an assigned character already has a role, and the seat is
+its tags. The spawn offer (§4) is the one that carries a charter.
 
 `sendDm` applies the `»` prefix, splits past 2000 characters and logs to
 `DirectMessage`, so the whole thing shows up on `/gm/messages` too.
@@ -127,7 +130,17 @@ Assign needs a living character. For anybody else the row offers Spawn instead.
 Two phases, because the offer crosses from web to Discord and back.
 
 **Phase 1 — the GM offers.** `offerThreatSpawn` writes a `ThreatSpawn` row and
-DMs the target the blurb plus Accept / Decline. The buttons are raw component
+DMs the target the Role's charter plus Accept / Decline:
+
+```
+You have been offered a seat: the {name}.
+{role.intro}
+{role.description, one line each}
+Accept and you arrive immediately. Decline and nothing happens. ‡
+```
+
+A `{tag:…}` token in a description line is flattened to the tag's name for the
+DM, looked up rather than title-cased. The buttons are raw component
 JSON built by `spawnOfferComponents()` in `db/lib/threatSpawn.js` — the web
 sends them and only the bot has discord.js, so the shape lives where both can
 reach it, same as the Bird's Reply button.
@@ -230,11 +243,8 @@ somebody else's client.
    `npm run db:sync-tags`.
 3. That is all. Both tables, both buttons and the wizard read the catalog.
 
-Blurbs Bascinet dictated carry **no `‡`** — the exemption in CLAUDE.md for
-dictated text. Anything you write around them does, and so does a blurb you
-**drafted** rather than transcribed: that one carries a single mark at the end
-of its last line, which is where the whole DM ends. One per message, not one
-per line.
+The words a seated player reads are the Role's, from `docs/roles.yaml`. Do not
+add prose to a catalog entry; write it on the role.
 
 **The design doc is `SECRETS.md`** — gitignored, superadmin-only. Rationale, the
 real-vs-decoy roster and the round scripts live there. This file stays in the

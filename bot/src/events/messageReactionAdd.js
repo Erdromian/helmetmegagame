@@ -7,8 +7,8 @@ const { gmRoleIds } = require("@lifeweb/db/lib/roleIds");
 const { EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire } = require("@lifeweb/db/lib/examine");
 const { buildSkillAncestry, satisfiedSkillIds } = require("@lifeweb/db/lib/medicalVision");
 const { BLIND_SLUG } = require("@lifeweb/db/lib/examineVision");
-const { deleteArchiveMessage } = require("@lifeweb/db/lib/archive");
-const { recentProxies, webhookClientFor } = require("../lib/proxy");
+const { deleteSpeech, EDIT_WINDOW_MS, WINDOW_REFUSAL } = require("@lifeweb/db/lib/say");
+const { proxyRowFor } = require("../lib/proxy");
 const { resolveChannelContext } = require("../lib/channels");
 const { forcedNameFrom, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 const { photoCaption } = require("@lifeweb/db/lib/photo");
@@ -41,9 +41,21 @@ const DOSSIER_EMOJI = "⚜️"; // GM only
 // of them would just look broken.
 const CAMERA_EMOJIS = ["📸", "📷"];
 
+// Every emoji this file acts on, so an unrecognised one is dropped before the
+// message is fetched.
+const KNOWN_EMOJIS = new Set([
+  DELETE_EMOJI,
+  STAR_EMOJI,
+  FOG_EMOJI,
+  DOSSIER_EMOJI,
+  ...EDIT_EMOJIS,
+  ...INSPECT_EMOJIS,
+  ...CAMERA_EMOJIS,
+]);
+
 // Saves the message to the reactor's personal Notes list. `proxy` is the
-// live recentProxies entry, or null; identity falls back to ArchiveEntry,
-// then to the poster's display name for a bot-as-itself post.
+// archived row for a proxied message, or null; identity falls back to
+// ArchiveEntry, then to the poster's display name for a bot-as-itself post.
 async function handleStarReaction(reaction, proxy, user) {
   const message = reaction.message;
 
@@ -325,9 +337,9 @@ function examineEmbed(readout) {
 // that /gm/dev/tags loads unpaginated. This is the bound, and it costs the
 // player nothing real: photographing the same moment twice is the same photo.
 //
-// In memory and volatile across a restart, like recentProxies itself — which
-// this is keyed against anyway, so a shot can never outlive the proxy entry
-// that made it possible.
+// In memory and volatile across a restart. A restart therefore hands a
+// photographer one more shot of an old message, which is the harmless
+// direction: the print is the same print.
 const photographed = new Set();
 const photographKey = (messageId, characterId) => `${messageId}:${characterId}`;
 
@@ -422,11 +434,10 @@ module.exports = {
     // guildId, not guild: a partial message has the former, not always the
     // latter. Nothing is reaction-driven in a DM.
     if (!reaction.message.guildId) return;
-    // ⭐ works on any guild message; every other reaction needs a tracked
-    // proxy.
-    if (emojiName !== FOG_EMOJI && emojiName !== STAR_EMOJI && !recentProxies.has(reaction.message.id)) {
-      return;
-    }
+    // Nothing else in the guild is reaction-driven, so an unrecognised emoji
+    // costs one Set lookup and stops here — before the two REST fetches
+    // Partials would otherwise charge for every reaction in the game.
+    if (!KNOWN_EMOJIS.has(emojiName)) return;
 
     if (reaction.partial) await reaction.fetch().catch(() => null);
     if (reaction.message.partial) await reaction.message.fetch().catch(() => null);
@@ -434,11 +445,16 @@ module.exports = {
 
     if (reaction.emoji.name === FOG_EMOJI) {
       await handleFogReaction(reaction, user).catch(() => {});
-      recentProxies.delete(reaction.message.id);
       return;
     }
 
-    const proxy = recentProxies.get(reaction.message.id) ?? null;
+    // The transcript row, not an in-memory map. This is what makes ✏️ ❌ 🔍 📸
+    // work on a message posted before the bot last restarted — the map used to
+    // empty on every deploy and quietly make an hour-old scene inert.
+    const proxy = await proxyRowFor(reaction.message.id).catch((err) => {
+      console.error("Couldn't look up the archived row for a reaction:", err);
+      return null;
+    });
 
     const emoji = reaction.emoji.name;
 
@@ -452,7 +468,9 @@ module.exports = {
       return;
     }
 
-    if (!proxy) return;
+    // A row somebody already took back is inert: the Discord message is on its
+    // way out, and there is nothing left to edit, inspect or photograph.
+    if (!proxy || proxy.deletedAt) return;
 
     const isOwner = user.id === proxy.discordUserId;
 
@@ -466,20 +484,16 @@ module.exports = {
     }
 
     if (emoji === DELETE_EMOJI) {
-      if (!isOwner && !(await isGm(reaction, user.id))) return;
-      const webhookClient = webhookClientFor({ id: proxy.webhookId, token: proxy.webhookToken });
-      const deleted = await webhookClient
-        // Webhook#deleteMessage(message, threadId) takes a plain string, not
-        // an options object, or Discord 400s every ❌ in a thread.
-        .deleteMessage(reaction.message.id, proxy.threadId ?? undefined)
-        .then(() => true)
-        .catch((err) => {
-          console.error("Failed to delete proxied message:", err);
-          return false;
-        });
-      if (deleted) {
-        await deleteArchiveMessage(prisma, reaction.message.id);
-        recentProxies.delete(reaction.message.id);
+      const gm = !isOwner && (await isGm(reaction, user.id));
+      if (!isOwner && !gm) return;
+      // The ROW is deleted, and the outbox removes the Discord message. That
+      // is the whole of the ❌ handler now: one writer, and the five-minute
+      // window decided in one place (db/lib/say.js). A GM is not held to it.
+      const result = await deleteSpeech(prisma, { characterId: proxy.characterId, seq: proxy.seq, gm });
+      if (!result?.ok && result?.refusal) {
+        await sendDm(user, `» *${result.refusal}*`, { source: "system_notice" }).catch((err) =>
+          console.error(`Couldn't tell ${user.id} why the delete was refused:`, err),
+        );
       }
       await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip ❌ reaction:", err));
       return;
@@ -487,6 +501,15 @@ module.exports = {
 
     if (EDIT_EMOJIS.includes(emoji)) {
       if (!isOwner) return;
+      // Refused here as well as inside editSpeech: the modal is a lot of
+      // ceremony to walk somebody through before telling them it was too late.
+      if (Date.now() - new Date(proxy.sentAt).getTime() > EDIT_WINDOW_MS) {
+        await sendDm(user, `» *${WINDOW_REFUSAL}*`, { source: "system_notice" }).catch((err) =>
+          console.error(`Couldn't tell ${user.id} the edit window had closed:`, err),
+        );
+        await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
+        return;
+      }
       // A reaction carries no interaction token, so it can only stash the
       // text and DM a button whose click opens the modal (editModal.js).
       stashEdit(reaction.message.id, reaction.message.content);

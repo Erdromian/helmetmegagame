@@ -51,9 +51,20 @@ export async function GET(request) {
         }
       };
 
+      // Three events on the wire, and only a NEW row moves the high-water
+      // mark. An edit or a delete names a seq the stream has already sent, so
+      // dropping it for being "old" would be exactly wrong.
       const sendRow = (row) => {
         if (!row?.seq) return;
         const seq = BigInt(row.seq);
+        if (row.op === "delete") {
+          write(`event: delete\ndata: ${JSON.stringify({ seq: row.seq, placeKey: row.placeKey })}\n\n`);
+          return;
+        }
+        if (row.op === "edit") {
+          write(`event: message\ndata: ${JSON.stringify(row)}\n\n`);
+          return;
+        }
         if (seq <= lastSeq) return;
         lastSeq = seq;
         write(`event: message\ndata: ${JSON.stringify(row)}\n\n`);

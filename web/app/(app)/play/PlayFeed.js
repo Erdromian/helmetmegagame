@@ -5,8 +5,18 @@ import CharacterAvatar from "@/app/components/CharacterAvatar";
 import MarkdownContent from "@/app/components/MarkdownContent";
 import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
+import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
-import { useFeed, seedRows, applyRow, addPending, markPendingFailed, retryPending, lastSeq } from "./feedStore";
+import {
+  useFeed,
+  seedRows,
+  applyRow,
+  removeRow,
+  addPending,
+  markPendingFailed,
+  retryPending,
+  lastSeq,
+} from "./feedStore";
 
 // The live scene: the messages said in this Location, and the box to say one.
 //
@@ -24,6 +34,11 @@ import { useFeed, seedRows, applyRow, addPending, markPendingFailed, retryPendin
 const RUN_GAP_MS = 7 * 60_000;
 // How close to the bottom still counts as "reading the newest", in px.
 const STICK_PX = 40;
+// The same five minutes db/lib/say.js#EDIT_WINDOW_MS enforces. Kept here as a
+// number rather than imported, because importing from @lifeweb/db in a
+// "use client" file drags Prisma and node:fs into the browser bundle. The
+// server is the one that decides; this only decides whether to draw a button.
+const EDIT_WINDOW_MS = 5 * 60_000;
 
 function timeLabel(iso) {
   if (!iso) return "";
@@ -32,10 +47,19 @@ function timeLabel(iso) {
 
 // memo'd, and the whole point of keying the store by seq: a new message
 // re-renders one of these, not the run of a hundred above it.
-const FeedRow = memo(function FeedRow({ row, startsRun, onRetry }) {
+const FeedRow = memo(function FeedRow({ row, startsRun, mine, editing, coarse, onRetry, onEdit, onCancelEdit, onSaveEdit, onDelete }) {
+  const [hover, setHover] = useState(false);
+  const [draft, setDraft] = useState(row.content ?? "");
+
+  // Always reachable on a touch screen, where there is no hover to reveal
+  // them; out of the way of a mouse until it is over the row.
+  const showActions = mine && !editing && (coarse || hover);
+
   return (
     <li
       className="flex gap-3"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       style={{
         marginTop: startsRun ? "var(--sp-3)" : "var(--sp-1)",
         // No hex anywhere — a pending row is the same row, quieter.
@@ -54,9 +78,59 @@ const FeedRow = memo(function FeedRow({ row, startsRun, onRetry }) {
             <span className="mono text-xs" style={{ color: "var(--muted)" }}>
               {timeLabel(row.sentAt)}
             </span>
+            {row.editedAt && (
+              <span className="text-xs" style={{ color: "var(--muted)" }}>
+                (edited) ‡
+              </span>
+            )}
           </div>
         )}
-        <MarkdownContent content={row.content} />
+
+        {editing ? (
+          <div className="field">
+            <textarea
+              rows={2}
+              value={draft}
+              autoFocus
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  onCancelEdit();
+                  return;
+                }
+                if (e.key !== "Enter" || e.shiftKey) return;
+                e.preventDefault();
+                onSaveEdit(row.seq, draft);
+              }}
+            />
+            <div className="flex gap-2">
+              <button type="button" className="btn-quiet" onClick={() => onSaveEdit(row.seq, draft)}>
+                Save ‡
+              </button>
+              <button type="button" className="btn-quiet" onClick={onCancelEdit}>
+                Cancel ‡
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <MarkdownContent content={row.content} />
+            </div>
+            {showActions && (
+              <div className="flex gap-1" style={{ flexShrink: 0 }}>
+                <button type="button" className="btn-quiet" title="Change it ‡" onClick={() => onEdit(row.seq, row.sentAt)}>
+                  ✎
+                </button>
+                <button type="button" className="btn-quiet" title="Take it back ‡" onClick={() => onDelete(row.seq, row.sentAt)}>
+                  ✕
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {row.failed && (
           <button type="button" className="btn-quiet" onClick={() => onRetry(row.clientId)}>
             Not sent. Retry ‡
@@ -74,9 +148,11 @@ function newClientId() {
 export default function PlayFeed({ place, placeName, initialRows, self }) {
   const rows = useFeed(place);
   const coarse = useIsCoarsePointer();
+  const confirm = useConfirm();
   const [draft, setDraft] = useState("");
   const [error, setError] = useState(null);
   const [atBottom, setAtBottom] = useState(true);
+  const [editingSeq, setEditingSeq] = useState(null);
 
   const scrollerRef = useRef(null);
   // Read inside the scroll handler and the arrival effect, where a stale
@@ -94,6 +170,15 @@ export default function PlayFeed({ place, placeName, initialRows, self }) {
         applyRow(place, JSON.parse(event.data));
       } catch {
         // A malformed frame is not worth tearing the stream down over.
+      }
+    });
+    // A delete carries only a seq: the words somebody took back never come
+    // back down the wire.
+    source.addEventListener("delete", (event) => {
+      try {
+        removeRow(place, JSON.parse(event.data)?.seq);
+      } catch {
+        // Same.
       }
     });
     // EventSource reconnects by itself; the store's cursor means the catch-up
@@ -153,6 +238,72 @@ export default function PlayFeed({ place, placeName, initialRows, self }) {
     [place, send],
   );
 
+  // The window, checked in an event handler where reading the clock is both
+  // legal and correct. The refusal is the bot's word for word, so a player
+  // hears one rule on both faces.
+  const withinWindow = (sentAt) => Date.now() - new Date(sentAt ?? 0).getTime() < EDIT_WINDOW_MS;
+  const TOO_LATE = "That was said more than five minutes ago and stands. ‡";
+
+  const onEdit = useCallback((seq, sentAt) => {
+    if (!withinWindow(sentAt)) {
+      setError(TOO_LATE);
+      return;
+    }
+    setError(null);
+    setEditingSeq(seq);
+  }, []);
+
+  const onCancelEdit = useCallback(() => setEditingSeq(null), []);
+
+  // The row swaps in from the stream, so nothing is written into the store
+  // here: the server is the one that decides what the message now says.
+  const onSaveEdit = useCallback(async (seq, content) => {
+    setEditingSeq(null);
+    try {
+      const res = await fetch("/api/feed/edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seq, content }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(data?.error ?? "That didn't change. ‡");
+        return;
+      }
+      setError(null);
+    } catch {
+      setError("That didn't change. ‡");
+    }
+  }, []);
+
+  const onDelete = useCallback(
+    async (seq, sentAt) => {
+      if (!withinWindow(sentAt)) {
+        setError(TOO_LATE);
+        return;
+      }
+      if (!(await confirm({ title: "Take that back? ‡", message: "It goes from here and from Discord. ‡", confirmLabel: "Take it back ‡" }))) {
+        return;
+      }
+      try {
+        const res = await fetch("/api/feed/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ seq }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          setError(data?.error ?? "That didn't go. ‡");
+          return;
+        }
+        setError(null);
+      } catch {
+        setError("That didn't go. ‡");
+      }
+    },
+    [confirm],
+  );
+
   const onScroll = useCallback(() => {
     const el = scrollerRef.current;
     if (!el) return;
@@ -179,6 +330,12 @@ export default function PlayFeed({ place, placeName, initialRows, self }) {
   // Looks BACK at the previous row rather than carrying a running variable
   // forward: react-hooks/immutability forbids reassigning a closure variable
   // inside a render, and the answer is the same either way.
+  //
+  // `mine` is what draws ✎ and ✕: a confirmed row of this character's. The
+  // five-minute window is NOT decided here — the clock moves while the page
+  // sits open, and a render that read it would be deciding on a stale one (and
+  // is impure besides). It is checked when the button is pressed, and again by
+  // the server, which is the only check that counts.
   const withRuns = useMemo(
     () =>
       rows.map((row, i) => {
@@ -186,9 +343,10 @@ export default function PlayFeed({ place, placeName, initialRows, self }) {
         const at = row.sentAt ? new Date(row.sentAt).getTime() : 0;
         const prevAt = prev?.sentAt ? new Date(prev.sentAt).getTime() : 0;
         const startsRun = !prev || prev.characterId !== row.characterId || at - prevAt > RUN_GAP_MS;
-        return { row, startsRun };
+        const mine = Boolean(row.seq) && row.characterId === self.characterId;
+        return { row, startsRun, mine };
       }),
-    [rows],
+    [rows, self.characterId],
   );
 
   return (
@@ -202,9 +360,27 @@ export default function PlayFeed({ place, placeName, initialRows, self }) {
           <EmptyState>Nothing has been said here yet. ‡</EmptyState>
         ) : (
           <ul className="list-none p-0">
-            {withRuns.map(({ row, startsRun }) => (
-              <FeedRow key={row.seq ?? row.clientId} row={row} startsRun={startsRun} onRetry={onRetry} />
-            ))}
+            {withRuns.map(({ row, startsRun, mine }) => {
+              const editing = Boolean(row.seq) && row.seq === editingSeq;
+              return (
+                <FeedRow
+                  // The key changes when the row goes into edit mode, so the
+                  // textarea mounts fresh with the current text rather than
+                  // holding whatever a previous edit left in it.
+                  key={editing ? `${row.seq}:edit` : (row.seq ?? row.clientId)}
+                  row={row}
+                  startsRun={startsRun}
+                  mine={mine}
+                  editing={editing}
+                  coarse={coarse}
+                  onRetry={onRetry}
+                  onEdit={onEdit}
+                  onCancelEdit={onCancelEdit}
+                  onSaveEdit={onSaveEdit}
+                  onDelete={onDelete}
+                />
+              );
+            })}
           </ul>
         )}
       </div>

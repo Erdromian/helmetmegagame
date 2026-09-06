@@ -7563,7 +7563,8 @@ tags:
     pointCost: 0
     equippable: true
     tradeable: true
-    weight: 100
+    # Weightless like the horse and the cart: you ride it, you don't carry it.
+    weight: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false

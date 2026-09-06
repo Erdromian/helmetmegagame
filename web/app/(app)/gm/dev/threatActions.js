@@ -2,8 +2,8 @@
 
 // The two threat verbs, behind /gm/dev?s=assignments.
 //
-// ASSIGN hands a seat to a character who already exists: its tags, its points,
-// its blurb. SPAWN offers a whole new character to somebody who has none — it
+// ASSIGN hands a seat to a character who already exists: its tags and its
+// points. SPAWN offers a whole new character to somebody who has none — it
 // writes the offer and DMs the buttons; the accept lands in the bot, because
 // a DM has no guild (bot/src/lib/threatSpawn.js).
 //
@@ -33,17 +33,33 @@ function repaint() {
   revalidatePath("/gm/players", "layout");
 }
 
-// The DM a newly-seated threat reads. One ‡ for the whole message, at the very
-// end — the blurb lines are Bascinet's own words and carry none of their own,
-// except the one Demoness line still waiting on a rewrite.
-function seatMessage(threat, { spawned = false } = {}) {
+// A {tag:…} token in a Role's description, flattened to the tag's name for a
+// DM — Discord has no chip to render it into. Looked up, not title-cased, so a
+// tag whose name is not its slug still reads right.
+async function flattenTagTokens(lines) {
+  const slugs = new Set();
+  for (const line of lines) for (const m of line.matchAll(/\{tag:([^}]+)\}/g)) slugs.add(m[1]);
+  if (!slugs.size) return lines;
+  const tags = await prisma.tag.findMany({ where: { slug: { in: [...slugs] } }, select: { slug: true, name: true } });
+  const names = new Map(tags.map((t) => [t.slug, t.name]));
+  return lines.map((line) => line.replace(/\{tag:([^}]+)\}/g, (_, slug) => names.get(slug) ?? slug));
+}
+
+// The DM a newly-seated threat reads. What sits between the opening and the
+// tail is the Role's own charter from docs/roles.yaml — its intro and its
+// description lines, Bascinet's words — never a second copy written here.
+// Assign hands a seat to a character who already has a role, so it carries no
+// charter at all. One ‡ for the whole message, at the very end.
+async function seatMessage(threat, { role = null, spawned = false } = {}) {
   const opening = spawned
     ? `You have been offered a seat: the ${threat.name}.`
     : `You are now the ${threat.name}!`;
   const tail = spawned
-    ? "Accept and you arrive immediately. Decline and nothing happens."
-    : "Check your tags and documents.";
-  return [opening, ...(threat.blurb ?? []), tail].join("\n");
+    ? "Accept and you arrive immediately. Decline and nothing happens. ‡"
+    : "Check your tags and documents. ‡";
+  const intro = role?.intro?.trim();
+  const charter = await flattenTagTokens([...(intro ? [intro] : []), ...(role?.description ?? [])]);
+  return [opening, ...charter, tail].join("\n");
 }
 
 // Hands an existing character a seat. Any threat, opted in or not — consent is
@@ -146,7 +162,7 @@ export async function assignThreat({ characterId, threatSlug }) {
   // shows the whole thing.
   const conflictLine = describeSeatConflicts(conflicts);
   after(async () => {
-    await sendDm(character.discordUserId, [seatMessage(threat), conflictLine].filter(Boolean).join("\n"), {
+    await sendDm(character.discordUserId, [await seatMessage(threat), conflictLine].filter(Boolean).join("\n"), {
       authorDiscordUserId: session.discordUserId,
       source: "threat_assign",
     }).catch((err) => console.error("Threat assign DM failed:", err));
@@ -220,7 +236,7 @@ export async function offerThreatSpawn({ discordUserId, threatSlug, roleId, loca
     },
   });
 
-  const sent = await sendDm(discordUserId, seatMessage(threat, { spawned: true }), {
+  const sent = await sendDm(discordUserId, await seatMessage(threat, { role, spawned: true }), {
     authorDiscordUserId: session.discordUserId,
     source: "threat_spawn_offer",
     components: spawnOfferComponents(spawn.id),
