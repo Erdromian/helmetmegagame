@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Giant, Strong and Pack Mule no longer stack
+
+✎ Giant, Strong and Pack Mule now conflict with each other, so a build can hold only one of the three carry bodies
+
 ## 2026-09-06 · Twelve antagonist boxes, two of them the Thanati
 
 ✚ Cultist and Cultist Leader are real seats now: they grant the Thanati belief, the leader wears a mark on top, and a GM can Assign or Spawn them  
