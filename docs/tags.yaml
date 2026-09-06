@@ -824,37 +824,31 @@ tags:
     # Curable + maximally valuable would be a point farm otherwise (R-1).
     purchasableAfterStart: false
     removable: false
-    # Nothing is worth wanting, so nothing else about who you are gets a say.
-    # Every other tag in general-personality except six -- nobility, eunuch,
-    # debtor, poor-swimmer, motion-sickness, lightweight -- which are bodies
-    # and circumstances rather than dispositions. A new Personality tag
-    # belongs on this list unless it is that kind. The Addictions carry their
-    # own edge back to us and are not repeated here (sync pass 6 unions both
-    # directions).
+    # Depressed IS a Desire tag -- it locks the whole catalog. So it conflicts
+    # with the other tags that touch the Desire system: the ones carrying their
+    # own desires: block, and the ones a Desire gates on in docs/desires.yaml.
+    # A tag that never touches Desires has no quarrel with it, which is why
+    # Lazy, Insomniac, Guilt Ridden, the phobias and Torturer sit beside it
+    # quite happily. The Addictions carry their own edge back to us and are not
+    # repeated here (sync pass 6 unions both directions).
     conflictsWith:
+      - nobility
       - mad-doctor
       - esoteric
       - adventurer
       - cruel
       - charitable
-      - torturer
       - death-wish
       - schemer
       - craven
       - kleptomaniac
       - superstitious
       - pacifist
+      - eunuch
       - desperate
       - devoted-follower
       - hypochondriac
       - prudish
-      - pyrophobia
-      - acrophobia
-      - claustrophobia
-      - teratophobia
-      - guilt-ridden
-      - insomniac
-      - lazy
       - hot-headed
       - corrupt
     desires:

@@ -148,15 +148,20 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
 
   **It is not only for cross-group edges.** Depressed carries the catalog's
   largest conflict list, and almost all of it points *inside* its own
-  `general-personality` group: it conflicts with every tag there except six,
-  on top of the five Addictions that already point at it from their side.
-  Nothing else about who a character is gets a say once nothing is worth
-  wanting. The six exempt are `nobility`, `eunuch`, `debtor`, `poor-swimmer`,
-  `motion-sickness` and `lightweight` — a station, a body, a debt and three
-  physical facts, which sit in this group by grouping convenience rather than
-  because they are dispositions. **Add a new Personality tag and it belongs on
-  Depressed's list** unless it is that kind of not-really-a-disposition; the
-  rule is "all but those six", not a frozen enumeration.
+  `general-personality` group, on top of the five Addictions that already point
+  at it from their side.
+
+  **The rule is the Desire system, not the group.** Depressed locks the whole
+  Desire catalog, so it conflicts with the other tags that *touch* Desires —
+  the ones carrying their own `desires:` block (Nobility, Eunuch, Craven,
+  Kleptomaniac, Pacifist, Prudish, Devoted Follower) and the ones a Desire
+  gates on from `docs/desires.yaml` (Mad Doctor, Esoteric, Adventurer, Cruel,
+  Charitable, Death Wish, Schemer, Superstitious, Desperate, Hypochondriac,
+  Hot-Headed, Corrupt). A tag that never touches Desires has no quarrel with
+  it: Lazy, Insomniac, Guilt Ridden, Torturer, the four phobias, Debtor, Poor
+  Swimmer, Motion Sickness and Lightweight all sit beside Depressed quite
+  happily. **Adding a Personality tag? It belongs on Depressed's list only if
+  it locks or opens Desires** — that test, not a frozen enumeration.
 
   That list is `conflictsWith` and deliberately **not** `exclusive` on the
   group, even though it is close to a one-per-group rule. `exclusive` compares
