@@ -32,7 +32,7 @@ bubbles the tag descriptions render through.
 | `laboring-basic` | Laboring (Basic) | 0–2 | — |
 | `laboring-skilled` | Laboring (Skilled) | 1–4 | `parentTag: laboring-basic` |
 | `laboring-hunting` | Laboring (Hunting) | 0–15 | `requiredTag: laboring-skilled` |
-| `laboring-farming` | Laboring (Farming) | 14–19 | `requiredTag: laboring-skilled` |
+| `laboring-farming` | Laboring (Farming) | 15–21 | `requiredTag: laboring-skilled` |
 | `laboring-fishing` | Laboring (Fishing) | 7–13 | `requiredTag: laboring-skilled` |
 
 The slugs were `laborer-*` before this rework and are `laboring-*` now, because
@@ -76,6 +76,10 @@ are rounded and the averages land at -21.1%, -13.0% and +10.0%. Hunting's
 0–16 would have been only -15.8%, which is further from the intent than
 overshooting to 0–15. The general tiers are untouched again, for the reason
 above.
+
+**Farming was then raised a further 9%** the same day, 14–19 -> **15–21**. The
+average goes 16.5 -> 18.0, which is +9.09% — no whole-number pair lands on 9%
+exactly, and 15–20 would have been only +6%.
 
 ## 3. What a place is worth
 

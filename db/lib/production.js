@@ -29,12 +29,15 @@
 // exactly — hunting 0-19 -> 0-15 (-21.1% on the average, since 0-16 would be
 // only -15.8%), fishing 8-15 -> 7-13 (-13.0%), farming 13-17 -> 14-19
 // (+10.0%). The general tiers are untouched again, for the reason above.
+//
+// Farming raised a further 9% on 2026-09-06: 14-19 -> 15-21, an average of
+// 16.5 -> 18.0, or +9.09% — the closest whole-number pair to the intent.
 const PRODUCTION_RATES = {
   labor: {
     basic: { min: 0, max: 2 },
     skilled: { min: 1, max: 4 },
     hunting: { min: 0, max: 15 },
-    farming: { min: 14, max: 19 },
+    farming: { min: 15, max: 21 },
     fishing: { min: 7, max: 13 },
   },
 };
