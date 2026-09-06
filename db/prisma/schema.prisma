@@ -230,6 +230,12 @@ model GameConfig {
   // /gm/dev. Crossing into another zone is gated by the Move, not by this.
   locationMoveCooldownSeconds Int @default(60)
 
+  // How long a character waits between two flips of the "web only" switch
+  // (db/lib/webOnly.js). Each flip is a burst of Discord writes — every
+  // overwrite, every role, every thread — so the cooldown is hours, not
+  // seconds. Two by default.
+  webOnlyCooldownSeconds Int @default(7200)
+
   // Capitalizes the first letter of each sentence in Tupper-proxied messages
   // before they're reposted (bot/src/lib/textCorrection.js) — on by default,
   // purely cosmetic, never touches anything but sentence-start casing.
@@ -1284,8 +1290,35 @@ model PlayerThread {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  members PlayerThreadMember[]
+
   @@index([locationId])
   @@index([lastActivityTurn])
+}
+
+/// Who is IN a conversation, as a row rather than as a Discord thread member
+/// list. Added in phase 2 of the Hall (docs/systemdocs/HALL.md §2a).
+///
+/// Membership used to live only in Discord, which made it unreadable from the
+/// web — the feed could not tell whose conversation this was — and unusable by
+/// a player whose Discord account is out of the channels entirely. Discord's
+/// thread membership is now a PROJECTION of these rows: every writer records
+/// the row first and then adds the account.
+///
+/// `characterId` carries no FK, like PlayerThreadInvite: the conversation is
+/// keyed to the PlayerThread and cascades with it, and a character that ceases
+/// to exist takes the whole game's rows with it through the wipe rather than
+/// through a constraint here.
+model PlayerThreadMember {
+  playerThreadId String
+  playerThread   PlayerThread @relation(fields: [playerThreadId], references: [id], onDelete: Cascade)
+
+  characterId String
+
+  createdAt DateTime @default(now())
+
+  @@id([playerThreadId, characterId])
+  @@index([characterId])
 }
 
 /// Who /add has invited into a conversation. Discord's thread-member list
@@ -1616,6 +1649,18 @@ model Character {
   portrait      String?
   appearance    String?
   turnPingOptIn Boolean @default(true)
+
+  // "Play from the web" (docs/systemdocs/HALL.md §6). While it is on, this
+  // player's Discord account holds NO game access at all — no Location
+  // overwrite, no zone role, no room or conversation thread — so standing
+  // somewhere no longer tells the room which account they are. They read and
+  // speak on /play instead, and every re-materialiser (the mover, the doctor,
+  // room access, the invite replay, nickname sync) checks this flag first, or
+  // the next pass would quietly put them back. The fiction is untouched: they
+  // still stand there and still appear in Who's here.
+  webOnly          Boolean   @default(false)
+  // Stamped on every flip, and the GameConfig.webOnlyCooldownSeconds clock.
+  webOnlyChangedAt DateTime?
 
   // 18-90, or null until the player first sets one. Free to edit while null;
   // the moment a number lands it is fixed — the /character input renders

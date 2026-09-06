@@ -262,7 +262,9 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
           create: { threadId: channel.id, characterId: target.id },
         })
         .catch((err) => console.error("Failed to record thread invite:", err));
-      if (target.locationId === conversation.locationId) {
+      // A "web only" target has no Discord presence to add (HALL.md §6) — the
+      // membership row above is the invite, and they read it on /play.
+      if (target.locationId === conversation.locationId && !target.webOnly) {
         await channel.members.add(target.discordUserId).catch((err) =>
           console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err),
         );

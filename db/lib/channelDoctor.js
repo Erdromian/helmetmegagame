@@ -131,6 +131,7 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
         zoneId: true,
         locationId: true,
         turnPingOptIn: true,
+        webOnly: true,
       },
     }),
     getGuildRoles(),
@@ -283,7 +284,10 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     await reconcileRoleMembership({
       roleId: zone.discordRoleId,
       label: `Zone: ${zone.name}`,
-      shouldHave: alive.filter((c) => c.zoneId === zone.id).map((c) => c.discordUserId),
+      // A "web only" character holds no Discord access at all, so they are
+      // not in this set and the doctor takes the role back off them if they
+      // somehow still wear it (docs/systemdocs/HALL.md §6).
+      shouldHave: alive.filter((c) => c.zoneId === zone.id && !c.webOnly).map((c) => c.discordUserId),
       members,
       report,
     });
@@ -305,7 +309,10 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     if (!live) continue;
     const label = `${location.zoneName}/${location.name}`;
     const shouldHave = new Set(
-      alive.filter((c) => c.locationId === location.id).map((c) => c.discordUserId).filter(Boolean),
+      alive
+        .filter((c) => c.locationId === location.id && !c.webOnly)
+        .map((c) => c.discordUserId)
+        .filter(Boolean),
     );
     // The ALLOW BITS come along, not just the id: LOCATION_MEMBER_ALLOW
     // changes over time (Send came off it when Location channels became
@@ -569,7 +576,7 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
       for (const room of privateRooms) {
         const shouldHave = new Set(
           alive
-            .filter((c) => c.discordUserId)
+            .filter((c) => c.discordUserId && !c.webOnly)
             .filter((c) => {
               const keys = keysByCharacter.get(c.id);
               return accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds).length > 0;
@@ -666,6 +673,7 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
 
       const wantByUser = new Map();
       for (const c of alive) {
+        if (c.webOnly) continue;
         const ctx = await buildNarrowcastContext(prisma, c.id);
         const grant = computeNarrowcastAccess(ctx)[entry.slug];
         if (grant) wantByUser.set(c.discordUserId, grant);

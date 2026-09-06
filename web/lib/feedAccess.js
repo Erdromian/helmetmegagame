@@ -53,6 +53,8 @@ export async function loadFeedCharacter(discordUserId) {
       gender: true,
       updatedAt: true,
       locationId: true,
+      // The chip in the places column (docs/systemdocs/HALL.md §6).
+      webOnly: true,
       location: {
         select: { id: true, name: true, description: true, zone: { select: { id: true, name: true } } },
       },

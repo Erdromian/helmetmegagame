@@ -294,6 +294,14 @@ export async function updateGuildNickname(discordUserId, nickname) {
 export async function syncCharacterNickname(discordUserId, characterName) {
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   if (!config?.nicknameSyncEnabled) return;
+  // Gated here rather than at the six call sites: "Play from the web" exists so
+  // that nothing on Discord says which character this account is, and a
+  // nickname is the loudest thing that could (docs/systemdocs/HALL.md §6).
+  const hidden = await prisma.character.findFirst({
+    where: { discordUserId, status: "ALIVE", webOnly: true },
+    select: { id: true },
+  });
+  if (hidden) return;
 
   const member = await getGuildMember(discordUserId);
   if (!member) return;
@@ -425,9 +433,12 @@ export async function syncCharacterNarrowcastAccess(characterId) {
 
   const character = await prisma.character.findUnique({
     where: { id: characterId },
-    select: { discordUserId: true },
+    select: { discordUserId: true, webOnly: true },
   });
   if (!character?.discordUserId) return;
+  // "Play from the web" holds this account out of every channel, narrowcast
+  // included (docs/systemdocs/HALL.md §6).
+  if (character.webOnly) return;
 
   const [ctx, config] = await Promise.all([
     buildNarrowcastContext(prisma, characterId),

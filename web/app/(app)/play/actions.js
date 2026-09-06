@@ -79,6 +79,9 @@ async function actor(select) {
       locationId: true,
       factionId: true,
       discordUserId: true,
+      // "Play from the web" — nothing here may touch Discord for them
+      // (docs/systemdocs/HALL.md §6).
+      webOnly: true,
       // `role` and the tag slugs are what canToggleGate reads, and
       // affordancesFor asks it for every gate this character is standing at.
       role: { select: { slug: true } },
@@ -480,7 +483,11 @@ export async function openConversation({ roomId, name } = {}) {
   let thread;
   try {
     thread = await startPrivateThread(room.location.discordChannelId, trimmed);
-    if (me.character.discordUserId) await addThreadMember(thread.id, me.character.discordUserId);
+    // A "web only" creator stays out of their own thread's member list
+    // (docs/systemdocs/HALL.md §6); the membership row below is the truth.
+    if (me.character.discordUserId && !me.character.webOnly) {
+      await addThreadMember(thread.id, me.character.discordUserId);
+    }
   } catch {
     return { ok: false, error: "Couldn't open that — try again, or tell a GM. ‡" };
   }

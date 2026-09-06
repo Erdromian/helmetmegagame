@@ -130,6 +130,17 @@ ignores `honorific`, `firstName` and `lastName` outright — the three inputs on
 and the server action is the lock. The rest of the Bio form (appearance,
 avatar, opt-ins) is untouched.
 
+Two of those opt-ins are switches under the picture. **Ping me when the turn
+advances** adds or removes the turn-ping Discord role and nothing else. **Play
+from the web** is the anonymity switch (`HALL.md` §6): while it is on, this
+player's Discord account holds no game access at all — no Location overwrite,
+no zone role, no room or conversation thread — and they read and speak on
+`/play` instead. It is the one switch on this form with a cooldown of its own
+(two hours, `GameConfig.webOnlyCooldownSeconds`), because each flip is a burst
+of Discord writes; `db/lib/webOnly.js#setWebOnly` enforces it with the same
+atomic `updateMany` guard the Location-move cooldown uses, and a refusal leaves
+the rest of the save standing.
+
 The one way through is the **Mulligan Potion**, drunk from the "Change name"
 button next to those disabled fields: the player picks a new
 honorific/first/last name, it applies immediately, and **one potion is

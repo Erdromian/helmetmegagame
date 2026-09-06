@@ -163,6 +163,18 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null, gue
     )?.roomThreadRoomIds ?? [],
   );
 
+  // The "web only" switch (docs/systemdocs/HALL.md §6) holds this account out
+  // of every channel, so it is entitled to no thread at all until it comes
+  // back off. Cleared rather than never computed, on purpose: the diff below
+  // then REMOVES whatever they still stand in. Read here rather than off the
+  // passed-in `character`, because a dozen callers hand this function a row
+  // with their own select. Feed access is untouched — placesFor reads
+  // accessibleRooms directly.
+  const flags = await prisma.character
+    .findUnique({ where: { id: character.id }, select: { webOnly: true } })
+    .catch(() => null);
+  if (flags?.webOnly) entitled.clear();
+
   const scope = guestsOnly ? rooms.filter((r) => spentGuestRoomIds.has(r.id)) : rooms;
   const targets = scope.filter((room) => entitled.has(room.id) !== stored.has(room.id));
   // A door opened or shut, so this character's /play place list changed —
