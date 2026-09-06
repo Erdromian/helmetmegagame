@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
+import { EmptyRow } from "@/app/components/EmptyState";
 import TagChip from "@/app/components/TagChip";
 import TagDetailSheet from "@/app/components/TagDetailSheet";
 import { needsWorkshop } from "@/lib/tagRequests";
@@ -91,11 +92,7 @@ export default function RecipesTab({ tags }) {
         </thead>
         <tbody>
           {sections.length === 0 && (
-            <tr>
-              <td colSpan={COLUMNS} className="empty-state">
-                No recipe matches that. ‡
-              </td>
-            </tr>
+            <EmptyRow cols={COLUMNS}>No recipe matches that. ‡</EmptyRow>
           )}
           {sections.map(({ discipline, rows: sectionRows }) => (
             <RecipeSection

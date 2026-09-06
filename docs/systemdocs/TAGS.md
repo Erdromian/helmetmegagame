@@ -259,7 +259,7 @@ also work a needle. Note the second entry is not a skill at all — the sync
 resolves any tag slug here (`db/lib/syncTags.js`), which is what lets a recipe
 require a *belief*.
 
-`isDeadSimple()` (`web/lib/requests.js`) reads the same slugs for the
+`isDeadSimple()` (`web/lib/tagRequests.js`) reads the same slugs for the
 4-per-turn cap, so callers still select `requirementSkills { name, slug }`.
 
 ## 3a. Hidden categories, and gated groups

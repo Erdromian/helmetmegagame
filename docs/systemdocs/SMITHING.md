@@ -109,10 +109,10 @@ rung that costs 0 turns, so nothing else rations it. The allowance counts
 *units*, not requests — these tags are stackable and one Craft request can
 carry any quantity — and it is summed across every ADD_TAG request filed in
 the open turn. The constant is `DEAD_SIMPLE_PER_TURN` in
-`web/lib/requests.js`, which also holds `isDeadSimple()` — the tier has no
+`web/lib/tagRequests.js`, which also holds `isDeadSimple()` — the tier has no
 column of its own, so it is recognised as "0 turns of work plus a smithing or
-crafting skill gate" — and `craftAllowance()`, which is the one place that
-decides what a recipe's free ration actually is.
+crafting skill gate". `craftAllowance()` (`web/lib/requests.js`) is the one
+place that decides what a recipe's free ration actually is.
 
 **Over the cap, the work comes out of your Move.** This is the rule Milestone
 A deferred to here. Units past the allowance are not refused: each one costs

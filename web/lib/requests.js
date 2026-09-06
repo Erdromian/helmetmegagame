@@ -133,8 +133,9 @@ export { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS, REQUEST_STATUS_TONES } from
 
 // Same split, same reason: the Dead Simple ration is a fact about a RECIPE, so
 // it lives with the other recipe predicates in tagRequests.js where a client
-// component can reach it. Re-exported here so every server-side import of it
-// keeps working unchanged.
+// component can reach it. Re-exported here as the courtesy path — nothing
+// imports it from here today, but this module is where a server-side reader
+// would look first.
 export { DEAD_SIMPLE_PER_TURN, isDeadSimple } from "@/lib/tagRequests";
 
 // Server actions are public endpoints, so the reason is validated here rather

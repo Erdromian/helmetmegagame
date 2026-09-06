@@ -25,19 +25,6 @@
 
 import { DEAD_SIMPLE_PER_TURN, isDeadSimple } from "./tagRequests";
 
-// requirement.items entry shapes, per db/lib/tagShapes.js: a tag
-// ({ kind: "tag", slug }), a whole group ({ kind: "group", slug }), or a
-// player's pick between several ({ kind: "anyOf", slugs }). Only the first
-// and the last put a tag NAME on screen, so only those two are collected.
-export function ingredientSlugs(items) {
-  const entries = Array.isArray(items) ? items : [];
-  return entries.flatMap((entry) => {
-    if (entry?.kind === "group") return [];
-    if (Array.isArray(entry?.slugs)) return entry.slugs;
-    return entry?.slug ? [entry.slug] : [];
-  });
-}
-
 function joinWithOr(names) {
   if (names.length <= 1) return names[0] ?? "";
   return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
@@ -123,7 +110,12 @@ export function recipeDiscipline(tag) {
 //   - otherwise there is NO cap beyond the Move itself.
 export function recipeWork(tag) {
   const turns = tag.requirementTurns ?? 1;
-  if (tag.requirementPerTurn != null) {
+  // Only 0- and 1-turn recipes read `perTurn` as a per-turn ration. A project
+  // (turns ≥ 2) takes the whole Move every turn it runs, `perTurn` or not —
+  // the same guard craftMoveCost carries (web/lib/craftBudget.js) — so
+  // printing "up to N a turn" on one would be the catalog inventing a rule
+  // the server does not enforce. No such recipe exists today.
+  if (tag.requirementPerTurn != null && turns <= 1) {
     return { turns, ration: tag.requirementPerTurn, shared: false };
   }
   if (turns === 0 && isDeadSimple(tag)) {
