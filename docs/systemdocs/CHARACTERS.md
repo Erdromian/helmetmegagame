@@ -407,9 +407,8 @@ Ranger, Master of Parties at 100 players) is one-and-done for the run. "Taken"
 means "a Character row still points at this Role": a GM deleting the dead
 row from the dev panel, or moving the dead holder to another role, frees the
 seat. The GM panel never checks capacity at all, so a GM can always seat
-someone by hand. A slug list rather than a `roles.yaml` key for the same
-reason the playtest lock below is: a static rule over a fixed roster, with
-no column to migrate.
+someone by hand. A slug list rather than a `roles.yaml` key: a static
+rule over a fixed roster, with no column to migrate.
 
 A role at capacity renders disabled. That's advisory only: `createCharacter`
 re-counts inside the transaction that creates the character. A bare count
@@ -438,9 +437,14 @@ to other players and available to its holder.
 
 ### The Leader Whitelist
 
-A role with `leader: true` needs the **Leader Whitelist** Discord role
+A role with `whitelist: true` in `docs/roles.yaml` — carried into the DB as
+`Role.requiresWhitelist` — needs the **Whitelist** Discord role
 (`LEADER_WHITELIST_ROLE_ID` in `db/lib/roleIds.js`, checked by
-`web/lib/discordGuild.js#isLeaderWhitelisted`). Without it the card renders
+`web/lib/discordGuild.js#isLeaderWhitelisted`). Not `leader: true`: the two
+were split, because "the Baron has to lead the Court" and "who may claim this
+seat" are unrelated questions. Every `leader:` seat happens to carry
+`whitelist:` too, but Arbiter, Meister and Hand are whitelisted without
+leading anything. Without it the card renders
 disabled, exactly like a role at capacity, and with no explanation — the
 reservation is explained once in `#info`, not repeated on every card.
 
@@ -453,33 +457,6 @@ Off, every player may take a Leader seat and the Discord role stops mattering �
 both the card and `createCharacter` read the same flag, so a hand-posted request
 gets in too. It is on by default because the gate fails closed; a missing config
 row still enforces it.
-
-### Playtest mode
-
-`GameConfig.playtestModeEnabled` is a second Dev Panel switch, **off** by
-default, that can hold part of the roster back for a short test: any role
-matched by slug, plus any role standing in a named zone. Its card still
-renders, just disabled, carrying a "closed for this playtest" chip — a
-locked role is still worth reading. Nothing is removed from
-`docs/roles.yaml`, so flipping the switch off restores the roster with no
-sync.
-
-Which roles it covers lives in `web/lib/characterCreation.js`
-(`PLAYTEST_LOCKED_ROLE_SLUGS`, `PLAYTEST_LOCKED_ZONE_NAMES`), not in the
-database — a role is matched by `Role.slug`, a zone by **zone name**,
-because nothing marks a role as belonging to a zone — `Role` and `Faction`
-carry no availability column. `Zone` has no slug, so renaming the zone in
-`roles.yaml` means moving the list with it. Both lists are `[]` today. The
-mechanism is live, it just has no target until somebody names one.
-
-Same presentation/enforcement split as everything else here: the card is a
-hint, `createCharacter` re-checks. One difference — **a superadmin does not
-bypass this one.** The other gates are reservations, so the host walks through
-them to roll a test character; this one hides an unfinished role, and bypassing
-it would only let the host roll the broken thing.
-
-The GM surfaces are untouched: `/gm/dev/characters/[characterId]` will still
-assign a locked role by hand.
 
 ### The starting package
 
