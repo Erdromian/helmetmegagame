@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The archive, remade, with every past game in it
+
+✚ A game picker on /archive: past games are readable by anyone signed in, with their reveal at the top; the current one still opens when the game ends  
+✎ The transcript is a dense day-by-day read now: sticky Day · Dawn · Rain headers, a line per place, one line per thing said at the small size, no avatars  
+✎ Arrivals, deaths, moves and desires fold into one muted line per run that opens on a click; the Show switch picks Speech or Everything  
+✎ Zone and character filters come from the game's own rows, so a past game filters by who and where it actually had
+
 ## 2026-09-06 · Ending the game, and games that outlive the wipe
 
 ✚ The bomb going off ends the game: the clock stops, the archive opens, and the reveal follows the fireball into #turns  
