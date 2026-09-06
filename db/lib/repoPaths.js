@@ -40,7 +40,7 @@ function docsDir() {
 
 // Joins onto docs/, or returns null when docs/ cannot be found at all. Callers
 // that read a YAML master should throw on null — a sync with no master is not
-// a sync. The weather banner treats null as "no banner", which is the same
+// a sync. The turn banner treats null as "no banner", which is the same
 // thing it already did for a missing file.
 function docsPath(...segments) {
   const dir = docsDir();

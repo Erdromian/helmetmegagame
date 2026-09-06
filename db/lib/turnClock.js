@@ -7,7 +7,7 @@
 // the next boundary is the next boundary). Turns were 12 hours once, with a
 // second boundary at noon; the phases still alternate, so an in-game day is
 // now two real days. The old helper
-// (weather.js#turnEndEpochSeconds) derived it from *now* and the phase, which
+// (the old weather.js#turnEndEpochSeconds) derived it from *now* and the phase, which
 // is only correct at the instant the turn opens: the bot rebuilds the #turns
 // announcement on restart, so a restart at 18:00 posted "ends at noon, six
 // hours ago". Everything here derives it from `turn.startedAt` instead, which
@@ -29,8 +29,8 @@ const MOVE_LOCK_MS = MOVE_LOCK_HOURS * 60 * 60 * 1000;
 const TURN_BOUNDARY_HOURS = [0];
 
 // DST-safe local-time-in-a-zone -> UTC conversion using only the built-in Intl
-// API (no date library needed for one zone). Lived in db/weather.js, which now
-// requires it from here so there is one copy.
+// API (no date library needed for one zone). Lived in what is now
+// db/turnCalendar.js, which requires it from here so there is one copy.
 function getTimeZoneOffsetMs(utcMs, timeZone) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone,
@@ -81,7 +81,7 @@ function zonedParts(date, timeZone) {
 // The first 00:00 Chicago boundary strictly after `turn.startedAt`. The cron
 // fires there regardless of phase — so a turn a GM opened by hand at 13:00
 // really does end at the coming midnight, eleven hours later, rather than
-// running a full 24. (The phase-based rule was the one db/weather.js used to
+// running a full 24. (The phase-based rule was the one db/turnCalendar.js used to
 // derive from "now"; it only ever matched the cron for turns the cron itself
 // opened.) "Strictly after" is what keeps a turn opened a second past its own
 // boundary from ending immediately. The hour list is the single place the

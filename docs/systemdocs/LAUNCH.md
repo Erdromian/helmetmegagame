@@ -173,7 +173,7 @@ tags, DMs, the per-character dev panel, and the bot's `/gm` `/dm` `/heal`
 (from a guild channel — none of them work in the bot's DMs).
 
 A GM-role holder **cannot**: end a turn early, wipe or restart, edit Game
-Config, set next turn's weather or note, edit factions, run the channel doctor
+Config, set next turn's note, edit factions, run the channel doctor
 or a Bulk Move, delete a character or a custom tag, or open `/gm/audit` and
 `/gm/dev?s=gamemasters`. All of those are superadmin.
 

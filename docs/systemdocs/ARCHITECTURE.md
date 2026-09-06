@@ -83,7 +83,7 @@ every `path.join(__dirname, "..", "..", "docs", â€¦)` resolved to `/ROOT/docs/â€
 and simply did not exist.
 
 Six call sites had it, and they failed silently in different ways: the `#turns`
-weather banner does `fs.existsSync` and treats absence as "no banner today", so
+turn banner does `fs.existsSync` and treats absence as "no banner today", so
 the image just stopped appearing; the four YAML re-syncs threw ENOENT into a
 `.catch()`, so **Restart Game reported success having reprovisioned nothing.**
 
@@ -219,7 +219,7 @@ and `MAP.md`.
 
 | Doc | Covers |
 |---|---|
-| `TURN-ENGINE.md` | How a turn closes and opens, weather, hunger, auto-labor |
+| `TURN-ENGINE.md` | How a turn closes and opens, turn banners, hunger, auto-labor |
 | `SYNC.md` | The YAML masters and their sync scripts |
 | `CHANNELS.md` | Discord channel layout, visibility, the Dawn wipe |
 | `CHARACTERS.md` | Creation, roles, point economy, death |

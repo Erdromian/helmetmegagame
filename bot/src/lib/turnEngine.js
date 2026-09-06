@@ -39,7 +39,6 @@ async function advanceTurn() {
         newTurnId: newTurn.id,
         number: newTurn.number,
         phase: newTurn.phase,
-        weather: newTurn.weather,
       },
     },
   });

@@ -104,8 +104,7 @@ ids, but the snapshot names on the rows are exactly what was.
 
 **The transcript is dense** (`ArchiveTranscript.js`): the page's rows grouped
 by consecutive day, then scene, at the audit log's sizes. A `TURN_START` row
-becomes the sticky day line — "Day 12 · Dusk · Rain", the weather read off
-its second content line — and is never a row itself. A scene line is
+becomes the sticky day line — "Day 12 · Dusk" — and is never a row itself. A scene line is
 `zoneName · threadName`. Speech rows are time / speaker / words, the speaker
 reading `Young Man (Sir Alder)` for a concealed send. A run of system rows
 (arrivals, deaths, moves, desires) folds into one muted `<details>` line

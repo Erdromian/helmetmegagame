@@ -266,7 +266,7 @@ announcement and nothing else.
 ## 7. Drift — what the land does on its own
 
 `db/lib/laborYield.js`. A mean-reverting random walk plus jump events, in the
-same spirit as `db/weather.js`'s Markov table.
+same spirit as a Markov chain.
 
 ```
 target  = in an event ? eventTarget : base

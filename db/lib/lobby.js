@@ -8,6 +8,7 @@ const { roleCapacity, isSpawnOnly } = require("./roleCapacity");
 const { heldSeatsByRole } = require("./seatCount");
 const { LEADER_WHITELIST_ROLE_ID } = require("./roleIds");
 const { getGameConfig } = require("./gameState");
+const { pickTurnBanner } = require("./turnBanner");
 
 // Button customId prefix for the assignment DM's Decline. The web builds the
 // button and the bot routes the click — the REST/gateway twin convention.
@@ -174,7 +175,7 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
       // Turn.number is unique; a resolved Turn 1 with nothing open is rare but
       // possible by hand, and must not turn Start into a constraint error.
       const last = await tx.turn.aggregate({ _max: { number: true } });
-      await tx.turn.create({ data: { number: (last._max.number ?? 0) + 1, phase: "DAWN", weather: "CLEAR", status: "OPEN", gameDate: now } });
+      await tx.turn.create({ data: { number: (last._max.number ?? 0) + 1, phase: "DAWN", banner: pickTurnBanner("DAWN"), status: "OPEN", gameDate: now } });
     }
 
     await tx.auditLog.create({

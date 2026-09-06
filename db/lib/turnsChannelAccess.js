@@ -1,4 +1,4 @@
-// Who can see #turns — the rolling console (turn announcement, weather
+// Who can see #turns — the rolling console (turn announcement, turn
 // banner, Travel/Move/Speak buttons) every player needs. The gate is the
 // zone role, the same trick the retired #intercom used (db/lib/specialChannels.js,
 // `roleViewZones`): every living character holds exactly one "Zone: X" role,

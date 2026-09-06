@@ -12,7 +12,8 @@ function normalizedDatabaseUrl() {
 const databaseUrl = normalizedDatabaseUrl();
 
 const { PrismaClient, Prisma } = require("@prisma/client");
-const { rollWeather, buildTurnAnnouncement } = require("./weather");
+const { buildTurnAnnouncement } = require("./turnCalendar");
+const { nextTurnBanner } = require("./lib/turnBanner");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { expiryFrom } = require("./lib/turnFormat");
 const { runCorpseRotPass } = require("./lib/corpseRotPass");
@@ -1205,8 +1206,9 @@ async function advanceTurn() {
   const lastTurn =
     openTurn ?? (await prisma.turn.findFirst({ orderBy: { number: "desc" } }));
   const phase = !lastTurn || lastTurn.phase === "DUSK" ? "DAWN" : "DUSK";
-  // A GM override (GameState.nextWeather) always wins over the rolled weather.
-  const weather = state.nextWeather ?? rollWeather(lastTurn?.weather, phase);
+  // Picked once, here, and remembered on the Turn row — a repost of the
+  // announcement must show the same picture, not roll a new one.
+  const banner = await nextTurnBanner(prisma, phase);
   const lifewebFlavor =
     lifewebBlood <= LIFEWEB_SPUTTER_THRESHOLD
       ? "The Lifeweb sputters, failing."
@@ -1218,7 +1220,7 @@ async function advanceTurn() {
     data: {
       number: (lastTurn?.number ?? 0) + 1,
       phase,
-      weather,
+      banner,
       gameDate: new Date(),
       status: "OPEN",
     },
@@ -1226,7 +1228,7 @@ async function advanceTurn() {
 
   await prisma.gameState.update({
     where: { id: 1 },
-    data: { nextWeather: null, nextTurnNote: null },
+    data: { nextTurnNote: null },
   });
 
   await recordArchiveEvent(prisma, {
@@ -1234,7 +1236,6 @@ async function advanceTurn() {
     turn: newTurn,
     content: [
       `Day ${Math.ceil(newTurn.number / 2)} — ${newTurn.phase}`,
-      weather,
       note,
     ]
       .filter(Boolean)
@@ -1728,7 +1729,7 @@ module.exports = {
   FEED_ROW_SELECT: require("./lib/archive").FEED_ROW_SELECT,
   ...require("./lib/seatZone"),
   LIFEWEB_SPUTTER_THRESHOLD,
-  ...require("./weather"),
+  ...require("./turnCalendar"),
   ...require("./lib/constants"),
   ...require("./lib/roleIds"),
   ...require("./lib/gmZoneView"),
