@@ -96,9 +96,10 @@ import, which also makes it one of the HIDDEN recipes (off the Recipes tab,
 out of the Craft menu until the brewer holds one). Its 6 ⬢ stays for now;
 whether it drops back toward 2 is an open ruling.
 
-`gunpowder-grenade` left this table altogether: it is smith's work now
-(Smithing (Gunpowder), `items-weapons`), listed in the Smithing paper beside
-`black-powder` and the `bomb`. See `SMITHING.md`.
+`gunpowder-grenade` (now named **Crude Grenade**) left this table
+altogether: it is smith's work now (Smithing (Skilled), `items-weapons`),
+listed in the Smithing paper beside `black-powder` and the `bomb`. See
+`SMITHING.md`.
 
 An empty **Consumes into** cell is not an oversight. `consumable` with no
 `consumesInto` is set where the brew is spent *by a Move* rather than by the

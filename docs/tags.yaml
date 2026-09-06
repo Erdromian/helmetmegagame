@@ -5371,14 +5371,35 @@ tags:
     sellablePrice: 8
     depotPrice: 13
 
+  # What the Painting spends (Chris 2026-09-06). catalog: all on purpose — a
+  # gm-catalog ingredient would pull the Painting into the hidden-recipe rule
+  # (web/lib/recipeCatalog.js) and blank its row on the Recipes tab.
+  art-supplies:
+    catalog: all
+    name: Art Supplies
+    category: items
+    group: items-gear
+    description: "Brushes, pigment, and a stretch of canvas — everything a painting takes except the eye. ‡"
+    pointCost: 0
+    depotPrice: 3
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    sellable: true
+    sellablePrice: 1
+
   # The one thing an Artist can turn a week of work into. No depotPrice: the
   # station imports nothing Ravenheart makes itself, and a painting is the
   # purest case of that.
   #
   # 60 ⬢ makes it the top of the sell table by a wide margin (Gunpowder, the
   # old ceiling, is 49) and that is deliberate — 7 turns is three and a half
-  # times the longest smithing rung, and unlike every other craftable it
-  # consumes no materials at all. It works out just under Ravenheart Red's
+  # times the longest smithing rung, and its only material is a cheap Depot
+  # import ({tag:art-supplies}). It works out just under Ravenheart Red's
   # 10 ⬢ a turn, which DEPOT.md §4 already treats as the top of what honest
   # work should pay.
   #
@@ -5405,6 +5426,7 @@ tags:
       resourceCost: 0
       skills: [artist]
       gambit: false
+      items: [art-supplies]
     customizable: true
     sellable: true
     # Nerfed 20% from 60. Over its 4 turns that is 12 ⬢/turn, still the best
@@ -9760,12 +9782,17 @@ tags:
   # is what routes it to the Smithing paper (db/scripts/ops/audit-craft-docs
   # assigns papers by group). Still spends RAW saltpeter; only the bigger
   # {tag:bomb} wants the refined {tag:black-powder}.
+  # Renamed from Gunpowder Grenade (Chris 2026-09-06): it packs raw saltpeter,
+  # not powder, so it neither claims the name nor needs the Gunpowder rung.
+  # The slug stays — the papers' {tag:...} tokens and any held rows follow the
+  # name, not the slug.
   gunpowder-grenade:
+    keepSlug: true
     catalog: all
-    name: Gunpowder Grenade
+    name: Crude Grenade
     category: items
     group: items-weapons
-    description: "A bomb, and priced like one. Refined from {tag:saltpeter} mined out of the Caves."
+    description: "A bomb, and priced like one. Packed with raw {tag:saltpeter} mined out of the Caves. ‡"
     pointCost: 0
     tradeable: true
     weight: 2
@@ -9779,7 +9806,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 6
-      skills: [smithing-gunpowder]
+      skills: [smithing-skilled]
       gambit: false
       items: [saltpeter]
     sellable: true
