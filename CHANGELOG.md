@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Farming pays 9% more
+
+✎ Laboring (Farming) now pays 15–21 ⬡ instead of 14–19
+
+
 ## 2026-09-06 · Travel that costs your Move takes a day
 
 ✎ A zone crossing that spends your Move now lands NEXT turn: you keep standing where you are until the day turns, so the new zone's channels no longer open the moment you press Confirm  
