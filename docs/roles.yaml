@@ -2,14 +2,14 @@
 # Postgres by db/lib/syncRoles.js#syncRolesFromYaml (npm run db:sync-roles).
 #
 # PROSE STYLE — every prose value in this file (`intro`, each `description`
-# bullet, each zone `situation` entry) is a `>-` folded block scalar, one
-# physical line per bullet, no hard wrapping. `>-` never needs quoting, so a
-# `: ` or a leading `-` inside the text is safe, and it folds back to a single
-# line. That last part is load-bearing: `Role.description` is a String[] and
-# each element is rendered as one Markdown bullet on the role charter, so an
-# element carrying a newline breaks the bullet. Never use `|` on `description`
-# — it hands the sync one string where Prisma wants an array, and the sync
-# throws mid-pass with the factions already written.
+# bullet) is a `>-` folded block scalar, one physical line per bullet, no
+# hard wrapping. `>-` never needs quoting, so a `: ` or a leading `-` inside
+# the text is safe, and it folds back to a single line. That last part is
+# load-bearing: `Role.description` is a String[] and each element is rendered
+# as one Markdown bullet on the role charter, so an element carrying a newline
+# breaks the bullet. Never use `|` on `description` — it hands the sync one
+# string where Prisma wants an array, and the sync throws mid-pass with the
+# factions already written.
 # docs/locations.yaml follows the same rule.
 #
 # Factions and roles are maps keyed by slug (`baron:`, not `- slug: baron`);
@@ -1369,6 +1369,7 @@ zones:
               - Mail Coif
               - Buckler
               - Crossbow
+              - Plebeian Hood
             doc_elements:
               - concealing
           brigand:
@@ -1403,5 +1404,6 @@ zones:
               - Padded Cap
               - Buckler
               - Shortbow
+              - Plebeian Hood
             doc_elements:
               - concealing
