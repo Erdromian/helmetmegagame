@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Four community fixes, merged from Erdromian's and kezzawozza's pull requests
+
+✎ A bare cart is now refused at an on-foot threshold, the same way a horse is  
+✎ The Dev Panel's Kill, Spend turn, Restore turn and Transfer ⬢ dialogs have their reason box back, so Transfer ⬢ works again  
+✎ Faction invites and applications have their note field back, so the 'We said' column finally shows something  
+− Eating a Gunpowder Grenade
+
 ## 2026-09-06 · A Playtest role, and a leaner lobby
 
 ✚ A Playtest Discord role, handed to every Contributor: it skips the lobby and creates a character in any phase, like a GM, and counts as on the roster without the Player role  
