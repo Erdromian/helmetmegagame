@@ -500,7 +500,14 @@ async function teleportCharacterImpl({ characterId, locationId }) {
   // The denormalization contract: locationId and zoneId are written together.
   const updated = await prisma.character.update({
     where: { id: characterId },
-    data: { locationId: locationId || null, zoneId: location?.zoneId ?? null },
+    // travelTo* cleared alongside: a teleport ends any walk in progress, or
+    // db/lib/travelArrivalPass.js would undo it at the next advance.
+    data: {
+      locationId: locationId || null,
+      zoneId: location?.zoneId ?? null,
+      travelToLocationId: null,
+      travelTurnId: null,
+    },
   });
 
   await audit(session, "gm_character_teleported", characterId, {

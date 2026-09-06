@@ -17,11 +17,13 @@ const {
   DRAG_PREFIX,
   CONFIRM_PREFIX,
   CANCEL_ID,
+  TURN_BACK_ID,
   loadMover,
   listNames,
   buildLocationSelectRow,
   buildDragRow,
   buildConfirmRow,
+  buildTurnBackRow,
   rememberDrag,
   takeDrag,
   forgetDrag,
@@ -758,6 +760,24 @@ async function handleTravelOpen(interaction) {
     return;
   }
 
+  // On the road already. A paid crossing takes the whole day (MAP.md §3), so
+  // there is no picker to offer — only the choice to turn around. The Move
+  // stays spent either way; walking back is not a refund.
+  if (character.travelToLocationId) {
+    const heading = await prisma.location.findUnique({
+      where: { id: character.travelToLocationId },
+      select: { name: true },
+    });
+    await respond(interaction, {
+      content: [
+        `» You're on the road to **${heading?.name ?? "somewhere"}**. You arrive next turn. ‡`,
+        "-# Turn back and you stay where you are — your Move is spent regardless. ‡",
+      ].join("\n"),
+      components: [buildTurnBackRow()],
+    });
+    return;
+  }
+
   let current = null;
   let destinations;
   let shut = [];
@@ -1108,11 +1128,12 @@ async function handleTravelConfirm(interaction, locationId) {
     return;
   }
 
-  const brought = result.moved
+  const brought = (result.deferred ? result.travelers : result.moved)
     .filter((entry) => entry.character.id !== character.id)
     .map((entry) => entry.character.name);
-  const parts = [`» Moved to **${target.name}**.`];
-  if (result.spentTurn) parts.push("Your Move is spent.");
+  const parts = result.deferred
+    ? [`» You set out for **${target.name}**. You arrive next turn.`, "Your Move is spent."]
+    : [`» Moved to **${target.name}**.`];
   if (result.usedFreeMove) {
     parts.push(
       result.freeMovesLeft > 0
@@ -1123,6 +1144,27 @@ async function handleTravelConfirm(interaction, locationId) {
   if (brought.length > 0) parts.push(`Bringing ${listNames(brought)}.`);
 
   await respond(interaction, { content: `${parts.join(" ")} ‡`, components: [] });
+}
+
+// loc:turnback — abandon a journey in progress. Clears the destination and
+// nothing else: the Action is already filed and the Move already spent, so a
+// player who changes their mind has burned their day either way.
+async function handleTravelTurnBack(interaction) {
+  await interaction.deferUpdate();
+
+  const character = await loadMover(interaction.user.id);
+  if (!character?.travelToLocationId) {
+    await respond(interaction, { content: "» *You're not going anywhere.* ‡", components: [] });
+    return;
+  }
+  await prisma.character.update({
+    where: { id: character.id },
+    data: { travelToLocationId: null, travelTurnId: null },
+  });
+  await respond(interaction, {
+    content: "» You turn back. Your Move is still spent. ‡",
+    components: [],
+  });
 }
 
 async function handleTravelCancel(interaction) {
@@ -2159,6 +2201,7 @@ module.exports = {
       } else if (interaction.isButton()) {
         if (interaction.customId === "loc:open") return void (await handleTravelOpen(interaction));
         if (interaction.customId === CANCEL_ID) return void (await handleTravelCancel(interaction));
+        if (interaction.customId === TURN_BACK_ID) return void (await handleTravelTurnBack(interaction));
         if (interaction.customId.startsWith(CONFIRM_PREFIX)) {
           return void (await handleTravelConfirm(interaction, interaction.customId.slice(CONFIRM_PREFIX.length)));
         }

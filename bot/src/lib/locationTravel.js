@@ -32,6 +32,7 @@ const PICK_ID = "loc:pick";
 const DRAG_PREFIX = "loc:drag:";
 const CONFIRM_PREFIX = "loc:confirm:";
 const CANCEL_ID = "loc:cancel";
+const TURN_BACK_ID = "loc:turnback";
 
 // discordUserId -> { locationId, draggedIds, at }. The drag multi-select and
 // the Confirm button are two separate interactions on one ephemeral message,
@@ -101,7 +102,7 @@ function buildLocationSelectRow(locations, from) {
         description: (from
           ? location.zoneId === from.zoneId
             ? "Same zone ‡"
-            : `Crosses into ${location.zone?.name ?? "another zone"} — costs your Move ‡`
+            : `Into ${location.zone?.name ?? "another zone"} — free, or your Move and a day's walk ‡`
           : `${location.zone?.name ?? "Somewhere"} ‡`
         ).slice(0, 100),
       })),
@@ -129,6 +130,14 @@ function buildDragRow(locationId, candidates) {
   return new ActionRowBuilder().addComponents(menu);
 }
 
+// The only control a character already on the road is offered: they are a
+// day's walk from somewhere and the Move is spent either way (MAP.md §3).
+function buildTurnBackRow() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(TURN_BACK_ID).setLabel("Turn back").setStyle(ButtonStyle.Secondary),
+  );
+}
+
 function buildConfirmRow(locationId) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -147,6 +156,26 @@ function buildConfirmRow(locationId) {
 async function performMove(character, targetLocation, dragged = []) {
   const result = await performLocationMove(prisma, character, targetLocation, { dragged });
   if (!result.ok) return result;
+
+  // A paid crossing is a day on the road: nobody has moved yet, so there are
+  // no roles to swap and no Caving Die to roll — db/lib/travelArrivalPass.js
+  // does all of it at the next turn advance (MAP.md §3). The one thing owed
+  // now is a word to the passengers, who did not press anything.
+  if (result.deferred) {
+    for (const entry of result.travelers) {
+      if (entry.character.id === character.id) continue;
+      if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
+      await sendDm(
+        prisma,
+        entry.character.discordUserId,
+        `*${character.name} is taking you to ${targetLocation.name}. You'll get there next turn.* ‡`,
+        { source: "system_notice" },
+      ).catch((err) =>
+        console.error(`Drag DM to ${entry.character.discordUserId} failed:`, err.message ?? err),
+      );
+    }
+    return result;
+  }
 
   // Sequential on purpose: each entry is a handful of REST calls, and firing
   // a whole dragged party's worth at once is the shape that trips the
@@ -229,11 +258,13 @@ module.exports = {
   DRAG_PREFIX,
   CONFIRM_PREFIX,
   CANCEL_ID,
+  TURN_BACK_ID,
   loadMover,
   listNames,
   buildLocationSelectRow,
   buildDragRow,
   buildConfirmRow,
+  buildTurnBackRow,
   rememberDrag,
   takeDrag,
   forgetDrag,

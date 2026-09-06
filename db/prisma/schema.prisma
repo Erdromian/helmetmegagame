@@ -947,6 +947,8 @@ model Location {
 
   rooms            Room[]
   characters       Character[]
+  // Characters walking here right now — Character.travelToLocationId.
+  travellers       Character[]     @relation("CharacterTravelDestination")
   playerThreads    PlayerThread[]
   startingForRoles Role[]          @relation("RoleStartingLocation")
   yields           LocationYield[]
@@ -1389,6 +1391,17 @@ model Character {
   // db/lib/locationTravel.js#performLocationMove; a GM teleport or creation
   // leaves it alone so the character can step at once.
   lastLocationMoveAt DateTime?
+
+  // A journey in progress. A zone crossing that costs the Move no longer
+  // lands at once — the Move is spent now and the character keeps standing
+  // where they are until db/lib/travelArrivalPass.js walks them over at the
+  // next turn advance, so nobody sees the destination's channels a turn early
+  // (docs/systemdocs/MAP.md §3). A free crossing and a same-zone hop are
+  // still instant and never write these. `travelTurnId` is the turn the
+  // journey was declared in, for the sheet's wording.
+  travelToLocationId String?
+  travelTo           Location? @relation("CharacterTravelDestination", fields: [travelToLocationId], references: [id])
+  travelTurnId       String?
 
   // The conceal toggle (/conceal, or the switch on /character). While on,
   // every message proxies under the concealedAlias with the unknown avatar,

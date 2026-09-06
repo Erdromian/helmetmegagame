@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Travel that costs your Move takes a day
+
+✎ A zone crossing that spends your Move now lands NEXT turn: you keep standing where you are until the day turns, so the new zone's channels no longer open the moment you press Confirm  
+✎ Free zone crossings and walks inside a zone are unchanged — still instant  
+✚ A Turn back button for anyone already on the road. It only clears the destination; the Move is spent either way  
+✚ A book on the shelf in the Successor's Chamber
+
 ## 2026-09-06 · Ten equip slots, and the Merchant can crate his own goods
 
 ✎ Everyone has 10 equipment slots instead of 6. The one-helmet, one-cuirass, one-shield rule is unchanged  

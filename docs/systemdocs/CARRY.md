@@ -166,6 +166,9 @@ crossing per *day*. Now:
 - Overburdened sets the allowance to **0**.
 - Past the allowance, a crossing files the `MOVE` Action as it always did.
   Once you have acted, you cannot cross.
+- A **free** crossing lands at once. A **paid** one is a day's walk and only
+  lands next turn (`MAP.md` §3) — the Move goes now, the traveller stands still
+  until the turn turns.
 
 So a peasant walks Town → Forest for nothing, spends their Move to reach the
 Fortress, and the way back waits for the next turn. That is the whole model.

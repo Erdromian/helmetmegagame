@@ -2424,7 +2424,14 @@ async function moveCharacterRequestImpl({
     // The denormalization contract: locationId and zoneId written together.
     await tx.character.update({
       where: { id: target.id },
-      data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId },
+      // travelTo* cleared alongside: being moved by somebody else ends any
+      // walk in progress (db/lib/travelArrivalPass.js).
+      data: {
+        locationId: targetLocation.id,
+        zoneId: targetLocation.zoneId,
+        travelToLocationId: null,
+        travelTurnId: null,
+      },
     });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,

@@ -8356,6 +8356,20 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  love-lies-and-lays-of-larry-luca-life-1-royal-loyal-lynn:
+    catalog: gm
+    name: "Love, Lies and Lays of Larry Luca: Life 1 — Royal Loyal Lynn"
+    category: items
+    group: items-paper
+    bookText: >-
+      Larry Luca lied his way into Lynn's love and affection, and invited her into his life. Lynn entered Larry's lodging, the locale's light illuminating softly. Larry Luca pulled Lynn in to feel her love in a lip lock. Larry Luca lobbed Lynn, who landed and lay on the bed, as Larry leapt to lick Lynn's royal flesh all over.
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
   # THE SIX COURTIER SEALS are the one place a tag is both bought and made, and
   # TAGS.md §4's "nothing is both" invariant is knowingly bent here. A courtier
   # buys their own mark at creation; a Forger (Brigands only, general-brigand)

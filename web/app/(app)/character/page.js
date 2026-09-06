@@ -236,6 +236,9 @@ export default async function CharacterPage() {
       // character's own `zone` above is their presence zone, not the
       // Location's, and building is a fact about the ground.
       location: { include: { zone: { select: { kind: true } } } },
+      // Where they are WALKING, if a paid crossing is still on the road
+      // (MAP.md §3). Name only — the sheet just says so in a line.
+      travelTo: { select: { name: true } },
       role: { select: { slug: true } },
       // requirementSkills must be named explicitly: `include` doesn't pull
       // unnamed relations, and formatTagRequirement's `?.length` guard would
@@ -1206,6 +1209,7 @@ export default async function CharacterPage() {
       carry={carry}
       zoneMoves={zoneMoves}
       zoneMovesReason={zoneMovesReason}
+      travellingTo={character.travelTo?.name ?? null}
       examineBlocked={examineBlocked}
       hasWorkshop={hasWorkshop}
       tagCatalog={tagCatalog}

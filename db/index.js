@@ -17,6 +17,7 @@ const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { expiryFrom } = require("./lib/turnFormat");
 const { runCorpseRotPass } = require("./lib/corpseRotPass");
 const { reconcileCorpses } = require("./lib/corpseFollow");
+const { runTravelArrivalPass } = require("./lib/travelArrivalPass");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 // By path, not the barrel — same reason as db/lib/dm.js below.
 const { runDawnWipe } = require("./lib/dawnWipe");
@@ -214,6 +215,11 @@ const TURN_PASSES = [
   // from "depot" so a failed Depot pass cannot swallow it, and so a resume
   // re-runs exactly the one that did not finish.
   "gatehouseTurret",
+  // Journeys landing (db/lib/travelArrivalPass.js). LAST, and the order is
+  // load-bearing: every pass above settles the turn that just ended, and a
+  // traveller spent that turn walking. Auto-labor pays them where they left
+  // from, and neither turret shoots somebody still on the road.
+  "travelArrival",
 ];
 
 // How long a resume lease is honoured before another advance may take it
@@ -889,6 +895,36 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Depot audit log failed:", err));
   }
 
+  // Everyone who set out last turn arrives. Discord work is deliberately not
+  // done here — the rows go out with zoneMoves and runSideEffects swaps the
+  // roles and rolls the Caving Die, which needs the NEXT turn open anyway.
+  let travelArrivals = [];
+  if (!done.has("travelArrival")) {
+    const arrived = await runTravelArrivalPass(prisma, config).catch(
+      async (err) => {
+        await passFailed("Travel arrival", err);
+        return null;
+      },
+    );
+    if (arrived) {
+      await markDone("travelArrival");
+      travelArrivals = arrived;
+      if (arrived.length > 0) {
+        await prisma.auditLog
+          .create({
+            data: {
+              actorDiscordUserId: "system",
+              actionType: "travellers_arrived",
+              details: {
+                arrived: arrived.map((a) => ({ name: a.name, to: a.toLocationName })),
+              },
+            },
+          })
+          .catch((err) => console.error("Travel arrival audit log failed:", err));
+      }
+    }
+  }
+
   // needsResolvedAt is the sole selector for advanceTurn()'s resume query,
   // so it's only stamped once every pass in TURN_PASSES has run.
   const outstanding = TURN_PASSES.filter((name) => !done.has(name));
@@ -928,6 +964,7 @@ async function resolveNeeds(turn, config) {
     privateDeliveries,
     publicPosts,
     zoneMoves,
+    travelArrivals,
     routineNotices,
     gambitRollNotices,
     depotLines: depot?.lines ?? [],
@@ -986,6 +1023,7 @@ async function advanceTurn() {
   let privateDeliveries = [];
   let publicPosts = [];
   let zoneMoves = [];
+  let travelArrivals = [];
   let routineNotices = [];
   let gambitRollNotices = [];
   if (openTurn) {
@@ -1028,6 +1066,7 @@ async function advanceTurn() {
       privateDeliveries,
       publicPosts,
       zoneMoves,
+      travelArrivals,
       routineNotices,
       gambitRollNotices,
       depotLines,
@@ -1115,6 +1154,7 @@ async function advanceTurn() {
         privateDeliveries,
         publicPosts,
         zoneMoves,
+        travelArrivals,
         routineNotices,
         gambitRollNotices,
         depotLines,
@@ -1388,13 +1428,30 @@ async function advanceTurn() {
 
     const { applyLocationMoveSideEffects } = require("./lib/locationMove");
     const { rollCavingOnArrival } = require("./lib/cavingPass");
-    for (const move of zoneMoves) {
+    // Two kinds of relocation land in the same breath and want the identical
+    // Discord work: a GM's staged "Relocate to" (zoneMoves) and a player's
+    // paid crossing finally arriving (travelArrivals, MAP.md §3).
+    for (const move of [...zoneMoves, ...travelArrivals]) {
       await applyLocationMoveSideEffects(prisma, move).catch((err) =>
         console.error(
-          `Staged relocation side effects failed for ${move.characterId}:`,
+          `Relocation side effects failed for ${move.characterId}:`,
           err,
         ),
       );
+
+      // The traveller pressed Confirm a turn ago and has heard nothing since,
+      // so arriving is the one thing that has to be told. A dragged corpse
+      // gets no letter; `alive` is only set by the travel pass.
+      if (move.toLocationName && move.alive && move.discordUserId) {
+        await sendDm(
+          prisma,
+          move.discordUserId,
+          `» You arrive at **${move.toLocationName}**. ‡`,
+          { source: "system_notice" },
+        ).catch((err) =>
+          console.error(`Arrival DM to ${move.discordUserId} failed:`, err),
+        );
+      }
 
       // The Caving Die, for a GM's staged "Relocate to". It could not run
       // inside applyOneStagedEffect — rollCaving opens its own transaction and
@@ -1412,11 +1469,11 @@ async function advanceTurn() {
             .findUnique({ where: { id: move.toLocationId }, include: { zone: true } })
             .catch(() => null)
         : null;
-      if (landed) {
+      if (landed && move.alive !== false) {
         const dm = await rollCavingOnArrival(prisma, { id: move.characterId, discordUserId: move.discordUserId }, landed);
         if (dm) {
           await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
-            console.error(`Staged relocation caving DM to ${dm.discordUserId} failed:`, err),
+            console.error(`Arrival caving DM to ${dm.discordUserId} failed:`, err),
           );
         }
       }

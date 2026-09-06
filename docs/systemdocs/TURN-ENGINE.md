@@ -198,6 +198,15 @@ each arrived at by getting them wrong first.
    the turn-close safety net for Claustrophobia/Acrophobia moods that
    `settlePhobias` didn't already settle on a Move this turn (`TAGS.md`).
    Audit action `phobias_resolved`.
+8d. **Travel arrival pass** (`db/lib/travelArrivalPass.js`, `"travelArrival"`
+   in `TURN_PASSES`) — everyone who spent their Move crossing a zone last turn
+   finally lands (`MAP.md` §3). **Last of the passes**, and the slot is
+   load-bearing: every pass above settles the turn that just ended, and the
+   traveller spent that turn walking — auto-labor pays them where they set out
+   from, and neither turret shoots somebody still on the road. It does no
+   Discord work; the arrivals ride back on `travelArrivals` and go out through
+   the same thunk loop a GM's staged "Relocate to" uses. Audit action
+   `travellers_arrived`.
 9. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
 10. **Open the next turn** with the alternated phase, and roll its weather (§4).
 11. **Write the `TURN_START` archive row** — here, where the turn is created,

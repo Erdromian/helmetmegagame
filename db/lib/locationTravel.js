@@ -6,6 +6,11 @@
 // Discord side effects**: the caller runs
 // db/lib/locationMove.js#applyLocationMoveSideEffects over `moved`.
 //
+// A crossing that COSTS the Move moves nobody today. It parks the destination
+// on Character.travelToLocationId and returns `deferred: true` with an empty
+// `moved`; db/lib/travelArrivalPass.js lands the party at the next turn
+// advance, so the destination's channels stay shut until then (MAP.md §3).
+//
 // Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { recordArchiveEvent } = require("./archive");
 const { isUnaffiliated } = require("./factionConstants");
@@ -37,6 +42,8 @@ const CHARACTER_SELECT = {
   buriedAt: true,
   zoneMovesTurnId: true,
   zoneMovesUsed: true,
+  travelToLocationId: true,
+  travelTurnId: true,
   // `name` rides along for stowedMounts(), which puts it in a sentence.
   tags: { select: { equipped: true, tag: { select: { slug: true, name: true } } } },
 };
@@ -186,6 +193,22 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
   const stuck = blockerFor(character.tags, ACT);
   if (stuck) return { ok: false, reason: `You can't go anywhere — you're ${stuck.name}. ‡` };
 
+  // Already walking. A paid crossing is a day on the road (below), and the
+  // character is frozen where they stood until they get there — the Travel
+  // button offers Turn back instead of a picker.
+  if (character.travelToLocationId) {
+    const heading = await prisma.location.findUnique({
+      where: { id: character.travelToLocationId },
+      select: { name: true },
+    });
+    return {
+      ok: false,
+      reason: heading
+        ? `You're on the road to ${heading.name}. Turn back first, or wait until you arrive. ‡`
+        : "You're on the road. Turn back first, or wait until you arrive. ‡",
+    };
+  }
+
   let currentLocation = null;
   if (character.locationId) {
     if (character.locationId === targetLocation.id) {
@@ -314,21 +337,33 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
               type: "MOVE",
               status: "CONFIRMED",
               moveReviewStatus: "SOLVED",
-              description: `Traveled to ${targetLocation.name} (${targetLocation.zone.name}).`,
+              description: `Set out for ${targetLocation.name} (${targetLocation.zone.name}) — arrives next turn.`,
               // The SEAT zone, not the presence zone — a Move filed from the
               // Railroad belongs on the Caves GM's table.
               zoneId: seatZoneIdFor(targetLocation.zone),
-              resultMessage: `» Traveled to ${targetLocation.name}.`,
+              resultMessage: `» Set out for ${targetLocation.name}.`,
               gmNotes: "auto:zone_change",
             },
           });
           outcome.spentTurn = true;
         }
         outcome.freeMovesLeft ??= 0;
-        await tx.character.update({
-          where: { id: character.id },
-          data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId, lastLocationMoveAt: now },
-        });
+        if (outcome.spentTurn) {
+          // A paid crossing is a day's walk: the Move is spent now, but
+          // nothing moves. db/lib/travelArrivalPass.js walks them over at the
+          // next advance, which is what keeps the destination's channels shut
+          // for the rest of this turn (MAP.md §3). lastLocationMoveAt is
+          // deliberately NOT stamped — nobody has been anywhere yet.
+          await tx.character.update({
+            where: { id: character.id },
+            data: { travelToLocationId: targetLocation.id, travelTurnId: openTurn.id },
+          });
+        } else {
+          await tx.character.update({
+            where: { id: character.id },
+            data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId, lastLocationMoveAt: now },
+          });
+        }
       } else {
         // Same zone (or first placement): the cooldown, enforced by the
         // WHERE of a conditional update so two clicks in one tick can't both
@@ -353,9 +388,13 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
       }
 
       if (outcome.draggedRows.length > 0) {
+        // Passengers on a paid crossing walk the same day the mover does, so
+        // they get the same pending destination rather than the arrival.
         await tx.character.updateMany({
           where: { id: { in: outcome.draggedRows.map((t) => t.id) } },
-          data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId, lastLocationMoveAt: now },
+          data: outcome.spentTurn
+            ? { travelToLocationId: targetLocation.id, travelTurnId: openTurn.id }
+            : { locationId: targetLocation.id, zoneId: targetLocation.zoneId, lastLocationMoveAt: now },
         });
         await tx.auditLog.create({
           data: {
@@ -366,6 +405,7 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
               mover: character.name,
               to: targetLocation.name,
               zone: targetLocation.zone.name,
+              setOut: outcome.spentTurn,
               dragged: outcome.draggedRows.map((t) => ({ id: t.id, name: t.name })),
             },
           },
@@ -376,6 +416,31 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
     if (err?.refused) return { ok: false, reason: err.message, retryAfterSeconds: err.retryAfterSeconds };
     if (err?.code === "P2002") return { ok: false, reason: "You've already acted this turn." };
     throw err;
+  }
+
+  // A paid crossing has committed its Move and its pending destination and
+  // that is all: nobody has changed Location, so there are no Discord side
+  // effects, no Caving roll, no ride to be sick on and nothing to archive.
+  // All four belong to the arrival, and db/lib/travelArrivalPass.js does
+  // them at the next advance. `moved` stays EMPTY on purpose — every caller
+  // drives its role swaps off it. `travelers` is who set out.
+  if (outcome.spentTurn) {
+    return {
+      ok: true,
+      deferred: true,
+      oldLocation: currentLocation,
+      oldZone: currentLocation?.zone ?? null,
+      targetLocation,
+      targetZone: targetLocation.zone,
+      crossedZone,
+      spentTurn: true,
+      usedFreeMove: false,
+      freeMovesLeft: outcome.freeMovesLeft,
+      moved: [],
+      travelers: [character, ...outcome.draggedRows].map((row) => ({
+        character: { id: row.id, name: row.name, discordUserId: row.discordUserId, status: row.status },
+      })),
+    };
   }
 
   // Off by default (see GameConfig.archiveTravelEvents), and only for a
@@ -431,8 +496,10 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
     targetLocation,
     targetZone: targetLocation.zone,
     crossedZone,
-    spentTurn: outcome.spentTurn,
+    deferred: false,
+    spentTurn: false,
     usedFreeMove: outcome.usedFreeMove,
+    travelers: [],
     freeMovesLeft: outcome.freeMovesLeft,
     moved,
   };
