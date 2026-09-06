@@ -3,6 +3,7 @@ import GoalsPanel from "./GoalsPanel";
 import StatusPanel from "./StatusPanel";
 import RequestActionsProvider from "./RequestActionsProvider";
 import TagsPanel from "./TagsPanel";
+import CharacterPoller from "./CharacterPoller";
 import RichText from "./RichText";
 import FactionLink from "./FactionLink";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
@@ -61,6 +62,10 @@ export default function CharacterSheet({
   hasDevice = false,
   // Same fate: BioForm's conceal toggle reads it, and it never arrived.
   concealGear = null,
+  // World state the sheet shows: the bomb's countdown on its chip, and the
+  // build this render came from, for the self-refresh poll.
+  nukeArmedTurn = null,
+  deployVersion = null,
   hasWorkshop = false,
   tagCatalog,
   desireSlots = 2,
@@ -169,6 +174,7 @@ export default function CharacterSheet({
               buttons sit in the panel ABOVE the one that needs to drive them,
               so the state can't live in either. Not mounted on someone else's
               sheet, which is what makes their chips read-only for free. */}
+          {isSelf && <CharacterPoller deployVersion={deployVersion} />}
           <RequestActionsProvider
             enabled={isSelf}
             selfId={character.id}
@@ -249,6 +255,7 @@ export default function CharacterSheet({
                 storeTags={storeTags}
                 storeHeldTags={storeHeldTags}
                 storeRoleSlug={storeRoleSlug}
+                nukeArmedTurn={nukeArmedTurn}
               />
             </div>
           </RequestActionsProvider>

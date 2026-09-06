@@ -78,7 +78,7 @@ export const ACTION_HELP = {
     "Offer to teach someone here a skill you have. It's your Routine for the turn once they accept. ‡",
   confess:
     "Unburden yourself to a chaplain standing here. They only see that you asked, never what about. If they accept, it's your Gambit for the turn — a 5 or 6 and it's off you. ‡",
-  loot: "Search someone. Only works on a body, or on someone Bound, Dying, Paralyzed or Catatonic. ‡",
+  loot: "Search someone, or the room you're standing in. A person has to be a body, or Bound, Dying, Paralyzed or Catatonic; a room only needs you to be able to get in. ‡",
   move: "Forcibly move someone with the Bound tag, from where you stand to somewhere next door. Use this before moving yourself. If you're a Leader, you can also move people within your own faction. It does not spend their turn. Bodies can be dragged by anyone. ‡",
   bind: "Tie someone up. They have to agree — unless they're already helpless. Once they're Bound you can loot them or march them somewhere. ‡",
   free: "Cut someone loose. Anyone standing here can do this, including a rescuer.",

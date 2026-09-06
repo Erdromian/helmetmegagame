@@ -25,7 +25,9 @@ export default function ChipLabel({ tag, quantity = 1, duration = null }) {
           reads "last" rather than "0t", which looked like it had already
           gone. Null when the tag has no duration at all. */}
       {duration && (
-        <span className="text-muted" aria-hidden="true"> &middot; {duration.badge}</span>
+        <span className={duration.armed ? "text-accent" : "text-muted"} aria-hidden="true">
+          {" "}&middot; {duration.badge}
+        </span>
       )}
     </span>
   );
