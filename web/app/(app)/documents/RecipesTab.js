@@ -74,10 +74,6 @@ export default function RecipesTab({ tags }) {
           searchLabel="Search recipes"
           searchPlaceholder="Name, skill, or ingredient…"
         />
-        <p className="text-xs text-muted">
-          A recipe is listed whether or not you could make it today: the skills are what you
-          would have to hold, and the ⬢ is paid the moment the work starts. ‡
-        </p>
       </div>
 
       <TableScroll minWidth="760px">
