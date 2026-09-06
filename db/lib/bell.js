@@ -2,46 +2,39 @@
 // has always said is up there — "waiting for a tug from below to let it sound
 // across the land."
 //
-// It carries across the Location graph, the way /shout does, through
-// db/lib/soundBroadcast.js. It used to post into four hardcoded zone #summary
-// channels instead, which was a list of channels pretending to be a rule about
-// sound: it could not say that the Square hears the bell better than the far
-// Marshes do, and it made the Black Hills deaf for no reason a player standing
-// on them could work out.
-//
-// It is the intercom's quiet cousin. What it does NOT carry is the @here. The
-// PA is addressed to you; a bell is simply audible, and pinging a hundred
+// It is the intercom's quiet cousin. Same shape: one line, posted into every
+// zone's #summary that is in earshot, full size rather than `-#` subtext,
+// because a bell is not scenery either — somebody chose to ring it, and the
+// whole point is that the barony hears. What it does NOT carry is the @here.
+// The PA is addressed to you; a bell is simply audible, and pinging a hundred
 // people every time a chaplain pulls a rope would have made it a nuisance
 // rather than a signal.
 //
+// The Black Hills do not hear it for the intercom's reason — the barony's
+// writ, and its wiring, stop at the river — and the two cave levels need no
+// exclusion, having no #summary to post into.
+//
 // Takes `prisma` as a parameter and stays off the @lifeweb/db barrel, the
 // db/lib/dm.js convention; require it by path.
-const { broadcastSound } = require("./soundBroadcast");
+const { postMessage } = require("./discordRest");
 
 // The Cathedral's Bell Tower, hardcoded for the db/lib/roleIds.js reason: one
 // guild, one correct value, and a missing env var would have been a silent
 // no-op.
 const BELL_ROOM_SLUG = "cathedral-bell-tower";
 
-// How far the peal reaches, in hops, and how far it stays full size. A bell in
-// a stone tower is not a man shouting, so it goes a good deal further than
-// /shout's four — out to the edges of the Marshes and the Black Hills, where it
-// arrives as subtext rather than as something in the conversation.
-//
-// Measured from the Cathedral this is 20 Locations loud and 16 quiet: all of
-// Town and most of the Forest at full size, the Fortress split, the far edges
-// faint. The underground hears nothing, which soundBroadcast decides.
-const BELL_HOPS = 7;
-const BELL_LOUD_HOPS = 4;
+// Zone slugs within earshot. An allowlist rather than the intercom's
+// exclusion list, because this one is a sound travelling over hills and the
+// list is the fiction, not a wiring diagram.
+const BELL_ZONE_SLUGS = ["town", "fortress", "forest", "marshes"];
 
-// Thirty minutes. Long enough that nobody can peal it into noise, short enough
-// that it stays usable as a signal people agree on beforehand. Hardcoded rather
-// than a GameConfig knob — there is one rope and one right answer.
-const BELL_COOLDOWN_MS = 30 * 60 * 1000;
+// Five minutes. Short enough that the bell stays usable as a signal people
+// agree on beforehand, long enough that nobody can peal it into noise.
+const BELL_COOLDOWN_MS = 5 * 60 * 1000;
 
-// One line, whatever the distance — see soundBroadcast.js on why a bell never
-// muffles. It opens "You hear" because every audible thing in the game does.
-const BELL_LINE = "You hear a church bell ringing.";
+// No allowed_mentions of any kind, and nothing player-typed goes into it, so
+// there is nothing here to defang.
+const BELL_LINE = "The church bell is ringing. ‡";
 
 // Null until somebody has rung it. Returns { ok } or { ok: false, secondsLeft }
 // so the caller can say how long the rope has left to hang still.
@@ -52,26 +45,36 @@ function bellCooldown(bellRungAt, now = Date.now()) {
   return { ok: false, secondsLeft: Math.ceil((BELL_COOLDOWN_MS - elapsed) / 1000) };
 }
 
-// The rope is in a Room, but sound comes from the Location that Room is in.
+// Posts to every zone in earshot, sequentially and individually caught. Never
+// Promise.all a Discord fan-out (docs/systemdocs/TURN-ENGINE.md) — the burst
+// of 429s is what earns an IP-level ban.
+//
+// Returns { sent, failed } rather than throwing: a bell heard in three zones
+// out of four still rang.
 async function broadcastBell(prisma) {
-  const tower = await prisma.room.findUnique({
-    where: { slug: BELL_ROOM_SLUG },
-    select: { locationId: true },
+  const zones = await prisma.zone.findMany({
+    where: { discordSummaryChannelId: { not: null }, slug: { in: BELL_ZONE_SLUGS } },
+    select: { name: true, discordSummaryChannelId: true },
+    orderBy: { sortOrder: "asc" },
   });
-  if (!tower?.locationId) return { sent: 0, failed: [] };
 
-  return broadcastSound(prisma, {
-    originLocationId: tower.locationId,
-    text: BELL_LINE,
-    maxHops: BELL_HOPS,
-    loudHops: BELL_LOUD_HOPS,
-  });
+  let sent = 0;
+  const failed = [];
+  for (const zone of zones) {
+    try {
+      await postMessage(zone.discordSummaryChannelId, BELL_LINE);
+      sent += 1;
+    } catch (err) {
+      failed.push(zone.name);
+      console.error(`Bell broadcast to ${zone.name} failed:`, err.message ?? err);
+    }
+  }
+  return { sent, failed };
 }
 
 module.exports = {
   BELL_ROOM_SLUG,
-  BELL_HOPS,
-  BELL_LOUD_HOPS,
+  BELL_ZONE_SLUGS,
   BELL_COOLDOWN_MS,
   BELL_LINE,
   bellCooldown,

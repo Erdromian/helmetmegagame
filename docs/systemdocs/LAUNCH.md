@@ -155,9 +155,6 @@ Run the masters yourself, in dependency order — roles resolve a
 npm run db:sync-zones                # destructive both ways
 npm run db:sync-narrowcast-channels  # after zones: its grants name the zone roles
 npm run db:sync-tags                 # upsert-only, never deletes
-npm run db:sync-zones                # AGAIN: the first run could not seed a
-                                     #   Location's `structures:` (the tags
-                                     #   did not exist yet); this one does
 npm run db:sync-roles                # prunes unreferenced
 npm run db:sync-documents            # destructive; last
 npm run db:doctor                    # dry run; -- --full --apply to repair

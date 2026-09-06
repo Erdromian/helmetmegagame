@@ -115,6 +115,11 @@ function gateLines(gates) {
     .slice()
     .sort((x, y) => x.farName.localeCompare(y.farName))
     .map((gate) => {
+      // A shut structural edge nothing holds is not a closed door — it is a
+      // crossing nobody has built, and Examine is where that gets noticed.
+      if (gate.unbuilt) {
+        return `**${gate.farName}**: nothing spans the way — it would have to be built. ‡`;
+      }
       return gate.isOpen
         ? `**${gate.farName}**: the way stands open. Worked from the watchtower. ‡`
         : `**${gate.farName}**: the way is closed. Worked from the watchtower. ‡`;

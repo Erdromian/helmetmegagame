@@ -13,6 +13,7 @@
 // Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { heldTagSlugs } = require("./roomAccess");
 const { isMounted, equippedSlugs } = require("./mounts");
+const { HOLDS_EDGE } = require("./structures");
 
 // The two endpoints of a link, oriented so `near` is the side you are
 // standing on. Callers only ever want `far`.
@@ -34,6 +35,10 @@ function orderEndpoints(slugA, idA, slugB, idB) {
 const LINK_INCLUDE = {
   a: { include: { zone: true } },
   b: { include: { zone: true } },
+  // Just "does something hold this edge" for crossingCheck and the gate
+  // rules — a boolean's worth of rows, never the placement (the type is a
+  // slug, not an FK, and the travel path must not pay an N+1 for it).
+  structures: { where: { status: { in: HOLDS_EDGE } }, select: { id: true } },
 };
 
 // Every link touching one location, either side.
@@ -107,9 +112,23 @@ function crossingCheck(link, { tagSlugs, mounted = false, now = new Date() } = {
     return { listed: false, passable: false, refusal: "You can't get there directly from here." };
   }
   if (!hasTag) {
+    // Deliberately BEFORE the structural branch: a locked structural edge
+    // answers as locked, the same as any other way the key would open.
     return { listed: true, passable: false, refusal: "The way is locked. You don't have what opens it. ‡" };
   }
   if (link.modular && !link.isOpen) {
+    // A shut structural edge nothing holds is not a door somebody closed —
+    // it is a crossing nobody has built. The wording is the discovery hook.
+    // `structures` is the HOLDS_EDGE-filtered include on LINK_INCLUDE; a
+    // caller that didn't load it fails to the unbuilt wording, which is the
+    // honest default for an edge only a structure could ever open.
+    if (link.structural && !(link.structures?.length > 0)) {
+      return {
+        listed: true,
+        passable: false,
+        refusal: "Nothing spans the way here — it would have to be built. ‡",
+      };
+    }
     return {
       listed: true,
       passable: false,
@@ -130,16 +149,26 @@ function crossingCheck(link, { tagSlugs, mounted = false, now = new Date() } = {
   return { listed: true, passable: true, refusal: null };
 }
 
-// Does this edge have a gate to work at all? Only a modular edge does. The
-// gate button renders off this, on the WATCHTOWER at the gate
-// (db/lib/roomStarterRow.js), and canToggleGate re-checks it server-side.
+// Does this edge currently have a working mechanism at all? A structural
+// edge has one only while a structure holds it (the HOLDS_EDGE include on
+// LINK_INCLUDE) AND openers are authored — an unheld ford is open water,
+// and a held one with no openers (a bridge) is a fixture, not a gate.
+// Fails closed when `structures` wasn't loaded. The gate button renders off
+// this, on the WATCHTOWER at the gate (db/lib/roomStarterRow.js), and
+// canToggleGate re-checks it server-side. Note the corollary: an edge with no
+// watchtower has no button anywhere, which is why nothing authors
+// `structural:` yet — one would need a control room first.
 function gateOperable(link) {
-  return Boolean(link?.modular);
+  if (!link?.modular) return false;
+  if (!link.structural) return true;
+  if (!(link.structures?.length > 0)) return false;
+  return (link.openerRoleSlugs ?? []).length > 0 || (link.openerTagSlugs ?? []).length > 0;
 }
 
 // Who may flip a modular gate: anyone holding one of its opener tags, or
-// playing one of its opener Roles. Pure, and re-checked server-side in the
-// button handler — a rendered button is a hint, not a lock.
+// playing one of its opener Roles — through a mechanism that currently
+// exists (gateOperable). Pure, and re-checked server-side in the button
+// handler — a rendered button is a hint, not a lock.
 function canToggleGate(link, { tagSlugs, roleSlug } = {}) {
   if (!gateOperable(link)) return false;
   const held = tagSlugs instanceof Set ? tagSlugs : new Set(tagSlugs ?? []);
@@ -213,8 +242,8 @@ const SOUND_HOPS = 4;
 // anyway: nothing outside this module is allowed to read LocationLink, and a
 // BFS over the travel graph is exactly that read.
 //
-// EVERY EDGE COUNTS. Locked, hidden, shut, on-foot — sound does not care,
-// because none of those are about sound. A portcullis you cannot
+// EVERY EDGE COUNTS. Locked, hidden, shut, structural, on-foot — sound does
+// not care, because none of those are about sound. A portcullis you cannot
 // open is still a portcullis you can yell through, and a crawl too tight for a
 // horse carries a voice fine. This is deliberately the one traversal in the
 // game that never calls crossingCheck.

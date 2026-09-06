@@ -245,11 +245,6 @@ paper and all** — it blew away, which is what makes tearing one down worth
 doing. The `noticeboard` pass in `db/index.js` deletes the `NoticePost` and the
 `ephemeral` Tag row with it.
 
-Wanted and Debtor notices ride this same machinery rather than a bespoke one —
-`db/lib/wantedPoster.js` mints them through `paperMint.js` and pins one copy
-on a board (the Square for Wanted, the Depot/Customs board for Debtor) with
-two more loose sheets scattered in nearby rooms, on a 30-turn clock.
-
 ## 8. Where the code lives
 
 `db/lib/reading.js` (the gate), `db/lib/paper.js` (names, descriptions, the

@@ -146,17 +146,6 @@ Exhausted. See `FACTORY.md` §4.
    literally "half of what you make".
 7. **Lifeweb failure** (§6).
 
-**Lazy** doesn't touch the roll itself — it takes a quarter off the value
-after the range has already produced a number. `lazyYield()` in
-`db/lib/laborAccess.js` floors the rolled value to 75% of what it rolled, and
-both places a Labor roll actually happens call it: `db/lib/
-autoLaborPass.js` (the automatic payout) and `bot/src/lib/moveConfirm.js`
-(the player-filed Labor Move). The *stored* `resourceRollExpression` is cut
-the same way, by `lazyExpression()` in the same file, so the printed range on
-the sheet and the GM desk is the Lazy range rather than the wider pre-cut
-one — otherwise a Lazy character could see a payout below the range it was
-told it rolled against.
-
 The returned `expression` is a **machine format** — `"min-max"`, matched by
 `db/lib/resourceDelta.js#rollResourceRange` against `/^(\d+)-(\d+)$/`. Never
 append anything to it. A failed parse pays the character nothing, silently.

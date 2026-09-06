@@ -522,12 +522,10 @@ completion rule. Every negative-cost tag is `purchasableAfterStart: false` —
 a drawback you could buy mid-game would be a point farm.
 
 Drawbacks face **two** ceilings, and a build stops at whichever it reaches
-first: at most `GameConfig.maxDrawbackTags` of them may be bought (**6** by
+first: at most `GameConfig.maxDrawbackTags` of them may be bought (**5** by
 default), claiming back at most `GameConfig.maxDrawbackPoints` points in total
-(**13** by default). The point cap sits one **above** `startingTagPoints` on
-purpose, not equal to it — so the most a maxed-out build can net from
-drawbacks is one point more than it started with, rather than the old exact
-symmetry. Both are live on `/gm/dev`. Either alone leaves a
+(**12** by default, matching `startingTagPoints` — you can never claim back
+more than you started with). Both are live on `/gm/dev`. Either alone leaves a
 hole: a count cap spends the same slot on a −1 as on a −11, and a point cap
 alone never stops a pile of small ones. The role's own starting tags land as
 `GM_GRANT` and never pass through the purchase path, so the Meister's free

@@ -3,13 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
-import {
-  STOWABLE_SLUGS,
-  WATER_TRAVEL_SLUGS,
-  BOAT_CONFLICT_SLUGS,
-  FAST_TRAVEL_SLUGS,
-} from "@lifeweb/db/lib/mounts";
-import { MOTION_SICKNESS_SLUG } from "@lifeweb/db/lib/constants";
+import { STOWABLE_SLUGS, WATER_TRAVEL_SLUGS, BOAT_CONFLICT_SLUGS } from "@lifeweb/db/lib/mounts";
 import { describeSlotClash, findSlotClash } from "@lifeweb/db/lib/equipSlots";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
@@ -61,17 +55,6 @@ export async function toggleEquip(characterTagId) {
   // ways.
   if (!held.equipped && STOWABLE_SLUGS.has(held.tag.slug) && character.location?.indoors) {
     return { error: `You can't set up ${held.tag.name} inside ${character.location.name}. ‡` };
-  }
-
-  // Motion Sickness: the only gate is here, on equipping a mount or a boat
-  // yourself. A dragged passenger with no mount of their own is handled in
-  // db/lib/locationTravel.js instead — this can't stop that, only what you equip.
-  if (
-    !held.equipped &&
-    (FAST_TRAVEL_SLUGS.has(held.tag.slug) || WATER_TRAVEL_SLUGS.has(held.tag.slug)) &&
-    character.tags.some((ct) => ct.tag.slug === MOTION_SICKNESS_SLUG)
-  ) {
-    return { error: `Your stomach won't have it — you can't ride ${held.tag.name}. ‡` };
   }
 
   // You are either riding or poling. The boat and the road kit compete for the

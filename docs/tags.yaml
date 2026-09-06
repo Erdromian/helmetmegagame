@@ -380,18 +380,15 @@ tags:
   # The Court — general-court is gated behind `courtier` at the group level,
   # same idiom as general-cerberon/general-brigand, so none of these need their
   # own requiredTag.
-  # Not for sale. Knighthood is something the Baron confers or a Courtier
-  # arrives already carrying (the Seasoned Knight kit below) -- never a line
-  # item on a picker. Free, because every path to it is a grant.
   knighted:
     catalog: gm
     name: Knighted
     category: general
     group: general-court
     description: "You were knighted, and serve the Baron directly."
-    pointCost: 0
+    pointCost: 7
     visible: true
-    purchasable: false
+    purchasable: true
     purchasableAfterStart: false
 
   # --- Teaching (docs/systemdocs/LESSONS.md) -----------------------------
@@ -2692,28 +2689,6 @@ tags:
     purchasableAfterStart: false
     removable: true
 
-  # Put on by the Crucify button (a Fundamentalist, a Cross standing here).
-  # In RESTRICTIONS as ACT-only (db/lib/incapacitation.js): you hang there and
-  # can still speak, so last words and recantations happen in channel. A
-  # status tag, NOT health, on purpose — the health-wounds/maiming groups feed
-  # the Harm menu, and this must never be something anyone can inflict without
-  # the cross. Neither healable nor removable: a GM takes it off by hand if the
-  # story needs a rescue. After one turn it becomes Dying, and the Dying pass
-  # kills a turn later (db/lib/dyingDeathPass.js).
-  crucified:
-    catalog: gm
-    name: Crucified
-    category: status
-    group: status-debuffs
-    description: "You're crucified. You can't do anything."
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: false
-    durationTurns: 1
-    expiresInto: [dying]
-
   # --- The drinking ladder (docs/systemdocs/BREWING.md) --------------------
   #
   # Three rungs, and every drink in the catalog still consumes into the first
@@ -4526,8 +4501,8 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 2
-      resourceCost: 15
+      turnsCost: 4
+      resourceCost: 30
       skills: [builder-skilled]
       gambit: false
     # Deliberately NOT fieldwork: raising a forge is smith's work itself, so
@@ -4552,42 +4527,21 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      # The crew flagship: the one structure not meant to be soloed. Four
-      # crew-turns is most of a week alone or one day with friends.
-      turnsCost: 4
+      # The deliberate crew flagship: the one structure not meant to be
+      # soloed. Six crew-turns is a week alone or two days with friends.
+      turnsCost: 6
       resourceCost: 40
       skills: [builder-skilled]
       gambit: false
-    # The defense prose is the whole effect. defenseNote is a spliced
-    # fragment — no ‡ (sync enforces).
+    # hold_shut is opportunistic: where the map authors a structural gateway
+    # the finished palisade closes it and its gate answers to the authored
+    # openers; anywhere else it builds unbound and the defense prose is the
+    # whole effect. defenseNote is a spliced fragment — no ‡ (sync enforces).
     placement:
       fieldwork: true
+      link: hold_shut
       examine: "sharpened stakes ring this ground."
       defenseNote: "A ring of sharpened stakes; attackers on foot come over or through it, never past it unseen."
-
-  watchtower:
-    catalog: all
-    name: Watchtower
-    category: assets
-    group: assets-structures
-    description: "An elevated tower of lashed timber, raised where you stand. Whoever climbs it sees the ground around long before anything on it arrives. ‡"
-    pointCost: 0
-    visible: false
-    tradeable: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 2
-      resourceCost: 20
-      skills: [builder-skilled]
-      gambit: false
-    # Half a Palisade in every number. Fieldwork by the Palisade's logic: it
-    # is stakes and lashings, not smith's work.
-    placement:
-      fieldwork: true
-      examine: "a timber tower stands over this ground."
-      defenseNote: "Whoever holds the tower sees what comes before it arrives; nothing approaches this ground unseen."
 
   barricade:
     catalog: all
@@ -4626,7 +4580,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 2
+      turnsCost: 3
       resourceCost: 20
       skills: [builder-skilled]
       gambit: false
@@ -4715,6 +4669,53 @@ tags:
       examine: "counterweight hung, arm cocked."
       defenseNote: "a structure at a neighbouring location can be bombarded."
 
+  jailhouse:
+    catalog: all
+    name: Jailhouse
+    category: assets
+    group: assets-structures
+    description: "A strongroom with a bar on the outside of the door and a cot on the inside. A place to hold someone that does not need a guard awake to mean it. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 3
+      resourceCost: 25
+      skills: [builder-skilled]
+      gambit: false
+    # The custody advisory (plan §5): extends "the structure is the
+    # compensation for absence" from defense to imprisonment — holding a
+    # bound prisoner credibly no longer ends when the captor logs off.
+    placement:
+      examine: "one door, barred from the outside."
+      defenseNote: "A bound prisoner held here stays held, guard awake or not."
+
+  library:
+    catalog: all
+    name: Library
+    category: assets
+    group: assets-structures
+    description: "Shelves under a sound roof, and somebody's promise to keep them dry. A place for documents to live longer than the people who wrote them. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 4
+      resourceCost: 40
+      skills: [builder-skilled]
+      gambit: false
+    # Prose civic structure; a home for GM-planted readable documents. The
+    # literate/gribble.js tie the plan sketches is deliberately FUTURE work
+    # ("grows only if documents grow") — nothing mechanical here yet.
+    placement:
+      examine: "shelves stocked and dry."
+
   gallows:
     catalog: all
     name: Gallows
@@ -4739,38 +4740,31 @@ tags:
       fieldwork: true
       examine: "rope coiled at the post."
 
-  # NAMED "Crucifix", not "Cross", and that is not a preference: Tag.name is
-  # @unique, `cross` is already the wooden-cross ITEM above, and
-  # docs/roles.yaml grants that item to the Bishop and the Chaplain BY NAME.
-  # This entry shipped as a second "Cross" on 2026-09-05 and made
-  # db:sync-tags fail outright on P2002 — the whole catalog, not just this row.
-  # Renaming the structure fixes it and makes the slug its own name again, so
-  # no keepSlug is needed (the sync throws on a keepSlug that isn't earning
-  # its keep). Structure.typeSlug still joins on `crucifix`.
-  #
-  # No skill on purpose — none of the Inquisition roles carries a Builder
-  # tier, and this is their tool. The Crucify button on /character needs a
-  # COMPLETE one standing here plus the fundamentalist tag
-  # (web/app/(app)/character/requestActions.js#crucifyCharacterRequestImpl).
-  crucifix:
+  bridge:
     catalog: all
-    name: Crucifix
+    name: Bridge
     category: assets
     group: assets-structures
-    description: "Two beams and a footrest, raised where you stand. You can crucify people here. ‡"
+    description: "Piles, spans and planking enough to carry a cart over water that used to stop one. It can only be raised where a crossing waits for it. ‡"
     pointCost: 0
     visible: false
     tradeable: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
+    # Expert — the tag's own description promises bridges — and workshop-
+    # gated: hauling the kit to the ford is the project's first act.
     requirement:
-      turnsCost: 1
-      resourceCost: 6
+      turnsCost: 5
+      resourceCost: 70
+      skills: [builder-expert]
       gambit: false
+    # hold_open REQUIRES a free structural edge at the ground (the sync's
+    # authored fords, docs/zones.yaml modular.structural) — the build
+    # refuses anywhere else, and the way opens when the work is done.
     placement:
-      fieldwork: true
-      examine: "a cross stands ready."
+      link: hold_open
+      examine: "planked and railed, it spans the crossing."
 
   dog:
     catalog: all
@@ -5444,230 +5438,6 @@ tags:
       - laboring-hunting
       - forester
       - shortbow
-
-  # --- Courtier kits ------------------------------------------------------
-  # A note on the descriptions: Knighted, Old Blood and Dancer are named in
-  # plain prose rather than as {tag:...} chips, unlike everything else these
-  # crates hold. All three live in `general-court`, which is gated behind the
-  # `courtier` tag -- and getVisibleTags (web/lib/referenceData.js) drops a
-  # gated tag for anyone not holding the gate, so a chip for one renders as
-  # the literal token on the creation screen, where NOBODY holds it yet.
-  # The same crate idiom as the Commoner kits above, for the opposite reason.
-  # A Commoner needs a trade; a Courtier needs a REASON to be in the room. The
-  # base seat is three tags and an invitation to invent your own goals, which
-  # is a lot of nothing to hand somebody on turn one -- so each of these is a
-  # courtly life bought whole, in one pick rather than six.
-  #
-  # `onlyRoles: [courtier]` is load-bearing, exactly as it is up there. Each
-  # kit holds far more than it costs (the Tutor is 17 points of tags for 4, the
-  # Seasoned Knight 39 for 9), which is fine for the seat these were written
-  # for and a faucet for anybody else. The `courtier` TAG would be the wrong
-  # gate: the Baron, the Baroness, the Heir, the Successor, the Hand and the
-  # Meister all carry it, and several of them already draw
-  # extra_starting_points. The role slug is the narrow thing meant here.
-  courtier-herald:
-    catalog: all
-    name: "Courtier: Herald"
-    category: items
-    onlyRoles: [courtier]
-    group: items-gear
-    description: "Carry messages for the Baron and tell the day's news. Unpacks into a {tag:horse}, a {tag:trumpet}, a {tag:bird} and four sheets of {tag:paper}. ‡"
-    pointCost: 7
-    tradeable: true
-    weight: 2
-    purchasable: true
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto:
-      - horse
-      - trumpet
-      - bird
-      - paper
-      - paper
-      - paper
-      - paper
-
-  # The one kit that hands over drawbacks. They arrive through a crate rather
-  # than point-buy, so the 5/12 drawback caps never see them -- that is the
-  # intent, not a hole: an old knight IS his bad hip, and pricing the kit at 9
-  # already accounts for the relief the negatives give back.
-  courtier-seasoned-knight:
-    catalog: all
-    name: "Courtier: Seasoned Knight"
-    category: items
-    onlyRoles: [courtier]
-    group: items-gear
-    description: "Reminisce on your valor during the Skinless attack of 1088. Unpacks into knighthood, {tag:plate-armor}, a {tag:broadsword}, a {tag:shield}, a {tag:knights-helmet}, {tag:melee-trained}, {tag:ranged-basic} and a {tag:devoted-follower} — along with the years behind all of it, {tag:old} and {tag:arthritis}. ‡"
-    pointCost: 9
-    tradeable: true
-    weight: 3
-    purchasable: true
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto:
-      - knighted
-      - plate-armor
-      - old
-      - arthritis
-      - broadsword
-      - shield
-      - knights-helmet
-      - melee-trained
-      - ranged-basic
-      - devoted-follower
-
-  courtier-tutor:
-    catalog: all
-    name: "Courtier: Tutor"
-    category: items
-    onlyRoles: [courtier]
-    group: items-gear
-    description: "Train the Successor and the Heir in your skill of choice. Unpacks into {tag:teaching}, {tag:intelligent} and {tag:insightful}. ‡"
-    pointCost: 4
-    tradeable: true
-    weight: 1
-    purchasable: true
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto:
-      - teaching
-      - intelligent
-      - insightful
-
-  courtier-chaplain:
-    catalog: all
-    name: "Courtier: Chaplain"
-    category: items
-    onlyRoles: [courtier]
-    group: items-gear
-    description: "An envoy from the church. Unpacks into {tag:chaplain}, {tag:pious} and a {tag:blessing}. ‡"
-    pointCost: 4
-    tradeable: true
-    weight: 1
-    purchasable: true
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto:
-      - chaplain
-      - pious
-      - blessing
-
-  courtier-carouser:
-    catalog: all
-    name: "Courtier: Carouser"
-    category: items
-    onlyRoles: [courtier]
-    group: items-gear
-    description: "Host marvelous feasts. Unpacks into the skills of a dancer and a {tag:game-master}, an {tag:iron-liver} and two {tag:alcohol}. ‡"
-    pointCost: 3
-    tradeable: true
-    weight: 4
-    purchasable: true
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto:
-      - dancer
-      - game-master
-      - alcohol
-      - alcohol
-      - iron-liver
-
-  # Two manor keys, not one: the Manors are a household, and a lord with no
-  # spare key has nobody to let in. `manor-key` is stackable, so the pair sits
-  # in one row on the sheet.
-  courtier-manor-lord:
-    catalog: all
-    name: "Courtier: Manor Lord"
-    category: items
-    onlyRoles: [courtier]
-    group: items-gear
-    description: "Run your manor from outside the fortress gates. Unpacks into old blood, an {tag:heirloom}, a {tag:rapier} and two {tag:manor-key}. ‡"
-    pointCost: 5
-    tradeable: true
-    weight: 2
-    purchasable: true
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto:
-      - old-blood
-      - manor-key
-      - manor-key
-      - heirloom
-      - rapier
-
-  courtier-debutante:
-    catalog: all
-    name: "Courtier: Debutante"
-    category: items
-    onlyRoles: [courtier]
-    group: items-gear
-    description: "A general member of the court, here to try their fate. Unpacks into {tag:pretty}. ‡"
-    pointCost: 1
-    tradeable: true
-    weight: 1
-    purchasable: true
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto:
-      - pretty
-
-  courtier-court-physician:
-    catalog: all
-    name: "Courtier: Court Physician"
-    category: items
-    onlyRoles: [courtier]
-    group: items-gear
-    description: "Treat the Keep's wounded. Unpacks into {tag:medical-skilled} and a {tag:sanctuary-key}, so the Sanctuary is open to you. ‡"
-    pointCost: 4
-    tradeable: true
-    weight: 1
-    purchasable: true
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto:
-      - medical-skilled
-      - sanctuary-key
-
-  courtier-court-artist:
-    catalog: all
-    name: "Courtier: Court Artist"
-    category: items
-    onlyRoles: [courtier]
-    group: items-gear
-    description: "Paint portraits of the Baron. Unpacks into {tag:artist}, {tag:musician}, an {tag:instrument} and the grace of a dancer. ‡"
-    pointCost: 5
-    tradeable: true
-    weight: 2
-    purchasable: true
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto:
-      - artist
-      - dancer
-      - musician
-      - instrument
-
-  # Builder (Expert) alone, with no Builder (Skilled) beside it: parentTag is a
-  # replacing tier chain, so the top rung is the whole ladder.
-  courtier-master-engineer:
-    catalog: all
-    name: "Courtier: Master Engineer"
-    category: items
-    onlyRoles: [courtier]
-    group: items-gear
-    description: "Improve the defenses of Ravenheart. Unpacks into {tag:builder-expert}, a {tag:hatchet}, a {tag:work-knife}, a {tag:purse} and a {tag:cart}. ‡"
-    pointCost: 8
-    tradeable: true
-    weight: 3
-    purchasable: true
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto:
-      - hatchet
-      - builder-expert
-      - work-knife
-      - purse
-      - cart
 
   # A one-off prop, not a shipment. It sits in the Rockside Washup with the
   # sewer key, and it is written to be indistinguishable from a crate the
@@ -11033,7 +10803,6 @@ tags:
     category: items
     group: items-special
     description: "BRRRR! Produces two Godflesh per extraction."
-    laborBonus: { kind: farming, amount: 2 }
     pointCost: 0
     equippable: true
     tradeable: true
