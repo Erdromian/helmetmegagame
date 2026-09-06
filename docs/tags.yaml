@@ -4154,7 +4154,7 @@ tags:
     # Under the Steam Automobile, which does the same job and never spooks.
     depotPrice: 90
     sellable: true
-    sellablePrice: 22
+    sellablePrice: 54
 
   bird:
     catalog: all
@@ -4740,7 +4740,7 @@ tags:
     removable: true
     depotPrice: 7
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 4
 
   # A lute, a fiddle, a set of pipes — the player decides which. Off the point
   # scale at 1 (TAGS.md §4a): the tag buys no advantage at all, only /play,
@@ -4931,7 +4931,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 3
+    sellablePrice: 8
     depotPrice: 13
 
   # The one thing an Artist can turn a week of work into. No depotPrice: the
@@ -5317,7 +5317,7 @@ tags:
     removable: true
     equippable: true
     sellable: true
-    sellablePrice: 6
+    sellablePrice: 15
     depotPrice: 25
 
   suspicious-game-set:
@@ -5677,7 +5677,7 @@ tags:
     # The Depot stocks it too, at a price that makes the 6-pt creation pick
     # look like the bargain it is. See docs/systemdocs/DEPOT.md §3.
     sellable: true
-    sellablePrice: 34
+    sellablePrice: 80
     depotPrice: 134
     sealedShipping: true
 
@@ -5804,7 +5804,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 7
     depotPrice: 12
 
   trapping-gear:
@@ -5830,7 +5830,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 16
     depotPrice: 26
 
   # No `equipped` on the bonus: a plow is not something you hold, it is
@@ -6603,7 +6603,7 @@ tags:
     purchasableAfterStart: false
     removable: true
     sellable: true
-    sellablePrice: 6
+    sellablePrice: 14
 
   # A Cerberon-issued sidearm — the Censor and every Cerberus start with one.
   # Never bought or built: the batteries are shipped in by the Baron, so
@@ -6735,7 +6735,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 30
+    sellablePrice: 41
     depotPrice: 68
 
   surgical-equipment:
@@ -6752,7 +6752,7 @@ tags:
     tradeable: true
     weight: 12
     sellable: true
-    sellablePrice: 8
+    sellablePrice: 19
     depotPrice: 31
 
   # --- Special ------------------------------------------------------------
@@ -6861,7 +6861,7 @@ tags:
     # sell (the Motorcycle is the other). Everything else on this shelf stays
     # something you have to go down and find. See docs/systemdocs/DEPOT.md §3.
     sellable: true
-    sellablePrice: 48
+    sellablePrice: 116
     depotPrice: 194
     sealedShipping: true
 
@@ -6924,7 +6924,7 @@ tags:
     removable: true
     # The Depot imports these, and it does not have to haul them anywhere.
     sellable: true
-    sellablePrice: 43
+    sellablePrice: 103
     depotPrice: 171
 
   sawn-off-double-barrel:
@@ -7262,7 +7262,7 @@ tags:
     pointCost: 0
     depotPrice: 5
     sellable: true
-    sellablePrice: 1
+    sellablePrice: 3
     tradeable: true
     weight: 0.5
     stackable: true
@@ -7986,7 +7986,7 @@ tags:
     pointCost: 0
     depotPrice: 3
     sellable: true
-    sellablePrice: 1
+    sellablePrice: 2
     tradeable: true
     weight: 0.5
     stackable: true
@@ -8006,7 +8006,7 @@ tags:
     pointCost: 0
     depotPrice: 4
     sellable: true
-    sellablePrice: 1
+    sellablePrice: 2
     tradeable: true
     weight: 0.5
     stackable: true
@@ -8027,7 +8027,7 @@ tags:
     pointCost: 0
     depotPrice: 4
     sellable: true
-    sellablePrice: 1
+    sellablePrice: 2
     tradeable: true
     weight: 2
     stackable: true
@@ -8048,7 +8048,7 @@ tags:
     pointCost: 0
     depotPrice: 4
     sellable: true
-    sellablePrice: 1
+    sellablePrice: 2
     tradeable: true
     weight: 2
     stackable: true
@@ -8071,7 +8071,7 @@ tags:
     # no depotPrice of its own (not depot-importable). See DEPOT.md §3.
     depotPrice: 11
     sellable: true
-    sellablePrice: 3
+    sellablePrice: 7
     tradeable: true
     weight: 2
     stackable: true
@@ -8093,7 +8093,7 @@ tags:
     pointCost: 0
     depotPrice: 11
     sellable: true
-    sellablePrice: 3
+    sellablePrice: 7
     tradeable: true
     weight: 5
     visible: true
@@ -8110,7 +8110,7 @@ tags:
     pointCost: 0
     depotPrice: 11
     sellable: true
-    sellablePrice: 3
+    sellablePrice: 7
     tradeable: true
     weight: 2
     equippable: true
@@ -8128,7 +8128,7 @@ tags:
     pointCost: 0
     depotPrice: 12
     sellable: true
-    sellablePrice: 3
+    sellablePrice: 7
     tradeable: true
     weight: 2
     visible: true
@@ -8150,7 +8150,7 @@ tags:
     pointCost: 9
     depotPrice: 22
     sellable: true
-    sellablePrice: 6
+    sellablePrice: 13
     tradeable: true
     weight: 0.5
     visible: false
@@ -8167,7 +8167,7 @@ tags:
     pointCost: 0
     depotPrice: 22
     sellable: true
-    sellablePrice: 6
+    sellablePrice: 13
     tradeable: true
     weight: 2
     stackable: true
@@ -8185,7 +8185,7 @@ tags:
     pointCost: 0
     depotPrice: 29
     sellable: true
-    sellablePrice: 7
+    sellablePrice: 17
     tradeable: true
     weight: 5
     visible: true
@@ -8203,7 +8203,7 @@ tags:
     depotPrice: 34
     sealedShipping: true
     sellable: true
-    sellablePrice: 8
+    sellablePrice: 20
     tradeable: true
     weight: 12
     equippable: true
@@ -8224,7 +8224,7 @@ tags:
     pointCost: 0
     depotPrice: 22
     sellable: true
-    sellablePrice: 6
+    sellablePrice: 13
     tradeable: true
     visible: true
     purchasable: false
@@ -8240,7 +8240,7 @@ tags:
     pointCost: 0
     depotPrice: 38
     sellable: true
-    sellablePrice: 10
+    sellablePrice: 23
     tradeable: true
     visible: true
     purchasable: false
@@ -8258,7 +8258,7 @@ tags:
     depotPrice: 45
     sealedShipping: true
     sellable: true
-    sellablePrice: 11
+    sellablePrice: 27
     tradeable: true
     weight: 0.5
     stackable: true
@@ -8279,7 +8279,7 @@ tags:
     depotPrice: 52
     sealedShipping: true
     sellable: true
-    sellablePrice: 13
+    sellablePrice: 31
     tradeable: true
     weight: 0.5
     stackable: true
@@ -8300,7 +8300,7 @@ tags:
     depotPrice: 60
     sealedShipping: true
     sellable: true
-    sellablePrice: 15
+    sellablePrice: 36
     tradeable: true
     weight: 0
     visible: false
@@ -8318,7 +8318,7 @@ tags:
     depotPrice: 75
     sealedShipping: true
     sellable: true
-    sellablePrice: 19
+    sellablePrice: 45
     tradeable: true
     weight: 2
     visible: true
@@ -8335,7 +8335,7 @@ tags:
     pointCost: 0
     depotPrice: 74
     sellable: true
-    sellablePrice: 18
+    sellablePrice: 44
     equippable: true
     tradeable: true
     weight: 1
@@ -8354,7 +8354,7 @@ tags:
     pointCost: 0
     depotPrice: 82
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 49
     tradeable: true
     weight: 0.5
     stackable: true
@@ -8379,7 +8379,7 @@ tags:
     equippable: true
     depotPrice: 134
     sellable: true
-    sellablePrice: 34
+    sellablePrice: 80
     tradeable: true
     visible: true
     purchasable: false
@@ -8397,7 +8397,7 @@ tags:
     depotPrice: 149
     sealedShipping: true
     sellable: true
-    sellablePrice: 37
+    sellablePrice: 89
     tradeable: true
     weight: 2
     equippable: true
@@ -8422,7 +8422,7 @@ tags:
     depotPrice: 213
     sealedShipping: true
     sellable: true
-    sellablePrice: 53
+    sellablePrice: 128
     tradeable: true
     weight: 5
     equippable: true
@@ -8441,7 +8441,7 @@ tags:
     depotPrice: 443
     sealedShipping: true
     sellable: true
-    sellablePrice: 111
+    sellablePrice: 266
     tradeable: true
     weight: 5
     equippable: true
@@ -8460,7 +8460,7 @@ tags:
     depotPrice: 189
     sealedShipping: true
     sellable: true
-    sellablePrice: 47
+    sellablePrice: 113
     tradeable: true
     weight: 5
     equippable: true
@@ -8478,7 +8478,7 @@ tags:
     pointCost: 0
     depotPrice: 123
     sellable: true
-    sellablePrice: 31
+    sellablePrice: 74
     tradeable: true
     weight: 5
     equippable: true
@@ -8496,7 +8496,7 @@ tags:
     pointCost: 0
     depotPrice: 61
     sellable: true
-    sellablePrice: 15
+    sellablePrice: 37
     tradeable: true
     weight: 2
     equippable: true
@@ -8861,7 +8861,7 @@ tags:
       resourceCost: 4
       skills: [brewing-skilled]
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 22
     depotPrice: 36
     sealedShipping: true
 
@@ -9406,7 +9406,7 @@ tags:
       skills: [smithing-skilled]
     depotPrice: 45
     sellable: true
-    sellablePrice: 18
+    sellablePrice: 27
 
   tribunal-helmet:
     catalog: gm
@@ -9549,7 +9549,7 @@ tags:
     purchasableAfterStart: false
     depotPrice: 12
     sellable: true
-    sellablePrice: 3
+    sellablePrice: 7
 
   bone-mask:
     catalog: gm
@@ -10106,7 +10106,7 @@ tags:
     purchasableAfterStart: false
     depotPrice: 145
     sellable: true
-    sellablePrice: 36
+    sellablePrice: 87
 
   silver-cross:
     catalog: gm
@@ -10313,7 +10313,7 @@ tags:
     removable: true
     consumable: true
     sellable: true
-    sellablePrice: 6
+    sellablePrice: 16
     depotPrice: 26
 
   # --- Health: Grievous Wound ---------------------------------------------
@@ -10614,5 +10614,5 @@ tags:
     removable: true
     # Priced at about 65% of a {tag:flamethrower}, the shelf it shares. ‡
     sellable: true
-    sellablePrice: 32
+    sellablePrice: 76
     depotPrice: 126
