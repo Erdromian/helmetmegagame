@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Everything weighs about 30% less
+
+✎ Every item in the catalog is roughly 30% lighter; the carry cap stays at 120 lb  
+✎ The weight bands are now 0 / 0.3 / 1.5 / 3.5 / 8 / 20 / 40 / 70  
+✎ A Squeeze cube is 12 lb, so a refugee can now walk a full shift's output out of the Factory
+
 ## 2026-09-06 · Spectators only watch while the game is on
 
 ✎ The Spectator role sees the channels only while the game is Running or Ended; in Closed or Lobby it is denied view, so testing before launch pings nobody who came to watch  
