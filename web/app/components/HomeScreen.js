@@ -2,6 +2,12 @@ import { signInWithDiscord, signInLocally } from "../actions";
 import { isLocalMode } from "@lifeweb/db/lib/localMode";
 
 export default function HomeScreen({ turnLabel }) {
+  // Under LOCAL_MODE there's no real DISCORD_CLIENT_ID/SECRET for the
+  // Discord button to hand off to, so the one button IS the local sign-in
+  // here rather than sitting beside a second one — nobody testing locally
+  // needs the option to hit real (broken) Discord OAuth by mistake.
+  const local = isLocalMode();
+
   return (
     <main className="relative z-10 flex h-full flex-col items-center justify-center gap-8 px-6 text-center">
       <div className="flex flex-col items-center">
@@ -12,19 +18,11 @@ export default function HomeScreen({ turnLabel }) {
         </p>
       </div>
 
-      <form action={signInWithDiscord}>
+      <form action={local ? signInLocally : signInWithDiscord}>
         <button type="submit" className="btn">
-          Sign in with Discord
+          {local ? "Sign in (LOCAL_MODE, no Discord)" : "Sign in with Discord"}
         </button>
       </form>
-
-      {isLocalMode() && (
-        <form action={signInLocally}>
-          <button type="submit" className="btn-quiet">
-            Sign in locally (LOCAL_MODE, no Discord)
-          </button>
-        </form>
-      )}
     </main>
   );
 }
