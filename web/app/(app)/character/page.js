@@ -296,6 +296,11 @@ export default async function CharacterPage() {
         // the column is three or four small keys.
         placement: true,
         stackable: true,
+        // TagChip's Weight row in the Add-tag / Craft menus — both halves,
+        // since untradeable is what makes a thing weightless
+        // (web/lib/formatTagWeight.js).
+        weightLbs: true,
+        tradeable: true,
         parentTagId: true,
         requiredTagId: true,
         requiredTag: { select: { name: true } },

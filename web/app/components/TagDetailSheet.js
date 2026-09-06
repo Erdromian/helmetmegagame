@@ -8,6 +8,7 @@ import DesireUnlocks from "@/app/components/DesireUnlocks";
 import { formatCost, costColor } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { formatTagArmor } from "@/lib/formatTagArmor";
+import { formatTagWeight } from "@/lib/formatTagWeight";
 
 // The read-only detail sheet behind a row click on the Tag Catalog: the full
 // description plus everything the table can't fit — the tier chain, the
@@ -158,6 +159,9 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
     formatTagArmor(tag)
       ? `Armour: ${formatTagArmor(tag)} (${tag.meleeArmor ?? 0} / ${tag.ballisticArmor ?? 0}) ‡`
       : null,
+    // What it costs the carry cap, per unit. Null for the weightless half of
+    // the catalog and for anything a character does not haul (CARRY.md §1).
+    formatTagWeight(tag) ? `Weighs ${formatTagWeight(tag)} ‡` : null,
   ].filter(Boolean);
   const requirement = formatTagRequirement(tag);
 

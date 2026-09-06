@@ -227,6 +227,9 @@ export default async function DocumentsPage() {
     consumable: t.consumable,
     removable: t.removable,
     tradeable: t.tradeable,
+    // With tradeable above, the "Weighs …" flag on the detail sheet and the
+    // Weight row on every TagChip in this tab.
+    weightLbs: t.weightLbs,
     craftable: t.craftable,
     healable: t.healable,
     teachable: t.teachable,
