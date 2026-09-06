@@ -6,16 +6,19 @@ lesson. This is the game's first code-adjudicated Gambit.
 
 ## 1. The rules
 
-- **Teaching** (5 pt, `general-traits`): you can train someone in a skill you
-  have. Teaching is your **Routine** for the turn; learning is the student's
+- **Teaching** (5 pt, a standalone `skills` tag): you can train someone in a
+  skill you have. Teaching is your **Routine** for the turn; learning is the student's
   **Gambit**. They succeed on a **5 or 6** — the die after its modifier
   (Hunger, Disappointed; `db/lib/gambitModifier.js`).
 - **Teaching (Lecturing)** (5 pt, upgrade of Teaching): up to **three**
   students on the one Routine.
-- **Teaching (Drill Instructor)** (3 pt, `general-cerberon`, so Cerberus-only;
-  requires Teaching): a student learning a **fighting skill** (group
-  `skills-fighting`) succeeds on a **4, 5 or 6**. Stacks with Lecturing. It
-  replaced the old Drillmaster tag.
+- **Teaching (Drill Instructor)** (3 pt, `skills` category but grouped under
+  `general-cerberon` for that group's `requiredTag: cerberon` gate, so only a
+  Cerberus or the Censor, who starts with the Cerberon tag; requires
+  Teaching): a student learning a **fighting skill** (group `skills-fighting`)
+  succeeds on a **4, 5 or 6**. Stacks with Lecturing. It replaced the old
+  Drillmaster tag.
+- None of the three is `teachable`. You can't be taught to teach.
 - Thresholds are fixed. There is no "each attempt lowers the difficulty".
 - Both sides have to be standing at the same Location and unconcealed
   (`db/lib/presence.js`), and neither may already have locked in a Move for

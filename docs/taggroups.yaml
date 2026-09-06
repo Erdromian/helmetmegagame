@@ -293,9 +293,11 @@ groups:
     color: "#b5aa98"
   # Skill families, clustered the same way General and Status already are.
   # A handful of standalone Skills tags (forester,
-  # musician, lockpicking, butcher, climbing, navigating, stealth) stay
-  # groupless on purpose — they don't
-  # belong to any family and would just be noise in a one-tag group.
+  # musician, lockpicking, butcher, climbing, navigating, stealth, and the
+  # Teaching tree) stay groupless on purpose — they don't
+  # belong to any family and would just be noise in a one-tag group. The one
+  # exception is Teaching (Drill Instructor), a Skill that borrows
+  # general-cerberon purely for its requiredTag gate.
   skills-labor:
     name: Labor
     category: skills

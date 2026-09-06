@@ -393,30 +393,32 @@ tags:
 
   # --- Teaching (docs/systemdocs/LESSONS.md) -----------------------------
   # Learn Skill / Teach Skill on the sheet. Teaching is the door; Lecturing
-  # widens one Routine to three students; the Drill Instructor rung lives in
-  # general-cerberon. Bascinet's words, unmarked.
+  # widens one Routine to three students; the Drill Instructor rung is gated
+  # by general-cerberon. All three are Skills, standalone like Climbing or
+  # Stealth, and none is teachable: you can't be taught to teach. Bascinet's
+  # words, unmarked.
   teaching:
     catalog: all
     name: Teaching
-    category: general
-    group: general-traits
+    category: skills
     description: "Can train someone in a skill you have. It's a routine move for you; the learner has to make a Gambit. They'll succeed in a 5 or a 6."
     pointCost: 5
     visible: false
     purchasable: true
     purchasableAfterStart: true
+    teachable: false
 
   teaching-lecturing:
     catalog: all
     name: Teaching (Lecturing)
-    category: general
-    group: general-traits
+    category: skills
     parentTag: teaching
     description: "Can train up to three people at the same time. It's a routine move for you; the learner(s) have to make a Gambit. They'll succeed in a 5 or a 6."
     pointCost: 5
     visible: false
     purchasable: true
     purchasableAfterStart: true
+    teachable: false
 
   old-blood:
     catalog: gm
@@ -1766,11 +1768,15 @@ tags:
   # Reads against the Teaching Skills document (docs/documents.yaml), which
   # sets the teaching baseline at a 6. Change one and change the other.
   # Teaching (Drill Instructor) replaced the old Drillmaster here in 9/2026.
-  # The tree itself sits under general-traits; this rung is the Cerberon's.
+  # A Skill like the rest of the Teaching tree, but it keeps the Cerberon
+  # group so the group's `requiredTag: cerberon` gates it: the Cerberi and the
+  # Censor (who starts with the Cerberon tag) can take it, nobody else can.
+  # PointBuy tabs by the tag's own category, so it shows under Skills. The
+  # tag's own requiredTag slot is spent on Teaching. Not teachable.
   teaching-drill-instructor:
     catalog: gm
     name: Teaching (Drill Instructor)
-    category: general
+    category: skills
     group: general-cerberon
     requiredTag: teaching
     description: "When someone tries to learn a fighting skill from you, they succeed on a 4, 5, or a 6. Stacks with Lecturing."
@@ -1778,6 +1784,7 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+    teachable: false
 
   green:
     catalog: gm
