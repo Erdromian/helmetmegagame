@@ -18,7 +18,7 @@ const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival } = require("./cavingPass");
 const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
 const { OVERBURDENED_SLUG } = require("./constants");
-const { isMounted, isBoated, boatCrossing, equippedSlugs } = require("./mounts");
+const { isMounted, isBoated, blocksOnFoot, boatCrossing, equippedSlugs } = require("./mounts");
 const { linkBetween, crossingCheck } = require("./locationGraph");
 const { MOTION_SICKNESS_SLUG, VOMITING_SLUG } = require("./constants");
 const { expiryForGrant } = require("./grantExpiry");
@@ -231,7 +231,7 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
       tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
       // Equipped, not merely held — CHARACTER_SELECT already loads `equipped`
       // for exactly this kind of question.
-      mounted: isMounted(equippedSlugs(character.tags ?? [])),
+      onFootBlocked: blocksOnFoot(equippedSlugs(character.tags ?? [])),
     });
     if (!gate.passable) return { ok: false, reason: gate.refusal };
   }
