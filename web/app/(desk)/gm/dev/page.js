@@ -9,8 +9,17 @@ import { listGuildMembers, listGmMembers } from "@/lib/discordGuild";
 import { TRIAL_GM_ROLE_ID } from "@lifeweb/db/lib/roleIds";
 import DiscordAvatar from "@/app/components/DiscordAvatar";
 import CharacterLink from "@/app/components/CharacterLink";
-import { OPT_IN_THREATS, ASSIGNABLE_THREATS, SEAT_TAG_SLUGS, antagonistNames, threatBySeatTag, threatBySlug } from "@/lib/threats";
-import { PLAYER_ROLE_ID } from "@lifeweb/db/lib/roleIds";
+import {
+  OPT_IN_THREATS,
+  ASSIGNABLE_THREATS,
+  SEAT_TAG_SLUGS,
+  antagonistNames,
+  threatBySeatTag,
+  threatBySlug,
+  optInName,
+  optInWhitelisted,
+} from "@/lib/threats";
+import { PLAYER_ROLE_ID, LEADER_WHITELIST_ROLE_ID } from "@lifeweb/db/lib/roleIds";
 import { roleCapacity, seatHolderStatuses } from "@lifeweb/db/lib/roleCapacity";
 import {
   updateGameConfig,
@@ -72,6 +81,9 @@ const THREAT_SUMMARY = [...new Set([...OPT_IN_THREATS, ...ASSIGNABLE_THREATS])].
   slug: t.slug,
   name: t.name,
   optIn: Boolean(t.optIn),
+  // What the checkbox said, which is what the opt-in chips and filter show.
+  optInName: optInName(t),
+  optInWhitelisted: optInWhitelisted(t),
   assignable: Boolean(t.assignable),
   tagPoints: t.assign?.tagPoints ?? 0,
   spawnRoleSlug: t.spawn?.roleSlug ?? null,
@@ -245,7 +257,7 @@ export default async function DevPanelPage({ searchParams }) {
       // Rows are every APPROVED PLAYER in the guild, not every character:
       // a SPAWN is aimed precisely at the people who are not in the game, so
       // a player with no character is a real row rather than a gap.
-      const [members, characters, roles, locationRows] = await Promise.all([
+      const [members, characters, roles, locationRows, preferences] = await Promise.all([
         listGuildMembers(),
         // ALIVE only: Catatonic is a TAG on a living character, not a status,
         // and a dead one is not somebody you hand a seat to.
@@ -279,9 +291,13 @@ export default async function DevPanelPage({ searchParams }) {
           orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
           select: { id: true, name: true, zone: { select: { name: true } } },
         }),
+        // Lobby consent for the players who have no character yet: before
+        // Start, the preference row is the only place a tick lives.
+        prisma.playerPreference.findMany({ select: { discordUserId: true, antagonistOptIns: true } }),
       ]);
 
       const byUser = new Map(characters.map((c) => [c.discordUserId, c]));
+      const prefByUser = new Map(preferences.map((p) => [p.discordUserId, p.antagonistOptIns]));
       assignmentRows = members
         .filter((m) => m.roles.includes(PLAYER_ROLE_ID))
         .map((m) => {
@@ -298,7 +314,10 @@ export default async function DevPanelPage({ searchParams }) {
             roleTitle: c?.roleTitle ?? null,
             zoneName: c?.zone?.name ?? null,
             statusLabel: c ? c.status : "Not in game",
-            optInNames: antagonistNames(c?.antagonistOptIns ?? []),
+            // The character's locked snapshot once it exists, the live lobby
+            // preference until then.
+            optInNames: antagonistNames(c ? c.antagonistOptIns : (prefByUser.get(m.id) ?? [])),
+            whitelisted: m.roles.includes(LEADER_WHITELIST_ROLE_ID),
             seatName: seat?.name ?? null,
           };
         });

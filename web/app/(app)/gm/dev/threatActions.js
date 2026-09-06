@@ -14,6 +14,7 @@ import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { threatBySlug } from "@lifeweb/db/lib/threats";
 import { resolveAssignTags, spawnOfferComponents } from "@lifeweb/db/lib/threatSpawn";
+import { resolveSeatConflicts, describeSeatConflicts } from "@lifeweb/db/lib/seatConflicts";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -96,6 +97,7 @@ export async function assignThreat({ characterId, threatSlug }) {
     });
   }
 
+  let conflicts = { refunded: [], removed: [], kept: [], points: 0 };
   await prisma.$transaction(async (tx) => {
     for (const row of rows) {
       // Upsert rather than create: a GM may have granted the seat tag by hand
@@ -118,6 +120,10 @@ export async function assignThreat({ characterId, threatSlug }) {
         data: { tagPoints: { increment: threat.assign.tagPoints } },
       });
     }
+    // What the seat forbids and the character already had: refunded if it
+    // cost points, kept if it was a drawback, gone either way if it is a
+    // second Belief (db/lib/seatConflicts.js).
+    conflicts = await resolveSeatConflicts(tx, character.id, rows.map((r) => r.tagId));
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: session.discordUserId,
@@ -127,6 +133,9 @@ export async function assignThreat({ characterId, threatSlug }) {
           threat: threat.name,
           tagPoints: threat.assign?.tagPoints ?? 0,
           tags: rows.map((r) => r.name),
+          refunded: conflicts.refunded,
+          removed: conflicts.removed,
+          kept: conflicts.kept,
         },
       },
     });
@@ -135,8 +144,9 @@ export async function assignThreat({ characterId, threatSlug }) {
   // Post-commit: the DM must never cost the grant. sendDm applies the » prefix,
   // splits past 2000 characters and logs to DirectMessage, so /gm/messages
   // shows the whole thing.
+  const conflictLine = describeSeatConflicts(conflicts);
   after(async () => {
-    await sendDm(character.discordUserId, seatMessage(threat), {
+    await sendDm(character.discordUserId, [seatMessage(threat), conflictLine].filter(Boolean).join("\n"), {
       authorDiscordUserId: session.discordUserId,
       source: "threat_assign",
     }).catch((err) => console.error("Threat assign DM failed:", err));

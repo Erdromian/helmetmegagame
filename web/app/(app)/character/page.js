@@ -11,6 +11,7 @@ import {
   isDynastyMember,
   presentedIdentity,
   startingTagNames,
+  normalizeAntagonistSlugs,
 } from "@lifeweb/db";
 import {
   accessibleRooms,
@@ -118,7 +119,7 @@ import CreationClosed from "./CreationClosed";
 // tree it renders. Seat counts are computed here, not the client, so the
 // numbers aren't stale-rendered from a cached page.
 async function loadCreationData(discordUserId) {
-  const [zones, tags, config, state, member, dynastyName] = await Promise.all([
+  const [zones, tags, config, state, member, dynastyName, preference] = await Promise.all([
     prisma.zone.findMany({
       orderBy: { name: "asc" },
       include: {
@@ -138,6 +139,7 @@ async function loadCreationData(discordUserId) {
     readGameState(prisma),
     getGuildMember(discordUserId),
     dynastyLastName(),
+    prisma.playerPreference.findUnique({ where: { discordUserId }, select: { antagonistOptIns: true } }),
   ]);
 
   // Seated (ALIVE, plus DEAD on a seat that never reopens) plus anyone
@@ -165,6 +167,10 @@ async function loadCreationData(discordUserId) {
     gate,
     cursed,
     dynastyName,
+    whitelisted: leaderWhitelisted,
+    initialAntagonists: normalizeAntagonistSlugs(preference?.antagonistOptIns ?? [], {
+      whitelisted: leaderWhitelisted,
+    }),
     playerCount,
     startingTagPoints: config?.startingTagPoints ?? 0,
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,

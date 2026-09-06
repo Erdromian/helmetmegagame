@@ -286,6 +286,9 @@ tags:
   # without a column to keep in sync. `secret` for the same reason Demoness
   # is: an antagonist seat has no business showing up in the player's Tag
   # Catalog.
+  # A seat's INCOMPATIBLE tags are its conflictsWith edges (THREATS.md §3).
+  # The store and Add Tag refuse them for a holder; Assign refunds or
+  # grandfathers what a character already had (db/lib/seatConflicts.js).
   judge:
     catalog: secret
     name: Judge
@@ -293,6 +296,7 @@ tags:
     description: "You are the Judge."
     pointCost: 0
     purchasable: false
+    conflictsWith: [pacifist, charitable, saint]
 
   demoness:
     catalog: secret
@@ -301,10 +305,21 @@ tags:
     description: '"Pleasure is so painful — ah~! I don''t care!" You can Break souls ({tag:broken}), turning their owners into walking, empty shells, by making them fall in love with you — and then sealing it with a (voluntary) kiss. If people want more after that, that''s your business, not mine.'
     pointCost: 0
     purchasable: false
+    conflictsWith: [pacifist, charitable, saint]
     desires:
       locks:
         - all: true
           exceptFamilies: [demoness]
+
+  # The Thanati Leader's mark on top of the thanati Belief below — the roster
+  # tells the two seats apart by this tag (db/lib/threats.js).
+  thanati-leader:
+    catalog: secret
+    name: Thanati Leader
+    category: general
+    description: "The others look to you. ‡"
+    pointCost: 0
+    purchasable: false
 
   # Price is cosmetic (role-granted, not purchasable) — do not "fix" it. The
   # `all + food at tiers 1-2` intent from the design spec isn't expressible
@@ -1927,6 +1942,25 @@ tags:
     requiredTag: pale
     purchasable: true
     purchasableAfterStart: true
+
+  # The Thanati creed. A Belief like the others — exclusive, so a convert
+  # drops whatever they held — but never bought: it arrives with the Thanati
+  # seats (db/lib/threats.js) or from a GM's hand. `secret` keeps it out of
+  # the player's Tag Catalog. Pilgrim and Saint are not exclusive, so they are
+  # named here; every other Belief is ruled out by the group. Bascinet's
+  # wording.
+  thanati:
+    catalog: secret
+    name: Thanati
+    category: general
+    group: general-beliefs
+    description: "This reality is cursed. Everyone must die before Tzchernobog can reset it."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    exclusive: true
+    conflictsWith: [pacifist, charitable, saint, pilgrim]
 
   # --- The Cerberon ---------------------------------------------------------
   cerberon:

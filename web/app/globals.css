@@ -1003,6 +1003,13 @@ input[type="radio"]:disabled {
   cursor: pointer;
 }
 
+/* A whitelisted antagonist box for a player without the whitelist: greyed and
+   inert, but still there to read, the way a whitelisted role card is. */
+.check-row.is-locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* A switch is the same boolean wearing "setting" rather than "selection". The
    control underneath is a real checkbox, visually hidden rather than replaced,
    so a server-rendered <form action> still submits its name — MovePanel's

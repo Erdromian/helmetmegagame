@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Twelve antagonist boxes, two of them the Thanati
+
+✚ Cultist and Cultist Leader are real seats now: they grant the Thanati belief, the leader wears a mark on top, and a GM can Assign or Spawn them  
+✎ The Succubus box is the Demoness seat under its own name, so the 18+ nature is plain; the Bastard, Cultist Leader, Succubus and Tribunal Ordinator boxes need the Whitelist role  
+− Aberrant Emissary, False Chaplain, Neomorph, Phrygian Count, Tribunal Operations and Warlock from the opt-in list; Skinless and Windlander join it  
+✎ Assigning a seat now refunds any tag it forbids that cost points, keeps drawbacks, and drops a second Belief; the DM says what went  
+✎ The Assignments table shows lobby opt-ins for players without a character yet, and a WL column
+
 ## 2026-09-06 · The game has phases now: Closed, Lobby, Running, Ended
 
 ✚ A Game section on the Dev Panel with Open lobby, Start game, End game and Resume  

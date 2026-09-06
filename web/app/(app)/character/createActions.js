@@ -97,8 +97,9 @@ export async function createCharacter(formData) {
   const roleId = formData.get("roleId")?.toString();
   const tagIds = formData.getAll("tagIds").map((t) => t.toString()).filter(Boolean);
   // Consent for secretly-assigned antagonist seats; normalizeAntagonistSlugs
-  // is the boundary that keeps junk slugs out of the column.
-  const antagonistOptIns = normalizeAntagonistSlugs(formData.getAll("antagonistOptIns"));
+  // is the boundary that keeps junk slugs out of the column. Whitelisted
+  // boxes are dropped below, once the member is known.
+  const postedOptIns = formData.getAll("antagonistOptIns");
 
   if (!firstName) return { error: "Your character needs a first name." };
   // One word each — the wizard gates this too, but the form can be hand-posted.
@@ -155,6 +156,8 @@ export async function createCharacter(formData) {
   if (!isRoleSelectable({ role, cursed, leaderWhitelisted })) {
     return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
   }
+
+  const antagonistOptIns = normalizeAntagonistSlugs(postedOptIns, { whitelisted: leaderWhitelisted });
 
   // Dynasty seats wear the Baron's last name, never what was typed — not
   // reading the form is the lock. Null until a Baron exists.
@@ -374,6 +377,14 @@ export async function createCharacter(formData) {
           expiresTurn,
           quantity: quantity ?? 1,
         })),
+      });
+
+      // The lobby preference keeps the same answer, so a later game opens
+      // with it ticked already (docs/systemdocs/LOBBY.md §2).
+      await tx.playerPreference.upsert({
+        where: { discordUserId },
+        create: { discordUserId, antagonistOptIns },
+        update: { antagonistOptIns },
       });
 
       // The Merchant advanced him half of it; the paper says the rest

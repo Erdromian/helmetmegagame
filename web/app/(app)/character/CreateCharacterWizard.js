@@ -29,7 +29,7 @@ import {
   GENDER_LABELS,
 } from "@/lib/characterName";
 import { randomCharacterName } from "@/lib/nameCorpus";
-import { ANTAGONISTS, antagonistNames } from "@/lib/threats";
+import { ANTAGONISTS, antagonistNames, optInName, optInWhitelisted } from "@/lib/threats";
 
 // Identity comes AFTER Role and Tags, and has to: a title is earned from the
 // role you took and the tags you hold (db/lib/titles.js), so there is nothing
@@ -146,6 +146,12 @@ export default function CreateCharacterWizard({
   // The living Baron's surname, or null if nobody holds the seat yet. Only
   // read for a role whose `lastNameLocked` is set — see db/lib/dynasty.js.
   dynastyName = null,
+  // Whether this player holds the Whitelist role. Greys the whitelisted
+  // antagonist boxes; the server drops those slugs regardless.
+  whitelisted = false,
+  // What they ticked in the lobby (PlayerPreference), so the step opens
+  // already filled in. The server writes the final answer back there too.
+  initialAntagonists = [],
 }) {
 
   const [step, setStep] = useState(0);
@@ -159,9 +165,9 @@ export default function CreateCharacterWizard({
   const [age, setAge] = useState("");
   const [roleId, setRoleId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
-  // Opt-in, so the empty array is the honest default — a player who walks past
-  // the step has consented to nothing.
-  const [antagonists, setAntagonists] = useState([]);
+  // Opt-in, so nothing ticked is the honest default — a player who walks past
+  // the step has consented to nothing. A lobby preference pre-fills it.
+  const [antagonists, setAntagonists] = useState(initialAntagonists);
   const [error, setError] = useState(null);
   const [pending, setPending] = useState(false);
   // The banner sits above the step content, and both the role list and the
@@ -568,21 +574,37 @@ export default function CreateCharacterWizard({
             Threat roles are assigned after game start. You can select the ones you&apos;d be open to receiving here.
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
-            {ANTAGONISTS.map((a) => (
-              <CheckField
-                key={a.slug}
-                checked={antagonists.includes(a.slug)}
-                onChange={() => toggleAntagonist(a.slug)}
-              >
-                {a.name}
-              </CheckField>
-            ))}
+            {ANTAGONISTS.map((a) => {
+              const locked = optInWhitelisted(a) && !whitelisted;
+              const box = (
+                <CheckField
+                  key={a.slug}
+                  checked={antagonists.includes(a.slug)}
+                  onChange={() => toggleAntagonist(a.slug)}
+                  disabled={locked}
+                  className={locked ? "is-locked" : ""}
+                >
+                  {optInName(a)}
+                </CheckField>
+              );
+              // Greyed, not hidden: a whitelisted box is still a thing that
+              // exists, the same way a whitelisted role card is.
+              return locked ? (
+                <Tooltip key={a.slug} text="Whitelist only ‡" className="block">
+                  {box}
+                </Tooltip>
+              ) : (
+                box
+              );
+            })}
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               className="btn-quiet"
-              onClick={() => setAntagonists(ANTAGONISTS.map((a) => a.slug))}
+              onClick={() =>
+                setAntagonists(ANTAGONISTS.filter((a) => whitelisted || !optInWhitelisted(a)).map((a) => a.slug))
+              }
             >
               Select all
             </button>
