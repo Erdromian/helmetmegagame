@@ -6,10 +6,33 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The zone picker answers on the click
+
+✎ The Zones control now responds to a click straight away, instead of freezing for about twenty seconds  
+✚ A picked zone turns orange, so you can tell at a glance which ones you have  
+✎ Your GM: <Zone> Discord roles now catch up a second or two after the click, rather than holding it up
+
 ## 2026-09-06 · The bot is back up, and appearance has more room
 
 ✎ The bot had been crashing on boot since the phobia pass shipped half-committed; the missing pieces are in  
 ✚ Character appearance now takes 400 characters instead of 300
+
+## 2026-09-06 · The Fisherman starts skilled at Laboring
+
+
+## 2026-09-06 · The turn header is a dated subtext line
+
+
+## 2026-09-06 · Knighthood is back on the picker, for a single point
+
+✎ Knighted is purchasable again at character creation, at 1 ⬢. It stays out of the mid-game store — once play starts, knighting is the Baron's to do
+
+## 2026-09-06 · Ten Courtier kits, and knighthood is no longer for sale
+
+✚ Ten Courtier starting kits — Herald, Seasoned Knight, Tutor, Chaplain, Carouser, Manor Lord, Debutante, Court Physician, Court Artist and Master Engineer. Each is a crate a Courtier buys at creation and unpacks in play, priced well under what it holds  
+− Knighted is off the tag picker. It is free now, and comes from the Seasoned Knight kit or a GM's hand  
+✚ A hostage bag in the Order Chambers, and two hoods in the Ravine Camp  
+✚ Both Brigands start with a Plebeian Hood
 
 ## 2026-09-06 · Role charters: the contributor's pass
 
