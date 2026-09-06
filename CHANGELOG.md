@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · Loot the room you're in, a sheet that keeps itself current, and a bomb that says it's armed
+
+✎ The Loot button now lists the rooms here beside the people. Picking a room takes from its stash, the same way Transfer's From-the-room already did.  
+✎ The character page refreshes itself when something on your sheet or in your Location changes, so a move made from Discord no longer leaves the old rooms in the pickers until a reload. It checks a small fingerprint every ten seconds and only reloads the page when that moves.  
+✎ The Nuclear Device tag reads "armed · 2t" while the countdown is running, and its tooltip says which turn it fires on.
+
 ## 2026-09-06 · One write path, and messages you can take back
 
 ✎ Everything a character says now goes through one path on both faces, so a Stupid character babbles on the web exactly as on Discord, and the speech gate, the length cap and the autocorrect are decided once.  
