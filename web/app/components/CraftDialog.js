@@ -329,10 +329,14 @@ export default function CraftDialog({
               <p className="text-xs text-muted">
                 {turns === 0
                   ? allowance
-                    ? // The pool is SHARED across every Dead Simple recipe, so
-                      // the count moves when you make a different simple item —
-                      // said here, or the number reads as a per-recipe cap.
-                      `No Move needed for the first ${allowance.per} simple things a turn — shared across all of them — and ${allowance.left} of those are left today. ‡`
+                    ? chosen.requirementPerTurn != null
+                      ? // This recipe rations ITSELF — the count only moves
+                        // when you make more of this one thing.
+                        `No Move needed for the first ${allowance.per} of these a turn, and ${allowance.left} of those are left today. ‡`
+                      : // The pool is SHARED across every Dead Simple recipe, so
+                        // the count moves when you make a different simple item —
+                        // said here, or the number reads as a per-recipe cap.
+                        `No Move needed for the first ${allowance.per} simple things a turn — shared across all of them — and ${allowance.left} of those are left today. ‡`
                     : "No Move needed. ‡"
                   : turns === 1
                     ? moveCost?.kind === "share"
@@ -359,7 +363,9 @@ export default function CraftDialog({
                     ? budget.family !== moveCost?.family
                       ? ` Your Routine this turn is ${craftFamilyLabel(budget.family)} work, and this isn't. ‡`
                       : " There isn't enough of your Move left this turn. ‡"
-                    : " You've already used your Move this turn. ‡"
+                    : hasMoved
+                      ? " You've already used your Move this turn. ‡"
+                      : " That's more than a turn's work — make fewer at once. ‡"
                   : ""}
               </p>
               {ingredientNote && (

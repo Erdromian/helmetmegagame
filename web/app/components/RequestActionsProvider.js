@@ -794,14 +794,19 @@ export default function RequestActionsProvider({
     const per = craftAllowances[chosen.id]?.per ?? null;
     const left = craftAllowances[chosen.id]?.left ?? 0;
     const family = craftFamily(chosen);
-    if ((chosen.requirementTurns ?? 1) === 0 && per != null) {
+    const turns = chosen.requirementTurns ?? 1;
+    const perTurn = chosen.requirementPerTurn ?? null;
+    if (turns === 0 && per != null) {
       // Free units first, then whatever the Move can still buy at 1/per each.
       max = Math.min(
         max,
         family ? left + unitsAffordable(craftRemaining, per) : left,
       );
-    } else if (per != null && family) {
-      max = Math.min(max, unitsAffordable(craftRemaining, per));
+    } else if (turns === 1 && family && perTurn > 0) {
+      // A one-turn batch spends quantity/perTurn of the Move (craftMoveCost's
+      // "share"), so the field stops where the Move does — the same clamp the
+      // server enforces with its "more than a turn's work" refusal.
+      max = Math.min(max, unitsAffordable(craftRemaining, perTurn));
     }
     return Math.max(1, max);
   }, [
@@ -918,7 +923,14 @@ export default function RequestActionsProvider({
     if (mode === "craft" && !projectId && !siteId && chosen) {
       const turns = chosen.requirementTurns ?? 1;
       const qty = craftQty;
-      const cost = (chosen.requirementResources ?? 0) * qty;
+      // The same price craftRequestImpl charges: custom words are
+      // +CUSTOM_SURCHARGE ⬢ a unit, and the confirm must not quote less.
+      const surcharge =
+        chosen.customizable &&
+        customCraftFields({ customName, customDescription }).active
+          ? CUSTOM_SURCHARGE
+          : 0;
+      const cost = ((chosen.requirementResources ?? 0) + surcharge) * qty;
       const what = qty > 1 ? `${qty}× ${chosen.name}` : chosen.name;
       // What this costs of the Move, in the player's words. Three shapes: it
       // locks the Routine to a family of work, it spends from a lock already

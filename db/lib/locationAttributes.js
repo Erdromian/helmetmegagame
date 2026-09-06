@@ -186,7 +186,7 @@ function structureLines(ctx = {}) {
       case "COMPLETE":
         return [
           inscribed
-            ? `**${typeName}**: »${inscribed}`
+            ? `**${typeName}**: » ${inscribed}`
             : `**${typeName}**: ${structure.placement?.examine ?? "it stands here."} ‡`,
           ...noteLines,
         ];

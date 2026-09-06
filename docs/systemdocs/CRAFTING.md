@@ -112,7 +112,7 @@ the rest of the turn.
 ```json
 { "family": "brewing", "usedNum": 2, "usedDen": 3,
   "entries": [{ "tagId": "…", "name": "Alcohol", "qty": 2, "freeQty": 0,
-                "num": 2, "den": 3, "requestId": "…" }] }
+                "num": 2, "den": 3, "auditId": "…" }] }
 ```
 
 `usedNum/usedDen` is the running total in lowest terms; each entry carries its
@@ -131,10 +131,9 @@ project never shares a turn.
 
 **GM semantics.** **Reject** deletes the Action and the ledger with it
 (`deleteActionRestoringTurn`, which needs to know none of this), and the
-player may craft again that turn from scratch. **Undo** of one craft request
-hands back the tag, the ⬢ and the ingredients but **not** the budget — a
-deliberate asymmetry, Reject being the full reset. Nothing in the turn-end
-push reads `craftBudget`.
+player may craft again that turn from scratch. There is no Undo of a
+finished craft — a GM reversing one works by hand from the audit row (§4).
+Nothing in the turn-end push reads `craftBudget`.
 
 **The dialog** quotes all of this before the player commits: the family and
 the fraction left as a header line, cross-family and unaffordable recipes
@@ -149,7 +148,7 @@ lock — the dialog is a hint, never the gate.
 ```
 CraftProject { characterId, tagId, quantity, turnsNeeded, turnsDone, resourcesCost,
                consumed, payerKey, payerName, status ACTIVE|DONE|CANCELLED,
-               startedTurnId, lastTurnId, requestId }
+               startedTurnId, lastTurnId }
 ```
 
 A table, not an "in progress" pseudo-tag: it has a counter, a payer and a
@@ -172,34 +171,27 @@ and count toward carry.
   incapacitation, which this path was quietly missing. The **ingredients are
   not** re-checked, and must not be: they were spent at the start, so the
   check would fail on turn 2 for a project that is doing nothing wrong.
-- **Finish**: the last advance grants the tag and writes the `ADD_TAG`
-  Request (`effect { tagId, quantity, resourcesSpent, payer, projectId,
-  turnsNeeded, actionId, replaced, consumed }`), and the Action reads
-  "Crafted …".
+- **Finish**: the last advance grants the tag and writes the
+  `request_craft_tag` audit row (`details { tagId, quantity, resourcesSpent,
+  payer, projectId, turnsNeeded, actionId, replaced, consumed }`), and the
+  Action reads "Crafted …".
 - **Cancel** (`cancelCraft`): status CANCELLED, audit `craft_cancelled`, no
   refund — of ⬢ or of ingredients. Death cancels ACTIVE projects
   (`characterDeath.js`), on the same terms.
 
-The only Request is the completion. Mid-project turns leave audit rows
-(`craft_started`, `craft_continued`) and the Actions themselves, which the
-desk shows like any Routine.
+The only grant row is the completion's. Mid-project turns leave their own
+audit rows (`craft_started`, `craft_continued`) and the Actions themselves,
+which the desk shows like any Routine.
 
-## 4. Undo
+## 4. Reversing a craft
 
-`web/lib/tagEffects.js` `ADD_TAG.undo`: the tag comes off, replaced tiers
-come back, `resourcesSpent` is refunded to `effect.payer` (an older row
-without one refunds the character), and a project is marked CANCELLED. The
-auto-filed Actions stay — a GM who wants the Move back uses Reject.
-
-A craft's spent ingredients are snapshotted on its `request_craft_tag` audit
-row (`details.consumed`, the `replaced` shape) — the row is the only record
-of the spend, so a GM reversing a craft by hand from /gm/dev reads what to
-hand back there.
-
-The GM edit path (`applyEdit`, *Remove the tag*) restores the same two lists,
-each behind its own already-done flag — `replacedRestored` and
-`consumedRestored` — so a second Confirm cannot hand either out twice. `undo`
-reads those flags before restoring, for the same reason.
+There is no Undo. The `request_craft_tag` audit row is a finished craft's
+whole record — `details` carries the tag and quantity, the ⬢ and who paid
+them, any `replaced` tiers, and the spent ingredients (`details.consumed`,
+the `replaced` snapshot shape) — so a GM reversing one works by hand from
+/gm/dev, reading that row for what to take off and what to hand back.
+Reject of the auto-filed Action remains the full reset for the turn's Move
+(§2a).
 
 ## 4a. Custom items (`customizable`)
 
@@ -219,11 +211,14 @@ prune skips it), `ephemeral: true` (Restart Game sweeps it),
 `craftable: false` (an item, never a recipe) — and the craft grants the
 clone. Everything else runs against the BASE recipe: skills, workshop,
 ingredients, the Move budget, and the per-turn rations (the grant records
-`payload.baseTagId`, and all three counters in web/lib/requests.js bill by
-it). Identical words reuse the existing mint, so a second batch of the same
-dish stacks; the mint happens OUTSIDE the craft transaction because the
-name-collision retry cannot run inside one (paperMint.js's 25P02 trap), and
-is deleted again if the transaction fails.
+`details.baseTagId`, and all three counters in web/lib/requests.js bill by
+it). Identical words reuse the existing mint — ANYONE'S mint, deliberately:
+two cooks who type the same name and description are making the same dish,
+and their batches stack on one shared row rather than minting twins. The
+mint happens OUTSIDE the craft transaction because the name-collision retry
+cannot run inside one (paperMint.js's 25P02 trap), and is deleted again if
+the transaction fails (a row someone else already holds is FK-pinned and
+survives the attempt).
 
 Player words are cleaned by `cleanCustomText` (web/lib/customCraft.js): no
 `{}` (a description must not forge a `{tag:…}` chip), no `‡` (these are the

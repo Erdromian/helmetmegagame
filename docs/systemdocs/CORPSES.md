@@ -217,8 +217,9 @@ turns it back into a hold-check if a recipe ever wants one.
 **Spent when the work STARTS**, the rule the ⬢ already lived under. A
 multi-turn project pays its ingredients up front, so `continueCraft`
 deliberately does **not** re-check them — an honest continue would fail its own
-check on turn 2. Cancelling keeps nothing. A GM Undo of the finished ADD_TAG
-hands them back, from `effect.consumed`.
+check on turn 2. Cancelling keeps nothing. The finishing audit row snapshots
+what was spent (`details.consumed`) — the record a GM reversing a craft by
+hand reads (`CRAFTING.md` §4).
 
 **Json, not a `Tag[]` relation**, and the group form is why: a corpse written at
 death is never in `docs/tags.yaml`, so no authored relation could ever name one.
@@ -244,10 +245,9 @@ Three functions in `requestActions.js` do the work:
 | `consumeRecipeItems` | inside the payment transaction: **the write is the check**. A conditional `updateMany ... quantity: { gte: n }` (or a delete at exactly n) matches only while the stack still covers the draw, and a count of 0 refuses. `dropCharacterTag` is deliberately NOT used — it deletes the row on an overdraw rather than refusing, which would make "3 off a stack of 2" free. |
 
 The snapshot `consumeRecipeItems` returns is the same shape `replaced` uses
-(`{ tagId, tagName, quantity, source, expiresTurn }`), so
-`requestEffects.js#restoreCharacterTag` serves both. A multi-turn project keeps
-it on `CraftProject.consumed` until the finishing request copies it into
-`effect.consumed`.
+(`{ tagId, tagName, quantity, source, expiresTurn }`). A multi-turn project
+keeps it on `CraftProject.consumed` until the finishing craft copies it into
+the audit row's `details.consumed`.
 
 **Adding a surface that renders a Recipe line means adding `requirementItems`
 to its select.** A caller that forgets it renders no ingredient line rather
@@ -287,7 +287,7 @@ person leaves a body anyone could pick up, and the follow reconcile would keep
 dragging their sheet to wherever it went.
 
 **Butcher and Bury deliberately do NOT delete the Tag row** — only the holding.
-A GM's Undo has to be able to put the body back.
+A GM repairing a mistake has to be able to put the body back.
 
 ## 11. Where the code lives
 
@@ -300,7 +300,6 @@ A GM's Undo has to be able to put the body back.
 | The smell | `bot/src/lib/deathSmell.js`, armed in `bot/src/events/ready.js` |
 | Headstones | `db/lib/headstone.js` |
 | The three actions | `web/app/(app)/character/requestActions.js` |
-| Undo | `web/lib/tagEffects.js` |
 | Buttons, dialogs | `actionRegistry.js`, `RequestActionsProvider.js`, `icons.js` |
 | Ingredient shape | `db/lib/tagShapes.js`, `db/lib/syncTags.js`, `db/lib/formatTagRequirement.js` |
 | Constants | `CORPSE_GROUP_SLUG`, `BUTCHER_SLUG`, `HUMAN_FLESH_SLUG`, `ENGRAVE_RESOURCE_COST`, `CORPSE_ROT_TURNS` in `db/lib/constants.js` |

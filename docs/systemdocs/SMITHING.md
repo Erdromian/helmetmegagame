@@ -107,8 +107,8 @@ batch size, and the recipe spends `quantity/perTurn` of the Move
 **Dead Simple gives you 4 free items per character per turn.** It is the only
 rung that costs 0 turns, so nothing else rations it. The allowance counts
 *units*, not requests — these tags are stackable and one Craft request can
-carry any quantity — and it is summed across every ADD_TAG request filed in
-the open turn. The constant is `DEAD_SIMPLE_PER_TURN` in
+carry any quantity — and it is summed across every `request_craft_tag`
+audit row written in the open turn. The constant is `DEAD_SIMPLE_PER_TURN` in
 `web/lib/tagRequests.js`, which also holds `isDeadSimple()` — the tier has no
 column of its own, so it is recognised as "0 turns of work plus a smithing or
 crafting skill gate". `craftAllowance()` (`web/lib/requests.js`) is the one

@@ -419,8 +419,8 @@ function lockCharacter(tx, characterId) {
 // row on an overdraw rather than refusing (db/lib/tagWrites.js), which would
 // turn "make 3 off a stack of 2" into a free third one.
 //
-// Returns the `replaced`-shaped snapshot Undo restores from, so
-// requestEffects.js#restoreCharacterTag serves both with one shape.
+// Returns the `replaced`-shaped snapshot the audit row records as
+// `details.consumed` — the one record of the spend a GM repairs from.
 async function consumeRecipeItems(tx, characterId, plan) {
   for (const item of plan.hold) {
     const still = await tx.characterTag.count({
@@ -643,8 +643,8 @@ function craftLabel(tag, quantity) {
 // Nothing is derived and nothing is cached: the row IS the record, which is
 // why a GM Reject hands the whole turn back with one delete
 // (web/lib/moveEconomy.js#deleteActionRestoringTurn needs no knowledge of any
-// of this). A GM Undo of one craft request deliberately does NOT hand budget
-// back; Reject is the full reset.
+// of this). There is no per-craft Undo; a GM reversing one craft by hand
+// gets no budget back either — Reject is the full reset.
 
 const MOVE_SPENT = "You've already used your Move this turn. ‡";
 

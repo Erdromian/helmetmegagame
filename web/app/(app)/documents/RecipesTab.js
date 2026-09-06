@@ -97,8 +97,8 @@ export default function RecipesTab({ tags, mySkillIds = null }) {
           options={table.options}
           query={table.query}
           setQuery={table.setQuery}
-          searchLabel="Search recipes"
-          searchPlaceholder="Name, skill, or ingredient…"
+          searchLabel="Search recipes ‡"
+          searchPlaceholder="Name, skill, or ingredient… ‡"
         />
         {skillSet && (
           <label className="flex w-fit items-center gap-2 text-sm">
@@ -210,7 +210,7 @@ function RecipeRow({ row, byId, bySlug, onView }) {
         <div className="flex items-center gap-2">
           <TagChip tag={row.tag} />
           <button type="button" className="btn-quiet text-xs" onClick={() => onView(row.tag)}>
-            Details
+            Details ‡
           </button>
         </div>
       </td>

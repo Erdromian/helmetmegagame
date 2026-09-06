@@ -27,8 +27,9 @@ and the only thing it can mean: a group names no single stack to take a unit
 out of. Everything else spends.
 
 **Ingredients go in when the work STARTS**, the rule the ⬢ already lived
-under — so a multi-turn project pays up front, abandoning it keeps nothing, and
-a GM Undo of the finished thing hands the ingredients back with the ⬢.
+under — so a multi-turn project pays up front and abandoning it keeps
+nothing. The finishing audit row records what was spent
+(`details.consumed`), for a GM reversing the work by hand.
 
 Moonshine is the only recipe in the game that costs **0 ⬢** and still has a
 real ingredient, and that is deliberate rather than an oversight: the marsh
