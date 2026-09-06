@@ -5442,10 +5442,10 @@ tags:
   # station imports nothing Ravenheart makes itself, and a painting is the
   # purest case of that.
   #
-  # 48 ⬢ keeps it near the top of the sell table, and that is deliberate —
+  # 41 ⬢ keeps it near the top of the sell table, and that is deliberate —
   # 4 turns is twice the longest smithing rung, and its only material is a
   # cheap Depot import ({tag:art-supplies}). Net of the supplies it pays about
-  # 11 ⬢ a turn, around the ceiling DEPOT.md §4 treats as honest work's top
+  # 9.5 ⬢ a turn, under the ceiling DEPOT.md §4 treats as honest work's top
   # rate.
   #
   # purchasable: false is load-bearing, not tidiness. A points-buyable
