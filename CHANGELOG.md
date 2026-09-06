@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The Merchant stops being a laundry, and sells energy shields
+
+✎ Depot prices are down about 18% across the board  
+✎ Selling something back to the Merchant now pays a quarter of its price, not nearly half — buying a rifle and reselling it is no longer a living  
+✚ Energy Shields are on the Merchant's shelf at 145 obols, the best protection against a turret that money can buy  
+− The Fortress Starting Packet  
+✎ Rewrites: combat, the Pusher, Ravenheart's economy, Post-Christianity, concealing, the Sanctuary
+
 ## 2026-09-06 · Trial Gamemaster is a Gamemaster in everything but name
 
 ✚ A Trial Gamemaster role that grants exactly what Gamemaster does — every /gm page, every GM channel, and the /gm and /dm commands  
