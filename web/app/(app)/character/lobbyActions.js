@@ -6,7 +6,7 @@ import { readGameState } from "@lifeweb/db/lib/gameState";
 import { normalizePriorities, normalizeJoblessRole } from "@lifeweb/db/lib/playerPreferences";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
-import { getGuildMember, isApprovedPlayer, isLeaderWhitelisted } from "@/lib/discordGuild";
+import { getGuildMember, isApprovedPlayer, isLeaderWhitelisted, isPlaytester } from "@/lib/discordGuild";
 import { isSpawnOnly } from "@/lib/characterCreation";
 
 // The lobby's three verbs (docs/systemdocs/LOBBY.md §2). Every one re-derives
@@ -26,7 +26,7 @@ async function lobbyGate() {
   ]);
   const superadmin = isSuperadmin(discordUserId);
   if (state?.phase !== "LOBBY") return { error: "The lobby isn't open. ‡" };
-  if (!superadmin && !isApprovedPlayer(member)) {
+  if (!superadmin && !isApprovedPlayer(member) && !isPlaytester(member)) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong. ‡" };
   }
   if (alive) return { error: "You already have a character. ‡" };

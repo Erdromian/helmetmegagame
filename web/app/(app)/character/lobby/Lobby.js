@@ -3,23 +3,20 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import useActionRunner from "@/app/components/useActionRunner";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import CheckField from "@/app/components/CheckField";
 import Select from "@/app/components/Select";
-import Tooltip from "@/app/components/Tooltip";
 import FormError from "@/app/components/FormError";
+import useActionRunner from "@/app/components/useActionRunner";
 import { ANTAGONISTS, optInName, optInWhitelisted } from "@/lib/threats";
 import { LEVELS, setPriority, pickedNothing } from "@lifeweb/db/lib/playerPreferences";
 import { savePreferences, setReady, setUnready } from "../lobbyActions";
 
-// The pregame lobby (docs/systemdocs/LOBBY.md §2): what a player sees on
-// /character while the game is gathering and they have no character.
-// Preferences save on every change, debounced; Ready is its own button.
-//
-// The four-level control is a .chip-row of four buttons, the house form for a
-// small set of exclusive states. The High chip is weightier because it is the
-// one that matters most to the roll (db/lib/roleAssignment.js).
+// The pregame lobby (docs/systemdocs/LOBBY.md §2): roles down the left, and
+// on the right — sticky, so it stays in view while scrolling forty roles —
+// the Ready card, the fallback dropdown and the antagonist boxes. Controls
+// and names only; the handbook explains the rest. Preferences save on every
+// change, debounced; Ready is its own button.
 
 const LEVEL_LABEL = { OFF: "Off", LOW: "Low", MEDIUM: "Med", HIGH: "High" };
 const JOBLESS_OPTIONS = [
@@ -27,9 +24,14 @@ const JOBLESS_OPTIONS = [
   { value: "MIGRANT", label: "Join as Migrant" },
   { value: "RETURN_TO_LOBBY", label: "Return to lobby" },
 ];
+const NOTHING_LINE = {
+  COMMONER: "Every role is Off: you'll start as a Commoner. ‡",
+  MIGRANT: "Every role is Off: you'll start as a Migrant. ‡",
+  RETURN_TO_LOBBY: "Every role is Off: you'll go back to the lobby. ‡",
+};
 const SAVE_DELAY_MS = 400;
 
-function PriorityControl({ slug, level, onChange, disabled }) {
+function PriorityControl({ slug, level, onChange }) {
   return (
     <div className="chip-row priority-row" role="radiogroup" aria-label="Priority">
       {["OFF", ...LEVELS].map((value) => {
@@ -42,7 +44,6 @@ function PriorityControl({ slug, level, onChange, disabled }) {
             aria-checked={active}
             className={`chip${value === "HIGH" ? " chip-high" : ""}`}
             data-active={active ? "true" : undefined}
-            disabled={disabled}
             onClick={() => onChange(slug, value)}
           >
             {LEVEL_LABEL[value]}
@@ -59,22 +60,20 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
   const [jobless, setJobless] = useState(initial.joblessRole ?? "COMMONER");
   const [readyAt, setReadyAt] = useState(entry?.readyAt ?? null);
   const [openIntro, setOpenIntro] = useState(null);
-  const [saving, startSaving] = useTransition();
+  const [, startSaving] = useTransition();
   const { run, pending, error, setError } = useActionRunner();
   const timer = useRef(null);
   const router = useRouter();
 
-  // The ready count is the one live thing on the page. A refresh every half
-  // minute re-renders the server component with the current number; nothing
-  // here is unsaved, so it never tramples a player's edits.
+  // The ready count is the one live thing on the page; a refresh every half
+  // minute re-renders the server component with the current number.
   useEffect(() => {
     const id = setInterval(() => router.refresh(), 30000);
     return () => clearInterval(id);
   }, [router]);
 
   // Debounced: a player sweeping down the list fires one save, not thirty.
-  // Whatever the server normalized comes back and replaces the local copy, so
-  // a dropped whitelisted slug disappears from the screen too.
+  // Whatever the server normalized comes back and replaces the local copy.
   function queueSave(next) {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
@@ -117,72 +116,79 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
     else run(setReady, undefined, { onOk: (res) => setReadyAt(res.readyAt) });
   }
 
-  // Every role Off: the roll has nothing to give but the fallback, and the
-  // player should hear which fallback before they press Ready.
-  const nothingPicked = pickedNothing(priorities);
-  const nothingLine =
-    jobless === "RETURN_TO_LOBBY"
-      ? "You've picked nothing, so you'll be sent back to the lobby at the start. ‡"
-      : `You've picked nothing, so you'll start as a ${jobless === "MIGRANT" ? "Migrant" : "Commoner"}. ‡`;
-  const highSlug = Object.entries(priorities).find(([, l]) => l === "HIGH")?.[0] ?? null;
-
   return (
-    <PageShell>
-      <PageHeader
-        title="Ravenheart is gathering"
-        subtitle="The game has not started. Set what you'd like to play, then ready up. ‡"
-        actions={
-          <span className="chip mono">
-            {readyCount} ready
-          </span>
-        }
-      />
+    <PageShell width="wide">
+      <PageHeader title="Ravenheart is gathering" />
 
-      {canSkip ? (
-        <p className="text-sm">
-          <Link href="/character?create=1" className="btn-secondary">
-            Skip to character creation
-          </Link>
-          <span className="ml-3 text-muted">Gamemasters only. Makes a character now, lobby or not. ‡</span>
-        </p>
-      ) : null}
-
-      <div className="panel flex flex-col gap-2 p-4" data-ready={readyAt ? "true" : undefined}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="flex items-center gap-2">
-            <span className="lobby-dot" aria-hidden="true" />
-            <strong>{readyAt ? "Ready" : "Not ready"}</strong>
-            {readyAt ? (
-              <span className="text-sm text-muted">
-                since {new Date(readyAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+      <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,1fr)_22rem]">
+        <aside className="flex flex-col gap-4 md:sticky md:top-6 md:order-2">
+          <div className="panel flex flex-col gap-3 p-4" data-ready={readyAt ? "true" : undefined}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="flex items-center gap-2">
+                <span className="lobby-dot" aria-hidden="true" />
+                <strong>{readyAt ? "Ready" : "Not ready"}</strong>
+                {readyAt ? (
+                  <span className="text-sm text-muted">
+                    since {new Date(readyAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                  </span>
+                ) : null}
               </span>
-            ) : null}
-            {saving ? <span className="text-xs text-muted">saving…</span> : null}
-          </span>
-          <button type="button" className={readyAt ? "btn-secondary" : "btn"} onClick={toggleReady} disabled={pending}>
-            {pending ? "…" : readyAt ? "Unready" : "Ready up"}
-          </button>
-        </div>
-        <p className="text-sm text-muted">You can change everything below until the game starts. ‡</p>
-        {nothingPicked ? <p className="text-sm text-accent">{nothingLine}</p> : null}
-        <FormError>{error}</FormError>
-      </div>
+              <span className="chip mono">{readyCount} ready</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className={readyAt ? "btn-secondary" : "btn"} onClick={toggleReady} disabled={pending}>
+                {pending ? "…" : readyAt ? "Unready" : "Ready up"}
+              </button>
+              {canSkip ? (
+                <Link href="/character?create=1" className="btn-secondary">
+                  Skip to character creation
+                </Link>
+              ) : null}
+            </div>
+            {pickedNothing(priorities) ? <p className="text-sm text-accent">{NOTHING_LINE[jobless]}</p> : null}
+            <FormError>{error}</FormError>
+          </div>
 
-      <section className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="panel-header">Roles</h2>
-          <span className="text-xs text-muted">
-            {highSlug ? "One High at a time. Setting another demotes this one to Med. ‡" : "One High at a time. ‡"}
-          </span>
-        </div>
-        {groups.map((group) => (
-          <div key={group.slug} className="flex flex-col gap-1">
-            <h3 className="text-xs uppercase tracking-wide text-muted">{group.name}</h3>
-            <ul className="panel divide-y divide-[var(--border)]">
-              {group.roles.map((role) => {
-                const locked = role.whitelistBlocked;
+          <label className="field">
+            <span className="field-label">If nothing fits</span>
+            <Select value={jobless} onChange={(e) => changeJobless(e.target.value)}>
+              {JOBLESS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+
+          <section className="panel flex flex-col gap-2 p-4">
+            <h2 className="panel-header">Antagonists</h2>
+            <div className="flex flex-col gap-1">
+              {ANTAGONISTS.map((a) => {
+                const locked = optInWhitelisted(a) && !whitelisted;
                 return (
-                  <li key={role.id} className="lobby-role" data-locked={locked ? "true" : undefined}>
+                  <CheckField
+                    key={a.slug}
+                    checked={optIns.includes(a.slug)}
+                    onChange={() => toggleOptIn(a.slug)}
+                    disabled={locked}
+                    className={locked ? "is-locked" : ""}
+                  >
+                    {optInName(a)}
+                    {locked ? <span className="ml-2 text-xs text-muted">Whitelist</span> : null}
+                  </CheckField>
+                );
+              })}
+            </div>
+          </section>
+        </aside>
+
+        <section className="flex flex-col gap-4 md:order-1">
+          {groups.map((group) => (
+            <div key={group.slug} className="flex flex-col gap-1">
+              <h2 className="text-xs uppercase tracking-wide text-muted">{group.name}</h2>
+              <ul className="panel divide-y divide-[var(--border)]">
+                {group.roles.map((role) => (
+                  <li key={role.id} className="lobby-role" data-locked={role.whitelistBlocked ? "true" : undefined}>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-baseline gap-2">
                         <button
@@ -194,73 +200,24 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
                           {role.name}
                           {role.grantsLeader ? <span title="Leader"> ★</span> : null}
                         </button>
-                        <span className="text-xs text-muted">
-                          {role.factionName}
-                          {role.startingZoneName ? ` · ${role.startingZoneName}` : ""}
-                        </span>
+                        <span className="text-xs text-muted">{role.factionName}</span>
                       </div>
                       {openIntro === role.id && role.intro ? (
                         <p className="mt-1 text-sm text-muted">{role.intro}</p>
                       ) : null}
                     </div>
-                    {locked ? (
-                      <Tooltip text="You need the Whitelist role for this seat. Ask a GM. ‡">
-                        <span className="text-xs text-muted">Whitelist only ‡</span>
-                      </Tooltip>
+                    {role.whitelistBlocked ? (
+                      <span className="text-xs text-muted">Whitelist</span>
                     ) : (
                       <PriorityControl slug={role.slug} level={priorities[role.slug]} onChange={changeLevel} />
                     )}
                   </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
-      </section>
-
-      <section className="panel flex flex-col gap-2 p-4">
-        <h2 className="panel-header">If nothing fits</h2>
-        <div className="max-w-xs">
-          <Select value={jobless} onChange={(e) => changeJobless(e.target.value)} aria-label="If nothing fits">
-            {JOBLESS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <p className="text-sm text-muted">
-          Return to lobby means you late-join by hand after the start. ‡
-        </p>
-      </section>
-
-      <section className="panel flex flex-col gap-3 p-4">
-        <h2 className="panel-header">Antagonists (optional)</h2>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {ANTAGONISTS.map((a) => {
-            const locked = optInWhitelisted(a) && !whitelisted;
-            const box = (
-              <CheckField
-                key={a.slug}
-                checked={optIns.includes(a.slug)}
-                onChange={() => toggleOptIn(a.slug)}
-                disabled={locked}
-                className={locked ? "is-locked" : ""}
-              >
-                {optInName(a)}
-              </CheckField>
-            );
-            return locked ? (
-              <Tooltip key={a.slug} text="Whitelist only ‡" className="block">
-                {box}
-              </Tooltip>
-            ) : (
-              box
-            );
-          })}
-        </div>
-        <p className="text-sm text-muted">Ticking one says you&apos;re open to it. It doesn&apos;t promise it. ‡</p>
-      </section>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </section>
+      </div>
     </PageShell>
   );
 }

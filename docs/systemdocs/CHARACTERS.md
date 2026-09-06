@@ -603,9 +603,11 @@ Character creation is behind **two independent locks**, both of which must be
 open:
 
 1. `GameState.phase` — RUNNING or ENDED (`LOBBY.md` §1). "The doors are
-   open." A GM may also create during CLOSED or LOBBY, which is the lobby's
-   Skip button. There is no separate switch any more.
-2. The hardcoded `PLAYER_ROLE_ID` (`db/lib/roleIds.js`). "You are on the list."
+   open." A GM or a Playtest-role holder may also create during CLOSED or
+   LOBBY, which is the lobby's Skip button. There is no separate switch any
+   more.
+2. The hardcoded `PLAYER_ROLE_ID` (`db/lib/roleIds.js`), or the Playtest role.
+   "You are on the list."
 
 The enforcement boundary is `createCharacter`
 (`web/app/(app)/character/createActions.js`), checked **before** any point-buy

@@ -37,6 +37,7 @@ import {
   isApprovedPlayer,
   isLeaderWhitelisted,
   isGm,
+  isPlaytester,
   removeCursedRole,
 } from "@/lib/discordGuild";
 import {
@@ -73,10 +74,17 @@ import {
 } from "@/lib/characterName";
 
 // When somebody may make a character at all (docs/systemdocs/LOBBY.md §1):
-// while the game runs or has ended, or — for a GM — during the lobby.
+// while the game runs or has ended, or — for a GM or a playtester — in any
+// phase, which is the lobby's Skip button.
 function creationOpen(phase, member) {
   if (phase === "RUNNING" || phase === "ENDED") return true;
-  return phase === "LOBBY" && isGm(member);
+  return isGm(member) || isPlaytester(member);
+}
+
+// On the list: the Player role, or the Playtest seat, which exists so a
+// contributor can test without being seated as a player or a GM.
+function onRoster(member) {
+  return isApprovedPlayer(member) || isPlaytester(member);
 }
 
 // Creates a character from the wizard's Confirm step. Everything posted is
@@ -159,7 +167,7 @@ export async function createCharacter(formData) {
   if (!bypass && !creationOpen(state?.phase, member)) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
-  if (!bypass && !isApprovedPlayer(member)) {
+  if (!bypass && !onRoster(member)) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
 
@@ -550,7 +558,7 @@ export async function reserveRoleAction(roleId) {
   if (!bypass && !creationOpen(state?.phase, member)) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
-  if (!bypass && !isApprovedPlayer(member)) {
+  if (!bypass && !onRoster(member)) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
   // Never pickable, config switch or not — a server action is a public

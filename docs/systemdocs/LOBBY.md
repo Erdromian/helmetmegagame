@@ -16,8 +16,8 @@ reader.
 
 | Phase | Ready up | Character creation | Turns advance | Moved by |
 |---|---|---|---|---|
-| CLOSED | no | GM/superadmin only (the Skip button) | no | the wipe lands here; **Open lobby** |
-| LOBBY | yes (Player role) | GM/superadmin only | no | **Start Game** |
+| CLOSED | no | GM/superadmin/Playtest only (the Skip button) | no | the wipe lands here; **Open lobby** |
+| LOBBY | yes (Player or Playtest role) | GM/superadmin/Playtest only | no | **Start Game** |
 | RUNNING | no | yes (Player role, Cursed rules) | yes | **End Game**, or the bomb |
 | ENDED | no | yes | no | **Resume** |
 
@@ -61,12 +61,19 @@ a role that leaves `docs/roles.yaml` drops out silently. Opt-ins copy onto
 Antagonists step opens prefilled from the preference row and writes back to
 it.
 
-Players see the ready count and nothing else — no seat counts, no demand — so
-nobody games the roll. The count refreshes every half minute.
+Two columns: the roles down the left, and on the right (sticky) the Ready
+card with the count, the fallback dropdown and the antagonist boxes. No
+explainer text anywhere on it — the handbook carries that. Players see the
+ready count and nothing else — no seat counts, no demand, and no starting
+areas (a role row is its name, faction and pitch) — so nobody games the roll.
 
-GMs and superadmins see a **Skip to character creation** button
-(`/character?create=1`), which opens the ordinary wizard during CLOSED or
-LOBBY. The server gate (`createActions.js#creationOpen`) is the same rule.
+GMs, superadmins and holders of the **Playtest** role (`PLAYTEST_ROLE_ID`,
+`db/lib/roleIds.js`) see a **Skip to character creation** button
+(`/character?create=1`), which opens the ordinary wizard in any phase. The
+server gate (`createActions.js#creationOpen`) is the same rule, and a
+playtester also passes the roster check without the Player role — the seat
+exists so a contributor can test creation and play without being seated as a
+GM or a player.
 
 ## 3. The roll
 

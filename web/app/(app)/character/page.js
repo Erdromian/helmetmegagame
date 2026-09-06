@@ -76,6 +76,7 @@ import {
   isApprovedPlayer,
   isCursed,
   isGm,
+  isPlaytester,
   isLeaderWhitelisted,
 } from "@/lib/discordGuild";
 import {
@@ -157,16 +158,15 @@ async function loadCreationData(discordUserId) {
   // to a GM during the lobby, which is the Skip button.
   const superadmin = isSuperadmin(discordUserId);
   const phase = state?.phase ?? "CLOSED";
+  // A GM or a playtester may skip the lobby in any phase, and a playtester is
+  // on the roster without the Player role (db/lib/roleIds.js).
+  const skipper = isGm(member) || isPlaytester(member);
   const gate = {
     phase,
-    open:
-      superadmin ||
-      phase === "RUNNING" ||
-      phase === "ENDED" ||
-      (phase === "LOBBY" && isGm(member)),
-    approved: superadmin || isApprovedPlayer(member),
+    open: superadmin || phase === "RUNNING" || phase === "ENDED" || skipper,
+    approved: superadmin || isApprovedPlayer(member) || isPlaytester(member),
     superadmin,
-    gm: isGm(member),
+    gm: skipper,
   };
   // `=== false`, not falsy: no config row means the gate stays enforced.
   const leaderWhitelisted =
@@ -281,7 +281,7 @@ export default async function CharacterPage({ searchParams }) {
   if (!character) {
     const { gate, ...creation } = await loadCreationData(session.discordUserId);
     const { create } = (await searchParams) ?? {};
-    const skipping = gate.phase === "LOBBY" && create === "1" && (gate.gm || gate.superadmin);
+    const skipping = create === "1" && (gate.gm || gate.superadmin);
     if (gate.phase === "LOBBY" && !skipping) {
       if (!gate.approved) return <CreationClosed open />;
       const [preference, entry, readyCount] = await Promise.all([
@@ -289,8 +289,9 @@ export default async function CharacterPage({ searchParams }) {
         prisma.lobbyEntry.findUnique({ where: { discordUserId: session.discordUserId } }),
         prisma.lobbyEntry.count({ where: { status: "READY" } }),
       ]);
-      // Seven fields per role, not the wizard's whole card — the lobby shows
-      // names and pitches, never tags or seat counts.
+      // Six fields per role, not the wizard's whole card — the lobby shows
+      // names, factions and pitches; never tags, seat counts, or where a seat
+      // starts (Bascinet's call: a starting area is not lobby information).
       const lobbyGroups = creation.groups.map((g) => ({
         slug: g.slug,
         name: g.name,
@@ -300,7 +301,6 @@ export default async function CharacterPage({ searchParams }) {
           name: r.name,
           intro: r.intro,
           factionName: r.factionName,
-          startingZoneName: r.startingZoneName,
           grantsLeader: r.grantsLeader,
           whitelistBlocked: r.whitelistBlocked,
         })),

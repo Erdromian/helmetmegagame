@@ -10,6 +10,7 @@ import {
   PLAYER_ROLE_ID,
   LEADER_WHITELIST_ROLE_ID,
   hasGmRole,
+  hasPlaytestRole,
   SPECIAL_CHANNELS,
 } from "@lifeweb/db";
 import { applyDeathToRow } from "@lifeweb/db/lib/characterDeath";
@@ -208,6 +209,13 @@ export const listGuildChannels = cache(async () => {
 export function isGm(member) {
   if (!member) return false;
   return hasGmRole(member.roles);
+}
+
+// The Playtest seat (db/lib/roleIds.js): may skip the lobby and create in any
+// phase like a GM, and passes the roster check without the Player role.
+export function isPlaytester(member) {
+  if (!member) return false;
+  return hasPlaytestRole(member.roles);
 }
 
 // Role ID hardcoded rather than env-configured: this gate fails CLOSED, so a
