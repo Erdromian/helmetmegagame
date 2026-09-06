@@ -340,12 +340,10 @@ documents:
       - {tag:bomb} — each one is built around a charge of {tag:black-powder},
         used up in the making. ‡
 
-      Two smaller pieces of powder-work, at their own prices: ‡
+      One smaller piece of powder-work, at its own price: ‡
 
       - {tag:black-powder} — 3 ⬢, 1 turn. Refines one {tag:saltpeter}, used
         up. ‡
-      - {tag:gunpowder-grenade} — 6 ⬢, 1 turn. Uses up one {tag:saltpeter},
-        raw. ‡
 
       **Odds and ends.** These sit off the tiers above — their own price, their
       own skill: ‡
@@ -353,6 +351,8 @@ documents:
       - {tag:salvage-plate} — 5 ⬢, 1 turn, no skill at all. Scrap lashed
         together by anyone desperate enough. ‡
       - {tag:bear-trap} — 5 ⬢, 1 turn, Smithing. ‡
+      - {tag:gunpowder-grenade} — 6 ⬢, 1 turn, Smithing (Skilled). No
+        powder in it — just one raw {tag:saltpeter}, used up. ‡
       - {tag:disguise-kit}, {tag:jester-outfit} — 8 ⬢, 1 turn, Crafting. ‡
       - Any {tag:wax-seal-ox} or other courtier seal — 2 ⬢, 1 turn, Forger.
         A brigand's trade: the mark is somebody else's, and you can only carry
@@ -360,7 +360,7 @@ documents:
       - {tag:workshop-equipment} — 26 ⬢, 2 turns, Smithing (Skilled). The one
         piece of smith's work you can do without a forge, because otherwise
         nobody could ever make the first one. ‡
-      - {tag:painting} — 4 turns and nothing else, if you have Artist. ‡
+      - {tag:painting} — 4 turns, a set of {tag:art-supplies}, and Artist. ‡
       - {tag:badge} — 2 ⬢, 1 turn, Crafting. ‡
       - {tag:hat} — 3 ⬢, 1 turn, Crafting. ‡
 

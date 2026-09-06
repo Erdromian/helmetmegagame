@@ -111,13 +111,13 @@ the rest of the turn.
 
 ```json
 { "family": "brewing", "usedNum": 2, "usedDen": 3,
-  "entries": [{ "tagId": "…", "name": "Alcohol", "qty": 2, "freeQty": 0,
-                "num": 2, "den": 3, "auditId": "…" }] }
+  "entries": [{ "tagId": "…", "name": "Alcohol", "qty": 2,
+                "num": 2, "den": 3 }] }
 ```
 
 `usedNum/usedDen` is the running total in lowest terms; each entry carries its
-own fraction, and `freeQty` records how much of a straddling order the free
-allowance covered. All of it is integer arithmetic
+own fraction (a straddling order's free half is `qty` minus the billed
+`num`). All of it is integer arithmetic
 (`web/lib/craftBudget.js`) — three thirds have to be exactly one Move.
 
 Nothing is derived and nothing is cached: **the row is the record.** Every

@@ -751,10 +751,34 @@ export default function RequestActionsProvider({
   );
   const craftAllowance = chosen ? (craftAllowances[chosen.id] ?? null) : null;
   const craftMoveOk = affordsMove(craftCost);
-  // Why a recipe can't be picked at all right now — only ever asked once the
-  // turn's Move is spoken for, so an untouched turn greys nothing.
+  // What the quantity stepper stops at: the ingredients on your own sheet, and
+  // what the Move can still pay for. The 99 is craftRequest's own clamp.
+  const heldBySlug = useMemo(
+    () =>
+      new Map(
+        characterTags
+          .filter((ct) => ct.tag?.slug)
+          .map((ct) => [ct.tag.slug, ct.quantity ?? 1]),
+      ),
+    [characterTags],
+  );
+  // Why a recipe can't be picked at all right now. Ingredients first — a
+  // spent ingredient you don't hold blocks the recipe Move or no Move, and
+  // greyed-with-a-reason beats a refusal after the confirm. `group` entries
+  // (a corpse to hand) stay the server's call. The Move questions are only
+  // asked once the turn's Move is spoken for, so an untouched turn greys
+  // nothing on that account.
   const recipeBlocked = useCallback(
     (tag) => {
+      for (const item of tag.requirementItems ?? []) {
+        if (item.keep || item.kind === "group") continue;
+        const held =
+          item.kind === "anyOf"
+            ? (item.options ?? []).some((o) => (heldBySlug.get(o.slug) ?? 0) > 0)
+            : (heldBySlug.get(item.slug) ?? 0) > 0;
+        if (!held)
+          return `You don't have the ${item.label || "ingredients"} it uses. ‡`;
+      }
       if (!hasMoved) return null;
       const cost = priceRecipe(tag, 1);
       if (cost.kind === "free" || affordsMove(cost)) return null;
@@ -769,18 +793,7 @@ export default function RequestActionsProvider({
       if (!craftBudget) return "You've already used your Move this turn. ‡";
       return "There isn't enough of your Move left for that. ‡";
     },
-    [hasMoved, craftBudget, priceRecipe, affordsMove],
-  );
-  // What the quantity stepper stops at: the ingredients on your own sheet, and
-  // what the Move can still pay for. The 99 is craftRequest's own clamp.
-  const heldBySlug = useMemo(
-    () =>
-      new Map(
-        characterTags
-          .filter((ct) => ct.tag?.slug)
-          .map((ct) => [ct.tag.slug, ct.quantity ?? 1]),
-      ),
-    [characterTags],
+    [hasMoved, craftBudget, priceRecipe, affordsMove, heldBySlug],
   );
   const craftQuantityMax = useMemo(() => {
     if (mode !== "craft" || !chosen) return 99;
@@ -971,7 +984,7 @@ export default function RequestActionsProvider({
               ? `${what} takes ${turns} turns of work.`
               : `Make ${what}?`,
             cost > 0
-              ? `${cost} ⬢ are paid now by ${payerLabel(healParties, payerKey)}, and not refunded if you stop.`
+              ? `${cost} ⬢ ${cost === 1 ? "is" : "are"} paid now by ${payerLabel(healParties, payerKey)}, and not refunded if you stop.`
               : null,
             moveLine,
             "‡",
@@ -1369,7 +1382,13 @@ export default function RequestActionsProvider({
           <RequestDialog
             open={mode !== null && !NO_REQUEST_MODES.has(mode)}
             title={title}
-            submitLabel={title}
+            submitLabel={
+              mode === "craft" && (projectId || siteId)
+                ? projectChoice === "cancel"
+                  ? "Give it up ‡"
+                  : "Keep working ‡"
+                : title
+            }
             width={dialogWidth}
             busy={pending}
             error={error}

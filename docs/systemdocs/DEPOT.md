@@ -520,6 +520,7 @@ buying one mid-game is still a real decision.
 | `paper` | 1 | — | **The cheapest thing on the shelf**, deliberately. Blank stock: writing on it mints the letter (`PAPERWORK.md`). Sells back for nothing, so buying and reselling is pure loss. |
 | `coffee` | 2 | 1 | Consumes into `caffeinated` (2t) |
 | `tea` | 2 | 1 | Cures minor nerve effects — `afraid`, `panic`. Adjudicated, not automated. |
+| `art-supplies` | 3 | 2 | What a `painting` spends — the Artist's one running cost |
 | `firecracker` | 3 | 2 | |
 | `honey` | 4 | 2 | Consumes into `ate-meal` |
 | `sky-lantern` | 4 | 2 | |

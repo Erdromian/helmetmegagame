@@ -750,6 +750,7 @@ export default async function CharacterPage() {
         turnsNeeded: true,
         turnsDone: true,
         resourcesCost: true,
+        consumed: true,
         payerName: true,
         lastTurnId: true,
         tag: { select: { id: true, name: true } },
@@ -763,6 +764,8 @@ export default async function CharacterPage() {
     turnsNeeded: p.turnsNeeded,
     turnsDone: p.turnsDone,
     resourcesCost: p.resourcesCost,
+    // Whether ingredients went in at the start — the give-up note names them.
+    spentIngredients: Array.isArray(p.consumed) && p.consumed.length > 0,
     payerName: p.payerName,
     // Advanced this turn already — Continue greys until the next one.
     workedThisTurn: Boolean(openTurn && p.lastTurnId === openTurn.id),

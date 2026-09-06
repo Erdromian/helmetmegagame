@@ -57,7 +57,11 @@ function tagOpSummary(tags) {
 // action types would orphan every row already written under the old names,
 // and the label below is what a GM actually reads.
 export const AUDIT_FAMILIES = {
-  request: { label: "Player action", band: "player", prefixes: ["request_", "desire_"] },
+  // craft_/build_ are the mid-project rows (craft_started, build_continued,
+  // …) — player actions that never carried the request_ prefix, and without
+  // a family here they matched NEITHER band and only surfaced under
+  // "Everything".
+  request: { label: "Player action", band: "player", prefixes: ["request_", "desire_", "craft_", "build_"] },
   move: { label: "Move", band: "player", prefixes: ["move_", "caving_roll"] },
   faction: { label: "Faction", band: "player", prefixes: ["faction_"] },
   lifeweb: { label: "Lifeweb", band: "player", prefixes: [] },
@@ -103,6 +107,10 @@ const R = {
   // ---- Player actions (web/lib/requests.js#logAudit) ----
   request_add_tag: (d) => [actor(), t("added"), chip(d.tagName), qty(d.quantity), t("for"), res(d.resourcesSpent)],
   request_remove_tag: (d) => [actor(), t("dropped"), chip(d.tagName), qty(d.quantity), t("for"), res(d.resourcesSpent)],
+  // The craft-era names for the two rows above — same shapes, so the feed
+  // says the item and the price instead of falling back to the bare type.
+  request_craft_tag: (d) => [actor(), t("made"), chip(d.tagName), qty(d.quantity), t("for"), res(d.resourcesSpent)],
+  request_destroy_tag: (d) => [actor(), t("destroyed"), chip(d.tagName), qty(d.quantity)],
   request_consume_tag: (d) => [
     actor(), t("consumed"), chip(d.tagName),
     ...(d.granted?.length ? [t("for"), ...joinChips(d.granted)] : []),

@@ -4989,7 +4989,7 @@ tags:
     name: Saltpeter
     category: items
     group: items-gear
-    description: "Mined. Can be refined into {tag:gunpowder-grenade} or {tag:black-powder}. ‡"
+    description: "Mined. Refined into {tag:black-powder}, or packed raw into a {tag:gunpowder-grenade}. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -5379,7 +5379,7 @@ tags:
     name: Art Supplies
     category: items
     group: items-gear
-    description: "Brushes, pigment, and a stretch of canvas — everything a painting takes except the eye. ‡"
+    description: "Brushes, pigment, and a stretch of canvas — everything a painting takes except the eye. The Merchant imports them. ‡"
     pointCost: 0
     depotPrice: 3
     tradeable: true
@@ -5390,18 +5390,18 @@ tags:
     purchasableAfterStart: false
     removable: true
     sellable: true
-    sellablePrice: 1
+    # 60% of the 3 ⬢ import price, rounded — DEPOT.md §3's sell-back rule.
+    sellablePrice: 2
 
   # The one thing an Artist can turn a week of work into. No depotPrice: the
   # station imports nothing Ravenheart makes itself, and a painting is the
   # purest case of that.
   #
-  # 60 ⬢ makes it the top of the sell table by a wide margin (Gunpowder, the
-  # old ceiling, is 49) and that is deliberate — 7 turns is three and a half
-  # times the longest smithing rung, and its only material is a cheap Depot
-  # import ({tag:art-supplies}). It works out just under Ravenheart Red's
-  # 10 ⬢ a turn, which DEPOT.md §4 already treats as the top of what honest
-  # work should pay.
+  # 48 ⬢ keeps it near the top of the sell table, and that is deliberate —
+  # 4 turns is twice the longest smithing rung, and its only material is a
+  # cheap Depot import ({tag:art-supplies}). Net of the supplies it pays about
+  # 11 ⬢ a turn, around the ceiling DEPOT.md §4 treats as honest work's top
+  # rate.
   #
   # purchasable: false is load-bearing, not tidiness. A points-buyable
   # Painting would be the best deal in the point economy by an order of

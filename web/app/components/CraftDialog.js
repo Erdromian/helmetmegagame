@@ -178,7 +178,9 @@ export default function CraftDialog({
           </div>
           <p className="text-xs text-muted">
             {hasMoved
-              ? "You've used your Move this turn, so the work waits. ‡"
+              ? budget
+                ? "A site's turn takes your whole Move, and part of this one is already spent. ‡"
+                : "You've used your Move this turn, so the work waits. ‡"
               : `One more turn of work — your Move for this turn. ${site.turnsNeeded - site.turnsDone === 1 ? "That finishes it." : `${site.turnsNeeded - site.turnsDone} to go.`} ‡`}
           </p>
         </>
@@ -209,10 +211,17 @@ export default function CraftDialog({
             {project.workedThisTurn
               ? "You've already put this turn into it. Come back next turn. ‡"
               : hasMoved
-                ? "You've used your Move this turn, so the work waits. ‡"
+                ? budget
+                  ? "A project's turn takes your whole Move, and part of this one is already spent. ‡"
+                  : "You've used your Move this turn, so the work waits. ‡"
                 : `One more turn of work — your Move for this turn. ${project.turnsNeeded - project.turnsDone === 1 ? "That finishes it." : `${project.turnsNeeded - project.turnsDone} to go.`} ‡`}
-            {project.resourcesCost
-              ? ` The ${project.resourcesCost} ⬢ went into materials when you started and don't come back. ‡`
+            {project.resourcesCost || project.spentIngredients
+              ? ` The ${[
+                  project.resourcesCost ? `${project.resourcesCost} ⬢` : null,
+                  project.spentIngredients ? "ingredients" : null,
+                ]
+                  .filter(Boolean)
+                  .join(" and ")} went in when you started and don't come back. ‡`
               : ""}
           </p>
         </>

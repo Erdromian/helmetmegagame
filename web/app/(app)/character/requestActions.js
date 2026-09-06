@@ -554,11 +554,11 @@ async function recheckGrantsUnderLock(tx, character, tag) {
 async function resolveCraftPayer(character, payerKey, cost) {
   const key = payerKey || `character:${character.id}`;
   const payer = await resolveParty(key);
-  if (!payer) throw new UserError("Unknown payer. ‡");
+  if (!payer) throw new UserError("That payer isn't here any more — pick another. ‡");
   if (!(await canReachParty(character, payer)))
     throw new UserError(outOfReachMessage(payer));
   if (cost > payer.balance)
-    throw new UserError(`${payer.name} only has ${payer.balance} ⬢.`);
+    throw new UserError(`${payer.name} only has ${payer.balance} ⬢. ‡`);
   return payer;
 }
 
@@ -660,13 +660,10 @@ function craftLedgerEntry(tag, cost) {
   return {
     tagId: tag.id,
     name: tag.name,
+    // The free half of a straddling order is derivable: qty - num billed.
     qty: cost.freeQty + cost.billedQty,
-    // What the free allowance covered, so a straddling order says which half
-    // of itself was paid for.
-    freeQty: cost.freeQty,
     num: cost.num,
     den: cost.den,
-    auditId: null,
   };
 }
 
@@ -804,22 +801,6 @@ async function spendCraftMove(
   return { action: existing, budget };
 }
 
-// The Move is claimed before the grant's audit row exists — the contended
-// thing goes first, under the lock — so the entry's `auditId` is stamped back
-// on after.
-async function stampLedgerAudit(tx, action, budget, auditId) {
-  if (!budget) return;
-  const entries = budget.entries.map((e, i) =>
-    i === budget.entries.length - 1 ? { ...e, auditId } : e,
-  );
-  const { count } = await tx.action.updateMany({
-    where: { id: action.id },
-    data: { craftBudget: { ...budget, entries } },
-  });
-  if (count === 0)
-    throw new UserError("A GM just reset your turn — try again. ‡");
-}
-
 // The finished thing lands on the sheet: the replaced tiers come off, the
 // tag goes on with its clock, and the ADD_TAG request records all of it.
 // The FIFTH runtime authoring door onto the tag catalog (db/lib/paperMint.js
@@ -933,8 +914,6 @@ async function grantCrafted(
     stackable: tag.stackable,
   });
   const payerParty = { kind: payer.kind, id: payer.id, name: payer.name };
-  // Returned so the caller can stamp the ledger entry it pays for
-  // (stampLedgerAudit) — this row is the grant's only record.
   return logAudit(tx, {
     actorDiscordUserId: session.discordUserId,
     actionType: "request_craft_tag",
@@ -1080,7 +1059,7 @@ async function craftRequestImpl({
     const acknowledgeBill = (priced) => {
       if (priced.billedQty > billedSeen) {
         throw new UserError(
-          "Your free allowance changed since this page loaded — check the new cost and try again. ‡",
+          "Your free allowance changed since this page loaded — reload to see the new cost. ‡",
         );
       }
     };
@@ -1130,7 +1109,7 @@ async function craftRequestImpl({
         (await recheckGrantsUnderLock(tx, character, tag)) ?? replaced;
       const consumed = await consumeRecipeItems(tx, character.id, itemPlan);
       if (cost) await moveResources(tx, payer, -cost);
-      const audit = await grantCrafted(tx, {
+      await grantCrafted(tx, {
         session,
         character,
         tag: grant?.tag ?? tag,
@@ -1143,7 +1122,6 @@ async function craftRequestImpl({
         action,
         consumed,
       });
-      await stampLedgerAudit(tx, action, budget, audit.id);
     });
     } catch (err) {
       await unmintCustomCraft(prisma, grant);
@@ -1237,7 +1215,7 @@ async function craftRequestImpl({
     });
     done = finishes;
     if (done) {
-      const audit = await grantCrafted(tx, {
+      await grantCrafted(tx, {
         session,
         character,
         tag: grant?.tag ?? tag,
@@ -1255,7 +1233,6 @@ async function craftRequestImpl({
         where: { id: project.id },
         data: { status: "DONE" },
       });
-      await stampLedgerAudit(tx, action, budget, audit.id);
     } else {
       await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,
@@ -1365,10 +1342,8 @@ async function continueCraftImpl({ projectId }) {
         tagId: tag.id,
         name: tag.name,
         qty: project.quantity,
-        freeQty: 0,
         num: 1,
         den: 1,
-        auditId: null,
       },
       description: done
         ? `Crafted ${craftLabel(tag, project.quantity)}. ‡`
@@ -1377,7 +1352,7 @@ async function continueCraftImpl({ projectId }) {
     if (done) {
       const replacedNow =
         (await recheckGrantsUnderLock(tx, character, tag)) ?? replaced;
-      const audit = await grantCrafted(tx, {
+      await grantCrafted(tx, {
         session,
         character,
         tag: grant?.tag ?? tag,
@@ -1397,7 +1372,6 @@ async function continueCraftImpl({ projectId }) {
         where: { id: project.id },
         data: { status: "DONE" },
       });
-      await stampLedgerAudit(tx, action, budget, audit.id);
     } else {
       await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,

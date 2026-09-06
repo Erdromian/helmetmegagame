@@ -139,13 +139,6 @@ export async function craftFreeUnits(db, characterId, turnId, tags) {
   return out;
 }
 
-// The Dead Simple ration is a fact about a RECIPE, so it lives with the other
-// recipe predicates in tagRequests.js where a client component can reach it.
-// Re-exported here as the courtesy path — nothing imports it from here today,
-// but this module is where a server-side reader would look first.
-export { DEAD_SIMPLE_PER_TURN, isDeadSimple } from "@/lib/tagRequests";
-
-
 // Server actions are public endpoints, so the reason is validated here rather
 // than trusted from the dialog that collected it.
 export function requireReason(raw) {
