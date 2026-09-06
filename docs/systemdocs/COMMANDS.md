@@ -49,11 +49,20 @@ Each command declares its contexts:
 | `/gm` | `message`, `attachment` | GM | Guild | `handleGmCommand` |
 | `/dm` | `recipient` (user), `message` | GM | Guild | `handleGmDmCommand` |
 | `/heal` | `character` (role) | GM | Guild | `handleHealCommand` |
+| `/zone` | — | GM | Guild | `handleZoneCommand` — the select menu is `handleZoneViewPick` |
 
 Notes:
 
 - `/move`, `/location` and `/message` are the twins of the three console
   buttons in §3. Each opens the same flow.
+- `/zone` is the Discord twin of the **Zones** control at the bottom of the
+  inspector on `/gm/turns` and `/gm/players`. It takes no options: it opens an
+  ephemeral select menu (`min_values: 0`) with the caller's current zones
+  pre-selected, because toggling is something you do by looking at the current
+  state rather than by retyping it. Choosing nothing means every zone. Both
+  faces write `GmZoneView` and then call `syncGmZoneRoles`, which is what
+  actually changes which Location channels the GM can see
+  (`GAMEMASTERS.md` §6).
 - `/conceal` toggles `Character.concealed`, a standing state rather than a
   per-message one — that's why it needs a DM context the same way `/location`
   does, rather than living only as a `/character` checkbox. See §2c.
