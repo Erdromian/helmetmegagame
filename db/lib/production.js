@@ -22,13 +22,20 @@
 // they started, and one whole point on those is 25-50%, which is not an 8%
 // boost by any reading. So the rise lands on the three specialisations, which
 // is where the volume is anyway.
+//
+// Then split apart on 2026-09-06, so the three stopped being a near-tie and
+// the richest ground stopped being the wilderness: hunting -20%, fishing -15%,
+// farming +10%. Rounded per endpoint, and whole numbers do not let those land
+// exactly — hunting 0-19 -> 0-15 (-21.1% on the average, since 0-16 would be
+// only -15.8%), fishing 8-15 -> 7-13 (-13.0%), farming 13-17 -> 14-19
+// (+10.0%). The general tiers are untouched again, for the reason above.
 const PRODUCTION_RATES = {
   labor: {
     basic: { min: 0, max: 2 },
     skilled: { min: 1, max: 4 },
-    hunting: { min: 0, max: 19 },
-    farming: { min: 13, max: 17 },
-    fishing: { min: 8, max: 15 },
+    hunting: { min: 0, max: 15 },
+    farming: { min: 14, max: 19 },
+    fishing: { min: 7, max: 13 },
   },
 };
 

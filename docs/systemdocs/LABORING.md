@@ -31,9 +31,9 @@ bubbles the tag descriptions render through.
 |---|---|---|---|
 | `laboring-basic` | Laboring (Basic) | 0–2 | — |
 | `laboring-skilled` | Laboring (Skilled) | 1–4 | `parentTag: laboring-basic` |
-| `laboring-hunting` | Laboring (Hunting) | 0–19 | `requiredTag: laboring-skilled` |
-| `laboring-farming` | Laboring (Farming) | 13–17 | `requiredTag: laboring-skilled` |
-| `laboring-fishing` | Laboring (Fishing) | 8–15 | `requiredTag: laboring-skilled` |
+| `laboring-hunting` | Laboring (Hunting) | 0–15 | `requiredTag: laboring-skilled` |
+| `laboring-farming` | Laboring (Farming) | 14–19 | `requiredTag: laboring-skilled` |
+| `laboring-fishing` | Laboring (Fishing) | 7–13 | `requiredTag: laboring-skilled` |
 
 The slugs were `laborer-*` before this rework and are `laboring-*` now, because
 `db/lib/syncTags.js` enforces that **a slug is always its name, slugified** — so
@@ -62,6 +62,20 @@ Farming 12–16 -> 13–17, Fishing 7–14 -> 8–15), in `PRODUCTION_RATES` rat
 than on the dial, because the dial cannot reach Basic. The two general tiers
 did not move and could not: 8% of a 2 or a 4 rounds back to itself, and the
 smallest real step on those is 25%.
+
+**Then they were pulled apart, later the same day**: Hunting **-20%**
+(0–19 -> 0–15), Fishing **-15%** (8–15 -> 7–13), Farming **+10%**
+(13–17 -> 14–19). They had been close enough to a tie that the choice between
+them was mostly about which ground you happened to stand on, and the
+wilderness paid best for the least settled play. Farming is now the richest
+specialisation on the base rates, and the two that need no fields have to earn
+it back through a Location's coefficient instead (§3).
+
+Whole numbers do not divide into those percentages cleanly, so the endpoints
+are rounded and the averages land at -21.1%, -13.0% and +10.0%. Hunting's
+0–16 would have been only -15.8%, which is further from the intent than
+overshooting to 0–15. The general tiers are untouched again, for the reason
+above.
 
 ## 3. What a place is worth
 
@@ -239,9 +253,11 @@ there from `db/index.js` so `db/lib/` modules can reach it):
   sometimes provide for yourself" is nothing with extra steps.
 - Everything else keeps `Math.floor(x * 0.05)`.
 
-In practice that zeroes almost the whole economy. Only the richest hunting in
-the Depths still pays a single ⬢. That is the intent: this used to be flavor
-text on a turn announcement and nothing else.
+In practice that zeroes almost the whole economy. The Farms still pay a
+guaranteed 1 ⬢ — farming is the one specialisation whose *minimum* survives the
+floor — and the best hunting and fishing spots pay 0–1. Everything else is
+nothing. That is the intent: this used to be flavor text on a turn
+announcement and nothing else.
 
 ## 7. Drift — what the land does on its own
 
