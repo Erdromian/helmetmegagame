@@ -4736,15 +4736,22 @@ tags:
       fieldwork: true
       examine: "rope coiled at the post."
 
-  # Slug is `crucifix`, not `cross`: `cross` is already the wooden-cross ITEM
-  # above, and Structure.typeSlug joins by slug. The name is what players see.
+  # NAMED "Crucifix", not "Cross", and that is not a preference: Tag.name is
+  # @unique, `cross` is already the wooden-cross ITEM above, and
+  # docs/roles.yaml grants that item to the Bishop and the Chaplain BY NAME.
+  # This entry shipped as a second "Cross" on 2026-09-05 and made
+  # db:sync-tags fail outright on P2002 — the whole catalog, not just this row.
+  # Renaming the structure fixes it and makes the slug its own name again, so
+  # no keepSlug is needed (the sync throws on a keepSlug that isn't earning
+  # its keep). Structure.typeSlug still joins on `crucifix`.
+  #
   # No skill on purpose — none of the Inquisition roles carries a Builder
   # tier, and this is their tool. The Crucify button on /character needs a
   # COMPLETE one standing here plus the fundamentalist tag
   # (web/app/(app)/character/requestActions.js#crucifyCharacterRequestImpl).
   crucifix:
     catalog: all
-    name: Cross
+    name: Crucifix
     category: assets
     group: assets-structures
     description: "Two beams and a footrest, raised where you stand. You can crucify people here. ‡"

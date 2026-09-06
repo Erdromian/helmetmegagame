@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-06 · The Cross structure is called Crucifix
+
+✎ Tag names have to be unique and a Cross item already exists, so the structure that crucifies people is named Crucifix. Players still read it as the cross in every line about it.
+
 ## 2026-09-06 · The new Cross structure syncs again
 
 ✎ Its slug (crucifix) differs from its name on purpose, because a Cross item already exists; the tag sync now knows that.
