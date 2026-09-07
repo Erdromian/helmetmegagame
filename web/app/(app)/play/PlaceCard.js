@@ -55,9 +55,9 @@ export default function PlaceCard({
       : [place?.description, ...lines].filter(Boolean);
 
   return (
-    <div className="hall-card">
-      <p className="hall-section-title">{place?.name ?? "Here"}</p>
-      {zone?.name && <p className="hall-quiet-line">{zone.name}</p>}
+    <div className="chat-card">
+      <p className="chat-section-title">{place?.name ?? "Here"}</p>
+      {zone?.name && <p className="chat-quiet-line">{zone.name}</p>}
 
       <div className="chip-row" role="radiogroup" aria-label="What you are reading">
         {SIDES.map((entry) => (
@@ -75,7 +75,7 @@ export default function PlaceCard({
         ))}
       </div>
 
-      <div className="hall-card-text">
+      <div className="chat-card-text">
         {body.length === 0 ? (
           <p className="text-sm text-muted">Nothing to see.</p>
         ) : (
@@ -84,7 +84,7 @@ export default function PlaceCard({
       </div>
 
       {(fixtures.length > 0 || onConverse || depotHref || onFactory) && (
-        <div className="hall-buttons">
+        <div className="chat-buttons">
           {fixtures.map((entry) => (
             <button
               key={`${entry.id}:${entry.linkId ?? "place"}`}

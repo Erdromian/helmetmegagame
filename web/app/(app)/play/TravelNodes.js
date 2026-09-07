@@ -91,16 +91,16 @@ export default function TravelNodes({ onDone, pick = null }) {
 
   if (!data) {
     return (
-      <div className="hall-travel">
-        <p className="hall-section-title">Travel</p>
-        <p className="hall-quiet-line">Reading the road…</p>
+      <div className="chat-travel">
+        <p className="chat-section-title">Travel</p>
+        <p className="chat-quiet-line">Reading the road…</p>
       </div>
     );
   }
   if (!data.ok) {
     return (
-      <div className="hall-travel">
-        <p className="hall-section-title">Travel</p>
+      <div className="chat-travel">
+        <p className="chat-section-title">Travel</p>
         <FormError>{data.error}</FormError>
       </div>
     );
@@ -110,11 +110,11 @@ export default function TravelNodes({ onDone, pick = null }) {
   // on offer is turning round.
   if (data.heading) {
     return (
-      <div className="hall-travel">
-        <p className="hall-section-title">Travel</p>
+      <div className="chat-travel">
+        <p className="chat-section-title">Travel</p>
         <p className="text-sm">Leaving for {data.heading} at the turn. ‡</p>
         <FormError>{error}</FormError>
-        <div className="hall-buttons">
+        <div className="chat-buttons">
           <button
             type="button"
             className="btn-secondary"
@@ -140,20 +140,20 @@ export default function TravelNodes({ onDone, pick = null }) {
   const nextTurn = Boolean(chosen?.crossesZone && data.freeLeft <= 0);
 
   return (
-    <div className="hall-travel">
-      <p className="hall-section-title" title={data.freeReason ?? undefined}>
+    <div className="chat-travel">
+      <p className="chat-section-title" title={data.freeReason ?? undefined}>
         Travel · {data.freeLeft} free
       </p>
 
       {data.options.length === 0 ? (
         <EmptyState>There is no way out of here. ‡</EmptyState>
       ) : (
-        <div className="hall-nodes">
+        <div className="chat-nodes">
           {data.options.map((option) => (
             <button
               key={option.id}
               type="button"
-              className="hall-node"
+              className="chat-node"
               data-crossing={option.crossesZone ? "true" : undefined}
               data-dim={option.passable ? undefined : "true"}
               data-active={target === option.id ? "true" : undefined}
@@ -164,23 +164,23 @@ export default function TravelNodes({ onDone, pick = null }) {
                 setDragged([]);
               }}
             >
-              <span className="hall-node-name">{option.name}</span>
-              <span className="hall-node-zone">{option.zoneName}</span>
+              <span className="chat-node-name">{option.name}</span>
+              <span className="chat-node-zone">{option.zoneName}</span>
               {/* What the place IS, so a way out is more than a name. Clamped
                   in CSS rather than truncated here: the whole line is on the
                   node's title either way, and cutting the string would cut it
                   at a character count instead of at the box. */}
               {option.description && (
-                <span className="hall-node-desc">{option.description}</span>
+                <span className="chat-node-desc">{option.description}</span>
               )}
-              <span className="hall-node-foot mono">{footFor(option, data.freeLeft)}</span>
+              <span className="chat-node-foot mono">{footFor(option, data.freeLeft)}</span>
             </button>
           ))}
         </div>
       )}
 
       {chosen && (
-        <div className="hall-travel-confirm">
+        <div className="chat-travel-confirm">
           <p className="text-sm">
             {nextTurn ? `To ${chosen.name}, next turn.` : `To ${chosen.name}.`}
           </p>
@@ -208,7 +208,7 @@ export default function TravelNodes({ onDone, pick = null }) {
           )}
 
           <FormError>{error}</FormError>
-          <div className="hall-buttons">
+          <div className="chat-buttons">
             <button
               type="button"
               className="btn"

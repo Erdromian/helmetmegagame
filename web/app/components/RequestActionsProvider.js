@@ -973,7 +973,7 @@ export default function RequestActionsProvider({
   }
 
   // `presetTagId` lets a sheet-chip click open this dialog pre-selected.
-  // `presets` seeds the one field a caller already knows: the Hall's people
+  // `presets` seeds the one field a caller already knows: Chat's people
   // column opens Heal or Loot from a person's own row, and asking them to
   // pick that person again out of a dropdown would be a worse dialog than
   // the sheet's. Only `targetId` / `patientId` / `toKey` / `fromKey` /
@@ -1026,7 +1026,7 @@ export default function RequestActionsProvider({
       if (presets?.patientId) setPatientId(presets.patientId);
       if (presets?.targetId) setTargetId(presets.targetId);
       if (presets?.toKey) setToKey(presets.toKey);
-      // Transfer's two ends and a first pick. The Hall's room panel opens this
+      // Transfer's two ends and a first pick. Chat's room panel opens this
       // dialog three ways — Drop, Take, and a click straight on a stack lying
       // in the room — and each of those is context the player has already
       // given by choosing the button, not a decision to ask for again.
@@ -1542,7 +1542,7 @@ export default function RequestActionsProvider({
 
   // `selfId` rides along so a caller can build the `character:<id>` party key
   // the Transfer presets take without being handed the id a second way. The
-  // Hall's room panel is the one that needs it (Drop and Take name both ends).
+  // Chat's room panel is the one that needs it (Drop and Take name both ends).
   const value = useMemo(
     () => (enabled ? { open, pools, selfId } : null),
     [enabled, open, pools, selfId],
@@ -1568,7 +1568,7 @@ export default function RequestActionsProvider({
           plain modal rather than being forced through the Requests popup. It
           does call the server, but only to read (examineActions.js). */}
           {/* `targetId` is seeded by open("examine", null, { targetId }) —
-              the Hall's HERE rows and its feed rows both name the person
+              Chat's HERE rows and its feed rows both name the person
               before the dialog opens, so the picker is skipped. Read only
               while Look at is the open mode: the same state backs every other
               dialog's target. */}

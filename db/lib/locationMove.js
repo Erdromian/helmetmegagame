@@ -123,7 +123,7 @@ async function swapLocationOverwrite(discordUserId, fromChannelId, toChannelId) 
 // stand: the Location overwrite, the zone role, narrowcast, private-room
 // threads, the conversations they are a member of, and any standing invites.
 //
-// This is the "web only" switch coming OFF (db/lib/webOnly.js, HALL.md §6),
+// This is the "web only" switch coming OFF (db/lib/webOnly.js, CHAT.md §6),
 // and it is deliberately built on the SAME four helpers a move uses —
 // swapLocationOverwrite, swapRole, reconcileNarrowcastAccess and
 // syncCharacterRoomAccess — rather than a second copy of them. The difference
@@ -203,7 +203,7 @@ async function announceGateCrossing(prisma, character, fromLocationId, toLocatio
   if (!who) return;
   const said = `${who} has entered ${toLocation.name}.`;
   await postMessage(channelId, ambientLine(said));
-  // The Hall's half of the same crossing (db/lib/scene.js), beside the post.
+  // Chat's half of the same crossing (db/lib/scene.js), beside the post.
   await sceneLineAt(prisma, { zoneId: toLocation.zone?.id ?? toLocation.zoneId, text: said });
 }
 
@@ -324,7 +324,7 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
   const discordUserId = character.discordUserId;
 
   // The "web only" switch holds this account out of every channel, so the
-  // Discord half of standing somewhere is simply not done for them (HALL.md
+  // Discord half of standing somewhere is simply not done for them (CHAT.md
   // §6). Everything else below still runs: the gate crossing is scenery the
   // rest of the zone reads, the keyed-door offer and the parked-mount note are
   // DMs, and the carry, corpse and presence work is the database.
@@ -404,7 +404,7 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
   );
 
   // The feet moved, so the web's place list did too: every open /play tab of
-  // this character re-asks db/lib/feedAccess.js#placesFor (docs HALL.md §3).
+  // this character re-asks db/lib/feedAccess.js#placesFor (docs CHAT.md §3).
   await notifyPresence(prisma, characterId);
 }
 

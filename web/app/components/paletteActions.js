@@ -66,7 +66,7 @@ async function getPaletteIndexImpl() {
   }));
 
   // A PLAYER's half: everywhere they can hear, and everyone standing beside
-  // them. Both come from the same functions the Hall itself uses
+  // them. Both come from the same functions Chat itself uses
   // (db/lib/feedAccess.js#placesFor, db/lib/whosHere.js), so the palette can
   // never offer a place they may not read or name somebody the room has not
   // shown them — a hood is deliberately absent, exactly as it is from the
@@ -79,7 +79,7 @@ async function getPaletteIndexImpl() {
       where: { discordUserId: session.discordUserId, status: "ALIVE" },
       select: { id: true, name: true, locationId: true, factionId: true },
     }),
-    // Every entry below links into /play, so none is offered while the Hall
+    // Every entry below links into /play, so none is offered while Chat
     // is switched off (GameConfig.playPanelEnabled).
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true } }),
   ]);
@@ -93,7 +93,7 @@ async function getPaletteIndexImpl() {
         id: place.placeKey,
         label: place.name,
         hint: PLACE_HINTS[place.kind] ?? "here",
-        // The Hall reads the open place off the URL hash (HALL.md §5), so a
+        // Chat reads the open place off the URL hash (CHAT.md §5), so a
         // link into one is the hash and nothing else — no new client
         // plumbing, and Back leaves the room the way it came.
         href: `/play#${encodeURIComponent(place.placeKey)}`,

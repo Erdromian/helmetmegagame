@@ -64,7 +64,7 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
   );
 
   return (
-    <div className="hall-menu" role="menu" aria-label={person.name}>
+    <div className="chat-menu" role="menu" aria-label={person.name}>
       {PEOPLE_ACTIONS.map((entry) => (
         <button
           key={entry.mode}
@@ -156,7 +156,7 @@ export default function HereList({
   addPlace = null,
   onAddMember = null,
 }) {
-  // Seeded from the server and replaced by the poll. HallAside keys this
+  // Seeded from the server and replaced by the poll. ChatAside keys this
   // component on the server list, so a move remounts it with the new street's
   // people rather than leaving a stale poll answer in place.
   const [live, setLive] = useState(people);
@@ -214,21 +214,21 @@ export default function HereList({
 
   return (
     <div
-      className={strip ? "hall-strip" : "hall-here"}
+      className={strip ? "chat-strip" : "chat-here"}
       ref={wrapRef}
       onBlur={(event) => {
         if (!wrapRef.current?.contains(event.relatedTarget)) close();
       }}
     >
-      {!strip && <p className="hall-section-title">Here · {total}</p>}
+      {!strip && <p className="chat-section-title">Here · {total}</p>}
       {total === 0 && !strip && <EmptyState>Nobody is here.</EmptyState>}
 
       {named.map((person) => (
-        <div key={person.characterId} className="hall-person-wrap">
-          <div className={strip ? undefined : "hall-person-row"}>
+        <div key={person.characterId} className="chat-person-wrap">
+          <div className={strip ? undefined : "chat-person-row"}>
             <button
               type="button"
-              className="hall-person"
+              className="chat-person"
               aria-haspopup="menu"
               aria-expanded={openId === person.characterId}
               onClick={() => setOpenId(openId === person.characterId ? null : person.characterId)}
@@ -240,7 +240,7 @@ export default function HereList({
                 size={24}
               />
               {!strip && (
-                <span className="hall-person-name">
+                <span className="chat-person-name">
                   {person.name}
                   {person.roleTitle ? <span className="text-muted"> · {person.roleTitle}</span> : null}
                   {person.characterId === selfId ? <span className="text-muted"> · you</span> : null}
@@ -248,7 +248,7 @@ export default function HereList({
               )}
             </button>
             {!strip && person.characterId !== selfId && (
-              <span className="hall-person-eye">
+              <span className="chat-person-eye">
                 <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAt(person.characterId)} />
               </span>
             )}
@@ -271,26 +271,26 @@ export default function HereList({
           draws — looking through a null token gets the refusal the server
           already answers a bad one with. */}
       {concealed.map((person, index) => (
-        <div key={`hooded-${index}`} className="hall-person-wrap">
-          <div className={strip ? undefined : "hall-person-row"}>
+        <div key={`hooded-${index}`} className="chat-person-wrap">
+          <div className={strip ? undefined : "chat-person-row"}>
             <button
               type="button"
-              className="hall-person"
+              className="chat-person"
               aria-haspopup="menu"
               aria-expanded={openId === `hooded-${index}`}
               onClick={() => setOpenId(openId === `hooded-${index}` ? null : `hooded-${index}`)}
             >
               <CharacterAvatar characterId={null} name={person.alias} size={24} />
-              {!strip && <span className="hall-person-name text-muted">{person.alias}</span>}
+              {!strip && <span className="chat-person-name text-muted">{person.alias}</span>}
             </button>
             {!strip && (
-              <span className="hall-person-eye">
+              <span className="chat-person-eye">
                 <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAtHood(person.token)} />
               </span>
             )}
           </div>
           {openId === `hooded-${index}` && onConverse && (
-            <div className="hall-menu" role="menu" aria-label={person.alias}>
+            <div className="chat-menu" role="menu" aria-label={person.alias}>
               <button
                 type="button"
                 role="menuitem"

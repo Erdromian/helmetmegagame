@@ -83,7 +83,7 @@ const {
 } = require("@lifeweb/db/lib/locationAnchorRow");
 const { refreshLocationAnchor, refreshGateRooms } = require("@lifeweb/db/lib/syncZones");
 // Phase 3 moved the game logic these four handlers used to hold down into
-// db/lib, so the Hall's dialogs and these buttons run one implementation.
+// db/lib, so Chat's dialogs and these buttons run one implementation.
 // What is left up here is Discord: acknowledge, call, say the sentence back,
 // and — for a gate — redraw the anchor and the watchtower, which is a
 // Discord-only follow-up nothing in db/ could do.
@@ -406,7 +406,7 @@ async function handleThreadMemberCommand(interaction, action) {
     })
     .catch((err) => console.error("Failed to record thread invite:", err));
 
-  // A "web only" target is out of every channel on purpose (HALL.md §6), so
+  // A "web only" target is out of every channel on purpose (CHAT.md §6), so
   // the row above is the whole of the add: they see the conversation on /play
   // and the invite row replays the Discord half if they ever come back off it.
   if (target.locationId === row.locationId && !target.webOnly) {
@@ -524,7 +524,7 @@ async function handleRoomGuestCommand(interaction, action, room) {
 
   // The guest ROW above is the grant; thread membership is only Discord's copy
   // of it, and a "web only" character has no Discord copy of anything
-  // (HALL.md §6). Their record is left saying "not in the thread", which is
+  // (CHAT.md §6). Their record is left saying "not in the thread", which is
   // true, and the web feed shows them the room off the guest row regardless.
   if (!target.webOnly) {
     try {
@@ -746,7 +746,7 @@ async function handleIntercomSubmit(interaction, roomId) {
   // The transcript is broadcastIntercom's own job since phase 4: it writes one
   // SYSTEM row per zone it reached, so the announcement lands in each zone's
   // feed on /play as well as in /archive. The single row that used to be
-  // written here had no place key and so was invisible in the Hall.
+  // written here had no place key and so was invisible in Chat.
 
   await prisma.auditLog
     .create({
@@ -1340,7 +1340,7 @@ async function handleConverseCreate(interaction, roomId) {
   try {
     thread = await startPrivateThread(room.location.discordChannelId, name);
     // A "web only" creator stays out of their own thread's member list
-    // (HALL.md §6); the PlayerThreadMember row below is their membership.
+    // (CHAT.md §6); the PlayerThreadMember row below is their membership.
     if (!character.webOnly) await addThreadMember(thread.id, interaction.user.id);
   } catch (err) {
     console.error(`Failed to open a conversation in ${room.location.name}:`, err);

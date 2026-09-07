@@ -7,7 +7,7 @@ import { loadFeedViewer, findPlace } from "@/lib/feedAccess";
 // place.
 //
 // The stream carries what happens NEXT; this is what happened before. They are
-// separate on purpose: a Hall has half a dozen places and a GM has hundreds,
+// separate on purpose: a Chat has half a dozen places and a GM has hundreds,
 // and pushing every one of their backlogs down one stream would spend a
 // player's first second of the page on rooms they never opened. So the page
 // server-renders the place it opens on, and this fills in the rest as they are
@@ -35,7 +35,7 @@ export async function GET(request) {
   if (!found) return Response.json({ error: "You aren't there." }, { status: 403 });
 
   // Nothing from before the last wipe of THIS place (db/lib/feedWipe.js).
-  // Discord's half of that pass deleted its messages outright; the Hall keeps
+  // Discord's half of that pass deleted its messages outright; Chat keeps
   // the rows for /archive and reads past them. One place, so one floor: a
   // zone summary reads the Dawn watermark, everywhere else the turn one.
   const floor = floorForPlace(await feedWipeFloors(prisma), place);

@@ -86,7 +86,7 @@ async function ambientEverywhere(prisma, text, { signed = true } = {}) {
       failed.push(location.name);
       console.error(`Ambient broadcast to ${location.name} failed:`, err.message ?? err);
     }
-    // The Hall's half of the same line: the plain sentence, no `-#`, which
+    // Chat's half of the same line: the plain sentence, no `-#`, which
     // the web renders as subtext itself.
     await sceneLineAt(prisma, { locationId: location.id, text, signed });
   }

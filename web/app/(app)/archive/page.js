@@ -58,7 +58,7 @@ export default async function ArchivePage({ searchParams }) {
 
   const where = {
     gameId: game.id,
-    // Delete is soft since phase 1 of the Hall, so a browser holding a row can
+    // Delete is soft since phase 1 of Chat, so a browser holding a row can
     // reconcile. The transcript still honours the retraction: a taken-back
     // message is not in it.
     deletedAt: null,

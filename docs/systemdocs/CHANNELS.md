@@ -78,7 +78,7 @@ role (§3).
 > `bot/src/lib/channels.js#isDesignatedTupperChannel` stops treating a
 > top-level Location channel as a tupper channel (so a GM typing there is left
 > alone rather than reposted under a mask), and `/play` draws no composer on a
-> Location (`HALL.md` §5b).
+> Location (`CHAT.md` §5b).
 
 **Room threads carry no slowmode.** The 5-minute one is `#summary`'s alone; a
 Room is moment-to-moment talk. `db:sync-zones` still asserts `rate_limit_per_user:
@@ -341,7 +341,7 @@ departed player still reading rooms.
 ### A web-only character holds no Discord access at all
 
 `Character.webOnly` — the **Play from the web** switch on the Bio card
-(`HALL.md` §6) — is the one state in which a living character standing in a
+(`CHAT.md` §6) — is the one state in which a living character standing in a
 Location has none of the grants this section describes. No member overwrite on
 the Location channel, no zone role (so no `#summary` and no `#turns`, whose
 view grants ride the zone roles), no narrowcast overwrite, and no membership in
@@ -353,7 +353,7 @@ The fiction does not change: they still stand where they stand, they still show
 in Who's here?, they still hold their keys and their guest rows, and they are
 still a member of every Conversation they were in — the `PlayerThreadMember`
 row is the truth and Discord's thread list is only its projection (`§4`,
-`HALL.md` §2a). What changes is that the projection is empty.
+`CHAT.md` §2a). What changes is that the projection is empty.
 
 **Every re-materialiser checks the flag, or the next pass puts them back.**
 That is the whole maintenance burden of the feature, and it is not optional:
@@ -512,7 +512,7 @@ projection.** `PlayerThreadMember (playerThreadId, characterId)` is written
 first by all four writers — Converse (the creator), `/add`, a mention into the
 conversation, and the invite replay — and `/remove` deletes it; the Discord
 add follows. All four go through `db/lib/conversations.js`, so there is one
-answer to "who is in this". The reason is `HALL.md` §2a: the web feed could
+answer to "who is in this". The reason is `CHAT.md` §2a: the web feed could
 not read a Discord member list without a REST call per conversation, and a
 player whose account is out of the channels entirely (the coming "web only"
 switch) could not be in a thread at all. The row cascades with its
@@ -570,7 +570,7 @@ than as audible: a privacy feature fails **shut**, and a missing name line is
 the cheaper mistake. The post also passes `allowedMentions: { parse: [] }`,
 because the line now carries player text and "@everyone" is a plain word no
 mention-stripper catches. The leak is rolled once per tick and handed to both the Discord post and
-the Hall's scene row, unlike the shout, which re-rolls its static per call:
+Chat's scene row, unlike the shout, which re-rolls its static per call:
 re-rolling here would pick different fragments for each face, which is two
 leaks rather than one thing heard twice.
 
@@ -825,7 +825,7 @@ before `runMessageWipe`). Every feed query on `/play` then reads `seq >` the
 floor for **that place's own cadence**: a `zone:` key against the summary
 watermark, everything else against the turn one. The instant is deliberately
 the same one `cutoffMs` names below, so a message posted while the wipe is
-walking survives on both faces or neither. See `HALL.md` §7 — the unread dots
+walking survives on both faces or neither. See `CHAT.md` §7 — the unread dots
 reset with it for free.
 
 **The message wipe only deletes.** The transcript is recorded at *send* time

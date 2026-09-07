@@ -57,10 +57,10 @@ export default function MoveDialog({ initial = null, onClose, onDone }) {
       </div>
       <p className="text-sm text-muted">{kindLocked ? KIND_SPENT : chosen?.help}</p>
       <div className="field">
-        <label className="field-label" htmlFor="hall-move">
+        <label className="field-label" htmlFor="chat-move">
           What do you do?
         </label>
-        <textarea id="hall-move" rows={6} value={body} maxLength={2000} onChange={(e) => setBody(e.target.value)} />
+        <textarea id="chat-move" rows={6} value={body} maxLength={2000} onChange={(e) => setBody(e.target.value)} />
       </div>
       <FormError>{error}</FormError>
       <div className="modal-actions">

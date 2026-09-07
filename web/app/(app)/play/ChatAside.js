@@ -23,7 +23,7 @@ function hereKey(people) {
   return `here:${named}|${(people?.concealed ?? []).length}`;
 }
 
-export default function HallAside({
+export default function ChatAside({
   people,
   affordances,
   place,
@@ -53,7 +53,7 @@ export default function HallAside({
   addPlace = null,
   onAddMember = null,
   // Something in this column changed the place — a paper pinned, a gate
-  // flipped. Hall.js re-reads what it draws off the same board.
+  // flipped. Chat.js re-reads what it draws off the same board.
   onPlaceChanged = null,
   // The phone's ⋯ sheet, NOT the character sheet — `aside.sheet` is spread
   // in here too and a flag called `sheet` was silently always truthy, which
@@ -95,19 +95,19 @@ export default function HallAside({
           rendered rather than printed — several of them carry a `-#` or a
           `**` because the same sentence goes out to Discord. */}
       {notice && (
-        <div className="hall-quiet-line">
+        <div className="chat-quiet-line">
           <ChatMarkdown content={notice} />
         </div>
       )}
       <FormError>{error}</FormError>
 
       {/* On a phone the people are a strip under the place header instead —
-          Hall.js draws that one, so the sheet does not draw them twice. */}
+          Chat.js draws that one, so the sheet does not draw them twice. */}
       {/* Keyed on the SERVER's own list so a move — which re-renders this
           page and hands down a new one — remounts the list rather than
           leaving the poll's answer for the street you have left. It polls
           from here and only from here: the phone's strip is the same rows
-          drawn by Hall.js, and two pollers on one screen is one too many. */}
+          drawn by Chat.js, and two pollers on one screen is one too many. */}
       {!inSheet && (
         <HereList
           key={hereKey(people)}

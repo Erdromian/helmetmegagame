@@ -1,7 +1,7 @@
 // The place-bound affordances, declared once for both faces.
 //
 // A Location channel's pinned anchor and a Room thread's starter post carry
-// buttons; the Hall's place panel carries the same list as web dialogs. Until
+// buttons; Chat's place panel carries the same list as web dialogs. Until
 // phase 3 those were two hand-kept lists in two files, and adding a button to
 // one was no reminder at all to add it to the other.
 //
@@ -145,7 +145,7 @@ function gateLabel({ isOpen, farName }) {
 }
 
 // EVERYTHING this character can do where they are standing, as one ordered
-// list. The Hall's place panel is a render of this and nothing else.
+// list. Chat's place panel is a render of this and nothing else.
 //
 // Each entry is { id, label, tone, kind, roomId?, linkId?, roomName? }.
 // `kind` is the group it draws under: "place" for the Location's own, "room"

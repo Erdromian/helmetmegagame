@@ -300,15 +300,15 @@ export function newestSeq(place) {
 //
 //   - it is in a conversation, which has no scenery in it; or
 //   - it carries this character's {char:…} token, which is what a mention is
-//     made of on both faces (HALL.md §5), so a Discord ping counts too;
+//     made of on both faces (CHAT.md §5), so a Discord ping counts too;
 //   - unless they wrote it themselves, because your own words are not news.
 //
 // `place` is the placeKey, which is where the conversation test comes from —
 // the store is keyed by it and needs no place object to ask.
 //
-// The CHIME is deliberately narrower: Hall.js rings only on the mention half,
+// The CHIME is deliberately narrower: Chat.js rings only on the mention half,
 // because a busy conversation ringing on every line is a reason to mute the
-// Hall rather than a reason to look at it. A dot is patient; a sound is not.
+// Chat rather than a reason to look at it. A dot is patient; a sound is not.
 export function isNotableRow(place, row, selfId) {
   if (!selfId || !row) return false;
   if (row.characterId === selfId) return false;
@@ -331,8 +331,8 @@ export function notableSeq(place, selfId) {
   return best === null ? null : String(best);
 }
 
-// The Hall's FIRST seed, from the server render, run inside a useState
-// initializer so the store is full before the first client paint (Hall.js
+// Chat's FIRST seed, from the server render, run inside a useState
+// initializer so the store is full before the first client paint (Chat.js
 // says why). It is the same three writes the effect repeats, with the
 // notification held: see `quiet` at the top of this file.
 export function seedInitial({ places, place, rows }) {

@@ -2,15 +2,15 @@ import { Suspense } from "react";
 import { getOpenTurn } from "@/lib/turn";
 import DeskHeader from "@/app/components/DeskHeader";
 import { SkeletonBar } from "@/app/components/PageShell";
-import HallTurn from "./HallTurn";
+import ChatTurn from "./ChatTurn";
 
-// The Hall owns its whole screen, the way the (desk) workspaces do: no
+// Chat owns its whole screen, the way the (desk) workspaces do: no
 // PageShell, no centred max-width, a 100dvh column whose regions scroll
 // inside it. A chat that scrolled the document would drag the header off the
 // top every time somebody spoke.
 //
 // It wears the same DeskHeader those workspaces wear. It used to carry a
-// bespoke `.hall-crumb` holding one line of uppercase --fs-2xs muted text and
+// bespoke `.chat-crumb` holding one line of uppercase --fs-2xs muted text and
 // no <h1> at all, which next to three desks in a serif .section-title read as
 // a different application.
 //
@@ -20,12 +20,12 @@ import HallTurn from "./HallTurn";
 export default function PlayLayout({ children }) {
   const turnPromise = getOpenTurn();
   return (
-    <div className="hall-shell">
+    <div className="chat-shell">
       <DeskHeader
-        title="The Hall"
+        title="Chat"
         meta={
           <Suspense fallback={<SkeletonBar width="11rem" height={22} />}>
-            <HallTurn turnPromise={turnPromise} />
+            <ChatTurn turnPromise={turnPromise} />
           </Suspense>
         }
       />

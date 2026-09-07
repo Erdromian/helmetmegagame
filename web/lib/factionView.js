@@ -2,14 +2,14 @@ import "server-only";
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 
 // The faction query, lifted out of web/app/(app)/faction/page.js so a second
-// surface can ask the same question. The Hall's Faction panel
+// surface can ask the same question. Chat's Faction panel
 // (web/lib/selfPools.js#loadFactionView) is that second surface, and a copy of
 // this include would have been a second answer to "who is in this faction" —
 // the one thing FACTIONS.md §5 is about.
 //
 // A page file may not export anything but a page, so the loader could not stay
 // where it was and be shared. Nothing about the shape changed except
-// `updatedAt`, which the Hall needs for the avatar `?v=`.
+// `updatedAt`, which Chat needs for the avatar `?v=`.
 export async function loadFaction(factionId) {
   return prisma.faction.findUnique({
     where: { id: factionId },

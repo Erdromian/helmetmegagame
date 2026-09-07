@@ -841,7 +841,7 @@ to show three rows of a hundred-tag catalog.
 
 ### 6a. The same dialogs on `/play`
 
-Since phase 3 of the Hall (`HALL.md` §5) the **people** dialogs have a second
+Since phase 3 of Chat (`CHAT.md` §5) the **people** dialogs have a second
 home. `/play`'s HERE column mounts the same `RequestActionsProvider` with the
 same pools and calls `open(mode, null, { targetId })` from a person's own row,
 so clicking somebody standing in the Keep opens the very dialog the sheet
@@ -862,7 +862,7 @@ Two things carry that:
   everything else in a dialog is a decision, not a context. ‡
 
 The sheet keeps everything else. Craft, the paperwork verbs, the Bird and the
-Factory are not mounted in the Hall, and `ActionGrid` is not either — the
+Factory are not mounted in Chat, and `ActionGrid` is not either — the
 column is a list of people, not a second grid.
 
 `/play` also carries two player actions that were Discord-only, both of them

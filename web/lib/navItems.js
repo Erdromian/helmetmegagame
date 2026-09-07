@@ -90,7 +90,7 @@ export async function loadNavItems(discordUserId) {
       where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MERCHANT_LICENSE_SLUG } },
     }),
     prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
-    // The Hall switch (HALL.md §5). Presentation here; /play enforces it.
+    // Chat switch (CHAT.md §5). Presentation here; /play enforces it.
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true } }),
     // A finished past game is everyone's to read, whatever the current one is.
     prisma.game.count({ where: { endedAt: { not: null } } }),

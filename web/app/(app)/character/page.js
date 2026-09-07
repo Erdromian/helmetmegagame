@@ -400,7 +400,7 @@ export default async function CharacterPage({ searchParams }) {
   ]);
 
   // Desires: the slots, and the evaluated catalog behind the picker. Both
-  // are built in web/lib/selfPools.js, which the Hall's YOU column reads too,
+  // are built in web/lib/selfPools.js, which Chat's YOU column reads too,
   // so the two surfaces cannot disagree about what is claimable.
   const {
     desireSlots,
@@ -423,7 +423,7 @@ export default async function CharacterPage({ searchParams }) {
     .map((t) => ({ id: t.id, name: t.name }));
   // Every people pool the sheet's dialogs act on — the roster standing here,
   // the medical gate, and the Loot / Move / Bind / Harm lists — built once in
-  // web/lib/peoplePools.js so the Hall's people column (/play) and this sheet
+  // web/lib/peoplePools.js so Chat's people column (/play) and this sheet
   // cannot disagree about who is standing near you.
   const {
     here,
@@ -823,12 +823,12 @@ export default async function CharacterPage({ searchParams }) {
   const hasDevice = heldSlugs.has("nuclear-device");
   // Paperwork, seals, books and the Bird (docs/systemdocs/PAPERWORK.md). Every
   // gate and every option list is built in web/lib/selfPools.js, because the
-  // Hall's composer opens the same four dialogs and two copies of these rules
+  // Chat's composer opens the same four dialogs and two copies of these rules
   // would be two answers to "can this character write".
   // Spread into CharacterSheet below: hasBird, canRead, canWrite, hasSeal,
   // canSeal, paperOptions, letterOptions, sealOptions, birdSentToday,
   // birdTargets, birdZones — the loader names them as the props
-  // RequestActionsProvider takes, so the sheet and the Hall hand the dialogs
+  // RequestActionsProvider takes, so the sheet and Chat hand the dialogs
   // one list.
   const letters = await loadLettersView(character, { openTurn });
 

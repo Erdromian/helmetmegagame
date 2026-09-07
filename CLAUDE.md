@@ -259,7 +259,7 @@ you pick the right doc — they are never enough to change code with.
 | [`CONFESSION.md`](docs/systemdocs/CONFESSION.md) | You're touching Confess, the `psychological` tag flag, who may hear a confession, or the rule that a chaplain is never shown the sin |
 | [`CRAFTING.md`](docs/systemdocs/CRAFTING.md) | You're touching Craft, Destroy, the four tag capability flags (`craftable` / `removable` / `healable` / `teachable`), multi-turn projects, or who pays for a recipe |
 | [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript or `/archive` |
-| [`HALL.md`](docs/systemdocs/HALL.md) | You're touching `/play`, the live feed (`/api/feed`, the SSE hub, the bot's outbox), `ArchiveEntry.seq` / `placeKey`, or the coming "web only" switch |
+| [`CHAT.md`](docs/systemdocs/CHAT.md) | You're touching `/play`, the live feed (`/api/feed`, the SSE hub, the bot's outbox), `ArchiveEntry.seq` / `placeKey`, or the coming "web only" switch |
 | [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents`, `docs/documents.yaml`, `/handbook`, or `docs/handbook.md` |
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
 | [`PORTRAITS.md`](docs/systemdocs/PORTRAITS.md) | You're touching the portrait maker, avatar art, or `Character.avatarData` |
@@ -983,7 +983,7 @@ global CLIs. To make one able to build, run, and deploy:
   third of these, and the same answer: without it a player could hold two live
   spawn offers (`THREATS.md` §4). `AuditLog_details_trgm_idx` is the fourth,
   and the reason `/gm/audit`'s text search is not a full-table scan. The
-  `DirectMessage_notify` trigger (`HALL.md` §2b) is the fifth — Prisma does
+  `DirectMessage_notify` trigger (`CHAT.md` §2b) is the fifth — Prisma does
   not model triggers, so `migrate diff` never mentions it either way, but a
   hand-written "fix drift" migration must not drop it.
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now

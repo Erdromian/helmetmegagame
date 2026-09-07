@@ -39,8 +39,8 @@ function createHub() {
     // name is resolved here (see typingNameFor).
     typingSubscribers: new Map(),
     // discordUserId -> Set<(row) => void>. The fourth channel: a DirectMessage
-    // landed for this account, and the Hall's Bascinet conversation is open
-    // in a tab (HALL.md §2b). Raised by a Postgres trigger rather than by any
+    // landed for this account, and Chat's Bascinet conversation is open
+    // in a tab (CHAT.md §2b). Raised by a Postgres trigger rather than by any
     // writer (db/lib/dmNotify.js).
     dmSubscribers: new Map(),
     // characterId -> { name, at }. A typing event fires every few seconds per
@@ -221,7 +221,7 @@ async function handleDm(payload) {
 
 // The pg client dropped and came back. The place feed papers over the gap
 // with its `since` cursor; the DM path has none, so every DM subscriber is
-// handed a resync frame and the pane asks for its page again (HALL.md §2b).
+// handed a resync frame and the pane asks for its page again (CHAT.md §2b).
 // The browser's own EventSource never broke, so nothing else would tell it.
 function resyncDm() {
   for (const set of hub().dmSubscribers.values()) {

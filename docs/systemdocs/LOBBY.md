@@ -218,9 +218,9 @@ Keeps: `GameConfig` (every knob), `PlayerPreference`, `Game`, `ArchiveEntry`.
 Wipes: `LobbyEntry`, and recreates `GameState` (phase CLOSED, new `gameId`).
 Everything else as before (`LAUNCH.md` §2, §4).
 
-`ArchiveEntry` is kept for `/archive` and shown nowhere else: the Hall floors
+`ArchiveEntry` is kept for `/archive` and shown nowhere else: Chat floors
 its feed at the highest seq belonging to a previous game, so `/play` is empty
-after a restart rather than full of the last game (`HALL.md` §7).
+after a restart rather than full of the last game (`CHAT.md` §7).
 
 ## 9. Where the code lives
 

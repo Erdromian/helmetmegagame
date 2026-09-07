@@ -227,7 +227,7 @@ async function performMove(character, targetLocation, dragged = []) {
 // rather than a member edit.
 async function restoreStandingRoles(member, character) {
   // A "web only" character holds no Discord access on purpose, so a rejoin
-  // restores nothing (docs/systemdocs/HALL.md §6). Their sight of the game is
+  // restores nothing (docs/systemdocs/CHAT.md §6). Their sight of the game is
   // /play, which never went away.
   if (character.webOnly) return;
 

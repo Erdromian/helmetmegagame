@@ -1,7 +1,7 @@
 // A line the WORLD says, written down.
 //
 // db/lib/ambientLine.js is how one of these LOOKS on Discord (`-#` subtext);
-// this is how it is RECORDED, so the Hall (/play) can show it too. Until phase
+// this is how it is RECORDED, so Chat (/play) can show it too. Until phase
 // 4 none of them archived at all, which meant a web player never saw a gate
 // crossing, a smell, a turret burst or a noticeboard pin — the scene simply
 // did not happen on that face.
@@ -10,8 +10,8 @@
 // character. Three things follow from that and all three are deliberate:
 //
 //   - The content carries NO `-#`. The prefix is Discord's rendering of
-//     subtext; the web renders a SYSTEM row as `.hall-subtext` itself
-//     (HALL.md §5), and storing the prefix would put literal `-#` on the page.
+//     subtext; the web renders a SYSTEM row as `.chat-subtext` itself
+//     (CHAT.md §5), and storing the prefix would put literal `-#` on the page.
 //   - The outbox never touches it. bot/src/lib/feedOutbox.js posts `WEB` rows
 //     only, so a SYSTEM row can never be echoed back into the channel the
 //     poster already posted to.

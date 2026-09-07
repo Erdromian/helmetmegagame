@@ -1,7 +1,7 @@
 // Conversation membership, in the database.
 //
 // A Conversation is a PlayerThread: a private Discord thread hanging off a
-// Location channel, opened with the Converse button. Until phase 2 of the Hall
+// Location channel, opened with the Converse button. Until phase 2 of Chat
 // the answer to "who is in it" lived ONLY in Discord's thread-member list,
 // which had two problems. The web feed could not read it without a REST call
 // per conversation per render, and a player whose Discord account is out of
@@ -99,7 +99,7 @@ async function conversationsFor(prisma, characterId, { locationId = undefined } 
 
 // Who is in one conversation. The rows ARE the membership (Discord's thread
 // member list is their projection), so this is the whole answer and it needs
-// no REST call — which is the point: the Hall draws it beside every message.
+// no REST call — which is the point: Chat draws it beside every message.
 //
 // Dead members are dropped rather than shown greyed. A conversation is a
 // corner of a room, not a roster, and a body cannot be in one.

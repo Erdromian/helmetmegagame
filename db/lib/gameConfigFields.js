@@ -164,7 +164,7 @@ const INTERNAL_KEYS = [
   "restInvalidCount",
   "restInvalidWindowStart",
   "restBreakerOpenUntil",
-  // The Play page (HALL.md §7): the two wipe watermarks, one per cadence.
+  // The Play page (CHAT.md §7): the two wipe watermarks, one per cadence.
   "feedWipeSeq",
   "feedWipeSummarySeq",
   // Not a knob on purpose. The wipe is how the game works, so there is no

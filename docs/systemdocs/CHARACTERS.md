@@ -132,7 +132,7 @@ avatar, opt-ins) is untouched.
 
 Two of those opt-ins are switches under the picture. **Ping me when the turn
 advances** adds or removes the turn-ping Discord role and nothing else. **Play
-from the web** is the anonymity switch (`HALL.md` §6): while it is on, this
+from the web** is the anonymity switch (`CHAT.md` §6): while it is on, this
 player's Discord account holds no game access at all — no Location overwrite,
 no zone role, no room or conversation thread — and they read and speak on
 `/play` instead. It is the one switch on this form with a cooldown of its own

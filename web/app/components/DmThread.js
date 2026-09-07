@@ -254,7 +254,7 @@ function CollapsedGroup({ messages }) {
 
 // What a player sees on the game's side of the conversation: every outbound
 // row, whoever typed it, wears this one face. The desk sees GMs by name; the
-// player sees Bascinet (HALL.md §2b).
+// player sees Bascinet (CHAT.md §2b).
 const BASCINET_PROFILE = Object.freeze({ username: "Bascinet", avatarUrl: null });
 
 function Row({ item, gmProfileById, character, now, perspective }) {
@@ -324,7 +324,7 @@ export default function DmThread({
   myDiscordUserId = null,
   // Which chair the reader is in. The desk is "gm": inbound rows are the
   // other person's, the NEW line marks the first unread inbound, and the
-  // reader's own send is an outbound row they authored. The Hall's Bascinet
+  // reader's own send is an outbound row they authored. Chat's Bascinet
   // pane is "player": the same rows, with every one of those the other way
   // round. Nothing else in the renderer knows which is which.
   perspective = "gm",

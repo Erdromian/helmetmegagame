@@ -104,10 +104,10 @@ export const EyeIcon = lucide(Eye, "EyeIcon");
 export const EditIcon = lucide(Pencil, "EditIcon");
 // The mobile bottom bar's "More" affordance — see NavRail.js's MOBILE_PRIMARY.
 export const MoreIcon = lucide(Ellipsis, "MoreIcon");
-// The Hall's row action bar: pointing an instant camera at what somebody said,
+// Chat's row action bar: pointing an instant camera at what somebody said,
 // the web twin of the 📸 reaction.
 export const CameraIcon = lucide(Camera, "CameraIcon");
-// The Hall's feed header: searching what was said, over the archive's trigram
+// Chat's feed header: searching what was said, over the archive's trigram
 // index (/api/feed/search).
 export const SearchIcon = lucide(Search, "SearchIcon");
 
@@ -119,14 +119,14 @@ export const CloseIcon = lucide(X, "CloseIcon");
 // The Play page: a doorway you speak through. A plain speech bubble would have
 // read as MessageIcon at rail size, which is the GM's inbox.
 export const PlayIcon = lucide(DoorOpen, "PlayIcon");
-// The Hall's mention chime, at the foot of the places column. Two glyphs
+// Chat's mention chime, at the foot of the places column. Two glyphs
 // rather than one so the state reads at a glance; aria-pressed carries it for
 // everyone else.
 export const BellIcon = lucide(Bell, "BellIcon");
 export const BellOffIcon = lucide(BellOff, "BellOffIcon");
 // Web Push is ON for this browser. A ringing bell rather than a second plain
 // one, so the push toggle and the chime toggle beside it are told apart at a
-// glance (HALL.md §5a).
+// glance (CHAT.md §5a).
 export const BellRingIcon = lucide(BellRing, "BellRingIcon");
 
 // GM inbox chime mute toggle (NavRail.js). One name, two glyphs.

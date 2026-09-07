@@ -25,7 +25,7 @@ export default function AvatarField({
   defaultWebOnly = false,
   // GameConfig.playPanelEnabled. Off, the "Play from the web" switch is drawn
   // only for a player who is already web-only — a character taken out of
-  // Discord with no Hall to play in would be out of the game, but one already
+  // Discord with no Chat to play in would be out of the game, but one already
   // out must be able to come back. The server action holds the same line.
   playPanelEnabled = true,
   defaultConcealed,
@@ -113,7 +113,7 @@ export default function AvatarField({
         <Switch name="turnPingOptIn" defaultChecked={defaultTurnPingOptIn}>
           Ping me when the turn advances
         </Switch>
-        {/* The anonymity switch (docs/systemdocs/HALL.md §6). On, this player's
+        {/* The anonymity switch (docs/systemdocs/CHAT.md §6). On, this player's
             Discord account is taken out of every game channel, so a member
             sidebar can no longer say which account is standing in the room.
             The cooldown is enforced server-side in db/lib/webOnly.js — this is

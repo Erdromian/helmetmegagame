@@ -19,7 +19,7 @@ import { waitingOnYou, answerWaiting, myMove } from "./actions";
 // in the places column now (./DmPane.js), with every other day.
 //
 // The Move dialog and the sheet link are what the #turns console carries that
-// a web-only player would otherwise lose with it (HALL.md §6, decision 2).
+// a web-only player would otherwise lose with it (CHAT.md §6, decision 2).
 
 // Waiting on you: pending offers, a threat seat, a letter the bird has not
 // left with, a lobby assignment. Accept and Decline call the SAME db/lib
@@ -30,12 +30,12 @@ function WaitingList({ rows, onAnswered }) {
   const { run, pending, error } = useActionRunner();
   if (rows.length === 0) return null;
   return (
-    <div className="hall-waiting">
-      <p className="hall-section-title">Waiting on you · {rows.length}</p>
+    <div className="chat-waiting">
+      <p className="chat-section-title">Waiting on you · {rows.length}</p>
       {rows.map((row) => (
-        <div key={row.key} className="hall-waiting-row">
-          <span className="hall-person-name">{row.label}</span>
-          <span className="hall-waiting-actions">
+        <div key={row.key} className="chat-waiting-row">
+          <span className="chat-person-name">{row.label}</span>
+          <span className="chat-waiting-actions">
             {row.accept !== false && (
               <button
                 type="button"
@@ -118,8 +118,8 @@ export default function YouPanel({
   );
 
   return (
-    <div className="hall-you">
-      <p className="hall-section-title">You</p>
+    <div className="chat-you">
+      <p className="chat-section-title">You</p>
 
       <TurnCard
         turn={moveState.turn}
@@ -131,13 +131,13 @@ export default function YouPanel({
       <Things groups={things} />
       <DesiresBlock view={desires} />
 
-      <div className="hall-buttons">
+      <div className="chat-buttons">
         <Link className="btn-secondary" href="/character">
           Sheet ›
         </Link>
       </div>
       {notice && (
-        <div className="hall-quiet-line">
+        <div className="chat-quiet-line">
           <ChatMarkdown content={notice} />
         </div>
       )}

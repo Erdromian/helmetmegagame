@@ -1,7 +1,7 @@
 // Who is standing at a Location, as both faces say it.
 //
 // The rule used to live only in bot/src/events/interactionCreate.js's
-// "Who's here?" handler, so the Hall's people column could only ever have
+// "Who's here?" handler, so Chat's people column could only ever have
 // been a second opinion about who you can see. It is one function now, and
 // the button calls it.
 //

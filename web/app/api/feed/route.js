@@ -8,7 +8,7 @@ import { subscribeToPlace, subscribeToPresence, subscribeToTyping, subscribeToDm
 // carrying every place the viewer may read.
 //
 // Phase 0 opened a stream per place, which was fine when there was one place.
-// A Hall has a Location, its Rooms, the conversations you are in and the zone
+// A Chat has a Location, its Rooms, the conversations you are in and the zone
 // summary, and six EventSources per tab would each hold their own HTTP
 // connection against a browser limit of six per origin — a player with two
 // tabs open would have starved the rest of the site.
@@ -190,7 +190,7 @@ export async function GET(request) {
       // The fifth event: a DirectMessage for this account, already shaped for
       // the player and already past the desk's noise filter (feedHub.js). No
       // cursor and no catch-up — the pane refetches its page on open and on a
-      // reconnect (HALL.md §2b). A GM with no character has a desk for this.
+      // reconnect (CHAT.md §2b). A GM with no character has a desk for this.
       const unsubscribeDm = viewer.character
         ? subscribeToDm(viewer.discordUserId, (row) => {
             write(`event: dm\ndata: ${JSON.stringify(row)}\n\n`);

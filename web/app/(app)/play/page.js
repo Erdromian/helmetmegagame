@@ -13,7 +13,7 @@ import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import RequestActionsProvider from "@/app/components/RequestActionsProvider";
 import CharacterMentionsProvider from "@/app/components/CharacterMentionsProvider";
-import Hall from "./Hall";
+import Chat from "./Chat";
 import { waitingOnYou, myMove } from "./actions";
 import { loadDesireView, loadLettersView, loadFactionView } from "@/lib/selfPools";
 import { withoutDmNoise } from "@/lib/dmThread";
@@ -22,14 +22,14 @@ import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttrib
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { MERCHANT_LICENSE_SLUG, DEPOT_LOCATION_SLUG, DEPOT_KEYCARD_SLUG } from "@lifeweb/db";
 
-// /play — the Hall. Three columns on a desktop, one on a phone: everywhere
+// /play — Chat. Three columns on a desktop, one on a phone: everywhere
 // this character can hear on the left, the open scene in the middle, and (in
 // phase 3) the people standing there on the right.
 //
 // The first place's rows are rendered on the server so the page has something
 // to show before any JavaScript runs; every other place is fetched when the
 // reader opens it, and everything after that arrives on the one SSE stream
-// Hall.js holds.
+// Chat.js holds.
 export const dynamic = "force-dynamic";
 
 const HISTORY_ROWS = 100;
@@ -38,7 +38,7 @@ export default async function PlayPage() {
   const viewer = await loadFeedViewer();
   if (!viewer.discordUserId) redirect("/");
 
-  // The Hall switch on /gm/dev (GameConfig.playPanelEnabled). GMs bounce too:
+  // Chat switch on /gm/dev (GameConfig.playPanelEnabled). GMs bounce too:
   // a GM watching a scene has the desk's Scene tab, and off means off. The
   // whole row is read once here; the composer and the aside take theirs off
   // it below.
@@ -47,7 +47,7 @@ export default async function PlayPage() {
 
   if (!viewer.character && !viewer.gm) {
     return (
-      <div className="hall-body hall-body--empty">
+      <div className="chat-body chat-body--empty">
         <div className="panel">
           <EmptyState>You have no living character. ‡</EmptyState>
         </div>
@@ -60,7 +60,7 @@ export default async function PlayPage() {
 
   if (!first) {
     return (
-      <div className="hall-body hall-body--empty">
+      <div className="chat-body chat-body--empty">
         <div className="panel">
           <EmptyState>You are nowhere yet.</EmptyState>
         </div>
@@ -252,7 +252,7 @@ export default async function PlayPage() {
     : null;
 
   // The newest thing Bascinet said to this player, for the Messages row's
-  // unread dot before the pane has ever been opened (./DmPane.js, HALL.md
+  // unread dot before the pane has ever been opened (./DmPane.js, CHAT.md
   // §2b). Through the player chair's noise filter, so a mention relay lights
   // the dot the way any other word from Bascinet does.
   const newestDm = viewer.character
@@ -284,8 +284,8 @@ export default async function PlayPage() {
     updatedAt: person.avatarVersion,
   }));
 
-  const hall = (
-    <Hall
+  const chat = (
+    <Chat
       initialPlaces={places}
       initialPlace={first.placeKey}
       initialRows={initialRows}
@@ -339,7 +339,7 @@ export default async function PlayPage() {
   // Only the people half is handed down: the rest of the sheet's pools —
   // craft, paper, the bird, the Factory — belong to the sheet, and ActionGrid
   // is not mounted here at all.
-  if (!aside) return hall;
+  if (!aside) return chat;
   return (
     <CharacterMentionsProvider characters={mentionRoster}>
       <RequestActionsProvider
@@ -368,7 +368,7 @@ export default async function PlayPage() {
         canExtract={aside.canExtract}
         extractBlocked={aside.extractBlocked}
       >
-        {hall}
+        {chat}
       </RequestActionsProvider>
     </CharacterMentionsProvider>
   );

@@ -49,7 +49,7 @@ import {
 // room's should never be able to look different.
 export const TONE_CLASS = { go: "btn", danger: "btn-danger", plain: "btn-secondary" };
 
-// ONE instance of this, in HallAside.js. The affordance list, the notice and
+// ONE instance of this, in ChatAside.js. The affordance list, the notice and
 // the open dialog are shared by every section of the column, so a gate opened
 // from the place card relabels itself and a room's Intercom and the card's
 // noticeboard cannot both be open at once.
@@ -188,8 +188,8 @@ function NoticeboardDialog({ onClose, onDone }) {
 
       {board.notices.length === 0 && <EmptyState>Nothing is up.</EmptyState>}
       {board.notices.map((notice) => (
-        <div key={notice.id} className="hall-notice-row">
-          <span className="hall-person-name">{notice.name}</span>
+        <div key={notice.id} className="chat-notice-row">
+          <span className="chat-person-name">{notice.name}</span>
           <button
             type="button"
             className="menu-item"
@@ -225,10 +225,10 @@ function NoticeboardDialog({ onClose, onDone }) {
 
       {board.holding.length > 0 && (
         <div className="field">
-          <label className="field-label" htmlFor="hall-pin">
+          <label className="field-label" htmlFor="chat-pin">
             Pin a paper
           </label>
-          <Select id="hall-pin" value={pinId} onChange={(e) => setPinId(e.target.value)}>
+          <Select id="chat-pin" value={pinId} onChange={(e) => setPinId(e.target.value)}>
             <option value="">Pick one…</option>
             {board.holding.map((paper) => (
               <option key={paper.tagId} value={paper.tagId}>
@@ -267,9 +267,9 @@ function NoticeboardDialog({ onClose, onDone }) {
 
 // ---------------------------------------------------------------- converse
 
-// Exported for Hall.js: the `/converse` command opens this same dialog from
+// Exported for Chat.js: the `/converse` command opens this same dialog from
 // the composer, and on a phone the right column that owns it is not even
-// mounted (Hall.js). One dialog either way — a second copy of the room picker
+// mounted (Chat.js). One dialog either way — a second copy of the room picker
 // and the invite list would be two answers to one question.
 export function ConverseDialog({ person = null, onClose, onDone }) {
   const [rooms, setRooms] = useState(null);
@@ -306,10 +306,10 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
       {rooms?.ok && rooms.rooms.length > 0 && (
         <>
           <div className="field">
-            <label className="field-label" htmlFor="hall-converse-room">
+            <label className="field-label" htmlFor="chat-converse-room">
               Where?
             </label>
-            <Select id="hall-converse-room" value={roomId} onChange={(e) => setRoomId(e.target.value)}>
+            <Select id="chat-converse-room" value={roomId} onChange={(e) => setRoomId(e.target.value)}>
               <option value="">Pick a room…</option>
               {rooms.rooms.map((room) => (
                 <option key={room.id} value={room.id}>
@@ -333,11 +333,11 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
             </div>
           )}
           <div className="field">
-            <label className="field-label" htmlFor="hall-converse-name">
+            <label className="field-label" htmlFor="chat-converse-name">
               Call it what?
             </label>
             <input
-              id="hall-converse-name"
+              id="chat-converse-name"
               value={name}
               maxLength={90}
               onChange={(e) => setName(e.target.value)}
@@ -379,10 +379,10 @@ function WordDialog({ title, word, help, danger, onClose, onSubmit, pending, err
     <Modal open title={title} onClose={onClose}>
       <p className="text-sm text-muted">{help}</p>
       <div className="field">
-        <label className="field-label" htmlFor="hall-word">
+        <label className="field-label" htmlFor="chat-word">
           Type {word} to confirm
         </label>
-        <input id="hall-word" value={typed} maxLength={16} onChange={(e) => setTyped(e.target.value)} />
+        <input id="chat-word" value={typed} maxLength={16} onChange={(e) => setTyped(e.target.value)} />
       </div>
       <FormError>{error}</FormError>
       <div className="modal-actions">
@@ -491,10 +491,10 @@ function IntercomDialog({ entry, onClose, onDone }) {
         Heard in every zone that has a speaker, and everyone is pinged. Nobody is told who spoke. ‡
       </p>
       <div className="field">
-        <label className="field-label" htmlFor="hall-pa">
+        <label className="field-label" htmlFor="chat-pa">
           What goes out
         </label>
-        <textarea id="hall-pa" rows={3} value={body} maxLength={1000} onChange={(e) => setBody(e.target.value)} />
+        <textarea id="chat-pa" rows={3} value={body} maxLength={1000} onChange={(e) => setBody(e.target.value)} />
       </div>
       <FormError>{error}</FormError>
       <div className="modal-actions">

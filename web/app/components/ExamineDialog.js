@@ -19,7 +19,7 @@ import { peopleToExamine, examineCharacter } from "@/app/(app)/character/examine
 // current rather than baked into the page render; the readout loads when a
 // name is picked, so opening the dialog never fetches everybody's sheet.
 //
-// `targetId` skips the picker. The Hall opens this from a person's row in HERE
+// `targetId` skips the picker. Chat opens this from a person's row in HERE
 // and from a line in the feed, where the reader has already said who they mean
 // — asking them to find that same person again in a dropdown would be a worse
 // dialog than the sheet's. It is only a shortcut past the ROSTER: the readout

@@ -2,7 +2,7 @@
 // front of it: the open turn, the move window, the one-Move-a-turn rule, the
 // incapacitation block and Labor's rate. It came out of the bot's Move modal
 // submit handler, which was the only place in the game that knew how to file
-// one — so the Hall's Move dialog could only ever have been a second copy.
+// one — so Chat's Move dialog could only ever have been a second copy.
 //
 // It writes no Discord and composes no confirmation: the bot's `confirmMove`
 // still writes the DM's lines, and the web renders its own. What comes back

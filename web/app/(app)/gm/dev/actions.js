@@ -380,7 +380,7 @@ export async function wipeGameData(formData) {
       prisma.gameState.create({ data: { id: 1, gameId: nextGame.id } }),
     ]);
     forgetGameId();
-    // The Hall reads past a finished game by seq (db/lib/feedWipe.js); drop
+    // Chat reads past a finished game by seq (db/lib/feedWipe.js); drop
     // the memo so it empties now rather than in half a minute.
     forgetGameFloor();
 

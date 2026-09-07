@@ -96,7 +96,7 @@ export function dmPreview(genuine, latest, myDiscordUserId) {
   return { preview: "", previewIsSystem: false };
 }
 
-// What the Hall hands a PLAYER about their own conversation (HALL.md §2b): the
+// What Chat hands a PLAYER about their own conversation (CHAT.md §2b): the
 // row minus who wrote it. `authorDiscordUserId` is deliberately not selected —
 // a player never learns which GM answered, on either face. One select and one
 // shape, read by the feed hub's live fan-out and by play/actions.js#gmThread,

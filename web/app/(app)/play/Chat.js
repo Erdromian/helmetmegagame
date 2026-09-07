@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { useRouter } from "next/navigation";
 import EmptyState from "@/app/components/EmptyState";
 import Modal from "@/app/components/Modal";
-import HallAside from "./HallAside";
+import ChatAside from "./ChatAside";
 import HereList from "./HereList";
 import PlacesColumn, { PlacesTabs } from "./PlacesColumn";
 import useAsideFolded from "./useAsideFolded";
@@ -16,7 +16,7 @@ import NoticeCards from "./NoticeCards";
 import { ConverseDialog } from "./PlacePanel";
 import { addMember } from "./actions";
 import { playChime, chimedRecently } from "@/app/components/chime";
-import useHallChimeMuted, { hallChimeMuted } from "@/app/components/useHallChimeMuted";
+import useChatChimeMuted, { chatChimeMuted } from "@/app/components/useChatChimeMuted";
 import { useSeen, markSeen, seedSeenIfFresh } from "./seenStore";
 import { noteTyping } from "./typingStore";
 import { usePushState, initPush, togglePush } from "./pushStore";
@@ -33,10 +33,10 @@ import {
   historyLoaded,
 } from "./feedStore";
 
-// The Hall: everywhere this character can hear, and one of them open.
+// Chat: everywhere this character can hear, and one of them open.
 //
 // ONE EventSource for the whole tab, not one per place. Phase 0 opened a
-// stream per place, which was fine when there was one; a Hall has a Location,
+// stream per place, which was fine when there was one; a Chat has a Location,
 // its Rooms, the conversations you are in and the zone summary, and a browser
 // allows six connections per origin. So `/api/feed?since=` carries every place
 // the viewer may read and says which those are with its own `places` event —
@@ -61,7 +61,7 @@ function readServerHash() {
   return "";
 }
 
-// How many places a player's Hall warms in the background before it stops.
+// How many places a player's Chat warms in the background before it stops.
 // See the prefetch effect for why there is a ceiling at all.
 const PREFETCH_LIMIT = 12;
 
@@ -74,7 +74,7 @@ function decodeHash(hash) {
   }
 }
 
-export default function Hall({
+export default function Chat({
   initialPlaces,
   initialPlace,
   initialRows,
@@ -122,7 +122,7 @@ export default function Hall({
   // through the hash like any other, and nothing that reads a feed can ever
   // match it.
   const factionKey = faction ? `faction:${faction.id}` : null;
-  // And Bascinet's: the DM conversation, the same kind of pseudo-key (HALL.md
+  // And Bascinet's: the DM conversation, the same kind of pseudo-key (CHAT.md
   // §2b). Its "newest seq" is epoch ms — seenStore compares BigInt strings,
   // and epoch ms is one — so the dot works without seenStore knowing.
   const dmState = useDmState();
@@ -177,7 +177,7 @@ export default function Hall({
 
   const onSeen = useCallback((placeKey, seq) => markSeen(placeKey, seq), []);
 
-  // A browser opening the Hall for the first time starts caught up rather
+  // A browser opening Chat for the first time starts caught up rather
   // than with a dot beside everywhere it can hear. In a state INITIALIZER, so
   // it has run before the first client paint — from an effect it ran after
   // it, and every place flashed its unread dot for a frame on a first visit.
@@ -219,7 +219,7 @@ export default function Hall({
   // The phone's ⋯ sheet. The right column has no room to stand on a narrow
   // screen (under 900px, useAsideFolded.js), so it comes up over the scene instead — the same three panels,
   // rendered by the same component.
-  const [chimeMuted, setChimeMuted] = useHallChimeMuted();
+  const [chimeMuted, setChimeMuted] = useChatChimeMuted();
 
   const asideFolded = useAsideFolded();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -237,9 +237,9 @@ export default function Hall({
   //
   // `/travel` and `/converse` cannot be server actions: one picks a node in
   // the Travel grid and one opens a dialog, and both of those live in the
-  // right column, which on a phone is not even mounted. Hall.js owns both
+  // right column, which on a phone is not even mounted. Chat.js owns both
   // sides, so the callbacks are handed down to Feed.js and the state is
-  // handed up to HallAside.
+  // handed up to ChatAside.
   //
   //   travelPick   { locationId, at } — `at` is a timestamp so picking the
   //                same node twice re-opens the confirm strip.
@@ -359,14 +359,14 @@ export default function Hall({
           setPlacesVersion((n) => n + 1);
         }
         // Somebody said your name. The token is what the row is made of on
-        // both faces (HALL.md §5), so this rings for a Discord-origin mention
+        // both faces (CHAT.md §5), so this rings for a Discord-origin mention
         // exactly as it does for a web one — and never for your own words.
         if (
           self?.characterId &&
           row.characterId !== self.characterId &&
           typeof row.content === "string" &&
           row.content.includes(`{char:${self.characterId}}`) &&
-          !hallChimeMuted() &&
+          !chatChimeMuted() &&
           !chimedRecently()
         ) {
           playChime(0.35);
@@ -432,7 +432,7 @@ export default function Hall({
         addDmRow(row);
         // Quiet only while the pane is open AND somebody is looking at it.
         const reading = selectedRef.current === DM_PLACE_KEY && document.visibilityState === "visible";
-        if (row?.direction === "OUTBOUND" && !reading && !hallChimeMuted() && !chimedRecently()) {
+        if (row?.direction === "OUTBOUND" && !reading && !chatChimeMuted() && !chimedRecently()) {
           playChime(0.35);
         }
       } catch {
@@ -484,7 +484,7 @@ export default function Hall({
 
   // PREFETCH. After the first paint, every OTHER place's backlog is fetched
   // one at a time, so opening a room is instant rather than a skeleton and a
-  // round trip. One at a time on purpose — a Hall has a Location, its rooms,
+  // round trip. One at a time on purpose — a Chat has a Location, its rooms,
   // the conversations you are in and the summary, and firing six requests at
   // once would compete with the thing the reader is actually looking at.
   //
@@ -492,9 +492,9 @@ export default function Hall({
   // conversations and a summary — small enough to walk. A GM's list is every
   // zone, every Location and every Room they may watch, which is two hundred
   // and more, and each one of those is a `findMany` of a hundred rows plus an
-  // avatar pass. Warming a hall a GM will open one room of is a storm the
+  // avatar pass. Warming a Chat a GM will open one room of is a storm the
   // database pays for and nobody sees, so a GM fetches on selection like the
-  // Hall always did. And even for a player it is CAPPED: a well-connected
+  // Chat always did. And even for a player it is CAPPED: a well-connected
   // character can sit in a lot of conversations, and past a dozen the warmth
   // is not worth the requests.
   useEffect(() => {
@@ -549,7 +549,7 @@ export default function Hall({
 
   if (places.length === 0) {
     return (
-      <div className="hall-body hall-body--empty">
+      <div className="chat-body chat-body--empty">
         <div className="panel">
           <EmptyState>You are nowhere yet.</EmptyState>
         </div>
@@ -558,7 +558,7 @@ export default function Hall({
   }
 
   return (
-    <div className="hall-body">
+    <div className="chat-body">
       <PlacesColumn
         places={navPlaces}
         selected={selectedKey}
@@ -570,7 +570,7 @@ export default function Hall({
         onToggleChime={setChimeMuted}
         push={push.supported ? { on: push.on, busy: push.busy, onToggle: togglePush } : null}
       />
-      <div className="hall-centre">
+      <div className="chat-centre">
         <PlacesTabs places={navPlaces} selected={selectedKey} seen={seen} newest={newest} onSelect={onSelect} />
         {/* On a phone the people are an avatar strip under the place header,
             opening the same per-person menu the column's rows do. It draws
@@ -620,11 +620,11 @@ export default function Hall({
           phone, which meant two travel loads, two stash reads and two
           separate answers about what can be worked here. */}
       {aside && !asideFolded && (
-        <aside className="hall-aside">
+        <aside className="chat-aside">
           {/* The OPEN place, so the room panel knows which room's storage and
               fixtures to draw — the whole reason the Council Room's Intercom
               used to show up in the Kitchens. */}
-          <HallAside
+          <ChatAside
             {...aside}
             selected={selected}
             onPlaceChanged={bumpBoard}
@@ -647,8 +647,8 @@ export default function Hall({
         />
       )}
       {aside && asideFolded && sheetOpen && (
-        <Modal open title="Here" onClose={closeSheet} panelClassName="modal-panel hall-sheet">
-          <HallAside
+        <Modal open title="Here" onClose={closeSheet} panelClassName="modal-panel chat-sheet">
+          <ChatAside
             {...aside}
             selected={selected}
             onPlaceChanged={bumpBoard}

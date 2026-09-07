@@ -11,7 +11,7 @@ import { useSyncExternalStore } from "react";
 //
 // CSS already hides the column there, but hiding is not unmounting — both
 // copies were mounting, so a phone ran two TravelNodes loads, two stash reads
-// and two affordance states against one screen. Hall.js renders ONE of them
+// and two affordance states against one screen. Chat.js renders ONE of them
 // off this hook, and the CSS rule stays as belt and braces.
 //
 // Mirrors web/app/components/useIsCoarsePointer.js: a media query is exactly

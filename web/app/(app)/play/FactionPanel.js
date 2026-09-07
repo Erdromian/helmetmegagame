@@ -31,46 +31,46 @@ export default function FactionPanel({ faction, siloOpen = false, onSelect = nul
   const roster = faction.roster ?? [];
 
   return (
-    <div className="hall-main">
-      <div className="hall-head">
+    <div className="chat-main">
+      <div className="chat-head">
         <h1 className="section-title">{faction.name}</h1>
         <Link className="btn btn-quiet" href="/faction">
           Faction page ›
         </Link>
       </div>
-      <div className="hall-feed">
-        <p className="hall-quiet-line">{faction.roleLine}</p>
+      <div className="chat-feed">
+        <p className="chat-quiet-line">{faction.roleLine}</p>
 
         {/* The silo, when its door is open to this character. A shut door
             keeps the room out of the viewer's own place list entirely, and a
             button that selects a place they cannot read would only ever be a
             dead end — so it draws as a line instead. */}
         {faction.silo && (
-          <div className="hall-buttons">
+          <div className="chat-buttons">
             {siloOpen && onSelect ? (
               <button type="button" className="btn" onClick={() => onSelect(faction.silo.placeKey)}>
                 {faction.silo.name} ›
               </button>
             ) : (
-              <p className="hall-quiet-line">The silo is {faction.silo.name}.</p>
+              <p className="chat-quiet-line">The silo is {faction.silo.name}.</p>
             )}
           </div>
         )}
 
-        <p className="hall-section-title">Members · {roster.length}</p>
+        <p className="chat-section-title">Members · {roster.length}</p>
         {roster.length === 0 ? (
           <EmptyState>Nobody living is in it. ‡</EmptyState>
         ) : (
           roster.map((member) => (
-            <div key={member.characterId} className="hall-person-row">
-              <span className="hall-person">
+            <div key={member.characterId} className="chat-person-row">
+              <span className="chat-person">
                 <CharacterAvatar
                   characterId={member.characterId}
                   name={member.name}
                   version={member.avatarVersion}
                   catatonic={member.catatonic}
                 />
-                <span className="hall-person-name">
+                <span className="chat-person-name">
                   {member.name}
                   {marks(member).length > 0 && (
                     <span className="text-muted"> · {marks(member).join(" · ")}</span>

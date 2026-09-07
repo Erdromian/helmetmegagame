@@ -84,7 +84,7 @@ module.exports = {
       //
       // Loud on purpose. This insert used to fail into an empty catch, and the
       // first sign anything was wrong was a player saying their message to
-      // Bascinet never reached the web (HALL.md §2b). One line per DM is cheap.
+      // Bascinet never reached the web (CHAT.md §2b). One line per DM is cheap.
       console.log(`[dm] inbound from ${message.author.id} (${content.length} chars)`);
       await prisma.directMessage
         .create({
@@ -270,7 +270,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
           create: { threadId: channel.id, characterId: target.id },
         })
         .catch((err) => console.error("Failed to record thread invite:", err));
-      // A "web only" target has no Discord presence to add (HALL.md §6) — the
+      // A "web only" target has no Discord presence to add (CHAT.md §6) — the
       // membership row above is the invite, and they read it on /play.
       if (target.locationId === conversation.locationId && !target.webOnly) {
         await channel.members.add(target.discordUserId).catch((err) =>

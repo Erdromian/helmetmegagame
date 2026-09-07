@@ -14,7 +14,7 @@
 //
 // UNCONFIGURED IS THE NORMAL CASE. Without VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY
 // and VAPID_SUBJECT set, every function here is a no-op and the toggle in the
-// Hall never draws (the key route answers 404). See HALL.md §5a and
+// Chat never draws (the key route answers 404). See CHAT.md §5a and
 // .env.example; generate a pair with `npx web-push generate-vapid-keys`.
 
 const webpush = require("web-push");

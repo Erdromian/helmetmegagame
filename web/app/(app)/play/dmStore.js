@@ -10,7 +10,7 @@ import { useSyncExternalStore } from "react";
 // Much smaller than feedStore.js on purpose. There is one conversation, not a
 // map of places; rows are keyed by the row's own id rather than a seq, because
 // DirectMessage has no seq and this store never has to agree with a cursor —
-// the pane refetches its page on open and after a reconnect (HALL.md §2b),
+// the pane refetches its page on open and after a reconnect (CHAT.md §2b),
 // and a row that arrives twice is the same id twice.
 //
 // Every rebuild makes a new array. react-hooks/immutability is an error in
@@ -113,7 +113,7 @@ export function seedNewestOutbound(ms) {
   if (!Number.isFinite(n)) return;
   if (state.newestOutboundMs !== null && state.newestOutboundMs >= n) return;
   state.newestOutboundMs = n;
-  // Called from Hall.js's state INITIALIZER, i.e. during a render, before
+  // Called from Chat.js's state INITIALIZER, i.e. during a render, before
   // anything has subscribed — so nobody is notified here and nobody needs to
   // be: useSyncExternalStore reads the snapshot when it subscribes.
   rebuild();

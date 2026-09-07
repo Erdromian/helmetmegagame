@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-// Whether the Hall's mention chime is muted, persisted per-browser.
+// Whether Chat's mention chime is muted, persisted per-browser.
 //
 // A sibling of useChimeMuted.js rather than a reuse of it: that one is the GM
 // inbox's, on the `gm-chime-muted` key, and the two are different people
@@ -13,6 +13,8 @@ import { useCallback, useSyncExternalStore } from "react";
 // (react-hooks/set-state-in-effect is an error in this repo), and every access
 // wrapped: a private window can throw on the getter itself.
 
+// The old name survives in the key on purpose (a stored key is matched on,
+// not read); renaming it would un-mute every bell that was muted.
 const KEY = "hall-chime-muted";
 
 function subscribe(callback) {
@@ -36,7 +38,7 @@ function readServer() {
 // the moment a row lands. A ref mirroring the hook's value would have been
 // the obvious shape and is not allowed here (react-hooks/refs), and it would
 // have been a second copy of a value localStorage already holds.
-export function hallChimeMuted() {
+export function chatChimeMuted() {
   if (typeof window === "undefined") return false;
   return read();
 }
@@ -52,7 +54,7 @@ function write(muted) {
   }
 }
 
-export default function useHallChimeMuted() {
+export default function useChatChimeMuted() {
   const muted = useSyncExternalStore(subscribe, read, readServer);
   const setMuted = useCallback((next) => write(next), []);
   return [muted, setMuted];

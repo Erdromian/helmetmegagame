@@ -155,7 +155,7 @@ async function handleNoticeTear(interaction, locationId) {
     // already committed (ARCHITECTURE.md §5).
     await postMessage(ctx.location.discordChannelId, ambientLine(tornLine(post.tag.name))).catch(() => {});
   }
-  // Beside the post, so the Hall sees the board change too.
+  // Beside the post, so Chat sees the board change too.
   await sceneLineAt(prisma, { locationId: ctx.location.id, text: tornLine(post.tag.name) });
   return respond(interaction, { content: `You take ${post.tag.name} down.`, ephemeral: true });
 }

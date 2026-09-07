@@ -408,7 +408,7 @@ so the handlers need no channel→Location lookup; change a prefix in that
 file and you must change it in `interactionCreate.js` too.
 
 - **Who's here?** (`handleWhosHere`) lists everyone `ALIVE` and standing in
-  this Location. Since phase 3 of the Hall the rule itself is
+  this Location. Since phase 3 of Chat the rule itself is
   **`db/lib/whosHere.js#whosHere`**, and the handler only speaks the answer —
   `/play`'s people column reads the same function, so the street and the page
   cannot disagree about who a stranger is. Named characters first (with their `roleTitle` shown to a
@@ -635,7 +635,7 @@ could ever name.
 `handleGateToggle`, `handleKeyedPrompt`, `handleMoveSubmit` and
 `handleWhosHere` hold no game logic any more. Each acknowledges, calls one
 `db/lib` function (`gates.js`, `gates.js`, `moves.js`, `whosHere.js`) and
-says the sentence that comes back — the Hall's dialogs call the same
+says the sentence that comes back — Chat's dialogs call the same
 functions, so a rule can no longer be true on one face and not the other.
 The one thing that stays bot-side is the **anchor redraw** after a gate
 flips: `refreshLocationAnchor` and `refreshGateRooms` edit Discord messages
@@ -647,14 +647,14 @@ long-lived listener for one message. ‡
 
 ## 6a. The web twins
 
-Every **player** command in §2 now has a web twin in the Hall's composer
-(`HALL.md` §5). Typing `/` at the start of the box opens the same list; the
+Every **player** command in §2 now has a web twin in Chat's composer
+(`CHAT.md` §5). Typing `/` at the start of the box opens the same list; the
 registry is `web/app/(app)/play/commands.js`, and each entry lands on a server
 action in `web/app/(app)/play/actions.js`.
 
 That matters for three of them in particular. `/conceal`, `/shout` and `/roll`
 were **guild-only and Discord-only**, which meant a character on the "web only"
-switch (`HALL.md` §6a) had no way to hide their face, yell, or roll a die at
+switch (`CHAT.md` §6a) had no way to hide their face, yell, or roll a die at
 all. The web is not a second implementation of any of them: the rule was pulled
 out of the handler into `db/lib` and both faces call it.
 
@@ -678,13 +678,13 @@ two things run in parallel and are worth knowing about:
   batch that added this carried no migration. A player who shouts on Discord
   and then on the web can beat the timer once, until the rewiring.
 - **`/roll` records nothing on the bot's side.** `castDie` writes a `SYSTEM`
-  archive row so the Hall and `/archive` both see the die; the bot's handler
+  archive row so Chat and `/archive` both see the die; the bot's handler
   still posts a plain message that no row remembers.
 
 **Where each of the three may be typed on the web.** `/shout` runs in a
 Location, a Room and a conversation — the street included, which is the whole
 point of it, and which is why the street has a command-only composer at all
-(`HALL.md` §5). `/roll` runs in a Room and a conversation. Neither runs in the
+(`CHAT.md` §5). `/roll` runs in a Room and a conversation. Neither runs in the
 zone summary: that is a broadcast rather than a place anybody stands in, and a
 die cast into one has no audience to see it thrown.
 
@@ -719,7 +719,7 @@ Two smaller rules on the same pair:
 | `bot/src/lib/locationTravel.js` | The Location picker/drag/confirm rows, the pending-drag map, `performMove` |
 | `db/lib/locationTravel.js` | `performLocationMove` — validation, the cooldown or the Move, dragging (`MAP.md` §3) |
 | `db/lib/locationMove.js` | `applyLocationMoveSideEffects` — the Discord half of a move, shared by bot and web (`MAP.md` §4) |
-| `db/lib/placeAffordances.js` | **The affordance catalog** — the label and the predicate for every place-bound button, plus `affordancesFor(prisma, character)` for the Hall's place panel. Both row builders below read it, so a new button is one entry |
+| `db/lib/placeAffordances.js` | **The affordance catalog** — the label and the predicate for every place-bound button, plus `affordancesFor(prisma, character)` for Chat's place panel. Both row builders below read it, so a new button is one entry |
 | `db/lib/locationAnchorRow.js` | The anchor buttons as Discord component JSON, styled off the catalog's tones |
 | `db/lib/roomStarterRow.js` | A Room starter's buttons, the same way |
 | `db/lib/gates.js` | `toggleGate` / `holdKeyedOpen` — the transactional flip and the 24-hour hold, shared with `/play` |
@@ -731,7 +731,7 @@ Two smaller rules on the same pair:
 | `db/lib/conceal.js` | `toggleConceal` — `/conceal`'s rule, both faces (§6a) |
 | `db/lib/shout.js` | `shoutLine` / `shoutParts` / `shout` — what a shout sounds like at N hops, and who hears it (§6a) |
 | `db/lib/roll.js` | `castDie` — one d6 as a `SYSTEM` archive row beside its Discord post (§6a) |
-| `web/app/(app)/play/commands.js` | The web twin registry the Hall's composer reads (§6a) |
+| `web/app/(app)/play/commands.js` | The web twin registry Chat's composer reads (§6a) |
 | `bot/src/lib/converseModal.js` | The Converse modal |
 | `bot/src/lib/whisperPoll.js` | The 15-minute Room whisper cron |
 | `bot/src/lib/moveConfirm.js` | Resolving a Move |

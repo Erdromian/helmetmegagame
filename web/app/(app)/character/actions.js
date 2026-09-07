@@ -46,7 +46,7 @@ export async function updateCharacterProfile(_prevState, formData) {
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const turnPingOptIn = formData.get("turnPingOptIn") === "on";
-  // "Play from the web" (docs/systemdocs/HALL.md §6). NOT written with the rest
+  // "Play from the web" (docs/systemdocs/CHAT.md §6). NOT written with the rest
   // of the form: flipping it is a burst of Discord work on its own cooldown, so
   // it goes through db/lib/webOnly.js#setWebOnly below and only when the value
   // actually changed — saving the Bio card twice must not spend the cooldown.
@@ -113,7 +113,7 @@ export async function updateCharacterProfile(_prevState, formData) {
   // rest of the save STANDS — the appearance the player just typed is not
   // thrown away because a cooldown had two minutes left on it.
   let webOnlyError = null;
-  // While the Hall is off (GameConfig.playPanelEnabled) the switch is drawn
+  // While Chat is off (GameConfig.playPanelEnabled) the switch is drawn
   // only for a player who is ALREADY web-only, so they can come back
   // (AvatarField.js). For everyone else the form carries no value — and a
   // missing checkbox reads as "off", not "unchanged" — so the field is ignored

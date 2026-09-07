@@ -78,7 +78,7 @@
   /* The Chat row's avatar column: the face itself, the skeleton's stand-in,
      and the indent under it that lines the world's `-#` lines up with the
      text rather than the face. Three places that must agree. */
-  --hall-face: 32px;
+  --chat-face: 32px;
 
   /* Elevation. --e-1 is border-only and intentionally has no shadow. */
   --e-2: 0 2px 6px var(--shadow-color);
@@ -95,7 +95,7 @@
   --border: rgba(168, 198, 194, 0.31);
   --text: #efe7d6;
 
-  /* Quoted speech in a Hall row (HALL.md §5). A warm lift of --text, not a
+  /* Quoted speech in a Chat row (CHAT.md §5). A warm lift of --text, not a
      second accent: the tint says "these are the words somebody actually
      said", and a hue that competed with --accent would read as a link.
      Gated at AA against --surface by audit-contrast.js like every other
@@ -148,7 +148,7 @@
   --border: rgba(224, 203, 172, 0.28);
   --text: #f3eada;
 
-  /* Quoted speech in a Hall row (HALL.md §5). A warm lift of --text, not a
+  /* Quoted speech in a Chat row (CHAT.md §5). A warm lift of --text, not a
      second accent: the tint says "these are the words somebody actually
      said", and a hue that competed with --accent would read as a link.
      Gated at AA against --surface by audit-contrast.js like every other
@@ -199,7 +199,7 @@
   --border: rgba(74, 66, 56, 0.39);
   --text: #22201c;
 
-  /* Quoted speech in a Hall row (HALL.md §5). A warm lift of --text, not a
+  /* Quoted speech in a Chat row (CHAT.md §5). A warm lift of --text, not a
      second accent: the tint says "these are the words somebody actually
      said", and a hue that competed with --accent would read as a link.
      Gated at AA against --surface by audit-contrast.js like every other
@@ -2322,7 +2322,7 @@ input[type="radio"]:disabled {
    chip is a second copy there — and at phone widths it sat exactly on the
    composer's ⋯, which is why the sheet could not be opened. The (app) layout
    mounts the chip for every route, so it is hidden here rather than there. */
-body:has(.hall-shell) .turn-chip {
+body:has(.chat-shell) .turn-chip {
   display: none;
 }
 
@@ -3688,9 +3688,9 @@ label.chip {
 
 /* DmThread caps its own height for the adjudication inspector, where it is
    one tab among four. Here it IS the pane, and the pane owns the scroll — on
-   the GM desk, and in the Hall's Bascinet pane (play/DmPane.js) alike. */
+   the GM desk, and in Chat's Bascinet pane (play/DmPane.js) alike. */
 .desk-convo-thread .dm-thread,
-.hall-dm .dm-thread {
+.chat-dm .dm-thread {
   min-height: 0;
   max-height: none;
   overflow-y: visible;
@@ -4742,13 +4742,13 @@ label.chip {
   border-radius: var(--r-md);
 }
 
-/* ---- The Hall (/play) ------------------------------------------------- */
+/* ---- Chat (/play) ------------------------------------------------- */
 
-/* The Hall owns its whole screen, the way the (desk) workspaces do: no
+/* Chat owns its whole screen, the way the (desk) workspaces do: no
    PageShell, no centred column. A chat that scrolled the DOCUMENT would drag
    the header off the top every time somebody spoke, so the shell is exactly
    the viewport and its three regions scroll inside it. */
-.hall-shell {
+.chat-shell {
   display: flex;
   flex-direction: column;
   height: 100dvh;
@@ -4756,27 +4756,27 @@ label.chip {
   background: var(--bg);
 }
 
-.hall-body {
+.chat-body {
   flex: 1;
   min-height: 0;
   display: grid;
   grid-template-columns: 15rem minmax(0, 1fr) 20rem;
 }
 
-.hall-body--empty {
+.chat-body--empty {
   display: block;
   overflow-y: auto;
   padding: var(--sp-4);
 }
 
-.hall-places,
-.hall-centre,
-.hall-aside {
+.chat-places,
+.chat-centre,
+.chat-aside {
   min-height: 0;
   min-width: 0;
 }
 
-.hall-places {
+.chat-places {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -4784,7 +4784,7 @@ label.chip {
   padding: var(--sp-3) 0;
 }
 
-.hall-aside {
+.chat-aside {
   overflow-y: auto;
   border-left: 1px solid var(--border);
   padding: var(--sp-3);
@@ -4792,28 +4792,28 @@ label.chip {
 
 /* The "Playing from the web" chip, in the foot beside the chime toggle. The
    foot is a flex row and carries the padding now, so the chip carries none. */
-.hall-webonly {
+.chat-webonly {
   margin: 0;
 }
 
 /* The centre is itself a column: the phone's tab strip, then the scene. */
-.hall-centre {
+.chat-centre {
   display: flex;
   flex-direction: column;
 }
 
-.hall-main {
+.chat-main {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
-.hall-section {
+.chat-section {
   margin-bottom: var(--sp-3);
 }
 
-.hall-section-title {
+.chat-section-title {
   font-size: var(--fs-2xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -4825,8 +4825,8 @@ label.chip {
 /* A place row and a person row are the same button — a full-width flex
    line with one focus ring — and differ only in padding, colour and the
    active bar. One base, two skins. */
-.hall-place,
-.hall-person {
+.chat-place,
+.chat-person {
   all: unset;
   cursor: pointer;
   display: flex;
@@ -4837,15 +4837,15 @@ label.chip {
   font-size: var(--fs-sm);
 }
 
-.hall-place:focus-visible,
-.hall-person:focus-visible {
+.chat-place:focus-visible,
+.chat-person:focus-visible {
   outline: 2px solid var(--accent-text);
   outline-offset: -2px;
 }
 
-.hall-place-name,
-.hall-person-name,
-.hall-node-zone {
+.chat-place-name,
+.chat-person-name,
+.chat-node-zone {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -4853,7 +4853,7 @@ label.chip {
   white-space: nowrap;
 }
 
-.hall-place {
+.chat-place {
   padding: var(--sp-1) var(--sp-3);
   color: var(--muted);
   border-left: 2px solid transparent;
@@ -4862,19 +4862,19 @@ label.chip {
 /* A room row wrapped in a HoverCard so its description shows on hover
    (PlacesColumn.js). The wrapper has to be a full-width block in the
    column's own face — .tag-hover is inline-flex in mono for chips. */
-.hall-place-hover {
+.chat-place-hover {
   display: block;
   width: 100%;
   font-family: inherit;
 }
 
-.hall-tip-name {
+.chat-tip-name {
   display: block;
   font-weight: 600;
   margin-bottom: var(--sp-1);
 }
 
-.hall-tip-desc {
+.chat-tip-desc {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 6;
@@ -4883,12 +4883,12 @@ label.chip {
   color: var(--muted);
 }
 
-.hall-place:hover {
+.chat-place:hover {
   color: var(--text);
   background: var(--surface);
 }
 
-.hall-place[data-active="true"] {
+.chat-place[data-active="true"] {
   color: var(--accent-text);
   background: var(--surface);
   border-left-color: var(--accent-text);
@@ -4896,13 +4896,13 @@ label.chip {
 
 /* Fixed width so every label starts on the same column whether or not its
    place carries a glyph. */
-.hall-glyph {
+.chat-glyph {
   width: 0.75rem;
   flex-shrink: 0;
   text-align: center;
 }
 
-.hall-dot {
+.chat-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -4911,7 +4911,7 @@ label.chip {
   margin-left: var(--sp-2);
 }
 
-.hall-head {
+.chat-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4921,13 +4921,13 @@ label.chip {
   flex-shrink: 0;
 }
 
-.hall-quiet {
+.chat-quiet {
   flex: 1;
   font-size: var(--fs-sm);
   color: var(--muted);
 }
 
-.hall-feed {
+.chat-feed {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -4935,7 +4935,7 @@ label.chip {
 }
 
 
-.hall-row {
+.chat-row {
   display: flex;
   gap: var(--sp-3);
   /* A run of lines from one speaker sits tight; the first line of a new run
@@ -4948,17 +4948,17 @@ label.chip {
   /* A line does not blink into existence, it arrives. 80ms is under the
      threshold where it reads as an animation at all — it just stops the
      jump. */
-  animation: hall-row-in 80ms ease-out;
+  animation: chat-row-in 80ms ease-out;
 }
 
-@keyframes hall-row-in {
+@keyframes chat-row-in {
   from {
     opacity: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hall-row {
+  .chat-row {
     animation: none;
   }
 }
@@ -4969,7 +4969,7 @@ label.chip {
    pushed the sentence left every time the mouse crossed the row. Lifted
    slightly above the row so it reads as belonging to the line it is over
    rather than to the line above it. */
-.hall-row-actions {
+.chat-row-actions {
   position: absolute;
   right: var(--sp-2);
   top: -10px;
@@ -4985,7 +4985,7 @@ label.chip {
 /* Discord's red line: everything below it arrived since you last had this
    place open. A rule with its label at the right-hand end, where the eye
    leaves the row above it. */
-.hall-new-line {
+.chat-new-line {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
@@ -4995,7 +4995,7 @@ label.chip {
   color: var(--danger);
 }
 
-.hall-new-line::before {
+.chat-new-line::before {
   content: "";
   flex: 1;
   height: 1px;
@@ -5004,29 +5004,29 @@ label.chip {
 
 /* A row a search hit took the reader to. A flash and then nothing: the point
    is to say WHICH line, not to leave it marked. */
-.hall-row[data-run="start"] {
+.chat-row[data-run="start"] {
   margin-top: var(--sp-3);
 }
 
 /* A pending row is the same row, quieter. */
-.hall-row[data-pending] {
+.chat-row[data-pending] {
   opacity: 0.6;
 }
 
 /* The avatar column. The face draws only on the first line of a run; the
    column keeps its width on every line so the text stays aligned. */
-.hall-row-face {
-  width: var(--hall-face);
+.chat-row-face {
+  width: var(--chat-face);
   flex-shrink: 0;
 }
 
-.hall-row[data-hit="true"],
-.hall-subtext[data-hit="true"] {
-  animation: hall-hit 2s ease-out;
+.chat-row[data-hit="true"],
+.chat-subtext[data-hit="true"] {
+  animation: chat-hit 2s ease-out;
   border-radius: var(--r-sm);
 }
 
-@keyframes hall-hit {
+@keyframes chat-hit {
   from {
     background: var(--accent-soft);
   }
@@ -5036,8 +5036,8 @@ label.chip {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hall-row[data-hit="true"],
-  .hall-subtext[data-hit="true"] {
+  .chat-row[data-hit="true"],
+  .chat-subtext[data-hit="true"] {
     animation: none;
     background: var(--accent-soft);
   }
@@ -5047,22 +5047,22 @@ label.chip {
    the scene, so nothing has to claim the place is empty and then take it
    back a frame later. No text in them at all — a skeleton that says words
    is a skeleton somebody tries to read. */
-.hall-skeleton {
+.chat-skeleton {
   display: flex;
   gap: var(--sp-3);
   margin-top: var(--sp-3);
   opacity: 0.5;
 }
 
-.hall-skeleton-face {
-  width: var(--hall-face);
-  height: var(--hall-face);
+.chat-skeleton-face {
+  width: var(--chat-face);
+  height: var(--chat-face);
   flex-shrink: 0;
   border-radius: 50%;
   background: var(--row-hover);
 }
 
-.hall-skeleton-lines {
+.chat-skeleton-lines {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
@@ -5071,20 +5071,20 @@ label.chip {
   padding-top: 4px;
 }
 
-.hall-skeleton-bar {
+.chat-skeleton-bar {
   height: 8px;
   border-radius: var(--r-sm);
   background: var(--row-hover);
 }
 
-.hall-skeleton-bar[data-w="short"] {
+.chat-skeleton-bar[data-w="short"] {
   width: 30%;
 }
 
 /* Search, under the feed header. A bar rather than a dialog: the results are
    places to go in the scene behind them, and a modal would cover the thing
    being searched. */
-.hall-search {
+.chat-search {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
@@ -5094,13 +5094,13 @@ label.chip {
   flex-shrink: 0;
 }
 
-.hall-search-results {
+.chat-search-results {
   max-height: 16rem;
   overflow-y: auto;
   margin: 0;
 }
 
-.hall-search-row {
+.chat-search-row {
   display: block;
   width: 100%;
   text-align: left;
@@ -5112,25 +5112,25 @@ label.chip {
   color: inherit;
 }
 
-.hall-search-row:hover,
-.hall-search-row:focus-visible {
+.chat-search-row:hover,
+.chat-search-row:focus-visible {
   background: var(--row-hover);
 }
 
-.hall-search-who {
+.chat-search-who {
   font-size: var(--fs-sm);
   font-weight: 600;
   margin-right: var(--sp-2);
 }
 
-.hall-search-where,
-.hall-search-when {
+.chat-search-where,
+.chat-search-when {
   font-size: var(--fs-2xs);
   color: var(--muted);
   margin-right: var(--sp-2);
 }
 
-.hall-search-snip {
+.chat-search-snip {
   display: block;
   font-size: var(--fs-xs);
   color: var(--muted);
@@ -5145,7 +5145,7 @@ label.chip {
    only find by scrolling back to the beginning of the day is not a notice.
    The opaque background and the rule under it are what keep the scene from
    showing through as it passes beneath. */
-.hall-notices {
+.chat-notices {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -5158,14 +5158,14 @@ label.chip {
   margin-bottom: var(--sp-3);
 }
 
-.hall-notice-card {
+.chat-notice-card {
   padding: var(--sp-2) var(--sp-3);
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
 }
 
-.hall-notice-card-title {
+.chat-notice-card-title {
   font-size: var(--fs-sm);
   font-weight: 600;
   margin-bottom: var(--sp-1);
@@ -5173,19 +5173,19 @@ label.chip {
 
 /* What the WORLD says: an arrival, a smell, a turret, the turn line. The web
    half of db/lib/ambientLine.js's `-#`, which is why it wears no face. */
-.hall-subtext {
+.chat-subtext {
   font-size: var(--fs-xs);
   color: var(--muted);
   margin-top: var(--sp-2);
-  padding-left: calc(var(--hall-face) + var(--sp-3));
+  padding-left: calc(var(--chat-face) + var(--sp-3));
 }
 
-.hall-pill {
+.chat-pill {
   align-self: center;
   margin-bottom: var(--sp-2);
 }
 
-.hall-composer {
+.chat-composer {
   display: flex;
   align-items: flex-end;
   gap: var(--sp-2);
@@ -5196,37 +5196,37 @@ label.chip {
 
 /* ---- The right column: who is here, the place, and you ---- */
 
-.hall-card,
-.hall-here,
-.hall-room,
-.hall-travel,
-.hall-you {
+.chat-card,
+.chat-here,
+.chat-room,
+.chat-travel,
+.chat-you {
   padding-bottom: var(--sp-3);
   margin-bottom: var(--sp-3);
   border-bottom: 1px solid var(--border);
 }
 
-.hall-you {
+.chat-you {
   border-bottom: 0;
   margin-bottom: 0;
 }
 
 /* A person's row is the button that opens their menu, so the popover has to
    hang off something positioned. */
-.hall-person-wrap {
+.chat-person-wrap {
   position: relative;
 }
 
-.hall-person {
+.chat-person {
   padding: var(--sp-1);
   color: var(--text);
 }
 
-.hall-person:hover {
+.chat-person:hover {
   background: var(--surface);
 }
 
-.hall-menu {
+.chat-menu {
   position: absolute;
   z-index: 5;
   right: 0;
@@ -5245,18 +5245,18 @@ label.chip {
 /* A person's row is the name button plus the eye that looks at them. A
    button inside a button is not markup, so the eye sits beside it and the
    name takes the slack. */
-.hall-person-row {
+.chat-person-row {
   display: flex;
   align-items: center;
   gap: var(--sp-1);
 }
 
-.hall-person-row .hall-person {
+.chat-person-row .chat-person {
   flex: 1;
   min-width: 0;
 }
 
-.hall-person-eye {
+.chat-person-eye {
   flex-shrink: 0;
   display: flex;
 }
@@ -5267,7 +5267,7 @@ label.chip {
    to scroll inside itself at 12rem, which put a second wheel under the
    pointer inside a column that already scrolls and cut a paragraph off with
    no visible edge. The aside scrolls; this just flows. */
-.hall-card-text {
+.chat-card-text {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
@@ -5280,7 +5280,7 @@ label.chip {
    narrower — the columns follow the width rather than a second media query.
    Grid's default stretch keeps every card in a row the same height, so a
    short card's foot still sits level with its neighbour's. */
-.hall-nodes {
+.chat-nodes {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
   gap: var(--sp-2);
@@ -5291,7 +5291,7 @@ label.chip {
    no ellipsis right above the cost. Now the description clamps at three
    lines and the card is as tall as that needs, with a floor so a card with
    no description does not shrink to a name. */
-.hall-node {
+.chat-node {
   all: unset;
   box-sizing: border-box;
   cursor: pointer;
@@ -5307,11 +5307,11 @@ label.chip {
   overflow: hidden;
 }
 
-.hall-node:hover {
+.chat-node:hover {
   background: var(--surface-raised);
 }
 
-.hall-node:focus-visible {
+.chat-node:focus-visible {
   outline: 2px solid var(--accent-text);
   outline-offset: -2px;
 }
@@ -5319,28 +5319,28 @@ label.chip {
 /* A crossing leaves the zone you are standing in, which is the one thing on
    a node worth seeing before you read it. A tint of the accent over the
    surface, not a second token: the border carries the rest. */
-.hall-node[data-crossing="true"] {
+.chat-node[data-crossing="true"] {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 12%, var(--surface));
 }
 
-.hall-node[data-crossing="true"]:hover {
+.chat-node[data-crossing="true"]:hover {
   background: color-mix(in srgb, var(--accent) 18%, var(--surface));
 }
 
 /* Shut, locked, or too tight for the horse. Still drawn: knowing the way is
    there and shut is what sends you to find the winch. */
-.hall-node[data-dim="true"] {
+.chat-node[data-dim="true"] {
   opacity: 0.55;
   cursor: default;
 }
 
-.hall-node[data-active="true"] {
+.chat-node[data-active="true"] {
   outline: 2px solid var(--accent-text);
   outline-offset: -2px;
 }
 
-.hall-node-name {
+.chat-node-name {
   font-weight: 600;
   font-size: var(--fs-sm);
   line-height: 1.2;
@@ -5351,7 +5351,7 @@ label.chip {
   overflow: hidden;
 }
 
-.hall-node-zone {
+.chat-node-zone {
   flex: 0 0 auto;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -5361,7 +5361,7 @@ label.chip {
 
 /* What the place is. Clamped at three lines with a real ellipsis; the card
    grows to fit that, never the other way round. */
-.hall-node-desc {
+.chat-node-desc {
   flex: 0 1 auto;
   font-style: italic;
   font-size: var(--fs-2xs);
@@ -5377,7 +5377,7 @@ label.chip {
 /* The cost, on one line under a hairline, pinned to the bottom. One line
    only: a longer refusal is on the card's title, and letting the foot wrap
    was what squeezed the description above it. */
-.hall-node-foot {
+.chat-node-foot {
   margin-top: auto;
   padding-top: var(--sp-1);
   border-top: 1px solid var(--border);
@@ -5390,7 +5390,7 @@ label.chip {
 
 /* The confirm is a strip under the grid, not a modal: you have already
    pointed at where you are going, and a dialog would only cover it up. */
-.hall-travel-confirm {
+.chat-travel-confirm {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
@@ -5399,7 +5399,7 @@ label.chip {
   border-top: 1px solid var(--border);
 }
 
-.hall-quiet-line {
+.chat-quiet-line {
   font-size: var(--fs-xs);
   color: var(--muted);
   margin-bottom: var(--sp-2);
@@ -5407,7 +5407,7 @@ label.chip {
 
 /* Every place-bound button, wrapping. They are a list of things you can do
    here, not a toolbar, so they stack rather than scroll. */
-.hall-buttons {
+.chat-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-2);
@@ -5418,7 +5418,7 @@ label.chip {
 /* A wrapping row of data chips: the turn and its countdown, ⬢ and carry, and
    every Status/Health tag being worn. Not .chip-row — that one is a MULTI-
    select control, and none of these is pressable. */
-.hall-chips {
+.chat-chips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-2);
@@ -5428,16 +5428,16 @@ label.chip {
 /* The one bad-news tone, scoped to this column so it cannot leak into the
    chips the rest of the app draws: Overburdened, Dying, Catatonic, and a
    carry line over its cap. */
-.hall-chips .chip[data-tone="danger"] {
+.chat-chips .chip[data-tone="danger"] {
   color: var(--danger);
   border-color: var(--danger);
 }
 
-.hall-move {
+.chat-move {
   margin-bottom: var(--sp-3);
 }
 
-.hall-move-filed {
+.chat-move-filed {
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
@@ -5445,7 +5445,7 @@ label.chip {
 
 /* The filed Move, three lines of it. A Move can be a paragraph and the column
    is not where the whole of one belongs, so it clamps until it is clicked. */
-.hall-move-text {
+.chat-move-text {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -5462,17 +5462,17 @@ label.chip {
   cursor: pointer;
 }
 
-.hall-move-text[data-open="true"] {
+.chat-move-text[data-open="true"] {
   -webkit-line-clamp: unset;
   line-clamp: unset;
   overflow: visible;
 }
 
-.hall-desires {
+.chat-desires {
   margin-bottom: var(--sp-3);
 }
 
-.hall-desire-slot {
+.chat-desire-slot {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -5483,11 +5483,11 @@ label.chip {
 
 /* A closed-by-default drawer (Things), and the chevron is the only thing
    saying so. */
-.hall-details {
+.chat-details {
   margin: var(--sp-3) 0;
 }
 
-.hall-details-summary {
+.chat-details-summary {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
@@ -5501,25 +5501,25 @@ label.chip {
   cursor: pointer;
 }
 
-.hall-details-summary svg {
+.chat-details-summary svg {
   width: 14px;
   height: 14px;
   transition: transform 120ms ease-out;
 }
 
-.hall-details-summary svg[data-open="true"] {
+.chat-details-summary svg[data-open="true"] {
   transform: rotate(180deg);
 }
 
-.hall-details-body {
+.chat-details-body {
   margin-top: var(--sp-2);
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
 }
 
-.hall-notice-row,
-.hall-waiting-row {
+.chat-notice-row,
+.chat-waiting-row {
   display: flex;
   align-items: baseline;
   gap: var(--sp-3);
@@ -5527,19 +5527,19 @@ label.chip {
   font-size: var(--fs-sm);
 }
 
-.hall-waiting-actions {
+.chat-waiting-actions {
   display: flex;
   gap: var(--sp-3);
   flex-shrink: 0;
 }
 
-.hall-waiting {
+.chat-waiting {
   margin-top: var(--sp-3);
 }
 
 /* The phone's people strip: faces only, under the place header. Hidden on a
    desktop, where the column already has them with their names. */
-.hall-strip {
+.chat-strip {
   display: none;
   align-items: center;
   gap: var(--sp-2);
@@ -5551,7 +5551,7 @@ label.chip {
 
 /* The place list is the left column on a desktop and a tab strip on a phone;
    only one of the two is ever drawn. */
-.hall-tabs {
+.chat-tabs {
   display: none;
   padding: 0 var(--sp-2);
   flex-shrink: 0;
@@ -5559,8 +5559,8 @@ label.chip {
 
 /* The phone's way into the right column. On a desktop the column is already
    there, so the button is not — hidden by the default and shown by the same
-   media query that hides .hall-aside. */
-.hall-sheet-trigger {
+   media query that hides .chat-aside. */
+.chat-sheet-trigger {
   display: none;
 }
 
@@ -5570,7 +5570,7 @@ label.chip {
    sheet only mounts when useAsideFolded.js says the column is folded, and a
    media query on the class was a second source of truth that disagreed
    with it between 720 and 900px. */
-.hall-sheet {
+.chat-sheet {
   position: fixed;
   left: 0;
   right: 0;
@@ -5597,28 +5597,28 @@ label.chip {
    there is a band where the column is gone and the ⋯ that opens it is
    hidden too. */
 @media (max-width: 75rem) {
-  .hall-body {
+  .chat-body {
     grid-template-columns: 12rem minmax(0, 1fr) 17rem;
   }
 }
 
 @media (max-width: 56.25rem) {
-  .hall-body {
+  .chat-body {
     grid-template-columns: 11rem minmax(0, 1fr);
   }
 
   /* Belt and braces: the hook already stops the column mounting. */
-  .hall-aside {
+  .chat-aside {
     display: none;
   }
 
-  .hall-sheet-trigger {
+  .chat-sheet-trigger {
     display: inline-flex;
   }
 }
 
 @media (max-width: 720px) {
-  .hall-shell {
+  .chat-shell {
     /* The bar's height comes off because .app-main carries the fixed bottom
        bar's clearance; a full 100dvh would put the composer underneath it.
        Unlike .desk-shell, the height contract does NOT invert here — a chat
@@ -5627,41 +5627,41 @@ label.chip {
     height: calc(100dvh - var(--rail-h) - env(safe-area-inset-bottom, 0px));
   }
 
-  .hall-body {
+  .chat-body {
     grid-template-columns: 1fr;
   }
 
-  .hall-places {
+  .chat-places {
     display: none;
   }
 
   /* A person row is a real tap target inside the sheet. */
-  .hall-sheet .hall-person {
+  .chat-sheet .chat-person {
     min-height: 44px;
   }
 
-  .hall-tabs {
+  .chat-tabs {
     display: flex;
   }
 
-  .hall-head,
-  .hall-feed,
-  .hall-composer {
+  .chat-head,
+  .chat-feed,
+  .chat-composer {
     padding-left: var(--sp-3);
     padding-right: var(--sp-3);
   }
 
-  .hall-subtext {
+  .chat-subtext {
     padding-left: 0;
   }
 
-  .hall-strip {
+  .chat-strip {
     display: flex;
   }
 
 }
 
-/* ---- Chat text: speech, spoilers, mentions (phase 6, HALL.md §5) ---- */
+/* ---- Chat text: speech, spoilers, mentions (phase 6, CHAT.md §5) ---- */
 
 /* The words somebody actually said, inside a paragraph that is mostly
    narration. remarkChat.js wraps the quotes AND the marks, so the tint reads
@@ -5711,7 +5711,7 @@ label.chip {
 /* "X is typing… ‡" — one line above the composer, six seconds after the last
    event. Reserves no height when empty: a line that appears and disappears
    must not shove the scene up and down as people write. */
-.hall-typing {
+.chat-typing {
   font-size: var(--fs-xs);
   color: var(--muted);
   padding: 0 var(--sp-4) var(--sp-1);
@@ -5722,7 +5722,7 @@ label.chip {
 /* The composer's @ list. Anchored above the box rather than below it: the box
    already sits at the bottom of the screen, and a popover under it would open
    off the page. */
-.hall-mentions {
+.chat-mentions {
   position: absolute;
   bottom: 100%;
   left: 0;
@@ -5738,7 +5738,7 @@ label.chip {
   box-shadow: 0 6px 20px var(--shadow-color);
 }
 
-.hall-composer-box {
+.chat-composer-box {
   position: relative;
   min-width: 0;
   flex: 1;
@@ -5746,7 +5746,7 @@ label.chip {
 
 /* The Bascinet pane's composer foot: a send that failed, and the counter
    past 90% of the cap (the desk's rule). Nothing draws until one is needed. */
-.hall-composer-foot {
+.chat-composer-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -5756,11 +5756,11 @@ label.chip {
   color: var(--muted);
 }
 
-.hall-composer-error {
+.chat-composer-error {
   color: var(--danger);
 }
 
-.hall-composer-foot [data-over="true"] {
+.chat-composer-foot [data-over="true"] {
   color: var(--danger);
 }
 
@@ -5769,7 +5769,7 @@ label.chip {
 /* A command in the box, as a chip above the text it is taking. Accent-tinted
    and mono, so it reads as a mode the box is IN rather than as something that
    was typed into it — which is the whole tell that the slash parsed. */
-.hall-cmd-chip {
+.chat-cmd-chip {
   align-self: flex-start;
   padding: 2px var(--sp-2);
   font-size: var(--fs-2xs);
@@ -5784,14 +5784,14 @@ label.chip {
 /* A row of the `/` popover: the name, then what it does. The name is fixed
    width so the descriptions line up — a ragged left edge on a ten-row list is
    harder to scan than the extra space costs. */
-.hall-cmd-item {
+.chat-cmd-item {
   display: flex;
   align-items: baseline;
   gap: var(--sp-2);
   min-width: 0;
 }
 
-.hall-cmd-name {
+.chat-cmd-name {
   flex-shrink: 0;
   min-width: 5rem;
   color: var(--accent-text);
@@ -5802,7 +5802,7 @@ label.chip {
 /* Under the feed's name, above the scene. It wraps: a conversation with a
    dozen people in it is a real thing, and the strip growing a line is better
    than it scrolling sideways away from the Add button. */
-.hall-members {
+.chat-members {
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
@@ -5811,7 +5811,7 @@ label.chip {
   flex-shrink: 0;
 }
 
-.hall-member {
+.chat-member {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-1);
@@ -5820,14 +5820,14 @@ label.chip {
 
 /* The picker under the strip, so the people already in and the people who
    could be are not one undifferentiated row of chips. */
-.hall-member-picker {
+.chat-member-picker {
   padding-top: var(--sp-1);
   border-top: 1px dashed var(--border);
 }
 
 /* Slowmode, counted down rather than refused. Quiet: it is the answer to a
    question nobody asked yet. */
-.hall-countdown {
+.chat-countdown {
   font-size: var(--fs-2xs);
   color: var(--muted);
   white-space: nowrap;
@@ -5837,11 +5837,11 @@ label.chip {
 
 /* Pressing Enter inside the hold. The box stays typeable, so the chip is what
    answers — it flinches once rather than the keystroke doing nothing at all. */
-.hall-countdown[data-nudge="true"] {
-  animation: hall-nudge 0.4s ease-out;
+.chat-countdown[data-nudge="true"] {
+  animation: chat-nudge 0.4s ease-out;
 }
 
-@keyframes hall-nudge {
+@keyframes chat-nudge {
   0% {
     transform: scale(1);
     opacity: 1;
@@ -5857,7 +5857,7 @@ label.chip {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hall-countdown[data-nudge="true"] {
+  .chat-countdown[data-nudge="true"] {
     animation: none;
   }
 }
@@ -5865,18 +5865,18 @@ label.chip {
 /* THINGS: the pockets drawer under YOU. The chips are pressable — each one
    opens the menu of what you can do with that item — so they take a pointer
    the status strip's chips do not. */
-.hall-things .chip {
+.chat-things .chip {
   cursor: pointer;
 }
 
 /* A chip is the button its menu hangs off. */
-.hall-thing-wrap {
+.chat-thing-wrap {
   position: relative;
   display: inline-flex;
 }
 
 /* Paperwork and the hood, at the composer's right edge. */
-.hall-composer-tools {
+.chat-composer-tools {
   display: flex;
   align-items: center;
   gap: var(--sp-1);
@@ -5884,12 +5884,12 @@ label.chip {
 
 /* The ✉ menu opens UPWARD: the composer sits at the foot of the scene, and
    downward there is nothing but the edge of the window. */
-.hall-tool-wrap {
+.chat-tool-wrap {
   position: relative;
   display: inline-flex;
 }
 
-.hall-tool-wrap .hall-menu {
+.chat-tool-wrap .chat-menu {
   top: auto;
   bottom: 100%;
   margin-bottom: var(--sp-1);
@@ -5898,7 +5898,7 @@ label.chip {
 /* The foot of the places column: the chime toggle and the web-only chip. The
    column's rows draw their own side padding and the column has none, so the
    foot supplies its own or the button clips against the border. */
-.hall-places-foot {
+.chat-places-foot {
   margin-top: auto;
   display: flex;
   align-items: center;
@@ -5908,24 +5908,24 @@ label.chip {
   font-size: var(--fs-2xs);
 }
 
-/* The Hall's feed inside somebody else's column: the GM desk's Scene tab.
+/* Chat's feed inside somebody else's column: the GM desk's Scene tab.
    Bounded rather than 100dvh, because it is a panel in a page here and not
    the page itself. */
-.hall-embed {
+.chat-embed {
   display: flex;
   flex-direction: column;
   min-height: 0;
   height: 26rem;
 }
 
-.hall-embed .hall-main {
+.chat-embed .chat-main {
   min-height: 0;
   height: 100%;
 }
 
-.hall-embed .hall-head,
-.hall-embed .hall-feed,
-.hall-embed .hall-typing {
+.chat-embed .chat-head,
+.chat-embed .chat-feed,
+.chat-embed .chat-typing {
   padding-left: var(--sp-3);
   padding-right: var(--sp-3);
 }

@@ -12,10 +12,10 @@ import { gmThread, sendToGms } from "./actions";
 import { useDmState, seedDmRows, prependDmRows, addDmRow } from "./dmStore";
 import { peekSeen, markSeen } from "./seenStore";
 
-// The Bascinet conversation, in the Hall: everything the game has ever said
+// The Bascinet conversation, in Chat: everything the game has ever said
 // to this player by DM — turn results, the Bird, a GM's reply — and a box to
 // write back into. The same DirectMessage rows the GM desk reads, drawn by
-// the desk's own DmThread from the other chair (HALL.md §2b).
+// the desk's own DmThread from the other chair (CHAT.md §2b).
 //
 // A pseudo-place like the faction banner: it is in the places column and it
 // round-trips through the hash, but it has no feed, no seq and no channel.
@@ -153,14 +153,14 @@ export default function DmPane({ self }) {
   const footError = error ?? (over ? `That is too long — ${PLAYER_DM_MAX_LENGTH} characters at most. ‡` : null);
 
   return (
-    <div className="hall-main">
-      <div className="hall-head">
+    <div className="chat-main">
+      <div className="chat-head">
         <h1 className="section-title">Bascinet</h1>
       </div>
 
-      <div className="hall-feed hall-dm">
+      <div className="chat-feed chat-dm">
         {!dm.seeded && loadError ? (
-          <div className="hall-quiet-line">
+          <div className="chat-quiet-line">
             <p>{loadError}</p>
             <button type="button" className="btn-quiet" onClick={() => setRetries((n) => n + 1)}>
               Try again
@@ -182,8 +182,8 @@ export default function DmPane({ self }) {
         )}
       </div>
 
-      <form className="hall-composer" onSubmit={send}>
-        <div className="field hall-composer-box">
+      <form className="chat-composer" onSubmit={send}>
+        <div className="field chat-composer-box">
           <textarea
             aria-label="Write to Bascinet"
             rows={2}
@@ -193,8 +193,8 @@ export default function DmPane({ self }) {
             onKeyDown={onKeyDown}
           />
           {(nearLimit || footError) && (
-            <div className="hall-composer-foot">
-              {footError ? <span className="hall-composer-error">{footError}</span> : <span />}
+            <div className="chat-composer-foot">
+              {footError ? <span className="chat-composer-error">{footError}</span> : <span />}
               {nearLimit && (
                 <span className="mono" data-over={over ? "true" : undefined}>
                   {draft.length} / {PLAYER_DM_MAX_LENGTH}

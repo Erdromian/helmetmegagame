@@ -66,11 +66,11 @@ export default function NoticeCards({ version = 0, onChanged }) {
   if (notices.length === 0) return null;
 
   return (
-    <div className="hall-notices">
+    <div className="chat-notices">
       {notices.map((notice) => (
-        <div key={notice.id} className="hall-notice-card">
-          <p className="hall-notice-card-title">{notice.name}</p>
-          <div className="hall-buttons">
+        <div key={notice.id} className="chat-notice-card">
+          <p className="chat-notice-card-title">{notice.name}</p>
+          <div className="chat-buttons">
             <button
               type="button"
               className="btn-quiet"

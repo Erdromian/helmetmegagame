@@ -21,7 +21,7 @@ const THROTTLE_MS = 4000;
 
 // characterId + placeKey -> when it last went out. Module-level, so it lives
 // for the process the way every other in-memory debounce in the app does. One
-// web replica (HALL.md §3), and a stale entry costs one suppressed typing line.
+// web replica (CHAT.md §3), and a stale entry costs one suppressed typing line.
 const lastSent = new Map();
 
 function throttled(key) {

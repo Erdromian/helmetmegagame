@@ -6,7 +6,7 @@ import HoverCard from "@/app/components/HoverCard";
 import { BellIcon, BellOffIcon, BellRingIcon, SendIcon } from "@/app/components/icons";
 import { isUnread } from "./seenStore";
 
-// The left column of the Hall: everywhere this character may read, grouped the
+// The left column of Chat: everywhere this character may read, grouped the
 // way a person would think of them.
 //
 //   MESSAGES       Bascinet — the DM conversation, a pseudo-place (./DmPane.js)
@@ -46,15 +46,15 @@ const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
   const button = (
     <button
       type="button"
-      className="hall-place"
+      className="chat-place"
       data-active={active ? "true" : "false"}
       onClick={() => onSelect(place.placeKey)}
     >
-      <span className="hall-glyph" aria-hidden="true">
+      <span className="chat-glyph" aria-hidden="true">
         {glyph(place)}
       </span>
-      <span className="hall-place-name">{place.name}</span>
-      {unread && <span className="hall-dot" aria-label="Unread" />}
+      <span className="chat-place-name">{place.name}</span>
+      {unread && <span className="chat-dot" aria-label="Unread" />}
     </button>
   );
   const description = place.description?.trim();
@@ -62,11 +62,11 @@ const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
   return (
     <HoverCard
       pinnable={false}
-      className="hall-place-hover"
+      className="chat-place-hover"
       panel={
         <>
-          <span className="hall-tip-name">{place.name}</span>
-          <span className="hall-tip-desc">{description}</span>
+          <span className="chat-tip-name">{place.name}</span>
+          <span className="chat-tip-desc">{description}</span>
         </>
       }
     >
@@ -78,8 +78,8 @@ const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
 function Section({ title, places, selected, seen, newest, onSelect }) {
   if (places.length === 0) return null;
   return (
-    <div className="hall-section">
-      <p className="hall-section-title">{title}</p>
+    <div className="chat-section">
+      <p className="chat-section-title">{title}</p>
       {places.map((place) => (
         <PlaceRow
           key={place.placeKey}
@@ -103,7 +103,7 @@ export default function PlacesColumn({
   chimeMuted = false,
   onToggleChime = null,
   // The push toggle beside the bell. Null on a browser with no PushManager,
-  // and on a deployment with no VAPID keys set (HALL.md §5a).
+  // and on a deployment with no VAPID keys set (CHAT.md §5a).
   push = null,
 }) {
   const here = places.filter((p) => p.kind === "loc");
@@ -114,10 +114,10 @@ export default function PlacesColumn({
   const messages = places.filter((p) => p.kind === "dm");
 
   return (
-    <nav className="hall-places" aria-label="Places">
+    <nav className="chat-places" aria-label="Places">
       {/* First, above the street: what the game has said to YOU. It is about
           the player rather than the place, and it is where a turn result
-          lands, so it sits where a glance finds it (HALL.md §2b). */}
+          lands, so it sits where a glance finds it (CHAT.md §2b). */}
       <Section title="Messages" places={messages} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Summary" places={summary} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Here" places={here} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
@@ -136,12 +136,12 @@ export default function PlacesColumn({
       <Section title="Faction" places={faction} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       {/* The foot: the one preference this column carries — whether being
           named in a scene makes a sound, per browser rather than per
-          character (useHallChimeMuted.js) — and the quiet reminder that this
+          character (useChatChimeMuted.js) — and the quiet reminder that this
           character's Discord account is out of every channel, so this page is
-          the whole of the game for them (HALL.md §6). An icon and a chip
+          the whole of the game for them (CHAT.md §6). An icon and a chip
           rather than two sentences: the column is 15rem wide and the places
           are what it is for. */}
-      <div className="hall-places-foot">
+      <div className="chat-places-foot">
         {onToggleChime && (
           <IconButton
             icon={chimeMuted ? BellOffIcon : BellIcon}
@@ -159,7 +159,7 @@ export default function PlacesColumn({
             onClick={push.onToggle}
           />
         )}
-        {webOnly && <span className="chip hall-webonly">Playing from the web</span>}
+        {webOnly && <span className="chip chat-webonly">Playing from the web</span>}
       </div>
     </nav>
   );
@@ -170,7 +170,7 @@ export default function PlacesColumn({
 // keyed on data-active, which is exactly what this is.
 export function PlacesTabs({ places, selected, seen, newest, onSelect }) {
   return (
-    <div className="tab-bar hall-tabs" role="tablist" aria-label="Places">
+    <div className="tab-bar chat-tabs" role="tablist" aria-label="Places">
       {places.map((place) => (
         <button
           key={place.placeKey}
@@ -183,7 +183,7 @@ export function PlacesTabs({ places, selected, seen, newest, onSelect }) {
         >
           {place.name}
           {place.placeKey !== selected && isUnread(seen, place.placeKey, newest(place)) && (
-            <span className="hall-dot" aria-label="Unread" />
+            <span className="chat-dot" aria-label="Unread" />
           )}
         </button>
       ))}

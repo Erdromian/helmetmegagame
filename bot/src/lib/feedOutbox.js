@@ -142,7 +142,7 @@ async function relayWebMentions({ row, characters, concealed, channelId, message
       // The same contract /add has: the membership row first, the invite row
       // beside it so db/lib/threadInvites.js can replay the Discord add when
       // they walk in, and the Discord add now if they are already standing
-      // here. A "web only" target has no Discord presence to add (HALL.md §6)
+      // here. A "web only" target has no Discord presence to add (CHAT.md §6)
       // — the row above is their invite and they read it on /play.
       await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: target.id });
       await prisma.playerThreadInvite

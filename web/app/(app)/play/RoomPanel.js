@@ -40,12 +40,12 @@ function roomIdOf(selected) {
 function StashChips({ stash, showAll, onToggle, onTake }) {
   const items = stash.items ?? [];
   if (items.length === 0 && !(stash.resources > 0)) {
-    return <p className="hall-quiet-line">Nothing is stored here.</p>;
+    return <p className="chat-quiet-line">Nothing is stored here.</p>;
   }
   const shown = showAll ? items : items.slice(0, VISIBLE_ITEMS);
   const hidden = items.length - shown.length;
   return (
-    <div className="hall-chips">
+    <div className="chat-chips">
       <span className="chip chip-mono">{stash.resources ?? 0} ⬢</span>
       {shown.map((item) => (
         <button
@@ -128,8 +128,8 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
   );
 
   return (
-    <div className="hall-room">
-      <p className="hall-section-title">This room</p>
+    <div className="chat-room">
+      <p className="chat-section-title">This room</p>
 
       {/* Three states, not two. A read still in flight says so; one that
           came back refused says WHY, which is the whole point of the
@@ -140,7 +140,7 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
           {/* The chips say WHAT is in there; without this they did not say
               what the strip was. The Discord sentence used to carry the word
               ("Storage · …") and the chips lost it. */}
-          <p className="hall-quiet-line">Storage</p>
+          <p className="chat-quiet-line">Storage</p>
           <StashChips
             stash={here}
             showAll={expanded === roomId}
@@ -151,10 +151,10 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
       ) : here ? (
         <FormError>{here.error ?? "Couldn't see in there."}</FormError>
       ) : (
-        <p className="hall-quiet-line">Storage · looking…</p>
+        <p className="chat-quiet-line">Storage · looking…</p>
       )}
       {here?.ok && (
-        <div className="hall-buttons">
+        <div className="chat-buttons">
           {/* One Transfer dialog, three ways in. "Move things" made a player
               open it and then say which way the things were going, when the
               button they wanted to press already knew. Drop and Take seed both
@@ -173,7 +173,7 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
       )}
 
       {fixtures.length > 0 && (
-        <div className="hall-buttons">
+        <div className="chat-buttons">
           {fixtures.map((entry) => (
             <button
               key={`${entry.id}:${entry.roomId}`}

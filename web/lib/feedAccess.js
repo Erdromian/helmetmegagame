@@ -22,12 +22,12 @@ export { findPlace, mayReadPlace, mayWritePlace };
 // The dot draws off `notableSeq`, not `newestSeq`. Any-row-is-unread meant a
 // place lit up for scenery — somebody picking a stamp up off a table — so the
 // dot stopped meaning anything and got ignored, which is the whole failure of
-// an unread mark. Notable is the same rule the chime already used (HALL.md
+// an unread mark. Notable is the same rule the chime already used (CHAT.md
 // §5): a row carrying this character's {char:…} token, or any row at all in a
 // conversation, and in both cases not one they wrote themselves.
 //
-// `newestSeq` is still sent: Hall.js seeds the read marks from it, so a
-// browser opening the Hall for the first time starts level rather than
+// `newestSeq` is still sent: Chat.js seeds the read marks from it, so a
+// browser opening Chat for the first time starts level rather than
 // claiming every place is unread.
 export async function placesFor(client, character, options) {
   const places = await placesForCharacter(client, character, options);
@@ -76,7 +76,7 @@ export async function placesFor(client, character, options) {
 //   1. Every row in a conversation. Somebody opening a private thread with you
 //      IS the message — there is no scenery in one.
 //   2. Every row anywhere carrying this character's {char:<id>} token. That is
-//      what a mention is made of on both faces (HALL.md §5), so a ping typed
+//      what a mention is made of on both faces (CHAT.md §5), so a ping typed
 //      into Discord counts exactly as a web one does.
 //
 // Rows the viewer wrote are excluded from both: your own words are not news.
@@ -146,7 +146,7 @@ export async function loadFeedCharacter(discordUserId) {
       gender: true,
       updatedAt: true,
       locationId: true,
-      // The chip in the places column (docs/systemdocs/HALL.md §6).
+      // The chip in the places column (docs/systemdocs/CHAT.md §6).
       webOnly: true,
       location: {
         select: { id: true, name: true, description: true, indoors: true, zone: { select: { id: true, name: true, description: true } } },
@@ -156,7 +156,7 @@ export async function loadFeedCharacter(discordUserId) {
 }
 
 // Who is looking, and on what terms. A GM with no living character still gets
-// a Hall — a read-only one over the zones their GmZoneView allows — and a GM
+// a Chat — a read-only one over the zones their GmZoneView allows — and a GM
 // who DOES have a living character plays it as that character, because the
 // alternative is a GM who cannot use their own sheet.
 //

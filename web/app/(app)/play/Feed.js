@@ -85,7 +85,7 @@ function timeLabel(iso) {
 // renders the `-#` these lines go out as (db/lib/ambientLine.js).
 const SystemRow = memo(function SystemRow({ row }) {
   return (
-    <li className="hall-subtext" data-seq={row.seq ?? undefined}>
+    <li className="chat-subtext" data-seq={row.seq ?? undefined}>
       <ChatMarkdown content={row.content} />
     </li>
   );
@@ -96,7 +96,7 @@ const SystemRow = memo(function SystemRow({ row }) {
 // there while you read — it is a bookmark, not a cursor.
 function NewLine() {
   return (
-    <li className="hall-new-line" aria-hidden="true">
+    <li className="chat-new-line" aria-hidden="true">
       <span>NEW</span>
     </li>
   );
@@ -111,11 +111,11 @@ export function FeedSkeleton() {
   return (
     <ul className="list-none p-0" aria-hidden="true">
       {[0, 1, 2].map((i) => (
-        <li key={i} className="hall-skeleton">
-          <span className="hall-skeleton-face" />
-          <span className="hall-skeleton-lines">
-            <span className="hall-skeleton-bar" data-w="short" />
-            <span className="hall-skeleton-bar" />
+        <li key={i} className="chat-skeleton">
+          <span className="chat-skeleton-face" />
+          <span className="chat-skeleton-lines">
+            <span className="chat-skeleton-bar" data-w="short" />
+            <span className="chat-skeleton-bar" />
           </span>
         </li>
       ))}
@@ -162,14 +162,14 @@ const FeedRow = memo(function FeedRow({
 
   return (
     <li
-      className="hall-row"
+      className="chat-row"
       data-seq={row.seq ?? undefined}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       data-run={startsRun ? "start" : undefined}
       data-pending={row.pending ? "true" : undefined}
     >
-      <div className="hall-row-face">
+      <div className="chat-row-face">
         {startsRun && (
           <CharacterAvatar characterId={row.characterId} name={row.name ?? ""} version={row.avatarVersion} size={32} />
         )}
@@ -214,13 +214,13 @@ const FeedRow = memo(function FeedRow({
           <ChatMarkdown content={row.content} />
         )}
 
-        {/* The bar FLOATS over the row's top-right corner (.hall-row-actions),
+        {/* The bar FLOATS over the row's top-right corner (.chat-row-actions),
             so it never pushes the sentence around when a mouse crosses the
             line. Everything it offers is re-decided by the server when it is
             pressed: the five-minute window, the camera in your hands, whether
             that person is still standing beside you. */}
         {showActions && (
-          <div className="hall-row-actions">
+          <div className="chat-row-actions">
             {mine && (
               <>
                 <IconButton icon={EditIcon} label="Change" onClick={() => onEdit(row.seq, row.sentAt)} />
@@ -476,14 +476,14 @@ export default function Feed({
   // 📸 reaction; the server re-checks the camera either way.
   hasCamera = false,
   // The GM desk's Scene tab (PLAYER-DESK.md): the same scene with no composer
-  // and no sheet. A GM speaks nowhere (HALL.md §5a), so this only removes chrome
+  // and no sheet. A GM speaks nowhere (CHAT.md §5a), so this only removes chrome
   // that would have refused anyway.
   readOnly = false,
   // The Location's noticeboard, as cards pinned above the scene. A node
-  // rather than data: Hall.js owns the board's state, because the Noticeboard
+  // rather than data: Chat.js owns the board's state, because the Noticeboard
   // dialog in the right column pins to the same board this draws.
   notices = null,
-  // A search hit somebody clicked: Hall.js selects the place and loads the
+  // A search hit somebody clicked: Chat.js selects the place and loads the
   // window around the seq, and hands the seq back here to scroll to.
   // { seq, at } — `at` is a timestamp, so clicking the same hit twice scrolls
   // twice.
@@ -494,7 +494,7 @@ export default function Feed({
   // empty by construction — without this the SERVER paint of a busy street
   // was a skeleton, and the scene only appeared once the browser had
   // hydrated. Used only while the store has nothing for that place, which
-  // after hydration is never (Hall.js seeds it in a state initializer).
+  // after hydration is never (Chat.js seeds it in a state initializer).
   fallbackPlace = null,
   fallbackRows = null,
   // whosHere() whole — named AND hoods. `roster` above is the @ list and has
@@ -502,11 +502,11 @@ export default function Feed({
   // Look at is the one thing you may do to somebody you cannot name.
   people = null,
   // What the composer's commands can do that a server action cannot: pick a
-  // node in the Travel grid, open the Converse dialog. Hall.js owns both,
+  // node in the Travel grid, open the Converse dialog. Chat.js owns both,
   // because both live in the right column.
   onTravelPick = null,
   onConverse = null,
-  // Bumped by Hall.js on the stream's `places` event, so a key turning or
+  // Bumped by Chat.js on the stream's `places` event, so a key turning or
   // somebody else's /add re-reads the members strip.
   placesVersion = 0,
   // Paperwork, beside the composer rather than on the sheet
@@ -534,7 +534,7 @@ export default function Feed({
   // A COMMAND-ONLY composer. The street takes no speech (CHANNELS.md §2) and
   // used to take no box either — which quietly meant /shout, the one command
   // whose whole point is being heard outdoors, had nowhere to be typed
-  // (HALL.md §5). So the box is drawn, and it accepts a `/` and nothing else:
+  // (CHAT.md §5). So the box is drawn, and it accepts a `/` and nothing else:
   // plain text answers with the same sentence that used to sit here instead.
   const commandOnly = Boolean(place) && !place.canSpeak && place.kind === "loc";
   // The server rows stand in only until this place's history is actually
@@ -826,7 +826,7 @@ export default function Feed({
   }, [hasMembers, placeKey, membersNonce, placesVersion]);
 
   // And once a minute regardless. The strip learns about a change from the
-  // stream's `places` frame and from a message in this place (Hall.js), but
+  // stream's `places` frame and from a message in this place (Chat.js), but
   // neither fires for a key GRANTED to somebody else while nobody is talking —
   // there is no frame for that at all — so the list could sit wrong for as
   // long as the room stayed quiet. A minute is slow enough to cost nothing and
@@ -952,7 +952,7 @@ export default function Feed({
       .catch(() => setLook({ error: "You can't see them." }));
   }, []);
 
-  // What a command can reach that a server action cannot. Hall.js owns the
+  // What a command can reach that a server action cannot. Chat.js owns the
   // travel grid and the Converse dialog, so both arrive as callbacks.
   const commandCtx = useMemo(
     () => ({
@@ -1237,7 +1237,7 @@ export default function Feed({
   }, [placeKey]);
 
   // A search hit. The row is already in the store by the time this runs —
-  // Hall.js loads the window around the seq before it hands the jump down —
+  // Chat.js loads the window around the seq before it hands the jump down —
   // so this is only the scroll and the flash. DOM calls, no state: the
   // highlight is an attribute the CSS animates and then nobody looks at
   // again.
@@ -1365,15 +1365,15 @@ export default function Feed({
 
   if (!place) {
     return (
-      <div className="hall-main">
-        <div className="hall-feed">
+      <div className="chat-main">
+        <div className="chat-feed">
           <EmptyState>Nowhere is open.</EmptyState>
         </div>
       </div>
     );
   }
 
-  // A search hit that went nowhere. Hall.js loads the window around the seq
+  // A search hit that went nowhere. Chat.js loads the window around the seq
   // and then opens the place, so by the time this place's history is LOADED
   // the line should be among its rows — and if it is not (a line deleted
   // between the search and the click, a window request that failed), the box
@@ -1395,10 +1395,10 @@ export default function Feed({
   // The head is the place's name and nothing else. The description used to
   // sit here with a "more" button on it, capped halfway down a fixed-height
   // strip; it belongs beside the scene rather than over it, and the turn is
-  // already on the crumb above the whole Hall (layout.js).
+  // already on the crumb above the whole Chat (layout.js).
   return (
-    <div className="hall-main">
-      <div className="hall-head">
+    <div className="chat-main">
+      <div className="chat-head">
         <h1 className="section-title">{place.name}</h1>
         {onJump && (
           <IconButton
@@ -1431,7 +1431,7 @@ export default function Feed({
         />
       )}
 
-      <div ref={scrollerRef} onScroll={onScroll} className="hall-feed">
+      <div ref={scrollerRef} onScroll={onScroll} className="chat-feed">
         {/* The board is nailed to the top of the street, not filed into it in
             the order it went up: a notice is a thing standing there, and it
             has to still be readable after fifty lines of scene. */}
@@ -1492,7 +1492,7 @@ export default function Feed({
       {!atBottom && (
         <button
           type="button"
-          className="btn-quiet hall-pill"
+          className="btn-quiet chat-pill"
           onClick={() => {
             atBottomRef.current = true;
             setAtBottom(true);
@@ -1506,22 +1506,22 @@ export default function Feed({
       {/* Who is writing something, above the composer and below the scene.
           Holds its line's height whether or not anybody is, so the feed does
           not jump every time somebody starts and stops. */}
-      <p className="hall-typing" aria-live="polite">
+      <p className="chat-typing" aria-live="polite">
         {typing}
       </p>
 
       {!readOnly && (
-        <div className="hall-composer">
+        <div className="chat-composer">
           {place.canSpeak || commandOnly ? (
             <>
-              <div className="field hall-composer-box">
+              <div className="field chat-composer-box">
                 {command && (
-                  <span className="hall-cmd-chip mono" data-cmd={command.entry.name}>
+                  <span className="chat-cmd-chip mono" data-cmd={command.entry.name}>
                     /{command.entry.name}
                   </span>
                 )}
                 <textarea
-                  id="hall-composer"
+                  id="chat-composer"
                   ref={textareaRef}
                   aria-label={
                     commandOnly
@@ -1640,7 +1640,7 @@ export default function Feed({
               {waitSeconds > 0 && (
                 // Slowmode, said as a clock rather than as a refusal. The
                 // zone summary is the only place that has one.
-                <span className="hall-countdown mono" data-nudge={nudge ? "true" : undefined} aria-live="polite">
+                <span className="chat-countdown mono" data-nudge={nudge ? "true" : undefined} aria-live="polite">
                   {waitSeconds} s
                 </span>
               )}
@@ -1669,16 +1669,16 @@ export default function Feed({
             // summary they are only listed in, somewhere a GM is watching.
             // The street is not here any more: it has the command-only box
             // above, and says STREET_LINE when somebody types prose into it.
-            <p className="hall-quiet">You can only watch here. ‡</p>
+            <p className="chat-quiet">You can only watch here. ‡</p>
           )}
           {/* Paperwork and the hood, beside the send. Neither is a place's
               affordance — they are things you do with your own hands wherever
               you are standing — so they sit on the composer rather than in the
               right column. */}
           {(lettersMenu.length > 0 || canConceal) && (
-            <span className="hall-composer-tools">
+            <span className="chat-composer-tools">
               {lettersMenu.length > 0 && (
-                <span className="hall-tool-wrap">
+                <span className="chat-tool-wrap">
                   <IconButton
                     icon={QuillIcon}
                     label="Letters"
@@ -1687,7 +1687,7 @@ export default function Feed({
                     onClick={() => setLettersOpen((was) => !was)}
                   />
                   {lettersOpen && (
-                    <div className="hall-menu" role="menu" aria-label="Letters">
+                    <div className="chat-menu" role="menu" aria-label="Letters">
                       {lettersMenu.map((entry) => (
                         <button
                           key={entry.mode}
@@ -1736,7 +1736,7 @@ export default function Feed({
               and the You strip, as a sheet over the scene. Hidden on a
               desktop by the same media query that hides the column, since
               there it would only open what is already on screen. */}
-          <span className="hall-sheet-trigger">
+          <span className="chat-sheet-trigger">
             <IconButton icon={MoreIcon} label="Here" disabled={!onOpenSheet} onClick={onOpenSheet ?? undefined} />
           </span>
         </div>
@@ -1746,7 +1746,7 @@ export default function Feed({
           rendered rather than printed — several of them carry a `**` because
           the same sentence goes out to Discord too. */}
       {cmdLine && (
-        <div className="hall-quiet-line">
+        <div className="chat-quiet-line">
           <ChatMarkdown content={cmdLine} />
         </div>
       )}

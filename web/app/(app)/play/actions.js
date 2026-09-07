@@ -74,7 +74,7 @@ import { sendDm } from "@/lib/discordGuild";
 import { examineCharacter } from "@/app/(app)/character/examineActions";
 import { thingGroups } from "./thingRows";
 
-// Every button in the Hall's right column, as a server action.
+// Every button in Chat's right column, as a server action.
 //
 // THE CONTRACT, and it is the same one for all of them: the acting character
 // is resolved from the session, never from anything posted; every gate the
@@ -105,7 +105,7 @@ async function actor(select) {
       factionId: true,
       discordUserId: true,
       // "Play from the web" — nothing here may touch Discord for them
-      // (docs/systemdocs/HALL.md §6).
+      // (docs/systemdocs/CHAT.md §6).
       webOnly: true,
       // `role` and the tag slugs are what canToggleGate reads, and
       // affordancesFor asks it for every gate this character is standing at.
@@ -277,6 +277,7 @@ export async function photographRow(seq) {
   const photo = await mintPhoto(prisma, character.id, {
     subject: readout.name,
     caption: photoCaption(readout),
+    subjectCharacterId: subject.id,
   });
 
   // Written only once the print exists, so a failed mint leaves the shot
@@ -382,7 +383,7 @@ export async function starRow(seq) {
 // and all. That helper stays exactly as it is for the bot, which is talking
 // into a channel that renders those markers. The web draws its own chips off
 // the rows, so nothing is being formatted twice.
-// THE THINGS DRAWER (HALL.md §7). What is in this character's pockets, in the
+// THE THINGS DRAWER (CHAT.md §7). What is in this character's pockets, in the
 // two categories a player carries — read back after every Equip, Use, Give or
 // Destroy, and on the column's own minute, so a thing handed over in Discord
 // stops being listed here without a reload.
@@ -674,7 +675,7 @@ export async function tearNotice(postId) {
     await postMessage(ctx.location.discordChannelId, ambientLine(tornLine(post.tag.name))).catch(() => {});
   }
   // The same row the bot's board writes (db/lib/scene.js) — a tear on the web
-  // and a tear on Discord are one event, and the Hall shows both.
+  // and a tear on Discord are one event, and Chat shows both.
   await sceneLineAt(prisma, { locationId: ctx.location.id, text: tornLine(post.tag.name) });
   return { ok: true, line: `You take ${post.tag.name} down.` };
 }
@@ -771,7 +772,7 @@ export async function openConversation({ roomId, name, inviteIds = [] } = {}) {
   try {
     thread = await startPrivateThread(room.location.discordChannelId, trimmed);
     // A "web only" creator stays out of their own thread's member list
-    // (docs/systemdocs/HALL.md §6); the membership row below is the truth.
+    // (docs/systemdocs/CHAT.md §6); the membership row below is the truth.
     if (me.character.discordUserId && !me.character.webOnly) {
       await addThreadMember(thread.id, me.character.discordUserId);
     }
@@ -1125,7 +1126,7 @@ export async function updateMove({ actionId, moveKind, description } = {}) {
   return { ok: true, line: parts.join(" ") };
 }
 
-// The Bascinet conversation (HALL.md §2b): everything the game has said to
+// The Bascinet conversation (CHAT.md §2b): everything the game has said to
 // this player by DM, and what they wrote back. The SAME rows the GM desk
 // reads, through the SAME noise filter (web/lib/dmThread.js), from the other
 // chair — so the two surfaces cannot disagree about what was said. The row
@@ -1181,7 +1182,7 @@ export async function gmThread({ beforeId = null } = {}) {
   };
 }
 
-// A line to Bascinet, from the Hall. One INBOUND row, exactly as the bot logs
+// A line to Bascinet, from Chat. One INBOUND row, exactly as the bot logs
 // a DM typed into Discord (bot/src/events/messageCreate.js) — and nothing
 // sent to Discord, because there is nothing to send: the bot cannot speak as
 // the player in their own DM, the desk picks the row up on its poll like any
@@ -1192,7 +1193,7 @@ export async function gmThread({ beforeId = null } = {}) {
 // Two refusals the Discord path has no equivalent of. The Play switch
 // (GameConfig.playPanelEnabled) is re-read here because a tab open when a GM
 // flips it keeps its stream; and a plain cap on how fast one account may
-// write, because every scene composer in the Hall is throttled and this one
+// write, because every scene composer in Chat is throttled and this one
 // is a pipe straight into the GM desk's inbox.
 const TO_GMS_WINDOW_MS = 60_000;
 const TO_GMS_PER_WINDOW = 12;
@@ -1480,7 +1481,7 @@ export async function shoutHere(text, placeKey = null) {
   }
 
   for (const place of result.heard) {
-    // The row first: it is what the Hall shows and what /archive keeps, and
+    // The row first: it is what Chat shows and what /archive keeps, and
     // it is the only half a web-only player ever sees.
     await sceneLine(prisma, { placeKey: place.placeKey, text: place.scene.text, lines: place.scene.lines });
     if (!place.discordChannelId) continue;
@@ -1685,7 +1686,7 @@ export async function addMember(placeKey, characterId) {
       })
       .catch((err) => console.error("Failed to record thread invite:", err?.message ?? err));
 
-    // A "web only" target is out of every channel on purpose (HALL.md §6).
+    // A "web only" target is out of every channel on purpose (CHAT.md §6).
     if (target.locationId === conversation.locationId && !target.webOnly && target.discordUserId) {
       await addThreadMember(conversation.threadId, target.discordUserId).catch(() => {});
     }
@@ -1716,7 +1717,7 @@ export async function addMember(placeKey, characterId) {
 
   // db/lib/roomGuests.js writes no presence notify of its own — it is the
   // bot's code, and the bot has no places column to update. The added
-  // character's Hall has to learn the door opened without a reload.
+  // character's Chat has to learn the door opened without a reload.
   await notifyPresence(prisma, result.target.id).catch(() => {});
   await sendDm(
     result.notify.discordUserId,
