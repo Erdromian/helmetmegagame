@@ -356,13 +356,46 @@ header instead).
   the private ones a key or a guest row opens, marked `▪`), **Conversations**,
   **Summary**, and exports `PlacesTabs` — the same list as the phone's
   `.tab-bar`. Only one of the two is ever drawn.
-- **The unread dot** is one comparison: the newest seq said in a place against
-  the newest seq this browser has seen there. The first half comes down with
-  the place list (`newestSeq`, a string — the column is a bigint) and from
-  whatever the tab has heard live; the second is `hall:seen:<placeKey>` in
-  `localStorage`, read through `useSyncExternalStore` in `seenStore.js` and
-  written when the reader scrolls to the bottom, never merely on selection.
-  It only ever moves forward.
+- **The unread dot** is one comparison: the newest **notable** seq in a place
+  against the newest seq this browser has seen there.
+
+  Notable, not merely newest. Any-row-is-unread meant a place lit up for
+  scenery — somebody lifting a stamp off a table — so the dot stopped meaning
+  anything, which is the whole failure of an unread mark. A row is notable
+  when it is **in a conversation** (there is no scenery in one) or **carries
+  this character's `{char:…}` token**, and in neither case when they wrote it
+  themselves. One predicate, `feedStore.js#isNotableRow`.
+
+  The first half comes down with the place list (`notableSeq`, a string — the
+  column is a bigint, computed by `web/lib/feedAccess.js#notableWatermarks`)
+  **and** from whatever the tab has heard live; the LARGER of the two wins, so
+  a mention that landed while the page was shut is not hidden by a quieter one
+  since. `newestSeq` still rides along beside it, because that is what seeds a
+  first-time browser's read marks.
+
+  The second half is `hall:seen:<placeKey>` in `localStorage`, read through
+  `useSyncExternalStore` in `seenStore.js` and written when the reader scrolls
+  to the bottom, never merely on selection. It only ever moves forward, and it
+  is the newest seq **overall** — so reading a place to the bottom clears its
+  dot however the dot was lit.
+
+  The **chime** is deliberately narrower than the dot: `Hall.js` rings on the
+  mention half only. A busy conversation ringing on every line is a reason to
+  mute the Hall rather than to look at it — a dot is patient, a sound is not.
+- **A ping in a conversation adds them to it**, the way Discord does when you
+  @ a stranger in a thread. `POST /api/feed/say` calls
+  `db/lib/conversations.js#pullMentionedIntoConversation` after the row is
+  written: it reads the `{char:…}` tokens, re-checks each against the DB
+  (a token is player-typed text), and for anyone living and not already a
+  member writes the `PlayerThreadMember` row plus the `PlayerThreadInvite`
+  beside it. The route then does the Discord half — `addThreadMember` for
+  somebody standing in the Location and not `webOnly`, and a DM either way.
+  It can never fail the send: the words are the point.
+
+  Conversations only. A room is opened by a key or a guest row and a mention
+  is neither; the street is already open to everyone standing in it. And the
+  web path only — a mention typed into Discord is Discord's own to handle.
+
 - **`Feed.js`** (phase 0's `PlayFeed.js`, generalised) draws one place: its
   name, a search button, the runs, and the composer.
   Enter appends the pending row in the same frame and clears the box; the POST

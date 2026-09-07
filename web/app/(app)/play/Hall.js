@@ -25,7 +25,7 @@ import {
   seedInitial,
   applyRow,
   removeRow,
-  newestSeq,
+  notableSeq,
   markHistoryLoaded,
   markHistoryLoading,
   historyLoaded,
@@ -119,7 +119,10 @@ export default function Hall({
   const navPlaces = useMemo(
     () =>
       factionKey
-        ? [...places, { placeKey: factionKey, name: faction.name, kind: "faction", newestSeq: null }]
+        ? [
+            ...places,
+            { placeKey: factionKey, name: faction.name, kind: "faction", newestSeq: null, notableSeq: null },
+          ]
         : places,
     [places, factionKey, faction],
   );
@@ -139,9 +142,26 @@ export default function Hall({
   }, []);
 
 
-  // The newest thing said in a place: whatever this tab has heard live, or —
-  // before any of it is loaded — the watermark the server sent with the list.
-  const newest = useCallback((place) => newestSeq(place.placeKey) ?? place.newestSeq ?? null, []);
+  // What the unread dot compares against: the newest thing said in a place
+  // that was ABOUT this viewer, not merely the newest thing said. A place used
+  // to light up for scenery — somebody lifting a stamp off a table — which is
+  // how an unread mark stops meaning anything (feedStore.js#isNotableRow).
+  //
+  // The LARGER of two answers, never the first of them. The server's watermark
+  // covers everything said before this tab connected; the live one covers
+  // everything since. Taking the tab's answer when it has one would hide a
+  // mention that landed while the page was closed.
+  const selfCharacterId = self?.characterId ?? null;
+  const newest = useCallback(
+    (place) => {
+      const live = notableSeq(place.placeKey, selfCharacterId);
+      const seeded = place.notableSeq ?? null;
+      if (live === null) return seeded;
+      if (seeded === null) return live;
+      return BigInt(live) > BigInt(seeded) ? live : seeded;
+    },
+    [selfCharacterId],
+  );
 
   const onSeen = useCallback((placeKey, seq) => markSeen(placeKey, seq), []);
 
