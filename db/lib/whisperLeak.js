@@ -19,10 +19,9 @@
 
 const { muffle } = require("./muffle");
 
-// Heavy on purpose — a notch lighter than the 0.7 the shout loses at its
-// furthest audible remove, so a whisper gives up a few more letters than a
-// shout at the edge of earshot. Past 0.7 the line stops being a message you
-// failed to catch.
+// Heavy on purpose, and heavier than any shout: a shout's last ring with words
+// loses 0.4 (db/lib/shout.js), and past about 0.7 a line stops being a message
+// you failed to catch and becomes noise dressed as one.
 const LEAK_MUFFLE = 0.65;
 
 // A run shorter than this is not worth printing; longer than this and the room

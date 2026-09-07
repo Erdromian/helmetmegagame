@@ -181,7 +181,7 @@ the only speech in the game that crosses the Location graph.
 **Who hears it.** `db/lib/locationGraph.js#soundRange` BFSes out from wherever
 the character *stands* — not from whatever channel the command was typed in;
 those can disagree and only one of them is a place a voice comes from — and
-returns every Location within four hops, each with the distance and the
+returns every Location within three hops, each with the distance and the
 direction. **Every edge counts.** Locked, hidden, shut, on-foot — sound does
 not care, because none of those are about sound. A portcullis you
 cannot open is still a portcullis you can yell through. It is deliberately the
@@ -200,8 +200,11 @@ a refused shout does not burn the throat timer.
 | 0 — your own Location | Full size: "You hear someone shout:" and the words |
 | 1 | `-#` subtext: "…from the direction of *X*", words clear |
 | 2 | the same, 40% of the letters replaced with `░ ▒ ▓` |
-| 3 | the same, 70% replaced |
-| 4 | "…from the direction of *X*, but you can't make out what they say." |
+| 3 | "…from the direction of *X*." — no words at all |
+
+It used to run one hop further, with a 70%-static ring before the wordless
+one; Bascinet cut it on 2026-09-07 because at that much static the text said
+nothing and only looked like it did.
 
 Distance takes the **words** away before it takes the **direction** away. You
 always learn which way to run; you stop learning what was said.

@@ -205,7 +205,9 @@ async function travelOptions(prisma, character, locationId, opts) {
 }
 
 // How far a shout carries, in hops. Everything past this hears nothing at all.
-const SOUND_HOPS = 4;
+// Four until 2026-09-07; three now (Bascinet's call — the far ring carried
+// too much and said too little).
+const SOUND_HOPS = 3;
 
 // Who can hear a noise made at `originLocationId`, and which way it came from.
 //
