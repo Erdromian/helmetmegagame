@@ -90,34 +90,37 @@ export default async function PlayPage() {
   // nobody to act on and no Move to file. They get the feed and no column.
   const aside = viewer.character
     ? await (async () => {
-        const [people, affordances, links, waiting, pools] = await Promise.all([
-          whosHere(prisma, viewer.character),
-          affordancesFor(prisma, viewer.character),
-          viewer.character.locationId ? linksFor(prisma, viewer.character.locationId) : [],
-          waitingOnYou(),
-          // The people dialogs the sheet has, over the same pools the sheet
-          // builds (web/lib/peoplePools.js) so the two cannot disagree about
-          // who is standing near you.
-          loadPeoplePools(viewer.character, {
-            discordUserId: viewer.discordUserId,
-            openTurn: await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, phase: true } }),
-          }),
-        ]);
-        // What this character is carrying, and what it weighs against their
-        // cap — the Transfer dialog projects a hand-over off both, and an
-        // empty pair would offer nothing to give away.
-        const [sheet, gameConfig] = await Promise.all([
+        // The sheet FIRST. The viewer loader is shared with every feed route
+        // and selects no tags, but the people pools, the affordances and the
+        // carry line all read character.tags (and the role, for the gate) —
+        // the page once handed them the bare viewer and fell over on the
+        // first living character it met.
+        const [sheet, gameConfig, openTurn] = await Promise.all([
           prisma.character.findUnique({
             where: { id: viewer.character.id },
             select: {
               resources: true,
               tags: { select: { tagId: true, quantity: true, equipped: true, tag: true } },
+              role: { select: { slug: true } },
             },
           }),
           prisma.gameConfig.findUnique({ where: { id: 1 } }),
+          prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, phase: true } }),
         ]);
-        const rooms = viewer.character.locationId
-          ? await prisma.room.count({ where: { locationId: viewer.character.locationId } })
+        const character = { ...viewer.character, ...sheet };
+
+        const [people, affordances, links, waiting, pools] = await Promise.all([
+          whosHere(prisma, character),
+          affordancesFor(prisma, character),
+          character.locationId ? linksFor(prisma, character.locationId) : [],
+          waitingOnYou(),
+          // The people dialogs the sheet has, over the same pools the sheet
+          // builds (web/lib/peoplePools.js) so the two cannot disagree about
+          // who is standing near you.
+          loadPeoplePools(character, { discordUserId: viewer.discordUserId, openTurn }),
+        ]);
+        const rooms = character.locationId
+          ? await prisma.room.count({ where: { locationId: character.locationId } })
           : 0;
         return {
           people,
@@ -126,10 +129,12 @@ export default async function PlayPage() {
           exits: links.length,
           place: viewer.character.location ?? null,
           waiting: waiting.ok ? waiting.rows : [],
-          selfId: viewer.character.id,
+          selfId: character.id,
           pools,
           sheet,
-          carry: carryStatus({ ...viewer.character, ...sheet }, gameConfig),
+          // What this character is carrying against their cap — the Transfer
+          // dialog projects a hand-over off both.
+          carry: carryStatus(character, gameConfig),
         };
       })()
     : null;

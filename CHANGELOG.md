@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · The Play page opens for a living character again
+
+✎ Opening /play with a living character crashed the page since the right column arrived. The people column and the place buttons were handed a character without their tags.
+
 ## 2026-09-07 · A role handed out in Discord reaches the lobby within a minute
 
 ✎ The lobby and the character wizard re-read your Discord roles at most a minute old, so a Playtest or Player role granted mid-session shows up on the next reload instead of five minutes later  
