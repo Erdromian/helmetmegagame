@@ -42,7 +42,7 @@ const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
         {glyph(place)}
       </span>
       <span className="hall-place-name">{place.name}</span>
-      {unread && <span className="hall-dot" aria-label="Unread ‡" />}
+      {unread && <span className="hall-dot" aria-label="Unread" />}
     </button>
   );
 });
@@ -85,12 +85,12 @@ export default function PlacesColumn({
   const faction = places.filter((p) => p.kind === "faction");
 
   return (
-    <nav className="hall-places" aria-label="Places ‡">
-      <Section title="Summary ‡" places={summary} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
-      <Section title="Here ‡" places={here} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
-      <Section title="Rooms ‡" places={rooms} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+    <nav className="hall-places" aria-label="Places">
+      <Section title="Summary" places={summary} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      <Section title="Here" places={here} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      <Section title="Rooms" places={rooms} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section
-        title="Conversations ‡"
+        title="Conversations"
         places={conversations}
         selected={selected}
         seen={seen}
@@ -100,7 +100,7 @@ export default function PlacesColumn({
       {/* Last, under the places a voice can reach: the people you are in it
           with, wherever they are standing. One row, and it opens a panel
           rather than a feed. */}
-      <Section title="Faction ‡" places={faction} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      <Section title="Faction" places={faction} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       {/* The foot: the one preference this column carries — whether being
           named in a scene makes a sound, per browser rather than per
           character (useHallChimeMuted.js) — and the quiet reminder that this
@@ -112,7 +112,7 @@ export default function PlacesColumn({
         {onToggleChime && (
           <IconButton
             icon={chimeMuted ? BellOffIcon : BellIcon}
-            label={chimeMuted ? "Mentions are silent ‡" : "Mentions chime ‡"}
+            label={chimeMuted ? "Mentions are silent ‡" : "Mentions chime"}
             aria-pressed={!chimeMuted}
             onClick={() => onToggleChime(!chimeMuted)}
           />
@@ -120,7 +120,7 @@ export default function PlacesColumn({
         {push && (
           <IconButton
             icon={push.on ? BellRingIcon : SendIcon}
-            label={push.on ? "Notifications on ‡" : "Notify me ‡"}
+            label={push.on ? "Notifications on" : "Notify me"}
             aria-pressed={push.on}
             disabled={push.busy}
             onClick={push.onToggle}
@@ -137,7 +137,7 @@ export default function PlacesColumn({
 // keyed on data-active, which is exactly what this is.
 export function PlacesTabs({ places, selected, seen, newest, onSelect }) {
   return (
-    <div className="tab-bar hall-tabs" role="tablist" aria-label="Places ‡">
+    <div className="tab-bar hall-tabs" role="tablist" aria-label="Places">
       {places.map((place) => (
         <button
           key={place.placeKey}
@@ -150,7 +150,7 @@ export function PlacesTabs({ places, selected, seen, newest, onSelect }) {
         >
           {place.name}
           {place.placeKey !== selected && isUnread(seen, place.placeKey, newest(place)) && (
-            <span className="hall-dot" aria-label="Unread ‡" />
+            <span className="hall-dot" aria-label="Unread" />
           )}
         </button>
       ))}

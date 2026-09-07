@@ -230,7 +230,7 @@ async function validateLesson(
   if (!isHere(teacher, learner)) return notHereMessage(learner);
   if (!isHere(learner, teacher)) return notHereMessage(teacher);
   if (!isTeacher(teacher)) return `${teacher.name} can't teach. ‡`;
-  if (!tag) return "Unknown skill. ‡";
+  if (!tag) return "Unknown skill.";
   const catalog = await db.tag.findMany({ select: LESSON_CATALOG_SELECT });
   if (
     !teachableSkills(teacher, learner, catalog).some((t) => t.id === tag.id)

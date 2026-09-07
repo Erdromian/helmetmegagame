@@ -9,9 +9,9 @@ import Pager from "@/app/components/Pager";
 // column above all).
 
 const STATUS_LABELS = {
-  ACTIVE: "In progress ‡",
-  DONE: "Finished ‡",
-  CANCELLED: "Given up ‡",
+  ACTIVE: "In progress",
+  DONE: "Finished",
+  CANCELLED: "Given up",
 };
 
 const FILTER_DEFS = [

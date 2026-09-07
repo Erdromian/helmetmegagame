@@ -20,7 +20,7 @@ export const MOVE_KINDS = [
 ];
 
 export function moveKindLabel(kind) {
-  return MOVE_KINDS.find((entry) => entry.value === kind)?.label ?? "Move ‡";
+  return MOVE_KINDS.find((entry) => entry.value === kind)?.label ?? "Move";
 }
 
 // Said in two places at once — under the disabled chips, and by
@@ -38,7 +38,7 @@ export default function MoveDialog({ initial = null, onClose, onDone }) {
   const kindLocked = Boolean(initial?.kindLocked);
 
   return (
-    <Modal open title={editing ? "Change your Move ‡" : "Your Move ‡"} onClose={onClose}>
+    <Modal open title={editing ? "Change your Move ‡" : "Your Move"} onClose={onClose}>
       <div className="chip-row" role="radiogroup" aria-label="What kind of Move ‡">
         {MOVE_KINDS.map((entry) => (
           <button
@@ -82,7 +82,7 @@ export default function MoveDialog({ initial = null, onClose, onDone }) {
             }
           }}
         >
-          {editing ? "Save it ‡" : "File it ‡"}
+          {editing ? "Save it" : "File it"}
         </button>
       </div>
     </Modal>

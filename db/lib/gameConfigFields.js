@@ -108,7 +108,7 @@ const FIELDS = [
   // --- Fear ------------------------------------------------------------------
   {
     key: "fearIntensity", type: "float", group: "fear", default: 1, min: 0, max: 4, step: 0.1,
-    label: "Fear intensity ‡",
+    label: "Fear intensity",
     help: "Multiplies everything that frightens a character and divides everything that calms them, the nightly decay included. 1 is the tuning as written. 0 switches fear off: nothing frightens anyone, and every dial empties at the next turn close. ‡",
   },
 

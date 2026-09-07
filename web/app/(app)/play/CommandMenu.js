@@ -14,7 +14,7 @@ import { memo } from "react";
 const CommandMenu = memo(function CommandMenu({ matches, active, onPick }) {
   if (matches.length === 0) return null;
   return (
-    <div className="hall-mentions" role="listbox" aria-label="Commands ‡">
+    <div className="hall-mentions" role="listbox" aria-label="Commands">
       {matches.map((entry, i) => (
         <button
           key={entry.name}

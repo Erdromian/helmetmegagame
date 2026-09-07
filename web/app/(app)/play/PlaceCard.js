@@ -20,8 +20,8 @@ import { TONE_CLASS } from "./PlacePanel";
 // room's fixtures are RoomPanel's, and travel is TravelNodes'.
 
 const SIDES = [
-  { value: "place", label: "Place ‡" },
-  { value: "zone", label: "Zone ‡" },
+  { value: "place", label: "Place" },
+  { value: "zone", label: "Zone" },
 ];
 
 // The Examine lines carry Discord's bold markers, because the same strings
@@ -56,7 +56,7 @@ export default function PlaceCard({
 
   return (
     <div className="hall-card">
-      <p className="hall-section-title">{place?.name ?? "Here ‡"}</p>
+      <p className="hall-section-title">{place?.name ?? "Here"}</p>
       {zone?.name && <p className="hall-quiet-line">{zone.name}</p>}
 
       <div className="chip-row" role="radiogroup" aria-label="What you are reading ‡">

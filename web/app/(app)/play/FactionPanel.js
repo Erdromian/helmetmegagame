@@ -20,8 +20,8 @@ import EmptyState from "@/app/components/EmptyState";
 
 function marks(member) {
   const out = [];
-  if (member.isLeader) out.push("Leader ‡");
-  if (member.isTreasurer) out.push("Treasurer ‡");
+  if (member.isLeader) out.push("Leader");
+  if (member.isTreasurer) out.push("Treasurer");
   if (member.roleTitle) out.push(member.roleTitle);
   return out;
 }

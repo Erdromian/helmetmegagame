@@ -25,12 +25,12 @@ import { loadTravel, travelTo, turnBackTravel } from "./actions";
 function footFor(option, freeLeft) {
   if (!option.passable) {
     const reason = option.reason ?? "";
-    if (/locked/i.test(reason)) return "locked ‡";
-    if (/shut/i.test(reason)) return "shut ‡";
-    return reason || "no way ‡";
+    if (/locked/i.test(reason)) return "locked";
+    if (/shut/i.test(reason)) return "shut";
+    return reason || "no way";
   }
-  if (!option.crossesZone) return "free ‡";
-  return freeLeft > 0 ? "free ‡" : "the turn ‡";
+  if (!option.crossesZone) return "free";
+  return freeLeft > 0 ? "free" : "the turn";
 }
 
 // The whole of it, for the hover — the node itself clamps both the name and
@@ -186,7 +186,7 @@ export default function TravelNodes({ onDone, pick = null }) {
           </p>
 
           {data.drag.length > 0 && (
-            <div className="chip-row" role="group" aria-label="Bring somebody ‡">
+            <div className="chip-row" role="group" aria-label="Bring somebody">
               {data.drag.map((person) => (
                 <button
                   key={person.id}

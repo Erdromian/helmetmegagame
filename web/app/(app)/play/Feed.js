@@ -228,18 +228,18 @@ const FeedRow = memo(function FeedRow({
           <div className="hall-row-actions">
             {mine && (
               <>
-                <IconButton icon={EditIcon} label="Change ‡" onClick={() => onEdit(row.seq, row.sentAt)} />
-                <IconButton icon={TrashIcon} label="Take back ‡" onClick={() => onDelete(row.seq, row.sentAt)} />
+                <IconButton icon={EditIcon} label="Change" onClick={() => onEdit(row.seq, row.sentAt)} />
+                <IconButton icon={TrashIcon} label="Take back" onClick={() => onDelete(row.seq, row.sentAt)} />
               </>
             )}
             {canLook && (
-              <IconButton icon={EyeIcon} label="Look at ‡" onClick={() => onLookAt(row.characterId)} />
+              <IconButton icon={EyeIcon} label="Look at" onClick={() => onLookAt(row.characterId)} />
             )}
             {canPhoto && (
-              <IconButton icon={CameraIcon} label="Photograph ‡" onClick={() => onPhotograph(row.seq)} />
+              <IconButton icon={CameraIcon} label="Photograph" onClick={() => onPhotograph(row.seq)} />
             )}
             {canRemove && (
-              <IconButton icon={TrashIcon} label="Remove ‡" onClick={() => onRemove(row.seq)} />
+              <IconButton icon={TrashIcon} label="Remove" onClick={() => onRemove(row.seq)} />
             )}
           </div>
         )}
@@ -267,7 +267,7 @@ function PhotoReadout({ state, onClose }) {
   const readout = state?.readout ?? null;
 
   return (
-    <Modal open title={readout?.name ?? "Photograph ‡"} onClose={onClose} width="default">
+    <Modal open title={readout?.name ?? "Photograph"} onClose={onClose} width="default">
       <div className="flex flex-col gap-2">
         {state?.loading && <p className="text-sm text-muted">Winding the film… ‡</p>}
         {state?.error && <FormError>{state.error}</FormError>}
@@ -380,7 +380,7 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
     if (!destinations) return <p className="text-sm text-muted">Reading the road… ‡</p>;
     if (destinations.length === 0) return <p className="text-sm text-muted">No way out of here. ‡</p>;
     return (
-      <div className="chip-row" aria-label="Where to ‡">
+      <div className="chip-row" aria-label="Where to">
         {destinations.map((option) => (
           <button
             key={option.id}
@@ -418,12 +418,12 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
   if (shown.length === 0) return <p className="text-sm text-muted">Nobody here by that name. ‡</p>;
 
   return (
-    <div className="chip-row" aria-label="Who ‡">
+    <div className="chip-row" aria-label="Who">
       {shown.map((person, index) => {
         // A hood has no characterId — the token is the whole handle, and it
         // is what the server resolves back against the people standing here.
         const value = person.characterId ?? person.token ?? null;
-        const label = person.name ?? person.alias ?? "somebody ‡";
+        const label = person.name ?? person.alias ?? "somebody";
         return (
           <button
             key={value ?? `hooded-${index}`}
@@ -448,7 +448,7 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
 function LookReadout({ state, onClose }) {
   const readout = state?.readout ?? null;
   return (
-    <Modal open title={readout?.name ?? "Look at ‡"} onClose={onClose} width="default">
+    <Modal open title={readout?.name ?? "Look at"} onClose={onClose} width="default">
       <div className="flex flex-col gap-2">
         {state?.loading && <p className="text-sm text-muted">Looking… ‡</p>}
         {state?.error && <FormError>{state.error}</FormError>}
@@ -582,13 +582,13 @@ export default function Feed({
   const lettersMenu = useMemo(() => {
     if (!letters || !openAction) return [];
     const rows = [];
-    if (letters.canWrite) rows.push({ mode: "write", label: "Write ‡" });
-    if (letters.canSeal) rows.push({ mode: "seal", label: "Seal ‡" });
+    if (letters.canWrite) rows.push({ mode: "write", label: "Write" });
+    if (letters.canSeal) rows.push({ mode: "seal", label: "Seal" });
     if (letters.canBindBook) rows.push({ mode: "bindbook", label: "Bind a book ‡" });
     if (letters.hasBird) {
       rows.push({
         mode: "bird",
-        label: letters.birdSentToday ? "Sent today ‡" : "Send by bird ‡",
+        label: letters.birdSentToday ? "Sent today" : "Send by bird ‡",
         disabled: Boolean(letters.birdSentToday),
       });
     }
@@ -1166,7 +1166,7 @@ export default function Feed({
         !(await confirm({
           title: "Remove this line? ‡",
           message: "It goes from here and from Discord. ‡",
-          confirmLabel: "Remove it ‡",
+          confirmLabel: "Remove it",
         }))
       ) {
         return;
@@ -1649,7 +1649,7 @@ export default function Feed({
                         !draft.trim() || (!commandOnly && waitSeconds > 0)
                   }
                 >
-                  {command ? "Run ‡" : "Send ‡"}
+                  {command ? "Run" : "Send"}
                 </button>
               )}
             </>
@@ -1670,13 +1670,13 @@ export default function Feed({
                 <span className="hall-tool-wrap">
                   <IconButton
                     icon={QuillIcon}
-                    label="Letters ‡"
+                    label="Letters"
                     aria-haspopup="menu"
                     aria-expanded={lettersOpen}
                     onClick={() => setLettersOpen((was) => !was)}
                   />
                   {lettersOpen && (
-                    <div className="hall-menu" role="menu" aria-label="Letters ‡">
+                    <div className="hall-menu" role="menu" aria-label="Letters">
                       {lettersMenu.map((entry) => (
                         <button
                           key={entry.mode}
@@ -1726,7 +1726,7 @@ export default function Feed({
               desktop by the same media query that hides the column, since
               there it would only open what is already on screen. */}
           <span className="hall-sheet-trigger">
-            <IconButton icon={MoreIcon} label="Here ‡" disabled={!onOpenSheet} onClick={onOpenSheet ?? undefined} />
+            <IconButton icon={MoreIcon} label="Here" disabled={!onOpenSheet} onClick={onOpenSheet ?? undefined} />
           </span>
         </div>
       )}

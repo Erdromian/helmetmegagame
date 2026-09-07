@@ -99,8 +99,8 @@ export default function TagEditor({
       const ok = await confirm({
         title: `Remove ${holding.name}? ‡`,
         message: `Removing it leaves ${list} behind, and putting it back will not clear that. ‡`,
-        confirmLabel: "Remove it ‡",
-        cancelLabel: "Keep it ‡",
+        confirmLabel: "Remove it",
+        cancelLabel: "Keep it",
       });
       if (!ok) return;
     }

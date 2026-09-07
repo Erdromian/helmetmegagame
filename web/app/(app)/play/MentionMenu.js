@@ -18,7 +18,7 @@ import CharacterAvatar from "@/app/components/CharacterAvatar";
 const MentionMenu = memo(function MentionMenu({ matches, active, onPick }) {
   if (matches.length === 0) return null;
   return (
-    <div className="hall-mentions" role="listbox" aria-label="Mention somebody ‡">
+    <div className="hall-mentions" role="listbox" aria-label="Mention somebody">
       {matches.map((person, i) => (
         <button
           key={person.id}

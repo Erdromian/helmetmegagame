@@ -115,7 +115,7 @@ const SHOUT_ACTION = "shout";
 // scene row per place AND posts, because the outbox never carries a SYSTEM row.
 async function shout(prisma, character, text) {
   const body = String(text ?? "").trim();
-  if (!body) return { ok: false, error: "Say something. ‡" };
+  if (!body) return { ok: false, error: "Say something." };
   // 300, the option's own maximum. This goes into a couple of dozen channels
   // and half of them get it with most of the letters knocked out; a paragraph
   // of blocks is not a message anybody reads.
@@ -195,7 +195,7 @@ async function shout(prisma, character, text) {
     })
     .catch((err) => console.error("Shout audit log failed:", err.message ?? err));
 
-  return { ok: true, heard, line: "You shout. ‡" };
+  return { ok: true, heard, line: "You shout." };
 }
 
 module.exports = { shoutLine, shoutParts, shout, SHOUT_COOLDOWN_MS };

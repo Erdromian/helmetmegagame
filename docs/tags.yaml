@@ -8270,7 +8270,7 @@ tags:
     name: Paper
     category: items
     group: items-paper
-    description: "*Blank paper.* ‡"
+    description: "*Blank paper.*"
     pointCost: 0
     depotPrice: 1
     tradeable: true

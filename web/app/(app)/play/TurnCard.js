@@ -20,7 +20,7 @@ import { moveKindLabel } from "./MoveDialog";
 function untilLabel(closesAt, now) {
   if (!closesAt) return null;
   const ms = new Date(closesAt).getTime() - now;
-  if (ms <= 0) return "locked ‡";
+  if (ms <= 0) return "locked";
   const hours = Math.floor(ms / 3_600_000);
   if (hours >= 1) return `closes in ${hours} h ‡`;
   return `closes in ${Math.max(1, Math.round(ms / 60_000))} m ‡`;
@@ -38,7 +38,7 @@ export default function TurnCard({ turn, move, onFile, onEdit }) {
   if (!turn) return <p className="hall-quiet-line">No turn is open. ‡</p>;
 
   const { label } = describeTurn({ number: turn.number, phase: turn.phase });
-  const countdown = turn.locked ? "locked ‡" : untilLabel(turn.closesAt, now);
+  const countdown = turn.locked ? "locked" : untilLabel(turn.closesAt, now);
 
   return (
     <div className="hall-move">

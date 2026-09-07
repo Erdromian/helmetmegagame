@@ -32,8 +32,8 @@ const KIND_LABELS = {
   page: "Page",
   // A player's own two: everywhere they can hear, and everyone standing
   // beside them. Both land on /play with the place in the hash.
-  place: "Place ‡",
-  person: "Here ‡",
+  place: "Place",
+  person: "Here",
 };
 
 // Beyond this the list stops being scannable and starts being a database

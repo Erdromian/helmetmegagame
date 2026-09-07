@@ -117,7 +117,7 @@ export default function SceneTab({ characterId }) {
 
   return (
     <div className="p-2">
-      <div className="tab-bar" role="tablist" aria-label="Places ‡">
+      <div className="tab-bar" role="tablist" aria-label="Places">
         {state.places.map((entry) => (
           <button
             key={entry.placeKey}

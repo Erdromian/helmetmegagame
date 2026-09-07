@@ -99,7 +99,7 @@ function buildTortureEmbed({ name, avatarUrl, tags, desires, thanatiNames }) {
   const fields = [];
   fields.push({
     name: "Their tags are",
-    value: fitField(tags.length ? tags.map((t) => (t.detail ? `${t.name} (${t.detail})` : t.name)).join(BULLET) : "Nothing. ‡"),
+    value: fitField(tags.length ? tags.map((t) => (t.detail ? `${t.name} (${t.detail})` : t.name)).join(BULLET) : "Nothing."),
   });
   if (desires.length) {
     fields.push({

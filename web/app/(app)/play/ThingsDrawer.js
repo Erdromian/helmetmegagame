@@ -78,7 +78,7 @@ function ThingMenu({ row, onClose, onEquip, pending }) {
             onEquip(row);
           }}
         >
-          {row.equipped ? "Unequip ‡" : "Equip ‡"}
+          {row.equipped ? "Unequip" : "Equip"}
         </button>
       )}
       {row.consumable && (

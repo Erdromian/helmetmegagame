@@ -46,7 +46,7 @@ const PEOPLE_ACTIONS = [
   { mode: "bind", label: "Bind", preset: "targetId" },
   { mode: "free", label: "Free", preset: "targetId" },
   { mode: "harm", label: "Harm", preset: "targetId" },
-  { mode: "move", label: "Move Player ‡", preset: "targetId" },
+  { mode: "move", label: "Move Player", preset: "targetId" },
 ];
 
 function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
@@ -121,7 +121,7 @@ function HoodReadout({ state, onClose }) {
   const readout = state?.readout ?? null;
 
   return (
-    <Modal open title={readout?.name ?? "Look at ‡"} onClose={onClose} width="default">
+    <Modal open title={readout?.name ?? "Look at"} onClose={onClose} width="default">
       <div className="flex flex-col gap-2">
         {state?.loading && <p className="text-sm text-muted">Looking… ‡</p>}
         {state?.error && <FormError>{state.error}</FormError>}
@@ -249,7 +249,7 @@ export default function HereList({
             </button>
             {!strip && person.characterId !== selfId && (
               <span className="hall-person-eye">
-                <IconButton icon={EyeIcon} label="Look at ‡" onClick={() => lookAt(person.characterId)} />
+                <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAt(person.characterId)} />
               </span>
             )}
           </div>
@@ -285,7 +285,7 @@ export default function HereList({
             </button>
             {!strip && (
               <span className="hall-person-eye">
-                <IconButton icon={EyeIcon} label="Look at ‡" onClick={() => lookAtHood(person.token)} />
+                <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAtHood(person.token)} />
               </span>
             )}
           </div>

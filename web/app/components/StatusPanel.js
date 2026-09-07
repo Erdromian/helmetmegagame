@@ -286,7 +286,7 @@ export default function StatusPanel({
           </Row>
 
           {hasWorkInProgress && (
-            <Row label="In progress ‡">
+            <Row label="In progress">
               <div className="flex flex-wrap gap-2">
                 {craftProjects.map((p) => (
                   <span key={`project-${p.id}`} className="chip">

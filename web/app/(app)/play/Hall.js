@@ -592,7 +592,7 @@ export default function Hall({
         />
       )}
       {aside && narrow && sheetOpen && (
-        <Modal open title="Here ‡" onClose={closeSheet} panelClassName="modal-panel hall-sheet">
+        <Modal open title="Here" onClose={closeSheet} panelClassName="modal-panel hall-sheet">
           <HallAside
             {...aside}
             selected={selected}

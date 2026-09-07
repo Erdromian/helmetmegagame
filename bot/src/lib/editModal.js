@@ -153,7 +153,7 @@ async function handleEditSubmit(interaction) {
   }
 
   stashEdit(messageId, result.row.content);
-  await respond(interaction, "» *Updated.* ‡");
+  await respond(interaction, "» *Updated.*");
 }
 
 module.exports = {

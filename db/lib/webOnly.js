@@ -79,7 +79,7 @@ async function shedThreads(prisma, character) {
 // `readyAt` is a Date, so the caller words the refusal in the reader's own
 // clock rather than this one's.
 async function setWebOnly(prisma, character, on) {
-  if (!character?.id) return { ok: false, error: "No character. ‡", readyAt: null };
+  if (!character?.id) return { ok: false, error: "No character.", readyAt: null };
   const want = Boolean(on);
 
   const config = await prisma.gameConfig

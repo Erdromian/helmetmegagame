@@ -48,7 +48,7 @@ const WRITE_MAX = 2000;
 const BOOK_MAX = 12000;
 const TITLE_MAX = 60;
 
-const BLANK_LINE = "*Blank paper.* ‡";
+const BLANK_LINE = "*Blank paper.*";
 
 // What a book says when you are not holding it. Every other catalog tag's
 // description is the same sentence for everybody, but a book's is its whole

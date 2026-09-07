@@ -29,10 +29,10 @@ const GENERIC_PAGES = [
 // What a place row says it is. Short on purpose: the label is the name, and
 // this is only what tells a room from the conversation named after it.
 const PLACE_HINTS = {
-  loc: "the street ‡",
-  room: "room ‡",
-  conv: "conversation ‡",
-  zone: "summary ‡",
+  loc: "the street",
+  room: "room",
+  conv: "conversation",
+  zone: "summary",
 };
 
 const GM_PAGES = [
@@ -86,7 +86,7 @@ async function getPaletteIndexImpl() {
         kind: "place",
         id: place.placeKey,
         label: place.name,
-        hint: PLACE_HINTS[place.kind] ?? "here ‡",
+        hint: PLACE_HINTS[place.kind] ?? "here",
         // The Hall reads the open place off the URL hash (HALL.md §5), so a
         // link into one is the hash and nothing else — no new client
         // plumbing, and Back leaves the room the way it came.

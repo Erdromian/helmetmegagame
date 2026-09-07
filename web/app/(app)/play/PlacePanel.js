@@ -89,8 +89,8 @@ export function usePlaceActions(initialAffordances, onChanged) {
       setNotice(null);
       if (entry.kind === "gate") {
         const ask = entry.isOpen
-          ? { title: "Shut the way? ‡", message: `The way to ${entry.farName} closes. ‡`, confirmLabel: "Shut it ‡" }
-          : { title: "Open the way? ‡", message: `The way to ${entry.farName} opens. ‡`, confirmLabel: "Open it ‡" };
+          ? { title: "Shut the way? ‡", message: `The way to ${entry.farName} closes. ‡`, confirmLabel: "Shut it" }
+          : { title: "Open the way? ‡", message: `The way to ${entry.farName} opens. ‡`, confirmLabel: "Open it" };
         // Confirm first, transition second — never inside startTransition
         // (DESIGN-SYSTEM.md §8).
         if (!(await confirm(ask))) return;
@@ -444,14 +444,14 @@ function TurretDialog({ entry, onClose, onDone }) {
 
   if (!state) {
     return (
-      <Modal open title="The turret ‡" onClose={onClose}>
+      <Modal open title="The turret" onClose={onClose}>
         <p className="text-sm text-muted">Reading the panel… ‡</p>
       </Modal>
     );
   }
   if (!state.ok) {
     return (
-      <Modal open title="The turret ‡" onClose={onClose}>
+      <Modal open title="The turret" onClose={onClose}>
         <FormError>{state.error}</FormError>
       </Modal>
     );

@@ -325,7 +325,7 @@ function SpawnDialog({ row, threats, roles, locations, onClose }) {
             disabled={pending || Boolean(done) || (!pinnedRole && !roleId)}
             onClick={send}
           >
-            {pending ? "Offering… ‡" : "Send the offer"}
+            {pending ? "Offering…" : "Send the offer"}
           </button>
           <button type="button" className="btn-quiet" onClick={onClose}>
             Close
@@ -374,7 +374,7 @@ function MessageDialog({ row, onClose }) {
         </label>
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className="btn" disabled={pending || !message.trim()} onClick={send}>
-            {pending ? "Sending… ‡" : "Send"}
+            {pending ? "Sending…" : "Send"}
           </button>
           <button type="button" className="btn-quiet" onClick={onClose}>
             Close

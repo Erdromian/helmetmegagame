@@ -133,8 +133,8 @@ export default function DesiresBlock({ view }) {
 
       <RequestDialog
         open={Boolean(claiming)}
-        title="Claim Desire ‡"
-        submitLabel="Claim ‡"
+        title="Claim Desire"
+        submitLabel="Claim"
         busy={pending}
         onCancel={() => !pending && setClaiming(null)}
         onConfirm={submitClaim}

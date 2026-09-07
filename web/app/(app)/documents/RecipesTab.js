@@ -97,7 +97,7 @@ export default function RecipesTab({ tags, mySkillIds = null }) {
           options={table.options}
           query={table.query}
           setQuery={table.setQuery}
-          searchLabel="Search recipes ‡"
+          searchLabel="Search recipes"
           searchPlaceholder="Name, skill, or ingredient… ‡"
         />
         {skillSet && (

@@ -20,7 +20,7 @@ export async function POST(request) {
   }
 
   const endpoint = typeof body?.endpoint === "string" ? body.endpoint : "";
-  if (!endpoint) return Response.json({ error: "Which browser? ‡" }, { status: 400 });
+  if (!endpoint) return Response.json({ error: "Which browser?" }, { status: 400 });
 
   await prisma.pushSubscription.deleteMany({
     where: { endpoint, discordUserId: session.discordUserId },

@@ -143,7 +143,7 @@ export default function FeedSearch({ place, onPick, onClose, notice = null }) {
             aria-pressed={hereOnly}
             onClick={() => setHereOnly(true)}
           >
-            {place?.name ?? "Here ‡"}
+            {place?.name ?? "Here"}
           </button>
         </div>
       )}
@@ -162,7 +162,7 @@ export default function FeedSearch({ place, onPick, onClose, notice = null }) {
                 className="hall-search-row"
                 onClick={() => onPick(row.placeKey, row.seq)}
               >
-                <span className="hall-search-who">{row.name ?? "Somebody ‡"}</span>
+                <span className="hall-search-who">{row.name ?? "Somebody"}</span>
                 <span className="hall-search-where">{row.placeName ?? ""}</span>
                 <span className="mono hall-search-when">{timeLabel(row.sentAt)}</span>
                 <span className="hall-search-snip">{snippet(row.content, state.query)}</span>

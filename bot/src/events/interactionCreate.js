@@ -1083,7 +1083,7 @@ async function handleTravelTurnBack(interaction) {
 
 async function handleTravelCancel(interaction) {
   forgetDrag(interaction.user.id);
-  await interaction.update({ content: "» *Canceled.* ‡", components: [] });
+  await interaction.update({ content: "» *Canceled.*", components: [] });
   scheduleDismiss(interaction);
 }
 
@@ -1280,7 +1280,7 @@ async function handleConverseOpen(interaction, locationId) {
 
   const menu = new StringSelectMenuBuilder()
     .setCustomId(`${CONVERSE_ROOM_PREFIX}${locationId}`)
-    .setPlaceholder("Where? ‡")
+    .setPlaceholder("Where?")
     .addOptions(
       options.map((room) => ({
         label: room.name.slice(0, 100),

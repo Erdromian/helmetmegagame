@@ -80,7 +80,7 @@ function formatEpilogue(epilogue, { number } = {}) {
   const lines = [`**Game Ended**${number ? ` · Game ${number}` : ""}`];
   if (epilogue.closingNote) lines.push(`» ${epilogue.closingNote}`);
   lines.push("", factsLine(epilogue.facts), "", "**Who was who**");
-  if (epilogue.roster.length === 0) lines.push("Nobody. ‡");
+  if (epilogue.roster.length === 0) lines.push("Nobody.");
   for (const r of epilogue.roster) lines.push(rosterLine(r));
   return lines.join("\n");
 }

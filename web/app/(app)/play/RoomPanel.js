@@ -62,7 +62,7 @@ function StashChips({ stash, showAll, onToggle, onTake }) {
           thirty stacks stayed thirty stacks tall for the rest of the visit. */}
       {(hidden > 0 || showAll) && (
         <button type="button" className="btn-quiet" onClick={onToggle}>
-          {showAll ? "Show less ‡" : `+${hidden} more ‡`}
+          {showAll ? "Show less" : `+${hidden} more ‡`}
         </button>
       )}
     </div>

@@ -157,7 +157,7 @@ async function handleDossierReaction(reaction, proxy, user) {
         .join(" · "),
     });
   if (identity.forced) {
-    embed.addFields({ name: "Presents as ‡", value: identity.name, inline: true });
+    embed.addFields({ name: "Presents as", value: identity.name, inline: true });
   }
 
   // Mind Discord's 1024-char embed field cap — a long-lived character can

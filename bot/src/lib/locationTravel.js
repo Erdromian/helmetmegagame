@@ -101,7 +101,7 @@ function buildLocationSelectRow(locations, from) {
         value: location.id,
         description: (from
           ? location.zoneId === from.zoneId
-            ? "Same zone ‡"
+            ? "Same zone"
             : `Into ${location.zone?.name ?? "another zone"} — free, or your Move and a day's walk ‡`
           : `${location.zone?.name ?? "Somewhere"} ‡`
         ).slice(0, 100),
