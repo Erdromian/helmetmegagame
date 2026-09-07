@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Shouts carry one hop less, and the far ring says only that someone shouted
+
+− A shout reaches three Locations out instead of four  
+− At the last ring you hear that someone shouted and which way, with no garbled words: at that much static the text said nothing anyway
+
 ## 2026-09-07 · The Hall is called Chat now
 
 − The Play page's header, every line that named the Hall, and the doc that describes it (CHAT.md) all say Chat  
