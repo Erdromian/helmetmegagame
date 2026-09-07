@@ -515,10 +515,13 @@ export async function killCharacter(character, reason = null) {
 
 // Applies the `»` prefix and logs the DM so /gm/messages keeps the full
 // conversation. postDmBatched splits anything over Discord's 2000-char limit;
-// `opts.components` is an optional action row, placed on the LAST chunk.
+// `opts.components` is an optional action row and `opts.embeds` an optional
+// list of embed objects; both land on the LAST chunk. A caller sending an
+// embed should also pass `meta: { embed: true }`, which is what keeps it out
+// of the GM conversation view (web/lib/dmThread.js).
 export async function sendDm(discordUserId, content, opts = {}) {
   const formatted = `» ${content}`;
-  const message = await postDmBatched(discordUserId, formatted, opts.components);
+  const message = await postDmBatched(discordUserId, formatted, { components: opts.components, embeds: opts.embeds });
   await prisma.directMessage
     .create({
       data: {

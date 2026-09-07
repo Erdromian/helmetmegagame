@@ -50,6 +50,12 @@ const PACKAGE_MAX_LBS = 150;
 const PACKAGE_MAX_UNITS = 200;
 const PACKAGE_LABEL_MAX = 120;
 const SURGICAL_EQUIPMENT_SLUG = "surgical-equipment";
+// The fourth standing kit: +1 on a torture roll for anyone working within
+// reach of it (db/lib/torture.js). One sits in the Order Chambers from turn
+// one; the rest are crafted by a Torturer out of a knife, a hatchet and a
+// cudgel. TORTURER_SLUG is the tag that shows the Torture button at all.
+const TORTURING_EQUIPMENT_SLUG = "torturing-equipment";
+const TORTURER_SLUG = "torturer";
 
 // Holding one puts a Sound Trumpet button on your own Character page, and
 // sounding it is heard across the Location graph (db/lib/trumpet.js). Held,
@@ -154,6 +160,8 @@ module.exports = {
   PACKAGE_MAX_UNITS,
   PACKAGE_LABEL_MAX,
   SURGICAL_EQUIPMENT_SLUG,
+  TORTURING_EQUIPMENT_SLUG,
+  TORTURER_SLUG,
   TRUMPET_SLUG,
   HUMAN_FLESH_SLUG,
   ENGRAVE_RESOURCE_COST,

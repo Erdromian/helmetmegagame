@@ -35,6 +35,7 @@ const {
   presentedIdentity,
 } = require("./presentedIdentity");
 const { turnsLeft, formatTurnsLeft } = require("./turnFormat");
+const { revealedTags } = require("./torture");
 
 // The subject `select` both callers load. Kept here beside the reader so a
 // field this file starts reading can't be missing at one call site — the
@@ -192,4 +193,19 @@ function canSeeDesire(viewerTags = []) {
   return inspectVision(viewerTags).canSeeDesire;
 }
 
-module.exports = { EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire };
+// What a BROKEN person gives up (docs/systemdocs/TORTURE.md). None of the
+// gates above apply: no doctor's eye, no bystander filter, no hood. The true
+// name and the true face, on purpose — breaking somebody is exactly the thing
+// that gets past a false one — so this reads Character.name and the own
+// avatar rather than going through presentedIdentity. What it leaves out is
+// db/lib/torture.js's business (wounds and statuses), not this file's.
+// `subject` is a row loaded with EXAMINE_SUBJECT_SELECT.
+function tortureReadout({ subject, openTurnNumber }) {
+  return {
+    name: subject.name,
+    avatarPath: `/api/avatar/${subject.id}?v=${subject.updatedAt?.getTime?.() ?? 0}`,
+    tags: revealedTags(subject.tags).map((ct) => describeTag({ characterTag: ct, viaSkill: false }, openTurnNumber)),
+  };
+}
+
+module.exports = { EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire, tortureReadout };

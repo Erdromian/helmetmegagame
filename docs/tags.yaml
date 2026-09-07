@@ -629,7 +629,7 @@ tags:
     name: Cruel
     category: general
     group: general-personality
-    description: "It's a call, a need. Unlocks Desires about cruelty."
+    description: "It's a call, a need. Unlocks Desires about cruelty. Your torture rolls get +1. ‡"
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -662,7 +662,7 @@ tags:
     name: Torturer
     category: general
     group: general-personality
-    description: "You know the best ways to draw knowledge out of someone with the targeted use of pain and tonics. Your Gambits to extract information are likelier to shake a dark secret loose. ‡"
+    description: "You can torture people. ‡"
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -6734,7 +6734,7 @@ tags:
     name: Trench Knife
     category: items
     group: items-weapons
-    description: "A deadly knife with brass knuckles embedded on the grip."
+    description: "A deadly knife with brass knuckles embedded on the grip. Carrying one gives your torture rolls +1. ‡"
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
@@ -7752,11 +7752,12 @@ tags:
       items:
         - anyOf: [tea, sweets, honey]
 
-  # --- The two kits -------------------------------------------------------
-  # Neither is gear you wear; both are gear you have to GET TO. Each is
+  # --- The three kits -----------------------------------------------------
+  # None is gear you wear; all are gear you have to GET TO. Each is
   # satisfied by holding it OR by one sitting in a room you can reach at your
   # Location (db/lib/equipmentReach.js), which is what lets a Sanctuary
-  # operating theatre or a Factory floor serve everyone standing in it.
+  # operating theatre, a Factory floor or the Order Chambers serve everyone
+  # standing in it.
   workshop-equipment:
     catalog: all
     name: Workshop Equipment
@@ -7798,6 +7799,31 @@ tags:
     sellable: true
     sellablePrice: 19
     depotPrice: 31
+
+  # +1 on a torture roll for anyone working within reach (db/lib/torture.js,
+  # docs/systemdocs/TORTURE.md). Not a smithing recipe and not on the ladder:
+  # a Torturer bolts it together out of three ordinary tools, all spent. One
+  # is seeded in the Order Chambers (docs/zones.yaml). No group on purpose —
+  # like Surgical Equipment, it is nobody's recipe paper.
+  torturing-equipment:
+    catalog: all
+    name: Torturing Equipment
+    category: items
+    description: "If you're in a location with torturing equipment, your torturing gambits get +1 to success. ‡"
+    pointCost: 0
+    visible: true
+    tradeable: true
+    weight: 20
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [torturer]
+      items: [work-knife, hatchet, cudgel]
+      gambit: false
 
   # --- Special ------------------------------------------------------------
   # Relics, grafts and machinery. None of it is purchasable at any price and

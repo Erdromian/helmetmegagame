@@ -495,6 +495,8 @@ of the Desire catalog it closes against how much it opens, and Depressed
 closes everything and opens nothing, so it is that band's floor. Teaching and
 Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
 (`LESSONS.md` §1).
+**Torturing Equipment is 0** — unpurchasable, like the other kits' `purchasable:
+false` rows; what it costs is its recipe (`TORTURE.md` §5), not a price.
 
 **The Personality batch of 2026-09-05 sits partly off-band too, again
 Bascinet's call rather than a new scale.** Poor Swimmer is −1 (below the −2

@@ -75,6 +75,7 @@ const EVENTS = Object.freeze({
   BOUND: 15,
   BOUND_HELD: 10,
   CRUCIFIED: 80,
+  TORTURED: 40,
   DEATH_SEEN: 15,
   CORPSE: 5,
   TURRET: 25,
@@ -128,6 +129,10 @@ const MULTIPLIERS = Object.freeze([
   { slug: "claustrophobia", kinds: ["CAVE"], factor: 2 },
   { slug: "teratophobia", kinds: ["CAVE_TROUBLE"], factor: 3 },
   { slug: "pyrophobia", kinds: ["WOUND"], factor: 3, when: (ctx) => Boolean(ctx?.burn) },
+  // Pain you cannot feel is not frightening. Both are two-turn statuses, so a
+  // torturer who waits a day gets the full +40 (db/lib/torture.js).
+  { slug: "pain-immunity", kinds: ["TORTURED"], factor: 0 },
+  { slug: "opium-high", kinds: ["TORTURED"], factor: 0 },
 ]);
 // Every slug the tables above read, so a caller loading a sheet knows what to
 // select — and so the turn pass can filter its candidate query.

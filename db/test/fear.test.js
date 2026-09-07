@@ -147,3 +147,17 @@ test("the DM names the new band and says when it passes", () => {
   assert.equal(fearBandDm(bandOf(30), bandOf(31)), null);
   assert.equal(fearBandDm(null, null), null);
 });
+
+// Torture (docs/systemdocs/TORTURE.md): +40, halved by Brave like any gain,
+// and nothing at all under the two anti-pain statuses — a 0 beats the ×0.5.
+test("being tortured is +40 unless you cannot feel it", () => {
+  assert.equal(EVENTS.TORTURED, 40);
+  const hit = (heldSlugs) => resolveDelta({ kind: "TORTURED", base: EVENTS.TORTURED, heldSlugs });
+  assert.equal(hit([]), 40);
+  assert.equal(hit(["brave"]), 20);
+  assert.equal(hit(["pain-immunity"]), 0);
+  assert.equal(hit(["opium-high"]), 0);
+  assert.equal(hit(["brave", "pain-immunity"]), 0);
+  // The zero is scoped: an Opium High does nothing for a wound.
+  assert.equal(multiplierFor("WOUND", ["opium-high"]), 1);
+});

@@ -23,6 +23,7 @@
 // something exists which you cannot have.
 import {
   HammerIcon,
+  TortureIcon,
   TrashIcon,
   HandOffIcon,
   MealIcon,
@@ -84,6 +85,8 @@ export const ACTION_HELP = {
   crucify:
     "Put someone standing here on the cross. It needs a Cross built where you stand, and it doesn't spend your Move. They hang there unable to act, and in a turn they are Dying.",
   harm: "Further injure someone who is bound or incapacitated.",
+  torture:
+    "You can torture people, revealing all their tags on a 4 or higher. Brave or Craven characters will break on different timelines. ‡",
   butcher:
     "Cut up the body of someone you're carrying, or one lying in a room you can get into from here. Costs nothing, takes no time, and the body is gone afterwards. It does not free their soul.",
   bury: "Put a body in the ground. You have to be holding their corpse, or be somewhere you can reach it. Takes your turn. Allows their soul to respawn.",
@@ -231,6 +234,9 @@ export const ACTION_SECTIONS = [
       // Fundamentalist standing at a Cross is your own fact, and a dead
       // Crucify icon on every other sheet would teach nothing.
       { mode: "crucify", icon: WoundIcon, label: "Crucify", show: "canCrucify" },
+      // HIDDEN on the same rule: whether YOU are a Torturer is your own fact.
+      // Who here is tied up is the dialog's answer, never the button's.
+      { mode: "torture", icon: TortureIcon, label: "Torture", show: "canTorture" },
       { mode: "harm", icon: WoundIcon, label: "Harm" },
       { mode: "move", icon: MapIcon, label: "Move Player" },
     ],

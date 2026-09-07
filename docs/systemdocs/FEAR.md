@@ -76,6 +76,7 @@ multipliers key on.
 | Bound | BOUND | +15 | `bind.js#applyBind` |
 | Still bound at turn end | BOUND | +10 | fear pass |
 | Crucified | CRUCIFIED | +80 | `crucifyCharacterRequestImpl` |
+| Tortured, broke or held | TORTURED | +40 | `tortureCharacterRequestImpl` (TORTURE.md) |
 | Someone dies in your Location | DEATH_SEEN | +15 to each witness | `characterDeath.js#applyDeathToRow` |
 | An unburied body in your Location at turn end | CORPSE | +5 | fear pass |
 | Shot at by a turret and alive, hit or graze, either gun | TURRET | +25 | `turretPass.js#applyTurretShot` |
@@ -178,6 +179,8 @@ Held tags scale a **gain** by its kind; the factors multiply, and a 0 wins:
 | `claustrophobia` (−3) | CAVE | ×2 |
 | `teratophobia` (−2) | CAVE_TROUBLE | ×3 |
 | `pyrophobia` (−2) | WOUND, only `burned` / `severe-burns` | ×3 |
+| `pain-immunity` (status) | TORTURED | ×0 |
+| `opium-high` (status) | TORTURED | ×0 |
 
 Brave × Rough Camper × Agoraphobia on a wilderness night is ×0.5; Pale ×
 Claustrophobia in the caves is ×1, which is funny and correct. Acrophobia is
@@ -261,11 +264,12 @@ hooks in the same tick cannot race a stale read past 100 or below 0.
   `setFearDmSender`, `loadIntensity`). Off the barrel; require by subpath.
 - `db/lib/fearPass.js` — the nightly settle.
 - `db/lib/gambitModifier.js` — Afraid −1, Panic −2.
+- `db/lib/torture.js` — the TORTURED hit's caller side (TORTURE.md).
 - `db/lib/locationAttributes.js` — `wilderness`, `haven`.
 - `db/lib/gameConfigFields.js` — `fearIntensity`.
 - `db/test/fear.test.js` — the pure half.
 - Hooks: `locationMove.js`, `tagWrites.js`, `turretPass.js`, `tagExpiryPass.js`,
   `hungerPass.js`, `cavingPass.js`, `bind.js`, `characterDeath.js`,
   `confessionPass.js`, `web/app/(app)/character/requestActions.js` (consume,
-  heal, loot, crucify, desire), `web/app/(app)/gm/dev/characters/[characterId]/actions.js`
+  heal, loot, crucify, torture, desire), `web/app/(app)/gm/dev/characters/[characterId]/actions.js`
   (GM desire award, the dial edit), `bot/src/events/interactionCreate.js` (`/play`).

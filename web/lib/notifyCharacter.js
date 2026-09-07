@@ -20,6 +20,7 @@ export function notifyCharacter(character, text, opts = {}) {
       // and names the paper it delivered in meta so /gm/messages can join the
       // DM to the object that moved.
       components: opts.components,
+      embeds: opts.embeds,
       meta: opts.meta,
     }).catch((err) => console.error(`notifyCharacter DM failed for ${character.id}:`, err)),
   );

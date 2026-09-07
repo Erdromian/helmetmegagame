@@ -21,7 +21,7 @@ import {
   replyButtonRow,
   canReadLetters,
 } from "@lifeweb/db/lib/bird";
-import { auth } from "@/lib/auth";
+import { auth, CANONICAL_ORIGIN } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { INDESTRUCTIBLE_SLUGS } from "@lifeweb/db/lib/nuke";
 import {
@@ -128,11 +128,19 @@ import {
   ENGRAVE_RESOURCE_COST,
   WORKSHOP_EQUIPMENT_SLUG,
   SURGICAL_EQUIPMENT_SLUG,
+  TORTURING_EQUIPMENT_SLUG,
+  TORTURER_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
   PACKAGE_MAX_LBS,
   PACKAGE_MAX_UNITS,
   PACKAGE_LABEL_MAX,
 } from "@lifeweb/db/lib/constants";
+import {
+  resolveTorture,
+  formatTortureRoll,
+  buildTortureEmbed,
+} from "@lifeweb/db/lib/torture";
+import { EXAMINE_SUBJECT_SELECT, tortureReadout } from "@lifeweb/db/lib/examine";
 import {
   hasAttribute,
   GODFLESH_ATTRIBUTE,
@@ -147,7 +155,7 @@ import {
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryAdmits, rowWeight } from "@lifeweb/db/lib/carry";
 import { rollDie } from "@lifeweb/db/lib/moveEffects";
-import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
+import { gambitModifierTotal, gambitModifiers } from "@lifeweb/db/lib/gambitModifier";
 import { createWithRetry } from "@lifeweb/db/lib/paperMint";
 import {
   CUSTOM_SURCHARGE,
@@ -3225,6 +3233,186 @@ async function crucifyCharacterRequestImpl({
   return { name: target.name };
 }
 
+// --- Torture (docs/systemdocs/TORTURE.md) ----------------------------------
+
+// A Torturer works on somebody who is already Bound and standing here. One die,
+// resolved on the spot: a break DMs the torturer everything on the sheet that
+// isn't a wound or a passing status, plus the last three Desires fulfilled,
+// and the Depressed tag lands on the victim. Either way the victim takes the
+// TORTURED fear hit and the torturer's Move is spent. The die and its
+// arithmetic live in db/lib/torture.js; this file only loads rows and writes.
+//
+// Filed as a ROUTINE already PASSED (fileAutoRoutine) rather than a Gambit:
+// the torturer is told immediately, and a Gambit row would have the turn-end
+// push announce the same die a second time (stagedPush.js#gambitRollNotices).
+const DEPRESSED_SLUG = "depressed";
+const THANATI_SLUG = "thanati";
+const THANATI_LEADER_SLUG = "thanati-leader";
+
+async function tortureCharacterRequestImpl({ targetCharacterId }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  if (!character.locationId)
+    throw new UserError("You aren't anywhere you could do that.");
+  if (targetCharacterId === character.id)
+    throw new UserError("You can't torture yourself. ‡");
+  // Re-checked here and not merely in the UI: the hidden button is a hint.
+  const torturerSlugs = character.tags.map((ct) => ct.tag.slug);
+  if (!torturerSlugs.includes(TORTURER_SLUG))
+    throw new UserError("You don't know how. ‡");
+
+  const target = await prisma.character.findFirst({
+    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    select: {
+      ...EXAMINE_SUBJECT_SELECT,
+      status: true,
+      locationId: true,
+      discordUserId: true,
+      tags: {
+        select: {
+          ...EXAMINE_SUBJECT_SELECT.tags.select,
+          tagId: true,
+          tag: { select: { ...EXAMINE_SUBJECT_SELECT.tags.select.tag.select, slug: true } },
+        },
+      },
+    },
+  });
+  if (!target || !isHere(character, target))
+    throw new UserError(notHereMessage(target));
+  if (!isBoundTarget(target))
+    throw new UserError(`${target.name} isn't tied up. ‡`);
+
+  const openTurn = await getOpenTurn();
+  await requireFreeMove(character, openTurn);
+
+  const equipmentInReach = await hasEquipmentInReach(
+    prisma,
+    character,
+    TORTURING_EQUIPMENT_SLUG,
+  );
+  const targetSlugs = target.tags.map((ct) => ct.tag.slug);
+  const result = resolveTorture({
+    die: rollDie(),
+    torturerSlugs,
+    targetSlugs,
+    equipmentInReach,
+    // Hungry, Afraid and Panic count here as on any Gambit.
+    gambitMods: gambitModifiers(character.tags, {
+      hungerStreak: character.hungerStreak,
+    }),
+  });
+  const rollLine = formatTortureRoll(result);
+
+  // Everything a break gives up, gathered before the write so the transaction
+  // stays short. None of it is needed on a hold.
+  let reveal = null;
+  let depressed = null;
+  if (result.success) {
+    depressed = await prisma.tag.findUnique({
+      where: { slug: DEPRESSED_SLUG },
+      select: { id: true, stackable: true },
+    });
+    const [desires, thanati] = await Promise.all([
+      prisma.desire.findMany({
+        where: { characterId: target.id, status: "FULFILLED" },
+        orderBy: [{ endedTurnNumber: "desc" }, { id: "desc" }],
+        take: 3,
+        select: { text: true, points: true },
+      }),
+      targetSlugs.includes(THANATI_LEADER_SLUG)
+        ? prisma.character.findMany({
+            where: {
+              status: "ALIVE",
+              id: { not: target.id },
+              tags: { some: { tag: { slug: THANATI_SLUG } } },
+            },
+            orderBy: { name: "asc" },
+            select: { name: true },
+          })
+        : Promise.resolve(null),
+    ]);
+    const readout = tortureReadout({ subject: target, openTurnNumber: openTurn.number });
+    reveal = {
+      ...readout,
+      desires,
+      thanatiNames: thanati ? thanati.map((c) => c.name) : null,
+    };
+  }
+
+  const outcome = result.success ? "they broke" : "they held out";
+  await prisma.$transaction(async (tx) => {
+    // +40, or nothing under Pain Immunity / an Opium High (FEAR.md §6).
+    await applyFear(tx, target.id, { kind: "TORTURED" });
+    if (result.success && depressed) {
+      // An EVENT grant, so Depressed's conflictsWith (a purchase-time check)
+      // does not stop it — the same door a GM grant walks through.
+      await addToStack(tx, target.id, depressed.id, 1, {
+        source: "EVENT",
+        stackable: depressed.stackable,
+      });
+    }
+    await fileAutoRoutine(
+      tx,
+      character,
+      openTurn,
+      `Tortured ${target.name}: ${rollLine} — ${outcome}. ‡`,
+      "auto:torture",
+    );
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_torture_character",
+      targetCharacterId: target.id,
+      turnId: openTurn.id,
+      details: {
+        targetName: target.name,
+        die: result.die,
+        total: result.total,
+        threshold: result.threshold,
+        success: result.success,
+        modifiers: result.modifiers,
+        equipmentInReach,
+        ...(reveal
+          ? {
+              revealedTagNames: reveal.tags.map((t) => t.name),
+              desires: reveal.desires.map((d) => d.text),
+              thanatiNames: reveal.thanatiNames,
+              depressedTagId: depressed?.id ?? null,
+            }
+          : {}),
+      },
+    });
+  });
+
+  await afterInventoryChange(target.id);
+  if (reveal) {
+    notifyCharacter(
+      character,
+      `${rollLine}. ‡`,
+      {
+        embeds: [
+          buildTortureEmbed({
+            name: reveal.name,
+            avatarUrl: `${CANONICAL_ORIGIN}${reveal.avatarPath}`,
+            tags: reveal.tags,
+            desires: reveal.desires,
+            thanatiNames: reveal.thanatiNames,
+          }),
+        ],
+        meta: { embed: true },
+      },
+    );
+    notifyCharacter(
+      target,
+      "You were tortured and failed to conceal your secrets. The torturer now knows everything about you.",
+    );
+  } else {
+    notifyCharacter(character, `${rollLine}. They held out. ‡`);
+    notifyCharacter(target, "You were tortured, but held out. It won't be long, now...");
+  }
+  revalidateAll();
+  return { name: target.name, success: result.success, die: result.die };
+}
+
 // --- Putting on a face that isn't yours ------------------------------------
 
 // The Disguise Kit's one verb. Three turns under a name the player types, and
@@ -4303,6 +4491,9 @@ export async function freeCharacterRequest(input) {
 }
 export async function crucifyCharacterRequest(input) {
   return guarded(() => crucifyCharacterRequestImpl(input));
+}
+export async function tortureCharacterRequest(input) {
+  return guarded(() => tortureCharacterRequestImpl(input));
 }
 export async function disguiseSelfRequest(input) {
   return guarded(() => disguiseSelfRequestImpl(input));

@@ -76,6 +76,7 @@ import {
   bindCharacterRequest,
   freeCharacterRequest,
   crucifyCharacterRequest,
+  tortureCharacterRequest,
   disguiseSelfRequest,
   harmCharacterRequest,
   buryCharacterRequest,
@@ -482,6 +483,9 @@ export default function RequestActionsProvider({
   // Disguise: you are carrying a disguise kit. Hidden rather than greyed —
   // see actionRegistry.js.
   canDisguise = false,
+  // Torture: you hold `torturer`. Your own sheet; the action re-checks it and
+  // that the target is Bound.
+  canTorture = false,
   // The datacard, and the device itself. Both facts about your own sheet.
   hasDatacard = false,
   hasDevice = false,
@@ -651,12 +655,16 @@ export default function RequestActionsProvider({
       null,
     [lootTargets, lootRooms, targetId],
   );
-  // Bind, Free and Crucify share one roster: Bind wants the untied, Free the
-  // tied, Crucify anyone not already on the cross.
+  // Bind, Free, Torture and Crucify share one roster: Bind wants the untied,
+  // Free and Torture the tied, Crucify anyone not already on the cross.
   const bindable = useMemo(
     () =>
       bindTargets.filter((t) =>
-        mode === "bind" ? !t.bound : mode === "free" ? t.bound : !t.crucified,
+        mode === "bind"
+          ? !t.bound
+          : mode === "free" || mode === "torture"
+            ? t.bound
+            : !t.crucified,
       ),
     [bindTargets, mode],
   );
@@ -1205,6 +1213,8 @@ export default function RequestActionsProvider({
         return freeCharacterRequest({ targetCharacterId: targetId });
       case "crucify":
         return crucifyCharacterRequest({ targetCharacterId: targetId });
+      case "torture":
+        return tortureCharacterRequest({ targetCharacterId: targetId });
       case "harm":
         return harmCharacterRequest({
           targetCharacterId: targetId,
@@ -1283,6 +1293,7 @@ export default function RequestActionsProvider({
       case "bind":
       case "free":
       case "crucify":
+      case "torture":
         return Boolean(targetId);
       case "harm":
         return Boolean(targetId && (tagId || lethal));
@@ -1385,6 +1396,7 @@ export default function RequestActionsProvider({
       canSeePackage,
       canCrucify,
       canDisguise,
+      canTorture,
       hasDatacard,
       hasDevice,
     }),
@@ -1415,6 +1427,7 @@ export default function RequestActionsProvider({
       canSeePackage,
       canCrucify,
       canDisguise,
+      canTorture,
       hasDatacard,
       hasDevice,
     ],
@@ -2198,7 +2211,7 @@ export default function RequestActionsProvider({
               </>
             )}
 
-            {(mode === "bind" || mode === "free" || mode === "crucify") && (
+            {(mode === "bind" || mode === "free" || mode === "crucify" || mode === "torture") && (
               <>
                 {bindable.length === 0 ? (
                   <NobodyHere>
@@ -2206,7 +2219,9 @@ export default function RequestActionsProvider({
                       ? "There’s nobody here left to tie up."
                       : mode === "free"
                         ? "Nobody here is bound."
-                        : "There’s nobody here to put on the cross."}
+                        : mode === "torture"
+                          ? "Nobody here is tied up. ‡"
+                          : "There’s nobody here to put on the cross."}
                   </NobodyHere>
                 ) : (
                   <label className="field">
@@ -2215,7 +2230,9 @@ export default function RequestActionsProvider({
                         ? "Who are you tying up?"
                         : mode === "free"
                           ? "Who are you cutting loose?"
-                          : "Who are you crucifying?"}
+                          : mode === "torture"
+                            ? "Who are you torturing? ‡"
+                            : "Who are you crucifying?"}
                     </span>
                     <Select
                       value={targetId}
@@ -2238,7 +2255,9 @@ export default function RequestActionsProvider({
                     ? "Once they're Bound you can search them or march them somewhere. Say why."
                     : mode === "free"
                       ? "Anyone standing here can do this, including someone who came to rescue them."
-                      : "They go up on the cross now. They can still speak, but nothing else — and in a turn they are Dying. It doesn't spend your Move. Say why."}
+                      : mode === "torture"
+                        ? "It takes your Move. One die, resolved now: what they gave up arrives by DM. ‡"
+                        : "They go up on the cross now. They can still speak, but nothing else — and in a turn they are Dying. It doesn't spend your Move. Say why."}
                 </p>
               </>
             )}

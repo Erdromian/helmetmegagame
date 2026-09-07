@@ -746,6 +746,9 @@ export default async function CharacterPage({ searchParams }) {
   // it leaks nothing. disguiseSelfRequest re-checks it, since a hidden button
   // is a hint and not a lock.
   const canDisguise = heldSlugs.has("disguise-kit");
+  // Torture shows for a Torturer and nobody else — again your own sheet.
+  // tortureCharacterRequest re-checks the tag and that the target is Bound.
+  const canTorture = heldSlugs.has("torturer");
   // The bomb's two halves. Both read off your own sheet and nothing else, so
   // neither leaks anything about the room; nukeActions.js re-checks both,
   // since a hidden button is a hint and not a lock.
@@ -1113,6 +1116,7 @@ export default async function CharacterPage({ searchParams }) {
       bindTargets={bindTargets}
       canCrucify={canCrucify}
       canDisguise={canDisguise}
+      canTorture={canTorture}
       hasDatacard={hasDatacard}
       hasDevice={hasDevice}
       nukeArmedTurn={nukeState?.nukeArmedTurn ?? null}

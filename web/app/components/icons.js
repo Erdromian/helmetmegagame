@@ -51,6 +51,7 @@ import {
   Pin,
   Send,
   Pickaxe,
+  Flame,
   Feather,
   Book,
   Package,
@@ -171,6 +172,9 @@ export const SendIcon = lucide(Send, "SendIcon");
 // Extract — a pick going into the ground. Distinct from the Hammer used by
 // Craft, which a plain axe would not have been.
 export const ExtractIcon = lucide(Pickaxe, "ExtractIcon");
+// Torture — the brazier. Distinct from the broken heart Harm and Crucify
+// share, so the three cruelties do not read as one button.
+export const TortureIcon = lucide(Flame, "TortureIcon");
 // A quill — the Write action. See docs/systemdocs/PAPERWORK.md.
 export const QuillIcon = lucide(Feather, "QuillIcon");
 // A bound volume — the Bind a Book action, and the books on the Keep's
