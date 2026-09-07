@@ -1792,24 +1792,36 @@ export default function RequestActionsProvider({
                 {/* administerSkill's Move fee (M2, CRAFTING.md §2a /
                     TAGS.md §5c) — fitting is surgery, even on your own leg.
                     Same committed-Routine warning shape as the Heal dialog's
-                    (review fix, M2): a fixed 1/2 of the medical family,
-                    checked against whatever Routine is already filed. */}
+                    (review fix, M2 and round 3): a fixed 1/2 of the medical
+                    family, checked against whatever Routine is already
+                    filed — including an ordinary declared Move, a Gambit or
+                    a build turn, which files an Action but no craftBudget
+                    ledger at all. */}
                 {chosen?.administerSkill && (
                   <>
                     <p className="text-xs text-muted">
                       Costs half your Move — the fitting is the skilled part. ‡
                     </p>
-                    {craftBudget &&
-                      (craftBudget.family !== "medical" ? (
-                        <p className="text-xs text-accent">
-                          {`Your Routine this turn is ${craftFamilyLabel(craftBudget.family)} work, and this isn't. ‡`}
-                        </p>
-                      ) : !fitsInRemaining(
-                          { num: 1, den: 2 },
-                          { num: craftBudget.remainingNum, den: craftBudget.remainingDen },
-                        ) ? (
-                        <p className="text-xs text-accent">Your Move is spent for this turn. ‡</p>
-                      ) : null)}
+                    {/* Quiet, same weight as a Discord -# line: this bills
+                        the medical family, so it spends today's Move (review
+                        fix, round 3). */}
+                    <p className="text-xs text-muted">
+                      {`This spends today's Move — the auto-labor pass only pays a character with none. ‡`}
+                    </p>
+                    {craftBudget
+                      ? craftBudget.family !== "medical" ? (
+                          <p className="text-xs text-accent">
+                            {`Your Routine this turn is ${craftFamilyLabel(craftBudget.family)} work, and this isn't. ‡`}
+                          </p>
+                        ) : !fitsInRemaining(
+                            { num: 1, den: 2 },
+                            { num: craftBudget.remainingNum, den: craftBudget.remainingDen },
+                          ) ? (
+                          <p className="text-xs text-accent">Your Move is spent for this turn. ‡</p>
+                        ) : null
+                      : hasMoved ? (
+                          <p className="text-xs text-accent">{`You've already used your Move this turn. ‡`}</p>
+                        ) : null}
                   </>
                 )}
               </>
@@ -1895,28 +1907,42 @@ export default function RequestActionsProvider({
                       {affliction.gambit
                         ? " This is beyond routine, so it counts as a Gambit. It uses your Move, a die is rolled, and a poor result can leave them worse off. You'll both know the outcome at the end of the turn."
                         : affliction.moveCost?.kind === "free"
-                          ? ` First aid doesn't cost a Move — ${healsLeft ?? "a few"} free treatments left today. ‡`
+                          ? ` First aid doesn't cost a Move — ${healsLeft === 1 ? "1 free treatment" : `${healsLeft ?? "a few"} free treatments`} left today. ‡`
                           : ` This costs ${formatMoveFraction(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move${affliction.moveCost?.kind === "spill" ? ", past today's free first aid" : ""}. ‡`}
                     </p>
+                    {/* Quiet, same weight as a Discord -# line: a billed cure
+                        files today's Move (review fix, round 3). */}
+                    {!affliction.gambit && affliction.moveCost?.kind !== "free" && (
+                      <p className="text-xs text-muted">
+                        {`This spends today's Move — the auto-labor pass only pays a character with none. ‡`}
+                      </p>
+                    )}
                     {/* Committed-Routine warning, same shape as the Craft
                         dialog's (CraftDialog.js): a different family refuses
                         outright, the SAME family with nothing left to give
                         (medical at 8/8, e.g.) still can't pay even though the
-                        line above just quoted a price for it (review fix,
-                        M2 — that second case fell through silently before). */}
+                        line above just quoted a price for it, and an ordinary
+                        declared Move / Gambit / build turn — hasMoved true,
+                        no craftBudget ledger at all — refuses too (review
+                        fix, M2 and round 3, mirroring CraftDialog's own
+                        recipeBlocked: `if (!craftBudget) return "You've
+                        already used your Move this turn."`). */}
                     {!affliction.gambit &&
                       affliction.moveCost?.kind !== "free" &&
-                      craftBudget &&
-                      (craftBudget.family !== "medical" ? (
-                        <p className="text-xs text-accent">
-                          {`Your Routine this turn is ${craftFamilyLabel(craftBudget.family)} work, and treating isn't. ‡`}
-                        </p>
-                      ) : !fitsInRemaining(
-                          { num: affliction.moveCost.num, den: affliction.moveCost.den },
-                          { num: craftBudget.remainingNum, den: craftBudget.remainingDen },
-                        ) ? (
-                        <p className="text-xs text-accent">Your Move is spent for this turn. ‡</p>
-                      ) : null)}
+                      (craftBudget
+                        ? craftBudget.family !== "medical" ? (
+                            <p className="text-xs text-accent">
+                              {`Your Routine this turn is ${craftFamilyLabel(craftBudget.family)} work, and treating isn't. ‡`}
+                            </p>
+                          ) : !fitsInRemaining(
+                              { num: affliction.moveCost.num, den: affliction.moveCost.den },
+                              { num: craftBudget.remainingNum, den: craftBudget.remainingDen },
+                            ) ? (
+                            <p className="text-xs text-accent">Your Move is spent for this turn. ‡</p>
+                          ) : null
+                        : hasMoved ? (
+                            <p className="text-xs text-accent">{`You've already used your Move this turn. ‡`}</p>
+                          ) : null)}
                   </>
                 )}
               </>
