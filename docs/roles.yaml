@@ -1236,7 +1236,7 @@ zones:
             whitelist: true
             starting_tags:
               - Ravenhearter
-              - Fishing Boat
+              - Horse
               - Cart
               - Nobility
               - Brigandine
