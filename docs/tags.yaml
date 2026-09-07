@@ -1179,7 +1179,7 @@ tags:
     name: Poison Sense
     category: general
     group: general-traits
-    description: "You have a sensitive palate. A poisoned meal or drink on your own sheet, or anyone else's you can already see, reads off wrong to you at a glance. ‡"
+    description: "You have a sensitive palate. A poisoned meal or drink on your own sheet reads off wrong to you at a glance. ‡"
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -9445,7 +9445,7 @@ tags:
     name: Poison Snooper
     category: items
     group: items-gear
-    description: "Held, not spent: it does for you what a sensitive palate does. A poisoned meal or drink you're carrying, or anyone else's you can already see, reads off wrong to you at a glance. ‡"
+    description: "Held, not spent: it does for you what a sensitive palate does. A poisoned meal or drink you're carrying reads off wrong to you at a glance. ‡"
     pointCost: 9
     depotPrice: 22
     sellable: true
