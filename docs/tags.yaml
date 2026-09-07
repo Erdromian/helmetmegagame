@@ -983,7 +983,8 @@ tags:
     name: Iron Constitution
     category: general
     group: general-traits
-    description: "Poisons and diseases have less effect on you."
+    resists: [poisoned, vomiting, parasites, cave-fever, choking, asleep]
+    description: "Your body shrugs off what would fell most people. Brewed, force-fed or simply eaten, {tag:poisoned}, {tag:vomiting}, {tag:parasites}, {tag:cave-fever}, {tag:choking} and {tag:asleep} never take hold in you. ‡"
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -1178,7 +1179,7 @@ tags:
     name: Poison Sense
     category: general
     group: general-traits
-    description: "You have a sensitive palate: you can tell when a dish is poisoned."
+    description: "You have a sensitive palate. A poisoned meal or drink on your own sheet, or anyone else's you can already see, reads off wrong to you at a glance. ‡"
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -9444,7 +9445,7 @@ tags:
     name: Poison Snooper
     category: items
     group: items-gear
-    description: "Detects poisons. Multi-use."
+    description: "Held, not spent: it does for you what a sensitive palate does. A poisoned meal or drink you're carrying, or anyone else's you can already see, reads off wrong to you at a glance. ‡"
     pointCost: 9
     depotPrice: 22
     sellable: true
@@ -9594,6 +9595,7 @@ tags:
     name: Soporific
     category: items
     group: items-drink
+    poison: true
     description: "Give someone a few vials of this and they'll be asleep for a while. Inflicts {tag:asleep}."
     pointCost: 0
     depotPrice: 45
@@ -9607,7 +9609,8 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     consumable: true
-    consumesInto: []
+    consumesInto:
+      - asleep
 
   amoeba-vial:
     catalog: gm
@@ -10166,6 +10169,7 @@ tags:
     name: Nightshade
     category: items
     group: items-drink
+    poison: true
     description: "Refined from {tag:nightshade-herb}. Whoever takes it dies frothing in public — it inflicts {tag:choking}. ‡"
     pointCost: 0
     tradeable: true
@@ -10176,6 +10180,8 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    consumesInto:
+      - choking
     requirement:
       turnsCost: 1
       resourceCost: 3
@@ -10229,6 +10235,7 @@ tags:
     name: Phrygian Tears
     category: items
     group: items-drink
+    poison: true
     description: "The perfect silent killer. 2 turns of careful work to make. Inflicts {tag:phrygian-toxin}. ‡"
     pointCost: 0
     tradeable: true
@@ -10239,6 +10246,8 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    consumesInto:
+      - phrygian-toxin
     requirement:
       turnsCost: 2
       resourceCost: 4
@@ -10445,6 +10454,7 @@ tags:
     name: Mindbreaker Toxin
     category: items
     group: items-drink
+    poison: true
     description: "A vial full of a clear acid drawn from cave fungus. Grants {tag:hallucinating}."
     pointCost: 0
     tradeable: true

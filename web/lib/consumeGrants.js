@@ -40,13 +40,27 @@ const HOLDING_SLUG = "holding-it-down";
 // Map (or plain object) of slug -> escalatesInto, which the caller builds from
 // the catalog; without one, no grant escalates and the old behaviour stands.
 //
+// `resistSlugs` (the medical pass, M4) is an optional Set/iterable of slugs
+// the TARGET's held resist-traits shrug off (Tag.resists — Iron
+// Constitution's sidecar). It applies here and ONLY here (plus the poison
+// force-dose path below, which resolves the poison's own consumesInto
+// through this same function) — never in grantTagSlugs, which the bot's GM
+// `/heal` and every other writer share, and which must never filter a
+// deliberate GM grant. Two effects: a `oneOf` position PREFERS a
+// non-resisted branch when one exists (a resisted alternative is filtered
+// out of the pick, not just re-rolled away from after landing on it), and
+// whatever slug the position finally lands on — oneOf-picked or plain — is
+// dropped from the grant if it's still in the resist set, reported back
+// separately as `resisted` rather than silently vanishing.
+//
 // Returns the granted slugs (oneOf entries already resolved to one pick), the
-// ones a condition blocked, the rungs to CLEAR off the sheet first, the expiry
-// overrides that apply to the granted ones (a plain { slug: turns } map
-// carrying only slugs that survived the filter), and the flat Resources
-// amount to credit.
-export function resolveConsumeGrants(tag, heldSlugs, ladder = null) {
+// ones a condition blocked, the ones a resist shrugged off, the rungs to
+// CLEAR off the sheet first, the expiry overrides that apply to the granted
+// ones (a plain { slug: turns } map carrying only slugs that survived the
+// filter), and the flat Resources amount to credit.
+export function resolveConsumeGrants(tag, heldSlugs, ladder = null, resistSlugs = null) {
   const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
+  const resistSet = resistSlugs instanceof Set ? resistSlugs : new Set(resistSlugs ?? []);
   const conditions = tag?.consumesIntoUnless ?? null;
   const overrides = tag?.consumesIntoDurations ?? null;
   const oneOfList = tag?.consumesIntoOneOf ?? null;
@@ -64,6 +78,7 @@ export function resolveConsumeGrants(tag, heldSlugs, ladder = null) {
 
   const slugs = [];
   const blocked = [];
+  const resisted = [];
   const removes = [];
   const durations = {};
   // Tracks what the sheet looks like as we go, so two of the same drink in one
@@ -72,8 +87,19 @@ export function resolveConsumeGrants(tag, heldSlugs, ladder = null) {
   const consumesInto = tag?.consumesInto ?? [];
   for (let i = 0; i < consumesInto.length; i += 1) {
     const alternatives = oneOfList?.[i] ?? null;
-    const picked = Array.isArray(alternatives)
-      ? alternatives[Math.floor(Math.random() * alternatives.length)]
+    // A oneOf position PREFERS a branch the target doesn't shrug off (M4,
+    // "food oneOf picks prefer a non-resisted branch for holders" —
+    // skinned-cave-rat's vomiting/ate-meal split against Iron Constitution).
+    // Filtered down to the non-resisted alternatives first, and only when
+    // that leaves at least one — if every alternative is resisted, the pick
+    // falls back to the full list, and the resist check below catches it.
+    const candidates =
+      Array.isArray(alternatives) && resistSet.size
+        ? alternatives.filter((s) => !resistSet.has(s))
+        : alternatives;
+    const pickFrom = Array.isArray(candidates) && candidates.length ? candidates : alternatives;
+    const picked = Array.isArray(pickFrom)
+      ? pickFrom[Math.floor(Math.random() * pickFrom.length)]
       : consumesInto[i];
 
     // The condition is answered against what was PICKED, before the ladder
@@ -121,6 +147,16 @@ export function resolveConsumeGrants(tag, heldSlugs, ladder = null) {
       willHold.delete(HOLDING_SLUG);
     }
     const slug = climbed.slug;
+    // The resist check itself (M4) — against the FINAL landing slug, after
+    // the ladder/Lightweight/Iron Liver machinery above, since none of that
+    // applies to a resistable Health slug in practice (nothing on a drinking
+    // ladder carries `resists`) but the order has to be right regardless.
+    // Nothing lands: no clear, no willHold update, no grant — the trait
+    // shrugs the whole thing off as if it never landed.
+    if (resistSet.has(slug)) {
+      resisted.push(slug);
+      continue;
+    }
     if (climbed.cleared) {
       removes.push(climbed.cleared);
       willHold.delete(climbed.cleared);
@@ -131,7 +167,19 @@ export function resolveConsumeGrants(tag, heldSlugs, ladder = null) {
     const override = overrides?.[slug];
     if (override != null) durations[slug] = override;
   }
-  return { slugs, blocked, removes, durations, resources: tag?.consumesIntoResources ?? 0 };
+  return { slugs, blocked, resisted, removes, durations, resources: tag?.consumesIntoResources ?? 0 };
+}
+
+// The union of every `resists` list a character's held tags carry (Iron
+// Constitution's sidecar, M4) — what resolveConsumeGrants' `resistSlugs`
+// wants. `characterTags` is the `{ tag: { resists } }` shape used everywhere
+// else in this file.
+export function resistSlugsOf(characterTags) {
+  const out = new Set();
+  for (const ct of characterTags ?? []) {
+    for (const slug of ct?.tag?.resists ?? []) out.add(slug);
+  }
+  return out;
 }
 
 // The held-slug set every call site needs, from the CharacterTag rows they

@@ -105,7 +105,7 @@ import {
 } from "@lifeweb/db/lib/bind";
 import { createLessonOffer } from "@lifeweb/db/lib/lessons";
 import { createConfessionOffer } from "@lifeweb/db/lib/confession";
-import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
+import { resolveConsumeGrants, heldSlugsOf, resistSlugsOf } from "@/lib/consumeGrants";
 import { recordArchiveEvent } from "@/lib/archive";
 import {
   syncCharacterNarrowcastAccess,
@@ -2297,7 +2297,10 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     const found = await prisma.character.findFirst({
       where: { id: targetCharacterId, status: "ALIVE" },
       include: {
-        tags: { include: { tag: { select: { id: true, slug: true, name: true } } } },
+        // `resists` (M4): resolveConsumeGrants below needs the TARGET's own
+        // resist-traits, administered or self — Iron Constitution shrugging
+        // off a poison lands on whoever holds it, not whoever swallowed it.
+        tags: { include: { tag: { select: { id: true, slug: true, name: true, resists: true } } } },
       },
     });
     if (!found || !isHere(character, found)) throw new UserError(notHereMessage(found));
@@ -2379,12 +2382,18 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   });
   const ladder = new Map(ladderRows.map((t) => [t.slug, t.escalatesInto]));
 
+  // Iron Constitution's sidecar (M4): every `resists` slug the TARGET's own
+  // held tags carry, so a grant that lands on that list shrugs off — the
+  // trait is about the constitution swallowing it, not who administered it.
+  const resistSlugs = resistSlugsOf(target.tags);
+
   const {
     slugs: grantSlugs,
     removes: climbedFrom,
+    resisted: resistedSlugs,
     durations: grantDurations,
     resources: resourcesGranted,
-  } = resolveConsumeGrants(held.tag, heldSlugsOf(target.tags), ladder);
+  } = resolveConsumeGrants(held.tag, heldSlugsOf(target.tags), ladder, resistSlugs);
 
   // The rungs the climb clears — Tipsy coming off as Wasted goes on.
   // Snapshotted the same way `cleared` below is, so an Undo puts the drinker
@@ -2480,14 +2489,51 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
         : [];
     }
 
-    await dropCharacterTag(tx, character.id, tagId, 1);
+    // The poisoned-draw odds (M4): dropCharacterTag draws this specific unit
+    // against the row's own poisonedCount/quantity as it stands right now,
+    // under this same lock — a Consume of a stack the poisoner tainted is
+    // exactly the hypergeometric draw a Transfer/Loot move uses, just at
+    // quantity 1. A poisoned draw applies the POISON's own consumesInto on
+    // top of the food's — resolved through the very same resolveConsumeGrants
+    // (and the very same resists filter) rather than a second mechanism, so
+    // Iron Constitution shrugs off a forced poison exactly like it shrugs off
+    // a food's own grant.
+    const { poisonedTaken, poisonPayload } = await dropCharacterTag(tx, character.id, tagId, 1);
+    let poisonDraw = null;
+    if (poisonedTaken > 0 && poisonPayload) {
+      const poisonTag = await tx.tag.findUnique({
+        where: { id: poisonPayload },
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          consumesInto: true,
+          consumesIntoUnless: true,
+          consumesIntoDurations: true,
+          consumesIntoOneOf: true,
+          consumesIntoResources: true,
+        },
+      });
+      if (poisonTag) {
+        poisonDraw = {
+          tag: poisonTag,
+          grants: resolveConsumeGrants(poisonTag, heldSlugsOf(target.tags), ladder, resistSlugs),
+        };
+      }
+    }
+    const allGrantSlugs = poisonDraw ? [...grantSlugs, ...poisonDraw.grants.slugs] : grantSlugs;
+    const allGrantDurations = poisonDraw
+      ? { ...grantDurations, ...poisonDraw.grants.durations }
+      : grantDurations;
+    const allResisted = poisonDraw ? [...resistedSlugs, ...poisonDraw.grants.resisted] : resistedSlugs;
+
     for (const rung of climbed) await dropCharacterTag(tx, target.id, rung.tagId, 1);
     const granted = await grantTagSlugs(
       tx,
       target.id,
-      grantSlugs,
+      allGrantSlugs,
       openTurn?.number ?? null,
-      grantDurations,
+      allGrantDurations,
     );
     // The Resources half — Purse and Supply Kit (CAVING.md). Most
     // consumables grant none, so this is usually a no-op.
@@ -2561,6 +2607,13 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
         cured: cured.length ? cured : undefined,
         administered: administered || undefined,
         targetName: administered ? target.name : undefined,
+        // M4: what Iron Constitution shrugged off, and whether this draw came
+        // up poisoned. The audit desk is a GM-only surface (web/app/(desk)/gm)
+        // — this never rides along on a player-facing response.
+        resisted: allResisted.length ? allResisted : undefined,
+        poisoned: poisonDraw
+          ? { poisonTagId: poisonDraw.tag.id, poisonName: poisonDraw.tag.name }
+          : undefined,
       },
     });
   });
@@ -2568,6 +2621,182 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   if (administered) {
     notifyCharacter(target, `${character.name} used ${held.tag.name} on you. ‡`);
   }
+  revalidateAll();
+  return {};
+}
+
+// --- Poisoning (the medical pass, M4) ----------------------------------
+//
+// Dosing a meal or drink you're already holding. The poison-use dialog's
+// other two options need no server logic of their own: drinking it yourself
+// is the ordinary Consume path above (poisons are consumable, with a wired
+// `consumesInto`), and dosing a helpless person is poisonCharacterRequestImpl
+// below — its own deliberate door, not a loosening of the M1 medicine-
+// administer gate, which stays cures-locked.
+async function poisonItemRequestImpl({ poisonTagId, targetTagId }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  const heldPoison = character.tags.find((ct) => ct.tagId === poisonTagId);
+  if (!heldPoison) throw new UserError("You don't have that.");
+  if (!heldPoison.tag.poison) throw new UserError("That isn't a poison.");
+
+  const heldFood = character.tags.find((ct) => ct.tagId === targetTagId);
+  if (!heldFood) throw new UserError("You don't have that.");
+  if (!heldFood.tag.consumable || heldFood.tag.poison) {
+    throw new UserError("That isn't something you can lace. ‡");
+  }
+  // A food or drink, per the plan (items-food/items-drink) — not gear, not
+  // the poison bottle itself (caught above), not a skill or a status.
+  const foodGroup = heldFood.tag.group?.slug;
+  if (foodGroup !== "items-food" && foodGroup !== "items-drink") {
+    throw new UserError("That isn't something you can lace. ‡");
+  }
+
+  const openTurn = await getOpenTurn();
+
+  await prisma.$transaction(async (tx) => {
+    await lockCharacter(tx, character.id);
+    // Re-read the food's row fresh under the lock — the same patient-side
+    // race shape consumeTagRequestImpl already guards: the stack may have
+    // been eaten, transferred away, or already tainted between the load
+    // above and this lock.
+    const freshFood = await tx.characterTag.findUnique({
+      where: { characterId_tagId: { characterId: character.id, tagId: targetTagId } },
+    });
+    if (!freshFood) throw new UserError("You don't have that any more.");
+    // Poisoner-side only (the plan is explicit): a poisoner learning their
+    // OWN stack is already tainted with something else is acceptable — it's
+    // never disclosed to whoever eventually eats it, and it never refuses on
+    // the eating end (that would be the recipient-side leak the merge rule
+    // below exists to avoid).
+    if (freshFood.poisonPayload && freshFood.poisonPayload !== poisonTagId) {
+      throw new UserError("That's already tainted with something else. ‡");
+    }
+    const poisonedCount = Math.min(freshFood.poisonedCount + 1, freshFood.quantity);
+    await tx.characterTag.update({
+      where: { id: freshFood.id },
+      data: { poisonedCount, poisonPayload: poisonTagId },
+    });
+    await dropCharacterTag(tx, character.id, poisonTagId, 1);
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_poison_item",
+      targetCharacterId: character.id,
+      turnId: openTurn?.id ?? null,
+      details: {
+        poisonTagId,
+        poisonName: heldPoison.tag.name,
+        foodTagId: targetTagId,
+        foodName: heldFood.tag.name,
+        poisonedCount,
+        quantity: freshFood.quantity,
+      },
+    });
+  });
+
+  await afterInventoryChange(character.id);
+  revalidateAll();
+  return {};
+}
+
+// Dosing a helpless person standing here. Poison's own deliberate door
+// (Chris, 2026-09-08): the target must be in INCAPACITATING_SLUGS (bound,
+// dying, paralyzed, unconscious, crucified, catatonic — the same class
+// HARM/LOOT use) and co-located; a conscious victim is never dosable this
+// way, which is exactly what poisoned food is for. Grants land through the
+// same resolveConsumeGrants the Consume path uses, resists filter included,
+// so a forced dose is countered by Iron Constitution exactly like a
+// swallowed one — the trait is about the constitution, not the consent.
+async function poisonCharacterRequestImpl({ poisonTagId, targetCharacterId }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  const heldPoison = character.tags.find((ct) => ct.tagId === poisonTagId);
+  if (!heldPoison) throw new UserError("You don't have that.");
+  if (!heldPoison.tag.poison) throw new UserError("That isn't a poison.");
+
+  if (!character.locationId)
+    throw new UserError("You aren't anywhere you could do that.");
+  if (targetCharacterId === character.id)
+    throw new UserError("Pick someone else.");
+
+  const target = await prisma.character.findFirst({
+    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    include: {
+      tags: { include: { tag: { select: { id: true, slug: true, name: true, resists: true } } } },
+    },
+  });
+  if (!target || !isHere(character, target))
+    throw new UserError(notHereMessage(target));
+
+  const heldSlugs = new Set(target.tags.map((ct) => ct.tag.slug));
+  if (![...heldSlugs].some((slug) => INCAPACITATING_SLUGS.has(slug))) {
+    throw new UserError(
+      "They're conscious and can stop you — that's what poisoned food is for.",
+    );
+  }
+
+  const openTurn = await getOpenTurn();
+  const resistSlugs = resistSlugsOf(target.tags);
+  // No ladder walk here, unlike Consume's: every catalog item with
+  // `poison: true` is a status vial, never a drinking-ladder rung, so the
+  // extra query the ordinary Consume path always pays for would resolve
+  // nothing.
+  const grants = resolveConsumeGrants(heldPoison.tag, heldSlugsOf(target.tags), null, resistSlugs);
+
+  await prisma.$transaction(async (tx) => {
+    // Deadlock avoidance, same shape as consumeTagRequestImpl's administered
+    // branch: lock in sorted-id order, never actor-then-target.
+    const lockIds = [character.id, target.id].sort();
+    for (const id of lockIds) await lockCharacter(tx, id);
+
+    // Patient-side race: re-verify helplessness under the lock. Somebody
+    // could have freed, healed or revived them between the load above and
+    // this lock.
+    const freshTags = await tx.characterTag.findMany({
+      where: { characterId: target.id },
+      select: { tag: { select: { slug: true } } },
+    });
+    const freshSlugs = new Set(freshTags.map((ct) => ct.tag.slug));
+    if (![...freshSlugs].some((slug) => INCAPACITATING_SLUGS.has(slug))) {
+      throw new UserError("They're no longer helpless.");
+    }
+
+    await dropCharacterTag(tx, character.id, poisonTagId, 1);
+    const granted = await grantTagSlugs(
+      tx,
+      target.id,
+      grants.slugs,
+      openTurn?.number ?? null,
+      grants.durations,
+    );
+    if (grants.resources) {
+      await creditResources(
+        tx,
+        { kind: "character", id: target.id, name: target.name },
+        grants.resources,
+      );
+    }
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_poison_character",
+      targetCharacterId: target.id,
+      turnId: openTurn?.id ?? null,
+      details: {
+        poisonTagId,
+        poisonName: heldPoison.tag.name,
+        targetName: target.name,
+        granted: granted.map((g) => g.tagName),
+        resisted: grants.resisted.length ? grants.resisted : undefined,
+      },
+    });
+  });
+
+  await afterInventoryChange([character.id, target.id]);
+  // Anonymous, same posture as harmCharacterRequestImpl's "Someone hurt
+  // you." — the target learns something happened, not who did it. What
+  // actually landed is right there on their sheet once they can read it
+  // again.
+  notifyCharacter(target, "Someone forced something down your throat while you couldn't stop them. ‡");
   revalidateAll();
   return {};
 }
@@ -2777,12 +3006,22 @@ async function transferRequestImpl({
         expiresTurn: held.expiresTurn ?? null,
         quantity,
       };
-      await takeTagFrom(tx, from, tagId, quantity);
+      // Poison state (M4) rides along on the same primitive an ordinary
+      // hand-over uses: what leaves is a hypergeometric draw against the
+      // source row (takeTagFrom/dropCharacterTag/dropRoomTag), and what
+      // lands merges into the recipient row under the "poisons don't mix"
+      // dilution rule (giveTagTo/restoreCharacterTag/addToRoomStack). Never
+      // surfaced in the audit `details` below — that would tell whoever can
+      // read this row back (a GM, but also a stale-tab replay) something the
+      // plain manifest never has.
+      const { poisonedTaken, poisonPayload } = await takeTagFrom(tx, from, tagId, quantity);
       await giveTagTo(tx, to, {
         tagId,
         quantity,
         expiresTurn: held.expiresTurn ?? null,
         source: "EVENT",
+        poisonedCount: poisonedTaken,
+        poisonPayload,
       });
       await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,
@@ -3322,11 +3561,16 @@ async function lootCharacterRequestImpl({
 
   await prisma.$transaction(async (tx) => {
     for (const t of takenTags) {
-      await dropCharacterTag(tx, target.id, t.tagId, t.quantity);
+      // Same poison hand-off as Transfer (M4): a body's held stack draws its
+      // poisoned units proportionally, and they land on the looter under the
+      // same "poisons don't mix" dilution addToStack enforces.
+      const { poisonedTaken, poisonPayload } = await dropCharacterTag(tx, target.id, t.tagId, t.quantity);
       await addToStack(tx, character.id, t.tagId, t.quantity, {
         source: "EVENT",
         expiresTurn: t.expiresTurn,
         stackable: t.stackable,
+        poisonedCount: poisonedTaken,
+        poisonPayload,
       });
     }
     if (amount > 0) {
@@ -4386,7 +4630,7 @@ async function resolveCorpseSource(character, { tagId, sourceKey }) {
 // (CARRY.md §5), and two of your own tabs can race just as well.
 async function takeCorpse(tx, corpse) {
   if (corpse.source.kind === "room") {
-    const ok = await dropRoomTag(tx, corpse.source.id, corpse.tagId, 1);
+    const { ok } = await dropRoomTag(tx, corpse.source.id, corpse.tagId, 1);
     if (!ok) throw new UserError("That body isn't there any more.");
     return;
   }
@@ -4935,6 +5179,14 @@ export async function transferRequest(input) {
 
 export async function consumeTagRequest(input) {
   return guarded(() => consumeTagRequestImpl(input));
+}
+
+export async function poisonItemRequest(input) {
+  return guarded(() => poisonItemRequestImpl(input));
+}
+
+export async function poisonCharacterRequest(input) {
+  return guarded(() => poisonCharacterRequestImpl(input));
 }
 
 export async function healCharacterRequest(input) {

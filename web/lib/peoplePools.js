@@ -293,6 +293,13 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
       finishable: c.tags.some((ct) => FINISHABLE_SLUGS.has(ct.tag.slug)),
     }));
 
+  // Poison's own dose-a-helpless-person roster (M4) — the same helpless
+  // class Harm and Loot use, minus the dead (a poison lands on a body's
+  // living owner or not at all — there's nobody home to dose).
+  const doseTargets = helpless
+    .filter((c) => c.status === "ALIVE")
+    .map((c) => ({ id: c.id, name: c.name, condition: conditionOf(c) }));
+
   // Not the whole Health category (TAGS.md §5c) — isInflictable narrows it to
   // wounds and maiming. Filtered in JS so this and the server action's
   // re-check share the same predicate.
@@ -330,6 +337,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     bindTargets,
     harmTargets,
     harmTags,
+    doseTargets,
   };
 }
 
