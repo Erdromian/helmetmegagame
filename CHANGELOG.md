@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · The Depot opens again
+
+− Fixed: the Merchant's Depot page loaded to an error reference for everyone
+
 ## 2026-09-07 · The Baroness carries her own key
 
 ✚ A Baroness's Key. It opens the Baron's Chambers and nothing else  
