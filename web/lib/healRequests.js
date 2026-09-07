@@ -94,6 +94,18 @@ export function isGambitHeal(tag, satisfied) {
   return Boolean(tag.requirementGambit) || missingSkillsFor(tag, satisfied).length > 0;
 }
 
+// Non-minor surgery needs a site (M3, TAGS.md §5c) — the medical mirror of
+// needsWorkshop's forge rule (web/lib/tagRequests.js, SMITHING.md §2a). Tier
+// 6 and 7 are the two rungs the cure ladder prices on Medical (Expert); tier
+// 5 ("very minor surgery") stays site-free. Read off the CURE's own
+// required skill, not the treating medic's — a Skilled medic reaching above
+// their tier for a tier-6/7 cure still needs the site, same as an Expert
+// doing it as routine work. Pure and shared, so the dialog and the server
+// cannot disagree.
+export function needsSurgicalSite(tag) {
+  return (tag?.requirementSkills ?? []).some((skill) => skill.slug === "medical-expert");
+}
+
 // Does this cure draw on the medic's shared free pool (M2,
 // docs/systemdocs/TAGS.md §5c)? Only a 0-turn cure does — a turns-costing
 // cure is billed the Move's own fraction instead (CRAFTING.md §2a) and

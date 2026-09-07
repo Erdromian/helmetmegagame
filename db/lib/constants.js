@@ -50,6 +50,11 @@ const PACKAGE_MAX_LBS = 150;
 const PACKAGE_MAX_UNITS = 200;
 const PACKAGE_LABEL_MAX = 120;
 const SURGICAL_EQUIPMENT_SLUG = "surgical-equipment";
+// The one-use stand-in for it (M3, TAGS.md §5c): +1 on a single medical
+// Gambit's die, held-by-the-actor only (not hasEquipmentInReach's room/
+// structure reach), spent the instant it's used — never when real equipment
+// is already in reach. It does not satisfy the surgery-site rule below.
+const PORTABLE_SURGICAL_PACK_SLUG = "portable-surgical-pack";
 // The fourth standing kit: +1 on a torture roll for anyone working within
 // reach of it (db/lib/torture.js). One sits in the Order Chambers from turn
 // one; the rest are crafted by a Torturer out of a knife, a hatchet and a
@@ -160,6 +165,7 @@ module.exports = {
   PACKAGE_MAX_UNITS,
   PACKAGE_LABEL_MAX,
   SURGICAL_EQUIPMENT_SLUG,
+  PORTABLE_SURGICAL_PACK_SLUG,
   TORTURING_EQUIPMENT_SLUG,
   TORTURER_SLUG,
   TRUMPET_SLUG,

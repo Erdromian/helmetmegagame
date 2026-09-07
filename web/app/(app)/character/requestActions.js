@@ -86,6 +86,7 @@ import {
   isGambitHeal,
   isHealable,
   isInflictable,
+  needsSurgicalSite,
   satisfiedSkillIds,
 } from "@/lib/healRequests";
 import {
@@ -127,6 +128,7 @@ import {
   ENGRAVE_RESOURCE_COST,
   WORKSHOP_EQUIPMENT_SLUG,
   SURGICAL_EQUIPMENT_SLUG,
+  PORTABLE_SURGICAL_PACK_SLUG,
   TORTURING_EQUIPMENT_SLUG,
   TORTURER_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
@@ -2914,12 +2916,31 @@ async function healCharacterRequestImpl({
   // than a refusal (docs/systemdocs/TAGS.md §5c). Nothing is out of reach any
   // more; what changes is whether you roll for it.
   const gambit = isGambitHeal(held.tag, satisfied);
-  // +1 on the die for a set of instruments in reach — held, or standing in a
-  // room that has one (db/lib/equipmentReach.js). Only ever asked for a
-  // Gambit, since a routine cure never rolls.
-  const surgical = gambit
-    ? await hasEquipmentInReach(prisma, character, SURGICAL_EQUIPMENT_SLUG)
-    : false;
+  // Surgery needs a site (M3, TAGS.md §5c): a tier-6/7 cure — read off the
+  // cure's own required skill, needsSurgicalSite — refuses outright without
+  // Surgical Equipment in reach or a COMPLETE Surgical Theater. Checked
+  // whenever it matters: the site gate (needsSite) or the die's +1 (any
+  // Gambit) — hasEquipmentInReach already treats a Theater's own
+  // `placement.provides: [surgical-equipment]` as satisfying the same
+  // reach a held or room-stashed kit does (db/lib/equipmentReach.js), the
+  // same way a Forge satisfies Workshop Equipment, so one call covers both
+  // the site and the bonus.
+  const needsSite = needsSurgicalSite(held.tag);
+  const equipmentReach =
+    needsSite || gambit
+      ? await hasEquipmentInReach(prisma, character, SURGICAL_EQUIPMENT_SLUG)
+      : false;
+  if (needsSite && !equipmentReach) {
+    throw new UserError(
+      "That's beyond a bedside treatment: hold Surgical Equipment, stand where a set is already put up, or work in a Surgical Theater. ‡",
+    );
+  }
+  // A held Portable Surgical Pack stands in for the +1 when nothing else is
+  // in reach — the die's bonus only, never the site above. Which pack (if
+  // any) actually gets spent is decided inside the transaction, under a row
+  // lock, so two tabs firing the same Gambit at once can't both spend it —
+  // this outside value is provisional, for the snapshot below only.
+  const surgical = gambit ? equipmentReach : false;
 
   const openTurn = await getOpenTurn();
 
@@ -3074,6 +3095,33 @@ async function healCharacterRequestImpl({
     await debitResources(tx, payer, cost);
 
     if (gambit) {
+      // The Portable Surgical Pack (M3): stands in for the +1 only when
+      // nothing else is in reach, spent the instant it's used — win or lose
+      // the roll, and never when equipmentReach already covers the bonus
+      // (no stacking). Locked and re-checked HERE, not before the
+      // transaction: two tabs firing the same Gambit at once must not both
+      // read "one pack held" and both spend it — dropCharacterTag on an
+      // already-gone row is a silent no-op, so an unlocked race would let
+      // the loser look bonused and cost nothing.
+      let dieBonus = equipmentReach ? 1 : 0;
+      if (!equipmentReach) {
+        await lockCharacter(tx, character.id);
+        const pack = await tx.characterTag.findFirst({
+          where: {
+            characterId: character.id,
+            quantity: { gt: 0 },
+            tag: { slug: PORTABLE_SURGICAL_PACK_SLUG },
+          },
+          select: { tagId: true },
+        });
+        if (pack) {
+          await dropCharacterTag(tx, character.id, pack.tagId, 1);
+          dieBonus = 1;
+          effect.surgicalPack = true;
+        }
+      }
+      effect.surgical = dieBonus > 0;
+
       // The Move that carries the roll. Same shape as a learner's Lesson
       // Gambit (db/lib/lessons.js) — filed CONFIRMED with the die already
       // rolled, left OPEN for the GM, revealed to the player at turn close by
@@ -3101,7 +3149,7 @@ async function healCharacterRequestImpl({
             diceModifier:
               gambitModifierTotal(character.tags, {
                 hungerStreak: character.hungerStreak,
-              }) + (surgical ? 1 : 0),
+              }) + dieBonus,
             zoneId: character.zoneId ?? null,
             gmNotes: "auto:heal_gambit",
           },
