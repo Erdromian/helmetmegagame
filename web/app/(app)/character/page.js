@@ -10,7 +10,7 @@ import {
   roleCapacity,
   isDynastyMember,
   presentedIdentity,
-  startingTagNames,
+  startingTagSlugs,
   normalizeAntagonistSlugs,
 } from "@lifeweb/db";
 import {
@@ -176,9 +176,9 @@ async function loadCreationData(discordUserId) {
             startingZoneName: role.startingLocation?.zone?.name ?? null,
             startingResources: role.startingResources,
             extraStartingPoints: role.extraStartingPoints,
-            // Parsed, because the wizard matches these against catalog tag names
-            // and an entry may carry a count ("Obol x5").
-            startingTagNames: startingTagNames(role.startingTagSlugs),
+            // Parsed, because the wizard matches these against catalog tag
+            // slugs and an entry may carry a count ("obol x5").
+            startingTagSlugs: startingTagSlugs(role.startingTagSlugs),
             grantsLeader: role.grantsLeader,
             // Drives the "Whitelist only" hover on a greyed card. Separate
             // from grantsLeader, which now only means faction Leader.

@@ -1,4 +1,4 @@
-import { prisma, startingTagNames } from "@lifeweb/db";
+import { prisma, startingTagSlugs } from "@lifeweb/db";
 import { DESIRE_UNLOCK_SELECT, stripEmptyUnlocks } from "@/lib/referenceData";
 
 // The tag catalog exactly as PointBuy consumes it, shared by the creation
@@ -13,13 +13,13 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
   const or = [{ purchasable: true }];
   if (extraTagIds.length) or.push({ id: { in: extraTagIds } });
   if (includeRoleStartingTags) {
-    // Despite the column name, startingTagSlugs holds tag NAMES (roles.yaml
-    // `starting_tags: [Pale]`, matched by name in sync-roles and PointBuy),
-    // and an entry may carry a count ("Obol x5") which has to come off before
-    // the lookup.
+    // startingTagSlugs holds slugs — roles.yaml authors display names
+    // (`starting_tags: [Pale]`) and db:sync-roles resolves each one as it
+    // validates it. An entry may carry a count ("obol x5") which has to come
+    // off before the lookup.
     const roles = await prisma.role.findMany({ select: { startingTagSlugs: true } });
-    const names = [...new Set(roles.flatMap((r) => startingTagNames(r.startingTagSlugs)))];
-    if (names.length) or.push({ name: { in: names } });
+    const slugs = [...new Set(roles.flatMap((r) => startingTagSlugs(r.startingTagSlugs)))];
+    if (slugs.length) or.push({ slug: { in: slugs } });
   }
   const tags = await prisma.tag.findMany({
     where: or.length === 1 ? or[0] : { OR: or },

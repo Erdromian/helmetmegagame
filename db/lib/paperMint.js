@@ -13,7 +13,6 @@
 const {
   PAPER_GROUP_SLUG,
   paperName,
-  noteCode,
   sealedName,
   brokenSealName,
   appendText,
@@ -62,10 +61,11 @@ const PAPER_SHAPE = {
   inspectVisibility: "HIDDEN",
 };
 
-// Tag.name is @unique across the whole catalog, so retry on the violation
+// Tag.slug is @unique across the whole catalog, so retry on the violation
 // rather than checking first: two players writing in the same millisecond
 // would both pass a pre-check and then one would throw. Six attempts is far
-// past anything the game can produce.
+// past anything the game can produce. (Tag.name is NOT unique — see
+// db/lib/paper.js#paperName — so only the slug is ever what collides.)
 //
 // Exported, because db/lib/photoMint.js mints runtime rows the same way and a
 // second copy of this loop is exactly the drift a shared helper prevents.
@@ -90,7 +90,8 @@ async function createWithRetry(tx, buildData) {
     try {
       return await tx.tag.create({ data: buildData(attempt) });
     } catch (err) {
-      // P2002 is the @unique on name or slug.
+      // P2002 is the @unique on slug. (Tag.name is no longer unique — see
+      // db/lib/paper.js#paperName — so a name can never be what collides.)
       if (err?.code !== "P2002") throw err;
     }
   }
@@ -141,10 +142,9 @@ async function mintUnownedPaper(tx, seed, authorName, text) {
     ...PAPER_SHAPE,
     groupId,
     slug: paperSlug(seed, attempt),
-    // A fresh code per attempt, so a collision is resolved by re-rolling the
-    // waybill rather than by appending "(2)" — two sheets called "A Note
-    // (TG-4596)" and "A Note (TG-4596) (2)" would look related and are not.
-    name: paperName(noteCode()),
+    // Every sheet is called this. It is the slug that has to be unique, and
+    // paperSlug re-rolls it per attempt.
+    name: paperName(),
     // Never the text. The description column is broadcast to every browser;
     // paperDescription composes what a given reader is allowed to see.
     description: null,
@@ -270,33 +270,29 @@ async function sealWithMark(tx, paperTag, { label, mark }) {
 async function breakSeal(tx, characterId, sealedTag) {
   const label = sealLabel(sealedTag);
 
-  let paper = null;
-  for (let attempt = 0; attempt < 6; attempt += 1) {
-    try {
-      paper = await tx.tag.update({
-        where: { id: sealedTag.id },
-        data: {
-          // Back to an anonymous note. The letter inside says whatever it
-          // said; who sealed it survives on the envelope, not on the paper.
-          name: paperName(noteCode()),
-          paperKind: "PAPER",
-          sealMark: null,
-          consumable: false,
-        },
-      });
-      break;
-    } catch (err) {
-      if (err?.code !== "P2002") throw err;
-    }
-  }
-  if (!paper) throw new Error("Could not name the opened letter.");
+  // No retry loop: this touches the name and not the slug, and Tag.name is no
+  // longer unique (db/lib/paper.js#paperName), so there is nothing left here
+  // that can collide.
+  const paper = await tx.tag.update({
+    where: { id: sealedTag.id },
+    data: {
+      // Back to an anonymous note. The letter inside says whatever it said;
+      // who sealed it survives on the envelope, not on the paper.
+      name: paperName(),
+      paperKind: "PAPER",
+      sealMark: null,
+      consumable: false,
+    },
+  });
 
   const envelopeGroupId = await paperGroupId(tx);
   const envelope = await createWithRetry(tx, (attempt) => ({
     ...PAPER_SHAPE,
     groupId: envelopeGroupId,
     slug: sealSlug(characterId, attempt),
-    name: attempt ? `${brokenSealName(label)} (${attempt + 1})` : brokenSealName(label),
+    // No "(2)" suffix on a retry: the attempt only re-rolls the slug, which is
+    // the unique one, and two envelopes bearing the same wax SHOULD read alike.
+    name: brokenSealName(label),
     description: null,
     paperKind: "BROKEN_SEAL",
     sealMark: sealedTag.sealMark ?? null,

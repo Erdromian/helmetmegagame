@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
-import { prisma } from "@lifeweb/db";
+import { prisma, startingTagSlugs as parseStartingTagSlugs } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import PageShell, { PageHeader } from "../../components/PageShell";
@@ -265,7 +265,9 @@ export default async function DocumentsPage() {
   }));
 
   const heldTagIds = (characterRow?.tags ?? []).map((ct) => ct.tagId);
-  const startingTagSlugs = characterRow?.role?.startingTagSlugs ?? [];
+  // Parsed, not raw: the column may carry a count ("obol x5") and catalogTags
+  // matches on a bare slug.
+  const startingTagSlugList = parseStartingTagSlugs(characterRow?.role?.startingTagSlugs ?? []);
   // Everything the reader's character counts as having for a recipe's skill
   // line: held tags plus the tiers they replace, the same ancestry walk the
   // Craft menu's own verdict runs (character/page.js#knownRecipeIds). Null
@@ -279,7 +281,7 @@ export default async function DocumentsPage() {
   // tabs below take the same list, so a withheld ingredient can no more surface
   // in a Tag Catalog hover card than in the Recipes table.
   const tagCatalogList = redactWithheldRecipes(
-    catalogTags(mappedTags, { isGm, heldTagIds, startingTagSlugs }),
+    catalogTags(mappedTags, { isGm, heldTagIds, startingTagSlugs: startingTagSlugList }),
   );
 
   return (

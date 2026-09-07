@@ -143,17 +143,25 @@ function paperDescription(tag, viewer = null) {
 //
 // So the name says nothing and the DESCRIPTION says everything, because the
 // description is the one field composed per viewer (paperDescription above).
-// Tag.name is @unique, so it still needs to differ per sheet; the code is a
-// meaningless waybill in the Depot's own house style, chosen precisely because
-// it sorts and identifies without describing. Ada knows which of her two notes
-// is which by reading them.
-function paperName(code) {
-  return `A Note (${code})`;
+//
+// It used to say "A Note (XY-1234)" — a waybill code, and the only reason for
+// it was that Tag.name was @unique, so every sheet needed a title no other tag
+// had. That made the object's own name into its database key, which is what a
+// slug is for and what `slug` on this row already is. The constraint is gone
+// and so is the code. Ada tells her two notes apart by reading them, which is
+// the only way anybody was ever meant to.
+function paperName() {
+  return "A Note";
 }
 
 // Two letters, four digits — the same shape as a Depot shipment id, and for
 // the same reason: it has to read like something stamped on the object rather
-// than like a database key. Collisions are handled by the minter's retry.
+// than like a database key.
+//
+// No longer used for paper, which is just "A Note" now. It still breaks a name
+// collision for the two kinds of row that DO want to be told apart on sight —
+// a disguise (db/lib/disguiseMint.js) and a photograph (photoMint.js), where
+// two identically named ones in a list are genuinely confusing.
 const NOTE_LETTERS = "ABCDEFGHJKLMNPRSTUVWXYZ";
 
 function noteCode(rng = Math.random) {

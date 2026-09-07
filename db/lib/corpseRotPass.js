@@ -33,12 +33,14 @@ function rottenDescription(name) {
   return `The rotten body of ${name}. It makes you sick to be near it.`;
 }
 
-// The rename, with the same collision dance minting does — and it needs it for
-// the same reason and then some. Tag.name is @unique, two characters can share
-// a name, and their corpses were already suffixed apart at death ("Ada's Corpse
-// (2)"); rotting both would collapse them onto one rotten name. The suffix has
-// to be re-derived here rather than parsed out of the old name, because the old
-// name is about to stop existing.
+// The rename, with the same collision dance minting does. Tag.slug is @unique,
+// two characters can share a name, and their corpses were already suffixed
+// apart at death ("Ada's Corpse (2)"); rotting both would collapse them onto
+// one rotten name. The suffix has to be re-derived here rather than parsed out
+// of the old name, because the old name is about to stop existing.
+//
+// The NAME suffix is now a readability choice rather than a constraint — see
+// db/lib/corpseMint.js#createCorpseTag — but the answer is the same either way.
 async function rotAndName(prisma, tag, who) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const name = attempt ? `${rottenName(who)} (${attempt + 1})` : rottenName(who);

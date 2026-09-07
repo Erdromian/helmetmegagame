@@ -106,9 +106,9 @@ than editing.
 - Deliberately **not** a Craft/Destroy recipe. A recipe's `items:` are *held,
   not consumed*, and `removesInto` is a bare slug list with no quantities, so
   neither direction can express "ten sheets".
-- **A book wears its title**, unlike a note's anonymous waybill code
-  (below). A title is what the binder chose to advertise, and a shelf of books
-  all called `A Note (TG-4596)` would be useless. The contents still sit
+- **A book wears its title**, unlike a note's anonymous name (below). A title
+  is what the binder chose to advertise, and a shelf of books all called
+  `A Note` would be useless. The contents still sit
   behind the literacy gate. Same reason its `inspectVisibility` is `ALWAYS`
   where a note's is `HIDDEN`: carrying a book is visible, reading it is not.
 - **Authored books** — the Keep's Library, the Meister's Office — are declared
@@ -125,12 +125,34 @@ than editing.
 - Tearing up an **authored** book deletes no catalog row — it only leaves your
   hands. `tearUpBook` deletes the `Tag` only when it is `custom`.
 
-**A note's name is deliberately anonymous** — `A Note (TG-4596)`, a meaningless
-waybill in the Depot's own house style. `Tag.name` travels everywhere a tag
-does (Transfer, Loot, a room's Storage readout, the bot's inspect embed) and
-none of those surfaces knows anything about literacy, so a title reading "hand
-of Ada" would hand every one of them the one fact this system protects. The
-writer is kept on `Tag.paperAuthor` for the GM and nothing else.
+**A note's name is deliberately anonymous** — every written sheet in the game
+is called `A Note`, and nothing else. `Tag.name` travels everywhere a tag does
+(Transfer, Loot, a room's Storage readout, the bot's inspect embed) and none of
+those surfaces knows anything about literacy, so a title reading "hand of Ada"
+would hand every one of them the one fact this system protects. The writer is
+kept on `Tag.paperAuthor` for the GM and nothing else.
+
+It used to read `A Note (TG-4596)` — a waybill code in the Depot's house
+style — and that was never a design choice, only a constraint showing through:
+`Tag.name` was `@unique`, so every new sheet needed a title no other tag had.
+Naming an object after its own database key is what `slug` is for, and
+`Tag.slug` (`custom-paper-<who>-<stamp>-<rand>`) was already doing it. The
+`@unique` on `name` was **dropped** (`20260913010000_paper_name_not_unique`)
+and the code went with it.
+
+Two consequences worth knowing. Nothing in the game may look a `Tag` up by
+name any more — `Role.startingTagSlugs` was the last reader that did, and
+`db:sync-roles` now resolves the display names `docs/roles.yaml` authors into
+slugs as it validates them (`db/lib/startingTags.js`), so the column is finally
+honest about what it holds. And where two rows of one kind genuinely *should*
+be told apart on sight — a corpse, a disguise, a photograph — the `(2)` suffix
+their minters add is now a readability choice rather than a constraint, and is
+kept on purpose. Two notes both reading `A Note` is the point; two bodies both
+reading `Ada's Corpse` is not.
+
+Telling your own two notes apart is the excerpt every picker already shows
+(`character/page.js`), which is literacy-gated — so the one person who can tell
+them apart is the one who can read them.
 
 ## 5. Wax
 
