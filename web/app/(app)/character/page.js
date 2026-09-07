@@ -107,7 +107,10 @@ async function loadCreationData(discordUserId) {
     // reload, and the lobby refreshes itself every 30 s anyway.
     getGuildMember(discordUserId, 60_000),
     dynastyLastName(),
-    prisma.playerPreference.findUnique({ where: { discordUserId }, select: { antagonistOptIns: true } }),
+    prisma.playerPreference.findUnique({
+      where: { discordUserId },
+      select: { antagonistOptIns: true, antagonistOpenToSolo: true, antagonistOpenToLeader: true },
+    }),
   ]);
 
   // Seated (ALIVE, plus DEAD on a seat that never reopens) plus anyone
@@ -148,6 +151,8 @@ async function loadCreationData(discordUserId) {
     initialAntagonists: normalizeAntagonistSlugs(preference?.antagonistOptIns ?? [], {
       whitelisted: leaderWhitelisted,
     }),
+    initialOpenToSolo: preference?.antagonistOpenToSolo ?? false,
+    initialOpenToLeader: preference?.antagonistOpenToLeader ?? false,
     playerCount,
     startingTagPoints: config?.startingTagPoints ?? 0,
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
@@ -296,6 +301,8 @@ async function FreshCharacter({ userId, searchParams }) {
           initial: {
             rolePriorities: preference?.rolePriorities ?? {},
             antagonistOptIns: creation.initialAntagonists,
+            antagonistOpenToSolo: preference?.antagonistOpenToSolo ?? false,
+            antagonistOpenToLeader: preference?.antagonistOpenToLeader ?? false,
             joblessRole: preference?.joblessRole ?? "COMMONER",
           },
           entry: entry?.status === "READY" ? { readyAt: entry.readyAt.toISOString() } : null,

@@ -8,6 +8,14 @@ Companion to `CHARACTERS.md` (the creation wizard's Antagonists step, which
 writes the consent this reads) and `DEV-PANEL.md` §11 (the panel these two
 sections live in).
 
+**Not every box on that step is in this catalog.** Two general checkboxes —
+"a solo role" / "a leader role" — sit in their own box above the per-seat
+checklist and write `Character.antagonistOpenToSolo` /
+`antagonistOpenToLeader` directly. They name no seat and are not wired to
+anything below: no `optIn`, no whitelist, no catalog lookup. `CHARACTERS.md`
+§1 (step 4) has the whole of it; this file's catalog has nothing to do with
+them.
+
 ## 1. What a threat is
 
 One entry in `db/lib/threats.js`. Three optional pieces decide what an entry

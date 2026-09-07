@@ -1713,6 +1713,14 @@ model Character {
   // table would only add a join and a way to drift.
   antagonistOptIns String[] @default([])
 
+  // A general comfort-level survey, deliberately NOT wired to db/lib/threats.js
+  // or any seat: whether this player would rather an antagonist role act alone
+  // or lead a group of followers, without saying which roles exist or gating
+  // anything. Same lock as antagonistOptIns above — set on the Antagonists
+  // step and never player-editable afterwards.
+  antagonistOpenToSolo   Boolean @default(false)
+  antagonistOpenToLeader Boolean @default(false)
+
   // Which private Room threads this character is currently a MEMBER of, as
   // Room ids. Not a source of truth about entitlement — that is always
   // recomputed from tags and RoomGuest rows — but a record of what has actually
@@ -2633,6 +2641,12 @@ model PlayerPreference {
   // db/lib/threats.js). Copied onto Character.antagonistOptIns at creation,
   // where it locks; this row stays editable only while there is no character.
   antagonistOptIns String[] @default([])
+
+  // General comfort-level survey, mirroring the two fields of the same name on
+  // Character — see the comment there. Copied over at creation the same way
+  // antagonistOptIns is.
+  antagonistOpenToSolo   Boolean @default(false)
+  antagonistOpenToLeader Boolean @default(false)
 
   joblessRole JoblessRole @default(COMMONER)
   updatedAt   DateTime    @updatedAt

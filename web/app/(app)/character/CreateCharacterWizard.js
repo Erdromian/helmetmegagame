@@ -152,6 +152,10 @@ export default function CreateCharacterWizard({
   // What they ticked in the lobby (PlayerPreference), so the step opens
   // already filled in. The server writes the final answer back there too.
   initialAntagonists = [],
+  // The general comfort-level survey's starting values — same lobby carry-
+  // forward as initialAntagonists above.
+  initialOpenToSolo = false,
+  initialOpenToLeader = false,
   // Start Game gave this player a seat (docs/systemdocs/LOBBY.md §4): the
   // role step is skipped, the seat is shown as a banner with its deadline,
   // and createCharacter forces the role whatever the form says.
@@ -172,6 +176,8 @@ export default function CreateCharacterWizard({
   // Opt-in, so nothing ticked is the honest default — a player who walks past
   // the step has consented to nothing. A lobby preference pre-fills it.
   const [antagonists, setAntagonists] = useState(initialAntagonists);
+  const [openToSolo, setOpenToSolo] = useState(initialOpenToSolo);
+  const [openToLeader, setOpenToLeader] = useState(initialOpenToLeader);
   const [error, setError] = useState(null);
   const [pending, setPending] = useState(false);
   // The banner sits above the step content, and both the role list and the
@@ -356,6 +362,8 @@ export default function CreateCharacterWizard({
     fd.set("roleId", roleId);
     for (const id of selectedIds) fd.append("tagIds", id);
     for (const slug of antagonists) fd.append("antagonistOptIns", slug);
+    if (openToSolo) fd.set("antagonistOpenToSolo", "1");
+    if (openToLeader) fd.set("antagonistOpenToLeader", "1");
     // A successful create redirects, so anything RETURNED here is an error.
     // createCharacter rethrows whatever it doesn't recognise, from several
     // throw sites after the transaction commits (the audit row, the archive
@@ -594,6 +602,18 @@ export default function CreateCharacterWizard({
           <p className="text-sm text-muted">
             Threat roles are assigned after game start. You can select the ones you&apos;d be open to receiving here.
           </p>
+          <div className="panel-nested flex flex-col gap-2">
+            <h3 className="text-xs uppercase tracking-wide text-muted">General comfort level</h3>
+            <p className="text-xs text-muted">
+              This doesn&apos;t name any role — it just tells the GMs whether you&apos;d be open to one, if you&apos;re ever offered one. ‡
+            </p>
+            <CheckField checked={openToSolo} onChange={() => setOpenToSolo((v) => !v)}>
+              A solo role — one that acts alone
+            </CheckField>
+            <CheckField checked={openToLeader} onChange={() => setOpenToLeader((v) => !v)}>
+              A leader role — one that commands a group of followers
+            </CheckField>
+          </div>
           <div className="grid gap-2 sm:grid-cols-2">
             {ANTAGONISTS.map((a) => {
               const locked = optInWhitelisted(a) && !whitelisted;
@@ -662,6 +682,19 @@ export default function CreateCharacterWizard({
             <div>
               <dt className="text-muted">Resources</dt>
               <dd>{role.startingResources} ⬢</dd>
+            </div>
+            <div>
+              <dt className="text-muted">Antagonist comfort</dt>
+              <dd className="flex flex-wrap gap-2">
+                {!openToSolo && !openToLeader ? (
+                  <span className="text-muted">neither</span>
+                ) : (
+                  <>
+                    {openToSolo ? <span className="chip">Solo</span> : null}
+                    {openToLeader ? <span className="chip">Leader</span> : null}
+                  </>
+                )}
+              </dd>
             </div>
             <div>
               <dt className="text-muted">Open to</dt>

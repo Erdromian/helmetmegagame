@@ -324,6 +324,8 @@ export default async function DevPanelPage({ searchParams }) {
             status: true,
             roleTitle: true,
             antagonistOptIns: true,
+            antagonistOpenToSolo: true,
+            antagonistOpenToLeader: true,
             zone: { select: { name: true } },
             tags: { select: { tag: { select: { slug: true } } } },
           },
@@ -346,11 +348,18 @@ export default async function DevPanelPage({ searchParams }) {
         }),
         // Lobby consent for the players who have no character yet: before
         // Start, the preference row is the only place a tick lives.
-        prisma.playerPreference.findMany({ select: { discordUserId: true, antagonistOptIns: true } }),
+        prisma.playerPreference.findMany({
+          select: {
+            discordUserId: true,
+            antagonistOptIns: true,
+            antagonistOpenToSolo: true,
+            antagonistOpenToLeader: true,
+          },
+        }),
       ]);
 
       const byUser = new Map(characters.map((c) => [c.discordUserId, c]));
-      const prefByUser = new Map(preferences.map((p) => [p.discordUserId, p.antagonistOptIns]));
+      const prefByUser = new Map(preferences.map((p) => [p.discordUserId, p]));
       assignmentRows = members
         .filter((m) => m.roles.includes(PLAYER_ROLE_ID))
         .map((m) => {
@@ -359,6 +368,10 @@ export default async function DevPanelPage({ searchParams }) {
           // hand from the character panel still shows up as holding it.
           const heldSlugs = new Set((c?.tags ?? []).map((t) => t.tag.slug));
           const seat = SEAT_TAG_SLUGS.map(threatBySeatTag).find((t) => t && heldSlugs.has(t.seatTagSlug));
+          // The character's locked snapshot once it exists, the live lobby
+          // preference until then — same posture for all three survey fields.
+          const pref = prefByUser.get(m.id);
+          const source = c ?? pref;
           return {
             discordUserId: m.id,
             handle: m.globalName || m.username,
@@ -367,9 +380,12 @@ export default async function DevPanelPage({ searchParams }) {
             roleTitle: c?.roleTitle ?? null,
             zoneName: c?.zone?.name ?? null,
             statusLabel: c ? c.status : "Not in game",
-            // The character's locked snapshot once it exists, the live lobby
-            // preference until then.
-            optInNames: antagonistNames(c ? c.antagonistOptIns : (prefByUser.get(m.id) ?? [])),
+            optInNames: antagonistNames(c?.antagonistOptIns ?? pref?.antagonistOptIns ?? []),
+            // General comfort-level survey (docs/systemdocs/CHARACTERS.md) —
+            // not tied to any seat, purely informational for a GM deciding
+            // who to offer one to.
+            openToSolo: source?.antagonistOpenToSolo ?? false,
+            openToLeader: source?.antagonistOpenToLeader ?? false,
             whitelisted: m.roles.includes(LEADER_WHITELIST_ROLE_ID),
             seatName: seat?.name ?? null,
           };

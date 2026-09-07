@@ -15,7 +15,7 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import { assignThreat, offerThreatSpawn } from "../threatActions";
 import { sendGmDm } from "@/app/(desk)/gm/players/actions";
 
-const COL_COUNT = 9;
+const COL_COUNT = 10;
 
 export default function ThreatAssignmentsTable({ rows, threats, roles, locations }) {
   const [spawnFor, setSpawnFor] = useState(null);
@@ -47,6 +47,16 @@ export default function ThreatAssignmentsTable({ rows, threats, roles, locations
     () => [
       { key: "inGame", label: "In game", options: ["Yes", "No"], value: (r) => (r.characterId ? "Yes" : "No") },
       { key: "whitelisted", label: "Whitelist", options: ["Yes", "No"], value: (r) => (r.whitelisted ? "Yes" : "No") },
+      // General comfort-level survey (docs/systemdocs/CHARACTERS.md) — not
+      // tied to any seat, so it's a plain Yes/No filter like Whitelist above
+      // rather than living in the Opted-into dropdown.
+      { key: "openToSolo", label: "Open to solo", options: ["Yes", "No"], value: (r) => (r.openToSolo ? "Yes" : "No") },
+      {
+        key: "openToLeader",
+        label: "Open to leader",
+        options: ["Yes", "No"],
+        value: (r) => (r.openToLeader ? "Yes" : "No"),
+      },
       {
         key: "seat",
         label: "Seat",
@@ -107,6 +117,7 @@ export default function ThreatAssignmentsTable({ rows, threats, roles, locations
             <SortHeader label="Zone" sortKey="zoneName" sort={sort} onSort={toggleSort} />
             <SortHeader label="Status" sortKey="statusLabel" sort={sort} onSort={toggleSort} />
             <th scope="col">Opted into</th>
+            <th scope="col">Comfort</th>
             <th scope="col">WL</th>
             <SortHeader label="Seat" sortKey="seatName" sort={sort} onSort={toggleSort} />
             <th scope="col">Actions</th>
@@ -199,6 +210,16 @@ function Row({ row, threats, onSpawn, onMessage }) {
                 {name}
               </span>
             ))}
+          </span>
+        )}
+      </td>
+      <td>
+        {!row.openToSolo && !row.openToLeader ? (
+          <span className="text-muted">—</span>
+        ) : (
+          <span className="flex flex-wrap gap-1">
+            {row.openToSolo ? <span className="chip">Solo</span> : null}
+            {row.openToLeader ? <span className="chip">Leader</span> : null}
           </span>
         )}
       </td>

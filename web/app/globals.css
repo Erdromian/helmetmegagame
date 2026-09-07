@@ -834,6 +834,18 @@ input[type="radio"]:focus-visible,
   border-color: var(--danger);
 }
 
+/* A block that reads as its own thing inside a .panel, one step up the
+   surface ladder rather than another .panel (which would sit flush with its
+   parent's background and read as the same box). For a general note or aside
+   that needs to visually separate from the content around it without being a
+   whole page section of its own. */
+.panel-nested {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3);
+}
+
 /* Equipment rack. Slots wrap into as many columns as fit, so six slots read
    as one row on a laptop and two or three on a phone without a breakpoint —
    the tap targets stay full-width-ish rather than shrinking to fit. */

@@ -49,7 +49,13 @@ async function allowedRoleSlugs(whitelisted) {
   );
 }
 
-export async function savePreferences({ priorities, antagonistOptIns, joblessRole }) {
+export async function savePreferences({
+  priorities,
+  antagonistOptIns,
+  antagonistOpenToSolo,
+  antagonistOpenToLeader,
+  joblessRole,
+}) {
   const gate = await lobbyGate();
   if (gate.error) return { ok: false, error: gate.error };
   const { discordUserId, whitelisted } = gate;
@@ -58,6 +64,10 @@ export async function savePreferences({ priorities, antagonistOptIns, joblessRol
   const data = {
     rolePriorities: normalizePriorities(priorities, allowed),
     antagonistOptIns: normalizeAntagonistSlugs(antagonistOptIns ?? [], { whitelisted }),
+    // General comfort-level survey, unrelated to any seat — a plain boolean,
+    // never gated by whitelist the way antagonistOptIns is.
+    antagonistOpenToSolo: antagonistOpenToSolo === true,
+    antagonistOpenToLeader: antagonistOpenToLeader === true,
     joblessRole: normalizeJoblessRole(joblessRole),
   };
   await prisma.playerPreference.upsert({

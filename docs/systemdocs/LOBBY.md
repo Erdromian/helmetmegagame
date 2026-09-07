@@ -58,14 +58,18 @@ debounced on the client):
 - **If nothing fits** — Commoner (default), Migrant, or Return to lobby.
 - **Antagonist opt-ins** — the twelve public boxes (`THREATS.md` §1), the
   whitelisted ones greyed the same way.
+- **General comfort level** — two plain boxes above the opt-in list, "a solo
+  role" / "a leader role". Not in `THREATS.md`'s catalog at all — see
+  `CHARACTERS.md` §1 step 4.
 - **Ready** — a `LobbyEntry` row, `status: READY`. Unready deletes it.
 
 `PlayerPreference` is keyed by Discord user and **survives Restart Game**: a
 returning player only has to press Ready. Priorities are keyed by role slug, so
-a role that leaves `docs/roles.yaml` drops out silently. Opt-ins copy onto
-`Character.antagonistOptIns` at creation and lock there; the wizard's
-Antagonists step opens prefilled from the preference row and writes back to
-it.
+a role that leaves `docs/roles.yaml` drops out silently. Opt-ins, and the two
+general comfort-level booleans alongside them, copy onto
+`Character.antagonistOptIns`/`antagonistOpenToSolo`/`antagonistOpenToLeader` at
+creation and lock there; the wizard's Antagonists step opens prefilled from the
+preference row and writes back to it.
 
 Two columns: the roles down the left, and on the right (sticky) the Ready
 card with the count, the fallback dropdown and the antagonist boxes. No

@@ -57,6 +57,8 @@ function PriorityControl({ slug, level, onChange }) {
 export default function Lobby({ groups, initial, entry, readyCount, whitelisted, canSkip }) {
   const [priorities, setPriorities] = useState(initial.rolePriorities ?? {});
   const [optIns, setOptIns] = useState(initial.antagonistOptIns ?? []);
+  const [openToSolo, setOpenToSolo] = useState(initial.antagonistOpenToSolo ?? false);
+  const [openToLeader, setOpenToLeader] = useState(initial.antagonistOpenToLeader ?? false);
   const [jobless, setJobless] = useState(initial.joblessRole ?? "COMMONER");
   const [readyAt, setReadyAt] = useState(entry?.readyAt ?? null);
   const [openIntro, setOpenIntro] = useState(null);
@@ -74,6 +76,8 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
   const draft = useRef({
     priorities: initial.rolePriorities ?? {},
     antagonistOptIns: initial.antagonistOptIns ?? [],
+    antagonistOpenToSolo: initial.antagonistOpenToSolo ?? false,
+    antagonistOpenToLeader: initial.antagonistOpenToLeader ?? false,
     joblessRole: initial.joblessRole ?? "COMMONER",
   });
   // Bumped by every edit, captured when a save goes out. The other half of
@@ -96,6 +100,8 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
     revision.current += 1;
     setPriorities(next.priorities);
     setOptIns(next.antagonistOptIns);
+    setOpenToSolo(next.antagonistOpenToSolo);
+    setOpenToLeader(next.antagonistOpenToLeader);
     setJobless(next.joblessRole);
     queueSave();
   }
@@ -121,10 +127,14 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
             draft.current = {
               priorities: res.saved.rolePriorities,
               antagonistOptIns: res.saved.antagonistOptIns,
+              antagonistOpenToSolo: res.saved.antagonistOpenToSolo,
+              antagonistOpenToLeader: res.saved.antagonistOpenToLeader,
               joblessRole: res.saved.joblessRole,
             };
             setPriorities(res.saved.rolePriorities);
             setOptIns(res.saved.antagonistOptIns);
+            setOpenToSolo(res.saved.antagonistOpenToSolo);
+            setOpenToLeader(res.saved.antagonistOpenToLeader);
             setJobless(res.saved.joblessRole);
           }
         } catch {
@@ -142,6 +152,14 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
     const held = draft.current.antagonistOptIns;
     const next = held.includes(slug) ? held.filter((s) => s !== slug) : [...held, slug];
     edit({ ...draft.current, antagonistOptIns: next });
+  }
+
+  function toggleOpenToSolo() {
+    edit({ ...draft.current, antagonistOpenToSolo: !draft.current.antagonistOpenToSolo });
+  }
+
+  function toggleOpenToLeader() {
+    edit({ ...draft.current, antagonistOpenToLeader: !draft.current.antagonistOpenToLeader });
   }
 
   function changeJobless(value) {
@@ -197,8 +215,20 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
             </Select>
           </label>
 
-          <section className="panel flex flex-col gap-2 p-4">
+          <section className="panel flex flex-col gap-3 p-4">
             <h2 className="panel-header">Antagonists</h2>
+            <div className="panel-nested flex flex-col gap-2">
+              <h3 className="text-xs uppercase tracking-wide text-muted">General comfort level</h3>
+              <p className="text-xs text-muted">
+                This doesn&apos;t name any role — it just tells the GMs whether you&apos;d be open to one, if you&apos;re ever offered one. ‡
+              </p>
+              <CheckField checked={openToSolo} onChange={toggleOpenToSolo}>
+                A solo role — one that acts alone
+              </CheckField>
+              <CheckField checked={openToLeader} onChange={toggleOpenToLeader}>
+                A leader role — one that commands a group of followers
+              </CheckField>
+            </div>
             <div className="flex flex-col gap-1">
               {ANTAGONISTS.map((a) => {
                 const locked = optInWhitelisted(a) && !whitelisted;

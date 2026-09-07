@@ -117,6 +117,10 @@ export async function createCharacter(formData) {
   // is the boundary that keeps junk slugs out of the column. Whitelisted
   // boxes are dropped below, once the member is known.
   const postedOptIns = formData.getAll("antagonistOptIns");
+  // General comfort-level survey (docs/systemdocs/CHARACTERS.md) — plain
+  // booleans, not tied to any seat, so nothing to normalize against a catalog.
+  const antagonistOpenToSolo = formData.get("antagonistOpenToSolo") === "1";
+  const antagonistOpenToLeader = formData.get("antagonistOpenToLeader") === "1";
 
   if (!firstName) return { error: "Your character needs a first name." };
   // One word each — the wizard gates this too, but the form can be hand-posted.
@@ -401,6 +405,8 @@ export async function createCharacter(formData) {
           isLeader: role.grantsLeader,
           isTreasurer: role.grantsTreasurer,
           antagonistOptIns,
+          antagonistOpenToSolo,
+          antagonistOpenToLeader,
         },
       });
 
@@ -422,8 +428,8 @@ export async function createCharacter(formData) {
       // with it ticked already (docs/systemdocs/LOBBY.md §2).
       await tx.playerPreference.upsert({
         where: { discordUserId },
-        create: { discordUserId, antagonistOptIns },
-        update: { antagonistOptIns },
+        create: { discordUserId, antagonistOptIns, antagonistOpenToSolo, antagonistOpenToLeader },
+        update: { antagonistOptIns, antagonistOpenToSolo, antagonistOpenToLeader },
       });
 
       // The Merchant advanced him half of it; the paper says the rest
@@ -519,6 +525,8 @@ export async function createCharacter(formData) {
         spent,
         purchased: selected.map((t) => t.name),
         antagonistOptIns,
+        antagonistOpenToSolo,
+        antagonistOpenToLeader,
       },
     },
   });

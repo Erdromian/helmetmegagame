@@ -70,6 +70,21 @@ The wizard has five steps:
    a server action is a public endpoint, so the checkboxes are UX and that
    function is the boundary. It drops a slug the catalog no longer carries,
    which is why renaming one needs no data migration.
+
+   **Above the checklist sits a separate, visually distinct box** (a nested
+   `.panel-nested` block, so it doesn't read as one more oddly-named seat): two
+   plain checkboxes, "a solo role" and "a leader role" —
+   `Character.antagonistOpenToSolo` / `antagonistOpenToLeader`. This is a
+   general comfort-level survey, deliberately **not wired to `db/lib/threats.js`
+   at all** — no seat, no `optIn`, no whitelist gate, nothing a GM's pick is
+   validated against. It exists purely so a player can say "I don't want the
+   responsibility of leading people" (or the reverse) without that saying
+   anything about which seats exist, same posture as the checklist below it but
+   one level more abstract. Same lock, same lobby carry-forward
+   (`PlayerPreference.antagonistOpenToSolo`/`antagonistOpenToLeader`), same
+   `/gm/dev?s=assignments` surface (a "Comfort" column, filterable like
+   Whitelist) — everything about the pattern is copied except the wiring to a
+   catalog.
 5. **Confirm** — a summary, then `createCharacter`.
 
 ## 1b. Names
