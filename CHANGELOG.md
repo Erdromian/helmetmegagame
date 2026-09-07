@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · A role handed out in Discord reaches the lobby within a minute
+
+✎ The lobby and the character wizard re-read your Discord roles at most a minute old, so a Playtest or Player role granted mid-session shows up on the next reload instead of five minutes later  
+✎ Ready up, Skip, and Confirm always check your current roles, so a fresh role is never refused as "not on the roster"
+
 ## 2026-09-07 · Typing, speech, mentions, the wipe, and a Scene tab for the GMs
 
 ✚ "Cersei is typing…" on the Play page, under the character's presented name, whether they type on Discord or on the web.  
