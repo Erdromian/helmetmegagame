@@ -244,7 +244,7 @@ renders through (`label`, with `{target}`, `{location}`, `{value}` or `{text}`
 filled from the row's snapshots), which parties may take it, a `weight` (Minor
 / Major, display only), what the second control on the Add row asks for
 (`target`: a character, a *leader* — a character whose Role has
-`requiresWhitelist` — an Inquisitor or Baron (or Baroness), a Location, a
+`requiresWhitelist` — the Inquisitor or the Baron (not the Baroness), a Location, a
 number, free text), and a `script`. The kinds and their words are Bascinet's,
 from the objectives spec, so they carry no ‡. Solo parties only get `custom`.
 
@@ -254,7 +254,7 @@ in `evaluateObjectives`, all read on demand — nothing runs at turn close:
 | Kind | Checker | Reads |
 |---|---|---|
 | Kill [Character] | `characterDead` | the target's `status === "DEAD"`, exactly — `CURSED` is a dead enum value, not a state; a GM Revive un-scores this |
-| Cause [N] deaths in a single day | `deathsInOneDay` | the game's DEATH `ArchiveEntry` rows grouped by `turnDay()` (two turns to a day); done if any day reached N. Whoever, or whatever, caused them — the bomb's dozens count |
+| Cause [N] deaths in a single day | `deathsInOneDay` | the game's DEATH `ArchiveEntry` rows grouped by `turnDay()` (two turns to a day); done if any day reached N. Whoever caused them — the cult need not have. The one exception is the bomb's turn (`nukeDetonatedTurn`), which is left out entirely: the blast is the Tribunal's objective, not a bloodbath |
 | Detonate the nuclear device | `nukeDetonated` | `GameState.nukeDetonatedTurn` |
 
 Everything else — Deface, Blow up, the conversion and sacrifice rites, Celebrate,

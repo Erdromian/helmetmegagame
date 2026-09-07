@@ -16,7 +16,7 @@
 //               "character" | "leader" | "inquisitor-or-baron" | "location" |
 //               "number" | "text" | null. A leader is a character whose Role
 //               has requiresWhitelist; "inquisitor-or-baron" is a role slug in
-//               INQUISITOR_OR_BARON_ROLE_SLUGS.
+//               INQUISITOR_OR_BARON_ROLE_SLUGS (the Baroness is not one).
 //   script      null = the GM says whether it happened. Otherwise the name of
 //               a checker in db/lib/objectives.js and the game decides, unless
 //               the GM pins an answer.
@@ -173,9 +173,9 @@ const KINDS_BY_KEY = new Map(OBJECTIVE_KINDS.map((k) => [k.key, k]));
 // Tribunal has one: both its objectives need no target.
 const PARTY_DEFAULTS = { tribunal: ["detonate-nuke", "celebrate"] };
 
-// "Inquisitor or Baron" in the spec. The Baroness is the Baron's seat in a
-// woman-led Court (docs/roles.yaml), so she counts.
-const INQUISITOR_OR_BARON_ROLE_SLUGS = new Set(["inquisitor", "baron", "baroness"]);
+// "Inquisitor or Baron" in the spec, and exactly those two — Bascinet ruled
+// the Baroness out (2026-09-07).
+const INQUISITOR_OR_BARON_ROLE_SLUGS = new Set(["inquisitor", "baron"]);
 
 const OBJECTIVE_WEIGHTS = ["MINOR", "MAJOR"];
 

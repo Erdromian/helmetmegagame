@@ -36,10 +36,13 @@ async function loadDeaths(prisma, gameId) {
 
 // The most deaths any one in-game day saw. Two turns make a day
 // (db/lib/turnFormat.js#turnDay); a row with no turn number belongs to no day.
-function maxDeathsInOneDay(deaths) {
+// The bomb's turn is left out entirely (Bascinet, 2026-09-07): the blast kills
+// everyone above ground at once, and that is the Tribunal's objective, not a
+// Thanati bloodbath.
+function maxDeathsInOneDay(deaths, { excludeTurn = null } = {}) {
   const perDay = new Map();
   for (const d of deaths) {
-    if (d.turnNumber == null) continue;
+    if (d.turnNumber == null || d.turnNumber === excludeTurn) continue;
     const day = turnDay({ number: d.turnNumber });
     perDay.set(day, (perDay.get(day) ?? 0) + 1);
   }
@@ -67,9 +70,10 @@ async function evaluateObjectives(prisma, rows, { state = null, deaths = null } 
     if (kind?.script === "deathsInOneDay") needDeaths = true;
   }
 
-  // The death rows must be this game's — ArchiveEntry outlives Restart Game —
-  // so counting them needs the state's gameId too.
-  const mustLoadState = (needState || (needDeaths && !deaths)) && !state;
+  // Counting deaths needs the state too: its gameId scopes the rows (an
+  // ArchiveEntry outlives Restart Game) and its nukeDetonatedTurn is the turn
+  // left out of the count.
+  const mustLoadState = (needState || needDeaths) && !state;
   const [targets, loadedState] = await Promise.all([
     targetIds.size
       ? prisma.character.findMany({ where: { id: { in: [...targetIds] } }, select: { id: true, status: true } })
@@ -80,7 +84,9 @@ async function evaluateObjectives(prisma, rows, { state = null, deaths = null } 
   const loadedDeaths = needDeaths && !deaths ? await loadDeaths(prisma, gameId) : deaths;
 
   const statusOf = new Map(targets.map((t) => [t.id, t.status]));
-  const worstDay = needDeaths ? maxDeathsInOneDay(loadedDeaths ?? []) : 0;
+  const worstDay = needDeaths
+    ? maxDeathsInOneDay(loadedDeaths ?? [], { excludeTurn: loadedState?.nukeDetonatedTurn ?? null })
+    : 0;
 
   for (const row of rows) {
     if (row.pinned != null) {

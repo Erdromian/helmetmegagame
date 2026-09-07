@@ -44,6 +44,8 @@ test("deaths are counted per in-game day, two turns to a day", () => {
   ];
   assert.equal(maxDeathsInOneDay(deaths), 3);
   assert.equal(maxDeathsInOneDay([]), 0);
+  // The bomb's turn does not count: the blast is the Tribunal's, not the cult's.
+  assert.equal(maxDeathsInOneDay(deaths, { excludeTurn: 2 }), 1);
 });
 
 test("the reveal reads in Bascinet's format", () => {
@@ -78,14 +80,17 @@ test("the pin beats the script; otherwise the game decides", async () => {
     { id: "c", kind: "kill-character", targetCharacterId: "c1", pinned: false },
     { id: "d", kind: "detonate-nuke", pinned: null },
     { id: "e", kind: "mass-deaths", value: 2, pinned: null },
+    { id: "g", kind: "mass-deaths", value: 5, pinned: null },
     { id: "f", kind: "celebrate", pinned: true },
   ];
-  const deaths = [{ turnNumber: 4 }, { turnNumber: 3 }];
+  // Day 2 has two deaths; the eight on turn 7 are the blast and do not count.
+  const deaths = [{ turnNumber: 4 }, { turnNumber: 3 }, ...Array.from({ length: 8 }, () => ({ turnNumber: 7 }))];
   const scored = await evaluateObjectives(fakePrisma, rows, { deaths });
   assert.deepEqual(scored.get("a"), { done: true, source: "script" });
   assert.deepEqual(scored.get("b"), { done: false, source: "script" });
   assert.deepEqual(scored.get("c"), { done: false, source: "pinned" });
   assert.deepEqual(scored.get("d"), { done: true, source: "script" });
   assert.deepEqual(scored.get("e"), { done: true, source: "script" });
+  assert.deepEqual(scored.get("g"), { done: false, source: "script" });
   assert.deepEqual(scored.get("f"), { done: true, source: "pinned" });
 });
