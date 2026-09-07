@@ -212,10 +212,16 @@ export function craftFamily(tag) {
   return [...set].filter(Boolean).sort()[0] ?? "craft";
 }
 
+// `ct.poisonMarker` (M4 fix round): already a stripped, gated boolean by the
+// time it reaches here (character/page.js and play/page.js both derive it
+// server-side before the sheet crosses into a client component) — never the
+// raw poisonedCount/poisonPayload, which this module's callers never see at
+// all. Absent on a ct that never carried one (a GM-side caller, say),
+// which reads exactly as "not poisoned" — the same as everywhere else.
 export function transferableTags(characterTags = []) {
   return characterTags
     .filter((ct) => isTradeable(ct.tag))
-    .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
+    .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1, poisonMarker: Boolean(ct.poisonMarker) }));
 }
 
 // What may go into a crate: anything tradeable, minus crates. Nesting one
@@ -235,11 +241,14 @@ export function packableTags(characterTags = []) {
 }
 
 // Consuming always takes exactly one unit, so the held count here is shown,
-// never a cap.
+// never a cap. `poisonMarker` (M4 fix round) — the moment of eating is
+// exactly where a detector most wants the tell, and it was missing here
+// entirely: the poison dialog's own "Which poison?" list and the ordinary
+// Consume list both read this.
 export function consumableTags(characterTags = []) {
   return characterTags
     .filter((ct) => ct.tag?.consumable)
-    .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
+    .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1, poisonMarker: Boolean(ct.poisonMarker) }));
 }
 
 // The mount tags — what lets a character cross into a second zone in one

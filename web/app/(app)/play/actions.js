@@ -319,6 +319,9 @@ export async function myThings() {
         tagId: true,
         quantity: true,
         equipped: true,
+        // M4 fix round: thingGroups derives its own poisonMarker off this —
+        // never returned raw, see thingGroups' own comment.
+        poisonedCount: true,
         tag: {
           select: {
             id: true,

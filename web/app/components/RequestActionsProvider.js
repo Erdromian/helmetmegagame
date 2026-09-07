@@ -1886,7 +1886,7 @@ export default function RequestActionsProvider({
             {mode === "poison" && (
               <>
                 <label className="field">
-                  <span className="field-label">Which poison?</span>
+                  <span className="field-label">Which poison? ‡</span>
                   <Select
                     value={tagId ?? ""}
                     onChange={(e) => {
@@ -1903,6 +1903,7 @@ export default function RequestActionsProvider({
                       <option key={t.id} value={t.id}>
                         {t.name}
                         {t.quantity > 1 ? ` ×${t.quantity}` : ""}
+                        {t.poisonMarker ? " · smells wrong" : ""}
                       </option>
                     ))}
                   </Select>
@@ -1921,9 +1922,9 @@ export default function RequestActionsProvider({
                       <option value="" disabled>
                         Choose one…
                       </option>
-                      <option value="food">Lace a meal or drink</option>
-                      <option value="person">Dose someone helpless here</option>
-                      <option value="self">Drink it yourself</option>
+                      <option value="food">Lace a meal or drink ‡</option>
+                      <option value="person">Dose someone helpless here ‡</option>
+                      <option value="self">Drink it yourself ‡</option>
                     </Select>
                   </label>
                 )}
@@ -1932,7 +1933,7 @@ export default function RequestActionsProvider({
                     <NobodyHere>You aren&apos;t holding anything it could go in.</NobodyHere>
                   ) : (
                     <label className="field">
-                      <span className="field-label">Lace what?</span>
+                      <span className="field-label">Lace what? ‡</span>
                       <Select value={targetId} onChange={(e) => setTargetId(e.target.value)} required>
                         <option value="" disabled>
                           Choose a meal or drink…
@@ -1941,6 +1942,7 @@ export default function RequestActionsProvider({
                           <option key={t.id} value={t.id}>
                             {t.name}
                             {t.quantity > 1 ? ` ×${t.quantity}` : ""}
+                            {t.poisonMarker ? " · smells wrong" : ""}
                           </option>
                         ))}
                       </Select>
@@ -1949,7 +1951,7 @@ export default function RequestActionsProvider({
                 )}
                 {chosen && poisonUse === "food" && (
                   <p className="text-xs text-muted">
-                    {`Refuses if what you're lacing already carries a different poison. Whoever eats it is never told. ‡`}
+                    {`Only stops you if you'd notice — Poison Sense or a Snooper telling you it's already carrying something else, or that it can't hold any more. Otherwise it goes in anyway and is lost in the mix. Whoever eats it is never told, either way. ‡`}
                   </p>
                 )}
                 {chosen && poisonUse === "person" && (
@@ -1957,7 +1959,7 @@ export default function RequestActionsProvider({
                     <NobodyHere>Nobody here is helpless enough to dose directly.</NobodyHere>
                   ) : (
                     <label className="field">
-                      <span className="field-label">Dose who?</span>
+                      <span className="field-label">Dose who? ‡</span>
                       <Select value={targetId} onChange={(e) => setTargetId(e.target.value)} required>
                         <option value="" disabled>
                           Choose someone here…

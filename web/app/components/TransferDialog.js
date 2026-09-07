@@ -65,6 +65,10 @@ export default function TransferDialog({
           // Assets weigh nothing on your back (CARRY.md §1), so the
           // projection must not charge you for handing one over either.
           weightLbs: t.category === "Assets" ? 0 : (t.weightLbs ?? 0),
+          // Detector surface (M4 fix round) — only meaningful from YOUR own
+          // stack (own-sheet detection is the design); a room's own tags
+          // below carry no such field and render nothing.
+          poisonMarker: Boolean(t.poisonMarker),
         }))
       : (fromRoom?.tags ?? []);
   const canOfferTags = fromKey === selfKey || Boolean(fromRoom);
@@ -148,6 +152,7 @@ export default function TransferDialog({
                   <div key={t.tagId} className="flex flex-wrap items-center gap-3">
                     <CheckField checked={checked} onChange={() => onTogglePick(t.tagId, t.quantity)}>
                       {stackLabel(t.name, t.quantity)}
+                      {t.poisonMarker ? <span className="text-muted"> · smells wrong ‡</span> : null}
                     </CheckField>
                     {checked && max > 1 && (
                       <QuantityField

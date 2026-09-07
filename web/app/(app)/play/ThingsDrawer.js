@@ -179,6 +179,9 @@ export default function Things({ groups: initialGroups = [] }) {
                         {row.quantity > 1 ? ` ×${row.quantity}` : ""}
                         {/* What is out and in hand, rather than in a pocket. */}
                         {row.equipped ? " ·" : ""}
+                        {/* The doctor's-eye read (M4 fix round), same gate and
+                            same wording as the sheet's own TagChip. */}
+                        {row.poisonMarker ? <span className="text-muted"> · smells wrong ‡</span> : null}
                       </button>
                       {openId === row.tagId && (
                         <ThingMenu row={row} onClose={close} onEquip={equip} pending={pending} />

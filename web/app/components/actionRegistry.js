@@ -59,7 +59,7 @@ export const ACTION_HELP = {
   consume:
     "Use something up. You can also just click on the tag on your sheet.",
   poison:
-    "Lace a meal or drink you're holding, dose someone helpless standing here, or drink it yourself. You can also just click on the poison on your sheet.",
+    "Lace a meal or drink you're holding, dose someone helpless standing here, or drink it yourself. You can also just click on the poison on your sheet. ‡",
   transfer: (
     <>
       <p>

@@ -9,6 +9,7 @@ import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import { carryStatus } from "@lifeweb/db/lib/carry";
+import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import RequestActionsProvider from "@/app/components/RequestActionsProvider";
@@ -118,8 +119,22 @@ export default async function PlayPage() {
               resources: true,
               // `id` is the CharacterTag row, which is what an equip toggle
               // acts on; the Things drawer is the only thing here that needs
-              // one (./thingRows.js).
-              tags: { select: { id: true, tagId: true, quantity: true, equipped: true, tag: true } },
+              // one (./thingRows.js). `poisonedCount`/`poisonPayload` (M4)
+              // are read here ONLY to derive `poisonMarker` below — they are
+              // stripped from `clientSheet` before it crosses into a client
+              // component, the same leak point character/page.js's own
+              // comment explains.
+              tags: {
+                select: {
+                  id: true,
+                  tagId: true,
+                  quantity: true,
+                  equipped: true,
+                  tag: true,
+                  poisonedCount: true,
+                  poisonPayload: true,
+                },
+              },
               role: { select: { slug: true } },
               // Which in-game DAY the bird last left on
               // (docs/systemdocs/PAPERWORK.md §Bird).
@@ -141,12 +156,22 @@ export default async function PlayPage() {
         // illiterate, which is the one thing the whole paperwork system exists
         // to prevent (character/page.js strips it the same way). The dialogs
         // fetch the text on demand instead.
+        //
+        // `poisonedCount`/`poisonPayload` (M4, detector-surface fix round) get
+        // the same treatment as the sheet page: stripped raw, replaced with a
+        // plain `poisonMarker` yes/no gated on canDetectPoison — this is the
+        // Things drawer's own detection surface (the sheet's own is
+        // character/page.js), so the two can no longer disagree about
+        // whether a viewer smells anything.
+        const canSmellPoison = canDetectPoison(sheet?.tags ?? []);
         const clientSheet = {
           ...sheet,
           tags: (sheet?.tags ?? []).map((ct) => {
-            if (ct.tag?.paperText == null) return ct;
-            const { paperText, ...tag } = ct.tag;
-            return { ...ct, tag };
+            const { poisonedCount, poisonPayload, ...ctRest } = ct;
+            const stripped = { ...ctRest, poisonMarker: canSmellPoison && (poisonedCount ?? 0) > 0 };
+            if (stripped.tag?.paperText == null) return stripped;
+            const { paperText, ...tag } = stripped.tag;
+            return { ...stripped, tag };
           }),
         };
 

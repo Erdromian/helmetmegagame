@@ -92,7 +92,7 @@ export default function TagsPanel({
   function consumeHintFor(tag) {
     // A poison opens its own dialog (lace it, dose someone, or drink it) —
     // "Click to consume" would promise the wrong verb.
-    if (tag?.poison) return "Click to poison…";
+    if (tag?.poison) return "Click to poison… ‡";
     const names = (tag?.consumesInto ?? [])
       .map((slug, i) => {
         const blockers = tag?.consumesIntoUnless?.[slug] ?? null;
