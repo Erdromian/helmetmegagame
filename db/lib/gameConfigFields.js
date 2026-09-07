@@ -124,7 +124,7 @@ const FIELDS = [
     help: "How many Desire slots every character gets. Each slot cools down independently of the others, and the bottom one is the slot an Addiction binds. Lowering this hides a slot rather than deleting what was claimed in it.",
   },
   {
-    key: "desireSlotLockTurns", type: "int", group: "desires", default: 2, min: 0, max: 20,
+    key: "desireSlotLockTurns", type: "int", group: "desires", default: 1, min: 0, max: 20,
     label: "Desire slot lock",
     help: "Whole turns a slot stays shut after a Desire is claimed into it. At 2, a claim on turn 40 leaves that slot shut through turn 42 and open on 43. Remember a turn is a whole real day, and an in-game day is two of them.",
   },

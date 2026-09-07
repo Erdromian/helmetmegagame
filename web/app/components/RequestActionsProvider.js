@@ -922,8 +922,9 @@ export default function RequestActionsProvider({
   // `presets` seeds the one field a caller already knows: the Hall's people
   // column opens Heal or Loot from a person's own row, and asking them to
   // pick that person again out of a dropdown would be a worse dialog than
-  // the sheet's. Only `targetId` / `patientId` / `toKey` are seedable —
-  // everything else in a dialog is a decision, not a context.
+  // the sheet's. Only `targetId` / `patientId` / `toKey` / `fromKey` /
+  // `picks` are seedable — everything else in a dialog is a decision, not a
+  // context.
   const open = useCallback(
     (next, presetTagId = null, presets = null) => {
       setMode(next);
@@ -967,6 +968,12 @@ export default function RequestActionsProvider({
       if (presets?.patientId) setPatientId(presets.patientId);
       if (presets?.targetId) setTargetId(presets.targetId);
       if (presets?.toKey) setToKey(presets.toKey);
+      // Transfer's two ends and a first pick. The Hall's room panel opens this
+      // dialog three ways — Drop, Take, and a click straight on a stack lying
+      // in the room — and each of those is context the player has already
+      // given by choosing the button, not a decision to ask for again.
+      if (presets?.fromKey) setFromKey(presets.fromKey);
+      if (presets?.picks) setPicks(presets.picks);
     },
     [selfId],
   );
@@ -1433,9 +1440,12 @@ export default function RequestActionsProvider({
     ],
   );
 
+  // `selfId` rides along so a caller can build the `character:<id>` party key
+  // the Transfer presets take without being handed the id a second way. The
+  // Hall's room panel is the one that needs it (Drop and Take name both ends).
   const value = useMemo(
-    () => (enabled ? { open, pools } : null),
-    [enabled, open, pools],
+    () => (enabled ? { open, pools, selfId } : null),
+    [enabled, open, pools, selfId],
   );
 
   const title = titleFor(mode);

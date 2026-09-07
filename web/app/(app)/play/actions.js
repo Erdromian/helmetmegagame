@@ -399,6 +399,10 @@ export async function loadTravel() {
     options: options.map((row) => ({
       id: row.location.id,
       name: row.location.name,
+      // Already loaded: locationGraph's LINK_INCLUDE pulls whole Location rows
+      // on both ends of a link, so this costs no query. The node draws it so
+      // the way out says what it leads to, not just where.
+      description: row.location.description || null,
       zoneName: row.location.zone?.name ?? null,
       crossesZone: row.crossesZone,
       passable: row.passable,

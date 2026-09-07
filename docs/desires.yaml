@@ -46,11 +46,13 @@
 # COOLDOWN POLICY (2026-09-02 balance sweep). Two things make the bare tier a
 # bad cooldown for a cheap goal:
 #
-#   1. The per-slot lock already shuts a slot for the turn a Desire ends AND
-#      the next one, so the soonest anything can be re-fulfilled is 2 turns
-#      later. `cooldownTurns: 1` and `2` therefore do NOTHING — they are
-#      dominated by a gate that was going to fire anyway. 3 is the smallest
-#      value that has any effect at all. Don't write 1 or 2.
+#   1. The per-slot lock already shuts a slot for the turn a Desire ends, so
+#      the soonest anything can be re-fulfilled is the turn after.
+#      `cooldownTurns: 1` therefore does NOTHING — it is dominated by a gate
+#      that was going to fire anyway. 2 is the smallest value that has any
+#      effect at all. Don't write 1.
+#      (This tracked desireSlotLockTurns, which was 2 until 2026-09-07 and is
+#      now 1. At a lock of 2 it was `1` and `2` that were inert.)
 #   2. A gate is not a throttle. `requires` decides WHO may take a goal, never
 #      how often; a tag or role you hold permanently costs nothing on the
 #      second repetition. What actually throttles a Desire is a per-attempt

@@ -5253,6 +5253,24 @@ label.chip {
   white-space: nowrap;
 }
 
+/* What the place is. The node is a fixed square (aspect-ratio: 1) and the
+   foot is pinned to its bottom by margin-top:auto, so this takes whatever is
+   left in between and clamps rather than pushing the box taller. min-height:0
+   is what lets a flex child actually shrink far enough to clamp. */
+.hall-node-desc {
+  flex: 1 1 auto;
+  min-height: 0;
+  font-style: italic;
+  font-size: var(--fs-2xs);
+  line-height: 1.3;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .hall-node-foot {
   margin-top: auto;
   font-size: var(--fs-2xs);

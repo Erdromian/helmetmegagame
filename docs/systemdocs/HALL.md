@@ -286,7 +286,8 @@ from 17rem in the second pass: it is the game suite now, not a button strip.
 │               │                                            │──────────────────────│
 │               │ · Alexandra is typing…                     │ THIS ROOM            │
 │               │────────────────────────────────────────────│ Storage · 2 loaves,  │
-│ 🔔  web-only  │ [ Say something in Council Room…         ] │ a key   [Move things]│
+│ 🔔  web-only  │ [ Say something in Council Room…         ] │ a key                │
+│               │                                            │ [Drop][Take][Transfer]│
 │               │                                  4 s       │ [Intercom]           │
 │               │                                            │──────────────────────│
 │               │                                            │ TRAVEL · 1 free      │
@@ -570,13 +571,17 @@ header instead).
      answers what this character can do where they stand, which at a Location
      with six rooms is six rooms' buttons at once; the panel groups by
      `roomId` and shows the open one. Its storage line comes from
-     `readStash`, with **Move things** opening the sheet's Transfer preset to
-     `room:<id>`, and then that room's own fixtures — Intercom in the Council
-     Room, the Bell in the tower, the red Turret in the Censor's office.
+     `readStash`, and every stack in it is a button: clicking one opens the
+     sheet's Transfer dialog with the room as the source and that stack
+     already ticked. Under it, **Drop** / **Take** / **Transfer** — the same
+     dialog seeded three ways (self→room, room→self, and nothing assumed).
+     Then that room's own fixtures — Intercom in the Council Room, the Bell in
+     the tower, the red Turret in the Censor's office.
   4. **`TravelNodes.js`** — the ways out as a grid of square nodes, two to a
      row, off `loadTravel`. Each node carries the destination, its zone in
-     small caps and one foot line: `free` for a local hop or a crossing with a
-     free move left, `the turn` for a crossing that spends the Move and lands
+     small caps, the Location's own description in italics (clamped to the
+     square, with the whole of it on the node's title) and one foot line:
+     `free` for a local hop or a crossing with a free move left, `the turn` for a crossing that spends the Move and lands
      next turn (MAP.md §3), and `shut` / `locked` / the refusal for one that
      will not open — dimmed, still drawn, because knowing the way is there and
      shut is what sends you to find the winch. A zone crossing is tinted. The
