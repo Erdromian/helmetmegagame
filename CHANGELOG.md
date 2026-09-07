@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · The GM desks paint at once on a return visit
+
+− The player roster, a player's conversation, the turns workspace, the audit log, Crafts, Structures, the tag catalog and the dev panel all keep their last data in your browser and draw it in the first frame; the server's answer replaces it a moment later
+
 ## 2026-09-07 · Documents, the Depot and Notes paint at once on a return visit
 
 − Three more pages keep their last data in your browser and draw it in the first frame; the server's answer replaces it a moment later
