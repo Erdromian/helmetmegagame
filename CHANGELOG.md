@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Destroy is for things you own
+
+✚ You can now throw away a letter, a book, a wax seal, a helmet or a suit of armour — 119 things that were stuck to you before  
+− The Destroy button is gone from Beliefs, Torturer, Hypochondriac, Mime's Vow and Bound. Converting a Belief mid-game is a GM's to make now  
+− Green is out of the game entirely, along with the Win your first ever fight Desire that was gated on it  
+✎ Seven things stay un-binnable on purpose: the three monster corpses, the Nuclear Device and its Datacard, the grafted nerve braid, and the bolted-down crating bench
+
 ## 2026-09-07 · A Faction section and browser notifications on the Play page
 
 ✚ A Faction row in the places column opening your roster, with ⬢ for the Leader and Treasurer, and a way to the silo  
