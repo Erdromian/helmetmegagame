@@ -498,7 +498,6 @@ async function craftGrantChecks(character, tag, db = prisma) {
       requiredTagId: true,
       exclusive: true,
       groupId: true,
-      removable: true,
       conflictsWith: { select: { id: true } },
     },
   });
@@ -514,11 +513,7 @@ async function craftGrantChecks(character, tag, db = prisma) {
   }
   const conflict = exclusiveConflict(tag, heldIds, chainById);
   if (conflict) {
-    throw new UserError(
-      conflict.removable
-        ? `You already hold ${conflict.name}; destroy it first to make ${tag.name}.`
-        : `${tag.name} can't be held with ${conflict.name}.`,
-    );
+    throw new UserError(`${tag.name} can't be held with ${conflict.name}.`);
   }
   const namedConflict = conflictingTag(
     chainById.get(tag.id) ?? tag,
@@ -1968,7 +1963,8 @@ async function confessRequestImpl({ chaplainId, tagId }) {
 
 // --- Destroy -------------------------------------------------------------
 
-// Drops a `removable` tag you hold. No refund and no ⬢ field: destroying is
+// Drops an item you hold (`Tag.removable`, derived from the category in
+// db/lib/syncTags.js). No refund and no ⬢ field: destroying is
 // throwing away, and a cure is Heal's job (docs/systemdocs/TAGS.md §5).
 async function destroyTagRequestImpl({
   tagId,
@@ -4368,7 +4364,9 @@ async function packageItemsRequestImpl({
         // culprit. A crate is a box somebody is visibly hauling.
         inspectVisibility: "ALWAYS",
         weightLbs: crateWeight(contents, weightByTagId),
-        removable: false,
+        // An item like any other, so it gets the Destroy button the category
+        // rule gives the rest of them (db/lib/syncTags.js).
+        removable: true,
         consumable: true,
         // Repeated per unit — that is how consumesInto expresses a quantity
         // (docs/tags.yaml header), and every packable thing worth crating in

@@ -75,11 +75,18 @@
 #                     one: a medic sees what they could treat whatever this
 #                     says, so an internal illness can be `false` without
 #                     becoming undiagnosable (TAGS.md §5c).
-#   removable       - the Destroy menu: whether a player can strip this tag
-#                     off themselves mid-game without a GM
-#                     (web/lib/tagRequests.js#destroyableTags, re-checked by
-#                     destroyTagRequest). Destroying refunds nothing. Not for
-#                     health tags — a cure is `healable`. Default false.
+#   removable       - an OPT-OUT, and the only legal value is `false`. Destroy
+#                     is for things you own, so db/lib/syncTags.js DERIVES the
+#                     flag: every tag in `items` or `assets` gets the Destroy
+#                     menu and nothing else ever does. Write `removable: false`
+#                     on the handful an item is not allowed to be binned from
+#                     — the three corpses (Butcher and Bury are the two ways a
+#                     body leaves), the nuke halves, the grafted nerve braid,
+#                     the bolted-down crating bench — and say why in a comment
+#                     beside it. The sync THROWS on `removable: true` anywhere,
+#                     and on `removable: false` outside those two categories,
+#                     where it would do nothing. A cure is `healable`, not
+#                     this. Destroying refunds nothing.
 #   craftable       - the Craft menu (docs/systemdocs/CRAFTING.md): whether a
 #                     player can make this tag. The recipe is the
 #                     `requirement:` block below, and every listed skill must
@@ -351,7 +358,6 @@ tags:
     requiredTag: courtier
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     visible: true
     desires:
       locks:
@@ -394,7 +400,6 @@ tags:
     pointCost: 0
     purchasable: false
     visible: false
-    removable: true
 
   in-the-pit:
     catalog: gm
@@ -404,7 +409,6 @@ tags:
     pointCost: 0
     purchasable: false
     visible: false
-    removable: true
 
   courtier:
     catalog: gm
@@ -509,10 +513,10 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    # Not removable: you cannot un-know where a place is, and Destroying it
-    # would have locked a Brigand out of their own faction's home for good —
-    # untradeable means nobody could hand them another.
-    removable: false
+    # Not an item, so there is no Destroy button on it — which is right: you
+    # cannot un-know where a place is, and binning it would have locked a
+    # Brigand out of their own faction's home for good, untradeable meaning
+    # nobody could hand them another.
 
   sewer:
     catalog: all
@@ -526,7 +530,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   underquarter-basements:
     catalog: all
@@ -540,7 +543,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   # Moved out of general-court (2026-08-31, Desires rework) — anyone can be
   # vain, not just the court.
@@ -555,7 +557,6 @@ tags:
     exclusive: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
     consumable: false
     conflictsWith: [depressed]
     desires:
@@ -577,7 +578,6 @@ tags:
     exclusive: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
     consumable: false
     conflictsWith: [depressed]
     desires:
@@ -666,7 +666,6 @@ tags:
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
-    removable: true
     conflictsWith: [charitable, pacifist, saint, old-ways-eusoch]
 
   # Lock-free by design (F-18): an Interest, not a Restriction.
@@ -834,7 +833,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     tradeable: false
 
   time-stop:
@@ -847,7 +845,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     tradeable: false
 
   tracking:
@@ -908,7 +905,6 @@ tags:
     purchasable: true
     # Curable + maximally valuable would be a point farm otherwise (R-1).
     purchasableAfterStart: false
-    removable: false
     # Depressed IS a Desire tag -- it locks the whole catalog. So it conflicts
     # with the other tags that touch the Desire system: the ones carrying their
     # own desires: block, and the ones a Desire gates on in docs/desires.yaml.
@@ -951,7 +947,6 @@ tags:
     exclusive: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
     consumable: false
     conflictsWith: [depressed, prudish]
     desires:
@@ -1006,7 +1001,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   broken-enslaved:
     catalog: secret
@@ -1018,7 +1012,6 @@ tags:
     parentTag: broken
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   spotter:
     catalog: all
@@ -1311,7 +1304,6 @@ tags:
     conflictsWith: [brave]
     purchasable: true
     purchasableAfterStart: false
-    removable: false
     desires:
       locks:
         - families: [bravery]
@@ -1351,7 +1343,6 @@ tags:
     pointCost: 0
     purchasable: true
     purchasableAfterStart: false
-    removable: false
     desires:
       locks:
         - families: [wealth]
@@ -1400,7 +1391,6 @@ tags:
     conflictsWith: [eagle-eyes]
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   # Bascinet's line, dictated verbatim, so no ‡. Blocks Look at outdoors at
   # Dawn only — the Caves and Dusk really are fine, as the text promises.
@@ -1414,7 +1404,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
     conflictsWith: [nearsighted]
 
   hard-of-hearing:
@@ -1426,7 +1415,6 @@ tags:
     pointCost: -4
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   glass-jaw:
     catalog: all
@@ -1437,7 +1425,6 @@ tags:
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   # Slug kept deliberately (see this file's header) — it now covers what
   # coca-habit used to (that tag is retired below, folded in at par).
@@ -1452,7 +1439,6 @@ tags:
     exclusive: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
     consumable: false
     conflictsWith: [depressed, prudish]
     desires:
@@ -1471,7 +1457,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   pacifist:
     catalog: all
@@ -1482,7 +1467,6 @@ tags:
     pointCost: 0
     purchasable: true
     purchasableAfterStart: false
-    removable: false
     desires:
       locks:
         - families: [violence, feud]
@@ -1500,7 +1484,6 @@ tags:
     pointCost: -1
     purchasable: true
     purchasableAfterStart: false
-    removable: false
     desires:
       locks:
         - families: [romance]
@@ -1516,7 +1499,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   pale:
     catalog: gm
@@ -1561,7 +1543,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
 
   # Slug kept deliberately (see this file's header) — renamed Gambler.
   gambler:
@@ -1575,7 +1556,6 @@ tags:
     exclusive: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
     consumable: false
     conflictsWith: [depressed, prudish]
     desires:
@@ -1595,7 +1575,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: false
     # The seats with nobody to be loyal to. Migrant and Mercenary are
     # literally Unaffiliated; Bum and Pusher sit inside a faction on paper
     # and owe it nothing.
@@ -1608,7 +1587,6 @@ tags:
         - families: [betrayal, scheming, faction-success]
 
   # Sign flip 2026-08-31 (Desires rework), grandfathered — see Superstitious.
-  # No longer a drawback, so removable now.
   hypochondriac:
     catalog: all
     name: Hypochondriac
@@ -1619,7 +1597,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
-    removable: true
 
   prudish:
     catalog: all
@@ -1632,7 +1609,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: false
     desires:
       locks:
         - families: [alcohol, drugs, gambling, romance]
@@ -1647,7 +1623,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   # The phobias each sharpen one kind of fear (docs/systemdocs/FEAR.md):
   # Claustrophobia doubles the caves, Agoraphobia the wilderness, Hemophobia
@@ -1662,7 +1637,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   agoraphobia:
     catalog: all
@@ -1674,7 +1648,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   claustrophobia:
     catalog: all
@@ -1686,7 +1659,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   teratophobia:
     catalog: all
@@ -1698,7 +1670,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   poor-swimmer:
     catalog: all
@@ -1711,7 +1682,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   # Scripted: can't equip a horse, steam automobile or fishing boat; dragged
   # across a zone by a mounted mover you end up {tag:vomiting}.
@@ -1726,7 +1696,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   # Scripted: confession refused in db/lib/confession.js; 5% each dawn to
   # wake Exhausted, db/lib/dawnAfflictionPass.js.
@@ -1740,7 +1709,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   # Scripted: 20% each dawn, db/lib/dawnAfflictionPass.js.
   insomniac:
@@ -1753,7 +1721,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   # requiredTag laboring-basic is the "Laboring OR Commoner" gate —
   # holdsRequirement walks the tier chain and Commoners start with Laboring
@@ -1771,7 +1738,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   # Scripted: your first drink skips Tipsy and lands you Wasted, the next one
   # Unconscious; web/lib/consumeGrants.js. Excluded for anyone who couldn't
@@ -1788,7 +1754,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   # Scripted: starts with 20 obols; three DEBTOR notices go up at Customs on
   # arrival, db/lib/wantedPoster.js.
@@ -1802,7 +1767,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   ugly:
     catalog: all
@@ -1815,7 +1779,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   unhygienic:
     catalog: all
@@ -1827,7 +1790,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   tremor:
     catalog: all
@@ -1839,7 +1801,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   # Scripted: dropped from the room's "You hear … whispering…" notice.
   # bot/src/lib/whisperPoll.js.
@@ -1880,7 +1841,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   relentless:
     catalog: all
@@ -1930,13 +1890,11 @@ tags:
   # group and are deliberately NOT exclusive: they stack on top of a belief.
   # See docs/systemdocs/TAGS.md §5.
   #
-  # These are the first tags in the file that are BOTH purchasableAfterStart
-  # and removable. All 157 other removable tags are Items or Health conditions,
-  # every one of them purchasableAfterStart: false, so the pairing is new
-  # rather than copied — a player converts by dropping one and buying another.
-  # It is not a point farm: REMOVE_TAG refunds resources, never Tag Points
-  # (web/lib/tagEffects.js), so each conversion costs its price again and
-  # gives nothing back.
+  # A belief cannot be dropped from the sheet. Destroy is for items now
+  # (docs/systemdocs/CRAFTING.md §5), and these are not items, so converting
+  # mid-game is a GM's to make rather than a thing a player does by buying
+  # over the top of one. That also closes the farm the old pairing had to
+  # argue its way out of: there is no drop step left to repeat.
   #
   # None is `visible`. You cannot tell an Atheist from a Post-Christian by
   # looking, and docs/tag-design.md sets that flag by whether a bystander
@@ -1950,7 +1908,6 @@ tags:
     pointCost: 0
     purchasable: true
     purchasableAfterStart: true
-    removable: true
     exclusive: true
 
   atheist:
@@ -1962,7 +1919,6 @@ tags:
     pointCost: 0
     purchasable: true
     purchasableAfterStart: true
-    removable: true
     exclusive: true
 
   existentialist:
@@ -1974,7 +1930,6 @@ tags:
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
-    removable: true
     exclusive: true
 
   # Sign flip 2026-08-31 (Desires rework): removed and re-added under the
@@ -1989,7 +1944,6 @@ tags:
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
-    removable: true
     requiredTag: post-christian
     exclusive: true
 
@@ -2002,7 +1956,6 @@ tags:
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
-    removable: true
     exclusive: true
 
   old-ways-sylvia:
@@ -2014,7 +1967,6 @@ tags:
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
-    removable: true
     exclusive: true
 
   old-ways-thoth:
@@ -2026,7 +1978,6 @@ tags:
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
-    removable: true
     exclusive: true
 
   #Unrelated to the formal bacchus cult
@@ -2039,7 +1990,6 @@ tags:
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
-    removable: true
     exclusive: true
 
   # Pilgrim is deliberately off the point scale at 1 — Gunboat's call.
@@ -2082,7 +2032,6 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     exclusive: true
     conflictsWith: [pacifist, charitable, saint, pilgrim]
 
@@ -2113,7 +2062,6 @@ tags:
     # PAYS for must be one that can never be handed back, or it is a point
     # farm. This is the only tag in the file that relies on that rule, so the
     # flag is written out.
-    removable: false
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -2159,19 +2107,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
     teachable: false
-
-  green:
-    catalog: gm
-    name: Green
-    psychological: true
-    category: general
-    group: general-cerberon
-    description: "Your fighting skill counts as 1 tier lower in your first real fight. Remove the tag afterwards."
-    pointCost: -2
-    visible: false
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
 
   # --- Brigands -------------------------------------------------------------
   brigand:
@@ -2951,7 +2886,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   hungry:
     catalog: gm
@@ -2962,7 +2896,6 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 1
 
   catatonic-afk:
@@ -2975,7 +2908,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   # GMs can assign this
   bound:
@@ -2988,7 +2920,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   # Put on by the Crucify button (a Fundamentalist, a Cross standing here).
   # In RESTRICTIONS as ACT-only (db/lib/incapacitation.js): you hang there and
@@ -3008,7 +2939,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 1
     expiresInto: [dying]
 
@@ -3078,7 +3008,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 1
 
   # The bottom of the ladder rather than a rung on it: no escalatesInto, so
@@ -3117,7 +3046,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 2
 
   # The Fertilizer's effect half. `equipped: false` because there is nothing to
@@ -3134,7 +3062,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 2
 
   opium-high:
@@ -3147,7 +3074,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 2
 
   pain-immunity:
@@ -3160,7 +3086,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 2
 
   brutish-strength:
@@ -3173,7 +3098,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 2
 
   increased-accuracy:
@@ -3186,7 +3110,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 2
 
   increased-recovery:
@@ -3199,7 +3122,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 2
 
   stimulant-high:
@@ -3212,7 +3134,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 2
 
   mindreading:
@@ -3225,7 +3146,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 2
 
   invisible:
@@ -3238,7 +3158,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 2
 
   aberrant-luck:
@@ -3251,7 +3170,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 3
 
   pheromones:
@@ -3264,7 +3182,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 4
 
   # For targets of Mesmer Glass, GM applied
@@ -3278,7 +3195,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 1
 
   # A caves tag. Something down there has your scent and is following it.
@@ -3292,7 +3208,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 2
 
   # The five fear bands (docs/systemdocs/FEAR.md), lowest to highest. A
@@ -3312,7 +3227,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   stressed:
     catalog: gm
@@ -3324,7 +3238,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   anxious:
     catalog: gm
@@ -3336,7 +3249,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   afraid:
     catalog: gm
@@ -3348,7 +3260,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   panic:
     catalog: gm
@@ -3360,7 +3271,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   # For Disabler
   disabled-slowed:
@@ -3373,7 +3283,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   disabled-shocked:
     catalog: gm
@@ -3385,7 +3294,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 1
 
   high:
@@ -3398,7 +3306,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 2
 
   # What refined Bliss leaves behind, on top of the High the raw fungus gives.
@@ -3414,7 +3321,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 3
 
   # The effect half of the Flawless Skin tonic — the tonic is an Item you
@@ -3433,7 +3339,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 3
 
   drained:
@@ -3473,7 +3378,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   # Two effects the Merchant's imported goods produce (docs/systemdocs/DEPOT.md
   # §3). Neither is bought or brewed: Caffeinated is what a cup of Coffee
@@ -3489,7 +3393,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 2
 
   asleep:
@@ -3502,7 +3405,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 1
 
   # === Health ===========================================================
@@ -4077,7 +3979,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   consumptive:
     catalog: all
@@ -4210,7 +4111,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 3
 
   shell-shocked:
@@ -4223,7 +4123,6 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   amnesiac:
     catalog: all
@@ -4234,7 +4133,6 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   paralyzed:
     catalog: all
@@ -4246,7 +4144,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 1
 
   hallucinating:
@@ -4291,7 +4188,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   mute:
     catalog: all
@@ -4303,7 +4199,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
     conflictsWith: [stutter, mimes-vow]
 
   # --- Maiming -----------------------------------------------------------
@@ -4319,7 +4214,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   missing-arm:
     catalog: all
@@ -4332,7 +4226,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   peg-leg:
     catalog: all
@@ -4346,7 +4239,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   # The severe, purchasable end of what `scarred` records for free.
   disfigured:
@@ -4379,7 +4271,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   crippled-leg:
     catalog: all
@@ -4410,7 +4301,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   missing-eye:
     catalog: all
@@ -4423,7 +4313,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
 
   night-blind:
     catalog: all
@@ -4452,7 +4341,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
 
   # --- Ailments ----------------------------------------------------------
 
@@ -4466,7 +4354,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 2
 
   # --- Pain ---------------------------------------------------------------
@@ -4480,7 +4367,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 3
 
   severe-pain:
@@ -4564,7 +4450,6 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 1
 
   migraine:
@@ -4576,7 +4461,6 @@ tags:
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
-    removable: false
     durationTurns: 2
     expiresInto: [no-migraine]
 
@@ -4589,7 +4473,6 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 4
     expiresInto: [migraine]
 
@@ -4607,7 +4490,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 4
 
   stitched-up:
@@ -4620,7 +4502,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 3
     expiresInto: [scarred]
 
@@ -4634,7 +4515,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 1
     expiresInto: [scarred]
 
@@ -4648,7 +4528,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 2
 
   bandaged:
@@ -4661,7 +4540,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 3
 
   wired-jaw:
@@ -4674,7 +4552,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
     durationTurns: 4
 
   # --- assets -------------------------------------------------------
@@ -4695,7 +4572,6 @@ tags:
     purchasable: true
     visible: true
     purchasableAfterStart: false
-    removable: true
     # The Merchant is the only mid-game source, so the price is meant to hurt:
     # a free zone move every turn is the strongest thing on the assets shelf.
     # Under the Steam Automobile, which does the same job and never spooks.
@@ -4714,7 +4590,6 @@ tags:
     tradeable: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
 
   rat:
     catalog: all
@@ -4727,7 +4602,6 @@ tags:
     tradeable: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
 
   kitty-cat:
     catalog: all
@@ -4740,7 +4614,6 @@ tags:
     tradeable: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
 
   fishing-boat:
     catalog: all
@@ -4755,7 +4628,6 @@ tags:
     laborBonus: { kind: fishing, amount: 1 }
     purchasable: true
     purchasableAfterStart: true
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -4777,7 +4649,6 @@ tags:
     carryBonus: 4
     purchasable: true
     purchasableAfterStart: true
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -5125,7 +4996,6 @@ tags:
     tradeable: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
 
   graga-sac:
     catalog: gm
@@ -5140,7 +5010,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     sellable: true
     sellablePrice: 8
 
@@ -5162,7 +5031,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     sellable: true
     # 25, down from 40, and no longer the second-most-valuable thing in the
     # game — the Godard Factory now sells the Merchant a wagon of {tag:squeeze}
@@ -5248,7 +5116,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     sellable: true
     sellablePrice: 3
 
@@ -5270,7 +5137,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -5307,7 +5173,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     sellable: true
     # The dearest of the three by a wide margin: an Aberrant has to fall first,
     # and the recipe it feeds costs 0 ⬢ because the heart is the price. ‡
@@ -5326,7 +5191,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     sellable: true
     sellablePrice: 4
 
@@ -5343,7 +5207,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     sellable: true
     sellablePrice: 2
 
@@ -5365,7 +5228,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     sellable: true
     sellablePrice: 2
 
@@ -5382,7 +5244,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     sellable: true
     sellablePrice: 2
 
@@ -5402,7 +5263,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     depotPrice: 7
     sellable: true
     sellablePrice: 4
@@ -5426,7 +5286,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto: [fertilized-fields]
 
@@ -5446,7 +5305,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
 
   # Renamed in the Caves Update; the old slug's row is left for db:prune-tags.
   # See docs/systemdocs/CAVING.md.
@@ -5493,7 +5351,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -5517,7 +5374,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 0
@@ -5540,7 +5396,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     consumable: true
 
   jester-outfit:
@@ -5557,7 +5412,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -5578,7 +5432,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: true
 
   disguise-kit:
     catalog: all
@@ -5593,7 +5446,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -5639,7 +5491,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     sellable: true
     # 60% of the 3 ⬢ import price, rounded — DEPOT.md §3's sell-back rule.
     sellablePrice: 2
@@ -5670,7 +5521,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 4
@@ -5701,7 +5551,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     customizable: true
     requirement:
@@ -5729,7 +5578,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     sellable: true
     sellablePrice: 1
 
@@ -5753,7 +5601,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   cross:
     catalog: gm
@@ -5768,7 +5615,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   purse:
     catalog: gm
@@ -5783,7 +5629,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto: []
     consumesIntoResources: 3
@@ -5801,7 +5646,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto:
       - oneOf: [ate-meal, vomiting]
@@ -5819,7 +5663,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto:
       - alcohol
@@ -5838,7 +5681,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   tear-gas-grenade:
     catalog: gm
@@ -5853,7 +5695,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   # Visible on purpose — the user wanted this one to read as an active thing
   # on the sheet, not sit hidden like the rest of the loot.
@@ -5870,7 +5711,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   military-autoinjector:
     catalog: gm
@@ -5885,7 +5725,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     sellable: true
     sellablePrice: 10
 
@@ -6251,7 +6090,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto:
       - coal
@@ -6270,7 +6108,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto:
       - coffee
@@ -6291,7 +6128,6 @@ tags:
     visible: worn
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     equippable: true
     sellable: true
     sellablePrice: 15
@@ -6364,7 +6200,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   # The rest of Ravenheart's locks. Every one is weightless, tradeable and
   # stackable: a key is meant to be handed over, stolen off a body or copied,
@@ -6384,7 +6219,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   cerberus-key:
     catalog: gm
@@ -6399,7 +6233,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   armory-key:
     catalog: gm
@@ -6414,7 +6247,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   inn-key:
     catalog: gm
@@ -6429,7 +6261,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   order-key:
     catalog: gm
@@ -6444,7 +6275,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   cathedral-key:
     catalog: gm
@@ -6459,7 +6289,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   sanctuary-key:
     catalog: gm
@@ -6474,7 +6303,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   smithy-key:
     catalog: gm
@@ -6489,7 +6317,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   headmans-key:
     catalog: gm
@@ -6504,7 +6331,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   pushers-key:
     catalog: gm
@@ -6519,7 +6345,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   room-a-key:
     catalog: gm
@@ -6534,7 +6359,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   room-b-key:
     catalog: gm
@@ -6549,7 +6373,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   room-c-key:
     catalog: gm
@@ -6564,7 +6387,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   mortus-key:
     catalog: gm
@@ -6579,7 +6401,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   hands-key:
     catalog: gm
@@ -6594,7 +6415,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   meisters-key:
     catalog: gm
@@ -6609,7 +6429,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   censors-key:
     catalog: gm
@@ -6624,7 +6443,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   heirs-key:
     catalog: gm
@@ -6639,7 +6457,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   successors-key:
     catalog: gm
@@ -6654,7 +6471,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   #Uncraftable
   neoclassic-rw10:
@@ -6695,7 +6511,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   neoclassic-duelista:
     catalog: gm
@@ -6712,7 +6527,6 @@ tags:
     visible: worn
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   # ─── The Combat Update ────────────────────────────────────────────────────
   # Weapons are priced on the six-tier ladder from SMITHING.md:
@@ -6744,7 +6558,6 @@ tags:
     visible: worn
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -6768,7 +6581,6 @@ tags:
     visible: worn
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 0
@@ -6792,7 +6604,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 0
@@ -6820,7 +6631,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 0
@@ -6846,7 +6656,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -6874,7 +6683,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -6899,7 +6707,6 @@ tags:
     visible: worn
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 0
@@ -6923,7 +6730,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 0
@@ -6947,7 +6753,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 0
@@ -6972,7 +6777,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     sellable: true
     sellablePrice: 4
 
@@ -6991,7 +6795,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 0
@@ -7016,7 +6819,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 0
@@ -7042,7 +6844,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -7067,7 +6868,6 @@ tags:
     visible: worn
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -7092,7 +6892,6 @@ tags:
     visible: worn
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -7117,7 +6916,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -7142,7 +6940,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -7168,7 +6965,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -7193,7 +6989,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -7218,7 +7013,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -7243,7 +7037,6 @@ tags:
     visible: worn
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -7269,7 +7062,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -7294,7 +7086,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -7319,7 +7110,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -7345,7 +7135,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 2
@@ -7370,7 +7159,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 2
@@ -7395,7 +7183,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 2
@@ -7420,7 +7207,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 2
@@ -7445,7 +7231,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 2
@@ -7470,7 +7255,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 2
@@ -7495,7 +7279,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 2
@@ -7521,7 +7304,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 2
@@ -7548,7 +7330,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 2
@@ -7574,7 +7355,6 @@ tags:
     visible: worn
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 2
@@ -7599,7 +7379,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 2
@@ -7628,7 +7407,6 @@ tags:
     visible: worn
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     sellable: true
     sellablePrice: 14
 
@@ -7651,7 +7429,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   # Meals. Cooked as a Routine Move, not bought: purchasable false keeps them
   # out of both point-buy menus, while craftable true is what lets
@@ -7684,7 +7461,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto:
       - ate-meal
@@ -7703,7 +7479,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     customizable: true
     consumable: true
@@ -7731,7 +7506,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     customizable: true
     consumable: true
@@ -7771,7 +7545,6 @@ tags:
     weight: 100
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     # High Quality rung of the smithing ladder (docs/systemdocs/SMITHING.md §2).
     requirement:
@@ -7816,7 +7589,6 @@ tags:
     weight: 20
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -7844,7 +7616,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
 
   power-fist:
@@ -7860,7 +7631,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   fragmentation-grenade:
     catalog: gm
@@ -7875,7 +7645,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   c4:
     catalog: gm
@@ -7890,7 +7659,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   emp-grenade:
     catalog: gm
@@ -7905,7 +7673,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   # Courtier starting picks:
 
@@ -7922,7 +7689,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     sellable: true
     sellablePrice: 12
 
@@ -7939,7 +7705,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     # Caving loot the Depot also imports — one of only two artifacts it will
     # sell (the Motorcycle is the other). Everything else on this shelf stays
     # something you have to go down and find. See docs/systemdocs/DEPOT.md §3.
@@ -7963,7 +7728,6 @@ tags:
     visible: worn
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   stepstone:
     catalog: secret
@@ -7978,7 +7742,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
 
   quickened-nerve-braid:
@@ -8049,7 +7812,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     # The Depot imports these, and it does not have to haul them anywhere.
     sellable: true
     sellablePrice: 103
@@ -8069,7 +7831,6 @@ tags:
     visible: worn
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   golden-arrow:
     catalog: secret
@@ -8084,7 +7845,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto:
       - holoparasite
@@ -8101,7 +7861,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto:
       - time-stop
@@ -8130,7 +7889,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   barons-scepter:
     catalog: gm
@@ -8193,7 +7951,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   # What gets a Docker onto the landing pad and into a sealed crate. Access to
   # the room is handled entirely by Room.accessTagSlugs — see the landing-pad
@@ -8211,7 +7968,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   incarns-key:
     catalog: gm
@@ -8240,7 +7996,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   majors-insignia:
     catalog: gm
@@ -8339,7 +8094,6 @@ tags:
     weight: 3
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   broken-spears-banner:
     catalog: gm
@@ -8412,7 +8166,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto: []
 
@@ -8432,7 +8185,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto: []
 
@@ -8467,7 +8219,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto:
       - paper
@@ -9218,7 +8969,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto:
       - caffeinated
@@ -9239,7 +8989,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto: []
 
@@ -9259,7 +9008,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto:
       - ate-meal
@@ -9280,7 +9028,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto:
       - ate-meal
@@ -9301,7 +9048,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto: []
 
@@ -9324,7 +9070,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto:
       - tipsy
@@ -9345,7 +9090,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   # Heard across the Location graph like the Cathedral bell, at three-quarters
   # its reach and from wherever the holder stands — db/lib/trumpet.js. The
@@ -9362,7 +9106,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   whip:
     catalog: gm
@@ -9380,7 +9123,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   censer:
     catalog: gm
@@ -9397,7 +9139,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   # The one ware a player can also buy at creation. Priced at 4 pt on the §4a
   # scale — "Good, a third of the default budget" — because knowing which cup
@@ -9419,7 +9160,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: true
 
   black-body-bag:
     catalog: gm
@@ -9437,7 +9177,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   microscope:
     catalog: gm
@@ -9454,7 +9193,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   # The Tribunal's own kit, and the best body armour in the game — above Light
   # Infantry on both numbers, which TAGS.md notes is already the ceiling
@@ -9484,7 +9222,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   heavy-infantry-armor:
     catalog: gm
@@ -9501,7 +9238,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     depotPrice: 70
     sealedShipping: true
     sellable: true
@@ -9526,7 +9262,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   # Companions. Live cargo, which is why they cost what they do.
   monkey:
@@ -9543,7 +9278,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   hound:
     catalog: gm
@@ -9559,7 +9293,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   # Potent goods. Past this line a purchase is a season's work for most people.
   soporific:
@@ -9579,7 +9312,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto: []
 
@@ -9600,7 +9332,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto: []
 
@@ -9620,7 +9351,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   homunculus:
     catalog: gm
@@ -9638,7 +9368,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   silencer:
     catalog: gm
@@ -9657,7 +9386,6 @@ tags:
     visible: worn
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   antibiotics:
     catalog: gm
@@ -9675,7 +9403,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto: []
 
@@ -9698,7 +9425,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   ml-23:
     catalog: gm
@@ -9718,7 +9444,6 @@ tags:
     visible: worn
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   # Five more of the Merchant's imports, priced off DEPOT.md §3: the sell-back
   # column is floor(depotPrice x 0.44), the same ratio every other ware uses.
@@ -9743,7 +9468,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   kpfw-6-avtomat:
     catalog: gm
@@ -9762,7 +9486,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   adamantium-sword:
     catalog: gm
@@ -9781,7 +9504,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   silver-sword:
     catalog: all
@@ -9799,7 +9521,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   bb-pistol:
     catalog: gm
@@ -9817,7 +9538,6 @@ tags:
     visible: worn
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   # --- Tonics -------------------------------------------------------------
   # Alcohol, drugs and tonics, and the recipes for them. Split into Basic and Skilled brewing. Some need special ingredients.
@@ -9834,7 +9554,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     # Foraged in the caves (the Caving paper says how), never crafted — the
     # old craftable flag minted it from thin air at 0 ⬢ with no skill.
     consumable: true
@@ -9857,7 +9576,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -9887,7 +9605,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -9908,7 +9625,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -9941,7 +9657,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -9980,7 +9695,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     requirement:
@@ -10010,7 +9724,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     requirement:
@@ -10035,7 +9748,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     requirement:
@@ -10059,7 +9771,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -10087,7 +9798,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -10114,7 +9824,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     requirement:
@@ -10142,7 +9851,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     requirement:
@@ -10179,7 +9887,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: false
     requirement:
@@ -10207,7 +9914,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     requirement:
@@ -10232,7 +9938,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -10259,7 +9964,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -10286,7 +9990,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     requirement:
@@ -10311,7 +10014,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     requirement:
@@ -10341,7 +10043,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -10368,7 +10069,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -10395,7 +10095,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -10423,7 +10122,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -10455,7 +10153,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     requirement:
@@ -10481,7 +10178,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -10508,7 +10204,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto:
       - pheromones
@@ -10528,7 +10223,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -10556,7 +10250,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     requirement:
@@ -10581,7 +10274,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -10614,7 +10306,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     requirement:
@@ -10641,7 +10332,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     requirement:
@@ -10665,7 +10355,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -11005,7 +10694,6 @@ tags:
     stackable: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     customizable: true
     requirement:
@@ -11173,7 +10861,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   simple-helm:
     catalog: all
@@ -11327,7 +11014,6 @@ tags:
     tradeable: true
     weight: 10
     purchasable: true
-    removable: true
     purchasableAfterStart: false
     craftable: true
     requirement:
@@ -11606,7 +11292,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: true
-    removable: false
 
   terrifying:
     catalog: secret
@@ -11712,7 +11397,6 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     consumable: true
     sellable: true
     sellablePrice: 16
@@ -11778,7 +11462,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto: [vomiting]
 
@@ -11795,7 +11478,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto: [seizure]
     # Nothing in Ravenheart wants a cube. The Depot buys every one of them,
@@ -11839,7 +11521,6 @@ tags:
     visible: worn
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     requirement:
       turnsCost: 0
@@ -11862,7 +11543,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   bannerets-key:
     catalog: gm
@@ -11877,7 +11557,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   fishermans-key:
     catalog: gm
@@ -11892,7 +11571,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   flooded-crate:
     catalog: all
@@ -11906,7 +11584,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     consumable: true
     consumesInto: [moonshine, moonshine]
 
@@ -11923,7 +11600,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto: [tipsy, blind-drunk, damaged-vision]
@@ -12013,7 +11689,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     # Priced at about 65% of a {tag:flamethrower}, the shelf it shares. ‡
     sellable: true
     sellablePrice: 76

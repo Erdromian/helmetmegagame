@@ -2174,14 +2174,6 @@ desires:
       anyTags: [eunuch]
     oncePerLife: true
 
-  win-first-fight:
-    name: Win your first ever fight
-    tier: 3
-    families: [violence, bravery]
-    requires:
-      anyTags: [green]
-    oncePerLife: true
-
   survive-martyrdom:
     name: Survive being martyred
     tier: 5

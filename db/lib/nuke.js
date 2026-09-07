@@ -20,10 +20,11 @@ const DEVICE_SLUG = "nuclear-device";
 const DATACARD_SLUG = "nuclear-datacard";
 
 // What a destroying room (the Spillway, the Latrines — Room.destroysContents)
-// refuses to eat. Both halves are already `removable: false`, which keeps them
-// off the Destroy menu, but that flag could not be reused here: 103 tags carry
-// it, and three of them are monster corpses players are entitled to tip down a
-// latrine. So this is a deliberately short, explicit list rather than a flag.
+// refuses to eat. Both halves carry the `removable: false` opt-out, which
+// keeps them off the Destroy menu, but that flag cannot be reused here: three
+// of the seven tags that carry it are the monster corpses, and players are
+// entitled to tip one of those down a latrine. So this is a deliberately
+// short, explicit list rather than a flag.
 //
 // Tipped in, the bomb is written to the room's stash like anything else and
 // simply sits there. That is the whole rule — there is no way to remove the

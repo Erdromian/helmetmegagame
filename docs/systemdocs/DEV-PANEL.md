@@ -342,7 +342,11 @@ blocks: **Behaviour** (`stackable`, `equippable`, `concealsIdentity`,
 `expiresInto`, `removesInto`), **Economy** (`pointCost`, `purchasable`,
 `purchasableAfterStart`, `sellable`, `sellablePrice`) and **Requirement**
 (`requirementTurns`, `requirementResources`, `requirementGambit`,
-`requirementSkills`). The edit dialog opens that disclosure, since a GM there
+`requirementSkills`). `removable` is editable here like the rest, but on a
+CATALOG tag the next `db:sync-tags` derives it back from the category
+(`CRAFTING.md` §5) — the checkbox is for custom rows, which no sync sees.
+
+The edit dialog opens that disclosure, since a GM there
 came to change a field; the quick door leaves it shut.
 
 Group is still offered only when the caller's tag rows carry a group id —

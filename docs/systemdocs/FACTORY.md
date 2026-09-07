@@ -159,8 +159,8 @@ cargo — it gets handed over, carted and stolen — so returning the contents t
 the packer would be a way to rob the person you sold it to, and restoring them
 alongside an already-unpacked crate would mint 150 lb of goods out of nothing.
 
-**Packaging Equipment is `tradeable: false`.** `removable: false` only blocks
-the Destroy menu; while it was tradeable, anyone with a Factory Key could carry
+**Packaging Equipment is `tradeable: false`.** Its `removable: false` opt-out
+(`CRAFTING.md` §5) only blocks the Destroy menu; while it was tradeable, anyone with a Factory Key could carry
 the bench off or tip it into the Spillway, and there are exactly two in the
 world with no recipe to make a third.
 

@@ -50,10 +50,11 @@ const PAPER_SHAPE = {
   // One sheet is one sheet. Two notes are never the same object, so the
   // non-stackable pin in tagWrites.js is doing real work here.
   stackable: false,
-  // Not binnable from the Destroy menu. Paper leaves the world by being torn
-  // off a noticeboard and expiring, or by a GM — burning a letter is a thing
-  // the fiction should have to say out loud.
-  removable: false,
+  // Binnable, like every other item (docs/systemdocs/CRAFTING.md §5). This
+  // used to be false, on the argument that burning a letter should be said
+  // out loud in the fiction — but a player holding a note they cannot put
+  // down has no verb for the ordinary case, so the ordinary case wins.
+  removable: true,
   purchasable: false,
   purchasableAfterStart: false,
   // A letter in your hand is a letter anyone can see you holding. What it SAYS

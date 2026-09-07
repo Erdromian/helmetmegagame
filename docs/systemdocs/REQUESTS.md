@@ -104,7 +104,7 @@ reason.
 | `TRANSFER_RESOURCES` | Moves ⬢ from you or a Room stash at your Location to a person at your Location or a Room stash there (`CARRY.md`). Nothing is ever pulled off a living person — Loot is the only way to take from someone. `direction: "LOOT"` pulls ⬢ off a corpse in the same room | — | Reverses the movement |
 | `ADD_TAG` | Craft: makes a tag whose `requirement.skills` you hold, charging its `resourceCost` up front to a payer — yourself, a Room stash here, or a person here (`CRAFTING.md`). `turnsCost` 0 is Dead Simple (no Move, rationed per turn); 1 is this turn's Routine; 2+ opens a `CraftProject`, continued from the same dialog. Stackable tags take a quantity and stay on the menu once held. Desk label: **Craft** | cost; remove what this request added | Drops what it added, refunds the cost, marks any project CANCELLED |
 | `BUY_TAGS` | Checks out a whole `/store` cart with Tag Points — one request per cart, `effect.items` listing every tag | — | Returns every tag in the cart, refunds the points |
-| `REMOVE_TAG` | Destroy: drops one of their own `removable` tags, no ⬢ field and nothing refunded, in a quantity if it stacks. A tag with `removesInto` leaves its treated form behind (`TAGS.md` §5c). Health tags are no longer `removable` — a wound is healed, not thrown away. Desk label: **Destroy** | — | Restores the tag and its count, takes back the aftermath it granted |
+| `REMOVE_TAG` | Destroy: drops one of their own items, no ⬢ field and nothing refunded, in a quantity if it stacks. `Tag.removable` is derived from the category — Items and Assets only (`CRAFTING.md` §5) — so a Health tag is healed rather than thrown away, and a Belief cannot be dropped at all. A tag with `removesInto` leaves its treated form behind (`TAGS.md` §5c). Desk label: **Destroy** | — | Restores the tag and its count, takes back the aftermath it granted |
 | `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
 | `TRANSFER_TAG` | Hands an Item or Asset from you or a Room stash to a person at your Location or a Room stash there, in a quantity if it stacks. Nothing is ever taken from another person this way. The merged Transfer dialog files one of these per tag line (`CARRY.md` §6). `direction: "LOOT"` lifts one off a corpse at your Location | — | Moves that many back to where they came from |
 | `FULFILL_DESIRE` | Claims one active, slotted Desire (`desireId`, not "the" active one — a character can hold several at once, one per slot) | Tag Points awarded | Revokes the points and reopens the *row*. Because a GM Fulfil/Cancel operates on a specific `desireId` rather than "whatever's in the slot now," an Undo is safe even after a new Desire has since been set in that same slot — it only ever touches the row it snapshotted, never the slot's current occupant |
@@ -264,8 +264,8 @@ Three notes on deliberate choices:
 
 Hunger is the Needs layer, and the only thing that modifies a Gambit die.
 
-It is a `hungry` Status tag (`docs/tags.yaml`, `durationTurns: 1`,
-`purchasable`/`removable` false). Its penalty is not flat — it escalates with
+It is a `hungry` Status tag (`docs/tags.yaml`, `durationTurns: 1`, not
+`purchasable`, and not destroyable — Status never is). Its penalty is not flat — it escalates with
 `Character.hungerStreak`, a plain Int column counting consecutive turns closed
 hungry.
 

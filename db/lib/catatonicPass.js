@@ -4,8 +4,8 @@
 // Flags any ALIVE character whose lastActivityTurn is stale past
 // GameConfig.catatonicTurns with the `catatonic-afk` tag, and clears it once
 // their clock moves again. catatonicSinceTurn drives
-// db/lib/catatonicDeathPass.js's auto-kill; the tag itself is removable:
-// false. Shaped for 100+ players: no network call, DMs/role updates returned
+// db/lib/catatonicDeathPass.js's auto-kill; the tag itself is not destroyable,
+// Status never being an Items category. Shaped for 100+ players: no network call, DMs/role updates returned
 // for advanceTurn() to apply. Takes `prisma` as a parameter — see db/lib/dm.js.
 const { CATATONIC_SLUG } = require("./constants");
 const { formatBareName } = require("./characterName");

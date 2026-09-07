@@ -6,20 +6,21 @@ that decide which menu a tag sits in.
 
 ## 1. The four flags
 
-Every player tag menu is one boolean in `docs/tags.yaml`, re-checked
-server-side by the matching request. None is derived from the category.
+Every player tag menu is one boolean on `Tag`, re-checked server-side by the
+matching request. Three are hand-written in `docs/tags.yaml`; `removable` is
+derived from the category (§5).
 
 | Flag | Menu | Re-check |
 |---|---|---|
 | `craftable` | Craft | `craftRequest` (`character/requestActions.js`) |
-| `removable` | Destroy | `destroyTagRequest` |
+| `removable` | Destroy | `destroyTagRequest` (derived, §5) |
 | `healable` | Heal | `healCharacterRequest` via `web/lib/healRequests.js#isHealable` |
 | `teachable` | Learn / Teach | `db/lib/lessons.js#teachableSkills` (LESSONS.md) |
 
-The 9/2026 sweep set `healable: true` on every health tag with a cure,
-`removable: false` on every health tag (a wound is healed, not thrown away —
-a condition nobody can cure runs its course or waits for a medic), and
-`teachable: true` on every skill. `docs/tags.yaml`'s header documents each
+The 9/2026 sweep set `healable: true` on every health tag with a cure and
+`teachable: true` on every skill. Health is not `removable` — a wound is
+healed, not thrown away, and a condition nobody can cure runs its course or
+waits for a medic — which the category rule now gives for free. `docs/tags.yaml`'s header documents each
 key. Harm's menu is the one that still reads the category
 (`INFLICTABLE_GROUPS` / `INFLICTABLE_SLUGS`, a curated list).
 
@@ -248,10 +249,35 @@ non-stackable custom would dodge the base recipe's one-per-character checks.
 
 ## 5. Destroy
 
-`destroyTagRequest`: drops a `removable` tag you hold, rolls `removesInto`
-aftermath, files `REMOVE_TAG`. No ⬢ field any more and nothing refunded — the
-`/store` loophole rule (a negative-cost tag must be removable or consumable)
-still relies on the Beliefs staying `removable`.
+**Destroy is for things you own.** `Tag.removable` is not authored per tag
+any more — `db/lib/syncTags.js` DERIVES it: every tag in the **Items** or
+**Assets** category has the Destroy menu and nothing else ever does. The YAML
+key survives as an opt-out with `false` as its only legal value, on the seven
+rows an item is not allowed to be binned from — the three monster corpses
+(Butcher and Bury are the two ways a body leaves, `CORPSES.md`), the Nuclear
+Device and its Datacard (`SECRETS.md`), the grafted Quickened Nerve Braid, and
+the bolted-down Packaging Equipment (`FACTORY.md`). The sync throws on
+`removable: true` anywhere, and on a `false` outside those two categories where
+it would do nothing.
+
+This replaced a flag hand-set on 327 entries, which had drifted badly: 113
+Items could not be destroyed — every book, every wax seal, every helmet,
+`paper` itself — while a Belief could be. **A player holding a letter now has a
+way to throw it away**, and Post-Christian no longer offers one.
+
+Runtime-minted rows never pass a sync, so each sets the flag itself:
+`paperMint.js` and `photoMint.js` true, `corpseMint.js` false, a packed crate
+true, a custom craft inheriting its base recipe's.
+
+**Two knock-ons.** A **Belief can no longer be converted by the player** —
+they are `exclusive:` and dropping one was Destroy, so a conversion is a GM's
+to make and the store's error just names the pair. And the `/store` loophole
+rule (a negative-cost tag must be neither removable nor consumable) is now
+half-automatic: a drawback is never an item, so the guard's `removable` arm
+only ever fires on a GM-authored custom row.
+
+`destroyTagRequest` itself is unchanged: drops the tag you hold, rolls
+`removesInto` aftermath, files `REMOVE_TAG`. No ⬢ field and nothing refunded.
 
 ## 6. Where the code lives
 

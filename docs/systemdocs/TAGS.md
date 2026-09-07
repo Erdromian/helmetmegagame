@@ -128,8 +128,9 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
   `requiredTagId` or the rule silently stops applying (or, missing `groupId`,
   applies across groups). In `PointBuy` a conflict with another *pick*
   swaps (like a chain sibling); a conflict with something already held is
-  dimmed and named. Conversion mid-game is "drop one, buy another" — Beliefs
-  stay `removable` — and the store's error says exactly that.
+  dimmed and named. Conversion mid-game is a GM's to make: Destroy is for
+  items now (`CRAFTING.md` §5), so a Belief cannot be dropped from the sheet
+  and the store's error just names the pair.
 - **`Tag.conflictsWith`** — a named pairwise conflict, distinct from
   `exclusive`'s at-most-one-per-group rule: it isn't scoped to a group and
   isn't carved out for a `requiredTag` pair, so it's the right tool for a
@@ -386,16 +387,16 @@ and never through the menu.
 `web/app/components/PointBuy.js`: character creation offers every
 `purchasable` tag, while the mid-game store offers only those still marked
 `purchasableAfterStart`. That's what lets a pick like "Secretly an Android"
-exist at launch and never afterward. **Every negative-cost tag must be
-`purchasableAfterStart: false` — *unless* it is deliberately farmable, in
-which case it must also be non-removable.** A drawback that can be bought
-mid-game and then shed is a point farm, because `REMOVE_TAG` and
-`CONSUME_TAG` refund resources but never Tag Points. A deliberate exception
-is possible — a negative tag that's `purchasableAfterStart: true` but also
-`removable: false, consumable: false`, so it can be taken for the points but
-never shed — but nothing in the current catalog uses it (the four
-Addictions did, before the Cult of Bacchus was archived). The flag is the
-whole rule — there is no second, hardcoded refusal behind it.
+exist at launch and never afterward. **Every negative-cost tag should be
+`purchasableAfterStart: false`.** A drawback that can be bought mid-game and
+then shed is a point farm, because `REMOVE_TAG` and `CONSUME_TAG` refund
+resources but never Tag Points. Half of that door is now shut by the catalog's
+own shape: Destroy is for Items and Assets (`CRAFTING.md` §5), and a drawback
+is neither, so no negative tag is `removable` any more and none can be. What
+is left is `consumable`, and the store's own guard in
+`web/app/(app)/store/actions.js` refuses a negative-cost tag carrying either
+flag whatever the YAML says — which is what covers a GM-authored custom row,
+the one place the rule can still be broken.
 
 That invariant has three enforcement points. `purchasableTags()` honours it
 via `PointBuy`'s `afterStartOnly` prop, which **`/store`** mounts — the
@@ -543,7 +544,7 @@ Sheriff qualify for all five *without* holding Corrupt, which empties the tag
 for the only two seats it is written for and makes its own description false
 to them. The AND stands. What the −2 does leave open is a character outside
 those seats buying Corrupt once for two points and no unlocks; that is bounded
-(once per character, and `removable: false` means it can never be sold back)
+(once per character, and being a non-item means it can never be sold back)
 and is accepted.
 
 **At character creation a build faces TWO ceilings on drawbacks, and it stops
@@ -663,12 +664,11 @@ has since been deleted outright along with the channel it opened.
 - **Combat items ride a fixed six-tier ladder.** Weapons and armor are priced
   from the tier they sit in, not by feel. See
   [`SMITHING.md`](SMITHING.md) for the table.
-- **Every negative tag is `purchasableAfterStart: false` unless it is
-  deliberately farmable, in which case it must be non-removable.** Restated
-  from §4 because it is the one invariant the scale can be used to violate: a
-  drawback that can be bought mid-game *and* shed is a point farm. The four
-  Addictions are the deliberate exception and carry `removable: false,
-  consumable: false` to close the loop.
+- **Every negative tag is `purchasableAfterStart: false`.** Restated from §4
+  because it is the one invariant the scale can be used to violate: a drawback
+  that can be bought mid-game *and* shed is a point farm. A drawback is not an
+  item, so it is never `removable`; `consumable` is the half still worth
+  watching, and the store's guard is the backstop under both.
 - **Items are `purchasableAfterStart: false` too**, without exception. An
   object enters play by being crafted or found; its route in is `craftable`
   plus a `requirement` block, never points. 18 items violated this before the
@@ -890,9 +890,11 @@ convention as `buildNickname`. Change both copies together; don't collapse them
 them).
 - `removable` — whether a player can strip this tag off themselves mid-game
   without a GM. Live: it is the whole filter behind the Destroy menu (Remove
-  Tag, renamed — `CRAFTING.md`) (`removableTags()`, `web/lib/tagRequests.js`)
-  and is re-checked by `destroyTagRequest`. Never true on a Health tag any
-  more — a wound is healed, not destroyed; see `healable` below.
+  Tag, renamed — `CRAFTING.md`) (`destroyableTags()`, `web/lib/tagRequests.js`)
+  and is re-checked by `destroyTagRequest`. The one flag of the four the sync
+  DERIVES rather than reads: Destroy is for things you own, so an Items or
+  Assets tag has it and nothing else does. Never true on a Health tag — a
+  wound is healed, not destroyed; see `healable` below.
 - `craftable` — whether this tag represents something a player can
   craft/make, as opposed to one that only ever arrives via role, GM grant,
   or automatic game logic. Live: `addableTags()` offers Craftable tags in the
@@ -1193,10 +1195,9 @@ wrong three ways, not two.
 
 **Remove/Destroy no longer cures anything.** Before `healable` existed, the
 old Remove Tag door doubled as a rough cure for some conditions — stripping a
-tag off yourself with no medic involved. `removable` and `healable` are
-disjoint on every Health tag now: something a doctor treats is `healable`,
-never `removable`; nothing in Health can be self-stripped through Destroy any
-more. Healing is the only door.
+tag off yourself with no medic involved. Health is not an Items category, so
+nothing in it can be `removable` at all now: something a doctor treats is
+`healable`, and healing is the only door.
 
 Four things about it are deliberate.
 
@@ -1484,8 +1485,9 @@ of who is qualified; `healRequests.js` re-exports it.
 1. Pick the group by what kind of medicine it wants.
 2. Pick a ladder rung by what the work would really take, and copy its block
    verbatim. Tier 0 means no `requirement:` at all, and `healable: false`.
-   Any rung above 0 gets `healable: true` — and `removable: false`; Health
-   tags are cured, not destroyed.
+   Any rung above 0 gets `healable: true`. Nothing in Health needs a
+   `removable` line — a Health tag never gets one; it is cured, not
+   destroyed.
 3. Set `visible` by whether a bystander could tell.
 4. If it worsens, give it `durationTurns` and `expiresInto` — **and say so in
    the description**, naming what it becomes. The tooltip's "Becomes" row is
