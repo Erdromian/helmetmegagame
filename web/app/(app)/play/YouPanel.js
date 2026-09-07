@@ -199,13 +199,18 @@ export default function YouPanel({ initialWaiting = [] }) {
         <Link className="btn-secondary" href="/character">
           Sheet ›
         </Link>
-        <button type="button" className="btn-quiet" onClick={() => setDialog("report")}>
-          Report to the GMs ‡
-        </button>
       </div>
       {notice && <p className="hall-quiet-line">{notice}</p>}
 
       <WaitingList rows={waiting} onAnswered={say} />
+
+      {/* Last, and quiet: it is the out-of-character door, not one of the
+          day's moves. */}
+      <div className="hall-buttons mt-3">
+        <button type="button" className="btn-quiet" onClick={() => setDialog("report")}>
+          Report to the GMs ‡
+        </button>
+      </div>
 
       {dialog === "move" && <MoveDialog onClose={() => setDialog(null)} onDone={say} />}
       {dialog === "report" && <ReportDialog onClose={() => setDialog(null)} onDone={say} />}

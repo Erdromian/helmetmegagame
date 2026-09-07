@@ -6,6 +6,19 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · The Play page is usable: a real right column, travel as nodes, no more blinking
+
+✎ Your own line no longer changes text or loses its face a second after you send it  
+✎ Unread dots clear when you open a place, and a NEW line marks where you left off  
+✎ Slowmode is a countdown beside the box, not a failed send  
+✚ A place card with the Location and Zone descriptions, always visible  
+✚ Everyone standing here, hoods included, each with a look-at eye  
+✚ Storage and fixtures shown only for the room you have open, so the Intercom is only in the Council Room  
+✚ Travel is a grid of square nodes with the cost on each, tinted for a zone crossing  
+✚ Look at and Photograph on other people's lines; a GM can remove a line  
+− Who's here?, Secret rooms?, Examine and the travel dropdown  
+✎ Summary is the first place in the column
+
 ## 2026-09-07 · Eight new tags, and the combat lines all read the same way
 
 ✚ Four new fighting specialisations: throwing weapons, sniping, reckless attack and monster hunting  

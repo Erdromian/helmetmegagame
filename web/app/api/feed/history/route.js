@@ -1,4 +1,5 @@
-import { prisma, feedRowShape, FEED_ROW_SELECT } from "@lifeweb/db";
+import { prisma, FEED_ROW_SELECT } from "@lifeweb/db";
+import { withAvatarVersions } from "@lifeweb/db/lib/archive";
 import { feedWipeFloor, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
 import { loadFeedViewer, findPlace } from "@/lib/feedAccess";
 
@@ -39,5 +40,7 @@ export async function GET(request) {
     select: FEED_ROW_SELECT,
   });
 
-  return Response.json({ place, rows: rows.reverse().map((row) => feedRowShape(row)) });
+  // One `?v=` per character across the page, rather than the per-row sentAt
+  // fallback that made the same face refetch on every line.
+  return Response.json({ place, rows: await withAvatarVersions(prisma, rows.reverse()) });
 }

@@ -1164,8 +1164,14 @@ export default function RequestActionsProvider({
           {/* Look at files no Request and has no fields, so it gets its own
           plain modal rather than being forced through the Requests popup. It
           does call the server, but only to read (examineActions.js). */}
+          {/* `targetId` is seeded by open("examine", null, { targetId }) —
+              the Hall's HERE rows and its feed rows both name the person
+              before the dialog opens, so the picker is skipped. Read only
+              while Look at is the open mode: the same state backs every other
+              dialog's target. */}
           <ExamineDialog
             open={mode === "examine"}
+            targetId={mode === "examine" ? targetId || null : null}
             onClose={() => setMode(null)}
           />
 

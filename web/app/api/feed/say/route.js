@@ -53,6 +53,9 @@ export async function POST(request) {
     zoneName: context.zoneName,
     channelKind: context.channelKind,
     threadName: context.threadName,
+    // Carried through the write and out on the NOTIFY, so the stream's copy
+    // of this row lands in the sending tab as the row it already drew.
+    clientId,
   });
 
   if (!said.ok) {

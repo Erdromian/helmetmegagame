@@ -98,15 +98,16 @@ export function applyRow(place, row) {
   // reader keeps the words their author took back.
   const known = Boolean(existing) && (existing.editedAt ?? null) === (row.editedAt ?? null);
 
-  // The same row reaches this tab twice on a send: once on the stream (no
-  // clientId, and often FIRST — a NOTIFY is quicker than the POST's own
-  // answer) and once as that answer (with the clientId). Whichever comes
-  // second must still evict the pending twin, or the message shows twice —
-  // once confirmed, once forever at 60 % opacity.
+  // The same row reaches this tab twice on a send: once on the stream and
+  // once as the POST's own answer, and the stream is usually first — a NOTIFY
+  // beats a round trip. Both carry the clientId now (db/lib/feedNotify.js),
+  // so whichever arrives evicts the pending twin, and the second is a no-op.
+  let twin = null;
   let evicted = false;
   if (row.clientId) {
     const pending = state.pending.get(place);
-    if (pending?.has(row.clientId)) {
+    twin = pending?.get(row.clientId) ?? null;
+    if (twin) {
       const stillPending = new Map(pending);
       stillPending.delete(row.clientId);
       state.pending = new Map(state.pending);
@@ -118,8 +119,24 @@ export function applyRow(place, row) {
   if (known && !evicted) return;
 
   if (!known) {
+    // The clientId stays ON the confirmed row, because Feed.js keys by it:
+    // the pending row and the row that confirms it are then the same React
+    // key, so the same <li> and the same <img> survive the swap instead of
+    // one unmounting as another mounts and refetches the face.
+    //
+    // avatarVersion is sticky for the same reason. It is a cache-buster on
+    // the face's URL, and the copy that arrives is not always carrying the
+    // same one as the copy already on screen (see feedHub.js#avatarVersionFor
+    // for why) — a row already drawn keeps the URL it was drawn with.
+    const carried = twin ?? existing ?? null;
+    const clientId = row.clientId ?? carried?.clientId ?? null;
+    const stored = {
+      ...row,
+      ...(clientId ? { clientId } : {}),
+      ...(carried?.avatarVersion != null ? { avatarVersion: carried.avatarVersion } : {}),
+    };
     const next = new Map(confirmed);
-    next.set(row.seq, row);
+    next.set(row.seq, stored);
     state.confirmed = new Map(state.confirmed);
     state.confirmed.set(place, next);
   }

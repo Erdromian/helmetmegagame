@@ -55,7 +55,9 @@ import {
   Book,
   Package,
   DoorOpen,
-  Zap,
+  Bell,
+  BellOff,
+  Camera,
 } from "lucide-react";
 
 const STROKE = 1.6;
@@ -99,11 +101,17 @@ export const EyeIcon = lucide(Eye, "EyeIcon");
 export const EditIcon = lucide(Pencil, "EditIcon");
 // The mobile bottom bar's "More" affordance — see NavRail.js's MOBILE_PRIMARY.
 export const MoreIcon = lucide(Ellipsis, "MoreIcon");
+// The Hall's row action bar: pointing an instant camera at what somebody said,
+// the web twin of the 📸 reaction.
+export const CameraIcon = lucide(Camera, "CameraIcon");
 // The Play page: a doorway you speak through. A plain speech bubble would have
 // read as MessageIcon at rail size, which is the GM's inbox.
 export const PlayIcon = lucide(DoorOpen, "PlayIcon");
-// The Hall's action button: the place panel and the You strip live behind it.
-export const ZapIcon = lucide(Zap, "ZapIcon");
+// The Hall's mention chime, at the foot of the places column. Two glyphs
+// rather than one so the state reads at a glance; aria-pressed carries it for
+// everyone else.
+export const BellIcon = lucide(Bell, "BellIcon");
+export const BellOffIcon = lucide(BellOff, "BellOffIcon");
 
 // GM inbox chime mute toggle (NavRail.js). One name, two glyphs.
 export function SpeakerIcon({ muted, ...props }) {

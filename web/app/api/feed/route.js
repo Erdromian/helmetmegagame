@@ -1,4 +1,5 @@
-import { prisma, feedRowShape, FEED_ROW_SELECT } from "@lifeweb/db";
+import { prisma, FEED_ROW_SELECT } from "@lifeweb/db";
+import { withAvatarVersions } from "@lifeweb/db/lib/archive";
 import { feedWipeFloor, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 import { subscribeToPlace, subscribeToPresence, subscribeToTyping } from "@/lib/feedHub";
@@ -116,7 +117,9 @@ export async function GET(request) {
             take: CATCH_UP_LIMIT,
             select: FEED_ROW_SELECT,
           });
-          for (const row of rows) sendRow(feedRowShape(row));
+          // One `?v=` per character across the batch — see
+          // db/lib/archive.js#withAvatarVersions.
+          for (const row of await withAvatarVersions(prisma, rows)) sendRow(row);
         } catch (err) {
           console.error("Feed catch-up failed:", err);
         }

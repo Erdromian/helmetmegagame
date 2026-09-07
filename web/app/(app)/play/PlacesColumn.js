@@ -1,15 +1,17 @@
 "use client";
 
 import { memo } from "react";
+import IconButton from "@/app/components/IconButton";
+import { BellIcon, BellOffIcon } from "@/app/components/icons";
 import { isUnread } from "./seenStore";
 
 // The left column of the Hall: everywhere this character may read, grouped the
 // way a person would think of them.
 //
+//   SUMMARY        the zone's own channel — the widest room, so it sits on top
 //   HERE           the Location you are standing in — scenery, not speech
 //   ROOMS          the public rooms off it, then the private ones you can open
 //   CONVERSATIONS  the private threads you are in
-//   SUMMARY        the zone's own channel
 //
 // Under 720px the same list is a horizontal .tab-bar of .tab-item above the
 // feed, which is the second half of this file. The sections are the only
@@ -77,10 +79,7 @@ export default function PlacesColumn({
 
   return (
     <nav className="hall-places" aria-label="Places ‡">
-      {/* The quiet reminder that this character's Discord account is out of
-          every channel and this page is the whole of the game for them
-          (docs/systemdocs/HALL.md §6). */}
-      {webOnly && <span className="chip hall-webonly">Playing from the web ‡</span>}
+      <Section title="Summary ‡" places={summary} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Here ‡" places={here} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Rooms ‡" places={rooms} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section
@@ -91,23 +90,24 @@ export default function PlacesColumn({
         newest={newest}
         onSelect={onSelect}
       />
-      <Section title="Summary ‡" places={summary} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
-      {/* The one preference this column carries: whether being named in a
-          scene makes a sound. Per browser, not per character
-          (useHallChimeMuted.js), because it is about the room you are sitting
-          in rather than the one you are standing in. */}
-      {onToggleChime && (
-        <div className="hall-places-foot">
-          <button
-            type="button"
-            className="btn-quiet"
-            aria-pressed={chimeMuted}
+      {/* The foot: the one preference this column carries — whether being
+          named in a scene makes a sound, per browser rather than per
+          character (useHallChimeMuted.js) — and the quiet reminder that this
+          character's Discord account is out of every channel, so this page is
+          the whole of the game for them (HALL.md §6). An icon and a chip
+          rather than two sentences: the column is 15rem wide and the places
+          are what it is for. */}
+      <div className="hall-places-foot">
+        {onToggleChime && (
+          <IconButton
+            icon={chimeMuted ? BellOffIcon : BellIcon}
+            label={chimeMuted ? "Mentions are silent ‡" : "Mentions chime ‡"}
+            aria-pressed={!chimeMuted}
             onClick={() => onToggleChime(!chimeMuted)}
-          >
-            {chimeMuted ? "Mentions are silent ‡" : "Mentions chime ‡"}
-          </button>
-        </div>
-      )}
+          />
+        )}
+        {webOnly && <span className="chip hall-webonly">Playing from the web ‡</span>}
+      </div>
     </nav>
   );
 }

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { loadPeoplePools } from "@/lib/peoplePools";
+import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import {
   LESSON_CATALOG_SELECT,
   teachableSkills,
@@ -580,20 +580,12 @@ export default async function CharacterPage({ searchParams }) {
         },
       })
     : [];
-  const rooms = accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds).map(
-    (r) => ({
-      id: r.id,
-      name: r.name,
-      resources: r.resources,
-      tags: r.tags.map((rt) => ({
-        tagId: rt.tagId,
-        name: rt.tag.name,
-        quantity: rt.quantity,
-        stackable: rt.tag.stackable,
-        weightLbs: rt.tag.category === "Assets" ? 0 : (rt.tag.weightLbs ?? 0),
-      })),
-    }),
-  );
+  // The Transfer dialog's far side, from the shared helper rather than a
+  // second copy of the same map — /play builds the identical list off it, and
+  // two answers to "which doors are open to you" is exactly what
+  // web/lib/peoplePools.js exists to stop. `roomsHere` above is still this
+  // page's own, because corpsesInReach below needs the ROWS and not the shape.
+  const rooms = await loadStashRooms(character);
   // Every body in reach, for Butcher and Bury (docs/systemdocs/CORPSES.md).
   // Handed the ALREADY-FILTERED room list so it costs no second round-trip and
   // — more importantly — so the menu is built from exactly the rooms the

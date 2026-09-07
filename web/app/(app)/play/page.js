@@ -1,14 +1,15 @@
 import { redirect } from "next/navigation";
-import { prisma, feedRowShape, FEED_ROW_SELECT } from "@lifeweb/db";
+import { prisma, FEED_ROW_SELECT } from "@lifeweb/db";
+import { withAvatarVersions } from "@lifeweb/db/lib/archive";
 import { feedWipeFloor, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 import EmptyState from "@/app/components/EmptyState";
 import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
-import { linksFor } from "@lifeweb/db/lib/locationGraph";
+import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
-import { loadPeoplePools } from "@/lib/peoplePools";
+import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import RequestActionsProvider from "@/app/components/RequestActionsProvider";
 import CharacterMentionsProvider from "@/app/components/CharacterMentionsProvider";
 import Hall from "./Hall";
@@ -62,7 +63,10 @@ export default async function PlayPage() {
   // stream's catch-up agree about where the day starts (db/lib/feedWipe.js).
   const floor = await feedWipeFloor(prisma);
 
-  const [rows, watermark, forcedName, concealment] = await Promise.all([
+  // GameConfig is read out here rather than inside the aside below, because
+  // the composer needs one field off it (tupperAutocorrectEnabled) and a GM
+  // watching a zone has no aside to have loaded it.
+  const [rows, watermark, forcedName, concealment, gameConfig] = await Promise.all([
     prisma.archiveEntry.findMany({
       where: { placeKey: first.placeKey, deletedAt: null, seq: seqFilterAbove(floor) },
       orderBy: { seq: "desc" },
@@ -72,7 +76,13 @@ export default async function PlayPage() {
     prisma.archiveEntry.aggregate({ _max: { seq: true } }),
     viewer.character ? loadForcedName(prisma, viewer.character.id) : null,
     viewer.character ? loadConcealment(prisma, viewer.character.id) : null,
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
   ]);
+
+  // The first paint's rows, with ONE `?v=` per character rather than the
+  // per-row sentAt fallback — otherwise every line asked for the same face at
+  // a different URL (db/lib/archive.js#withAvatarVersions).
+  const initialRows = await withAvatarVersions(prisma, rows.reverse());
 
   // The name this character's own optimistic rows wear before the server
   // answers — forced beats concealed beats their own, the same resolution the
@@ -95,7 +105,7 @@ export default async function PlayPage() {
         // carry line all read character.tags (and the role, for the gate) —
         // the page once handed them the bare viewer and fell over on the
         // first living character it met.
-        const [sheet, gameConfig, openTurn] = await Promise.all([
+        const [sheet, openTurn] = await Promise.all([
           prisma.character.findUnique({
             where: { id: viewer.character.id },
             select: {
@@ -104,33 +114,37 @@ export default async function PlayPage() {
               role: { select: { slug: true } },
             },
           }),
-          prisma.gameConfig.findUnique({ where: { id: 1 } }),
           prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, phase: true } }),
         ]);
         const character = { ...viewer.character, ...sheet };
 
-        const [people, affordances, links, waiting, pools] = await Promise.all([
+        const [people, affordances, examine, waiting, pools, stashRooms] = await Promise.all([
           whosHere(prisma, character),
           affordancesFor(prisma, character),
-          character.locationId ? linksFor(prisma, character.locationId) : [],
+          // What Examine used to answer in a modal. It is the place card's
+          // body now, rendered on the server with the rest of the column —
+          // db/lib/examineLocation.js is the same composer the Discord
+          // anchor's Examine button reads from.
+          character.locationId ? examineLines(prisma, character.locationId) : null,
           waitingOnYou(),
           // The people dialogs the sheet has, over the same pools the sheet
           // builds (web/lib/peoplePools.js) so the two cannot disagree about
           // who is standing near you.
           loadPeoplePools(character, { discordUserId: viewer.discordUserId, openTurn }),
+          // The rooms a Transfer can reach, so "Move things" in a room can
+          // hand the dialog its far side already picked.
+          loadStashRooms(character),
         ]);
-        const rooms = character.locationId
-          ? await prisma.room.count({ where: { locationId: character.locationId } })
-          : 0;
         return {
           people,
           affordances,
-          rooms,
-          exits: links.length,
           place: viewer.character.location ?? null,
+          zone: viewer.character.location?.zone ?? null,
+          placeLines: examine?.ok ? examine.lines : [],
           waiting: waiting.ok ? waiting.rows : [],
           selfId: character.id,
           pools,
+          stashRooms,
           sheet,
           // What this character is carrying against their cap — the Transfer
           // dialog projects a hand-over off both.
@@ -138,6 +152,13 @@ export default async function PlayPage() {
         };
       })()
     : null;
+
+  // Is there an instant camera in this character's hands? One slug off the
+  // sheet already loaded above (db/lib/photoMint.js#CAMERA_SLUG), so the row
+  // action bar can decide whether to draw the 📷 without a second query.
+  const hasCamera = (aside?.sheet?.tags ?? []).some(
+    (entry) => entry.tag?.slug === "instant-camera" && (entry.quantity ?? 0) > 0,
+  );
 
   // The @ list, and the lookup a {char:…} in a row resolves against — one
   // roster for both, so a mention can only ever name somebody the writer could
@@ -154,7 +175,7 @@ export default async function PlayPage() {
     <Hall
       initialPlaces={places}
       initialPlace={first.placeKey}
-      initialRows={rows.reverse().map((row) => feedRowShape(row))}
+      initialRows={initialRows}
       initialSeq={watermark._max.seq === null ? "0" : String(watermark._max.seq)}
       self={{
         characterId: viewer.character?.id ?? null,
@@ -162,8 +183,19 @@ export default async function PlayPage() {
         avatarVersion: viewer.character?.updatedAt?.getTime?.() ?? null,
       }}
       aside={aside}
+      // What the server will do to the words on their way in, so the row the
+      // composer draws in the same frame says what the confirmed one will say
+      // (db/lib/say.js#transformSpeech).
+      autocorrect={Boolean(gameConfig?.tupperAutocorrectEnabled)}
       webOnly={Boolean(viewer.character?.webOnly)}
       roster={mentionRoster}
+      // A GM with no living character reads every zone they may see and may
+      // take a line down (web/app/api/feed/delete/route.js).
+      gm={Boolean(viewer.gm)}
+      // The 📷 on somebody else's line, only for a character actually
+      // carrying one. photographRow() re-checks the sheet, so this is the
+      // hint and never the lock.
+      hasCamera={hasCamera}
     />
   );
 
@@ -186,7 +218,7 @@ export default async function PlayPage() {
         healsLeft={aside.pools.healsLeft}
         healTargets={aside.pools.healTargets}
         healParties={{ characters: aside.pools.peopleParties, rooms: [] }}
-        transferParties={{ characters: aside.pools.peopleParties, rooms: [] }}
+        transferParties={{ characters: aside.pools.peopleParties, rooms: aside.stashRooms }}
         lootTargets={aside.pools.lootTargets}
         moveTargets={aside.pools.moveTargets}
         moveLocations={aside.pools.moveLocations}

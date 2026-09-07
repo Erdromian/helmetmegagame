@@ -1,0 +1,107 @@
+"use client";
+
+import { useState } from "react";
+import { TONE_CLASS } from "./PlacePanel";
+
+// THE PLACE CARD: where you are standing, in words, and the fixtures of the
+// Location itself.
+//
+// Two readings of the same spot. **Place** is the Location's own description
+// followed by the Examine lines (db/lib/examineLocation.js) — what can be
+// worked here, what the ways out are doing, what is standing on the ground.
+// **Zone** is the zone's description, which nothing on the web rendered until
+// now. Both are always on the page rather than behind a button, because the
+// old Examine dialog was a modal you had to open to find out where you were.
+//
+// The fixtures under the text are the LOCATION's own: a noticeboard, a gate
+// somebody in the watchtower may work, a keyed door they hold the key to. A
+// room's fixtures are RoomPanel's, and travel is TravelNodes'.
+
+const SIDES = [
+  { value: "place", label: "Place ‡" },
+  { value: "zone", label: "Zone ‡" },
+];
+
+// The Examine lines carry Discord's bold markers, because the same strings
+// are printed into a channel. Nothing on this page renders markdown, so the
+// markers come off rather than showing as asterisks.
+function plain(line) {
+  return String(line ?? "").replaceAll("**", "");
+}
+
+export default function PlaceCard({
+  place,
+  zone,
+  lines = [],
+  fixtures = [],
+  onFixture,
+  onConverse = null,
+  pending = false,
+}) {
+  const [side, setSide] = useState("place");
+
+  const body =
+    side === "zone"
+      ? [zone?.description || "Nothing is written about this part of the world. ‡"]
+      : [place?.description, ...lines.map(plain)].filter(Boolean);
+
+  return (
+    <div className="hall-card">
+      <p className="hall-section-title">{place?.name ?? "Here ‡"}</p>
+      {zone?.name && <p className="hall-quiet-line">{zone.name}</p>}
+
+      <div className="chip-row" role="radiogroup" aria-label="What you are reading ‡">
+        {SIDES.map((entry) => (
+          <button
+            key={entry.value}
+            type="button"
+            role="radio"
+            className="chip"
+            data-active={side === entry.value ? "true" : undefined}
+            aria-checked={side === entry.value}
+            onClick={() => setSide(entry.value)}
+          >
+            {entry.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="hall-card-text">
+        {body.length === 0 ? (
+          <p className="text-sm text-muted">Nothing to see. ‡</p>
+        ) : (
+          body.map((paragraph, index) => (
+            <p key={index} className="text-sm">
+              {paragraph}
+            </p>
+          ))
+        )}
+      </div>
+
+      {(fixtures.length > 0 || onConverse) && (
+        <div className="hall-buttons">
+          {fixtures.map((entry) => (
+            <button
+              key={`${entry.id}:${entry.linkId ?? "place"}`}
+              type="button"
+              className={TONE_CLASS[entry.tone] ?? "btn-secondary"}
+              disabled={pending}
+              onClick={() => onFixture(entry)}
+            >
+              {entry.label}
+            </button>
+          ))}
+          {/* Starting a conversation is otherwise only reachable from a
+              person's row in HERE, which leaves somebody standing alone with
+              no way to open one and invite the people who arrive after. Same
+              dialog either way — it asks who to talk to itself. */}
+          {onConverse && (
+            <button type="button" className="btn-secondary" disabled={pending} onClick={() => onConverse()}>
+              Converse ‡
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

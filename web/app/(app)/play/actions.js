@@ -5,8 +5,7 @@ import { auth } from "@/lib/auth";
 import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
 import { fileMove } from "@lifeweb/db/lib/moves";
-import { whosHere } from "@lifeweb/db/lib/whosHere";
-import { examineLines } from "@lifeweb/db/lib/examineLocation";
+import { whosHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import {
   performLocationMove,
@@ -47,7 +46,14 @@ import { acceptConfession } from "@lifeweb/db/lib/confession";
 import { settleCarry, deliverCarryDrop } from "@lifeweb/db/lib/carry";
 import { acceptThreatSpawn, declineThreatSpawn, applySpawnSideEffects } from "@lifeweb/db/lib/threatSpawn";
 import { declineAssignment } from "@lifeweb/db/lib/lobby";
+import { mayReadPlace } from "@lifeweb/db/lib/feedAccess";
+import { EXAMINE_SUBJECT_SELECT, examineReadout } from "@lifeweb/db/lib/examine";
+import { BLIND_SLUG } from "@lifeweb/db/lib/examineVision";
+import { getMyFactionRole } from "@lifeweb/db/lib/factionPermissions";
+import { photoCaption } from "@lifeweb/db/lib/photo";
+import { CAMERA_SLUG, mintPhoto } from "@lifeweb/db/lib/photoMint";
 import { sendDm } from "@/lib/discordGuild";
+import { examineCharacter } from "@/app/(app)/character/examineActions";
 
 // Every button in the Hall's right column, as a server action.
 //
@@ -61,7 +67,7 @@ import { sendDm } from "@/lib/discordGuild";
 //
 // The GAME logic lives in db/lib, so the Discord button and the web dialog
 // run one implementation: db/lib/gates.js, db/lib/moves.js,
-// db/lib/whosHere.js, db/lib/examineLocation.js, db/lib/locationTravel.js.
+// db/lib/whosHere.js, db/lib/examine.js, db/lib/locationTravel.js.
 // What is written out below is the sequencing each face needs and nothing
 // else.
 
@@ -124,13 +130,153 @@ export async function loadPeopleHere() {
   return { ok: true, ...rows };
 }
 
-export async function examineHere() {
-  const me = await actor();
+// Looking at somebody whose face you cannot see. The token is what
+// db/lib/whosHere.js handed the page for a hood — an HMAC of the character id,
+// so the browser is never told who is under it — and it is resolved here
+// against the people actually standing at the looker's own Location. The
+// readout itself is the sheet's own examineCharacter(), which re-resolves the
+// looker from the session and re-checks co-presence a second time.
+export async function examineHooded(token) {
+  const me = await actor({ id: true, factionId: true, locationId: true });
   if (me.error) return { ok: false, error: me.error };
-  if (!me.character.locationId) return { ok: false, error: "You are nowhere yet. ‡" };
-  const result = await examineLines(prisma, me.character.locationId);
-  if (!result.ok) return { ok: false, error: result.error };
-  return { ok: true, name: result.name, lines: result.lines };
+  const targetId = await resolveHoodToken(prisma, me.character, token);
+  if (!targetId) return { ok: false, error: "They aren't here any more. ‡" };
+  return examineCharacter(targetId);
+}
+
+// Photographing what somebody said — the web twin of the 📸 reaction
+// (bot/src/events/messageReactionAdd.js#handleCameraReaction). The row is the
+// only thing the browser sends; who spoke, whether they were hooded and
+// whether this reader may see the place are all resolved here.
+//
+// The camera is NOT spent: holding one is the whole gate, and film is not a
+// system anybody asked for. What bounds it instead is one shot per line per
+// photographer — otherwise a reader could mint unbounded Tag rows off one
+// message, and every one of those is a permanent catalog row. The bot keeps
+// that bound in memory, which a restart empties and which the web process
+// could never share, so this one is a row in AuditLog. It is the same shot
+// either way, so the two faces refusing separately costs a player nothing.
+//
+// No `turnId`: that column is for the per-turn rations that count these rows
+// (REQUESTS.md §1a), and this ration is per LINE rather than per turn.
+const PHOTO_ACTION = "photo_taken";
+
+export async function photographRow(seq) {
+  const me = await actor({
+    id: true,
+    factionId: true,
+    locationId: true,
+    discordUserId: true,
+    tags: { select: { quantity: true, tag: { select: { slug: true } } } },
+  });
+  if (me.error) return { ok: false, error: me.error };
+  const character = me.character;
+
+  const holds = (slug) => character.tags.some((ct) => ct.tag?.slug === slug && (ct.quantity ?? 0) > 0);
+
+  // Framing a shot is something you do by eye. Gated exactly as 🔍 and 📸
+  // are, and with the bot's own sentence.
+  if (holds(BLIND_SLUG)) {
+    return { ok: false, error: "You can't see. ‡" };
+  }
+  if (!holds(CAMERA_SLUG)) return { ok: false, error: "You have no camera. ‡" };
+
+  let key;
+  try {
+    key = BigInt(seq);
+  } catch {
+    return { ok: false, error: "That line is gone. ‡" };
+  }
+
+  const row = await prisma.archiveEntry.findUnique({
+    where: { seq: key },
+    select: { seq: true, kind: true, placeKey: true, characterId: true, concealedAlias: true, deletedAt: true },
+  });
+  if (!row || row.kind !== "MESSAGE" || row.deletedAt || !row.characterId) {
+    return { ok: false, error: "That line is gone. ‡" };
+  }
+  if (row.characterId === character.id) return { ok: false, error: "Point it at somebody else. ‡" };
+
+  // The same gate the feed itself reads by (db/lib/feedAccess.js). A seq is a
+  // guessable number, so this is what stops one being pointed at a room the
+  // reader is standing outside of.
+  const allowed =
+    Boolean(row.placeKey) &&
+    (await mayReadPlace(prisma, character, row.placeKey, { gm: false, discordUserId: me.discordUserId }));
+  if (!allowed) return { ok: false, error: "That line is gone. ‡" };
+
+  // One shot per line per photographer, read off the INDEXED columns.
+  // AuditLog has (actorDiscordUserId, actionType, turnId) and (actionType);
+  // it has no index over `details`, so a `path: ["seq"]` filter was a scan of
+  // the whole table on a button anybody can press. The seq is checked in JS
+  // over this photographer's own prints, which is a handful of rows.
+  const mine = await prisma.auditLog.findMany({
+    where: { actorDiscordUserId: me.discordUserId, actionType: PHOTO_ACTION },
+    select: { details: true },
+  });
+  const wanted = String(row.seq);
+  if (mine.some((entry) => String(entry.details?.seq ?? "") === wanted)) {
+    return { ok: false, error: "You already have that shot. ‡" };
+  }
+
+  const subject = await prisma.character.findUnique({
+    where: { id: row.characterId },
+    select: EXAMINE_SUBJECT_SELECT,
+  });
+  if (!subject) return { ok: false, error: "That line is gone. ‡" };
+
+  // The hood the ROOM SAW, which outlives the hood they are wearing now: a
+  // print filed under a real name nobody present ever heard would be a
+  // permanent unmasking of somebody who spoke masked.
+  const hooded = row.concealedAlias != null;
+
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
+  // A Leader/Treasurer of the subject's own faction reads their ⬢, the same
+  // seat the readout gives 🔍. Nothing else of the viewer's sight survives —
+  // `viewerTags: []` and an empty `satisfied` are what "a lens has no medical
+  // training" means, and without them a surgeon's photograph would launder
+  // their diagnosis into whoever they handed the print to.
+  const officer =
+    !hooded && subject.factionId
+      ? (await getMyFactionRole(prisma, me.discordUserId, subject.factionId)).isOfficer
+      : false;
+
+  const readout = examineReadout({
+    subject: hooded ? { ...subject, concealed: true } : subject,
+    viewerTags: [],
+    satisfied: new Set(),
+    openTurnNumber: openTurn?.number,
+    lastDesire: null,
+    viewerFactionId: character.factionId ?? null,
+    viewerIsOfficer: officer,
+    wasConcealedAs: hooded ? row.concealedAlias : null,
+  });
+
+  // No transaction: nothing is spent, so there is nothing that has to be
+  // atomic with the print — and mintPhoto's collision retry cannot run inside
+  // one (db/lib/photoMint.js#createWithRetry).
+  const photo = await mintPhoto(prisma, character.id, {
+    subject: readout.name,
+    caption: photoCaption(readout),
+  });
+
+  // Written only once the print exists, so a failed mint leaves the shot
+  // there to try again rather than burning it.
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: me.discordUserId,
+      actionType: PHOTO_ACTION,
+      targetCharacterId: row.characterId,
+      details: { seq: String(row.seq), placeKey: row.placeKey, hooded, photoTagId: photo.id, photoName: photo.name },
+    },
+  });
+
+  return {
+    ok: true,
+    readout,
+    photoName: photo.name,
+    line: `You take a photograph of ${readout.name}. ‡`,
+  };
 }
 
 // What is lying in a room's stash, in Bascinet's own format. The Transfer
@@ -456,7 +602,7 @@ export async function converseRooms() {
   return { ok: true, rooms: open.map((r) => ({ id: r.id, name: r.name, private: r.kind === "PRIVATE" })) };
 }
 
-export async function openConversation({ roomId, name } = {}) {
+export async function openConversation({ roomId, name, inviteIds = [] } = {}) {
   const me = await actor();
   if (me.error) return { ok: false, error: me.error };
 
@@ -507,6 +653,30 @@ export async function openConversation({ roomId, name } = {}) {
   // The creator is a member like anybody else — the thread add above is only
   // Discord's copy of that fact (db/lib/conversations.js).
   await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: me.character.id });
+
+  // Anybody the dialog was opened ON. Converse hangs off a person's row, so
+  // the person whose row it was is ticked when it opens — and this is where
+  // that tick becomes a membership row. The ids the browser sent are never
+  // trusted: only somebody ALIVE and standing at this same Location is added,
+  // which is the same co-presence rule every other people action here uses.
+  const wanted = [...new Set((Array.isArray(inviteIds) ? inviteIds : []).map(String))].filter(
+    (id) => id && id !== me.character.id,
+  );
+  if (wanted.length > 0) {
+    const guests = await prisma.character.findMany({
+      where: { id: { in: wanted }, status: "ALIVE", locationId: room.locationId },
+      select: { id: true, discordUserId: true, webOnly: true },
+    });
+    for (const guest of guests) {
+      // The ROW first, then the account: membership is a database fact and
+      // Discord is its projection, so a failed thread add never decides
+      // whether the conversation is in somebody's places.
+      await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: guest.id });
+      if (guest.discordUserId && !guest.webOnly) {
+        await addThreadMember(thread.id, guest.discordUserId).catch(() => {});
+      }
+    }
+  }
   await prisma.auditLog
     .create({
       data: {

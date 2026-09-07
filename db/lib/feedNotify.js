@@ -19,14 +19,29 @@ const FEED_CHANNEL = "bascinet_feed";
 // `op` says what happened to the row: "new" (default), "edit" or "delete".
 // A listener still loads the row and re-checks who may see it — the op only
 // tells it which of the three things to do, never what the row says.
-async function notifyFeed(prisma, { seq, placeKey, op = "new" } = {}) {
+//
+// `clientId` is the one thing on this payload that is not about finding the
+// row: it is the token the web composer stamped on its optimistic copy. The
+// stream is usually QUICKER than the send's own answer, so without it the tab
+// that spoke meets its own message as a stranger — a second row, a second
+// React key, a second avatar request — until the POST comes back. It is a
+// browser-supplied string carried straight back to that browser, so nothing
+// downstream is allowed to trust it for anything but matching.
+async function notifyFeed(prisma, { seq, placeKey, op = "new", clientId = null } = {}) {
   if (seq === null || seq === undefined || !placeKey) return false;
   try {
     // seq is a BigInt off the row; JSON.stringify cannot serialise one, so it
     // goes over the wire as a string and every reader parses it back with
     // BigInt(), never Number() — past 2^53 a Number cursor silently stops
     // moving.
-    const payload = JSON.stringify({ seq: String(seq), placeKey, op });
+    const payload = JSON.stringify({
+      seq: String(seq),
+      placeKey,
+      op,
+      // Clamped: the payload has an 8000-byte ceiling and this half of it
+      // came off a request body.
+      ...(typeof clientId === "string" && clientId ? { clientId: clientId.slice(0, 64) } : {}),
+    });
     await prisma.$executeRaw`SELECT pg_notify(${FEED_CHANNEL}, ${payload})`;
     return true;
   } catch (err) {

@@ -58,6 +58,35 @@ function feedRowShape(row, extra = {}) {
   };
 }
 
+// A batch of rows shaped with ONE `?v=` per character.
+//
+// feedRowShape falls back to the row's own sentAt when nobody hands it an
+// avatarVersion, and that is a different number on every line — so a page of
+// rows asked /api/avatar/<id> for the same face once per row, and a reader
+// watched a portrait blink down the whole scene. The live NOTIFY path already
+// passes the right number (web/lib/feedHub.js#avatarVersionFor); this is the
+// same answer for the three surfaces that render a batch instead of a row:
+// the first paint of /play, the stream's catch-up, and /api/feed/history.
+//
+// ArchiveEntry.characterId is a SNAPSHOT string rather than a foreign key, so
+// a row whose character has since been deleted simply misses the map and
+// keeps the old fallback.
+async function withAvatarVersions(prisma, rows, extra = {}) {
+  const list = Array.isArray(rows) ? rows : [];
+  const ids = [...new Set(list.map((row) => row?.characterId).filter(Boolean))];
+  const versions = new Map();
+  if (ids.length > 0) {
+    const characters = await prisma.character
+      .findMany({ where: { id: { in: ids } }, select: { id: true, updatedAt: true } })
+      .catch(() => []);
+    for (const c of characters) versions.set(c.id, c.updatedAt?.getTime?.() ?? null);
+  }
+  return list.map((row) => {
+    const version = row?.characterId ? versions.get(row.characterId) : undefined;
+    return feedRowShape(row, version === undefined ? extra : { ...extra, avatarVersion: version });
+  });
+}
+
 // Every write here is best-effort and swallows its own failure. A transcript
 // row is never worth breaking a player's message over, and the proxy path
 // calls this inline with the send. Failures are logged, not thrown.
@@ -133,7 +162,12 @@ async function recordArchiveMessage(prisma, entry) {
 
     // After the insert, never inside it: a listener woken before the row is
     // committed would look it up and find nothing.
-    if (row.placeKey) await notifyFeed(prisma, { seq: row.seq, placeKey: row.placeKey });
+    //
+    // `clientId` rides along so the tab that typed this meets its own row as
+    // the row it already drew, rather than as a second one (db/lib/feedNotify.js).
+    if (row.placeKey) {
+      await notifyFeed(prisma, { seq: row.seq, placeKey: row.placeKey, clientId: entry.clientId ?? null });
+    }
     return row;
   });
 }
@@ -218,6 +252,7 @@ async function deleteArchiveMessage(prisma, discordMessageId, options = {}) {
 module.exports = {
   FEED_ROW_SELECT,
   feedRowShape,
+  withAvatarVersions,
   currentGameId,
   forgetGameId,
   recordArchiveMessage,

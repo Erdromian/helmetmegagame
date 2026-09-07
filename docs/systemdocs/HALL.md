@@ -256,26 +256,47 @@ like everything else.
 
 ### The wireframes Bascinet chose
 
-Desktop, three columns — `15rem minmax(0,1fr) 17rem`:
+Desktop, three columns — `15rem minmax(0,1fr) 20rem`. The right column grew
+from 17rem in the second pass: it is the game suite now, not a button strip.
 
 ```
-┌──────────────────┬──────────────────────────────────────┬────────────────────┐
-│ TOWN · Dusk 12   │  The Keep                        ⋯   │ HERE · 7           │
-│──────────────────│  A vaulted hall, damp and echoing…   │ ◉ Cersei · Baroness│
-│ HERE             │──────────────────────────────────────│ ◉ a young man      │
-│ ▸ The Keep       │  -# Somebody has entered from the    │ ◌ a hooded figure  │
-│ ROOMS            │     Square.                          │────────────────────│
-│   Throne Room  ● │  ⊙ Cersei · Baroness          12:04  │ THE KEEP           │
-│   Cellar         │    "Shut the door behind you."       │ 3 rooms · 4 exits  │
-│   ▪ Baron's Off. │                                      │ [Travel][Examine]  │
-│ CONVERSATIONS    │  ⊙ a young man                12:05  │ [Storage][Notices] │
-│   With Old Tom ● │    *pulls his cloak tighter*         │ [Converse][Bell]   │
-│ SUMMARY          │                                      │────────────────────│
-│   Town           │  ▢ Say something in the Throne Room…⌤│ YOU                │
-│                  │                                      │ [Move…] [Sheet ›]  │
-│                  │                                      │ [Report to the GMs]│
-│                  │                                      │ Waiting on you (2) │
-└──────────────────┴──────────────────────────────────────┴────────────────────┘
+┌───────────────┬────────────────────────────────────────────┬──────────────────────┐
+│ PLACES        │ Council Room                     ◔ Dusk 4  │ THE KEEP             │
+│               │────────────────────────────────────────────│ Fortress             │
+│ ▤ Summary   ● │                                            │ [Place] [Zone]       │
+│               │ ◉ Alexandra Hristov  13:58                 │ A high hall of black │
+│ ▸ The Keep    │   Nobody saw it leave.                     │ stone; the winch for │
+│   Council     │                                            │ the gate is in the   │
+│   Kitchens  ● │ ──────────────── NEW ─────────────────────│ tower.               │
+│   ▪ Vault     │                                            │ [Noticeboard]        │
+│               │ ◉ Knife Hristov  14:02             ✎  ✕   │──────────────────────│
+│ » Alexandra   │   "Where did the tithe go?"                │ HERE · 3             │
+│               │                                            │ ◉ Knife Hristov  you │
+│               │ ◉ Alexandra Hristov  14:03        🔍  📷   │ ◉ Alexandra      🔍  │
+│               │   Ask the Censor.                          │ ◉ a hooded figure 🔍 │
+│               │                                            │──────────────────────│
+│               │ · Alexandra is typing…                     │ THIS ROOM            │
+│               │────────────────────────────────────────────│ Storage · 2 loaves,  │
+│ 🔔  web-only  │ [ Say something in Council Room…         ] │ a key   [Move things]│
+│               │                                  4 s       │ [Intercom]           │
+│               │                                            │──────────────────────│
+│               │                                            │ TRAVEL · 1 free      │
+│               │                                            │ ┌────────┐┌────────┐ │
+│               │                                            │ │Gatehse ││Road    │ │
+│               │                                            │ │FORTRESS││FOREST  │ │
+│               │                                            │ │free    ││the turn│ │
+│               │                                            │ └────────┘└────────┘ │
+│               │                                            │ ┌────────┐           │
+│               │                                            │ │Barracks│           │
+│               │                                            │ │FORTRESS│           │
+│               │                                            │ │shut    │           │
+│               │                                            │ └────────┘           │
+│               │                                            │──────────────────────│
+│               │                                            │ YOU                  │
+│               │                                            │ [Move…] [Sheet ›]    │
+│               │                                            │ Waiting on you · 1   │
+│               │                                            │ Report to the GMs    │
+└───────────────┴────────────────────────────────────────────┴──────────────────────┘
 ```
 
 Under 720px, one column — the places column becomes a `.tab-bar` of
@@ -302,22 +323,9 @@ header, and the rest of the right column comes up as a bottom sheet from the
 └────────────────────────────────────┘
 ```
 
-…and ⚡ opens the sheet, which is THE PLACE and YOU in the same order the
-column draws them:
-
-```
-┌────────────────────────────────────┐
-│ THE KEEP                        ✕  │
-│ 3 rooms · 4 exits                  │
-│ [Travel][Examine][Storage][Notices]│
-│ [Converse][Bell]                   │
-│────────────────────────────────────│
-│ YOU                                │
-│ [Move…] [Sheet ›]                  │
-│ [Report to the GMs]                │
-│ Waiting on you (2)                 │
-└────────────────────────────────────┘
-```
+…and ⋯ opens the sheet, which is the same five sections in the same order the
+column draws them, minus HERE (the phone has the avatar strip under the place
+header instead).
 
 ### The parts
 
@@ -345,9 +353,45 @@ column draws them:
   as `DmThread.js`. The list scrolls itself, never the document, and only while
   the reader is already at the bottom; otherwise a "New messages" pill. On a
   coarse pointer, Enter is a newline and a Send button appears, as in Discord's
-  app. Your own rows carry ✎ and ✕ — on hover with a mouse, always on a touch
-  screen — and an edited row says "(edited)" after the time. ✕ goes through the
-  shared `useConfirm()` dialog.
+  app. An edited row says "(edited)" after the time.
+- **The row action bar** (`.hall-row-actions`) floats at a row's top-right the
+  way Discord's does — absolute, over the corner, so appearing on hover never
+  reflows the sentence under it. Shown on hover with a mouse and always on a
+  touch screen, and never on a row that has not confirmed yet. What it holds
+  depends on whose line it is:
+
+  | Row | Buttons |
+  |---|---|
+  | Yours | ✎ **Change** · ✕ **Take back**. The five-minute window is checked when the button is pressed, not while the page sits open, and again by `deleteSpeech`. Take back goes through the shared `useConfirm()`. |
+  | Somebody else's | 🔍 **Look at** — the SHEET's own Examine dialog, opened with the speaker already chosen; and 📷 **Photograph**, only while the sheet holds an `instant-camera`. |
+  | Any row, viewer is a GM with no character | ✕ **Remove**, confirmed, through the same `/api/feed/delete` route with `{ gm: true }`. |
+
+  **The eye is offered only on a row that carries the speaker's own name.** A
+  row written under an alias — a hood, or a forced name — has `alias` set
+  (`db/lib/archive.js#feedRowShape`), and opening a dialog on its character id
+  would be looking a hood up BY ID, which is the whole thing the token in
+  `whosHere.js` exists to prevent. The eye on that person is in HERE instead,
+  where it goes through `examineHooded`.
+
+  **The camera has no such problem**, and is offered on a hood's line too: it
+  is pressed against a **seq**, the server resolves the speaker itself, and
+  what it prints is the impoverished concealed readout — the hood the ROOM SAW
+  at the time, not the one they are wearing now (`examineReadout`'s
+  `wasConcealedAs`). `photographRow(seq)` in `play/actions.js` is the web twin
+  of the 📸 reaction and mirrors it exactly: blind refuses, no camera refuses,
+  the viewer's own sight is stripped (`viewerTags: []`, an empty `satisfied`)
+  so a surgeon's photograph carries no diagnosis, and `mintPhoto` files the
+  print as an ephemeral Tag row. **One shot per line per photographer**,
+  because nothing is spent and a second press would otherwise mint a second
+  permanent catalog row: the bot keeps that bound in memory, which a restart
+  empties and a web process cannot share, so this face keeps it as an
+  `AuditLog` row — `photo_taken`, with the seq in `details`. No `turnId`: that
+  column is for the per-turn rations, and this ration is per line.
+
+  **GM remove** is the same route the player's Take back uses. It pays for the
+  `isGm` REST check only when there is no living character to be, writes a
+  `gm_feed_remove` audit row after the removal, and a GM who DOES have a living
+  character takes the player path — the rule `loadFeedViewer` already applies.
 - **The words themselves go through `ChatMarkdown.js`**, not
   `MarkdownContent.js` — that one stays exactly as it is for DMs. It is
   `react-markdown` + `remark-gfm` + `remarkTokens` + **`remarkChat.js`**, which
@@ -376,28 +420,67 @@ column draws them:
 - **The composer is hidden where `canSpeak` is false** — every place for a GM,
   and the Location for everybody (§5a). In its place, one line saying so.
 - **`HallAside.js`** is the right column — and, under 720px, everything
-  inside the ⚡ sheet. One component either way, because the phone's version
-  is the same three panels in the same order; only the box around them
-  changes, and the sheet is a `Modal` wearing `.hall-sheet` rather than a
-  drawer of its own, so it keeps Escape, the focus trap and the backdrop
-  `Modal` already owns.
-- **`HereList.js`** draws **HERE** off `db/lib/whosHere.js#whosHere` — the
-  same function the Discord anchor's "Who's here?" answers with. A named row
-  is an avatar, the presented name and, for a fellow member of a real
-  faction, their Role; a concealed one is the alias and the hood and **no
-  menu**, because there is nobody there to act on until the hood comes off. A
-  named row opens a `.hall-menu` of the SHEET's own people dialogs — Look at,
-  Heal, Transfer, Loot, Bind, Free, Harm, Move Player — by mounting
-  `RequestActionsProvider` on the page with the people pools and calling
-  `open(mode, null, { targetId })`, so the person is already filled in.
-  Nothing is forked: same dialogs, same server actions. The metagaming rule
-  (`actionRegistry.js`) still holds — no row is greyed for a fact about the
-  person it names.
-- **`PlacePanel.js`** draws **THE PLACE** off
-  `db/lib/placeAffordances.js#affordancesFor` (§5c), one dialog per
-  affordance, each calling a server action in `play/actions.js`. Anything
-  that changes a label a button wears — a gate now shut, a door now held —
-  re-reads the whole list rather than patching a row.
+  inside the ⋯ sheet. One component either way, because the phone's version
+  is the same sections in the same order; only the box around them changes,
+  and the sheet is a `Modal` wearing `.hall-sheet` rather than a drawer of its
+  own, so it keeps Escape, the focus trap and the backdrop `Modal` already
+  owns. It composes five sections, top to bottom, and owns the affordance list
+  they share through `usePlaceActions`:
+  1. **`PlaceCard.js`** — the Location's name, its zone muted under it, a
+     `Place` / `Zone` chip pair and the chosen text, always on the page inside
+     a scrolling `max-height`. **Place** is `Location.description` plus the
+     `examineLines` (`db/lib/examineLocation.js`) the page renders server-side;
+     **Zone** is `Zone.description`, which nothing on the web drew before.
+     Under the text, the Location's own fixtures — the noticeboard, a gate a
+     watchtower opens to this character, a keyed door they hold the key to —
+     and **Converse**, which is otherwise only reachable from a person's row
+     in HERE and so left somebody standing alone with no way to open one.
+     The old **Examine** dialog is gone: this is what it said.
+  2. **`HereList.js`** — everyone standing here, hooded or not, off
+     `db/lib/whosHere.js#whosHere`. A row is a 24px avatar, the presented name
+     (their Role for a fellow member of a real faction, `you` on your own) and
+     an eye at the row's right edge that opens **Look at** in one click. The
+     name opens a `.hall-menu` of the SHEET's own people dialogs — Look at,
+     Heal, Transfer, Loot, Bind, Free, Harm, Move Player, **Converse** — by
+     mounting `RequestActionsProvider` on the page with the people pools and
+     calling `open(mode, null, { targetId })`. Nothing is forked: same
+     dialogs, same server actions. A hood gets the same row and the same eye;
+     its menu is Converse alone. Looking at a hood goes through
+     `examineHooded(token)`, where the token is an HMAC of the character id
+     keyed with `AUTH_SECRET` (`whosHere` mints it, `resolveHoodToken`
+     resolves it over the people actually standing here) — so the browser is
+     handed a handle it can send back and never a name. The metagaming rule
+     (`actionRegistry.js`) still holds: no row is greyed for a fact about the
+     person it names.
+  3. **`RoomPanel.js`** — drawn only when the OPEN place is a Room, and it is
+     the fix for the Intercom-in-every-Keep-room complaint. `affordancesFor`
+     answers what this character can do where they stand, which at a Location
+     with six rooms is six rooms' buttons at once; the panel groups by
+     `roomId` and shows the open one. Its storage line comes from
+     `readStash`, with **Move things** opening the sheet's Transfer preset to
+     `room:<id>`, and then that room's own fixtures — Intercom in the Council
+     Room, the Bell in the tower, the red Turret in the Censor's office.
+  4. **`TravelNodes.js`** — the ways out as a grid of square nodes, two to a
+     row, off `loadTravel`. Each node carries the destination, its zone in
+     small caps and one foot line: `free` for a local hop or a crossing with a
+     free move left, `the turn` for a crossing that spends the Move and lands
+     next turn (MAP.md §3), and `shut` / `locked` / the refusal for one that
+     will not open — dimmed, still drawn, because knowing the way is there and
+     shut is what sends you to find the winch. A zone crossing is tinted. The
+     header is `Travel · N free` with `freeReason` as its title. Clicking a
+     node opens an inline confirm strip under the grid — the sentence, the
+     drag-along chips, `Go` and `Cancel` — not a modal. While
+     `travelToLocationId` is set the grid is replaced by "Leaving for X at the
+     turn" and **Turn back**.
+  5. **`YouPanel.js`** — below.
+- **`PlacePanel.js`** is no longer a panel. It is `usePlaceActions()` plus the
+  dialogs the sections open: Noticeboard, Converse, Bell, Turret, Intercom.
+  The hook owns the affordance list and the refresh rule — anything that
+  changes a label a button wears re-reads the whole list rather than patching
+  a row, which is what keeps this column and the Discord anchor saying the
+  same thing. The web filters the ids `travel`, `whosHere`, `secretRooms` and
+  `examine` out of that list; they stay in
+  `db/lib/placeAffordances.js` for the anchor, which has no column beside it.
 - **`YouPanel.js`** draws **YOU**: the Move dialog (`db/lib/moves.js#fileMove`,
   the same call the `#turns` console's modal makes), a link to the sheet,
   **Report to the GMs** and **Waiting on you**. Report writes an INBOUND
@@ -413,6 +496,16 @@ column draws them:
   people pool — the roster standing here, the medical gate, the Loot / Move /
   Bind / Harm lists. It came out of `character/page.js`, which calls it too:
   a second copy of "who is helpless" would have been a second answer.
+- **The right column refreshes on a MOVE, not on a timer.** Everything in it
+  — the place card, the Examine lines, who is here, the rooms a Transfer can
+  reach — is a server prop off `page.js`, so `TravelNodes`' Go and Turn back
+  and the stream's own `places` event all call `router.refresh()`. That event
+  fires only when the viewer's own presence changed, and the feed store is
+  client state, so a refresh costs nothing that was on screen. ‡
+- **One aside is ever mounted.** The right column and the phone's ⋯ sheet are
+  the same `HallAside`, and CSS hiding the column under 720px still left both
+  live — two travel loads, two stash reads, two affordance states. `useNarrow()`
+  picks one; the CSS rule stays as belt and braces. ‡
 - **`feedStore.js`** is a module-level store read through
   `useSyncExternalStore`, modelled on the GM inbox's `liveInbox.js`. Confirmed
   rows are keyed by seq, pending rows by a client id, both per place. A
@@ -499,7 +592,7 @@ they hold the key to. On Discord those last two are answered by a refusal
 instead, because an anchor cannot know who is reading it.
 
 Adding an affordance is one entry in the catalog, one dialog in
-`PlacePanel.js` and one server action. It is not two lists to keep in step.
+the Hall's right column and one server action. It is not two lists to keep in step.
 
 ## 6. What comes next, in order
 

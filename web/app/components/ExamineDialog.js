@@ -16,19 +16,41 @@ import { peopleToExamine, examineCharacter } from "@/app/(app)/character/examine
 // Two round trips on purpose. The roster loads when the dialog opens, so it is
 // current rather than baked into the page render; the readout loads when a
 // name is picked, so opening the dialog never fetches everybody's sheet.
-export default function ExamineDialog({ open, onClose }) {
+//
+// `targetId` skips the picker. The Hall opens this from a person's row in HERE
+// and from a line in the feed, where the reader has already said who they mean
+// — asking them to find that same person again in a dropdown would be a worse
+// dialog than the sheet's. It is only a shortcut past the ROSTER: the readout
+// is the same one round trip, and examineCharacter() re-resolves the looker
+// from the session and re-checks co-presence, so a stale or invented id is
+// refused rather than answered. ‡
+export default function ExamineDialog({ open, onClose, targetId = null }) {
   if (!open) return null;
-  return <ExamineDialogBody onClose={onClose} />;
+  // Keyed on the target, so opening the dialog on a second person while the
+  // first is still on screen starts a fresh look rather than reusing the old
+  // one's state.
+  return <ExamineDialogBody key={targetId ?? "picker"} onClose={onClose} targetId={targetId} />;
 }
 
-function ExamineDialogBody({ onClose }) {
-  const [roster, setRoster] = useState({ loading: true, people: [], error: null });
-  const [chosen, setChosen] = useState("");
-  const [look, setLook] = useState({ loading: false, readout: null, error: null });
+function ExamineDialogBody({ onClose, targetId = null }) {
+  const preset = Boolean(targetId);
+  const [roster, setRoster] = useState({ loading: !preset, people: [], error: null });
+  const [chosen, setChosen] = useState(targetId ?? "");
+  const [look, setLook] = useState({ loading: preset, readout: null, error: null });
 
+  // One fetch or the other, never both: a caller who already named somebody
+  // has no use for the roster, and loading it anyway would put a list of who
+  // is standing nearby into a dialog that was asked one question.
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      if (preset) {
+        const res = await examineCharacter(targetId);
+        if (cancelled) return;
+        if (res?.ok) setLook({ loading: false, readout: res.readout, error: null });
+        else setLook({ loading: false, readout: null, error: res?.error ?? "You can't see them." });
+        return;
+      }
       const res = await peopleToExamine();
       if (cancelled) return;
       if (res?.ok) setRoster({ loading: false, people: res.people, error: null });
@@ -37,7 +59,7 @@ function ExamineDialogBody({ onClose }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [preset, targetId]);
 
   async function pick(id) {
     setChosen(id);
@@ -57,11 +79,11 @@ function ExamineDialogBody({ onClose }) {
         {roster.loading && <p className="text-sm text-muted">Looking around…</p>}
         {roster.error && <FormError>{roster.error}</FormError>}
 
-        {!roster.loading && !roster.error && roster.people.length === 0 && (
+        {!preset && !roster.loading && !roster.error && roster.people.length === 0 && (
           <p className="text-sm text-muted">There is nobody else here.</p>
         )}
 
-        {roster.people.length > 0 && (
+        {!preset && roster.people.length > 0 && (
           <label className="field">
             <span className="field-label">Who</span>
             <Select value={chosen} onChange={(e) => pick(e.target.value)}>
@@ -83,7 +105,10 @@ function ExamineDialogBody({ onClose }) {
   );
 }
 
-function Readout({ readout }) {
+// The readout itself, exported: /play's HERE column draws it for a hood and
+// its feed draws it for a photograph, and all three used to hand-roll their
+// own poorer copy of this block off the same object.
+export function Readout({ readout }) {
   return (
     <div className="panel flex flex-col gap-3" style={{ padding: "0.75rem" }}>
       <div className="flex items-center gap-2">

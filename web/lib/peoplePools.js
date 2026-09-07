@@ -3,6 +3,7 @@ import { prisma } from "@lifeweb/db";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
+import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { peopleHere } from "@/lib/peopleHere";
 import { isTradeable } from "@/lib/tagRequests";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
@@ -278,4 +279,52 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     harmTargets,
     harmTags,
   };
+}
+
+// The rooms a Transfer can hand things to or take things from: every room at
+// this Location the character can actually get into, with its stash.
+//
+// The same shape web/app/(app)/character/page.js builds for the sheet's own
+// Transfer dialog, including the Assets-weigh-nothing rule (CARRY.md §1) the
+// projection under the dialog reads. It lives here rather than being a second
+// query in the Hall's page: two answers to "which doors are open to you" is
+// exactly what web/lib/peoplePools.js exists to stop.
+export async function loadStashRooms(character) {
+  if (!character?.locationId) return [];
+  const [rows, keys] = await Promise.all([
+    prisma.room.findMany({
+      where: { locationId: character.locationId },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        kind: true,
+        accessTagSlugs: true,
+        resources: true,
+        tags: {
+          where: { quantity: { gt: 0 } },
+          select: {
+            tagId: true,
+            quantity: true,
+            tag: { select: { name: true, stackable: true, weightLbs: true, category: true } },
+          },
+        },
+      },
+    }),
+    roomAccessKeys(prisma, character.id),
+  ]);
+
+  return accessibleRooms(rows, keys.heldSlugs, keys.guestRoomIds).map((room) => ({
+    id: room.id,
+    name: room.name,
+    resources: room.resources,
+    tags: room.tags.map((rt) => ({
+      tagId: rt.tagId,
+      name: rt.tag.name,
+      quantity: rt.quantity,
+      stackable: rt.tag.stackable,
+      weightLbs: rt.tag.category === "Assets" ? 0 : (rt.tag.weightLbs ?? 0),
+    })),
+  }));
 }

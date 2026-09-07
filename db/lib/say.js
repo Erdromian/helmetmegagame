@@ -180,10 +180,13 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
 async function recordSpeech(
   prisma,
   prepared,
-  { discordMessageId = null, discordChannelId = null, zoneId = null, zoneName = null, channelKind = null, threadName = null, content = null } = {},
+  { discordMessageId = null, discordChannelId = null, zoneId = null, zoneName = null, channelKind = null, threadName = null, content = null, clientId = null } = {},
 ) {
   if (!prepared?.ok) return null;
   return recordArchiveMessage(prisma, {
+    // The web composer's token for the copy it has already drawn. Null on the
+    // Discord path, which has no optimistic row to reconcile.
+    clientId,
     // A caller that appended something to the prepared text (the proxy adds
     // its attachment placeholders) hands the finished string back here.
     // Otherwise the ROW's spelling is what is stored, not Discord's.
