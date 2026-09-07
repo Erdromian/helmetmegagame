@@ -5322,6 +5322,46 @@ tags:
     sellable: true
     sellablePrice: 2
 
+  # Fished up by the labor loot pass. Public on purpose (Chris 2026-09-07):
+  # the heart is a curiosity anyone may catch, but the White Honey link stays
+  # a discovery — never name that recipe here.
+  trout-heart:
+    catalog: all
+    name: Trout Heart
+    category: items
+    group: items-gear
+    description: "The heart of a rainbow trout, hardly bigger than a thumbnail. It stays warm in the hand longer than it has any right to. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 4
+
+  # Fished up by the labor loot pass. The bruise cure is their whole trade
+  # until the medical rework gives them more — enforced on consume by
+  # HIDDEN_CURES in db/lib/hiddenCures.js.
+  leeches:
+    catalog: all
+    name: Leeches
+    category: items
+    group: items-gear
+    description: "A jarful of dark, patient leeches. Set on a bruise, they draw the bad blood out — cures {tag:bruised}. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 2
+    consumable: true
+    consumesInto: []
+
   # The generator's proper fuel. Imported, so the Merchant has to buy it off
   # the station with the profit he makes selling everything else — which is the
   # squeeze the whole Depot economy is built around.
@@ -7653,13 +7693,14 @@ tags:
       # says it too.
       skills: [cooking-skilled]
       gambit: false
-      # The one recipe the cook chooses an ingredient for. All three are Depot
-      # imports, so the delicacy is a real errand rather than a foraging trip.
-      # Honey stays out of the description and the paper on purpose: it is
-      # gm-catalog, so the honeyed version is a DISCOVERY — the Recipes tab's
-      # anyOf narrowing shows "Tea or Sweets" until the cook holds one.
+      # The one recipe the cook chooses an ingredient for. Three are Depot
+      # imports and the roe is fished up by the loot pass, so the delicacy is
+      # a real errand either way. Honey stays out of the description and the
+      # paper on purpose: it is gm-catalog, so the honeyed version is a
+      # DISCOVERY — the Recipes tab's anyOf narrowing shows "Tea, Sweets or
+      # Fish Roe" until the cook holds one.
       items:
-        - anyOf: [tea, sweets, honey]
+        - anyOf: [tea, sweets, honey, fish-roe]
 
   # Featherweight travel food (Chris 2026-09-07): a Fine Meal weighs 2 lb and
   # this weighs a quarter of that — the meal you pack ten of for the caves.
@@ -9203,6 +9244,27 @@ tags:
     consumesInto:
       - ate-meal
 
+  # The delicacy that is caught rather than imported — the labor loot pass
+  # drops it (fishing).
+  fish-roe:
+    catalog: all
+    name: Fish Roe
+    category: items
+    group: items-food
+    description: "A handful of glistening black eggs out of a fish's belly. Salted, they are the rarest taste in Ravenheart. ‡"
+    pointCost: 0
+    sellable: true
+    sellablePrice: 2
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - ate-meal
+
   honey:
     catalog: gm
     name: Honey
@@ -10240,15 +10302,16 @@ tags:
     consumable: true
     requirement:
       turnsCost: 1
-      # 2 -> 6 when the trout's heart went. The gate is {tag:honey} now
-      # (Chris 2026-09-05) — a gm-catalog tag on purpose, so this recipe is
-      # one of the hidden ones: off the Recipes tab, and out of the Craft
-      # menu until the brewer actually holds Honey. The ⬢ stays at 6 for
-      # now, ruling deferred.
-      resourceCost: 6
+      # 2 -> 6 when the trout's heart went; 6 -> 3 now the heart is back
+      # (Chris 2026-09-07): {tag:trout-heart} joins {tag:honey} as a second
+      # spent ingredient, and a rare catch plus a 4 ⬢ jar is most of the
+      # price of a cure-all already. Honey is gm-catalog on purpose, so the
+      # recipe stays one of the hidden ones: off the Recipes tab, and out of
+      # the Craft menu until the brewer holds both ingredients.
+      resourceCost: 3
       skills: [brewing-skilled]
       gambit: false
-      items: [honey]
+      items: [honey, trout-heart]
     sellable: true
     sellablePrice: 6
 

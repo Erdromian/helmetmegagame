@@ -82,7 +82,7 @@ kind (CRAFTING.md §2).
 | `distilled-coca` | 4 | 1 | `coca-leaves` | `stimulant-high` |
 | `advanced-poppy` | 4 | 1 | `poppy` | `pain-immunity` |
 | `phrygian-tears` | 4 | 2 | `nightshade` + `cave-fungus` | — |
-| `white-honey` | **6** | 1 | `honey` | — |
+| `white-honey` | **3** | 1 | `honey` + `trout-heart` | — |
 | `purifier` | 6 | 1 | `cave-fungus` | — |
 | `dreamers-draught` | 6 | 1 | `skinless-brain` | — |
 | `succubus-draught` | **8** | 1 | `nekker-pheromones` | `mindreading` |
@@ -93,10 +93,13 @@ Four recipes lost a prose ingredient and pay in ⬢ instead, because the
 ingredient was the whole gate: `white-honey` 2 → **6** (it cures any poisoning),
 `succubus-draught` 2 → **8** (it grants mindreading), and `forgiveness` /
 `flawless-skin` keep their 8, which was already doing the work. White Honey
-has since regained a real gate — it spends a `honey`, a gm-catalog Depot
-import, which also makes it one of the HIDDEN recipes (off the Recipes tab,
-out of the Craft menu until the brewer holds one). Its 6 ⬢ stays (Chris
-2026-09-07: it is a valuable medical item; the double gate is the point).
+has since regained a real gate twice over — it spends a `honey` (a gm-catalog
+Depot import, which also makes it one of the HIDDEN recipes: off the Recipes
+tab, out of the Craft menu until the brewer holds the ingredients) and, since
+the trout's heart came back as a loot-pass fishing find, a `trout-heart` too.
+Its ⬢ eased 6 → **3** with the second ingredient (Chris 2026-09-07): the rare
+catch is most of the price of a cure-all now, and 6 on top of both was a
+triple gate.
 `succubus-draught` regained a real gate the same day — it spends
 `nekker-pheromones`, butchered from a Nekker Corpse, which hides the recipe
 the same way (sells 18 with it; 7 sat below the brew's own ⬢ cost).
@@ -139,6 +142,7 @@ either the brewer's sheet carries the thing, or the craft is refused.
 | `coca-leaves` | forageable — the loot pass wires it | spent |
 | `aberrant-heart` | off a fallen Aberrant | spent |
 | `ravens-eye` | forageable — the loot pass wires it | spent |
+| `trout-heart` | forageable — the loot pass wires it (a fishing find) | spent |
 | `honey` | Depot import, gm-catalog — the White Honey link is a secret | spent |
 | `tea` / `sweets` / `honey` | Depot imports; the cook picks one | spent (`anyOf`) |
 | **a corpse** (`items-corpse` group) | died, or was killed | **kept** |
@@ -162,11 +166,12 @@ Nekker Corpse; it lost its `craftable` flag and its row in §2.
 
 **What used to be prose, and where it went.** A forest herb, an Aberrant's
 heart and a raven's eye became `nightshade-herb`, `aberrant-heart` and
-`ravens-eye`. A rainbow trout's heart, a willing lover's blood, someone's tears
-and a lock of Nobility hair are simply gone, with the ⬢ carrying the gate
-instead (§3) — though White Honey's gate has since been re-hung on `honey`,
-and Poppy and Distilled Coca, which never had a prose ingredient at all, now
-spend `poppy-pods` and `coca-leaves`. The old argument for keeping them — that getting one should be a
+`ravens-eye`. A willing lover's blood, someone's tears and a lock of Nobility
+hair are simply gone, with the ⬢ carrying the gate instead (§3). The rainbow
+trout's heart went the same way and then came back: it is `trout-heart` now, a
+loot-pass fishing find, spent beside the `honey` White Honey's gate had been
+re-hung on in the meantime. Poppy and Distilled Coca, which never had a prose
+ingredient at all, now spend `poppy-pods` and `coca-leaves`. The old argument for keeping them — that getting one should be a
 scene rather than a purchase — held for the social ones and never held for the
 huntable ones, where there was no player on the other side, just a GM ruling on
 whether somebody's fishing trip counted.
