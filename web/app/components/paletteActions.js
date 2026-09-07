@@ -28,6 +28,7 @@ const GM_PAGES = [
   { label: "Players", href: "/gm/players" },
   { label: "Adjudicate", href: "/gm/turns" },
   { label: "Structures", href: "/gm/structures" },
+  { label: "Craft projects", href: "/gm/crafts" },
   { label: "Dev Panel", href: "/gm/dev" },
   { label: "Dev · Characters", href: "/gm/dev/characters" },
   { label: "Dev · Factions", href: "/gm/dev/factions" },

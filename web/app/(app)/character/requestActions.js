@@ -27,10 +27,21 @@ import { INDESTRUCTIBLE_SLUGS } from "@lifeweb/db/lib/nuke";
 import {
   logAudit,
   MAX_REASON_LENGTH,
-  isDeadSimple,
-  DEAD_SIMPLE_PER_TURN,
+  craftAllowance,
+  unitsOfTagThisTurn,
+  deadSimpleUnitsThisTurn,
   MEDICAL_TIER_CAPS,
 } from "@/lib/requests";
+import {
+  WHOLE_MOVE,
+  addFractions,
+  craftFamilyLabel,
+  craftMoveCost,
+  fitsInRemaining,
+  formatMoveFraction,
+  ledgerRemaining,
+  ledgerUsed,
+} from "@/lib/craftBudget";
 import { UserError, guarded } from "@/lib/actionResult";
 import { describeTurn } from "@/lib/turnFormat";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
@@ -47,6 +58,7 @@ import {
   isTradeable,
   isCrate,
   addRequirementSatisfied,
+  craftFamily,
   needsWorkshop,
 } from "@/lib/tagRequests";
 import {
@@ -136,6 +148,14 @@ import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryAdmits, rowWeight } from "@lifeweb/db/lib/carry";
 import { rollDie } from "@lifeweb/db/lib/moveEffects";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
+import { createWithRetry } from "@lifeweb/db/lib/paperMint";
+import {
+  CUSTOM_SURCHARGE,
+  INSCRIPTION_MAX,
+  cleanCustomText,
+  customCraftFields,
+  customCraftName,
+} from "@/lib/customCraft";
 import { formatManifest, formatStack } from "@lifeweb/db/lib/roomStash";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
 import {
@@ -197,7 +217,7 @@ async function requireCharacter({ needs = null } = {}) {
   if (!session?.discordUserId) redirect("/");
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    // The held tags carry their GROUP as well as themselves: requireRecipeItems
+    // The held tags carry their GROUP as well as themselves: resolveRecipeItems
     // matches a recipe's `{ group: … }` ingredient against it, and
     // db/lib/corpses.js#isCorpseTag is a group check too.
     include: {
@@ -245,25 +265,10 @@ function resolveParty(key, opts) {
 
 // --- Tags -------------------------------------------------------------
 
-// Units of ONE recipe already made this turn, for a tag that sets its own
-// `perTurn` (Tag.requirementPerTurn). Distinct from the Dead Simple pool
-// below: that one is a shared allowance across every 0-turn recipe, this is a
-// ration on a single item.
-async function craftsThisTurn(db, characterId, turnId) {
-  if (!turnId) return [];
-  return db.auditLog.findMany({
-    where: { targetCharacterId: characterId, actionType: "request_craft_tag", turnId },
-    select: { details: true },
-  });
-}
-
-async function unitsOfTagThisTurn(db, characterId, turnId, tagId) {
-  const filed = await craftsThisTurn(db, characterId, turnId);
-  return filed.reduce((sum, r) => {
-    if (r.details?.tagId !== tagId) return sum;
-    return sum + (r.details?.quantity ?? 1);
-  }, 0);
-}
+// The two per-turn craft counters — `unitsOfTagThisTurn` and
+// `deadSimpleUnitsThisTurn` — now live in web/lib/requests.js beside
+// `craftAllowance`, because character/page.js has to read the same numbers to
+// tell the Craft dialog how many free units are left.
 
 // Routine cures already worked this turn, against MEDICAL_TIER_CAPS.
 //
@@ -286,32 +291,6 @@ async function routineHealsThisTurn(db, discordUserId, turnId) {
   ).length;
 }
 
-// Dead Simple units already filed this turn (DEAD_SIMPLE_PER_TURN).
-// `db` is prisma or a tx client.
-async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
-  const filed = await craftsThisTurn(db, characterId, turnId);
-  const filedTagIds = [
-    ...new Set(filed.map((r) => r.details?.tagId).filter(Boolean)),
-  ];
-  const filedTags = filedTagIds.length
-    ? await db.tag.findMany({
-        where: { id: { in: filedTagIds } },
-        select: {
-          id: true,
-          requirementTurns: true,
-          requirementSkills: { select: { slug: true } },
-        },
-      })
-    : [];
-  const deadSimpleIds = new Set(
-    filedTags.filter(isDeadSimple).map((t) => t.id),
-  );
-  return filed.reduce((sum, r) => {
-    if (!deadSimpleIds.has(r.details?.tagId)) return sum;
-    return sum + (Number(r.details?.quantity) || 0);
-  }, 0);
-}
-
 // --- Craft (docs/systemdocs/CRAFTING.md) ------------------------------
 
 // The recipe, with everything the gates read.
@@ -324,7 +303,7 @@ async function loadRecipe(tagId) {
     },
   });
   // requirementItems rides along on the full row `include` gives us — see
-  // requireRecipeItems below. Nothing to add here; noted because a narrower
+  // resolveRecipeItems below. Nothing to add here; noted because a narrower
   // `select` on this query would silently disable ingredient checking.
   if (!tag) throw new UserError("Unknown tag.");
   // Re-checked here because the client's filtered list is only advisory.
@@ -369,46 +348,141 @@ async function requireWorkshop(character, tag) {
   );
 }
 
-// The recipe's INGREDIENTS (Tag.requirementItems). Two recipes carry one, and
-// they are the first ingredients this game has ever actually enforced —
-// BREWING.md was explicit that nothing did.
+// The recipe's INGREDIENTS (Tag.requirementItems), resolved against what the
+// crafter is holding. Runs OUTSIDE the transaction, so somebody who can't make
+// it is told before a single ⬢ moves.
 //
-// HOLDING IT IS THE CHECK. Nothing is consumed, no quantity moves, and
-// crafting twice off the same corpse is fine: the recipe says you need one to
-// hand, not that you use it up.
+// Most ingredients are SPENT, `quantity` units per craft — three molotovs take
+// three Alcohol, the same way they take three lots of ⬢. An entry marked
+// `keep` is the old hold-check instead: a body has its own lifecycle, so
+// bottling a second Miasma over the same corpse is still allowed. A `group`
+// entry is always kept, and is the only thing that can name a corpse written
+// at death (that tag is not in docs/tags.yaml, so no authored slug could ever
+// have named it). An `anyOf` entry is a spend the PLAYER picks — the Craft
+// dialog posts `ingredientChoice`, and the membership check here is what makes
+// that dialog a hint rather than a lock.
 //
-// Your OWN sheet only — never a room stash you could reach. A multi-turn
-// project re-runs this on every continue, and "there was a corpse in a room
-// nearby at the time" would mean something different on turn 3 than it did on
-// turn 1. An ingredient given away mid-project stops the work, the same way a
-// skill lost mid-project already does.
-//
-// A `group` entry matches any tag in that group, which is the only way miasma
-// can accept a corpse written at death: that tag is not in docs/tags.yaml, so
-// no authored slug could ever have named it.
-async function requireRecipeItems(character, tag) {
+// Your OWN sheet only — never a room stash you could reach. Spending happens
+// once, when the work STARTS: a multi-turn project pays its ingredients up
+// front, the rule its ⬢ already lived under, so a continue re-checks nothing
+// about them.
+function resolveRecipeItems(character, tag, quantity, ingredientChoice) {
   const items = Array.isArray(tag.requirementItems) ? tag.requirementItems : [];
-  if (!items.length) return;
-  const held = character.tags.map((ct) => ct.tag).filter(Boolean);
-  const heldSlugs = new Set(held.map((t) => t.slug));
-  const heldGroups = new Set(held.map((t) => t.group?.slug).filter(Boolean));
-  const missing = items.filter((i) =>
-    i.kind === "group" ? !heldGroups.has(i.slug) : !heldSlugs.has(i.slug),
-  );
-  if (missing.length) {
-    throw new UserError(
-      `Making that needs ${missing.map((i) => i.label).join(" and ")}. ‡`,
-    );
+  const plan = { spend: [], hold: [] };
+  if (!items.length) return plan;
+  const held = character.tags.filter((ct) => ct.tag);
+  const bySlug = new Map(held.map((ct) => [ct.tag.slug, ct]));
+  for (const item of items) {
+    if (item.kind === "group") {
+      if (!held.some((ct) => ct.tag.group?.slug === item.slug)) {
+        throw new UserError(`Making that needs ${item.label}. ‡`);
+      }
+      plan.hold.push({ kind: "group", slug: item.slug, label: item.label });
+      continue;
+    }
+    let slug = item.slug;
+    if (item.kind === "anyOf") {
+      const choice =
+        typeof ingredientChoice === "string" ? ingredientChoice.trim() : "";
+      if (!choice || !item.slugs.includes(choice)) {
+        throw new UserError(`Choose which of ${item.label} goes into it. ‡`);
+      }
+      slug = choice;
+    }
+    const ct = bySlug.get(slug);
+    const name = ct?.tag?.name ?? item.label;
+    if (item.keep) {
+      if (!ct) throw new UserError(`Making that needs ${item.label}. ‡`);
+      plan.hold.push({ kind: "tag", slug, label: item.label });
+      continue;
+    }
+    if (!ct || ct.quantity < quantity) {
+      throw new UserError(
+        quantity > 1
+          ? `Making ${quantity} of those takes ${quantity} × ${name}, and you have ${ct?.quantity ?? 0}. ‡`
+          : `Making that needs ${name}. ‡`,
+      );
+    }
+    plan.spend.push({ tagId: ct.tagId, tagName: name, quantity });
   }
+  return plan;
+}
+
+// The serializer every craft that touches a ration or a stack takes first.
+// Postgres holds it to the end of the transaction, so two tabs submitting at
+// once queue up instead of both reading the same count.
+function lockCharacter(tx, characterId) {
+  return tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${characterId} FOR UPDATE`;
+}
+
+// Spends what resolveRecipeItems planned, inside the SAME transaction as the
+// payment and under the row lock above.
+//
+// **The write is the check.** A conditional `updateMany` matches only while
+// the stack still covers the draw, and a count of 0 refuses the craft.
+// `dropCharacterTag` is deliberately not used here: it silently deletes the
+// row on an overdraw rather than refusing (db/lib/tagWrites.js), which would
+// turn "make 3 off a stack of 2" into a free third one.
+//
+// Returns the `replaced`-shaped snapshot the audit row records as
+// `details.consumed` — the one record of the spend a GM repairs from.
+async function consumeRecipeItems(tx, characterId, plan) {
+  for (const item of plan.hold) {
+    const still = await tx.characterTag.count({
+      where: {
+        characterId,
+        tag:
+          item.kind === "group"
+            ? { group: { slug: item.slug } }
+            : { slug: item.slug },
+      },
+    });
+    if (!still) throw new UserError(`Making that needs ${item.label}. ‡`);
+  }
+  const consumed = [];
+  for (const { tagId, tagName, quantity } of plan.spend) {
+    const row = await tx.characterTag.findUnique({
+      where: { characterId_tagId: { characterId, tagId } },
+    });
+    const short = () =>
+      new UserError(`You don't have enough ${tagName} left for that. ‡`);
+    if (!row || row.quantity < quantity) throw short();
+    if (row.quantity === quantity) {
+      const { count } = await tx.characterTag.deleteMany({
+        where: { id: row.id, quantity },
+      });
+      if (count === 0) throw short();
+    } else {
+      const { count } = await tx.characterTag.updateMany({
+        where: { characterId, tagId, quantity: { gte: quantity } },
+        data: { quantity: { decrement: quantity } },
+      });
+      if (count === 0) throw short();
+    }
+    consumed.push({
+      tagId,
+      tagName,
+      quantity,
+      source: row.source,
+      expiresTurn: row.expiresTurn,
+    });
+  }
+  return consumed;
 }
 
 // Prerequisite chain, exclusivity, tier replacement, duplicates — the same
 // checks a purchase runs (web/lib/characterCreation.js). Returns the held
 // lower tiers a grant would replace, snapshotted for Undo.
-async function craftGrantChecks(character, tag) {
+//
+// `db` defaults to prisma for the fast fail outside the transaction; the
+// grant paths run it AGAIN inside the tx via recheckGrantsUnderLock below,
+// because a turn can now hold several Move-costing crafts and two of them
+// racing could otherwise both pass an exclusivity or duplicate check that
+// was true when each one read the sheet.
+async function craftGrantChecks(character, tag, db = prisma) {
   // The whole catalog comes down so a chain walk never dead-ends on an
   // ancestor the character doesn't hold.
-  const chainRows = await prisma.tag.findMany({
+  const chainRows = await db.tag.findMany({
     select: {
       id: true,
       name: true,
@@ -467,20 +541,37 @@ async function craftGrantChecks(character, tag) {
     }));
 }
 
+// The in-tx re-run, under the Character row lock, against the sheet as it is
+// NOW rather than as it was when the fast fail read it. Stackable recipes
+// skip it — a racing grant there only adds units to a stack, which nothing
+// in craftGrantChecks refuses — so the everyday brews never pay for it.
+// Returns the fresh `replaced` snapshot, which is the one the grant uses.
+async function recheckGrantsUnderLock(tx, character, tag) {
+  if (tag.stackable) return null;
+  const fresh = await tx.characterTag.findMany({
+    where: { characterId: character.id },
+    include: { tag: { select: { name: true } } },
+  });
+  return craftGrantChecks({ ...character, tags: fresh }, tag, tx);
+}
+
 // Who pays: you, a room here, or a person here. Defaults to you.
 async function resolveCraftPayer(character, payerKey, cost) {
   const key = payerKey || `character:${character.id}`;
   const payer = await resolveParty(key);
-  if (!payer) throw new UserError("Unknown payer. ‡");
+  if (!payer) throw new UserError("That payer isn't here any more — pick another. ‡");
   if (!(await canReachParty(character, payer)))
     throw new UserError(outOfReachMessage(payer));
   if (cost > payer.balance)
-    throw new UserError(`${payer.name} only has ${payer.balance} ⬢.`);
+    throw new UserError(`${payer.name} only has ${payer.balance} ⬢. ‡`);
   return payer;
 }
 
-// A craft with turns spends your Move (ADJUDICATION.md §2): one Action per
-// character per turn, filed by the same rules the modal uses.
+// A whole Move, and nothing filed yet (ADJUDICATION.md §2): one Action per
+// character per turn, filed by the same rules the modal uses. Bury, Engrave,
+// Extract, a build site and a Gambit heal all want the turn to themselves and
+// use this. Crafting takes `resolveCraftMove` below instead, because a craft
+// may cost a FRACTION of the Move and share the rest with another craft.
 async function requireFreeMove(character, openTurn) {
   if (!openTurn) throw new UserError("No turn is open. ‡");
   const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
@@ -500,10 +591,21 @@ async function requireFreeMove(character, openTurn) {
 // requireFreeMove() has usually run first, but the P2002 catch is what
 // actually holds: @@unique([characterId, turnId]) is the real gate, and two
 // tabs submitting at once get past a check that read the table a moment ago.
-async function fileAutoRoutine(tx, character, openTurn, description, gmNotes) {
+async function fileAutoRoutine(
+  tx,
+  character,
+  openTurn,
+  description,
+  gmNotes,
+  // The craft ledger, on the one caller that keeps one. Omitted rather than
+  // written as null: a Prisma Json column wants `Prisma.JsonNull` for an
+  // explicit null, and "no ledger" is exactly what the column default says.
+  craftBudget = null,
+) {
   try {
     return await tx.action.create({
       data: {
+        ...(craftBudget ? { craftBudget } : {}),
         characterId: character.id,
         turnId: openTurn.id,
         type: "MOVE",
@@ -529,8 +631,255 @@ function craftLabel(tag, quantity) {
   return quantity > 1 ? `${quantity}× ${tag.name}` : tag.name;
 }
 
+// --- The craft Move budget (docs/systemdocs/CRAFTING.md §2a) -----------
+//
+// A craft that costs less than a whole Move files the same auto:craft Action
+// every craft with turns files, and writes a LEDGER on it
+// (`Action.craftBudget`): the family of work the Routine is committed to, how
+// much of the Move is spent, and what was made. The next craft that turn reads
+// that ledger back — same family, and enough left, or it is refused.
+//
+// Nothing is derived and nothing is cached: the row IS the record, which is
+// why a GM Reject hands the whole turn back with one delete
+// (web/lib/moveEconomy.js#deleteActionRestoringTurn needs no knowledge of any
+// of this). There is no per-craft Undo; a GM reversing one craft by hand
+// gets no budget back either — Reject is the full reset.
+
+const MOVE_SPENT = "You've already used your Move this turn. ‡";
+
+// The Action's description, rebuilt from the ledger every time an entry lands,
+// so a GM reading the desk sees the whole turn's work in one line rather than
+// only the first thing made.
+function craftLedgerDescription(entries) {
+  const made = entries.map((e) => (e.qty > 1 ? `${e.qty}× ${e.name}` : e.name));
+  return `Crafting this turn: ${made.join(", ")}. ‡`;
+}
+
+function craftLedgerEntry(tag, cost) {
+  return {
+    tagId: tag.id,
+    name: tag.name,
+    // The free half of a straddling order is derivable: qty - num billed.
+    qty: cost.freeQty + cost.billedQty,
+    num: cost.num,
+    den: cost.den,
+  };
+}
+
+// Reads the turn's Action against what this craft needs. Returns the ledger to
+// extend — null when there is no Action yet and this craft will file one — or
+// throws the refusal.
+//
+// Called TWICE for every budget craft: once outside the transaction, so
+// somebody who cannot act is told before a single ⬢ moves, and again inside it
+// under the Character row lock, where the answer is the one that counts.
+function checkCraftMove(action, need) {
+  // Asked for more than a turn holds — 20 work knives is five Moves' worth of
+  // spill — which an empty turn would otherwise wave through, since there is
+  // no ledger yet to fail against.
+  if (!fitsInRemaining(need, WHOLE_MOVE)) {
+    throw new UserError(
+      "That's more than a turn's work — make fewer at once. ‡",
+    );
+  }
+  if (!action) return null;
+  // A recipe with no craft family can neither lock a Routine nor share one, in
+  // either direction — so anything already filed stops it.
+  if (!need.family) throw new UserError(MOVE_SPENT);
+  // `includes`, not equality: other machinery APPENDS to gmNotes (the staged
+  // push does, on Actions it claims), and an appended note must not strand a
+  // half-spent ledger behind "Move already used".
+  if (!(action.gmNotes ?? "").includes("auto:craft") || !action.craftBudget)
+    throw new UserError(MOVE_SPENT);
+  const ledger = action.craftBudget;
+  if (ledger.family !== need.family) {
+    throw new UserError(
+      `Your Routine this turn is ${craftFamilyLabel(ledger.family)} work, and that isn't. ‡`,
+    );
+  }
+  const left = ledgerRemaining(ledger);
+  if (!fitsInRemaining(need, left)) {
+    const asks =
+      need.num >= need.den
+        ? "a whole Move"
+        : `${formatMoveFraction(need.num, need.den)} of a Move`;
+    throw new UserError(
+      left.num > 0
+        ? `That takes ${asks}, and you have ${formatMoveFraction(left.num, left.den)} of this turn's Routine left. ‡`
+        : `That takes ${asks}, and this turn's Routine is spent. ‡`,
+    );
+  }
+  return ledger;
+}
+
+// The fast fail, outside the transaction. Replaces requireFreeMove on the
+// craft path only — Bury, Engrave, Extract and the build sites still take a
+// whole clean Move and keep it.
+async function resolveCraftMove(character, openTurn, need) {
+  if (!openTurn) throw new UserError("No turn is open. ‡");
+  const config = await prisma.gameConfig.findUnique({
+    where: { id: 1 },
+    select: { autoTurnAdvanceDisabled: true },
+  });
+  const { locked } = moveWindow(openTurn, {
+    autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
+  });
+  if (locked) throw new UserError("Moves are locked for this turn. ‡");
+  const action = await prisma.action.findFirst({
+    where: { characterId: character.id, turnId: openTurn.id },
+    select: { id: true, gmNotes: true, craftBudget: true },
+  });
+  checkCraftMove(action, need);
+}
+
+// Claims the Move — or the slice of it — this craft needs, inside the caller's
+// transaction. Everything checkCraftMove looked at outside is read again here
+// under the Character row lock, because two tabs can both have passed the
+// cheap check a moment ago. The `@@unique([characterId, turnId])` P2002 catch
+// in fileAutoRoutine stays the backstop underneath even that.
+//
+// `description` is what the Action says when this craft is the one that files
+// it. A project turn passes its own "(2/3)" line and keeps it — a project
+// never shares a turn, so nothing rebuilds it. A fractional craft passes none,
+// and gets the running list of everything made this turn instead.
+async function spendCraftMove(
+  tx,
+  { character, openTurn, need, entry, description = null },
+) {
+  await lockCharacter(tx, character.id);
+  const existing = await tx.action.findFirst({
+    where: { characterId: character.id, turnId: openTurn.id },
+    select: { id: true, gmNotes: true, craftBudget: true },
+  });
+  const ledger = checkCraftMove(existing, need);
+  // No family, no ledger: the craft takes the whole Move the way it always
+  // has, and the next one that turn is refused by the Action's own existence.
+  if (!need.family) {
+    return {
+      action: await fileAutoRoutine(
+        tx,
+        character,
+        openTurn,
+        description,
+        "auto:craft",
+      ),
+      budget: null,
+    };
+  }
+  const entries = [...(ledger?.entries ?? []), entry];
+  const used = addFractions(ledgerUsed(ledger), need);
+  const budget = {
+    family: need.family,
+    usedNum: used.num,
+    usedDen: used.den,
+    entries,
+  };
+  const line = description ?? craftLedgerDescription(entries);
+  if (!existing) {
+    return {
+      action: await fileAutoRoutine(
+        tx,
+        character,
+        openTurn,
+        line,
+        "auto:craft",
+        budget,
+      ),
+      budget,
+    };
+  }
+  // `updateMany` + count, not `update`: a GM Reject deletes the Action row
+  // without taking the Character lock, and racing it should read as "your
+  // turn was just reset", not as a raw P2025.
+  const { count } = await tx.action.updateMany({
+    where: { id: existing.id },
+    data: { craftBudget: budget, description: line },
+  });
+  if (count === 0)
+    throw new UserError("A GM just reset your turn — try again. ‡");
+  return { action: existing, budget };
+}
+
 // The finished thing lands on the sheet: the replaced tiers come off, the
 // tag goes on with its clock, and the ADD_TAG request records all of it.
+// The FIFTH runtime authoring door onto the tag catalog (db/lib/paperMint.js
+// lists the other four): a `customizable` recipe crafted with player words
+// mints a clone of the base row — custom + ephemeral, `craftable: false` so
+// it is an ITEM and never a recipe — and the craft grants THAT row. Runs
+// OUTSIDE the craft transaction, deliberately: createWithRetry's P2002 retry
+// is unusable inside one (paperMint.js documents the 25P02 trap), and the
+// composed name collides ROUTINELY — the same cook naming the same dish
+// twice is the normal case, not the freak one. Two answers, in order: an
+// identical existing mint (same name, same words) is REUSED, so the second
+// batch of "Steak Dinner (Lavish Meal)" stacks onto the first; a same-name,
+// different-words mint picks up a "(2)" via the retry. The caller deletes a
+// freshly minted row if the transaction it fed then fails.
+//
+// What is deliberately NOT copied: the requirement block (an item has no
+// recipe to advertise), depotPrice (the Depot's book must never list a
+// player's words — its query also filters `ephemeral` as a second lock),
+// and catalogVisibility (the GM default keeps a mint out of the public
+// catalog; referenceData ships an ephemeral row only to who holds it).
+async function mintCustomCraft(db, baseTag, { name, description }) {
+  const composedName = customCraftName(baseTag.name, name);
+  const composedDescription = description || baseTag.description;
+  const existing = await db.tag.findFirst({
+    where: {
+      custom: true,
+      ephemeral: true,
+      name: composedName,
+      description: composedDescription,
+    },
+  });
+  if (existing) return { tag: existing, minted: false };
+  const stamp = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 7);
+  const tag = await createWithRetry(db, (attempt) => ({
+    slug: `custom-craft-${stamp}-${rand}${attempt ? `-${attempt}` : ""}`,
+    name: attempt ? `${composedName} (${attempt + 1})` : composedName,
+    description: composedDescription,
+    custom: true,
+    ephemeral: true,
+    craftable: false,
+    customizable: false,
+    pointCost: 0,
+    category: baseTag.category,
+    groupId: baseTag.groupId ?? null,
+    tradeable: baseTag.tradeable,
+    weightLbs: baseTag.weightLbs,
+    stackable: baseTag.stackable,
+    inspectVisibility: baseTag.inspectVisibility,
+    equippable: baseTag.equippable,
+    equipSlot: baseTag.equipSlot,
+    equipLayer: baseTag.equipLayer,
+    removable: baseTag.removable,
+    consumable: baseTag.consumable,
+    consumesInto: baseTag.consumesInto,
+    consumesIntoOneOf: baseTag.consumesIntoOneOf ?? undefined,
+    consumesIntoUnless: baseTag.consumesIntoUnless ?? undefined,
+    consumesIntoDurations: baseTag.consumesIntoDurations ?? undefined,
+    consumesIntoResources: baseTag.consumesIntoResources,
+    sellable: baseTag.sellable,
+    sellablePrice: baseTag.sellablePrice,
+    defaultDurationTurns: baseTag.defaultDurationTurns,
+    expiresInto: baseTag.expiresInto ?? undefined,
+  }));
+  if (!tag)
+    throw new UserError("Couldn't find a free name for that — try different words. ‡");
+  return { tag, minted: true };
+}
+
+// Best-effort undo of a mint whose craft transaction failed: the guard on
+// `custom` means this can never touch a catalog row, and a row somebody
+// already holds is FK-pinned and simply survives (prune's problem, not
+// ours). Failures are swallowed — the craft's own error is the one to show.
+async function unmintCustomCraft(db, grant) {
+  if (!grant?.minted) return;
+  await db.tag
+    .deleteMany({ where: { id: grant.tag.id, custom: true, ephemeral: true } })
+    .catch(() => {});
+}
+
 async function grantCrafted(
   tx,
   {
@@ -544,6 +893,11 @@ async function grantCrafted(
     cost,
     project = null,
     action = null,
+    consumed = [],
+    // The base RECIPE when `tag` is a minted custom row — what the ration
+    // counters bill this grant against (web/lib/requests.js reads
+    // details.baseTagId), and what a GM reading the audit row sees it was.
+    baseTag = null,
   },
 ) {
   for (const snapshot of replaced)
@@ -559,7 +913,7 @@ async function grantCrafted(
     stackable: tag.stackable,
   });
   const payerParty = { kind: payer.kind, id: payer.id, name: payer.name };
-  await logAudit(tx, {
+  return logAudit(tx, {
     actorDiscordUserId: session.discordUserId,
     actionType: "request_craft_tag",
     targetCharacterId: character.id,
@@ -573,6 +927,18 @@ async function grantCrafted(
       resourcesSpent: cost,
       payer: payerParty,
       projectId: project?.id ?? null,
+      // The base RECIPE behind a minted custom row — the ration counters in
+      // web/lib/requests.js bill by it, so a custom Lavish Meal obeys the
+      // plain one's per-turn cap.
+      ...(baseTag ? { baseTagId: baseTag.id, baseTagName: baseTag.name } : {}),
+      ...(project ? { turnsNeeded: project.turnsNeeded } : {}),
+      ...(action ? { actionId: action.id } : {}),
+      ...(replaced.length ? { replaced } : {}),
+      // What the ingredients cost, in the `replaced` shape. This row is the
+      // ONLY record of the spend now — a GM repairing a craft by hand reads
+      // it here. A multi-turn project spent these when it STARTED and
+      // carried the snapshot on CraftProject.consumed until now.
+      ...(consumed?.length ? { consumed } : {}),
     },
   });
 }
@@ -589,6 +955,24 @@ async function craftRequestImpl({
   tagId,
   quantity: rawQuantity,
   payerKey,
+  // Which member of an `anyOf` ingredient goes in — a slug the dialog posts,
+  // re-checked for membership and possession like everything else a client
+  // sends.
+  ingredientChoice,
+  // The custom-item fields (CRAFTING.md), honored only on a `customizable`
+  // recipe. cleanCustomText decides what survives — the same shared helper
+  // the dialog priced the +1 ⬢ with, so client and server cannot disagree
+  // about whether a whitespace-only name counts.
+  customName,
+  customDescription,
+  // The builder's line, honored only where placement.inscribable says so.
+  inscription,
+  // How many units the dialog TOLD the player would bill against their Move
+  // (0 when it showed the craft as free). The server refuses to bill more
+  // than was acknowledged: a stale tab whose free allowance ran out
+  // elsewhere gets a retry, not a silent Move charge. "Declining crafts
+  // nothing" is enforced here, not just in the confirm dialog.
+  billedSeen: rawBilledSeen,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
@@ -599,111 +983,224 @@ async function craftRequestImpl({
   // heavy works and wrong for stakes and drying racks.
   const placement = placementOf(tag);
   if (!placement?.fieldwork) await requireWorkshop(character, tag);
-  await requireRecipeItems(character, tag);
   // A `placement:` recipe is BUILT ON SITE and never lands on a sheet, so the
   // tag-tier gates below — prerequisites, exclusivity, tier replacement,
-  // stacks — have nothing to say about it.
+  // stacks — have nothing to say about it. It never carries ingredients
+  // either; the sync refuses that pairing (db/lib/tagShapes.js).
   if (placement)
-    return openBuildSiteImpl(character, session, tag, { payerKey });
+    return openBuildSiteImpl(character, session, tag, {
+      payerKey,
+      inscription,
+    });
   const replaced = await craftGrantChecks(character, tag);
 
   const quantity = tag.stackable
     ? (parseCount(rawQuantity, { min: 1, max: 99 }) ?? 1)
     : 1;
+  // Resolved once the count is known, since a spend scales with it.
+  const itemPlan = resolveRecipeItems(
+    character,
+    tag,
+    quantity,
+    ingredientChoice,
+  );
+  // Customizing is +CUSTOM_SURCHARGE ⬢ a unit, like every other per-unit
+  // cost. Fields posted against a non-customizable recipe are ignored, not
+  // refused — the same posture as quantity on a non-stackable.
+  const custom = tag.customizable
+    ? customCraftFields({ customName, customDescription })
+    : { name: "", description: "", active: false };
   const turns = tag.requirementTurns ?? 1;
-  const cost = (tag.requirementResources ?? 0) * quantity;
+  const cost =
+    ((tag.requirementResources ?? 0) + (custom.active ? CUSTOM_SURCHARGE : 0)) *
+    quantity;
   const payer = await resolveCraftPayer(character, payerKey, cost);
   const openTurn = await getOpenTurn();
 
-  // Dead Simple: no Move, rationed per turn (docs/systemdocs/SMITHING.md §2).
-  // Checked twice: here for a fast fail, and again inside the transaction
-  // under a row lock, since two simultaneous requests would otherwise both
-  // read the same count and pass.
-  // A recipe may also set its OWN ration (Tag.requirementPerTurn), which is
-  // counted per recipe rather than against the shared Dead Simple pool.
+  // No Move of its own, but rationed per turn (docs/systemdocs/SMITHING.md §2):
+  // a recipe's own `perTurn`, or the shared Dead Simple pool. Units PAST the
+  // allowance are no longer refused — for a recipe with a craft family they
+  // spill into the Move at 1/allowance each (CRAFTING.md §2a), which is what
+  // makes a fifth work knife cost something rather than be impossible.
+  //
+  // Priced twice: here for a fast fail, and again inside the transaction under
+  // the row lock, since two simultaneous requests would otherwise both read
+  // the same count and pass.
   const perTurn = tag.requirementPerTurn ?? null;
   if (turns === 0) {
-    const deadSimple = Boolean(
-      openTurn && perTurn == null && isDeadSimple(tag),
-    );
-    if (openTurn && perTurn != null) {
-      const already = await unitsOfTagThisTurn(
-        prisma,
-        character.id,
-        openTurn.id,
-        tag.id,
-      );
-      if (already + quantity > perTurn) {
+    const allowance = openTurn ? craftAllowance(tag) : null;
+    const priceCraft = async (db) => {
+      const already =
+        allowance == null
+          ? 0
+          : perTurn != null
+            ? await unitsOfTagThisTurn(db, character.id, openTurn.id, tag.id)
+            : await deadSimpleUnitsThisTurn(db, character.id, openTurn.id);
+      const priced = craftMoveCost(tag, {
+        quantity,
+        allowance,
+        freeLeft: allowance == null ? null : allowance - already,
+      });
+      // No family to bill the overflow to (bone-mask is gated on `butcher`
+      // alone), so the ration is still a wall.
+      if (priced.kind === "capped") {
         throw new UserError(
-          `You can only make ${perTurn} ${tag.name} per turn (${already} already this turn). ‡`,
+          `You can only make ${allowance} ${tag.name} per turn (${already} already this turn). ‡`,
         );
       }
-    }
-    if (deadSimple) {
-      const already = await deadSimpleUnitsThisTurn(
-        prisma,
-        character.id,
-        openTurn.id,
-      );
-      if (already + quantity > DEAD_SIMPLE_PER_TURN) {
+      return priced;
+    };
+    const billedSeen = parseCount(rawBilledSeen, { min: 0, max: 99 }) ?? 0;
+    // The player is never billed more than the dialog showed them. Priced
+    // here for the fast fail, and AGAIN inside the transaction, where a
+    // concurrent craft may have eaten the free allowance between the two —
+    // the in-tx copy is what actually holds.
+    const acknowledgeBill = (priced) => {
+      if (priced.billedQty > billedSeen) {
         throw new UserError(
-          `You can only make ${DEAD_SIMPLE_PER_TURN} Dead Simple items per turn (${already} already this turn).`,
+          "Your free allowance changed since this page loaded — reload to see the new cost. ‡",
         );
       }
-    }
+    };
+    const moveCost = await priceCraft(prisma);
+    acknowledgeBill(moveCost);
+    if (moveCost.kind === "spill")
+      await resolveCraftMove(character, openTurn, moveCost);
+    // Minted before the transaction (see mintCustomCraft for why), unwound
+    // after it only if the transaction fails and the row was fresh.
+    const grant = custom.active ? await mintCustomCraft(prisma, tag, custom) : null;
+    try {
     await prisma.$transaction(async (tx) => {
-      if (openTurn && perTurn != null) {
-        await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
-        const already = await unitsOfTagThisTurn(
-          tx,
-          character.id,
-          openTurn.id,
-          tag.id,
-        );
-        if (already + quantity > perTurn) {
-          throw new UserError(
-            `You can only make ${perTurn} ${tag.name} per turn. ‡`,
-          );
-        }
+      // One lock for all the racy things: the ration counts, the ingredient
+      // stacks, the grant re-check, and the Move ledger (spendCraftMove takes
+      // it again, which costs nothing once this transaction holds it).
+      if (allowance != null || itemPlan.spend.length || !tag.stackable) {
+        await lockCharacter(tx, character.id);
       }
-      if (deadSimple) {
-        await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
-        const already = await deadSimpleUnitsThisTurn(
-          tx,
-          character.id,
-          openTurn.id,
-        );
-        if (already + quantity > DEAD_SIMPLE_PER_TURN) {
-          throw new UserError(
-            `You can only make ${DEAD_SIMPLE_PER_TURN} Dead Simple items per turn (${already} already this turn).`,
-          );
+      const spend = await priceCraft(tx);
+      acknowledgeBill(spend);
+      let action = null;
+      let budget = null;
+      if (spend.kind === "spill") {
+        // The fast fail only ran resolveCraftMove when the OUTSIDE price
+        // already spilled, so a spill first seen here re-checks the Move
+        // window itself — a craft submitted after Moves lock must not write
+        // a ledger no matter how the race fell.
+        if (moveCost.kind !== "spill") {
+          const config = await tx.gameConfig.findUnique({
+            where: { id: 1 },
+            select: { autoTurnAdvanceDisabled: true },
+          });
+          const { locked } = moveWindow(openTurn, {
+            autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
+          });
+          if (locked)
+            throw new UserError("Moves are locked for this turn. ‡");
         }
+        ({ action, budget } = await spendCraftMove(tx, {
+          character,
+          openTurn,
+          need: spend,
+          entry: craftLedgerEntry(tag, spend),
+        }));
       }
+      const replacedNow =
+        (await recheckGrantsUnderLock(tx, character, tag)) ?? replaced;
+      const consumed = await consumeRecipeItems(tx, character.id, itemPlan);
       if (cost) await moveResources(tx, payer, -cost);
       await grantCrafted(tx, {
         session,
         character,
-        tag,
+        tag: grant?.tag ?? tag,
+        baseTag: grant ? tag : null,
         quantity,
         openTurn,
-        replaced,
+        replaced: replacedNow,
         payer,
         cost,
+        action,
+        consumed,
       });
     });
+    } catch (err) {
+      await unmintCustomCraft(prisma, grant);
+      throw err;
+    }
     await afterInventoryChange([
       character.id,
       payer.kind === "character" ? payer.id : null,
     ]);
     payerNotice(character, payer, cost, tag);
     revalidateAll();
-    return { made: craftLabel(tag, quantity) };
+    return { made: craftLabel(grant?.tag ?? tag, quantity) };
   }
 
   // Real work: this turn's Move, and a project if it takes more than one.
-  await requireFreeMove(character, openTurn);
+  //
+  // Quantity is limited by WORK ARITHMETIC and nothing else (Chris
+  // 2026-09-06): a unit costs its `turnsCost` of the Move — a whole turn,
+  // or the 1/N a fractional recipe authors — so a brewer's Routine holds
+  // three ⅓-turn Alcohol and a smith's holds ONE broadsword, and a spare
+  // half-turn takes more same-family work or none. A project takes the Move
+  // whole every turn it runs, so it can never share one — and it makes ONE
+  // unit, its turns being per piece; wanting two means starting it twice.
+  if (turns > 1 && quantity > 1) {
+    throw new UserError(
+      `That's ${turns} turns of work apiece — make them one at a time. ‡`,
+    );
+  }
+  const moveCost = craftMoveCost(tag, { quantity });
+  // The cross-submission count — for a fractional recipe, `perTurn` holds
+  // its work denominator, so this and the budget agree by construction.
+  const ration = async (db) => {
+    if (perTurn == null || !openTurn) return;
+    const already = await unitsOfTagThisTurn(
+      db,
+      character.id,
+      openTurn.id,
+      tag.id,
+    );
+    if (already + quantity > perTurn) {
+      throw new UserError(
+        `You can only make ${perTurn} ${tag.name} per turn (${already} already this turn). ‡`,
+      );
+    }
+  };
+  await ration(prisma);
+  await resolveCraftMove(character, openTurn, moveCost);
+  const finishes = turns === 1;
   let done = false;
+  // A finishing craft mints now (outside the tx — mintCustomCraft says why);
+  // a longer project carries the words on CraftProject.custom instead, and
+  // continueCraftImpl mints them on the finishing turn.
+  const grant =
+    custom.active && finishes ? await mintCustomCraft(prisma, tag, custom) : null;
+  try {
   await prisma.$transaction(async (tx) => {
+    // Ingredients go in when the work starts, the same moment the ⬢ do — and
+    // like the ⬢ they never come back if the project is abandoned. A project
+    // longer than a turn carries the snapshot on itself until it finishes.
+    await lockCharacter(tx, character.id);
+    await ration(tx);
+    // The Move is claimed first: it is the contended thing, and a refusal
+    // here rolls back everything below it.
+    const { action, budget } = await spendCraftMove(tx, {
+      character,
+      openTurn,
+      need: moveCost,
+      entry: craftLedgerEntry(tag, moveCost),
+      // A batch craft lets the Action's description be rebuilt from the
+      // ledger; everything else keeps the line it has always written.
+      description:
+        moveCost.kind === "share"
+          ? null
+          : finishes
+            ? `Crafted ${craftLabel(tag, quantity)}. ‡`
+            : `Crafting ${craftLabel(tag, quantity)} (1/${turns}). ‡`,
+    });
+    const replacedNow =
+      (await recheckGrantsUnderLock(tx, character, tag)) ?? replaced;
+    const consumed = await consumeRecipeItems(tx, character.id, itemPlan);
     if (cost) await moveResources(tx, payer, -cost);
     const project = await tx.craftProject.create({
       data: {
@@ -713,34 +1210,32 @@ async function craftRequestImpl({
         turnsNeeded: turns,
         turnsDone: 1,
         resourcesCost: cost,
+        consumed: consumed.length ? consumed : undefined,
+        custom:
+          custom.active && !finishes
+            ? { name: custom.name, description: custom.description }
+            : undefined,
         payerKey: `${payer.kind}:${payer.id}`,
         payerName: payer.name,
         startedTurnId: openTurn.id,
         lastTurnId: openTurn.id,
       },
     });
-    done = turns === 1;
-    const action = await fileAutoRoutine(
-      tx,
-      character,
-      openTurn,
-      done
-        ? `Crafted ${craftLabel(tag, quantity)}. ‡`
-        : `Crafting ${craftLabel(tag, quantity)} (1/${turns}). ‡`,
-      "auto:craft",
-    );
+    done = finishes;
     if (done) {
       await grantCrafted(tx, {
         session,
         character,
-        tag,
+        tag: grant?.tag ?? tag,
+        baseTag: grant ? tag : null,
         quantity,
         openTurn,
-        replaced,
+        replaced: replacedNow,
         payer,
         cost,
         project,
         action,
+        consumed,
       });
       await tx.craftProject.update({
         where: { id: project.id },
@@ -764,6 +1259,10 @@ async function craftRequestImpl({
       });
     }
   });
+  } catch (err) {
+    await unmintCustomCraft(prisma, grant);
+    throw err;
+  }
   await afterInventoryChange([
     character.id,
     payer.kind === "character" ? payer.id : null,
@@ -771,7 +1270,7 @@ async function craftRequestImpl({
   payerNotice(character, payer, cost, tag);
   revalidateAll();
   return done
-    ? { made: craftLabel(tag, quantity) }
+    ? { made: craftLabel(grant?.tag ?? tag, quantity) }
     : { started: craftLabel(tag, quantity), turns };
 }
 
@@ -794,15 +1293,21 @@ async function loadOwnProject(character, projectId) {
 
 // Another turn on a project. The recipe's gates are re-run: a skill lost
 // since the start stops the work where it stands.
+//
+// The INGREDIENTS are not re-checked, and must not be — they were spent when
+// the work started, so an honest continue would fail its own check on turn 2.
 async function continueCraftImpl({ projectId }) {
   const { session, character } = await requireCharacter({ needs: ACT });
   const project = await loadOwnProject(character, projectId);
   const tag = project.tag;
   await requireRecipeSkills(character, tag);
   await requireWorkshop(character, tag);
-  await requireRecipeItems(character, tag);
   const openTurn = await getOpenTurn();
-  await requireFreeMove(character, openTurn);
+  // A turn on a project is the whole Move, so it demands a clean one: any
+  // fraction already spent on a batch craft blocks it, and it blocks
+  // everything after it (docs/systemdocs/CRAFTING.md §2a).
+  const moveCost = { family: craftFamily(tag), num: 1, den: 1 };
+  await resolveCraftMove(character, openTurn, moveCost);
   if (project.lastTurnId === openTurn.id)
     throw new UserError("You've already worked on that this turn. ‡");
 
@@ -815,7 +1320,21 @@ async function continueCraftImpl({ projectId }) {
   const next = project.turnsDone + 1;
   const done = next >= project.turnsNeeded;
   const replaced = done ? await craftGrantChecks(character, tag) : [];
-
+  // The words stored when the work began (already cleaned then; cleaned
+  // again here because re-sanitizing is free and stored JSON is still
+  // input). Minted outside the tx — mintCustomCraft says why — and unwound
+  // if the transaction fails.
+  const pendingCustom =
+    done && project.custom && typeof project.custom === "object"
+      ? customCraftFields({
+          customName: project.custom.name,
+          customDescription: project.custom.description,
+        })
+      : { active: false };
+  const grant = pendingCustom.active
+    ? await mintCustomCraft(prisma, tag, pendingCustom)
+    : null;
+  try {
   await prisma.$transaction(async (tx) => {
     const claim = await tx.craftProject.updateMany({
       where: { id: project.id, status: "ACTIVE", turnsDone: project.turnsDone },
@@ -823,27 +1342,39 @@ async function continueCraftImpl({ projectId }) {
     });
     if (claim.count === 0)
       throw new UserError("That project moved on without you — reload. ‡");
-    const action = await fileAutoRoutine(
-      tx,
+    const { action, budget } = await spendCraftMove(tx, {
       character,
       openTurn,
-      done
+      need: moveCost,
+      entry: {
+        tagId: tag.id,
+        name: tag.name,
+        qty: project.quantity,
+        num: 1,
+        den: 1,
+      },
+      description: done
         ? `Crafted ${craftLabel(tag, project.quantity)}. ‡`
         : `Crafting ${craftLabel(tag, project.quantity)} (${next}/${project.turnsNeeded}). ‡`,
-      "auto:craft",
-    );
+    });
     if (done) {
+      const replacedNow =
+        (await recheckGrantsUnderLock(tx, character, tag)) ?? replaced;
       await grantCrafted(tx, {
         session,
         character,
-        tag,
+        tag: grant?.tag ?? tag,
+        baseTag: grant ? tag : null,
         quantity: project.quantity,
         openTurn,
-        replaced,
+        replaced: replacedNow,
         payer,
         cost: project.resourcesCost,
         project,
         action,
+        // Spent back when the work began; carried here so the audit row
+        // records the full price of the finished thing.
+        consumed: Array.isArray(project.consumed) ? project.consumed : [],
       });
       await tx.craftProject.update({
         where: { id: project.id },
@@ -865,10 +1396,14 @@ async function continueCraftImpl({ projectId }) {
       });
     }
   });
+  } catch (err) {
+    await unmintCustomCraft(prisma, grant);
+    throw err;
+  }
   if (done) await afterInventoryChange(character.id);
   revalidateAll();
   return done
-    ? { made: craftLabel(tag, project.quantity) }
+    ? { made: craftLabel(grant?.tag ?? tag, project.quantity) }
     : {
         continued: craftLabel(tag, project.quantity),
         turnsDone: next,
@@ -876,7 +1411,8 @@ async function continueCraftImpl({ projectId }) {
       };
 }
 
-// Stopping keeps nothing: the ⬢ went into materials when the work began.
+// Stopping keeps nothing: the ⬢ AND the ingredients went into materials when
+// the work began, and neither comes back.
 async function cancelCraftImpl({ projectId }) {
   const { session, character } = await requireCharacter();
   const project = await loadOwnProject(character, projectId);
@@ -1039,9 +1575,16 @@ async function openBuildSiteImpl(
   character,
   session,
   tag,
-  { payerKey },
+  { payerKey, inscription },
 ) {
   const placement = placementOf(tag);
+  // The builder's line, only where the type invites one (the wayside
+  // shrine's placement.inscribable). Cleaned by the shared helper — no rich
+  // tokens, no ‡, no @ — and it prints in Examine in place of the stock
+  // examine fragment (db/lib/locationAttributes.js#structureLines).
+  const inscribed = placement?.inscribable
+    ? cleanCustomText(inscription, INSCRIPTION_MAX)
+    : "";
   const location = await loadBuildGround(character.locationId);
   const ground = canBuildHere(location);
   if (!ground.ok) throw new UserError(ground.reason);
@@ -1081,6 +1624,7 @@ async function openBuildSiteImpl(
         builderCharacterId: character.id,
         builderName: character.name,
         startedTurnId: openTurn.id,
+        inscription: inscribed || null,
       },
     });
     structureId = site.id;

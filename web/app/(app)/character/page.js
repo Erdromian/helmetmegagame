@@ -54,6 +54,8 @@ import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
 import { loadDesireView } from "@/lib/selfPools";
+import { craftFreeUnits } from "@/lib/requests";
+import { summarizeCraftBudget } from "@/lib/craftBudget";
 import {
   getGuildMember,
   isApprovedPlayer,
@@ -334,6 +336,9 @@ export default async function CharacterPage({ searchParams }) {
         // undefined and drops purchasable-only tags from the Add Tag menu.
         purchasableAfterStart: true,
         craftable: true,
+        // The custom-item opt-in (CRAFTING.md): the Craft dialog shows its
+        // name/description fields only when this crosses.
+        customizable: true,
         // A craftable carrying `placement` is raised on the ground instead
         // of landing in a pocket (db/lib/structures.js). The whole JSON
         // crosses rather than a boolean: the menu needs `unique` too, and
@@ -362,6 +367,11 @@ export default async function CharacterPage({ searchParams }) {
         requirementTurns: true,
         requirementResources: true,
         requirementPerTurn: true,
+        // The ingredients, so the Craft dialog can say what a recipe spends
+        // and offer the picker an `anyOf` entry needs. Every surface that
+        // renders a Recipe line has to select this or it silently renders none
+        // (CORPSES.md §8).
+        requirementItems: true,
         // So the Craft menu can say what a piece of armour is worth before
         // somebody spends two turns and 26 ⬢ finding out.
         meleeArmor: true,
@@ -576,11 +586,86 @@ export default async function CharacterPage({ searchParams }) {
   // Craft (CRAFTING.md): the recipes whose every skill this character holds
   // (or a higher tier of), decided here and re-checked by craftRequest. The
   // client filters its picker to these ids and nothing else.
+  //
+  // Ingredient hiding is menu hygiene, not secrecy (planning/crafting-pass-
+  // goals.md): the recipe's DESCRIPTION and the public Tag Catalog's Recipe
+  // line still name every ingredient, GM-only or not — that's the recipe
+  // teaching itself. This only keeps a recipe you have no path to yet out of
+  // the picker, so a fresh crafter isn't offered Miasma before they've ever
+  // seen a corpse. The tagCatalog query above never selects
+  // `catalogVisibility` (it isn't craftable/purchasable itself, and an
+  // ingredient tag usually is neither), so the slugs and groups a craftable
+  // recipe's requirementItems name are resolved with one more targeted query.
+  const restrictedTagSlugs = new Set();
+  const restrictedGroupSlugs = new Set();
+  for (const t of tagCatalog) {
+    if (!t.craftable) continue;
+    for (const item of t.requirementItems ?? []) {
+      if (item.kind === "group") restrictedGroupSlugs.add(item.slug);
+      else if (item.kind === "anyOf")
+        item.slugs.forEach((s) => restrictedTagSlugs.add(s));
+      else restrictedTagSlugs.add(item.slug);
+    }
+  }
+  const ingredientVisibilityRows =
+    restrictedTagSlugs.size || restrictedGroupSlugs.size
+      ? await prisma.tag.findMany({
+          where: {
+            OR: [
+              restrictedTagSlugs.size
+                ? { slug: { in: [...restrictedTagSlugs] } }
+                : null,
+              restrictedGroupSlugs.size
+                ? { group: { slug: { in: [...restrictedGroupSlugs] } } }
+                : null,
+            ].filter(Boolean),
+          },
+          select: {
+            slug: true,
+            catalogVisibility: true,
+            group: { select: { slug: true } },
+          },
+        })
+      : [];
+  const visibilityBySlug = new Map(
+    ingredientVisibilityRows.map((r) => [r.slug, r.catalogVisibility]),
+  );
+  // A group entry (miasma/bone-mask's corpse) is non-public the moment ANY
+  // tag currently wearing that group is non-ALL — which for `items-corpse`
+  // is every row: the authored monster corpses are `catalog: secret`, and a
+  // corpse minted at death (db/lib/corpseMint.js) is never in docs/tags.yaml
+  // at all, so it carries the schema default (`GM`).
+  const nonAllGroupSlugs = new Set(
+    ingredientVisibilityRows
+      .filter((r) => r.group && r.catalogVisibility !== "ALL")
+      .map((r) => r.group.slug),
+  );
+  function isNonPublicRecipe(tag) {
+    return (tag.requirementItems ?? []).some((item) => {
+      if (item.kind === "group") return nonAllGroupSlugs.has(item.slug);
+      const slugs = item.kind === "anyOf" ? item.slugs : [item.slug];
+      return slugs.some((s) => visibilityBySlug.get(s) !== "ALL");
+    });
+  }
+  // Mirrors resolveRecipeItems' HOLD semantics (requestActions.js), at
+  // quantity 1 — a hidden recipe only has to prove itself known, not
+  // affordable, so this checks "holds one" rather than resolving a spend
+  // plan or an anyOf choice.
+  function satisfiesIngredientsAtQuantityOne(tag) {
+    return (tag.requirementItems ?? []).every((item) => {
+      if (item.kind === "group") {
+        return character.tags.some((ct) => ct.tag.group?.slug === item.slug);
+      }
+      const slugs = item.kind === "anyOf" ? item.slugs : [item.slug];
+      return character.tags.some((ct) => slugs.includes(ct.tag.slug));
+    });
+  }
   const knownRecipeIds = tagCatalog
     .filter(
       (t) =>
         t.craftable &&
-        (t.requirementSkills ?? []).every((skill) => satisfied.has(skill.id)),
+        (t.requirementSkills ?? []).every((skill) => satisfied.has(skill.id)) &&
+        (!isNonPublicRecipe(t) || satisfiesIngredientsAtQuantityOne(t)),
     )
     .map((t) => t.id);
   const craftProjects = (
@@ -593,6 +678,7 @@ export default async function CharacterPage({ searchParams }) {
         turnsNeeded: true,
         turnsDone: true,
         resourcesCost: true,
+        consumed: true,
         payerName: true,
         lastTurnId: true,
         tag: { select: { id: true, name: true } },
@@ -606,10 +692,25 @@ export default async function CharacterPage({ searchParams }) {
     turnsNeeded: p.turnsNeeded,
     turnsDone: p.turnsDone,
     resourcesCost: p.resourcesCost,
+    // Whether ingredients went in at the start — the give-up note names them.
+    spentIngredients: Array.isArray(p.consumed) && p.consumed.length > 0,
     payerName: p.payerName,
     // Advanced this turn already — Continue greys until the next one.
     workedThisTurn: Boolean(openTurn && p.lastTurnId === openTurn.id),
   }));
+
+  // The turn's craft ledger, and how much of each ration is still free
+  // (docs/systemdocs/CRAFTING.md §2a). Both are the SERVER's arithmetic: the
+  // Craft dialog quotes these numbers and clamps its quantity field to them,
+  // but craftRequest re-reads the same rows under a row lock and refuses
+  // regardless, so a stale page can mislead nobody into a craft that lands.
+  const craftBudget = summarizeCraftBudget(currentAction);
+  const craftAllowances = await craftFreeUnits(
+    prisma,
+    character.id,
+    openTurn?.id ?? null,
+    tagCatalog,
+  );
 
   // Building (db/lib/structures.js). EVERY status comes down: the standing-
   // here panel lists a ruin as readily as a finished wall, and the Craft
@@ -963,6 +1064,8 @@ export default async function CharacterPage({ searchParams }) {
       canTeach={canTeach}
       knownRecipeIds={knownRecipeIds}
       craftProjects={craftProjects}
+      craftBudget={craftBudget}
+      craftAllowances={craftAllowances}
       sitesHere={sitesHere}
       buildable={buildable}
       teachers={teachers}

@@ -159,6 +159,12 @@ export default function StatusPanel({
   // What stands at this Location (db/lib/structures.js), built in
   // character/page.js. Empty on someone else's sheet.
   sitesHere = [],
+  // This character's own ACTIVE CraftProjects (db/lib/structures.js is the
+  // Structure half; CraftProject is the pocket-item half), also built in
+  // character/page.js and otherwise only visible by opening the Craft
+  // dialog. Empty on someone else's sheet — CharacterSheet only ever mounts
+  // this component for the sheet's own owner.
+  craftProjects = [],
 }) {
   // Hunger is the only Gambit contributor, and this is the same module the bot
   // rolls against (db/lib/gambitModifier.js) — so what a player reads here is
@@ -181,6 +187,17 @@ export default function StatusPanel({
   const heldSlugs = new Set((character.tags ?? []).map((ct) => ct?.tag?.slug ?? ct?.slug));
   const noble = heldSlugs.has(NOBILITY_SLUG);
   const dined = heldSlugs.has(DINED_SLUG);
+
+  // Standing work, without opening the Craft dialog: a CraftProject is a
+  // pocket item in progress, a build site UNDER_CONSTRUCTION here is a
+  // Structure in progress (a half-built wall — leaving it off this list
+  // would read as a bug, not as "nothing to report"). A finished or ruined
+  // site isn't "in progress", so it's left to StandingHerePanel below.
+  const sitesInProgress = sitesHere.filter(
+    (s) => s.status === "UNDER_CONSTRUCTION",
+  );
+  const hasWorkInProgress =
+    craftProjects.length > 0 || sitesInProgress.length > 0;
 
   return (
     <>
@@ -288,6 +305,32 @@ export default function StatusPanel({
           <Row label="Tag Points">
             <TagPointsValue points={character.tagPoints} />
           </Row>
+
+          {hasWorkInProgress && (
+            <Row label="In progress ‡">
+              <div className="flex flex-wrap gap-2">
+                {craftProjects.map((p) => (
+                  <span key={`project-${p.id}`} className="chip">
+                    {p.quantity > 1 ? `${p.quantity}× ` : ""}
+                    {p.tagName} —{" "}
+                    <span className="mono">
+                      {p.turnsDone}/{p.turnsNeeded}
+                    </span>{" "}
+                    turns ‡
+                  </span>
+                ))}
+                {sitesInProgress.map((s) => (
+                  <span key={`site-${s.id}`} className="chip">
+                    {s.typeName} —{" "}
+                    <span className="mono">
+                      {s.turnsDone}/{s.turnsNeeded}
+                    </span>{" "}
+                    turns ‡
+                  </span>
+                ))}
+              </div>
+            </Row>
+          )}
 
           <Row label="This turn" stacked>
             <ThisTurn currentAction={currentAction} openTurn={openTurn} pendingOffers={pendingOffers} />

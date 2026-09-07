@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Merge PR #23: the crafting pass — real recipes, the Move economy, custom craftables, and the recipe book
+
+✚ Recipes are enforced: every ingredient in the brewing, smithing and cooking tables is spent when the work starts  
+✚ A turn's craft Routine is a budget: small crafts share one Move in fractions, and one Routine no longer buys 99 of anything  
+✚ Custom craftables: badge, hat, painting and a cook's meals can be made as your own for +1 ⬢, and the wayside shrine takes an inscription  
+✚ A Recipes tab on /documents, and a read-only /gm/crafts desk  
+✎ Prices moved: white-honey 6, succubus 8, grenade is now Crude Grenade under Smithing, bomb needs black powder, moonshine spends a Godflesh  
+✚ Art Supplies at the Depot; four new forageables (nightshade, raven's eye, poppy pods, coca leaves) that nothing drops yet — GM grant for now
+
 ## 2026-09-07 · A hidden fear dial under every character, and the phobias that sharpen it
 
 ✎ Every character now carries a hidden fear dial. Nights in the wilderness or the caves, wounds, hunger, a bad Caving Die, being bound or crucified and a death nearby all raise it; a roof, the Inn, the Keep or the Sanctuary, a drink, a lavish meal, tea, a smoke, a musician's playing, a confession and a fulfilled Desire lower it.  

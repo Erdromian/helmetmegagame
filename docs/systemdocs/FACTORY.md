@@ -228,10 +228,12 @@ check at all before this, only the global `tupperAutocorrectEnabled` flag.
 ## 8. Moonshine, and going blind
 
 `brewing-basic`, **0 ⬢**, and `requirement.items: [godflesh]` — the marsh gives
-you the ingredient. Holding the Godflesh is the check and it is not consumed,
-the same as every other enforced recipe (`BREWING.md` §1). That is safe here:
-Moonshine sells for 3 ⬢ against farming's 11–15, so it is not an income tap, and
-the Routine it costs is the throttle.
+you the ingredient. **One Godflesh per bottle, and it is used up**, like every
+other spent ingredient (`BREWING.md` §4). It used to be a hold-check, which
+made the still a strictly better use of a haul than the Factory; spending it
+puts the two in honest competition. The rest of the throttle stands: Moonshine
+sells for 3 ⬢ against farming's 11–15, so it is not an income tap, and the
+Routine it costs is a Routine either way.
 
 Drinking it grants Tipsy, **Blind Drunk** (2 turns, blocks Examine with no
 corrective) and one **Damaged Vision**, which is permanent and stacks.

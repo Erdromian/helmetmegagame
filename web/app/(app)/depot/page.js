@@ -131,9 +131,16 @@ export default async function DepotPage() {
 
   const [wareTags, pricedTags, pad, obolTag, ledgerRows] = await Promise.all([
     prisma.tag.findMany({ where: { depotPrice: { not: null } }, ...TAG_SELECT }),
-    // The reference book: anything with a price in either direction.
+    // The reference book: anything with a price in either direction. CATALOG
+    // rows only — a minted runtime row (a player's custom painting keeps its
+    // base's sellablePrice) must never become a public line in the price
+    // book with the player's words on it. Selling one still works: the sell
+    // path reads the held row, not this list.
     prisma.tag.findMany({
-      where: { OR: [{ depotPrice: { not: null } }, { sellable: true, sellablePrice: { not: null } }] },
+      where: {
+        ephemeral: false,
+        OR: [{ depotPrice: { not: null } }, { sellable: true, sellablePrice: { not: null } }],
+      },
       ...TAG_SELECT,
     }),
     prisma.room.findUnique({

@@ -18,7 +18,7 @@ state to preserve.
 ## 2. The page
 
 `/documents` (`web/app/(app)/documents/`) is a pinned board of expandable
-cards, in four tabs:
+cards, in five document tabs — with two catalog tabs alongside them (§2a):
 
 - **PUBLIC** — every `public: true` document, readable by any signed-in user,
   character or not. This is deliberate: the site goes up before the game opens
@@ -49,6 +49,48 @@ cards, in four tabs:
   Secret papers are the one exception to *every* document: they stay gated to
   master GMs here exactly as in SECRET, so a zone-GM's ALL never leaks a threat
   brief they cannot open.
+
+### 2a. The two catalog tabs
+
+TAGS and RECIPES are not documents. They are `Tag` rows, and they share one
+query, one payload and one visibility pass, so nothing sent to the browser can
+disagree with itself about who may see what.
+
+- **TAGS** — the player-facing Tag Catalog, the read-only sibling of
+  `/gm/dev/tags`. `catalogTags()` (`web/lib/tagCatalog.js`) filters it
+  server-side on each tag's own `catalog:` flag: SECRET reaches nobody, GMs
+  included; GM reaches a GM, or a player whose character RELATES to the tag
+  (holds it, is granted it by their role's kit, holds its group's key tag, or
+  holds the Merchant's Licence for a Depot ware); ALL reaches everyone.
+- **RECIPES** — the same rows narrowed to `craftable`, each laid out as its
+  `requirement:` block (`CRAFTING.md` §2) and filed under the **discipline**
+  of the skill that gates it. The discipline is the skill's name with its rung
+  dropped, so Brewing (Basic) and Brewing (Skilled) are one section and
+  Smithing (Gunpowder) sits with Smithing — derived rather than mapped, so a
+  new rung needs no edit. A reference book, not a menu: a recipe is listed
+  whether or not the reader holds its skills, its ⬢ or its ingredients, which
+  is the whole difference between this and the Craft dialog's list.
+
+**A recipe that NAMES an ingredient the reader may not see is dropped whole**
+(`redactWithheldRecipes()` in `web/lib/recipeCatalog.js`), rather than shown
+with the name blanked. Dreamer's Draught needs a Skinless Brain and Moonshine
+needs Godflesh, both `catalog: gm`; those are meant to be found in play, or
+worked out by handing something strange to a good crafter, and a redacted line
+advertises the secret as loudly as the name would. The pass clears
+`requirementItems` on the shared row, so a withheld ingredient cannot resurface
+through TagChip on the TAGS tab either.
+
+A `group:` ingredient names no tag and hides nothing. Miasma asks for "a
+corpse" (`{ group: items-corpse }`) and every member of that group is
+`catalog: secret` — counting groups would erase a public brew from everyone,
+GMs included, over a line that gives away nothing.
+
+An `anyOf:` ingredient is softer still: the recipe is makeable with any one
+member, so an unseen member NARROWS the entry — a cook shown tea and honey
+reads "Tea or Honey" — and only a reader shown no member at all loses the
+row. The same pass, with an explicit public-or-held visibility set, runs
+inside `getVisibleTags()` (`web/lib/referenceData.js`), so the site-wide
+`{tag:…}` hovercards obey the same rule the two catalog tabs do.
 
 Opening a card is a `Modal` (`DESIGN-SYSTEM.md` §8) over `.doc-sheet` — wider
 and more generously set than an ordinary dialog, because it is a page of prose.
@@ -190,3 +232,5 @@ inside the `<button>` a card is.
 | Handbook source | `docs/handbook.md`, read by `web/lib/handbook.js` |
 | Handbook standalone page | `web/app/(public)/handbook/`, `web/app/(public)/layout.js` |
 | Sheet heading slugs / ToC | `web/lib/documentHeadings.js` |
+| Tag Catalog tab | `web/app/(app)/documents/TagCatalogTab.js`, visibility in `web/lib/tagCatalog.js` |
+| Recipes tab | `web/app/(app)/documents/RecipesTab.js`, rows and redaction in `web/lib/recipeCatalog.js` |

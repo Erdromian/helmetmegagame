@@ -35,6 +35,7 @@ function placementOf(tag) {
     defenseNote: typeof p.defenseNote === "string" ? p.defenseNote : null,
     laborBonus: p.laborBonus ?? null,
     provides: Array.isArray(p.provides) ? p.provides : [],
+    inscribable: p.inscribable === true,
   };
 }
 

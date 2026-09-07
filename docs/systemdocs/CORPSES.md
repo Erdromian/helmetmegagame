@@ -180,19 +180,24 @@ The headstone mint is an **upsert**: two mourners can engrave the same person,
 and the second gets a grant of the row the first made. One stone; more than one
 person can have helped.
 
-## 8. `Tag.requirementItems` — the first enforced ingredient
+## 8. `Tag.requirementItems` — the enforced ingredient
 
 `BREWING.md` was explicit that no code enforced a recipe, "least of all the
-ingredient". Three recipes now do:
+ingredient". Every ingredient in the game runs through this field now. Three
+entry shapes:
 
 ```yaml
+  cave-fungus-recipes:
+    requirement:
+      items: [cave-fungus]         # a bare string is a tag slug — SPENT
   miasma:
     requirement:
       items:
-        - group: items-corpse      # any corpse, incl. a per-character one
-  dreamers-draught:
+        - group: items-corpse      # any corpse, incl. a per-character one — KEPT
+  lavish-meal:
     requirement:
-      items: [skinless-brain]      # a bare string is a tag slug
+      items:
+        - anyOf: [tea, sweets, honey]   # the player picks one — SPENT
   bone-mask:
     requirement:
       skills: [butcher]            # a mask cut out of a human skull
@@ -200,29 +205,52 @@ ingredient". Three recipes now do:
         - group: items-corpse
 ```
 
-The Bone Mask is the first of these outside brewing, and the first that makes
-a corpse into something you *wear* — it is a `concealsIdentity` piece, so the
-face it hides you behind is a skull (`PROXYING.md` §5).
+The Bone Mask is the one of these outside brewing and cooking, and the one
+that makes a corpse into something you *wear* — it is a `concealsIdentity`
+piece, so the face it hides you behind is a skull (`PROXYING.md` §5).
 
-**HOLDING IT IS THE CHECK. Nothing is consumed.** No quantity moves, and
-crafting twice off one corpse is allowed — the recipe says you need one to
-hand, not that you use it up.
+**SPENT BY DEFAULT, and the default differs by shape.** A slug entry, and an
+`anyOf` pick, costs `quantity` units per craft: three molotovs take three
+Alcohol, the same scaling ⬢ has. A `group:` entry is **kept** — a body has its
+own lifecycle, and "any member of a group" names no single stack to decrement,
+so `keep: false` on a group is refused at sync rather than guessed at. Bottling
+a second Miasma over the same corpse is still fine. `keep: true` on a slug
+turns it back into a hold-check if a recipe ever wants one.
+
+**Spent when the work STARTS**, the rule the ⬢ already lived under. A
+multi-turn project pays its ingredients up front, so `continueCraft`
+deliberately does **not** re-check them — an honest continue would fail its own
+check on turn 2. Cancelling keeps nothing. The finishing audit row snapshots
+what was spent (`details.consumed`) — the record a GM reversing a craft by
+hand reads (`CRAFTING.md` §4).
 
 **Json, not a `Tag[]` relation**, and the group form is why: a corpse written at
 death is never in `docs/tags.yaml`, so no authored relation could ever name one.
 Each normalized entry carries a denormalized `label`, because
 `formatTagRequirement` is pure and synchronous and is called from four surfaces
-with four different selects; the sync rewrites the label every run.
+with four different selects; the sync rewrites the label every run. An `anyOf`
+entry also carries `options: [{ slug, name }]`, for the same reason: the Craft
+dialog's picker needs the members' names and has only the recipe row.
 
 Validated by `db/lib/tagShapes.js#validateRequirementItems`, which throws on an
-unknown slug or group, on a duplicate, and on an `items` block on a tag that is
-**not craftable** — the only enforcement point is the Craft path, so an `items`
-block anywhere else would sit in the catalog looking enforced and do nothing.
+unknown slug or group, a duplicate, a second `anyOf` in one recipe (the dialog
+posts one `ingredientChoice`), an `items` block on a tag that is **not
+craftable** — the only enforcement point is the Craft path — and an `items`
+block on a `placement:` recipe, which is raised by a crew over several turns
+and has no one sheet to take an ingredient off.
 
-Enforced in `requireRecipeItems` (`requestActions.js`), against the crafter's
-**own sheet only** — never a room stash they could reach. A multi-turn project
-re-runs it on every continue, and "there was a corpse in a room nearby at the
-time" would mean something different on turn 3 than on turn 1.
+Three functions in `requestActions.js` do the work:
+
+| | |
+|---|---|
+| `resolveRecipeItems` | outside the transaction: resolves the entries against what the crafter holds and fails fast. **Their own sheet only** — never a room stash they could reach. |
+| `lockCharacter` | the `FOR UPDATE` row lock, taken before anything is counted or spent. |
+| `consumeRecipeItems` | inside the payment transaction: **the write is the check**. A conditional `updateMany ... quantity: { gte: n }` (or a delete at exactly n) matches only while the stack still covers the draw, and a count of 0 refuses. `dropCharacterTag` is deliberately NOT used — it deletes the row on an overdraw rather than refusing, which would make "3 off a stack of 2" free. |
+
+The snapshot `consumeRecipeItems` returns is the same shape `replaced` uses
+(`{ tagId, tagName, quantity, source, expiresTurn }`). A multi-turn project
+keeps it on `CraftProject.consumed` until the finishing craft copies it into
+the audit row's `details.consumed`.
 
 **Adding a surface that renders a Recipe line means adding `requirementItems`
 to its select.** A caller that forgets it renders no ingredient line rather
@@ -262,7 +290,7 @@ person leaves a body anyone could pick up, and the follow reconcile would keep
 dragging their sheet to wherever it went.
 
 **Butcher and Bury deliberately do NOT delete the Tag row** — only the holding.
-A GM's Undo has to be able to put the body back.
+A GM repairing a mistake has to be able to put the body back.
 
 ## 11. Where the code lives
 
@@ -275,7 +303,6 @@ A GM's Undo has to be able to put the body back.
 | The smell | `bot/src/lib/deathSmell.js`, armed in `bot/src/events/ready.js` |
 | Headstones | `db/lib/headstone.js` |
 | The three actions | `web/app/(app)/character/requestActions.js` |
-| Undo | `web/lib/tagEffects.js` |
 | Buttons, dialogs | `actionRegistry.js`, `RequestActionsProvider.js`, `icons.js` |
 | Ingredient shape | `db/lib/tagShapes.js`, `db/lib/syncTags.js`, `db/lib/formatTagRequirement.js` |
 | Constants | `CORPSE_GROUP_SLUG`, `BUTCHER_SLUG`, `HUMAN_FLESH_SLUG`, `ENGRAVE_RESOURCE_COST`, `CORPSE_ROT_TURNS` in `db/lib/constants.js` |

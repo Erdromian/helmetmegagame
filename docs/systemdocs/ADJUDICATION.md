@@ -111,6 +111,13 @@ tray as "unattached" for the GM to keep or drop.
   say what it actually did. Nothing else shows a player their own roll: not
   the confirm DM, not `/character`. Every confirmed Gambit gets the DM
   regardless of what else the push sent them.
+- **One auto-filed craft Routine can hold several crafts.** Still one Action
+  per character per turn — that does not move — but a craft may cost a
+  *fraction* of it, so the row reads "Crafting this turn: 2× Alcohol, 1× Cat.
+  ‡" and carries a ledger in `Action.craftBudget` (`CRAFTING.md` §2a).
+  Rejecting it hands back the whole turn, every craft in it included; there
+  is no per-craft Undo — a GM reversing one craft works by hand from its
+  audit row, and no budget comes back with it (`CRAFTING.md` §2a).
 - **The Result box is canon.** One GM-facing field (`resultMessage`) holding
   what actually happened. `gmNotes` survives as a column for the `auto:*`
   machine markers only and renders nowhere.

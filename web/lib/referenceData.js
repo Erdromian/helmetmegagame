@@ -6,6 +6,7 @@ import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { documentSource, isWritten, readerFromCharacter } from "@/lib/documentAccess";
 import { toDocumentPreviewText } from "@/lib/documentPreview";
+import { redactWithheldRecipes } from "@/lib/recipeCatalog";
 
 // The three datasets behind the {tag:…} / {resource:…} / {document:…}
 // inline reference syntax. The root layout calls these
@@ -109,6 +110,7 @@ export const TAG_CHIP_FIELDS = {
   },
   removable: true,
   craftable: true,
+  customizable: true,
   healable: true,
   teachable: true,
   // Minified via formatTagRequirement wherever a description renders.
@@ -116,6 +118,16 @@ export const TAG_CHIP_FIELDS = {
   requirementResources: true,
   requirementGambit: true,
   requirementSkills: { select: { id: true, slug: true, name: true } },
+  // The ingredients ("uses Cave Fungus" / "needs a corpse to hand"). Without
+  // this the Tag Catalog's Recipe line silently renders none — the exact
+  // failure CORPSES.md §8 warns about, and the line the craft menu's
+  // ingredient-hiding rule leans on ("the catalog still teaches the recipe").
+  // Redacted per viewer in getVisibleTags() before it ships — see below.
+  requirementItems: true,
+  // Only so getVisibleTags can build the redaction's visibility set; this
+  // payload itself is NOT filtered by it (render-side hiding is this
+  // surface's model, the group-key filter below aside).
+  catalogVisibility: true,
   // A prose {tag:…} reference has no live expiresTurn, so this is the only
   // way to tell a reader how long the tag would last (TagChip.js).
   defaultDurationTurns: true,
@@ -182,11 +194,25 @@ export async function getVisibleTags() {
     indoors: character?.location?.indoors ?? true,
   };
 
-  return tags
-    .filter((tag) => !tag.group?.requiredTagId || held.has(tag.group.requiredTagId))
-    .map(composePaper(viewer, held))
-    .map(stripEmptyUnlocks)
-    .map(stripWeightless);
+  // A recipe line must not print an ingredient this viewer has no path to —
+  // the same rule the /documents catalogs apply (web/lib/recipeCatalog.js).
+  // "Visible" here is public-or-held: this payload ships GM-catalog rows to
+  // everyone and hides them at render time, so the list itself cannot stand
+  // in for what the viewer may READ. Dreamer's Draught keeps its recipe line
+  // for the brewer holding a Skinless Brain and goes quiet for everyone else.
+  const readableSlugs = new Set(
+    tags
+      .filter((t) => t.catalogVisibility === "ALL" || held.has(t.id))
+      .map((t) => t.slug),
+  );
+  return redactWithheldRecipes(
+    tags
+      .filter((tag) => !tag.group?.requiredTagId || held.has(tag.group.requiredTagId))
+      .map(composePaper(viewer, held))
+      .map(stripEmptyUnlocks)
+      .map(stripWeightless),
+    { visibleSlugs: readableSlugs },
+  );
 }
 
 // A paper's text NEVER travels in `description` — that column goes to every
