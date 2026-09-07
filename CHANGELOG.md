@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Paper reads like paper
+
+− A letter, a notice, a book you hold and the text already on a sheet in the Write dialog all draw as one serif sheet now, with the writer's markdown rendered: bold, lists, quotes  
+− The refusal a blind or illiterate reader gets stays flat text, so it cannot be dressed up as a letter
+
 ## 2026-09-07 · A ping reaches you in Chat too
 
 ✎ Being mentioned now shows up in your Bascinet thread on the web with an Open link to the place, the same as the DM you get on Discord  
