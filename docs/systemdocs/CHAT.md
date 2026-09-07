@@ -1076,6 +1076,53 @@ end them.
   unaffected. The three go on **both** Railway services, since the bot sends
   the mention pushes and the web app serves the key.
 
+## 5c. Snapshots: the page paints before the server answers
+
+Every page used to be a skeleton until its server load finished, on every
+visit. Bascinet's complaint (2026-09-07): "it's honestly very hard to see
+anything because it always loads". So a page now keeps its **last data in the
+browser** and paints it in the first frame; the server's answer replaces it
+when it lands. `web/lib/snapshot/`:
+
+- **`snapshotStore.js`** — a module store read through `useSyncExternalStore`,
+  mirrored to `localStorage` under `bascinet:snap:<VERSION>:<discordUserId>:<scope>`.
+  The account is in the key, so a shared browser never shows the next person
+  the last person's sheet, and `SnapshotGuard` (mounted by the public layout,
+  where a signed-out browser lands) clears every key when there is no account
+  on the page. `VERSION` is bumped whenever a page's shape changes; an old
+  snapshot is ignored, never handed to a renderer expecting the new shape.
+  1.5 MB per scope, every read and write try/caught — a refused localStorage
+  just means the page paints from the server, as before.
+- **`SnapshotPage`** — the shell. `page.js` reads only the session, mounts
+  `<SnapshotPage scope userId render={View} fallback={<Loading />}>`, and
+  streams the old async body in behind it inside `<Suspense fallback={null}>`.
+  A client component with nothing awaited mounts at once, so the stored data
+  is on screen before the RSC payload has finished arriving.
+- **`SnapshotFresh`** — the async body's last line: the fresh, serialisable
+  props, round-tripped through JSON (a Date becomes the string the snapshot
+  would have held, so the view is written against ONE shape) and written into
+  the store. The shell re-renders the view off it.
+- **One remount, at the moment stored gives way to fresh.** A client island
+  that copies a prop into state on mount would keep the stale copy after the
+  server answered. `SnapshotPage` keys the view `"stored"` while it is showing
+  what it painted first and `"fresh"` from the first server answer on — exactly
+  one flip per mount, so a `router.refresh()` after an action is a props
+  update like it always was and an open dialog survives it. `Chat.js` opts
+  out (`remountOnFresh={false}`): its seed effect already re-runs on changed
+  props and reopens the stream from the new seq, which is also why a stale
+  snapshot of `/play` is safe — the stream's `since` catch-up fills the gap.
+
+**What it is not.** Not a cache the server honours and not a source of truth.
+Every server action re-validates from the database (CLAUDE.md), so acting on
+a stale sheet is safe; the fresh data simply replaces it.
+
+**Converting a page** is: split the default export into a session read plus
+the old body renamed `Fresh<Page>`; make the body end in
+`<SnapshotFresh scope userId data={props} />` with every early return
+expressed as a `kind` in that object; write a `<Page>View.js` client
+component that draws each `kind`. `/play` (`page.js#FreshPlay`, `PlayView.js`)
+is the model.
+
 ## 6. What comes next, in order
 
 1. ~~**One write path**~~ — done (§2, §4). `db/lib/say.js` decides for both

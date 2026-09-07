@@ -266,6 +266,12 @@ title. `panels` is an array of bar-width percentages roughly tracing what
 lands. The one exception is `web/app/(app)/loading.js`, the group fallback: it
 renders no title, because it can't know which page is arriving.
 
+**A page paints before the server answers.** The route's `loading.js`
+skeleton is what a browser sees on its FIRST visit; every visit after that
+paints the page's last data from a local snapshot and refreshes underneath
+(`web/lib/snapshot/`, `CHAT.md` §5c). A new page that ends in one client
+component should be wired that way from the start.
+
 ## 7. List shell
 
 Every long list in the app is the same object.
