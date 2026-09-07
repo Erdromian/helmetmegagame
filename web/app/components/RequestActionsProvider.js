@@ -1783,6 +1783,13 @@ export default function RequestActionsProvider({
                       : ""}
                   </p>
                 )}
+                {/* administerSkill's Move fee (M2, CRAFTING.md §2a /
+                    TAGS.md §5c) — fitting is surgery, even on your own leg. */}
+                {chosen?.administerSkill && (
+                  <p className="text-xs text-muted">
+                    Costs half your Move — the fitting is the skilled part. ‡
+                  </p>
+                )}
               </>
             )}
 
@@ -1865,10 +1872,22 @@ export default function RequestActionsProvider({
                       Costs <span className="mono">{affliction.cost} ⬢</span>.
                       {affliction.gambit
                         ? " This is beyond routine, so it counts as a Gambit. It uses your Move, a die is rolled, and a poor result can leave them worse off. You'll both know the outcome at the end of the turn."
-                        : affliction.counts
-                          ? ` One of the ${healsLeft ?? "few"} cases you can work this turn.`
-                          : " First aid doesn't cost a Move."}
+                        : affliction.moveCost?.kind === "free"
+                          ? ` First aid doesn't cost a Move — ${healsLeft ?? "a few"} free treatments left today. ‡`
+                          : ` This costs ${formatMoveFraction(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move${affliction.moveCost?.kind === "spill" ? ", past today's free first aid" : ""}. ‡`}
                     </p>
+                    {/* Cross-family warning, same shape as the Craft dialog's
+                        (CraftDialog.js) — a Routine already committed to
+                        another family's work refuses a heal exactly the way
+                        it refuses a mismatched craft (CRAFTING.md §2a). */}
+                    {!affliction.gambit &&
+                      affliction.moveCost?.kind !== "free" &&
+                      craftBudget &&
+                      craftBudget.family !== "medical" && (
+                        <p className="text-xs text-accent">
+                          {`Your Routine this turn is ${craftFamilyLabel(craftBudget.family)} work, and treating isn't. ‡`}
+                        </p>
+                      )}
                   </>
                 )}
               </>

@@ -7,7 +7,8 @@ import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { peopleHere } from "@/lib/peopleHere";
 import { isTradeable } from "@/lib/tagRequests";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
-import { MEDICAL_TIER_CAPS } from "@/lib/requests";
+import { craftMoveCost } from "@/lib/craftBudget";
+import { MEDICAL_SIMPLE_PER_TURN } from "@/lib/requests";
 import {
   HEALABLE_CATEGORY,
   HEAL_SKILL_SLUG,
@@ -57,6 +58,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
                 slug: true,
                 healable: true,
                 requirementTurns: true,
+                requirementPerTurn: true,
                 requirementResources: true,
                 requirementGambit: true,
                 requirementSkills: { select: { id: true, name: true } },
@@ -117,6 +119,34 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   const healSkillId = tierRows.find((t) => t.slug === HEAL_SKILL_SLUG)?.id;
   const canHeal = Boolean(healSkillId && satisfied.has(healSkillId));
 
+  // Routine cures left in the medic's shared free pool (M2,
+  // web/lib/requests.js MEDICAL_SIMPLE_PER_TURN). The predicate MUST match
+  // routineHealsThisTurn in requestActions.js exactly — a Gambit never draws
+  // on it, and a number that disagreed with the one the action enforces
+  // would grey out (or wrongly free) a treatment the server would price
+  // differently. Resolved server-side, and ahead of healTargets below so
+  // each affliction row can quote what it would actually cost THIS medic
+  // right now; the action re-checks under a row lock either way.
+  const heldSlugSet = new Set(character.tags.map((ct) => ct.tag.slug));
+  const simpleCuresThisTurn =
+    openTurn && discordUserId
+      ? (
+          await prisma.auditLog.findMany({
+            where: {
+              // The MEDIC's axis, matching routineHealsThisTurn exactly.
+              // targetCharacterId here is the patient.
+              actorDiscordUserId: discordUserId,
+              actionType: "request_heal_character",
+              turnId: openTurn.id,
+            },
+            select: { details: true },
+          })
+        ).filter((r) => !r.details?.gambit && (r.details?.requirement?.turns ?? 0) === 0).length
+      : 0;
+  const healsLeft = canHeal
+    ? Math.max(0, healCapFor(heldSlugSet, MEDICAL_SIMPLE_PER_TURN) - simpleCuresThisTurn)
+    : 0;
+
   // Patients: yourself and everyone here, filtered to treatable tags HERE,
   // not the client, so nobody else's full sheet crosses the wire. Skipped for
   // the majority who aren't medics.
@@ -145,40 +175,26 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
           // than a refusal — so the picker offers it, labelled, instead of
           // greying it out (docs/systemdocs/TAGS.md §5c).
           gambit: isGambitHeal(tag, satisfied),
-          // A 0-turn cure is a free action and never counts against the day's
-          // allowance (web/lib/requests.js MEDICAL_TIER_CAPS).
-          counts: countsAgainstHealCap(tag),
+          // What this heal would cost the medical Move RIGHT NOW, family
+          // hardcoded "medical" like the server bills (never derived —
+          // craftFamily would drop a skill-less cure like choking into the
+          // generic `craft` family): `free` inside today's pool, `spill` at
+          // 1/MEDICAL_SIMPLE_PER_TURN past it, `share` for a fraction/whole
+          // turns-costing cure. Gambits never price here — they're a Move of
+          // their own, not this ledger.
+          moveCost: isGambitHeal(tag, satisfied)
+            ? null
+            : countsAgainstHealCap(tag)
+              ? craftMoveCost(tag, {
+                  quantity: 1,
+                  allowance: MEDICAL_SIMPLE_PER_TURN,
+                  freeLeft: healsLeft,
+                  family: "medical",
+                })
+              : craftMoveCost(tag, { quantity: 1, family: "medical" }),
         })),
     }))
     .filter((t) => t.healable.length > 0);
-
-  // Routine cures left in the medic's day (web/lib/requests.js
-  // MEDICAL_TIER_CAPS). The predicate MUST match routineHealsThisTurn in
-  // requestActions.js exactly — a first-aid cure and a Gambit both cost
-  // nothing here, and a number that disagreed with the one the action
-  // enforces would grey out a treatment the server would have accepted.
-  // Resolved server-side; the action re-checks under a row lock either way.
-  const heldSlugSet = new Set(character.tags.map((ct) => ct.tag.slug));
-  const healsLeft = canHeal
-    ? Math.max(
-        0,
-        healCapFor(heldSlugSet, MEDICAL_TIER_CAPS) -
-          (openTurn && discordUserId
-            ? (
-                await prisma.auditLog.findMany({
-                  where: {
-                    // The MEDIC's axis, matching routineHealsThisTurn exactly.
-                    // targetCharacterId here is the patient.
-                    actorDiscordUserId: discordUserId,
-                    actionType: "request_heal_character",
-                    turnId: openTurn.id,
-                  },
-                  select: { details: true },
-                })
-              ).filter((r) => !r.details?.gambit && (r.details?.requirement?.turns ?? 0) > 0).length
-            : 0),
-      )
-    : 0;
 
   // The catalog name of whichever incapacitating tag they hold.
   function conditionOf(c) {
