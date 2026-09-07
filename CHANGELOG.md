@@ -6,6 +6,19 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · A hidden fear dial under every character, and the phobias that sharpen it
+
+✎ Every character now carries a hidden fear dial. Nights in the wilderness or the caves, wounds, hunger, a bad Caving Die, being bound or crucified and a death nearby all raise it; a roof, the Inn, the Keep or the Sanctuary, a drink, a lavish meal, tea, a smoke, a musician's playing, a confession and a fulfilled Desire lower it.  
+✚ Five status tags show where the dial sits: Uncomfortable, Stressed, Anxious, Afraid (−1 to Gambits) and Panic (−2). A player gets one plain DM when the band changes.  
+✚ A Fear intensity knob on /gm/dev, and the dial itself shown and editable on each character's Dev Panel.  
+✎ Phobias are multipliers now: Claustrophobia doubles cave fear, Agoraphobia (new) the wilderness, Hemophobia (new) wounds, Teratophobia triples a bad Caving Die, Pyrophobia triples burns. Acrophobia is gone.  
+✎ Brave costs 5 and halves all fear. Rough Camper halves the outdoors and the caves; Outsider and Spelunker (new, 1 pt each, behind Rough Camper) cancel one of the two. Pale halves the caves.  
+− Disappointed. A noble who ends the turn without a fine or lavish meal takes fear instead, and the Merchant is Nobility now too.  
+✎ Fine meals no longer calm anyone; lavish meals do.  
+✚ Rough Camper on both Brigands, the Tribune, the Ordinator, the Fisherman, the Mercenary, the hunter kit, the Demoness and the Judge; Outsider on the Brigands, the Tribune, the Ordinator and the Judge; Brave on the Ordinator and the Judge; Spelunker on the Mercenary.  
+✚ Wilderness and Haven markers on Locations, which Examine prints.  
+✎ Also riding along from other sessions: the 71 lb carry cap, the Underquarter basements and sewer, and a fix to who may work a room's door.
+
 ## 2026-09-07 · The Play page shows your turn, your Move, your state and your Desires
 
 ✚ A turn card in the right column: the phase, when Moves close, and the Move you filed with an Edit button until the lock  
