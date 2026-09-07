@@ -21,6 +21,7 @@ import {
   validateAdministerSkill,
   normalizeResists,
   validateResists,
+  validateHealableRequirement,
 } from "@lifeweb/db/lib/tagShapes";
 import { TURNS_PATH } from "@/lib/routes";
 
@@ -193,11 +194,21 @@ function scalarsFrom(input) {
 // interchangeable: Prisma rejects `set` inside a create, and `connect` on an
 // update would only ever add, so emptying the picker would silently keep the
 // old skills attached.
-async function relationsFrom(input, { selfId, selfSlug, durationTurns, consumable }) {
+async function relationsFrom(input, { selfId, selfSlug, durationTurns, consumable, healable, requirementTurns }) {
   const catalog = await prisma.tag.findMany({ select: { id: true, slug: true, category: true } });
   const knownSlugs = new Set(catalog.map((t) => t.slug));
   const knownIds = new Set(catalog.map((t) => t.id));
   const categoryBySlug = new Map(catalog.map((t) => [t.slug, t.category]));
+
+  // Same rule docs/tags.yaml's own door enforces (db/lib/tagShapes.js#
+  // normalizeTurnsCost, review fix round 3): a healable tag needs
+  // requirementTurns authored, or the medical Move economy's client and
+  // server read the blank differently (0 vs 1).
+  try {
+    validateHealableRequirement(requirementTurns, { healable, selfSlug, label: "This tag" });
+  } catch (err) {
+    throw new UserError(err.message);
+  }
 
   let expiresInto = null;
   try {
@@ -296,6 +307,8 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
     selfSlug: slug,
     durationTurns: data.defaultDurationTurns,
     consumable: data.consumable,
+    healable: data.healable,
+    requirementTurns: data.requirementTurns,
   });
   const targets = [...new Set((assignCharacterIds ?? []).filter(Boolean))];
   // Same cap as bulkTagCharacters (web/app/(app)/gm/actions.js).
@@ -431,6 +444,8 @@ async function updateCustomTagImpl({ tagId, ...input }) {
     selfSlug: existing.slug,
     durationTurns: data.defaultDurationTurns,
     consumable: data.consumable,
+    healable: data.healable,
+    requirementTurns: data.requirementTurns,
   });
   if (data.name !== existing.name) {
     const clash = await prisma.tag.findFirst({ where: { name: data.name, id: { not: tagId } } });

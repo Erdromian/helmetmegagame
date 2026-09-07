@@ -295,8 +295,23 @@ function joinWithOr(names) {
 // on a 0-turn recipe, where it is a RATION (a hard daily cap below the Dead
 // Simple pool's 4); writing it on anything that costs a Move is refused,
 // because that is the double-duty this function exists to end.
-function normalizeTurnsCost(requirement, { slug }, label = "docs/tags.yaml") {
+function normalizeTurnsCost(requirement, { slug, healable = false }, label = "docs/tags.yaml") {
   const raw = requirement?.turnsCost;
+  // A healable tag's turnsCost has to be authored explicitly (review fix,
+  // round 3, closing an authoring trap the M2 Move economy opened):
+  // countsAgainstHealCap (web/lib/healRequests.js) reads a MISSING
+  // turnsCost as 0 (free, inside the day's pool), craftMoveCost
+  // (web/lib/craftBudget.js) reads the same missing value as 1 (a whole
+  // Move) — a healable tag authored with no turnsCost at all would silently
+  // split what the Heal dialog shows from what the server actually bills.
+  // validateHealableRequirement (below) is this same rule for the GM tag
+  // form's door, which has no fraction picker and so checks its own
+  // already-parsed requirementTurns instead of this raw field.
+  if (raw == null && healable) {
+    throw new Error(
+      `${label}: tag "${slug}" is healable but requirement.turnsCost is missing — author it explicitly (0, a whole number, or "1/N", TAGS.md §5c)`,
+    );
+  }
   const perTurn = requirement?.perTurn ?? null;
   let turns = null;
   let workDen = null;
@@ -326,6 +341,20 @@ function normalizeTurnsCost(requirement, { slug }, label = "docs/tags.yaml") {
     requirementTurns: turns,
     requirementPerTurn: workDen ?? perTurn,
   };
+}
+
+// The GM tag form's counterpart to normalizeTurnsCost's healable check above
+// (review fix, round 3): same rule — a healable tag needs turnsCost
+// authored, never inferred — read off the form's own already-parsed
+// `requirementTurns` instead of a raw YAML `turnsCost` string, since the
+// form has no fraction picker to author one with yet (db/lib/syncTags.js's
+// `normalizeTurnsCost` is still the only door onto a fractional cure).
+function validateHealableRequirement(requirementTurns, { healable, selfSlug, label = "docs/tags.yaml" }) {
+  if (healable && requirementTurns == null) {
+    throw new Error(
+      `${label}: tag "${selfSlug}" is healable but requirementTurns is blank — author it explicitly (0 or a whole number of turns)`,
+    );
+  }
 }
 
 function normalizeRequirementItems(entries, { tagNameBySlug = null, groupNameBySlug = null } = {}, label = "docs/tags.yaml") {
@@ -636,6 +665,7 @@ module.exports = {
   validateResists,
   rollTagChain,
   normalizeTurnsCost,
+  validateHealableRequirement,
   normalizeRequirementItems,
   validateRequirementItems,
   normalizePlacement,

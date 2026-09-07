@@ -732,8 +732,10 @@ async function syncTagsFromYaml(prisma) {
       resists: normalizeResists(entry.resists),
       // turnsCost "1/N" lands as requirementTurns 1 + requirementPerTurn N
       // (the work fraction); an authored perTurn survives only on a 0-turn
-      // ration — normalizeTurnsCost refuses every other pairing.
-      ...normalizeTurnsCost(entry.requirement, { slug: entry.slug }),
+      // ration — normalizeTurnsCost refuses every other pairing. `healable`
+      // rides along so a healable tag with no turnsCost at all is refused
+      // too (review fix, round 3).
+      ...normalizeTurnsCost(entry.requirement, { slug: entry.slug, healable: entry.healable ?? false }),
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,
       requirementItems: normalizeRequirementItems(entry.requirement?.items, { tagNameBySlug, groupNameBySlug }),

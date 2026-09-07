@@ -14,6 +14,8 @@ const {
   validateAdministerSkill,
   normalizeResists,
   validateResists,
+  normalizeTurnsCost,
+  validateHealableRequirement,
 } = require("../lib/tagShapes");
 
 const knownSlugs = new Set([
@@ -172,4 +174,104 @@ test("validateResists refuses an unknown slug and passes a known one or null", (
   );
   assert.doesNotThrow(() => validateResists(["poisoned"], { selfSlug: "iron-constitution", knownSlugs }));
   assert.doesNotThrow(() => validateResists(null, { selfSlug: "iron-constitution", knownSlugs }));
+});
+
+// normalizeTurnsCost (M2, the arithmetic the whole Move economy rests on):
+// a whole-number turnsCost, the "1/N" fraction encoding (requirementTurns 1
+// + requirementPerTurn N), the perTurn/0-turn-ration pairing rule, and the
+// healable-must-author-one guard added in the round-3 review.
+test("normalizeTurnsCost accepts a whole-number turnsCost, and null when unset", () => {
+  assert.deepEqual(normalizeTurnsCost({ turnsCost: 0 }, { slug: "infected" }), {
+    requirementTurns: 0,
+    requirementPerTurn: null,
+  });
+  assert.deepEqual(normalizeTurnsCost({ turnsCost: 1 }, { slug: "sepsis" }), {
+    requirementTurns: 1,
+    requirementPerTurn: null,
+  });
+  assert.deepEqual(normalizeTurnsCost({ turnsCost: 3 }, { slug: "phrygian-tears" }), {
+    requirementTurns: 3,
+    requirementPerTurn: null,
+  });
+  assert.deepEqual(normalizeTurnsCost({}, { slug: "sword" }), {
+    requirementTurns: null,
+    requirementPerTurn: null,
+  });
+  assert.deepEqual(normalizeTurnsCost(null, { slug: "sword" }), {
+    requirementTurns: null,
+    requirementPerTurn: null,
+  });
+});
+
+test("normalizeTurnsCost parses the 1/N fraction into requirementTurns 1 + requirementPerTurn N", () => {
+  assert.deepEqual(normalizeTurnsCost({ turnsCost: "1/3" }, { slug: "deep-wound" }), {
+    requirementTurns: 1,
+    requirementPerTurn: 3,
+  });
+  assert.deepEqual(normalizeTurnsCost({ turnsCost: "1/2" }, { slug: "feverish" }), {
+    requirementTurns: 1,
+    requirementPerTurn: 2,
+  });
+  assert.deepEqual(normalizeTurnsCost({ turnsCost: "1/8" }, { slug: "x" }), {
+    requirementTurns: 1,
+    requirementPerTurn: 8,
+  });
+  // Whitespace-tolerant, same as every other YAML scalar this sync reads.
+  assert.deepEqual(normalizeTurnsCost({ turnsCost: " 1/4 " }, { slug: "x" }), {
+    requirementTurns: 1,
+    requirementPerTurn: 4,
+  });
+});
+
+test("normalizeTurnsCost refuses a garbage turnsCost and a 1/1 or 1/0-shaped fraction", () => {
+  assert.throws(
+    () => normalizeTurnsCost({ turnsCost: "half" }, { slug: "x" }),
+    /turnsCost must be a whole number of Moves or a "1\/N" fraction/,
+  );
+  assert.throws(() => normalizeTurnsCost({ turnsCost: "1/1" }, { slug: "x" }), /turnsCost must be/);
+  assert.throws(() => normalizeTurnsCost({ turnsCost: "1/0" }, { slug: "x" }), /turnsCost must be/);
+  assert.throws(() => normalizeTurnsCost({ turnsCost: -1 }, { slug: "x" }), /turnsCost must be/);
+});
+
+test("normalizeTurnsCost's perTurn is a 0-turn ration only — pairing it with a Move cost is refused", () => {
+  assert.deepEqual(normalizeTurnsCost({ turnsCost: 0, perTurn: 4 }, { slug: "x" }), {
+    requirementTurns: 0,
+    requirementPerTurn: 4,
+  });
+  assert.throws(
+    () => normalizeTurnsCost({ turnsCost: 1, perTurn: 3 }, { slug: "x" }),
+    /sets perTurn on a recipe that costs a Move/,
+  );
+  assert.throws(
+    () => normalizeTurnsCost({ perTurn: 0 }, { slug: "x" }),
+    /requirement.perTurn must be a positive integer/,
+  );
+});
+
+test("normalizeTurnsCost refuses a healable tag with no turnsCost at all, and passes one authored explicitly", () => {
+  assert.throws(
+    () => normalizeTurnsCost({}, { slug: "new-wound", healable: true }),
+    /"new-wound" is healable but requirement\.turnsCost is missing/,
+  );
+  assert.throws(
+    () => normalizeTurnsCost(null, { slug: "new-wound", healable: true }),
+    /is healable but requirement\.turnsCost is missing/,
+  );
+  // A non-healable tag with no turnsCost is unaffected — that's the ordinary
+  // "no Move cost at all" case most of the catalog uses.
+  assert.doesNotThrow(() => normalizeTurnsCost({}, { slug: "sword", healable: false }));
+  assert.doesNotThrow(() => normalizeTurnsCost({}, { slug: "sword" }));
+  // Explicit 0 satisfies the guard just as well as a real cost.
+  assert.doesNotThrow(() => normalizeTurnsCost({ turnsCost: 0 }, { slug: "new-wound", healable: true }));
+  assert.doesNotThrow(() => normalizeTurnsCost({ turnsCost: "1/3" }, { slug: "new-wound", healable: true }));
+});
+
+test("validateHealableRequirement mirrors normalizeTurnsCost's guard for the GM form's already-parsed requirementTurns", () => {
+  assert.throws(
+    () => validateHealableRequirement(null, { healable: true, selfSlug: "custom-wound" }),
+    /"custom-wound" is healable but requirementTurns is blank/,
+  );
+  assert.doesNotThrow(() => validateHealableRequirement(0, { healable: true, selfSlug: "custom-wound" }));
+  assert.doesNotThrow(() => validateHealableRequirement(2, { healable: true, selfSlug: "custom-wound" }));
+  assert.doesNotThrow(() => validateHealableRequirement(null, { healable: false, selfSlug: "custom-sword" }));
 });
