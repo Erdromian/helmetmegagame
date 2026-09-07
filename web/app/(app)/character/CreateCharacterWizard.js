@@ -195,7 +195,7 @@ export default function CreateCharacterWizard({
   const budget = computeBudget({ startingTagPoints, role, cursed });
   const selectedTags = tags.filter((t) => selectedIds.includes(t.id));
   const grantedTags = useMemo(
-    () => (role ? tags.filter((t) => role.startingTagNames.includes(t.name)) : []),
+    () => (role ? tags.filter((t) => role.startingTagSlugs.includes(t.slug)) : []),
     [role, tags],
   );
   const grantedIds = useMemo(() => grantedTags.map((t) => t.id), [grantedTags]);

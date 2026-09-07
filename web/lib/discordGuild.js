@@ -304,7 +304,7 @@ export async function syncCharacterNickname(discordUserId, characterName) {
   if (!config?.nicknameSyncEnabled) return;
   // Gated here rather than at the six call sites: "Play from the web" exists so
   // that nothing on Discord says which character this account is, and a
-  // nickname is the loudest thing that could (docs/systemdocs/HALL.md §6).
+  // nickname is the loudest thing that could (docs/systemdocs/CHAT.md §6).
   const hidden = await prisma.character.findFirst({
     where: { discordUserId, status: "ALIVE", webOnly: true },
     select: { id: true },
@@ -445,7 +445,7 @@ export async function syncCharacterNarrowcastAccess(characterId) {
   });
   if (!character?.discordUserId) return;
   // "Play from the web" holds this account out of every channel, narrowcast
-  // included (docs/systemdocs/HALL.md §6).
+  // included (docs/systemdocs/CHAT.md §6).
   if (character.webOnly) return;
 
   const [ctx, config] = await Promise.all([

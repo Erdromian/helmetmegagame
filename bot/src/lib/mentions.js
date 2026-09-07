@@ -61,7 +61,11 @@ function messageLink(guildId, channelId, messageId) {
 // private thread the target hasn't joined would otherwise leak the room's
 // content to them, and a DirectMessage row outlives the ❌ that deletes the
 // message it quoted.
-async function notifyMentioned(client, character, context, link) {
+//
+// `placeKey` is the Chat place the message was filed under
+// (db/lib/placeKey.js). It rides in the row's meta so the player's Chat pane
+// can open that place; the desk never shows the row (web/lib/dmSources.js).
+async function notifyMentioned(client, character, context, link, { placeKey = null } = {}) {
   const place = context.locationName ?? context.zoneName ?? null;
   const where = context.threadName
     ? `${place ?? "somewhere"} · ${context.threadName}`
@@ -69,7 +73,10 @@ async function notifyMentioned(client, character, context, link) {
 
   const user = await client.users.fetch(character.discordUserId).catch(() => null);
   if (!user) return;
-  await sendDm(user, `» *You were mentioned in ${where}.* ‡\n${link}`, { source: "system_notice" }).catch(() => {});
+  await sendDm(user, `» *You were mentioned in ${where}.* ‡\n${link}`, {
+    source: "mention",
+    meta: { placeKey, where },
+  }).catch(() => {});
   // And a browser notification, for a player whose /play tab is closed. Never
   // in front of the DM and never allowed to affect it: an unconfigured
   // deployment is a no-op and every failure is swallowed (db/lib/webPush.js).

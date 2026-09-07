@@ -15,8 +15,8 @@ export default function DeskInboxCounts({ rows, rowsAsOfMs }) {
   );
   return (
     <>
-      {unread > 0 && <span className="chip text-xs text-muted">{unread} unread</span>}
-      {awaiting > 0 && <span className="chip text-xs text-muted">{awaiting} awaiting</span>}
+      {unread > 0 && <span className="chip chip-quiet">{unread} unread</span>}
+      {awaiting > 0 && <span className="chip chip-quiet">{awaiting} awaiting</span>}
     </>
   );
 }

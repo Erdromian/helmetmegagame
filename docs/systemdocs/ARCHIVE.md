@@ -22,7 +22,7 @@ interleave chronologically and the transcript reads as a diary rather than a
 chat log with no context: `TURN_START` (the chapter divider, written in
 `advanceTurn` where the turn is created rather than in `runSideEffects`, so a
 failed announcement can't leave two days with no boundary — **one row per zone**
-since phase 4 of the Hall, each with `placeKey: zone:<id>`, so every zone's feed
+since phase 4 of Chat, each with `placeKey: zone:<id>`, so every zone's feed
 on `/play` carries the day line; the transcript still draws one divider, since
 it keys on the day and never renders a `TURN_START` as a row), `CHARACTER_CREATED`,
 `DEATH`, `DESIRE_FULFILLED`, `LIFEWEB`, and `TRAVEL`
@@ -57,9 +57,9 @@ Five things about it are load-bearing:
   intercom, a staged public declaration. Those are `MESSAGE` rows with no
   character and `channelKind: "scene"`, written by
   `db/lib/scene.js#sceneLine` **beside** the Discord post rather than instead
-  of it (HALL.md §2). They carry the plain sentence with no `-#` prefix: that
+  of it (CHAT.md §2). They carry the plain sentence with no `-#` prefix: that
   is Discord's rendering of subtext, and `/play` draws a SYSTEM row as
-  `.hall-subtext` on its own. The outbox never posts one — it handles `WEB`
+  `.chat-subtext` on its own. The outbox never posts one — it handles `WEB`
   rows only — so a scene line can never be echoed back into the channel it
   came from.
 - **Restart Game keeps the table.** Every game is a `Game` row (`number`,

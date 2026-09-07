@@ -18,6 +18,7 @@ import {
   threatBySlug,
   optInName,
   optInWhitelisted,
+  PARTIES,
 } from "@/lib/threats";
 import { PLAYER_ROLE_ID, LEADER_WHITELIST_ROLE_ID } from "@lifeweb/db/lib/roleIds";
 import { roleCapacity, seatHolderStatuses } from "@lifeweb/db/lib/roleCapacity";
@@ -35,6 +36,12 @@ import EndTurnButton from "@/app/(app)/gm/dev/EndTurnButton";
 import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
 import ThreatAssignmentsTable from "@/app/(app)/gm/dev/threats/ThreatAssignmentsTable";
 import ThreatRosterTable from "@/app/(app)/gm/dev/threats/ThreatRosterTable";
+import ObjectivesPanel from "@/app/(app)/gm/dev/threats/ObjectivesPanel";
+import RitesPanel from "@/app/(app)/gm/dev/threats/RitesPanel";
+import { RITES, riteByKey } from "@lifeweb/db/lib/rites";
+import { ensureRiteWords } from "@lifeweb/db/lib/riteWords";
+import { listObjectives, locationEligible, membersByParty } from "@lifeweb/db/lib/objectives";
+import { kindsForParty, OBJECTIVE_WEIGHTS, PARTY_DEFAULTS, INQUISITOR_OR_BARON_ROLE_SLUGS } from "@lifeweb/db/lib/objectiveKinds";
 import { effectivePlayerCount, GAME_STATE_CREATE } from "@lifeweb/db/lib/gameState";
 import GameControls from "./GameControls";
 import ConfigForm from "./ConfigForm";
@@ -206,6 +213,12 @@ export default async function DevPanelPage({ searchParams }) {
   let spawnLocations = [];
   let seatRows = [];
   let pendingSpawns = [];
+  let riteWordRows = [];
+  let riteAttemptRows = [];
+  // The Objectives cards under the roster (THREATS.md §6a).
+  let objectiveParties = [];
+  let objectiveCharacters = [];
+  let objectiveLocations = [];
   let lobbyRows = [];
   let draftRows = [];
   let pickableRoles = [];
@@ -387,7 +400,7 @@ export default async function DevPanelPage({ searchParams }) {
       break;
     }
     case "antagonists": {
-      const [heldSeats, offers, members] = await Promise.all([
+      const [heldSeats, offers, members, objectives, pickableCharacters, allLocations] = await Promise.all([
         // Who holds a seat, read off the seat tag itself. No column to keep in
         // sync, and it stays right however the tag was granted.
         prisma.characterTag.findMany({
@@ -422,6 +435,18 @@ export default async function DevPanelPage({ searchParams }) {
           },
         }),
         listGuildMembers(),
+        listObjectives(prisma, { state }),
+        // The Add row's pickers: living characters, with what the leader and
+        // Inquisitor-or-Baron kinds filter on.
+        prisma.character.findMany({
+          where: { status: "ALIVE" },
+          orderBy: { name: "asc" },
+          select: { id: true, name: true, roleTitle: true, role: { select: { slug: true, requiresWhitelist: true } } },
+        }),
+        prisma.location.findMany({
+          orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+          select: { id: true, name: true, attributes: true, zone: { select: { name: true, kind: true } } },
+        }),
       ]);
 
       const handleFor = new Map(members.map((m) => [m.id, m.globalName || m.username]));
@@ -452,6 +477,83 @@ export default async function DevPanelPage({ searchParams }) {
         roleName: o.role?.name ?? "",
         locationName: o.location?.name ?? null,
         createdAt: o.createdAt.toISOString().slice(0, 16).replace("T", " "),
+      }));
+
+      // One card per party, seated or not. Members come from the same
+      // derivation the reveal uses (db/lib/objectives.js#membersByParty), fed
+      // the seat rows reshaped into characters-with-tags, so the card and the
+      // Game Ended post can never disagree about who is in a party. Everything
+      // is serialised flat — the panel is a client component.
+      const seatHolders = new Map();
+      for (const row of heldSeats) {
+        if (!row.character) continue;
+        const holder = seatHolders.get(row.character.id) ?? { id: row.character.id, name: row.character.name, tags: [] };
+        holder.tags.push({ tag: { slug: row.tag.slug } });
+        seatHolders.set(row.character.id, holder);
+      }
+      // The Thanati's rites, read-only (RitesPanel.js): this game's words —
+      // rolled here if nothing has asked for them yet — and the attempts in
+      // flight or lately finished, with who chanted.
+      const [riteWords, attempts] = await Promise.all([
+        ensureRiteWords(prisma),
+        prisma.riteAttempt.findMany({
+          where: { OR: [{ status: { in: ["OPEN", "READY"] } }, { firedAt: { not: null } }] },
+          orderBy: { openedAt: "desc" },
+          take: 40,
+          include: { chants: { select: { characterId: true, characterName: true } } },
+        }),
+      ]);
+      riteWordRows = RITES.map((r) => ({ key: r.key, name: r.name, minChanters: r.minChanters, phrase: riteWords[r.key] ?? "" }));
+      const stamp = (d) => (d ? d.toISOString().slice(0, 16).replace("T", " ") : null);
+      riteAttemptRows = attempts.map((a) => ({
+        id: a.id,
+        riteName: riteByKey(a.riteKey)?.name ?? a.riteKey,
+        roomName: a.roomName,
+        status: a.status,
+        chanters: [...new Map(a.chants.map((c) => [c.characterId, c.characterName])).values()],
+        openedAt: stamp(a.openedAt),
+        firesAt: stamp(a.firesAt),
+        firedAt: stamp(a.firedAt),
+      }));
+
+      const partyMembers = membersByParty([...seatHolders.values()]);
+      objectiveParties = PARTIES.map((party) => {
+        return {
+          key: party.key,
+          name: party.name,
+          members: (partyMembers.get(party.key) ?? []).map(({ name, seat }) => ({ name, seat })),
+          objectives: objectives
+            .filter((o) => o.partyKey === party.key)
+            .map((o) => ({
+              id: o.id,
+              description: o.description,
+              weight: o.weight,
+              done: o.done,
+              source: o.source,
+              scripted: o.scripted,
+              placeholder: o.placeholder,
+            })),
+          kinds: kindsForParty(party.key).map((k) => ({
+            key: k.key,
+            pick: k.pick,
+            target: k.target,
+            defaultValue: k.defaultValue ?? null,
+          })),
+          hasStandardSet: Boolean(PARTY_DEFAULTS[party.key]?.length),
+        };
+      });
+      objectiveCharacters = pickableCharacters.map((c) => ({
+        id: c.id,
+        name: c.name,
+        roleTitle: c.roleTitle,
+        leader: Boolean(c.role?.requiresWhitelist),
+        inquisitorOrBaron: INQUISITOR_OR_BARON_ROLE_SLUGS.has(c.role?.slug),
+      }));
+      // Grouped here with the same helper Bulk move uses, so the client only
+      // renders optgroups.
+      objectiveLocations = groupLocationsByZone(allLocations.filter(locationEligible)).map((g) => ({
+        zoneName: g.zoneName ?? "",
+        locations: g.locations.map((l) => ({ id: l.id, name: l.name })),
       }));
       break;
     }
@@ -911,6 +1013,14 @@ export default async function DevPanelPage({ searchParams }) {
                 pending={pendingSpawns}
                 threats={ASSIGNABLE_SUMMARY}
               />
+              <ObjectivesPanel
+                parties={objectiveParties}
+                characters={objectiveCharacters}
+                locations={objectiveLocations}
+                weights={OBJECTIVE_WEIGHTS}
+                ended={state.phase === "ENDED"}
+              />
+              <RitesPanel words={riteWordRows} attempts={riteAttemptRows} />
             </section>
           ) : null}
 

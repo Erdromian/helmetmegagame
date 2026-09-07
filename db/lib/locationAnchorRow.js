@@ -16,7 +16,7 @@
 // change it there.
 
 // The LABELS and the predicates live in db/lib/placeAffordances.js, so the
-// anchor and the Hall's place panel cannot drift about what a place offers.
+// anchor and Chat's place panel cannot drift about what a place offers.
 // What is left here is Discord's shape: rows, styles and the 5-per-row cap.
 const {
   GO,

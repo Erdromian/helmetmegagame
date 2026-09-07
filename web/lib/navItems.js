@@ -76,7 +76,7 @@ async function loadUnreadConversationCount(discordUserId) {
 }
 
 export async function loadNavItems(discordUserId) {
-  const [{ isGm: gm }, hasMortusTag, hasLicenceTag, config, pastGames] = await Promise.all([
+  const [{ isGm: gm }, hasMortusTag, hasLicenceTag, config, gameConfig, pastGames] = await Promise.all([
     getGmSession(),
     // The Lifeweb's Blood level is a secret the Mortii keep — everyone else
     // only gets the vague public omen line in the turn announcement (see
@@ -90,6 +90,8 @@ export async function loadNavItems(discordUserId) {
       where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MERCHANT_LICENSE_SLUG } },
     }),
     prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
+    // Chat switch (CHAT.md §5). Presentation here; /play enforces it.
+    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true } }),
     // A finished past game is everyone's to read, whatever the current one is.
     prisma.game.count({ where: { endedAt: { not: null } } }),
   ]);
@@ -98,9 +100,12 @@ export async function loadNavItems(discordUserId) {
   // Only a GM has a per-GM read cursor to speak of; a player's own DM history
   // isn't what this badge is for.
   const unreadCount = gm ? await loadUnreadConversationCount(discordUserId) : 0;
-  const baseNav = (gm ? GM_NAV : PLAYER_NAV).map((item) =>
-    item.href === "/gm/players" && unreadCount > 0 ? { ...item, badge: unreadCount } : item,
-  );
+  const playEnabled = gameConfig?.playPanelEnabled ?? true;
+  const baseNav = (gm ? GM_NAV : PLAYER_NAV)
+    .filter((item) => playEnabled || item.href !== "/play")
+    .map((item) =>
+      item.href === "/gm/players" && unreadCount > 0 ? { ...item, badge: unreadCount } : item,
+    );
   const withLifeweb = hasMortus ? [...baseNav, LIFEWEB_NAV_ITEM] : baseNav;
   // GMs always have the Archive; players only once it's opened. The page
   // re-checks — this is presentation, that is enforcement, same posture as

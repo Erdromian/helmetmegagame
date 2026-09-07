@@ -8,9 +8,9 @@ import { noteTyping } from "@/app/(app)/play/typingStore";
 import { getCharacterScene } from "./actions";
 
 // The Scene tab: what is being said where this character is standing, live, in
-// the inspector column (docs/systemdocs/HALL.md §8).
+// the inspector column (docs/systemdocs/CHAT.md §8).
 //
-// It is the Hall's own `Feed` — not a GM-flavoured copy of it. The runs, the
+// It is Chat's own `Feed` — not a GM-flavoured copy of it. The runs, the
 // faces, the subtext lines, the `-#`, the tinted speech and the typing line all
 // come out identically, which is the whole point: a GM reading a scene should
 // be reading the same page the players are, not a transcript of it.
@@ -56,7 +56,7 @@ export default function SceneTab({ characterId }) {
   }, [characterId]);
 
   // What was said before now, then the stream for what happens next — the same
-  // two halves the Hall uses, and in the same order.
+  // two halves Chat uses, and in the same order.
   useEffect(() => {
     if (!selected) return undefined;
     let cancelled = false;
@@ -132,7 +132,7 @@ export default function SceneTab({ characterId }) {
           </button>
         ))}
       </div>
-      <div className="hall-embed">
+      <div className="chat-embed">
         <Feed place={place} self={SELF} readOnly />
       </div>
     </div>

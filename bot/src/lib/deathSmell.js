@@ -74,7 +74,7 @@ async function runDeathSmell(prisma) {
     } catch (err) {
       console.error(`Death smell failed for ${loc.name}:`, err.message ?? err);
     }
-    // Beside the post: the Hall shows the same smell as subtext.
+    // Beside the post: Chat shows the same smell as subtext.
     await sceneLineAt(prisma, { locationId: loc.id, text: SMELL });
   }
   return posted;

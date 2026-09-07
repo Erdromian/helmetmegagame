@@ -56,7 +56,7 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
   if (!data) return null;
   if (!data.ok) {
     return (
-      <div className="hall-members">
+      <div className="chat-members">
         <FormError>{data.error}</FormError>
       </div>
     );
@@ -66,10 +66,10 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
   const candidates = data.candidates ?? [];
 
   return (
-    <div className="hall-members">
+    <div className="chat-members">
       <div className="chip-row">
         {data.members.map((person) => (
-          <span key={person.characterId} className="chip hall-member">
+          <span key={person.characterId} className="chip chat-member">
             <CharacterAvatar
               characterId={person.characterId}
               name={person.name}
@@ -97,7 +97,7 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
       </div>
 
       {picking && (
-        <div className="chip-row hall-member-picker">
+        <div className="chip-row chat-member-picker">
           {candidates.length === 0 ? (
             <span className="text-sm text-muted">Nobody else is standing here. ‡</span>
           ) : (

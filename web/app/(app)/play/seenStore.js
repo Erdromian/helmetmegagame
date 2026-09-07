@@ -11,9 +11,11 @@ import { useSyncExternalStore } from "react";
 // which react-hooks/set-state-in-effect makes an error here anyway.
 //
 // Every read and write is wrapped: a private window, blocked site data or a
-// thumbnail capture can throw on the accessor itself, and a Hall with no dots
-// is still a Hall.
+// thumbnail capture can throw on the accessor itself, and a Chat with no dots
+// is still a Chat.
 
+// The old name survives in the key on purpose: renaming it would forget
+// every player's seen marks. A stored key is matched on, not read.
 const PREFIX = "hall:seen:";
 const listeners = new Set();
 
@@ -90,7 +92,7 @@ export function peekSeen(placeKey) {
   }
 }
 
-// A browser that has never opened the Hall has no marks at all, and every
+// A browser that has never opened Chat has no marks at all, and every
 // place it can hear would otherwise light up its dot on the first paint —
 // telling a new player that a week of somebody else's conversation is theirs
 // to catch up on. So a first visit starts caught up: every place is marked at

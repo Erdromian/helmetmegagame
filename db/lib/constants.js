@@ -59,6 +59,12 @@ const SURGICAL_EQUIPMENT_SLUG = "surgical-equipment";
 const TORTURING_EQUIPMENT_SLUG = "torturing-equipment";
 const TORTURER_SLUG = "torturer";
 
+// Mutilate's gate: any ONE of the three shows the button (docs/systemdocs/
+// TORTURE.md §6). Three rather than one because there is no single "would cut
+// pieces off somebody" tag — Cruel is the personality, Torturer is the trade,
+// and the Thanati are the ones who want the pieces.
+const MUTILATE_GATE_SLUGS = Object.freeze(["cruel", "torturer", "thanati"]);
+
 // Holding one puts a Sound Trumpet button on your own Character page, and
 // sounding it is heard across the Location graph (db/lib/trumpet.js). Held,
 // not equipped: you pick a trumpet up to blow it.
@@ -165,6 +171,7 @@ module.exports = {
   SURGICAL_EQUIPMENT_SLUG,
   TORTURING_EQUIPMENT_SLUG,
   TORTURER_SLUG,
+  MUTILATE_GATE_SLUGS,
   TRUMPET_SLUG,
   HUMAN_FLESH_SLUG,
   ENGRAVE_RESOURCE_COST,

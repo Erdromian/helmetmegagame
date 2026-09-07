@@ -102,7 +102,7 @@ const FIELDS = [
     label: "Desire slots",
   },
   {
-    key: "desireSlotLockTurns", type: "int", group: "desires", default: 2, min: 0, max: 20,
+    key: "desireSlotLockTurns", type: "int", group: "desires", default: 1, min: 0, max: 20,
     label: "Desire slot lock",
   },
 
@@ -139,6 +139,10 @@ const FIELDS = [
     key: "archiveTravelEvents", type: "bool", group: "features", default: false,
     label: "Archive travel events",
   },
+  {
+    key: "playPanelEnabled", type: "bool", group: "features", default: true,
+    label: "Play page",
+  },
 
   // --- Discord ---------------------------------------------------------------
   {
@@ -160,7 +164,7 @@ const INTERNAL_KEYS = [
   "restInvalidCount",
   "restInvalidWindowStart",
   "restBreakerOpenUntil",
-  // The Play page (HALL.md §7): the two wipe watermarks, one per cadence.
+  // The Play page (CHAT.md §7): the two wipe watermarks, one per cadence.
   "feedWipeSeq",
   "feedWipeSummarySeq",
   // Not a knob on purpose. The wipe is how the game works, so there is no

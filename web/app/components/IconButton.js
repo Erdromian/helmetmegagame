@@ -12,7 +12,7 @@ import Tooltip from "./Tooltip";
 // tooltip is just the label, which is what every older call site wants.
 export default function IconButton({ icon: Icon, label, tooltip = null, onClick, disabled = false, ...rest }) {
   return (
-    <Tooltip text={tooltip ?? label}>
+    <Tooltip text={tooltip ?? label} pinnable={false}>
       <button
         type="button"
         className="icon-btn"

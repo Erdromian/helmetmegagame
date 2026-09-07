@@ -45,7 +45,7 @@ const BELL_LINE = "You hear a church bell ringing.";
 
 // What somebody types to pull the rope. The word is a speed bump, not a
 // password — case and stray spaces are forgiven — and it lives here rather
-// than in the bot's modal builder so the Hall's confirm asks for the same one.
+// than in the bot's modal builder so Chat's confirm asks for the same one.
 const RING_WORD = "RING";
 
 function bellWordMatches(typed) {

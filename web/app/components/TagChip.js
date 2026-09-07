@@ -7,6 +7,7 @@ import ChipLabel from "./ChipLabel";
 import DesireUnlocks from "./DesireUnlocks";
 import ChipText from "./ChipText";
 import HoverCard from "./HoverCard";
+import PaperSheet from "./PaperSheet";
 
 // Tag.expiresInto / Tag.removesInto as a {tag:…} token string for ChipText to
 // resolve — the same machinery the description below already goes through,
@@ -103,7 +104,11 @@ export default function TagChip({
           {tag:…} in it can be a real, hoverable TagChip — pinning the panel
           makes it reachable. Nesting stops there: the nested chip renders its
           own description without the flag (see ChipText.js). */}
-      {tag.description && <ChipText text={tag.description} as="p" inTooltip />}
+      {tag.paper ? (
+        <PaperSheet paper={tag.paper} />
+      ) : (
+        tag.description && <ChipText text={tag.description} as="p" inTooltip />
+      )}
       {consumeHint && <p className="text-accent">{consumeHint}</p>}
       {typeof onConsume === "function" && (
         <button type="button" className="btn-quiet" onClick={onConsume}>

@@ -125,7 +125,7 @@ function isTupperChannel(channel) {
 // instead.
 //
 // A top-level LOCATION channel is deliberately not one of them any more (the
-// Hall's decision 5, 2026-09-06). A Location channel is the street's scenery
+// Chat's decision 5, 2026-09-06). A Location channel is the street's scenery
 // — arrivals, smells, the turret, the noticeboard, the turn line — and its
 // members no longer hold Send there (db/lib/zoneChannelSpec.js). Talk happens
 // in a Room thread, a Conversation or the zone's #summary, all of which are

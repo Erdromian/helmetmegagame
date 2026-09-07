@@ -1,4 +1,4 @@
-// Moved into @lifeweb/db (db/lib/moveConfirm.js) once the Hall's Move dialog
+// Moved into @lifeweb/db (db/lib/moveConfirm.js) once Chat's Move dialog
 // (web/app/(app)/play/actions.js) needed the same confirm step the #turns
 // modal runs — a filed-but-unconfirmed Move stays PENDING_TYPE and never
 // reaches the staged push. Kept as a thin shim so the bot's existing

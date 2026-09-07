@@ -5,7 +5,7 @@ import MarkdownContent from "./MarkdownContent";
 import GmAvatar from "./GmAvatar";
 import CharacterAvatar from "./CharacterAvatar";
 import useNowTick from "./useNowTick";
-import { AUTOMATED_EFFECT_SOURCES } from "@/lib/dmSources";
+import { AUTOMATED_EFFECT_SOURCES, MENTION_SOURCE } from "@/lib/dmSources";
 import { dayKey, dayLabel, clockLabel, formatDmTime, fullTimestamp } from "@/lib/dmTime";
 
 // The one shared thread — the player desk's conversation pane and the
@@ -61,6 +61,30 @@ function isEffect(m) {
   return !isEmbed(m) && m.direction === "OUTBOUND" && AUTOMATED_EFFECT_SOURCES.includes(m.source);
 }
 
+// A mention relay, read from the player's chair. The row's content is the
+// Discord DM (a line and a Discord link); here the link is the Chat place
+// the ping happened in, since that is where this reader already is. A row
+// with no placeKey (an unmapped channel, or older than the meta) falls back
+// to the content as written. The desk never renders one: the GM chair's
+// filter drops the source (web/lib/dmThread.js#withoutDmNoise).
+function isMention(m) {
+  return m.source === MENTION_SOURCE;
+}
+
+function MentionBody({ message }) {
+  const where = message.meta?.where ?? null;
+  const placeKey = message.meta?.placeKey ?? null;
+  if (!placeKey) return <MarkdownContent content={message.content} />;
+  return (
+    <p className="dm-mention">
+      <em>{where ? `You were mentioned in ${where}. ‡` : "You were mentioned. ‡"}</em>{" "}
+      <a className="dm-mention-open" href={`/play#${encodeURIComponent(placeKey)}`}>
+        Open
+      </a>
+    </p>
+  );
+}
+
 function LetterBody({ message }) {
   const meta = message.meta ?? {};
   const text = (meta.letterBody ?? message.content ?? "").trim();
@@ -96,7 +120,7 @@ function getScrollEl(el) {
 
 // Turns the flat message list into what's drawn: day dividers, the NEW line,
 // collapsed effect runs, and rows tagged with whether they start a run.
-function buildItems(messages, newSinceMs, now) {
+function buildItems(messages, newSinceMs, now, newDirection) {
   const items = [];
   let lastDay = null;
   let lastSpeaker = null;
@@ -121,7 +145,7 @@ function buildItems(messages, newSinceMs, now) {
       lastDay = day;
       lastSpeaker = null;
     }
-    if (!newDrawn && newSinceMs != null && m.direction === "INBOUND" && ms > newSinceMs) {
+    if (!newDrawn && newSinceMs != null && m.direction === newDirection && ms > newSinceMs) {
       flushEffects();
       items.push({ type: "new", key: "new" });
       newDrawn = true;
@@ -228,14 +252,25 @@ function CollapsedGroup({ messages }) {
   );
 }
 
-function Row({ item, gmProfileById, character, now }) {
+// What a player sees on the game's side of the conversation: every outbound
+// row, whoever typed it, wears this one face. The desk sees GMs by name; the
+// player sees Bascinet (CHAT.md §2b).
+const BASCINET_PROFILE = Object.freeze({ username: "Bascinet", avatarUrl: null });
+
+function Row({ item, gmProfileById, character, now, perspective }) {
   const { message, head, ms } = item;
   const outbound = message.direction === "OUTBOUND";
-  const profile = outbound && message.authorDiscordUserId ? gmProfileById.get(message.authorDiscordUserId) ?? null : null;
+  const profile =
+    outbound && message.authorDiscordUserId
+      ? (gmProfileById.get(message.authorDiscordUserId) ?? null)
+      : outbound && perspective === "player"
+        ? BASCINET_PROFILE
+        : null;
   const name = outbound ? (message.authorDiscordUserId ? profile?.username ?? "GM" : "Bascinet") : character?.name ?? "Player";
   const sourceLabel = outbound ? SOURCE_LABELS[message.source] : null;
   const embed = isEmbed(message);
   const letter = isLetter(message);
+  const mention = perspective === "player" && isMention(message);
 
   return (
     <div
@@ -258,13 +293,15 @@ function Row({ item, gmProfileById, character, now }) {
         {head && (
           <div className="dm-row-meta">
             <span className="dm-row-name">{name}</span>
-            {sourceLabel && <span className="chip text-xs text-muted">{sourceLabel}</span>}
+            {sourceLabel && <span className="chip chip-quiet">{sourceLabel}</span>}
             <time className="dm-row-time mono" title={fullTimestamp(ms)}>
               {formatDmTime(ms, now)}
             </time>
           </div>
         )}
-        {letter ? (
+        {mention ? (
+          <MentionBody message={message} />
+        ) : letter ? (
           <LetterBody message={message} />
         ) : embed ? (
           <EmbedBody message={message} />
@@ -285,6 +322,12 @@ export default function DmThread({
   character = null,
   newSinceMs = null,
   myDiscordUserId = null,
+  // Which chair the reader is in. The desk is "gm": inbound rows are the
+  // other person's, the NEW line marks the first unread inbound, and the
+  // reader's own send is an outbound row they authored. Chat's Bascinet
+  // pane is "player": the same rows, with every one of those the other way
+  // round. Nothing else in the renderer knows which is which.
+  perspective = "gm",
 }) {
   const containerRef = useRef(null);
   const sentinelRef = useRef(null);
@@ -305,7 +348,11 @@ export default function DmThread({
 
   const now = useNowTick(60_000);
   const gmProfileById = useMemo(() => new Map(gmProfiles.map((p) => [p.discordUserId, p])), [gmProfiles]);
-  const items = useMemo(() => buildItems(messages, newSince, now), [messages, newSince, now]);
+  const newDirection = perspective === "player" ? "OUTBOUND" : "INBOUND";
+  const items = useMemo(
+    () => buildItems(messages, newSince, now, newDirection),
+    [messages, newSince, now, newDirection],
+  );
 
   const firstId = messages[0]?.id ?? null;
   const lastId = messages[messages.length - 1]?.id ?? null;
@@ -330,7 +377,11 @@ export default function DmThread({
     const wasAppend = lastId && lastId !== prevLastIdRef.current;
     const newest = messages[messages.length - 1];
     const mine =
-      newest && (newest.pending || (newest.direction === "OUTBOUND" && newest.authorDiscordUserId === myDiscordUserId));
+      newest &&
+      (newest.pending ||
+        (perspective === "player"
+          ? newest.direction === "INBOUND"
+          : newest.direction === "OUTBOUND" && newest.authorDiscordUserId === myDiscordUserId));
 
     if (wasPrepend && anchorHeightRef.current != null) {
       scrollEl.scrollTop = scrollEl.scrollHeight - anchorHeightRef.current;
@@ -426,7 +477,16 @@ export default function DmThread({
           case "collapsed":
             return <CollapsedGroup key={item.key} messages={item.messages} />;
           default:
-            return <Row key={item.key} item={item} gmProfileById={gmProfileById} character={character} now={now} />;
+            return (
+              <Row
+                key={item.key}
+                item={item}
+                gmProfileById={gmProfileById}
+                character={character}
+                now={now}
+                perspective={perspective}
+              />
+            );
         }
       })}
       {messages.length === 0 && <p className="text-sm text-muted">No messages yet.</p>}

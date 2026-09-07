@@ -8,6 +8,7 @@ import RequestDialog from "./RequestDialog";
 import RichText from "./RichText";
 import DesireCatalog, { cooldownLabel } from "./DesireCatalog";
 import { claimDesire } from "../(app)/character/requestActions";
+import { lockedSlotLabel } from "@/lib/desireLabels";
 
 // The one help tooltip, on the heading. It used to be two — flavour text
 // here and the rules behind a "How this works" line — and the flavour said
@@ -114,7 +115,7 @@ export default function DesirePanel({
                   </p>
                 )}
                 {slot.lockedUntilTurn != null ? (
-                  <EmptyState>{`Opens on turn ${slot.lockedUntilTurn}`}</EmptyState>
+                  <EmptyState>{lockedSlotLabel(slot)}</EmptyState>
                 ) : (
                   <button
                     type="button"

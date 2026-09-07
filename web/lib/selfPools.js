@@ -33,21 +33,21 @@ import {
 // Everything a surface needs to draw a character's OWN state, the way
 // web/lib/peoplePools.js does for the people standing near them. It lived
 // inside web/app/(app)/character/page.js while the sheet was the only place
-// that drew it; the Hall's YOU column is the second.
+// that drew it; Chat's YOU column is the second.
 //
 // Every gate is evaluated HERE, server-side. The client never runs the gate
 // logic and never receives a hidden template.
 //
 // `character` needs { id, tags: [{ tagId, tag }], role: { slug } }.
 //
-// `withCatalog: false` is the Hall's ask: the picker is closed on almost
+// `withCatalog: false` is Chat's ask: the picker is closed on almost
 // every page load, and the evaluated catalog is ~271 templates. The slot half
 // — which slots are open, what was last claimed in each — costs one query, so
-// that is what the first paint carries. The Hall fetches the other half
+// that is what the first paint carries. Chat fetches the other half
 // through a server action the first time somebody opens the picker.
 export async function loadDesireView(character, { openTurn, gameConfig, withCatalog = true } = {}) {
   const desireSlots = gameConfig?.desireSlots ?? 2;
-  const desireSlotLockTurns = gameConfig?.desireSlotLockTurns ?? 2;
+  const desireSlotLockTurns = gameConfig?.desireSlotLockTurns ?? 1;
   const heldTags = (character.tags ?? []).map((ct) => ct.tag);
   const heldDesireTagIds = new Set((character.tags ?? []).map((ct) => ct.tagId));
   const openTurnNumber = openTurn?.number ?? 0;
@@ -150,7 +150,7 @@ export async function loadDesireView(character, { openTurn, gameConfig, withCata
 // Everything the paperwork dialogs need (docs/systemdocs/PAPERWORK.md, §Bird),
 // as the exact props RequestActionsProvider takes. It was written inline in
 // web/app/(app)/character/page.js while the sheet was the only surface that
-// opened those dialogs; the Hall's composer is the second, and a second copy
+// opened those dialogs; Chat's composer is the second, and a second copy
 // of these gates would be a second answer to "can this character write".
 //
 // `character` needs { id, tags: [{ tagId, quantity, tag }], location:
@@ -267,7 +267,7 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
   };
 }
 
-// ---- The faction, for the Hall's Faction panel ------------------------------
+// ---- The faction, for Chat's Faction panel ------------------------------
 //
 // The same loaders /faction runs — web/lib/factionView.js#loadFaction and the
 // Leader/Treasurer test in db/lib/factionPermissions.js — so the two surfaces

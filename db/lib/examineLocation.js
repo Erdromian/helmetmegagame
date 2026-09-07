@@ -1,6 +1,6 @@
 // The Examine readout: what can be worked here, what the place IS, and what
 // the ways out are doing. One composer, so the anchor's Examine button and
-// the Hall's Examine dialog answer the same three questions in the same order.
+// Chat's Examine dialog answer the same three questions in the same order.
 //
 // Information only — it files nothing, costs nothing, and is deliberately
 // readable by anyone standing here whether or not they hold a Laboring tag.

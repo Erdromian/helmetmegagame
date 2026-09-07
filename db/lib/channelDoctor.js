@@ -286,7 +286,7 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
       label: `Zone: ${zone.name}`,
       // A "web only" character holds no Discord access at all, so they are
       // not in this set and the doctor takes the role back off them if they
-      // somehow still wear it (docs/systemdocs/HALL.md §6).
+      // somehow still wear it (docs/systemdocs/CHAT.md §6).
       shouldHave: alive.filter((c) => c.zoneId === zone.id && !c.webOnly).map((c) => c.discordUserId),
       members,
       report,

@@ -116,7 +116,7 @@ async function runWhisperPoll(prisma) {
     // Rolled ONCE and handed to both sinks. db/lib/shout.js deliberately
     // re-rolls its static per call, but that only changes which characters are
     // lost; re-rolling here would pick different FRAGMENTS for Discord and for
-    // the Hall, which is two different leaks rather than one heard twice.
+    // Chat, which is two different leaks rather than one heard twice.
     const leak = leakLine(heardRows.map((row) => row.content));
     const quoted = leak ? [leak] : [];
 

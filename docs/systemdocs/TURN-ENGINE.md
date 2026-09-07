@@ -545,7 +545,7 @@ Surfaced to players on the `#turns` announcement (`Moves must be sent by
 <t:C:t>`, added by `buildTurnAnnouncement` when `hasLock`), in `/character`'s
 "This turn" row, and in the handbook.
 
-The Hall's turn card counts to the **cutoff**, not to the turn's end: `myMove`
+Chat's turn card counts to the **cutoff**, not to the turn's end: `myMove`
 sends `moveWindow(...).cutoffAt` as `closesAt`, and `TurnCard.js` renders
 `closes in N h` from it, or `locked` once the window has shut. Counting to
 `endsAt` told a player they had three hours they did not have.
@@ -608,7 +608,7 @@ text and leaving it `PENDING_TYPE` would still have cost the player the turn
 silently.
 
 The Discord `#turns` console has no Edit twin yet. A player who filed in the
-Hall can still edit in the Hall; a player who filed in Discord can also edit on
+Chat can still edit in Chat; a player who filed in Discord can also edit on
 the web, but not the other way round. ‡
 
 `web/lib/auditNarrative.js` has no `move_edited` entry, so `/gm/audit` renders

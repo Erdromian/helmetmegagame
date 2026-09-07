@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
-import { prisma } from "@lifeweb/db";
+import { prisma, startingTagSlugs as parseStartingTagSlugs } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import PageShell, { PageHeader } from "../../components/PageShell";
@@ -11,6 +11,8 @@ import { getHandbookBody, HANDBOOK_KEY } from "@/lib/handbook";
 import { catalogTags } from "@/lib/tagCatalog";
 import { redactWithheldRecipes } from "@/lib/recipeCatalog";
 import { buildSkillAncestry, satisfiedSkillIds } from "@/lib/healRequests";
+import { GRIMOIRE_DOCUMENT_KEY, expandGrimoire } from "@/lib/grimoire";
+import { ensureRiteWords } from "@lifeweb/db/lib/riteWords";
 
 export const metadata = { title: "Documents" };
 
@@ -26,7 +28,7 @@ export default async function DocumentsPage() {
   const { session, isGm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
 
-  const [documents, characterRow, tagRows] = await Promise.all([
+  const [rawDocuments, characterRow, tagRows] = await Promise.all([
     prisma.document.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.character.findFirst({
       where: { discordUserId: session.discordUserId, status: "ALIVE" },
@@ -63,6 +65,16 @@ export default async function DocumentsPage() {
       },
     }),
   ]);
+
+  const riteWordsCache = rawDocuments.some((d) => d.key === GRIMOIRE_DOCUMENT_KEY)
+    ? await ensureRiteWords(prisma)
+    : null;
+  // The Grimoire is the one document whose text is generated: this game's
+  // Words of the Circle, rolled on first read (web/lib/grimoire.js). Only
+  // composed when the row exists, so a database without it rolls nothing.
+  const documents = rawDocuments.some((d) => d.key === GRIMOIRE_DOCUMENT_KEY)
+    ? rawDocuments.map((d) => expandGrimoire(d, riteWordsCache ?? {}))
+    : rawDocuments;
 
   const character = readerFromCharacter(characterRow);
   const written = documents.filter(isWritten);
@@ -265,7 +277,9 @@ export default async function DocumentsPage() {
   }));
 
   const heldTagIds = (characterRow?.tags ?? []).map((ct) => ct.tagId);
-  const startingTagSlugs = characterRow?.role?.startingTagSlugs ?? [];
+  // Parsed, not raw: the column may carry a count ("obol x5") and catalogTags
+  // matches on a bare slug.
+  const startingTagSlugList = parseStartingTagSlugs(characterRow?.role?.startingTagSlugs ?? []);
   // Everything the reader's character counts as having for a recipe's skill
   // line: held tags plus the tiers they replace, the same ancestry walk the
   // Craft menu's own verdict runs (character/page.js#knownRecipeIds). Null
@@ -279,7 +293,7 @@ export default async function DocumentsPage() {
   // tabs below take the same list, so a withheld ingredient can no more surface
   // in a Tag Catalog hover card than in the Recipes table.
   const tagCatalogList = redactWithheldRecipes(
-    catalogTags(mappedTags, { isGm, heldTagIds, startingTagSlugs }),
+    catalogTags(mappedTags, { isGm, heldTagIds, startingTagSlugs: startingTagSlugList }),
   );
 
   return (

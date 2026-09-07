@@ -253,12 +253,13 @@ you pick the right doc — they are never enough to change code with.
 | [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
 | [`CORPSES.md`](docs/systemdocs/CORPSES.md) | You're touching what a body is — the corpse tag, butchering, Bury or Engrave, the rot clock, the death smell, or an **enforced recipe ingredient** (`requirement.items`) |
 | [`FEAR.md`](docs/systemdocs/FEAR.md) | You're touching the fear dial — the five band tags, what frightens or calms a character, the phobias, Brave / Rough Camper / Outsider / Spelunker, `fearIntensity`, or the nightly fear pass |
-| [`TORTURE.md`](docs/systemdocs/TORTURE.md) | You're touching the Torture button, the torture die and its thresholds, what a broken character reveals, the `TORTURED` fear hit, or the Torturing Equipment kit |
+| [`TORTURE.md`](docs/systemdocs/TORTURE.md) | You're touching the Torture button, the torture die and its thresholds, what a broken character reveals, the `TORTURED` fear hit, the Torturing Equipment kit, or the **Mutilate** button and the body parts it takes |
+| [`THANATI.md`](docs/systemdocs/THANATI.md) | You're touching the cult — the THANATI buttons, Recall Comrades, the hideout and Purchase Gear, Flesh / Dark Inspiration / Black Robes / the Grimoire, or the **rites** (no button: robed, Inspired, ingredients on the floor, say the word), the word roll, the chant hook in `say.js` or the minute sweep. Placeholder until a human doc replaces it |
 | [`LESSONS.md`](docs/systemdocs/LESSONS.md) | You're touching Learn Skill / Teach Skill, the Teaching tags, the Offer handshake (Bind's consent too), or the lesson turn pass |
 | [`CONFESSION.md`](docs/systemdocs/CONFESSION.md) | You're touching Confess, the `psychological` tag flag, who may hear a confession, or the rule that a chaplain is never shown the sin |
 | [`CRAFTING.md`](docs/systemdocs/CRAFTING.md) | You're touching Craft, Destroy, the four tag capability flags (`craftable` / `removable` / `healable` / `teachable`), multi-turn projects, or who pays for a recipe |
 | [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript or `/archive` |
-| [`HALL.md`](docs/systemdocs/HALL.md) | You're touching `/play`, the live feed (`/api/feed`, the SSE hub, the bot's outbox), `ArchiveEntry.seq` / `placeKey`, or the coming "web only" switch |
+| [`CHAT.md`](docs/systemdocs/CHAT.md) | You're touching `/play`, the live feed (`/api/feed`, the SSE hub, the bot's outbox), `ArchiveEntry.seq` / `placeKey`, or the coming "web only" switch |
 | [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents`, `docs/documents.yaml`, `/handbook`, or `docs/handbook.md` |
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
 | [`PORTRAITS.md`](docs/systemdocs/PORTRAITS.md) | You're touching the portrait maker, avatar art, or `Character.avatarData` |
@@ -1044,7 +1045,10 @@ global CLIs. To make one able to build, run, and deploy:
   two live applications to one faction. `ThreatSpawn_pending_unique` is the
   third of these, and the same answer: without it a player could hold two live
   spawn offers (`THREATS.md` §4). `AuditLog_details_trgm_idx` is the fourth,
-  and the reason `/gm/audit`'s text search is not a full-table scan.
+  and the reason `/gm/audit`'s text search is not a full-table scan. The
+  `DirectMessage_notify` trigger (`CHAT.md` §2b) is the fifth — Prisma does
+  not model triggers, so `migrate diff` never mentions it either way, but a
+  hand-written "fix drift" migration must not drop it.
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
   carries `restInvalidCount` / `restInvalidWindowStart` /
   `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the

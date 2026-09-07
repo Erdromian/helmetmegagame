@@ -548,8 +548,8 @@ export async function sendGmBroadcast({ characterIds, message }) {
   });
 }
 
-// The Scene tab: where this character is standing, as a place list the Hall's
-// Feed can draw (docs/systemdocs/HALL.md §8, PLAYER-DESK.md).
+// The Scene tab: where this character is standing, as a place list Chat's
+// Feed can draw (docs/systemdocs/CHAT.md §8, PLAYER-DESK.md).
 //
 // Deliberately NOT a second place-list builder. It asks
 // db/lib/feedAccess.js#placesFor for the GM's OWN list — every place inside

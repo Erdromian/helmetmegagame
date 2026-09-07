@@ -23,7 +23,7 @@ async function announceInRoom(room, character, text, lines = []) {
     console.error(`Room stash announcement failed (${room.name ?? room.discordThreadId}):`, err.message),
   );
 
-  // The Hall's half of the same line (db/lib/scene.js). The require is INSIDE
+  // Chat's half of the same line (db/lib/scene.js). The require is INSIDE
   // the function on purpose: db/index.js reaches this module through carry.js,
   // so a top-level require back would resolve to a half-built exports object.
   // By the time anybody actually announces anything, the barrel is whole.

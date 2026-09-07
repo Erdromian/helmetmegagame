@@ -85,7 +85,7 @@ function RosterTab({ faction, isOfficer, isLeader, meId, run, pending }) {
                 <CharacterLink characterId={c.id} name={c.name} />
                 {c.isLeader ? " (Leader)" : ""}
                 {c.isTreasurer ? " (Treasurer)" : ""}
-                {c.catatonic && <span className="chip text-xs text-muted ml-2">Catatonic</span>}
+                {c.catatonic && <span className="chip chip-quiet ml-2">Catatonic</span>}
               </td>
               <td>{c.roleTitle ?? "—"}</td>
               {isOfficer && <td className="mono">{c.resources} ⬢</td>}

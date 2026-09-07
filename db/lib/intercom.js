@@ -89,7 +89,7 @@ async function broadcastIntercom(prisma, text) {
     }
     // ONE ROW PER ZONE, not one for the broadcast. It used to be a single row
     // written by the Speak handler, which read correctly in /archive and was
-    // invisible in the Hall: a zone feed can only show a row filed against its
+    // invisible in Chat: a zone feed can only show a row filed against its
     // own place key. The @here is Discord's alone — a notification is not part
     // of what was said — and the line already carries its ‡.
     await sceneLineAt(prisma, {

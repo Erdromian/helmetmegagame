@@ -46,7 +46,7 @@ export async function updateCharacterProfile(_prevState, formData) {
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const turnPingOptIn = formData.get("turnPingOptIn") === "on";
-  // "Play from the web" (docs/systemdocs/HALL.md §6). NOT written with the rest
+  // "Play from the web" (docs/systemdocs/CHAT.md §6). NOT written with the rest
   // of the form: flipping it is a burst of Discord work on its own cooldown, so
   // it goes through db/lib/webOnly.js#setWebOnly below and only when the value
   // actually changed — saving the Bio card twice must not spend the cooldown.
@@ -84,7 +84,7 @@ export async function updateCharacterProfile(_prevState, formData) {
   // through to their letter plaque (see "Character proxying" in CLAUDE.md).
   const gameConfig = await prisma.gameConfig.findUnique({
     where: { id: 1 },
-    select: { avatarUploadsEnabled: true },
+    select: { avatarUploadsEnabled: true, playPanelEnabled: true },
   });
   if (gameConfig?.avatarUploadsEnabled && avatar && avatar.size > 0) {
     if (avatar.size > MAX_UPLOAD_BYTES) {
@@ -113,8 +113,16 @@ export async function updateCharacterProfile(_prevState, formData) {
   // rest of the save STANDS — the appearance the player just typed is not
   // thrown away because a cooldown had two minutes left on it.
   let webOnlyError = null;
-  if (webOnly !== character.webOnly) {
-    const flip = await setWebOnly(prisma, character, webOnly);
+  // While Chat is off (GameConfig.playPanelEnabled) the switch is drawn
+  // only for a player who is ALREADY web-only, so they can come back
+  // (AvatarField.js). For everyone else the form carries no value — and a
+  // missing checkbox reads as "off", not "unchanged" — so the field is ignored
+  // outright rather than read: a hand-posted "on" is a hint, not a lock, and
+  // nobody is flipped either way.
+  const playEnabled = gameConfig?.playPanelEnabled !== false;
+  const webOnlyWanted = playEnabled || character.webOnly ? webOnly : false;
+  if (webOnlyWanted !== character.webOnly) {
+    const flip = await setWebOnly(prisma, character, webOnlyWanted);
     if (!flip.ok) {
       webOnlyError = flip.readyAt
         ? `You switched ${flip.minutes} minutes ago. You can switch again at ${clockLabel(

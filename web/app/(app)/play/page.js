@@ -13,22 +13,23 @@ import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import RequestActionsProvider from "@/app/components/RequestActionsProvider";
 import CharacterMentionsProvider from "@/app/components/CharacterMentionsProvider";
-import Hall from "./Hall";
+import Chat from "./Chat";
 import { waitingOnYou, myMove } from "./actions";
 import { loadDesireView, loadLettersView, loadFactionView } from "@/lib/selfPools";
+import { withoutDmNoise } from "@/lib/dmThread";
 import { thingGroups } from "./thingRows";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { MERCHANT_LICENSE_SLUG, DEPOT_LOCATION_SLUG, DEPOT_KEYCARD_SLUG } from "@lifeweb/db";
 
-// /play — the Hall. Three columns on a desktop, one on a phone: everywhere
+// /play — Chat. Three columns on a desktop, one on a phone: everywhere
 // this character can hear on the left, the open scene in the middle, and (in
 // phase 3) the people standing there on the right.
 //
 // The first place's rows are rendered on the server so the page has something
 // to show before any JavaScript runs; every other place is fetched when the
 // reader opens it, and everything after that arrives on the one SSE stream
-// Hall.js holds.
+// Chat.js holds.
 export const dynamic = "force-dynamic";
 
 const HISTORY_ROWS = 100;
@@ -37,9 +38,16 @@ export default async function PlayPage() {
   const viewer = await loadFeedViewer();
   if (!viewer.discordUserId) redirect("/");
 
+  // Chat switch on /gm/dev (GameConfig.playPanelEnabled). GMs bounce too:
+  // a GM watching a scene has the desk's Scene tab, and off means off. The
+  // whole row is read once here; the composer and the aside take theirs off
+  // it below.
+  const gameConfig = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  if (gameConfig && !gameConfig.playPanelEnabled) redirect("/character");
+
   if (!viewer.character && !viewer.gm) {
     return (
-      <div className="hall-body hall-body--empty">
+      <div className="chat-body chat-body--empty">
         <div className="panel">
           <EmptyState>You have no living character. ‡</EmptyState>
         </div>
@@ -52,7 +60,7 @@ export default async function PlayPage() {
 
   if (!first) {
     return (
-      <div className="hall-body hall-body--empty">
+      <div className="chat-body chat-body--empty">
         <div className="panel">
           <EmptyState>You are nowhere yet.</EmptyState>
         </div>
@@ -71,10 +79,7 @@ export default async function PlayPage() {
   const floors = await feedWipeFloors(prisma);
   const floor = floorForPlace(floors, first.placeKey);
 
-  // GameConfig is read out here rather than inside the aside below, because
-  // the composer needs one field off it (tupperAutocorrectEnabled) and a GM
-  // watching a zone has no aside to have loaded it.
-  const [rows, watermark, forcedName, concealment, gameConfig] = await Promise.all([
+  const [rows, watermark, forcedName, concealment] = await Promise.all([
     prisma.archiveEntry.findMany({
       where: { placeKey: first.placeKey, deletedAt: null, seq: seqFilterAbove(floor) },
       orderBy: { seq: "desc" },
@@ -84,7 +89,6 @@ export default async function PlayPage() {
     prisma.archiveEntry.aggregate({ _max: { seq: true } }),
     viewer.character ? loadForcedName(prisma, viewer.character.id) : null,
     viewer.character ? loadConcealment(prisma, viewer.character.id) : null,
-    prisma.gameConfig.findUnique({ where: { id: 1 } }),
   ]);
 
   // The first paint's rows, with ONE `?v=` per character rather than the
@@ -247,6 +251,21 @@ export default async function PlayPage() {
     ? await loadFactionView({ discordUserId: viewer.discordUserId }, viewer.character)
     : null;
 
+  // The newest thing Bascinet said to this player, for the Messages row's
+  // unread dot before the pane has ever been opened (./DmPane.js, CHAT.md
+  // §2b). Through the player chair's noise filter, so a mention relay lights
+  // the dot the way any other word from Bascinet does.
+  const newestDm = viewer.character
+    ? await prisma.directMessage.findFirst({
+        where: withoutDmNoise(
+          { discordUserId: viewer.discordUserId, direction: "OUTBOUND" },
+          { perspective: "player" },
+        ),
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      })
+    : null;
+
   // Is there an instant camera in this character's hands? One slug off the
   // sheet already loaded above (db/lib/photoMint.js#CAMERA_SLUG), so the row
   // action bar can decide whether to draw the 📷 without a second query.
@@ -265,8 +284,8 @@ export default async function PlayPage() {
     updatedAt: person.avatarVersion,
   }));
 
-  const hall = (
-    <Hall
+  const chat = (
+    <Chat
       initialPlaces={places}
       initialPlace={first.placeKey}
       initialRows={initialRows}
@@ -306,6 +325,7 @@ export default async function PlayPage() {
           : null
       }
       faction={factionView}
+      dmNewestMs={newestDm?.createdAt?.getTime?.() ?? null}
       conceal={{
         canConceal: Boolean(concealment) && !concealment.forced && !forcedName,
         concealed: Boolean(identity.concealed),
@@ -319,7 +339,7 @@ export default async function PlayPage() {
   // Only the people half is handed down: the rest of the sheet's pools —
   // craft, paper, the bird, the Factory — belong to the sheet, and ActionGrid
   // is not mounted here at all.
-  if (!aside) return hall;
+  if (!aside) return chat;
   return (
     <CharacterMentionsProvider characters={mentionRoster}>
       <RequestActionsProvider
@@ -348,7 +368,7 @@ export default async function PlayPage() {
         canExtract={aside.canExtract}
         extractBlocked={aside.extractBlocked}
       >
-        {hall}
+        {chat}
       </RequestActionsProvider>
     </CharacterMentionsProvider>
   );

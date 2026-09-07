@@ -8,6 +8,7 @@ import RichText from "./RichText";
 import Select from "./Select";
 import CheckField from "./CheckField";
 import { formatCost, costColor } from "@/lib/characterCreation";
+import { lockedSlotLabel } from "@/lib/desireLabels";
 
 // A Desire's award, in the same voice as a Point Buy price: `+3 pts`,
 // `+1 pt`. Tier IS the award, and formatCost/costColor read a NEGATIVE cost
@@ -113,7 +114,7 @@ function SlotCard({ slot, isTarget, isBottom, addiction, onTarget }) {
           {isBottom && addiction ? ` · ${addiction.name}` : ""}
         </span>
         {slot.lockedUntilTurn != null ? (
-          <span className="text-sm text-muted">Opens on turn {slot.lockedUntilTurn}</span>
+          <span className="text-sm text-muted">{lockedSlotLabel(slot)}</span>
         ) : (
           <span className="text-sm" style={{ color: isTarget ? "var(--accent-text)" : "var(--muted)" }}>
             {isTarget ? "Claiming into this slot" : "Open"}

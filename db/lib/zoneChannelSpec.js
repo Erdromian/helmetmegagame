@@ -142,7 +142,7 @@ function zoneChannelSpec(zone, { spectators = true } = {}) {
 // and every Conversation, which is what keeps PlayerThread a complete
 // record.
 //
-// Send came off the top level on 2026-09-06 (the Hall's decision 5, and
+// Send came off the top level on 2026-09-06 (Chat's decision 5, and
 // CHANNELS.md §2). A Location channel is the street's SCENERY now — arrivals,
 // smells, the turret, the noticeboard, the turn line — and talk belongs in a
 // Room thread, a Conversation or the zone summary, all of which are a scene

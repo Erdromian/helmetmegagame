@@ -266,7 +266,7 @@ Resources in Bascinet are shown with the ⬢ symbol. They represent your access 
 
 ### Transferring & Storage
 
-**Transfer** on your [Character](https://ravenheart.quest/character) page moves ⬢ and items in one go: from you or a **room** stash you're standing in, to a person standing with you or to a room stash. Every room is a stash. Put things down, come back for them later — and know that anyone else who can get into that room can take them. The room's thread hears about it, without names.
+**Transfer** on your [Character](https://ravenheart.quest/character) page moves ⬢ and items in one go: from you or a **room** stash you're standing in, to a person standing with you or to a room stash. Every room is a stash. Put things down, come back for them later. The room's thread hears about it, without names.
 
 Transfer is give-only, both ways — you can never take ⬢ or an item from another character with it. The only way to take something from someone is **Loot**, and only if they're dead or helpless; a mugging plays out that way, not through Transfer.
 

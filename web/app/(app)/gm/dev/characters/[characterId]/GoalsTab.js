@@ -6,6 +6,7 @@ import { EnumPill, DESIRE_STATUS } from "@/app/components/StatusPill";
 import { useMemo, useState, useTransition } from "react";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { awardDesireGm, revokeDesireGm } from "./actions";
+import { lockedSlotLabel } from "@/lib/desireLabels";
 
 // The Desire half of the tag-point economy.
 //
@@ -179,14 +180,14 @@ export default function GoalsTab({
                 <p className="text-sm text-muted mono">
                   paid {slot.lastEnded.points} ·{" "}
                   {slot.lockedUntilTurn != null
-                    ? `slot opens turn ${slot.lockedUntilTurn}`
+                    ? lockedSlotLabel(slot).toLowerCase()
                     : "slot open"}
                 </p>
               </>
             ) : (
               <p className="text-sm text-muted">
                 {slot.lockedUntilTurn != null
-                  ? `Slot opens on turn ${slot.lockedUntilTurn}.`
+                  ? `${lockedSlotLabel(slot)} — nothing claimed here yet. ‡`
                   : "Nothing claimed in this slot yet."}
               </p>
             )}

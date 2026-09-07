@@ -28,7 +28,7 @@ import {
 //
 // It lived inside web/app/(app)/character/page.js until phase 3, which was
 // fine while the sheet was the only place you could act on somebody standing
-// near you. The Hall's people column is the second, and a second copy of
+// near you. Chat's people column is the second, and a second copy of
 // "who is helpless" would have been a second answer.
 //
 // The metagaming rule the sheet's grid follows applies to what a CALLER does
@@ -310,7 +310,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
 // The same shape web/app/(app)/character/page.js builds for the sheet's own
 // Transfer dialog, including the Assets-weigh-nothing rule (CARRY.md §1) the
 // projection under the dialog reads. It lives here rather than being a second
-// query in the Hall's page: two answers to "which doors are open to you" is
+// query in Chat's page: two answers to "which doors are open to you" is
 // exactly what web/lib/peoplePools.js exists to stop.
 export async function loadStashRooms(character) {
   if (!character?.locationId) return [];

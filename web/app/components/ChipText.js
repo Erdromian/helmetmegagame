@@ -67,6 +67,15 @@ export default function ChipText({ text, as: Wrapper = "span", className, inTool
     // Plain text either way — a carry sentence has nothing to hover.
     if (part.kind === "carry") return carryLines[part.payload.trim()] ?? part.raw;
 
+    // A Word of the Circle (web/lib/grimoire.js): the payload is the text.
+    if (part.kind === "word") {
+      return (
+        <span key={`w-${i}`} className="chip word-chip">
+          {part.payload.trim()}
+        </span>
+      );
+    }
+
     // Always the flat face, never DocumentChip: this renderer exists for text
     // inside a tooltip or a <button>, and a document chip is a link. A link
     // inside the /documents card button would be invalid markup and would

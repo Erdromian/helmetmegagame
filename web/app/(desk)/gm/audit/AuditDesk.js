@@ -152,7 +152,6 @@ export default function AuditDesk({
                 Turn {openTurn.number} · {openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}
               </span>
             )}
-            <span className="chip text-xs text-muted mono">{total.toLocaleString()} entries</span>
             {freshCount > 0 && (
               <button type="button" className="chip" onClick={acknowledge}>
                 {freshCount} new

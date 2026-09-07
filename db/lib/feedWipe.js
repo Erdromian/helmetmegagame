@@ -1,9 +1,9 @@
-// The web half of the message wipe (docs/systemdocs/HALL.md §7, CHANNELS.md §8).
+// The web half of the message wipe (docs/systemdocs/CHAT.md §7, CHANNELS.md §8).
 //
 // Discord's half deletes: db/lib/messageWipe.js walks every channel and empties
-// it. The Hall cannot do that, and should not — ArchiveEntry IS the transcript
+// it. Chat cannot do that, and should not — ArchiveEntry IS the transcript
 // /archive reads, so deleting a row to clear a scene would burn the record to
-// tidy the screen. So the Hall reads past the wipe instead: GameConfig
+// tidy the screen. So Chat reads past the wipe instead: GameConfig
 // carries a WATERMARK, and every feed query asks for `seq > <floor>`.
 //
 // TWO of them, because the wipe has two cadences. `feedWipeSeq` moves on every
@@ -48,14 +48,14 @@ async function markFeedWiped(prisma, { summaries = false } = {}) {
 // PREVIOUS game.
 //
 // Restart Game deliberately keeps ArchiveEntry — it is the transcript
-// /archive reads, and LOBBY.md §8 lists it as kept. But the Hall is the live
+// /archive reads, and LOBBY.md §8 lists it as kept. But Chat is the live
 // room, not the record, so last game's scenes have no business rendering
 // under the names of characters who no longer exist. `seq` only ever goes up,
 // so every row of every finished game sits below every row of this one, and
 // the highest of them IS the floor.
 //
 // It is read as the highest seq NOT in this game rather than the lowest seq in
-// it, so a freshly wiped game with nothing said in it yet shows an empty Hall
+// it, so a freshly wiped game with nothing said in it yet shows an empty Chat
 // instead of yesterday's. A row with no gameId at all predates the column, so
 // it is old by definition and sits below the line too.
 const GAME_FLOOR_TTL_MS = 30 * 1000;
@@ -127,7 +127,7 @@ function lowestFloor(floors) {
   return floors.summary < floors.turn ? floors.summary : floors.turn;
 }
 
-// The wipe calls this so the Hall empties at once rather than at the end of
+// The wipe calls this so Chat empties at once rather than at the end of
 // the memo's half minute.
 function forgetGameFloor() {
   gameFloorMemo = { gameId: null, seq: 0n, at: 0 };

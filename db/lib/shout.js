@@ -31,7 +31,11 @@ const { muffle } = require("./muffle");
 // off the distance directly; index 0 is never reached, because your own
 // Location returns above before it gets here. Past the end of the table the
 // words are gone entirely and only the direction survives.
-const MUFFLE_BY_DISTANCE = [0, 0, 0.4, 0.7];
+//
+// The 0.7 ring is gone (2026-09-07): at that much static the line was a
+// message you failed to catch dressed up as one you half caught, so the last
+// audible ring now says only that someone shouted, and which way.
+const MUFFLE_BY_DISTANCE = [0, 0, 0.4];
 
 // The line one Location gets. `viaName` is the hearer's own neighbour toward
 // the noise, and is null only at distance 0 (where you are standing in it).
@@ -64,7 +68,7 @@ function shoutParts(text, distance, viaName) {
 
   const fraction = MUFFLE_BY_DISTANCE[distance];
   if (fraction == null) {
-    return { text: `You hear someone shout${where}, but you can't make out what they say.`, lines: [] };
+    return { text: `You hear someone shout${where}.`, lines: [] };
   }
   return { text: `You hear someone shout${where}: » ${muffle(text, fraction)}`, lines: [] };
 }

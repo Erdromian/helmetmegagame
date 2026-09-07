@@ -5,7 +5,7 @@ const { notifyTyping } = require("@lifeweb/db/lib/typingNotify");
 
 // "Somebody in this room is writing something." Discord shows its own typing
 // indicator to the people in the channel; this carries the same fact across to
-// the Hall, so a player on /play and a player in Discord are standing in the
+// Chat, so a player on /play and a player in Discord are standing in the
 // same scene rather than two copies of it.
 //
 // The event is CHEAP on purpose. It fires roughly once every ten seconds per
@@ -15,11 +15,11 @@ const { notifyTyping } = require("@lifeweb/db/lib/typingNotify");
 // this side's answer to give (db/lib/typingNotify.js).
 //
 // The web's own composer posts to /api/feed/typing and lands on the same
-// channel, so a Hall reader sees both faces typing without either face
+// channel, so a Chat reader sees both faces typing without either face
 // knowing the other exists. A Discord-side echo of a WEB typist is deferred:
 // Discord has no API for a bot to type as somebody else.
 
-// A character whose account is out of the channels (HALL.md §6a) could not
+// A character whose account is out of the channels (CHAT.md §6a) could not
 // have raised this event, but the join is one column and it costs nothing to
 // be sure.
 const CHARACTER_SELECT = { id: true, webOnly: true };

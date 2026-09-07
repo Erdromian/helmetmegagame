@@ -66,7 +66,7 @@ async function getPaletteIndexImpl() {
   }));
 
   // A PLAYER's half: everywhere they can hear, and everyone standing beside
-  // them. Both come from the same functions the Hall itself uses
+  // them. Both come from the same functions Chat itself uses
   // (db/lib/feedAccess.js#placesFor, db/lib/whosHere.js), so the palette can
   // never offer a place they may not read or name somebody the room has not
   // shown them — a hood is deliberately absent, exactly as it is from the
@@ -74,12 +74,18 @@ async function getPaletteIndexImpl() {
   //
   // A GM has no character, so this is skipped for them entirely; their own
   // branch below is untouched.
-  const character = await prisma.character.findFirst({
-    where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    select: { id: true, name: true, locationId: true, factionId: true },
-  });
+  const [character, config] = await Promise.all([
+    prisma.character.findFirst({
+      where: { discordUserId: session.discordUserId, status: "ALIVE" },
+      select: { id: true, name: true, locationId: true, factionId: true },
+    }),
+    // Every entry below links into /play, so none is offered while Chat
+    // is switched off (GameConfig.playPanelEnabled).
+    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true } }),
+  ]);
+  const playEnabled = config?.playPanelEnabled ?? true;
 
-  if (character?.locationId) {
+  if (playEnabled && character?.locationId) {
     const places = await placesFor(prisma, character, { gm: false, discordUserId: session.discordUserId });
     for (const place of places) {
       entries.push({
@@ -87,7 +93,7 @@ async function getPaletteIndexImpl() {
         id: place.placeKey,
         label: place.name,
         hint: PLACE_HINTS[place.kind] ?? "here",
-        // The Hall reads the open place off the URL hash (HALL.md §5), so a
+        // Chat reads the open place off the URL hash (CHAT.md §5), so a
         // link into one is the hash and nothing else — no new client
         // plumbing, and Back leaves the room the way it came.
         href: `/play#${encodeURIComponent(place.placeKey)}`,

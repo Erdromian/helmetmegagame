@@ -20,8 +20,8 @@ import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 // (web/app/(desk)/gm/players/actions.js), parameterised, never concatenated.
 //
 // THE GATE IS THE PLACE LIST. `placesFor` is the one answer to "where may you
-// read" (HALL.md §5a), and this searches inside it and nowhere else — so a
-// zone summary a character cannot hear is not searchable from the Hall, and a
+// read" (CHAT.md §5a), and this searches inside it and nowhere else — so a
+// zone summary a character cannot hear is not searchable from Chat, and a
 // GM's search is bounded by their GmZoneView the same way their feed is.
 export const dynamic = "force-dynamic";
 

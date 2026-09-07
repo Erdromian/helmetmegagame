@@ -267,6 +267,12 @@ model GameConfig {
   // turn before anyone says a word).
   archiveTravelEvents Boolean @default(false)
 
+  // The Hall (docs/systemdocs/HALL.md §5). Off, /play bounces to /character,
+  // the rail drops Play, ⌘K stops offering places and people, and the "Play
+  // from the web" switch is neither drawn nor honoured. The feed API stays up
+  // either way: the GM desk's Scene tab streams from it.
+  playPanelEnabled Boolean @default(true)
+
   // The anchor message in #turns carrying the Travel / Move / Speak buttons
   // (see bot/src/lib/turnsConsole.js) — same tracked-message pattern as
   // turnsAnnouncement* above, but reused across restarts rather than
@@ -428,7 +434,7 @@ model GameConfig {
   // Whole turns a Desire slot stays shut after a Desire is claimed into it.
   // A claim on turn N leaves the slot shut on N and open again on
   // N + desireSlotLockTurns + 1 (db/lib/desireGates.js#slotStates).
-  desireSlotLockTurns Int @default(2)
+  desireSlotLockTurns Int @default(1)
 
   // Expected total number of players, the denominator for every role's seat
   // cap: a role with `weight: 6` in docs/roles.yaml gets
@@ -585,6 +591,22 @@ model GameState {
   // object, and two people taking turns on it would be the same noise either
   // way. Null means it has never been rung.
   bellRungAt DateTime?
+
+  // THE THANATI (docs/systemdocs/THANATI.md). Both per-game, both wiped for
+  // free because Restart Game recreates this row.
+  //
+  // `riteWords` is this game's Word of the Circle per rite — { [riteKey]:
+  // "word word" } — rolled lazily by db/lib/riteWords.js the first time
+  // anything asks (a chant, the Grimoire document, the GM panel). Null means
+  // not rolled yet. Hidden game state: only a Grimoire holder and the GM
+  // panel ever read it back.
+  riteWords Json?
+
+  // The cult's hideout: the Room the Thanati Leader chose with Set Hideout,
+  // where Purchase Gear spends from and drops to. A snapshot id rather than
+  // an FK — Rooms are recreated by db:sync-zones and a dangling pointer just
+  // reads as "no hideout" (db/lib/thanati.js#hideoutRoom).
+  thanatiHideoutRoomId String?
 }
 
 /// Where the shuttle is. AWAY is the resting state — it lives at the orbital
@@ -1759,8 +1781,17 @@ enum PaperKind {
 // Location/docs/locations.yaml: removing a tag from the YAML never deletes
 // its row here.
 model Tag {
-  id          String  @id @default(cuid())
-  name        String  @unique
+  id String @id @default(cuid())
+
+  // NOT unique, deliberately. It was, and that is the only reason a written
+  // sheet used to be titled "A Note (XY-1234)": every new one needed a name no
+  // other tag had, so the code went in the title. Identity is `slug`, which is
+  // unique and always was, and every lookup in the game matches on it —
+  // Role.startingTagSlugs included, since db:sync-roles resolves the display
+  // names docs/roles.yaml authors. /gm/dev/tags still refuses a duplicate name
+  // when a GM types one, because two identically named HOMEBREW tags is a
+  // confusion worth stopping; two notes both called "A Note" is the point.
+  name        String
   slug        String  @unique
   description String?
   category    String
@@ -2981,6 +3012,10 @@ enum DmDirection {
   OUTBOUND
 }
 
+// Every insert here fires a Postgres trigger, `DirectMessage_notify`, that
+// raises NOTIFY bascinet_dm (db/lib/dmNotify.js) — it lives only in migration
+// SQL (20260913060000_dm_notify), like the trgm indexes, and `prisma migrate
+// diff` never sees it. The Hall's Bascinet conversation listens (HALL.md §2b).
 model DirectMessage {
   id            String      @id @default(cuid())
   discordUserId String
@@ -3185,7 +3220,7 @@ model CraftProject {
   // record of the spend, what a GM repairing by hand reads. Null on a recipe
   // with no spent ingredient, and on every project filed before this column
   // existed.
-  consumed      Json?
+  consumed Json?
 
   // Pending custom-item fields (`{ name?, description? }`) for a customizable
   // recipe's multi-turn project — held here until the finishing turn, when
@@ -3775,6 +3810,112 @@ enum ThreatSpawnStatus {
   ACCEPTED
   DECLINED
   CANCELLED
+}
+
+// An antagonist party's win condition (docs/systemdocs/THREATS.md §6a). Set
+// by a superadmin on /gm/dev?s=antagonists, scored by db/lib/objectives.js,
+// printed in the end-of-game reveal. Restart Game deletes the table; the
+// reveal is snapshotted onto Game.epilogue first.
+model Objective {
+  id String @id @default(cuid())
+
+  // A party key from db/lib/threats.js — "thanati", "tribunal", or a solo
+  // seat's own slug. Code, not a table, same posture as ThreatSpawn.threatSlug.
+  partyKey String
+
+  // A key in db/lib/objectiveKinds.js.
+  kind String
+
+  weight ObjectiveWeight?
+
+  // Snapshot ids and names, not relations — the ArchiveEntry.characterId
+  // posture. The name is what the reveal reads; a relation would have meant
+  // editing Character and Location for nothing, since this table is wiped
+  // outright.
+  targetCharacterId  String?
+  targetName         String?
+  targetLocationId   String?
+  targetLocationName String?
+
+  // The number for "cause N deaths in a single day"; the text for a defaced
+  // icon, a stolen item or a custom objective.
+  value Int?
+  text  String?
+
+  // The GM's answer. A scripted kind: null lets the game decide. A manual
+  // kind: never null, the pin is its only answer.
+  pinned Boolean?
+
+  // The superadmin who added it. A Discord user id, as AuditLog.actorDiscordUserId.
+  createdBy String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ObjectiveWeight {
+  MINOR
+  MAJOR
+}
+
+/// A rite in progress: one per (rite, room) while cultists are chanting
+/// (docs/systemdocs/THANATI.md). Opened by the first counted chant
+/// (db/lib/riteChant.js), advanced to READY the moment the last requirement
+/// lands, fired by the bot's minute sweep (db/lib/riteSweep.js) once the
+/// grace window has run, expired when twelve hours pass without it. Rooms
+/// and characters are snapshot ids, not FKs — the table is wiped outright by
+/// Restart Game, and a room recreated by the zone sync must not cascade it.
+model RiteAttempt {
+  id String @id @default(cuid())
+
+  // A key in db/lib/rites.js.
+  riteKey String
+
+  roomId   String
+  roomName String
+
+  status RiteAttemptStatus @default(OPEN)
+
+  openedAt DateTime  @default(now())
+  readyAt  DateTime?
+  firesAt  DateTime?
+  firedAt  DateTime?
+
+  // Who was counted when it fired: [{ characterId, name }].
+  participants Json?
+  // What the effect did, for the GM panel and the audit trail.
+  result Json?
+
+  chants RiteChant[]
+
+  @@index([status])
+  @@index([riteKey, roomId, status])
+}
+
+enum RiteAttemptStatus {
+  OPEN
+  READY
+  FIRED
+  EXPIRED
+  CANCELLED
+}
+
+/// One counted chant: a robed, Inspired speaker said the Word of the Circle
+/// in the attempt's room (or a Conversation linked to it). Several rows per
+/// chanter are normal; the sweep counts distinct characterIds.
+model RiteChant {
+  id String @id @default(cuid())
+
+  attemptId String
+  attempt   RiteAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  characterId   String
+  characterName String
+  // The ArchiveEntry.seq of the message, so a GM can find the line.
+  archiveSeq BigInt?
+  saidAt     DateTime @default(now())
+
+  @@index([attemptId])
 }
 
 // One browser that has agreed to be notified. Web Push is per-BROWSER, not

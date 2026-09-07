@@ -76,6 +76,7 @@ const EVENTS = Object.freeze({
   BOUND_HELD: 10,
   CRUCIFIED: 80,
   TORTURED: 40,
+  MUTILATED: 50,
   DEATH_SEEN: 15,
   CORPSE: 5,
   TURRET: 25,

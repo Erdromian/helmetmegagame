@@ -10,6 +10,8 @@ import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { loadDesireView } from "@/lib/selfPools";
+import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "@/lib/dmThread";
+import { PLAYER_DM_MAX_LENGTH } from "@/lib/constants";
 import { whosHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import {
@@ -23,7 +25,7 @@ import {
 import { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { boardFor, boardText, pinnedLine, tornLine, BOARD_OPTION_LIMIT } from "@lifeweb/db/lib/noticeboard";
-import { paperDescription } from "@lifeweb/db/lib/paper";
+import { paperDescription, paperView } from "@lifeweb/db/lib/paper";
 import { readBlock } from "@lifeweb/db/lib/reading";
 import { addToStack, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 import { expiryFrom } from "@lifeweb/db/lib/turnFormat";
@@ -72,7 +74,7 @@ import { sendDm } from "@/lib/discordGuild";
 import { examineCharacter } from "@/app/(app)/character/examineActions";
 import { thingGroups } from "./thingRows";
 
-// Every button in the Hall's right column, as a server action.
+// Every button in Chat's right column, as a server action.
 //
 // THE CONTRACT, and it is the same one for all of them: the acting character
 // is resolved from the session, never from anything posted; every gate the
@@ -103,7 +105,7 @@ async function actor(select) {
       factionId: true,
       discordUserId: true,
       // "Play from the web" — nothing here may touch Discord for them
-      // (docs/systemdocs/HALL.md §6).
+      // (docs/systemdocs/CHAT.md §6).
       webOnly: true,
       // `role` and the tag slugs are what canToggleGate reads, and
       // affordancesFor asks it for every gate this character is standing at.
@@ -275,6 +277,7 @@ export async function photographRow(seq) {
   const photo = await mintPhoto(prisma, character.id, {
     subject: readout.name,
     caption: photoCaption(readout),
+    subjectCharacterId: subject.id,
   });
 
   // Written only once the print exists, so a failed mint leaves the shot
@@ -380,7 +383,7 @@ export async function starRow(seq) {
 // and all. That helper stays exactly as it is for the bot, which is talking
 // into a channel that renders those markers. The web draws its own chips off
 // the rows, so nothing is being formatted twice.
-// THE THINGS DRAWER (HALL.md §7). What is in this character's pockets, in the
+// THE THINGS DRAWER (CHAT.md §7). What is in this character's pockets, in the
 // two categories a player carries — read back after every Equip, Use, Give or
 // Destroy, and on the column's own minute, so a thing handed over in Discord
 // stops being listed here without a reload.
@@ -476,6 +479,10 @@ export async function loadTravel() {
     options: options.map((row) => ({
       id: row.location.id,
       name: row.location.name,
+      // Already loaded: locationGraph's LINK_INCLUDE pulls whole Location rows
+      // on both ends of a link, so this costs no query. The node draws it so
+      // the way out says what it leads to, not just where.
+      description: row.location.description || null,
       zoneName: row.location.zone?.name ?? null,
       crossesZone: row.crossesZone,
       passable: row.passable,
@@ -640,10 +647,12 @@ export async function readNotice(postId) {
   // The same predicate the tag chip uses, and the same sentence — a blind
   // reader and an illiterate one get identical refusals, so neither the
   // reader nor anyone watching learns which it was.
-  const text = paperDescription(post.tag, { tags: me.character.tags, ...where });
+  const reader = { tags: me.character.tags, ...where };
+  const text = paperDescription(post.tag, reader);
   const blocked = Boolean(readBlock(me.character.tags, where)) || post.tag.paperKind === "SEALED";
-  // Nobody is told it was read.
-  return { ok: true, name: post.tag.name, text, plain: blocked };
+  // Nobody is told it was read. `paper` is what PaperSheet.js draws; `text`
+  // and `plain` stay for anything still reading the flat shape.
+  return { ok: true, name: post.tag.name, text, plain: blocked, paper: paperView(post.tag, reader) };
 }
 
 export async function tearNotice(postId) {
@@ -666,7 +675,7 @@ export async function tearNotice(postId) {
     await postMessage(ctx.location.discordChannelId, ambientLine(tornLine(post.tag.name))).catch(() => {});
   }
   // The same row the bot's board writes (db/lib/scene.js) — a tear on the web
-  // and a tear on Discord are one event, and the Hall shows both.
+  // and a tear on Discord are one event, and Chat shows both.
   await sceneLineAt(prisma, { locationId: ctx.location.id, text: tornLine(post.tag.name) });
   return { ok: true, line: `You take ${post.tag.name} down.` };
 }
@@ -763,7 +772,7 @@ export async function openConversation({ roomId, name, inviteIds = [] } = {}) {
   try {
     thread = await startPrivateThread(room.location.discordChannelId, trimmed);
     // A "web only" creator stays out of their own thread's member list
-    // (docs/systemdocs/HALL.md §6); the membership row below is the truth.
+    // (docs/systemdocs/CHAT.md §6); the membership row below is the truth.
     if (me.character.discordUserId && !me.character.webOnly) {
       await addThreadMember(thread.id, me.character.discordUserId);
     }
@@ -1117,58 +1126,108 @@ export async function updateMove({ actionId, moveKind, description } = {}) {
   return { ok: true, line: parts.join(" ") };
 }
 
-// Yesterday: what the last closed turn said to this player. Every line of it
-// is already in DirectMessage — the GM's staged messages (source
-// "staged_push") and the bot's own Routine result and Gambit reveal (which
-// go out with no source and default to "bot_auto", db/lib/dm.js). Both
-// halves are needed, and both are narrowed to the window the close ran in so
-// an ordinary GM reply from the middle of the day is not swept in.
+// The Bascinet conversation (CHAT.md §2b): everything the game has said to
+// this player by DM, and what they wrote back. The SAME rows the GM desk
+// reads, through the SAME noise filter (web/lib/dmThread.js), from the other
+// chair — so the two surfaces cannot disagree about what was said. The row
+// shape strips the author: a player never learns which GM answered.
 //
-// It reads and sends nothing.
-const YESTERDAY_ROWS = 20;
-// An hour, not ten minutes. A close with a hundred players in it sends its
-// DMs at Discord's pace, and the tail of a long push landed outside a
-// ten-minute window — so the last lines of the day were the ones a player
-// could not read back.
-const CLOSE_WINDOW_MS = 60 * 60 * 1000;
+// Paged from the newest backwards by `beforeId`, with the desk's keyset
+// (createdAt, id) — a turn push writes several rows into one millisecond, and
+// a plain `createdAt <` would skip every row sharing the boundary's stamp.
+//
+// Gated on the ACCOUNT, not on a living character: the page itself is what
+// requires one, and a player whose character died with the tab open should
+// still be able to read what Bascinet said and write back — that is the
+// moment they most want to.
+const GM_THREAD_PAGE = 60;
 
-export async function yesterday() {
-  const me = await actor({ id: true, discordUserId: true });
+async function account() {
+  const session = await auth();
+  if (!session?.discordUserId) return { error: "You are not signed in. ‡" };
+  return { discordUserId: session.discordUserId };
+}
+
+export async function gmThread({ beforeId = null } = {}) {
+  const me = await account();
   if (me.error) return { ok: false, error: me.error };
 
-  const turn = await prisma.turn.findFirst({
-    where: { status: "RESOLVED", resolvedAt: { not: null } },
-    orderBy: { number: "desc" },
-    select: { number: true, phase: true, resolvedAt: true, needsResolvedAt: true },
-  });
-  if (!turn) return { ok: true, turn: null, entries: [] };
+  let before = null;
+  if (beforeId) {
+    before = await prisma.directMessage.findFirst({
+      where: { id: String(beforeId), discordUserId: me.discordUserId },
+      select: { id: true, createdAt: true },
+    });
+  }
 
-  const from = turn.resolvedAt;
-  const until = new Date(
-    Math.max(new Date(turn.needsResolvedAt ?? turn.resolvedAt).getTime(), new Date(from).getTime()) + CLOSE_WINDOW_MS,
-  );
   const rows = await prisma.directMessage.findMany({
-    where: {
-      discordUserId: me.discordUserId,
-      direction: "OUTBOUND",
-      source: { in: ["staged_push", "bot_auto"] },
-      createdAt: { gte: from, lte: until },
-    },
-    // Newest first so the cap keeps the END of the close, not the start —
-    // taking 20 ascending off a busy turn threw away the adjudication and
-    // kept the boilerplate. Reversed below, because the block reads in order.
-    orderBy: { createdAt: "desc" },
-    take: YESTERDAY_ROWS,
-    select: { id: true, content: true, createdAt: true },
+    where: withoutDmNoise(
+      {
+        discordUserId: me.discordUserId,
+        ...(before
+          ? { OR: [{ createdAt: { lt: before.createdAt } }, { createdAt: before.createdAt, id: { lt: before.id } }] }
+          : {}),
+      },
+      { perspective: "player" },
+    ),
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: GM_THREAD_PAGE + 1,
+    select: PLAYER_DM_SELECT,
   });
-
+  const hasMore = rows.length > GM_THREAD_PAGE;
   return {
     ok: true,
-    turn: { number: turn.number, phase: turn.phase },
-    entries: rows
-      .reverse()
-      .map((row) => ({ id: row.id, content: row.content, at: row.createdAt.toISOString() })),
+    hasMore,
+    rows: rows.slice(0, GM_THREAD_PAGE).reverse().map(playerDmRow),
   };
+}
+
+// A line to Bascinet, from Chat. One INBOUND row, exactly as the bot logs
+// a DM typed into Discord (bot/src/events/messageCreate.js) — and nothing
+// sent to Discord, because there is nothing to send: the bot cannot speak as
+// the player in their own DM, the desk picks the row up on its poll like any
+// inbound, and the GM's answer goes out through sendDm to Discord and the
+// table both, so it reaches the player on whichever face they are on.
+// `meta.via` says where it was typed, for a GM reading the record later.
+//
+// Two refusals the Discord path has no equivalent of. The Play switch
+// (GameConfig.playPanelEnabled) is re-read here because a tab open when a GM
+// flips it keeps its stream; and a plain cap on how fast one account may
+// write, because every scene composer in Chat is throttled and this one
+// is a pipe straight into the GM desk's inbox.
+const TO_GMS_WINDOW_MS = 60_000;
+const TO_GMS_PER_WINDOW = 12;
+
+export async function sendToGms(content) {
+  const me = await account();
+  if (me.error) return { ok: false, error: me.error };
+  const text = typeof content === "string" ? content.trim() : "";
+  if (!text) return { ok: false, error: "Write something first. ‡" };
+  if (text.length > PLAYER_DM_MAX_LENGTH) {
+    return { ok: false, error: `That is too long — ${PLAYER_DM_MAX_LENGTH} characters at most. ‡` };
+  }
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true } });
+  if (config && !config.playPanelEnabled) return { ok: false, error: "The Play page is switched off. ‡" };
+  const recent = await prisma.directMessage.count({
+    where: {
+      discordUserId: me.discordUserId,
+      direction: "INBOUND",
+      createdAt: { gte: new Date(Date.now() - TO_GMS_WINDOW_MS) },
+    },
+  });
+  if (recent >= TO_GMS_PER_WINDOW) return { ok: false, error: "Slow down a moment. ‡" };
+
+  const row = await prisma.directMessage.create({
+    data: {
+      discordUserId: me.discordUserId,
+      direction: "INBOUND",
+      content: text,
+      source: "player",
+      meta: { via: "play" },
+    },
+    select: PLAYER_DM_SELECT,
+  });
+  return { ok: true, row: playerDmRow(row) };
 }
 
 // The Desire picker's catalog, ~271 templates evaluated against this
@@ -1190,29 +1249,6 @@ export async function desireCatalogView() {
     }),
   ]);
   return { ok: true, view: await loadDesireView(me.character, { openTurn, gameConfig }) };
-}
-
-// "Report to the GMs" — the OOC ticket a web-only player loses with the
-// report channel. It writes the same INBOUND DirectMessage row an actual DM
-// to the bot writes (bot/src/events/messageCreate.js), so it lands in
-// /gm/players' conversation like every other word from this player. It sends
-// NOTHING to Discord: this is a message TO the GMs, and the reply comes back
-// down the ordinary DM path.
-export async function reportToGms(text) {
-  const me = await actor();
-  if (me.error) return { ok: false, error: me.error };
-  const body = String(text ?? "").trim();
-  if (!body) return { ok: false, error: "Write something first." };
-  if (body.length > 1800) return { ok: false, error: "That's too long to send. ‡" };
-
-  await prisma.directMessage.create({
-    data: {
-      discordUserId: me.discordUserId,
-      direction: "INBOUND",
-      content: `[Play] ${body}`,
-    },
-  });
-  return { ok: true, line: "Sent. A GM will see it on their desk. ‡" };
 }
 
 // ------------------------------------------------------------ waiting on you
@@ -1380,9 +1416,9 @@ export async function answerWaiting({ kind, id, accept } = {}) {
 // the session, re-check the place, write the scene row beside the Discord
 // post — and nothing else.
 //
-// `/move`, `/travel`, `/converse`, `/look` and `/report` need no new action:
-// they are submitMove, travelTo, openConversation, the sheet's Examine dialog
-// and reportToGms, all of which already exist above.
+// `/move`, `/travel`, `/converse` and `/look` need no new action: they are
+// submitMove, travelTo, openConversation and the sheet's Examine dialog, all
+// of which already exist above.
 
 // /conceal. A standing state, not a per-message prefix — the alias is what
 // the composer wears from here until it is turned off again.
@@ -1445,7 +1481,7 @@ export async function shoutHere(text, placeKey = null) {
   }
 
   for (const place of result.heard) {
-    // The row first: it is what the Hall shows and what /archive keeps, and
+    // The row first: it is what Chat shows and what /archive keeps, and
     // it is the only half a web-only player ever sees.
     await sceneLine(prisma, { placeKey: place.placeKey, text: place.scene.text, lines: place.scene.lines });
     if (!place.discordChannelId) continue;
@@ -1650,7 +1686,7 @@ export async function addMember(placeKey, characterId) {
       })
       .catch((err) => console.error("Failed to record thread invite:", err?.message ?? err));
 
-    // A "web only" target is out of every channel on purpose (HALL.md §6).
+    // A "web only" target is out of every channel on purpose (CHAT.md §6).
     if (target.locationId === conversation.locationId && !target.webOnly && target.discordUserId) {
       await addThreadMember(conversation.threadId, target.discordUserId).catch(() => {});
     }
@@ -1681,7 +1717,7 @@ export async function addMember(placeKey, characterId) {
 
   // db/lib/roomGuests.js writes no presence notify of its own — it is the
   // bot's code, and the bot has no places column to update. The added
-  // character's Hall has to learn the door opened without a reload.
+  // character's Chat has to learn the door opened without a reload.
   await notifyPresence(prisma, result.target.id).catch(() => {});
   await sendDm(
     result.notify.discordUserId,

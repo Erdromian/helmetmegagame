@@ -20,10 +20,10 @@ import { myThings } from "./actions";
 // says WHY a verb is missing, because the absence is a fact about the item and
 // not about the world, and every one of them is re-checked server-side.
 //
-// Closed by default, and it stays however this browser left it — the same
-// localStorage state Yesterday keeps.
+// Closed by default, and it stays however this browser left it, in
+// localStorage.
 
-const KEY = "hall-things-open";
+const KEY = "chat-things-open";
 const POLL_MS = 60_000;
 
 function subscribe(callback) {
@@ -66,7 +66,7 @@ function ThingMenu({ row, onClose, onEquip, pending }) {
   );
 
   return (
-    <div className="hall-menu" role="menu" aria-label={row.name}>
+    <div className="chat-menu" role="menu" aria-label={row.name}>
       {row.equippable && (
         <button
           type="button"
@@ -149,24 +149,24 @@ export default function Things({ groups: initialGroups = [] }) {
   );
 
   return (
-    <div className="hall-details hall-things" ref={wrapRef} onBlur={(event) => {
+    <div className="chat-details chat-things" ref={wrapRef} onBlur={(event) => {
       if (!wrapRef.current?.contains(event.relatedTarget)) close();
     }}>
-      <button type="button" className="hall-details-summary" aria-expanded={open} onClick={toggle}>
+      <button type="button" className="chat-details-summary" aria-expanded={open} onClick={toggle}>
         <ChevronDownIcon data-open={open ? "true" : undefined} />
         Things
       </button>
       {open && (
-        <div className="hall-details-body">
+        <div className="chat-details-body">
           {groups.length === 0 ? (
-            <p className="hall-quiet-line">Your pockets are empty.</p>
+            <p className="chat-quiet-line">Your pockets are empty.</p>
           ) : (
             groups.map((group) => (
               <div key={group.category}>
-                <p className="hall-quiet-line">{group.category}</p>
-                <div className="hall-chips">
+                <p className="chat-quiet-line">{group.category}</p>
+                <div className="chat-chips">
                   {group.rows.map((row) => (
-                    <span key={row.characterTagId ?? row.tagId} className="hall-thing-wrap">
+                    <span key={row.characterTagId ?? row.tagId} className="chat-thing-wrap">
                       <button
                         type="button"
                         className="chip"

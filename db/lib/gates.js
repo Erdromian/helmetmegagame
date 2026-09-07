@@ -1,5 +1,5 @@
 // Working a gate, on either face. The transactional flip and the keyed door's
-// 24-hour hold used to live inside two Discord button handlers, so the Hall
+// 24-hour hold used to live inside two Discord button handlers, so Chat
 // could only have carried a second copy of the rules about who may touch a
 // portcullis. They live here, and the bot's handlers call them.
 //
@@ -82,7 +82,7 @@ async function toggleGate(prisma, { character, linkId, actorDiscordUserId }) {
 }
 
 // The answer to "leave it open for the next 24 hours?" — the DM's Yes/No, and
-// the Hall's Hold open button.
+// Chat's Hold open button.
 //
 // Re-checked rather than trusted: the prompt was raised for a key-holder, but
 // a DM is a durable surface and the key can change hands between the crossing

@@ -1,8 +1,8 @@
 // "Play from the web" — the switch on the Bio card that takes a player's
 // DISCORD ACCOUNT out of the game entirely while leaving the character exactly
-// where they stand. See docs/systemdocs/HALL.md §6.
+// where they stand. See docs/systemdocs/CHAT.md §6.
 //
-// The problem it solves is in HALL.md §1: a Discord channel lists every
+// The problem it solves is in CHAT.md §1: a Discord channel lists every
 // account that can see it, and a Location channel is opened with a per-member
 // overwrite, so standing in the Keep tells everybody else in the Keep which
 // Discord account you are. Nothing short of not being there fixes it.

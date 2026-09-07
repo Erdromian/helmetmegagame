@@ -146,7 +146,7 @@ export default function InspectorHost({
   );
 
   // The one tab this desk adds outright rather than as a prelude: the live
-  // scene where this character is standing (HALL.md §8). It is a stream, not a
+  // scene where this character is standing (CHAT.md §8). It is a stream, not a
   // snapshot, so it has nothing to sit above and nothing to put in the shared
   // fetch cache. Keyed on the character, so switching people remounts it and
   // its stream moves with them.

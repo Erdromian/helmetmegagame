@@ -100,7 +100,7 @@ function rollGatehouseTurretOnArrival(prisma, { characterId, toLocationId, turn 
 
 // What somebody types to throw the switch, per direction. Deliberate
 // friction — a misclick on a red button should not be able to shoot the Keep
-// — and it lives here rather than in the bot's modal builder so the Hall's
+// — and it lives here rather than in the bot's modal builder so Chat's
 // confirm asks for the same word. Case and stray spaces are forgiven.
 const ARM_WORD = "ARM";
 const DISARM_WORD = "DISARM";

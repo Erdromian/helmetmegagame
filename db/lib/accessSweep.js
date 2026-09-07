@@ -67,7 +67,7 @@ async function allAccessChannelIds(prisma) {
 // One character's full revoke: the zone roles they actually hold stripped,
 // then their member overwrites removed from whichever Location, zone and
 // special channels actually carry one.
-// `keepGuests` leaves the RoomGuest rows alone. The web-only switch (HALL.md
+// `keepGuests` leaves the RoomGuest rows alone. The web-only switch (CHAT.md
 // §6) is the one caller that wants it: it strips a living character's DISCORD
 // access and nothing else, and a guest row is game state — somebody let them
 // into that room, and they are still standing in it.

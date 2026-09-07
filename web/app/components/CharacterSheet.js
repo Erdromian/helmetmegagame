@@ -57,6 +57,14 @@ export default function CharacterSheet({
   canDisguise = false,
   hasDatacard = false,
   hasDevice = false,
+  // The THANATI section (docs/systemdocs/THANATI.md), resolved in
+  // character/page.js and handed straight through to the dialogs.
+  isThanati = false,
+  isThanatiLeader = false,
+  atHideout = false,
+  hideoutRooms = [],
+  hideoutStock = null,
+  thanatiWares = [],
   // Same fate: BioForm's conceal toggle reads it, and it never arrived.
   concealGear = null,
   // World state the sheet shows: the bomb's countdown on its chip, and the
@@ -66,7 +74,7 @@ export default function CharacterSheet({
   hasWorkshop = false,
   tagCatalog,
   desireSlots = 2,
-  desireSlotLockTurns = 2,
+  desireSlotLockTurns = 1,
   desireSlotStates = [],
   desireCatalog = [],
   desireFamilies = [],
@@ -124,6 +132,7 @@ export default function CharacterSheet({
   harmTags = [],
   equipSlots = 6,
   avatarUploadsEnabled = false,
+  playPanelEnabled = true,
   portraitMakerEnabled = false,
   portraitFantasyPartsEnabled = false,
   portraitSelection = null,
@@ -230,6 +239,12 @@ export default function CharacterSheet({
             canDisguise={canDisguise}
             hasDatacard={hasDatacard}
             hasDevice={hasDevice}
+            isThanati={isThanati}
+            isThanatiLeader={isThanatiLeader}
+            atHideout={atHideout}
+            hideoutRooms={hideoutRooms}
+            hideoutStock={hideoutStock}
+            thanatiWares={thanatiWares}
           >
             <div className="flex flex-col gap-6">
               <StatusPanel
@@ -284,6 +299,7 @@ export default function CharacterSheet({
                 lastNameLocked={lastNameLocked}
                 hasMulligan={hasMulligan}
                 avatarUploadsEnabled={avatarUploadsEnabled}
+                playPanelEnabled={playPanelEnabled}
                 portraitMakerEnabled={portraitMakerEnabled}
                 portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
                 portraitSelection={portraitSelection}

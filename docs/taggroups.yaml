@@ -219,6 +219,20 @@ groups:
     name: Corpses
     category: items
     color: "#4a8f88"
+  # Parts cut off a person, one at a time (docs/systemdocs/TORTURE.md §6).
+  # Deliberately NOT items-corpse: that group slug is CORPSE_GROUP_SLUG, the
+  # thing db/lib/corpses.js#isCorpseTag matches on, so an eye filed there would
+  # answer a `group: items-corpse` recipe ingredient and turn up in the Butcher
+  # and Bury pickers. Not items-food either — a heart is not groceries.
+  #
+  # The one rose in Items, and the only place the Health red leaks into the
+  # category, which is the point: these came off somebody. Measured against the
+  # six chip backgrounds items-paper lists: 3.93 / 3.18 / 4.17 / 3.42 / 3.19 /
+  # 3.33. Re-measure all six before changing it.
+  items-remains:
+    name: Remains
+    category: items
+    color: "#bc7c7c"
   # Paper, wax stamps, and every sheet anybody writes on
   # (docs/systemdocs/PAPERWORK.md). Like items-corpse, this group holds both
   # catalog rows and rows the game mints at runtime, and for the same reason:

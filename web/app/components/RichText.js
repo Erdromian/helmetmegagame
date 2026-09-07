@@ -85,6 +85,12 @@ function CmdToken({ payload }) {
   return <code className="cmd-chip">/{payload.trim()}</code>;
 }
 
+// {word:crudux cruo} — a phrase worn as a chip, the Grimoire's Words of the
+// Circle (web/lib/grimoire.js). The payload is the text itself.
+function WordToken({ payload }) {
+  return <span className="chip word-chip">{payload.trim()}</span>;
+}
+
 const BUBBLE_KINDS = {
   tag: TagToken,
   resource: ResourceToken,
@@ -93,6 +99,7 @@ const BUBBLE_KINDS = {
   char: CharToken,
   info: InfoToken,
   cmd: CmdToken,
+  word: WordToken,
 };
 
 // Renders plain text, except any {kind:payload} token (e.g. {tag:slug} or

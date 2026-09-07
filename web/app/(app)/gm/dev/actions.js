@@ -92,6 +92,7 @@ export async function updateGameConfig(formData) {
   revalidatePath("/lifeweb");
   revalidatePath("/character");
   revalidatePath("/store");
+  revalidatePath("/play");
 }
 
 // The Depot's live state and its tuning, in one flat clamped allowlist —
@@ -357,6 +358,11 @@ export async function wipeGameData(formData) {
       prisma.factionApplication.deleteMany({}),
       prisma.faction.updateMany({ data: { siloRoomId: null } }),
       prisma.auditLog.deleteMany({}),
+      // Antagonist objectives are per-game state. The epilogue snapshot above
+      // ran before this transaction opened, so it has already read them.
+      prisma.objective.deleteMany({}),
+      // Rites in progress die with the game; the chants cascade off them.
+      prisma.riteAttempt.deleteMany({}),
       prisma.character.deleteMany({}),
       prisma.playerThread.deleteMany({}),
       prisma.playerThreadInvite.deleteMany({}),
@@ -374,7 +380,7 @@ export async function wipeGameData(formData) {
       prisma.gameState.create({ data: { id: 1, gameId: nextGame.id } }),
     ]);
     forgetGameId();
-    // The Hall reads past a finished game by seq (db/lib/feedWipe.js); drop
+    // Chat reads past a finished game by seq (db/lib/feedWipe.js); drop
     // the memo so it empties now rather than in half a minute.
     forgetGameFloor();
 

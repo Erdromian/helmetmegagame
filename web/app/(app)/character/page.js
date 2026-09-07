@@ -10,7 +10,7 @@ import {
   roleCapacity,
   isDynastyMember,
   presentedIdentity,
-  startingTagNames,
+  startingTagSlugs,
   normalizeAntagonistSlugs,
 } from "@lifeweb/db";
 import {
@@ -19,7 +19,15 @@ import {
 } from "@lifeweb/db/lib/roomAccess";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import {
+  THANATI_SLUG,
+  THANATI_LEADER_SLUG,
+  THANATI_WARES,
+  OBOL_SLUG,
+  hideoutRoom,
+} from "@lifeweb/db/lib/thanati";
+import {
   BUTCHER_SLUG,
+  MUTILATE_GATE_SLUGS,
   WORKSHOP_EQUIPMENT_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
   GUILT_RIDDEN_SLUG,
@@ -31,7 +39,7 @@ import {
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryStatus } from "@lifeweb/db/lib/carry";
-import { isPaper, paperDescription } from "@lifeweb/db/lib/paper";
+import { isPaper, paperDescription, paperView } from "@lifeweb/db/lib/paper";
 import {
   freeMovesLeft,
   freeZoneMovesReason,
@@ -176,9 +184,9 @@ async function loadCreationData(discordUserId) {
             startingZoneName: role.startingLocation?.zone?.name ?? null,
             startingResources: role.startingResources,
             extraStartingPoints: role.extraStartingPoints,
-            // Parsed, because the wizard matches these against catalog tag names
-            // and an entry may carry a count ("Obol x5").
-            startingTagNames: startingTagNames(role.startingTagSlugs),
+            // Parsed, because the wizard matches these against catalog tag
+            // slugs and an entry may carry a count ("obol x5").
+            startingTagSlugs: startingTagSlugs(role.startingTagSlugs),
             grantsLeader: role.grantsLeader,
             // Drives the "Whitelist only" hover on a greyed card. Separate
             // from grantsLeader, which now only means faction Leader.
@@ -377,6 +385,7 @@ export default async function CharacterPage({ searchParams }) {
       select: {
         equipSlots: true,
         avatarUploadsEnabled: true,
+        playPanelEnabled: true,
         portraitMakerEnabled: true,
         portraitFantasyPartsEnabled: true,
         desireSlots: true,
@@ -391,7 +400,7 @@ export default async function CharacterPage({ searchParams }) {
   ]);
 
   // Desires: the slots, and the evaluated catalog behind the picker. Both
-  // are built in web/lib/selfPools.js, which the Hall's YOU column reads too,
+  // are built in web/lib/selfPools.js, which Chat's YOU column reads too,
   // so the two surfaces cannot disagree about what is claimable.
   const {
     desireSlots,
@@ -414,7 +423,7 @@ export default async function CharacterPage({ searchParams }) {
     .map((t) => ({ id: t.id, name: t.name }));
   // Every people pool the sheet's dialogs act on — the roster standing here,
   // the medical gate, and the Loot / Move / Bind / Harm lists — built once in
-  // web/lib/peoplePools.js so the Hall's people column (/play) and this sheet
+  // web/lib/peoplePools.js so Chat's people column (/play) and this sheet
   // cannot disagree about who is standing near you.
   const {
     here,
@@ -766,6 +775,47 @@ export default async function CharacterPage({ searchParams }) {
   // Torture shows for a Torturer and nobody else — again your own sheet.
   // tortureCharacterRequest re-checks the tag and that the target is Bound.
   const canTorture = heldSlugs.has("torturer");
+  // Mutilate shows for any one of Cruel, Torturer or Thanati — three own-sheet
+  // facts, so it leaks nothing about who is standing here or what state they
+  // are in. mutilateRequest re-checks the gate and the subject.
+  const canMutilate = MUTILATE_GATE_SLUGS.some((slug) => heldSlugs.has(slug));
+  // THE THANATI (docs/systemdocs/THANATI.md). Whether you are one, and whether
+  // you lead, are your own sheet's facts; where the hideout is, you set
+  // yourself. thanatiActions.js re-checks every one of these.
+  const isThanati = heldSlugs.has(THANATI_SLUG);
+  const isThanatiLeader = heldSlugs.has(THANATI_LEADER_SLUG);
+  const hideout = isThanati ? await hideoutRoom(prisma) : null;
+  const atHideout = Boolean(hideout && hideout.locationId === character.locationId);
+  // Set Hideout's picker: the rooms at this Location the leader can get into.
+  const hideoutRooms = isThanatiLeader
+    ? accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds).map((r) => ({
+        id: r.id,
+        name: r.name,
+        current: r.id === hideout?.id,
+      }))
+    : [];
+  // Purchase Gear's shelf and purse: the wares priced in both currencies, and
+  // what the hideout's floor holds of each.
+  const [thanatiWares, hideoutObols] = atHideout
+    ? await Promise.all([
+        prisma.tag
+          .findMany({
+            where: { slug: { in: THANATI_WARES.map((w) => w.slug) } },
+            select: { id: true, slug: true, name: true },
+          })
+          .then((tags) =>
+            THANATI_WARES.map((w) => {
+              const tag = tags.find((t) => t.slug === w.slug);
+              return tag ? { tagId: tag.id, name: tag.name, obols: w.obols, resources: w.resources } : null;
+            }).filter(Boolean),
+          ),
+        prisma.roomTag.findFirst({
+          where: { roomId: hideout.id, tag: { slug: OBOL_SLUG } },
+          select: { quantity: true },
+        }),
+      ])
+    : [[], null];
+  const hideoutStock = atHideout ? { resources: hideout.resources, obols: hideoutObols?.quantity ?? 0 } : null;
   // The bomb's two halves. Both read off your own sheet and nothing else, so
   // neither leaks anything about the room; nukeActions.js re-checks both,
   // since a hidden button is a hint and not a lock.
@@ -773,12 +823,12 @@ export default async function CharacterPage({ searchParams }) {
   const hasDevice = heldSlugs.has("nuclear-device");
   // Paperwork, seals, books and the Bird (docs/systemdocs/PAPERWORK.md). Every
   // gate and every option list is built in web/lib/selfPools.js, because the
-  // Hall's composer opens the same four dialogs and two copies of these rules
+  // Chat's composer opens the same four dialogs and two copies of these rules
   // would be two answers to "can this character write".
   // Spread into CharacterSheet below: hasBird, canRead, canWrite, hasSeal,
   // canSeal, paperOptions, letterOptions, sealOptions, birdSentToday,
   // birdTargets, birdZones — the loader names them as the props
-  // RequestActionsProvider takes, so the sheet and the Hall hand the dialogs
+  // RequestActionsProvider takes, so the sheet and Chat hand the dialogs
   // one list.
   const letters = await loadLettersView(character, { openTurn });
 
@@ -802,7 +852,7 @@ export default async function CharacterPage({ searchParams }) {
       const { paperText, ...tag } = ct.tag;
       return {
         ...ct,
-        tag: { ...tag, description: paperDescription(ct.tag, viewer) },
+        tag: { ...tag, description: paperDescription(ct.tag, viewer), paper: paperView(ct.tag, viewer) },
       };
     }),
   };
@@ -992,6 +1042,7 @@ export default async function CharacterPage({ searchParams }) {
       {...letters}
       equipSlots={gameConfig?.equipSlots ?? 10}
       avatarUploadsEnabled={gameConfig?.avatarUploadsEnabled ?? false}
+      playPanelEnabled={gameConfig?.playPanelEnabled ?? true}
       portraitMakerEnabled={gameConfig?.portraitMakerEnabled ?? false}
       portraitFantasyPartsEnabled={
         gameConfig?.portraitFantasyPartsEnabled ?? false
@@ -1017,6 +1068,13 @@ export default async function CharacterPage({ searchParams }) {
       canCrucify={canCrucify}
       canDisguise={canDisguise}
       canTorture={canTorture}
+      canMutilate={canMutilate}
+      isThanati={isThanati}
+      isThanatiLeader={isThanatiLeader}
+      atHideout={atHideout}
+      hideoutRooms={hideoutRooms}
+      hideoutStock={hideoutStock}
+      thanatiWares={thanatiWares}
       hasDatacard={hasDatacard}
       hasDevice={hasDevice}
       nukeArmedTurn={nukeState?.nukeArmedTurn ?? null}

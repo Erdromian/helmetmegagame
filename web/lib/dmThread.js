@@ -1,5 +1,5 @@
 import { Prisma } from "@lifeweb/db";
-import { AUTOMATED_EFFECT_SOURCES } from "./dmSources";
+import { AUTOMATED_EFFECT_SOURCES, MENTION_SOURCE } from "./dmSources";
 
 // Excludes bot/UI plumbing that happens to go out as a DM but isn't part of
 // a GM<->player conversation: embeds (meta.embed === true), anything tagged
@@ -30,8 +30,15 @@ const NOT_NOISE = [
   },
 ];
 
-export function withoutDmNoise(where) {
-  return { ...where, AND: [...(where?.AND ?? []), ...NOT_NOISE] };
+// Which chair is reading. The GM desk ("gm", the default) also drops mention
+// relays — a ping is not conversation on the desk. The player's Chat pane
+// ("player") keeps them: on Discord that DM is simply there, and hiding it on
+// the web was the bug where a web ping seemed to reach nobody.
+const GM_ONLY_NOISE = [{ OR: [{ source: null }, { source: { not: MENTION_SOURCE } }] }];
+
+export function withoutDmNoise(where, { perspective = "gm" } = {}) {
+  const extra = perspective === "player" ? [] : GM_ONLY_NOISE;
+  return { ...where, AND: [...(where?.AND ?? []), ...NOT_NOISE, ...extra] };
 }
 
 // The raw-SQL twin of withoutDmNoise, for the $queryRaw call sites that can't
@@ -40,11 +47,13 @@ export function withoutDmNoise(where) {
 //
 // `alias` is a code-supplied literal (the table alias in the caller's FROM),
 // never user input, so Prisma.raw is safe here.
-export function dmNoiseSql(alias) {
+export function dmNoiseSql(alias, { perspective = "gm" } = {}) {
   const col = (c) => Prisma.raw(alias ? `${alias}."${c}"` : `"${c}"`);
-  return Prisma.sql`(${col("source")} IS DISTINCT FROM 'system_notice')
+  const base = Prisma.sql`(${col("source")} IS DISTINCT FROM 'system_notice')
     AND (${col("source")} IS DISTINCT FROM 'prompt_reply')
     AND ((${col("meta")}->>'embed') IS DISTINCT FROM 'true')`;
+  if (perspective === "player") return base;
+  return Prisma.sql`${base} AND (${col("source")} IS DISTINCT FROM ${MENTION_SOURCE})`;
 }
 
 // dmNoiseSql, plus excluding bot/effect noise that reads like conversation
@@ -85,4 +94,29 @@ export function dmPreview(genuine, latest, myDiscordUserId) {
   if (genuine) return { preview: `${dmPreviewLabel(genuine, myDiscordUserId)}${genuine.content}`, previewIsSystem: false };
   if (latest?.content) return { preview: latest.content, previewIsSystem: true };
   return { preview: "", previewIsSystem: false };
+}
+
+// What Chat hands a PLAYER about their own conversation (CHAT.md §2b): the
+// row minus who wrote it. `authorDiscordUserId` is deliberately not selected —
+// a player never learns which GM answered, on either face. One select and one
+// shape, read by the feed hub's live fan-out and by play/actions.js#gmThread,
+// so the two cannot disagree.
+export const PLAYER_DM_SELECT = {
+  id: true,
+  direction: true,
+  content: true,
+  source: true,
+  createdAt: true,
+  meta: true,
+};
+
+export function playerDmRow(row) {
+  return {
+    id: row.id,
+    direction: row.direction,
+    content: row.content,
+    source: row.source ?? null,
+    createdAt: row.createdAt.toISOString(),
+    meta: row.meta ?? null,
+  };
 }

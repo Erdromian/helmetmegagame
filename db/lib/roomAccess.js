@@ -148,7 +148,7 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = 
     .catch(() => null);
   const stored = new Set(record?.roomThreadRoomIds ?? []);
 
-  // The "web only" switch (docs/systemdocs/HALL.md §6) holds this account out
+  // The "web only" switch (docs/systemdocs/CHAT.md §6) holds this account out
   // of every channel, so it is entitled to no thread at all until it comes
   // back off. Cleared rather than never computed, on purpose: the diff below
   // then REMOVES whatever they still stand in. Read here rather than off the
@@ -162,7 +162,7 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = 
 
   // A door opened or shut, so this character's /play place list changed —
   // wake their tabs before the Discord calls, which are the slow part and can
-  // fail without changing the answer the web gives (docs HALL.md §3).
+  // fail without changing the answer the web gives (docs CHAT.md §3).
   await notifyPresence(prisma, character.id);
 
   const next = new Set(stored);
