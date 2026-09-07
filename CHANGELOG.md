@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · A locked Desire slot says how long it stays locked
+
+✎ A slot on cooldown now reads Locked (1t) — turns left — instead of Opens on turn 3, on the sheet, in Chat, in the picker and on the GM's Goals tab
+
 ## 2026-09-07 · Overheard whispers give up a little more
 
 ✎ A room overhearing a Conversation now catches about 35% of the letters instead of 30% — the static is a notch lighter

@@ -84,7 +84,10 @@ pass:
   ```
 
   where `maxEnded` is the largest `endedTurnNumber` over that slot's ended
-  rows. At the default of **1**, a claim on turn N leaves the slot shut for the
+  rows. `slotStates` also returns `lockedTurnsLeft` (`lockedUntilTurn −
+  openTurnNumber`, never below 1), and every surface labels a locked slot by
+  that — `Locked (1t)`, via `web/lib/desireLabels.js#lockedSlotLabel` — never
+  by the absolute turn number, which means nothing to a player. At the default of **1**, a claim on turn N leaves the slot shut for the
   rest of N, shut through N+1, and open on N+2. This is the throttle on
   income itself, independent of which template is being claimed. It has moved
   three times: one turn until 2026-09-02, then two, then back to one on

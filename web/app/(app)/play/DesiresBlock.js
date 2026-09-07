@@ -9,6 +9,7 @@ import RequestDialog from "@/app/components/RequestDialog";
 import DesireCatalog, { cooldownLabel } from "@/app/components/DesireCatalog";
 import { claimDesire } from "@/app/(app)/character/requestActions";
 import { desireCatalogView } from "./actions";
+import { lockedSlotLabel } from "@/lib/desireLabels";
 
 // The sheet's Desire slots, in the column. Same shape as
 // web/app/components/DesirePanel.js and the same claim: a Desire is claimed
@@ -86,7 +87,7 @@ export default function DesiresBlock({ view }) {
               </p>
             )}
             {slot.lockedUntilTurn != null ? (
-              <EmptyState>{`Opens on turn ${slot.lockedUntilTurn}`}</EmptyState>
+              <EmptyState>{lockedSlotLabel(slot)}</EmptyState>
             ) : (
               <button
                 type="button"

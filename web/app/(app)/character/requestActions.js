@@ -3826,7 +3826,7 @@ async function claimDesireImpl({
     const slot = slots[slotIndex];
     if (slot?.lockedUntilTurn != null) {
       throw new UserError(
-        `That slot is on cooldown — it opens up again on turn ${slot.lockedUntilTurn}.`,
+        `That slot is locked for ${slot.lockedTurnsLeft} more turn${slot.lockedTurnsLeft === 1 ? "" : "s"}. ‡`,
       );
     }
   }

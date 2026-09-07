@@ -252,18 +252,24 @@ function slotStates({ history, openTurnNumber, desireSlots, lockTurns = 2 }) {
   for (let slotIndex = 0; slotIndex < desireSlots; slotIndex++) {
     const endedRows = hist.filter((h) => h.slotIndex === slotIndex && h.endedTurnNumber != null);
     let lockedUntilTurn = null;
+    // Whole turns until the slot opens again, counted from the open turn.
+    // The client labels a locked slot by this ("Locked (1t)"), never by the
+    // absolute turn number, because "turn 3" means nothing to a player who
+    // does not know what turn it is. Never below 1 while locked.
+    let lockedTurnsLeft = null;
     let lastEnded = null;
     if (endedRows.length > 0) {
       const maxEnded = Math.max(...endedRows.map((h) => h.endedTurnNumber));
       if (openTurnNumber <= maxEnded + lockTurns) {
         lockedUntilTurn = maxEnded + lockTurns + 1;
+        lockedTurnsLeft = Math.max(1, lockedUntilTurn - openTurnNumber);
       }
       lastEnded =
         endedRows
           .filter((h) => h.status === "FULFILLED")
           .reduce((latest, row) => (latest == null || row.endedTurnNumber > latest.endedTurnNumber ? row : latest), null);
     }
-    slots.push({ slotIndex, lockedUntilTurn, lastEnded });
+    slots.push({ slotIndex, lockedUntilTurn, lockedTurnsLeft, lastEnded });
   }
   return slots;
 }
