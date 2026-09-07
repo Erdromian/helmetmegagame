@@ -358,8 +358,8 @@ export async function wipeGameData(formData) {
       prisma.factionApplication.deleteMany({}),
       prisma.faction.updateMany({ data: { siloRoomId: null } }),
       prisma.auditLog.deleteMany({}),
-      // Antagonist objectives are per-game state. Inside this transaction on
-      // purpose: the epilogue snapshot above must still see them.
+      // Antagonist objectives are per-game state. The epilogue snapshot above
+      // ran before this transaction opened, so it has already read them.
       prisma.objective.deleteMany({}),
       prisma.character.deleteMany({}),
       prisma.playerThread.deleteMany({}),

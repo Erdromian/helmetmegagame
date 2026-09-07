@@ -104,4 +104,4 @@ function formatEpilogue(epilogue, { number } = {}) {
   return lines.join("\n");
 }
 
-module.exports = { buildEpilogue, formatEpilogue, factsLine, rosterLine, formatAntagonistLines };
+module.exports = { buildEpilogue, formatEpilogue, factsLine, rosterLine };

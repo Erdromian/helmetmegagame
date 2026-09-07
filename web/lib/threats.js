@@ -17,8 +17,6 @@ export {
   threatBySeatTag,
   PARTIES,
   partyOf,
-  partyByKey,
-  seatsOfParty,
   optInName,
   optInWhitelisted,
   WHITELISTED_OPT_IN_SLUGS,

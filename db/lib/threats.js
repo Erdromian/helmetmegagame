@@ -322,11 +322,6 @@ function partyByKey(key) {
   return PARTIES.find((p) => p.key === key) ?? null;
 }
 
-// The seats that score with one party, catalog order.
-function seatsOfParty(key) {
-  return ASSIGNABLE_THREATS.filter((t) => partyOf(t).key === key);
-}
-
 // Whatever the form posted, reduced to known opt-in slugs, deduped, in
 // catalog order. The wizard's checkboxes are UX; this is the boundary that
 // keeps junk out of the column, same posture as normalizeHonorific's
@@ -406,7 +401,6 @@ module.exports = {
   PARTIES,
   partyOf,
   partyByKey,
-  seatsOfParty,
   optInName,
   optInWhitelisted,
   WHITELISTED_OPT_IN_SLUGS,

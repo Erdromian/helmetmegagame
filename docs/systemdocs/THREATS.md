@@ -19,7 +19,7 @@ can do, and which ones it carries is the whole taxonomy:
 | `assign: {…}` | A real seat a GM can hand to an existing character. |
 | `spawn: {…}` | The same seat, handed to somebody with no character at all. |
 | `party: { key, name }` | The group a seat scores its **objectives** with and is named as in the reveal (§6a): the two Thanati seats share `thanati`, the two Tribunal seats `tribunal`. A seat without one is **solo** — `partyOf()` answers with the seat itself, and the reveal says "was a" rather than "were the". |
-| `brief: [lines]` | Prose the seat DM carries — the **one exception** to "no prose in the catalog" below. Only for a seat with no Role of its own (`spawn.roleSlug` null), where there is no charter to duplicate and nowhere else for the words to live. Only the Thanati carry one. Bascinet's words verbatim, unsigned. Assign sends it in place of the generic opener; Spawn sends it above the cover role's charter. |
+| `brief: [lines]` | Prose the seat DM carries — the **one exception** to "no prose in the catalog" below. Only for a seat with no Role of its own (`spawn.roleSlug` null), where there is no charter to duplicate and nowhere else for the words to live. Only the Thanati carry one. Bascinet's words verbatim, unsigned. Assign sends it in place of the generic opener. The Spawn **offer** never carries it — a decline must not have read the doctrine — so the bot DMs it once Accept lands (`bot/src/lib/threatSpawn.js`). |
 
 `assignable: true` is the flag both buttons read; every assignable seat is also
 spawnable, because anything worth giving to a character is worth giving to a
@@ -239,14 +239,12 @@ share one list, the Tribunal another, and a solo seat (Demoness, Judge) is its
 own party under its own slug. `PARTIES` is the deduped list in catalog order and
 is what both the cards and the reveal iterate.
 
-**A kind** says what the GM's dropdown reads (`pick`), the sentence the row
-renders through (`label`, with `{target}`, `{location}`, `{value}` or `{text}`
-filled from the row's snapshots), which parties may take it, a `weight` (Minor
-/ Major, display only), what the second control on the Add row asks for
-(`target`: a character, a *leader* — a character whose Role has
-`requiresWhitelist` — the Inquisitor or the Baron (not the Baroness), a Location, a
-number, free text), and a `script`. The kinds and their words are Bascinet's,
-from the objectives spec, so they carry no ‡. Solo parties only get `custom`.
+**A kind**'s fields are glossed at the top of `db/lib/objectiveKinds.js`; the
+two worth knowing here are `target` — what the Add row asks for: a character, a
+*leader* (a character whose Role has `requiresWhitelist`), the Inquisitor or
+the Baron (not the Baroness — Bascinet's ruling), a Location, a number, free
+text — and `script`. The kinds and their words are Bascinet's, from the
+objectives spec, so they carry no ‡. Solo parties only get `custom`.
 
 **Three scripted kinds; the rest are the GM's word.** `script` names a checker
 in `evaluateObjectives`, all read on demand — nothing runs at turn close:
@@ -278,7 +276,11 @@ death rows it already loaded plus the state, and stores `antagonists` on the
 epilogue: every party with at least one seat holder of any status, its members
 (the Thanati Leader first; a seat name in parentheses where it differs from the
 party's), its objectives scored. A party with objectives and nobody seated is
-left out — it never existed in play. `formatAntagonistLines` is Bascinet's
+left out — it never existed in play. Every manual objective prints as Success
+or Failed by the GM's pin, the placeholder rite kinds included: an
+unadjudicated one reads **Failed!**, which is the spec's binary. `/archive`
+hides the whole reveal from players while a resumed game is running, since it
+names live kill targets. `formatAntagonistLines` is Bascinet's
 format, one line per party, printed under **The antagonists** between the
 facts line and **Who was who**, and on `/archive`:
 
@@ -289,20 +291,22 @@ Ash (Thanati Leader), Wren, Lark were the Thanati. Their objectives were: Kill C
 ```
 
 Because the bomb ends the game inside the same advance that stamps the
-detonation and writes the blast deaths (`db/index.js`), both Tribunal and
-Thanati scripted kinds score right in the fireball epilogue.
+detonation and writes the blast deaths (`db/index.js`), the fireball epilogue
+scores the Tribunal's Detonate as Success and any Thanati kill target the blast
+took as dead. The blast never scores the cult's bloodbath: its turn is the one
+`deathsInOneDay` leaves out.
 
-**The card.** One per party in `PARTIES`, seated or not, under the roster. Each
-row: weight, the sentence, the game's one-word answer, the pin dropdown (Game
-decides / Success / Failed for a scripted kind, the two answers for a manual
-one), Remove behind the confirm dialog. An "N of M complete" count sits in the
-head — the number the leader's final rite pays 100 ⬢ per, once that exists.
-The Add row's second control follows the kind and is reset on every kind
-change. The Tribunal's card offers **Add the standard set** (`PARTY_DEFAULTS`:
-Detonate + Celebrate) while it is empty. Actions are
-`web/app/(app)/gm/dev/objectiveActions.js`, superadmin-gated, each
-re-validating kind, party, target shape and eligibility; every one writes an
-audit row (`objective_added` / `objective_pinned` / `objective_removed`).
+**The card.** One per party in `PARTIES`, seated or not, under the roster
+(`ObjectivesPanel.js`). Two things on it are decisions rather than layout: the
+"N of M complete" count is the number the leader's final rite will pay 100 ⬢
+per, once that exists; and a card whose party has nobody seated says so, since
+`buildAntagonistReveal` will print nothing for it. The page and the card use
+the same `membersByParty` the reveal does, so they cannot disagree about who
+sits where. Actions are `web/app/(app)/gm/dev/objectiveActions.js`,
+superadmin-gated, each re-validating kind, party, target shape and
+eligibility; every one writes an audit row (`objective_added` /
+`objective_pinned` / `objective_removed`). After End Game the card warns that
+the reveal is already frozen — only a second End Game rebuilds it.
 
 **For the rite to come.** `listObjectives(prisma, { partyKey })` returns a
 party's rows described and scored; nothing player-facing reads it yet, on

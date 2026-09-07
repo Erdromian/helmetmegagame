@@ -19,7 +19,6 @@ import {
   optInName,
   optInWhitelisted,
   PARTIES,
-  partyOf,
 } from "@/lib/threats";
 import { PLAYER_ROLE_ID, LEADER_WHITELIST_ROLE_ID } from "@lifeweb/db/lib/roleIds";
 import { roleCapacity, seatHolderStatuses } from "@lifeweb/db/lib/roleCapacity";
@@ -38,7 +37,7 @@ import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
 import ThreatAssignmentsTable from "@/app/(app)/gm/dev/threats/ThreatAssignmentsTable";
 import ThreatRosterTable from "@/app/(app)/gm/dev/threats/ThreatRosterTable";
 import ObjectivesPanel from "@/app/(app)/gm/dev/threats/ObjectivesPanel";
-import { listObjectives, locationEligible } from "@lifeweb/db/lib/objectives";
+import { listObjectives, locationEligible, membersByParty } from "@lifeweb/db/lib/objectives";
 import { kindsForParty, OBJECTIVE_WEIGHTS, PARTY_DEFAULTS, INQUISITOR_OR_BARON_ROLE_SLUGS } from "@lifeweb/db/lib/objectiveKinds";
 import { effectivePlayerCount, GAME_STATE_CREATE } from "@lifeweb/db/lib/gameState";
 import GameControls from "./GameControls";
@@ -475,29 +474,28 @@ export default async function DevPanelPage({ searchParams }) {
         createdAt: o.createdAt.toISOString().slice(0, 16).replace("T", " "),
       }));
 
-      // One card per party, seated or not. Members come off the seat rows
-      // above; a character holding two seats of one party (the Thanati Leader
-      // holds `thanati` too) is listed once, under the seat that grants the
-      // other. Everything is serialised flat — the panel is a client component.
+      // One card per party, seated or not. Members come from the same
+      // derivation the reveal uses (db/lib/objectives.js#membersByParty), fed
+      // the seat rows reshaped into characters-with-tags, so the card and the
+      // Game Ended post can never disagree about who is in a party. Everything
+      // is serialised flat — the panel is a client component.
+      const seatHolders = new Map();
+      for (const row of heldSeats) {
+        if (!row.character) continue;
+        const holder = seatHolders.get(row.character.id) ?? { id: row.character.id, name: row.character.name, tags: [] };
+        holder.tags.push({ tag: { slug: row.tag.slug } });
+        seatHolders.set(row.character.id, holder);
+      }
+      const partyMembers = membersByParty([...seatHolders.values()]);
       objectiveParties = PARTIES.map((party) => {
-        const seen = new Map();
-        for (const row of heldSeats) {
-          const threat = threatBySeatTag(row.tag.slug);
-          if (!threat || !row.character || partyOf(threat).key !== party.key) continue;
-          const prior = seen.get(row.character.id);
-          const grantsPrior = prior && (threat.assign?.tagSlugs ?? []).includes(prior.seatTagSlug);
-          if (!prior || grantsPrior) seen.set(row.character.id, { name: row.character.name, seat: threat.name, seatTagSlug: threat.seatTagSlug });
-        }
         return {
           key: party.key,
           name: party.name,
-          solo: party.solo,
-          members: [...seen.values()].map(({ name, seat }) => ({ name, seat })),
+          members: (partyMembers.get(party.key) ?? []).map(({ name, seat }) => ({ name, seat })),
           objectives: objectives
             .filter((o) => o.partyKey === party.key)
             .map((o) => ({
               id: o.id,
-              kind: o.kind,
               description: o.description,
               weight: o.weight,
               done: o.done,
@@ -521,9 +519,12 @@ export default async function DevPanelPage({ searchParams }) {
         leader: Boolean(c.role?.requiresWhitelist),
         inquisitorOrBaron: INQUISITOR_OR_BARON_ROLE_SLUGS.has(c.role?.slug),
       }));
-      objectiveLocations = allLocations
-        .filter(locationEligible)
-        .map((l) => ({ id: l.id, name: l.name, zoneName: l.zone?.name ?? "" }));
+      // Grouped here with the same helper Bulk move uses, so the client only
+      // renders optgroups.
+      objectiveLocations = groupLocationsByZone(allLocations.filter(locationEligible)).map((g) => ({
+        zoneName: g.zoneName ?? "",
+        locations: g.locations.map((l) => ({ id: l.id, name: l.name })),
+      }));
       break;
     }
     default:
@@ -987,6 +988,7 @@ export default async function DevPanelPage({ searchParams }) {
                 characters={objectiveCharacters}
                 locations={objectiveLocations}
                 weights={OBJECTIVE_WEIGHTS}
+                ended={state.phase === "ENDED"}
               />
             </section>
           ) : null}

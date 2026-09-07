@@ -2,8 +2,9 @@
 
 // Antagonist objectives, one card per party (THREATS.md §6a). Everything here
 // arrives as plain props from the page — rows already described and scored,
-// the kinds a party may take, the pickable characters and Locations — so this
-// file imports nothing from db/lib and the browser bundle stays clear of it.
+// the kinds a party may take, the pickable characters, the Locations already
+// grouped by zone — so this file imports nothing from db/lib and the browser
+// bundle stays clear of it.
 //
 // The status column is the game's answer in one word. The pin dropdown is the
 // only sign a GM overrode it: a scripted kind offers "Game decides" as well as
@@ -21,10 +22,15 @@ function pinKey(row) {
   return row.done ? "success" : "failed";
 }
 
-export default function ObjectivesPanel({ parties, characters, locations, weights }) {
+export default function ObjectivesPanel({ parties, characters, locations, weights, ended }) {
   return (
     <section className="flex flex-col gap-4">
       <h3 className="section-title">Objectives</h3>
+      {ended ? (
+        <p className="text-sm text-muted">
+          The game has ended and the reveal is already written. Changes here reach nobody unless the game is ended again. ‡
+        </p>
+      ) : null}
       {parties.map((party) => (
         <PartyCard key={party.key} party={party} characters={characters} locations={locations} weights={weights} />
       ))}
@@ -51,6 +57,10 @@ function PartyCard({ party, characters, locations, weights }) {
           </span>
         ) : null}
       </div>
+
+      {party.members.length === 0 ? (
+        <p className="text-sm text-muted">Nothing here reaches the reveal until somebody holds the seat. ‡</p>
+      ) : null}
 
       {party.objectives.length === 0 ? (
         <div className="flex flex-wrap items-center gap-3">
@@ -107,16 +117,18 @@ function ObjectiveRow({ row }) {
     });
   }
 
-  function remove() {
+  // Confirm first, transition second (DESIGN-SYSTEM.md §8): the row's controls
+  // stay live while the GM reads the prompt.
+  async function remove() {
     setError(null);
+    const ok = await confirm({
+      title: "Remove this objective?",
+      message: `${row.description} — it leaves the reveal too. ‡`,
+      confirmLabel: "Remove",
+      cancelLabel: "Keep it",
+    });
+    if (!ok) return;
     startTransition(async () => {
-      const ok = await confirm({
-        title: "Remove this objective?",
-        message: `${row.description} — it leaves the reveal too. ‡`,
-        confirmLabel: "Remove",
-        cancelLabel: "Keep it",
-      });
-      if (!ok) return;
       const res = await removeObjective({ id: row.id });
       if (!res?.ok) setError(res?.error ?? "Something went wrong.");
     });
@@ -238,7 +250,7 @@ function AddRow({ party, characters, locations, weights }) {
           <span className="field-label">Location</span>
           <Select value={locationId} onChange={(e) => setLocationId(e.target.value)} className="min-w-56">
             <option value="">Choose…</option>
-            {groupByZone(locations).map((g) => (
+            {locations.map((g) => (
               <optgroup key={g.zoneName} label={g.zoneName}>
                 {g.locations.map((l) => (
                   <option key={l.id} value={l.id}>
@@ -292,15 +304,4 @@ function AddRow({ party, characters, locations, weights }) {
       <FormError>{error}</FormError>
     </div>
   );
-}
-
-// Locations arrive ordered by zone, so one pass builds the optgroups.
-function groupByZone(locations) {
-  const groups = [];
-  for (const l of locations) {
-    const last = groups[groups.length - 1];
-    if (last && last.zoneName === l.zoneName) last.locations.push(l);
-    else groups.push({ zoneName: l.zoneName, locations: [l] });
-  }
-  return groups;
 }

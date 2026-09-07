@@ -4,7 +4,7 @@
 // `npm test --workspace=db`. The one Prisma call is faked.
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { formatAntagonistLines, maxDeathsInOneDay, evaluateObjectives } = require("../lib/objectives");
+const { formatAntagonistLines, maxDeathsInOneDay, evaluateObjectives, membersByParty } = require("../lib/objectives");
 const { OBJECTIVE_KINDS, PARTY_DEFAULTS, kindsForParty, describeObjective, objectiveKind } = require("../lib/objectiveKinds");
 const { PARTIES, partyOf, threatBySlug } = require("../lib/threats");
 
@@ -48,13 +48,32 @@ test("deaths are counted per in-game day, two turns to a day", () => {
   assert.equal(maxDeathsInOneDay(deaths, { excludeTurn: 2 }), 1);
 });
 
+test("membersByParty names a leader by the seat that grants the other, leader first", () => {
+  const tags = (...slugs) => slugs.map((slug) => ({ tag: { slug } }));
+  const members = membersByParty([
+    { id: "w", name: "Wren", tags: tags("thanati") },
+    { id: "a", name: "Ash", tags: tags("thanati", "thanati-leader") },
+    { id: "m", name: "Maeris", tags: tags("demoness") },
+    { id: "j", name: "Jorren", tags: tags("judge", "thanati") }, // two parties: listed in both
+    { id: "n", name: "Nobody", tags: [] },
+  ]);
+  assert.deepEqual(members.get("thanati"), [
+    { id: "a", name: "Ash", seat: "Thanati Leader" },
+    { id: "w", name: "Wren", seat: "Thanati" },
+    { id: "j", name: "Jorren", seat: "Thanati" },
+  ]);
+  assert.deepEqual(members.get("demoness"), [{ id: "m", name: "Maeris", seat: "Demoness" }]);
+  assert.deepEqual(members.get("judge"), [{ id: "j", name: "Jorren", seat: "Judge" }]);
+  assert.equal(members.has("tribunal"), false);
+});
+
 test("the reveal reads in Bascinet's format", () => {
   const lines = formatAntagonistLines([
     { partyKey: "judge", partyName: "Judge", solo: true, members: [{ name: "Ash", seat: "Judge" }], objectives: [] },
     {
       partyKey: "demoness", partyName: "Demoness", solo: true,
       members: [{ name: "Maeris", seat: "Demoness" }],
-      objectives: [{ text: "Seduce the Baron.", done: true }, { text: "Escape the Fortress", done: false }],
+      objectives: [{ text: "Seduce the Baron.", done: true }, { text: "Did the heir survive?", done: false }],
     },
     {
       partyKey: "thanati", partyName: "Thanati", solo: false,
@@ -64,7 +83,7 @@ test("the reveal reads in Bascinet's format", () => {
   ]);
   assert.deepEqual(lines, [
     "Ash was a Judge.",
-    "Maeris was a Demoness. Their objectives were: Seduce the Baron. **Success!** / Escape the Fortress. **Failed!**",
+    "Maeris was a Demoness. Their objectives were: Seduce the Baron. **Success!** / Did the heir survive? **Failed!**",
     "Ash (Thanati Leader), Wren were the Thanati. Their objectives were: Kill Corvin. **Success!**",
   ]);
 });

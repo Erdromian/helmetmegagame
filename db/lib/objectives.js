@@ -149,14 +149,13 @@ function primarySeat(seats) {
   );
 }
 
-// The reveal: every party somebody actually sat in, its members and its
-// scored objectives. `characters` are the rows buildEpilogue loads — name,
-// createdAt and the seat tags — so nothing is read twice.
-//
-// A party with objectives and no member is left out. It never existed in
-// play, and printing its prep would only confuse the room.
-async function buildAntagonistReveal(prisma, { characters, deaths = null, state = null }) {
-  const membersByParty = new Map();
+// Who sits in each party: Map<partyKey, [{ id, name, seat }]>, a leader first
+// and then in the order given. `characters` are rows with `id`, `name` and
+// their seat tags as `tags: [{ tag: { slug } }]` — what buildEpilogue loads and
+// what /gm/dev reshapes its seat rows into, so the two surfaces can never
+// disagree about who is in a party.
+function membersByParty(characters) {
+  const members = new Map();
   for (const c of characters) {
     const held = (c.tags ?? []).map((t) => threatBySeatTag(t.tag?.slug ?? t.slug)).filter(Boolean);
     if (held.length === 0) continue;
@@ -168,35 +167,39 @@ async function buildAntagonistReveal(prisma, { characters, deaths = null, state 
     }
     for (const [key, seats] of byParty) {
       const seat = primarySeat(seats);
-      if (!membersByParty.has(key)) membersByParty.set(key, []);
-      membersByParty.get(key).push({
-        name: c.name,
-        seat: seat.name,
-        // Leader-ness: this seat's grant includes another party seat's tag.
-        leads: seats.length > 1 && seats.some((o) => o !== seat),
-        createdAt: c.createdAt ?? null,
-      });
+      if (!members.has(key)) members.set(key, []);
+      // Leader-ness: this seat's grant includes another party seat's tag.
+      members.get(key).push({ id: c.id, name: c.name, seat: seat.name, leads: seats.length > 1 });
     }
   }
-  if (membersByParty.size === 0) return [];
+  for (const list of members.values()) {
+    list.sort((a, b) => (a.leads === b.leads ? 0 : a.leads ? -1 : 1));
+    for (const m of list) delete m.leads;
+  }
+  return members;
+}
+
+// The reveal: every party somebody actually sat in, its members and its
+// scored objectives. `characters` are the rows buildEpilogue loads, in
+// createdAt order, so nothing is read twice.
+//
+// A party with objectives and no member is left out. It never existed in
+// play, and printing its prep would only confuse the room.
+async function buildAntagonistReveal(prisma, { characters, deaths = null, state = null }) {
+  const members = membersByParty(characters);
+  if (members.size === 0) return [];
 
   const objectives = await listObjectives(prisma, { state, deaths });
   const reveal = [];
   for (const party of PARTIES) {
-    const members = membersByParty.get(party.key);
-    if (!members?.length) continue;
-    members.sort((a, b) => {
-      if (a.leads !== b.leads) return a.leads ? -1 : 1;
-      return (a.createdAt ? new Date(a.createdAt).getTime() : 0) - (b.createdAt ? new Date(b.createdAt).getTime() : 0);
-    });
+    const list = members.get(party.key);
+    if (!list?.length) continue;
     reveal.push({
       partyKey: party.key,
       partyName: party.name,
       solo: party.solo,
-      members: members.map(({ name, seat }) => ({ name, seat })),
-      objectives: objectives
-        .filter((o) => o.partyKey === party.key)
-        .map((o) => ({ text: o.description, weight: o.weight, done: o.done })),
+      members: list.map(({ name, seat }) => ({ name, seat })),
+      objectives: objectives.filter((o) => o.partyKey === party.key).map((o) => ({ text: o.description, done: o.done })),
     });
   }
   return reveal;
@@ -216,8 +219,13 @@ function formatAntagonistLines(reveal) {
         ? `${names[0]} was a ${party.partyName}.`
         : `${names.join(", ")} were the ${party.partyName}.`;
     if (party.objectives.length === 0) return head;
+    // A sentence keeps its own stop; one without gets a full stop.
     const list = party.objectives
-      .map((o) => `${o.text.replace(/[.!]+$/, "")}. ${o.done ? "**Success!**" : "**Failed!**"}`)
+      .map((o) => {
+        const text = o.text.trim();
+        const stopped = /[.!?…]$/.test(text) ? text : `${text}.`;
+        return `${stopped} ${o.done ? "**Success!**" : "**Failed!**"}`;
+      })
       .join(" / ");
     return `${head} Their objectives were: ${list}`;
   });
@@ -227,8 +235,8 @@ module.exports = {
   locationEligible,
   evaluateObjectives,
   listObjectives,
+  membersByParty,
   buildAntagonistReveal,
   formatAntagonistLines,
   maxDeathsInOneDay,
-  loadDeaths,
 };
