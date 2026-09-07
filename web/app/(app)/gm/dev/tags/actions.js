@@ -496,14 +496,31 @@ async function deleteCustomTagImpl({ tagId }) {
   // The same reference checks db:prune-tags makes, for the same reason: a
   // deleted tag someone still holds is a foreign-key violation, and a deleted
   // group gate silently opens a hidden category to everyone.
-  const [held, parentOf, requiredBy, gates, skillOf] = await Promise.all([
+  //
+  // Poison references (fix round M4b, fix 6): a poison tag can carry zero
+  // ordinary CharacterTag rows (nobody holds the VIAL any more) while still
+  // tainting a stack elsewhere as poisonPayload — db:prune-tags' own
+  // heldCount check misses exactly this, so this delete would otherwise
+  // orphan a live dose the same way an unchecked prune would.
+  const [held, parentOf, requiredBy, gates, skillOf, poisonedChar, poisonedRoom, crateCarriers] = await Promise.all([
     prisma.characterTag.count({ where: { tagId } }),
     prisma.tag.count({ where: { parentTagId: tagId } }),
     prisma.tag.count({ where: { requiredTagId: tagId } }),
     prisma.tagGroup.count({ where: { requiredTagId: tagId } }),
     prisma.tag.count({ where: { requirementSkills: { some: { id: tagId } } } }),
+    prisma.characterTag.count({ where: { poisonPayload: tagId } }),
+    prisma.roomTag.count({ where: { poisonPayload: tagId } }),
+    prisma.tag.findMany({ where: { crateContents: { not: null } }, select: { crateContents: true } }),
   ]);
   if (held) throw new UserError(`${held} character${held === 1 ? "" : "s"} still hold that tag.`);
+  const crateReferences = crateCarriers.some((t) =>
+    (Array.isArray(t.crateContents) ? t.crateContents : []).some(
+      (entry) => entry?.poisonPayload === tagId,
+    ),
+  );
+  if (poisonedChar || poisonedRoom || crateReferences) {
+    throw new UserError("A held or stashed stack is still poisoned with that — cure or clear it first. ‡");
+  }
   if (parentOf || requiredBy || gates || skillOf) {
     throw new UserError("Another tag or group references that one.");
   }

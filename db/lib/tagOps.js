@@ -119,7 +119,21 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equip
     });
     if (!row) continue;
     const data = {};
-    if (op.quantity != null) data.quantity = tag.stackable ? op.quantity : 1;
+    if (op.quantity != null) {
+      const newQuantity = tag.stackable ? op.quantity : 1;
+      data.quantity = newQuantity;
+      // Poison clamp (fix round M4b, fix 5): a GM writing quantity directly
+      // could otherwise cut a stack below its poisonedCount — an impossible
+      // stack (0 <= poisonedCount <= quantity). A raise needs no poison
+      // change (more clean units is dilution, not a poison edit), but a cut
+      // clamps poisonedCount down with it, and nulls the payload the moment
+      // it lands on zero — the same invariant every drop path in
+      // tagWrites.js already enforces.
+      if (row.poisonedCount > newQuantity) {
+        data.poisonedCount = newQuantity;
+        data.poisonPayload = newQuantity > 0 ? row.poisonPayload : null;
+      }
+    }
     if (op.source) data.source = op.source;
     if (op.expiry) data.expiresTurn = await expiresTurnFor(tx, op, tag, openTurn, characterId);
     if (Object.keys(data).length) {

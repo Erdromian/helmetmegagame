@@ -140,13 +140,14 @@ async function sweepExpiredStacks(turn, model = "characterTag") {
     select: {
       id: true,
       quantity: true,
+      poisonedCount: true,
       tag: { select: { defaultDurationTurns: true } },
     },
   });
   if (expired.length === 0) return;
 
   const spent = [];
-  // new expiresTurn -> ids landing on it
+  // new expiresTurn -> rows landing on it
   const rescheduled = new Map();
   for (const ct of expired) {
     if (ct.quantity <= 1) {
@@ -155,8 +156,32 @@ async function sweepExpiredStacks(turn, model = "characterTag") {
     }
     const next = expiryFrom(turn.number + 1, ct.tag.defaultDurationTurns ?? 1);
     if (!rescheduled.has(next)) rescheduled.set(next, []);
-    rescheduled.get(next).push(ct.id);
+    rescheduled.get(next).push(ct);
   }
+
+  // Poison clamp (fix round M4b, fix 7): the decrement below shrinks
+  // quantity by exactly 1 without touching poisonedCount, which — one expiry
+  // at a time — can walk poisonedCount above the new quantity, the same
+  // invariant (0 <= poisonedCount <= quantity, payload null at 0) every
+  // other decrement path in tagWrites.js already enforces. A full
+  // hypergeometric draw here would be over-engineering: nothing today mints
+  // a poisoned stack that carries its OWN expiresTurn (poison rides on food
+  // and drink, whose clock the consume ladder tracks separately), so this
+  // branch never actually fires — the clamp is a belt-and-suspenders guard
+  // on a path that is, for now, unreachable.
+  const poisonClamps = [...rescheduled.values()]
+    .flat()
+    .filter((ct) => ct.poisonedCount > ct.quantity - 1)
+    .map((ct) => {
+      const newQuantity = ct.quantity - 1;
+      return prisma[model].updateMany({
+        where: { id: ct.id },
+        data: {
+          poisonedCount: newQuantity,
+          ...(newQuantity <= 0 ? { poisonPayload: null } : {}),
+        },
+      });
+    });
 
   await prisma.$transaction([
     ...(spent.length
@@ -164,12 +189,13 @@ async function sweepExpiredStacks(turn, model = "characterTag") {
       : []),
     // decrement, not a computed literal, so a concurrent grant on the same
     // row can't be clobbered between the read above and this write.
-    ...[...rescheduled].map(([expiresTurn, ids]) =>
+    ...[...rescheduled].map(([expiresTurn, cts]) =>
       prisma[model].updateMany({
-        where: { id: { in: ids } },
+        where: { id: { in: cts.map((ct) => ct.id) } },
         data: { quantity: { decrement: 1 }, expiresTurn },
       }),
     ),
+    ...poisonClamps,
   ]);
 }
 
