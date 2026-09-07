@@ -5227,17 +5227,26 @@ label.chip {
 
 /* ---- Travel: the ways out, as a map of nodes ---- */
 
+/* Two up in the aside, three in the phone sheet, one if a column ever gets
+   narrower — the columns follow the width rather than a second media query.
+   Grid's default stretch keeps every card in a row the same height, so a
+   short card's foot still sits level with its neighbour's. */
 .hall-nodes {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
   gap: var(--sp-2);
 }
 
+/* Content-driven, not a square. The old aspect-ratio:1 box left the
+   description less room than its own clamp, so it was sliced mid-glyph with
+   no ellipsis right above the cost. Now the description clamps at three
+   lines and the card is as tall as that needs, with a floor so a card with
+   no description does not shrink to a name. */
 .hall-node {
   all: unset;
   box-sizing: border-box;
   cursor: pointer;
-  aspect-ratio: 1;
+  min-height: 6rem;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -5303,13 +5312,10 @@ label.chip {
   white-space: nowrap;
 }
 
-/* What the place is. The node is a fixed square (aspect-ratio: 1) and the
-   foot is pinned to its bottom by margin-top:auto, so this takes whatever is
-   left in between and clamps rather than pushing the box taller. min-height:0
-   is what lets a flex child actually shrink far enough to clamp. */
+/* What the place is. Clamped at three lines with a real ellipsis; the card
+   grows to fit that, never the other way round. */
 .hall-node-desc {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 1 auto;
   font-style: italic;
   font-size: var(--fs-2xs);
   line-height: 1.3;
@@ -5321,15 +5327,18 @@ label.chip {
   overflow: hidden;
 }
 
+/* The cost, on one line under a hairline, pinned to the bottom. One line
+   only: a longer refusal is on the card's title, and letting the foot wrap
+   was what squeezed the description above it. */
 .hall-node-foot {
   margin-top: auto;
+  padding-top: var(--sp-1);
+  border-top: 1px solid var(--border);
   font-size: var(--fs-2xs);
   color: var(--muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* The confirm is a strip under the grid, not a modal: you have already
