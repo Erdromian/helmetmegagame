@@ -330,7 +330,7 @@ The choice between Routine or Gambit is left to you because you know what your c
 
 Labor is how you produce ⬢, and **you need a skill to do it at all**. Without one of the Laboring tags below, a day of work produces nothing.
 
-Laboring is hard work: your first day leaves you {tag:tired}, which doesn't stop you working again. A second day running leaves you {tag:exhausted} instead — you can't Labor again until you rest, and you're worse in a fight too. One turn of rest eases it back to Tired; a second clears it completely.
+Laboring is hard work: your first day leaves you {tag:tired}. A second day running leaves you {tag:exhausted} — you can't Labor again until you rest, and you're worse in a fight too. One turn of rest eases it back to Tired; a second clears it completely.
 
 | Tag | ⬢ Yield | Where |
 |---|---|---|
