@@ -106,6 +106,7 @@ import { WRITE_MAX, BOOK_MAX, TITLE_MAX } from "@lifeweb/db/lib/paper";
 // Prisma-free on purpose, so importing it here does not drag the @lifeweb/db
 // barrel into the browser bundle. See the note at the top of db/lib/mutilate.js.
 import { MUTILATE_PARTS } from "@lifeweb/db/lib/mutilate";
+import PaperSheet from "./PaperSheet";
 
 // Every player action on the character sheet: mode state, the menus each
 // mode draws from, and one RequestDialog per mode. Renders no chrome of its
@@ -555,7 +556,8 @@ export default function RequestActionsProvider({
   // Which letter the bird carries. The Bird no longer holds text of its own —
   // it delivers a paper you are holding (docs/systemdocs/PAPERWORK.md).
   const [birdTagId, setBirdTagId] = useState("");
-  // Write: which sheet, and what is being added to it. `paperExisting` is what
+  // Write: which sheet, and what is being added to it. `paperExisting` is the
+  // PaperSheet shape ({ kind, text, plain }) of what
   // is already on it, fetched when the sheet is chosen so it can be shown
   // read-only above the box — writing only ever appends.
   const [paperId, setPaperId] = useState("");
@@ -1031,7 +1033,7 @@ export default function RequestActionsProvider({
         const res = await readMyPaper(nextId);
         // A refusal shows in the box like anything else — the sentence is the
         // same "You can't read this" the chip gives, so nothing is disclosed.
-        setPaperExisting(res?.ok ? res.text : null);
+        setPaperExisting(res?.ok ? (res.paper ?? { kind: res.kind ?? null, text: res.text, plain: false }) : null);
       });
     },
     [paperOptions],
@@ -2460,9 +2462,7 @@ export default function RequestActionsProvider({
                     {paperExisting && (
                       <div className="field">
                         <span className="field-label">Already on it</span>
-                        <pre className="panel whitespace-pre-wrap text-sm">
-                          {paperExisting}
-                        </pre>
+                        <PaperSheet paper={paperExisting} />
                       </div>
                     )}
 

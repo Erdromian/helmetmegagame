@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import ChatMarkdown from "@/app/components/ChatMarkdown";
+import PaperSheet from "@/app/components/PaperSheet";
 import FormError from "@/app/components/FormError";
 import Modal from "@/app/components/Modal";
 import useActionRunner from "@/app/components/useActionRunner";
@@ -27,14 +27,18 @@ import { readBoard, readNotice, tearNotice } from "./actions";
 //             paper is sealed. `text` is the refusal, and it is the SAME
 //             refusal in every one of those cases, so nobody watching learns
 //             which it was. Rendered as flat text.
-//   otherwise the words on the paper, through ChatMarkdown like every other
-//             string in this page that a person wrote.
+//   otherwise the words on the paper, drawn as a sheet.
+//
+// Both go through PaperSheet, which is the one renderer for paper on the web;
+// `reading.paper` is the server's shape and the flat `text`/`plain` pair is
+// only a fallback for a stale tab that fetched before the shape existed.
 export function NoticeText({ reading, showName = true }) {
   if (!reading?.ok) return null;
+  const paper = reading.paper ?? { kind: null, text: reading.text, plain: Boolean(reading.plain) };
   return (
     <div className="field">
       {showName && <span className="field-label">{reading.name}</span>}
-      {reading.plain ? <p className="text-sm">{reading.text}</p> : <ChatMarkdown content={reading.text} />}
+      <PaperSheet paper={paper} />
     </div>
   );
 }

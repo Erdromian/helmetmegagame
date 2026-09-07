@@ -32,7 +32,7 @@ import {
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryStatus } from "@lifeweb/db/lib/carry";
-import { isPaper, paperDescription } from "@lifeweb/db/lib/paper";
+import { isPaper, paperDescription, paperView } from "@lifeweb/db/lib/paper";
 import {
   freeMovesLeft,
   freeZoneMovesReason,
@@ -808,7 +808,7 @@ export default async function CharacterPage({ searchParams }) {
       const { paperText, ...tag } = ct.tag;
       return {
         ...ct,
-        tag: { ...tag, description: paperDescription(ct.tag, viewer) },
+        tag: { ...tag, description: paperDescription(ct.tag, viewer), paper: paperView(ct.tag, viewer) },
       };
     }),
   };

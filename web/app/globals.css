@@ -2599,6 +2599,41 @@ input[type="radio"]:disabled {
   color: var(--text);
 }
 
+/* A paper's words, wherever a paper is opened (PaperSheet.js). The serif and
+   the measure are the doc sheet's; the ground and the two rules are what make
+   it read as a thing in the hand rather than a paragraph of UI. `plain` is
+   the server's line ABOUT the paper — a refusal, a seal — drawn flat. */
+.paper-sheet {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: var(--fs-base);
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--surface-2);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: var(--sp-3) var(--sp-4);
+  max-width: 40rem;
+  overflow-wrap: anywhere;
+}
+.paper-sheet .markdown-content {
+  font-family: inherit;
+  font-size: inherit;
+}
+.paper-sheet .markdown-content p + p {
+  margin-top: 0.75em;
+}
+.paper-sheet-plain {
+  margin: 0;
+  font-style: italic;
+  color: var(--muted);
+}
+/* Inside a hover panel the sheet is the panel's whole width. */
+.tag-tooltip .paper-sheet {
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
 /* Copy link / Close, beside the title. Same border+padding .modal-actions
    gives its own buttons, so a two-button row here lines up the same way a
    confirm dialog's footer does — Copy link and Close are ~31px tall side by

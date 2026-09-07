@@ -14,6 +14,7 @@ import {
   isPaper,
   isSeal,
   paperDescription,
+  paperView,
 } from "@lifeweb/db/lib/paper";
 import { writeNewPaper, appendToPaper, sealPaper, bindBook } from "@lifeweb/db/lib/paperMint";
 import {
@@ -232,9 +233,11 @@ export async function readMyPaper(rawTagId) {
   const { character, where } = await requireWriter();
   const held = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));
   if (!held || !isPaper(held.tag)) return { ok: false, error: "You aren't holding that." };
+  const reader = { tags: character.tags, ...where };
   return {
     ok: true,
-    text: paperDescription(held.tag, { tags: character.tags, ...where }),
+    text: paperDescription(held.tag, reader),
+    paper: paperView(held.tag, reader),
     kind: held.tag.paperKind,
   };
 }

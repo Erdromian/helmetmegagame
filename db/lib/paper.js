@@ -133,6 +133,33 @@ function paperDescription(tag, viewer = null) {
   return blocked ?? text;
 }
 
+// The same decision as paperDescription, as a shape the web can draw instead
+// of one flat sentence. `text` is what the reader gets; `plain` says whether
+// it is the paper's own words (markdown, drawn on a sheet) or a line ABOUT the
+// paper — a refusal, a seal, a closed book — which is drawn as flat text so a
+// player cannot dress a refusal up as a letter. Same viewer rules, same
+// sentences, one branch each; PaperSheet.js is the one renderer.
+//
+// Returns null for anything that is not a document, so callers can attach it
+// to every tag and let the client branch on its presence.
+function paperView(tag, viewer = null) {
+  if (!isPaper(tag)) return null;
+  const kind = tag.paperKind;
+  if (kind === "SEALED") return { kind, text: `${SEALED_LINE} ${markOf(tag)} ‡`, plain: true };
+  if (kind === "BROKEN_SEAL") return { kind, text: `${BROKEN_LINE} ${markOf(tag)} ‡`, plain: true };
+
+  const text = (tag.paperText ?? "").trim();
+  if (isBook(tag) && viewer?.holdsIt === false) return { kind, text: CLOSED_BOOK_LINE, plain: true };
+  if (!text) return { kind, text: BLANK_LINE, plain: false };
+
+  const blocked = readBlock(viewer?.tags ?? [], {
+    phase: viewer?.phase ?? null,
+    indoors: viewer?.indoors ?? true,
+  });
+  if (blocked) return { kind, text: blocked, plain: true };
+  return { kind, text, plain: false };
+}
+
 // The title a freshly written sheet wears.
 //
 // DELIBERATELY ANONYMOUS. Tag.name travels everywhere a tag does — the Transfer
@@ -233,6 +260,7 @@ module.exports = {
   sealLabel,
   bookName,
   paperDescription,
+  paperView,
   paperName,
   noteCode,
   sealedName,

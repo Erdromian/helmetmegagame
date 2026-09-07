@@ -66,6 +66,22 @@ single predicate exists to prevent.
 sees. **A `SEALED` letter's text is never composed, literate viewer or not.**
 That is what the seal is.
 
+**On the web, a paper is drawn as a sheet, and its words are markdown.**
+`paperView(tag, viewer)` beside `paperDescription` makes the same decision as
+a shape, `{ kind, text, plain }`, and `web/app/components/PaperSheet.js` is
+the one renderer: a serif block on its own ground (`.paper-sheet`), the
+writer's bold, italics, lists and quotes rendered through `ChatMarkdown` like
+any other thing a person wrote. `plain` means the text is *about* the paper —
+the refusal, a seal, a closed book — and is drawn flat and italic, never as
+markdown, so a refusal cannot be dressed up as a letter and blind still looks
+like illiterate. Every surface that opens a paper goes through it: the tag
+chip's hover panel and the tag detail sheet (`tag.paper`, attached by
+`getVisibleTags` and the sheet's `sheetCharacter`), a notice read off a board
+(`readNotice` returns `paper`), and the "already on it" text in the Write
+dialog (`readMyPaper`). `description` stays the flat sentence for lists. On
+Discord the bot posts the text as it is and Discord renders the markdown
+itself.
+
 Three surfaces strip `paperText` before anything crosses to the browser:
 `getVisibleTags`, the sheet's own `sheetCharacter` in
 `web/app/(app)/character/page.js`, and the Write dialog, which fetches the

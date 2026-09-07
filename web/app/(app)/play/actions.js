@@ -25,7 +25,7 @@ import {
 import { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { boardFor, boardText, pinnedLine, tornLine, BOARD_OPTION_LIMIT } from "@lifeweb/db/lib/noticeboard";
-import { paperDescription } from "@lifeweb/db/lib/paper";
+import { paperDescription, paperView } from "@lifeweb/db/lib/paper";
 import { readBlock } from "@lifeweb/db/lib/reading";
 import { addToStack, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 import { expiryFrom } from "@lifeweb/db/lib/turnFormat";
@@ -646,10 +646,12 @@ export async function readNotice(postId) {
   // The same predicate the tag chip uses, and the same sentence — a blind
   // reader and an illiterate one get identical refusals, so neither the
   // reader nor anyone watching learns which it was.
-  const text = paperDescription(post.tag, { tags: me.character.tags, ...where });
+  const reader = { tags: me.character.tags, ...where };
+  const text = paperDescription(post.tag, reader);
   const blocked = Boolean(readBlock(me.character.tags, where)) || post.tag.paperKind === "SEALED";
-  // Nobody is told it was read.
-  return { ok: true, name: post.tag.name, text, plain: blocked };
+  // Nobody is told it was read. `paper` is what PaperSheet.js draws; `text`
+  // and `plain` stay for anything still reading the flat shape.
+  return { ok: true, name: post.tag.name, text, plain: blocked, paper: paperView(post.tag, reader) };
 }
 
 export async function tearNotice(postId) {
