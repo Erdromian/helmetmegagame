@@ -203,8 +203,9 @@ Reject of the auto-filed Action remains the full reset for the turn's Move
 
 ## 4a. Custom items (`customizable`)
 
-A recipe flagged `customizable:` in docs/tags.yaml (the two meals, the
-painting, the badge, the hat) can be crafted as the maker's OWN: for
+A recipe flagged `customizable:` in docs/tags.yaml (the fine and lavish
+meals, the painting, the sketch, the badge, the hat) can be crafted as the
+maker's OWN: for
 **+1 ⬢ a unit** (`CUSTOM_SURCHARGE`, web/lib/customCraft.js) the player sets
 a name and/or a description, and either falls back to the base recipe's when
 left blank. The displayed name always carries the base identity —

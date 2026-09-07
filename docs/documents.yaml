@@ -362,14 +362,15 @@ documents:
         piece of smith's work you can do without a forge, because otherwise
         nobody could ever make the first one.
       - {tag:painting} — 4 turns, a set of {tag:art-supplies}, and Artist.
+      - {tag:sketch} — 1 ⬢, half a turn's work, Artist. Two to a Routine. ‡
       - {tag:badge} — 2 ⬢, 1 turn, Crafting.
       - {tag:hat} — 3 ⬢, 1 turn, Crafting.
 
       **Make it your own.** A few crafts — the {tag:badge}, the {tag:hat},
-      the {tag:painting}, and a cook's meals — can be made as YOURS: pay 1 ⬢
-      extra per piece and give it your own name and description. A named
-      piece always shows what it is underneath, so a "Dockers' Mark (Badge)"
-      is still plainly a badge.
+      the {tag:painting}, the {tag:sketch}, and a cook's meals — can be made
+      as YOURS: pay 1 ⬢ extra per piece and give it your own name and
+      description. A named piece always shows what it is underneath, so a
+      "Dockers' Mark (Badge)" is still plainly a badge. ‡
 
   caving:
     name: Caving
@@ -414,7 +415,8 @@ documents:
       Fine meals make average people happy, but Nobility have them as a baseline. They need to eat them every once in a while or they'll be unhappy. Lavish meals make everyone happy and are valid objects of a Desire.
 
       **{tag:fine-meal}:** cost 2 ⬢ per meal. You can make up to 4 Fine meals in one Routine Move.
-      **{tag:lavish-meal}:** cost 3 ⬢ per meal, plus one imported delicacy per meal — {tag:tea}, {tag:sweets} or {tag:honey}, your pick, and it is used up. You can make up to 3 Lavish meals in one Routine Move.
+      **{tag:trail-ration}:** cost 2 ⬢ per ration. Weighs next to nothing — the meal you pack for a long walk. Up to 4 in one Routine Move. ‡
+      **{tag:lavish-meal}:** cost 3 ⬢ per meal, plus one imported delicacy per meal — {tag:tea} or {tag:sweets}, your pick, and it is used up. You can make up to 3 Lavish meals in one Routine Move. ‡
 
       **A dish of your own.** Either meal can be cooked as a signature dish for 1 ⬢ extra per meal: you name it and describe it, and it still plainly shows what it is — "Steak Dinner (Lavish Meal)".
   alcoholdrugs:
@@ -454,24 +456,19 @@ documents:
 
       | Brew | ⬢ | Turns | Needs |
       |---|---|---|---|
-      | {tag:pure-luck} | 0 | 1 | {tag:aberrant-heart} |
-      | {tag:graga-sweat} | 2 | 1 | {tag:graga-sac} |
       | {tag:deadeye-drops} | 2 | 1 | {tag:cave-fungus} |
       | {tag:mercy} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:cave-fungus} |
       | {tag:mindbreaker-toxin} | 2 | 1 | {tag:cave-fungus} |
-      | {tag:invisibility-potion} | 2 | 1 | {tag:graga-sac} |
-      | {tag:raven-draught} | 2 | 1 | {tag:ravens-eye} |
       | {tag:ravenheart-red} | 4 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:alcohol} |
       | {tag:distilled-coca} | 4 | 1 | {tag:coca-leaves} |
       | {tag:advanced-poppy} | 4 | 1 | {tag:poppy} |
-      | {tag:phrygian-tears} | 4 | 2 | — |
-      | {tag:white-honey} | 6 | 1 | — |
+      | {tag:phrygian-tears} | 4 | 2 | {tag:nightshade} and {tag:cave-fungus} |
       | {tag:purifier} | 6 | 1 | {tag:cave-fungus} |
-      | {tag:dreamers-draught} | 6 | 1 | {tag:skinless-brain} |
-      | {tag:succubus-draught} | 8 | 1 | — |
-      | {tag:forgiveness} | 8 | 1 | — |
+      | {tag:forgiveness} | 8 | 1 | {tag:poppy} |
       | {tag:mulligan-potion} | 8 | 2 | — |
       | {tag:flawless-skin} | 8 | 1 | — |
+
+      Rumor has it the skilled brewers of past generations knew recipes beyond these — worked from stranger ingredients than any listed here. If something rare and organic finds its way into your hands, a still is one way to ask it questions. ‡
   # GM-only. The `gamemaster` flag is not a property of any Character — the
   # documents page resolves it against the Discord GM role at request time,
   # the same check that gates /gm. Filtered server-side, so a player's browser
@@ -504,6 +501,34 @@ documents:
       **Aberrants**
 
       Horrors. Drop Aberrant Hearts.
+
+  # GM-only, same mechanism as cavingmonsters. The answer sheet for every
+  # recipe the hiding rule keeps off the public papers (a recipe naming a
+  # non-public ingredient is hidden until the crafter holds one) — without
+  # this, a GM asked "how is Pure Luck made?" would be reading tags.yaml.
+  # Keep it current when a hidden recipe is added or an ingredient's
+  # catalog: changes.
+  withheldrecipes:
+    name: Withheld Recipes
+    public: false
+    tags: []
+    flags:
+      - gamemaster
+    description: |-
+      Recipes hidden from the public papers and the Recipes tab. Each appears in a character's Craft menu only while they hold the ingredient — finding the thing is how the recipe is learned. Nothing here should be told to a player outright; place the ingredient instead. ‡
+
+      | Recipe | Skill | ⬢ | Needs | The ingredient comes from |
+      |---|---|---|---|---|
+      | {tag:white-honey} | Brewing (Skilled) | 6 | {tag:honey} | the Depot's shelf, 4 ⬢ |
+      | {tag:graga-sweat} | Brewing (Skilled) | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
+      | {tag:invisibility-potion} | Brewing (Skilled) | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
+      | {tag:dreamers-draught} | Brewing (Skilled) | 6 | {tag:skinless-brain} | butchered from a {tag:skinless-corpse} |
+      | {tag:succubus-draught} | Brewing (Skilled) | 8 | {tag:nekker-pheromones} | butchered from a {tag:nekker-corpse} |
+      | {tag:pure-luck} | Brewing (Skilled) | 0 | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
+      | {tag:raven-draught} | Brewing (Skilled) | 2 | {tag:ravens-eye} | foraged — GM-granted until the loot pass wires it |
+      | {tag:honeyed-cakes} | Cooking (Skilled) | 3 | {tag:honey} | the Depot's shelf, 4 ⬢ |
+
+      The {tag:lavish-meal} also takes {tag:honey} as an unlisted third delicacy — a cook holding a jar sees the option; the public paper names only tea and sweets. ‡
 
   # The Demoness threat's own brief (db/lib/threats.js). Assigned by the
   # Demoness tag, which is also what unlocks the hidden Demoness tag

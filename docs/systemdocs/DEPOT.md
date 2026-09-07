@@ -498,13 +498,20 @@ pass, so buying in is cheaper and selling on actually pays. The station still
 takes 40%, which is margin enough that round-tripping a rifle for its own sake
 is a slow way to lose money. ‡
 
-Seven wares carry a **wage floor** instead: `alcohol`, `distilled-coca`,
-`fishing-rod`, `trapping-gear`, `phrygian-tears`, `gladiator-helmet` and
+Six wares carry a **wage floor** instead: `alcohol`, `distilled-coca`,
+`trapping-gear`, `phrygian-tears`, `gladiator-helmet` and
 `workshop-equipment`. Each is craftable or brewable, so its `sellablePrice` is
 what a *maker* earns under §4's bands, not what a reseller gets back. 60% is a
-raise for five of them and would have been a pay cut for `alcohol` (4) and
+raise for most of them and would have been a pay cut for `alcohol` (4) and
 `distilled-coca` (10), so those two keep the higher number. The rule is that
 the wage never goes down. ‡
+
+The `fishing-rod` used to be the seventh, and it is the one place the floor
+was wrong: at `turnsCost: 0` the Dead Simple ration mints the margin as a
+FREE action, so 60% of its 12 ⬢ import price (7, against 3 ⬢ of materials)
+was +16 ⬢ a turn on top of an untouched labor day. It sells at the Dead
+Simple convention (cost + 1 = 4) instead — the floor never applies to a
+0-turn recipe. ‡
 
 Six are also creation picks, marked in the Notes column: `jewelry` (2 pt),
 `instant-camera` (2), `sword-cane` (7), `surgical-equipment` (9),
@@ -613,7 +620,7 @@ Four bands, about 106 tags in total:
 | Band | Priced at | Examples |
 |---|---|---|
 | Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 14, `forgiveness` 18, `bliss` 3, `dreamers-draught` **60** |
-| Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9, Moderate 22, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
+| Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9, Moderate 21, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
 | Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
 | Factory goods | a day's output at ~2.2× a good farming day | `squeeze` 4 a cube — 8 cubes is a shift (`FACTORY.md` §6). Buy-only in the other direction: the station sells nobody a cube |
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **41** |
@@ -656,15 +663,18 @@ behind:
 The `turnsCost^1.3` exponent is what makes rate-per-turn climb *inside* a skill bracket
 too, not just jump between brackets — a deliberate, mild superlinear curve so tying up
 more turns in one item is rewarded a little more than proportionally, not just
-proportionally. Within `smithing-skilled` alone: Moderate (1 turn) nets 5 ⬢/turn, High
-Quality (2 turns) nets 6, Exceptional (3 turns) nets 7 — strictly increasing, never flat
-and never falling, the way the old linear version let Exceptional under-pay Moderate.
-Across the whole ladder the curve reads 2 → 5 → 6 → 7 → 11 ⬢/turn, so every rung —
-whether the jump is more skill or more turns — pays strictly better than the one before
-it. 1.3 is a judgment call, not a derived constant: high enough to feel like a real
-reward for committing turns, low enough that Exceptional (21 ⬢ profit) doesn't dwarf
-Moderate (5 ⬢ profit) the way a steeper exponent would. Re-tune it here first if a tier
-ever needs adjusting, rather than hand-editing one item's `sellablePrice`.
+proportionally. The formula's raw rates read 2 → 5 → 6 → 7 → 11 ⬢/turn, but the shipped
+prices sit above it: the ~15% materials rebalance cut every rung's `resourceCost`
+without re-deriving `sellablePrice`, so the whole ladder carries a slightly wider margin
+than a fresh run of the formula would give — the same deliberate drift the Gunpowder
+note below describes. What still has to hold is the SHAPE: strictly increasing, never
+flat and never falling. The shipped per-turn profits are 1 → 3 → 7 → 8 → 9 → 14
+(Moderate was 8 for a while, exactly tying High Quality — the flat-wage bug come back —
+and dropped a point to 21 sell on 2026-09-07 to restore the climb). 1.3 is a judgment
+call, not a derived constant: high enough to feel like a real reward for committing
+turns, low enough that Exceptional doesn't dwarf Moderate the way a steeper exponent
+would. Re-tune it here first if a tier ever needs adjusting, rather than hand-editing
+one item's `sellablePrice`.
 
 **Dead Simple is the one exception, kept outside the formula on purpose.** It costs 0
 turns, so `rate × 0^1.3` would price it at raw material cost with no margin at all.

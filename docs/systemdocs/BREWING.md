@@ -81,12 +81,12 @@ kind (CRAFTING.md §2).
 | `ravenheart-red` | 4 | 1/2 | `alcohol` | `tipsy` (and up the ladder — §5a) |
 | `distilled-coca` | 4 | 1 | `coca-leaves` | `stimulant-high` |
 | `advanced-poppy` | 4 | 1 | `poppy` | `pain-immunity` |
-| `phrygian-tears` | 4 | 2 | — | — |
+| `phrygian-tears` | 4 | 2 | `nightshade` + `cave-fungus` | — |
 | `white-honey` | **6** | 1 | `honey` | — |
 | `purifier` | 6 | 1 | `cave-fungus` | — |
 | `dreamers-draught` | 6 | 1 | `skinless-brain` | — |
-| `succubus-draught` | **8** | 1 | — | `mindreading` |
-| `forgiveness` | 8 | 1 | — | — |
+| `succubus-draught` | **8** | 1 | `nekker-pheromones` | `mindreading` |
+| `forgiveness` | 8 | 1 | `poppy` | — |
 | `flawless-skin` | 8 | 1 | — | `otherworldly-beauty` |
 
 Four recipes lost a prose ingredient and pay in ⬢ instead, because the
@@ -95,8 +95,19 @@ ingredient was the whole gate: `white-honey` 2 → **6** (it cures any poisoning
 `flawless-skin` keep their 8, which was already doing the work. White Honey
 has since regained a real gate — it spends a `honey`, a gm-catalog Depot
 import, which also makes it one of the HIDDEN recipes (off the Recipes tab,
-out of the Craft menu until the brewer holds one). Its 6 ⬢ stays for now;
-whether it drops back toward 2 is an open ruling.
+out of the Craft menu until the brewer holds one). Its 6 ⬢ stays (Chris
+2026-09-07: it is a valuable medical item; the double gate is the point).
+`succubus-draught` regained a real gate the same day — it spends
+`nekker-pheromones`, butchered from a Nekker Corpse, which hides the recipe
+the same way (sells 18 with it; 7 sat below the brew's own ⬢ cost).
+`phrygian-tears` is the most potent poison in the game and brews from
+poisons now: a bottle of `nightshade` distilled further, cut with
+`cave-fungus` — both public, so the recipe stays in the book.
+`forgiveness` changed effect the same day: it CURES {shell-shocked} — the
+drinker forgets the event that broke them — and spends a `poppy`, the
+second basic→skilled chain beside `advanced-poppy`. Shell Shocked's own
+copy says no MEDIC can treat it, which stays true: the still is the one
+door out.
 
 `gunpowder-grenade` (now named **Crude Grenade**) left this table
 altogether: it is smith's work now (Smithing (Skilled), `items-weapons`),
@@ -118,6 +129,8 @@ either the brewer's sheet carries the thing, or the craft is refused.
 | `cave-fungus` | foraged in the caves — never crafted, since the pass that took its 0-⬢ recipe away. Eaten raw it gives `high` (2t). | spent |
 | `alcohol` | brewed, one tier down (also what `ravenheart-red` is made of) | spent |
 | `poppy` | brewed, one tier down | spent |
+| `nightshade` | brewed, one tier down — distilled further into `phrygian-tears` | spent |
+| `nekker-pheromones` | **butchered** out of a {Nekker Corpse} | spent |
 | `graga-sac` | **butchered** out of a {Graga Corpse} | spent |
 | `skinless-brain` | **butchered** out of a {Skinless Corpse} | spent |
 | `godflesh` | hauled out of the marshes (`FACTORY.md`) | spent |
@@ -171,7 +184,9 @@ caps a Dead Simple brew below the shared pool of 4.
 |---|---|---|
 | `alcohol` | 1/3 | — |
 | `lavish-meal` | 1/3 | — |
+| `honeyed-cakes` | 1/3 | — |
 | `fine-meal` | 1/4 | — |
+| `trail-ration` | 1/4 | — |
 | `poppy` | 1/2 | — |
 | `cleaning-powder` | 1/2 | — |
 | `mercy` | 1/2 | — |

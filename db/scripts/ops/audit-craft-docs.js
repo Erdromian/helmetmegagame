@@ -26,6 +26,24 @@ function load(name) {
   return yaml.load(fs.readFileSync(p, "utf8"));
 }
 
+// The hiding rule, mirrored (web/lib/recipeCatalog.js): a recipe naming a
+// non-public ingredient is withheld from the Recipes tab and the Craft menu
+// until the crafter holds one — so it must NOT be written into a public
+// paper, and this audit stops demanding it. A `group:` entry hides nothing
+// (any corpse satisfies Miasma), and an `anyOf` only hides when no member
+// is public. `catalog:` is required on every tag by the sync, so a missing
+// one here reads as non-public rather than guessed at.
+function isWithheldRecipe(tag, tags) {
+  const isPublic = (slug) => tags[slug]?.catalog === "all";
+  return (tag.requirement?.items ?? []).some((entry) => {
+    if (typeof entry === "string") return !isPublic(entry);
+    if (entry?.group) return false;
+    if (entry?.anyOf) return !entry.anyOf.some(isPublic);
+    if (entry?.slug) return !isPublic(entry.slug);
+    return false;
+  });
+}
+
 function main() {
   const tags = load("tags.yaml").tags ?? {};
   const documents = load("documents.yaml").documents ?? {};
@@ -42,8 +60,20 @@ function main() {
     // this is CJS under db/; a token it misses reads as unlisted, never as listed.
     const listed = new Set([...body.matchAll(/\{tag:([a-z0-9-]+)\}/g)].map((m) => m[1]));
 
+    // The reverse leak: a WITHHELD recipe written into a public paper defeats
+    // the Recipes-tab redaction one page over. This is exactly how ten hidden
+    // recipes ended up printed in the Alcohol & Drugs paper (2026-09).
+    const leaked = entriesOf(tags, "slug").filter(
+      (t) => t.craftable && groups.includes(t.group) && isWithheldRecipe(t, tags) && listed.has(t.slug),
+    );
+    missing += leaked.length;
+    for (const t of leaked) {
+      console.log(`! ${doc}: {tag:${t.slug}} is a WITHHELD recipe (non-public ingredient) — remove its row`);
+    }
+
     const gaps = entriesOf(tags, "slug")
       .filter((t) => t.craftable && groups.includes(t.group))
+      .filter((t) => !isWithheldRecipe(t, tags))
       .filter((t) => !listed.has(t.slug))
       .map((t) => ({
         slug: t.slug,
@@ -65,7 +95,7 @@ function main() {
   }
 
   if (missing) {
-    console.log(`\n${missing} unlisted craftable(s). Add them to docs/documents.yaml.`);
+    console.log(`\n${missing} problem(s): add unlisted craftables to docs/documents.yaml; remove withheld ones from it.`);
     process.exitCode = 1;
   }
 }
