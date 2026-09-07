@@ -5143,6 +5143,116 @@ label.chip {
   gap: var(--sp-2);
 }
 
+/* ---- The YOU column: the turn card, the status strip, Yesterday ---- */
+
+/* A wrapping row of data chips: the turn and its countdown, ⬢ and carry, and
+   every Status/Health tag being worn. Not .chip-row — that one is a MULTI-
+   select control, and none of these is pressable. */
+.hall-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+
+/* The one bad-news tone, scoped to this column so it cannot leak into the
+   chips the rest of the app draws: Overburdened, Dying, Catatonic, and a
+   carry line over its cap. */
+.hall-chips .chip[data-tone="danger"] {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.hall-move {
+  margin-bottom: var(--sp-3);
+}
+
+.hall-move-filed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* The filed Move, three lines of it. A Move can be a paragraph and the column
+   is not where the whole of one belongs, so it clamps until it is clicked. */
+.hall-move-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  text-align: left;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--text);
+  font-size: var(--fs-sm);
+  white-space: pre-wrap;
+  cursor: pointer;
+}
+
+.hall-move-text[data-open="true"] {
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  overflow: visible;
+}
+
+.hall-desires {
+  margin-bottom: var(--sp-3);
+}
+
+.hall-desire-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  padding: var(--sp-2) 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Yesterday: closed by default, and the chevron is the only thing saying so. */
+.hall-details {
+  margin: var(--sp-3) 0;
+}
+
+.hall-details-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.hall-details-summary svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 120ms ease-out;
+}
+
+.hall-details-summary svg[data-open="true"] {
+  transform: rotate(180deg);
+}
+
+.hall-details-body {
+  margin-top: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.hall-yesterday-row {
+  font-size: var(--fs-sm);
+  padding-left: var(--sp-2);
+  border-left: 1px solid var(--border);
+}
+
 .hall-notice-row,
 .hall-waiting-row {
   display: flex;

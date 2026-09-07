@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · The Play page shows your turn, your Move, your state and your Desires
+
+✚ A turn card in the right column: the phase, when Moves close, and the Move you filed with an Edit button until the lock  
+✚ A status strip: ⬢, carry, and every Status or Health tag you carry  
+✚ Your Desire slots with Claim, the same as the sheet  
+✚ A Yesterday block with what last turn's close told you  
+✎ You may change a Move's kind once a turn; the die is never re-rolled by editing the text
+
 ## 2026-09-07 · A Move filed from the Play page now counts
 
 ✎ Filing your Move on the web left it half-made: never rolled, never applied, and it blocked filing again. It is confirmed the same way the Discord console does it now

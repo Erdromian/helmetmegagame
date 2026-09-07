@@ -293,8 +293,17 @@ from 17rem in the second pass: it is the game suite now, not a button strip.
 │               │                                            │ └────────┘           │
 │               │                                            │──────────────────────│
 │               │                                            │ YOU                  │
-│               │                                            │ [Move…] [Sheet ›]    │
+│               │                                            │ DAY 4 · DUSK  5 h    │
+│               │                                            │ [Routine]  Ask the   │
+│               │                                            │ Censor about…  [✎]   │
+│               │                                            │ 12 ⬢  31/71 lb       │
+│               │                                            │ Hungry  Dying        │
+│               │                                            │ DESIRES              │
+│               │                                            │ [Claim]              │
+│               │                                            │ Opens on turn 9      │
+│               │                                            │ [Sheet ›]            │
 │               │                                            │ Waiting on you · 1   │
+│               │                                            │ ▾ YESTERDAY          │
 │               │                                            │ Report to the GMs    │
 └───────────────┴────────────────────────────────────────────┴──────────────────────┘
 ```
@@ -481,17 +490,58 @@ header instead).
   same thing. The web filters the ids `travel`, `whosHere`, `secretRooms` and
   `examine` out of that list; they stay in
   `db/lib/placeAffordances.js` for the anchor, which has no column beside it.
-- **`YouPanel.js`** draws **YOU**: the Move dialog (`db/lib/moves.js#fileMove`,
-  the same call the `#turns` console's modal makes), a link to the sheet,
-  **Report to the GMs** and **Waiting on you**. Report writes an INBOUND
-  `DirectMessage` prefixed `[Play] ` and sends nothing to Discord, so it
-  lands in `/gm/players` beside everything else that player has said and the
-  answer comes back down the ordinary DM path. Waiting on you lists the
-  pending offers, threat spawns, unanswered bird letters and a lobby
-  assignment; Accept and Decline call the **same** `db/lib` functions the DM
-  buttons call (`lessons.js`, `bind.js`, `confession.js`, `threatSpawn.js`,
-  `lobby.js`), so an answer given here and one given in Discord are one
-  answer, and the second surface finds nothing left to answer.
+- **`YouPanel.js`** draws **YOU**, in the order a player asks it — and every
+  section of it is about the character rather than the street they are
+  standing in:
+  1. **`TurnCard.js`** — `DAY 4 · DUSK`, a `closes in 5 h ‡` countdown
+     computed in the browser off an ISO end time on a 60-second tick (absent
+     entirely when `moveWindow` reports no lock: a frozen clock or a short
+     manual turn has no honest end to count to), and then either the **Move…**
+     button or the Move already filed — its kind as a chip, its text clamped
+     to three lines until clicked, and **Edit ‡** while it is still the
+     player's to change.
+  2. **`StatusStrip.js`** — one wrapping row of data chips: `{n} ⬢`, the carry
+     line against the cap, and every held tag whose `Tag.category` is
+     **Status** or **Health**. The category test is the sheet's own
+     (`TagsPanel.js`), so a new affliction appears here the day it is added to
+     `docs/tags.yaml`. Overburdened, Dying and Catatonic — and a carry line
+     over its cap — wear the danger tone.
+  3. **`DesiresBlock.js`** — the sheet's slot view, in the column: per slot
+     either **Claim ‡** or `Opens on turn N ‡`, the last claim as a muted
+     line, and the Addiction note on the bottom slot. The claim is the real
+     one (`claimDesire`), over `DesireCatalog` and `RequestDialog`, exactly as
+     `DesirePanel.js` does it. What is different is *when* the catalog
+     arrives: the page carries the slots only, and the ~271 evaluated
+     templates are fetched by `desireCatalogView()` the first time somebody
+     opens the picker.
+  4. **`Sheet ›`** — the link to `/character`.
+  5. **`WaitingList`** — the pending offers, threat spawns, unanswered bird
+     letters and a lobby assignment. Accept and Decline call the **same**
+     `db/lib` functions the DM buttons call (`lessons.js`, `bind.js`,
+     `confession.js`, `threatSpawn.js`, `lobby.js`), so an answer given here
+     and one given in Discord are one answer, and the second surface finds
+     nothing left to answer.
+  6. **`Yesterday.js`** — collapsed by default, and it stays however this
+     browser left it (`localStorage`, read through `useSyncExternalStore`).
+     Opened, it fetches `yesterday()`: the OUTBOUND `DirectMessage` rows from
+     the last closed turn's close window, `source` in `staged_push` (the GMs'
+     staged messages) or `bot_auto` (the Routine result and the Gambit
+     reveal, which `db/lib/dm.js` defaults). It **reads** — it sends nothing,
+     and it is not a second inbox.
+  7. **Report to the GMs**, last and quiet. It writes an INBOUND
+     `DirectMessage` prefixed `[Play] ` and sends nothing to Discord, so it
+     lands in `/gm/players` beside everything else that player has said and
+     the answer comes back down the ordinary DM path.
+
+  The card and the waiting list share **one** 60-second interval (`myMove()`
+  and `waitingOnYou()` on the same tick), so a Move filed from the `#turns`
+  console shows up here without a reload.
+- **`web/lib/selfPools.js#loadDesireView`** is to a character's own state what
+  `peoplePools.js` is to the people near them: one build of the Desire slots
+  and, on request, the evaluated catalog. The sheet asks for both; the Hall
+  asks for the slots and fetches the catalog when the picker opens. Every gate
+  is evaluated server-side — the client never runs the gate logic and never
+  receives a hidden template. ‡
 - **`web/lib/peoplePools.js#loadPeoplePools`** is the one build of every
   people pool — the roster standing here, the medical gate, the Loot / Move /
   Bind / Harm lists. It came out of `character/page.js`, which calls it too:

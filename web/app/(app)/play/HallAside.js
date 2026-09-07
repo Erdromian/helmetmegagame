@@ -29,6 +29,13 @@ export default function HallAside({
   placeLines,
   waiting,
   selfId,
+  // The YOU column's own three: the open turn and this character's Move, the
+  // sheet facts the status strip draws, and the Desire slots.
+  turn,
+  move,
+  sheet,
+  carry,
+  desires,
   selected,
   // The phone's ⋯ sheet, NOT the character sheet — `aside.sheet` is spread
   // in here too and a flag called `sheet` was silently always truthy, which
@@ -83,7 +90,13 @@ export default function HallAside({
 
       <RoomPanel selected={selected} affordances={live} onFixture={openFixture} pending={pending} />
       <TravelNodes onDone={say} />
-      <YouPanel initialWaiting={waiting} />
+      <YouPanel
+        initialWaiting={waiting}
+        turn={turn}
+        move={move}
+        status={{ resources: sheet?.resources ?? 0, carry, tags: sheet?.tags ?? [] }}
+        desires={desires}
+      />
 
       {dialogs}
     </>

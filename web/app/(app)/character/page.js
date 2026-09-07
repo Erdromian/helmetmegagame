@@ -53,22 +53,7 @@ import { deployVersion } from "@/lib/deployVersion";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
-import {
-  evaluateDesireCatalog,
-  slotStates,
-  describeDesireLocks,
-  bottomSlotAddiction,
-  unlockedBy,
-} from "@lifeweb/db/lib/desireGates";
-import {
-  desireFamilies,
-  desireFamilyGroups,
-} from "@lifeweb/db/lib/desireFamilies";
-import {
-  projectDesireTemplateForGates,
-  loadRoleBySlugForTemplates,
-  computeHiddenDesireTagIds,
-} from "@/lib/desireProjection";
+import { loadDesireView } from "@/lib/selfPools";
 import {
   getGuildMember,
   isApprovedPlayer,
@@ -322,8 +307,6 @@ export default async function CharacterPage({ searchParams }) {
     openTurn,
     tagCatalog,
     tierRows,
-    desireHistory,
-    desireTemplateRows,
     gameConfig,
     { action: currentAction },
     frozen,
@@ -391,46 +374,6 @@ export default async function CharacterPage({ searchParams }) {
     prisma.tag.findMany({
       select: { id: true, slug: true, parentTagId: true },
     }),
-    // ALL statuses — the gate evaluator needs the whole history.
-    prisma.desire.findMany({
-      where: { characterId: character.id },
-      select: {
-        id: true,
-        templateId: true,
-        slotIndex: true,
-        status: true,
-        text: true,
-        points: true,
-        setTurnNumber: true,
-        endedTurnNumber: true,
-        template: {
-          select: { tier: true, cooldownTurns: true, onceEver: true },
-        },
-      },
-    }),
-    // Gate fields db/lib/desireGates.js needs, projected through
-    // web/lib/desireProjection.js below.
-    prisma.desireTemplate.findMany({
-      where: { retired: false },
-      orderBy: { sortOrder: "asc" },
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        description: true,
-        tier: true,
-        families: true,
-        onceEver: true,
-        cooldownTurns: true,
-        retired: true,
-        requiresAnyOf: true,
-        requiresAnyRoleSlugs: true,
-        requiresNotRoleSlugs: true,
-        requiresAnyTags: { select: { id: true, name: true } },
-        requiresAllTags: { select: { id: true, name: true } },
-        requiresNotTags: { select: { id: true, name: true } },
-      },
-    }),
     prisma.gameConfig.findUnique({
       where: { id: 1 },
       select: {
@@ -450,66 +393,20 @@ export default async function CharacterPage({ searchParams }) {
     readGameState(prisma, { nukeArmedTurn: true }),
   ]);
 
-  // Desires. Every evaluation happens HERE, server-side — the client never
-  // runs the gate logic or receives a hidden template.
-  const desireSlots = gameConfig?.desireSlots ?? 2;
-  const desireSlotLockTurns = gameConfig?.desireSlotLockTurns ?? 2;
-  const heldDesireTagIds = new Set(character.tags.map((ct) => ct.tagId));
-  const hiddenTagIds = await computeHiddenDesireTagIds(
-    prisma,
-    heldDesireTagIds,
-  );
-  const roleBySlugForDesires = await loadRoleBySlugForTemplates(
-    prisma,
-    desireTemplateRows,
-  );
-  const projectedDesireTemplates = desireTemplateRows.map((t) =>
-    projectDesireTemplateForGates(roleBySlugForDesires, t),
-  );
-  const { visible: desireCatalogEvaluated } = evaluateDesireCatalog({
-    templates: projectedDesireTemplates,
-    heldTags: character.tags.map((ct) => ct.tag),
-    hiddenTagIds,
-    roleSlug: character.role?.slug ?? null,
-    history: desireHistory,
-    openTurnNumber: openTurn?.number ?? 0,
+  // Desires: the slots, and the evaluated catalog behind the picker. Both
+  // are built in web/lib/selfPools.js, which the Hall's YOU column reads too,
+  // so the two surfaces cannot disagree about what is claimable.
+  const {
     desireSlots,
-  });
-  // The `hidden` half (db/lib/desireGates.js) never reaches this variable.
-  // A "locked" entry (unmet requires, or a family a held tag shuts) is
-  // dropped here too. Cooldown/once-ever-done rows stay, since those are
-  // claimed already, just not claimable right now.
-  const desireCatalog = desireCatalogEvaluated
-    .filter(({ state }) => state !== "locked")
-    .map(({ template, state, availableFromTurn, slotLocks }) => ({
-      slug: template.slug,
-      name: template.name,
-      description: template.description,
-      tier: template.tier,
-      families: template.families,
-      state,
-      availableFromTurn,
-      slotLocks,
-      cooldownTurns: template.cooldownTurns ?? template.tier,
-      onceEver: Boolean(template.onceEver),
-      unlockedBy: unlockedBy(template, {
-        heldTagIds: heldDesireTagIds,
-        roleSlug: character.role?.slug ?? null,
-      }),
-    }));
-  const desireLockNotes = describeDesireLocks(
-    character.tags.map((ct) => ct.tag),
-    new Map(desireFamilies().map((f) => [f.key, f.name])),
-  );
-  const desireSlotStates = slotStates({
-    history: desireHistory,
-    openTurnNumber: openTurn?.number ?? 0,
-    desireSlots,
-    lockTurns: desireSlotLockTurns,
-  });
-  const desireAddiction = bottomSlotAddiction(
-    character.tags.map((ct) => ct.tag),
-  );
+    desireSlotLockTurns,
+    slotStates: desireSlotStates,
+    catalog: desireCatalog,
+    families: desireFamilyList,
+    familyGroups: desireFamilyGroupList,
+    lockNotes: desireLockNotes,
+    addiction: desireAddiction,
+    desiresEnabled,
+  } = await loadDesireView(character, { openTurn, gameConfig });
 
   // Held ids widen the store catalog so unpurchasable held tags (a
   // GM-granted item) still reach the client's byId map.
@@ -1052,10 +949,10 @@ export default async function CharacterPage({ searchParams }) {
       desireAddiction={desireAddiction}
       desireSlotStates={desireSlotStates}
       desireCatalog={desireCatalog}
-      desireFamilies={desireFamilies()}
-      desireFamilyGroups={desireFamilyGroups()}
+      desireFamilies={desireFamilyList}
+      desireFamilyGroups={desireFamilyGroupList}
       desireLockNotes={desireLockNotes}
-      desiresEnabled={gameConfig?.desiresEnabled ?? true}
+      desiresEnabled={desiresEnabled}
       canHeal={canHeal}
       healsLeft={healsLeft}
       hasMoved={Boolean(currentAction)}

@@ -4,8 +4,12 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
-import { fileMove } from "@lifeweb/db/lib/moves";
+import { fileMove, editMove, filedByPlayer, kindChangeUsed } from "@lifeweb/db/lib/moves";
+import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
+import { moveWindow } from "@lifeweb/db/lib/turnClock";
+import { clockFrozen } from "@lifeweb/db/lib/gameState";
+import { loadDesireView } from "@/lib/selfPools";
 import { whosHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import {
@@ -863,6 +867,201 @@ export async function submitMove({ moveKind, description } = {}) {
     if (roll.bonusNote) parts.push(roll.bonusNote);
   }
   return { ok: true, line: parts.join(" ") };
+}
+
+// The turn card's own state, re-read: which turn is open, whether the Move
+// window has shut, and the Move this character has already filed into it.
+// Polled beside waitingOnYou, so a Move filed from Discord shows up here
+// without a reload.
+//
+// `editable` is the same predicate db/lib/moves.js#editMove re-checks — a
+// hint for whether to draw the button, never the lock.
+export async function myMove() {
+  const me = await actor({
+    id: true,
+    discordUserId: true,
+    tags: { select: { tag: { select: { slug: true, name: true } } } },
+  });
+  if (me.error) return { ok: false, error: me.error };
+
+  const openTurn = await prisma.turn.findFirst({
+    where: { status: "OPEN" },
+    select: { id: true, number: true, phase: true, startedAt: true },
+  });
+  if (!openTurn) return { ok: true, turn: null, move: null };
+
+  const [frozen, action] = await Promise.all([
+    clockFrozen(prisma),
+    prisma.action.findFirst({
+      where: { characterId: me.character.id, turnId: openTurn.id },
+      select: {
+        id: true,
+        moveKind: true,
+        description: true,
+        status: true,
+        moveReviewStatus: true,
+        lockExpiresAt: true,
+        appliedEffects: true,
+        // The `auto:` marker that says a lesson, a confession, the auto-labor
+        // pass or a travel stub wrote this row rather than the player
+        // (db/lib/moves.js#filedByPlayer). Without it the Edit button is
+        // offered on a Move nobody filed.
+        gmNotes: true,
+      },
+    }),
+  ]);
+  const { cutoffAt, locked, hasLock } = moveWindow(openTurn, { clockFrozen: frozen });
+
+  // The same gate editMove runs (db/lib/incapacitation.js): a Bound or Dying
+  // character cannot change a Move any more than they could file one, so the
+  // button is not drawn rather than drawn and refused.
+  const stuck = blockerFor(me.character.tags ?? [], ACT);
+
+  // Whether the one kind change a turn has already been spent. The dialog
+  // disables the chips with it; db/lib/moves.js#editMove is the lock.
+  const kindLocked = action && !stuck ? await kindChangeUsed(prisma, me.character.id, openTurn.id) : false;
+
+  return {
+    ok: true,
+    turn: {
+      number: openTurn.number,
+      phase: openTurn.phase,
+      // ISO, because a Date does not survive the trip to a client component
+      // intact and the countdown ticks in the browser anyway. It is the
+      // CUTOFF, not the turn's end — Moves stop three hours early
+      // (db/lib/turnClock.js), and counting to the end named a time nothing
+      // happens at.
+      closesAt: hasLock && cutoffAt ? cutoffAt.toISOString() : null,
+      locked,
+      hasLock,
+    },
+    move: action
+      ? {
+          id: action.id,
+          kind: action.moveKind,
+          description: action.description,
+          editable: !stuck && moveIsEditable(action, locked),
+          // Said in the dialog and in place of the button, so a refusal is
+          // never the first the player hears of it.
+          blockedReason: stuck ? `You can't act right now — you're ${stuck.name}. ‡` : null,
+          kindLocked,
+        }
+      : null,
+  };
+}
+
+// Kept beside myMove rather than exported: the page's first paint runs the
+// same test on the row it loaded itself (web/app/(app)/play/page.js).
+function moveIsEditable(action, locked) {
+  if (locked) return false;
+  // A row the game wrote for them — a lesson, a confession, an auto-Labor, a
+  // walk — is not theirs to change (db/lib/moves.js#filedByPlayer).
+  if (!filedByPlayer(action)) return false;
+  if (!["PENDING_TYPE", "CONFIRMED"].includes(action.status)) return false;
+  if (!["OPEN", "PASSED"].includes(action.moveReviewStatus)) return false;
+  if (action.lockExpiresAt && new Date(action.lockExpiresAt).getTime() > Date.now()) return false;
+  return action.appliedEffects == null;
+}
+
+// Changing a Move already filed. The one-Move-a-turn row IS the turn, so
+// there is nothing to cancel and re-file — db/lib/moves.js#editMove edits it
+// in place, and re-rolls only when the KIND changed (never a second die for
+// a Gambit that already has one).
+export async function updateMove({ actionId, moveKind, description } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+  const result = await editMove(prisma, {
+    character: me.character,
+    actorDiscordUserId: me.discordUserId,
+    actionId,
+    moveKind,
+    description,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  const parts = ["Changed. The GMs have it. ‡"];
+  const roll = result.roll;
+  if (roll?.gambit) parts.push("The die is cast — you'll see how it fell when the turn ends. ‡");
+  if (roll?.resourceValue != null) {
+    parts.push(`Your day's work (${roll.expression}) came to ${roll.resourceValue > 0 ? "+" : ""}${roll.resourceValue} ⬢. ‡`);
+    if (roll.bonusNote) parts.push(roll.bonusNote);
+  }
+  return { ok: true, line: parts.join(" ") };
+}
+
+// Yesterday: what the last closed turn said to this player. Every line of it
+// is already in DirectMessage — the GM's staged messages (source
+// "staged_push") and the bot's own Routine result and Gambit reveal (which
+// go out with no source and default to "bot_auto", db/lib/dm.js). Both
+// halves are needed, and both are narrowed to the window the close ran in so
+// an ordinary GM reply from the middle of the day is not swept in.
+//
+// It reads and sends nothing.
+const YESTERDAY_ROWS = 20;
+// An hour, not ten minutes. A close with a hundred players in it sends its
+// DMs at Discord's pace, and the tail of a long push landed outside a
+// ten-minute window — so the last lines of the day were the ones a player
+// could not read back.
+const CLOSE_WINDOW_MS = 60 * 60 * 1000;
+
+export async function yesterday() {
+  const me = await actor({ id: true, discordUserId: true });
+  if (me.error) return { ok: false, error: me.error };
+
+  const turn = await prisma.turn.findFirst({
+    where: { status: "RESOLVED", resolvedAt: { not: null } },
+    orderBy: { number: "desc" },
+    select: { number: true, phase: true, resolvedAt: true, needsResolvedAt: true },
+  });
+  if (!turn) return { ok: true, turn: null, entries: [] };
+
+  const from = turn.resolvedAt;
+  const until = new Date(
+    Math.max(new Date(turn.needsResolvedAt ?? turn.resolvedAt).getTime(), new Date(from).getTime()) + CLOSE_WINDOW_MS,
+  );
+  const rows = await prisma.directMessage.findMany({
+    where: {
+      discordUserId: me.discordUserId,
+      direction: "OUTBOUND",
+      source: { in: ["staged_push", "bot_auto"] },
+      createdAt: { gte: from, lte: until },
+    },
+    // Newest first so the cap keeps the END of the close, not the start —
+    // taking 20 ascending off a busy turn threw away the adjudication and
+    // kept the boilerplate. Reversed below, because the block reads in order.
+    orderBy: { createdAt: "desc" },
+    take: YESTERDAY_ROWS,
+    select: { id: true, content: true, createdAt: true },
+  });
+
+  return {
+    ok: true,
+    turn: { number: turn.number, phase: turn.phase },
+    entries: rows
+      .reverse()
+      .map((row) => ({ id: row.id, content: row.content, at: row.createdAt.toISOString() })),
+  };
+}
+
+// The Desire picker's catalog, ~271 templates evaluated against this
+// character's gates. Fetched the first time the picker opens rather than on
+// every page load — the slot half the column draws costs one query and comes
+// down with the page (web/lib/selfPools.js).
+export async function desireCatalogView() {
+  const me = await actor({
+    id: true,
+    tags: { select: { tagId: true, tag: true } },
+    role: { select: { slug: true } },
+  });
+  if (me.error) return { ok: false, error: me.error };
+  const [openTurn, gameConfig] = await Promise.all([
+    prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
+    prisma.gameConfig.findUnique({
+      where: { id: 1 },
+      select: { desiresEnabled: true, desireSlots: true, desireSlotLockTurns: true },
+    }),
+  ]);
+  return { ok: true, view: await loadDesireView(me.character, { openTurn, gameConfig }) };
 }
 
 // "Report to the GMs" — the OOC ticket a web-only player loses with the

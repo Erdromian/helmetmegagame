@@ -13,7 +13,8 @@ import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import RequestActionsProvider from "@/app/components/RequestActionsProvider";
 import CharacterMentionsProvider from "@/app/components/CharacterMentionsProvider";
 import Hall from "./Hall";
-import { waitingOnYou } from "./actions";
+import { waitingOnYou, myMove } from "./actions";
+import { loadDesireView } from "@/lib/selfPools";
 
 // /play — the Hall. Three columns on a desktop, one on a phone: everywhere
 // this character can hear on the left, the open scene in the middle, and (in
@@ -114,11 +115,16 @@ export default async function PlayPage() {
               role: { select: { slug: true } },
             },
           }),
-          prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, phase: true } }),
+          prisma.turn.findFirst({
+            where: { status: "OPEN" },
+            // `number` for the Desire gates and the turn card's label,
+            // `startedAt` for the Move window (db/lib/turnClock.js).
+            select: { id: true, number: true, phase: true, startedAt: true },
+          }),
         ]);
         const character = { ...viewer.character, ...sheet };
 
-        const [people, affordances, examine, waiting, pools, stashRooms] = await Promise.all([
+        const [people, affordances, examine, waiting, pools, stashRooms, mine, desires] = await Promise.all([
           whosHere(prisma, character),
           affordancesFor(prisma, character),
           // What Examine used to answer in a modal. It is the place card's
@@ -134,6 +140,13 @@ export default async function PlayPage() {
           // The rooms a Transfer can reach, so "Move things" in a room can
           // hand the dialog its far side already picked.
           loadStashRooms(character),
+          // The turn card's first paint: which turn is open, whether Moves
+          // have locked, and the Move already filed into it. The same server
+          // action the column re-polls, so the two answers cannot differ.
+          myMove(),
+          // The Desire SLOTS only — the ~271-template catalog behind the
+          // picker is fetched when somebody opens it (web/lib/selfPools.js).
+          loadDesireView(character, { openTurn, gameConfig, withCatalog: false }),
         ]);
         return {
           people,
@@ -149,6 +162,9 @@ export default async function PlayPage() {
           // What this character is carrying against their cap — the Transfer
           // dialog projects a hand-over off both.
           carry: carryStatus(character, gameConfig),
+          turn: mine.ok ? mine.turn : null,
+          move: mine.ok ? mine.move : null,
+          desires,
         };
       })()
     : null;
