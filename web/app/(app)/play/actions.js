@@ -10,6 +10,8 @@ import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { loadDesireView } from "@/lib/selfPools";
+import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "@/lib/dmThread";
+import { PLAYER_DM_MAX_LENGTH } from "@/lib/constants";
 import { whosHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import {
@@ -1121,58 +1123,72 @@ export async function updateMove({ actionId, moveKind, description } = {}) {
   return { ok: true, line: parts.join(" ") };
 }
 
-// Yesterday: what the last closed turn said to this player. Every line of it
-// is already in DirectMessage — the GM's staged messages (source
-// "staged_push") and the bot's own Routine result and Gambit reveal (which
-// go out with no source and default to "bot_auto", db/lib/dm.js). Both
-// halves are needed, and both are narrowed to the window the close ran in so
-// an ordinary GM reply from the middle of the day is not swept in.
+// The Bascinet conversation (HALL.md §2b): everything the game has said to
+// this player by DM, and what they wrote back. The SAME rows the GM desk
+// reads, through the SAME noise filter (web/lib/dmThread.js), from the other
+// chair — so the two surfaces cannot disagree about what was said. The row
+// shape strips the author: a player never learns which GM answered.
 //
-// It reads and sends nothing.
-const YESTERDAY_ROWS = 20;
-// An hour, not ten minutes. A close with a hundred players in it sends its
-// DMs at Discord's pace, and the tail of a long push landed outside a
-// ten-minute window — so the last lines of the day were the ones a player
-// could not read back.
-const CLOSE_WINDOW_MS = 60 * 60 * 1000;
+// Paged from the newest backwards by `beforeId`, the way the desk pages.
+const GM_THREAD_PAGE = 60;
 
-export async function yesterday() {
+export async function gmThread({ beforeId = null } = {}) {
   const me = await actor({ id: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };
 
-  const turn = await prisma.turn.findFirst({
-    where: { status: "RESOLVED", resolvedAt: { not: null } },
-    orderBy: { number: "desc" },
-    select: { number: true, phase: true, resolvedAt: true, needsResolvedAt: true },
-  });
-  if (!turn) return { ok: true, turn: null, entries: [] };
+  let before = null;
+  if (beforeId) {
+    const row = await prisma.directMessage.findFirst({
+      where: { id: String(beforeId), discordUserId: me.discordUserId },
+      select: { createdAt: true },
+    });
+    if (row) before = row.createdAt;
+  }
 
-  const from = turn.resolvedAt;
-  const until = new Date(
-    Math.max(new Date(turn.needsResolvedAt ?? turn.resolvedAt).getTime(), new Date(from).getTime()) + CLOSE_WINDOW_MS,
-  );
   const rows = await prisma.directMessage.findMany({
-    where: {
+    where: withoutDmNoise({
       discordUserId: me.discordUserId,
-      direction: "OUTBOUND",
-      source: { in: ["staged_push", "bot_auto"] },
-      createdAt: { gte: from, lte: until },
-    },
-    // Newest first so the cap keeps the END of the close, not the start —
-    // taking 20 ascending off a busy turn threw away the adjudication and
-    // kept the boilerplate. Reversed below, because the block reads in order.
-    orderBy: { createdAt: "desc" },
-    take: YESTERDAY_ROWS,
-    select: { id: true, content: true, createdAt: true },
+      ...(before ? { createdAt: { lt: before } } : {}),
+    }),
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: GM_THREAD_PAGE + 1,
+    select: PLAYER_DM_SELECT,
   });
-
+  const hasMore = rows.length > GM_THREAD_PAGE;
   return {
     ok: true,
-    turn: { number: turn.number, phase: turn.phase },
-    entries: rows
-      .reverse()
-      .map((row) => ({ id: row.id, content: row.content, at: row.createdAt.toISOString() })),
+    hasMore,
+    rows: rows.slice(0, GM_THREAD_PAGE).reverse().map(playerDmRow),
   };
+}
+
+// A line to Bascinet, from the Hall. One INBOUND row, exactly as the bot logs
+// a DM typed into Discord (bot/src/events/messageCreate.js) — and nothing
+// sent to Discord, because there is nothing to send: the bot cannot speak as
+// the player in their own DM, the desk picks the row up on its poll like any
+// inbound, and the GM's answer goes out through sendDm to Discord and the
+// table both, so it reaches the player on whichever face they are on.
+// `meta.via` says where it was typed, for a GM reading the record later.
+export async function sendToGms(content) {
+  const me = await actor({ id: true, discordUserId: true });
+  if (me.error) return { ok: false, error: me.error };
+  const text = typeof content === "string" ? content.trim() : "";
+  if (!text) return { ok: false, error: "Write something first. ‡" };
+  if (text.length > PLAYER_DM_MAX_LENGTH) {
+    return { ok: false, error: `That is too long — ${PLAYER_DM_MAX_LENGTH} characters at most. ‡` };
+  }
+
+  const row = await prisma.directMessage.create({
+    data: {
+      discordUserId: me.discordUserId,
+      direction: "INBOUND",
+      content: text,
+      source: "player",
+      meta: { via: "play" },
+    },
+    select: PLAYER_DM_SELECT,
+  });
+  return { ok: true, row: playerDmRow(row) };
 }
 
 // The Desire picker's catalog, ~271 templates evaluated against this

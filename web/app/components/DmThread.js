@@ -96,7 +96,7 @@ function getScrollEl(el) {
 
 // Turns the flat message list into what's drawn: day dividers, the NEW line,
 // collapsed effect runs, and rows tagged with whether they start a run.
-function buildItems(messages, newSinceMs, now) {
+function buildItems(messages, newSinceMs, now, newDirection) {
   const items = [];
   let lastDay = null;
   let lastSpeaker = null;
@@ -121,7 +121,7 @@ function buildItems(messages, newSinceMs, now) {
       lastDay = day;
       lastSpeaker = null;
     }
-    if (!newDrawn && newSinceMs != null && m.direction === "INBOUND" && ms > newSinceMs) {
+    if (!newDrawn && newSinceMs != null && m.direction === newDirection && ms > newSinceMs) {
       flushEffects();
       items.push({ type: "new", key: "new" });
       newDrawn = true;
@@ -228,10 +228,20 @@ function CollapsedGroup({ messages }) {
   );
 }
 
-function Row({ item, gmProfileById, character, now }) {
+// What a player sees on the game's side of the conversation: every outbound
+// row, whoever typed it, wears this one face. The desk sees GMs by name; the
+// player sees Bascinet (HALL.md §2b).
+const BASCINET_PROFILE = Object.freeze({ username: "Bascinet", avatarUrl: null });
+
+function Row({ item, gmProfileById, character, now, perspective }) {
   const { message, head, ms } = item;
   const outbound = message.direction === "OUTBOUND";
-  const profile = outbound && message.authorDiscordUserId ? gmProfileById.get(message.authorDiscordUserId) ?? null : null;
+  const profile =
+    outbound && message.authorDiscordUserId
+      ? (gmProfileById.get(message.authorDiscordUserId) ?? null)
+      : outbound && perspective === "player"
+        ? BASCINET_PROFILE
+        : null;
   const name = outbound ? (message.authorDiscordUserId ? profile?.username ?? "GM" : "Bascinet") : character?.name ?? "Player";
   const sourceLabel = outbound ? SOURCE_LABELS[message.source] : null;
   const embed = isEmbed(message);
@@ -285,6 +295,12 @@ export default function DmThread({
   character = null,
   newSinceMs = null,
   myDiscordUserId = null,
+  // Which chair the reader is in. The desk is "gm": inbound rows are the
+  // other person's, the NEW line marks the first unread inbound, and the
+  // reader's own send is an outbound row they authored. The Hall's Bascinet
+  // pane is "player": the same rows, with every one of those the other way
+  // round. Nothing else in the renderer knows which is which.
+  perspective = "gm",
 }) {
   const containerRef = useRef(null);
   const sentinelRef = useRef(null);
@@ -305,7 +321,11 @@ export default function DmThread({
 
   const now = useNowTick(60_000);
   const gmProfileById = useMemo(() => new Map(gmProfiles.map((p) => [p.discordUserId, p])), [gmProfiles]);
-  const items = useMemo(() => buildItems(messages, newSince, now), [messages, newSince, now]);
+  const newDirection = perspective === "player" ? "OUTBOUND" : "INBOUND";
+  const items = useMemo(
+    () => buildItems(messages, newSince, now, newDirection),
+    [messages, newSince, now, newDirection],
+  );
 
   const firstId = messages[0]?.id ?? null;
   const lastId = messages[messages.length - 1]?.id ?? null;
@@ -330,7 +350,11 @@ export default function DmThread({
     const wasAppend = lastId && lastId !== prevLastIdRef.current;
     const newest = messages[messages.length - 1];
     const mine =
-      newest && (newest.pending || (newest.direction === "OUTBOUND" && newest.authorDiscordUserId === myDiscordUserId));
+      newest &&
+      (newest.pending ||
+        (perspective === "player"
+          ? newest.direction === "INBOUND"
+          : newest.direction === "OUTBOUND" && newest.authorDiscordUserId === myDiscordUserId));
 
     if (wasPrepend && anchorHeightRef.current != null) {
       scrollEl.scrollTop = scrollEl.scrollHeight - anchorHeightRef.current;
@@ -426,7 +450,16 @@ export default function DmThread({
           case "collapsed":
             return <CollapsedGroup key={item.key} messages={item.messages} />;
           default:
-            return <Row key={item.key} item={item} gmProfileById={gmProfileById} character={character} now={now} />;
+            return (
+              <Row
+                key={item.key}
+                item={item}
+                gmProfileById={gmProfileById}
+                character={character}
+                now={now}
+                perspective={perspective}
+              />
+            );
         }
       })}
       {messages.length === 0 && <p className="text-sm text-muted">No messages yet.</p>}

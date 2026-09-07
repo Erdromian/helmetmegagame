@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Bascinet writes to you on the Play page now
+
+✚ A Messages row at the top of the Play page's places column: Bascinet, the whole DM conversation — turn results, the Bird, GM replies — live, with a box to write back. What a player types there lands on the players desk like any DM, marked as sent from the web.  
+− Yesterday under YOU. The same lines are in the Bascinet conversation, every day rather than only the last close.  
+✎ A player never sees which GM answered: every reply reads as Bascinet.
+
 ## 2026-09-07 · Put back the desk and Hall pass that got reverted
 
 ✎ The desks and the Play page wear one header again, with same-sized bubbles  

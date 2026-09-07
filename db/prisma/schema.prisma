@@ -2996,6 +2996,10 @@ enum DmDirection {
   OUTBOUND
 }
 
+// Every insert here fires a Postgres trigger, `DirectMessage_notify`, that
+// raises NOTIFY bascinet_dm (db/lib/dmNotify.js) — it lives only in migration
+// SQL (20260913060000_dm_notify), like the trgm indexes, and `prisma migrate
+// diff` never sees it. The Hall's Bascinet conversation listens (HALL.md §2b).
 model DirectMessage {
   id            String      @id @default(cuid())
   discordUserId String

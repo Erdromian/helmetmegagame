@@ -8,7 +8,8 @@ import { isUnread } from "./seenStore";
 // The left column of the Hall: everywhere this character may read, grouped the
 // way a person would think of them.
 //
-//   SUMMARY        the zone's own channel — the widest room, so it sits on top
+//   MESSAGES       Bascinet — the DM conversation, a pseudo-place (./DmPane.js)
+//   SUMMARY        the zone's own channel — the widest room
 //   HERE           the Location you are standing in — scenery, not speech
 //   ROOMS          the public rooms off it, then the private ones you can open
 //   CONVERSATIONS  the private threads you are in
@@ -27,6 +28,8 @@ function glyph(place) {
   // The faction is a pseudo-place: a banner, not a door. It has no channel —
   // the panel it opens is a roster (./FactionPanel.js).
   if (place.kind === "faction") return "⚑";
+  // Bascinet is a pseudo-place too: the DM conversation, drawn by ./DmPane.js.
+  if (place.kind === "dm") return "✉";
   return place.roomKind === "PRIVATE" ? "▪" : "";
 }
 
@@ -83,9 +86,14 @@ export default function PlacesColumn({
   const conversations = places.filter((p) => p.kind === "conv");
   const summary = places.filter((p) => p.kind === "zone");
   const faction = places.filter((p) => p.kind === "faction");
+  const messages = places.filter((p) => p.kind === "dm");
 
   return (
     <nav className="hall-places" aria-label="Places">
+      {/* First, above the street: what the game has said to YOU. It is about
+          the player rather than the place, and it is where a turn result
+          lands, so it sits where a glance finds it (HALL.md §2b). */}
+      <Section title="Messages" places={messages} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Summary" places={summary} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Here" places={here} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Rooms" places={rooms} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />

@@ -10,13 +10,13 @@ import TurnCard from "./TurnCard";
 import StatusStrip from "./StatusStrip";
 import Things from "./ThingsDrawer";
 import DesiresBlock from "./DesiresBlock";
-import Yesterday from "./Yesterday";
 import { waitingOnYou, answerWaiting, myMove } from "./actions";
 
 // YOU: everything about this character that is not about where they are
 // standing, in the order a player asks it — what day is it and have I moved,
-// what state is this body in, what am I owed a Desire for, my sheet, what is
-// waiting on me, and what happened yesterday.
+// what state is this body in, what am I owed a Desire for, my sheet, and what
+// is waiting on me. What happened yesterday is in the Bascinet conversation
+// in the places column now (./DmPane.js), with every other day.
 //
 // The Move dialog and the sheet link are what the #turns console carries that
 // a web-only player would otherwise lose with it (HALL.md §6, decision 2).
@@ -143,8 +143,6 @@ export default function YouPanel({
       )}
 
       <WaitingList rows={waiting} onAnswered={say} />
-
-      <Yesterday />
 
       {dialog === "move" && <MoveDialog onClose={() => setDialog(null)} onDone={say} />}
       {dialog === "edit" && moveState.move && (

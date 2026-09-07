@@ -136,6 +136,71 @@ the **Discord** add when the target finally walks into the Location.
 
 The message wipe needs no new step — `deletePlayerThread` cascades.
 
+## 2b. Bascinet is a place too: the DM conversation
+
+Most of what the game says to a player is a DM, not a channel post — the turn
+result, a travel outcome, an offer, the Bird, a GM's reply — and until
+2026-09-07 the Hall showed none of it. Now the places column opens with
+**Messages · Bascinet**: everything the game has ever said to this player by
+DM, and a box to write back into.
+
+**It is not an archive place.** The whole feed pipeline — `placesFor`, the
+stream's catch-up, `history`, `say`, `feedStore`, the wipe floors — is keyed
+on `ArchiveEntry.seq`. A DM has no seq, must never appear in `/archive` or a
+GM's Scene tab, and must never be wiped by the turn. So Bascinet is a
+**pseudo-place**, the shape the faction banner already had: it is in the
+column and it round-trips through the hash (`#gm`, `DM_PLACE_KEY`), and what
+its row opens is a panel of its own, `DmPane.js`, rather than `Feed`.
+
+**The record is `DirectMessage`, read from the other chair.** The GM desk
+already renders that table as a conversation (`PLAYER-DESK.md` §5), through
+`web/lib/dmThread.js#withoutDmNoise`, and the pane reads the same rows through
+the same filter — so a mention relay or an inspect embed is not conversation
+on either face, and the two surfaces cannot disagree about what was said.
+`play/actions.js#gmThread` pages it from the newest backwards; the row shape
+(`dmThread.js#PLAYER_DM_SELECT` / `playerDmRow`) **strips the author**: a
+player never learns which GM answered. The renderer is the desk's own
+`DmThread.js` with one new prop, `perspective="player"`, which flips exactly
+two things — the NEW line marks the first unread *outbound* row, and the
+reader's own send is an *inbound* one. Every outbound row wears one face,
+**Bascinet** (`BASCINET_PROFILE`), whoever typed it; a `staged_push` row still
+carries the desk's `turn result` chip, and runs of `bot_auto` still collapse.
+
+**Live, off a trigger.** `DirectMessage_notify`, an `AFTER INSERT` trigger in
+`20260913060000_dm_notify`, raises `NOTIFY bascinet_dm` with `{ id,
+discordUserId }` (`db/lib/dmNotify.js`). A trigger rather than a call in each
+writer, because there are four writers across three packages and a fifth is
+one `sendDm` away — and NOTIFY is transactional, delivered at COMMIT, so the
+"after the insert, never inside it" rule of §2 is kept by Postgres itself.
+`feedHub.js` holds the LISTEN on its one client, re-reads the row through the
+noise filter, and fans the player's shape to `subscribeToDm(discordUserId)`;
+the stream writes it as `event: dm`. **No cursor and no catch-up**: the pane
+fetches its page on open and again when the tab's `EventSource` fires `open`
+a second time (`dmStore.js#noteDmReconnect`), and the store dedupes by id.
+
+**Writing back is one row and no Discord send.** `sendToGms` inserts an
+INBOUND row, `source: "player"`, `meta: { via: "play" }` — exactly what the
+bot logs for a DM typed into Discord (`messageCreate.js`). Nothing goes to
+Discord because there is nothing to send: the bot cannot speak as the player
+in their own DM. The desk picks the row up on its 3 s poll like any inbound,
+and the GM's answer goes out through `sendDm` to Discord *and* the table, so
+it reaches the player on whichever face they are on. The send is optimistic
+the desk's way: the row draws `pending` at once and retires when its twin
+lands, whichever of the stream or the action brings it first.
+
+**The dot and the NEW line** use `seenStore` like every other place. The
+"newest seq" of the pseudo-place is the newest outbound row's **epoch ms** —
+`isUnread` compares BigInt strings, and epoch ms is one — seeded by `page.js`
+before the pane has ever opened and moved by the store from the first `dm`
+frame on. The mention chime rings for an outbound row while the pane is not
+the open place: a DM is always about you.
+
+**What it replaced.** `Yesterday.js` and `yesterday()` are gone — the same
+`staged_push` / `bot_auto` rows are in the thread, every day rather than only
+the last close. There is no separate "Report to the GMs": writing to Bascinet
+is the report. Restart Game keeps `DirectMessage` (`LOBBY.md` §8), so the
+thread shows last game's messages exactly as the desk does.
+
 ## 3. Realtime: server-sent events from the web process
 
 `web/lib/feedHub.js` keeps **one** `pg.Client` per web process (on
@@ -157,7 +222,8 @@ leave a gap a row written in between could fall into. It drops anything at or
 below the last seq it sent, and writes `: ping` every 25 s so Railway's proxy
 keeps the connection.
 
-Three event names now. `message` carries a whole row (a new one, or an edited
+Four event names now, plus `dm` (§2b), which is not about a place at all.
+`message` carries a whole row (a new one, or an edited
 one the client replaces by seq); `delete` carries a seq and its place and
 nothing else — the words somebody took back never come back down the wire; and
 `places` carries the whole place list. Only a new row moves the high-water
@@ -684,13 +750,9 @@ header instead).
      `confession.js`, `threatSpawn.js`, `lobby.js`), so an answer given here
      and one given in Discord are one answer, and the second surface finds
      nothing left to answer.
-  7. **`Yesterday.js`** — collapsed by default, and it stays however this
-     browser left it (`localStorage`, read through `useSyncExternalStore`).
-     Opened, it fetches `yesterday()`: the OUTBOUND `DirectMessage` rows from
-     the last closed turn's close window, `source` in `staged_push` (the GMs'
-     staged messages) or `bot_auto` (the Routine result and the Gambit
-     reveal, which `db/lib/dm.js` defaults). It **reads** — it sends nothing,
-     and it is not a second inbox.
+  7. ~~**`Yesterday.js`**~~ — gone. What the last close said is in the
+     Bascinet conversation at the top of the places column (§2b), with every
+     other day.
 
   The card and the waiting list share **one** 60-second interval (`myMove()`
   and `waitingOnYou()` on the same tick), so a Move filed from the `#turns`

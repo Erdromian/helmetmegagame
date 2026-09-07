@@ -4834,6 +4834,15 @@ label.chip {
   padding: var(--sp-3) var(--sp-4);
 }
 
+/* The Bascinet conversation (DmPane.js) draws the desk's DmThread inside the
+   Hall's own scroller, so the thread gives up the height cap it wears in the
+   adjudication inspector — the same override .desk-convo-thread applies. */
+.hall-dm .dm-thread {
+  min-height: 0;
+  max-height: none;
+  overflow-y: visible;
+}
+
 .hall-row {
   display: flex;
   gap: var(--sp-3);
@@ -5375,7 +5384,8 @@ label.chip {
   border-top: 1px solid var(--border);
 }
 
-/* Yesterday: closed by default, and the chevron is the only thing saying so. */
+/* A closed-by-default drawer (Things), and the chevron is the only thing
+   saying so. */
 .hall-details {
   margin: var(--sp-3) 0;
 }
@@ -5409,12 +5419,6 @@ label.chip {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-}
-
-.hall-yesterday-row {
-  font-size: var(--fs-sm);
-  padding-left: var(--sp-2);
-  border-left: 1px solid var(--border);
 }
 
 .hall-notice-row,
@@ -5597,6 +5601,26 @@ label.chip {
   position: relative;
   min-width: 0;
   flex: 1;
+}
+
+/* The Bascinet pane's composer foot: a send that failed, and the counter
+   past 90% of the cap (the desk's rule). Nothing draws until one is needed. */
+.hall-composer-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.hall-composer-error {
+  color: var(--danger);
+}
+
+.hall-composer-foot [data-over="true"] {
+  color: var(--danger);
 }
 
 /* ---- The composer's slash commands ---- */

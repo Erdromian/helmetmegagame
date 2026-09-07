@@ -4,6 +4,8 @@ import { prisma, feedRowShape, FEED_ROW_SELECT } from "@lifeweb/db";
 import { FEED_CHANNEL } from "@lifeweb/db/lib/feedNotify";
 import { PRESENCE_CHANNEL } from "@lifeweb/db/lib/presenceNotify";
 import { TYPING_CHANNEL } from "@lifeweb/db/lib/typingNotify";
+import { DM_CHANNEL } from "@lifeweb/db/lib/dmNotify";
+import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "./dmThread";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 
 // One Postgres LISTEN per web process, fanned out to every open SSE stream.
@@ -36,6 +38,11 @@ function createHub() {
     // enriches before fanning it: the notify carries an id, and the presented
     // name is resolved here (see typingNameFor).
     typingSubscribers: new Map(),
+    // discordUserId -> Set<(row) => void>. The fourth channel: a DirectMessage
+    // landed for this account, and the Hall's Bascinet conversation is open
+    // in a tab (HALL.md §2b). Raised by a Postgres trigger rather than by any
+    // writer (db/lib/dmNotify.js).
+    dmSubscribers: new Map(),
     // characterId -> { name, at }. A typing event fires every few seconds per
     // person, and resolving forced name + concealment is two queries; nobody's
     // mask comes off often enough to pay that on every keystroke burst.
@@ -174,7 +181,42 @@ async function handleTyping(payload) {
   }
 }
 
+// A DirectMessage row landed. The payload is an id and the account it is for,
+// and the row is re-read here through the desk's own noise filter
+// (dmThread.js#withoutDmNoise) — a mention relay or an inspect embed is not
+// conversation on the desk, and it is not conversation in the Hall either.
+// What goes out is the PLAYER's shape of the row: no author.
+async function handleDm(payload) {
+  let parsed;
+  try {
+    parsed = JSON.parse(payload);
+  } catch {
+    return;
+  }
+  if (!parsed?.id || !parsed?.discordUserId) return;
+  const set = hub().dmSubscribers.get(String(parsed.discordUserId));
+  if (!set || set.size === 0) return;
+
+  const row = await prisma.directMessage.findFirst({
+    where: withoutDmNoise({ id: String(parsed.id), discordUserId: String(parsed.discordUserId) }),
+    select: PLAYER_DM_SELECT,
+  });
+  if (!row) return;
+  const shaped = playerDmRow(row);
+  for (const send of [...set]) {
+    try {
+      send(shaped);
+    } catch (err) {
+      console.error("DM subscriber failed:", err);
+    }
+  }
+}
+
 async function handleNotification(msg) {
+  if (msg.channel === DM_CHANNEL) {
+    if (msg.payload) await handleDm(msg.payload);
+    return;
+  }
   if (msg.channel === PRESENCE_CHANNEL) {
     if (msg.payload) handlePresence(msg.payload);
     return;
@@ -277,6 +319,7 @@ async function connect() {
     await client.query(`LISTEN ${FEED_CHANNEL}`);
     await client.query(`LISTEN ${PRESENCE_CHANNEL}`);
     await client.query(`LISTEN ${TYPING_CHANNEL}`);
+    await client.query(`LISTEN ${DM_CHANNEL}`);
     h.client = client;
     h.connecting = false;
     h.backoffMs = BACKOFF_MIN_MS;
@@ -350,5 +393,28 @@ export function subscribeToPresence(characterId, wake) {
     if (!current) return;
     current.delete(wake);
     if (current.size === 0) h.presenceSubscribers.delete(characterId);
+  };
+}
+
+// The same contract once more, keyed on the Discord account rather than on a
+// place: a DM is addressed to a person, wherever their character stands.
+export function subscribeToDm(discordUserId, send) {
+  const h = hub();
+  if (!discordUserId) return () => {};
+  const key = String(discordUserId);
+  let set = h.dmSubscribers.get(key);
+  if (!set) {
+    set = new Set();
+    h.dmSubscribers.set(key, set);
+  }
+  set.add(send);
+
+  connect().catch((err) => console.error("Feed hub connect failed:", err));
+
+  return () => {
+    const current = h.dmSubscribers.get(key);
+    if (!current) return;
+    current.delete(send);
+    if (current.size === 0) h.dmSubscribers.delete(key);
   };
 }

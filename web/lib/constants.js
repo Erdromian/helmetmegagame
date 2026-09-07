@@ -21,6 +21,11 @@ export const MAX_REASON_LENGTH = 500;
 // cut — which is exactly the bug the old client-side maxLength caused.
 export const GM_MESSAGE_MAX_LENGTH = 6000;
 
+// What a player may write to Bascinet from the Hall in one go
+// (web/app/(app)/play/DmPane.js). Discord's own DM ceiling, so a message
+// typed on either face is the same size.
+export const PLAYER_DM_MAX_LENGTH = 2000;
+
 // The Move Result box (Action.resultMessage) — GM-facing canon that is never
 // sent to Discord, so it has no business sharing a Discord-shaped cap. Bounded
 // only against a runaway paste; the column itself is unbounded.

@@ -276,6 +276,12 @@ client, not a support inbox.
 - **Claim/release** is advisory (`ConversationMeta`), so five GMs don't answer
   the same player twice. The same table carries `handledAt` and `mutedAt`, the
   rail's ✓ "needs no reply" mark and its ⊘ mute (§3).
+- **A player can write here from the web too.** The Hall's Bascinet pane
+  (`HALL.md` §2b) inserts an INBOUND row with `source: "player"` and
+  `meta.via = "play"`, the same shape the bot logs for a Discord DM, so it
+  arrives on this desk through the ordinary delta poll and nothing here had
+  to learn a new value. `via` is the only tell, for a GM reading the record.
+  The reply path is unchanged: `sendGmDm` reaches the player on both faces.
 - The thread is a **conversation**, not a raw `DirectMessage` dump: rows that
   are pure bot/UI plumbing — inspect/dossier embeds, the ✏️ edit-flow prompt
   (`bot/src/lib/editModal.js`), `@mention` relay notices, proxy hand-back —

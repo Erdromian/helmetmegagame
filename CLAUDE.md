@@ -981,7 +981,10 @@ global CLIs. To make one able to build, run, and deploy:
   two live applications to one faction. `ThreatSpawn_pending_unique` is the
   third of these, and the same answer: without it a player could hold two live
   spawn offers (`THREATS.md` §4). `AuditLog_details_trgm_idx` is the fourth,
-  and the reason `/gm/audit`'s text search is not a full-table scan.
+  and the reason `/gm/audit`'s text search is not a full-table scan. The
+  `DirectMessage_notify` trigger (`HALL.md` §2b) is the fifth — Prisma does
+  not model triggers, so `migrate diff` never mentions it either way, but a
+  hand-written "fix drift" migration must not drop it.
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
   carries `restInvalidCount` / `restInvalidWindowStart` /
   `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the

@@ -10,6 +10,8 @@ import PlacesColumn, { PlacesTabs } from "./PlacesColumn";
 import useNarrow from "./useNarrow";
 import Feed from "./Feed";
 import FactionPanel from "./FactionPanel";
+import DmPane, { DM_PLACE_KEY } from "./DmPane";
+import { useDmState, seedNewestOutbound, addDmRow, noteDmReconnect } from "./dmStore";
 import NoticeCards from "./NoticeCards";
 import { ConverseDialog } from "./PlacePanel";
 import { addMember } from "./actions";
@@ -101,6 +103,10 @@ export default function Hall({
   // (./FactionPanel.js), and the whole roster is decided on the server
   // (web/lib/selfPools.js#loadFactionView).
   faction = null,
+  // The newest thing Bascinet said by DM, as epoch ms, for the Messages row's
+  // dot before the pane has opened (./DmPane.js). The store takes over from
+  // the first stream frame on.
+  dmNewestMs = null,
 }) {
   // The server's list is the first paint; the stream replaces it whole from
   // its first `places` event onward.
@@ -116,22 +122,28 @@ export default function Hall({
   // through the hash like any other, and nothing that reads a feed can ever
   // match it.
   const factionKey = faction ? `faction:${faction.id}` : null;
-  const navPlaces = useMemo(
-    () =>
-      factionKey
-        ? [
-            ...places,
-            { placeKey: factionKey, name: faction.name, kind: "faction", newestSeq: null, notableSeq: null },
-          ]
-        : places,
-    [places, factionKey, faction],
-  );
+  // And Bascinet's: the DM conversation, the same kind of pseudo-key (HALL.md
+  // §2b). Its "newest seq" is epoch ms — seenStore compares BigInt strings,
+  // and epoch ms is one — so the dot works without seenStore knowing.
+  const dmState = useDmState();
+  const dmKey = self?.characterId ? DM_PLACE_KEY : null;
+  const dmNewest = dmState.newestOutboundMs === null ? null : String(dmState.newestOutboundMs);
+  const navPlaces = useMemo(() => {
+    const out = [];
+    if (dmKey) out.push({ placeKey: dmKey, name: "Bascinet", kind: "dm", newestSeq: dmNewest, notableSeq: dmNewest });
+    out.push(...places);
+    if (factionKey) {
+      out.push({ placeKey: factionKey, name: faction.name, kind: "faction", newestSeq: null, notableSeq: null });
+    }
+    return out;
+  }, [places, factionKey, faction, dmKey, dmNewest]);
   const byKey = useMemo(() => new Map(navPlaces.map((place) => [place.placeKey, place])), [navPlaces]);
   // A hash naming somewhere you have left falls back to the first place, so a
   // stale bookmark opens the street rather than a blank column.
   const selectedKey = (hash && byKey.has(hash) ? hash : null) ?? initialPlace ?? places[0]?.placeKey ?? null;
   const selected = selectedKey ? (byKey.get(selectedKey) ?? null) : null;
   const factionOpen = Boolean(factionKey && selectedKey === factionKey);
+  const dmOpen = Boolean(dmKey && selectedKey === dmKey);
   // The silo is a Room, so the button only draws when that room is in this
   // character's own place list — a shut door keeps it out of the list, and a
   // button selecting a place they cannot read would be a dead end.
@@ -188,7 +200,15 @@ export default function Hall({
       // a frame of empty rather than an empty page.
     }
     try {
-      seedSeenIfFresh(initialPlaces.map((entry) => ({ placeKey: entry.placeKey, seq: entry.newestSeq })));
+      seedNewestOutbound(dmNewestMs);
+    } catch {
+      // A missing seed costs a dot, nothing more.
+    }
+    try {
+      seedSeenIfFresh([
+        ...initialPlaces.map((entry) => ({ placeKey: entry.placeKey, seq: entry.newestSeq })),
+        ...(dmNewestMs !== null && dmNewestMs !== undefined ? [{ placeKey: DM_PLACE_KEY, seq: String(dmNewestMs) }] : []),
+      ]);
     } catch {
       // localStorage can be refused outright. A missing seed costs a dot,
       // nothing more.
@@ -396,6 +416,33 @@ export default function Hall({
         // Same.
       }
     });
+    // A DM for this account — Bascinet's turn result, a GM's reply, or the
+    // line this tab just sent, coming back round (dmStore.js dedupes by id).
+    // Rings the mention chime for something Bascinet said while the pane is
+    // not the open place: a DM is always about you.
+    source.addEventListener("dm", (event) => {
+      try {
+        const row = JSON.parse(event.data);
+        addDmRow(row);
+        if (
+          row?.direction === "OUTBOUND" &&
+          selectedRef.current !== DM_PLACE_KEY &&
+          !hallChimeMuted() &&
+          !chimedRecently()
+        ) {
+          playChime(0.35);
+        }
+      } catch {
+        // Same.
+      }
+    });
+    // The DM path has no seq to catch up from, so a reconnect tells the pane
+    // to ask for its page again. The FIRST open is the page's own load.
+    let opened = false;
+    source.addEventListener("open", () => {
+      if (opened) noteDmReconnect();
+      opened = true;
+    });
     // EventSource reconnects by itself; the server's catch-up is bounded by
     // `since`, so a reconnect repeats little and the store dedupes by seq.
     return () => source.close();
@@ -405,8 +452,11 @@ export default function Hall({
   // chosen. The stream only ever carries what happens next, so without this a
   // room opened for the first time would look empty until somebody spoke.
   useEffect(() => {
-    // The faction pseudo-place has no feed to load (./FactionPanel.js).
-    if (!selectedKey || selectedKey.startsWith("faction:") || historyLoaded(selectedKey)) return undefined;
+    // The two pseudo-places have no feed to load (./FactionPanel.js,
+    // ./DmPane.js — the pane fetches its own page).
+    if (!selectedKey || selectedKey.startsWith("faction:") || selectedKey === DM_PLACE_KEY || historyLoaded(selectedKey)) {
+      return undefined;
+    }
     // "loading" first, so Feed.js draws the skeleton instead of the empty
     // state while this is out. markHistoryLoading is also what stops a second
     // fetch: historyLoaded() is true for both of the non-idle states.
@@ -525,6 +575,8 @@ export default function Hall({
         {aside && <HereList people={aside.people} selfId={aside.selfId} strip />}
         {factionOpen ? (
           <FactionPanel faction={faction} siloOpen={siloOpen} onSelect={onSelect} />
+        ) : dmOpen ? (
+          <DmPane self={self} />
         ) : (
         <Feed
           place={selected}

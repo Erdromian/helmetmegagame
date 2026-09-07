@@ -16,6 +16,7 @@ import CharacterMentionsProvider from "@/app/components/CharacterMentionsProvide
 import Hall from "./Hall";
 import { waitingOnYou, myMove } from "./actions";
 import { loadDesireView, loadLettersView, loadFactionView } from "@/lib/selfPools";
+import { withoutDmNoise } from "@/lib/dmThread";
 import { thingGroups } from "./thingRows";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
@@ -255,6 +256,17 @@ export default async function PlayPage() {
     ? await loadFactionView({ discordUserId: viewer.discordUserId }, viewer.character)
     : null;
 
+  // The newest thing Bascinet said to this player, for the Messages row's
+  // unread dot before the pane has ever been opened (./DmPane.js, HALL.md
+  // §2b). Through the desk's noise filter, so a mention relay lights nothing.
+  const newestDm = viewer.character
+    ? await prisma.directMessage.findFirst({
+        where: withoutDmNoise({ discordUserId: viewer.discordUserId, direction: "OUTBOUND" }),
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      })
+    : null;
+
   // Is there an instant camera in this character's hands? One slug off the
   // sheet already loaded above (db/lib/photoMint.js#CAMERA_SLUG), so the row
   // action bar can decide whether to draw the 📷 without a second query.
@@ -314,6 +326,7 @@ export default async function PlayPage() {
           : null
       }
       faction={factionView}
+      dmNewestMs={newestDm?.createdAt?.getTime?.() ?? null}
       conceal={{
         canConceal: Boolean(concealment) && !concealment.forced && !forcedName,
         concealed: Boolean(identity.concealed),
