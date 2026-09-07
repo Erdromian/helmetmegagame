@@ -1,8 +1,14 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { Suspense } from "react";
+import SnapshotPage from "@/lib/snapshot/SnapshotPage";
+import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
+import RosterView from "./RosterView";
+import Loading from "./loading";
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { listGuildMembers } from "@/lib/discordGuild";
 import { getVisibleZones } from "@/lib/gmZoneView";
 import { getOpenTurn } from "@/lib/turn";
-import RosterTable from "./RosterTable";
 
 // The desk with nobody selected: the roster, spanning the whole pane rather
 // than leaving a dossier column empty beside it. Selecting someone in the rail
@@ -12,7 +18,22 @@ import RosterTable from "./RosterTable";
 // catalog and the faction tree are only needed by this view, and the layout
 // re-runs on every router.refresh().
 
+// Snapshotted (web/lib/snapshot, CHAT.md §5c): the page reads the session,
+// mounts the shell, and streams FreshPlayerRoster in behind it. A browser that has
+// been here before paints its last data in the first frame.
 export default async function PlayerRosterPage({ searchParams }) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+  return (
+    <SnapshotPage scope="gm-players" userId={session.discordUserId} render={RosterView} fallback={<Loading />}>
+      <Suspense fallback={null}>
+        <FreshPlayerRoster searchParams={searchParams} userId={session.discordUserId} />
+      </Suspense>
+    </SnapshotPage>
+  );
+}
+
+async function FreshPlayerRoster({ searchParams, userId }) {
   const [tags, factions, visibleZones, openTurn, params] = await Promise.all([
     // The whole catalog, gates and all: bulk tagging is a GM grant, which
     // deliberately ignores requiredTag and the TagGroup gate (TAGS.md).
@@ -89,11 +110,13 @@ export default async function PlayerRosterPage({ searchParams }) {
   const memberById = new Map(members.map((m) => [m.id, m]));
 
   return (
-    <main className="desk-main">
-      <RosterTable
-        initialTab={params?.tab?.toString() ?? ""}
-        initialHighlightFactionId={params?.faction?.toString() ?? null}
-        characters={characters.map((c) => ({
+    <SnapshotFresh
+      scope="gm-players"
+      userId={userId}
+      data={{
+        initialTab: params?.tab?.toString() ?? "",
+        initialHighlightFactionId: params?.faction?.toString() ?? null,
+        characters: characters.map((c) => ({
           id: c.id,
           discordUserId: c.discordUserId,
           name: c.name,
@@ -112,13 +135,13 @@ export default async function PlayerRosterPage({ searchParams }) {
           tag: (tagNamesByCharacter.get(c.id) ?? []).join(" "),
           acted: actedCharacterIds.has(c.id),
           avatarVersion: c.updatedAt.getTime(),
-        }))}
-        tags={tags}
-        visibleZoneNames={visibleZones?.map((z) => z.name) ?? null}
-        hasOpenTurn={Boolean(openTurn)}
-        factions={factions}
-        factionCount={factions.length}
-      />
-    </main>
+        })),
+        tags: tags,
+        visibleZoneNames: visibleZones?.map((z) => z.name) ?? null,
+        hasOpenTurn: Boolean(openTurn),
+        factions: factions,
+        factionCount: factions.length,
+      }}
+    />
   );
 }

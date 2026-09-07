@@ -1,4 +1,10 @@
 import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { Suspense } from "react";
+import SnapshotPage from "@/lib/snapshot/SnapshotPage";
+import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
+import AuditView from "./AuditView";
+import Loading from "../loading";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
@@ -11,7 +17,6 @@ import {
   parseAuditParams,
   turnAt,
 } from "@/lib/auditQuery";
-import AuditDesk from "../AuditDesk";
 
 // The audit desk's server half: one load, all DTOs, no Prisma-shaped object
 // across the client boundary — the same rule the adjudication desk states.
@@ -27,7 +32,24 @@ import AuditDesk from "../AuditDesk";
 // belt as every other page in the group, and the export action re-checks for
 // real.
 
+// Snapshotted (web/lib/snapshot, CHAT.md §5c): the page reads the session,
+// mounts the shell, and streams FreshAudit in behind it. A browser that has
+// been here before paints its last data in the first frame.
 export default async function AuditPage({ params, searchParams }) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+  const routeParams = await params;
+  const selectedId = routeParams?.entryId?.[0] ?? null;
+  return (
+    <SnapshotPage scope={`gm-audit:${selectedId ?? ""}`} userId={session.discordUserId} render={AuditView} fallback={<Loading />}>
+      <Suspense fallback={null}>
+        <FreshAudit params={params} searchParams={searchParams} userId={session.discordUserId} />
+      </Suspense>
+    </SnapshotPage>
+  );
+}
+
+async function FreshAudit({ params, searchParams, userId }) {
   const { session, isGm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   if (!isGm) redirect("/character");
@@ -150,30 +172,34 @@ export default async function AuditPage({ params, searchParams }) {
   const actorById = new Map(actorOptions.map((a) => [a.id, a]));
 
   return (
-    <AuditDesk
-      entries={entries}
-      // One shared id -> name map rather than a copy per row: at 60 rows and a
-      // few hundred tags, hanging it off each DTO would be most of the payload.
-      names={names}
-      pinned={pinned ? toDto(pinned) : null}
-      selectedId={selectedId}
-      total={total}
-      pageSize={PAGE_SIZE}
-      filters={serializeFilters(filters)}
-      openTurn={openTurn ? { number: openTurn.number, phase: openTurn.phase } : null}
-      typeCounts={typeCounts.map((t) => ({ actionType: t.actionType, count: t._count._all }))}
-      actors={[...actorById.values()].sort((a, b) => a.name.localeCompare(b.name))}
-      characters={ctx.characters
+    <SnapshotFresh
+      scope={`gm-audit:${selectedId ?? ""}`}
+      userId={userId}
+      data={{
+        entries: entries,
+        // One shared id -> name map rather than a copy per row: at 60 rows and a
+        // few hundred tags, hanging it off each DTO would be most of the payload.
+        names: names,
+        pinned: pinned ? toDto(pinned) : null,
+        selectedId: selectedId,
+        total: total,
+        pageSize: PAGE_SIZE,
+        filters: serializeFilters(filters),
+        openTurn: openTurn ? { number: openTurn.number, phase: openTurn.phase } : null,
+        typeCounts: typeCounts.map((t) => ({ actionType: t.actionType, count: t._count._all })),
+        actors: [...actorById.values()].sort((a, b) => a.name.localeCompare(b.name)),
+        characters: ctx.characters
         .map((c) => ({
           id: c.id,
           name: c.name,
           status: c.status,
           factionName: c.faction?.name ?? null,
         }))
-        .sort((a, b) => a.name.localeCompare(b.name))}
-      factions={factions.sort((a, b) => a.name.localeCompare(b.name))}
-      zones={sortZones(zones)}
-      turnNumbers={ctx.turns.map((t) => t.number)}
+        .sort((a, b) => a.name.localeCompare(b.name)),
+        factions: factions.sort((a, b) => a.name.localeCompare(b.name)),
+        zones: sortZones(zones),
+        turnNumbers: ctx.turns.map((t) => t.number),
+      }}
     />
   );
 }

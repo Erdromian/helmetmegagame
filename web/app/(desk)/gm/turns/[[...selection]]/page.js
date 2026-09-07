@@ -1,4 +1,10 @@
 import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { Suspense } from "react";
+import SnapshotPage from "@/lib/snapshot/SnapshotPage";
+import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
+import TurnsView from "./TurnsView";
+import Loading from "../loading";
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
@@ -20,7 +26,6 @@ import {
   cavingRollRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
-import Workspace from "../Workspace";
 
 // The adjudication workspace's server half: one load, all DTOs, no
 // Prisma-shaped object across the boundary. The queue is the OPEN turn's
@@ -60,7 +65,23 @@ function parseSelection(segments) {
   return { type, id };
 }
 
+// Snapshotted (web/lib/snapshot, CHAT.md §5c): the page reads the session,
+// mounts the shell, and streams FreshTurnsWorkspace in behind it. A browser that has
+// been here before paints its last data in the first frame.
 export default async function TurnsWorkspacePage({ params }) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+  const { selection } = await params;
+  return (
+    <SnapshotPage scope={`gm-turns:${(selection ?? []).join("/")}`} userId={session.discordUserId} render={TurnsView} fallback={<Loading />}>
+      <Suspense fallback={null}>
+        <FreshTurnsWorkspace params={params} userId={session.discordUserId} />
+      </Suspense>
+    </SnapshotPage>
+  );
+}
+
+async function FreshTurnsWorkspace({ params, userId }) {
   const { selection } = await params;
   const parsedSelection = parseSelection(selection);
   // The move cutoff needs both of these, and neither needs the other, so they
@@ -328,18 +349,21 @@ export default async function TurnsWorkspacePage({ params }) {
     : null;
 
   return (
-    <Workspace
-      initialSelection={parsedSelection}
-      initialHistory={initialHistory}
-      initialCaving={initialCaving}
-      resolvedTurns={resolvedTurns.map((t) => ({ id: t.id, number: t.number, label: turnLabel(t) }))}
-      openTurn={openTurnDto}
-      selectableZones={selectableZones}
-      visibleZoneIds={visibleZones?.map((z) => z.id) ?? []}
-      visibleZoneNames={visibleZones?.map((z) => z.name) ?? null}
-      tagsById={tagsById}
-      tagCatalog={tagCatalog}
-      roster={roster.map((c) => ({
+    <SnapshotFresh
+      scope={`gm-turns:${(selection ?? []).join("/")}`}
+      userId={userId}
+      data={{
+        initialSelection: parsedSelection,
+        initialHistory: initialHistory,
+        initialCaving: initialCaving,
+        resolvedTurns: resolvedTurns.map((t) => ({ id: t.id, number: t.number, label: turnLabel(t) })),
+        openTurn: openTurnDto,
+        selectableZones: selectableZones,
+        visibleZoneIds: visibleZones?.map((z) => z.id) ?? [],
+        visibleZoneNames: visibleZones?.map((z) => z.name) ?? null,
+        tagsById: tagsById,
+        tagCatalog: tagCatalog,
+        roster: roster.map((c) => ({
         id: c.id,
         name: c.name,
         factionName: c.faction?.name ?? "",
@@ -347,20 +371,19 @@ export default async function TurnsWorkspacePage({ params }) {
         zoneName: c.zone?.name ?? "",
         discordUserId: c.discordUserId,
         username: usernameById.get(c.discordUserId) ?? "",
-      }))}
-      presenceZones={presenceZones}
-      stagingLocations={locationRows}
-      moves={moves}
-      cavingRolls={cavingRows}
-      stagedEffects={effects}
-      stagedMessages={messages}
-      gmProfiles={gmProfilesById}
-      moveLock={
-        window_?.hasLock
+      })),
+        presenceZones: presenceZones,
+        stagingLocations: locationRows,
+        moves: moves,
+        cavingRolls: cavingRows,
+        stagedEffects: effects,
+        stagedMessages: messages,
+        gmProfiles: gmProfilesById,
+        moveLock: window_?.hasLock
           ? { cutoffAtMs: window_.cutoffAt.getTime(), endsAtMs: window_.endsAt.getTime() }
-          : null
-      }
-      deployVersion={deployVersion()}
+          : null,
+        deployVersion: deployVersion(),
+      }}
     />
   );
 }

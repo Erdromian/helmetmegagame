@@ -1116,6 +1116,14 @@ when it lands. `web/lib/snapshot/`:
 Every server action re-validates from the database (CLAUDE.md), so acting on
 a stale sheet is safe; the fresh data simply replaces it.
 
+**Which pages.** Snapshotted: `/play`, `/character`, `/documents`, `/depot`,
+`/notes`, `/gm/players` and a player's conversation, `/gm/turns`, `/gm/audit`,
+`/gm/crafts`, `/gm/structures`, `/gm/dev/tags` and the dev panel for one
+character. Not yet, because their bodies are hand-built server JSX rather
+than one client component: `/archive`, `/faction`, `/lifeweb`, `/gm/dev` and
+its Characters / Factions tables. Those still show their skeleton on every
+visit; converting one means lifting its JSX into a client view first.
+
 **Converting a page** is: split the default export into a session read plus
 the old body renamed `Fresh<Page>`; make the body end in
 `<SnapshotFresh scope userId data={props} />` with every early return
