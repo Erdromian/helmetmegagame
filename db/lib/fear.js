@@ -134,6 +134,9 @@ const MULTIPLIERS = Object.freeze([
   // torturer who waits a day gets the full +40 (db/lib/torture.js).
   { slug: "pain-immunity", kinds: ["TORTURED"], factor: 0 },
   { slug: "opium-high", kinds: ["TORTURED"], factor: 0 },
+  // The Rite of Rage (docs/systemdocs/THANATI.md §4): "Rage people do not
+  // become afraid." Every kind, permanently.
+  { slug: "rage", kinds: "*", factor: 0 },
 ]);
 // Every slug the tables above read, so a caller loading a sheet knows what to
 // select — and so the turn pass can filter its candidate query.

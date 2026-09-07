@@ -29,11 +29,18 @@ const STUPID_SLUG = "stupid";
 // Roughly one noise per word, so the reply is as long as the thought was.
 // Punctuation is redrawn rather than copied: keeping the original commas would
 // leak the sentence structure, which is most of what someone was saying.
-function babble(content, rng = Math.random) {
+// The Rite of Reanimation's risen (docs/systemdocs/THANATI.md §4): the same
+// machine, fed growls. Bascinet's three, then variants in the same register.
+const GHOUL_SYLLABLES = [
+  "gggrah", "ghhh", "rrhhaa", "grrahh", "hhrrgh", "rhaa", "gruhh", "ghrahh",
+];
+const GHOUL_SLUG = "ghoul";
+
+function babble(content, rng = Math.random, syllables = SYLLABLES) {
   const words = String(content ?? "").trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return "";
 
-  const pick = () => SYLLABLES[Math.floor(rng() * SYLLABLES.length)];
+  const pick = () => syllables[Math.floor(rng() * syllables.length)];
   const out = [];
   let sinceBreak = 0;
 
@@ -66,4 +73,14 @@ function speaksBabble(characterTags) {
   return (characterTags ?? []).some((ct) => (ct?.tag?.slug ?? ct?.slug) === STUPID_SLUG);
 }
 
-module.exports = { babble, speaksBabble, STUPID_SLUG };
+// A Ghoul's line: growls, and LOUD — upper-cased the way Bascinet wrote them
+// ("Gggrah! Ghhh! RRHHAA!").
+function growl(content, rng = Math.random) {
+  return babble(content, rng, GHOUL_SYLLABLES).toUpperCase();
+}
+
+function speaksGrowl(characterTags) {
+  return (characterTags ?? []).some((ct) => (ct?.tag?.slug ?? ct?.slug) === GHOUL_SLUG);
+}
+
+module.exports = { babble, growl, speaksBabble, speaksGrowl, STUPID_SLUG, GHOUL_SLUG };

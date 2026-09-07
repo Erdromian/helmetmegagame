@@ -10,6 +10,7 @@ import EmptyState from "@/app/components/EmptyState";
 const STATUS_TONE = {
   OPEN: "text-muted",
   READY: "",
+  AWAITING: "",
   FIRED: "",
   EXPIRED: "text-muted",
   CANCELLED: "text-muted",

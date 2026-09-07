@@ -11,6 +11,15 @@ const BLACK_ROBES_SLUG = "black-robes";
 const THANATI_MASK_SLUG = "thanati-mask";
 const DARK_INSPIRATION_SLUG = "dark-inspiration";
 const GRIMOIRE_SLUG = "grimoire";
+const SHIMMERING_ROBES_SLUG = "shimmering-robes";
+const SCRYING_EYE_SLUG = "scrying-eye";
+const GHOUL_SLUG = "ghoul";
+const SERVANT_SLUG = "servant-of-tzchernobog";
+const RAGE_SLUG = "rage";
+
+// What counts as "wearing the robes" for a chant: the plain ones, or the
+// Rite of Reflection's imbued pair.
+const ROBE_SLUGS = Object.freeze([BLACK_ROBES_SLUG, SHIMMERING_ROBES_SLUG]);
 
 // What Recover Equipment hands back: whichever of these the cultist is not
 // holding.
@@ -80,10 +89,10 @@ async function hideoutRoom(db) {
 // Robed AND Inspired: the two facts that make a chant count. One query.
 async function chanterReady(db, characterId) {
   const rows = await db.characterTag.findMany({
-    where: { characterId, quantity: { gt: 0 }, tag: { slug: { in: [BLACK_ROBES_SLUG, DARK_INSPIRATION_SLUG] } } },
+    where: { characterId, quantity: { gt: 0 }, tag: { slug: { in: [...ROBE_SLUGS, DARK_INSPIRATION_SLUG] } } },
     select: { equipped: true, tag: { select: { slug: true } } },
   });
-  const robed = rows.some((r) => r.tag.slug === BLACK_ROBES_SLUG && r.equipped);
+  const robed = rows.some((r) => ROBE_SLUGS.includes(r.tag.slug) && r.equipped);
   const inspired = rows.some((r) => r.tag.slug === DARK_INSPIRATION_SLUG);
   return robed && inspired;
 }
@@ -95,6 +104,12 @@ module.exports = {
   THANATI_MASK_SLUG,
   DARK_INSPIRATION_SLUG,
   GRIMOIRE_SLUG,
+  SHIMMERING_ROBES_SLUG,
+  SCRYING_EYE_SLUG,
+  GHOUL_SLUG,
+  SERVANT_SLUG,
+  RAGE_SLUG,
+  ROBE_SLUGS,
   RECOVERABLE_SLUGS,
   THANATI_WARES,
   OBOL_SLUG,

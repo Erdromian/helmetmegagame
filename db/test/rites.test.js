@@ -59,3 +59,11 @@ test("the matcher ignores case and punctuation and needs whole words in order", 
   assert.deepEqual(matchRites("", words), []);
   assert.deepEqual(matchRites("anything", null), []);
 });
+
+const { nameOnPhoto } = require("../lib/riteIngredients");
+
+test("an old print's name still tells whose it is", () => {
+  assert.equal(nameOnPhoto("Photo (Ada Rook)"), "Ada Rook");
+  assert.equal(nameOnPhoto("Photo (Ada Rook · XY-1234)"), "Ada Rook");
+  assert.equal(nameOnPhoto("A Blank Photo"), null);
+});

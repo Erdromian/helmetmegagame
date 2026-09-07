@@ -1,15 +1,21 @@
-// The minute sweep behind the rites (docs/systemdocs/THANATI.md): expires
+// The minute sweep behind the rites (docs/systemdocs/THANATI.md §4): expires
 // attempts nobody finished in twelve hours, fires the READY ones once their
 // two-minute grace has run, and cancels any whose room has gone. The bot runs
 // it every minute (bot/src/events/ready.js); firing is therefore within a
 // minute of the mark, not on the second.
 //
-// Firing re-checks the floor — somebody may have pocketed the heart — and a
-// missing ingredient sends the attempt back to OPEN with its clock cleared,
-// so more chanting can arm it again inside the window. Takes `db` as a
-// parameter, the db/lib/dm.js convention.
+// Firing re-resolves everything — somebody may have pocketed the heart, or the
+// bound man may have been freed — and a missing ingredient sends the attempt
+// back to OPEN with its clock cleared, so more chanting can arm it again inside
+// the window. Then, in one transaction, the attempt is claimed and the floor
+// eaten; the rite's EFFECT runs after that on the top-level client
+// (db/lib/riteEffects.js), and whatever it reports is written on the row.
+//
+// Takes `db` as a parameter, the db/lib/dm.js convention.
 const { WINDOW_MS, riteByKey, floorIngredients } = require("./rites");
-const { floorHas, distinctChanters } = require("./riteChant");
+const { distinctChanters, ROOM_SELECT } = require("./riteChant");
+const { resolveIngredients } = require("./riteIngredients");
+const { EFFECTS } = require("./riteEffects");
 const { dropRoomTag } = require("./tagWrites");
 
 async function consumeFloor(tx, rite, roomId) {
@@ -32,26 +38,10 @@ async function consumeFloor(tx, rite, roomId) {
 
 async function fireAttempt(db, attempt) {
   const rite = riteByKey(attempt.riteKey);
-  if (!rite) {
+  const room = rite ? await db.room.findUnique({ where: { id: attempt.roomId }, select: ROOM_SELECT }) : null;
+  if (!rite || !room) {
     await db.riteAttempt.update({ where: { id: attempt.id }, data: { status: "CANCELLED" } });
     return { fired: false };
-  }
-  const room = await db.room.findUnique({
-    where: { id: attempt.roomId },
-    select: { id: true, name: true, locationId: true, discordThreadId: true },
-  });
-  if (!room) {
-    await db.riteAttempt.update({ where: { id: attempt.id }, data: { status: "CANCELLED" } });
-    return { fired: false };
-  }
-
-  // Gone off the floor since READY: back to OPEN, clock cleared.
-  if (!(await floorHas(db, rite, room.id))) {
-    await db.riteAttempt.update({
-      where: { id: attempt.id },
-      data: { status: "OPEN", readyAt: null, firesAt: null },
-    });
-    return { fired: false, rearmed: true };
   }
 
   const chanters = await distinctChanters(db, attempt.id);
@@ -61,45 +51,69 @@ async function fireAttempt(db, attempt) {
   });
   const participants = alive.map((c) => ({ characterId: c.id, name: c.name, discordUserId: c.discordUserId }));
 
-  let result = null;
-  await db.$transaction(async (tx) => {
-    // Claim it first: a second sweep racing this one finds nothing to fire.
-    const { count } = await tx.riteAttempt.updateMany({
-      where: { id: attempt.id, status: "READY" },
-      data: { status: "FIRED", firedAt: new Date() },
-    });
-    if (count === 0) return;
-    if (!(await consumeFloor(tx, rite, room.id))) {
-      throw new Error("floor changed under the rite");
-    }
-    result = rite.run
-      ? await rite.run({ tx, rite, attempt, room, participants })
-      : { unscripted: true };
-    await tx.riteAttempt.update({
+  // Gone since READY — an ingredient, or the target it needed: back to OPEN,
+  // clock cleared, and the next chant re-judges it.
+  const ingredients = await resolveIngredients(db, rite, room, { participants });
+  if (!ingredients.ok || participants.length < rite.minChanters) {
+    await db.riteAttempt.update({
       where: { id: attempt.id },
-      data: { participants, result },
+      data: { status: "OPEN", readyAt: null, firesAt: null, result: { rearmed: ingredients.missing } },
     });
-    await tx.auditLog.create({
+    return { fired: false, rearmed: true };
+  }
+
+  // Claim it and eat the floor together: a second sweep racing this one finds
+  // nothing to fire, and a floor that changed underneath rolls the claim back.
+  let claimed = false;
+  await db
+    .$transaction(async (tx) => {
+      const { count } = await tx.riteAttempt.updateMany({
+        where: { id: attempt.id, status: "READY" },
+        data: { status: "FIRED", firedAt: new Date(), participants },
+      });
+      if (count === 0) return;
+      if (!(await consumeFloor(tx, rite, room.id))) throw new Error("floor changed under the rite");
+      claimed = true;
+    })
+    .catch((err) => {
+      console.error(`Rite ${rite.key} in ${room.name} did not fire:`, err.message ?? err);
+      claimed = false;
+    });
+  if (!claimed) return { fired: false };
+
+  const openTurn = await db.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+  const effect = EFFECTS[rite.key];
+  let outcome;
+  try {
+    outcome = effect
+      ? await effect({ db, rite, attempt, room, location: room.location, participants, resolved: ingredients.resolved, openTurn })
+      : { result: { unscripted: true } };
+  } catch (err) {
+    console.error(`Rite ${rite.key} in ${room.name} effect failed:`, err.message ?? err);
+    outcome = { result: { error: err.message ?? String(err) } };
+  }
+
+  await db.riteAttempt.update({
+    where: { id: attempt.id },
+    data: { status: outcome.awaiting ? "AWAITING" : "FIRED", result: outcome.result ?? null },
+  });
+  await db.auditLog
+    .create({
       data: {
         actorDiscordUserId: participants[0]?.discordUserId ?? "system",
         actionType: "rite_fired",
-        details: { rite: rite.name, riteKey: rite.key, room: room.name, roomId: room.id, participants, result },
+        details: { rite: rite.name, riteKey: rite.key, room: room.name, roomId: room.id, participants, result: outcome.result ?? null },
       },
-    });
-  }).catch(async (err) => {
-    // The claim rolled back with everything else, so the attempt is READY
-    // again and the next tick retries or re-arms it.
-    console.error(`Rite ${rite.key} in ${room.name} did not fire:`, err.message ?? err);
-    result = null;
-  });
+    })
+    .catch((err) => console.error("Rite audit row failed:", err.message ?? err));
 
-  return { fired: result != null, rite, room, participants, result };
+  return { fired: true, rite, room, participants, result: outcome.result };
 }
 
 async function runRiteSweep(db) {
   const now = new Date();
   const expired = await db.riteAttempt.updateMany({
-    where: { status: "OPEN", openedAt: { lt: new Date(now.getTime() - WINDOW_MS) } },
+    where: { status: { in: ["OPEN", "AWAITING"] }, openedAt: { lt: new Date(now.getTime() - WINDOW_MS) } },
     data: { status: "EXPIRED" },
   });
 

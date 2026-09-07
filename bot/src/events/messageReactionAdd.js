@@ -386,6 +386,7 @@ async function handleCameraReaction(reaction, proxy, user) {
   const photo = await mintPhoto(prisma, held.characterId, {
     subject: readout.name,
     caption: photoCaption(readout),
+    subjectCharacterId: proxy.characterId ?? null,
   });
   // Claimed only once the print exists, so a failed mint leaves the shot
   // available to try again rather than burning it.
