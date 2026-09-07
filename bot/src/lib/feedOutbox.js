@@ -159,7 +159,8 @@ async function relayWebMentions({ row, characters, concealed, channelId, message
     if (!target.discordUserId) continue;
     if (!conversation && !inEarshot(target, earshot)) continue;
     await sendDm(prisma, target.discordUserId, `*You were mentioned in ${where}.* ‡\n${link}`, {
-      source: "system_notice",
+      source: "mention",
+      meta: { placeKey: row.placeKey, where },
     }).catch((err) => console.error(`Feed outbox couldn't relay a mention to ${target.name}:`, err));
     // And a browser notification, which is what reaches somebody whose /play
     // tab is closed. After the DM, and wrapped: a push that will not send must

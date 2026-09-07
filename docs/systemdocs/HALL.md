@@ -155,8 +155,13 @@ its row opens is a panel of its own, `DmPane.js`, rather than `Feed`.
 **The record is `DirectMessage`, read from the other chair.** The GM desk
 already renders that table as a conversation (`PLAYER-DESK.md` §5), through
 `web/lib/dmThread.js#withoutDmNoise`, and the pane reads the same rows through
-the same filter — so a mention relay or an inspect embed is not conversation
-on either face, and the two surfaces cannot disagree about what was said.
+the same filter in the **player chair** (`{ perspective: "player" }`) — an
+inspect embed is not conversation on either face, and a mention relay
+(`source: "mention"`) is conversation here and not on the desk. The pane draws
+it as one quiet line with an **Open** link to the place it happened in
+(`meta.placeKey`, `DmThread.js#MentionBody`), where the Discord DM carries a
+Discord link. Beyond that one row the two surfaces cannot disagree about what
+was said.
 `play/actions.js#gmThread` pages it from the newest backwards; the row shape
 (`dmThread.js#PLAYER_DM_SELECT` / `playerDmRow`) **strips the author**: a
 player never learns which GM answered. The renderer is the desk's own
@@ -1014,7 +1019,10 @@ and rate-limited by `chimedRecently()` so a busy room is not a bell tower.
 **The DM** is unchanged and is still the record: every mention relay writes a
 `DirectMessage` row, on both faces (`bot/src/lib/mentions.js` for a
 Discord-origin mention, `bot/src/lib/feedOutbox.js#relayWebMentions` for a web
-one). It carries where and a link and never the text.
+one). It carries where and a link and never the text, and since 2026-09-07 it
+also shows in the player's Bascinet thread on `/play` (§2b) — before that the
+`system_notice` source hid it there, which read as "pinging from the web does
+nothing".
 
 **Web Push** is for a tab that is closed, and it is the new half. A browser
 that has agreed is one `PushSubscription` row — `discordUserId`, the endpoint

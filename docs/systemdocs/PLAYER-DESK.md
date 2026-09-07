@@ -284,8 +284,12 @@ client, not a support inbox.
   The reply path is unchanged: `sendGmDm` reaches the player on both faces.
 - The thread is a **conversation**, not a raw `DirectMessage` dump: rows that
   are pure bot/UI plumbing — inspect/dossier embeds, the ✏️ edit-flow prompt
-  (`bot/src/lib/editModal.js`), `@mention` relay notices, proxy hand-back —
-  are tagged `source: "system_notice"` at the `sendDm()` call site. The old
+  (`bot/src/lib/editModal.js`), proxy hand-back —
+  are tagged `source: "system_notice"` at the `sendDm()` call site. An
+  `@mention` relay is `source: "mention"` (`web/lib/dmSources.js`), and the
+  filter takes a chair: the desk (`perspective: "gm"`, the default) drops it
+  like any other notice, the player's Chat pane keeps it — a ping is about
+  the player, and on Discord that DM is simply in their inbox. The old
   ✏️ DM-collector's replies were `source: "prompt_reply"`; nothing writes
   that any more (✏️ is a button and a modal now, so editing produces no
   inbound DM at all), but the historical rows stay filtered.

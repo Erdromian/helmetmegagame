@@ -253,10 +253,14 @@ export default async function PlayPage() {
 
   // The newest thing Bascinet said to this player, for the Messages row's
   // unread dot before the pane has ever been opened (./DmPane.js, HALL.md
-  // §2b). Through the desk's noise filter, so a mention relay lights nothing.
+  // §2b). Through the player chair's noise filter, so a mention relay lights
+  // the dot the way any other word from Bascinet does.
   const newestDm = viewer.character
     ? await prisma.directMessage.findFirst({
-        where: withoutDmNoise({ discordUserId: viewer.discordUserId, direction: "OUTBOUND" }),
+        where: withoutDmNoise(
+          { discordUserId: viewer.discordUserId, direction: "OUTBOUND" },
+          { perspective: "player" },
+        ),
         orderBy: { createdAt: "desc" },
         select: { createdAt: true },
       })

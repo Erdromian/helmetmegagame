@@ -186,8 +186,9 @@ async function handleTyping(payload) {
 
 // A DirectMessage row landed. The payload is an id and the account it is for,
 // and the row is re-read here through the desk's own noise filter
-// (dmThread.js#withoutDmNoise) — a mention relay or an inspect embed is not
-// conversation on the desk, and it is not conversation in the Hall either.
+// (dmThread.js#withoutDmNoise, player chair) — an inspect embed is not
+// conversation on either face, and a mention relay IS one here: it reaches
+// the player's pane exactly as the Discord DM reaches their inbox.
 // What goes out is the PLAYER's shape of the row: no author.
 async function handleDm(payload) {
   let parsed;
@@ -201,7 +202,10 @@ async function handleDm(payload) {
   if (!set || set.size === 0) return;
 
   const row = await prisma.directMessage.findFirst({
-    where: withoutDmNoise({ id: String(parsed.id), discordUserId: String(parsed.discordUserId) }),
+    where: withoutDmNoise(
+      { id: String(parsed.id), discordUserId: String(parsed.discordUserId) },
+      { perspective: "player" },
+    ),
     select: PLAYER_DM_SELECT,
   });
   if (!row) return;

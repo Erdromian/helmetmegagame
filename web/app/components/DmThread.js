@@ -5,7 +5,7 @@ import MarkdownContent from "./MarkdownContent";
 import GmAvatar from "./GmAvatar";
 import CharacterAvatar from "./CharacterAvatar";
 import useNowTick from "./useNowTick";
-import { AUTOMATED_EFFECT_SOURCES } from "@/lib/dmSources";
+import { AUTOMATED_EFFECT_SOURCES, MENTION_SOURCE } from "@/lib/dmSources";
 import { dayKey, dayLabel, clockLabel, formatDmTime, fullTimestamp } from "@/lib/dmTime";
 
 // The one shared thread — the player desk's conversation pane and the
@@ -59,6 +59,30 @@ function isLetter(m) {
 // reaches this component: @/lib/dmThread#withoutDmNoise excludes it at the query.
 function isEffect(m) {
   return !isEmbed(m) && m.direction === "OUTBOUND" && AUTOMATED_EFFECT_SOURCES.includes(m.source);
+}
+
+// A mention relay, read from the player's chair. The row's content is the
+// Discord DM (a line and a Discord link); here the link is the Chat place
+// the ping happened in, since that is where this reader already is. A row
+// with no placeKey (an unmapped channel, or older than the meta) falls back
+// to the content as written. The desk never renders one: the GM chair's
+// filter drops the source (web/lib/dmThread.js#withoutDmNoise).
+function isMention(m) {
+  return m.source === MENTION_SOURCE;
+}
+
+function MentionBody({ message }) {
+  const where = message.meta?.where ?? null;
+  const placeKey = message.meta?.placeKey ?? null;
+  if (!placeKey) return <MarkdownContent content={message.content} />;
+  return (
+    <p className="dm-mention">
+      <em>{where ? `You were mentioned in ${where}. ‡` : "You were mentioned. ‡"}</em>{" "}
+      <a className="dm-mention-open" href={`/play#${encodeURIComponent(placeKey)}`}>
+        Open
+      </a>
+    </p>
+  );
 }
 
 function LetterBody({ message }) {
@@ -246,6 +270,7 @@ function Row({ item, gmProfileById, character, now, perspective }) {
   const sourceLabel = outbound ? SOURCE_LABELS[message.source] : null;
   const embed = isEmbed(message);
   const letter = isLetter(message);
+  const mention = perspective === "player" && isMention(message);
 
   return (
     <div
@@ -274,7 +299,9 @@ function Row({ item, gmProfileById, character, now, perspective }) {
             </time>
           </div>
         )}
-        {letter ? (
+        {mention ? (
+          <MentionBody message={message} />
+        ) : letter ? (
           <LetterBody message={message} />
         ) : embed ? (
           <EmbedBody message={message} />

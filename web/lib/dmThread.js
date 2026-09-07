@@ -1,5 +1,5 @@
 import { Prisma } from "@lifeweb/db";
-import { AUTOMATED_EFFECT_SOURCES } from "./dmSources";
+import { AUTOMATED_EFFECT_SOURCES, MENTION_SOURCE } from "./dmSources";
 
 // Excludes bot/UI plumbing that happens to go out as a DM but isn't part of
 // a GM<->player conversation: embeds (meta.embed === true), anything tagged
@@ -30,8 +30,15 @@ const NOT_NOISE = [
   },
 ];
 
-export function withoutDmNoise(where) {
-  return { ...where, AND: [...(where?.AND ?? []), ...NOT_NOISE] };
+// Which chair is reading. The GM desk ("gm", the default) also drops mention
+// relays — a ping is not conversation on the desk. The player's Chat pane
+// ("player") keeps them: on Discord that DM is simply there, and hiding it on
+// the web was the bug where a web ping seemed to reach nobody.
+const GM_ONLY_NOISE = [{ OR: [{ source: null }, { source: { not: MENTION_SOURCE } }] }];
+
+export function withoutDmNoise(where, { perspective = "gm" } = {}) {
+  const extra = perspective === "player" ? [] : GM_ONLY_NOISE;
+  return { ...where, AND: [...(where?.AND ?? []), ...NOT_NOISE, ...extra] };
 }
 
 // The raw-SQL twin of withoutDmNoise, for the $queryRaw call sites that can't
@@ -40,11 +47,13 @@ export function withoutDmNoise(where) {
 //
 // `alias` is a code-supplied literal (the table alias in the caller's FROM),
 // never user input, so Prisma.raw is safe here.
-export function dmNoiseSql(alias) {
+export function dmNoiseSql(alias, { perspective = "gm" } = {}) {
   const col = (c) => Prisma.raw(alias ? `${alias}."${c}"` : `"${c}"`);
-  return Prisma.sql`(${col("source")} IS DISTINCT FROM 'system_notice')
+  const base = Prisma.sql`(${col("source")} IS DISTINCT FROM 'system_notice')
     AND (${col("source")} IS DISTINCT FROM 'prompt_reply')
     AND ((${col("meta")}->>'embed') IS DISTINCT FROM 'true')`;
+  if (perspective === "player") return base;
+  return Prisma.sql`${base} AND (${col("source")} IS DISTINCT FROM ${MENTION_SOURCE})`;
 }
 
 // dmNoiseSql, plus excluding bot/effect noise that reads like conversation

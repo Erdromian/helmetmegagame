@@ -3916,6 +3916,18 @@ label.chip {
   overflow-wrap: anywhere;
 }
 
+/* A mention relay in the player's Bascinet thread: one quiet line and a
+   link to the Chat place it happened in (DmThread.js#MentionBody). */
+.dm-mention {
+  margin: 0;
+  color: var(--muted);
+}
+.dm-mention-open {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .dm-row-meta {
   display: flex;
   align-items: baseline;

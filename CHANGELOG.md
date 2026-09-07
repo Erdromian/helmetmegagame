@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · A ping reaches you in Chat too
+
+✎ Being mentioned now shows up in your Bascinet thread on the web with an Open link to the place, the same as the DM you get on Discord  
+✎ The GM desk still hides those relay lines; they are for the player
+
 ## 2026-09-07 · Bascinet logs every DM it receives
 
 ✎ A message typed to Bascinet in Discord is written to the DM record with a log line either way, so a lost one can be traced instead of vanishing  

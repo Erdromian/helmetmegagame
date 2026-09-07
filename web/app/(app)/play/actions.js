@@ -1158,12 +1158,15 @@ export async function gmThread({ beforeId = null } = {}) {
   }
 
   const rows = await prisma.directMessage.findMany({
-    where: withoutDmNoise({
-      discordUserId: me.discordUserId,
-      ...(before
-        ? { OR: [{ createdAt: { lt: before.createdAt } }, { createdAt: before.createdAt, id: { lt: before.id } }] }
-        : {}),
-    }),
+    where: withoutDmNoise(
+      {
+        discordUserId: me.discordUserId,
+        ...(before
+          ? { OR: [{ createdAt: { lt: before.createdAt } }, { createdAt: before.createdAt, id: { lt: before.id } }] }
+          : {}),
+      },
+      { perspective: "player" },
+    ),
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: GM_THREAD_PAGE + 1,
     select: PLAYER_DM_SELECT,

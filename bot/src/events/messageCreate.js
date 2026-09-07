@@ -11,6 +11,7 @@ const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/cha
 const { sendDm } = require("../lib/dm");
 const { REPORT_CHANNEL_ID } = require("@lifeweb/db/lib/reportChannelAccess");
 const { addConversationMember } = require("@lifeweb/db/lib/conversations");
+const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const {
   canHearPing,
   messageLink,
@@ -237,6 +238,8 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
   }
 
   const link = messageLink(message.guildId, channel.id, proxied.id);
+  // Memoised in placeKey.js; the proxy already warmed this channel.
+  const placeKey = await placeKeyForChannel(prisma, { channelId: channel.id, parentId: channel.parent?.id }).catch(() => null);
   // A mention only becomes an invite inside a Conversation. A private Room is
   // a private thread too, but it is gated on a key tag
   // (db/lib/roomAccess.js) — letting a ping hand out a seat there would
@@ -273,7 +276,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
         await channel.members.add(target.discordUserId).catch((err) =>
           console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err),
         );
-        await notifyMentioned(message.client, target, context, link);
+        await notifyMentioned(message.client, target, context, link, { placeKey });
       } else {
         console.log(`[mentions] ${target.name}: not in ${context.locationName ?? "this location"}, invite recorded`);
         notHere.push(target.name);
@@ -284,7 +287,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
     const heard = await canHearPing(target, context);
     console.log(`[mentions] ${target.name}: ${heard ? "notified" : "out of earshot, no DM"}`);
     if (heard) {
-      await notifyMentioned(message.client, target, context, link);
+      await notifyMentioned(message.client, target, context, link, { placeKey });
     }
   }
 
