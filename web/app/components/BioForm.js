@@ -37,7 +37,7 @@ export default function BioForm({
   const [state, formAction, pending] = useActionState(updateCharacterProfile, null);
 
   return (
-    <form action={formAction} encType="multipart/form-data" className="flex flex-col gap-3">
+    <form action={formAction} className="flex flex-col gap-3">
       <BioNameFields character={character} lastNameLocked={lastNameLocked} hasMulligan={hasMulligan} />
       <AvatarField
         defaultTurnPingOptIn={character.turnPingOptIn}
