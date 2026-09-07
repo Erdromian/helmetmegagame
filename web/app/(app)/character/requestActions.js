@@ -2273,6 +2273,18 @@ async function openHeldCrateImpl({ session, character, held }) {
   const granted = [];
   const skipped = [];
   await prisma.$transaction(async (tx) => {
+    await lockCharacter(tx, character.id);
+    // Double-fire guard (gate review): a crate is always quantity 1, and two
+    // concurrent opens would otherwise both grant contents before the
+    // second's own crate-row delete aborts the whole transaction on a raw
+    // engine error. Same re-read-under-the-lock shape the poison actions
+    // use, and the same refusal they give.
+    const freshCrate = await tx.characterTag.findUnique({
+      where: { characterId_tagId: { characterId: character.id, tagId: held.tagId } },
+    });
+    if (!freshCrate || freshCrate.quantity < 1) {
+      throw new UserError("You don't have that any more. ‡");
+    }
     for (const line of contents) {
       const tag = byId.get(line.tagId);
       // A ware pruned out of the catalog since packing is gone. Skip it
@@ -2774,7 +2786,7 @@ async function poisonItemRequestImpl({ poisonTagId, targetTagId }) {
     const freshPoison = await tx.characterTag.findUnique({
       where: { characterId_tagId: { characterId: character.id, tagId: poisonTagId } },
     });
-    if (!freshPoison || freshPoison.quantity < 1) throw new UserError("You don't have that any more.");
+    if (!freshPoison || freshPoison.quantity < 1) throw new UserError("You don't have that any more. ‡");
     // Re-read the food's row fresh under the lock — the same patient-side
     // race shape consumeTagRequestImpl already guards: the stack may have
     // been eaten, transferred away, or already tainted between the load
@@ -2782,7 +2794,7 @@ async function poisonItemRequestImpl({ poisonTagId, targetTagId }) {
     const freshFood = await tx.characterTag.findUnique({
       where: { characterId_tagId: { characterId: character.id, tagId: targetTagId } },
     });
-    if (!freshFood) throw new UserError("You don't have that any more.");
+    if (!freshFood) throw new UserError("You don't have that any more. ‡");
     // Poisoner-side only (the plan is explicit): a poisoner learning their
     // OWN stack is already tainted with something else is acceptable — it's
     // never disclosed to whoever eventually eats it, and it never refuses on
@@ -2898,7 +2910,7 @@ async function poisonCharacterRequestImpl({ poisonTagId, targetCharacterId }) {
     const freshPoison = await tx.characterTag.findUnique({
       where: { characterId_tagId: { characterId: character.id, tagId: poisonTagId } },
     });
-    if (!freshPoison || freshPoison.quantity < 1) throw new UserError("You don't have that any more.");
+    if (!freshPoison || freshPoison.quantity < 1) throw new UserError("You don't have that any more. ‡");
 
     // Patient-side race: re-verify helplessness under the lock. Somebody
     // could have freed, healed or revived them between the load above and

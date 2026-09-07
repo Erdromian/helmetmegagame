@@ -322,13 +322,18 @@ async function addToRoomStack(
       expiresTurn: clocks.length ? Math.min(...clocks) : null,
       // The room-merge race (fix round, M4): two stashes landing on this row
       // in the same instant both read `existing.poisonedCount` from the SAME
-      // snapshot above and both add to it, same trap the quantity column
-      // solves with `{ increment }` — one of the two poisoned counts would be
-      // lost. Only the samePoison branch can use it: the different-payload
-      // branch means "leave the count exactly as it is", which an increment
-      // of 0 already expresses just as safely.
-      poisonedCount: samePoison ? { increment: incomingPoisoned } : existing.poisonedCount,
-      poisonPayload: existing.poisonPayload ?? (samePoison ? poisonPayload : null),
+      // snapshot above, same trap the quantity column solves with
+      // `{ increment }`. So the poison columns are only ever written when
+      // this merge actually ADDS poison (atomically) — a clean merge or a
+      // different-payload dose ("lost in the mix") leaves both columns
+      // entirely out of the update, so a concurrent taker's decrement or
+      // payload-clear is never overwritten with this snapshot's stale copy.
+      ...(incomingPoisoned > 0 && samePoison
+        ? {
+            poisonedCount: { increment: incomingPoisoned },
+            poisonPayload: poisonPayload ?? existing.poisonPayload,
+          }
+        : {}),
     },
   });
 }
