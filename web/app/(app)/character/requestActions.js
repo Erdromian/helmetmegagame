@@ -734,13 +734,13 @@ function checkCraftMove(action, need) {
 // whole clean Move and keep it.
 async function resolveCraftMove(character, openTurn, need) {
   if (!openTurn) throw new UserError("No turn is open.");
-  const config = await prisma.gameConfig.findUnique({
-    where: { id: 1 },
-    select: { autoTurnAdvanceDisabled: true },
-  });
-  const { locked } = moveWindow(openTurn, {
-    autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
-  });
+  // Same source requireFreeMove reads (review fix, M2): moveWindow() takes
+  // `clockFrozen`, not `autoTurnAdvanceDisabled` — the two prior reads here
+  // built an options object moveWindow never destructured, so the lock check
+  // silently always ran with clockFrozen defaulted false. clockFrozen(prisma)
+  // is the one real answer (db/lib/gameState.js): phase !== RUNNING OR the
+  // config flag, in one round trip.
+  const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
   if (locked) throw new UserError("Moves are locked for this turn.");
   const action = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: openTurn.id },
@@ -1184,13 +1184,7 @@ async function craftRequestImpl({
         // window itself — a craft submitted after Moves lock must not write
         // a ledger no matter how the race fell.
         if (moveCost.kind !== "spill") {
-          const config = await tx.gameConfig.findUnique({
-            where: { id: 1 },
-            select: { autoTurnAdvanceDisabled: true },
-          });
-          const { locked } = moveWindow(openTurn, {
-            autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
-          });
+          const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(tx) });
           if (locked)
             throw new UserError("Moves are locked for this turn.");
         }
@@ -2315,7 +2309,11 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   // administerSkill gates EVERY consume of the item — self included
   // (fitting a prosthetic needs medical-expert even on your own leg). A
   // different question from the ACT gate above, which self stays exempt
-  // from and this never is.
+  // from and this never is — except here: this consume FILES A MOVE (below),
+  // and a Bound or Paralyzed character cannot file one even for themselves
+  // (review fix, M2). `administered`'s own ACT check above already covers
+  // the targeted branch; self needs its own, checked only once (an
+  // administered consume never reaches this un-ACT-gated by definition).
   //
   // M2 lands the fee: a gated consume also costs 1/2 Move from the medical
   // family (fitting is surgery, and the Expert's scarce Move is the fee —
@@ -2324,9 +2322,17 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   // craft requirementTurns (Mercy's craft cost has nothing to do with
   // fitting it onto somebody). Priced and checked here for a fast fail, and
   // spent for real inside the transaction below, same as every other budget
-  // craft.
+  // craft. With no turn open there is nothing to bill and nothing to file —
+  // same posture as a heal's priceHeal returning null — so the fee simply
+  // does not apply rather than refusing "No turn is open."
   let administerMoveCost = null;
   if (held.tag.administerSkill) {
+    if (!administered) {
+      const blocker = blockerFor(character.tags, ACT);
+      if (blocker) {
+        throw new UserError(`You can't do that right now. You're ${blocker.name}.`);
+      }
+    }
     const catalog = await prisma.tag.findMany({
       select: { id: true, slug: true, name: true, parentTagId: true },
     });
@@ -2336,11 +2342,13 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     if (!skillTag || !satisfied.has(skillTag.id)) {
       throw new UserError(`You need ${skillTag?.name ?? "the right training"} to use ${held.tag.name}. ‡`);
     }
-    administerMoveCost = craftMoveCost(
-      { requirementTurns: 1, requirementPerTurn: 2 },
-      { quantity: 1, family: "medical" },
-    );
-    await resolveCraftMove(character, openTurn, administerMoveCost);
+    if (openTurn) {
+      administerMoveCost = craftMoveCost(
+        { requirementTurns: 1, requirementPerTurn: 2 },
+        { quantity: 1, family: "medical" },
+      );
+      await resolveCraftMove(character, openTurn, administerMoveCost);
+    }
   }
 
   const restore = {
@@ -2409,6 +2417,40 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
         entry: craftLedgerEntry(held.tag, administerMoveCost),
       });
     }
+
+    // Patient-side race (review fix, M2, same shape as
+    // healCharacterRequestImpl's): two actors administering to the same
+    // target in the same instant both pass the outside intersects gate,
+    // both would spend ⬢ and (if administerSkill-gated) a Move fraction, and
+    // dropCharacterTag on an already-gone row is a silent no-op — the loser
+    // would look successful and cure nothing. Lock the TARGET row and
+    // re-read its held tags under that lock before touching them. Only
+    // re-verified when this item's own gate depended on the intersection —
+    // an `administerable` item like Mercy has nothing to lose by curing
+    // nothing, race or not, so it never refuses here.
+    let curedHeldNow = curedHeld;
+    if (administered) {
+      await lockCharacter(tx, target.id);
+      const freshTags = await tx.characterTag.findMany({
+        where: { characterId: target.id },
+        select: {
+          tagId: true,
+          source: true,
+          expiresTurn: true,
+          quantity: true,
+          tag: { select: { slug: true } },
+        },
+      });
+      const freshSlugs = new Set(freshTags.map((ct) => ct.tag.slug));
+      const stillIntersects = curesList.some((slug) => freshSlugs.has(slug));
+      if (!stillIntersects && !held.tag.administerable) {
+        throw new UserError(`${target.name} was already treated for that. ‡`);
+      }
+      curedHeldNow = curesList.length
+        ? freshTags.filter((ct) => curesList.includes(ct.tag.slug))
+        : [];
+    }
+
     await dropCharacterTag(tx, character.id, tagId, 1);
     for (const rung of climbed) await dropCharacterTag(tx, target.id, rung.tagId, 1);
     const granted = await grantTagSlugs(
@@ -2439,7 +2481,7 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     // it, the same trap healCharacterRequestImpl already dodges, and
     // woundFearFor needs it.
     const cured = [];
-    for (const ct of curedHeld) {
+    for (const ct of curedHeldNow) {
       await dropCharacterTag(tx, target.id, ct.tagId);
       const curedTag = await tx.tag.findUnique({
         where: { id: ct.tagId },
@@ -2475,6 +2517,10 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_consume_tag",
       targetCharacterId: target.id,
+      // REQUESTS.md §1a: a row a future ration might count must carry
+      // turnId — this one already feeds routineHealsThisTurn-shaped counters
+      // once administerSkill bills a Move (review fix, M2).
+      turnId: openTurn?.id ?? null,
       details: {
         tagId,
         tagName: held.tag.name,
@@ -2795,6 +2841,12 @@ async function healCharacterRequestImpl({
   targetCharacterId,
   tagId,
   payerKey,
+  // Mirrors craftRequestImpl's billedSeen contract (CRAFTING.md §2a): 1 if
+  // the dialog showed this as costing the Move, 0 if it showed free. The
+  // server never bills more than the dialog acknowledged — a stale pool
+  // reading that would silently spend a Move gets the "reload" refusal
+  // instead (review fix, M2).
+  billedSeen: rawBilledSeen,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
@@ -2860,7 +2912,7 @@ async function healCharacterRequestImpl({
   // heals would otherwise both read the same pool count and pass.
   const priceHeal = async (db) => {
     if (!openTurn) return null;
-    if (countsAgainstHealCap(held.tag)) {
+    if (countsAgainstHealCap(held.tag, gambit)) {
       const already = await routineHealsThisTurn(db, session.discordUserId, openTurn.id);
       if (already < MEDICAL_SIMPLE_PER_TURN) return null;
       return craftMoveCost(
@@ -2871,13 +2923,29 @@ async function healCharacterRequestImpl({
     return craftMoveCost(held.tag, { quantity: 1, family: "medical" });
   };
 
+  // The player is never billed more than the dialog showed them (review fix,
+  // M2 — mirrors craftRequestImpl's acknowledgeBill). Priced here for the
+  // fast fail, and AGAIN inside the transaction, where a concurrent heal may
+  // have eaten the free pool between the two — the in-tx copy is what
+  // actually holds.
+  const billedSeen = parseCount(rawBilledSeen, { min: 0, max: 1 }) ?? 0;
+  const acknowledgeBill = (moveCost) => {
+    if ((moveCost ? 1 : 0) > billedSeen) {
+      throw new UserError(
+        "Your free allowance changed since this page loaded — reload to see the new cost. ‡",
+      );
+    }
+  };
+
+  let outsideMoveCost = null;
   if (gambit) {
     // A roll costs the Move, and Action's @@unique([characterId, turnId]) is
     // what makes it one gambit heal a turn — no separate check needed.
     await requireFreeMove(character, openTurn);
   } else {
-    const moveCost = await priceHeal(prisma);
-    if (moveCost) await resolveCraftMove(character, openTurn, moveCost);
+    outsideMoveCost = await priceHeal(prisma);
+    acknowledgeBill(outsideMoveCost);
+    if (outsideMoveCost) await resolveCraftMove(character, openTurn, outsideMoveCost);
   }
 
   const payer = await resolveParty(payerKey);
@@ -2946,7 +3014,17 @@ async function healCharacterRequestImpl({
     if (!gambit) {
       await lockCharacter(tx, character.id);
       const moveCost = await priceHeal(tx);
+      acknowledgeBill(moveCost);
       if (moveCost) {
+        // The fast fail only ran resolveCraftMove — which checks the Move
+        // window itself — when the OUTSIDE price already billed. A heal that
+        // goes from free to billed only here (the pool filled between the two
+        // reads) must re-check the window before writing a ledger, the same
+        // race craftRequestImpl's spill re-check guards (review fix, M2).
+        if (!outsideMoveCost) {
+          const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(tx) });
+          if (locked) throw new UserError("Moves are locked for this turn.");
+        }
         await spendCraftMove(tx, {
           character,
           openTurn,
@@ -2998,6 +3076,30 @@ async function healCharacterRequestImpl({
       }
       effect.actionId = action.id;
     } else {
+      // Patient-side race (review fix, M2): two medics treating the same
+      // wound in the same instant both pass the outside gates, both bill ⬢
+      // and a Move fraction, and dropCharacterTag on an already-gone row is
+      // a silent no-op — the loser would look successful and cure nothing.
+      // Lock the TARGET row too (self-heal already holds it, via the medic
+      // lock above) and re-read the held row under that lock; whoever loses
+      // the race gets a clean refusal instead of a phantom success, and the
+      // whole transaction — the ⬢ and the Move it already claimed included —
+      // rolls back with it.
+      if (target.id !== character.id) await lockCharacter(tx, target.id);
+      const heldNow = await tx.characterTag.findUnique({
+        where: { characterId_tagId: { characterId: target.id, tagId: held.tagId } },
+      });
+      if (!heldNow) {
+        throw new UserError(
+          `${target.id === character.id ? "You've" : `${target.name} has`} already been treated for that. ‡`,
+        );
+      }
+      effect.restore = {
+        tagId: held.tagId,
+        source: heldNow.source,
+        expiresTurn: heldNow.expiresTurn,
+        quantity: heldNow.quantity ?? 1,
+      };
       await dropCharacterTag(tx, target.id, held.tagId);
       effect.granted = await grantTagSlugs(
         tx,
