@@ -296,6 +296,83 @@ export async function photographRow(seq) {
   };
 }
 
+// ⭐ from the web. The twin of the reaction in Discord
+// (bot/src/events/messageReactionAdd.js#handleStarReaction) and it writes the
+// same `Note` row, so a line starred here and a line starred there land on the
+// same /notes page in the same shape.
+//
+// A line with no Discord message behind it — a web-only player's, or one the
+// outbox has not pushed yet — still needs a stable key for Note's
+// (discordMessageId, discordUserId) unique, so it is filed under its seq
+// instead. Using the real message id when there is one is what keeps a ⭐ in
+// Discord and a ⭐ here from making two notes out of one message.
+export async function starRow(seq) {
+  // locationId is what db/lib/feedAccess.js#placesFor reads — without it the
+  // place list comes back empty and every star is refused.
+  const me = await actor({ id: true, name: true, discordUserId: true, zoneId: true, locationId: true });
+  if (me.error) return { ok: false, error: me.error };
+  const character = me.character;
+
+  let key;
+  try {
+    key = BigInt(seq);
+  } catch {
+    return { ok: false, error: "That line is gone." };
+  }
+
+  const row = await prisma.archiveEntry.findUnique({
+    where: { seq: key },
+    select: {
+      seq: true,
+      kind: true,
+      placeKey: true,
+      content: true,
+      sentAt: true,
+      zoneId: true,
+      characterId: true,
+      characterName: true,
+      concealedAlias: true,
+      discordMessageId: true,
+      discordChannelId: true,
+      deletedAt: true,
+    },
+  });
+  if (!row || row.deletedAt || !row.content) return { ok: false, error: "That line is gone." };
+
+  // The same gate the feed itself reads by (db/lib/feedAccess.js). A seq is a
+  // guessable number, so this is what stops one being starred out of a room
+  // the reader is standing outside of.
+  const allowed =
+    Boolean(row.placeKey) &&
+    (await mayReadPlace(prisma, character, row.placeKey, { gm: false, discordUserId: me.discordUserId }));
+  if (!allowed) return { ok: false, error: "That line is gone." };
+
+  await prisma.note.upsert({
+    where: {
+      discordMessageId_discordUserId: {
+        discordMessageId: row.discordMessageId ?? `seq:${row.seq}`,
+        discordUserId: me.discordUserId,
+      },
+    },
+    create: {
+      discordMessageId: row.discordMessageId ?? `seq:${row.seq}`,
+      discordChannelId: row.discordChannelId ?? "",
+      characterId: row.characterId,
+      // Filed under the alias a concealed or forced line was said as, for the
+      // reason handleStarReaction gives: the note is private, but writing the
+      // real name into it hands the starrer what the hood was hiding.
+      characterName: row.concealedAlias ?? row.characterName ?? "Bascinet",
+      zoneId: row.zoneId ?? null,
+      content: row.content,
+      sentAt: row.sentAt,
+      discordUserId: me.discordUserId,
+    },
+    update: {},
+  });
+
+  return { ok: true, line: "Saved to your Notes." };
+}
+
 // What is lying in a room's stash, as STRUCTURE rather than as a sentence.
 //
 // It used to answer with formatStashLine's Discord line — `-# 0 ⬢ | **Tags**:
@@ -399,10 +476,6 @@ export async function loadTravel() {
     options: options.map((row) => ({
       id: row.location.id,
       name: row.location.name,
-      // Already loaded: locationGraph's LINK_INCLUDE pulls whole Location rows
-      // on both ends of a link, so this costs no query. The node draws it so
-      // the way out says what it leads to, not just where.
-      description: row.location.description || null,
       zoneName: row.location.zone?.name ?? null,
       crossesZone: row.crossesZone,
       passable: row.passable,
@@ -1113,10 +1186,33 @@ export async function desireCatalogView() {
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
     prisma.gameConfig.findUnique({
       where: { id: 1 },
-      select: { desiresEnabled: true, desireSlots: true, desireSlotLockTurns: true },
+      select: { desireSlots: true, desireSlotLockTurns: true },
     }),
   ]);
   return { ok: true, view: await loadDesireView(me.character, { openTurn, gameConfig }) };
+}
+
+// "Report to the GMs" — the OOC ticket a web-only player loses with the
+// report channel. It writes the same INBOUND DirectMessage row an actual DM
+// to the bot writes (bot/src/events/messageCreate.js), so it lands in
+// /gm/players' conversation like every other word from this player. It sends
+// NOTHING to Discord: this is a message TO the GMs, and the reply comes back
+// down the ordinary DM path.
+export async function reportToGms(text) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+  const body = String(text ?? "").trim();
+  if (!body) return { ok: false, error: "Write something first." };
+  if (body.length > 1800) return { ok: false, error: "That's too long to send. ‡" };
+
+  await prisma.directMessage.create({
+    data: {
+      discordUserId: me.discordUserId,
+      direction: "INBOUND",
+      content: `[Play] ${body}`,
+    },
+  });
+  return { ok: true, line: "Sent. A GM will see it on their desk. ‡" };
 }
 
 // ------------------------------------------------------------ waiting on you
@@ -1284,9 +1380,9 @@ export async function answerWaiting({ kind, id, accept } = {}) {
 // the session, re-check the place, write the scene row beside the Discord
 // post — and nothing else.
 //
-// `/move`, `/travel`, `/converse` and `/look` need no new action: they are
-// submitMove, travelTo, openConversation and the sheet's Examine dialog, all
-// of which already exist above.
+// `/move`, `/travel`, `/converse`, `/look` and `/report` need no new action:
+// they are submitMove, travelTo, openConversation, the sheet's Examine dialog
+// and reportToGms, all of which already exist above.
 
 // /conceal. A standing state, not a per-message prefix — the alias is what
 // the composer wears from here until it is turned off again.

@@ -21,7 +21,7 @@ const { reconcileCorpses } = require("./lib/corpseFollow");
 const { runTravelArrivalPass } = require("./lib/travelArrivalPass");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 // By path, not the barrel — same reason as db/lib/dm.js below.
-const { runDawnWipe } = require("./lib/dawnWipe");
+const { runMessageWipe } = require("./lib/messageWipe");
 const {
   runHungerPass,
   hungerDm,
@@ -1021,7 +1021,7 @@ async function getConfig() {
 // Resolves the OPEN turn and opens the next, alternating DAWN/DUSK. Shared
 // by the bot's cron advance and the GM "End Turn" action. Discord side
 // effects are returned as a `runSideEffects()` thunk rather than run here —
-// the Dawn wipe can take minutes, so a caller awaits it only where safe
+// the message wipe can take minutes, so a caller awaits it only where safe
 // (the bot's cron inline; the web action via next/server's after()).
 //
 // Returns { advanced, previousTurn, newTurn, note, runSideEffects }.
@@ -1275,8 +1275,8 @@ async function advanceTurn() {
   // that talks to Discord; every resolveNeeds() pass hands back posts/DMs
   // instead of sending them.
   const runSideEffects = async () => {
-    // Cutoff for the Dawn wipe below, taken before the first Discord call so
-    // nothing posted by this thunk gets swept. See db/lib/dawnWipe.js.
+    // Cutoff for the message wipe below, taken before the first Discord call so
+    // nothing posted by this thunk gets swept. See db/lib/messageWipe.js.
     const sideEffectsStartedAt = Date.now();
 
     for (const dm of autoLaborDms) {
@@ -1701,7 +1701,13 @@ async function advanceTurn() {
       console.error("Failed to post turn announcement:", err),
     );
 
-    if (newTurn.phase === "DAWN" && config.messageWipeEnabled) {
+    // The wipe runs on EVERY turn now. A turn is one real day, and Dawn/Dusk
+    // alternate, so the old Dawn gate meant a Room scene ran for 48 hours.
+    // Only the zone summaries keep that slower life — CHANNELS.md §8.
+    // `messageWipeEnabled` is no longer a GM knob; the column stays as a
+    // hand-flippable escape hatch if Discord starts rate-limiting.
+    if (config.messageWipeEnabled) {
+      const wipeSummaries = newTurn.phase === "DAWN";
       // The web's half of the same wipe, and it goes FIRST: the watermark is
       // the newest row as the pass begins, which is the same instant
       // `cutoffMs` names on the Discord side. Taking it afterwards would put
@@ -1709,18 +1715,20 @@ async function advanceTurn() {
       // Discord's view and hidden from the Hall's, for no reason but that the
       // sweep was slow. See db/lib/feedWipe.js and HALL.md §7.
       const { markFeedWiped } = require("./lib/feedWipe");
-      await markFeedWiped(prisma);
-      await runDawnWipe(prisma, { cutoffMs: sideEffectsStartedAt }).catch(
-        (err) => console.error("Dawn message wipe failed:", err),
+      await markFeedWiped(prisma, { summaries: wipeSummaries });
+      await runMessageWipe(prisma, { cutoffMs: sideEffectsStartedAt, wipeSummaries }).catch(
+        (err) => console.error("Message wipe failed:", err),
       );
     }
 
-    if (config.autoReconcileEnabled) {
-      const { runChannelDoctor } = require("./lib/channelDoctor");
-      await runChannelDoctor(prisma, { apply: true, scope: "cheap" }).catch(
-        (err) => console.error("Post-turn channel doctor failed:", err),
-      );
-    }
+    // The channel doctor's cheap reconcile — roles and membership only, a
+    // handful of requests. It used to sit behind autoReconcileEnabled, a
+    // switch nobody ever turned on; keeping Discord in step with the database
+    // after a turn moves people around is not a thing to opt into.
+    const { runChannelDoctor } = require("./lib/channelDoctor");
+    await runChannelDoctor(prisma, { apply: true, scope: "cheap" }).catch(
+      (err) => console.error("Post-turn channel doctor failed:", err),
+    );
   };
 
   return {

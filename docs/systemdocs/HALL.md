@@ -133,7 +133,7 @@ the conversation appear on the target's web page with no reload.
 `PlayerThreadInvite` stays beside it and keeps its old job: it is what replays
 the **Discord** add when the target finally walks into the Location.
 
-The dawn wipe needs no new step — `deletePlayerThread` cascades.
+The message wipe needs no new step — `deletePlayerThread` cascades.
 
 ## 3. Realtime: server-sent events from the web process
 
@@ -286,8 +286,7 @@ from 17rem in the second pass: it is the game suite now, not a button strip.
 │               │                                            │──────────────────────│
 │               │ · Alexandra is typing…                     │ THIS ROOM            │
 │               │────────────────────────────────────────────│ Storage · 2 loaves,  │
-│ 🔔  web-only  │ [ Say something in Council Room…         ] │ a key                │
-│               │                                            │ [Drop][Take][Transfer]│
+│ 🔔  web-only  │ [ Say something in Council Room…         ] │ a key   [Move things]│
 │               │                                  4 s       │ [Intercom]           │
 │               │                                            │──────────────────────│
 │               │                                            │ TRAVEL · 1 free      │
@@ -314,6 +313,7 @@ from 17rem in the second pass: it is the game suite now, not a button strip.
 │               │                                            │ [Sheet ›]            │
 │               │                                            │ Waiting on you · 1   │
 │               │                                            │ ▾ YESTERDAY          │
+│               │                                            │ Report to the GMs    │
 └───────────────┴────────────────────────────────────────────┴──────────────────────┘
 ```
 
@@ -356,46 +356,13 @@ header instead).
   the private ones a key or a guest row opens, marked `▪`), **Conversations**,
   **Summary**, and exports `PlacesTabs` — the same list as the phone's
   `.tab-bar`. Only one of the two is ever drawn.
-- **The unread dot** is one comparison: the newest **notable** seq in a place
-  against the newest seq this browser has seen there.
-
-  Notable, not merely newest. Any-row-is-unread meant a place lit up for
-  scenery — somebody lifting a stamp off a table — so the dot stopped meaning
-  anything, which is the whole failure of an unread mark. A row is notable
-  when it is **in a conversation** (there is no scenery in one) or **carries
-  this character's `{char:…}` token**, and in neither case when they wrote it
-  themselves. One predicate, `feedStore.js#isNotableRow`.
-
-  The first half comes down with the place list (`notableSeq`, a string — the
-  column is a bigint, computed by `web/lib/feedAccess.js#notableWatermarks`)
-  **and** from whatever the tab has heard live; the LARGER of the two wins, so
-  a mention that landed while the page was shut is not hidden by a quieter one
-  since. `newestSeq` still rides along beside it, because that is what seeds a
-  first-time browser's read marks.
-
-  The second half is `hall:seen:<placeKey>` in `localStorage`, read through
-  `useSyncExternalStore` in `seenStore.js` and written when the reader scrolls
-  to the bottom, never merely on selection. It only ever moves forward, and it
-  is the newest seq **overall** — so reading a place to the bottom clears its
-  dot however the dot was lit.
-
-  The **chime** is deliberately narrower than the dot: `Hall.js` rings on the
-  mention half only. A busy conversation ringing on every line is a reason to
-  mute the Hall rather than to look at it — a dot is patient, a sound is not.
-- **A ping in a conversation adds them to it**, the way Discord does when you
-  @ a stranger in a thread. `POST /api/feed/say` calls
-  `db/lib/conversations.js#pullMentionedIntoConversation` after the row is
-  written: it reads the `{char:…}` tokens, re-checks each against the DB
-  (a token is player-typed text), and for anyone living and not already a
-  member writes the `PlayerThreadMember` row plus the `PlayerThreadInvite`
-  beside it. The route then does the Discord half — `addThreadMember` for
-  somebody standing in the Location and not `webOnly`, and a DM either way.
-  It can never fail the send: the words are the point.
-
-  Conversations only. A room is opened by a key or a guest row and a mention
-  is neither; the street is already open to everyone standing in it. And the
-  web path only — a mention typed into Discord is Discord's own to handle.
-
+- **The unread dot** is one comparison: the newest seq said in a place against
+  the newest seq this browser has seen there. The first half comes down with
+  the place list (`newestSeq`, a string — the column is a bigint) and from
+  whatever the tab has heard live; the second is `hall:seen:<placeKey>` in
+  `localStorage`, read through `useSyncExternalStore` in `seenStore.js` and
+  written when the reader scrolls to the bottom, never merely on selection.
+  It only ever moves forward.
 - **`Feed.js`** (phase 0's `PlayFeed.js`, generalised) draws one place: its
   name, a search button, the runs, and the composer.
   Enter appends the pending row in the same frame and clears the box; the POST
@@ -416,6 +383,7 @@ header instead).
   | Yours | ✎ **Change** · ✕ **Take back**. The five-minute window is checked when the button is pressed, not while the page sits open, and again by `deleteSpeech`. Take back goes through the shared `useConfirm()`. |
   | Somebody else's | 🔍 **Look at** — the SHEET's own Examine dialog, opened with the speaker already chosen; and 📷 **Photograph**, only while the sheet holds an `instant-camera`. |
   | Any row, viewer is a GM with no character | ✕ **Remove**, confirmed, through the same `/api/feed/delete` route with `{ gm: true }`. |
+  | Any row that has a `seq` | ★ **Save to Notes** — the web twin of Discord's ⭐ (`PROXYING.md` §7), writing the same `Note` row through `starRow`. Offered on your own lines too, exactly as the reaction is, which is why the bar is now drawn on every row rather than only on one somebody can act against. |
 
   **The eye is offered only on a row that carries the speaker's own name.** A
   row written under an alias — a hood, or a forced name — has `alias` set
@@ -488,6 +456,7 @@ header instead).
   | `/look` | `lookAt(ref)` — a character id or a hood token, told apart server-side | — |
   | `/converse` | opens the same `ConverseDialog` the right column's Converse opens | — |
   | `/add`, `/remove` | `addMember` / `removeMember` (below) | `db/lib/roomGuests.js` |
+  | `/report` | `reportToGms` | — |
 
   **`where` is a filter, not a greying.** `/roll` is absent in the street and
   `/add` is absent in the zone summary, because a list of things you can type
@@ -604,17 +573,13 @@ header instead).
      answers what this character can do where they stand, which at a Location
      with six rooms is six rooms' buttons at once; the panel groups by
      `roomId` and shows the open one. Its storage line comes from
-     `readStash`, and every stack in it is a button: clicking one opens the
-     sheet's Transfer dialog with the room as the source and that stack
-     already ticked. Under it, **Drop** / **Take** / **Transfer** — the same
-     dialog seeded three ways (self→room, room→self, and nothing assumed).
-     Then that room's own fixtures — Intercom in the Council Room, the Bell in
-     the tower, the red Turret in the Censor's office.
+     `readStash`, with **Move things** opening the sheet's Transfer preset to
+     `room:<id>`, and then that room's own fixtures — Intercom in the Council
+     Room, the Bell in the tower, the red Turret in the Censor's office.
   4. **`TravelNodes.js`** — the ways out as a grid of square nodes, two to a
      row, off `loadTravel`. Each node carries the destination, its zone in
-     small caps, the Location's own description in italics (clamped to the
-     square, with the whole of it on the node's title) and one foot line:
-     `free` for a local hop or a crossing with a free move left, `the turn` for a crossing that spends the Move and lands
+     small caps and one foot line: `free` for a local hop or a crossing with a
+     free move left, `the turn` for a crossing that spends the Move and lands
      next turn (MAP.md §3), and `shut` / `locked` / the refusal for one that
      will not open — dimmed, still drawn, because knowing the way is there and
      shut is what sends you to find the winch. A zone crossing is tinted. The
@@ -682,15 +647,21 @@ header instead).
      staged messages) or `bot_auto` (the Routine result and the Gambit
      reveal, which `db/lib/dm.js` defaults). It **reads** — it sends nothing,
      and it is not a second inbox.
+  8. **Report to the GMs**, last and quiet. It writes an INBOUND
+     `DirectMessage` prefixed `[Play] ` and sends nothing to Discord, so it
+     lands in `/gm/players` beside everything else that player has said and
+     the answer comes back down the ordinary DM path.
 
   The card and the waiting list share **one** 60-second interval (`myMove()`
   and `waitingOnYou()` on the same tick), so a Move filed from the `#turns`
   console shows up here without a reload.
 - **The composer's two hand controls**, beside the send and the phone's ⋯.
-  A ✉ (`QuillIcon`) opens a small menu of **Write ‡**, **Seal ‡**, **Bind a
-  book ‡** and **Send by bird ‡** — each shown only where the sheet would show
-  it, each opening the sheet's own dialog through
-  `RequestActionsProvider.open("write"|"seal"|"bindbook"|"bird")`. The bird is
+  A ✉ (`QuillIcon`) opens a small menu of **Write ‡**, **Seal ‡** and **Send
+  by bird ‡** — each shown only where the sheet would show it, each opening
+  the sheet's own dialog through
+  `RequestActionsProvider.open("write"|"seal"|"bird")`. Bind a Book used to sit
+  in that menu; a blank book is an ordinary craft recipe now and Write is what
+  fills one (`PAPERWORK.md` §4a). The bird is
   the one that greys rather than hides: with one already gone today it reads
   **Sent today ‡**. Beside it, a hood (`HoodIcon`, `aria-pressed`) calls
   `toggleConceal()` — drawn only where `db/lib/conceal.js` would not refuse
@@ -1008,14 +979,17 @@ The desktop and mobile wireframes Bascinet chose are in §5.
 
 ### 6a. The "web only" switch
 
-**Play from the web ‡**, a `Switch` under the picture on the Bio card, right
-after the turn ping. It is the answer to §1's first reason: a Discord channel
+**Play from the web**, a `Switch` under the picture on the Bio card, right
+after the turn ping. What it does is in its own `InfoIcon` now rather than in a
+paragraph under the row — the same treatment the hood switch beside it got. It is the answer to §1's first reason: a Discord channel
 lists every account that can see it, so standing in the Keep tells everybody
 else in the Keep which Discord account you are, and the only fix is not being
 there.
 
 `Character.webOnly`, `Character.webOnlyChangedAt`, and
-`GameConfig.webOnlyCooldownSeconds` (7200 — **two hours**). One function flips
+`WEB_ONLY_COOLDOWN_SECONDS` in `db/lib/webOnly.js` (7200 — **two hours**;
+it was a `GameConfig` column nothing ever wrote until the 2026-09-07 config
+trim). One function flips
 it: `db/lib/webOnly.js#setWebOnly(prisma, character, on)`, returning
 `{ ok: true }` or `{ ok: false, error, minutes, readyAt }`.
 
@@ -1062,23 +1036,47 @@ the list to check against when adding another.
 
 ## 7. The wipe: a watermark, not a delete
 
-The Dawn wipe (`CHANNELS.md` §8) empties every Discord channel. The Hall
+The message wipe (`CHANNELS.md` §8) empties every Discord channel. The Hall
 cannot do the same thing and should not want to: `ArchiveEntry` **is** the
 transcript `/archive` reads, so deleting a row to tidy a screen would burn the
 record.
 
-So the web reads past the wipe instead. `GameConfig.feedWipeSeq` is a
-watermark, and every feed query asks for `seq > feedWipeSeq` while
-`messageWipeEnabled` is on. `db/lib/feedWipe.js` is the whole of it —
-`markFeedWiped(prisma)` sets it, `feedWipeFloor(prisma)` reads it back as a
-BigInt (zero when the wipe is off, so a game running without it behaves
-exactly as it did before this existed), and `seqFilterAbove` folds it into a
-Prisma `seq` filter.
+So the web reads past the wipe instead — and since 2026-09-07 there are **two
+watermarks**, because the wipe has two cadences:
 
-Four readers, and they have to agree or the page and the stream disagree about
+| Column | Moves | Floors |
+|---|---|---|
+| `GameConfig.feedWipeSeq` | every turn | `loc:` / `room:` / `conv:` places |
+| `GameConfig.feedWipeSummarySeq` | Dawn only | `zone:` places |
+
+Both are set in one `update` so the pair can never half-land.
+`db/lib/feedWipe.js` is the whole of it — `markFeedWiped(prisma, { summaries })`
+sets them, `feedWipeFloors(prisma)` reads them back as
+`{ turn, summary }` BigInts (both zero when the wipe is off, so a game running
+without it behaves exactly as it did before this existed), and three helpers
+apply them:
+
+- `floorForPlace(floors, placeKey)` — one place, one floor. The two routes that
+  only ever look at a single place use this.
+- `placeSeqWhere(floors, placeKeys, extra)` — a Prisma `where` fragment for a
+  **mixed** set, ORing a zone clause and a non-zone clause. With one kind
+  present it collapses back to a plain single clause, which is the common case.
+- `lowestFloor(floors)` — for the one reader that has to pick a single number
+  for a mixed stream. See the trap below.
+
+Five readers, and they have to agree or the page and the stream disagree about
 where the day starts: the stream's catch-up (`/api/feed`), the history route
-(`/api/feed/history`), the page's first render (`play/page.js`), and the
-`newestSeq` watermark `web/lib/feedAccess.js` decorates the place list with.
+(`/api/feed/history`), the search route (`/api/feed/search`, raw SQL, so it
+picks with a `CASE WHEN ae."placeKey" LIKE 'zone:%'`), the page's first render
+(`play/page.js`), and the `newestSeq` watermark `web/lib/feedAccess.js`
+decorates the place list with.
+
+**The trap is the stream's high-water clamp.** `/api/feed` keeps one `lastSeq`
+for the whole connection and drops anything at or below it as already sent.
+That number must be the **lower** of the two floors, never the turn floor — a
+zone-summary row sitting between the two is legitimately older, because its
+channel is wiped on the slower schedule, and clamping to the turn floor would
+silently swallow it.
 
 There is a **second floor underneath that one, and it is never off**: every
 row belonging to a previous game. Restart Game keeps `ArchiveEntry` on purpose
@@ -1089,11 +1087,12 @@ below every row of this one, and `previousGameFloor` reads the highest of them
 back. It asks for the highest seq NOT in this game rather than the lowest seq
 in it, so a freshly wiped game with nothing said in it yet shows an empty Hall
 rather than yesterday's; a row with no `gameId` predates the column and is old
-by definition. `feedWipeFloor` returns whichever of the two floors is higher,
-which is why fixing this took no change to any of the readers below.
+by definition. `feedWipeFloors` folds it into whichever of its two watermarks
+is higher, which is why fixing this took no change to any of the readers
+above.
 
 **It is set as the pass BEGINS**, from `db/index.js#advanceTurn`'s side-effect
-thunk, immediately before `runDawnWipe`. That is the same instant `cutoffMs`
+thunk, immediately before `runMessageWipe`. That is the same instant `cutoffMs`
 names on the Discord side, and the reason is the same: a message posted while
 the wipe is still walking the map survives on Discord, so it has to survive
 here too. Taking the watermark afterwards would have made where you were

@@ -636,7 +636,7 @@ async function writeRoomStarter(threadId, chunks, components) {
 
 // One thread per room under its location's channel, sync-owned: starter =
 // the room body, reconciled by hash. Never locked (players roleplay inside
-// it); the Dawn wipe clears replies but never the starter. Returns
+// it); the message wipe clears replies but never the starter. Returns
 // "created" | "updated" | "unchanged" | "skipped".
 // Rooms carry NO slowmode (Bascinet, 2026-09-06): the 5-minute one belongs to
 // #summary alone, and a Room thread is moment-to-moment talk. Zero is still

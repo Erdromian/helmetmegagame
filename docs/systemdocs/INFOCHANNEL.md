@@ -2,7 +2,7 @@
 
 How the player-facing `#info` channel gets its content, and how it's
 rebuilt. Unlike every other Discord subsystem documented in this directory
-(`CHANNELS.md`, dawn wipe), `#info` carries no gameplay state and no
+(`CHANNELS.md`, the message wipe), `#info` carries no gameplay state and no
 player-generated content — it's a static directory the GMs maintain by hand
 and push wholesale, so this doc is short: identification, content format,
 and the rebuild mechanism.
@@ -70,7 +70,7 @@ after creation, by the same bot that created it.
 2. **Wipe**: delete every top-level message in `#info`
    (`fetchAllMessages`/`bulkDeleteMessages`), then delete every thread on it
    — active and archived — one at a time (`deleteThread`, sequential, no
-   parallel fan-out, same rate-limit-conscious pacing as `dawnWipe.js`).
+   parallel fan-out, same rate-limit-conscious pacing as `messageWipe.js`).
 3. **Banner** (if `banner` is set): post the image as a bare attachment.
    This happens *before* the threads are created, not merely before the
    directory message — Discord orders a channel oldest-first, and creating
@@ -160,7 +160,7 @@ content is truncated.
 ## 5. Where the code lives
 
 `db/lib/discordRest.js` (`startThread`, `postAttachment`, `editMessage`,
-`chunkMessage`, alongside the channel/message/thread REST helpers `dawnWipe.js`
+`chunkMessage`, alongside the channel/message/thread REST helpers `messageWipe.js`
 already uses), `db/lib/infoChannel.js` (the shared content half: the YAML load,
 the `generated:` bodies, the directory message, finding the channel — no
 writes), `db/scripts/sync/sync-info-channel.js` (§4b, the default) and
@@ -168,4 +168,4 @@ writes), `db/scripts/sync/sync-info-channel.js` (§4b, the default) and
 `docs/systemdocs/infochannel.yaml` (content), `npm run db:sync-info-channel` /
 `npm run db:rebuild-info-channel` (entry points). No `prisma`/DB dependency —
 `#info` has no DB-backed state, so this is REST-only, same posture as
-`dawnWipe.js`/`turnAnnouncement.js`.
+`messageWipe.js`/`turnAnnouncement.js`.

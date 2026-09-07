@@ -383,7 +383,7 @@ clears. A quiet −1 ⬢ sends nothing.
 streak changed from eating, carrying `discordUserId`, a `kind` (`starved` /
 `recovering` / `recovered`), the already-clamped `streak`, and `justDied` —
 and the sending happens in `advanceTurn()`'s `runSideEffects()` thunk,
-alongside the turn announcement and the Dawn wipe. The pass is therefore two
+alongside the turn announcement and the message wipe. The pass is therefore two
 reads and several bulk writes with no network call in it at all — which
 matters because at 100+ players the DMs are
 sequential Discord round-trips *per starving character*, and awaiting that
@@ -465,11 +465,10 @@ is their problem, not a GM's. The same "even into negative" posture applies
 by adjudication, not code, to curing an Addiction or Restriction tag —
 `DESIRES.md` §7's clawback rule.
 
-`GameConfig.desiresEnabled` is the Dev Panel switch that closes the faucet
-without freezing what's already in flight: off blocks `setDesire` (checked
-server-side in `setDesireImpl`, not just hidden in the UI) so nobody can
-start a **new** Desire, but an already-`ACTIVE` one in any slot can still be
-fulfilled or cancelled — the system drains out rather than stopping
+`GameConfig.desiresEnabled` used to be a Dev Panel switch that closed the
+faucet without freezing what was already in flight. It was deleted in the
+2026-09-07 config trim, unused — Desires are the only way Tag Points are
+earned in play, so closing them stops
 mid-goal. `/character` greys the "set a new Desire" form and shows
 "Temporarily disabled." in its place. Unaffected: `setDesireGm`/`endDesireGm`
 on the Dev Panel (host access, not game permission — same split
@@ -866,12 +865,14 @@ The sheet keeps everything else. Craft, the paperwork verbs, the Bird and the
 Factory are not mounted in the Hall, and `ActionGrid` is not either — the
 column is a list of people, not a second grid.
 
-`/play` also carries two player actions that were Discord-only, both of them
-in `play/actions.js` and both re-checking every gate the panel drew:
+`/play` also carries three player actions that were Discord-only, all of them
+in `play/actions.js` and all of them re-checking every gate the panel drew:
 **Move** (`db/lib/moves.js#fileMove`, the same call the `#turns` Move modal
-makes) and **Waiting on you** — the Accept/Decline for a pending offer, a
-threat spawn or a lobby seat, calling the same `db/lib` functions the DM's
-buttons call. Neither files an `Action` twice: `fileMove` is guarded by
+makes), **Report to the GMs** (an INBOUND `DirectMessage` prefixed `[Play] `,
+sent nowhere near Discord, so it lands in `/gm/players`), and **Waiting on
+you** — the Accept/Decline for a pending offer, a threat spawn or a lobby
+seat, calling the same `db/lib` functions the DM's buttons call. None of the
+three files an `Action` twice: `fileMove` is guarded by
 `@@unique([characterId, turnId])`, and the rest write no Move at all. ‡
 
 One consequence worth knowing: `CharacterSheet#groupTagsByCategory` now groups
@@ -925,7 +926,7 @@ All obol-denominated, all moving `Depot.accountObols` rather than anyone's
 `Character.resources`. They are audit `actionType`s now
 (`request_depot_order`, `request_depot_atm`, `request_depot_credit`,
 `request_depot_crate_open`, `request_depot_refuel`,
-`request_depot_shuttle_call` / `_send`, `request_depot_exchange`), and the
+`request_depot_shuttle_call` / `_send`), and the
 Depot's own visible Ledger on `/depot` is built by reading exactly that set
 back out of `AuditLog` — `DEPOT_LEDGER_KINDS` in `web/app/(app)/depot/page.js`
 is the one list, so a new depot verb has to be added there or it moves obols

@@ -106,7 +106,7 @@ cadence would make the smell a clock players could read, when what it is for is
 nagging unpredictably until somebody buries the body. Each firing schedules the
 next, so nothing may throw out of the tick or the chain dies silently.
 
-**It needs no cleanup code.** The Dawn wipe already deletes every top-level
+**It needs no cleanup code.** The message wipe already deletes every top-level
 message in a Location channel except the pinned anchor (`CHANNELS.md`). So the
 obligations here are negative, and they matter: never pin the line, and never
 record its id as an anchor. Do neither and it clears itself every Dawn.

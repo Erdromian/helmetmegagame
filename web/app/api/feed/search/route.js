@@ -1,6 +1,6 @@
 import { prisma, Prisma } from "@lifeweb/db";
 import { withAvatarVersions } from "@lifeweb/db/lib/archive";
-import { feedWipeFloor } from "@lifeweb/db/lib/feedWipe";
+import { feedWipeFloors } from "@lifeweb/db/lib/feedWipe";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 
 // GET /api/feed/search?q=&place= — what was said, anywhere this viewer can
@@ -52,9 +52,11 @@ export async function GET(request) {
   }
   if (scope.length === 0) return Response.json({ rows: [] });
 
-  // Nothing from before the last Dawn wipe, the same floor the feed, the
-  // history route and the place watermarks all read (db/lib/feedWipe.js).
-  const floor = await feedWipeFloor(prisma);
+  // Nothing from before the last wipe, the same floors the feed, the history
+  // route and the place watermarks all read (db/lib/feedWipe.js). A search
+  // spans every place the viewer can see, and a zone summary clears on the
+  // slower Dawn schedule, so the floor is picked per row below.
+  const floors = await feedWipeFloors(prisma);
 
   // LIKE metacharacters escaped, so a query holding % or _ searches for those
   // characters instead of turning into a wildcard. Backslash is Postgres's
@@ -76,7 +78,7 @@ export async function GET(request) {
     FROM "ArchiveEntry" ae
     WHERE ae."placeKey" IN (${keys})
       AND ae."deletedAt" IS NULL
-      AND ae."seq" > ${floor}
+      AND ae."seq" > (CASE WHEN ae."placeKey" LIKE 'zone:%' THEN ${floors.summary} ELSE ${floors.turn} END)
       AND ae."content" ILIKE ${pattern}
     ORDER BY ae."seq" DESC
     LIMIT ${RESULT_ROWS}

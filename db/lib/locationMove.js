@@ -7,7 +7,7 @@
 // db/lib/dm.js — require it by path.
 //
 // Every call here is .catch-logged, never thrown; the channel doctor's
-// post-turn pass (config.autoReconcileEnabled) is the safety net for
+// post-turn pass (the channel doctor's cheap reconcile) is the safety net for
 // anything a call here missed.
 const {
   addMemberRole,

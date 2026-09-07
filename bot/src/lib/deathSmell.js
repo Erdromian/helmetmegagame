@@ -11,7 +11,7 @@
 // So each firing picks its own next delay.
 //
 // WHY IT NEEDS NO CLEANUP. The message goes to Location.discordChannelId, and
-// the Dawn wipe already deletes every top-level message in a Location channel
+// the message wipe already deletes every top-level message in a Location channel
 // except the pinned anchor (CHANNELS.md). So the only obligations here are
 // negative ones, and they matter: never pin this, and never write its id
 // anywhere the wipe treats as an anchor. Do neither and it clears itself.

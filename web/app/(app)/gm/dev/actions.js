@@ -218,7 +218,7 @@ export async function updateWorldState(formData) {
 }
 
 // advanceTurnInDb() hands back its Discord side effects as a thunk. That
-// thunk goes to after(), not the request, since the Dawn wipe can take
+// thunk goes to after(), not the request, since the message wipe can take
 // minutes and a pending server action blocks client-side navigation.
 export async function forceAdvanceTurn() {
   const session = await requireSuperadmin();

@@ -53,9 +53,6 @@ export default function CharacterSheet({
   // buttons on. They were passed here and dropped for a while, which is why
   // the Nuclear Datacard never showed its buttons: the provider's default
   // `false` won, silently.
-  canBindBook = false,
-  bindBlocked = null,
-  bookOptions = [],
   canCrucify = false,
   canDisguise = false,
   hasDatacard = false,
@@ -69,14 +66,13 @@ export default function CharacterSheet({
   hasWorkshop = false,
   tagCatalog,
   desireSlots = 2,
-  desireSlotLockTurns = 1,
+  desireSlotLockTurns = 2,
   desireSlotStates = [],
   desireCatalog = [],
   desireFamilies = [],
   desireFamilyGroups = [],
   desireLockNotes = [],
   desireAddiction = null,
-  desiresEnabled = true,
   canHeal = false,
   healsLeft = null,
   // Lessons and Craft (LESSONS.md, CRAFTING.md), all built in character/page.js.
@@ -230,9 +226,6 @@ export default function CharacterSheet({
             harmTargets={harmTargets}
             harmTags={harmTags}
             examineBlocked={examineBlocked}
-            canBindBook={canBindBook}
-            bindBlocked={bindBlocked}
-            bookOptions={bookOptions}
             canCrucify={canCrucify}
             canDisguise={canDisguise}
             hasDatacard={hasDatacard}
@@ -278,7 +271,6 @@ export default function CharacterSheet({
               lockNotes={desireLockNotes}
               addiction={desireAddiction}
               openTurnNumber={openTurn?.number ?? null}
-              desiresEnabled={desiresEnabled}
             />
           )}
         </div>

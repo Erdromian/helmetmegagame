@@ -1,12 +1,22 @@
-// Dawn message wipe: called from db/index.js#advanceTurn() whenever the
-// newly-opened turn's phase is DAWN and GameConfig.messageWipeEnabled is on.
-// Per zone: clears #summary; per location: clears the channel down to its
-// pinned anchor, empties every Room thread down to its starter, and deletes
-// every Conversation outright (there is no persistence any more). Every rule
-// is bounded by a CUTOFF (the moment the turn advance's side effects began),
-// so it can't eat its own push's #summary post or a message sent while the
-// wipe is still walking there. Sequential, not Promise.all, to respect
-// Discord's rate limits.
+// The message wipe: called from db/index.js#advanceTurn() on EVERY turn while
+// GameConfig.messageWipeEnabled is on.
+//
+// TWO CADENCES, and the split is the whole point of this file. A turn is one
+// real day, but Dawn and Dusk alternate, so anything gated on Dawn only comes
+// round every 48 hours. Roleplay should not outlive the day it happened in:
+//
+//   every turn  — a Location channel down to its pinned anchor, every Room
+//                 thread down to its starter, every Conversation deleted
+//                 outright (there is no persistence any more), and every
+//                 special channel the registry marks `wipe: "clear"`.
+//   Dawn only   — a zone's #summary. It is the abstracted, slowmoded channel
+//                 the adjudication results land in, so it is allowed the
+//                 longer life the rest no longer gets.
+//
+// Every rule is bounded by a CUTOFF (the moment the turn advance's side
+// effects began), so it can't eat its own push's #summary post or a message
+// sent while the wipe is still walking there. Sequential, not Promise.all, to
+// respect Discord's rate limits.
 const { SPECIAL_CHANNELS } = require("./specialChannels");
 const {
   fetchAllMessages,
@@ -72,7 +82,7 @@ async function adoptThread(prisma, thread, location) {
       },
     })
     .catch((err) => {
-      console.error(`Dawn wipe: couldn't adopt thread ${thread.id}:`, err.message);
+      console.error(`Message wipe: couldn't adopt thread ${thread.id}:`, err.message);
       return null;
     });
 }
@@ -99,10 +109,10 @@ async function wipeLocation(prisma, location, roomsByThreadId, rowsByThreadId, a
     const room = roomsByThreadId.get(thread.id);
     if (room) {
       await clearMessagesExcept(thread.id, room.starterMessageId, { before: cutoff.before });
-      // A room that idled into the archive comes back at Dawn.
+      // A room that idled into the archive comes back at the wipe.
       if (thread.thread_metadata?.archived) {
         await patchThread(thread.id, { archived: false }).catch((err) =>
-          console.error(`Dawn wipe: unarchive of room ${room.name} failed:`, err.message),
+          console.error(`Message wipe: unarchive of room ${room.name} failed:`, err.message),
         );
       }
       continue;
@@ -111,7 +121,7 @@ async function wipeLocation(prisma, location, roomsByThreadId, rowsByThreadId, a
     // A thread younger than the cutoff was opened while this very wipe was
     // running. Leave it entirely — deleting it would destroy a conversation
     // whose author is still looking at it. It comes under the ordinary rules
-    // next Dawn, exactly like an adopted thread.
+    // next turn, exactly like an adopted thread.
     if (isAfterCutoff(thread.id, cutoff)) continue;
 
     let row = rowsByThreadId.get(thread.id);
@@ -126,7 +136,10 @@ async function wipeLocation(prisma, location, roomsByThreadId, rowsByThreadId, a
 // `cutoffMs` is the moment the turn advance's side effects began — see
 // db/index.js#runSideEffects and the CUTOFF rule in the file header above.
 // Defaults to "now" so a hand-run wipe still can't eat its own tail.
-async function runDawnWipe(prisma, { cutoffMs = Date.now() } = {}) {
+//
+// `wipeSummaries` is the Dawn half: true only when the newly-opened turn is a
+// DAWN. Everything else in here runs every turn regardless.
+async function runMessageWipe(prisma, { cutoffMs = Date.now(), wipeSummaries = false } = {}) {
   const startedAt = Date.now();
   const cutoff = buildCutoff(cutoffMs);
   const steps = [];
@@ -147,7 +160,7 @@ async function runDawnWipe(prisma, { cutoffMs = Date.now() } = {}) {
   // Fetched ONCE for the whole wipe — the endpoint is guild-wide. A thread
   // created mid-wipe is missed until the next one, same as always.
   const activeThreads = await fetchActiveThreads().catch((err) => {
-    console.error("Dawn wipe: active-thread snapshot failed, falling back to per-channel fetches:", err);
+    console.error("Message wipe: active-thread snapshot failed, falling back to per-channel fetches:", err);
     return null;
   });
 
@@ -173,13 +186,15 @@ async function runDawnWipe(prisma, { cutoffMs = Date.now() } = {}) {
 
   let locationCount = 0;
   for (const zone of zones) {
-    console.log(`Dawn wipe: ${zone.name}`);
-    if (zone.discordSummaryChannelId) {
+    console.log(`Message wipe: ${zone.name}`);
+    // The one Dawn-only target. The zone loop still runs every turn — it has
+    // to, for the Locations underneath it.
+    if (wipeSummaries && zone.discordSummaryChannelId) {
       try {
         await timeStep(`${zone.name} / summary`, () => clearMessages(zone.discordSummaryChannelId, cutoff.before));
       } catch (err) {
         failures.push({ step: "summary", target: zone.name, message: err.message });
-        console.error(`Dawn wipe: ${zone.name} #summary failed, continuing:`, err.message);
+        console.error(`Message wipe: ${zone.name} #summary failed, continuing:`, err.message);
       }
     }
     // Each location inside its own try, so one stale channel id costs one
@@ -192,7 +207,7 @@ async function runDawnWipe(prisma, { cutoffMs = Date.now() } = {}) {
         );
       } catch (err) {
         failures.push({ step: "location", target: `${zone.name} / ${location.name}`, message: err.message });
-        console.error(`Dawn wipe: ${location.name} failed, continuing with the rest:`, err.message);
+        console.error(`Message wipe: ${location.name} failed, continuing with the rest:`, err.message);
       }
     }
   }
@@ -201,22 +216,22 @@ async function runDawnWipe(prisma, { cutoffMs = Date.now() } = {}) {
     if (entry.wipe !== "clear") continue;
     const channelId = config?.[entry.configKey];
     if (!channelId) continue;
-    console.log(`Dawn wipe: #${entry.slug}`);
+    console.log(`Message wipe: #${entry.slug}`);
     try {
       await timeStep(`#${entry.slug}`, () => clearMessages(channelId, cutoff.before));
     } catch (err) {
       failures.push({ step: "special", target: entry.slug, message: err.message });
-      console.error(`Dawn wipe: #${entry.slug} failed:`, err.message);
+      console.error(`Message wipe: #${entry.slug} failed:`, err.message);
     }
   }
 
   if (failures.length > 0) {
-    console.error(`Dawn wipe finished with ${failures.length} failures.`);
+    console.error(`Message wipe finished with ${failures.length} failures.`);
   }
 
   const elapsedMs = Date.now() - startedAt;
   console.log(
-    `Dawn wipe finished in ${Math.round(elapsedMs / 1000)}s over ` +
+    `Message wipe finished in ${Math.round(elapsedMs / 1000)}s over ` +
       `${steps.reduce((n, step) => n + step.requests, 0)} Discord requests.`,
   );
 
@@ -228,6 +243,9 @@ async function runDawnWipe(prisma, { cutoffMs = Date.now() } = {}) {
         finishedAt: new Date(),
         ok: failures.length === 0,
         summary: {
+          // Which of the two cadences this run was. A Dusk run leaves every
+          // #summary standing; without this the report can't say so.
+          summaries: wipeSummaries,
           zones: zones.length,
           locations: locationCount,
           elapsedMs,
@@ -240,9 +258,9 @@ async function runDawnWipe(prisma, { cutoffMs = Date.now() } = {}) {
         failures,
       },
     })
-    .catch((err) => console.error("Dawn wipe: report write failed:", err.message));
+    .catch((err) => console.error("Message wipe: report write failed:", err.message));
 
   return { failed: failures.length, failures };
 }
 
-module.exports = { runDawnWipe, clearMessagesExcept };
+module.exports = { runMessageWipe };

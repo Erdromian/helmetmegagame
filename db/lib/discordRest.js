@@ -149,7 +149,7 @@ function routeKey(method, path) {
   return `${method} ${major}/${tail}`;
 }
 
-// Read by db/lib/dawnWipe.js for its report.
+// Read by db/lib/messageWipe.js for its report.
 let requestCount = 0;
 let sleepMsTotal = 0;
 let retryCount = 0;
@@ -536,7 +536,7 @@ async function deleteMessage(channelId, messageId) {
 
 // Paginates GET .../messages (newest-first per page) until short of a full
 // page, then reverses to chronological order. `before` seeds Discord's own
-// cursor to bound the walk — see snowflakeForTimestamp and dawnWipe.js.
+// cursor to bound the walk — see snowflakeForTimestamp and messageWipe.js.
 async function fetchAllMessages(channelId, { before: startBefore } = {}) {
   const pageSize = 100;
   const messages = [];

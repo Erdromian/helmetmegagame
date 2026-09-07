@@ -136,7 +136,7 @@ from the web** is the anonymity switch (`HALL.md` §6): while it is on, this
 player's Discord account holds no game access at all — no Location overwrite,
 no zone role, no room or conversation thread — and they read and speak on
 `/play` instead. It is the one switch on this form with a cooldown of its own
-(two hours, `GameConfig.webOnlyCooldownSeconds`), because each flip is a burst
+(two hours, `WEB_ONLY_COOLDOWN_SECONDS` in `db/lib/webOnly.js`), because each flip is a burst
 of Discord writes; `db/lib/webOnly.js#setWebOnly` enforces it with the same
 atomic `updateMany` guard the Location-move cooldown uses, and a refusal leaves
 the rest of the save standing.

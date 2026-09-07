@@ -1631,8 +1631,8 @@ handed renders inert rather than either vanishing or leaking.
 by automatic game logic rather than by a player, a GM, or a starting package —
 `db/lib/hungerPass.js` is their only writer, and `db/lib/gambitModifier.js`
 their only reader. `db/lib/constants.js` holds the slugs so neither file
-hardcodes a string. `catatonic-afk` is a third: `db/lib/catatonicPass.js` (gated on
-`GameConfig.catatonicEnabled`/`catatonicTurns`) and
+hardcodes a string. `catatonic-afk` is a third: `db/lib/catatonicPass.js` (after
+`GameConfig.catatonicTurns` idle turns) and
 `db/lib/playerDeparture.js` (a guild leave, ungated — departure is a fact,
 not a dial) are its two writers, it now carries a consequence — held for
 `GameConfig.catatonicDeathTurns` turns straight, the character dies at close

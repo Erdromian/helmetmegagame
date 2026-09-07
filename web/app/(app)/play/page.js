@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma, FEED_ROW_SELECT } from "@lifeweb/db";
 import { withAvatarVersions } from "@lifeweb/db/lib/archive";
-import { feedWipeFloor, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
+import { feedWipeFloors, floorForPlace, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 import EmptyState from "@/app/components/EmptyState";
 import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
@@ -65,9 +65,11 @@ export default async function PlayPage() {
   // happened while the page was loading, across every place at once — asking
   // from this place's own newest would have replayed every other place's whole
   // backlog down the stream.
-  // The Dawn watermark, read before the rows so the first paint and the
+  // The wipe watermarks, read before the rows so the first paint and the
   // stream's catch-up agree about where the day starts (db/lib/feedWipe.js).
-  const floor = await feedWipeFloor(prisma);
+  // Two of them: a zone summary clears at Dawn, everywhere else every turn.
+  const floors = await feedWipeFloors(prisma);
+  const floor = floorForPlace(floors, first.placeKey);
 
   // GameConfig is read out here rather than inside the aside below, because
   // the composer needs one field off it (tupperAutocorrectEnabled) and a GM
@@ -298,7 +300,6 @@ export default async function PlayPage() {
           ? {
               canWrite: aside.letters.canWrite,
               canSeal: aside.letters.canSeal,
-              canBindBook: aside.letters.canBindBook,
               hasBird: aside.letters.hasBird,
               birdSentToday: aside.letters.birdSentToday,
             }
@@ -332,7 +333,7 @@ export default async function PlayPage() {
         healsLeft={aside.pools.healsLeft}
         healTargets={aside.pools.healTargets}
         healParties={{ characters: aside.pools.peopleParties, rooms: [] }}
-        transferParties={{ characters: aside.pools.peopleParties, rooms: aside.stashRooms }}
+        transferParties={{ characters: aside.pools.transferParties, rooms: aside.stashRooms }}
         lootTargets={aside.pools.lootTargets}
         moveTargets={aside.pools.moveTargets}
         moveLocations={aside.pools.moveLocations}

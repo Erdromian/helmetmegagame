@@ -30,7 +30,6 @@ export default function DesiresBlock({ view }) {
   const [claiming, setClaiming] = useState(null);
 
   const {
-    desiresEnabled = true,
     desireSlots = 2,
     slotStates = [],
     addiction = null,
@@ -74,38 +73,34 @@ export default function DesiresBlock({ view }) {
   return (
     <div className="hall-desires">
       <p className="hall-section-title">Desires</p>
-      {!desiresEnabled ? (
-        <p className="text-sm text-muted">Temporarily disabled.</p>
-      ) : (
-        Array.from({ length: desireSlots }, (_, slotIndex) => {
-          const slot = bySlot.get(slotIndex) ?? { slotIndex, lockedUntilTurn: null, lastEnded: null };
-          const bound = slotIndex === bottomIndex && addiction;
-          return (
-            <div key={slotIndex} className="hall-desire-slot">
-              {slot.lastEnded && (
-                <p className="hall-quiet-line">
-                  Last: <RichText text={slot.lastEnded.text} /> — {slot.lastEnded.points} Tag Point
-                  {slot.lastEnded.points === 1 ? "" : "s"}
-                  {cooldownLabel(slot.lastEnded.template) ? ` · ${cooldownLabel(slot.lastEnded.template)}` : ""} ‡
-                </p>
-              )}
-              {slot.lockedUntilTurn != null ? (
-                <EmptyState>{`Opens on turn ${slot.lockedUntilTurn}`}</EmptyState>
-              ) : (
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={loading || pending}
-                  onClick={() => openPicker(slotIndex)}
-                >
-                  Claim
-                </button>
-              )}
-              {bound && <p className="hall-quiet-line">Addiction: {addiction.name}</p>}
-            </div>
-          );
-        })
-      )}
+      {Array.from({ length: desireSlots }, (_, slotIndex) => {
+        const slot = bySlot.get(slotIndex) ?? { slotIndex, lockedUntilTurn: null, lastEnded: null };
+        const bound = slotIndex === bottomIndex && addiction;
+        return (
+          <div key={slotIndex} className="hall-desire-slot">
+            {slot.lastEnded && (
+              <p className="hall-quiet-line">
+                <strong>Last:</strong> <RichText text={slot.lastEnded.text} /> — {slot.lastEnded.points} Tag Point
+                {slot.lastEnded.points === 1 ? "" : "s"}
+                {cooldownLabel(slot.lastEnded.template) ? ` · ${cooldownLabel(slot.lastEnded.template)}` : ""} ‡
+              </p>
+            )}
+            {slot.lockedUntilTurn != null ? (
+              <EmptyState>{`Opens on turn ${slot.lockedUntilTurn}`}</EmptyState>
+            ) : (
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={loading || pending}
+                onClick={() => openPicker(slotIndex)}
+              >
+                Claim
+              </button>
+            )}
+            {bound && <p className="hall-quiet-line">Addiction: {addiction.name}</p>}
+          </div>
+        );
+      })}
 
       <FormError>{error}</FormError>
 

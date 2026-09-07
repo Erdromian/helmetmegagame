@@ -60,13 +60,12 @@ and a tags-only write never bumps `Character.updatedAt`, because
 So it cannot invalidate a core edit staged beside it, and the Tags tab
 deliberately sends no `expectedUpdatedAt`.
 
-**Every button in the bar is now a verb.** **Heal all**, **Feed** and the
-**Inflict wound** picker all push *tag* ops, so all three fire and say what
-they did. The bar used to carry one exception — a **Refund points** button
-that recomputed `tagPoints` from the creation budget and *staged* the result,
-which needed a `stages` caption and an inline "Staged X — press Apply" line to
-stop reading as a dead button. It is gone, and the caption and that line went
-with it. Each is one gesture, one
+**One staging button is left.** **Refund points** writes the `tagPoints`
+column, still a staged value, so it keeps the `stages` caption and the inline
+"Staged X — press Apply" line: an unlabelled icon that silently stages reads
+as a dead button, which is exactly how it was first reported. **Heal all**,
+**Feed** and the **Inflict wound** picker all push *tag* ops, so all three are
+now plain verbs — they fire, and say what they did. Each is one gesture, one
 call, one audit row, one DM however many ops it carries, since
 `applyTagOpsInTx` takes a batch: healing a ward is still one thing that
 happened to the player rather than a burst of them. Heal-all and Inflict both
@@ -535,8 +534,6 @@ Lifeweb blood override) or the Turn section (next-turn overrides).
 
 | Knob | Does |
 |---|---|
-| `autoReconcileEnabled` | Run the channel doctor's cheap reconcile after every turn advance. It always runs on bot restart regardless |
-| `desiresEnabled` | Let players set a NEW Desire, in any slot, on `/character`. Off greys that form with "Temporarily disabled." An already-ACTIVE Desire in any slot can still be fulfilled or cancelled, and GMs are unaffected — `setDesireGm`/`endDesireGm` on this panel bypass every catalog gate regardless (`DESIRES.md` §6, `REQUESTS.md` §5) |
 | `desireSlots` | How many Desires a character may hold ACTIVE at once, one per slot (default 2). Each slot sets/cancels/fulfils independently (`DESIRES.md` §1) |
 | `maxDrawbackTags` | Character-creation cap on the COUNT of drawback tags a player may point-buy (default 6) — not their combined point value. A GM grant bypasses it, same as every other creation gate (`TAGS.md` §4a) |
 | `maxDrawbackPoints` | The other half of the same ceiling: how many points those drawbacks may claim back in total, as a positive magnitude (default 13). A build stops at whichever cap it reaches first (`TAGS.md` §4a) |

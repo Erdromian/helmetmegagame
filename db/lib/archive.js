@@ -1,7 +1,7 @@
 // Writes the game transcript (ArchiveEntry), the store behind /archive.
 //
 // Rows are recorded at SEND time rather than reconstructed at Dawn. The old
-// db/lib/dawnWipe.js archived by reading every message back out of Discord and
+// db/lib/messageWipe.js archived by reading every message back out of Discord and
 // re-posting it into a single #archive channel — hundreds of sequential posts
 // down one ~1 msg/sec lane, the most expensive thing the bot did, and it grew
 // with player count. It also had to guess at two fields it can now be told

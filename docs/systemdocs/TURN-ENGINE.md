@@ -256,7 +256,7 @@ Two things follow from that, and both are load-bearing:
 `{ advanced, previousTurn, newTurn, note, runSideEffects }`, and the caller
 decides when the thunk runs.
 
-That split is load-bearing. The Dawn wipe walks every zone's channels
+That split is load-bearing. The message wipe walks every zone's channels
 sequentially; awaiting it inside a server action holds the action open, and a
 pending server action blocks client-side navigation — which froze the entire
 web app until a hard refresh.
@@ -288,21 +288,22 @@ The thunk performs, in narrative order:
    crash mid-way leaves the remainder visibly unsent — the workspace's
    missed-push banner — rather than falsely delivered.
 6. The `#turns` announcement (`db/lib/turnAnnouncement.js`).
-7. The Dawn wipe, if the new phase is `DAWN` and `GameConfig.messageWipeEnabled`
-   is on (`db/lib/dawnWipe.js`; see `CHANNELS.md` §8). It is handed a
+7. The message wipe, on **every** turn while `GameConfig.messageWipeEnabled` is
+   on (`db/lib/messageWipe.js`; see `CHANNELS.md` §8). Location channels, Rooms
+   and Conversations clear every turn; a zone's `#summary` only when the new
+   phase is `DAWN`, which the thunk passes as `wipeSummaries`. It is handed a
    **cutoff** — a timestamp the thunk takes as its very first statement, before
    any Discord call — and deletes nothing created at or after it. That is what
    lets the slow wipe stay last in the order without eating the summaries step
    5 just posted. Move the cutoff and you reintroduce that bug.
-8. The thread expiry pass, on **every** Dawn, unconditionally. After the wipe
-   on purpose, so a thread the wipe just deleted isn't also "expired"
-   (`db/lib/threadExpiryPass.js`; `CHANNELS.md` §4).
-9. The channel doctor's **cheap** reconcile, if `GameConfig.autoReconcileEnabled`
-   is on — roles and membership only, a handful of requests
-   (`db/lib/channelDoctor.js`; `CHANNELS.md` §6).
+8. The channel doctor's **cheap** reconcile — roles and membership only, a
+   handful of requests (`db/lib/channelDoctor.js`; `CHANNELS.md` §6). It used
+   to sit behind a `GameConfig.autoReconcileEnabled` switch nobody ever turned
+   on; keeping Discord in step with the database after a turn moves people
+   around is not a thing to opt into.
 
 Everything is sequential and individually `.catch()`'d, so a Discord failure
-never blocks the turn. The Dawn wipe additionally guards **per zone**, so
+never blocks the turn. The message wipe additionally guards **per zone**, so
 one channel a GM deleted by hand costs that room rather than every room after
 it plus `#cerberon`. **Never `Promise.all` a fan-out here** — sequential
 awaiting is what keeps the bot from emitting the burst of 429s that earns an
@@ -632,7 +633,7 @@ that row as its raw slug until somebody writes the sentence.
 | `db/lib/playerDeparture.js` | Guild-leave marking, shared by the live handler and the startup reconcile |
 | `db/lib/tagExpiryPass.js` | The tag progression pass (`Tag.expiresInto`) |
 | `db/lib/turnAnnouncement.js` | The rolling `#turns` announcement |
-| `db/lib/dawnWipe.js` | The Dawn wipe (`CHANNELS.md` §8) |
+| `db/lib/messageWipe.js` | The message wipe (`CHANNELS.md` §8) |
 | `db/lib/threadExpiryPass.js` | Inactivity expiry for player threads (`CHANNELS.md` §4) |
 | `db/lib/channelDoctor.js` | The optional post-turn reconcile (`CHANNELS.md` §6) |
 | `bot/src/lib/turnEngine.js` | The cron caller |

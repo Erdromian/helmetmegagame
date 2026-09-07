@@ -11,7 +11,7 @@ const { buildTurnAnnouncement } = require("../turnCalendar");
 const { clockFrozen, readGameState } = require("./gameState");
 const { TURNS_CONSOLE_ROW, CONSOLE_TEXT } = require("./turnsConsoleRow");
 const { docsPath } = require("./repoPaths");
-const { clearMessagesExcept } = require("./dawnWipe");
+const { clearMessagesExcept } = require("./discordRest");
 const { isTurnsChannel } = require("./turnsChannelAccess");
 const { TURN_BANNER_DIR, turnBannerPath } = require("./turnBanner");
 const { pushToUser, vapidPublicKey } = require("./webPush");
@@ -132,7 +132,7 @@ async function postTurnsConsole(prisma, channelId, text, turn, config, state = n
     });
     // Sweep anything else that landed in #turns since the last turn — a
     // stray GM message, an orphaned console from before a config reset.
-    // #turns is not in SPECIAL_CHANNELS, so the Dawn wipe never reaches it;
+    // #turns is not in SPECIAL_CHANNELS, so the message wipe never reaches it;
     // this is that channel's only cleanup, and it runs every turn, not just
     // at Dawn. Best-effort: a sweep failure must not cost the turn
     // announcement that already went out.

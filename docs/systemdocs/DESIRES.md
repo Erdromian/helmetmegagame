@@ -59,13 +59,10 @@ pass:
   `docs/desires.yaml` for the rule that governs them; the two loads it carries
   are worth stating here too.
 
-  First, **`cooldownTurns: 1` is inert**. The per-slot lock below already shuts
-  a slot for the turn a claim lands in, so a per-desire cooldown of 1 is
-  dominated by a gate that was going to fire anyway. 2 is the smallest value
-  that changes anything — never write 1. (This tracks
-  `desireSlotLockTurns`, which was **2** until 2026-09-07; while it was, `2`
-  was inert as well. No entry in the catalog sits at 2, so nothing was
-  rebalanced when the lock came down.)
+  First, **`cooldownTurns: 1` and `2` are inert**. The per-slot lock below
+  already shuts a slot for two turns, so any per-desire cooldown at or under 2
+  is dominated by a gate that was going to fire anyway. 3 is the smallest value
+  that changes anything — never write 1 or 2.
 
   Second, **a `requires` gate is not a throttle.** It decides who may take a
   goal, never how often, and a tag or role held permanently costs nothing on
@@ -84,11 +81,11 @@ pass:
   ```
 
   where `maxEnded` is the largest `endedTurnNumber` over that slot's ended
-  rows. At the default of **1**, a claim on turn N leaves the slot shut for the
-  rest of N, shut through N+1, and open on N+2. This is the throttle on
-  income itself, independent of which template is being claimed. It has moved
-  three times: one turn until 2026-09-02, then two, then back to one on
-  2026-09-07 — and it is a live `/gm/dev` knob rather than a constant. Note it is one TURN, not one day —
+  rows. At the default of **2**, a claim on turn N leaves the slot shut for the
+  rest of N, shut through N+1 and N+2, and open on N+3. This is the throttle on
+  income itself, independent of which template is being claimed. It has grown
+  twice: the lock was one turn until 2026-09-02, then two, and it is now a live
+  `/gm/dev` knob rather than a constant. Note it is one TURN, not one day —
   `Turn.number` increments once daily, so each turn of lockout is a real day —
   and an in-game day, being two turns, is two of them.
 
@@ -414,20 +411,17 @@ Which is the right place for it: the difference between an evening that
 happened and an evening staged to be claimed is a judgement about fiction, and
 no gate was ever going to make it.
 
-## 9. Config: `desiresEnabled` / `desireSlots` / `desireSlotLockTurns` / `maxDrawbackTags`
+## 9. Config: `desireSlots` / `desireSlotLockTurns` / `maxDrawbackTags`
 
-Four `GameConfig` knobs govern this system, all live-editable from
-`/gm/dev` and all reset by a Restart Game wipe:
-
-- **`desiresEnabled`** (default `true`) — closes the faucet. Off blocks
-  `claimDesire` server-side, not just in the UI, and `/character` shows
-  "Temporarily disabled." in place of the whole panel.
-  `awardDesireGm`/`revokeDesireGm` on the Dev Panel are unaffected (host
-  access, not game permission).
+Three `GameConfig` knobs govern this system, all live-editable from
+`/gm/dev` and all reset by a Restart Game wipe. There used to be a fourth, a
+`desiresEnabled` master switch; it was deleted in the 2026-09-07 config trim,
+since nobody had ever turned it off and Desires are the only faucet Tag Points
+have in play:
 - **`desireSlots`** (default 2) — how many slots a character has. The
   **bottom** one is what an Addiction binds (§3). Lowering this hides a slot
   rather than deleting what was claimed in it. See §1.
-- **`desireSlotLockTurns`** (default 1) — whole turns a slot stays shut after a
+- **`desireSlotLockTurns`** (default 2) — whole turns a slot stays shut after a
   claim lands in it (§2). This is the tuning knob on how fast Tag Points enter
   the game, so it is the first number to reach for if income is running hot or
   cold. `0` disables the lock entirely, which is a debugging setting, not a

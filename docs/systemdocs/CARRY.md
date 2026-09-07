@@ -17,6 +17,12 @@ A character carries two loads against two caps, both live on `/gm/dev`:
 | Weight | `Tag.weightLbs` × quantity, over every `tradeable` tag. Three things weigh nothing: **Assets** (a horse carries itself, a house does not move), **untradeable** items (the Quickened Nerve Braid grafted into your neck), and everything that was never cargo — skills, injuries, statuses, beliefs. | `GameConfig.carryWeightLbs`, default 71 |
 | ⬢ | `Character.resources` | `GameConfig.carryResourceCap`, default 25 |
 
+**⬢ have one weight, and it is inside a crate.** Loose on a sheet a ⬢ weighs
+nothing and counts on the row above instead; packed into a Depot crate it
+weighs a pound (`RESOURCE_UNIT_LBS`, `DEPOT.md` §0e) so that it packs against
+the crate's weight cap like any other freight. The two axes never count the
+same ⬢ twice — once it is in the crate it is not on anybody's sheet.
+
 Both caps are moved by the **sum** of every **active** `Tag.carryBonus`, which
 is a signed distance from ×1: Cart `+4`, Giant `+0.75`, Pack Mule `+0.5`, Strong
 `+0.1`, Frail `−0.1`. The cap is `base × (1 + sum)`, floored. Nothing carrying a
@@ -376,7 +382,7 @@ the point of a floor, and it is also a trace: the goods often say who passed
 through. Private rooms leak nothing to anyone their key — or their host — hasn't
 admitted.
 
-The stash survives the Dawn wipe (it lives in the database, not the thread),
+The stash survives the message wipe (it lives in the database, not the thread),
 is cleared by a Restart Game wipe (`wipeGameData` deletes `RoomTag` and zeroes
 `Room.resources`), and cascades away with its Room when `db:sync-zones` prunes
 one. Deleting a Tag from the catalog cascades its **room** stacks

@@ -228,27 +228,28 @@ model GameConfig {
   // dial. Live on /gm/dev.
   fearIntensity Float @default(1)
 
-  // Gates the whole Dawn message-wipe system (db/lib/dawnWipe.js) — off by
-  // default so nothing gets swept until a GM explicitly opts in from the
-  // Dev Panel.
-  messageWipeEnabled Boolean @default(false)
+  // The message wipe (db/lib/messageWipe.js). NOT a GM knob any more — the
+  // wipe is how the game works, so it is on and it stays on. The column
+  // survives as a hand-flippable escape hatch: set it false straight in the
+  // database if Discord ever starts rate-limiting the sweep.
+  messageWipeEnabled Boolean @default(true)
 
   // The web half of the same wipe (docs/systemdocs/HALL.md §7). Discord loses
   // its messages; the Hall keeps its rows and reads past them instead — every
-  // feed query filters `seq > feedWipeSeq` while messageWipeEnabled is on.
-  // Set by db/lib/feedWipe.js#markFeedWiped as the Dawn pass begins.
-  feedWipeSeq BigInt @default(0)
+  // feed query filters `seq > <floor>` while messageWipeEnabled is on.
+  //
+  // TWO watermarks, because the wipe has two cadences. `feedWipeSeq` moves on
+  // every turn and floors loc:/room:/conv: places; `feedWipeSummarySeq` moves
+  // only on a Dawn and floors zone: places, matching what the Discord sweep
+  // actually clears. Both set by db/lib/feedWipe.js#markFeedWiped as the pass
+  // begins.
+  feedWipeSeq        BigInt @default(0)
+  feedWipeSummarySeq BigInt @default(0)
 
   // How long a character waits between two walks from one Location to
   // another inside the same zone (db/lib/locationTravel.js). Edited on
   // /gm/dev. Crossing into another zone is gated by the Move, not by this.
   locationMoveCooldownSeconds Int @default(60)
-
-  // How long a character waits between two flips of the "web only" switch
-  // (db/lib/webOnly.js). Each flip is a burst of Discord writes — every
-  // overwrite, every role, every thread — so the cooldown is hours, not
-  // seconds. Two by default.
-  webOnlyCooldownSeconds Int @default(7200)
 
   // Capitalizes the first letter of each sentence in Tupper-proxied messages
   // before they're reposted (bot/src/lib/textCorrection.js) — on by default,
@@ -352,7 +353,7 @@ model GameConfig {
   // arrives anyway — everyone falls through to their letter plaque (see
   // "Character proxying" in CLAUDE.md). Existing Character.avatarData is
   // untouched either way; this only gates new uploads. Deliberately off by
-  // default, same posture as messageWipeEnabled.
+  // default.
   avatarUploadsEnabled Boolean @default(false)
 
   // Master switch for the in-app portrait maker (docs/systemdocs/PORTRAITS.md).
@@ -427,7 +428,7 @@ model GameConfig {
   // Whole turns a Desire slot stays shut after a Desire is claimed into it.
   // A claim on turn N leaves the slot shut on N and open again on
   // N + desireSlotLockTurns + 1 (db/lib/desireGates.js#slotStates).
-  desireSlotLockTurns Int @default(1)
+  desireSlotLockTurns Int @default(2)
 
   // Expected total number of players, the denominator for every role's seat
   // cap: a role with `weight: 6` in docs/roles.yaml gets
@@ -439,21 +440,21 @@ model GameConfig {
   // makes a role in the YAML unpickable.
   playerCount Int @default(80)
 
-  // The narrowcast channels (#cerberon, #intercom) live under a
-  // shared Discord "radio" category — see db/lib/specialChannels.js.
-  // Provisioned once by npm run db:sync-narrowcast-channels; never touched
-  // again after that.
+  // The narrowcast channel (#cerberon) lives under a shared Discord "radio"
+  // category — see db/lib/specialChannels.js. Provisioned once by
+  // npm run db:sync-narrowcast-channels; never touched again after that.
+  // #intercom used to be the second one; it is a button on the Council Room
+  // table now, so its column is gone with it.
   radioCategoryId   String?
   cerberonChannelId String?
-  intercomChannelId String?
 
   // The Catatonic (AFK) pass (db/lib/catatonicPass.js): any ALIVE character
   // with no player-filed Action and no in-character speech for
   // catatonicTurns turns straight is flagged; the flag lifts the moment they
   // act or speak again. On by default — this doesn't delete anything, it
-  // just marks the sheet for a GM to see.
-  catatonicEnabled Boolean @default(true)
-  catatonicTurns   Int     @default(4)
+  // just marks the sheet for a GM to see, and it always runs — the turn
+  // count below is the dial, not an on/off switch.
+  catatonicTurns Int @default(4)
 
   // Consecutive turns holding `catatonic-afk` before
   // db/lib/catatonicDeathPass.js kills the character outright at turn close. This is the ONE thing in the
@@ -468,19 +469,6 @@ model GameConfig {
   // See docs/systemdocs/PAPERWORK.md.
   noticeExpiryTurns Int @default(10)
 
-  // Whether the bot runs the channel doctor's cheap reconciliation pass
-  // (db/lib/channelDoctor.js) automatically after every turn advance, on top
-  // of its pass at ready. Off by default.
-  autoReconcileEnabled Boolean @default(false)
-
-  // Master switch for players setting a NEW Desire on /character
-  // (docs/systemdocs/REQUESTS.md §5). Off greys the panel and shows
-  // "Temporarily disabled." in place of every slot, and blocks claimDesire
-  // server-side. GMs are unaffected: awardDesireGm/revokeDesireGm on the Dev
-  // Panel are host access, same split as the rest of the Discord permission
-  // model. On by default, since Desires are the only way Tag Points are
-  // earned in play.
-  desiresEnabled Boolean @default(true)
 }
 
 /// Where a game is in its life. The turn cron and the force-advance button
@@ -1134,7 +1122,7 @@ enum LinkAnnounce {
 }
 
 /// A thread under a Location's channel, sync-owned: the starter message is the
-/// room's description, the Dawn wipe empties the thread down to that starter,
+/// room's description, the message wipe empties the thread down to that starter,
 /// and nothing player-facing can create, delete or unwipe one. PUBLIC rooms
 /// are public threads; PRIVATE rooms are private threads whose membership is
 /// exactly "holds one of accessTagSlugs", reconciled by db/lib/roomAccess.js
@@ -1387,7 +1375,7 @@ model RoomGuest {
 }
 
 /// The outcome of a long-running operational pass that runs in after() or a
-/// side-effect thunk — Restart Game, the channel doctor, the Dawn wipe, a GM
+/// side-effect thunk — Restart Game, the channel doctor, the message wipe, a GM
 /// bulk move — where the UI has already returned "ok" long before the work
 /// finishes. The Dev Panel shows the latest report per kind instead of
 /// claiming a success it cannot know about. A row with finishedAt null is
@@ -1449,7 +1437,7 @@ model Character {
   // Denormalized mirror of formatCharacterName(...) above, same posture as
   // zoneId below. It exists because ~60 readers want a single string —
   // orderBy, `select: { name: true }`, the /gm/audit `contains` search, the
-  // proxy webhook username and the dawnWipe map key — and Prisma cannot
+  // proxy webhook username and the messageWipe map key — and Prisma cannot
   // concatenate columns in orderBy or contains, so dropping it would force
   // search and sort into OR-over-three-columns for correctness nobody sees.
   //
@@ -1677,7 +1665,8 @@ model Character {
   // the next pass would quietly put them back. The fiction is untouched: they
   // still stand there and still appear in Who's here.
   webOnly          Boolean   @default(false)
-  // Stamped on every flip, and the GameConfig.webOnlyCooldownSeconds clock.
+  // Stamped on every flip, and the WEB_ONLY_COOLDOWN_SECONDS clock in
+  // db/lib/webOnly.js.
   webOnlyChangedAt DateTime?
 
   // 18-90, or null until the player first sets one. Free to edit while null;
@@ -1771,17 +1760,8 @@ enum PaperKind {
 // Location/docs/locations.yaml: removing a tag from the YAML never deletes
 // its row here.
 model Tag {
-  id String @id @default(cuid())
-
-  // NOT unique, deliberately. It was, and that is the only reason a written
-  // sheet used to be titled "A Note (XY-1234)": every new one needed a name no
-  // other tag had, so the code went in the title. Identity is `slug`, which is
-  // unique and always was, and every lookup in the game matches on it —
-  // Role.startingTagSlugs included, since db:sync-roles resolves the display
-  // names docs/roles.yaml authors. /gm/dev/tags still refuses a duplicate name
-  // when a GM types one, because two identically named HOMEBREW tags is a
-  // confusion worth stopping; two notes both called "A Note" is the point.
-  name        String
+  id          String  @id @default(cuid())
+  name        String  @unique
   slug        String  @unique
   description String?
   category    String
@@ -3206,7 +3186,7 @@ model CraftProject {
   // record of the spend, what a GM repairing by hand reads. Null on a recipe
   // with no spent ingredient, and on every project filed before this column
   // existed.
-  consumed Json?
+  consumed      Json?
 
   // Pending custom-item fields (`{ name?, description? }`) for a customizable
   // recipe's multi-turn project — held here until the finishing turn, when
@@ -3616,7 +3596,7 @@ model Desire {
 // The game's transcript, and the backing store for /archive.
 //
 // Written at SEND time (db/lib/archive.js, called from the two proxy paths),
-// not reconstructed at Dawn. The old dawnWipe.js archived by reading messages
+// not reconstructed at the wipe. The old messageWipe.js archived by reading messages
 // back out of Discord and re-posting them into one #archive channel — ~850
 // sequential posts down a single ~1 msg/sec lane on a busy turn, which was the
 // most expensive thing the bot did and grew with player count. It also had to

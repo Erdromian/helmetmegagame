@@ -117,7 +117,7 @@ const SECTIONS = new Set([
 
 // A report's per-step breakdown is the useful half but far too long to dump
 // inline, so the JSON line drops it and the five slowest steps get their own
-// rows. That is how the Dawn wipe says which zone ate the hour.
+// rows. That is how the message wipe says which zone ate the hour.
 function summaryHead(summary) {
   const { steps, ...rest } = summary ?? {};
   return rest;
@@ -192,7 +192,7 @@ export default async function DevPanelPage({ searchParams }) {
   const currentPhase = openTurnRecord?.phase ?? (lastTurn?.phase === "DAWN" ? "DUSK" : "DAWN");
 
   // Mirrors advanceTurn()'s own phase alternation, so the confirm dialog can
-  // warn about the Dawn wipe only when the next turn actually triggers one.
+  // warn about the summaries half of the wipe only when the next turn is a Dawn.
   const lastForPhase = openTurnRecord ?? lastTurn;
   const nextPhase = !lastForPhase || lastForPhase.phase === "DUSK" ? "DAWN" : "DUSK";
 
@@ -568,7 +568,7 @@ export default async function DevPanelPage({ searchParams }) {
                 {state.phase === "RUNNING" ? (
                   <EndTurnButton
                     turnLabel={openTurnRecord ? describeTurn(openTurnRecord).label : null}
-                    wipesMessages={nextPhase === "DAWN" && config.messageWipeEnabled}
+                    wipesSummaries={nextPhase === "DAWN"}
                   />
                 ) : (
                   null

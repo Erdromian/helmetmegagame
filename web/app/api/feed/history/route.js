@@ -1,6 +1,6 @@
 import { prisma, FEED_ROW_SELECT } from "@lifeweb/db";
 import { withAvatarVersions } from "@lifeweb/db/lib/archive";
-import { feedWipeFloor, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
+import { feedWipeFloors, floorForPlace, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
 import { loadFeedViewer, findPlace } from "@/lib/feedAccess";
 
 // GET /api/feed/history?place=<key> — the last hundred things said in one
@@ -34,10 +34,11 @@ export async function GET(request) {
   const found = await findPlace(prisma, viewer.character, place, viewer.options);
   if (!found) return Response.json({ error: "You aren't there." }, { status: 403 });
 
-  // Nothing from before the last Dawn wipe (db/lib/feedWipe.js). Discord's
-  // half of that pass deleted its messages outright; the Hall keeps the rows
-  // for /archive and reads past them.
-  const floor = await feedWipeFloor(prisma);
+  // Nothing from before the last wipe of THIS place (db/lib/feedWipe.js).
+  // Discord's half of that pass deleted its messages outright; the Hall keeps
+  // the rows for /archive and reads past them. One place, so one floor: a
+  // zone summary reads the Dawn watermark, everywhere else the turn one.
+  const floor = floorForPlace(await feedWipeFloors(prisma), place);
 
   // ?around=<seq> — the window either side of one line, which is what a
   // search hit needs: the newest hundred would usually not hold something

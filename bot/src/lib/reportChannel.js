@@ -18,7 +18,7 @@ const { ack, respond } = require("./respond");
 // db/lib/reportChannelAccess.js for the id, the access spec and the buttons.
 //
 // Threads here are deliberately NOT recorded as PlayerThread rows. Every
-// sweep — dawnWipe, fullWipe, channelDoctor — walks Location channels,
+// sweep — messageWipe, fullWipe, channelDoctor — walks Location channels,
 // SPECIAL_CHANNELS or PlayerThread rows, so an untracked thread
 // under a channel none of them know about is left alone. A report lives until
 // somebody presses Close.

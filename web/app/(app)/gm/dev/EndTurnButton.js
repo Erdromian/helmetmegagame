@@ -13,9 +13,9 @@ import { forceAdvanceTurn } from "./actions";
 //      visible pending state a slow advance reads as the whole app freezing.
 //   2. forceAdvanceTurn now returns { ok, error } rather than throwing into a
 //      non-existent error.js, so something has to render the error.
-//   3. Ending a turn resolves Needs and, on a Dawn turn, wipes every Location
-//      channel — a confirm belongs in front of it.
-export default function EndTurnButton({ turnLabel, wipesMessages }) {
+//   3. Ending a turn resolves Needs and wipes the roleplay channels — a
+//      confirm belongs in front of it.
+export default function EndTurnButton({ turnLabel, wipesSummaries }) {
   const confirm = useConfirm();
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
@@ -25,10 +25,12 @@ export default function EndTurnButton({ turnLabel, wipesMessages }) {
       title: turnLabel ? `End ${turnLabel}?` : "End the current turn?",
       message: [
         "This resolves Needs on the open turn — tag expiry, the Hunger upkeep, and the Lifeweb's blood decay — then opens the next one.",
-        wipesMessages ? "The next turn is a Dawn, so every Location channel gets archived and wiped." : null,
+        "Every Location channel, Room and Conversation is then wiped.",
+        wipesSummaries ? "The next turn is a Dawn, so the Zone summaries go too." : null,
       ]
         .filter(Boolean)
-        .join(" "),
+        // One ‡ for the whole rendered message, not one per sentence.
+        .join(" ") + " ‡",
       confirmLabel: "End the turn",
       cancelLabel: "Leave it open",
     });

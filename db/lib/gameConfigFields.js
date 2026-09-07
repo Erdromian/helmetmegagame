@@ -98,15 +98,11 @@ const FIELDS = [
 
   // --- Desires ---------------------------------------------------------------
   {
-    key: "desiresEnabled", type: "bool", group: "desires", default: true,
-    label: "Desire system",
-  },
-  {
     key: "desireSlots", type: "int", group: "desires", default: 2, min: 1, max: 5,
     label: "Desire slots",
   },
   {
-    key: "desireSlotLockTurns", type: "int", group: "desires", default: 1, min: 0, max: 20,
+    key: "desireSlotLockTurns", type: "int", group: "desires", default: 2, min: 0, max: 20,
     label: "Desire slot lock",
   },
 
@@ -115,20 +111,8 @@ const FIELDS = [
     key: "autoTurnAdvanceDisabled", type: "bool", group: "clock", default: false,
     label: "Pause automatic turn advance",
   },
-  {
-    key: "messageWipeEnabled", type: "bool", group: "clock", default: false,
-    label: "Wipe messages at Dawn",
-  },
-  {
-    key: "autoReconcileEnabled", type: "bool", group: "clock", default: false,
-    label: "Auto-reconcile after turn advance",
-  },
 
   // --- Catatonic -------------------------------------------------------------
-  {
-    key: "catatonicEnabled", type: "bool", group: "catatonic", default: true,
-    label: "Catatonic (AFK) flagging",
-  },
   {
     key: "catatonicTurns", type: "int", group: "catatonic", default: 4, min: 1, max: 60,
     label: "Catatonic after N idle turns",
@@ -176,12 +160,15 @@ const INTERNAL_KEYS = [
   "restInvalidCount",
   "restInvalidWindowStart",
   "restBreakerOpenUntil",
-  // The Play page (HALL.md): the Dawn wipe watermark, and the web-only switch cooldown.
+  // The Play page (HALL.md §7): the two wipe watermarks, one per cadence.
   "feedWipeSeq",
-  "webOnlyCooldownSeconds",
+  "feedWipeSummarySeq",
+  // Not a knob on purpose. The wipe is how the game works, so there is no
+  // form control for it; the column is a hand-flippable escape hatch for the
+  // day Discord starts rate-limiting the sweep. See db/lib/messageWipe.js.
+  "messageWipeEnabled",
   "radioCategoryId",
   "cerberonChannelId",
-  "intercomChannelId",
 ];
 
 function fieldsInGroup(groupKey) {

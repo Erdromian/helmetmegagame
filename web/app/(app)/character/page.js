@@ -10,7 +10,7 @@ import {
   roleCapacity,
   isDynastyMember,
   presentedIdentity,
-  startingTagSlugs,
+  startingTagNames,
   normalizeAntagonistSlugs,
 } from "@lifeweb/db";
 import {
@@ -176,9 +176,9 @@ async function loadCreationData(discordUserId) {
             startingZoneName: role.startingLocation?.zone?.name ?? null,
             startingResources: role.startingResources,
             extraStartingPoints: role.extraStartingPoints,
-            // Parsed, because the wizard matches these against catalog tag
-            // slugs and an entry may carry a count ("obol x5").
-            startingTagSlugs: startingTagSlugs(role.startingTagSlugs),
+            // Parsed, because the wizard matches these against catalog tag names
+            // and an entry may carry a count ("Obol x5").
+            startingTagNames: startingTagNames(role.startingTagSlugs),
             grantsLeader: role.grantsLeader,
             // Drives the "Whitelist only" hover on a greyed card. Separate
             // from grantsLeader, which now only means faction Leader.
@@ -349,7 +349,9 @@ export default async function CharacterPage({ searchParams }) {
         },
         // Craft enforces recipe skills (CRAFTING.md); `knownRecipeIds`
         // below is the server's verdict per recipe.
-        requirementSkills: { select: { id: true, name: true, slug: true } },
+        // `catalogVisibility` is read and dropped before this list reaches the
+        // browser — see clientTagCatalog below.
+        requirementSkills: { select: { id: true, name: true, slug: true, catalogVisibility: true } },
         requirementTurns: true,
         requirementResources: true,
         requirementPerTurn: true,
@@ -377,7 +379,6 @@ export default async function CharacterPage({ searchParams }) {
         avatarUploadsEnabled: true,
         portraitMakerEnabled: true,
         portraitFantasyPartsEnabled: true,
-        desiresEnabled: true,
         desireSlots: true,
         desireSlotLockTurns: true,
         maxDrawbackTags: true,
@@ -401,7 +402,6 @@ export default async function CharacterPage({ searchParams }) {
     familyGroups: desireFamilyGroupList,
     lockNotes: desireLockNotes,
     addiction: desireAddiction,
-    desiresEnabled,
   } = await loadDesireView(character, { openTurn, gameConfig });
 
   // Held ids widen the store catalog so unpurchasable held tags (a
@@ -420,6 +420,7 @@ export default async function CharacterPage({ searchParams }) {
     here,
     zoneRoster,
     peopleParties,
+    transferParties,
     examineBlocked,
     satisfied,
     canHeal,
@@ -494,7 +495,7 @@ export default async function CharacterPage({ searchParams }) {
   const hasMulligan = character.tags.some((ct) => ct.tag.slug === "mulligan-potion");
 
   // From is you or a room; To is anyone here or a room (TransferDialog.js).
-  const transferParties = { characters: peopleParties, rooms };
+  const transferPartyList = { characters: transferParties, rooms };
   // Your faction's silo, if it has one and you are standing in its zone: a
   // deposit-only destination pinned above the rooms here (FACTIONS.md). The
   // `here` flag says whether it is already in `rooms` above, so the dialog
@@ -654,6 +655,36 @@ export default async function CharacterPage({ searchParams }) {
         (!isNonPublicRecipe(t) || satisfiesIngredientsAtQuantityOne(t)),
     )
     .map((t) => t.id);
+
+  // What the Add-tag and Craft menus may PRINT, as opposed to what the server
+  // reasons with. A recipe gated on a trade the catalog hides is stripped for
+  // anyone who doesn't hold that trade: the six courtier wax seals are made by
+  // a Forger — Brigands only, `catalog: gm` — and a "Recipe: Forger · 1 turn ·
+  // 2 ⬢" line on a seal chip would tell the whole game that seals get forged,
+  // which is the one thing a forger is paying for. The tag itself stays, with
+  // its name, its description and its honest point price. Same rule as
+  // web/lib/recipeCatalog.js, applied to this page's own query.
+  const clientTagCatalog = tagCatalog.map((t) => {
+    const skills = t.requirementSkills ?? [];
+    const hidden = skills.some(
+      (skill) => skill.catalogVisibility !== "ALL" && !satisfied.has(skill.id),
+    );
+    const requirementSkills = hidden
+      ? []
+      : skills.map(({ id, name, slug }) => ({ id, name, slug }));
+    return hidden
+      ? {
+          ...t,
+          craftable: false,
+          requirementSkills,
+          requirementItems: null,
+          requirementTurns: null,
+          requirementResources: null,
+          requirementPerTurn: null,
+          requirementGambit: false,
+        }
+      : { ...t, requirementSkills };
+  });
   const craftProjects = (
     await prisma.craftProject.findMany({
       where: { characterId: character.id, status: "ACTIVE" },
@@ -745,10 +776,10 @@ export default async function CharacterPage({ searchParams }) {
   // Hall's composer opens the same four dialogs and two copies of these rules
   // would be two answers to "can this character write".
   // Spread into CharacterSheet below: hasBird, canRead, canWrite, hasSeal,
-  // canSeal, paperOptions, letterOptions, sealOptions, canBindBook,
-  // bindBlocked, bookOptions, birdSentToday, birdTargets, birdZones — the
-  // loader names them as the props RequestActionsProvider takes, so the sheet
-  // and the Hall hand the dialogs one list.
+  // canSeal, paperOptions, letterOptions, sealOptions, birdSentToday,
+  // birdTargets, birdZones — the loader names them as the props
+  // RequestActionsProvider takes, so the sheet and the Hall hand the dialogs
+  // one list.
   const letters = await loadLettersView(character, { openTurn });
 
   // The sheet itself goes to a client component, so the raw text of every
@@ -887,18 +918,16 @@ export default async function CharacterPage({ searchParams }) {
     ? { name: forcedTag.forcedName, tagName: forcedTag.name }
     : null;
   // And what is over their face, which decides whether the conceal switch is
-  // usable at all (PROXYING.md §5). Named here rather than in AvatarField so
-  // the refusal can say WHICH thing is doing it.
+  // usable at all (PROXYING.md §5). Only `forced` is read now — the label used
+  // to name WHICH thing was doing it, and says the rule once in a tooltip
+  // instead, so the tag's own name has no reader left.
   const concealingTag =
     character.tags
       .filter((ct) => ct.equipped && ct.tag.concealsIdentity)
       .sort((a, b) => (b.tag.equipLayer ?? 0) - (a.tag.equipLayer ?? 0))[0]
       ?.tag ?? null;
   const concealGear = concealingTag
-    ? {
-        tagName: concealingTag.name,
-        forced: Boolean(concealingTag.forcesConceal),
-      }
+    ? { forced: Boolean(concealingTag.forcesConceal) }
     : null;
   const avatarSrc = forcedIdentity
     ? presentedIdentity(character, { forcedName: forcedIdentity.name })
@@ -928,7 +957,7 @@ export default async function CharacterPage({ searchParams }) {
       avatarSrc={avatarSrc}
       forcedIdentity={forcedIdentity}
       concealGear={concealGear}
-      transferParties={transferParties}
+      transferParties={transferPartyList}
       transferSilo={transferSilo}
       carry={carry}
       zoneMoves={zoneMoves}
@@ -936,7 +965,7 @@ export default async function CharacterPage({ searchParams }) {
       travellingTo={character.travelTo?.name ?? null}
       examineBlocked={examineBlocked}
       hasWorkshop={hasWorkshop}
-      tagCatalog={tagCatalog}
+      tagCatalog={clientTagCatalog}
       desireSlots={desireSlots}
       desireSlotLockTurns={desireSlotLockTurns}
       desireAddiction={desireAddiction}
@@ -945,7 +974,6 @@ export default async function CharacterPage({ searchParams }) {
       desireFamilies={desireFamilyList}
       desireFamilyGroups={desireFamilyGroupList}
       desireLockNotes={desireLockNotes}
-      desiresEnabled={desiresEnabled}
       canHeal={canHeal}
       healsLeft={healsLeft}
       hasMoved={Boolean(currentAction)}

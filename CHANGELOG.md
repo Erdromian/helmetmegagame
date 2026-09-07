@@ -6,6 +6,19 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Roleplay channels wipe every turn now, Summaries still at Dawn
+
+✎ Location channels, Rooms and Conversations are cleared at the end of every turn instead of every other one — a scene lives for one day, not two  
+✎ A Zone's Summary channel still only clears at Dawn, so what is posted there has two days to be read  
+− Five Dev Panel settings nobody had ever moved: the message-wipe switch, the Desire and Catatonic master switches, auto-reconcile after a turn, and the web-only cooldown  
+✎ The channel doctor's cheap reconcile now always runs after a turn advance, rather than waiting on a switch that was off
+
+## 2026-09-07 · The Steam Automobile is gone, and a Javelin arrives
+
+− The Steam Automobile, and the banneret desire to buy one. Nobody owned one, and the Merchant no longer stocks it  
+✚ A Javelin — a Simple throwing weapon, 6 ⬢ and a turn at a forge, and it needs Ranged (Basic) to throw  
+✎ The biggest ride in the game is now a horse and cart, seating six
+
 ## 2026-09-07 · Destroy is for things you own
 
 ✚ You can now throw away a letter, a book, a wax seal, a helmet or a suit of armour — 119 things that were stuck to you before  

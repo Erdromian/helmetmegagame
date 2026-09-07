@@ -46,7 +46,6 @@ export default function DesirePanel({
   familyGroups = [],
   lockNotes = [],
   addiction = null,
-  desiresEnabled = true,
 }) {
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
@@ -79,64 +78,60 @@ export default function DesirePanel({
         <InfoIcon text={desireHelp(desireSlots, slotLockTurns)} />
       </h3>
 
-      {!desiresEnabled ? (
-        <p className="text-sm text-muted">Temporarily disabled.</p>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {Array.from({ length: desireSlots }, (_, slotIndex) => {
-            const slot = bySlot.get(slotIndex) ?? { slotIndex, lockedUntilTurn: null, lastEnded: null };
-            const bound = slotIndex === bottomIndex && addiction;
-            return (
+      <div className="flex flex-col gap-3">
+        {Array.from({ length: desireSlots }, (_, slotIndex) => {
+          const slot = bySlot.get(slotIndex) ?? { slotIndex, lockedUntilTurn: null, lastEnded: null };
+          const bound = slotIndex === bottomIndex && addiction;
+          return (
+            <div
+              key={slotIndex}
+              className="flex flex-col gap-2"
+              style={
+                slotIndex > 0 && !bound
+                  ? { borderTop: "1px solid var(--border)", paddingTop: "0.75rem" }
+                  : undefined
+              }
+            >
               <div
-                key={slotIndex}
                 className="flex flex-col gap-2"
                 style={
-                  slotIndex > 0 && !bound
-                    ? { borderTop: "1px solid var(--border)", paddingTop: "0.75rem" }
+                  bound
+                    ? {
+                        border: "1px solid var(--border)",
+                        borderRadius: "var(--radius)",
+                        padding: "0.75rem",
+                      }
                     : undefined
                 }
               >
-                <div
-                  className="flex flex-col gap-2"
-                  style={
-                    bound
-                      ? {
-                          border: "1px solid var(--border)",
-                          borderRadius: "var(--radius)",
-                          padding: "0.75rem",
-                        }
-                      : undefined
-                  }
-                >
-                  {slot.lastEnded && (
-                    <p className="text-sm text-muted">
-                      Last: <RichText text={slot.lastEnded.text} /> — {slot.lastEnded.points} Tag Point
-                      {slot.lastEnded.points === 1 ? "" : "s"}
-                      {cooldownLabel(slot.lastEnded.template)
-                        ? ` · ${cooldownLabel(slot.lastEnded.template)}`
-                        : ""}
-                    </p>
-                  )}
-                  {slot.lockedUntilTurn != null ? (
-                    <EmptyState>{`Opens on turn ${slot.lockedUntilTurn}`}</EmptyState>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn self-start"
-                      onClick={() => setCatalogSlot(slotIndex)}
-                    >
-                      Claim a Desire
-                    </button>
-                  )}
-                  {bound && (
-                    <p className="text-xs text-muted">Addiction: {addiction.name}</p>
-                  )}
-                </div>
+                {slot.lastEnded && (
+                  <p className="text-sm text-muted">
+                    <strong>Last:</strong> <RichText text={slot.lastEnded.text} /> — {slot.lastEnded.points} Tag Point
+                    {slot.lastEnded.points === 1 ? "" : "s"}
+                    {cooldownLabel(slot.lastEnded.template)
+                      ? ` · ${cooldownLabel(slot.lastEnded.template)}`
+                      : ""}
+                  </p>
+                )}
+                {slot.lockedUntilTurn != null ? (
+                  <EmptyState>{`Opens on turn ${slot.lockedUntilTurn}`}</EmptyState>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn self-start"
+                    onClick={() => setCatalogSlot(slotIndex)}
+                  >
+                    Claim a Desire
+                  </button>
+                )}
+                {bound && (
+                  <p className="text-xs text-muted">Addiction: {addiction.name}</p>
+                )}
               </div>
-            );
-          })}
-        </div>
-      )}
+            </div>
+          );
+        })}
+      </div>
 
       <FormError>{error}</FormError>
 
