@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · The Baroness carries her own key
+
+✚ A Baroness's Key. It opens the Baron's Chambers and nothing else  
+✎ The Baroness starts with her own key instead of the Baron's whole ring
+
 ## 2026-09-07 · The Play page opens for a living character again
 
 ✎ Opening /play with a living character crashed the page since the right column arrived. The people column and the place buttons were handed a character without their tags.
