@@ -23,7 +23,6 @@ const { formatTagRequirement } = require("./formatTagRequirement");
 const { formatTagArmor } = require("./formatTagArmor");
 const { ARMOR_TAG_FIELDS } = require("./armorValue");
 const { inspectVision, isInscrutable } = require("./inspectVision");
-const { canDetectPoison } = require("./poison");
 const {
   HEALTH_CATEGORY,
   medicallyVisibleTags,
@@ -78,13 +77,6 @@ const EXAMINE_SUBJECT_SELECT = {
         },
       },
       expiresTurn: true,
-      // Poison state (M4) — read here so examineReadout can decide whether
-      // THIS viewer smells it, but never returned raw: describeTag only ever
-      // gets a plain poisonMarker boolean, gated on canDetectPoison(viewerTags)
-      // below. A row this select can't otherwise see stays unseen regardless
-      // — Poison Sense sharpens what's already visible, it doesn't see
-      // through pockets.
-      poisonedCount: true,
     },
   },
 };
@@ -94,7 +86,7 @@ const EXAMINE_SUBJECT_SELECT = {
 // — and `viaSkill` marks the rows the subject is NOT showing the room, which
 // the caller renders as "your diagnosis" so a medic knows not to repeat it
 // aloud as common knowledge.
-function describeTag({ characterTag: ct, viaSkill, poisonMarker }, openTurnNumber) {
+function describeTag({ characterTag: ct, viaSkill }, openTurnNumber) {
   const bits = [
     ct.tag.category === HEALTH_CATEGORY ? formatTagRequirement(ct.tag) : null,
     // Armour is public in a way a treat cost is not: a breastplate is a thing
@@ -103,10 +95,6 @@ function describeTag({ characterTag: ct, viaSkill, poisonMarker }, openTurnNumbe
     formatTagArmor(ct.tag),
     formatTurnsLeft(turnsLeft(ct.expiresTurn, openTurnNumber)),
     viaSkill ? "your diagnosis" : null,
-    // The doctor's-eye read (M4) — same posture as `viaSkill`: it augments a
-    // row this viewer could ALREADY see, it never surfaces one that
-    // wouldn't otherwise show at all.
-    poisonMarker ? "smells wrong ‡" : null,
   ].filter(Boolean);
   return {
     name: ct.tag.name,
@@ -177,12 +165,6 @@ function examineReadout({
   if (identity.concealed) return concealedReadout(identity, subject);
 
   const { canSeeDesire } = inspectVision(viewerTags);
-  // Poison detection (M4): a poison-sense holder or a held poison-snooper
-  // notices when a row they can ALREADY see is actually tainted — an
-  // addendum on an existing row, same shape as `viaSkill`'s "your
-  // diagnosis", never a reason to show a row that would otherwise stay
-  // hidden. Computed once per readout, off the LOOKER's own tags.
-  const canSmellPoison = canDetectPoison(viewerTags);
   return {
     concealed: false,
     name: identity.name,
@@ -191,11 +173,17 @@ function examineReadout({
     appearance: subject.appearance || null,
     ailments: [],
     equipment: [],
+    // Poison detection (M4) does NOT live here: medicallyVisibleTags only
+    // ever returns a row that's either bystander-visible equipment or a
+    // Health-category affliction, and a poisoned stack is neither (it's a
+    // food/drink row, category `items`) — the marker this readout used to
+    // compute was dead on arrival, since no row it could ever attach to was
+    // reachable in the first place. The real, reachable detection surfaces
+    // are the sheet (character/page.js) and /play's own (thingRows.js) —
+    // both read the CHARACTER'S OWN held tags directly, which is the design
+    // (own-sheet detection, not examining someone else's pockets).
     tags: medicallyVisibleTags(subject.tags, satisfied).map((entry) =>
-      describeTag(
-        { ...entry, poisonMarker: canSmellPoison && (entry.characterTag.poisonedCount ?? 0) > 0 },
-        openTurnNumber,
-      ),
+      describeTag(entry, openTurnNumber),
     ),
     // An unseen field is ABSENT, never a "hidden" placeholder — and nothing
     // tells the subject they were read. Once the viewer holds the sight, an
