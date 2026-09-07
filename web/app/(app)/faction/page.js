@@ -420,7 +420,7 @@ export default async function FactionPage({ searchParams }) {
                     {c.isLeader ? " (Leader)" : ""}
                     {treasurer ? " (Treasurer)" : ""}
                     {c.tags.length > 0 && (
-                      <span className="chip chip-quiet ml-2">Catatonic</span>
+                      <span className="chip text-xs text-muted ml-2">Catatonic</span>
                     )}
                   </td>
                   <td>

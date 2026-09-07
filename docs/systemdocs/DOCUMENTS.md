@@ -80,6 +80,22 @@ advertises the secret as loudly as the name would. The pass clears
 `requirementItems` on the shared row, so a withheld ingredient cannot resurface
 through TagChip on the TAGS tab either.
 
+**A recipe gated on a SKILL the reader may not see loses the whole recipe**, not
+one line of it. The six courtier wax seals are public objects — a courtier buys
+their own mark openly, and everyone can read what a Fleur de Lis looks like —
+but the only way to MAKE one is Forger, a Brigand-only `catalog: gm` skill.
+Printing "Forger · 1 turn · 2 ⬢" under a seal tells the whole game that seals
+get forged, which is exactly what the forger is paying for. So every
+requirement column is cleared for that reader and the tag simply stops looking
+craftable: name, description and honest point cost stay. The same rule runs on
+three surfaces, because the recipe reaches the browser three ways — the
+/documents catalogs and the site-wide hovercard through
+`redactWithheldRecipes()`, the buy menus through `recipeFields()` in
+`web/lib/pointBuyCatalog.js`, and the sheet's own Add-tag and Craft menus
+through `clientTagCatalog` in `web/app/(app)/character/page.js`. Only the buy
+menus judge on `catalogVisibility` alone; the other two let holding the skill
+count, so a Forger reads their own recipe everywhere.
+
 A `group:` ingredient names no tag and hides nothing. Miasma asks for "a
 corpse" (`{ group: items-corpse }`) and every member of that group is
 `catalog: secret` — counting groups would erase a public brew from everyone,

@@ -11,7 +11,7 @@ const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
 const { assertTitlesResolve, GENDERS } = require("./titles");
 const { entriesOf } = require("./yamlEntries");
-const { parseStartingTag, formatStartingTag } = require("./startingTags");
+const { parseStartingTag } = require("./startingTags");
 
 // docsPath() is null only when docs/ cannot be found at all, which for a YAML
 // master is fatal — a sync with no master would read as "everything was
@@ -126,13 +126,7 @@ async function syncRolesFromYaml(prisma) {
   const presenceZoneIdBySlug = new Map(
     zones.filter((z) => z.kind !== "CAVE_GROUP").map((z) => [z.slug, z.id]),
   );
-  // Name -> slug, because roles.yaml authors starting_tags as display names
-  // and Role.startingTagSlugs stores the resolved slug. Built here rather than
-  // at runtime: this is the one moment the two identifiers have to meet, and
-  // doing it once at sync is what lets Tag.name stop being unique.
-  const slugByTagName = new Map(
-    (await prisma.tag.findMany({ select: { name: true, slug: true } })).map((t) => [t.name, t.slug]),
-  );
+  const tagNames = new Set((await prisma.tag.findMany({ select: { name: true } })).map((t) => t.name));
   // Where a new character of the role STANDS: `starting_location` when the
   // role names one, else the first Location of its `starting_zone`.
   const locations = await prisma.location.findMany({ orderBy: { sortOrder: "asc" } });
@@ -165,18 +159,14 @@ async function syncRolesFromYaml(prisma) {
         throw new Error(`docs/roles.yaml: role "${r.name}": starting_location "${r.startingLocationSlug}" is not in starting_zone "${r.startingZoneSlug}"`);
       }
     }
-    // An entry may carry a count — "Obol x5" — so validate and resolve the
-    // parsed name rather than the raw string. See db/lib/startingTags.js.
-    // The resolved list is stashed on the entry for the write below, so the
-    // lookup is not repeated.
-    r.startingTagSlugsResolved = r.startingTagNames.map((entry) => {
-      const { slug: authored, quantity } = parseStartingTag(entry);
-      const slug = slugByTagName.get(authored);
-      if (!slug) {
-        throw new Error(`docs/roles.yaml: role "${r.name}" has starting_tag "${authored}" not in docs/tags.yaml — run db:sync-tags first`);
+    // An entry may carry a count — "Obol x5" — so validate the parsed name
+    // rather than the raw string. See db/lib/startingTags.js.
+    for (const entry of r.startingTagNames) {
+      const { name } = parseStartingTag(entry);
+      if (!tagNames.has(name)) {
+        throw new Error(`docs/roles.yaml: role "${r.name}" has starting_tag "${name}" not in docs/tags.yaml — run db:sync-tags first`);
       }
-      return formatStartingTag(slug, quantity);
-    });
+    }
   }
 
   const stats = {
@@ -270,7 +260,7 @@ async function syncRolesFromYaml(prisma) {
       weight: entry.weight,
       startingResources: entry.startingResources,
       extraStartingPoints: entry.extraStartingPoints,
-      startingTagSlugs: entry.startingTagSlugsResolved,
+      startingTagSlugs: entry.startingTagNames,
       grantsLeader: entry.grantsLeader,
       grantsTreasurer: entry.grantsTreasurer,
       requiresWhitelist: entry.requiresWhitelist,

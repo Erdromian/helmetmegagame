@@ -545,7 +545,18 @@ Under that line the Room also hears **fragments of what was said**, on one
 random and muffled at 70% by the same `db/lib/muffle.js` the shout uses, joined
 by an ellipsis. Punctuation is ignored on purpose — a fragment that starts and
 ends mid-thought reads as something overheard, where a whole sentence would
-read as something quoted. How many fragments scales on the words said in the
+read as something quoted.
+
+Three caps keep that honest, and none of them is cosmetic. A fragment is bounded
+in **characters** as well as words, because a pasted URL or blob contains no
+whitespace, counts as one word, and would otherwise come back whole — and at a
+few thousand characters Discord refuses the message outright, which would cost
+the room the name line too (`postMessage` does not chunk). A message that is a
+single long token gets a **character window** instead of a word window, so
+Chinese, Japanese and Thai — none of which space their words — are sampled like
+everything else rather than leaked entire. And no one message counts for more
+than `MESSAGE_WEIGHT_CAP` words when the pool is weighed, so pasting a wall of
+text is not a way to drown your own conversation or to inflate the ladder. How many fragments scales on the words said in the
 window: 1 below 80, then 2, 3, 4, 5 and 6 at 80, 200, 450, 900 and 1800. The
 thresholds are stretched because a busy Conversation clears a few hundred words
 in fifteen minutes, so the top of the ladder has to be hard to reach.
@@ -553,7 +564,11 @@ in fifteen minutes, so the top of the ladder has to be hard to reach.
 **Subtle** (`db/lib/whisperLeak.js`, `bot/src/lib/whisperPoll.js`) keeps a
 character out of the name line *and* out of the fragment pool — both halves, or
 the tag would only half work. An all-Subtle Conversation still posts nothing at
-all. The leak is rolled once per tick and handed to both the Discord post and
+all. A speaker whose `Character` row does not load is treated as Subtle rather
+than as audible: a privacy feature fails **shut**, and a missing name line is
+the cheaper mistake. The post also passes `allowedMentions: { parse: [] }`,
+because the line now carries player text and "@everyone" is a plain word no
+mention-stripper catches. The leak is rolled once per tick and handed to both the Discord post and
 the Hall's scene row, unlike the shout, which re-rolls its static per call:
 re-rolling here would pick different fragments for each face, which is two
 leaks rather than one thing heard twice.

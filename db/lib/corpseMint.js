@@ -39,16 +39,10 @@ function corpseSlug(name, suffix = 0) {
   return `custom-${base || "unnamed"}-corpse${suffix ? `-${suffix}` : ""}`;
 }
 
-// Two characters can share a name, and Tag.slug is @unique. Retrying on the
-// unique violation rather than checking first is deliberate: two deaths
-// resolving in the same turn-close would both pass a pre-check and then one
-// would throw. Six attempts is far past anything the game can produce.
-//
-// The "(2)" on the NAME is no longer forced by a constraint — Tag.name stopped
-// being unique when paper stopped being titled after its own id
-// (db/lib/paper.js#paperName) — and is kept on purpose. A body is a thing a GM
-// picks out of a list, so two rows both reading "Ada's Corpse" is a confusion
-// worth spending a suffix on; two notes both reading "A Note" is the point.
+// Two characters can share a name, and Tag.name and Tag.slug are both @unique.
+// Retrying on the unique violation rather than checking first is deliberate:
+// two deaths resolving in the same turn-close would both pass a pre-check and
+// then one would throw. Six attempts is far past anything the game can produce.
 async function createCorpseTag(tx, character, groupId, expiresTurn) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const suffixed = attempt ? `${corpseName(character.name)} (${attempt + 1})` : corpseName(character.name);
@@ -81,7 +75,7 @@ async function createCorpseTag(tx, character, groupId, expiresTurn) {
         },
       });
     } catch (err) {
-      // P2002 is the @unique on slug — someone shares this name.
+      // P2002 is the @unique on name or slug — someone shares this name.
       if (err?.code !== "P2002") throw err;
     }
   }

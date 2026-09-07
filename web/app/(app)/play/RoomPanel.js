@@ -32,12 +32,7 @@ function roomIdOf(selected) {
 // (readStash), so nothing here is parsing a sentence the bot wrote for a
 // Discord channel — the ⬢ is a mono chip and every stack is one .chip reading
 // "Paper ×23", with the × only where there is more than one of a thing.
-//
-// Every stack is a BUTTON: clicking one opens the Transfer dialog with this
-// room as the source and that stack already ticked, which is the whole of
-// "take that". Reading a list of things you cannot touch was the complaint.
-// The ⬢ chip stays inert — a quantity is typed, not picked.
-function StashChips({ stash, showAll, onToggle, onTake }) {
+function StashChips({ stash, showAll, onToggle }) {
   const items = stash.items ?? [];
   if (items.length === 0 && !(stash.resources > 0)) {
     return <p className="hall-quiet-line">Nothing is stored here.</p>;
@@ -48,15 +43,9 @@ function StashChips({ stash, showAll, onToggle, onTake }) {
     <div className="hall-chips">
       <span className="chip chip-mono">{stash.resources ?? 0} ⬢</span>
       {shown.map((item) => (
-        <button
-          key={item.tagId}
-          type="button"
-          className="chip"
-          title={`Take ${item.name}`}
-          onClick={() => onTake(item)}
-        >
+        <span key={item.tagId} className="chip">
           {item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name}
-        </button>
+        </span>
       ))}
       {/* Both ways. It opened and then had no way back, so a room holding
           thirty stacks stayed thirty stacks tall for the rest of the visit. */}
@@ -98,30 +87,6 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
 
   if (!roomId) return null;
 
-  // The three ways into the Transfer dialog. `selfId` comes off the actions
-  // context rather than a prop, so this panel needs nothing threaded down to
-  // name the player's own end of a move.
-  const selfKey = actions?.selfId ? `character:${actions.selfId}` : "";
-  const roomKey = `room:${roomId}`;
-
-  function drop() {
-    actions?.open?.("transfer", null, { fromKey: selfKey, toKey: roomKey });
-  }
-
-  // With an item: the stack that was clicked, already ticked. Without one:
-  // the Take button, which seeds the direction and leaves the picking.
-  function take(item = null) {
-    actions?.open?.("transfer", null, {
-      fromKey: roomKey,
-      toKey: selfKey,
-      ...(item ? { picks: { [item.tagId]: 1 } } : {}),
-    });
-  }
-
-  function transfer() {
-    actions?.open?.("transfer");
-  }
-
   const here = stash?.roomId === roomId ? stash : null;
   const fixtures = affordances.filter(
     (entry) => entry.kind === "room" && entry.roomId === roomId && entry.id !== "storage",
@@ -145,7 +110,6 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
             stash={here}
             showAll={expanded === roomId}
             onToggle={() => setExpanded((open) => (open === roomId ? null : roomId))}
-            onTake={take}
           />
         </>
       ) : here ? (
@@ -155,19 +119,15 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
       )}
       {here?.ok && (
         <div className="hall-buttons">
-          {/* One Transfer dialog, three ways in. "Move things" made a player
-              open it and then say which way the things were going, when the
-              button they wanted to press already knew. Drop and Take seed both
-              ends; Transfer is the same dialog with nothing assumed, for
-              handing something to a person. */}
-          <button type="button" className="btn-quiet" onClick={drop}>
-            Drop
-          </button>
-          <button type="button" className="btn-quiet" onClick={() => take()}>
-            Take
-          </button>
-          <button type="button" className="btn-quiet" onClick={transfer}>
-            Transfer
+          {/* The same Transfer dialog the sheet has, with this room already
+              picked as the far side — a room stash is one of its parties, so
+              there is nothing here to fork. */}
+          <button
+            type="button"
+            className="btn-quiet"
+            onClick={() => actions?.open?.("transfer", null, { toKey: `room:${roomId}` })}
+          >
+            Move things
           </button>
         </div>
       )}

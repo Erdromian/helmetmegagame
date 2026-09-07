@@ -13,6 +13,9 @@ import {
   OBOL_SLUG,
   LANDING_PAD_SLUG,
   normalizeQuantity,
+  RESOURCE_IMPORT_PRICE,
+  RESOURCE_EXPORT_PRICE,
+  RESOURCE_WARE_ID,
   loadDepot,
   bumpAccount,
   bumpFuel,
@@ -21,15 +24,13 @@ import {
   shipmentId,
   splitIntoCrates,
   crateTagData,
-  canOpenCrate,
 } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
-import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { TURNS_PATH } from "@/lib/routes";
 import { logAudit } from "@/lib/requests";
-import { addToStack, dropCharacterTag, addToRoomStack, dropRoomTag, moveResources } from "@/lib/tagEffects";
+import { addToStack, dropCharacterTag, addToRoomStack, dropRoomTag } from "@/lib/tagEffects";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { UserError, guarded } from "@/lib/actionResult";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
@@ -66,7 +67,7 @@ const MAX_ORDER_LINES = 40;
 // There are two doors into these actions, and the split is deliberate.
 //
 // `requireLicensedMerchant` is the money and the gun: ordering, the ATM, the
-// credit line, the ⬢ counter, the turret. Those want the Merchant's Licence —
+// credit line, the turret. Those want the Merchant's Licence —
 // the LICENCE and not the merchant ROLE, because the licence is tradeable and
 // a role check would quietly break that.
 //
@@ -131,9 +132,7 @@ async function requireDepotHand(opts) {
   return gate;
 }
 
-// Opening a crate has its own gate, because it is the one keycard job with no
-// standing requirement — a crate that walked out of the landing pad can be
-// cracked wherever it ended up. The card is checked inside `canOpenCrate`.
+// The living-character-who-can-act gate every guard above is built on.
 async function requireCharacter() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -142,9 +141,9 @@ async function requireCharacter() {
     include: { tags: { include: { tag: true } } },
   });
   if (!character) throw new UserError("You need a living character to do that.");
-  // Every consumer of this guard is an ACT — ordering, cracking a crate,
-  // working the ATM, refuelling the generator. None of it is paperwork you do
-  // from a chair, so the gate sits here rather than on ten call sites.
+  // Every consumer of this guard is an ACT — ordering, working the shuttle,
+  // the ATM, refuelling the generator. None of it is paperwork you do from a
+  // chair, so the gate sits here rather than on ten call sites.
   const blocker = blockerFor(character.tags, ACT);
   if (blocker) throw new UserError(`You can't do that right now. You're ${blocker.name}.`);
   return { session, character };
@@ -221,6 +220,12 @@ async function depotOrderImpl({ items: rawItems }) {
     wanted.set(item?.tagId ?? "", (wanted.get(item?.tagId ?? "") ?? 0) + quantity);
   }
 
+  // ⬢ are a ware now, but they are not a Tag, so the sentinel row comes out
+  // before anything touches the catalog. Priced here like every other line —
+  // the client's number is decoration.
+  const resourceUnits = wanted.get(RESOURCE_WARE_ID) ?? 0;
+  wanted.delete(RESOURCE_WARE_ID);
+
   const tags = await prisma.tag.findMany({
     where: { id: { in: [...wanted.keys()] }, depotPrice: { not: null } },
   });
@@ -228,6 +233,21 @@ async function depotOrderImpl({ items: rawItems }) {
 
   let totalResources = 0;
   const lines = [];
+
+  if (resourceUnits > 0) {
+    if (normalizeQuantity(resourceUnits) == null) {
+      throw new UserError("That's more ⬢ than the station will put on one shuttle.");
+    }
+    totalResources += RESOURCE_IMPORT_PRICE * resourceUnits;
+    // No tagId, which is what marks it as Resources everywhere downstream —
+    // db/lib/depotCrates.js packs it, and the crate grants it on opening.
+    lines.push({
+      name: "Resources",
+      quantity: resourceUnits,
+      unitPrice: RESOURCE_IMPORT_PRICE,
+      sealed: false,
+    });
+  }
   for (const tag of tags) {
     const quantity = wanted.get(tag.id);
     // The whole quantity is re-clamped after the merge above, not just each
@@ -323,19 +343,22 @@ async function depotCallShuttleImpl() {
   const openTurn = await getOpenTurn();
 
   const shipment = shipmentId();
-  const crates = splitIntoCrates(manifest);
 
   // Crates need a group so they render like any other item in the UI. The
   // gear group is the catch-all the catalog already uses for carried objects.
   const group = await prisma.tagGroup.findUnique({ where: { slug: "items-gear" } });
 
-  // A crate now weighs half what is in it, so the split needs the wares' own
-  // weights (db/lib/depotCrates.js#crateWeight).
+  // The wares' own weights, and they have to be in hand BEFORE the split: a
+  // crate is packed by weight now, not by counting things into it, and it then
+  // weighs half of what went in. A resources line has no tagId and is priced
+  // at RESOURCE_UNIT_LBS inside the packer.
   const innerWeights = await prisma.tag.findMany({
     where: { id: { in: [...new Set(manifest.map((m) => m.tagId).filter(Boolean))] } },
     select: { id: true, weightLbs: true },
   });
   const weightByTagId = new Map(innerWeights.map((t) => [t.id, t.weightLbs ?? 0]));
+
+  const crates = splitIntoCrates(manifest, { weightByTagId });
 
   await prisma.$transaction(async (tx) => {
     for (const data of crateTagData(shipment, crates, { groupId: group?.id ?? null, weightByTagId })) {
@@ -379,8 +402,10 @@ async function depotCallShuttleImpl() {
 
 // Sending it back, loaded. Everything sitting on the landing pad goes up and
 // comes back as obols: tags at their sellablePrice, and the room's ⬢ stash at
-// the Depot's own exchange rate. This is the ONLY way Resources become obols,
-// which is what stops the Merchant printing money at a keyboard.
+// RESOURCE_EXPORT_PRICE. This is the ONLY way Resources become obols, which
+// is what stops the Merchant printing money at a keyboard — and the station
+// pays half what it charges for the same ⬢ coming down, so the round trip is
+// a loss in both directions.
 async function depotSendShuttleImpl() {
   // Also a Docker's job, and the sharper of the two: a keycard can sell
   // everything on the pad. That is the trade — a card that can load the
@@ -427,7 +452,12 @@ async function depotSendShuttleImpl() {
   for (const rt of room.tags) {
     const contents = Array.isArray(rt.tag.crateContents) ? rt.tag.crateContents : null;
     const unit = contents
-      ? contents.reduce((sum, c) => sum + (innerPrice.get(c.tagId) ?? 0) * c.quantity, 0)
+      ? contents.reduce((sum, c) => sum + (innerPrice.get(c.tagId) ?? 0) * c.quantity, 0) +
+        // ⬢ packed into the crate are worth what loose ⬢ are worth. Without
+        // this line, sending an unopened shipment back up would annihilate
+        // them — the same failure the crate-contents pricing above exists to
+        // prevent, just for the half that is not a tag.
+        (rt.tag.consumesIntoResources ?? 0) * RESOURCE_EXPORT_PRICE
       : (rt.tag.sellablePrice ?? 0);
     if (unit > 0) goodsResources += unit * rt.quantity;
     soldTags.push({
@@ -438,11 +468,11 @@ async function depotSendShuttleImpl() {
       crate: Boolean(contents),
     });
   }
-  // Loose ⬢ in the stash stay where they are. The Bank's ⬢ counter is
-  // marginless and always open, so there is no reason to move them through the
-  // shuttle instead. The shuttle sells GOODS.
-  const payout = goodsResources;
-  const resourcesSpent = 0;
+  // Loose ⬢ in the stash go up with the goods, at the station's export price.
+  // The Bank's marginless ⬢ counter used to be the alternative and is gone:
+  // one rate, one place, and the place is the shuttle.
+  const resourcesSpent = room.resources ?? 0;
+  const payout = goodsResources + resourcesSpent * RESOURCE_EXPORT_PRICE;
 
   await prisma.$transaction(async (tx) => {
     for (const rt of room.tags) {
@@ -455,6 +485,17 @@ async function depotSendShuttleImpl() {
         if (stillHeld === 0 && stillStashed === 0) {
           await tx.tag.delete({ where: { id: rt.tagId } }).catch(() => {});
         }
+      }
+    }
+    if (resourcesSpent > 0) {
+      // A conditional decrement, so a concurrent withdrawal from the stash
+      // cannot be paid for twice.
+      const cleared = await tx.room.updateMany({
+        where: { id: room.id, resources: { gte: resourcesSpent } },
+        data: { resources: { decrement: resourcesSpent } },
+      });
+      if (cleared.count === 0) {
+        throw new UserError("The stash moved while you were loading. Try again.");
       }
     }
     await bumpAccount(tx, payout);
@@ -484,89 +525,6 @@ async function depotSendShuttleImpl() {
   await refreshShuttleRoom();
   revalidateAll();
   return { payout, sold: soldTags.length };
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// Crates
-// ─────────────────────────────────────────────────────────────────────────
-
-// Cracking one open. A Docker may do this — it is the job — but a SEALED
-// crate wants the keycard, which is what makes the dangerous half of a
-// shipment worth guarding.
-async function openCrateImpl({ tagId }) {
-  const { session, character } = await requireCharacter();
-
-  const held = await prisma.characterTag.findFirst({
-    where: { characterId: character.id, tagId: tagId ?? "" },
-    include: { tag: true },
-  });
-  if (!held) throw new UserError("You aren't carrying that crate.");
-
-  const crate = held.tag;
-  const contents = Array.isArray(crate.crateContents) ? crate.crateContents : null;
-  if (!crate.custom || !contents) throw new UserError("That isn't a crate.");
-
-  if (!canOpenCrate(crate, heldSlugSet(character))) {
-    throw new UserError("It's sealed, and the lock wants a Depot Keycard.");
-  }
-
-  const openTurn = await getOpenTurn();
-  const inner = await prisma.tag.findMany({ where: { id: { in: contents.map((c) => c.tagId) } } });
-  const byId = new Map(inner.map((t) => [t.id, t]));
-
-  const granted = [];
-  // Contents that could not land — a non-stackable ware already held. Recorded
-  // on the effect so the Ledger and a GM can see what the crate really gave.
-  const skipped = [];
-  await prisma.$transaction(async (tx) => {
-    for (const line of contents) {
-      const tag = byId.get(line.tagId);
-      // A ware pruned out of the catalog between landing and opening is gone.
-      // Skipping it beats throwing: the rest of the crate should still open.
-      if (!tag) continue;
-      // addToStack returns the existing row untouched for a non-stackable tag
-      // already held, so what the Ledger records has to be what actually
-      // landed — not what the crate said it held. Otherwise a Merchant who
-      // already owns an ML-23 opens a crate, receives nothing, and is told he
-      // received a pistol.
-      const before = await tx.characterTag.findUnique({
-        where: { characterId_tagId: { characterId: character.id, tagId: tag.id } },
-      });
-      await addToStack(tx, character.id, tag.id, line.quantity, {
-        source: "EVENT",
-        stackable: tag.stackable,
-        expiresTurn: await expiryForGrant(tx, tag, openTurn, {
-          characterId: character.id,
-          where: "openCrate",
-        }),
-      });
-      const landed = tag.stackable ? line.quantity : before ? 0 : 1;
-      if (landed > 0) granted.push({ tagId: tag.id, name: tag.name, quantity: landed });
-      else skipped.push({ tagId: tag.id, name: tag.name, reason: "already held, and only one can be carried" });
-    }
-
-    await dropCharacterTag(tx, character.id, crate.id, null);
-
-    const effect = { crateTagId: crate.id, crateName: crate.name, sealed: crate.sealedShipping, granted, skipped };
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_depot_crate_open",
-      targetCharacterId: character.id,
-      turnId: openTurn?.id ?? null,
-      details: effect,
-    });
-
-    // The crate is a one-off catalog row and this was the last of it.
-    const stillHeld = await tx.characterTag.count({ where: { tagId: crate.id } });
-    const stillStashed = await tx.roomTag.count({ where: { tagId: crate.id } });
-    if (stillHeld === 0 && stillStashed === 0) {
-      await tx.tag.delete({ where: { id: crate.id } }).catch(() => {});
-    }
-  });
-
-  await afterInventoryChange(character.id);
-  revalidateAll();
-  return { granted, skipped };
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -624,64 +582,6 @@ async function depotAtmImpl({ direction: rawDirection, amount: rawAmount }) {
   await afterInventoryChange(character.id);
   revalidateAll();
   return { direction, amount };
-}
-
-// ⬢ across the counter, both directions, with no spread.
-//
-// This is the Merchant's own float: he takes Resources off Ravenheart all day
-// and needs them as money, and he needs to put money back into Resources to
-// pay for things priced in ⬢. Charging himself a spread to use his own till
-// would be nonsense, so this counter is deliberately marginless.
-//
-// One obol is one ⬢, so what this really does is change the FORM of a value
-// rather than its amount: a number on a character sheet becomes coins that can
-// be carried, handed over and stolen, and back again. Asking in ⬢ instead would mean flooring somewhere.
-async function depotExchangeImpl({ direction: rawDirection, obols: rawObols }) {
-  const { session, character, depot } = await requireLicensedMerchant();
-
-  const buying = rawDirection === "BUY_RESOURCES";
-  const obols = Number(rawObols);
-  if (!Number.isInteger(obols) || obols < 1) throw new UserError("That isn't an amount.");
-
-  const resources = obols;
-
-  if (buying && (depot.accountObols ?? 0) < obols) {
-    throw new UserError(`The account holds ${depot.accountObols ?? 0} ¢.`);
-  }
-  if (!buying && character.resources < resources) {
-    throw new UserError(`That's ${resources} ⬢ and you have ${character.resources}.`);
-  }
-
-  const openTurn = await getOpenTurn();
-
-  await prisma.$transaction(async (tx) => {
-    // The station side first when buying, so a concurrent spend that empties
-    // the account fails BEFORE the ⬢ are handed over. moveResources is itself
-    // a conditional update, so the selling direction is guarded the same way.
-    const moved = await bumpAccount(tx, buying ? -obols : obols);
-    if (Math.abs(moved.delta) < obols) {
-      throw new UserError("The account moved while you were counting. Try again.");
-    }
-    await moveResources(tx, { kind: "character", id: character.id }, buying ? resources : -resources);
-
-    const effect = {
-      direction: buying ? "BUY_RESOURCES" : "SELL_RESOURCES",
-      obols,
-      resources,
-      balanceBefore: moved.before,
-      balanceAfter: moved.after,
-    };
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_depot_exchange",
-      targetCharacterId: character.id,
-      turnId: openTurn?.id ?? null,
-      details: effect,
-    });
-  });
-
-  revalidateAll();
-  return { direction: buying ? "BUY_RESOURCES" : "SELL_RESOURCES", obols, resources };
 }
 
 // The Company's line, in obols. Drawing puts money in the account; repaying
@@ -884,20 +784,12 @@ export async function depotSendShuttle() {
   return guarded(() => depotSendShuttleImpl());
 }
 
-export async function openCrate(input) {
-  return guarded(() => openCrateImpl(input));
-}
-
 export async function depotAtm(input) {
   return guarded(() => depotAtmImpl(input));
 }
 
 export async function depotCredit(input) {
   return guarded(() => depotCreditImpl(input));
-}
-
-export async function depotExchange(input) {
-  return guarded(() => depotExchangeImpl(input));
 }
 
 export async function depotGenerator(input) {

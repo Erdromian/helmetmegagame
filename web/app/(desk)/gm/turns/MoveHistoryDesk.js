@@ -82,7 +82,7 @@ export default function MoveHistoryDesk({
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <span className="chip">Turn {turnLabel ?? "—"}</span>
-        <span className="chip chip-quiet">{move.statusLabel}</span>
+        <span className="chip text-xs text-muted">{move.statusLabel}</span>
       </div>
 
       {move.tags?.length ? (

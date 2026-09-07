@@ -14,7 +14,7 @@ import { addMember, removeMember } from "./actions";
 // Until now the only way to let somebody into either was `/add` on Discord
 // (bot/src/events/interactionCreate.js), which a "web only" player cannot type
 // and which nobody who had not been told about it could discover. So the list
-// is on the page instead, and `+ Add` is a plain button rather than a row in
+// is on the page instead, and `+ Add ‡` is a plain button rather than a row in
 // a menu: opening a door is the ordinary thing you do in a private room, not
 // an advanced one.
 //

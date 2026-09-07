@@ -25,26 +25,7 @@ const { ambientLine } = require("./ambientLine");
 const { soundRange } = require("./locationGraph");
 const { loadVoiceState } = require("./say");
 const { placeKeyForLocation } = require("./placeKey");
-
-// Light, medium, heavy — picked at random per character so a muffled line
-// looks like static rather than like a censor bar.
-const BLOCKS = ["░", "▒", "▓"];
-
-// Replaces `fraction` of the NON-WHITESPACE characters with a block. Spaces
-// survive on purpose: the word shapes are what tells a listener how much they
-// missed, and a solid bar of noise reads as no message at all rather than as a
-// message they failed to catch.
-function muffle(text, fraction) {
-  if (fraction <= 0) return text;
-  return String(text)
-    .split("")
-    .map((ch) => {
-      if (/\s/.test(ch)) return ch;
-      if (Math.random() >= fraction) return ch;
-      return BLOCKS[Math.floor(Math.random() * BLOCKS.length)];
-    })
-    .join("");
-}
+const { muffle } = require("./muffle");
 
 // How much is lost at each remove. Index IS the hop count, so the table reads
 // off the distance directly; index 0 is never reached, because your own

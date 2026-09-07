@@ -22,9 +22,11 @@ import {
   WoundIcon,
   BandageIcon,
   MealIcon,
+  PointsIcon,
   MapIcon,
   ResourcesIcon,
 } from "@/app/components/icons";
+import { computeBudget } from "@/lib/characterCreation";
 import {
   killCharacterNow,
   reviveCharacter,
@@ -67,7 +69,11 @@ export default function ActionBar({
   tags,
   held,
   feed,
+  cursed,
+  pendingCount,
+  startingTagPoints,
   onApplyTags,
+  onStageField,
   refresh,
   onDeleted,
 }) {
@@ -82,6 +88,7 @@ export default function ActionBar({
   // something out of view reads as a dead button, which is exactly how it was
   // first reported — so each one says so in a line beneath the row.
   const [done, setDone] = useState(null);
+  const [staged, setStaged] = useState(null);
   const [dialog, setDialog] = useState(null); // "kill" | "restore" | "spend" | "message" | "delete" | "wound" | "transfer"
   const [draft, setDraft] = useState("");
   const [transferFromKey, setTransferFromKey] = useState("");
@@ -185,6 +192,7 @@ export default function ActionBar({
       return;
     }
     setError(null);
+    setStaged(null);
     // One gesture, one call, one audit row, one DM — applyTagOpsInTx applies
     // the whole batch in order, so a ward's worth of removals is still one
     // thing that happened to the player rather than a burst of them.
@@ -206,7 +214,22 @@ export default function ActionBar({
       return;
     }
     setError(null);
+    setStaged(null);
     runTags(ops, "Fed them");
+  }
+
+  // Recompute what they should have left: the creation budget, minus what
+  // their held tags cost. A repair for a sheet whose points drifted, not a
+  // rule — which is why it stages into the editable field rather than writing.
+  function refundPoints() {
+    const budget = computeBudget({ startingTagPoints, role: null, cursed });
+    const spent = tags
+      .filter((t) => heldIds.has(t.id))
+      .reduce((sum, t) => sum + (t.pointCost ?? 0), 0);
+    onStageField("tagPoints", budget - spent);
+    setError(null);
+    setDone(null);
+    setStaged(`tag points at ${budget - spent}`);
   }
 
   const wounds = tags.filter((t) => t.healable);
@@ -275,7 +298,10 @@ export default function ActionBar({
 
         <span className="dev-bar-sep" aria-hidden="true" />
 
-        {/* Three tag verbs, all of which fire. */}
+        {/* Three tag verbs that fire, and one staging button that doesn't.
+            Refund points writes the tagPoints COLUMN, which is still staged,
+            so it keeps the caption — an unlabelled icon that silently stages
+            reads as a dead button, which is how it was first reported. */}
         <div className="flex items-center gap-2">
           <IconButton
             icon={WoundIcon}
@@ -295,6 +321,20 @@ export default function ActionBar({
             disabled={pending}
             onClick={feedThem}
           />
+        </div>
+
+        <span className="dev-bar-sep" aria-hidden="true" />
+
+        <div className="dev-bar-group">
+          <span className="dev-bar-caption">stages</span>
+          <div className="flex items-center gap-2">
+            <IconButton
+              icon={PointsIcon}
+              label="Recompute their unspent Tag Points"
+              disabled={pending}
+              onClick={refundPoints}
+            />
+          </div>
         </div>
 
         <span className="dev-bar-sep" aria-hidden="true" />
@@ -321,6 +361,11 @@ export default function ActionBar({
 
         <FormError>{error}</FormError>
         {!error && done && <p className="w-full text-sm text-accent">{done}.</p>}
+        {!error && !done && staged && pendingCount > 0 && (
+          <p className="w-full text-sm text-accent">
+            Staged {staged} — press <strong>Apply</strong> below to commit it.
+          </p>
+        )}
       </section>
 
       {/* Restoring a turn DMs the player, so it asks for a reason to send
@@ -506,6 +551,7 @@ export default function ActionBar({
                     className="btn-quiet w-full text-left"
                     disabled={heldIds.has(t.id)}
                     onClick={() => {
+                      setStaged(null);
                       setDialog(null);
                       runTags([{ tagId: t.id, op: "add", quantity: 1 }], `Inflicted ${t.name}`);
                     }}

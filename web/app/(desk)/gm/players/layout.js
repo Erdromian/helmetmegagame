@@ -227,6 +227,7 @@ export default async function PlayerDeskLayout({ children }) {
                 ? `Turn ${openTurn.number} · ${openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}`
                 : "No turn open"}
             </span>
+            <span className="chip text-xs text-muted">{rows.length} tracked</span>
             <DeskInboxCounts rows={rows} rowsAsOfMs={rowsAsOfMs} />
           </>
         }

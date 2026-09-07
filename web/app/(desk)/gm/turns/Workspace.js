@@ -551,7 +551,7 @@ export default function Workspace({
             <span className="chip">
               {openTurn ? `Turn ${openTurn.number} · ${openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}` : "No turn open"}
             </span>
-            <span className="chip chip-quiet">{solvedCount}/{moves.length} solved</span>
+            <span className="chip text-xs text-muted">{solvedCount}/{moves.length} solved</span>
             <span className="text-xs text-muted" title="Push fires at midnight CT">
               {formatCountdown(pushMinutes)}
               {moveLock ? ` · ${formatMoveLock(moveLock.cutoffAtMs, nowMs)}` : ""}

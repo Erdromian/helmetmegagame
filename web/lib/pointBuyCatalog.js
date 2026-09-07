@@ -1,5 +1,31 @@
-import { prisma, startingTagSlugs } from "@lifeweb/db";
+import { prisma, startingTagNames } from "@lifeweb/db";
 import { DESIRE_UNLOCK_SELECT, stripEmptyUnlocks } from "@/lib/referenceData";
+
+// A buy menu is not a recipe book. It prints a recipe only where the trade
+// that gates it is public knowledge — the six courtier wax seals are made by a
+// Forger, a `catalog: gm` Brigand skill, and a "Recipe: Forger" line under a
+// seal in the shop would tell every courtier that seals get forged. The tag
+// keeps its point price either way; that is the honest route and it stays
+// visible. See web/lib/recipeCatalog.js for the same rule on the catalogs.
+function recipeFields(t) {
+  const skills = t.requirementSkills ?? [];
+  if (skills.some((s) => s.catalogVisibility !== "ALL")) {
+    return {
+      craftable: false,
+      requirementSkills: [],
+      requirementTurns: null,
+      requirementResources: null,
+      requirementGambit: false,
+    };
+  }
+  return {
+    craftable: t.craftable,
+    requirementSkills: skills.map(({ id, slug, name }) => ({ id, slug, name })),
+    requirementTurns: t.requirementTurns,
+    requirementResources: t.requirementResources,
+    requirementGambit: t.requirementGambit,
+  };
+}
 
 // The tag catalog exactly as PointBuy consumes it, shared by the creation
 // wizard's loader and /store so the two menus can never disagree about a
@@ -13,13 +39,13 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
   const or = [{ purchasable: true }];
   if (extraTagIds.length) or.push({ id: { in: extraTagIds } });
   if (includeRoleStartingTags) {
-    // startingTagSlugs holds slugs — roles.yaml authors display names
-    // (`starting_tags: [Pale]`) and db:sync-roles resolves each one as it
-    // validates it. An entry may carry a count ("obol x5") which has to come
-    // off before the lookup.
+    // Despite the column name, startingTagSlugs holds tag NAMES (roles.yaml
+    // `starting_tags: [Pale]`, matched by name in sync-roles and PointBuy),
+    // and an entry may carry a count ("Obol x5") which has to come off before
+    // the lookup.
     const roles = await prisma.role.findMany({ select: { startingTagSlugs: true } });
-    const slugs = [...new Set(roles.flatMap((r) => startingTagSlugs(r.startingTagSlugs)))];
-    if (slugs.length) or.push({ slug: { in: slugs } });
+    const names = [...new Set(roles.flatMap((r) => startingTagNames(r.startingTagSlugs)))];
+    if (names.length) or.push({ name: { in: names } });
   }
   const tags = await prisma.tag.findMany({
     where: or.length === 1 ? or[0] : { OR: or },
@@ -37,7 +63,9 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
         },
       },
       requiredTag: { select: { name: true } },
-      requirementSkills: { select: { id: true, slug: true, name: true } },
+      // `catalogVisibility` rides along only to be read and dropped below: a
+      // recipe gated on a trade the catalog itself hides is not printed here.
+      requirementSkills: { select: { id: true, slug: true, name: true, catalogVisibility: true } },
       // conflictingTag() reads conflictsWithIds off this projection — drop it
       // and a conflict silently stops applying in the menu.
       conflictsWith: { select: { id: true } },
@@ -79,11 +107,7 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
     // conflictingTag() scope: the plain id array conflictsWith resolves to.
     conflictsWithIds: t.conflictsWith.map((c) => c.id),
     removable: t.removable,
-    craftable: t.craftable,
-    requirementTurns: t.requirementTurns,
-    requirementResources: t.requirementResources,
-    requirementGambit: t.requirementGambit,
-    requirementSkills: t.requirementSkills,
+    ...recipeFields(t),
     // Health tags carry a course as well as a price: how long the affliction
     // runs untreated, and what it turns into afterwards. Both belong in the
     // point-buy chip — a player picking up Appendicitis as a drawback should

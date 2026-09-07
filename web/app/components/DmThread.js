@@ -258,7 +258,7 @@ function Row({ item, gmProfileById, character, now }) {
         {head && (
           <div className="dm-row-meta">
             <span className="dm-row-name">{name}</span>
-            {sourceLabel && <span className="chip chip-quiet">{sourceLabel}</span>}
+            {sourceLabel && <span className="chip text-xs text-muted">{sourceLabel}</span>}
             <time className="dm-row-time mono" title={fullTimestamp(ms)}>
               {formatDmTime(ms, now)}
             </time>

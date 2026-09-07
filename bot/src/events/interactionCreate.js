@@ -1280,7 +1280,7 @@ async function handleConverseOpen(interaction, locationId) {
 
   const menu = new StringSelectMenuBuilder()
     .setCustomId(`${CONVERSE_ROOM_PREFIX}${locationId}`)
-    .setPlaceholder("Where?")
+    .setPlaceholder("Which room is this linked to? ‡")
     .addOptions(
       options.map((room) => ({
         label: room.name.slice(0, 100),
@@ -1290,7 +1290,7 @@ async function handleConverseOpen(interaction, locationId) {
     );
 
   await respond(interaction, {
-    content: "Where? ‡\n-# Speak privately with someone. ‡",
+    content: "Which room is this linked to? ‡\n-# That room hears that someone is whispering, never who. ‡",
     components: [new ActionRowBuilder().addComponents(menu)],
   });
 }

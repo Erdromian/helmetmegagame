@@ -1,30 +1,15 @@
-import DeskHeader from "@/app/components/DeskHeader";
-import { SkeletonBar } from "@/app/components/PageShell";
-
-// A desk skeleton — deliberately not SkeletonPage, which assumes the PageShell
-// chrome this route group doesn't have. It draws the same FRAME the real desk
-// draws so only the content swaps: the real DeskHeader with skeleton meta and
-// actions sized like Workspace.js's, the three columns, and the push tray strip
-// that is always on screen (StagingTray.js's `.desk-tray` / `.desk-tray-bar`,
-// mirrored here rather than reinvented).
-//
-// The meta bars are not decoration. `.desk-header` is flex-wrap, so a header
-// skeleton carrying nothing but a title is one line where the real one is two,
-// and the whole desk jumps up when the queue lands.
+// A minimal desk skeleton — deliberately not SkeletonPage, which assumes the
+// PageShell chrome this route group doesn't have. The push tray strip is
+// always on screen on the real desk (StagingTray.js's `.desk-tray` /
+// `.desk-tray-bar`, mirrored here rather than reinvented) — leaving it out of
+// the skeleton was the exact "loading.js looks weird" symptom Gunboat flagged
+// for this desk.
 export default function Loading() {
   return (
     <div className="desk-shell">
-      <DeskHeader
-        title="Adjudication"
-        meta={
-          <>
-            <SkeletonBar width="7rem" height={22} />
-            <SkeletonBar width="5rem" height={22} />
-            <SkeletonBar width="4rem" height={16} />
-          </>
-        }
-        actions={<SkeletonBar width="6.5rem" height={28} />}
-      />
+      <header className="desk-header">
+        <h1 className="section-title">Adjudication</h1>
+      </header>
       <div className="desk-body">
         <aside className="desk-rail" aria-hidden="true" />
         <main className="desk-main">

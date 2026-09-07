@@ -297,7 +297,7 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
 
   return (
     <Modal open title="Converse" onClose={onClose}>
-      <p className="text-sm text-muted">Speak privately with someone.</p>
+      <p className="text-sm text-muted">That room hears that someone is whispering, never who. ‡</p>
       {!rooms && <p className="text-sm text-muted">Looking for a corner…</p>}
       {rooms && !rooms.ok && <FormError>{rooms.error}</FormError>}
       {rooms?.ok && rooms.rooms.length === 0 && (
@@ -307,7 +307,7 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
         <>
           <div className="field">
             <label className="field-label" htmlFor="hall-converse-room">
-              Where?
+              Which room is this linked to? ‡
             </label>
             <Select id="hall-converse-room" value={roomId} onChange={(e) => setRoomId(e.target.value)}>
               <option value="">Pick a room…</option>

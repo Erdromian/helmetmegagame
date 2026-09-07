@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
+import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
 import useActionRunner from "@/app/components/useActionRunner";
 import MoveDialog from "./MoveDialog";
@@ -11,15 +12,56 @@ import StatusStrip from "./StatusStrip";
 import Things from "./ThingsDrawer";
 import DesiresBlock from "./DesiresBlock";
 import Yesterday from "./Yesterday";
-import { waitingOnYou, answerWaiting, myMove } from "./actions";
+import { reportToGms, waitingOnYou, answerWaiting, myMove } from "./actions";
 
 // YOU: everything about this character that is not about where they are
 // standing, in the order a player asks it — what day is it and have I moved,
 // what state is this body in, what am I owed a Desire for, my sheet, what is
-// waiting on me, and what happened yesterday.
+// waiting on me, what happened yesterday, and (last, and quiet) the door to
+// the GMs.
 //
-// The Move dialog and the sheet link are what the #turns console carries that
-// a web-only player would otherwise lose with it (HALL.md §6, decision 2).
+// The Move dialog, the sheet link and the report are the three things the
+// #turns console carries that a web-only player would otherwise lose with it
+// (HALL.md §6, decision 2).
+
+// The OOC ticket. It writes an INBOUND DirectMessage and sends nothing to
+// Discord, so it lands in the GM's conversation with this player beside
+// everything else they have said (see ./actions.js#reportToGms).
+function ReportDialog({ onClose, onDone }) {
+  const [body, setBody] = useState("");
+  const { run, pending, error } = useActionRunner();
+  return (
+    <Modal open title="Report to the GMs" onClose={onClose}>
+      <p className="text-sm text-muted">
+        Out of character. It goes to the GMs&apos; desk, and they answer you in your DMs. ‡
+      </p>
+      <div className="field">
+        <label className="field-label" htmlFor="hall-report">
+          What has happened?
+        </label>
+        <textarea id="hall-report" rows={5} value={body} maxLength={1800} onChange={(e) => setBody(e.target.value)} />
+      </div>
+      <FormError>{error}</FormError>
+      <div className="modal-actions">
+        <button
+          type="button"
+          className="btn"
+          disabled={!body.trim() || pending}
+          onClick={() =>
+            run(reportToGms, body, {
+              onOk: (res) => {
+                onDone(res);
+                onClose();
+              },
+            })
+          }
+        >
+          Send it
+        </button>
+      </div>
+    </Modal>
+  );
+}
 
 // Waiting on you: pending offers, a threat seat, a letter the bird has not
 // left with, a lobby assignment. Accept and Decline call the SAME db/lib
@@ -146,6 +188,14 @@ export default function YouPanel({
 
       <Yesterday />
 
+      {/* Last, and quiet: it is the out-of-character door, not one of the
+          day's moves. */}
+      <div className="hall-buttons mt-3">
+        <button type="button" className="btn-quiet" onClick={() => setDialog("report")}>
+          Report to the GMs
+        </button>
+      </div>
+
       {dialog === "move" && <MoveDialog onClose={() => setDialog(null)} onDone={say} />}
       {dialog === "edit" && moveState.move && (
         <MoveDialog
@@ -159,6 +209,7 @@ export default function YouPanel({
           onDone={say}
         />
       )}
+      {dialog === "report" && <ReportDialog onClose={() => setDialog(null)} onDone={say} />}
     </div>
   );
 }

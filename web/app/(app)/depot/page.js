@@ -12,7 +12,9 @@ import {
   depotPowered,
   fuelTurnsLeft,
   creditAvailableObols,
-  canOpenCrate,
+  RESOURCE_IMPORT_PRICE,
+  RESOURCE_EXPORT_PRICE,
+  RESOURCE_WARE_ID,
   CONCEALMENT_TAG_FIELDS,
   concealmentFrom,
   presentedIdentity,
@@ -53,7 +55,6 @@ const DEPOT_LEDGER_KINDS = {
   request_depot_shuttle_call: { key: "DEPOT_SHIP", label: "Shuttle" },
   request_depot_shuttle_send: { key: "DEPOT_SHIP", label: "Shuttle" },
   request_depot_atm: { key: "DEPOT_ATM", label: "Cash" },
-  request_depot_exchange: { key: "DEPOT_EXCHANGE", label: "Exchange" },
   request_depot_credit: { key: "DEPOT_CREDIT", label: "Credit line" },
   request_depot_crate_open: { key: "DEPOT_CRATE_OPEN", label: "Crate" },
   request_depot_refuel: { key: "DEPOT_REFUEL", label: "Refuel" },
@@ -75,11 +76,6 @@ function ledgerRow(entry, who) {
       return { detail: e.direction === "WITHDRAW" ? "Withdrawn as coin" : "Deposited", delta: e.direction === "WITHDRAW" ? -(e.amount ?? 0) : (e.amount ?? 0) };
     case "DEPOT_CREDIT":
       return { detail: e.direction === "DRAW" ? "Drawn on the line" : "Repaid the line", delta: e.direction === "DRAW" ? (e.amount ?? 0) : -(e.amount ?? 0) };
-    case "DEPOT_EXCHANGE":
-      return {
-        detail: e.direction === "BUY_RESOURCES" ? `Bought ${e.resources ?? 0} ⬢` : `Sold ${e.resources ?? 0} ⬢`,
-        delta: e.direction === "BUY_RESOURCES" ? -(e.obols ?? 0) : (e.obols ?? 0),
-      };
     case "DEPOT_CRATE_OPEN":
       return { detail: `${e.crateName ?? "A crate"} — ${(e.granted ?? []).map((g) => `${g.name} ×${g.quantity}`).join(", ") || "empty"}`, delta: 0 };
     case "DEPOT_REFUEL":
@@ -194,31 +190,33 @@ export default async function DepotPage() {
     tag,
   });
 
-  const wares = wareTags.map(shape);
-  const priceList = pricedTags.map((tag) => ({
-    ...shape(tag),
-    side: tag.depotPrice != null && tag.sellablePrice != null ? "Both" : tag.depotPrice != null ? "Sells to you" : "Buys from you",
-  }));
+  // ⬢ are a ware on the shuttle now, and they are not a Tag — so the row is
+  // built by hand and carries a sentinel id the order action splits back out.
+  // `synthetic` is what tells the two tables to print a name instead of a
+  // TagChip, since there is no Tag row to hover.
+  const resourceWare = {
+    id: RESOURCE_WARE_ID,
+    name: "Resources",
+    description: "",
+    groupName: "",
+    price: RESOURCE_IMPORT_PRICE,
+    sellPrice: RESOURCE_EXPORT_PRICE,
+    margin: RESOURCE_EXPORT_PRICE - RESOURCE_IMPORT_PRICE,
+    held: character?.resources ?? 0,
+    stackable: true,
+    sealed: false,
+    synthetic: true,
+    tag: null,
+  };
 
-  // Crates the reader is carrying, with their manifest already printed on the
-  // description. `canOpen` is advisory — the action re-checks the keycard.
-  const crates = (character?.tags ?? []).length
-    ? (
-        await prisma.tag.findMany({
-          where: {
-            custom: true,
-            crateContents: { not: null },
-            id: { in: [...heldByTagId.keys()] },
-          },
-        })
-      ).map((tag) => ({
-        id: tag.id,
-        name: tag.name,
-        description: tag.description ?? "",
-        sealed: tag.sealedShipping,
-        canOpen: canOpenCrate(tag, heldSlugs),
-      }))
-    : [];
+  const wares = [resourceWare, ...wareTags.map(shape)];
+  const priceList = [
+    { ...resourceWare, side: "Both" },
+    ...pricedTags.map((tag) => ({
+      ...shape(tag),
+      side: tag.depotPrice != null && tag.sellablePrice != null ? "Both" : tag.depotPrice != null ? "Sells to you" : "Buys from you",
+    })),
+  ];
 
   const fuelSources = [
     { slug: COAL_SLUG, name: "Coal", perUnit: depot.coalFuel },
@@ -247,7 +245,6 @@ export default async function DepotPage() {
     <PageShell width="wide">
       <PageHeader
         title="The Depot"
-        subtitle="A hangar door in the roof of the caves and an automated shuttle that comes through it. Everything imported into Ravenheart lands here, and leaves here as somebody's problem. ‡"
       />
       <DepotConsole
         depot={{
@@ -298,9 +295,8 @@ export default async function DepotPage() {
             tag: rt.tag,
           })),
         }}
-        crates={crates}
         heldObols={obolTag ? (heldByTagId.get(obolTag.id) ?? 0) : 0}
-        resources={character?.resources ?? 0}
+        resourceExportPrice={RESOURCE_EXPORT_PRICE}
         creditAvailable={creditAvailableObols(depot)}
         fuel={{
           turnsLeft: fuelTurnsLeft(depot),

@@ -64,12 +64,6 @@ string a sync or a lookup compares. Those are keys, not prose. A tag's `name` is
 safe, because the catalog matches on `slug`; a Zone's Discord role title is not,
 because the channel doctor matches on it.
 
-**Not on a one- or two-word label.** A button reading `Save ‡`, a column head
-reading `Places ‡`, a tab reading `Here ‡` — the mark was longer than the copy
-and there was nothing in those to rewrite. Swept out on 2026-09-07 (109 of
-them); don't put them back. Anything longer still gets one, and a short string
-with a `${…}` in it is judged on what it RENDERS to, not on the source.
-
 **Finding them.** `grep -rn "‡" docs web bot db` lists every line still waiting
 on a rewrite. That one command is the whole point of the convention.
 

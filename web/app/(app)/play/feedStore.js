@@ -294,43 +294,6 @@ export function newestSeq(place) {
   return String(best);
 }
 
-// Is this row ABOUT the viewer, rather than just near them?
-//
-// What the unread dot draws off. Two ways to qualify, and one disqualifier:
-//
-//   - it is in a conversation, which has no scenery in it; or
-//   - it carries this character's {char:…} token, which is what a mention is
-//     made of on both faces (HALL.md §5), so a Discord ping counts too;
-//   - unless they wrote it themselves, because your own words are not news.
-//
-// `place` is the placeKey, which is where the conversation test comes from —
-// the store is keyed by it and needs no place object to ask.
-//
-// The CHIME is deliberately narrower: Hall.js rings only on the mention half,
-// because a busy conversation ringing on every line is a reason to mute the
-// Hall rather than a reason to look at it. A dot is patient; a sound is not.
-export function isNotableRow(place, row, selfId) {
-  if (!selfId || !row) return false;
-  if (row.characterId === selfId) return false;
-  if (typeof place === "string" && place.startsWith("conv:")) return true;
-  return typeof row.content === "string" && row.content.includes(`{char:${selfId}}`);
-}
-
-// The newest NOTABLE seq this tab holds for a place, as a string, or null.
-// The dot compares this against the read mark, which is the newest seq
-// overall — so reading to the bottom of a place clears it however it was lit.
-export function notableSeq(place, selfId) {
-  const rows = state.confirmed.get(place);
-  if (!rows || rows.size === 0) return null;
-  let best = null;
-  for (const [key, row] of rows) {
-    if (!isNotableRow(place, row, selfId)) continue;
-    const seq = BigInt(key);
-    if (best === null || seq > best) best = seq;
-  }
-  return best === null ? null : String(best);
-}
-
 // The Hall's FIRST seed, from the server render, run inside a useState
 // initializer so the store is full before the first client paint (Hall.js
 // says why). It is the same three writes the effect repeats, with the
