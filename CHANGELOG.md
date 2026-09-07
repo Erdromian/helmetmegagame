@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · The Hall is called Chat now
+
+− The Play page's header, every line that named the Hall, and the doc that describes it (CHAT.md) all say Chat  
+− Under the hood the same rename: the components, the styles, the hook names. The keys that remember what you have seen and whether the bell is muted keep their old names, so nothing is forgotten
+
 ## 2026-09-07 · Chat fits the screen it is on
 
 − Rooms in the left column show their description when you rest the pointer on them  
