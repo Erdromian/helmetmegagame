@@ -869,13 +869,45 @@ async function depotTurretImpl({ armed }) {
   return { armed: wanted };
 }
 
-export const depotOrder = guarded(depotOrderImpl);
-export const depotCallShuttle = guarded(depotCallShuttleImpl);
-export const depotSendShuttle = guarded(depotSendShuttleImpl);
-export const openCrate = guarded(openCrateImpl);
-export const depotAtm = guarded(depotAtmImpl);
-export const depotCredit = guarded(depotCreditImpl);
-export const depotExchange = guarded(depotExchangeImpl);
-export const depotGenerator = guarded(depotGeneratorImpl);
-export const depotRefuel = guarded(depotRefuelImpl);
-export const depotTurret = guarded(depotTurretImpl);
+// guarded() RUNS a function; it is not a wrapper factory. Each export has to be
+// a real async function that calls it, or a "use server" file ends up exporting
+// ten promises and Next refuses to load the whole route.
+export async function depotOrder(input) {
+  return guarded(() => depotOrderImpl(input));
+}
+
+export async function depotCallShuttle() {
+  return guarded(() => depotCallShuttleImpl());
+}
+
+export async function depotSendShuttle() {
+  return guarded(() => depotSendShuttleImpl());
+}
+
+export async function openCrate(input) {
+  return guarded(() => openCrateImpl(input));
+}
+
+export async function depotAtm(input) {
+  return guarded(() => depotAtmImpl(input));
+}
+
+export async function depotCredit(input) {
+  return guarded(() => depotCreditImpl(input));
+}
+
+export async function depotExchange(input) {
+  return guarded(() => depotExchangeImpl(input));
+}
+
+export async function depotGenerator(input) {
+  return guarded(() => depotGeneratorImpl(input));
+}
+
+export async function depotRefuel(input) {
+  return guarded(() => depotRefuelImpl(input));
+}
+
+export async function depotTurret(input) {
+  return guarded(() => depotTurretImpl(input));
+}
