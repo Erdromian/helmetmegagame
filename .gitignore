@@ -25,3 +25,7 @@ docs/systemdocs/SECRETS.md
 # LOCAL_MODE's stubbed-Discord-write log (db/lib/localMode.js) — local dev
 # output, never real
 local-discord-outbox.jsonl
+
+# Python bytecode from scripts/copy
+__pycache__/
+*.pyc
