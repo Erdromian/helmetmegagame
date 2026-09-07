@@ -32,6 +32,7 @@ const {
   performMove,
 } = require("../lib/locationTravel");
 const { dragCandidates } = require("@lifeweb/db/lib/locationTravel");
+const { applyFear } = require("@lifeweb/db/lib/fear");
 const {
   travelOptions,
   canToggleGate,
@@ -45,10 +46,15 @@ const {
 const { reconcileNarrowcastAccess } = require("@lifeweb/db/lib/locationMove");
 const {
   syncCharacterRoomAccess,
+  recordRoomThread,
   accessibleRooms,
   roomAccessKeys,
   heldTagSlugs,
 } = require("@lifeweb/db/lib/roomAccess");
+const {
+  addConversationMember,
+  removeConversationMember,
+} = require("@lifeweb/db/lib/conversations");
 const { settleCarry, deliverCarryDrop } = require("@lifeweb/db/lib/carry");
 const { sendDm } = require("../lib/dm");
 const { buildMoveModal } = require("../lib/moveModal");
@@ -59,7 +65,6 @@ const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const { postAsCharacterTo, loadVoiceState } = require("../lib/proxy");
 const { prepareSpeech, recordSpeech } = require("@lifeweb/db/lib/say");
-const { addConversationMember, removeConversationMember } = require("@lifeweb/db/lib/conversations");
 const { resolveLaborRate, qualityWord } = require("@lifeweb/db");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
@@ -436,9 +441,15 @@ async function notifyLetIn(interaction, target, threadName, placeName, threadId)
 
 // The Room half of /add and /remove.
 //
-// Who may work the door: anyone already inside it, which — because membership
-// is pulled from standing here with a key or a guest row — is exactly the set
-// the fiction wants. A GM may always.
+// Who may work the door: anyone STANDING here who can get in — a key or a
+// guest row, plus their own feet. A GM may always.
+//
+// That used to be read off Discord thread membership, which was the same set
+// back when membership tracked presence. It no longer does (db/lib/
+// roomAccess.js, 2026-09-06): a keyholder is a member of every room their key
+// opens, everywhere on the map, so the old check had quietly become "holds a
+// key" and let somebody three zones away let a guest into a room they were
+// nowhere near. The location comparison is the thing that was always meant.
 //
 // /remove refuses a key-holder on purpose. Their key is what admits them, and
 // the next arrival or tag change would let them straight back in; taking the
@@ -452,8 +463,8 @@ async function handleRoomGuestCommand(interaction, action, room) {
 
   const gm = isGmMember(interaction);
   if (!gm) {
-    const member = await interaction.channel.members.fetch(interaction.user.id).catch(() => null);
-    if (!member) {
+    const standing = await findAliveCharacter(interaction.user.id);
+    if (!standing || !room.locationId || standing.locationId !== room.locationId) {
       await respond(interaction, "» *You're not in this room.* ‡");
       return;
     }
@@ -490,6 +501,9 @@ async function handleRoomGuestCommand(interaction, action, room) {
     }
     try {
       await removeThreadMember(room.discordThreadId, target.discordUserId);
+      // The record has to follow, or the diff in syncCharacterRoomAccess sees
+      // no disagreement and this eviction un-does itself on the next sync.
+      await recordRoomThread(prisma, target.id, room.id, false);
     } catch (err) {
       console.error(`Failed to remove ${target.discordUserId} from room ${room.id}:`, err);
       await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.* ‡");
@@ -510,10 +524,15 @@ async function handleRoomGuestCommand(interaction, action, room) {
 
   // The guest ROW above is the grant; thread membership is only Discord's copy
   // of it, and a "web only" character has no Discord copy of anything
-  // (HALL.md §6). The web feed shows them the room off the guest row regardless.
+  // (HALL.md §6). Their record is left saying "not in the thread", which is
+  // true, and the web feed shows them the room off the guest row regardless.
   if (!target.webOnly) {
     try {
       await addThreadMember(room.discordThreadId, target.discordUserId);
+      // Without this the guest is never shown out: the mover's recompute only
+      // acts where entitlement and the record DISAGREE, and an unrecorded
+      // membership agrees with "not entitled" forever. See recordRoomThread.
+      await recordRoomThread(prisma, target.id, room.id, true);
     } catch (err) {
       console.error(`Failed to add ${target.discordUserId} to room ${room.id}:`, err);
     }
@@ -1754,6 +1773,50 @@ const NOTE_GLYPHS = ["♫", "♩", "♪", "♬"];
 const PLAY_COOLDOWN_MS = 5 * 60_000;
 const lastPlayed = new Map();
 
+const PLAY_SOOTHE_AUDIT_ACTION = "fear_soothed_play";
+
+// −10 fear to every living character standing at the musician's Location, the
+// musician included. The ration is an AuditLog row per listener with turnId
+// set (REQUESTS.md §1a); /play is rate-limited to one a few minutes and a
+// room holds a dozen people at most, so the rows stay few. The band DM goes
+// out through the sender db/index.js registered.
+async function sootheListeners(musician) {
+  if (!musician.locationId) return;
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
+  if (!openTurn) return;
+  const listeners = await prisma.character.findMany({
+    where: { locationId: musician.locationId, status: "ALIVE" },
+    select: { id: true },
+  });
+  const soothedAlready = new Set(
+    (
+      await prisma.auditLog.findMany({
+        where: {
+          actionType: PLAY_SOOTHE_AUDIT_ACTION,
+          turnId: openTurn.id,
+          targetCharacterId: { in: listeners.map((c) => c.id) },
+        },
+        select: { targetCharacterId: true },
+      })
+    ).map((row) => row.targetCharacterId),
+  );
+  for (const { id } of listeners) {
+    if (soothedAlready.has(id)) continue;
+    await prisma.$transaction(async (tx) => {
+      await applyFear(tx, id, { kind: "MUSIC" });
+      await tx.auditLog.create({
+        data: {
+          actorDiscordUserId: musician.discordUserId ?? "system",
+          actionType: PLAY_SOOTHE_AUDIT_ACTION,
+          targetCharacterId: id,
+          turnId: openTurn.id,
+          details: { musicianId: musician.id, locationId: musician.locationId },
+        },
+      });
+    });
+  }
+}
+
 // Three glyphs, repeats allowed — "a random combination of 3", not three
 // distinct ones, so ♩♩♪ is a legal result.
 function noteFlourish() {
@@ -1811,6 +1874,15 @@ async function handlePlayCommand(interaction) {
     return;
   }
   lastPlayed.set(character.id, Date.now());
+
+  // A musician's playing settles everyone in earshot, once per listener per
+  // turn (docs/systemdocs/FEAR.md). Only a MUSICIAN's: a bad performance calms
+  // nobody. Wrapped, so the dial can never swallow the performance.
+  if (held(MUSICIAN_SLUG)) {
+    await sootheListeners(character).catch((err) =>
+      console.error(`/play: soothing failed for ${character.id}:`, err.message ?? err),
+    );
+  }
 
   // ...and the street outside hears it, small. Only when the room WAS a
   // thread — run on the open street, the channel above already is the

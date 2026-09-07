@@ -14,7 +14,7 @@ A character carries two loads against two caps, both live on `/gm/dev`:
 
 | Load | Counts | Base cap |
 |---|---|---|
-| Weight | `Tag.weightLbs` × quantity, over every `tradeable` tag. Three things weigh nothing: **Assets** (a horse carries itself, a house does not move), **untradeable** items (the Quickened Nerve Braid grafted into your neck), and everything that was never cargo — skills, injuries, statuses, beliefs. | `GameConfig.carryWeightLbs`, default 84 |
+| Weight | `Tag.weightLbs` × quantity, over every `tradeable` tag. Three things weigh nothing: **Assets** (a horse carries itself, a house does not move), **untradeable** items (the Quickened Nerve Braid grafted into your neck), and everything that was never cargo — skills, injuries, statuses, beliefs. | `GameConfig.carryWeightLbs`, default 71 |
 | ⬢ | `Character.resources` | `GameConfig.carryResourceCap`, default 25 |
 
 Both caps are moved by the **sum** of every **active** `Tag.carryBonus`, which
@@ -44,7 +44,7 @@ behaviour lives.
 `db/lib/carry.js` holds the math — `carryMultiplier` (the summing function kept
 its name), `carryWeight`,
 `carryCaps`, `carryHardCaps`, `carryAdmits`, `carryStatus` — with no prisma and
-no I/O, so `/character` can render "60 / 84 lb" without dragging the barrel
+no I/O, so `/character` can render "60 / 71 lb" without dragging the barrel
 into the client bundle. The cap on that row carries a `title=` breakdown: the
 base, then a signed line per active bonus.
 
@@ -109,9 +109,11 @@ by mistake, and the fix restored the old scale and then went item by item.
 Light things are light (a dagger is 1 lb, a cigarette nothing) and heavy things
 stayed heavy (plate 55, cataphract 65, a Graga corpse 75).
 
-**The base cap is 84 lb** (was 120 until 2026-09-06). A full harness (55)
-plus sword, dagger and shield (14) leaves fifteen pounds for meals and kit.
-That is the intended shape: you can do the knight thing, and not much else.
+**The base cap is 71 lb** (120 until 2026-09-06, then 84 until later the same
+day). A full harness (55) plus sword, dagger and shield (14) is 69 lb, which is
+the whole cap: you can do the knight thing and carry nothing else at all. Two
+pounds of slack is deliberate — the knight who wants to eat puts something
+down, or pulls a cart.
 
 **`{carry:slug}` in a tag description** renders the sentence Bascinet wrote,
 computed from the live caps: "You can carry 5 more item tags, and 12 ⬢." Pack
@@ -399,7 +401,7 @@ uses) or a Room here you can get into. Nothing is ever taken from another
 person through Transfer, ⬢ included: you can't reach into their pockets, and
 listing what's in them would show their hidden tags. Loot is how you take
 from a person, and only a helpless one (REQUESTS.md §5b). The projection line
-("After this you carry 60 / 84 lb and 6 / 25 ⬢") warns in accent when the
+("After this you carry 60 / 71 lb and 6 / 25 ⬢") warns in accent when the
 result is over a cap and submits anyway — going over is allowed up to the ceiling (§2).
 
 Server side, `transferRequest` in `requestActions.js` resolves both parties

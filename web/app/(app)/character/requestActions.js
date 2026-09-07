@@ -165,7 +165,7 @@ import {
   ACT,
   SPEAK,
 } from "@lifeweb/db/lib/incapacitation";
-import { ATE_MEAL_SLUG, DISAPPOINTED_SLUG } from "@lifeweb/db/lib/constants";
+import { applyFear, consumeReliefFor, woundFearFor, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/fear";
 import {
   NAME_LIMITS,
   formatCharacterName,
@@ -1628,24 +1628,14 @@ async function consumeTagRequestImpl({ tagId }) {
       quantity: 1,
     }));
 
-  // A proper meal lifts Disappointment on the spot, keyed off the ate-meal
-  // grant rather than the item eaten. Snapshotted so Undo can restore it.
-  const disappointedHeld = grantSlugs.includes(ATE_MEAL_SLUG)
-    ? character.tags.find((ct) => ct.tag.slug === DISAPPOINTED_SLUG)
-    : null;
-  const cleared = disappointedHeld
-    ? {
-        tagId: disappointedHeld.tagId,
-        tagName: disappointedHeld.tag.name,
-        source: disappointedHeld.source,
-        expiresTurn: disappointedHeld.expiresTurn,
-        quantity: 1,
-      }
-    : null;
+  // What this eases (docs/systemdocs/FEAR.md): a drink or a drug by the state
+  // it lands you in, a lavish meal, tea or a cigarette by what it is. The
+  // largest single figure, never a sum — Bliss is one drink. A fine meal
+  // feeds a noble and calms nobody, on purpose.
+  const fearRelief = consumeReliefFor(held.tag.slug, grantSlugs);
 
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, 1);
-    if (cleared) await dropCharacterTag(tx, character.id, cleared.tagId, 1);
     for (const rung of climbed) await dropCharacterTag(tx, character.id, rung.tagId, 1);
     const granted = await grantTagSlugs(
       tx,
@@ -1666,6 +1656,7 @@ async function consumeTagRequestImpl({ tagId }) {
     // db/lib/hiddenCures.js. Runs after the ordinary grants and records
     // nothing on the request, on purpose.
     await applyHiddenCures(tx, character.id, held.tag.slug);
+    if (fearRelief) await applyFear(tx, character.id, { kind: "DRINK", base: -fearRelief });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_consume_tag",
@@ -1675,7 +1666,7 @@ async function consumeTagRequestImpl({ tagId }) {
         tagName: held.tag.name,
         granted: granted.map((g) => g.tagName),
         resourcesGranted,
-        cleared: cleared?.tagName,
+        fearRelief: fearRelief || undefined,
         climbed: climbed.map((c) => c.tagName),
       },
     });
@@ -2179,6 +2170,16 @@ async function healCharacterRequestImpl({
         aftermathSlugs,
         openTurn?.number ?? null,
       );
+      // Being treated eases half of what the wound cost the nerves (FEAR.md).
+      // Only a routine cure — a gambit heal leaves the affliction on them. The
+      // held row's tag was loaded without its group, which the rung needs, so
+      // it is re-read here rather than trusted.
+      const woundTag = await tx.tag.findUnique({
+        where: { id: held.tagId },
+        select: { slug: true, requirementResources: true, requirementTurns: true, requirementGambit: true, group: { select: { slug: true } } },
+      });
+      const relief = woundFearFor(woundTag) / 2;
+      if (relief > 0) await applyFear(tx, target.id, { kind: "HEALED", base: -relief });
     }
 
     await logAudit(tx, {
@@ -2322,6 +2323,8 @@ async function lootCharacterRequestImpl({
       })),
       amount,
     };
+    // Waking up robbed is frightening; a corpse minds nothing (FEAR.md).
+    if (target.status === "ALIVE") await applyFear(tx, target.id, { kind: "ROBBED" });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_loot_character",
@@ -2658,6 +2661,8 @@ async function crucifyCharacterRequestImpl({
       expiresTurn,
       stackable: crucified.stackable,
     });
+    // The single most frightening thing that can happen to a person (FEAR.md).
+    await applyFear(tx, target.id, { kind: "CRUCIFIED" });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_crucify_character",
@@ -2998,6 +3003,8 @@ async function claimDesireImpl({
       where: { id: character.id },
       data: { tagPoints: { increment: row.points } },
     });
+    // Getting what you wanted settles the nerves, 10 a point (FEAR.md).
+    await applyFear(tx, character.id, { kind: "DESIRE", base: -DESIRE_RELIEF_PER_POINT * row.points });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_fulfill_desire",

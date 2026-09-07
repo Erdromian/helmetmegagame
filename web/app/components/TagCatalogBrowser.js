@@ -233,12 +233,14 @@ function BrowserRow({
     <li className="dev-tag-row" style={{ outline: stagedOutline(staged) }}>
       <span className="flex flex-wrap items-baseline gap-2 flex-1 min-w-0">
         {selectable && (
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={onToggleSelected}
-            aria-label={`Select ${tag.name}`}
-          />
+          <label className="check-hit">
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={onToggleSelected}
+              aria-label={`Select ${tag.name}`}
+            />
+          </label>
         )}
         <ChipLabel tag={tag} />
         <span className="text-sm" style={{ color: costColor(tag.pointCost) }}>

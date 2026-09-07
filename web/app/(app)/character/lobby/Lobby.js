@@ -65,6 +65,23 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
   const timer = useRef(null);
   const router = useRouter();
 
+  // The three useStates above are for rendering; THIS is what a handler reads
+  // and what a save sends. Reading the state instead was the mobile bug: two
+  // taps inside one render batch both saw the pre-first-tap values, so the
+  // first tap vanished from the payload — and because every payload carries
+  // all three fields, an antagonist tap right after a priority tap sent the
+  // old priorities with it.
+  const draft = useRef({
+    priorities: initial.rolePriorities ?? {},
+    antagonistOptIns: initial.antagonistOptIns ?? [],
+    joblessRole: initial.joblessRole ?? "COMMONER",
+  });
+  // Bumped by every edit, captured when a save goes out. The other half of
+  // the same bug: the server's echo used to land unconditionally, so a reply
+  // to a question the player had already moved past would quietly un-tick the
+  // box they just ticked.
+  const revision = useRef(0);
+
   // The ready count is the one live thing on the page; a refresh every half
   // minute re-renders the server component with the current number.
   useEffect(() => {
@@ -72,17 +89,40 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
     return () => clearInterval(id);
   }, [router]);
 
+  // Every change goes through here: the draft is the new truth, the three
+  // states follow it so the page repaints, and one save is queued.
+  function edit(next) {
+    draft.current = next;
+    revision.current += 1;
+    setPriorities(next.priorities);
+    setOptIns(next.antagonistOptIns);
+    setJobless(next.joblessRole);
+    queueSave();
+  }
+
   // Debounced: a player sweeping down the list fires one save, not thirty.
-  // Whatever the server normalized comes back and replaces the local copy.
-  function queueSave(next) {
+  // Whatever the server normalized comes back and replaces the local copy —
+  // it has to, because the server is the one that drops a whitelisted slug
+  // and enforces the single High. But only while the answer still fits the
+  // question: if the player has edited since this request went out, the reply
+  // is stale and the newer save already queued will bring its own.
+  function queueSave() {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
+      const sent = revision.current;
+      const payload = draft.current;
       startSaving(async () => {
         try {
-          const res = await savePreferences(next);
+          const res = await savePreferences(payload);
           if (!res?.ok) setError(res?.error ?? "Couldn't save. ‡");
           else {
             setError(null);
+            if (revision.current !== sent) return;
+            draft.current = {
+              priorities: res.saved.rolePriorities,
+              antagonistOptIns: res.saved.antagonistOptIns,
+              joblessRole: res.saved.joblessRole,
+            };
             setPriorities(res.saved.rolePriorities);
             setOptIns(res.saved.antagonistOptIns);
             setJobless(res.saved.joblessRole);
@@ -95,20 +135,17 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
   }
 
   function changeLevel(slug, level) {
-    const next = setPriority(priorities, slug, level);
-    setPriorities(next);
-    queueSave({ priorities: next, antagonistOptIns: optIns, joblessRole: jobless });
+    edit({ ...draft.current, priorities: setPriority(draft.current.priorities, slug, level) });
   }
 
   function toggleOptIn(slug) {
-    const next = optIns.includes(slug) ? optIns.filter((s) => s !== slug) : [...optIns, slug];
-    setOptIns(next);
-    queueSave({ priorities, antagonistOptIns: next, joblessRole: jobless });
+    const held = draft.current.antagonistOptIns;
+    const next = held.includes(slug) ? held.filter((s) => s !== slug) : [...held, slug];
+    edit({ ...draft.current, antagonistOptIns: next });
   }
 
   function changeJobless(value) {
-    setJobless(value);
-    queueSave({ priorities, antagonistOptIns: optIns, joblessRole: value });
+    edit({ ...draft.current, joblessRole: value });
   }
 
   function toggleReady() {

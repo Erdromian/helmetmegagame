@@ -83,6 +83,12 @@ customs:
     depot: true
 ```
 
+Two more keys feed the fear dial (`FEAR.md`): `wilderness` marks a Location
+where arriving and ending the turn cost fear (every Forest, Black Hills and
+Marshes Location except the factory, the farms and the marshes village), and
+`haven` marks a Location whose roof gives extra relief at turn close — the
+Inn, the Keep and the Sanctuary.
+
 Every key must exist in the registry in `db/lib/locationAttributes.js`, which
 is the only module that reads the column. An unknown key is reported as a sync
 **problem** rather than dropped, because a typo would otherwise be a place that

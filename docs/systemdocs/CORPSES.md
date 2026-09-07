@@ -111,13 +111,16 @@ message in a Location channel except the pinned anchor (`CHANNELS.md`). So the
 obligations here are negative, and they matter: never pin the line, and never
 record its id as an anchor. Do neither and it clears itself every Dawn.
 
+An unburied corpse also costs the living: at turn close, everyone ending the
+turn in a Location that still holds a rotten body takes +5 fear (`FEAR.md`).
+
 ## 6. Butcher
 
 A new button, gated on the `butcher` tag (now a Mercenary starting tag).
 **Free — no ⬢, no Move — and it consumes the body.**
 
-The tag pays twice: it also carries `laborBonus: { kind: hunting, amount: 2 }`,
-so a Butcher hunting produces +2 ⬢. That bonus used to apply to every kind of
+The tag pays twice: it also carries `laborBonus: { kind: hunting, amount: 1 }`,
+so a Butcher hunting produces +1 ⬢. That bonus used to apply to every kind of
 laboring except farming and was hardcoded in `db/lib/laborAccess.js`; it is
 hunting-only now and lives in `docs/tags.yaml` like every other tool
 (`LABORING.md` §5). It needs no equipping — it is a skill, not a kit.

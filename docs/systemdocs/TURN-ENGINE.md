@@ -175,8 +175,7 @@ each arrived at by getting them wrong first.
    countdown clock is `catatonicSinceTurn`, not `lastActivityTurn`, so a GM
    moving `catatonicTurns` mid-game doesn't move anyone's execution date; a
    GM hand-grant with no stamp never counts down at all. Players one close
-   from death get a warning DM (`warnings`), same posture as the
-   Disappointed track's.
+   from death get a warning DM (`warnings`).
 7c. **Bird pass** (`db/lib/birdPass.js`) — the delayed half of the Bird
    (`BIRD.md`). A letter whose zone guess missed, or whose recipient was
    already dead, resolved into nothing when it was sent; this is what finally
@@ -202,10 +201,17 @@ each arrived at by getting them wrong first.
    `settleCarry` for every ALIVE character holding a tradeable tag,
    Overburdened, or more ⬢ than the base cap — one transaction each — and the
    overflow drops ride back for the thunk (`CARRY.md` §3).
-8c. **Phobia pass** (`db/lib/phobiaPass.js`) — right after the carry pass, as
-   the turn-close safety net for Claustrophobia/Acrophobia moods that
-   `settlePhobias` didn't already settle on a Move this turn (`TAGS.md`).
-   Audit action `phobias_resolved`.
+8c. **Fear pass** (`db/lib/fearPass.js`, `"fear"` in `TURN_PASSES`) — the
+   nightly settle for the hidden fear dial (`FEAR.md`). Slotted after hunger,
+   so it sees the final Hunger streak, and after carry, so it sees the final
+   sheet; before travel arrival, so a traveller pays the night for the
+   Location they set out from rather than the one they haven't reached yet.
+   It applies the turn's flat gains and reliefs to `Character.fear`, settles
+   the one status tag the band produces (`db/lib/fear.js#settleFearTag`,
+   `source: TagSource.CONDITION`, same convention the old phobia system used),
+   and deletes each character's `dined` marker so a fresh turn starts
+   unmarked. Audit action `fear_resolved`; its DMs ride the `tagExpiryDms`
+   channel back on the thunk.
 8d. **Travel arrival pass** (`db/lib/travelArrivalPass.js`, `"travelArrival"`
    in `TURN_PASSES`) — everyone who spent their Move crossing a zone last turn
    finally lands (`MAP.md` §3). **Last of the passes**, and the slot is
@@ -434,28 +440,18 @@ One summary `hunger_resolved` audit row per turn, not one per character: at
 
 Full writeup: `REQUESTS.md` §4.
 
-### 5a. Nobility upkeep (Disappointed)
+### 5a. Nobility upkeep
 
-The same pass runs a parallel track for characters holding `nobility`: each
-turn close **without** the `ate-meal` shield ticks `Character.missedMealStreak`
-up — paying the 1 ⬢ upkeep is commoner food and does not count. At
-**3 missed days** (`DISAPPOINTMENT_THRESHOLD` in `db/lib/hungerPass.js`) the
-pass grants `disappointed`: a flat **−1 to Gambits**
-(`db/lib/gambitModifier.js`), no expiry. A warning DM goes out at 2 missed
-days, one more DM when the tag lands, and nothing in between.
+The Disappointed track is gone — no separate tag, no streak counter driving
+it. A noble who ends the turn without the `dined` marker (no fine or lavish
+meal that turn) instead takes +10 fear at the fear pass (8c, `FEAR.md`), the
+same as any other fear gain. Hungerless and Dying nobles are exempt.
 
-Unlike the hunger streak there is no slow climb back down: **one Fine or
-Lavish Meal settles the whole count.** Consuming anything that becomes
-`ate-meal` clears the tag **on the spot** and the pass resets the count to 0
-at the next close (`web/app/(app)/character/requestActions.js`; the pass's
-shielded-branch delete is only the backstop for meals a GM granted directly).
-Undoing the CONSUME_TAG request puts the Disappointment back off the
-`cleared` snapshot on the request effect.
-
-Hungerless and Dying nobles are exempt — a hungerless noble's count freezes
-where it is. The player-facing tracker is the **Dinner row** on the sheet's
-Status panel (`web/app/components/StatusPanel.js`), which counts missed days
-against the threshold and flips to a Condition row once the tag lands.
+`Character.missedMealStreak` is an orphan column now — nothing writes or
+reads it any more, same as `GameConfig.mindlinkChannelId`. The player-facing
+tracker is the **Dinner row** on the sheet's Status panel
+(`web/app/components/StatusPanel.js`), which now just reads the `dined`
+marker.
 
 ## 6. Auto-labor
 

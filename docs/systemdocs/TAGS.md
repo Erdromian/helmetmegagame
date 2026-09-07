@@ -158,7 +158,7 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
   gates on from `docs/desires.yaml` (Mad Doctor, Esoteric, Adventurer, Cruel,
   Charitable, Death Wish, Schemer, Superstitious, Desperate, Hypochondriac,
   Hot-Headed, Corrupt). A tag that never touches Desires has no quarrel with
-  it: Lazy, Insomniac, Guilt Ridden, Torturer, the four phobias, Debtor, Poor
+  it: Lazy, Insomniac, Guilt Ridden, Torturer, the five phobias, Debtor, Poor
   Swimmer, Motion Sickness and Lightweight all sit beside Depressed quite
   happily. **Adding a Personality tag? It belongs on Depressed's list only if
   it locks or opens Desires** — that test, not a frozen enumeration.
@@ -498,18 +498,22 @@ Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
 
 **The Personality batch of 2026-09-05 sits partly off-band too, again
 Bascinet's call rather than a new scale.** Poor Swimmer is −1 (below the −2
-band, alongside Leper). Acrophobia, Claustrophobia and Guilt Ridden are each
+band, alongside Leper). Claustrophobia and Guilt Ridden are each
 −3 (between −2 and −5). Motion Sickness, Insomniac and Lazy are each −4
 (also between −2 and −5). Pyrophobia and Teratophobia sit on-scale at the
-ordinary −2 band.
+ordinary −2 band. Hemophobia and Agoraphobia (2026-09-06) are −4 each,
+Bascinet's call, the same off-band spot as Motion Sickness and Insomniac.
 
 **The Tag Redo batch of 2026-09-05 moved a lot of the catalog off-band, and
 that is Bascinet's call rather than a new scale.** Fourteen tags now sit
 between bands: Adventurer 3, Dagger 3, Death Wish 3, Knuckle Duster 3,
-Pickpocket 3, Skeleton Wedge 3 and Nine Lives 3 (between 2 and 5); Brave 4,
-Escape Artist 4, Esoteric 4, Lockpicking 4, Pavise 4 and Camouflage 4 (also
-between 2 and 5); Light Sleeper and Old Blood at 1 (below the 2 band, alongside
-Pilgrim and Instrument). Don't read a pattern into any of them.
+Pickpocket 3, Skeleton Wedge 3 and Nine Lives 3 (between 2 and 5); Brave was 4 here too, but the fear-dial batch of
+2026-09-06 moved it to 5 (repriced for its new ×0.5 relief on every fear
+gain, FEAR.md) — it sits on the ordinary 5 band now, so drop it from this
+off-band list. Escape Artist 4, Esoteric 4, Lockpicking 4, Pavise 4 and
+Camouflage 4 (also between 2 and 5); Light Sleeper and Old Blood at 1 (below
+the 2 band, alongside Pilgrim and Instrument). Don't read a pattern into any
+of them.
 
 **The combat and traits batch of 2026-09-06 adds seven more off-band calls,
 again Bascinet's rather than a new scale.** Steady is 1 (below the 2 band,
@@ -1176,6 +1180,11 @@ presence of a `requirement:` block (§5, `isHealable`). A rung priced
 carelessly can still be wrong twice, on both surfaces — just remember they're
 two different flags now, not one inference.
 
+The ladder is read a third time by the fear dial: a new wound's rung decides
+how much it frightens the character who takes it, `db/lib/fear.js` reading the
+same rungs as the table above (FEAR.md). Pricing a rung carelessly is now
+wrong three ways, not two.
+
 **Remove/Destroy no longer cures anything.** Before `healable` existed, the
 old Remove Tag door doubled as a rough cure for some conditions — stripping a
 tag off yourself with no medic involved. `removable` and `healable` are
@@ -1644,10 +1653,10 @@ at all.
 The Personality batch of 2026-09-05 added a second wave of scripted
 drawbacks, each with its own writer:
 
-- **Claustrophobia and Acrophobia** sustain a mood (Afraid or Panic) for as
-  long as the character stands somewhere that triggers them —
-  `db/lib/phobias.js` (the rule table) and `db/lib/phobiaPass.js` (the
-  turn-close safety net). See "Phobias" below.
+- **Claustrophobia, Hemophobia, Agoraphobia, Pyrophobia and Teratophobia**
+  each multiply one kind of fear gain rather than sustaining a mood of their
+  own — `db/lib/fear.js` (the multiplier table) and `db/lib/fearPass.js` (the
+  nightly turn pass). See `FEAR.md`.
 - **Guilt Ridden and Insomniac** each carry a nightly chance of waking
   Exhausted — `db/lib/dawnAfflictionPass.js`, run right after the hunger pass.
 - **Lazy** takes a quarter off a labor roll's yield, after the roll —
@@ -1666,32 +1675,9 @@ drawbacks, each with its own writer:
 
 ## Phobias
 
-A phobia doesn't act on its own — it sustains a mood tag (`afraid` or
-`panic`) for as long as the character stands somewhere that triggers it. The
-rule table is `PHOBIA_RULES` in `db/lib/phobias.js`: one row per phobia slug,
-reading only the character's current location and zone and returning the
-mood it wants, or `null`. Today that's Claustrophobia (wants Afraid in any
-`CAVE_LEVEL` zone) and Acrophobia (wants Afraid in the Black Hills, Panic at
-the Mountain location specifically).
-
-`settlePhobias` runs on every Move (`db/lib/locationMove.js`), and
-`runPhobiaPass` sweeps everyone else at turn close, right after the carry
-pass, as a safety net for a phobia granted mid-turn or a zone that changed
-under someone without a Move.
-
-A phobia-owned mood row is the one with `source: TagSource.CONDITION` — a
-dedicated `TagSource`, so a GM grant (even a "never expires" one) can
-never be mistaken for the phobia's own row. Every other grant of Afraid or
-Panic — a GM grant, timed or not, a consume — is a person's row, and
-`settlePhobias` leaves it entirely alone rather than rewriting its expiry: it
-just lets the sweep remove it when it expires and puts its own `CONDITION`
-row in on the next settle. A character who isn't ALIVE (dead, Catatonic)
-wants nothing, so this is also what clears a leftover `CONDITION` row off a
-corpse. `afraid` itself is now a 1-turn default duration (down from 2), since
-a phobia keeps refreshing it anyway for as long as it applies.
-
-**Adding a phobia** is one more row in `PHOBIA_RULES` — nothing else in
-either file needs to change.
+A phobia is no longer its own system. It's a multiplier on one kind of fear
+gain in the hidden fear dial — see `FEAR.md` for the dial, the five mood
+bands it produces, and the full multiplier table.
 
 ## `equippable` / `concealsIdentity`
 

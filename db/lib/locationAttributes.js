@@ -25,6 +25,9 @@
 const GODFLESH_ATTRIBUTE = "godflesh";
 const REFINERY_ATTRIBUTE = "refinery";
 const SAFE_ATTRIBUTE = "safe";
+// The two the fear dial reads (db/lib/fear.js#placeClassOf).
+const WILDERNESS_ATTRIBUTE = "wilderness";
+const HAVEN_ATTRIBUTE = "haven";
 
 // key -> { describe(value, ctx) -> string|null }
 //
@@ -67,6 +70,21 @@ const ATTRIBUTES = {
   // a player choosing where to camp should be able to read the answer.
   safe: {
     describe: () => "**Safe**: the Caving Die doesn't roll here. Nothing underground stalks this place. ‡",
+  },
+
+  // Open country: nobody lives here, and a night in it wears on you
+  // (docs/systemdocs/FEAR.md). Worn by every Location in the Forest, the Black
+  // Hills and the Marshes that is not a settled place — the Factory, the Farms
+  // and the marsh Village are the exceptions. Walking in costs a little fear,
+  // ending the turn here costs more, and Rough Camper / Outsider soften it.
+  wilderness: {
+    describe: () => "**Wilderness**: nobody lives out here, and a night in it wears on you. ‡",
+  },
+
+  // A place that settles a person more than any roof does: the Inn, the Keep,
+  // the Sanctuary. The best turn-end relief the dial has.
+  haven: {
+    describe: () => "**Haven**: a night here settles the nerves like nowhere else. ‡",
   },
 
   // A public board somebody can pin a paper to. What the Noticeboard button on
@@ -236,6 +254,8 @@ module.exports = {
   GODFLESH_ATTRIBUTE,
   REFINERY_ATTRIBUTE,
   SAFE_ATTRIBUTE,
+  WILDERNESS_ATTRIBUTE,
+  HAVEN_ATTRIBUTE,
   depotLines,
   structureLines,
   ATTRIBUTES,

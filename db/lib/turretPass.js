@@ -32,6 +32,8 @@ const { expiryFrom } = require("./turnFormat");
 // drift on what it means — the corpse, the archive row, the unequip, the voided
 // offers. Required by path: it is deliberately off the barrel.
 const { applyDeathToRow } = require("./characterDeath");
+const { applyFear } = require("./fear");
+const { addToStack } = require("./tagWrites");
 
 // Everything a shot needs off a character. Shared because the sweep and the
 // arrival roll must judge the same sheet — `equipped` plus ARMOR_TAG_FIELDS is
@@ -105,6 +107,13 @@ async function applyTurretShot(prisma, shot, turn, { deathContent }) {
     return { kind: claimed ? "dead" : "graze", discordUserId: character.discordUserId };
   }
 
+  // Being shot at and living is frightening whatever landed (FEAR.md) — a
+  // graze is still a machinegun going off at you. Wrapped: the gun must fire
+  // whether or not the dial moves.
+  await applyFear(prisma, character.id, { kind: "TURRET" }).catch((err) =>
+    console.error(`Turret fear failed for ${character.id}:`, err.message ?? err),
+  );
+
   if (!tagSlug) return { kind: "graze", discordUserId: character.discordUserId };
 
   const tag = await prisma.tag.findUnique({
@@ -122,12 +131,10 @@ async function applyTurretShot(prisma, shot, turn, { deathContent }) {
     : null;
 
   // The wound ladder is non-stackable, so a second bullet on the same turn does
-  // not become "Deep Wound x2" — the existing row stands.
-  await prisma.characterTag.upsert({
-    where: { characterId_tagId: { characterId: character.id, tagId: tag.id } },
-    update: {},
-    create: { characterId: character.id, tagId: tag.id, source: "EVENT", expiresTurn },
-  });
+  // not become "Deep Wound x2" — the existing row stands. addToStack is the
+  // shared creator, and it is what charges the wound's fear (FEAR.md) when, and
+  // only when, the row is new.
+  await addToStack(prisma, character.id, tag.id, 1, { source: "EVENT", expiresTurn, stackable: false });
 
   return { kind: "hit", severity, wound: tag.name, discordUserId: character.discordUserId };
 }

@@ -1128,6 +1128,7 @@ zones:
               - Depot Keycard
               - Silencer
               - Obol x20
+              - Nobility
             doc_elements:
               - godking
               - squeeze
@@ -1196,6 +1197,8 @@ zones:
               - Buckler
               - Mail Coif
               - Shortbow
+              - Rough Camper
+              - Spelunker
             doc_elements: [caving]
   - name: Marshes
     factions:
@@ -1328,6 +1331,7 @@ zones:
               - Laboring (Skilled)
               - Laboring (Fishing)
               - Fisherman's Key
+              - Rough Camper
             doc_elements:
               - godardfactory
 
@@ -1389,6 +1393,9 @@ zones:
               - Strong
               - Tactician
               - Cruel
+              - Rough Camper
+              - Outsider
+              - Brave
             doc_elements:
               - godking
               - ravenhearteconomy
@@ -1428,6 +1435,8 @@ zones:
               - Supply Kit
               - Military Autoinjector x2
               - Tough
+              - Rough Camper
+              - Outsider
             doc_elements:
               - godking
               - ravenhearteconomy
@@ -1472,6 +1481,8 @@ zones:
               - Buckler
               - Crossbow
               - Plebeian Hood
+              - Rough Camper
+              - Outsider
             doc_elements:
               - concealing
           brigand:
@@ -1507,5 +1518,7 @@ zones:
               - Buckler
               - Shortbow
               - Plebeian Hood
+              - Rough Camper
+              - Outsider
             doc_elements:
               - concealing

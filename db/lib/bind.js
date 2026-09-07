@@ -10,6 +10,7 @@
 // Takes `prisma` as the first parameter and is NOT on the barrel; require it
 // by path.
 const { addToStack } = require("./tagWrites");
+const { applyFear } = require("./fear");
 const { expiryForGrant } = require("./grantExpiry");
 const { isHere, notHereMessage } = require("./presence");
 const { offerButtonRow } = require("./offerRow");
@@ -60,6 +61,9 @@ async function applyBind(prisma, { actor, target, turn, offerId = null }) {
   };
   await prisma.$transaction(async (tx) => {
     await addToStack(tx, target.id, bound.id, 1, { source: "EVENT", expiresTurn, stackable: bound.stackable });
+    // Being tied up is frightening, consented to or not (FEAR.md); every night
+    // still bound costs more, in db/lib/fearPass.js.
+    await applyFear(tx, target.id, { kind: "BOUND" });
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: actor.discordUserId ?? "system",

@@ -761,6 +761,10 @@ export default async function CharacterPage({ searchParams }) {
       };
     }),
   };
+  // The fear dial is hidden from players by design (docs/systemdocs/FEAR.md):
+  // they see the band tag, never the number. The sheet is handed to client
+  // components, so the column must not ride along in the payload.
+  delete sheetCharacter.fear;
   // Compared against the in-game DAY (birdTurnId stores the day), not the
   // turn. Advisory only — the server's conditional claim is the real gate.
   const birdSentToday =

@@ -340,7 +340,7 @@ tags:
     psychological: true
     category: general
     group: general-personality
-    description: "You are a person of noble breeding, accustomed to comfort in all aspects. You must eat a {tag:fine-meal} or better each day, or you wake up {tag:disappointed}. You can't take 1 point Desires, or any Desire related to something below your station."
+    description: "You are a person of noble breeding, accustomed to comfort in all aspects. You'll get stressed if you don't regularly eat good meals. You can't take 1 point Desires, or any Desire related to something below your station. ‡"
     pointCost: -2
     requiredTag: courtier
     purchasable: false
@@ -506,6 +506,34 @@ tags:
     # Not removable: you cannot un-know where a place is, and Destroying it
     # would have locked a Brigand out of their own faction's home for good —
     # untradeable means nobody could hand them another.
+    removable: false
+
+  sewer:
+    catalog: all
+    name: Sewer
+    category: general
+    group: general-location
+    description: "You know the location of the sewers."
+    pointCost: 0
+    tradeable: false
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  underquarter-basements:
+    catalog: all
+    name: Underquarter Basements
+    category: general
+    group: general-location
+    description: "You know about the knocked-through basements under the Underquarter, and the way into them through the sewers. ‡"
+    pointCost: 0
+    tradeable: false
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
     removable: false
 
   # Moved out of general-court (2026-08-31, Desires rework) — anyone can be
@@ -997,13 +1025,38 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # The outdoors family (docs/systemdocs/FEAR.md). Rough Camper halves what
+  # the wilderness and the caves do to the nerves; Outsider and Spelunker,
+  # gated behind it, each cancel one of the two outright.
   rough-camper:
     catalog: all
     name: Rough Camper
     category: general
     group: general-traits
-    description: "No shelter, no problem. The hardest camp doesn't bother you."
+    description: "Not being inside doesn't bother you nearly as much as it bothers others. ‡"
     pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  outsider:
+    catalog: all
+    name: Outsider
+    category: general
+    group: general-traits
+    requiredTag: rough-camper
+    description: "Being in the wilderness doesn't bother you at all. ‡"
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  spelunker:
+    catalog: all
+    name: Spelunker
+    category: general
+    group: general-traits
+    requiredTag: rough-camper
+    description: "Being in the caves doesn't bother you at all. ‡"
+    pointCost: 1
     purchasable: true
     purchasableAfterStart: true
 
@@ -1022,8 +1075,8 @@ tags:
     name: Brave
     category: general
     group: general-traits
-    description: "Fearlessness isn't a choice. It's the natural state of your mind. It takes a lot to become {tag:afraid}, and even more to {tag:panic}."
-    pointCost: 4
+    description: "Fearlessness isn't a choice. It's the natural state of your mind. Everything frightens you half as much. ‡"
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: false
 
@@ -1464,7 +1517,7 @@ tags:
     name: Pale
     category: general
     group: general-traits
-    description: "Your skin is pale as milk, marking you as a recent migrant from the Caves."
+    description: "You're from the caves, and you're used to their darkness. ‡"
     pointCost: 0
     visible: true
     # Role-granted only (the Migrant's starting tag). Closed to the point-buy
@@ -1583,34 +1636,46 @@ tags:
     name: Pyrophobia
     category: general
     group: general-personality
-    description: "You possess an intense fear of uncontrolled fire. Significant flames may make you {tag:afraid}, while being trapped near or within them may cause {tag:panic}."
+    description: "You possess an intense fear of uncontrolled fire. ‡"
     pointCost: -2
     visible: false
     purchasable: true
     purchasableAfterStart: false
     removable: false
 
-  # Scripted: Afraid anywhere in the Black Hills, Panic at the Mountain.
-  # db/lib/phobias.js.
-  acrophobia:
+  # The phobias each sharpen one kind of fear (docs/systemdocs/FEAR.md):
+  # Claustrophobia doubles the caves, Agoraphobia the wilderness, Hemophobia
+  # any wound, Teratophobia triples a bad Caving Die, Pyrophobia triples a burn.
+  hemophobia:
     catalog: all
-    name: Acrophobia
+    name: Hemophobia
     category: general
     group: general-personality
-    description: "You possess an intense fear of heights. Significant drops may make you {tag:afraid}, while precarious ledges or rooftops may cause {tag:panic}."
-    pointCost: -3
+    description: "Blood, especially your own blood, makes you dizzy… ‡"
+    pointCost: -4
     visible: false
     purchasable: true
     purchasableAfterStart: false
     removable: false
 
-  # Scripted: Afraid the whole time you are in the caves. db/lib/phobias.js.
+  agoraphobia:
+    catalog: all
+    name: Agoraphobia
+    category: general
+    group: general-personality
+    description: "Being outside makes you uncomfortable. ‡"
+    pointCost: -4
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
   claustrophobia:
     catalog: all
     name: Claustrophobia
     category: general
     group: general-personality
-    description: "You possess an intense fear of enclosed spaces. Tight tunnels or sealed rooms may make you {tag:afraid}, while becoming trapped within one may cause {tag:panic}."
+    description: "You possess an intense fear of enclosed spaces. ‡"
     pointCost: -3
     visible: false
     purchasable: true
@@ -1622,7 +1687,7 @@ tags:
     name: Teratophobia
     category: general
     group: general-personality
-    description: "You possess an intense fear of monsters and unnatural creatures. Seeing one may make you {tag:afraid}, while being threatened or cornered by one may cause {tag:panic}."
+    description: "You possess an intense fear of monsters and unnatural creatures. ‡"
     pointCost: -2
     visible: false
     purchasable: true
@@ -2351,8 +2416,8 @@ tags:
     name: Butcher
     category: skills
     teachable: true
-    description: "You can butcher monster and human corpses. Additionally, Hunting laboring yields +2 ⬢. ‡"
-    laborBonus: { kind: hunting, amount: 2, equipped: false }
+    description: "You can butcher monster and human corpses. Additionally, Hunting laboring yields +1 ⬢. ‡"
+    laborBonus: { kind: hunting, amount: 1, equipped: false }
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -2866,6 +2931,22 @@ tags:
     pointCost: 0
     purchasable: false
 
+  # "Ate a fine or lavish meal this turn" — what a noble needs to sleep easy
+  # (docs/systemdocs/FEAR.md). No durationTurns on purpose: a 1-turn grant
+  # would be swept before the fear pass reads it, so that pass eats it itself,
+  # the way the hunger pass eats Ate Meal.
+  dined:
+    catalog: gm
+    name: Dined
+    category: status
+    group: status-food
+    description: "You've eaten properly today. ‡"
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
   hungry:
     catalog: gm
     name: Hungry
@@ -2877,21 +2958,6 @@ tags:
     purchasableAfterStart: false
     removable: false
     durationTurns: 1
-
-  # Nobility upkeep: granted at turn close by db/lib/hungerPass.js to any
-  # noble who didn't eat a Fine/Lavish Meal that turn, cleared the moment
-  # they consume one (anything that consumesInto ate-meal).
-  disappointed:
-    catalog: gm
-    name: Disappointed
-    category: status
-    group: status-debuffs
-    description: "You're not energized. You're worse at everything you do and come off as a mope. −1 to the die on all Gambits. A {tag:fine-meal} or better will fix it."
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: false
 
   catatonic-afk:
     catalog: gm
@@ -3223,37 +3289,72 @@ tags:
     removable: false
     durationTurns: 2
 
-  # The two fear states, granted by a GM. Can be applied by Demoness. Also
-  # granted automatically by presence for Claustrophobia (the caves) and
-  # Acrophobia (the Black Hills, or Panic at the Mountain) — db/lib/phobias.js.
-  # Those derived rows carry `source: CONDITION` — that's what tells a
-  # phobia-driven grant from a GM-granted one apart, not the expiry.
+  # The five fear bands (docs/systemdocs/FEAR.md), lowest to highest. A
+  # character wears at most one, projected from their hidden fear dial by
+  # db/lib/fear.js#settleFearTag — those rows carry `source: CONDITION`, which
+  # is what tells the dial's row from a GM's hand grant of the same slug. No
+  # durationTurns: the settle owns their lifetime. Afraid and Panic are the
+  # two that touch the dice (db/lib/gambitModifier.js).
+
+  uncomfortable:
+    catalog: gm
+    name: Uncomfortable
+    category: status
+    group: status-debuffs
+    description: "You're uncomfortable. Wait for it to pass. ‡"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  stressed:
+    catalog: gm
+    name: Stressed
+    category: status
+    group: status-debuffs
+    description: "You're stressed. Have a drink or eat a nice meal. ‡"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  anxious:
+    catalog: gm
+    name: Anxious
+    category: status
+    group: status-debuffs
+    description: "You're anxious. Get away from whatever's happening. ‡"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
 
   afraid:
     catalog: gm
     name: Afraid
     category: status
     group: status-debuffs
-    description: "You're really afraid. This is a bad idea…"
+    description: "You're afraid. -1 to all Gambits. ‡"
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: false
-    durationTurns: 1
 
   panic:
     catalog: gm
     name: Panic
     category: status
     group: status-debuffs
-    description: "You can no longer fight. Run for your fucking life!"
+    description: "You're panicking. -2 to all Gambits. ‡"
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: false
-    durationTurns: 1
 
   # For Disabler
   disabled-slowed:
@@ -5691,7 +5792,7 @@ tags:
     onlyRoles: [commoner]
     conflictsWith: [commoner-fisherman, commoner-farmer]
     group: items-gear
-    description: "Everything a hunter owns, and the habit of reading a treeline. Unpacks into {tag:laboring-hunting}, {tag:forester} and a {tag:shortbow}. ‡"
+    description: "Everything a hunter owns, and the habit of reading a treeline. Unpacks into {tag:laboring-hunting}, {tag:forester}, {tag:rough-camper} and a {tag:shortbow}. ‡"
     pointCost: 2
     tradeable: true
     weight: 2
@@ -5701,6 +5802,7 @@ tags:
     consumesInto:
       - laboring-hunting
       - forester
+      - rough-camper
       - shortbow
 
   # --- Courtier kits ------------------------------------------------------
@@ -6020,7 +6122,7 @@ tags:
     name: Sewer Key
     category: items
     group: items-keys
-    description: "A key to the Underquarter's sewers. ‡"
+    description: "Opens the culvert grating on the riverbank, which is the way into the Underquarter through its sewers. ‡"
     pointCost: 0
     tradeable: true
     weight: 0
@@ -6540,9 +6642,9 @@ tags:
     name: Trapping Gear
     category: items
     group: items-gear
-    description: "A set of gear to trap small animals with. Hunting produces +3 ⬢ when equipped. ‡"
+    description: "A set of gear to trap small animals with. Hunting produces +1 ⬢ when equipped. ‡"
     pointCost: 5
-    laborBonus: { kind: hunting, amount: 3 }
+    laborBonus: { kind: hunting, amount: 1 }
     equippable: true
     tradeable: true
     weight: 10
@@ -6710,8 +6812,8 @@ tags:
     name: Shortbow
     category: items
     group: items-weapons
-    description: "A small, quiet bow. It's fast to draw, but it won't do much against someone wearing armor. Hunting produces +2 ⬢ when equipped. ‡"
-    laborBonus: { kind: hunting, amount: 2 }
+    description: "A small, quiet bow. It's fast to draw, but it won't do much against someone wearing armor. Hunting produces +1 ⬢ when equipped. ‡"
+    laborBonus: { kind: hunting, amount: 1 }
     pointCost: 2
     equippable: true
     tradeable: true
@@ -6861,8 +6963,8 @@ tags:
     name: Longbow
     category: items
     group: items-weapons
-    description: "A bow as tall as the person drawing it. It takes a strong archer to use well, but at full draw it can crack armor. Hunting produces +3 ⬢ when equipped. ‡"
-    laborBonus: { kind: hunting, amount: 3 }
+    description: "A bow as tall as the person drawing it. It takes a strong archer to use well, but at full draw it can crack armor. Hunting produces +1 ⬢ when equipped. ‡"
+    laborBonus: { kind: hunting, amount: 1 }
     pointCost: 5
     requiredTag: ranged-basic
     equippable: true
@@ -7214,8 +7316,8 @@ tags:
     name: Crossbow
     category: items
     group: items-weapons
-    description: "Bruises plate, punctures almost everything else. It's easy to point — while using it, your ranged skill counts as 1 tier higher. Hunting produces +3 ⬢ when equipped. ‡"
-    laborBonus: { kind: hunting, amount: 3 }
+    description: "Bruises plate, punctures almost everything else. It's easy to point — while using it, your ranged skill counts as 1 tier higher. Hunting produces +1 ⬢ when equipped. ‡"
+    laborBonus: { kind: hunting, amount: 1 }
     pointCost: 9
     requiredTag: ranged-basic
     equippable: true
@@ -7409,6 +7511,7 @@ tags:
     consumable: true
     consumesInto:
       - ate-meal
+      - dined
     requirement:
       resourceCost: 2
       skills: [cooking-basic]
@@ -7431,6 +7534,7 @@ tags:
     consumable: true
     consumesInto:
       - ate-meal
+      - dined
     requirement:
       resourceCost: 3
       skills: [cooking-skilled]

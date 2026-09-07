@@ -226,6 +226,21 @@ export default function IdentityTab({ staged, lastNameLocked, factions, location
               className={touched("tagPoints")}
             />
           </label>
+          <label className="field">
+            <span className="field-label flex items-center gap-1.5">
+              Fear ‡
+              <InfoIcon text="Hidden from the player. 0 to 100. The band it lands in sets one status tag: Uncomfortable from 10, Stressed from 28, Anxious from 46, Afraid from 64, Panic from 82. ‡" />
+            </span>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              value={staged.fear ?? 0}
+              onChange={(e) => onField("fear", Number(e.target.value))}
+              className={touched("fear")}
+            />
+          </label>
         </div>
       </section>
 

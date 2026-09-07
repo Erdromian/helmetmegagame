@@ -1,9 +1,7 @@
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
-import { DISAPPOINTMENT_THRESHOLD } from "@lifeweb/db/lib/hungerPass";
 import {
-  ATE_MEAL_SLUG,
   CATATONIC_SLUG,
-  DISAPPOINTED_SLUG,
+  DINED_SLUG,
   NOBILITY_SLUG,
   TRUMPET_SLUG,
 } from "@lifeweb/db/lib/constants";
@@ -176,19 +174,13 @@ export default function StatusPanel({
   // Held, not equipped: you pick a trumpet up to blow it.
   const hasTrumpet = character.tags?.some((ct) => (ct?.tag?.slug ?? ct?.slug) === TRUMPET_SLUG);
 
-  // The Nobility dinner tracker. Same reasoning as the Catatonic row: the
-  // disappointed tag is granted by a turn pass (db/lib/hungerPass.js) and
-  // cleared by eating, so the sheet explains the state rather than leaving a
-  // grey chip to be puzzled out — and for a noble who is NOT yet Disappointed
-  // it answers the question the tag can't: "how long until it lands?"
-  // missedMealStreak counts turn closes without a Fine/Lavish Meal, same
-  // authorship rule as hungerStreak above.
+  // The Nobility dinner row. A noble who ends the turn without a fine or
+  // lavish meal takes fear at the close (docs/systemdocs/FEAR.md); the hidden
+  // `dined` marker a meal grants is what the fear pass reads, so the sheet
+  // answers the one question the marker can't be seen to: "have I eaten?"
   const heldSlugs = new Set((character.tags ?? []).map((ct) => ct?.tag?.slug ?? ct?.slug));
   const noble = heldSlugs.has(NOBILITY_SLUG);
-  const disappointed = heldSlugs.has(DISAPPOINTED_SLUG);
-  const ateMeal = heldSlugs.has(ATE_MEAL_SLUG);
-  const missedMeals = character.missedMealStreak ?? 0;
-  const missesLeft = DISAPPOINTMENT_THRESHOLD - missedMeals;
+  const dined = heldSlugs.has(DINED_SLUG);
 
   return (
     <>
@@ -213,22 +205,10 @@ export default function StatusPanel({
             </Row>
           )}
 
-          {disappointed && (
-            <Row label="Condition">
-              <span className="text-muted">Disappointed — a fine meal will fix it.</span>
-            </Row>
-          )}
-
-          {noble && !disappointed && (
+          {noble && (
             <Row label="Dinner">
               <span className="text-muted">
-                {ateMeal
-                  ? "Seen to."
-                  : missesLeft <= 1
-                    ? `${missedMeals === 1 ? "A day" : `${missedMeals} days`} without a fine meal — Disappointed at turn's end.`
-                    : missedMeals === 0
-                      ? `No fine meal yet. ${DISAPPOINTMENT_THRESHOLD} missed days and ${isSelf ? "you're" : "they're"} Disappointed.`
-                      : `${missedMeals === 1 ? "A day" : `${missedMeals} days`} without a fine meal — ${missesLeft} more and ${isSelf ? "you're" : "they're"} Disappointed.`}
+                {dined ? "Seen to. ‡" : `No proper meal yet today. ${isSelf ? "You'll" : "They'll"} feel it tonight. ‡`}
               </span>
             </Row>
           )}

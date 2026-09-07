@@ -11,6 +11,7 @@ const { recordArchiveEvent } = require("./archive");
 const { mintCorpse } = require("./corpseMint");
 const { cancelOffersForCharacter } = require("./lessons");
 const { CATATONIC_SLUG } = require("./constants");
+const { applyFear } = require("./fear");
 
 // Marks one character DEAD. Returns { claimed } — false when the character
 // was no longer ALIVE, in which case NOTHING else was written: the update's
@@ -127,6 +128,14 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
     return { tag: null, room: null };
   });
 
+  // Everyone standing where they fell saw it (docs/systemdocs/FEAR.md). The
+  // location is re-read rather than trusted off `character`, since callers
+  // pass rows of every shape. Wrapped, and after the claim: a death is never
+  // aborted by a witness's nerves.
+  await frightenWitnesses(prisma, character.id).catch((err) =>
+    console.error(`Failed to frighten witnesses of ${character.id}:`, err.message ?? err),
+  );
+
   // recordArchiveEvent already swallows its own failures (a lost transcript
   // line must never abort a death), so no catch here.
   await recordArchiveEvent(prisma, {
@@ -138,6 +147,22 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
   });
 
   return { claimed: true, corpse };
+}
+
+async function frightenWitnesses(prisma, deadCharacterId) {
+  const dead = await prisma.character.findUnique({ where: { id: deadCharacterId }, select: { locationId: true } });
+  if (!dead?.locationId) return;
+  const witnesses = await prisma.character.findMany({
+    where: { locationId: dead.locationId, status: "ALIVE", id: { not: deadCharacterId } },
+    select: { id: true },
+  });
+  // Sequential on purpose: a dozen witnesses is the most a room holds, and a
+  // burst of parallel transactions at turn close competes for pool slots.
+  for (const { id } of witnesses) {
+    await applyFear(prisma, id, { kind: "DEATH_SEEN" }).catch((err) =>
+      console.error(`Death-seen fear failed for ${id}:`, err.message ?? err),
+    );
+  }
 }
 
 module.exports = { applyDeathToRow };

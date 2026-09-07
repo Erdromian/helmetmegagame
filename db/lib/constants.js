@@ -17,7 +17,6 @@ const LABORING_FARMING_SLUG = "laboring-farming";
 const LABORING_HUNTING_SLUG = "laboring-hunting";
 const LABORING_FISHING_SLUG = "laboring-fishing";
 const CATATONIC_SLUG = "catatonic-afk";
-const DISAPPOINTED_SLUG = "disappointed";
 // Over a carry cap (db/lib/carry.js). Granted and cleared by settleCarry,
 // never by a player; read by the travel gate in db/lib/locationTravel.js.
 const OVERBURDENED_SLUG = "overburdened";
@@ -91,9 +90,16 @@ const SEDUCTIVE_DEMONESS_SLUG = "demoness-seductive";
 // viewer — see db/lib/inspectVision.js.
 const INSCRUTABLE_SLUG = "inscrutable";
 
-// The two fear states a phobia can grant — db/lib/phobias.js.
+// The five fear bands (docs/systemdocs/FEAR.md), lowest to highest. Owned by
+// db/lib/fear.js#settleFearTag; the top two are Gambit modifiers.
+const UNCOMFORTABLE_SLUG = "uncomfortable";
+const STRESSED_SLUG = "stressed";
+const ANXIOUS_SLUG = "anxious";
 const AFRAID_SLUG = "afraid";
 const PANIC_SLUG = "panic";
+// The "ate a fine or lavish meal this turn" marker a noble needs to sleep
+// easy. Granted by consumesInto, consumed by the fear pass — never by time.
+const DINED_SLUG = "dined";
 // What a drawback-triggered ride leaves you as — db/lib/locationTravel.js.
 const VOMITING_SLUG = "vomiting";
 // Drawback slugs read by their scripted mechanics.
@@ -105,8 +111,8 @@ const MOTION_SICKNESS_SLUG = "motion-sickness";
 // web/lib/consumeGrants.js — that file ships to the client, so it keeps its
 // own copies rather than importing from here.
 const DEBTOR_SLUG = "debtor";
-const CLAUSTROPHOBIA_SLUG = "claustrophobia";
-const ACROPHOBIA_SLUG = "acrophobia";
+// The phobias, Brave, Pale, Rough Camper and friends are read by slug inside
+// db/lib/fear.js's multiplier table rather than exported from here.
 
 // A ZONE slug, not a tag: the Fortress holds the Lifeweb tower and the PA
 // system, so two separate rules gate on standing there.
@@ -139,7 +145,6 @@ module.exports = {
   LABORING_HUNTING_SLUG,
   LABORING_FISHING_SLUG,
   CATATONIC_SLUG,
-  DISAPPOINTED_SLUG,
   OVERBURDENED_SLUG,
   CORPSE_GROUP_SLUG,
   BUTCHER_SLUG,
@@ -164,14 +169,16 @@ module.exports = {
   CONFESSION_THRESHOLD,
   SEDUCTIVE_DEMONESS_SLUG,
   INSCRUTABLE_SLUG,
+  UNCOMFORTABLE_SLUG,
+  STRESSED_SLUG,
+  ANXIOUS_SLUG,
   AFRAID_SLUG,
   PANIC_SLUG,
+  DINED_SLUG,
   VOMITING_SLUG,
   LAZY_SLUG,
   GUILT_RIDDEN_SLUG,
   INSOMNIAC_SLUG,
   MOTION_SICKNESS_SLUG,
   DEBTOR_SLUG,
-  CLAUSTROPHOBIA_SLUG,
-  ACROPHOBIA_SLUG,
 };

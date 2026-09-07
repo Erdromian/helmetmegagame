@@ -18,6 +18,7 @@ const GROUPS = [
   { key: "creation", name: "Character creation" },
   { key: "economy", name: "Economy" },
   { key: "carry", name: "Carrying" },
+  { key: "fear", name: "Fear" },
   { key: "desires", name: "Desires" },
   { key: "clock", name: "Turn clock" },
   { key: "catatonic", name: "Catatonic" },
@@ -84,7 +85,7 @@ const FIELDS = [
 
   // --- Carrying --------------------------------------------------------------
   {
-    key: "carryWeightLbs", type: "int", group: "carry", default: 84, min: 1, max: 2000,
+    key: "carryWeightLbs", type: "int", group: "carry", default: 71, min: 1, max: 2000,
     label: "Carry cap: lb ‡",
     help: "How many POUNDS of gear a character can carry before they're Overburdened. Skills, injuries and Assets — a horse, a cart, a house — never weigh anything. Strong, Pack Mule and an equipped Cart multiply it. Past 1.5× this, goods can't be theirs at all. ‡",
   },
@@ -102,6 +103,13 @@ const FIELDS = [
     key: "locationMoveCooldownSeconds", type: "int", group: "carry", default: 60, min: 0, max: 3600,
     label: "Walk cooldown (seconds) ‡",
     help: "How long a character waits between two walks from one location to another inside the same zone. Crossing into another zone is gated by the Move instead, so this never touches it. 0 removes the wait. ‡",
+  },
+
+  // --- Fear ------------------------------------------------------------------
+  {
+    key: "fearIntensity", type: "float", group: "fear", default: 1, min: 0, max: 4, step: 0.1,
+    label: "Fear intensity ‡",
+    help: "Multiplies everything that frightens a character and divides everything that calms them, the nightly decay included. 1 is the tuning as written. 0 switches fear off: nothing frightens anyone, and every dial empties at the next turn close. ‡",
   },
 
   // --- Desires ---------------------------------------------------------------
@@ -200,6 +208,9 @@ const INTERNAL_KEYS = [
   "restInvalidCount",
   "restInvalidWindowStart",
   "restBreakerOpenUntil",
+  // The Play page (HALL.md): the Dawn wipe watermark, and the web-only switch cooldown.
+  "feedWipeSeq",
+  "webOnlyCooldownSeconds",
   "radioCategoryId",
   "cerberonChannelId",
   "intercomChannelId",

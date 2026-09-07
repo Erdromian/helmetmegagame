@@ -166,9 +166,11 @@ enum TagSource {
   LESSON
   // Made through the Craft flow (docs/systemdocs/CRAFTING.md).
   CRAFT
-  // A mood sustained by where the character stands, written only by
-  // db/lib/phobias.js — owned and cleared by that settle, never granted by
-  // a person.
+  // A status the game derives from hidden state rather than a person
+  // granting it — today the fear band tags (Uncomfortable … Panic), written
+  // only by db/lib/fear.js#settleFearTag, which owns and clears them. A GM
+  // grant of the same slug is never CONDITION, which is how the settle tells
+  // its own row from a person's and leaves the latter alone.
   CONDITION
 }
 
@@ -219,6 +221,12 @@ enum ArchiveSource {
 model GameConfig {
   id                  Int @id @default(1)
   lifewebDecayPerTurn Int @default(10)
+
+  // The one fear knob (docs/systemdocs/FEAR.md): every gain is multiplied by
+  // it, every relief and the nightly decay divided by it. 1 is the tuning as
+  // written; 0 switches the system off and the next turn close empties every
+  // dial. Live on /gm/dev.
+  fearIntensity Float @default(1)
 
   // Gates the whole Dawn message-wipe system (db/lib/dawnWipe.js) — off by
   // default so nothing gets swept until a GM explicitly opts in from the
@@ -377,7 +385,7 @@ model GameConfig {
   // allowed up to 1.5× (carry.js HARD_CAP_RATIO); past that the goods cannot
   // enter the sheet at all. Assets — a horse, a cart, a house — are exempt
   // from the weight load entirely. Live on /gm/dev.
-  carryWeightLbs   Int @default(84)
+  carryWeightLbs   Int @default(71)
   carryResourceCap Int @default(25)
 
   // Free zone crossings per character per turn, before a crossing starts
@@ -1592,15 +1600,19 @@ model Character {
   // every other terminal chain (tagExpiryPass.js).
   hungerStreak Int @default(0)
 
-  // Consecutive turn closes without a Fine/Lavish Meal — written only by
-  // db/lib/hungerPass.js, and only ever moved for characters holding
-  // `nobility` (everyone else stays at 0, so granting the tag mid-game
-  // starts the count fresh). At DISAPPOINTMENT_THRESHOLD the pass grants
-  // `disappointed` (flat −1 Gambit, gambitModifier.js); a fed turn resets
-  // the count to 0 outright — unlike hungerStreak there is no slow climb
-  // back down, one proper meal settles the matter. Eating also clears the
-  // tag on the spot (web/app/(app)/character/requestActions.js); the pass's
-  // reset is the backstop for GM-granted meals.
+  // The hidden fear dial, 0–100 (docs/systemdocs/FEAR.md). Nothing shows the
+  // number to a player; db/lib/fear.js projects the band it falls in onto one
+  // status tag (Uncomfortable … Panic, `source: CONDITION`). Moved by the
+  // world — wilderness, caves, wounds, hunger, a death nearby — and settled
+  // back by comfort, then decayed at every turn close by db/lib/fearPass.js.
+  // Float because GameConfig.fearIntensity divides. Editable on the Dev Panel.
+  fear Float @default(0)
+
+  // ORPHAN. The retired Disappointed track (Nobility upkeep) counted missed
+  // meals here until 2026-09-06; nothing reads or writes it now — a noble who
+  // skips dinner takes fear instead (db/lib/fearPass.js). Kept, like
+  // mindlinkChannelId, because this schema drops no columns; the values are
+  // stale history.
   missedMealStreak Int @default(0)
 
   // Turn number this character last acted or spoke in character — a
@@ -2496,7 +2508,7 @@ model Role {
   // decision that has nothing to do with faction mechanics. Declared as
   // `whitelist:` in docs/roles.yaml. Gated by GameConfig.leaderWhitelistEnabled;
   // superadmins bypass. See docs/systemdocs/CHARACTERS.md §2.
-  requiresWhitelist   Boolean  @default(false)
+  requiresWhitelist Boolean @default(false)
 
   // A seat that fixes the holder's gender rather than letting them choose:
   // Baron and Heir are MAN, Baroness and Successor are WOMAN. Null for every
@@ -3214,7 +3226,7 @@ model Structure {
   builderCharacterId String?
   builderName        String?
 
-  startedTurnId String?
+  startedTurnId    String?
   // Claim column for a FUTURE decay/upkeep pass; nothing reads it yet. Here
   // so a later pass needs no migration to be resume-safe.
   lastUpkeepTurnId String?

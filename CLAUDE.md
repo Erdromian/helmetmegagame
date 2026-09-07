@@ -245,6 +245,7 @@ you pick the right doc — they are never enough to change code with.
 | [`FACTORY.md`](docs/systemdocs/FACTORY.md) | You're touching the Godard Factory — Extract, refining Godflesh into Squeeze, the Package button and crate weights, the Spillway, or what eating a cube does |
 | [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
 | [`CORPSES.md`](docs/systemdocs/CORPSES.md) | You're touching what a body is — the corpse tag, butchering, Bury or Engrave, the rot clock, the death smell, or an **enforced recipe ingredient** (`requirement.items`) |
+| [`FEAR.md`](docs/systemdocs/FEAR.md) | You're touching the fear dial — the five band tags, what frightens or calms a character, the phobias, Brave / Rough Camper / Outsider / Spelunker, `fearIntensity`, or the nightly fear pass |
 | [`LESSONS.md`](docs/systemdocs/LESSONS.md) | You're touching Learn Skill / Teach Skill, the Teaching tags, the Offer handshake (Bind's consent too), or the lesson turn pass |
 | [`CONFESSION.md`](docs/systemdocs/CONFESSION.md) | You're touching Confess, the `psychological` tag flag, who may hear a confession, or the rule that a chaplain is never shown the sin |
 | [`CRAFTING.md`](docs/systemdocs/CRAFTING.md) | You're touching Craft, Destroy, the four tag capability flags (`craftable` / `removable` / `healable` / `teachable`), multi-turn projects, or who pays for a recipe |
@@ -950,7 +951,9 @@ global CLIs. To make one able to build, run, and deploy:
   design — declared in the enum, written and read nowhere.
   `GameConfig.mindlinkChannelId` is the same kind of orphan: the column
   stays in the schema, but nothing reads or writes it since the Cult of
-  Bacchus was archived (`docs/archive/bacchus.yaml`).
+  Bacchus was archived (`docs/archive/bacchus.yaml`), and `Character.missedMealStreak`
+  joined it the same way when the fear dial replaced the Disappointed track
+  (`FEAR.md`).
 - The **mid-game tag store is `/store`**: the shared `PointBuy.js` experience
   mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
   filed as one `BUY_TAGS` request. What's still open is the rules for earning

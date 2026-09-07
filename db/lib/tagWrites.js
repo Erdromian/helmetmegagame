@@ -7,6 +7,20 @@
 // it into a larger transaction — the db/lib/dm.js convention.
 const { expiryFrom } = require("./turnFormat");
 
+// A wound landing on a sheet frightens its owner (docs/systemdocs/FEAR.md).
+// Both creators below call this for the row they just made — a stack going up
+// or an already-held tag is not a new wound, so only the `!existing` branches
+// do. Required lazily: db/lib/fear.js is the module that owns the rule, and a
+// top-level require here would be a cycle. Wrapped: a fear hiccup must never
+// fail a tag write.
+async function chargeWoundFear(tx, characterId, tagIds) {
+  try {
+    await require("./fear").applyWoundFear(tx, characterId, tagIds);
+  } catch (err) {
+    console.error(`Wound fear failed for ${characterId}:`, err.message ?? err);
+  }
+}
+
 // Adds `quantity` of a tag, creating the row or incrementing an existing
 // one. Non-stackable tags are pinned at 1 no matter what is asked for, so a
 // caller that forgot to check `tag.stackable` can't mint a phantom stack.
@@ -19,9 +33,11 @@ async function addToStack(tx, characterId, tagId, quantity, options = {}) {
     where: { characterId_tagId: { characterId, tagId } },
   });
   if (!existing) {
-    return tx.characterTag.create({
+    const created = await tx.characterTag.create({
       data: { characterId, tagId, source, expiresTurn, quantity: n },
     });
+    await chargeWoundFear(tx, characterId, [tagId]);
+    return created;
   }
   if (!stackable) return existing;
   return tx.characterTag.update({
@@ -151,6 +167,7 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
           expiresTurn,
         },
       });
+      await chargeWoundFear(tx, characterId, [tag.id]);
       granted.push({ tagId: tag.id, tagName: tag.name, added: tag.stackable ? count : 1 });
       continue;
     }

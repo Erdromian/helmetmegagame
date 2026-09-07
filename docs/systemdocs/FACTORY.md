@@ -169,20 +169,20 @@ world with no recipe to make a third.
 **A cube weighs 17 lb; a crated cube weighs 8.5.** (It was 20/10 until
 2026-09-06, Bascinet's call. A catalog-wide 30% cut the same day took it to
 12 by accident and was reverted — `CARRY.md` §1a. What did stick from that
-day is the **base carry cap: 84 lb, down from 120**.) Working back from the
-target: 5 turns of production is ~2.5 producing turns, 3 refugees × 8 cubes ×
-2.5 = 60 cubes, and a Banneret with Horse + Cart carries 84 × (1 + 4) =
-420 lb. 60 cubes is 1020 lb raw, 510 crated — so a wagon **no longer clears a
-five-turn run in one trip**. It takes about 49 cubes, four turns' worth; the
-rest waits in the Logistics Room for the next wagon.
+day is the **base carry cap: 71 lb, down from 120 via 84**.) Working back from
+the target: 5 turns of production is ~2.5 producing turns, 3 refugees × 8 cubes
+× 2.5 = 60 cubes, and a Banneret with Horse + Cart carries 71 × (1 + 4) =
+355 lb. 60 cubes is 1020 lb raw, 510 crated — so a wagon **no longer clears a
+five-turn run in one trip**. It takes about 41 cubes, a bit over three turns'
+worth; the rest waits in the Logistics Room for the next wagon.
 
 Through the crate cap: 150 lb packs **8** cubes into a 68 lb crate, and
-420/68 ≈ 6.2 crates ≈ 49 cubes.
+355/68 ≈ 5.2 crates ≈ 41 cubes.
 
-A refugee's 8-cube day is 136 lb against an 84 lb cap and a 126 lb ceiling,
+A refugee's 8-cube day is 136 lb against a 71 lb cap and a 106 lb ceiling,
 so they cannot even hold their own output, let alone walk it anywhere: past
 the ceiling the overflow drop fires on the *intended* loop every day. **4**
-cubes (68 lb) fit under the cap; **7** (119 lb) fit under the ceiling,
+cubes (68 lb) fit under the cap; **6** (102 lb) fit under the ceiling,
 Overburdened. They stash the rest in the Logistics Room and the carry pass
 handles the overflow. The cart and the silo are the business; that is
 deliberate, not an oversight.
@@ -277,7 +277,7 @@ written, so nothing can be fished back out.
 through the same seam:** `db/lib/roomStash.js#pickRandomPublicRoom`, which the
 carry pass and corpse placement use to shed overflow. A destroying room is never
 eligible. That is not a nicety — a refining shift makes 136 lb of Squeeze
-against an 84 lb cap, so the overflow drop fires on the *intended* loop every
+against a 71 lb cap, so the overflow drop fires on the *intended* loop every
 day, and one of the Factory's three public rooms is the trough. Tipping
 something in has to stay a thing you do on purpose.
 

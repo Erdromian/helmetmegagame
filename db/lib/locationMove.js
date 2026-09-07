@@ -26,7 +26,7 @@ const { ambientLine } = require("./ambientLine");
 const { sceneLineAt } = require("./scene");
 const { settleCarry, deliverCarryDrop } = require("./carry");
 const { parkMountsIndoors, parkedMessage } = require("./indoors");
-const { settlePhobias } = require("./phobias");
+const { applyArrivalFear } = require("./fear");
 const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW } = require("./zoneChannelSpec");
 const { linkBetween, endpoints, shouldPromptKeyed } = require("./locationGraph");
@@ -255,11 +255,13 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     return [];
   });
 
-  // Whether a place scares this character is a DB fact too, same as parking
+  // What walking in here does to the nerves is a DB fact too, same as parking
   // a mount above — before the Discord guard, so it lands whether or not
-  // there's a token to talk to Discord with.
-  await settlePhobias(prisma, characterId).catch((err) => {
-    console.error(`Move: phobia settle failed for ${characterId}:`, err.message ?? err);
+  // there's a token to talk to Discord with (docs/systemdocs/FEAR.md). No
+  // per-turn ration on the arrival cost: a mount's two crossings are two real
+  // arrivals. The Cathedral's relief rations itself inside.
+  await applyArrivalFear(prisma, { characterId, fromLocationId, toLocationId }).catch((err) => {
+    console.error(`Move: fear on arrival failed for ${characterId}:`, err.message ?? err);
   });
 
   // Walking into an armed turret. Before the Discord guard, and before the
@@ -364,15 +366,23 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     return null;
   });
 
-  // `guestsOnly`: a move cannot change what this character is ENTITLED to, and
-  // thread membership follows entitlement now rather than presence
+  // A MOVE cannot change what this character is ENTITLED to, and thread
+  // membership follows entitlement now rather than presence
   // (db/lib/roomAccess.js). What a move does change is guest rows, which are
-  // spent by walking out — so this call sweeps those and touches nothing else.
-  // In the ordinary case it makes no Discord calls at all, which is what
+  // spent by walking out — so `guestsOnly` sweeps those and touches nothing
+  // else, making no Discord calls at all in the ordinary case. That is what
   // stopped Discord narrating "… added <name> to the thread" into every room
   // on every arrival.
+  //
+  // A FIRST PLACEMENT is the exception and gets the full recompute. `null`
+  // from-location means nobody walked anywhere: this is a character being put
+  // on the map for the first time — created (createActions.js), spawned into a
+  // threat seat (threatSpawn.js), or relocated by a GM from nowhere. Nothing
+  // else would ever add them to their threads, since the mover no longer does
+  // and a tag change might not come for days. Getting this wrong is silent: a
+  // new Cerberus simply never sees the Dungeons.
   await syncCharacterRoomAccess(prisma, { ...character, locationId: toLocationId }, {
-    guestsOnly: true,
+    guestsOnly: Boolean(fromLocationId),
   }).catch((err) =>
     console.error(`Move: room access sync failed for ${characterId}:`, err.message ?? err),
   );
