@@ -280,6 +280,25 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
 // actor; here the decrement IS the check — the conditional-updateMany lesson
 // from resourceTransfer.js#moveParty.
 
+// The room-stash serializer (fix round M4b, fix 2), same idiom as
+// requestActions.js#lockCharacter: a raw row lock Postgres holds to the end
+// of the caller's transaction, so two writers queue up instead of both
+// reading the same RoomTag snapshot. Locks the ROOM row rather than the
+// RoomTag row — a Room always exists (the stash line may not, especially on
+// the create path addToRoomStack's `!existing` branch covers), and every
+// caller into this file already has a roomId in hand with nothing more to
+// look up first.
+//
+// Lock order: every caller that locks BOTH a Character row and a Room row in
+// the same transaction must take the character lock(s) first — this module
+// never takes a character lock itself, so the ordering is enforced entirely
+// by call-site discipline. Audited at the fix's writing: no caller of
+// dropRoomTag/addToRoomStack locks a Character row afterward in the same
+// transaction, so there is no established call site to invert.
+function lockRoom(tx, roomId) {
+  return tx.$queryRaw`SELECT "id" FROM "Room" WHERE "id" = ${roomId} FOR UPDATE`;
+}
+
 // Adds `quantity` of a tag to a room, creating the row or incrementing it.
 // Deliberately NO non-stackable pin: two players can each leave their
 // Longbow here and the row must go to 2. The pin is a rule about what one
@@ -299,6 +318,13 @@ async function addToRoomStack(
 ) {
   const n = Math.max(1, Math.trunc(quantity ?? 1));
   const incomingPoisoned = poisonedCount > 0 ? Math.min(Math.trunc(poisonedCount), n) : 0;
+  // Room lock (fix round M4b, fix 2): taken BEFORE the read below, so two
+  // first-poison stashes landing on the same clean row can no longer both
+  // see `existing.poisonPayload === null` and both increment — the second
+  // writer now queues behind the first and re-reads the row it actually
+  // left behind. Covers the create path too (a Room row always exists to
+  // lock, even when this RoomTag line doesn't yet).
+  await lockRoom(tx, roomId);
   const existing = await tx.roomTag.findUnique({ where: { roomId_tagId: { roomId, tagId } } });
   if (!existing) {
     return tx.roomTag.create({
@@ -346,6 +372,14 @@ async function addToRoomStack(
 // stood before the decrement, ignored by every caller that doesn't move
 // poison state onward.
 async function dropRoomTag(tx, roomId, tagId, quantity = null) {
+  // Room lock (fix round M4b, fix 2): taken before either read below. Two
+  // concurrent 1-unit withdrawals off a quantity=2/poisoned=1 row used to
+  // both draw against the SAME unlocked snapshot — both could draw clean
+  // and delete the row out from under the poisoned unit, or a valid
+  // withdrawal could be refused by a stale read. Serializing on the Room
+  // row means the second caller now re-reads whatever the first actually
+  // left behind.
+  await lockRoom(tx, roomId);
   if (quantity == null) {
     const existing = await tx.roomTag.findUnique({ where: { roomId_tagId: { roomId, tagId } } });
     await tx.roomTag.deleteMany({ where: { roomId, tagId } });
