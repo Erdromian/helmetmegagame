@@ -466,6 +466,36 @@ and is silently ignored.
 `bot/src/lib/mentions.js` owns both things a mention does;
 `bot/src/events/messageCreate.js` calls it after proxying.
 
+### The row spells it differently, on purpose
+
+Since the Hall's phase 6, `<@&roleId>` is **Discord's** spelling and the
+archive row stores a face-neutral **`{char:<id>}`** instead — the same inline
+token syntax the web renders everywhere else
+(`web/app/components/richTokens.js`). `db/lib/characterMentions.js` is the pair
+of translations, and neither face ever sees the other's:
+
+- **In.** `db/lib/say.js#prepareSpeech` returns two strings for a Discord-origin
+  send: `content`, which is what the webhook posts (unchanged, or the chip the
+  player meant becomes literal text), and `rowContent`, with every mention that
+  names a character role folded into a token. `recordSpeech` stores the second.
+  `editSpeech` runs the same rewrite, so a ✏️ that adds a mention lands the same
+  way.
+- **Out.** `bot/src/lib/feedOutbox.js` rewrites tokens back to `<@&roleId>`
+  when it posts or edits a WEB row, and DMs the relay — the same "where and a
+  jump link, never the text" DM this section describes, through
+  `db/lib/dm.js#sendDm` rather than the gateway twin, because the outbox is a
+  pg listener with no discord.js client. Same earshot rule, same ten-target
+  cap, and a **concealed** send still relays nothing at all.
+
+Only a role id that IS a character's name token is ever rewritten —
+`Character.discordRoleId` is `@unique`, so the lookup answers with one
+character or with nothing. A GM/spectator/player role passes through
+untouched, exactly as it always has.
+
+The composer on `/play` writes tokens directly, over an `@` autocomplete of
+`whosHere().named`: you can only name somebody you can see, and a row only
+renders a name its reader could have seen too (HALL.md §5).
+
 **Mentions must be read before the message is proxied** — `sendAsCharacter`
 deletes the original, taking `message.mentions` with it — but the jump link
 needs the *proxied* message's id. So the order is **capture → proxy → relay**.

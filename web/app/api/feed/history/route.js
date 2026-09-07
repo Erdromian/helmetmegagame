@@ -1,4 +1,5 @@
 import { prisma, feedRowShape, FEED_ROW_SELECT } from "@lifeweb/db";
+import { feedWipeFloor, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
 import { loadFeedViewer, findPlace } from "@/lib/feedAccess";
 
 // GET /api/feed/history?place=<key> — the last hundred things said in one
@@ -26,8 +27,13 @@ export async function GET(request) {
   const found = await findPlace(prisma, viewer.character, place, viewer.options);
   if (!found) return Response.json({ error: "You aren't there. ‡" }, { status: 403 });
 
+  // Nothing from before the last Dawn wipe (db/lib/feedWipe.js). Discord's
+  // half of that pass deleted its messages outright; the Hall keeps the rows
+  // for /archive and reads past them.
+  const floor = await feedWipeFloor(prisma);
+
   const rows = await prisma.archiveEntry.findMany({
-    where: { placeKey: place, deletedAt: null },
+    where: { placeKey: place, deletedAt: null, seq: seqFilterAbove(floor) },
     orderBy: { seq: "desc" },
     take: HISTORY_ROWS,
     select: FEED_ROW_SELECT,

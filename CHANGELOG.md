@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Typing, speech, mentions, the wipe, and a Scene tab for the GMs
+
+✚ "Cersei is typing…" on the Play page, under the character's presented name, whether they type on Discord or on the web.  
+✚ Discord-style text on the Play page: spoilers, subtext lines, and anything said inside quotation marks is tinted as speech.  
+✚ Type @ to mention someone standing with you; the mention renders as their chip on both faces and rings a quiet chime for them on the web, which they can mute.  
+✎ The Dawn wipe clears the Play page's feeds at the same instant it clears the Discord channels; the archive keeps everything.  
+✚ The player desk's inspector has a Scene tab: a live, read-only view of where a character stands and the rooms around them.
+
 ## 2026-09-06 · Play from the web: a switch that takes your Discord account out of every channel
 
 ✚ A switch on your Bio, "Play from the web". Turn it on and your Discord account leaves every Location channel, Room thread, Conversation and the turns console, and your nickname is cleared, so nobody in the guild can tell which account is your character. You play from the Play page; DMs still reach you. Turn it off and everything comes back. Switching cools for two hours.  

@@ -111,7 +111,7 @@ function main() {
 
     gate("border vs surface", contrast(composite(parseColor(t["--border"]), surface), surface), BORDER_MIN);
 
-    for (const token of ["--text", "--muted", "--accent-text", "--danger", "--positive", "--warning"]) {
+    for (const token of ["--text", "--muted", "--speech", "--accent-text", "--danger", "--positive", "--warning"]) {
       gate(`${token} on surface`, contrast(composite(parseColor(t[token]), surface), surface), AA);
     }
 

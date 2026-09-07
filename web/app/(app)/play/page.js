@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma, feedRowShape, FEED_ROW_SELECT } from "@lifeweb/db";
+import { feedWipeFloor, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 import EmptyState from "@/app/components/EmptyState";
 import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
@@ -9,6 +10,7 @@ import { carryStatus } from "@lifeweb/db/lib/carry";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 import { loadPeoplePools } from "@/lib/peoplePools";
 import RequestActionsProvider from "@/app/components/RequestActionsProvider";
+import CharacterMentionsProvider from "@/app/components/CharacterMentionsProvider";
 import Hall from "./Hall";
 import { waitingOnYou } from "./actions";
 
@@ -56,9 +58,13 @@ export default async function PlayPage() {
   // happened while the page was loading, across every place at once — asking
   // from this place's own newest would have replayed every other place's whole
   // backlog down the stream.
+  // The Dawn watermark, read before the rows so the first paint and the
+  // stream's catch-up agree about where the day starts (db/lib/feedWipe.js).
+  const floor = await feedWipeFloor(prisma);
+
   const [rows, watermark, forcedName, concealment] = await Promise.all([
     prisma.archiveEntry.findMany({
-      where: { placeKey: first.placeKey, deletedAt: null },
+      where: { placeKey: first.placeKey, deletedAt: null, seq: seqFilterAbove(floor) },
       orderBy: { seq: "desc" },
       take: HISTORY_ROWS,
       select: FEED_ROW_SELECT,
@@ -128,6 +134,17 @@ export default async function PlayPage() {
       })()
     : null;
 
+  // The @ list, and the lookup a {char:…} in a row resolves against — one
+  // roster for both, so a mention can only ever name somebody the writer could
+  // see and only ever render for a reader who could see them too. Concealed
+  // people are deliberately absent: whosHere() puts them in `concealed`, which
+  // carries an alias and no id.
+  const mentionRoster = (aside?.people?.named ?? []).map((person) => ({
+    id: person.characterId,
+    name: person.name,
+    updatedAt: person.avatarVersion,
+  }));
+
   const hall = (
     <Hall
       initialPlaces={places}
@@ -141,6 +158,7 @@ export default async function PlayPage() {
       }}
       aside={aside}
       webOnly={Boolean(viewer.character?.webOnly)}
+      roster={mentionRoster}
     />
   );
 
@@ -151,26 +169,28 @@ export default async function PlayPage() {
   // is not mounted here at all.
   if (!aside) return hall;
   return (
-    <RequestActionsProvider
-      selfId={viewer.character.id}
-      selfName={viewer.character.name}
-      characterTags={aside.sheet?.tags ?? []}
-      resources={aside.sheet?.resources ?? 0}
-      carry={aside.carry}
-      examineBlocked={aside.pools.examineBlocked}
-      canHeal={aside.pools.canHeal}
-      healsLeft={aside.pools.healsLeft}
-      healTargets={aside.pools.healTargets}
-      healParties={{ characters: aside.pools.peopleParties, rooms: [] }}
-      transferParties={{ characters: aside.pools.peopleParties, rooms: [] }}
-      lootTargets={aside.pools.lootTargets}
-      moveTargets={aside.pools.moveTargets}
-      moveLocations={aside.pools.moveLocations}
-      bindTargets={aside.pools.bindTargets}
-      harmTargets={aside.pools.harmTargets}
-      harmTags={aside.pools.harmTags}
-    >
-      {hall}
-    </RequestActionsProvider>
+    <CharacterMentionsProvider characters={mentionRoster}>
+      <RequestActionsProvider
+        selfId={viewer.character.id}
+        selfName={viewer.character.name}
+        characterTags={aside.sheet?.tags ?? []}
+        resources={aside.sheet?.resources ?? 0}
+        carry={aside.carry}
+        examineBlocked={aside.pools.examineBlocked}
+        canHeal={aside.pools.canHeal}
+        healsLeft={aside.pools.healsLeft}
+        healTargets={aside.pools.healTargets}
+        healParties={{ characters: aside.pools.peopleParties, rooms: [] }}
+        transferParties={{ characters: aside.pools.peopleParties, rooms: [] }}
+        lootTargets={aside.pools.lootTargets}
+        moveTargets={aside.pools.moveTargets}
+        moveLocations={aside.pools.moveLocations}
+        bindTargets={aside.pools.bindTargets}
+        harmTargets={aside.pools.harmTargets}
+        harmTags={aside.pools.harmTags}
+      >
+        {hall}
+      </RequestActionsProvider>
+    </CharacterMentionsProvider>
   );
 }

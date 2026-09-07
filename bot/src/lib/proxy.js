@@ -300,7 +300,12 @@ async function sendAsCharacter(channel, character, message, { identity: _identit
   // failures, the way every archive write does.
   await recordSpeech(prisma, prepared, {
     discordMessageId: webhookMessage.id,
-    content: [prepared.content, ...attachmentPlaceholders(message)].filter(Boolean).join("\n"),
+    // prepared.rowContent, not prepared.content: the webhook above got
+    // Discord's `<@&roleId>` spelling and the ROW keeps the face-neutral
+    // `{char:<id>}` one (db/lib/characterMentions.js, PROXYING.md §6).
+    content: [prepared.rowContent ?? prepared.content, ...attachmentPlaceholders(message)]
+      .filter(Boolean)
+      .join("\n"),
     ...resolveChannelContext(channel),
   });
   await touchCharacterActivity(prisma, character.id);

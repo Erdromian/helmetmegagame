@@ -1,6 +1,7 @@
 import { prisma, feedRowShape, FEED_ROW_SELECT } from "@lifeweb/db";
+import { feedWipeFloor, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
-import { subscribeToPlace, subscribeToPresence } from "@/lib/feedHub";
+import { subscribeToPlace, subscribeToPresence, subscribeToTyping } from "@/lib/feedHub";
 
 // GET /api/feed?since=<seq> — ONE server-sent event stream per open tab,
 // carrying every place the viewer may read.
@@ -24,6 +25,12 @@ export async function GET(request) {
   if (!viewer.character && !viewer.gm) return new Response("No living character.", { status: 403 });
 
   const { searchParams } = new URL(request.url);
+  // ONE place, for a reader who only wants one. The GM desk's Scene tab is
+  // what asks: a GM's place list is every place in every zone they may see,
+  // which is hundreds of subscriptions to watch a single room. The gate is
+  // unchanged — the place still has to be in placesFor() — this only narrows
+  // what the stream bothers with.
+  const onlyPlace = searchParams.get("place");
   const sinceParam = searchParams.get("since");
   let since = 0n;
   try {
@@ -34,14 +41,29 @@ export async function GET(request) {
 
   const encoder = new TextEncoder();
 
+  // Next logs "The destination stream closed early" when a tab goes away
+  // mid-stream and the source has no cancel handler; wiring one through to
+  // finish() keeps the log quiet and drops the subscriptions a beat sooner.
+  let finishStream = () => {};
   const stream = new ReadableStream({
+    cancel() {
+      finishStream();
+    },
     async start(controller) {
       let closed = false;
       // The high-water mark: a row the hub hands us at or below this was
       // already sent by a catch-up, and gets dropped rather than repeated.
       let lastSeq = since;
-      // placeKey -> unsubscribe
+      // placeKey -> { rows, typing }, each an unsubscribe. Two channels, one
+      // entry: a place is subscribed and dropped as a unit.
       const subscriptions = new Map();
+      // Everything the Dawn wipe put below the line, for the length of this
+      // connection (db/lib/feedWipe.js). Read once: a wipe mid-stream leaves
+      // rows a reader already has on their screen until the tab reloads,
+      // which is the same thing that happens to a Discord client that had the
+      // channel open.
+      const floor = await feedWipeFloor(prisma);
+      if (floor > lastSeq) lastSeq = floor;
 
       const write = (text) => {
         if (closed) return;
@@ -71,11 +93,25 @@ export async function GET(request) {
         write(`event: message\ndata: ${JSON.stringify(row)}\n\n`);
       };
 
+      // A fourth event name, and the only one that is not about a row. It
+      // carries the PRESENTED name (the hub resolves it), never a Discord
+      // account, and never this viewer's own character — nobody needs telling
+      // that they are typing.
+      const sendTyping = (event) => {
+        if (!event?.placeKey || !event.name) return;
+        if (viewer.character && event.characterId === viewer.character.id) return;
+        write(`event: typing\ndata: ${JSON.stringify(event)}\n\n`);
+      };
+
       const catchUp = async (placeKeys, from) => {
         if (placeKeys.length === 0) return;
         try {
           const rows = await prisma.archiveEntry.findMany({
-            where: { placeKey: { in: placeKeys }, deletedAt: null, seq: { gt: from } },
+            where: {
+              placeKey: { in: placeKeys },
+              deletedAt: null,
+              seq: seqFilterAbove(floor, { gt: from }),
+            },
             orderBy: { seq: "asc" },
             take: CATCH_UP_LIMIT,
             select: FEED_ROW_SELECT,
@@ -100,17 +136,22 @@ export async function GET(request) {
           return;
         }
         if (closed) return;
+        if (onlyPlace) places = places.filter((entry) => entry.placeKey === onlyPlace);
 
         const wanted = new Set(places.map((entry) => entry.placeKey));
         const added = [];
         for (const key of wanted) {
           if (subscriptions.has(key)) continue;
-          subscriptions.set(key, subscribeToPlace(key, sendRow));
+          subscriptions.set(key, {
+            rows: subscribeToPlace(key, sendRow),
+            typing: subscribeToTyping(key, sendTyping),
+          });
           added.push(key);
         }
-        for (const [key, unsubscribe] of [...subscriptions]) {
+        for (const [key, entry] of [...subscriptions]) {
           if (wanted.has(key)) continue;
-          unsubscribe();
+          entry.rows();
+          entry.typing();
           subscriptions.delete(key);
         }
 
@@ -149,7 +190,10 @@ export async function GET(request) {
         closed = true;
         clearInterval(ping);
         unsubscribePresence();
-        for (const unsubscribe of subscriptions.values()) unsubscribe();
+        for (const entry of subscriptions.values()) {
+          entry.rows();
+          entry.typing();
+        }
         subscriptions.clear();
         try {
           controller.close();
@@ -158,6 +202,7 @@ export async function GET(request) {
         }
       };
 
+      finishStream = finish;
       if (request.signal.aborted) finish();
       else request.signal.addEventListener("abort", finish, { once: true });
     },

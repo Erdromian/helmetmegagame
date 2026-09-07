@@ -179,6 +179,34 @@ for that with `GET /api/feed/history?place=` when the reader actually opens it.
 `GET /api/feed/places` answers the same list on its own, for a client that has
 reason to think it moved and no stream open to be told.
 
+**`?place=`** narrows a stream to one place. The GM desk's Scene tab (§8) is
+what asks: a GM's place list is every place in every zone they may see, and
+subscribing to hundreds of them to watch one room is silly. It narrows the
+subscription and nothing else — the place still has to be in `placesFor`.
+
+**Typing.** A third channel, `bascinet_typing`
+(`db/lib/typingNotify.js#notifyTyping`), carrying `{ placeKey, characterId }`
+and no name. Two things raise it: `bot/src/events/typingStart.js` (the
+`GuildMessageTyping` intent, not a privileged one; never in a DM and never for
+a web-only character) and `POST /api/feed/typing { place }` from the composer,
+gated by `mayWritePlace` and throttled to one notify per character per place
+per 4 s in the route. The hub holds the LISTEN on the same single pg client as
+the other two, resolves the **presented** name itself
+(`loadForcedName`/`loadConcealment` + `presentedIdentity`, memoised 30 s per
+character) and fans `event: typing` `{ placeKey, characterId, name }` — never
+to the viewer's own character.
+
+The name is resolved on the READER's side for the same reason the presence
+payload carries nothing: a notify that shipped a name would let a typing event
+out a name the reader is not owed. A concealed character types under their
+alias, exactly as they speak under it.
+
+The client holds each person for 6 s after their last event
+(`play/typingStore.js`) and draws one line above the composer: *"X is typing…
+‡"*, *"X and Y are typing… ‡"*, *"Several people are typing… ‡"*. Three is
+where naming people stops helping. A Discord-side echo of a WEB typist is
+**not** built — Discord has no API for a bot to type as somebody else.
+
 **Why not a WebSocket service.** Sends are an ordinary `POST` either way, and
 the optimistic append hides their latency, so bidirectional traffic buys
 nothing. Railway runs `next start` as one long-lived Node server with one
@@ -320,6 +348,28 @@ column draws them:
   app. Your own rows carry ✎ and ✕ — on hover with a mouse, always on a touch
   screen — and an edited row says "(edited)" after the time. ✕ goes through the
   shared `useConfirm()` dialog.
+- **The words themselves go through `ChatMarkdown.js`**, not
+  `MarkdownContent.js` — that one stays exactly as it is for DMs. It is
+  `react-markdown` + `remark-gfm` + `remarkTokens` + **`remarkChat.js`**, which
+  adds the three things a chat line does that a document never does:
+  `||spoilers||` (a `.chat-spoiler` button, click to reveal, stays revealed),
+  `-#` subtext lines, and **quoted speech** — a `"…"` span becomes
+  `<span class="speech">`, tinted with the `--speech` token declared in every
+  theme block and gated at AA by `npm run audit:contrast`. The tint is there
+  because a Hall row is narration and dialogue mixed, and the words somebody
+  actually said are what a reader scans for. Plugin order is load-bearing:
+  `remarkChat` runs **before** `remarkTokens`, or a mention in the middle of a
+  quote splits the text node and the quote stops matching itself.
+- **Mentions are `{char:<id>}` in the row, on both faces.** The composer's `@`
+  autocomplete (`MentionMenu.js`) runs over `whosHere().named` — the people
+  standing here, concealed ones deliberately absent — and inserts the token;
+  `CharacterMentionsProvider` is mounted on the page with the same roster, so
+  the chip renders back. What crosses to Discord is `<@&roleId>`, rewritten by
+  the outbox; what comes back from Discord is rewritten to the token in
+  `prepareSpeech`. See PROXYING.md §6 and `db/lib/characterMentions.js`.
+  Being named rings the shared `chime.js`, muted per browser by
+  `hall-chime-muted` (`useHallChimeMuted.js`) with the toggle at the foot of
+  the places column.
 - **A `SYSTEM` row renders as `.hall-subtext`**: muted, small, no face. That is
   the web half of the `-#` those lines go out as on Discord
   (`db/lib/ambientLine.js`). Phase 4 is what actually writes them.
@@ -480,10 +530,11 @@ Adding an affordance is one entry in the catalog, one dialog in
 4. **Ambient lines write rows.** None of them archive today, so a web player
    never sees a gate crossing, a smell, a turret burst or a noticeboard pin.
 5. ~~**The "web only" switch**~~ — done, and described below.
-6. Typing ("The young man is typing…", presented names only), Discord-style
-   markdown with quoted speech tinted, the dawn wipe as a seq watermark, Web
-   Push for mentions, and the GM desk embedding the feed for a live
-   per-location view.
+6. ~~**Typing, markdown, mentions, the wipe, the GM view**~~ — done (§3, §5,
+   §7, §8). What was deliberately left out: **Web Push** (VAPID keys, a service
+   worker and iOS install guidance — its own change), **attachments**, and a
+   Discord-side "is typing" echo for a web typist, which Discord's API cannot
+   express.
 
 The desktop and mobile wireframes Bascinet chose are in §5.
 
@@ -540,3 +591,60 @@ stand there and still appear in Who's here?. The places column shows one quiet
 
 Which re-materialisers had to learn the flag is in `CHANNELS.md` §3, and it is
 the list to check against when adding another.
+
+## 7. The wipe: a watermark, not a delete
+
+The Dawn wipe (`CHANNELS.md` §8) empties every Discord channel. The Hall
+cannot do the same thing and should not want to: `ArchiveEntry` **is** the
+transcript `/archive` reads, so deleting a row to tidy a screen would burn the
+record.
+
+So the web reads past the wipe instead. `GameConfig.feedWipeSeq` is a
+watermark, and every feed query asks for `seq > feedWipeSeq` while
+`messageWipeEnabled` is on. `db/lib/feedWipe.js` is the whole of it —
+`markFeedWiped(prisma)` sets it, `feedWipeFloor(prisma)` reads it back as a
+BigInt (zero when the wipe is off, so a game running without it behaves
+exactly as it did before this existed), and `seqFilterAbove` folds it into a
+Prisma `seq` filter.
+
+Four readers, and they have to agree or the page and the stream disagree about
+where the day starts: the stream's catch-up (`/api/feed`), the history route
+(`/api/feed/history`), the page's first render (`play/page.js`), and the
+`newestSeq` watermark `web/lib/feedAccess.js` decorates the place list with.
+
+**It is set as the pass BEGINS**, from `db/index.js#advanceTurn`'s side-effect
+thunk, immediately before `runDawnWipe`. That is the same instant `cutoffMs`
+names on the Discord side, and the reason is the same: a message posted while
+the wipe is still walking the map survives on Discord, so it has to survive
+here too. Taking the watermark afterwards would have made where you were
+standing decide whether what you said still exists.
+
+One thing falls out for free. **The unread dots reset with the wipe**, because
+a dot is "the newest seq here against the newest seq this browser saw here" and
+after a wipe there is no newest seq here until somebody speaks. No second pass,
+no `localStorage` to clear.
+
+## 8. The GM's Scene tab
+
+The player desk's inspector (`PLAYER-DESK.md` §6) gains a **Scene ‡** tab: what
+is being said where the inspected character is standing, live.
+
+It renders the Hall's own `Feed`, not a GM-flavoured copy of it —
+`(desk)/gm/players/SceneTab.js` is a place picker, a stream and that component.
+The runs, the faces, the subtext, the tinted speech and the typing line all
+come out identically, which is the point: a GM reading a scene should be
+reading the player's page, not a transcript of it.
+
+Read-only twice over. `Feed`'s `readOnly` drops the composer, and the GM place
+list carries `canSpeak: false` on every entry anyway (§5a).
+
+`getCharacterScene({ characterId })` builds the list by asking
+`placesFor(prisma, null, { gm: true, discordUserId })` for the GM's **own**
+list and keeping the entries belonging to that character's Location — its
+Rooms and Conversations included. So a zone a GM's `GmZoneView` does not open
+has no scene in it, and the gate is the same one every request re-applies.
+
+It is the first thing to use `InspectorColumn`'s `extraTabs` — a whole tab
+rather than a `tabPreludes` section, because a prelude sits above a base tab's
+own body and this has no base tab to sit above, and because it is a live stream
+that must not take a slot in the shared per-(character, tab) fetch cache.

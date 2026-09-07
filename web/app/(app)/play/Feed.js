@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
-import MarkdownContent from "@/app/components/MarkdownContent";
+import ChatMarkdown from "@/app/components/ChatMarkdown";
 import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
@@ -17,6 +17,8 @@ import {
   retryPending,
   newestSeq,
 } from "./feedStore";
+import { useTyping, typingLine } from "./typingStore";
+import MentionMenu, { mentionQueryAt, matchRoster } from "./MentionMenu";
 
 // One place's scene: what has been said here, and — where the place allows it
 // — the box to say something.
@@ -58,7 +60,7 @@ function timeLabel(iso) {
 const SystemRow = memo(function SystemRow({ row }) {
   return (
     <li className="hall-subtext">
-      <MarkdownContent content={row.content} />
+      <ChatMarkdown content={row.content} />
     </li>
   );
 });
@@ -134,7 +136,7 @@ const FeedRow = memo(function FeedRow({ row, startsRun, mine, editing, coarse, o
         ) : (
           <div className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
-              <MarkdownContent content={row.content} />
+              <ChatMarkdown content={row.content} />
             </div>
             {showActions && (
               <div className="flex gap-1" style={{ flexShrink: 0 }}>
@@ -163,9 +165,28 @@ function newClientId() {
   return `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export default function Feed({ place, self, onSeen, onOpenSheet = null }) {
+// How often this tab tells the server somebody is writing. The route holds the
+// real limit (a client is the half a player can rewrite); this only keeps a
+// held-down key from being a request per character.
+const TYPING_PING_MS = 4000;
+
+export default function Feed({
+  place,
+  self,
+  onSeen,
+  onOpenSheet = null,
+  // whosHere().named for where this character stands, as { id, name,
+  // updatedAt } — the @ list, and the same roster the page hands
+  // CharacterMentionsProvider so a {char:…} renders back as a face.
+  roster = [],
+  // The GM desk's Scene tab (PLAYER-DESK.md): the same scene with no composer
+  // and no ⚡. A GM speaks nowhere (HALL.md §5a), so this only removes chrome
+  // that would have refused anyway.
+  readOnly = false,
+}) {
   const placeKey = place?.placeKey ?? null;
   const rows = useFeed(placeKey);
+  const typing = typingLine(useTyping(placeKey));
   const coarse = useIsCoarsePointer();
   const confirm = useConfirm();
   const [draft, setDraft] = useState("");
@@ -175,6 +196,13 @@ export default function Feed({ place, self, onSeen, onOpenSheet = null }) {
   const [expanded, setExpanded] = useState(false);
 
   const scrollerRef = useRef(null);
+  const textareaRef = useRef(null);
+  // { at, query, active } — where the live `@word` starts, what has been typed
+  // of it, and which row of the popover is highlighted. One piece of state, so
+  // a keystroke that both moves the caret and moves the highlight is one
+  // render.
+  const [mention, setMention] = useState(null);
+  const lastTypedAt = useRef(0);
   // Read inside the scroll handler and the arrival effect, where a stale
   // closure would stick the view to the wrong end of the list.
   const atBottomRef = useRef(true);
@@ -203,11 +231,74 @@ export default function Feed({ place, self, onSeen, onOpenSheet = null }) {
     [placeKey],
   );
 
+  // "Somebody is writing something", the web half of it. Fire-and-forget: the
+  // answer is never read, and a failure means one missing line rather than
+  // anything a player has to be told about.
+  const pingTyping = useCallback(() => {
+    if (!placeKey || !place?.canSpeak) return;
+    const now = Date.now();
+    if (now - lastTypedAt.current < TYPING_PING_MS) return;
+    lastTypedAt.current = now;
+    fetch("/api/feed/typing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ place: placeKey }),
+    }).catch(() => {});
+  }, [placeKey, place?.canSpeak]);
+
+  const matches = useMemo(
+    () => (mention ? matchRoster(roster, mention.query) : []),
+    [mention, roster],
+  );
+
+  // The `@word` under the caret, recomputed on every edit. In the handler, not
+  // an effect: the caret is a DOM fact and reading it during a render would be
+  // both impure and a frame late.
+  const onDraftChange = useCallback(
+    (event) => {
+      const value = event.target.value;
+      const caret = event.target.selectionStart ?? value.length;
+      setDraft(value);
+      const found = mentionQueryAt(value, caret);
+      setMention(found ? { ...found, active: 0 } : null);
+      pingTyping();
+    },
+    [pingTyping],
+  );
+
+  // Swaps the half-typed `@bar` for the token the row is actually made of.
+  // {char:<id>} is what goes on the wire, on both faces: the outbox turns it
+  // into a Discord role mention on the way out, and prepareSpeech turns a
+  // Discord one back into this on the way in, so the ROW is face-neutral.
+  const pickMention = useCallback(
+    (person) => {
+      setMention((current) => {
+        if (!current) return null;
+        const before = draft.slice(0, current.at);
+        const after = draft.slice(current.at + 1 + current.query.length);
+        const token = `{char:${person.id}} `;
+        setDraft(`${before}${token}${after}`);
+        const caret = before.length + token.length;
+        // After the value lands, or setSelectionRange moves a caret in the old
+        // string. Not an effect — this is the tail of a click.
+        requestAnimationFrame(() => {
+          const el = textareaRef.current;
+          if (!el) return;
+          el.focus();
+          el.setSelectionRange(caret, caret);
+        });
+        return null;
+      });
+    },
+    [draft],
+  );
+
   const submit = useCallback(() => {
     const content = draft.trim();
     if (!content || !placeKey) return;
     const clientId = newClientId();
     setDraft("");
+    setMention(null);
     setError(null);
     addPending(placeKey, {
       clientId,
@@ -432,49 +523,82 @@ export default function Feed({ place, self, onSeen, onOpenSheet = null }) {
         </button>
       )}
 
-      <div className="hall-composer">
-        {place.canSpeak ? (
-          <>
-            <div className="field min-w-0 flex-1">
-              <textarea
-                id="hall-composer"
-                aria-label={`Say something in ${place.name} ‡`}
-                rows={2}
-                value={draft}
-                placeholder={`Say something in ${place.name}… ‡`}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  // A phone keyboard's Enter is a newline, as it is in
-                  // Discord's app; the button beside the box is the send
-                  // there. On a keyboard Enter sends and Shift+Enter breaks
-                  // the line.
-                  if (coarse || e.key !== "Enter" || e.shiftKey) return;
-                  e.preventDefault();
-                  submit();
-                }}
-              />
-            </div>
-            {coarse && (
-              <button type="button" className="btn" onClick={submit} disabled={!draft.trim()}>
-                Send ‡
-              </button>
-            )}
-          </>
-        ) : (
-          // A Location is the street's scenery, not its speech (CHANNELS.md
-          // §2). Saying so beats a composer that refuses.
-          <p className="hall-quiet">
-            {place.kind === "loc"
-              ? "This is the open street. Step into a room to speak. ‡"
-              : "You can only watch here. ‡"}
-          </p>
-        )}
-        {/* The phone's way to the right column: the people, the place panel
-            and the You strip, as a sheet over the scene. Drawn even on a
-            desktop, where the column is already there, so the composer's
-            shape does not move between the two. */}
-        <IconButton icon={ZapIcon} label="Here and the place ‡" disabled={!onOpenSheet} onClick={onOpenSheet ?? undefined} />
-      </div>
+      {/* Who is writing something, above the composer and below the scene.
+          Holds its line's height whether or not anybody is, so the feed does
+          not jump every time somebody starts and stops. */}
+      <p className="hall-typing" aria-live="polite">
+        {typing}
+      </p>
+
+      {!readOnly && (
+        <div className="hall-composer">
+          {place.canSpeak ? (
+            <>
+              <div className="field hall-composer-box">
+                <textarea
+                  id="hall-composer"
+                  ref={textareaRef}
+                  aria-label={`Say something in ${place.name} ‡`}
+                  rows={2}
+                  value={draft}
+                  placeholder={`Say something in ${place.name}… ‡`}
+                  onChange={onDraftChange}
+                  onKeyDown={(e) => {
+                    // The @ list owns the arrows and Enter while it is open —
+                    // it is the thing the keystroke is aimed at.
+                    if (mention && matches.length > 0) {
+                      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                        e.preventDefault();
+                        const step = e.key === "ArrowDown" ? 1 : matches.length - 1;
+                        setMention((m) => (m ? { ...m, active: (m.active + step) % matches.length } : m));
+                        return;
+                      }
+                      if (e.key === "Enter" || e.key === "Tab") {
+                        e.preventDefault();
+                        pickMention(matches[mention.active] ?? matches[0]);
+                        return;
+                      }
+                      if (e.key === "Escape") {
+                        e.preventDefault();
+                        setMention(null);
+                        return;
+                      }
+                    }
+                    // A phone keyboard's Enter is a newline, as it is in
+                    // Discord's app; the button beside the box is the send
+                    // there. On a keyboard Enter sends and Shift+Enter breaks
+                    // the line.
+                    if (coarse || e.key !== "Enter" || e.shiftKey) return;
+                    e.preventDefault();
+                    submit();
+                  }}
+                />
+                {mention && (
+                  <MentionMenu matches={matches} active={mention.active} onPick={pickMention} />
+                )}
+              </div>
+              {coarse && (
+                <button type="button" className="btn" onClick={submit} disabled={!draft.trim()}>
+                  Send ‡
+                </button>
+              )}
+            </>
+          ) : (
+            // A Location is the street's scenery, not its speech (CHANNELS.md
+            // §2). Saying so beats a composer that refuses.
+            <p className="hall-quiet">
+              {place.kind === "loc"
+                ? "This is the open street. Step into a room to speak. ‡"
+                : "You can only watch here. ‡"}
+            </p>
+          )}
+          {/* The phone's way to the right column: the people, the place panel
+              and the You strip, as a sheet over the scene. Drawn even on a
+              desktop, where the column is already there, so the composer's
+              shape does not move between the two. */}
+          <IconButton icon={ZapIcon} label="Here and the place ‡" disabled={!onOpenSheet} onClick={onOpenSheet ?? undefined} />
+        </div>
+      )}
 
       <FormError>{error}</FormError>
     </div>

@@ -60,7 +60,16 @@ function Section({ title, places, selected, seen, newest, onSelect }) {
   );
 }
 
-export default function PlacesColumn({ places, selected, seen, newest, onSelect, webOnly = false }) {
+export default function PlacesColumn({
+  places,
+  selected,
+  seen,
+  newest,
+  onSelect,
+  webOnly = false,
+  chimeMuted = false,
+  onToggleChime = null,
+}) {
   const here = places.filter((p) => p.kind === "loc");
   const rooms = places.filter((p) => p.kind === "room");
   const conversations = places.filter((p) => p.kind === "conv");
@@ -83,6 +92,22 @@ export default function PlacesColumn({ places, selected, seen, newest, onSelect,
         onSelect={onSelect}
       />
       <Section title="Summary ‡" places={summary} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      {/* The one preference this column carries: whether being named in a
+          scene makes a sound. Per browser, not per character
+          (useHallChimeMuted.js), because it is about the room you are sitting
+          in rather than the one you are standing in. */}
+      {onToggleChime && (
+        <div className="hall-places-foot">
+          <button
+            type="button"
+            className="btn-quiet"
+            aria-pressed={chimeMuted}
+            onClick={() => onToggleChime(!chimeMuted)}
+          >
+            {chimeMuted ? "Mentions are silent ‡" : "Mentions chime ‡"}
+          </button>
+        </div>
+      )}
     </nav>
   );
 }

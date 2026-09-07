@@ -3,6 +3,8 @@ import { Client } from "pg";
 import { prisma, feedRowShape, FEED_ROW_SELECT } from "@lifeweb/db";
 import { FEED_CHANNEL } from "@lifeweb/db/lib/feedNotify";
 import { PRESENCE_CHANNEL } from "@lifeweb/db/lib/presenceNotify";
+import { TYPING_CHANNEL } from "@lifeweb/db/lib/typingNotify";
+import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 
 // One Postgres LISTEN per web process, fanned out to every open SSE stream.
 //
@@ -29,6 +31,15 @@ function createHub() {
     // door, or when somebody lets them into a conversation, and an open
     // stream has to resubscribe rather than wait for the tab to reload.
     presenceSubscribers: new Map(),
+    // placeKey -> Set<({ placeKey, characterId, name }) => void>. The third
+    // channel, added in phase 6, and the only one whose payload the hub
+    // enriches before fanning it: the notify carries an id, and the presented
+    // name is resolved here (see typingNameFor).
+    typingSubscribers: new Map(),
+    // characterId -> { name, at }. A typing event fires every few seconds per
+    // person, and resolving forced name + concealment is two queries; nobody's
+    // mask comes off often enough to pay that on every keystroke burst.
+    nameMemo: new Map(),
     client: null,
     connecting: false,
     backoffMs: BACKOFF_MIN_MS,
@@ -76,9 +87,66 @@ function handlePresence(payload) {
   }
 }
 
+const NAME_MEMO_MS = 30_000;
+
+// The name this character is WEARING, not the name on their sheet. A typing
+// line is a line in the scene, so it obeys the same forced-name > concealment
+// > own-name order every message does (db/lib/presentedIdentity.js) — a mask
+// that hides who spoke and then announces who is about to would be worse than
+// no line at all.
+async function typingNameFor(characterId) {
+  const h = hub();
+  const cached = h.nameMemo.get(characterId);
+  if (cached && Date.now() - cached.at < NAME_MEMO_MS) return cached.name;
+
+  const character = await prisma.character.findUnique({
+    where: { id: characterId },
+    select: { id: true, name: true, concealed: true, age: true, gender: true, updatedAt: true },
+  });
+  if (!character) return null;
+  const [forcedName, concealment] = await Promise.all([
+    loadForcedName(prisma, characterId),
+    loadConcealment(prisma, characterId),
+  ]);
+  const name = presentedIdentity(character, { forcedName, concealment }).name ?? null;
+  h.nameMemo.set(characterId, { name, at: Date.now() });
+  return name;
+}
+
+async function handleTyping(payload) {
+  let parsed;
+  try {
+    parsed = JSON.parse(payload);
+  } catch {
+    return;
+  }
+  if (!parsed?.placeKey || !parsed?.characterId) return;
+
+  // Nobody in this process is watching that place, so nothing is worth
+  // spending on a name.
+  const set = hub().typingSubscribers.get(parsed.placeKey);
+  if (!set || set.size === 0) return;
+
+  const name = await typingNameFor(parsed.characterId);
+  if (!name) return;
+
+  const event = { placeKey: parsed.placeKey, characterId: parsed.characterId, name };
+  for (const send of [...set]) {
+    try {
+      send(event);
+    } catch (err) {
+      console.error("Typing subscriber failed:", err);
+    }
+  }
+}
+
 async function handleNotification(msg) {
   if (msg.channel === PRESENCE_CHANNEL) {
     if (msg.payload) handlePresence(msg.payload);
+    return;
+  }
+  if (msg.channel === TYPING_CHANNEL) {
+    if (msg.payload) await handleTyping(msg.payload);
     return;
   }
   if (msg.channel !== FEED_CHANNEL || !msg.payload) return;
@@ -162,6 +230,7 @@ async function connect() {
     // second connection would double the reconnect logic for no gain.
     await client.query(`LISTEN ${FEED_CHANNEL}`);
     await client.query(`LISTEN ${PRESENCE_CHANNEL}`);
+    await client.query(`LISTEN ${TYPING_CHANNEL}`);
     h.client = client;
     h.connecting = false;
     h.backoffMs = BACKOFF_MIN_MS;
@@ -189,6 +258,30 @@ export function subscribeToPlace(placeKey, send) {
     if (!current) return;
     current.delete(send);
     if (current.size === 0) h.subscribers.delete(placeKey);
+  };
+}
+
+// The same contract again, for the typing channel. Separate from
+// subscribeToPlace because a stream subscribes to both for the same place and
+// has to be able to drop one without the other — and because a typing event
+// is not a row, so mixing it into the row fan-out would put a shape on that
+// wire that every reader would have to test for.
+export function subscribeToTyping(placeKey, send) {
+  const h = hub();
+  let set = h.typingSubscribers.get(placeKey);
+  if (!set) {
+    set = new Set();
+    h.typingSubscribers.set(placeKey, set);
+  }
+  set.add(send);
+
+  connect().catch((err) => console.error("Feed hub connect failed:", err));
+
+  return () => {
+    const current = h.typingSubscribers.get(placeKey);
+    if (!current) return;
+    current.delete(send);
+    if (current.size === 0) h.typingSubscribers.delete(placeKey);
   };
 }
 
