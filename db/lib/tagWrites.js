@@ -65,6 +65,13 @@ async function addToStack(tx, characterId, tagId, quantity, options = {}) {
     await chargeWoundFear(tx, characterId, [tagId]);
     return created;
   }
+  // Latent (M4 fix round): an already-held NON-stackable tag is left
+  // entirely alone, poison options included — matching grantTagSlugs' own
+  // rule that an existing non-stackable row's expiry/state is never
+  // clobbered by a second grant. No caller passes poisonedCount for a
+  // non-stackable tag today (poison rides on food/drink stacks, which are
+  // always stackable), so this is a dropped-on-the-floor case that has never
+  // actually fired rather than an observed bug.
   if (!stackable) return existing;
   const samePoison =
     !existing.poisonPayload || !poisonPayload || existing.poisonPayload === poisonPayload;
@@ -103,11 +110,18 @@ async function dropCharacterTag(tx, characterId, tagId, quantity = null) {
     await tx.characterTag.delete({ where: { id: existing.id } });
     return { poisonedTaken, poisonPayload };
   }
+  // Payload-clear invariant (fix round, M4): once the units actually LEAVING
+  // take the poisonedCount to zero, the row must not keep pointing at a
+  // payload that no longer taints anything — a stale poisonPayload with
+  // poisonedCount 0 is a permanent false "already tainted" lock on a clean
+  // stack (poisonItemRequestImpl's refusal reads exactly this pair).
+  const remainingPoisoned = existing.poisonedCount - poisonedTaken;
   await tx.characterTag.update({
     where: { id: existing.id },
     data: {
       quantity: existing.quantity - take,
-      poisonedCount: existing.poisonedCount - poisonedTaken,
+      poisonedCount: remainingPoisoned,
+      poisonPayload: remainingPoisoned > 0 ? existing.poisonPayload : null,
     },
   });
   return { poisonedTaken, poisonPayload };
@@ -306,7 +320,14 @@ async function addToRoomStack(
     data: {
       quantity: { increment: n },
       expiresTurn: clocks.length ? Math.min(...clocks) : null,
-      poisonedCount: samePoison ? existing.poisonedCount + incomingPoisoned : existing.poisonedCount,
+      // The room-merge race (fix round, M4): two stashes landing on this row
+      // in the same instant both read `existing.poisonedCount` from the SAME
+      // snapshot above and both add to it, same trap the quantity column
+      // solves with `{ increment }` — one of the two poisoned counts would be
+      // lost. Only the samePoison branch can use it: the different-payload
+      // branch means "leave the count exactly as it is", which an increment
+      // of 0 already expresses just as safely.
+      poisonedCount: samePoison ? { increment: incomingPoisoned } : existing.poisonedCount,
       poisonPayload: existing.poisonPayload ?? (samePoison ? poisonPayload : null),
     },
   });
@@ -332,11 +353,31 @@ async function dropRoomTag(tx, roomId, tagId, quantity = null) {
     ? drawPoisonedUnits(existing.quantity, existing.poisonedCount, n)
     : 0;
   const poisonPayload = poisonedTaken > 0 ? existing.poisonPayload : null;
+  // Negative-count guard (fix round, M4): `poisonedCount` is read from the
+  // SAME pre-lock snapshot as `quantity` above, but only `quantity` has its
+  // own where-guard keeping the decrement conditional on committed state — a
+  // concurrent drop between the read and this write could already have taken
+  // some of the poisoned units, and an unconditional `decrement` would drive
+  // the column negative. Guarding it the same way `quantity` already is
+  // restores "the decrement IS the check" for both columns, not just one: a
+  // stale poisonedTaken now fails the whole write (count stays 0) rather than
+  // partially applying.
   const { count } = await tx.roomTag.updateMany({
-    where: { roomId, tagId, quantity: { gte: n } },
+    where: { roomId, tagId, quantity: { gte: n }, poisonedCount: { gte: poisonedTaken } },
     data: { quantity: { decrement: n }, poisonedCount: { decrement: poisonedTaken } },
   });
   if (count === 0) return { ok: false, poisonedTaken: 0, poisonPayload: null };
+  // Payload-clear invariant (fix round, M4): the decrement above can take
+  // poisonedCount to exactly 0 in the same statement that shrinks quantity,
+  // so there is no single atomic write that clears poisonPayload only when
+  // the RESULT lands on zero — a second, itself-guarded update covers it.
+  // Idempotent and cheap: it only touches a row that both needs it and still
+  // exists (the delete below may remove it first on some other path, but
+  // never before this one runs).
+  await tx.roomTag.updateMany({
+    where: { roomId, tagId, poisonedCount: { lte: 0 }, poisonPayload: { not: null } },
+    data: { poisonPayload: null },
+  });
   await tx.roomTag.deleteMany({ where: { roomId, tagId, quantity: { lte: 0 } } });
   return { ok: true, poisonedTaken, poisonPayload };
 }

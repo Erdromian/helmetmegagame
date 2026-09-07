@@ -1734,8 +1734,13 @@ async function advanceTurn() {
 
 module.exports = {
   prisma,
-  // Prisma.DbNull is the only way to write a SQL NULL into a nullable Json
-  // column — a plain null is a validation error.
+  // Prisma.DbNull is required in a WHERE filter to test a nullable Json
+  // column for SQL NULL — a bare `null` there is read as "skip this
+  // condition", not "is null" (db/lib/moves.js, db/lib/stagedPush.js). A
+  // stale claim used to sit here saying a DATA write needs it too; it
+  // doesn't — `data: { poisonPayload: null }` (db/lib/tagWrites.js, M4)
+  // writes a plain JS null into a nullable Json column just fine. DbNull is
+  // a filter-side sentinel, not a write-side one.
   Prisma,
   resolveNeeds,
   advanceTurn,
