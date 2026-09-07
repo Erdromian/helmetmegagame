@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSessionState from "@/app/components/useSessionState";
 import { DeskStaleRefreshGate, DeskStaleChip } from "@/app/components/useDeskVersion";
 import useGatedRefreshPoll from "@/app/components/useGatedRefreshPoll";
-import useReloadTelemetry from "@/app/components/useReloadTelemetry";
 import QueueRail, { RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT } from "./QueueRail";
 import MoveDesk from "./MoveDesk";
 import MoveHistoryDesk from "./MoveHistoryDesk";
@@ -530,8 +529,6 @@ export default function Workspace({
   // full-navigation mismatch fallback, so a deploy latches the reload chip
   // below instead.
   const lastRefreshedAt = useGatedRefreshPoll(REFRESH_MS, deployVersion);
-
-  useReloadTelemetry("turns", deployVersion);
 
   // Countdown to the nightly CT push, ticking every 30s. The move cutoff rides
   // the same tick.
