@@ -3454,6 +3454,7 @@ tags:
     expiresInto: [festering]
     healable: true
     requirement:
+      turnsCost: 0
       resourceCost: 2
       skills: [medical-basic]
 
@@ -3472,7 +3473,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -3491,8 +3492,8 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 6
+      turnsCost: 1/2
+      resourceCost: 7
       skills: [medical-skilled]
 
   necrosis:
@@ -3511,8 +3512,8 @@ tags:
     removesInto: [cauterized]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 6
+      turnsCost: 1/2
+      resourceCost: 7
       skills: [medical-skilled]
 
   sepsis:
@@ -3531,7 +3532,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -3554,7 +3555,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -3572,6 +3573,7 @@ tags:
     durationTurns: 2
     healable: true
     requirement:
+      turnsCost: 0
       resourceCost: 1
       skills: [medical-basic]
 
@@ -3590,6 +3592,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
+      turnsCost: 0
       resourceCost: 2
       skills: [medical-basic]
 
@@ -3609,6 +3612,7 @@ tags:
     removesInto: [bandaged]
     healable: true
     requirement:
+      turnsCost: 0
       resourceCost: 2
       skills: [medical-basic]
 
@@ -3628,7 +3632,7 @@ tags:
     removesInto: [bandaged, scarred]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -3646,6 +3650,7 @@ tags:
     expiresInto: [drained]
     healable: true
     requirement:
+      turnsCost: 0
       resourceCost: 0
       skills: [medical-basic]
 
@@ -3665,7 +3670,7 @@ tags:
     removesInto: [stitched-up]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -3684,7 +3689,7 @@ tags:
     removesInto: [stitched-up, drained]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 3
       skills: [medical-skilled]
 
@@ -3703,7 +3708,7 @@ tags:
     removesInto: [stitched-up, drained]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 3
       skills: [medical-skilled]
 
@@ -3721,7 +3726,7 @@ tags:
     removesInto: [splinted]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -3738,7 +3743,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -3757,7 +3762,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -3774,6 +3779,7 @@ tags:
     purchasableAfterStart: false
     healable: true
     requirement:
+      turnsCost: 0
       resourceCost: 0
       skills: [medical-basic]
 
@@ -3813,8 +3819,8 @@ tags:
     removesInto: [stitched-up, recovering]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 8
+      turnsCost: 1/2
+      resourceCost: 9
       skills: [medical-expert]
 
   gut-wound:
@@ -3833,8 +3839,8 @@ tags:
     removesInto: [stitched-up, recovering]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 8
+      turnsCost: 1/2
+      resourceCost: 9
       skills: [medical-expert]
 
   broken-jaw:
@@ -3850,7 +3856,7 @@ tags:
     removesInto: [wired-jaw]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -3870,7 +3876,7 @@ tags:
     removesInto: [splinted]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -3889,8 +3895,8 @@ tags:
     removesInto: [stitched-up]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 8
+      turnsCost: 1/2
+      resourceCost: 9
       skills: [medical-expert]
 
   rot-lung:
@@ -3906,7 +3912,7 @@ tags:
     removesInto: [persistent-cough]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -3924,7 +3930,7 @@ tags:
     removesInto: [drained]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 3
       skills: [medical-skilled]
 
@@ -3943,7 +3949,7 @@ tags:
     removesInto: [drained]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -3962,8 +3968,8 @@ tags:
     removesInto: [drained]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 8
+      turnsCost: 1/2
+      resourceCost: 9
       skills: [medical-expert]
 
   pox:
@@ -3981,7 +3987,7 @@ tags:
     removesInto: [scarred]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -4012,7 +4018,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills:
         - medical-expert
       gambit: true
@@ -4045,7 +4051,7 @@ tags:
     removesInto: [drained]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4093,8 +4099,8 @@ tags:
     removesInto: [stitched-up]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 6
+      turnsCost: 1/2
+      resourceCost: 7
       skills: [medical-skilled]
 
   exploded-chest:
@@ -4113,7 +4119,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -4190,7 +4196,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -4272,8 +4278,8 @@ tags:
     removesInto: [scarred]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 8
+      turnsCost: 1/2
+      resourceCost: 9
       skills: [medical-expert]
       gambit: false
 
@@ -4304,7 +4310,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -4399,6 +4405,7 @@ tags:
     durationTurns: 2
     healable: true
     requirement:
+      turnsCost: 0
       resourceCost: 1
       skills: [medical-basic]
 
@@ -4415,7 +4422,7 @@ tags:
     durationTurns: 1
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4434,7 +4441,7 @@ tags:
     expiresInto: [dying]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 0
       resourceCost: 2
       gambit: false
 
@@ -4454,7 +4461,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -11794,8 +11801,8 @@ tags:
     removesInto: [stitched-up]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 6
+      turnsCost: 1/2
+      resourceCost: 7
       skills: [medical-skilled]
       gambit: false
 
@@ -11816,6 +11823,7 @@ tags:
       - oneOf: [infected, recovering]
     healable: true
     requirement:
+      turnsCost: 0
       resourceCost: 2
       skills: [medical-basic]
 
