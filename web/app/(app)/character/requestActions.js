@@ -432,11 +432,24 @@ function lockCharacter(tx, characterId) {
 // Spends what resolveRecipeItems planned, inside the SAME transaction as the
 // payment and under the row lock above.
 //
-// **The write is the check.** A conditional `updateMany` matches only while
-// the stack still covers the draw, and a count of 0 refuses the craft.
-// `dropCharacterTag` is deliberately not used here: it silently deletes the
-// row on an overdraw rather than refusing (db/lib/tagWrites.js), which would
-// turn "make 3 off a stack of 2" into a free third one.
+// **The check is still separate from the write.** The row is read first and
+// a short stack refuses the craft outright — `dropCharacterTag`'s own
+// decrement is unconditional (it deletes whatever exists rather than
+// refusing an overdraw), so this function keeps the refusal in front of it
+// rather than after. What changed (fix round M4b, fix 4): the actual spend
+// now goes through `dropCharacterTag` instead of a hand-rolled
+// decrement/delete, because a manual write here knew nothing about
+// `poisonedCount`/`poisonPayload` — crafting off a poisoned stack used to
+// leave the row's poison columns untouched while quantity shrank under
+// them, eventually driving poisonedCount above quantity. Safe to do
+// unconditionally here specifically because every caller already holds the
+// character row lock (taken above, or by the caller per its own comment)
+// before this runs, so nothing can shrink the row between the check and the
+// drop. The draw itself — whether any of the units actually spent were
+// tainted — is discarded on purpose: a poisoned ingredient's dose is lost
+// in the crafting rather than carried into the output (that's as far as
+// this fix goes; whether a crafted item should ever inherit input taint is
+// a product question for later, not answered here).
 //
 // Returns the `replaced`-shaped snapshot the audit row records as
 // `details.consumed` — the one record of the spend a GM repairs from.
@@ -458,21 +471,10 @@ async function consumeRecipeItems(tx, characterId, plan) {
     const row = await tx.characterTag.findUnique({
       where: { characterId_tagId: { characterId, tagId } },
     });
-    const short = () =>
-      new UserError(`You don't have enough ${tagName} left for that.`);
-    if (!row || row.quantity < quantity) throw short();
-    if (row.quantity === quantity) {
-      const { count } = await tx.characterTag.deleteMany({
-        where: { id: row.id, quantity },
-      });
-      if (count === 0) throw short();
-    } else {
-      const { count } = await tx.characterTag.updateMany({
-        where: { characterId, tagId, quantity: { gte: quantity } },
-        data: { quantity: { decrement: quantity } },
-      });
-      if (count === 0) throw short();
+    if (!row || row.quantity < quantity) {
+      throw new UserError(`You don't have enough ${tagName} left for that.`);
     }
+    await dropCharacterTag(tx, characterId, tagId, quantity);
     consumed.push({
       tagId,
       tagName,
@@ -3723,6 +3725,44 @@ async function lootCharacterRequestImpl({
   const openTurn = await getOpenTurn();
 
   await prisma.$transaction(async (tx) => {
+    // Loot lock (fix round M4b, fix 3): unlike Transfer and Heal, this used
+    // to take no lock at all — two looters racing the same helpless target
+    // would both run dropCharacterTag's absolute writes against the same
+    // unlocked stack (duplicated units, or a poisoned split counted twice).
+    // Same sorted-id lock the heal and poison paths use, for the same
+    // deadlock-avoidance reason (a simultaneous cross-loot would otherwise
+    // lock actor-then-target and target-then-actor at once).
+    const lockIds = [character.id, target.id].sort();
+    for (const id of lockIds) await lockCharacter(tx, id);
+
+    // Race re-check under the lock: `takenTags`/`amount` were priced against
+    // a read taken before the lock, so a concurrent loot (or anything else
+    // that shrank the target's stack or purse since) needs a fresh look
+    // before anything is actually taken. Refusing beats granting the SECOND
+    // looter the full originally-requested amount regardless of what the
+    // body still has — dropCharacterTag quietly takes less (or nothing) off
+    // a shrunk row, but this loop would otherwise still hand the requester
+    // the untouched request quantity.
+    for (const t of takenTags) {
+      const freshHeld = await tx.characterTag.findUnique({
+        where: { characterId_tagId: { characterId: target.id, tagId: t.tagId } },
+      });
+      if (!freshHeld || freshHeld.quantity < t.quantity) {
+        throw new UserError(`Someone already took that. ‡`);
+      }
+    }
+    let freshResources = target.resources;
+    if (amount > 0) {
+      const freshTarget = await tx.character.findUnique({
+        where: { id: target.id },
+        select: { resources: true },
+      });
+      freshResources = freshTarget?.resources ?? 0;
+      if (freshResources < amount) {
+        throw new UserError(`${target.name} only has ${freshResources} ⬢ left. ‡`);
+      }
+    }
+
     for (const t of takenTags) {
       // Same poison hand-off as Transfer (M4): a body's held stack draws its
       // poisoned units proportionally, and they land on the looter under the
@@ -5228,6 +5268,12 @@ async function packageItemsRequestImpl({
 
   let crate;
   await prisma.$transaction(async (tx) => {
+    // Single-actor lock (fix round M4b, fix 3 sibling check): packing is
+    // always the actor's own stacks, so there's no cross-character deadlock
+    // order to reason about — just the same "two tabs packing at once"
+    // shape the loot lock above guards against, on one row instead of two.
+    await lockCharacter(tx, character.id);
+
     // Laundering fix (M4): drop the contents FIRST and capture what actually
     // left as poisoned — dropCharacterTag's own return, previously discarded
     // here, which is exactly how packing a poisoned item into a crate used
