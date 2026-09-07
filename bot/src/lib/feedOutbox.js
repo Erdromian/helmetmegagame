@@ -21,6 +21,7 @@ const {
   deleteWebhookMessage,
 } = require("@lifeweb/db/lib/discordRest");
 const { loadForcedName, loadConcealment } = require("@lifeweb/db/lib/presentedIdentity");
+const { pushToUser } = require("@lifeweb/db/lib/webPush");
 const { FEED_CHANNEL } = require("@lifeweb/db/lib/feedNotify");
 const { discordTargetForPlaceKey, archiveContextForPlaceKey } = require("@lifeweb/db/lib/placeKey");
 const {
@@ -129,6 +130,14 @@ async function relayWebMentions({ row, characters, concealed, channelId, message
     await sendDm(prisma, target.discordUserId, `*You were mentioned in ${where}.* ‡\n${link}`, {
       source: "system_notice",
     }).catch((err) => console.error(`Feed outbox couldn't relay a mention to ${target.name}:`, err));
+    // And a browser notification, which is what reaches somebody whose /play
+    // tab is closed. After the DM, and wrapped: a push that will not send must
+    // never cost the DM that already went (db/lib/webPush.js).
+    await pushToUser(prisma, target.discordUserId, {
+      title: `${target.name} was named ‡`,
+      body: `in ${where} ‡`,
+      url: `/play#${encodeURIComponent(row.placeKey)}`,
+    }).catch(() => {});
   }
 }
 

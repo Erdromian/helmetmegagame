@@ -15,7 +15,7 @@ import RequestActionsProvider from "@/app/components/RequestActionsProvider";
 import CharacterMentionsProvider from "@/app/components/CharacterMentionsProvider";
 import Hall from "./Hall";
 import { waitingOnYou, myMove } from "./actions";
-import { loadDesireView, loadLettersView } from "@/lib/selfPools";
+import { loadDesireView, loadLettersView, loadFactionView } from "@/lib/selfPools";
 import { thingGroups } from "./thingRows";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
@@ -237,6 +237,14 @@ export default async function PlayPage() {
       })()
     : null;
 
+  // The faction, for the ⚑ row at the foot of the places column. The SAME
+  // loaders /faction runs (web/lib/factionView.js), so the two surfaces cannot
+  // disagree about the roster — and a member's ⬢ is on the rows only for that
+  // faction's own Leader or Treasurer (FACTIONS.md §6).
+  const factionView = viewer.character
+    ? await loadFactionView({ discordUserId: viewer.discordUserId }, viewer.character)
+    : null;
+
   // Is there an instant camera in this character's hands? One slug off the
   // sheet already loaded above (db/lib/photoMint.js#CAMERA_SLUG), so the row
   // action bar can decide whether to draw the 📷 without a second query.
@@ -296,6 +304,7 @@ export default async function PlayPage() {
             }
           : null
       }
+      faction={factionView}
       conceal={{
         canConceal: Boolean(concealment) && !concealment.forced && !forcedName,
         concealed: Boolean(identity.concealed),

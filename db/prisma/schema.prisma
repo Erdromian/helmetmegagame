@@ -2247,14 +2247,16 @@ model Tag {
   escalatesInto String?
 
   // The four capability flags. Each one fills exactly one player menu and is
-  // re-checked server-side by the matching request; none is derived from the
-  // category (docs/systemdocs/TAGS.md §5). All four are explicit in
-  // docs/tags.yaml — the sync never infers one.
+  // re-checked server-side by the matching request (docs/systemdocs/TAGS.md
+  // §5). Three are explicit in docs/tags.yaml; `removable` is the one the
+  // sync derives.
   //
   // removable: the Destroy menu (web/lib/tagRequests.js#destroyableTags,
-  // REMOVE_TAG). Destroying refunds nothing — so a removable,
-  // purchasableAfterStart tag (the Beliefs group) costs its price again on
-  // every re-purchase.
+  // REMOVE_TAG). DERIVED by db/lib/syncTags.js from the category — Destroy is
+  // for things you own, so every Items and Assets tag has it and nothing else
+  // does, less a short opt-out list the YAML writes as `removable: false`.
+  // Runtime-minted rows (paperMint, corpseMint, the packed crate) set it by
+  // hand, since no sync ever sees them. Destroying refunds nothing.
   removable Boolean @default(false)
 
   // craftable: the Craft menu (docs/systemdocs/CRAFTING.md). A recipe also
@@ -3796,4 +3798,25 @@ enum ThreatSpawnStatus {
   ACCEPTED
   DECLINED
   CANCELLED
+}
+
+// One browser that has agreed to be notified. Web Push is per-BROWSER, not
+// per-character: the endpoint is minted by the push service for that install,
+// and one player may hold several (a laptop and a phone). Keyed on the Discord
+// user id for the same reason every other row here is -- there is no user
+// table.
+//
+// A dead endpoint is deleted the first time the push service answers 404 or
+// 410 (db/lib/webPush.js), so this table cleans itself.
+model PushSubscription {
+  id            String    @id @default(cuid())
+  discordUserId String
+  endpoint      String    @unique
+  p256dh        String
+  auth          String
+  userAgent     String?
+  createdAt     DateTime  @default(now())
+  lastUsedAt    DateTime?
+
+  @@index([discordUserId])
 }

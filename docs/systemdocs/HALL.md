@@ -887,6 +887,56 @@ instead, because an anchor cannot know who is reading it.
 Adding an affordance is one entry in the catalog, one dialog in
 the Hall's right column and one server action. It is not two lists to keep in step.
 
+## 5a. Notifications: the chime, and Web Push
+
+Three things can tell a player something happened, and they are deliberately
+different sizes.
+
+**The chime** is for a tab that is already open. A row landing on the stream
+with `{char:<your id>}` in it plays a short tone (`playChime`), per browser
+rather than per character, muted with the bell at the foot of the places
+column (`web/app/components/useHallChimeMuted.js`). Never for your own words,
+and rate-limited by `chimedRecently()` so a busy room is not a bell tower.
+
+**The DM** is unchanged and is still the record: every mention relay writes a
+`DirectMessage` row, on both faces (`bot/src/lib/mentions.js` for a
+Discord-origin mention, `bot/src/lib/feedOutbox.js#relayWebMentions` for a web
+one). It carries where and a link and never the text.
+
+**Web Push** is for a tab that is closed, and it is the new half. A browser
+that has agreed is one `PushSubscription` row — `discordUserId`, the endpoint
+the push service minted, and the two keys. Per BROWSER, not per character: one
+player may hold a laptop's row and a phone's, and a character dying does not
+end them.
+
+- **The toggle** sits beside the chime bell in the places column: `Notify me ‡`
+  / `Notifications on ‡`, `aria-pressed`. Pressing it registers `/sw.js`, asks
+  for permission, subscribes and posts the subscription; pressing it again
+  unsubscribes. It draws only when the browser has a `PushManager` **and**
+  `/api/push/key` answers — the state is a module store read through
+  `useSyncExternalStore` (`web/app/(app)/play/pushStore.js`), never an effect
+  writing state.
+- **The service worker does one job.** `web/public/sw.js` draws the
+  notification and, on a click, focuses an open tab and navigates it to the
+  url the payload carries. It caches nothing: `/play` is a live feed, and a
+  worker serving it out of a cache would be showing yesterday's scene.
+- **What is sent.** Two things, and only two. A **mention** — after the DM, at
+  both call sites, `"{name} was named ‡"` / `"in {place} ‡"`, pointing at
+  `/play` (the web-origin one at `/play#<placeKey>`, which is the same hash the
+  places column round-trips). And the **turn opening**
+  (`db/lib/turnAnnouncement.js`), after the announcement is posted, to every
+  Discord account holding an ALIVE character, one at a time with a small gap.
+- **Nothing else may depend on it.** `db/lib/webPush.js` never throws. A 404 or
+  410 from the push service deletes the row — a browser that is gone for good
+  is the one thing an endpoint failure reliably means — and anything else is
+  logged and left alone.
+- **Unconfigured is the normal case.** Without `VAPID_PUBLIC_KEY`,
+  `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT`, `pushToUser` returns
+  `{ sent: 0, reason: "unconfigured" }` before it touches the database, the key
+  route answers 404, and the toggle never draws. The chime and the DM are
+  unaffected. The three go on **both** Railway services, since the bot sends
+  the mention pushes and the web app serves the key.
+
 ## 6. What comes next, in order
 
 1. ~~**One write path**~~ — done (§2, §4). `db/lib/say.js` decides for both

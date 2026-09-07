@@ -9,6 +9,7 @@ import HereList from "./HereList";
 import PlacesColumn, { PlacesTabs } from "./PlacesColumn";
 import useNarrow from "./useNarrow";
 import Feed from "./Feed";
+import FactionPanel from "./FactionPanel";
 import NoticeCards from "./NoticeCards";
 import { ConverseDialog } from "./PlacePanel";
 import { addMember } from "./actions";
@@ -16,6 +17,7 @@ import { playChime, chimedRecently } from "@/app/components/chime";
 import useHallChimeMuted, { hallChimeMuted } from "@/app/components/useHallChimeMuted";
 import { useSeen, markSeen, seedSeenIfFresh } from "./seenStore";
 import { noteTyping } from "./typingStore";
+import { usePushState, initPush, togglePush } from "./pushStore";
 import {
   usePlaces,
   setPlaces,
@@ -94,6 +96,11 @@ export default function Hall({
   // gate themselves.
   letters = null,
   conceal = null,
+  // The faction this character is in, or null. A pseudo-place in the column
+  // rather than a place: it has no channel, so what its row opens is a panel
+  // (./FactionPanel.js), and the whole roster is decided on the server
+  // (web/lib/selfPools.js#loadFactionView).
+  faction = null,
 }) {
   // The server's list is the first paint; the stream replaces it whole from
   // its first `places` event onward.
@@ -103,11 +110,29 @@ export default function Hall({
   const seen = useSeen();
 
   const hash = decodeHash(useSyncExternalStore(subscribeToHash, readHash, readServerHash));
-  const byKey = useMemo(() => new Map(places.map((place) => [place.placeKey, place])), [places]);
+
+  // The faction's row. `faction:<id>` is a place key the archive will never
+  // hold, which is exactly what makes it safe as a pseudo-key: it round-trips
+  // through the hash like any other, and nothing that reads a feed can ever
+  // match it.
+  const factionKey = faction ? `faction:${faction.id}` : null;
+  const navPlaces = useMemo(
+    () =>
+      factionKey
+        ? [...places, { placeKey: factionKey, name: faction.name, kind: "faction", newestSeq: null }]
+        : places,
+    [places, factionKey, faction],
+  );
+  const byKey = useMemo(() => new Map(navPlaces.map((place) => [place.placeKey, place])), [navPlaces]);
   // A hash naming somewhere you have left falls back to the first place, so a
   // stale bookmark opens the street rather than a blank column.
   const selectedKey = (hash && byKey.has(hash) ? hash : null) ?? initialPlace ?? places[0]?.placeKey ?? null;
   const selected = selectedKey ? (byKey.get(selectedKey) ?? null) : null;
+  const factionOpen = Boolean(factionKey && selectedKey === factionKey);
+  // The silo is a Room, so the button only draws when that room is in this
+  // character's own place list — a shut door keeps it out of the list, and a
+  // button selecting a place they cannot read would be a dead end.
+  const siloOpen = Boolean(faction?.silo && byKey.has(faction.silo.placeKey));
 
   const onSelect = useCallback((placeKey) => {
     window.location.hash = encodeURIComponent(placeKey);
@@ -191,6 +216,13 @@ export default function Hall({
   const [converseOn, setConverseOn] = useState(false);
   const [placesVersion, setPlacesVersion] = useState(0);
   const bumpPlaces = useCallback(() => setPlacesVersion((n) => n + 1), []);
+
+  // Web Push, asked once per tab. The store is what holds the answer — this
+  // effect sets no state of its own (./pushStore.js).
+  const push = usePushState();
+  useEffect(() => {
+    initPush();
+  }, []);
 
   // Written in an effect, not during a render: react-hooks/immutability is an
   // error here and a ref written mid-render is exactly what it catches.
@@ -353,7 +385,8 @@ export default function Hall({
   // chosen. The stream only ever carries what happens next, so without this a
   // room opened for the first time would look empty until somebody spoke.
   useEffect(() => {
-    if (!selectedKey || historyLoaded(selectedKey)) return undefined;
+    // The faction pseudo-place has no feed to load (./FactionPanel.js).
+    if (!selectedKey || selectedKey.startsWith("faction:") || historyLoaded(selectedKey)) return undefined;
     // "loading" first, so Feed.js draws the skeleton instead of the empty
     // state while this is out. markHistoryLoading is also what stops a second
     // fetch: historyLoaded() is true for both of the non-idle states.
@@ -454,7 +487,7 @@ export default function Hall({
   return (
     <div className="hall-body">
       <PlacesColumn
-        places={places}
+        places={navPlaces}
         selected={selectedKey}
         seen={seen}
         newest={newest}
@@ -462,13 +495,17 @@ export default function Hall({
         webOnly={webOnly}
         chimeMuted={chimeMuted}
         onToggleChime={setChimeMuted}
+        push={push.supported ? { on: push.on, busy: push.busy, onToggle: togglePush } : null}
       />
       <div className="hall-centre">
-        <PlacesTabs places={places} selected={selectedKey} seen={seen} newest={newest} onSelect={onSelect} />
+        <PlacesTabs places={navPlaces} selected={selectedKey} seen={seen} newest={newest} onSelect={onSelect} />
         {/* On a phone the people are an avatar strip under the place header,
             opening the same per-person menu the column's rows do. It draws
             nowhere else — CSS hides it above 720px. */}
         {aside && <HereList people={aside.people} selfId={aside.selfId} strip />}
+        {factionOpen ? (
+          <FactionPanel faction={faction} siloOpen={siloOpen} onSelect={onSelect} />
+        ) : (
         <Feed
           place={selected}
           self={self}
@@ -501,6 +538,7 @@ export default function Hall({
             ) : null
           }
         />
+        )}
       </div>
       {/* ONE of these ever mounts. The CSS hides the column under 720px, but
           hiding is not unmounting: both copies used to be live at once on a

@@ -57,6 +57,7 @@ import {
   Package,
   DoorOpen,
   Bell,
+  BellRing,
   BellOff,
   Camera,
   Search,
@@ -124,6 +125,10 @@ export const PlayIcon = lucide(DoorOpen, "PlayIcon");
 // everyone else.
 export const BellIcon = lucide(Bell, "BellIcon");
 export const BellOffIcon = lucide(BellOff, "BellOffIcon");
+// Web Push is ON for this browser. A ringing bell rather than a second plain
+// one, so the push toggle and the chime toggle beside it are told apart at a
+// glance (HALL.md §5a).
+export const BellRingIcon = lucide(BellRing, "BellRingIcon");
 
 // GM inbox chime mute toggle (NavRail.js). One name, two glyphs.
 export function SpeakerIcon({ muted, ...props }) {

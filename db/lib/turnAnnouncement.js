@@ -14,6 +14,7 @@ const { docsPath } = require("./repoPaths");
 const { clearMessagesExcept } = require("./dawnWipe");
 const { isTurnsChannel } = require("./turnsChannelAccess");
 const { TURN_BANNER_DIR, turnBannerPath } = require("./turnBanner");
+const { pushToUser, vapidPublicKey } = require("./webPush");
 
 // #turns is ONE rolling message: the turn announcement, the banner and
 // the player console on a single post, deleted and reposted each turn — one
@@ -48,6 +49,45 @@ async function postTurnsAnnouncement(prisma, newTurn, note) {
   ]);
   const sent = await postTurnsConsole(prisma, turnsChannel.id, text, newTurn, config, state);
   if (!sent) console.error("Turn announcement: nothing could be posted to #turns");
+
+  // AFTER the announcement, never before it: a turn opens whether or not
+  // anybody's browser hears about it. Best-effort throughout — an unconfigured
+  // deployment is a no-op (db/lib/webPush.js) and nothing here can throw.
+  await pushTurnOpen(prisma, text).catch((err) =>
+    console.error("Turn announcement: push failed:", err),
+  );
+}
+
+// Between one push and the next, so a hundred players do not become a hundred
+// requests in the same instant. The turn has already opened by the time this
+// runs, so a few seconds spent walking the list costs nobody anything.
+const TURN_PUSH_GAP_MS = 40;
+
+// Every player holding a living character, told the day has turned. One query
+// for the distinct Discord accounts, then one send each — db/lib/webPush.js
+// returns early for an account with no subscribed browser, which is most of
+// them.
+async function pushTurnOpen(prisma, text) {
+  // Asked once, before the roster: without VAPID keys every send below is a
+  // no-op and the gap between them would be four wasted seconds on the turn.
+  if (!vapidPublicKey()) return;
+  // The banner's first line is the day and the phase ("DAY 4 · DUSK"), which
+  // is the whole of what a notification needs to say.
+  const firstLine = String(text ?? "").split("\n").find((line) => line.trim()) ?? "";
+  const players = await prisma.character.findMany({
+    where: { status: "ALIVE" },
+    select: { discordUserId: true },
+    distinct: ["discordUserId"],
+  });
+  for (const player of players) {
+    if (!player.discordUserId) continue;
+    await pushToUser(prisma, player.discordUserId, {
+      title: "The turn has opened ‡",
+      body: firstLine,
+      url: "/play",
+    }).catch(() => {});
+    await new Promise((resolve) => setTimeout(resolve, TURN_PUSH_GAP_MS));
+  }
 }
 
 // Posts the rolling message and records its id, replacing whatever was there.

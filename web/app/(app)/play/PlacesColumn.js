@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import IconButton from "@/app/components/IconButton";
-import { BellIcon, BellOffIcon } from "@/app/components/icons";
+import { BellIcon, BellOffIcon, BellRingIcon, SendIcon } from "@/app/components/icons";
 import { isUnread } from "./seenStore";
 
 // The left column of the Hall: everywhere this character may read, grouped the
@@ -24,6 +24,9 @@ function glyph(place) {
   if (place.kind === "loc") return "▸";
   if (place.kind === "conv") return "»";
   if (place.kind === "zone") return "▤";
+  // The faction is a pseudo-place: a banner, not a door. It has no channel —
+  // the panel it opens is a roster (./FactionPanel.js).
+  if (place.kind === "faction") return "⚑";
   return place.roomKind === "PRIVATE" ? "▪" : "";
 }
 
@@ -71,11 +74,15 @@ export default function PlacesColumn({
   webOnly = false,
   chimeMuted = false,
   onToggleChime = null,
+  // The push toggle beside the bell. Null on a browser with no PushManager,
+  // and on a deployment with no VAPID keys set (HALL.md §5a).
+  push = null,
 }) {
   const here = places.filter((p) => p.kind === "loc");
   const rooms = places.filter((p) => p.kind === "room");
   const conversations = places.filter((p) => p.kind === "conv");
   const summary = places.filter((p) => p.kind === "zone");
+  const faction = places.filter((p) => p.kind === "faction");
 
   return (
     <nav className="hall-places" aria-label="Places ‡">
@@ -90,6 +97,10 @@ export default function PlacesColumn({
         newest={newest}
         onSelect={onSelect}
       />
+      {/* Last, under the places a voice can reach: the people you are in it
+          with, wherever they are standing. One row, and it opens a panel
+          rather than a feed. */}
+      <Section title="Faction ‡" places={faction} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       {/* The foot: the one preference this column carries — whether being
           named in a scene makes a sound, per browser rather than per
           character (useHallChimeMuted.js) — and the quiet reminder that this
@@ -104,6 +115,15 @@ export default function PlacesColumn({
             label={chimeMuted ? "Mentions are silent ‡" : "Mentions chime ‡"}
             aria-pressed={!chimeMuted}
             onClick={() => onToggleChime(!chimeMuted)}
+          />
+        )}
+        {push && (
+          <IconButton
+            icon={push.on ? BellRingIcon : SendIcon}
+            label={push.on ? "Notifications on ‡" : "Notify me ‡"}
+            aria-pressed={push.on}
+            disabled={push.busy}
+            onClick={push.onToggle}
           />
         )}
         {webOnly && <span className="chip hall-webonly">Playing from the web ‡</span>}

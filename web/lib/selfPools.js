@@ -20,7 +20,11 @@ import {
   canSendBird as holdsBirdAndLetters,
   birdZones as birdZonesOf,
 } from "@lifeweb/db/lib/bird";
+import { isUnaffiliated } from "@lifeweb/db/lib/factionConstants";
+import { placeKeyForRoom } from "@lifeweb/db/lib/placeKey";
 import { describeTurn } from "@/lib/turnFormat";
+import { loadFaction } from "@/lib/factionView";
+import { getMyFactionRole } from "@/lib/factionPermissions";
 import {
   projectDesireTemplateForGates,
   loadRoleBySlugForTemplates,
@@ -273,5 +277,74 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
     birdSentToday,
     birdTargets,
     birdZones,
+  };
+}
+
+// ---- The faction, for the Hall's Faction panel ------------------------------
+//
+// The same loaders /faction runs — web/lib/factionView.js#loadFaction and the
+// Leader/Treasurer test in db/lib/factionPermissions.js — so the two surfaces
+// can never disagree about who is in a faction or who may see a member's ⬢
+// (FACTIONS.md §5-6).
+//
+// `resources` is on a roster row ONLY for a Leader or a Treasurer of that same
+// faction. It is left off the object entirely rather than nulled, because this
+// crosses into a client component and an absent key cannot be read out of the
+// page source.
+//
+// Returns null for a character with no faction, and for the Unaffiliated
+// placeholder — which is not a faction (FACTIONS.md §1a) and has no roster
+// worth a section in the column.
+export async function loadFactionView(session, character) {
+  if (!session?.discordUserId || !character?.id) return null;
+
+  let factionId = character.factionId;
+  if (factionId === undefined) {
+    const row = await prisma.character.findUnique({
+      where: { id: character.id },
+      select: { factionId: true },
+    });
+    factionId = row?.factionId ?? null;
+  }
+  if (!factionId) return null;
+
+  const faction = await loadFaction(factionId);
+  if (!faction || isUnaffiliated(faction)) return null;
+
+  const { isLeader, isTreasurer, isOfficer } = await getMyFactionRole(session.discordUserId, faction.id);
+
+  // What the viewer's own seat is, under the name. One line, because the
+  // column is narrow and the /faction page is one click away for the rest.
+  const roleLine = isLeader
+    ? "You lead it. ‡"
+    : isTreasurer
+      ? "You keep its purse. ‡"
+      : "You are a member. ‡";
+
+  return {
+    id: faction.id,
+    name: faction.name,
+    roleLine,
+    isOfficer,
+    roster: faction.characters.map((c) => ({
+      characterId: c.id,
+      name: c.name,
+      roleTitle: c.roleTitle,
+      isLeader: c.isLeader,
+      isTreasurer: c.isTreasurer,
+      catatonic: c.tags.length > 0,
+      avatarVersion: c.updatedAt?.getTime?.() ?? null,
+      ...(isOfficer ? { resources: c.resources } : {}),
+    })),
+    // The silo is a Room, so it already has a place key — the panel's Silo
+    // button just selects it, and only when the viewer's own places carry it
+    // (a shut door means the room is not in their list at all).
+    silo: faction.siloRoom
+      ? {
+          roomId: faction.siloRoom.id,
+          name: faction.siloRoom.name,
+          placeKey: placeKeyForRoom(faction.siloRoom.id),
+        }
+      : null,
   };
 }

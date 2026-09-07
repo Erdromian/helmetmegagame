@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · A Faction section and browser notifications on the Play page
+
+✚ A Faction row in the places column opening your roster, with ⬢ for the Leader and Treasurer, and a way to the silo  
+✚ A Notify me button beside the bell: a browser notification when you are named and when the turn opens
+
 ## 2026-09-07 · Your things, your letters and your hood on the Play page
 
 ✚ A Things drawer under You: every item and asset as a chip, with Equip, Use, Give and Destroy  

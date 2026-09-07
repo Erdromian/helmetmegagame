@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
+import { prisma } from "@lifeweb/db";
 import { roomAccessKeys, accessibleRooms } from "@lifeweb/db/lib/roomAccess";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { getMyFactionRole } from "@/lib/factionPermissions";
+import { loadFaction } from "@/lib/factionView";
 import { isUnaffiliated } from "@lifeweb/db/lib/factionConstants";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import Select from "@/app/components/Select";
@@ -23,50 +24,6 @@ import {
 } from "./actions";
 
 const MEMBER_COL_COUNT = 7;
-
-async function loadFaction(factionId) {
-  return prisma.faction.findUnique({
-    where: { id: factionId },
-    include: {
-      parentFaction: { select: { id: true, name: true } },
-      subjectFactions: { select: { id: true, name: true }, orderBy: { name: "asc" } },
-      zone: { select: { name: true } },
-      siloRoom: {
-        select: {
-          id: true,
-          name: true,
-          kind: true,
-          resources: true,
-          accessTagSlugs: true,
-          location: { select: { name: true, zoneId: true, zone: { select: { name: true } } } },
-          tags: { select: { id: true, quantity: true, tag: { select: { name: true } } } },
-        },
-      },
-      characters: {
-        // ALIVE only. A corpse in the roster inflated the member count the
-        // directory shows (which always counted the living), so a faction
-        // advertised as "4 members" became 9 the moment you joined it — and
-        // the dead carried live Remove and Treasurer buttons.
-        where: { status: "ALIVE" },
-        orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-        select: {
-          id: true,
-          name: true,
-          status: true,
-          isLeader: true,
-          isTreasurer: true,
-          roleTitle: true,
-          // Only ever rendered behind the officer gate — a plain member never
-          // sees the column.
-          resources: true,
-          // Just the AFK marker, not the sheet: rows only when the member
-          // holds the catatonic tag, so `tags.length > 0` is the whole read.
-          tags: { where: { tag: { slug: CATATONIC_SLUG } }, select: { id: true } },
-        },
-      },
-    },
-  });
-}
 
 // Breadth-first over parentFactionId so the GM overview's indentation covers
 // the whole subtree, not just direct children — the hierarchy is one level
