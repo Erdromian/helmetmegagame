@@ -46,7 +46,7 @@ function formatManifest(tags = [], resources = 0) {
 // `resources` and `tags: [{ quantity, tag: { name } }]`.
 function formatStashLine(room) {
   const tags = (room.tags ?? []).filter((rt) => rt.quantity > 0);
-  if (tags.length === 0 && !(room.resources > 0)) return "-# Nothing is stored here. ‡";
+  if (tags.length === 0 && !(room.resources > 0)) return "-# Nothing is stored here.";
   const names = tags.map((rt) => formatStack(rt.tag.name, rt.quantity)).join(", ");
   return `-# ${room.resources ?? 0} ⬢ | **Tags**: ${names || "none"}`;
 }

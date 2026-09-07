@@ -59,7 +59,7 @@ export default function PlaceCard({
       <p className="hall-section-title">{place?.name ?? "Here"}</p>
       {zone?.name && <p className="hall-quiet-line">{zone.name}</p>}
 
-      <div className="chip-row" role="radiogroup" aria-label="What you are reading ‡">
+      <div className="chip-row" role="radiogroup" aria-label="What you are reading">
         {SIDES.map((entry) => (
           <button
             key={entry.value}
@@ -77,7 +77,7 @@ export default function PlaceCard({
 
       <div className="hall-card-text">
         {body.length === 0 ? (
-          <p className="text-sm text-muted">Nothing to see. ‡</p>
+          <p className="text-sm text-muted">Nothing to see.</p>
         ) : (
           body.map((paragraph, index) => <ChatMarkdown key={index} content={paragraph} />)
         )}
@@ -98,12 +98,12 @@ export default function PlaceCard({
           ))}
           {depotHref && (
             <Link className="btn-secondary" href={depotHref}>
-              Depot › ‡
+              Depot ›
             </Link>
           )}
           {onFactory && (
             <button type="button" className="btn-secondary" disabled={pending} onClick={onFactory}>
-              Factory ‡
+              Factory
             </button>
           )}
           {/* Starting a conversation is otherwise only reachable from a
@@ -112,7 +112,7 @@ export default function PlaceCard({
               dialog either way — it asks who to talk to itself. */}
           {onConverse && (
             <button type="button" className="btn-secondary" disabled={pending} onClick={() => onConverse()}>
-              Converse ‡
+              Converse
             </button>
           )}
         </div>

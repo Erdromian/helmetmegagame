@@ -83,17 +83,17 @@ function ThingMenu({ row, onClose, onEquip, pending }) {
       )}
       {row.consumable && (
         <button type="button" role="menuitem" className="menu-item" onClick={() => pick("consume")}>
-          Use ‡
+          Use
         </button>
       )}
       {row.tradeable && (
         <button type="button" role="menuitem" className="menu-item" onClick={() => pick("transfer")}>
-          Give ‡
+          Give
         </button>
       )}
       {row.removable && (
         <button type="button" role="menuitem" className="menu-item" onClick={() => pick("destroy")}>
-          Destroy ‡
+          Destroy
         </button>
       )}
     </div>
@@ -154,16 +154,16 @@ export default function Things({ groups: initialGroups = [] }) {
     }}>
       <button type="button" className="hall-details-summary" aria-expanded={open} onClick={toggle}>
         <ChevronDownIcon data-open={open ? "true" : undefined} />
-        Things ‡
+        Things
       </button>
       {open && (
         <div className="hall-details-body">
           {groups.length === 0 ? (
-            <p className="hall-quiet-line">Your pockets are empty. ‡</p>
+            <p className="hall-quiet-line">Your pockets are empty.</p>
           ) : (
             groups.map((group) => (
               <div key={group.category}>
-                <p className="hall-quiet-line">{group.category} ‡</p>
+                <p className="hall-quiet-line">{group.category}</p>
                 <div className="hall-chips">
                   {group.rows.map((row) => (
                     <span key={row.characterTagId ?? row.tagId} className="hall-thing-wrap">

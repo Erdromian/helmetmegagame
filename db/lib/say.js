@@ -126,7 +126,7 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
   // channel is scenery rather than speech (CHANNELS.md §2), which is why this
   // refusal now has a second wording behind it.
   if (web && !(await mayWritePlace(prisma, character, placeKey))) {
-    return { ok: false, refusal: "You can't speak there. ‡" };
+    return { ok: false, refusal: "You can't speak there." };
   }
 
   const voice = await loadVoiceState(prisma, character.id);
@@ -246,7 +246,7 @@ function pastWindow(row) {
 }
 
 const WINDOW_REFUSAL = "That was said more than five minutes ago and stands. ‡";
-const GONE_REFUSAL = "That message is gone. ‡";
+const GONE_REFUSAL = "That message is gone.";
 const NOT_YOURS_REFUSAL = "That isn't yours to change. ‡";
 
 // Shared by both verbs: find the row, and answer whether this caller may

@@ -82,7 +82,7 @@ async function pushTurnOpen(prisma, text) {
   for (const player of players) {
     if (!player.discordUserId) continue;
     await pushToUser(prisma, player.discordUserId, {
-      title: "The turn has opened ‡",
+      title: "The turn has opened",
       body: firstLine,
       url: "/play",
     }).catch(() => {});

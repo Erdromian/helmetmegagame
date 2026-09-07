@@ -171,7 +171,7 @@ async function runLessonPass(prisma, turn) {
       const teacherDm = dmTo(
         offer.teacherId,
         outcome.succeeded
-          ? `${learnerName} picked up **${outcome.skill}**. ‡`
+          ? `${learnerName} picked up **${outcome.skill}**.`
           : `${learnerName} didn't get the hang of **${outcome.skill}**. ‡`,
       );
       for (const dm of [learnerDm, teacherDm]) if (dm) dms.push(dm);

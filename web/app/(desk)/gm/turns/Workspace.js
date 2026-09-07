@@ -673,11 +673,7 @@ export default function Workspace({
                   another GM Rejected the Move. Pick another from the rail.
                 </p>
               ) : (
-                <p className="text-sm text-muted">
-                  Pick a Move or a Caving roll from the queue. Everything you stage —
-                  messages, effects, public declarations — goes out together when the turn ends.
-                  The History lens reads back a turn that has already been pushed.
-                </p>
+                <p className="text-sm text-muted">Pick a Move or a Caving roll from the queue.</p>
               )}
             </div>
           )}

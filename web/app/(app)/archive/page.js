@@ -127,18 +127,18 @@ export default async function ArchivePage({ searchParams }) {
           isCurrent
             ? gm && !state?.archiveVisible
               ? "The current game. Hidden from players until it ends. ‡"
-              : "The current game. ‡"
+              : "The current game."
             : `${span[0] ?? "?"} – ${span[1] ?? "?"} ‡`
         }
       />
 
       {epilogue ? (
         <section className="panel flex flex-col gap-3 p-4">
-          <h2 className="panel-header">How it ended ‡</h2>
+          <h2 className="panel-header">How it ended</h2>
           {epilogue.closingNote ? <p className="text-sm">» {epilogue.closingNote}</p> : null}
           <p className="text-sm text-muted">{factsLine(epilogue.facts)}</p>
           <details className="archive-fold">
-            <summary>Who was who ‡</summary>
+            <summary>Who was who</summary>
             <ul>
               {epilogue.roster.map((r) => (
                 <li key={`${r.handle}-${r.name}`}>{rosterLine(r)}</li>

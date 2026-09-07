@@ -89,8 +89,8 @@ export function usePlaceActions(initialAffordances, onChanged) {
       setNotice(null);
       if (entry.kind === "gate") {
         const ask = entry.isOpen
-          ? { title: "Shut the way? ‡", message: `The way to ${entry.farName} closes. ‡`, confirmLabel: "Shut it" }
-          : { title: "Open the way? ‡", message: `The way to ${entry.farName} opens. ‡`, confirmLabel: "Open it" };
+          ? { title: "Shut the way?", message: `The way to ${entry.farName} closes. ‡`, confirmLabel: "Shut it" }
+          : { title: "Open the way?", message: `The way to ${entry.farName} opens. ‡`, confirmLabel: "Open it" };
         // Confirm first, transition second — never inside startTransition
         // (DESIGN-SYSTEM.md §8).
         if (!(await confirm(ask))) return;
@@ -160,7 +160,7 @@ function NoticeboardDialog({ onClose, onDone }) {
   const load = useCallback(() => {
     readBoard()
       .then(setBoard)
-      .catch(() => setBoard({ ok: false, error: "Couldn't read the board. ‡" }));
+      .catch(() => setBoard({ ok: false, error: "Couldn't read the board." }));
   }, []);
 
   useEffect(() => {
@@ -170,7 +170,7 @@ function NoticeboardDialog({ onClose, onDone }) {
   if (!board) {
     return (
       <Modal open title="Noticeboard" onClose={onClose}>
-        <p className="text-sm text-muted">Reading the board… ‡</p>
+        <p className="text-sm text-muted">Reading the board…</p>
       </Modal>
     );
   }
@@ -186,7 +186,7 @@ function NoticeboardDialog({ onClose, onDone }) {
     <Modal open title="Noticeboard" onClose={onClose}>
       <p className="text-sm text-muted">{board.heading}</p>
 
-      {board.notices.length === 0 && <EmptyState>Nothing is up. ‡</EmptyState>}
+      {board.notices.length === 0 && <EmptyState>Nothing is up.</EmptyState>}
       {board.notices.map((notice) => (
         <div key={notice.id} className="hall-notice-row">
           <span className="hall-person-name">{notice.name}</span>
@@ -196,7 +196,7 @@ function NoticeboardDialog({ onClose, onDone }) {
             disabled={pending}
             onClick={() => run(readNotice, notice.id, { onOk: setReading })}
           >
-            Read ‡
+            Read
           </button>
           <button
             type="button"
@@ -211,7 +211,7 @@ function NoticeboardDialog({ onClose, onDone }) {
               })
             }
           >
-            Tear down ‡
+            Tear down
           </button>
         </div>
       ))}
@@ -226,10 +226,10 @@ function NoticeboardDialog({ onClose, onDone }) {
       {board.holding.length > 0 && (
         <div className="field">
           <label className="field-label" htmlFor="hall-pin">
-            Pin a paper ‡
+            Pin a paper
           </label>
           <Select id="hall-pin" value={pinId} onChange={(e) => setPinId(e.target.value)}>
-            <option value="">Pick one… ‡</option>
+            <option value="">Pick one…</option>
             {board.holding.map((paper) => (
               <option key={paper.tagId} value={paper.tagId}>
                 {paper.name}
@@ -257,7 +257,7 @@ function NoticeboardDialog({ onClose, onDone }) {
               })
             }
           >
-            Pin it ‡
+            Pin it
           </button>
         </div>
       )}
@@ -288,7 +288,7 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
         if (!cancelled) setRooms(res);
       })
       .catch(() => {
-        if (!cancelled) setRooms({ ok: false, error: "Couldn't find a room. ‡" });
+        if (!cancelled) setRooms({ ok: false, error: "Couldn't find a room." });
       });
     return () => {
       cancelled = true;
@@ -297,8 +297,8 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
 
   return (
     <Modal open title="Converse" onClose={onClose}>
-      <p className="text-sm text-muted">Speak privately with someone. ‡</p>
-      {!rooms && <p className="text-sm text-muted">Looking for a corner… ‡</p>}
+      <p className="text-sm text-muted">Speak privately with someone.</p>
+      {!rooms && <p className="text-sm text-muted">Looking for a corner…</p>}
       {rooms && !rooms.ok && <FormError>{rooms.error}</FormError>}
       {rooms?.ok && rooms.rooms.length === 0 && (
         <EmptyState>There&apos;s no room here to hold a conversation in. ‡</EmptyState>
@@ -307,10 +307,10 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
         <>
           <div className="field">
             <label className="field-label" htmlFor="hall-converse-room">
-              Where? ‡
+              Where?
             </label>
             <Select id="hall-converse-room" value={roomId} onChange={(e) => setRoomId(e.target.value)}>
-              <option value="">Pick a room… ‡</option>
+              <option value="">Pick a room…</option>
               {rooms.rooms.map((room) => (
                 <option key={room.id} value={room.id}>
                   {room.name}
@@ -320,7 +320,7 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
             </Select>
           </div>
           {person?.id && (
-            <div className="chip-row" role="group" aria-label="Who comes with you ‡">
+            <div className="chip-row" role="group" aria-label="Who comes with you">
               <button
                 type="button"
                 className="chip"
@@ -334,7 +334,7 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
           )}
           <div className="field">
             <label className="field-label" htmlFor="hall-converse-name">
-              Call it what? ‡
+              Call it what?
             </label>
             <input
               id="hall-converse-name"
@@ -358,7 +358,7 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
                 })
               }
             >
-              Open it ‡
+              Open it
             </button>
           </div>
         </>
@@ -380,7 +380,7 @@ function WordDialog({ title, word, help, danger, onClose, onSubmit, pending, err
       <p className="text-sm text-muted">{help}</p>
       <div className="field">
         <label className="field-label" htmlFor="hall-word">
-          Type {word} to confirm ‡
+          Type {word} to confirm
         </label>
         <input id="hall-word" value={typed} maxLength={16} onChange={(e) => setTyped(e.target.value)} />
       </div>
@@ -403,7 +403,7 @@ function BellDialog({ entry, onClose, onDone }) {
   const { run, pending, error } = useActionRunner();
   return (
     <WordDialog
-      title="Sound the bell ‡"
+      title="Sound the bell"
       word="RING"
       help="Heard for a long way around, loudest near the Cathedral. Nobody is pinged. ‡"
       onClose={onClose}
@@ -435,7 +435,7 @@ function TurretDialog({ entry, onClose, onDone }) {
         if (!cancelled) setState(res);
       })
       .catch(() => {
-        if (!cancelled) setState({ ok: false, error: "The panel is dead. ‡" });
+        if (!cancelled) setState({ ok: false, error: "The panel is dead." });
       });
     return () => {
       cancelled = true;
@@ -445,7 +445,7 @@ function TurretDialog({ entry, onClose, onDone }) {
   if (!state) {
     return (
       <Modal open title="The turret" onClose={onClose}>
-        <p className="text-sm text-muted">Reading the panel… ‡</p>
+        <p className="text-sm text-muted">Reading the panel…</p>
       </Modal>
     );
   }
@@ -459,7 +459,7 @@ function TurretDialog({ entry, onClose, onDone }) {
 
   return (
     <WordDialog
-      title={state.armed ? "Disarm the turret ‡" : "Arm the turret ‡"}
+      title={state.armed ? "Disarm the turret" : "Arm the turret"}
       word={state.word}
       danger={!state.armed}
       help={
@@ -492,7 +492,7 @@ function IntercomDialog({ entry, onClose, onDone }) {
       </p>
       <div className="field">
         <label className="field-label" htmlFor="hall-pa">
-          What goes out ‡
+          What goes out
         </label>
         <textarea id="hall-pa" rows={3} value={body} maxLength={1000} onChange={(e) => setBody(e.target.value)} />
       </div>
@@ -511,7 +511,7 @@ function IntercomDialog({ entry, onClose, onDone }) {
             })
           }
         >
-          Speak ‡
+          Speak
         </button>
       </div>
     </Modal>

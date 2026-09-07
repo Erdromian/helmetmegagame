@@ -295,7 +295,7 @@ export default function StatusPanel({
                     <span className="mono">
                       {p.turnsDone}/{p.turnsNeeded}
                     </span>{" "}
-                    turns ‡
+                    turns
                   </span>
                 ))}
                 {sitesInProgress.map((s) => (
@@ -304,7 +304,7 @@ export default function StatusPanel({
                     <span className="mono">
                       {s.turnsDone}/{s.turnsNeeded}
                     </span>{" "}
-                    turns ‡
+                    turns
                   </span>
                 ))}
               </div>

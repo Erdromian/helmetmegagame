@@ -28,7 +28,7 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
   if (!MOVE_KINDS.has(moveKind)) return { ok: false, error: "Pick a kind of Move first. ‡" };
 
   const raw = String(description ?? "").trim();
-  if (!raw) return { ok: false, error: "Write something first. ‡" };
+  if (!raw) return { ok: false, error: "Write something first." };
   if (raw.length > DESCRIPTION_MAX) return { ok: false, error: "That's too long to file. ‡" };
 
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
@@ -165,7 +165,7 @@ async function editMove(prisma, { character, actorDiscordUserId, actionId, moveK
   if (!MOVE_KINDS.has(moveKind)) return { ok: false, error: "Pick a kind of Move first. ‡" };
 
   const raw = String(description ?? "").trim();
-  if (!raw) return { ok: false, error: "Write something first. ‡" };
+  if (!raw) return { ok: false, error: "Write something first." };
   if (raw.length > DESCRIPTION_MAX) return { ok: false, error: "That's too long to file. ‡" };
 
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });

@@ -97,7 +97,7 @@ const SystemRow = memo(function SystemRow({ row }) {
 function NewLine() {
   return (
     <li className="hall-new-line" aria-hidden="true">
-      <span>NEW ‡</span>
+      <span>NEW</span>
     </li>
   );
 }
@@ -182,7 +182,7 @@ const FeedRow = memo(function FeedRow({
             </span>
             {row.editedAt && (
               <span className="text-xs" style={{ color: "var(--muted)" }}>
-                (edited) ‡
+                (edited)
               </span>
             )}
           </div>
@@ -208,10 +208,10 @@ const FeedRow = memo(function FeedRow({
             />
             <div className="flex gap-2">
               <button type="button" className="btn-quiet" onClick={() => onSaveEdit(row.seq, draft)}>
-                Save ‡
+                Save
               </button>
               <button type="button" className="btn-quiet" onClick={onCancelEdit}>
-                Cancel ‡
+                Cancel
               </button>
             </div>
           </div>
@@ -246,7 +246,7 @@ const FeedRow = memo(function FeedRow({
 
         {row.failed && (
           <button type="button" className="btn-quiet" onClick={() => onRetry(row.clientId)}>
-            Try again ‡
+            Try again
           </button>
         )}
       </div>
@@ -269,7 +269,7 @@ function PhotoReadout({ state, onClose }) {
   return (
     <Modal open title={readout?.name ?? "Photograph"} onClose={onClose} width="default">
       <div className="flex flex-col gap-2">
-        {state?.loading && <p className="text-sm text-muted">Winding the film… ‡</p>}
+        {state?.loading && <p className="text-sm text-muted">Winding the film…</p>}
         {state?.error && <FormError>{state.error}</FormError>}
         {state?.line && <p className="text-sm">{state.line}</p>}
         {/* The SAME block the sheet's Look at draws
@@ -355,7 +355,7 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
 
   if (arg.kind === "moveKind") {
     return (
-      <div className="chip-row" role="radiogroup" aria-label="What kind of Move ‡">
+      <div className="chip-row" role="radiogroup" aria-label="What kind of Move">
         {MOVE_KINDS.map((kind) => (
           <button
             key={kind.value}
@@ -377,7 +377,7 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
   }
 
   if (arg.kind === "destination") {
-    if (!destinations) return <p className="text-sm text-muted">Reading the road… ‡</p>;
+    if (!destinations) return <p className="text-sm text-muted">Reading the road…</p>;
     if (destinations.length === 0) return <p className="text-sm text-muted">No way out of here. ‡</p>;
     return (
       <div className="chip-row" aria-label="Where to">
@@ -405,7 +405,7 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
       ? members
       : [...(people?.named ?? []), ...(arg.hoods ? (people?.concealed ?? []) : [])];
 
-  if (roster.length === 0) return <p className="text-sm text-muted">Nobody to pick. ‡</p>;
+  if (roster.length === 0) return <p className="text-sm text-muted">Nobody to pick.</p>;
 
   // What is in the box FILTERS the row. A command that asks for a person has
   // no text argument, so the textarea is doing nothing else — and a Location
@@ -437,7 +437,7 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
           </button>
         );
       })}
-      {more > 0 && <span className="text-sm text-muted">…and {more} more ‡</span>}
+      {more > 0 && <span className="text-sm text-muted">…and {more} more</span>}
     </div>
   );
 }
@@ -450,7 +450,7 @@ function LookReadout({ state, onClose }) {
   return (
     <Modal open title={readout?.name ?? "Look at"} onClose={onClose} width="default">
       <div className="flex flex-col gap-2">
-        {state?.loading && <p className="text-sm text-muted">Looking… ‡</p>}
+        {state?.loading && <p className="text-sm text-muted">Looking…</p>}
         {state?.error && <FormError>{state.error}</FormError>}
         {readout && <Readout readout={readout} />}
       </div>
@@ -584,11 +584,11 @@ export default function Feed({
     const rows = [];
     if (letters.canWrite) rows.push({ mode: "write", label: "Write" });
     if (letters.canSeal) rows.push({ mode: "seal", label: "Seal" });
-    if (letters.canBindBook) rows.push({ mode: "bindbook", label: "Bind a book ‡" });
+    if (letters.canBindBook) rows.push({ mode: "bindbook", label: "Bind a book" });
     if (letters.hasBird) {
       rows.push({
         mode: "bird",
-        label: letters.birdSentToday ? "Sent today" : "Send by bird ‡",
+        label: letters.birdSentToday ? "Sent today" : "Send by bird",
         disabled: Boolean(letters.birdSentToday),
       });
     }
@@ -729,7 +729,7 @@ export default function Feed({
             current.placeKey === placeKey ? { ...current, hold: Date.now() + wait } : current,
           );
           if (attempt >= MAX_SLOWMODE_RETRIES) {
-            setError(data?.error ?? "That didn't send. ‡");
+            setError(data?.error ?? "That didn't send.");
             markPendingFailed(placeKey, clientId);
             return;
           }
@@ -746,14 +746,14 @@ export default function Feed({
         }
 
         if (!res.ok) {
-          setError(data?.error ?? "That didn't send. ‡");
+          setError(data?.error ?? "That didn't send.");
           markPendingFailed(placeKey, clientId);
           return;
         }
         setError(null);
         if (data?.row) applyRow(placeKey, data.row);
       } catch {
-        setError("That didn't send. ‡");
+        setError("That didn't send.");
         markPendingFailed(placeKey, clientId);
       }
     },
@@ -952,9 +952,9 @@ export default function Feed({
     lookAt(ref)
       .then((res) => {
         if (res?.ok) setLook({ readout: res.readout });
-        else setLook({ error: res?.error ?? "You can't see them. ‡" });
+        else setLook({ error: res?.error ?? "You can't see them." });
       })
-      .catch(() => setLook({ error: "You can't see them. ‡" }));
+      .catch(() => setLook({ error: "You can't see them." }));
   }, []);
 
   // What a command can reach that a server action cannot. Hall.js owns the
@@ -978,7 +978,7 @@ export default function Feed({
     const textArg = textArgOf(entry);
     const body = draft.trim();
     if (textArg && !body) {
-      setCmdError("Write something first. ‡");
+      setCmdError("Write something first.");
       return;
     }
     if (textArg?.maxLength && body.length > textArg.maxLength) {
@@ -987,7 +987,7 @@ export default function Feed({
     }
     const missing = pendingArg(entry, values);
     if (missing) {
-      setCmdError("Pick one first. ‡");
+      setCmdError("Pick one first.");
       return;
     }
     const filled = textArg ? { ...values, [textArg.name]: body } : values;
@@ -1019,7 +1019,7 @@ export default function Feed({
     // Inside the hold. The draft is kept — it is theirs, and they will send
     // it in a second — and the chip is what says so.
     if (deadline > Date.now()) {
-      setError(`Slowmode. Wait ${Math.max(1, Math.ceil((deadline - Date.now()) / 1000))} s. ‡`);
+      setError(`Slowmode. Wait ${Math.max(1, Math.ceil((deadline - Date.now()) / 1000))} s.`);
       setNudge(true);
       if (nudgeTimer.current) clearTimeout(nudgeTimer.current);
       nudgeTimer.current = setTimeout(() => setNudge(false), 500);
@@ -1089,12 +1089,12 @@ export default function Feed({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error ?? "That didn't change. ‡");
+        setError(data?.error ?? "That didn't change.");
         return;
       }
       setError(null);
     } catch {
-      setError("That didn't change. ‡");
+      setError("That didn't change.");
     }
   }, []);
 
@@ -1104,7 +1104,7 @@ export default function Feed({
         setError(TOO_LATE);
         return;
       }
-      if (!(await confirm({ title: "Take that back? ‡", message: "It goes from here and from Discord. ‡", confirmLabel: "Take it back ‡" }))) {
+      if (!(await confirm({ title: "Take that back?", message: "It goes from here and from Discord. ‡", confirmLabel: "Take it back" }))) {
         return;
       }
       try {
@@ -1115,12 +1115,12 @@ export default function Feed({
         });
         const data = await res.json().catch(() => null);
         if (!res.ok) {
-          setError(data?.error ?? "That didn't go. ‡");
+          setError(data?.error ?? "That didn't go.");
           return;
         }
         setError(null);
       } catch {
-        setError("That didn't go. ‡");
+        setError("That didn't go.");
       }
     },
     [confirm],
@@ -1152,9 +1152,9 @@ export default function Feed({
     photographRow(seq)
       .then((res) => {
         if (res?.ok) setPhoto({ readout: res.readout, photoName: res.photoName, line: res.line });
-        else setPhoto({ error: res?.error ?? "The camera caught nothing. ‡" });
+        else setPhoto({ error: res?.error ?? "The camera caught nothing." });
       })
-      .catch(() => setPhoto({ error: "The camera caught nothing. ‡" }));
+      .catch(() => setPhoto({ error: "The camera caught nothing." }));
   }, []);
 
   // A GM taking a line down. Same route as Take back, with no character on
@@ -1164,7 +1164,7 @@ export default function Feed({
     async (seq) => {
       if (
         !(await confirm({
-          title: "Remove this line? ‡",
+          title: "Remove this line?",
           message: "It goes from here and from Discord. ‡",
           confirmLabel: "Remove it",
         }))
@@ -1179,12 +1179,12 @@ export default function Feed({
         });
         const data = await res.json().catch(() => null);
         if (!res.ok) {
-          setError(data?.error ?? "That didn't go. ‡");
+          setError(data?.error ?? "That didn't go.");
           return;
         }
         setError(null);
       } catch {
-        setError("That didn't go. ‡");
+        setError("That didn't go.");
       }
     },
     [confirm],
@@ -1357,7 +1357,7 @@ export default function Feed({
     return (
       <div className="hall-main">
         <div className="hall-feed">
-          <EmptyState>Nowhere is open. ‡</EmptyState>
+          <EmptyState>Nowhere is open.</EmptyState>
         </div>
       </div>
     );
@@ -1393,7 +1393,7 @@ export default function Feed({
         {onJump && (
           <IconButton
             icon={SearchIcon}
-            label="Search what was said ‡"
+            label="Search what was said"
             aria-expanded={showSearch}
             onClick={() => (showSearch ? closeSearch() : setSearchOpen(true))}
           />
@@ -1410,7 +1410,7 @@ export default function Feed({
       {showSearch && (
         <FeedSearch
           place={place}
-          notice={jumpMissed ? "Couldn't find that line. ‡" : null}
+          notice={jumpMissed ? "Couldn't find that line." : null}
           onClose={closeSearch}
           onPick={(hitPlace, seq) => {
             // Not dismissed: if this hit turns out to be gone too, the box has
@@ -1488,7 +1488,7 @@ export default function Feed({
             scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: "smooth" });
           }}
         >
-          New messages ‡
+          New messages
         </button>
       )}
 
@@ -1516,8 +1516,8 @@ export default function Feed({
                     commandOnly
                       ? `Run a command in ${place.name} ‡`
                       : concealed && alias
-                        ? `Say something as ${alias} ‡`
-                        : `Say something in ${place.name} ‡`
+                        ? `Say something as ${alias}`
+                        : `Say something in ${place.name}`
                   }
                   rows={2}
                   value={draft}
@@ -1525,10 +1525,10 @@ export default function Feed({
                     command
                       ? (textArgOf(command.entry)?.placeholder ?? "Press Enter to run it ‡")
                       : commandOnly
-                        ? "Type / for a command… ‡"
+                        ? "Type / for a command…"
                         : concealed && alias
-                          ? `Say something as ${alias}… ‡`
-                          : `Say something in ${place.name}… ‡`
+                          ? `Say something as ${alias}…`
+                          : `Say something in ${place.name}…`
                   }
                   onChange={onDraftChange}
                   onKeyDown={(e) => {
@@ -1630,7 +1630,7 @@ export default function Feed({
                 // Slowmode, said as a clock rather than as a refusal. The
                 // zone summary is the only place that has one.
                 <span className="hall-countdown mono" data-nudge={nudge ? "true" : undefined} aria-live="polite">
-                  {waitSeconds} s ‡
+                  {waitSeconds} s
                 </span>
               )}
               {coarse && (
@@ -1699,7 +1699,7 @@ export default function Feed({
               {canConceal && (
                 <IconButton
                   icon={HoodIcon}
-                  label={concealed ? "Take the hood off ‡" : "Put the hood up ‡"}
+                  label={concealed ? "Take the hood off" : "Put the hood up"}
                   aria-pressed={concealed}
                   disabled={concealPending}
                   onClick={() => {
@@ -1711,7 +1711,7 @@ export default function Feed({
                         // is a server prop, so the page is what has to
                         // re-read it.
                         if (res?.ok) router.refresh();
-                        else setConcealError(res?.error ?? "Something went wrong. ‡");
+                        else setConcealError(res?.error ?? "Something went wrong.");
                       } catch {
                         setConcealError("Could not reach the server. Nothing was changed. ‡");
                       }

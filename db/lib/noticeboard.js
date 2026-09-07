@@ -80,8 +80,8 @@ async function boardFor(prisma, locationId) {
     where: { id: locationId ?? "" },
     select: { id: true, name: true, indoors: true, attributes: true, discordChannelId: true },
   });
-  if (!location) return { error: "That place is gone. ‡" };
-  if (!hasNoticeboard(location)) return { error: "There's no board here. ‡" };
+  if (!location) return { error: "That place is gone." };
+  if (!hasNoticeboard(location)) return { error: "There's no board here." };
   const [openTurn, posts] = await Promise.all([
     prisma.turn.findFirst({ where: { status: "OPEN" }, orderBy: { number: "desc" } }),
     prisma.noticePost.findMany({

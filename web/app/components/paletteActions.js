@@ -105,7 +105,7 @@ async function getPaletteIndexImpl() {
         kind: "person",
         id: person.characterId,
         label: person.name,
-        hint: `${person.roleTitle ? `${person.roleTitle} · ` : ""}here ‡`,
+        hint: `${person.roleTitle ? `${person.roleTitle} · ` : ""}here`,
         href: `/play#${encodeURIComponent(locationKey)}`,
       });
     }

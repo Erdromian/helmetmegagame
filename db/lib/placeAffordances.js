@@ -70,7 +70,7 @@ const DANGER = "danger";
 // about where you already are, and this one is how you leave.
 const LOCATION_AFFORDANCES = [
   { id: "travel", label: "Travel", tone: GO, customId: () => TRAVEL_CUSTOM_ID },
-  { id: "whosHere", label: "Who's here? ‡", tone: PLAIN, prefix: WHOS_HERE_PREFIX },
+  { id: "whosHere", label: "Who's here?", tone: PLAIN, prefix: WHOS_HERE_PREFIX },
   { id: "secretRooms", label: "Secret rooms?", tone: PLAIN, prefix: SECRET_ROOMS_PREFIX },
   { id: "examine", label: "Examine", tone: PLAIN, prefix: EXAMINE_PREFIX },
   { id: "converse", label: "Converse", tone: PLAIN, prefix: CONVERSE_PREFIX },

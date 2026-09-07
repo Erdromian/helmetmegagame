@@ -162,7 +162,7 @@ async function removeRoomGuest(prisma, { actor = null, roomId, characterId, gm =
     }
   }
 
-  return { ok: true, room, target, line: `${target.name} was shown out. ‡` };
+  return { ok: true, room, target, line: `${target.name} was shown out.` };
 }
 
 // Who is in a private room on a guest row. Key-holders are NOT in this list —

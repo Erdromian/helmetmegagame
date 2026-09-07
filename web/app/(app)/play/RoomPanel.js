@@ -40,7 +40,7 @@ function roomIdOf(selected) {
 function StashChips({ stash, showAll, onToggle, onTake }) {
   const items = stash.items ?? [];
   if (items.length === 0 && !(stash.resources > 0)) {
-    return <p className="hall-quiet-line">Nothing is stored here. ‡</p>;
+    return <p className="hall-quiet-line">Nothing is stored here.</p>;
   }
   const shown = showAll ? items : items.slice(0, VISIBLE_ITEMS);
   const hidden = items.length - shown.length;
@@ -62,7 +62,7 @@ function StashChips({ stash, showAll, onToggle, onTake }) {
           thirty stacks stayed thirty stacks tall for the rest of the visit. */}
       {(hidden > 0 || showAll) && (
         <button type="button" className="btn-quiet" onClick={onToggle}>
-          {showAll ? "Show less" : `+${hidden} more ‡`}
+          {showAll ? "Show less" : `+${hidden} more`}
         </button>
       )}
     </div>
@@ -89,7 +89,7 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
         if (!cancelled) setStash({ roomId, ...res });
       })
       .catch(() => {
-        if (!cancelled) setStash({ roomId, ok: false, error: "Couldn't see in there. ‡" });
+        if (!cancelled) setStash({ roomId, ok: false, error: "Couldn't see in there." });
       });
     return () => {
       cancelled = true;
@@ -129,7 +129,7 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
 
   return (
     <div className="hall-room">
-      <p className="hall-section-title">This room ‡</p>
+      <p className="hall-section-title">This room</p>
 
       {/* Three states, not two. A read still in flight says so; one that
           came back refused says WHY, which is the whole point of the
@@ -140,7 +140,7 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
           {/* The chips say WHAT is in there; without this they did not say
               what the strip was. The Discord sentence used to carry the word
               ("Storage · …") and the chips lost it. */}
-          <p className="hall-quiet-line">Storage ‡</p>
+          <p className="hall-quiet-line">Storage</p>
           <StashChips
             stash={here}
             showAll={expanded === roomId}
@@ -149,9 +149,9 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
           />
         </>
       ) : here ? (
-        <FormError>{here.error ?? "Couldn't see in there. ‡"}</FormError>
+        <FormError>{here.error ?? "Couldn't see in there."}</FormError>
       ) : (
-        <p className="hall-quiet-line">Storage · looking… ‡</p>
+        <p className="hall-quiet-line">Storage · looking…</p>
       )}
       {here?.ok && (
         <div className="hall-buttons">
@@ -161,13 +161,13 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
               ends; Transfer is the same dialog with nothing assumed, for
               handing something to a person. */}
           <button type="button" className="btn-quiet" onClick={drop}>
-            Drop ‡
+            Drop
           </button>
           <button type="button" className="btn-quiet" onClick={() => take()}>
-            Take ‡
+            Take
           </button>
           <button type="button" className="btn-quiet" onClick={transfer}>
-            Transfer ‡
+            Transfer
           </button>
         </div>
       )}

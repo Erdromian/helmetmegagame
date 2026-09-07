@@ -112,7 +112,7 @@ export default function PlacesColumn({
         {onToggleChime && (
           <IconButton
             icon={chimeMuted ? BellOffIcon : BellIcon}
-            label={chimeMuted ? "Mentions are silent ‡" : "Mentions chime"}
+            label={chimeMuted ? "Mentions are silent" : "Mentions chime"}
             aria-pressed={!chimeMuted}
             onClick={() => onToggleChime(!chimeMuted)}
           />
@@ -126,7 +126,7 @@ export default function PlacesColumn({
             onClick={push.onToggle}
           />
         )}
-        {webOnly && <span className="chip hall-webonly">Playing from the web ‡</span>}
+        {webOnly && <span className="chip hall-webonly">Playing from the web</span>}
       </div>
     </nav>
   );

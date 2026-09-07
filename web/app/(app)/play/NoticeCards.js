@@ -73,7 +73,7 @@ export default function NoticeCards({ version = 0, onChanged }) {
               disabled={pending}
               onClick={() => run(readNotice, notice.id, { onOk: setReading })}
             >
-              Read ‡
+              Read
             </button>
             <button
               type="button"
@@ -82,9 +82,9 @@ export default function NoticeCards({ version = 0, onChanged }) {
               onClick={async () => {
                 if (
                   !(await confirm({
-                    title: "Take it down? ‡",
+                    title: "Take it down?",
                     message: `${notice.name} comes off the board and into your hands. ‡`,
-                    confirmLabel: "Tear it down ‡",
+                    confirmLabel: "Tear it down",
                   }))
                 ) {
                   return;
@@ -96,7 +96,7 @@ export default function NoticeCards({ version = 0, onChanged }) {
                 });
               }}
             >
-              Tear ‡
+              Tear
             </button>
           </div>
         </div>

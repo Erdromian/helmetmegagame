@@ -76,13 +76,13 @@ export default function FeedSearch({ place, onPick, onClose, notice = null }) {
         .then(({ ok, data }) => {
           if (cancelled) return;
           if (!ok) {
-            setState({ error: data?.error ?? "That search went nowhere. ‡" });
+            setState({ error: data?.error ?? "That search went nowhere." });
             return;
           }
           setState({ rows: data?.rows ?? [], query: q });
         })
         .catch(() => {
-          if (!cancelled) setState({ error: "That search went nowhere. ‡" });
+          if (!cancelled) setState({ error: "That search went nowhere." });
         });
     }, DEBOUNCE_MS);
     return () => {
@@ -113,20 +113,20 @@ export default function FeedSearch({ place, onPick, onClose, notice = null }) {
     <div className="hall-search" onKeyDown={onKeyDown}>
       <div className="field">
         <label className="sr-only" htmlFor="hall-search-input">
-          Search what was said ‡
+          Search what was said
         </label>
         <input
           id="hall-search-input"
           ref={inputRef}
           value={query}
           maxLength={80}
-          placeholder="Search what was said… ‡"
+          placeholder="Search what was said…"
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
 
       {placeKey && (
-        <div className="chip-row" role="group" aria-label="How wide to look ‡">
+        <div className="chip-row" role="group" aria-label="How wide to look">
           <button
             type="button"
             className="chip"
@@ -134,7 +134,7 @@ export default function FeedSearch({ place, onPick, onClose, notice = null }) {
             aria-pressed={!hereOnly}
             onClick={() => setHereOnly(false)}
           >
-            Everywhere ‡
+            Everywhere
           </button>
           <button
             type="button"
@@ -149,9 +149,9 @@ export default function FeedSearch({ place, onPick, onClose, notice = null }) {
       )}
 
       {notice && <FormError>{notice}</FormError>}
-      {short && <p className="hall-quiet-line">Three letters at least. ‡</p>}
+      {short && <p className="hall-quiet-line">Three letters at least.</p>}
       {state?.error && <FormError>{state.error}</FormError>}
-      {long && state?.rows && rows.length === 0 && <p className="hall-quiet-line">Nobody said that. ‡</p>}
+      {long && state?.rows && rows.length === 0 && <p className="hall-quiet-line">Nobody said that.</p>}
 
       {rows.length > 0 && (
         <ul className="hall-search-results list-none p-0">

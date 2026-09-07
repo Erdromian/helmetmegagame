@@ -63,7 +63,7 @@ async function castDie(prisma, character, placeKey) {
     console.error("Roll post failed:", err.message ?? err);
   }
 
-  return { ok: true, value, line: `You rolled a ${value}. ‡` };
+  return { ok: true, value, line: `You rolled a ${value}.` };
 }
 
 module.exports = { castDie };

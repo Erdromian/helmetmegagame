@@ -31,7 +31,7 @@ function WaitingList({ rows, onAnswered }) {
   if (rows.length === 0) return null;
   return (
     <div className="hall-waiting">
-      <p className="hall-section-title">Waiting on you · {rows.length} ‡</p>
+      <p className="hall-section-title">Waiting on you · {rows.length}</p>
       {rows.map((row) => (
         <div key={row.key} className="hall-waiting-row">
           <span className="hall-person-name">{row.label}</span>
@@ -43,7 +43,7 @@ function WaitingList({ rows, onAnswered }) {
                 disabled={pending}
                 onClick={() => run(answerWaiting, { kind: row.kind, id: row.id, accept: true }, { onOk: onAnswered })}
               >
-                Accept ‡
+                Accept
               </button>
             )}
             {row.decline !== false && (
@@ -53,12 +53,12 @@ function WaitingList({ rows, onAnswered }) {
                 disabled={pending}
                 onClick={() => run(answerWaiting, { kind: row.kind, id: row.id, accept: false }, { onOk: onAnswered })}
               >
-                Decline ‡
+                Decline
               </button>
             )}
             {row.href && (
               <Link className="menu-item" href={row.href}>
-                Open ‡
+                Open
               </Link>
             )}
           </span>
@@ -119,7 +119,7 @@ export default function YouPanel({
 
   return (
     <div className="hall-you">
-      <p className="hall-section-title">You ‡</p>
+      <p className="hall-section-title">You</p>
 
       <TurnCard
         turn={moveState.turn}

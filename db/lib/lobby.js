@@ -230,7 +230,7 @@ function expiredMessage({ roleName }, origin) {
 }
 
 function startedLine() {
-  return "The game has begun. ‡";
+  return "The game has begun.";
 }
 
 // Raw component JSON, the same shape as the threat spawn offer — the web
@@ -265,7 +265,7 @@ async function settleLobbyEntry(tx, discordUserId, characterId) {
 // capacity only counts ASSIGNED rows (db/lib/seatCount.js).
 async function declineAssignment(db, entryId, discordUserId) {
   const entry = await db.lobbyEntry.findUnique({ where: { id: entryId }, include: { assignedRole: { select: { name: true } } } });
-  if (!entry) return { ok: false, reason: "That seat's gone. ‡" };
+  if (!entry) return { ok: false, reason: "That seat's gone." };
   if (entry.discordUserId !== discordUserId) return { ok: false, reason: "That's not yours to answer. ‡" };
   if (entry.status === "CREATED") return { ok: false, reason: "You already built the character. ‡" };
   if (entry.status !== "ASSIGNED") return { ok: false, reason: "That seat was already released. ‡" };

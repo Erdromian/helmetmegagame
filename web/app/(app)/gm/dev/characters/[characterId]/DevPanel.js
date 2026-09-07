@@ -372,11 +372,6 @@ export default function DevPanel({
     <>
       <PageHeader
         title={titleWithAvatar}
-        subtitle={
-          <>
-            All of the character&apos;s values can be edited.
-          </>
-        }
         actions={
           <Link href="/gm/players" className="btn-quiet">
             &larr; Players

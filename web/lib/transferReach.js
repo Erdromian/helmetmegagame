@@ -69,5 +69,5 @@ export function outOfReachMessage(party, { isSilo = false } = {}) {
     return `Your silo is in ${party.name} — you have to be standing there to take anything out. ‡`;
   }
   if (party?.kind === "room") return `You can't get into ${party.name} from where you stand. ‡`;
-  return `${party?.name ?? "They"} isn't here. ‡`;
+  return `${party?.name ?? "They"} isn't here.`;
 }

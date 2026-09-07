@@ -79,7 +79,7 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
             <span className="truncate">{person.name}</span>
             <IconButton
               icon={CloseIcon}
-              label={`Show ${person.name} out ‡`}
+              label={`Show ${person.name} out`}
               disabled={pending}
               onClick={() => onRemove(person.characterId)}
             />
@@ -92,7 +92,7 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
           disabled={pending}
           onClick={() => setPicking((open) => !open)}
         >
-          + Add ‡
+          + Add
         </button>
       </div>
 

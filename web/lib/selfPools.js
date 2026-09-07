@@ -316,10 +316,10 @@ export async function loadFactionView(session, character) {
   // What the viewer's own seat is, under the name. One line, because the
   // column is narrow and the /faction page is one click away for the rest.
   const roleLine = isLeader
-    ? "You lead it. ‡"
+    ? "You lead it."
     : isTreasurer
-      ? "You keep its purse. ‡"
-      : "You are a member. ‡";
+      ? "You keep its purse."
+      : "You are a member.";
 
   return {
     id: faction.id,

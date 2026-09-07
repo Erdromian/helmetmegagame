@@ -122,7 +122,7 @@ export async function setDraftRow({ discordUserId, roleSlug }) {
   const slug = roleSlug ? String(roleSlug) : null;
   if (slug) {
     const role = await prisma.role.findUnique({ where: { slug }, select: { id: true, slug: true } });
-    if (!role) return { ok: false, error: "No such role. ‡" };
+    if (!role) return { ok: false, error: "No such role." };
     if (isSpawnOnly(role)) return { ok: false, error: "That seat can only be spawned, never assigned. ‡" };
   }
   const rows = draft.rows.map((r) =>
@@ -146,7 +146,7 @@ export async function startGame() {
 
   const ready = await prisma.lobbyEntry.count({ where: { status: "READY" } });
   let draft = state.assignmentDraft;
-  if (ready > 0 && !draft?.rows) return { ok: false, error: "Preview the assignment first. ‡" };
+  if (ready > 0 && !draft?.rows) return { ok: false, error: "Preview the assignment first." };
   if (ready === 0) draft = { seed: null, playerCount: null, rows: [], warnings: [] };
 
   let outcome;

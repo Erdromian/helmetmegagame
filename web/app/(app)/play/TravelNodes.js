@@ -75,7 +75,7 @@ export default function TravelNodes({ onDone, pick = null }) {
         if (!cancelled) setData(res);
       })
       .catch(() => {
-        if (!cancelled) setData({ ok: false, error: "Couldn't read the road. ‡" });
+        if (!cancelled) setData({ ok: false, error: "Couldn't read the road." });
       });
     return () => {
       cancelled = true;
@@ -92,15 +92,15 @@ export default function TravelNodes({ onDone, pick = null }) {
   if (!data) {
     return (
       <div className="hall-travel">
-        <p className="hall-section-title">Travel ‡</p>
-        <p className="hall-quiet-line">Reading the road… ‡</p>
+        <p className="hall-section-title">Travel</p>
+        <p className="hall-quiet-line">Reading the road…</p>
       </div>
     );
   }
   if (!data.ok) {
     return (
       <div className="hall-travel">
-        <p className="hall-section-title">Travel ‡</p>
+        <p className="hall-section-title">Travel</p>
         <FormError>{data.error}</FormError>
       </div>
     );
@@ -111,7 +111,7 @@ export default function TravelNodes({ onDone, pick = null }) {
   if (data.heading) {
     return (
       <div className="hall-travel">
-        <p className="hall-section-title">Travel ‡</p>
+        <p className="hall-section-title">Travel</p>
         <p className="text-sm">Leaving for {data.heading} at the turn. ‡</p>
         <FormError>{error}</FormError>
         <div className="hall-buttons">
@@ -129,7 +129,7 @@ export default function TravelNodes({ onDone, pick = null }) {
               })
             }
           >
-            Turn back ‡
+            Turn back
           </button>
         </div>
       </div>
@@ -142,7 +142,7 @@ export default function TravelNodes({ onDone, pick = null }) {
   return (
     <div className="hall-travel">
       <p className="hall-section-title" title={data.freeReason ?? undefined}>
-        Travel · {data.freeLeft} free ‡
+        Travel · {data.freeLeft} free
       </p>
 
       {data.options.length === 0 ? (
@@ -182,7 +182,7 @@ export default function TravelNodes({ onDone, pick = null }) {
       {chosen && (
         <div className="hall-travel-confirm">
           <p className="text-sm">
-            {nextTurn ? `To ${chosen.name}, next turn. ‡` : `To ${chosen.name}. ‡`}
+            {nextTurn ? `To ${chosen.name}, next turn.` : `To ${chosen.name}.`}
           </p>
 
           {data.drag.length > 0 && (
@@ -225,10 +225,10 @@ export default function TravelNodes({ onDone, pick = null }) {
                 })
               }
             >
-              Go ‡
+              Go
             </button>
             <button type="button" className="btn-quiet" disabled={pending} onClick={() => setTarget(null)}>
-              Cancel ‡
+              Cancel
             </button>
           </div>
         </div>

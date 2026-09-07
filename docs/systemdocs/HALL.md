@@ -1080,6 +1080,18 @@ where the day starts: the stream's catch-up (`/api/feed`), the history route
 (`/api/feed/history`), the page's first render (`play/page.js`), and the
 `newestSeq` watermark `web/lib/feedAccess.js` decorates the place list with.
 
+There is a **second floor underneath that one, and it is never off**: every
+row belonging to a previous game. Restart Game keeps `ArchiveEntry` on purpose
+(`LOBBY.md` §8), but the Hall is the live room rather than the record, so last
+game's scenes have no business rendering under the names of characters who no
+longer exist. `seq` only ever climbs, so every row of every finished game sits
+below every row of this one, and `previousGameFloor` reads the highest of them
+back. It asks for the highest seq NOT in this game rather than the lowest seq
+in it, so a freshly wiped game with nothing said in it yet shows an empty Hall
+rather than yesterday's; a row with no `gameId` predates the column and is old
+by definition. `feedWipeFloor` returns whichever of the two floors is higher,
+which is why fixing this took no change to any of the readers below.
+
 **It is set as the pass BEGINS**, from `db/index.js#advanceTurn`'s side-effect
 thunk, immediately before `runDawnWipe`. That is the same instant `cutoffMs`
 names on the Discord side, and the reason is the same: a message posted while

@@ -62,7 +62,7 @@ export default function DesiresBlock({ view }) {
     setError(null);
     startTransition(async () => {
       const res = await claimDesire({ slotIndex: claiming.slotIndex, slug: claiming.entry.slug, reason });
-      if (!res?.ok) return setError(res?.error ?? "Something went wrong. ‡");
+      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       setClaiming(null);
       // The slots came down with the page and the catalog's cooldowns just
       // moved, so both are re-read rather than patched.
@@ -73,9 +73,9 @@ export default function DesiresBlock({ view }) {
 
   return (
     <div className="hall-desires">
-      <p className="hall-section-title">Desires ‡</p>
+      <p className="hall-section-title">Desires</p>
       {!desiresEnabled ? (
-        <p className="text-sm text-muted">Temporarily disabled. ‡</p>
+        <p className="text-sm text-muted">Temporarily disabled.</p>
       ) : (
         Array.from({ length: desireSlots }, (_, slotIndex) => {
           const slot = bySlot.get(slotIndex) ?? { slotIndex, lockedUntilTurn: null, lastEnded: null };
@@ -90,7 +90,7 @@ export default function DesiresBlock({ view }) {
                 </p>
               )}
               {slot.lockedUntilTurn != null ? (
-                <EmptyState>{`Opens on turn ${slot.lockedUntilTurn} ‡`}</EmptyState>
+                <EmptyState>{`Opens on turn ${slot.lockedUntilTurn}`}</EmptyState>
               ) : (
                 <button
                   type="button"
@@ -98,10 +98,10 @@ export default function DesiresBlock({ view }) {
                   disabled={loading || pending}
                   onClick={() => openPicker(slotIndex)}
                 >
-                  Claim ‡
+                  Claim
                 </button>
               )}
-              {bound && <p className="hall-quiet-line">Addiction: {addiction.name} ‡</p>}
+              {bound && <p className="hall-quiet-line">Addiction: {addiction.name}</p>}
             </div>
           );
         })

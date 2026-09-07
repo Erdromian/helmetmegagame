@@ -33,18 +33,18 @@ export default function SoundTrumpetButton() {
     startTransition(async () => {
       const result = await soundTrumpet();
       if (result?.ok) setSounded(true);
-      else setError(result?.error ?? "Couldn't sound it. ‡");
+      else setError(result?.error ?? "Couldn't sound it.");
     });
   }
 
   return (
     <div className="mt-2">
-      <p className="field-label mb-1">The trumpet ‡</p>
+      <p className="field-label mb-1">The trumpet</p>
       <button type="button" className="btn" onClick={onClick} disabled={pending}>
         {pending ? "Sounding…" : "Sound Trumpet"}
       </button>
       {sounded && !error ? (
-        <p className="text-muted mt-1 text-sm">You sound it. ‡</p>
+        <p className="text-muted mt-1 text-sm">You sound it.</p>
       ) : null}
       <FormError className="mt-1">{error}</FormError>
     </div>

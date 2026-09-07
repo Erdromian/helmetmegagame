@@ -39,7 +39,7 @@ export default function LobbyRoster({ rows, started }) {
         query={query}
         setQuery={setQuery}
         searchLabel="Search"
-        searchPlaceholder="Player or role… ‡"
+        searchPlaceholder="Player or role…"
       />
       <TableScroll minWidth="1000px">
         <thead>
@@ -92,7 +92,7 @@ export default function LobbyRoster({ rows, started }) {
           {pageRows.length === 0 ? (
             <tr>
               <td colSpan={COLS}>
-                <EmptyState title="Nobody has readied up. ‡" />
+                <EmptyState title="Nobody has readied up." />
               </td>
             </tr>
           ) : null}

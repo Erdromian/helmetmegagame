@@ -90,7 +90,7 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
             onAddMember(person.characterId);
           }}
         >
-          Add to {addPlace.name} ‡
+          Add to {addPlace.name}
         </button>
       )}
       {onConverse && (
@@ -106,7 +106,7 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
             onConverse({ id: person.characterId, name: person.name });
           }}
         >
-          Converse ‡
+          Converse
         </button>
       )}
     </div>
@@ -123,7 +123,7 @@ function HoodReadout({ state, onClose }) {
   return (
     <Modal open title={readout?.name ?? "Look at"} onClose={onClose} width="default">
       <div className="flex flex-col gap-2">
-        {state?.loading && <p className="text-sm text-muted">Looking… ‡</p>}
+        {state?.loading && <p className="text-sm text-muted">Looking…</p>}
         {state?.error && <FormError>{state.error}</FormError>}
         {/* The SAME readout the sheet's Look at dialog draws
             (web/app/components/ExamineDialog.js) — the face, the appearance,
@@ -203,9 +203,9 @@ export default function HereList({
       examineHooded(token)
         .then((res) => {
           if (res?.ok) setHood({ readout: res.readout });
-          else setHood({ error: res?.error ?? "You can't see them. ‡" });
+          else setHood({ error: res?.error ?? "You can't see them." });
         })
-        .catch(() => setHood({ error: "You can't see them. ‡" }));
+        .catch(() => setHood({ error: "You can't see them." }));
     },
     [close],
   );
@@ -220,8 +220,8 @@ export default function HereList({
         if (!wrapRef.current?.contains(event.relatedTarget)) close();
       }}
     >
-      {!strip && <p className="hall-section-title">Here · {total} ‡</p>}
-      {total === 0 && !strip && <EmptyState>Nobody is here. ‡</EmptyState>}
+      {!strip && <p className="hall-section-title">Here · {total}</p>}
+      {total === 0 && !strip && <EmptyState>Nobody is here.</EmptyState>}
 
       {named.map((person) => (
         <div key={person.characterId} className="hall-person-wrap">
@@ -243,7 +243,7 @@ export default function HereList({
                 <span className="hall-person-name">
                   {person.name}
                   {person.roleTitle ? <span className="text-muted"> · {person.roleTitle}</span> : null}
-                  {person.characterId === selfId ? <span className="text-muted"> · you ‡</span> : null}
+                  {person.characterId === selfId ? <span className="text-muted"> · you</span> : null}
                 </span>
               )}
             </button>
@@ -302,7 +302,7 @@ export default function HereList({
                   onConverse();
                 }}
               >
-                Converse ‡
+                Converse
               </button>
             </div>
           )}

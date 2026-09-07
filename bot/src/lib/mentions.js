@@ -74,8 +74,8 @@ async function notifyMentioned(client, character, context, link) {
   // in front of the DM and never allowed to affect it: an unconfigured
   // deployment is a no-op and every failure is swallowed (db/lib/webPush.js).
   await pushToUser(prisma, character.discordUserId, {
-    title: `${character.name} was named ‡`,
-    body: `in ${where} ‡`,
+    title: `${character.name} was named`,
+    body: `in ${where}`,
     url: "/play",
   }).catch(() => {});
 }

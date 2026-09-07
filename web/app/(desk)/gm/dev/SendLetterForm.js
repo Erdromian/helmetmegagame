@@ -27,7 +27,7 @@ export default function SendLetterForm({ characters }) {
             name="senderName"
             type="text"
             maxLength={80}
-            placeholder="God-King Enoch II ‡"
+            placeholder="God-King Enoch II"
             className="min-w-64"
           />
         </label>
@@ -60,7 +60,6 @@ export default function SendLetterForm({ characters }) {
           <label className="field">
             <span className="field-label">Seal name</span>
             <input name="sealLabel" type="text" maxLength={40} placeholder="Royal" className="min-w-48" />
-            <span className="text-xs text-muted">The letter arrives titled &ldquo;Sealed Letter (Royal)&rdquo;. ‡</span>
           </label>
           <label className="field min-w-72 flex-1">
             <span className="field-label">What the wax carries</span>
@@ -71,7 +70,6 @@ export default function SendLetterForm({ characters }) {
               placeholder="A crown over crossed howitzers. ‡"
               className="w-full"
             />
-            <span className="text-xs text-muted">Anyone holding it reads this, literate or not. ‡</span>
           </label>
         </div>
       )}

@@ -79,7 +79,7 @@ async function armNukeImpl() {
   requireBoth(slugs);
 
   const openTurn = await getOpenTurn();
-  if (!openTurn) throw new UserError("No turn is open. ‡");
+  if (!openTurn) throw new UserError("No turn is open.");
 
   const state = await prisma.gameState.findUnique({ where: { id: 1 } });
   if (state?.nukeDetonatedTurn != null) throw new UserError("It has already gone off. ‡");
@@ -110,11 +110,11 @@ async function disarmNukeImpl() {
   requireBoth(slugs);
 
   const openTurn = await getOpenTurn();
-  if (!openTurn) throw new UserError("No turn is open. ‡");
+  if (!openTurn) throw new UserError("No turn is open.");
 
   const state = await prisma.gameState.findUnique({ where: { id: 1 } });
   if (state?.nukeDetonatedTurn != null) throw new UserError("It has already gone off. ‡");
-  if (state?.nukeArmedTurn == null) throw new UserError("It isn't armed. ‡");
+  if (state?.nukeArmedTurn == null) throw new UserError("It isn't armed.");
 
   // Snapshotted so an Undo can put the countdown back exactly where it was
   // rather than guessing at it.

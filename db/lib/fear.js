@@ -231,8 +231,8 @@ function resolveDelta({ kind, base, heldSlugs, intensity = 1, ctx = {} }) {
 // Plain, as asked: the band's name and nothing about the number.
 function fearBandDm(previousBand, band) {
   if ((previousBand?.slug ?? null) === (band?.slug ?? null)) return null;
-  if (!band) return "You've calmed down. ‡";
-  return `You are now ${band.label}. ‡`;
+  if (!band) return "You've calmed down.";
+  return `You are now ${band.label}.`;
 }
 
 // --- the Prisma half ------------------------------------------------------

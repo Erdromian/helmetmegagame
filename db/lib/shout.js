@@ -59,7 +59,7 @@ const MUFFLE_BY_DISTANCE = [0, 0, 0.4, 0.7];
 // split /play already makes, where the room hears the performance and the
 // street outside only notices it. A shout in your own street is not scenery.
 function shoutLine(text, distance, viaName) {
-  if (distance === 0) return `You hear someone shout: ‡\n» ${text}`;
+  if (distance === 0) return `You hear someone shout: » ${text}`;
   const parts = shoutParts(text, distance, viaName);
   return ambientLine(parts.text, parts.lines);
 }
@@ -77,7 +77,7 @@ function shoutLine(text, distance, viaName) {
 // deliberate: both are "you missed most of it", and neither is the canonical
 // one to diff the other against.
 function shoutParts(text, distance, viaName) {
-  if (distance === 0) return { text: "You hear someone shout:", lines: [text] };
+  if (distance === 0) return { text: `You hear someone shout: » ${text}`, lines: [] };
 
   const where = viaName ? ` from the direction of ${viaName}` : " somewhere nearby";
 
@@ -85,7 +85,7 @@ function shoutParts(text, distance, viaName) {
   if (fraction == null) {
     return { text: `You hear someone shout${where}, but you can't make out what they say.`, lines: [] };
   }
-  return { text: `You hear someone shout${where}:`, lines: [muffle(text, fraction)] };
+  return { text: `You hear someone shout${where}: » ${muffle(text, fraction)}`, lines: [] };
 }
 
 // ---------------------------------------------------------------- the shout
@@ -122,7 +122,7 @@ async function shout(prisma, character, text) {
   if (body.length > 300) return { ok: false, error: "A shout is 300 characters at the most. ‡" };
 
   if (!character?.id) return { ok: false, error: "You don't have a living character. ‡" };
-  if (!character.locationId) return { ok: false, error: "You're nowhere. ‡" };
+  if (!character.locationId) return { ok: false, error: "You're nowhere." };
 
   // SPEAK, not ACT — and that distinction is the whole point of this gate.
   // {tag:bound} blocks acting but never speech, so a hostage can still yell

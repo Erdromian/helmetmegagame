@@ -147,7 +147,7 @@ export default function BioNameFields({ character, lastNameLocked = false, hasMu
             to anyone using a keyboard. */}
         <span className="text-xs text-muted">
           {hasMulligan
-            ? "Drinks a Mulligan Potion. ‡"
+            ? "Drinks a Mulligan Potion."
             : "Needs a Mulligan Potion — brew one, or buy one at the Depot. ‡"}
         </span>
       </div>

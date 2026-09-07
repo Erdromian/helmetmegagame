@@ -335,9 +335,6 @@ export default function ActionBar({
         onCancel={() => setDialog(null)}
         onConfirm={(reason) => run(() => restoreTurn({ characterId: character.id, reason }))}
       >
-        <p className="text-sm text-muted">
-          Deletes their Move and undoes any rewards. They&apos;ll be DM&apos;d with your reason.
-        </p>
       </RequestDialog>
 
       {/* Kill and Spend-turn DM the player too now, so both ask for a reason
@@ -352,11 +349,6 @@ export default function ActionBar({
         onCancel={() => setDialog(null)}
         onConfirm={(reason) => run(() => killCharacterNow({ characterId: character.id, reason }))}
       >
-        <p className="text-sm text-muted">
-          Revokes every channel overwrite, deletes their personal Discord role, clears their
-          nickname, grants Cursed, and writes a death into the archive. They&apos;ll be DM&apos;d
-          with your reason.
-        </p>
       </RequestDialog>
 
       <RequestDialog
@@ -371,10 +363,6 @@ export default function ActionBar({
           run(() => spendTurn({ characterId: character.id, description: reason }))
         }
       >
-        <p className="text-sm text-muted">
-          {character.name} won&apos;t be able to act again until the turn advances. They&apos;ll
-          be DM&apos;d with your reason.
-        </p>
       </RequestDialog>
 
       {dialog === "message" && (
@@ -416,9 +404,6 @@ export default function ActionBar({
       {dialog === "teleport" && (
         <Modal modeless title={`Teleport ${character.name}`} onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-muted">
-              Moves them there instantly. They&apos;ll be DM&apos;d that they were moved.
-            </p>
             <ul className="flex flex-col gap-2">
               {(locations ?? []).map((l) => (
                 <li key={l.id}>
@@ -513,9 +498,6 @@ export default function ActionBar({
       {dialog === "wound" && (
         <Modal modeless title="Inflict a wound" onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-muted">
-              Afflictions can be cured.
-            </p>
             <ul className="flex flex-col gap-2">
               {wounds.map((t) => (
                 <li key={t.id}>
@@ -548,9 +530,7 @@ export default function ActionBar({
       {dialog === "delete" && (
         <Modal title={`Delete ${character.name}`} onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-muted">
-              Removes the character and their Moves, Requests, Desires, and tags. This also cleans up their Discord permissions. Their notes and archive posts stay. This is permanent.
-            </p>
+            <p className="text-sm text-muted">This is permanent.</p>
             {/* Not .field-label: that class is uppercase, and the name below
                 must be typed verbatim — an uppercased label made a correctly
                 typed name look wrong forever. */}

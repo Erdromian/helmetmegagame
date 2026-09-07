@@ -41,7 +41,7 @@ const HERE_FIELDS = { id: true, locationId: true, status: true, concealed: true,
 
 // One message for every "they aren't here" refusal, so the actions agree.
 function notHereMessage(target) {
-  return target?.name ? `${target.name} isn't here. ‡` : "They aren't here. ‡";
+  return target?.name ? `${target.name} isn't here.` : "They aren't here.";
 }
 
 module.exports = { hereWhere, isHere, HERE_FIELDS, notHereMessage };

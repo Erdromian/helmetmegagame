@@ -41,7 +41,7 @@ export default function CraftsTable({ projects }) {
         query={table.query}
         setQuery={table.setQuery}
         searchLabel="Search"
-        searchPlaceholder="Character, recipe, custom name… ‡"
+        searchPlaceholder="Character, recipe, custom name…"
       />
       <TableScroll minWidth="64rem">
         <thead>

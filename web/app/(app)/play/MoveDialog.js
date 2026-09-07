@@ -38,8 +38,8 @@ export default function MoveDialog({ initial = null, onClose, onDone }) {
   const kindLocked = Boolean(initial?.kindLocked);
 
   return (
-    <Modal open title={editing ? "Change your Move ‡" : "Your Move"} onClose={onClose}>
-      <div className="chip-row" role="radiogroup" aria-label="What kind of Move ‡">
+    <Modal open title={editing ? "Change your Move" : "Your Move"} onClose={onClose}>
+      <div className="chip-row" role="radiogroup" aria-label="What kind of Move">
         {MOVE_KINDS.map((entry) => (
           <button
             key={entry.value}
@@ -58,7 +58,7 @@ export default function MoveDialog({ initial = null, onClose, onDone }) {
       <p className="text-sm text-muted">{kindLocked ? KIND_SPENT : chosen?.help}</p>
       <div className="field">
         <label className="field-label" htmlFor="hall-move">
-          What do you do? ‡
+          What do you do?
         </label>
         <textarea id="hall-move" rows={6} value={body} maxLength={2000} onChange={(e) => setBody(e.target.value)} />
       </div>

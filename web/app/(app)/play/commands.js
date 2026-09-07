@@ -88,7 +88,7 @@ export const COMMANDS = [
     // Not the zone summary: a shout is a voice in a place, and the summary is
     // not a place anybody stands in.
     where: ["loc", "room", "conv"],
-    args: [{ name: "message", kind: "text", placeholder: "What you yell… ‡", maxLength: SHOUT_LIMIT }],
+    args: [{ name: "message", kind: "text", placeholder: "What you yell…", maxLength: SHOUT_LIMIT }],
     run: ({ message }, ctx) => shoutHere(message, ctx.placeKey),
   },
   {

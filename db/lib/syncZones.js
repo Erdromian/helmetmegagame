@@ -598,7 +598,7 @@ function buildAnchorBody(location, rooms) {
   parts.push(
     publicRooms.length > 0
       ? `**Public Rooms**: ${publicRooms.map((r) => `<#${r.discordThreadId}>`).join(" | ")}`
-      : "**Public Rooms**: none ‡",
+      : "**Public Rooms**: none",
   );
   // One newline, not two. A blank line between the bolded name and its `-#`
   // subtext reads as two separate posts stapled together; tight, the anchor

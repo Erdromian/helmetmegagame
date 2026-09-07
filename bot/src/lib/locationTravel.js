@@ -94,7 +94,7 @@ function buildLocationSelectRow(locations, from) {
   const shown = locations.slice(0, MENU_OPTION_LIMIT);
   const menu = new StringSelectMenuBuilder()
     .setCustomId(PICK_ID)
-    .setPlaceholder("Choose where to go… ‡")
+    .setPlaceholder("Choose where to go…")
     .addOptions(
       shown.map((location) => ({
         label: location.name.slice(0, 100),
@@ -117,7 +117,7 @@ function buildDragRow(locationId, candidates) {
   if (shown.length === 0) return null;
   const menu = new StringSelectMenuBuilder()
     .setCustomId(`${DRAG_PREFIX}${locationId}`)
-    .setPlaceholder("Bring anyone along? ‡")
+    .setPlaceholder("Bring anyone along?")
     .setMinValues(0)
     .setMaxValues(shown.length)
     .addOptions(

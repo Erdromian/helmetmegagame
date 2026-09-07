@@ -73,7 +73,6 @@ export default async function CraftsPage() {
     <PageShell>
       <PageHeader
         title="Craft projects"
-        subtitle="Every multi-turn craft, running or finished. The Spent column is what went in when the work started — the list a by-hand reversal on the Dev Panel hands back. ‡"
       />
       <CraftsTable projects={projects} />
     </PageShell>

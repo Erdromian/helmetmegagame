@@ -353,7 +353,7 @@ async function handleCameraReaction(reaction, proxy, user) {
     select: { characterId: true },
   });
   if (!held) {
-    await sendDm(user, "» *You have no camera.* ‡", { source: "system_notice" }).catch((err) =>
+    await sendDm(user, "» *You have no camera.*", { source: "system_notice" }).catch((err) =>
       console.error(`Couldn't tell ${user.id} they have no camera:`, err),
     );
     return;
@@ -361,7 +361,7 @@ async function handleCameraReaction(reaction, proxy, user) {
 
   const key = photographKey(reaction.message.id, held.characterId);
   if (photographed.has(key)) {
-    await sendDm(user, "» *You already have that shot.* ‡", { source: "system_notice" }).catch((err) =>
+    await sendDm(user, "» *You already have that shot.*", { source: "system_notice" }).catch((err) =>
       console.error(`Couldn't tell ${user.id} they already shot that:`, err),
     );
     return;
@@ -370,7 +370,7 @@ async function handleCameraReaction(reaction, proxy, user) {
   const result = await readoutForReaction(proxy, user, { bystander: true });
   if (!result) return;
   if (result.blind) {
-    await sendDm(user, "» *You can't see.* ‡", { source: "system_notice" }).catch((err) =>
+    await sendDm(user, "» *You can't see.*", { source: "system_notice" }).catch((err) =>
       console.error(`Couldn't tell ${user.id} they're blind:`, err),
     );
     return;
@@ -527,7 +527,7 @@ module.exports = {
         const result = await readoutForReaction(proxy, user);
         if (!result) return;
         if (result.blind) {
-          await sendDm(user, "» *You can't see.* ‡", { source: "system_notice" }).catch((err) =>
+          await sendDm(user, "» *You can't see.*", { source: "system_notice" }).catch((err) =>
             console.error(`Couldn't tell ${user.id} they're blind:`, err),
           );
           return;

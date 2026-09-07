@@ -148,7 +148,7 @@ async function handleEditSubmit(interaction) {
   // the five-minute window enforced in one place (db/lib/say.js).
   const result = await editSpeech(prisma, { characterId: proxy.characterId, seq: proxy.seq, content });
   if (!result?.ok) {
-    await respond(interaction, `» *${result?.refusal ?? "Couldn't update that message. ‡"}*`);
+    await respond(interaction, `» *${result?.refusal ?? "Couldn't update that message."}*`);
     return;
   }
 

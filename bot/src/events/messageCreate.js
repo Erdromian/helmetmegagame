@@ -226,7 +226,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
     await sendDm(
       message.author,
       `» *That pinged ${mentioned.length} people at once, so only the first ${MAX_MENTION_RELAYS} were told. ` +
-        `Not notified: ${dropped.map((t) => t.name).join(", ")}.* ‡`,
+        `Not notified: ${dropped.map((t) => t.name).join(", ")}.*`,
       { source: "system_notice" },
     ).catch(() => {});
   }

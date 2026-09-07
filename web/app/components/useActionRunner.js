@@ -15,7 +15,7 @@ export default function useActionRunner() {
     startTransition(async () => {
       try {
         const res = await action(arg);
-        if (!res?.ok) setError(res?.error ?? "Something went wrong. ‡");
+        if (!res?.ok) setError(res?.error ?? "Something went wrong.");
         else if (onOk) onOk(res);
       } catch {
         setError("Could not reach the server. Nothing was changed. ‡");

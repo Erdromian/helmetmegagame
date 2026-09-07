@@ -231,7 +231,7 @@ async function archiveRowForMessage(prisma, discordMessageId) {
 async function updateArchiveMessage(prisma, discordMessageId, content, options = {}) {
   return safely("message edit", async () => {
     const row = await archiveRowForMessage(prisma, discordMessageId);
-    if (!row) return { ok: false, refusal: "That message is gone. ‡" };
+    if (!row) return { ok: false, refusal: "That message is gone." };
     const { editSpeech } = require("./say");
     return editSpeech(prisma, { characterId: row.characterId, seq: row.seq, content, ...options });
   });
@@ -243,7 +243,7 @@ async function updateArchiveMessage(prisma, discordMessageId, content, options =
 async function deleteArchiveMessage(prisma, discordMessageId, options = {}) {
   return safely("message delete", async () => {
     const row = await archiveRowForMessage(prisma, discordMessageId);
-    if (!row) return { ok: false, refusal: "That message is gone. ‡" };
+    if (!row) return { ok: false, refusal: "That message is gone." };
     const { deleteSpeech } = require("./say");
     return deleteSpeech(prisma, { characterId: row.characterId, seq: row.seq, ...options });
   });

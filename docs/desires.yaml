@@ -1570,7 +1570,7 @@ desires:
       anyTags: [death-wish]
 
   harvest-godflesh-barehanded:
-    name: Harvest Godflesh without gloves ‡
+    name: Harvest Godflesh without gloves
     tier: 3
     oncePerLife: true
     families: [mortality, stupidity]
@@ -1578,7 +1578,7 @@ desires:
       anyTags: [death-wish]
 
   enter-the-depths:
-    name: Enter the Depths ‡
+    name: Enter the Depths
     tier: 2
     oncePerLife: true
     families: [adventure]
@@ -1586,7 +1586,7 @@ desires:
       anyTags: [death-wish]
 
   wrestle-a-giant:
-    name: Wrestle a giant ‡
+    name: Wrestle a giant
     tier: 4
     oncePerLife: true
     families: [violence, bravery]
@@ -1602,7 +1602,7 @@ desires:
       anyTags: [death-wish]
 
   kill-a-monster-barehanded:
-    name: Kill a monster barehanded ‡
+    name: Kill a monster barehanded
     tier: 3
     oncePerLife: true
     families: [violence, bravery]
@@ -2196,7 +2196,7 @@ desires:
   # Both need {tag:human-flesh}, which only the Butcher button produces, so
   # the real gate is upstream of `requires` and neither entry restates it.
   eat-human-flesh:
-    name: Eat human flesh ‡
+    name: Eat human flesh
     tier: 2
     families: [cruelty, food]
     requires:

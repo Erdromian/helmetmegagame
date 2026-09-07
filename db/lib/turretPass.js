@@ -153,7 +153,7 @@ async function applyTurretShot(prisma, shot, turn, { deathContent }) {
 function turretDmFor(lines, outcome) {
   const flavour = lines[outcome.kind === "hit" ? "hit" : outcome.kind] ?? lines.hit;
   if (!outcome.wound) return flavour;
-  return `${flavour.replace(/\s*‡\s*$/, "")}\n**${outcome.wound}.** ‡`;
+  return `${flavour.replace(/\s*‡\s*$/, "")}\n**${outcome.wound}.**`;
 }
 
 // The OTHER trigger: walking in while it is hot.

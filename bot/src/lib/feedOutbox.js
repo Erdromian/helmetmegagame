@@ -134,8 +134,8 @@ async function relayWebMentions({ row, characters, concealed, channelId, message
     // tab is closed. After the DM, and wrapped: a push that will not send must
     // never cost the DM that already went (db/lib/webPush.js).
     await pushToUser(prisma, target.discordUserId, {
-      title: `${target.name} was named ‡`,
-      body: `in ${where} ‡`,
+      title: `${target.name} was named`,
+      body: `in ${where}`,
       url: `/play#${encodeURIComponent(row.placeKey)}`,
     }).catch(() => {});
   }

@@ -34,6 +34,13 @@ way `docs/handbook.md` already does. It sits *after* the other glyph
 conventions rather than displacing them: a line ending in `3 ⬢` becomes
 `3 ⬢ ‡`, and a `»` quote line keeps its prefix.
 
+**Four words or fewer get no mark.** The ‡ says "nobody has signed off on this
+wording yet", and "Save", "Try again" or "You have no camera" have no wording to
+sign off on — there is one way to write them. Marking them buried the lines that
+really are drafted prose under a thousand button labels. Count the words of the
+string itself: four or fewer, no ‡. `scripts/copy/strip-short-daggers.py` is the
+sweep that took the existing ones off, and `--list` shows what it would judge.
+
 **Editing counts as writing.** Rework a line that has no ‡ and it gets one — the
 line is partly yours now. And never strip a ‡ that is already there: removing it
 is Bascinet's signal, not yours.

@@ -44,7 +44,7 @@ export default function SceneTab({ characterId }) {
       const res = await getCharacterScene({ characterId });
       if (cancelled) return;
       if (!res?.ok) {
-        setState({ status: "error", places: [], locationName: null, error: res?.error ?? "Couldn't load that. ‡" });
+        setState({ status: "error", places: [], locationName: null, error: res?.error ?? "Couldn't load that." });
         return;
       }
       setState({ status: "ready", places: res.places, locationName: res.locationName, error: null });
@@ -103,7 +103,7 @@ export default function SceneTab({ characterId }) {
     };
   }, [selected]);
 
-  if (state.status === "loading") return <p className="p-3 text-sm text-muted">Loading… ‡</p>;
+  if (state.status === "loading") return <p className="p-3 text-sm text-muted">Loading…</p>;
   if (state.status === "error") return <p className="p-3 text-sm form-error">{state.error}</p>;
   if (state.places.length === 0) {
     return (

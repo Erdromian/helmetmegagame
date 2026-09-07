@@ -31,7 +31,7 @@ const MAX_QUERY = 80;
 
 export async function GET(request) {
   const viewer = await loadFeedViewer();
-  if (!viewer.discordUserId) return Response.json({ error: "Sign in first. ‡" }, { status: 401 });
+  if (!viewer.discordUserId) return Response.json({ error: "Sign in first." }, { status: 401 });
   if (!viewer.character && !viewer.gm) {
     return Response.json({ error: "You have no living character. ‡" }, { status: 403 });
   }
@@ -39,7 +39,7 @@ export async function GET(request) {
   const params = new URL(request.url).searchParams;
   const q = String(params.get("q") ?? "").trim();
   if (q.length < MIN_QUERY || q.length > MAX_QUERY) {
-    return Response.json({ error: "Three letters at least. ‡" }, { status: 400 });
+    return Response.json({ error: "Three letters at least." }, { status: 400 });
   }
 
   const places = await placesFor(prisma, viewer.character, viewer.options);
@@ -48,7 +48,7 @@ export async function GET(request) {
   // a refusal rather than a silent widening.
   const scope = wanted ? places.filter((entry) => entry.placeKey === wanted) : places;
   if (wanted && scope.length === 0) {
-    return Response.json({ error: "You aren't there. ‡" }, { status: 403 });
+    return Response.json({ error: "You aren't there." }, { status: 403 });
   }
   if (scope.length === 0) return Response.json({ rows: [] });
 

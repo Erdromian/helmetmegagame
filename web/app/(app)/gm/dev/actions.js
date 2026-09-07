@@ -7,6 +7,7 @@ import { parseConfigForm } from "@lifeweb/db/lib/gameConfigFields";
 import { getGameConfig, getGameState, GAME_STATE_CREATE } from "@lifeweb/db/lib/gameState";
 import { buildEpilogue } from "@lifeweb/db/lib/epilogue";
 import { forgetGameId } from "@lifeweb/db/lib/archive";
+import { forgetGameFloor } from "@lifeweb/db/lib/feedWipe";
 import {
   prisma,
   advanceTurn as advanceTurnInDb,
@@ -373,6 +374,9 @@ export async function wipeGameData(formData) {
       prisma.gameState.create({ data: { id: 1, gameId: nextGame.id } }),
     ]);
     forgetGameId();
+    // The Hall reads past a finished game by seq (db/lib/feedWipe.js); drop
+    // the memo so it empties now rather than in half a minute.
+    forgetGameFloor();
 
     // After the character sweep above, so the FK from Character.factionId is
     // already gone and the delete cannot be blocked by a member.

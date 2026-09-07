@@ -119,7 +119,7 @@ function buildTortureEmbed({ name, avatarUrl, tags, desires, thanatiNames }) {
   }
   return {
     title: "You successfully broke your target. ‡",
-    description: `Their name is ${name}. ‡`,
+    description: `Their name is ${name}.`,
     fields,
     ...(avatarUrl ? { thumbnail: { url: avatarUrl } } : {}),
   };

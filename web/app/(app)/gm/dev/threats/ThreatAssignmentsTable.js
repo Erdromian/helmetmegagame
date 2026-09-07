@@ -77,7 +77,7 @@ export default function ThreatAssignmentsTable({ rows, threats, roles, locations
         query={query}
         setQuery={setQuery}
         searchLabel="Search"
-        searchPlaceholder="Player, character, or role… ‡"
+        searchPlaceholder="Player, character, or role…"
       >
         <label className="field">
           <span className="field-label">Opted into</span>
@@ -125,7 +125,7 @@ export default function ThreatAssignmentsTable({ rows, threats, roles, locations
           {pageRows.length === 0 ? (
             <tr>
               <td colSpan={COL_COUNT}>
-                <EmptyState>Nobody matches that. ‡</EmptyState>
+                <EmptyState>Nobody matches that.</EmptyState>
               </td>
             </tr>
           ) : null}
@@ -169,7 +169,7 @@ function Row({ row, threats, onSpawn, onMessage }) {
       if (!ok) return;
       const res = await assignThreat({ characterId: row.characterId, threatSlug: slug });
       if (!res?.ok) {
-        setError(res?.error ?? "Something went wrong. ‡");
+        setError(res?.error ?? "Something went wrong.");
         return;
       }
       setSlug("");
@@ -261,7 +261,7 @@ function SpawnDialog({ row, threats, roles, locations, onClose }) {
         locationId: effectiveLocationId || undefined,
       });
       if (!res?.ok) {
-        setError(res?.error ?? "Something went wrong. ‡");
+        setError(res?.error ?? "Something went wrong.");
         return;
       }
       setDone(`Offered ${res.threat} to ${row.handle}, starting as ${res.role}. ‡`);
@@ -271,11 +271,6 @@ function SpawnDialog({ row, threats, roles, locations, onClose }) {
   return (
     <Modal open title={`Spawn a threat for ${row.handle}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <p className="text-sm text-muted">
-          They get a DM with the seat&rsquo;s brief and two buttons. Accepting makes the character
-          immediately, if the role still has a seat open. ‡
-        </p>
-
         <label className="field">
           <span className="field-label">Threat</span>
           <Select value={slug} onChange={(e) => setSlug(e.target.value)}>
@@ -297,7 +292,7 @@ function SpawnDialog({ row, threats, roles, locations, onClose }) {
               setLocationId("");
             }}
           >
-            <option value="">Choose a role… ‡</option>
+            <option value="">Choose a role…</option>
             {roles.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.name} ({r.seatsLeft} left)
@@ -309,7 +304,7 @@ function SpawnDialog({ row, threats, roles, locations, onClose }) {
         <label className="field">
           <span className="field-label">Starting location</span>
           <Select value={effectiveLocationId} onChange={(e) => setLocationId(e.target.value)}>
-            <option value="">Wherever the role starts ‡</option>
+            <option value="">Wherever the role starts</option>
             {locations.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.zoneName} — {l.name}
@@ -357,7 +352,7 @@ function MessageDialog({ row, onClose }) {
         source: "gm_dev_panel",
       });
       if (!res?.ok) {
-        setError(res?.error ?? "Something went wrong. ‡");
+        setError(res?.error ?? "Something went wrong.");
         return;
       }
       setSent(true);
@@ -381,7 +376,7 @@ function MessageDialog({ row, onClose }) {
           </button>
         </div>
         <FormError>{error}</FormError>
-        {sent ? <p className="text-sm text-muted">Sent. ‡</p> : null}
+        {sent ? <p className="text-sm text-muted">Sent.</p> : null}
       </div>
     </Modal>
   );

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request) {
   const session = await auth();
-  if (!session?.discordUserId) return Response.json({ error: "Sign in first. ‡" }, { status: 401 });
+  if (!session?.discordUserId) return Response.json({ error: "Sign in first." }, { status: 401 });
 
   let body;
   try {

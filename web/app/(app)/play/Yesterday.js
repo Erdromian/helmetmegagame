@@ -75,7 +75,7 @@ export default function Yesterday() {
         onClick={toggle}
       >
         <ChevronDownIcon data-open={open ? "true" : undefined} />
-        Yesterday ‡
+        Yesterday
       </button>
       {open && (
         <div className="hall-details-body">
@@ -83,9 +83,9 @@ export default function Yesterday() {
             <p className="hall-quiet-line">{describeTurn(state.turn).label}</p>
           )}
           {!state.loaded ? (
-            <p className="hall-quiet-line">Reading… ‡</p>
+            <p className="hall-quiet-line">Reading…</p>
           ) : state.entries.length === 0 ? (
-            <p className="hall-quiet-line">Nothing came back yet. ‡</p>
+            <p className="hall-quiet-line">Nothing came back yet.</p>
           ) : (
             state.entries.map((entry) => (
               <div key={entry.id} className="hall-yesterday-row">

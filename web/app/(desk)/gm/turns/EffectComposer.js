@@ -237,7 +237,7 @@ export default function EffectComposer({
         {tag.stackable && (
           <QuantityField
             inline
-            ariaLabel="Quantity to add ‡"
+            ariaLabel="Quantity to add"
             value={draft ?? "1"}
             onChange={(v) => setAddQtyDrafts((prev) => new Map(prev).set(tag.id, v))}
           />

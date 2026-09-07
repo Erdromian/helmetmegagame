@@ -54,7 +54,7 @@ export default async function PlayPage() {
     return (
       <div className="hall-body hall-body--empty">
         <div className="panel">
-          <EmptyState>You are nowhere yet. ‡</EmptyState>
+          <EmptyState>You are nowhere yet.</EmptyState>
         </div>
       </div>
     );

@@ -35,7 +35,7 @@ export default function FactionPanel({ faction, siloOpen = false, onSelect = nul
       <div className="hall-head">
         <h1 className="section-title">{faction.name}</h1>
         <Link className="btn btn-quiet" href="/faction">
-          Faction page › ‡
+          Faction page ›
         </Link>
       </div>
       <div className="hall-feed">
@@ -49,15 +49,15 @@ export default function FactionPanel({ faction, siloOpen = false, onSelect = nul
           <div className="hall-buttons">
             {siloOpen && onSelect ? (
               <button type="button" className="btn" onClick={() => onSelect(faction.silo.placeKey)}>
-                {faction.silo.name} › ‡
+                {faction.silo.name} ›
               </button>
             ) : (
-              <p className="hall-quiet-line">The silo is {faction.silo.name}. ‡</p>
+              <p className="hall-quiet-line">The silo is {faction.silo.name}.</p>
             )}
           </div>
         )}
 
-        <p className="hall-section-title">Members · {roster.length} ‡</p>
+        <p className="hall-section-title">Members · {roster.length}</p>
         {roster.length === 0 ? (
           <EmptyState>Nobody living is in it. ‡</EmptyState>
         ) : (

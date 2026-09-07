@@ -140,10 +140,10 @@ test("the three tuning scenarios land where the designer asked", () => {
 });
 
 test("the DM names the new band and says when it passes", () => {
-  assert.equal(fearBandDm(null, bandOf(30)), "You are now Stressed. ‡");
-  assert.equal(fearBandDm(bandOf(30), bandOf(70)), "You are now Afraid. ‡");
-  assert.equal(fearBandDm(bandOf(90), bandOf(50)), "You are now Anxious. ‡");
-  assert.equal(fearBandDm(bandOf(90), null), "You've calmed down. ‡");
+  assert.equal(fearBandDm(null, bandOf(30)), "You are now Stressed.");
+  assert.equal(fearBandDm(bandOf(30), bandOf(70)), "You are now Afraid.");
+  assert.equal(fearBandDm(bandOf(90), bandOf(50)), "You are now Anxious.");
+  assert.equal(fearBandDm(bandOf(90), null), "You've calmed down.");
   assert.equal(fearBandDm(bandOf(30), bandOf(31)), null);
   assert.equal(fearBandDm(null, null), null);
 });
