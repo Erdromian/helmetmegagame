@@ -128,8 +128,12 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // each affliction row can quote what it would actually cost THIS medic
   // right now; the action re-checks under a row lock either way.
   const heldSlugSet = new Set(character.tags.map((ct) => ct.tag.slug));
+  // canHeal short-circuits the audit query (review fix, M2 — it ran for
+  // every /character and /play load regardless of whether the loader could
+  // even heal, until this hoist dropped the guard the pre-M2 nested ternary
+  // had for free).
   const simpleCuresThisTurn =
-    openTurn && discordUserId
+    canHeal && openTurn && discordUserId
       ? (
           await prisma.auditLog.findMany({
             where: {
@@ -162,37 +166,42 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
       healable: t.tags
         .map((ct) => ct.tag)
         .filter(isHealable)
-        .map((tag) => ({
-          tagId: tag.id,
-          tagName: tag.name,
-          // Lets the Heal dialog match this row against the medic's own held
-          // items' `cures` lists (medical pass, TAGS.md §5c) for the "or use:
-          // …" affordance — Tag.cures names slugs, not ids.
-          slug: tag.slug,
-          cost: healCost(tag),
-          requirementLabel: formatTagRequirement(tag),
+        .map((tag) => {
           // Above your tier, or the ladder's top rung, and it's a roll rather
           // than a refusal — so the picker offers it, labelled, instead of
-          // greying it out (docs/systemdocs/TAGS.md §5c).
-          gambit: isGambitHeal(tag, satisfied),
-          // What this heal would cost the medical Move RIGHT NOW, family
-          // hardcoded "medical" like the server bills (never derived —
-          // craftFamily would drop a skill-less cure like choking into the
-          // generic `craft` family): `free` inside today's pool, `spill` at
-          // 1/MEDICAL_SIMPLE_PER_TURN past it, `share` for a fraction/whole
-          // turns-costing cure. Gambits never price here — they're a Move of
-          // their own, not this ledger.
-          moveCost: isGambitHeal(tag, satisfied)
-            ? null
-            : countsAgainstHealCap(tag)
-              ? craftMoveCost(tag, {
-                  quantity: 1,
-                  allowance: MEDICAL_SIMPLE_PER_TURN,
-                  freeLeft: healsLeft,
-                  family: "medical",
-                })
-              : craftMoveCost(tag, { quantity: 1, family: "medical" }),
-        })),
+          // greying it out (docs/systemdocs/TAGS.md §5c). Computed once —
+          // countsAgainstHealCap's own gambit exclusion reads this same
+          // answer rather than a second call (review fix, M2).
+          const gambit = isGambitHeal(tag, satisfied);
+          return {
+            tagId: tag.id,
+            tagName: tag.name,
+            // Lets the Heal dialog match this row against the medic's own held
+            // items' `cures` lists (medical pass, TAGS.md §5c) for the "or use:
+            // …" affordance — Tag.cures names slugs, not ids.
+            slug: tag.slug,
+            cost: healCost(tag),
+            requirementLabel: formatTagRequirement(tag),
+            gambit,
+            // What this heal would cost the medical Move RIGHT NOW, family
+            // hardcoded "medical" like the server bills (never derived —
+            // craftFamily would drop a skill-less cure like choking into the
+            // generic `craft` family): `free` inside today's pool, `spill` at
+            // 1/MEDICAL_SIMPLE_PER_TURN past it, `share` for a fraction/whole
+            // turns-costing cure. Gambits never price here — they're a Move of
+            // their own, not this ledger.
+            moveCost: gambit
+              ? null
+              : countsAgainstHealCap(tag, gambit)
+                ? craftMoveCost(tag, {
+                    quantity: 1,
+                    allowance: MEDICAL_SIMPLE_PER_TURN,
+                    freeLeft: healsLeft,
+                    family: "medical",
+                  })
+                : craftMoveCost(tag, { quantity: 1, family: "medical" }),
+          };
+        }),
     }))
     .filter((t) => t.healable.length > 0);
 
