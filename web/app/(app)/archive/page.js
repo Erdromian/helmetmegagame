@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
-import { factsLine, rosterLine } from "@lifeweb/db/lib/epilogue";
+import { factsLine, rosterLine, formatAntagonistLines } from "@lifeweb/db/lib/epilogue";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
@@ -127,6 +127,16 @@ export default async function ArchivePage({ searchParams }) {
           <h2 className="panel-header">How it ended</h2>
           {epilogue.closingNote ? <p className="text-sm">» {epilogue.closingNote}</p> : null}
           <p className="text-sm text-muted">{factsLine(epilogue.facts)}</p>
+          {epilogue.antagonists?.length ? (
+            <details className="archive-fold" open>
+              <summary>The antagonists</summary>
+              <ul>
+                {formatAntagonistLines(epilogue.antagonists).map((line, i) => (
+                  <li key={`${epilogue.antagonists[i].partyKey}`}>{line.replaceAll("**", "")}</li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
           <details className="archive-fold">
             <summary>Who was who</summary>
             <ul>

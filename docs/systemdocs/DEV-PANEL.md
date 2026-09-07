@@ -518,8 +518,10 @@ Ten sections: **Game**, **Turn**, **Configuration** and **The Depot** under
 "Threats"; **Restart game** on its own under "Danger".
 The Game section — phase, lobby roster, the assignment preview, Start and End
 — is `LOBBY.md`. The two Threats sections replaced the old Antagonist Roster
-popup and have their own doc — `THREATS.md`. `LAUNCH.md` covers Restart Game
-itself, and the Depot section is this doc's appendix.
+popup and have their own doc — `THREATS.md`; the Antagonists section also
+carries the **Objectives** cards, one per antagonist party (`THREATS.md` §6a).
+`LAUNCH.md` covers Restart Game itself, and the Depot section is this doc's
+appendix.
 
 **Configuration is rendered from a registry.** Every `GameConfig` knob is
 declared once in `db/lib/gameConfigFields.js` — key, type, group, label, help,

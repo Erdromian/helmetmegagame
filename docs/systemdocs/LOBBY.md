@@ -197,11 +197,13 @@ button, and the bomb from inside `advanceTurn` (the reveal is queued after
 the fireball broadcast). It writes GameState to ENDED with `archiveVisible`
 on, and onto the current **`Game`** row its end, closing note and
 **epilogue** — `db/lib/epilogue.js#buildEpilogue`: the note, a facts line
-(days, turns, characters, deaths, letters, archive rows), and who was who: every
-character the game had, Discord handle as name and role, antagonist seats
-named from the seat tag, the dead marked with their turn. `formatEpilogue` is
-the `**Game Ended**` post to `#turns`; `/archive` renders the same object.
-Resume undoes the phase and leaves the archive open.
+(days, turns, characters, deaths, letters, archive rows), **the antagonists**
+— each party that had a seat holder, its members and its objectives scored
+Success or Failed (`THREATS.md` §6a) — and who was who: every character the
+game had, Discord handle as name and role, antagonist seats named from the
+seat tag, the dead marked with their turn. `formatEpilogue` is the `**Game
+Ended**` post to `#turns`; `/archive` renders the same object. Resume undoes
+the phase and leaves the archive open.
 
 `Game` is one row per game (`number`, dates, note, epilogue). `GameState.gameId`
 points at the current one; every `ArchiveEntry` carries `gameId` as a snapshot,

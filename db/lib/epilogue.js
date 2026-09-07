@@ -5,15 +5,19 @@
 // #turns as **Game Ended**.
 
 const { threatBySeatTag, SEAT_TAG_SLUGS } = require("./threats");
+const { buildAntagonistReveal, formatAntagonistLines } = require("./objectives");
 const { listGuildMembers } = require("./discordRest");
 
+// Always handed the plain client, never a transaction (db/index.js after the
+// bomb, gameActions.js's End Game, actions.js's wipe) — the reads below and in
+// buildAntagonistReveal depend on that.
 async function buildEpilogue(prisma, { game, state, closingNote = null } = {}) {
   const gameId = game?.id ?? state?.gameId;
   const [characters, deaths, members, turns, letters, archived] = await Promise.all([
     prisma.character.findMany({
       orderBy: { createdAt: "asc" },
       select: {
-        id: true, name: true, roleTitle: true, status: true, discordUserId: true,
+        id: true, name: true, roleTitle: true, status: true, discordUserId: true, createdAt: true,
         tags: { where: { tag: { slug: { in: SEAT_TAG_SLUGS } } }, select: { tag: { select: { slug: true } } } },
       },
     }),
@@ -44,6 +48,15 @@ async function buildEpilogue(prisma, { game, state, closingNote = null } = {}) {
   const endedAt = state?.endedAt ?? game?.endedAt ?? new Date();
   const days = startedAt ? Math.max(1, Math.round((new Date(endedAt) - new Date(startedAt)) / 86400000)) : null;
 
+  // Who the antagonists were and how their objectives ended
+  // (db/lib/objectives.js). Reuses the character and death rows above; the
+  // state carries nukeDetonatedTurn for the Tribunal's check. Wrapped: a
+  // scoring fault must not cost the game its ending.
+  const antagonists = await buildAntagonistReveal(prisma, { characters, deaths, state }).catch((err) => {
+    console.error("Antagonist reveal failed:", err);
+    return [];
+  });
+
   return {
     closingNote: closingNote ?? state?.closingNote ?? game?.closingNote ?? null,
     facts: {
@@ -55,6 +68,7 @@ async function buildEpilogue(prisma, { game, state, closingNote = null } = {}) {
       archived,
     },
     roster,
+    antagonists,
     builtAt: new Date().toISOString(),
   };
 }
@@ -79,10 +93,15 @@ function rosterLine(r) {
 function formatEpilogue(epilogue, { number } = {}) {
   const lines = [`**Game Ended**${number ? ` · Game ${number}` : ""}`];
   if (epilogue.closingNote) lines.push(`» ${epilogue.closingNote}`);
-  lines.push("", factsLine(epilogue.facts), "", "**Who was who**");
+  lines.push("", factsLine(epilogue.facts));
+  // Older epilogues (before objectives existed) carry no `antagonists`.
+  if (epilogue.antagonists?.length) {
+    lines.push("", "**The antagonists**", ...formatAntagonistLines(epilogue.antagonists));
+  }
+  lines.push("", "**Who was who**");
   if (epilogue.roster.length === 0) lines.push("Nobody.");
   for (const r of epilogue.roster) lines.push(rosterLine(r));
   return lines.join("\n");
 }
 
-module.exports = { buildEpilogue, formatEpilogue, factsLine, rosterLine };
+module.exports = { buildEpilogue, formatEpilogue, factsLine, rosterLine, formatAntagonistLines };

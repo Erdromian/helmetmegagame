@@ -18,6 +18,8 @@ can do, and which ones it carries is the whole taxonomy:
 | `optIn: true` or `{ name, whitelist }` | A checkbox in the lobby and on the wizard's Antagonists step. Consent data, nothing else. `name` is the PUBLIC name the box wears when it differs from the seat's — "Succubus" for the Demoness so the 18+ nature is said out loud, "Cultist" / "Cultist Leader" for the two Thanati seats so the word never appears; `whitelist: true` greys the box for anyone without the Whitelist Discord role (the same role that gates leader seats) and drops the slug server-side. `optInName()` / `optInWhitelisted()` read the shape; `antagonistNames()` returns public names, which is what every GM table shows. |
 | `assign: {…}` | A real seat a GM can hand to an existing character. |
 | `spawn: {…}` | The same seat, handed to somebody with no character at all. |
+| `party: { key, name }` | The group a seat scores its **objectives** with and is named as in the reveal (§6a): the two Thanati seats share `thanati`, the two Tribunal seats `tribunal`. A seat without one is **solo** — `partyOf()` answers with the seat itself, and the reveal says "was a" rather than "were the". |
+| `brief: [lines]` | Prose the seat DM carries — the **one exception** to "no prose in the catalog" below. Only for a seat with no Role of its own (`spawn.roleSlug` null), where there is no charter to duplicate and nowhere else for the words to live. Only the Thanati carry one. Bascinet's words verbatim, unsigned. Assign sends it in place of the generic opener; Spawn sends it above the cover role's charter. |
 
 `assignable: true` is the flag both buttons read; every assignable seat is also
 spawnable, because anything worth giving to a character is worth giving to a
@@ -45,12 +47,14 @@ Three mechanisms are worth knowing about regardless of which seat uses them:
   `db/lib/worldBroadcast.js#ambientEverywhere`. Adding a seat to that broadcast
   is one line in the set.
 
-**No prose lives in the catalog.** What a seated player reads is the Role's
-own charter — `intro` and `description` from `docs/roles.yaml` — sent by the
-seat DM. The catalog used to carry a `blurb` per seat as well; Bascinet pulled
-it on 2026-09-06 because it was a second, drafted copy of what the role already
-said. The hand-run briefs (Brigands, Monsters, the Sympathizer) are not entries
-at all; they are in `SECRETS.md`.
+**No prose lives in the catalog, except a `brief`.** What a seated player
+reads is the Role's own charter — `intro` and `description` from
+`docs/roles.yaml` — sent by the seat DM. The catalog used to carry a `blurb`
+per seat as well; Bascinet pulled it on 2026-09-06 because it was a second,
+drafted copy of what the role already said. The Thanati are the exception
+because they have no role to copy: a GM picks a cover role when spawning one,
+so their own words have to ride on the entry. The hand-run briefs (Brigands,
+Monsters, the Sympathizer) are not entries at all; they are in `SECRETS.md`.
 
 ### Why a code module and not a table
 
@@ -220,18 +224,109 @@ children.
 
 Who holds a seat now, derived per §2, plus the offers nobody has answered yet
 with a Cancel button. An unanswered offer's only other trace is a DM in
-somebody else's client.
+somebody else's client. Under both sit the **Objectives** cards, §6a.
+
+## 6a. Objectives
+
+An antagonist party's win conditions: what a GM writes down at game start, what
+the game scores as it runs, and what the reveal prints when it ends. The catalog
+of kinds is `db/lib/objectiveKinds.js`, the scoring is `db/lib/objectives.js`,
+the rows are the `Objective` table, and the GM surface is the bottom of
+`?s=antagonists`.
+
+**A party, not a seat.** Objectives hang off the `party` key in §1 — the Thanati
+share one list, the Tribunal another, and a solo seat (Demoness, Judge) is its
+own party under its own slug. `PARTIES` is the deduped list in catalog order and
+is what both the cards and the reveal iterate.
+
+**A kind** says what the GM's dropdown reads (`pick`), the sentence the row
+renders through (`label`, with `{target}`, `{location}`, `{value}` or `{text}`
+filled from the row's snapshots), which parties may take it, a `weight` (Minor
+/ Major, display only), what the second control on the Add row asks for
+(`target`: a character, a *leader* — a character whose Role has
+`requiresWhitelist` — an Inquisitor or Baron (or Baroness), a Location, a
+number, free text), and a `script`. The kinds and their words are Bascinet's,
+from the objectives spec, so they carry no ‡. Solo parties only get `custom`.
+
+**Three scripted kinds; the rest are the GM's word.** `script` names a checker
+in `evaluateObjectives`, all read on demand — nothing runs at turn close:
+
+| Kind | Checker | Reads |
+|---|---|---|
+| Kill [Character] | `characterDead` | the target's `status === "DEAD"`, exactly — `CURSED` is a dead enum value, not a state; a GM Revive un-scores this |
+| Cause [N] deaths in a single day | `deathsInOneDay` | the game's DEATH `ArchiveEntry` rows grouped by `turnDay()` (two turns to a day); done if any day reached N. Whoever, or whatever, caused them — the bomb's dozens count |
+| Detonate the nuclear device | `nukeDetonated` | `GameState.nukeDetonatedTurn` |
+
+Everything else — Deface, Blow up, the conversion and sacrifice rites, Celebrate,
+`custom` — is **manual**: the GM says whether it happened. The rite kinds are
+`placeholder: true` until the rites exist, and the card says "waits on a rite"
+beside them.
+
+**The pin.** `Objective.pinned` is the GM's answer. A scripted kind starts at
+null — *Game decides* — and a GM can pin Success or Failed over the checker (a
+Revive, a ruling that the Thanati had no hand in a death). A manual kind is
+never null; the pin is its only answer, and it starts at `startsDone` — false
+for all but Celebrate, which the spec has start at Success. `pinObjective`
+refuses a null pin on a manual kind.
+
+**Blow up [Location]** lists surface Locations that are not wilderness
+(`locationEligible`: `zone.kind === "SURFACE"` and no `wilderness` attribute);
+the action refuses by the same rule.
+
+**The reveal.** `buildEpilogue` hands `buildAntagonistReveal` the character and
+death rows it already loaded plus the state, and stores `antagonists` on the
+epilogue: every party with at least one seat holder of any status, its members
+(the Thanati Leader first; a seat name in parentheses where it differs from the
+party's), its objectives scored. A party with objectives and nobody seated is
+left out — it never existed in play. `formatAntagonistLines` is Bascinet's
+format, one line per party, printed under **The antagonists** between the
+facts line and **Who was who**, and on `/archive`:
+
+```
+Ash was a Judge.
+Maeris was a Demoness. Their objectives were: Seduce the Baron. **Success!** / Escape the Fortress. **Failed!**
+Ash (Thanati Leader), Wren, Lark were the Thanati. Their objectives were: Kill Corvin. **Success!**
+```
+
+Because the bomb ends the game inside the same advance that stamps the
+detonation and writes the blast deaths (`db/index.js`), both Tribunal and
+Thanati scripted kinds score right in the fireball epilogue.
+
+**The card.** One per party in `PARTIES`, seated or not, under the roster. Each
+row: weight, the sentence, the game's one-word answer, the pin dropdown (Game
+decides / Success / Failed for a scripted kind, the two answers for a manual
+one), Remove behind the confirm dialog. An "N of M complete" count sits in the
+head — the number the leader's final rite pays 100 ⬢ per, once that exists.
+The Add row's second control follows the kind and is reset on every kind
+change. The Tribunal's card offers **Add the standard set** (`PARTY_DEFAULTS`:
+Detonate + Celebrate) while it is empty. Actions are
+`web/app/(app)/gm/dev/objectiveActions.js`, superadmin-gated, each
+re-validating kind, party, target shape and eligibility; every one writes an
+audit row (`objective_added` / `objective_pinned` / `objective_removed`).
+
+**For the rite to come.** `listObjectives(prisma, { partyKey })` returns a
+party's rows described and scored; nothing player-facing reads it yet, on
+purpose — Bascinet's plan is a rite that reveals a cult's objectives in play.
+
+**Restart Game** deletes the table (`wipeGameData`, inside the transaction and
+after the epilogue snapshot, which must still see the rows). Nothing else needs
+to survive: the reveal is on `Game.epilogue`.
 
 ## 6. Where the code lives
 
 | File | What |
 |---|---|
-| `db/lib/threats.js` | The catalog, the name rolls, the button customId prefixes |
+| `db/lib/threats.js` | The catalog, the parties, the Thanati brief, the name rolls, the button customId prefixes |
 | `db/lib/threatSpawn.js` | Accept/decline, tag resolution, the Discord side effects |
+| `db/lib/objectiveKinds.js` | The objective kinds, pure — `describeObjective`, `kindsForParty`, `PARTY_DEFAULTS` |
+| `db/lib/objectives.js` | Scoring, `listObjectives`, the reveal (`buildAntagonistReveal`, `formatAntagonistLines`), `locationEligible` |
+| `db/test/objectives.test.js` | The pure half under `node --test` |
 | `web/lib/threats.js` | Client-safe re-export shim (the wizard is a client component) |
 | `web/app/(app)/gm/dev/threatActions.js` | `assignThreat`, `offerThreatSpawn`, `cancelThreatSpawn` |
+| `web/app/(app)/gm/dev/objectiveActions.js` | `addObjective`, `addStandardObjectives`, `pinObjective`, `removeObjective` |
 | `web/app/(app)/gm/dev/threats/ThreatAssignmentsTable.js` | The players table |
 | `web/app/(app)/gm/dev/threats/ThreatRosterTable.js` | The seats table + pending offers |
+| `web/app/(app)/gm/dev/threats/ObjectivesPanel.js` | The Objectives cards |
 | `web/app/(desk)/gm/dev/page.js` | Both sections' data loading and render |
 | `bot/src/lib/threatSpawn.js` | The Accept / Decline click |
 

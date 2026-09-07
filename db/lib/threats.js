@@ -34,10 +34,40 @@
 // downstream has to sort. That ordering is also what hides the real seats
 // among the decoys on the wizard.
 //
-// No prose lives here. What a seated player reads is the Role's own charter
-// from docs/roles.yaml (intro + description), sent by the seat DM in
-// web/app/(app)/gm/dev/threatActions.js. The hand-run briefs — Brigands,
-// Monsters, the Sympathizer — are in SECRETS.md.
+// No prose lives here, with one exception (`brief`, below). What a seated
+// player reads is the Role's own charter from docs/roles.yaml (intro +
+// description), sent by the seat DM in web/app/(app)/gm/dev/threatActions.js.
+// The hand-run briefs — Brigands, Monsters, the Sympathizer — are in
+// SECRETS.md.
+//
+// A PARTY is the group a seat scores its objectives with (db/lib/objectives.js)
+// and is named as in the end-of-game reveal: "Ash, Wren were the Thanati."
+// Seats that carry no `party` are SOLO — the Demoness and the Judge answer for
+// themselves, and the reveal says "Maeris was a Demoness."
+const THANATI_PARTY = { key: "thanati", name: "Thanati" };
+const TRIBUNAL_PARTY = { key: "tribunal", name: "Tribunal" };
+
+// THE ONE EXCEPTION TO "NO PROSE IN THE CATALOG". Bascinet pulled the per-seat
+// blurbs on 2026-09-06 because each was a second, drafted copy of the Role's
+// charter. The Thanati have no Role of their own — spawn.roleSlug is null and
+// the GM picks a cover role — so there is no charter for these words to
+// duplicate and nowhere else for them to live. Assign sends the brief in place
+// of the generic "You are now the X!" opener; Spawn sends it above the cover
+// role's charter, since one is what they are and the other is what they
+// pretend to be. Bascinet's own wording, verbatim and unsigned. A seat WITH a
+// role of its own never gets one of these: write it on the role.
+const THANATI_BRIEF = [
+  "You are a Thanati. Crudux Cruo! This reality is flawed to its core. Lord Tzchernobog will deliver a new, perfect reality once this one has come to an end, when the last human observer has passed into nothingness.",
+  "Read the Thanati document for more information.",
+  "Secrecy is your greatest strength. Ever since the arrival of the Inquisitor, the cult’s position has been tenuous. The capture of one of you will result in your exposure. Death is preferable to what the sadistic inquisition will do to you.",
+  "You are running out of time. Be quick!",
+];
+const THANATI_LEADER_BRIEF = [
+  "You are the Thanati cult leader. Crudux Cruo! This reality is flawed to its core! Lord Tzchernobog will deliver a new, perfect reality once this one has come to an end, when the last human observer has passed into nothingness.",
+  "Read the Thanati document for more information.",
+  "Secrecy is your greatest strength. Ever since the arrival of the Inquisitor, the cult’s position has been tenuous. The capture of one of you will result in your exposure. Death is preferable to what the sadistic inquisition will do to you.",
+  "You are running out of time. Be quick, and organize your followers!",
+];
 
 const THREATS = [
   {
@@ -122,6 +152,8 @@ const THREATS = [
     assignable: true,
     seatTagSlug: "thanati",
     zone: "Anywhere",
+    party: THANATI_PARTY,
+    brief: THANATI_BRIEF,
     assign: { tagPoints: 5, tagSlugs: ["thanati"] },
     spawn: {
       gender: "NEUTRAL",
@@ -138,6 +170,8 @@ const THREATS = [
     assignable: true,
     seatTagSlug: "thanati-leader",
     zone: "Anywhere",
+    party: THANATI_PARTY,
+    brief: THANATI_LEADER_BRIEF,
     assign: { tagPoints: 10, tagSlugs: ["thanati", "thanati-leader"] },
     spawn: {
       gender: "NEUTRAL",
@@ -159,6 +193,7 @@ const THREATS = [
     assignable: true,
     seatTagSlug: "ordinator-insignia",
     zone: "Black Hills",
+    party: TRIBUNAL_PARTY,
     assign: {
       tagPoints: 10,
       // Mirrors the tribunal-ordinator Role's starting_tags (docs/roles.yaml).
@@ -190,6 +225,7 @@ const THREATS = [
     assignable: true,
     seatTagSlug: "tribunal-helmet",
     zone: "Black Hills",
+    party: TRIBUNAL_PARTY,
     assign: {
       tagPoints: 10,
       // Mirrors the tribune Role's starting_tags (docs/roles.yaml) — see the
@@ -261,6 +297,34 @@ function threatBySlug(slug) {
 // held tag back into the seat it stands for.
 function threatBySeatTag(tagSlug) {
   return ASSIGNABLE_THREATS.find((t) => t.seatTagSlug === tagSlug) ?? null;
+}
+
+// The party a seat scores with: its own `party`, or itself when it has none.
+// `solo` is what the reveal reads to choose "was a" over "were the".
+function partyOf(threat) {
+  if (!threat) return null;
+  if (threat.party) return { key: threat.party.key, name: threat.party.name, solo: false };
+  return { key: threat.slug, name: threat.name, solo: true };
+}
+
+// Every party, deduped, in catalog order — the order the Objectives cards on
+// /gm/dev?s=antagonists and the reveal both use.
+const PARTIES = (() => {
+  const seen = new Map();
+  for (const t of ASSIGNABLE_THREATS) {
+    const p = partyOf(t);
+    if (!seen.has(p.key)) seen.set(p.key, p);
+  }
+  return [...seen.values()];
+})();
+
+function partyByKey(key) {
+  return PARTIES.find((p) => p.key === key) ?? null;
+}
+
+// The seats that score with one party, catalog order.
+function seatsOfParty(key) {
+  return ASSIGNABLE_THREATS.filter((t) => partyOf(t).key === key);
 }
 
 // Whatever the form posted, reduced to known opt-in slugs, deduped, in
@@ -339,6 +403,10 @@ module.exports = {
   THREAT_SPAWN_DECLINE_PREFIX,
   threatBySlug,
   threatBySeatTag,
+  PARTIES,
+  partyOf,
+  partyByKey,
+  seatsOfParty,
   optInName,
   optInWhitelisted,
   WHITELISTED_OPT_IN_SLUGS,

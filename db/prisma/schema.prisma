@@ -3777,6 +3777,52 @@ enum ThreatSpawnStatus {
   CANCELLED
 }
 
+// An antagonist party's win condition (docs/systemdocs/THREATS.md §6a). Set
+// by a superadmin on /gm/dev?s=antagonists, scored by db/lib/objectives.js,
+// printed in the end-of-game reveal. Restart Game deletes the table; the
+// reveal is snapshotted onto Game.epilogue first.
+model Objective {
+  id String @id @default(cuid())
+
+  // A party key from db/lib/threats.js — "thanati", "tribunal", or a solo
+  // seat's own slug. Code, not a table, same posture as ThreatSpawn.threatSlug.
+  partyKey String
+
+  // A key in db/lib/objectiveKinds.js.
+  kind String
+
+  weight ObjectiveWeight?
+
+  // Snapshot ids and names, not relations — the ArchiveEntry.characterId
+  // posture. The name is what the reveal reads; a relation would have meant
+  // editing Character and Location for nothing, since this table is wiped
+  // outright.
+  targetCharacterId  String?
+  targetName         String?
+  targetLocationId   String?
+  targetLocationName String?
+
+  // The number for "cause N deaths in a single day"; the text for a defaced
+  // icon, a stolen item or a custom objective.
+  value Int?
+  text  String?
+
+  // The GM's answer. A scripted kind: null lets the game decide. A manual
+  // kind: never null, the pin is its only answer.
+  pinned Boolean?
+
+  // The superadmin who added it. A Discord user id, as AuditLog.actorDiscordUserId.
+  createdBy String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ObjectiveWeight {
+  MINOR
+  MAJOR
+}
+
 // One browser that has agreed to be notified. Web Push is per-BROWSER, not
 // per-character: the endpoint is minted by the push service for that install,
 // and one player may hold several (a laptop and a phone). Keyed on the Discord
