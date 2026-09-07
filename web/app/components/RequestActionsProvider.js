@@ -77,6 +77,7 @@ import {
   freeCharacterRequest,
   crucifyCharacterRequest,
   tortureCharacterRequest,
+  mutilateRequest,
   disguiseSelfRequest,
   harmCharacterRequest,
   buryCharacterRequest,
@@ -102,6 +103,9 @@ import { PACKAGE_MAX_LBS, PACKAGE_LABEL_MAX } from "@lifeweb/db/lib/constants";
 // requires only ./reading -> ./examineVision, and neither touches prisma. One
 // definition, so the counter under the box and the server's own cap agree.
 import { WRITE_MAX, BOOK_MAX, TITLE_MAX } from "@lifeweb/db/lib/paper";
+// Prisma-free on purpose, so importing it here does not drag the @lifeweb/db
+// barrel into the browser bundle. See the note at the top of db/lib/mutilate.js.
+import { MUTILATE_PARTS } from "@lifeweb/db/lib/mutilate";
 
 // Every player action on the character sheet: mode state, the menus each
 // mode draws from, and one RequestDialog per mode. Renders no chrome of its
@@ -370,6 +374,13 @@ function payerLabel(parties, key) {
 // real fields, so they still use the shared dialog.
 const NO_REQUEST_MODES = new Set(["examine"]);
 
+// Mutilate's subject dropdown holds two id spaces in one control — the bound
+// people standing here and the corpses in reach — so the value carries its own
+// prefix, the way the Craft dialog's project/site picker does.
+function mutilateKeyFor(kind, id) {
+  return `${kind}:${id}`;
+}
+
 // Why a person is lootable: living cases come from INCAPACITATING_SLUGS
 // (db/lib/incapacitation.js); a corpse says so plainly.
 function targetNote(t) {
@@ -483,6 +494,7 @@ export default function RequestActionsProvider({
   // Torture: you hold `torturer`. Your own sheet; the action re-checks it and
   // that the target is Bound.
   canTorture = false,
+  canMutilate = false,
   // The datacard, and the device itself. Both facts about your own sheet.
   hasDatacard = false,
   hasDevice = false,
@@ -529,6 +541,11 @@ export default function RequestActionsProvider({
   // Butcher and Bury both act on one corpse, identified by BOTH its tag and
   // where it is standing — the same body can be in two places for two people.
   const [corpseKey, setCorpseKey] = useState("");
+  // Mutilate: the prefixed subject key (person:<id> / corpse:<tagId>|<sourceKey>)
+  // and which part is coming off. It keeps its own key rather than sharing
+  // corpseKey, because the same control also offers living people.
+  const [mutilateKey, setMutilateKey] = useState("");
+  const [mutilatePart, setMutilatePart] = useState(MUTILATE_PARTS[0].key);
   // Package: what goes in the crate, and the line printed on its side.
   // tagId -> quantity, replaced wholesale like `picks` above.
   const [packed, setPacked] = useState({});
@@ -664,6 +681,24 @@ export default function RequestActionsProvider({
       ),
     [bindTargets, mode],
   );
+
+  // Mutilate's two rosters, in one list. The tied-up living come from the same
+  // bindTargets pool Bind and Torture use; the bodies from the same corpses
+  // list Butcher and Bury use. Monster corpses are left out rather than
+  // offered and refused — the same posture Bury takes.
+  const mutilateSubjects = useMemo(() => {
+    const people = bindTargets
+      .filter((t) => t.bound)
+      .map((t) => ({ key: mutilateKeyFor("person", t.id), label: t.name, kind: "person" }));
+    const bodies = corpses
+      .filter((c) => c.human)
+      .map((c) => ({
+        key: mutilateKeyFor("corpse", corpseIdOf(c)),
+        label: `${c.tagName} — ${c.source.name}`,
+        kind: "corpse",
+      }));
+    return { people, bodies };
+  }, [bindTargets, corpses]);
 
   const chosen = useMemo(() => {
     // heal/harm/learn/teach's tagId isn't a tag this character holds, so
@@ -946,6 +981,8 @@ export default function RequestActionsProvider({
       setEngraveName("");
       setDisguiseName("");
       setCorpseKey("");
+      setMutilateKey("");
+      setMutilatePart(MUTILATE_PARTS[0].key);
       setBirdBody("");
       setBirdQuery("");
       setBirdTagId("");
@@ -1243,6 +1280,25 @@ export default function RequestActionsProvider({
           sourceKey: corpse?.sourceKey,
         });
       }
+      case "mutilate": {
+        // One dropdown, two id spaces — the prefix says which, the way the
+        // Craft dialog splits project: from site:.
+        const cut = mutilateKey.indexOf(":");
+        const kind = mutilateKey.slice(0, cut);
+        const rest = mutilateKey.slice(cut + 1);
+        if (kind === "corpse") {
+          const corpse = corpses.find((c) => corpseIdOf(c) === rest);
+          return mutilateRequest({
+            tagId: corpse?.tagId,
+            sourceKey: corpse?.sourceKey,
+            part: mutilatePart,
+          });
+        }
+        return mutilateRequest({
+          targetCharacterId: rest,
+          part: mutilatePart,
+        });
+      }
       case "engrave":
         return engraveHeadstoneRequest({ firstName: engraveName });
       case "disguise":
@@ -1302,6 +1358,8 @@ export default function RequestActionsProvider({
       case "bury":
       case "butcher":
         return Boolean(corpseKey);
+      case "mutilate":
+        return Boolean(mutilateKey && mutilatePart);
       case "engrave":
         return Boolean(engraveName.trim());
       case "disguise":
@@ -1397,6 +1455,7 @@ export default function RequestActionsProvider({
       canCrucify,
       canDisguise,
       canTorture,
+      canMutilate,
       hasDatacard,
       hasDevice,
     }),
@@ -1425,6 +1484,7 @@ export default function RequestActionsProvider({
       canCrucify,
       canDisguise,
       canTorture,
+      canMutilate,
       hasDatacard,
       hasDevice,
     ],
@@ -2240,6 +2300,71 @@ export default function RequestActionsProvider({
                       ? "It takes your Move. One die, resolved now: what they gave up arrives by DM."
                       : "They go up on the cross now. They can still speak, but nothing else — and in a turn they are Dying. It doesn't spend your Move. Say why."}
                   </p>
+                )}
+              </>
+            )}
+
+            {/* Two dropdowns and nothing else. No helper line, no yield
+            preview, no per-part explanation — unlike Butcher's "cutting this
+            one up gives you…". The part list is also DELIBERATELY UNFILTERED:
+            narrowing it to the rungs a subject has left would answer "what are
+            they already missing?" to anybody who opened the dialog, which is
+            the same leak the metagaming rule in actionRegistry.js is about.
+            You find out by trying, and the server refuses. */}
+            {mode === "mutilate" && (
+              <>
+                {mutilateSubjects.people.length === 0 &&
+                mutilateSubjects.bodies.length === 0 ? (
+                  <NobodyHere>
+                    There’s nobody here you could do that to. ‡
+                  </NobodyHere>
+                ) : (
+                  <>
+                    <label className="field">
+                      <span className="field-label">Who?</span>
+                      <Select
+                        value={mutilateKey}
+                        onChange={(e) => setMutilateKey(e.target.value)}
+                        required
+                      >
+                        <option value="" disabled>
+                          Choose…
+                        </option>
+                        {mutilateSubjects.people.length > 0 && (
+                          <optgroup label="Here">
+                            {mutilateSubjects.people.map((o) => (
+                              <option key={o.key} value={o.key}>
+                                {o.label}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {mutilateSubjects.bodies.length > 0 && (
+                          <optgroup label="Bodies">
+                            {mutilateSubjects.bodies.map((o) => (
+                              <option key={o.key} value={o.key}>
+                                {o.label}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </Select>
+                    </label>
+                    <label className="field">
+                      <span className="field-label">What?</span>
+                      <Select
+                        value={mutilatePart}
+                        onChange={(e) => setMutilatePart(e.target.value)}
+                        required
+                      >
+                        {MUTILATE_PARTS.map((p) => (
+                          <option key={p.key} value={p.key}>
+                            {p.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                  </>
                 )}
               </>
             )}

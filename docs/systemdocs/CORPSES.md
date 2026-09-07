@@ -142,6 +142,10 @@ every death mints a corpse, so a priced Human Flesh would be a code-enforced ⬢
 faucet hanging off a free action. It stays `tradeable`, so players can still
 sell it to each other for whatever they can get, which is the right market.
 
+**Butcher is not the only body verb.** Mutilate takes one piece at a time and
+leaves the body where it is (`TORTURE.md` §6); butchering is the whole corpse
+at once and consumes it.
+
 **Butchering does not free the soul.** Cutting someone up destroys the body
 without burying it, so their player stays Cursed. That is a decision, not an
 oversight, and Engrave is the way out of it.

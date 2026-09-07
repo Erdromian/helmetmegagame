@@ -122,6 +122,7 @@ import { breakSeal } from "@lifeweb/db/lib/paperMint";
 import { CAMERA_SLUG, attachPhoto, createBlankPhotoRow } from "@lifeweb/db/lib/photoMint";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
+import { partFor, resolveMutilation } from "@lifeweb/db/lib/mutilate";
 import { mintHeadstone } from "@lifeweb/db/lib/headstone";
 import { dropRoomTag } from "@lifeweb/db/lib/tagWrites";
 import {
@@ -131,6 +132,7 @@ import {
   SURGICAL_EQUIPMENT_SLUG,
   TORTURING_EQUIPMENT_SLUG,
   TORTURER_SLUG,
+  MUTILATE_GATE_SLUGS,
   PACKAGING_EQUIPMENT_SLUG,
   PACKAGE_MAX_LBS,
   PACKAGE_MAX_UNITS,
@@ -4128,6 +4130,156 @@ async function butcherCorpseRequestImpl({
   return { made: yieldTag.name };
 }
 
+// Mutilating. One piece off a bound person or a corpse, and it is FREE — no ⬢,
+// no Move, no turn. Press it again for the next piece; the ladder in
+// db/lib/mutilate.js is what stops a third eye.
+//
+// It deliberately does NOT consume the body the way Butcher does. Butchering
+// is the whole corpse at once; this is picking at one, and you should be able
+// to come back for the other eye.
+//
+// The part menu is UNFILTERED on the client on purpose (see the dialog): which
+// rungs a subject has left is a fact about their sheet, and offering only the
+// ones they still have would answer "what are they already missing?" to anyone
+// who opened it. The refusal here is where they find out.
+async function mutilateRequestImpl({
+  targetCharacterId,
+  tagId,
+  sourceKey,
+  part,
+}) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  if (!character.locationId)
+    throw new UserError("You aren't anywhere you could do that.");
+  // Re-checked here and not merely in the UI: the hidden button is a hint.
+  const actorSlugs = character.tags.map((ct) => ct.tag.slug);
+  if (!actorSlugs.some((slug) => MUTILATE_GATE_SLUGS.includes(slug)))
+    throw new UserError("You couldn't bring yourself to. ‡");
+
+  const named = partFor(part);
+  if (!named) throw new UserError("That isn't something you could take. ‡");
+
+  // Two subjects, one action. A corpse resolves through the reach rule Butcher
+  // and Bury already share; a living person through the Bound-and-here check
+  // Torture already makes. Either way what comes out is ONE Character row to
+  // injure, so everything below this is common.
+  let corpse = null;
+  let subject = null;
+  if (tagId) {
+    corpse = await resolveCorpseSource(character, { tagId, sourceKey });
+    // A Nekker has no sheet to injure and nothing recognisable to take.
+    if (!corpse.human || !corpse.deadCharacterId)
+      throw new UserError("There's nothing in that one you'd want. ‡");
+    subject = await prisma.character.findUnique({
+      where: { id: corpse.deadCharacterId },
+      include: { tags: { include: { tag: { select: { slug: true } } } } },
+    });
+    if (!subject) throw new UserError("That body isn't there any more.");
+  } else {
+    if (targetCharacterId === character.id)
+      throw new UserError("You can't do that to yourself.");
+    // The WHOLE row, not a select: a lethal part hands this straight to
+    // killCharacter, which reads discordRoleId and everything
+    // revokeAllCharacterAccess needs. The Harm path loads it the same way and
+    // for the same reason — a partial row there orphans a Discord role.
+    subject = await prisma.character.findFirst({
+      where: { id: targetCharacterId ?? "", status: "ALIVE" },
+      include: { tags: { include: { tag: { select: { slug: true } } } } },
+    });
+    if (!subject || !isHere(character, subject))
+      throw new UserError(notHereMessage(subject));
+    if (!isBoundTarget(subject))
+      throw new UserError(`${subject.name} isn't tied up.`);
+  }
+
+  const step = resolveMutilation(
+    part,
+    subject.tags.map((ct) => ct.tag.slug),
+  );
+  if (!step)
+    throw new UserError(`There's no ${named.label.toLowerCase()} left to take. ‡`);
+
+  const [grantTag, itemTag] = await Promise.all([
+    prisma.tag.findUnique({ where: { slug: step.grantSlug } }),
+    prisma.tag.findUnique({ where: { slug: step.itemSlug } }),
+  ]);
+  // A catalog out of step with the code. Refusing is right: granting nothing
+  // silently would read to the player as the button being broken.
+  if (!grantTag || !itemTag)
+    throw new UserError("Nothing comes of that one. Tell a GM.");
+  const dropTag = step.dropSlug
+    ? await prisma.tag.findUnique({ where: { slug: step.dropSlug } })
+    : null;
+
+  const openTurn = await getOpenTurn();
+  const expiresTurn = await expiryForGrant(prisma, itemTag, openTurn, {
+    characterId: character.id,
+    where: "mutilate",
+  });
+  // The organs kill, but only somebody who is still using them.
+  const kills = step.lethal && subject.status === "ALIVE";
+
+  await prisma.$transaction(async (tx) => {
+    if (dropTag) await dropCharacterTag(tx, subject.id, dropTag.id);
+    await addToStack(tx, subject.id, grantTag.id, 1, {
+      source: "EVENT",
+      stackable: grantTag.stackable,
+    });
+    await addToStack(tx, character.id, itemTag.id, 1, {
+      source: "EVENT",
+      expiresTurn,
+      stackable: itemTag.stackable,
+    });
+    // A corpse feels nothing. applyFear on a dead row would move a dial
+    // nobody reads and show up in the fear log as a live event.
+    if (subject.status === "ALIVE")
+      await applyFear(tx, subject.id, { kind: "MUTILATED" });
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_mutilate",
+      targetCharacterId: subject.id,
+      turnId: openTurn?.id ?? null,
+      details: {
+        subjectName: subject.name,
+        part: step.part,
+        granted: grantTag.name,
+        dropped: dropTag?.name ?? null,
+        item: itemTag.name,
+        lethal: kills,
+        source: corpse ? corpse.source.kind : "person",
+        ...(corpse ? { corpse: corpse.tagName } : {}),
+      },
+    });
+  });
+
+  await afterInventoryChange([character.id, subject.id]);
+
+  // Unattributed, like every other request that acts on somebody else. The
+  // death DM rides on killCharacter so nothing ever sends two.
+  if (kills) {
+    await killCharacter(subject, `Your ${named.label.toLowerCase()} was cut out. ‡`).catch(
+      (err) =>
+        console.error(`Failed to kill mutilated character ${subject.id}:`, err),
+    );
+  } else if (corpse) {
+    notifyCharacter(subject, "Somebody has been cutting pieces off your body. ‡");
+  } else {
+    notifyCharacter(subject, `Somebody cut off your ${named.label.toLowerCase()}. ‡`);
+  }
+
+  // A public room's contents changing is public by nature (CARRY.md §6). Said
+  // vaguely on purpose — the room learns a body was cut, not what came off it.
+  if (corpse && corpse.source.kind === "room") {
+    after(() =>
+      announceInRoom(corpse.source, character, "cuts something off a body here. ‡"),
+    );
+  }
+
+  revalidateAll();
+  return { part: named.label, name: subject.name };
+}
+
 // Burying. Takes the body — you have to actually have it, or be able to reach
 // it — and spends your Move.
 //
@@ -4644,6 +4796,10 @@ export async function buryCharacterRequest(input) {
 
 export async function butcherCorpseRequest(input) {
   return guarded(() => butcherCorpseRequestImpl(input));
+}
+
+export async function mutilateRequest(input) {
+  return guarded(() => mutilateRequestImpl(input));
 }
 
 export async function engraveHeadstoneRequest(input) {

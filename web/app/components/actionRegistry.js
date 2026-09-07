@@ -24,6 +24,7 @@
 import {
   HammerIcon,
   TortureIcon,
+  ShearsIcon,
   TrashIcon,
   HandOffIcon,
   MealIcon,
@@ -66,6 +67,8 @@ export const ACTION_HELP = {
   harm: "Further injure someone who is bound or incapacitated.",
   torture:
     "You can torture people, revealing all their tags on a 4 or higher. Brave or Craven characters will break on different timelines. ‡",
+  mutilate:
+    "Cut a piece off somebody tied up here, or off a body you can reach. One piece each time, and it costs you nothing. The piece is yours to keep. ‡",
   bury: "Bury someone. Removes the player's Cursed status.",
   engrave: "Memorialize someone's name. Removes the player's Cursed status.",
   disguise:
@@ -207,6 +210,16 @@ export const ACTION_SECTIONS = [
       // HIDDEN on the same rule: whether YOU are a Torturer is your own fact.
       // Who here is tied up is the dialog's answer, never the button's.
       { mode: "torture", icon: TortureIcon, label: "Torture", show: "canTorture" },
+      // HIDDEN on the same rule again, and on three tags rather than one:
+      // Cruel, Torturer or Thanati. Which of them you hold is your own fact.
+      // Who here is tied up, and whose body is lying about, is the dialog's
+      // answer — never the button's.
+      {
+        mode: "mutilate",
+        icon: ShearsIcon,
+        label: "Mutilate",
+        show: "canMutilate",
+      },
       { mode: "harm", icon: WoundIcon, label: "Harm" },
       { mode: "move", icon: MapIcon, label: "Move Player" },
       // The three body actions used to sit in a section of their own, on the

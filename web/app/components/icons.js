@@ -247,6 +247,19 @@ export function CleaverIcon(props) {
   );
 }
 
+// Mutilate — shears. It sits next to the Cleaver in the grid and has to read
+// as a different verb at 16px: the cleaver is one heavy blade taking a whole
+// body, this is two small ones taking a piece.
+export function ShearsIcon(props) {
+  return (
+    <Glyph {...props}>
+      <circle cx="6" cy="18" r="2.6" />
+      <circle cx="18" cy="18" r="2.6" />
+      <path d="M7.7 16.1 18 4M16.3 16.1 6 4" />
+    </Glyph>
+  );
+}
+
 // Engrave — the same headstone as Bury, but standing free of the ground and
 // carrying lettering. The two sit side by side in the action grid, so what
 // separates them has to be visible at 16px: no ground line, three rules.

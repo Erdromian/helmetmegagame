@@ -4302,6 +4302,45 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
+  # The three below are what the Mutilate button leaves behind
+  # (docs/systemdocs/TORTURE.md §6). None is purchasable and none is healable:
+  # a cut-off leg does not grow back, and a GM takes one off from /gm/dev if
+  # they need to. Bascinet's descriptions, verbatim.
+  cripple:
+    catalog: all
+    name: Cripple
+    category: health
+    group: health-maiming
+    description: "The legs were cruelly removed."
+    pointCost: 0
+    conflictsWith: [quick-footed, peg-leg]
+    carryBonus: -0.2
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  missing-stomach:
+    catalog: all
+    name: Missing Stomach
+    category: health
+    group: health-maiming
+    description: "The stomach was cruelly ripped out."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  missing-heart:
+    catalog: all
+    name: Missing Heart
+    category: health
+    group: health-maiming
+    description: "The heart was cruelly ripped out."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
   missing-eye:
     catalog: all
     name: Missing Eye
@@ -7487,6 +7526,107 @@ tags:
     consumable: true
     consumesInto:
       - ate-meal
+    sellable: false
+
+  # --- Remains -----------------------------------------------------------
+  # What the Mutilate button takes off a bound person or a corpse, one piece
+  # at a time (docs/systemdocs/TORTURE.md §6). Shaped exactly like Human
+  # Flesh above and unpriced for the same reason: mutilating is free and every
+  # death mints a body, so a part the Depot bought would be a code-enforced ⬢
+  # faucet hanging off a free action. They stay `tradeable`, so players can
+  # still sell them to each other for whatever they can get.
+  #
+  # Nothing in the game consumes one yet. That is a stopping point, not an
+  # oversight — the parts exist first.
+
+  eye:
+    catalog: gm
+    name: Eye
+    category: items
+    group: items-remains
+    description: "An eyeball."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: false
+
+  tongue:
+    catalog: gm
+    name: Tongue
+    category: items
+    group: items-remains
+    description: "A human tongue."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: false
+
+  hand:
+    catalog: gm
+    name: Hand
+    category: items
+    group: items-remains
+    description: "A human hand."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: false
+
+  foot:
+    catalog: gm
+    name: Foot
+    category: items
+    group: items-remains
+    description: "A human foot."
+    pointCost: 0
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: false
+
+  stomach:
+    catalog: gm
+    name: Stomach
+    category: items
+    group: items-remains
+    description: "A human stomach."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: false
+
+  heart:
+    catalog: gm
+    name: Heart
+    category: items
+    group: items-remains
+    description: "A human heart."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
     sellable: false
 
   fine-meal:

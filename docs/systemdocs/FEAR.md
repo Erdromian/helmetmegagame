@@ -77,6 +77,7 @@ multipliers key on.
 | Still bound at turn end | BOUND | +10 | fear pass |
 | Crucified | CRUCIFIED | +80 | `crucifyCharacterRequestImpl` |
 | Tortured, broke or held | TORTURED | +40 | `tortureCharacterRequestImpl` (TORTURE.md) |
+| A piece cut off you | MUTILATED | +50 | `mutilateRequestImpl` (TORTURE.md §6). A corpse takes no hit — a dead row's dial is read by nobody. |
 | Someone dies in your Location | DEATH_SEEN | +15 to each witness | `characterDeath.js#applyDeathToRow` |
 | An unburied body in your Location at turn end | CORPSE | +5 | fear pass |
 | Shot at by a turret and alive, hit or graze, either gun | TURRET | +25 | `turretPass.js#applyTurretShot` |

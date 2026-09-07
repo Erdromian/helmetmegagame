@@ -20,6 +20,7 @@ import {
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import {
   BUTCHER_SLUG,
+  MUTILATE_GATE_SLUGS,
   WORKSHOP_EQUIPMENT_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
   GUILT_RIDDEN_SLUG,
@@ -767,6 +768,10 @@ export default async function CharacterPage({ searchParams }) {
   // Torture shows for a Torturer and nobody else — again your own sheet.
   // tortureCharacterRequest re-checks the tag and that the target is Bound.
   const canTorture = heldSlugs.has("torturer");
+  // Mutilate shows for any one of Cruel, Torturer or Thanati — three own-sheet
+  // facts, so it leaks nothing about who is standing here or what state they
+  // are in. mutilateRequest re-checks the gate and the subject.
+  const canMutilate = MUTILATE_GATE_SLUGS.some((slug) => heldSlugs.has(slug));
   // The bomb's two halves. Both read off your own sheet and nothing else, so
   // neither leaks anything about the room; nukeActions.js re-checks both,
   // since a hidden button is a hint and not a lock.
@@ -1019,6 +1024,7 @@ export default async function CharacterPage({ searchParams }) {
       canCrucify={canCrucify}
       canDisguise={canDisguise}
       canTorture={canTorture}
+      canMutilate={canMutilate}
       hasDatacard={hasDatacard}
       hasDevice={hasDevice}
       nukeArmedTurn={nukeState?.nukeArmedTurn ?? null}
