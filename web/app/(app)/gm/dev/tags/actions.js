@@ -14,6 +14,13 @@ import {
   validateExpiresInto,
   normalizeRemovesInto,
   validateRemovesInto,
+  normalizeCures,
+  validateCures,
+  normalizeCuresInto,
+  validateCuresInto,
+  validateAdministerSkill,
+  normalizeResists,
+  validateResists,
 } from "@lifeweb/db/lib/tagShapes";
 import { TURNS_PATH } from "@/lib/routes";
 
@@ -150,6 +157,8 @@ function scalarsFrom(input) {
     tradeable: Boolean(input.tradeable),
     healable: Boolean(input.healable),
     teachable: Boolean(input.teachable),
+    administerable: Boolean(input.administerable),
+    poison: Boolean(input.poison),
     purchasable: Boolean(input.purchasable),
     purchasableAfterStart: Boolean(input.purchasableAfterStart),
     sellable,
@@ -184,10 +193,11 @@ function scalarsFrom(input) {
 // interchangeable: Prisma rejects `set` inside a create, and `connect` on an
 // update would only ever add, so emptying the picker would silently keep the
 // old skills attached.
-async function relationsFrom(input, { selfId, selfSlug, durationTurns }) {
-  const catalog = await prisma.tag.findMany({ select: { id: true, slug: true } });
+async function relationsFrom(input, { selfId, selfSlug, durationTurns, consumable }) {
+  const catalog = await prisma.tag.findMany({ select: { id: true, slug: true, category: true } });
   const knownSlugs = new Set(catalog.map((t) => t.slug));
   const knownIds = new Set(catalog.map((t) => t.id));
+  const categoryBySlug = new Map(catalog.map((t) => [t.slug, t.category]));
 
   let expiresInto = null;
   try {
@@ -229,7 +239,35 @@ async function relationsFrom(input, { selfId, selfSlug, durationTurns }) {
     if (id === selfId) throw new UserError("A tag can't be its own cure requirement.");
   }
 
-  return { expiresInto, removesInto, skillTagIds };
+  // cures/curesInto/administerSkill/resists — the medical-pass fields, same
+  // shared pair as expiresInto/removesInto above (db/lib/tagShapes.js), so a
+  // shape this door would accept is one the YAML sync would too. No picker
+  // in this form yet — every current cure/administer item is authored in
+  // docs/tags.yaml — but a value posted here is still refused rather than
+  // silently trusted.
+  let cures = null;
+  let curesInto = null;
+  try {
+    cures = normalizeCures(input.cures, "This tag");
+    validateCures(cures, { selfSlug, knownSlugs, categoryBySlug, consumable, label: "This tag" });
+    curesInto = normalizeCuresInto(input.curesInto, "This tag");
+    validateCuresInto(curesInto, { selfSlug, knownSlugs, cures, label: "This tag" });
+  } catch (err) {
+    throw new UserError(err.message);
+  }
+
+  let administerSkill = null;
+  let resists = null;
+  try {
+    administerSkill = input.administerSkill || null;
+    validateAdministerSkill(administerSkill, { selfSlug, knownSlugs, label: "This tag" });
+    resists = normalizeResists(input.resists, "This tag");
+    validateResists(resists, { selfSlug, knownSlugs, label: "This tag" });
+  } catch (err) {
+    throw new UserError(err.message);
+  }
+
+  return { expiresInto, removesInto, skillTagIds, cures, curesInto, administerSkill, resists };
 }
 
 // The custom-tag dialog's door on every desk — see
@@ -253,10 +291,11 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
   const slug = customSlug(data.name);
   // Validated before the tag row exists, like everything else that can refuse
   // below — a bad expiry chain must not leave an orphan behind.
-  const { expiresInto, removesInto, skillTagIds } = await relationsFrom(input, {
+  const { expiresInto, removesInto, skillTagIds, cures, curesInto, administerSkill, resists } = await relationsFrom(input, {
     selfId: null,
     selfSlug: slug,
     durationTurns: data.defaultDurationTurns,
+    consumable: data.consumable,
   });
   const targets = [...new Set((assignCharacterIds ?? []).filter(Boolean))];
   // Same cap as bulkTagCharacters (web/app/(app)/gm/actions.js).
@@ -282,6 +321,10 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
         custom: true,
         expiresInto,
         removesInto,
+        cures,
+        curesInto,
+        administerSkill,
+        resists,
         // `connect`, not `set` — Prisma rejects `set` inside a create.
         requirementSkills: { connect: skillTagIds.map((id) => ({ id })) },
       },
@@ -383,10 +426,11 @@ async function updateCustomTagImpl({ tagId, ...input }) {
   }
 
   const data = scalarsFrom(input);
-  const { expiresInto, removesInto, skillTagIds } = await relationsFrom(input, {
+  const { expiresInto, removesInto, skillTagIds, cures, curesInto, administerSkill, resists } = await relationsFrom(input, {
     selfId: tagId,
     selfSlug: existing.slug,
     durationTurns: data.defaultDurationTurns,
+    consumable: data.consumable,
   });
   if (data.name !== existing.name) {
     const clash = await prisma.tag.findFirst({ where: { name: data.name, id: { not: tagId } } });
@@ -401,6 +445,10 @@ async function updateCustomTagImpl({ tagId, ...input }) {
       ...data,
       expiresInto,
       removesInto,
+      cures,
+      curesInto,
+      administerSkill,
+      resists,
       // `set`, not `connect` — emptying the picker has to actually detach the
       // old skills, and `connect` only ever adds.
       requirementSkills: { set: skillTagIds.map((id) => ({ id })) },

@@ -99,6 +99,106 @@ function validateEscalatesInto(value, { selfSlug, knownSlugs, label = "docs/tags
   }
 }
 
+// cures — the medical pass's item-cure list (TAGS.md §5c). A flat list of
+// health-tag slugs, deliberately NOT the { oneOf } chain shape expiresInto
+// and removesInto use: an item cures everything in its list that the target
+// happens to hold, not a random pick between them.
+function normalizeCures(entries, label = "docs/tags.yaml") {
+  if (entries == null) return null;
+  if (!Array.isArray(entries) || entries.some((s) => typeof s !== "string" || !s)) {
+    throw new Error(`${label}: cures must be a list of tag slugs`);
+  }
+  if (entries.length === 0) return null;
+  return [...new Set(entries)];
+}
+
+// Every cured slug has to exist and be category Health, and the carrier has
+// to be consumable — nothing else ever reaches the Consume door. Deliberately
+// NOT checked against `healable`: Forgiveness cures the untreatable
+// Shell Shocked, and that gap is the point (medicine can do what no medic
+// can).
+function validateCures(normalized, { selfSlug, knownSlugs, categoryBySlug, consumable, label = "docs/tags.yaml" }) {
+  if (!normalized) return;
+  if (!consumable) {
+    throw new Error(`${label}: tag "${selfSlug}" declares cures but is not consumable — nothing would ever apply it`);
+  }
+  for (const slug of normalized) {
+    if (!knownSlugs.has(slug)) {
+      throw new Error(`${label}: tag "${selfSlug}" cures references unknown tag "${slug}"`);
+    }
+    if (categoryBySlug?.get(slug) !== "Health") {
+      throw new Error(`${label}: tag "${selfSlug}" cures "${slug}", which isn't a Health tag`);
+    }
+  }
+}
+
+// curesInto — the per-item aftermath override sidecar (prosthetics: a
+// crafted peg-leg cures missing-leg into peg-leg, a cybernetic leg leaves
+// nothing). A mapping, not a chain: { <cured-slug>: <aftermath-slug> }.
+function normalizeCuresInto(raw, label = "docs/tags.yaml") {
+  if (raw == null) return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`${label}: curesInto must be a mapping of cured slug -> aftermath slug`);
+  }
+  const entries = Object.entries(raw);
+  if (entries.length === 0) return null;
+  for (const [key, value] of entries) {
+    if (!key || typeof value !== "string" || !value) {
+      throw new Error(`${label}: curesInto entries must map a cured slug to an aftermath slug`);
+    }
+  }
+  return { ...raw };
+}
+
+// Keys must be a subset of this tag's own `cures` — an override for a slug
+// the item doesn't even cure would never fire. Values are any catalog slug,
+// same as removesInto (a prosthetic aftermath doesn't have to be Health).
+function validateCuresInto(normalized, { selfSlug, knownSlugs, cures, label = "docs/tags.yaml" }) {
+  if (!normalized) return;
+  const curesSet = new Set(cures ?? []);
+  for (const [curedSlug, aftermathSlug] of Object.entries(normalized)) {
+    if (!curesSet.has(curedSlug)) {
+      throw new Error(`${label}: tag "${selfSlug}" curesInto key "${curedSlug}" isn't in its own cures list`);
+    }
+    if (!knownSlugs.has(aftermathSlug)) {
+      throw new Error(`${label}: tag "${selfSlug}" curesInto references unknown tag "${aftermathSlug}"`);
+    }
+  }
+}
+
+// administerSkill — a single catalog slug, the same convention
+// escalatesInto uses rather than a relation. Existence only; it names a
+// skill tag but doesn't have to be one of requirementSkills' rows.
+function validateAdministerSkill(value, { knownSlugs, selfSlug, label = "docs/tags.yaml" }) {
+  if (value == null) return;
+  if (typeof value !== "string" || !value) {
+    throw new Error(`${label}: tag "${selfSlug}" administerSkill must be a single tag slug`);
+  }
+  if (!knownSlugs.has(value)) {
+    throw new Error(`${label}: tag "${selfSlug}" administerSkill references unknown tag "${value}"`);
+  }
+}
+
+// resists — Iron Constitution's eventual sidecar (a later medical-pass
+// milestone). A flat list of slugs, same shape as cures; existence is the
+// only rule.
+function normalizeResists(entries, label = "docs/tags.yaml") {
+  if (entries == null) return null;
+  if (!Array.isArray(entries) || entries.some((s) => typeof s !== "string" || !s)) {
+    throw new Error(`${label}: resists must be a list of tag slugs`);
+  }
+  if (entries.length === 0) return null;
+  return [...new Set(entries)];
+}
+
+function validateResists(normalized, { selfSlug, knownSlugs, label = "docs/tags.yaml" }) {
+  for (const slug of normalized ?? []) {
+    if (!knownSlugs.has(slug)) {
+      throw new Error(`${label}: tag "${selfSlug}" resists references unknown tag "${slug}"`);
+    }
+  }
+}
+
 // The whole-document half of the check. A per-tag rule can catch a tag
 // pointing at itself, but not tipsy -> wasted -> tipsy, and the resolver
 // walks this chain in a loop — so a cycle there would hang the request rather
@@ -527,6 +627,13 @@ module.exports = {
   validateRemovesInto,
   validateEscalatesInto,
   validateEscalationChains,
+  normalizeCures,
+  validateCures,
+  normalizeCuresInto,
+  validateCuresInto,
+  validateAdministerSkill,
+  normalizeResists,
+  validateResists,
   rollTagChain,
   normalizeTurnsCost,
   normalizeRequirementItems,
