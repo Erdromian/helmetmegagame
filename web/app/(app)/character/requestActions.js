@@ -2233,7 +2233,7 @@ async function photographNothingImpl({ session, character, held }) {
   return { ok: true, name: photo.name };
 }
 
-async function consumeTagRequestImpl({ tagId }) {
+async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   const { session, character } = await requireCharacter();
 
   const held = character.tags.find((ct) => ct.tagId === tagId);
@@ -2252,6 +2252,59 @@ async function consumeTagRequestImpl({ tagId }) {
   // row rather than into anything the catalog can name.
   if (held.tag.slug === CAMERA_SLUG) {
     return photographNothingImpl({ session, character, held });
+  }
+
+  // Administering to someone else (the medical pass, TAGS.md §5c): the item
+  // leaves the ACTOR's hand, but every grant it makes — the cure below
+  // included — lands on `target`, which defaults to the actor. Self-consume
+  // is deliberately not ACT-gated (TAGS.md §5f); administering someone else
+  // is, since it's an act done TO them rather than to your own sheet.
+  const administered = Boolean(targetCharacterId) && targetCharacterId !== character.id;
+  let target = character;
+  if (administered) {
+    const blocker = blockerFor(character.tags, ACT);
+    if (blocker) {
+      throw new UserError(`You can't do that right now. You're ${blocker.name}.`);
+    }
+    if (!character.locationId) {
+      throw new UserError("You aren't anywhere you could treat someone.");
+    }
+    const found = await prisma.character.findFirst({
+      where: { id: targetCharacterId, status: "ALIVE" },
+      include: {
+        tags: { include: { tag: { select: { id: true, slug: true, name: true } } } },
+      },
+    });
+    if (!found || !isHere(character, found)) throw new UserError(notHereMessage(found));
+    // Administerable: the item's `cures` intersects what they're holding, or
+    // it's flagged `administerable` outright (Mercy, which cures nothing on
+    // a list but stabilizes all the same) — never a bare force-feed.
+    const curesList = held.tag.cures ?? [];
+    const targetSlugs = new Set(found.tags.map((ct) => ct.tag.slug));
+    const intersects = curesList.some((slug) => targetSlugs.has(slug));
+    if (!intersects && !held.tag.administerable) {
+      throw new UserError(`${found.name} isn't holding anything ${held.tag.name} treats. ‡`);
+    }
+    target = found;
+  }
+
+  // administerSkill gates EVERY consume of the item — self included
+  // (fitting a prosthetic needs medical-expert even on your own leg). A
+  // different question from the ACT gate above, which self stays exempt
+  // from and this never is.
+  if (held.tag.administerSkill) {
+    const catalog = await prisma.tag.findMany({
+      select: { id: true, slug: true, name: true, parentTagId: true },
+    });
+    const skillTag = catalog.find((t) => t.slug === held.tag.administerSkill);
+    const ancestry = buildSkillAncestry(catalog);
+    const satisfied = satisfiedSkillIds(character.tags.map((ct) => ct.tagId), ancestry);
+    if (!skillTag || !satisfied.has(skillTag.id)) {
+      throw new UserError(`You need ${skillTag?.name ?? "the right training"} to use ${held.tag.name}. ‡`);
+    }
+    // M2 lands the fee: an administerSkill-gated consume also costs 1/2
+    // Move from the medical family (the fitting-is-surgery point-economy
+    // control). Nothing billed yet — this milestone only lands the gate.
   }
 
   const openTurn = await getOpenTurn();
@@ -2278,14 +2331,14 @@ async function consumeTagRequestImpl({ tagId }) {
     removes: climbedFrom,
     durations: grantDurations,
     resources: resourcesGranted,
-  } = resolveConsumeGrants(held.tag, heldSlugsOf(character.tags), ladder);
+  } = resolveConsumeGrants(held.tag, heldSlugsOf(target.tags), ladder);
 
   // The rungs the climb clears — Tipsy coming off as Wasted goes on.
   // Snapshotted the same way `cleared` below is, so an Undo puts the drinker
   // back exactly where they were rather than leaving them Wasted with no
   // Tipsy underneath.
   const climbed = climbedFrom
-    .map((slug) => character.tags.find((ct) => ct.tag.slug === slug))
+    .map((slug) => target.tags.find((ct) => ct.tag.slug === slug))
     .filter(Boolean)
     .map((ct) => ({
       tagId: ct.tagId,
@@ -2301,12 +2354,20 @@ async function consumeTagRequestImpl({ tagId }) {
   // feeds a noble and calms nobody, on purpose.
   const fearRelief = consumeReliefFor(held.tag.slug, grantSlugs);
 
+  // Cure application (the medical pass, TAGS.md §5c): every cured slug the
+  // TARGET actually holds — not just the first, since one item (white-honey,
+  // eventually) can cure several things a patient holds at once.
+  const curesList = held.tag.cures ?? [];
+  const curedHeld = curesList.length
+    ? target.tags.filter((ct) => curesList.includes(ct.tag.slug))
+    : [];
+
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, 1);
-    for (const rung of climbed) await dropCharacterTag(tx, character.id, rung.tagId, 1);
+    for (const rung of climbed) await dropCharacterTag(tx, target.id, rung.tagId, 1);
     const granted = await grantTagSlugs(
       tx,
-      character.id,
+      target.id,
       grantSlugs,
       openTurn?.number ?? null,
       grantDurations,
@@ -2316,29 +2377,76 @@ async function consumeTagRequestImpl({ tagId }) {
     if (resourcesGranted) {
       await creditResources(
         tx,
-        { kind: "character", id: character.id, name: character.name },
+        { kind: "character", id: target.id, name: target.name },
         resourcesGranted,
       );
     }
     // db/lib/hiddenCures.js. Runs after the ordinary grants and records
     // nothing on the request, on purpose.
-    await applyHiddenCures(tx, character.id, held.tag.slug);
-    if (fearRelief) await applyFear(tx, character.id, { kind: "DRINK", base: -fearRelief });
+    await applyHiddenCures(tx, target.id, held.tag.slug);
+    if (fearRelief) await applyFear(tx, target.id, { kind: "DRINK", base: -fearRelief });
+
+    // Per held cured tag: drop it, grant the aftermath (the item's own
+    // `curesInto` override if it names this slug, else the cured tag's own
+    // `removesInto` — same as an ordinary Heal), and ease half the wound's
+    // fear cost. Re-read WITH group each time — the target load above omits
+    // it, the same trap healCharacterRequestImpl already dodges, and
+    // woundFearFor needs it.
+    const cured = [];
+    for (const ct of curedHeld) {
+      await dropCharacterTag(tx, target.id, ct.tagId);
+      const curedTag = await tx.tag.findUnique({
+        where: { id: ct.tagId },
+        select: {
+          slug: true,
+          name: true,
+          removesInto: true,
+          requirementResources: true,
+          requirementTurns: true,
+          requirementGambit: true,
+          group: { select: { slug: true } },
+        },
+      });
+      const override = held.tag.curesInto?.[curedTag.slug];
+      const aftermathSlugs = override ? [override] : rollTagChain(curedTag.removesInto);
+      const grantedAftermath = await grantTagSlugs(tx, target.id, aftermathSlugs, openTurn?.number ?? null);
+      const relief = woundFearFor(curedTag) / 2;
+      if (relief > 0) await applyFear(tx, target.id, { kind: "HEALED", base: -relief });
+      cured.push({
+        tagId: ct.tagId,
+        tagName: curedTag.name,
+        aftermath: grantedAftermath.map((g) => g.tagName),
+        restore: {
+          tagId: ct.tagId,
+          source: ct.source,
+          expiresTurn: ct.expiresTurn,
+          quantity: ct.quantity ?? 1,
+        },
+      });
+    }
+
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_consume_tag",
-      targetCharacterId: character.id,
+      targetCharacterId: target.id,
       details: {
         tagId,
         tagName: held.tag.name,
+        restore,
         granted: granted.map((g) => g.tagName),
         resourcesGranted,
         fearRelief: fearRelief || undefined,
         climbed: climbed.map((c) => c.tagName),
+        cured: cured.length ? cured : undefined,
+        administered: administered || undefined,
+        targetName: administered ? target.name : undefined,
       },
     });
   });
-  await afterInventoryChange(character.id);
+  await afterInventoryChange([character.id, administered ? target.id : null]);
+  if (administered) {
+    notifyCharacter(target, `${character.name} used ${held.tag.name} on you. ‡`);
+  }
   revalidateAll();
   return {};
 }

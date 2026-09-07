@@ -113,6 +113,8 @@ const R = {
   request_destroy_tag: (d) => [actor(), t("destroyed"), chip(d.tagName), qty(d.quantity)],
   request_consume_tag: (d) => [
     actor(), t("consumed"), chip(d.tagName),
+    ...(d.administered ? [t("on"), target()] : []),
+    ...(d.cured?.length ? [t("curing"), ...joinChips(d.cured.map((c) => c.tagName))] : []),
     ...(d.granted?.length ? [t("for"), ...joinChips(d.granted)] : []),
     ...(d.resourcesGranted ? [t("and"), res(d.resourcesGranted)] : []),
   ],
