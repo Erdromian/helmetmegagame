@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Modal from "./Modal";
 import Select from "./Select";
 import FormError from "./FormError";
+import TagChip from "./TagChip";
+import { useTags } from "./TagsProvider";
 import { peopleToExamine, examineCharacter } from "@/app/(app)/character/examineActions";
 
 // Look at — the Examine control on the Actions grid.
@@ -107,6 +109,41 @@ function ExamineDialogBody({ onClose, targetId = null }) {
 
 // The readout itself, exported: /play's HERE column draws it for a hood and
 // its feed draws it for a photograph, and all three used to hand-roll their
+// What you can see on them, as hoverable chips.
+//
+// It used to be a comma-separated line of bare names, which meant the one
+// surface where you are deliberately sizing somebody up was the one place a
+// tag would not tell you what it was. The catalog is already in the tree
+// (TagsProvider, mounted in the root layout), so resolving the readout's slug
+// against it costs no round trip and adds nothing to the payload — the readout
+// still carries only what this viewer is allowed to know.
+//
+// A slug the catalog does not have falls back to the old plain chip. That is a
+// custom or system-authored tag (a corpse, a written note), which has no
+// catalog entry to hover by design.
+function SeenTags({ tags }) {
+  const { tagsBySlug } = useTags();
+  return (
+    <div className="field">
+      <span className="field-label">What you can see</span>
+      <div className="chip-row">
+        {tags.map((t) => {
+          const full = t.slug ? tagsBySlug.get(t.slug) : null;
+          return (
+            <span key={t.slug ?? t.name} className="inline-flex items-center gap-1">
+              {full ? <TagChip tag={full} /> : <span className="chip">{t.name}</span>}
+              {/* The detail is about THIS sighting — turns left, "your
+                  diagnosis" — not about the tag, so it stays outside the chip
+                  and out of the hover panel. */}
+              {t.detail && <span className="text-xs text-muted">({t.detail})</span>}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // own poorer copy of this block off the same object.
 export function Readout({ readout }) {
   return (
@@ -137,20 +174,7 @@ export function Readout({ readout }) {
       <Line label="Ailments" values={readout.ailments} />
       <Line label="Equipment" values={readout.equipment} />
 
-      {readout.tags.length > 0 && (
-        <div className="field">
-          <span className="field-label">What you can see</span>
-          <p className="text-sm">
-            {readout.tags.map((t, i) => (
-              <span key={t.name}>
-                {i > 0 && ", "}
-                {t.name}
-                {t.detail && <span className="text-muted"> ({t.detail})</span>}
-              </span>
-            ))}
-          </p>
-        </div>
-      )}
+      {readout.tags.length > 0 && <SeenTags tags={readout.tags} />}
 
       {/* Role is same-faction knowledge; ⬢ is a Leader/Treasurer of their own
           faction reading their own roster. Both decided in db/lib/examine.js,
