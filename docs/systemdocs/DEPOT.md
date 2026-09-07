@@ -620,7 +620,7 @@ Four bands, about 106 tags in total:
 | Band | Priced at | Examples |
 |---|---|---|
 | Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 14, `forgiveness` 18, `bliss` 3, `dreamers-draught` **60** |
-| Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9, Moderate 21, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
+| Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9 (its four 1/3-turn pieces 7), Moderate 21, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
 | Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
 | Factory goods | a day's output at ~2.2× a good farming day | `squeeze` 4 a cube — 8 cubes is a shift (`FACTORY.md` §6). Buy-only in the other direction: the station sells nobody a cube |
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **41** |
@@ -681,6 +681,11 @@ turns, so `rate × 0^1.3` would price it at raw material cost with no margin at 
 Instead it keeps a flat token markup (+1 ⬢), and its rationing stays the 4-unit/turn cap
 (`SMITHING.md` §2) rather than a turn cost — it was never meant to compete turn-for-turn
 with the ladder above it, so it does not need to clear the same per-turn bar.
+
+The four 1/3-turn Simple pieces (Spear, Dagger, Silver Knife, Phrygian Spear —
+`SMITHING.md` §2) get the same treatment for the same reason: `2 × (1/3)^1.3` rounds to
+0, so they carry the flat +1 instead and sell at **7**. Three a turn is 3 ⬢/turn, level
+with the rung's full-turn wage — quick work is paid the same rate, not a better one.
 
 Two items break from their tier's baseline `resourceCost` and price accordingly: Bore
 Pistol (20 ⬢ to make, cheaper than Musketoon/Bomb's 31) still prices to 45, not 59 —

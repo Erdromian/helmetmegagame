@@ -6682,6 +6682,13 @@ tags:
   # Bows / crossbows keep `crafting` in place of `smithing` at every tier —
   # wood-and-sinew is still wood-and-sinew even at High Quality.
   #
+  # Four small pieces of metalwork — spear, dagger, silver-knife,
+  # phrygian-spear — run under the Simple rung's turn: turnsCost 1/3, three
+  # to a Routine, a spearhead or a knife not being a day at the anvil (Chris
+  # 2026-09-07). They sell at 7, not the tier's 9: the markup formula rounds
+  # to 0 at 1/3 turn, so they keep Dead Simple's flat +1 instead — see
+  # DEPOT.md §4. Everything else (6 ⬢, pt, skill, forge) is the tier's.
+  #
   # ─── Dead Simple ───────────────────────────────────────────────────────────
 
   trench-knife:
@@ -6990,12 +6997,12 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 7
 
   dagger:
     catalog: all
@@ -7014,12 +7021,12 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 7
 
   silver-knife:
     catalog: all
@@ -7038,12 +7045,12 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 7
 
   gladius:
     catalog: all
@@ -7086,12 +7093,12 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 7
 
   longbow:
     catalog: all
