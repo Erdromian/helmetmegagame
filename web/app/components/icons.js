@@ -51,11 +51,16 @@ import {
   Pin,
   Send,
   Pickaxe,
+  Flame,
   Feather,
-  Book,
   Package,
   DoorOpen,
-  Zap,
+  Bell,
+  BellRing,
+  BellOff,
+  Camera,
+  Search,
+  X,
 } from "lucide-react";
 
 const STROKE = 1.6;
@@ -99,11 +104,30 @@ export const EyeIcon = lucide(Eye, "EyeIcon");
 export const EditIcon = lucide(Pencil, "EditIcon");
 // The mobile bottom bar's "More" affordance — see NavRail.js's MOBILE_PRIMARY.
 export const MoreIcon = lucide(Ellipsis, "MoreIcon");
+// The Hall's row action bar: pointing an instant camera at what somebody said,
+// the web twin of the 📸 reaction.
+export const CameraIcon = lucide(Camera, "CameraIcon");
+// The Hall's feed header: searching what was said, over the archive's trigram
+// index (/api/feed/search).
+export const SearchIcon = lucide(Search, "SearchIcon");
+
+// Showing somebody out of a conversation or a private room
+// (web/app/(app)/play/MembersStrip.js). A dismissal, not a deletion:
+// TrashIcon says the person is being thrown away, which is the wrong
+// sentence for "they may not come in here any more".
+export const CloseIcon = lucide(X, "CloseIcon");
 // The Play page: a doorway you speak through. A plain speech bubble would have
 // read as MessageIcon at rail size, which is the GM's inbox.
 export const PlayIcon = lucide(DoorOpen, "PlayIcon");
-// The Hall's action button: the place panel and the You strip live behind it.
-export const ZapIcon = lucide(Zap, "ZapIcon");
+// The Hall's mention chime, at the foot of the places column. Two glyphs
+// rather than one so the state reads at a glance; aria-pressed carries it for
+// everyone else.
+export const BellIcon = lucide(Bell, "BellIcon");
+export const BellOffIcon = lucide(BellOff, "BellOffIcon");
+// Web Push is ON for this browser. A ringing bell rather than a second plain
+// one, so the push toggle and the chime toggle beside it are told apart at a
+// glance (HALL.md §5a).
+export const BellRingIcon = lucide(BellRing, "BellRingIcon");
 
 // GM inbox chime mute toggle (NavRail.js). One name, two glyphs.
 export function SpeakerIcon({ muted, ...props }) {
@@ -133,9 +157,7 @@ export const HammerIcon = lucide(Hammer, "HammerIcon");
 // Refund unspent tag points — the ⬡ of the point economy, hollow so it never
 // reads as the filled ⬢ Resources glyph.
 export const PointsIcon = lucide(Hexagon, "PointsIcon");
-
-// Transfer Resources — the filled ⬢ of the Resources glyph, so it reads as
-// the currency next to PointsIcon's hollow ⬡.
+// Transfer Resources — the filled ⬢ of the Resources glyph.
 export function ResourcesIcon(props) {
   return <Hexagon strokeWidth={STROKE} fill="currentColor" {...props} />;
 }
@@ -163,11 +185,11 @@ export const SendIcon = lucide(Send, "SendIcon");
 // Extract — a pick going into the ground. Distinct from the Hammer used by
 // Craft, which a plain axe would not have been.
 export const ExtractIcon = lucide(Pickaxe, "ExtractIcon");
+// Torture — the brazier. Distinct from the broken heart Harm and Crucify
+// share, so the three cruelties do not read as one button.
+export const TortureIcon = lucide(Flame, "TortureIcon");
 // A quill — the Write action. See docs/systemdocs/PAPERWORK.md.
 export const QuillIcon = lucide(Feather, "QuillIcon");
-// A bound volume — the Bind a Book action, and the books on the Keep's
-// shelves.
-export const BookIcon = lucide(Book, "BookIcon");
 // Package — a banded crate.
 export const CrateIcon = lucide(Package, "CrateIcon");
 
@@ -259,6 +281,19 @@ export function SealIcon(props) {
       <path d="M3.5 6.5h17v12h-17z" />
       <path d="M3.5 6.5L12 13l8.5-6.5" />
       <circle cx="12" cy="15.5" r="2.75" />
+    </Glyph>
+  );
+}
+
+// A hood pulled up over a bare face — the conceal toggle (PROXYING.md §5). The
+// cowl's peak and the shoulders are what read at 16px; there is deliberately
+// nothing inside it, because that is the whole point of the thing.
+export function HoodIcon(props) {
+  return (
+    <Glyph {...props}>
+      <path d="M12 3c-3.6 0-6 3.1-6 7 0 2.4 1 4.4 2.5 5.5" />
+      <path d="M12 3c3.6 0 6 3.1 6 7 0 2.4-1 4.4-2.5 5.5" />
+      <path d="M8.5 15.5 5 17.5V21h14v-3.5l-3.5-2" />
     </Glyph>
   );
 }

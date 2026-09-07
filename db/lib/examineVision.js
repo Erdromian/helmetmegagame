@@ -51,21 +51,21 @@ function examineBlock(characterTags = [], where = {}) {
 
   // First, because nothing below can rescue it.
   if (slugs.has(BLIND_SLUG)) {
-    return "You can't see. ‡";
+    return "You can't see.";
   }
 
   if (slugs.has(BLIND_DRUNK_SLUG)) {
-    return "The room will not hold still. You can barely see. ‡";
+    return "The room will not hold still. You can barely see.";
   }
 
   if (slugs.has(NEARSIGHTED_SLUG) && !equippedSet(characterTags).has(SPECTACLES_SLUG)) {
-    return "Everything past arm's length is a blur. Put your spectacles on. ‡";
+    return "Everything past arm's length is a blur. Put your spectacles on.";
   }
 
   // Dawn outdoors only. The description promises the Caves and Dusk are fine,
   // so they are fine — the tag is a schedule to work around, not an off switch.
   if (slugs.has(SUN_SENSITIVITY_SLUG) && phase === "DAWN" && !indoors) {
-    return "The daylight is too much to look into. Wait for Dusk, or get under a roof. ‡";
+    return "The daylight is too much to look into. Wait for Dusk, or get under a roof.";
   }
 
   return null;

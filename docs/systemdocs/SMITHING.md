@@ -68,11 +68,16 @@ names a `smithing-*` or `builder-*` skill **and does not offer `crafting`**. A
 recipe whose type carries `placement.fieldwork: true` — a light field
 structure — skips the workshop rule entirely.
 
-That second half matters. Every Dead Simple recipe lists
-`skills: [crafting, smithing]`, and the `crafting` half is what says a work
-knife or a sling is something you can whittle. So the whole Dead Simple rung
-stays anvil-free, and what is gated is the real forge work: 32 recipes today —
-every Simple rung and up, plus the Cart and the Plow.
+That second half matters, and **this paragraph used to get it wrong**. It said
+every Dead Simple recipe listed `skills: [crafting, smithing]`, so none of them
+needed a forge. The rung was written that way meaning "either skill", but
+`requirementSkills` is an AND, so it demanded both — and it was split by
+material to fix that. Nothing in the catalog lists the pair now. A sling or a
+club lists `skills: [crafting]` and stays something you whittle; the five metal
+Dead Simple recipes (work knife, hatchet, cudgel, pitchfork, armored gloves)
+list `skills: [smithing]` and went behind a forge for the first time as a side
+effect of the split. What is gated, then, is every Simple rung and up, those
+five, plus the Cart and the Plow.
 
 The rule is read off the recipe's own skills rather than a per-tag flag, so a
 new sword is gated the moment it names a smithing skill and nobody has to
@@ -93,19 +98,33 @@ Crafting is always filed as a Routine now, never a Gambit — the Craft button
 recipes still need no Move at all, just the per-turn unit cap below
 (`CRAFTING.md`).
 
-A recipe may also set **`requirement.perTurn`**, its own ration, counted per
-recipe rather than against the shared Dead Simple pool below. Only meaningful
-at `turnsCost: 0` — anything costing a Move is already rationed to one by the
-turn's single Action.
+A 0-turn recipe may also set **`requirement.perTurn`**, its own RATION,
+replacing the shared Dead Simple pool below as its free allowance (bone-mask
+at 1). Work is never written there: a recipe cheaper than a whole turn
+authors `turnsCost: 1/N`, and `quantity × work` against the Move is the only
+quantity limit a Move-costing recipe has ([`CRAFTING.md`](CRAFTING.md)
+§2–§2a). A plain `turnsCost: 1` rung — every tiered weapon — makes one per
+Routine by that arithmetic.
 
-**Dead Simple is capped at 4 items per character per turn.** It is the only
-rung that costs 0 turns, so nothing else rations it. The cap counts *units*,
-not requests — these tags are stackable and one Add Tag request can carry any
-quantity — and it is summed across every Add Tag request filed in the open
-turn. Enforced in `addTagRequestImpl`; the constant is
-`DEAD_SIMPLE_PER_TURN` in `web/lib/requests.js`, which also holds
-`isDeadSimple()` — the tier has no column of its own, so it is recognised as
-"0 turns of work plus a smithing or crafting skill gate".
+**Dead Simple gives you 4 free items per character per turn.** It is the only
+rung that costs 0 turns, so nothing else rations it. The allowance counts
+*units*, not requests — these tags are stackable and one Craft request can
+carry any quantity — and it is summed across every `request_craft_tag`
+audit row written in the open turn. The constant is `DEAD_SIMPLE_PER_TURN` in
+`web/lib/tagRequests.js`, which also holds `isDeadSimple()` — the tier has no
+column of its own, so it is recognised as "0 turns of work plus a smithing or
+crafting skill gate". `craftAllowance()` (`web/lib/requests.js`) is the one
+place that decides what a recipe's free ration actually is.
+
+**Over the cap, the work comes out of your Move.** This is the rule Milestone
+A deferred to here. Units past the allowance are not refused: each one costs
+**1/4 of the Routine** (1/`perTurn` for a recipe with its own ration), spent
+against the ledger on the turn's Action and locking that Routine to the
+recipe's family of work — so a smith can make 4 knives free and 4 more on
+their Move, but not a knife, a sling and a Simple sword all in one day.
+[`CRAFTING.md`](CRAFTING.md) §2a is the full rule, including the one case
+where the ration is still a hard wall: a recipe with no craft skill in its
+gate (bone-mask's `butcher`) has no family to bill the overflow to.
 
 The Skill gate itself (a recipe's `requirementSkills`) is an **AND list and is
 enforced** — see [`TAGS.md`](TAGS.md) §3b. The rung splits by material:
@@ -138,6 +157,7 @@ Life) used to be the example; they're archived in
 | Silver Knife | Simple | |
 | Gladius | Simple | |
 | Phrygian Spear | Simple | |
+| Javelin | Simple | `ranged-basic` — it is thrown, not held. |
 | Longbow | Simple | `crafting` |
 | Mace | Simple | |
 | Battle Axe | Simple | |
@@ -155,7 +175,26 @@ Life) used to be the example; they're archived in
 | Crossbow | High Quality | |
 | Musketoon | Gunpowder | Priced at 18 pt, not the tier's 14 — a pre-existing outlier, not introduced by the Combat Update. |
 | Bore Pistol | Gunpowder | Materials cost 20 ⬢, not the tier's 31 — a pre-existing outlier, not introduced by the Combat Update. Priced accordingly in `DEPOT.md` §4. |
-| Bomb | Gunpowder | `purchasable: false` (craft-only) |
+| Bomb | Gunpowder | `purchasable: false` (craft-only). Spends one `black-powder` per unit on top of its 31 ⬢ — the one ladder recipe with an ingredient. |
+
+**Off-tier recipes with ingredients.** Two smaller recipes sit under their
+own prices, each spending an ingredient (`requirement.items`, enforced and
+consumed like any brew's):
+
+| Recipe | Skill | ⬢ | Turns | Spends |
+|---|---|---|---|---|
+| `black-powder` | `smithing-gunpowder` | 3 | 1 | `saltpeter` (raw, mined) |
+| `gunpowder-grenade` (**Crude Grenade**) | `smithing-skilled` | 6 | 1 | `saltpeter` (raw, mined) |
+
+The grenade came over from Brewing (Skilled) on 2026-09-05 — a powder device
+out of a still was always odd — and its group moved to `items-weapons` with
+it, which is what files it under the Smithing paper in `db:audit-craft-docs`.
+Renamed **Crude Grenade** and dropped to Smithing (Skilled) on 2026-09-06
+(Chris): it packs raw saltpeter, not powder, so the Gunpowder rung keeps only
+the true powder-work — `black-powder`, the Bomb, the guns. The slug stays
+`gunpowder-grenade`. `black-powder` is the refining step between mined
+saltpeter and the Bomb; its numbers (3 ⬢, sells 6) are drafted, not signed
+off.
 
 Off the ladder — no recipe, no smithing gate:
 

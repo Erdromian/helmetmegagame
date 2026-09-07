@@ -31,7 +31,10 @@ function ambientLine(text, lines = [], { signed = true } = {}) {
     ...String(text).split("\n").map((l) => `-# ${l}`),
     ...lines.map((l) => `-# » ${l}`),
   ];
-  return `${body.join("\n")}${signed ? " ‡" : ""}`;
+  // The mark is no longer appended (copy pass, 2026-09-07). `signed` is
+  // still accepted so callers need not change; it does nothing now.
+  void signed;
+  return body.join("\n");
 }
 
 module.exports = { ambientLine };

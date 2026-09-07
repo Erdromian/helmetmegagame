@@ -20,15 +20,15 @@ const { sweepTurretAt, applyTurretShot, rollTurretOnArrivalAt, turretDmFor } = r
 
 const GATEHOUSE_LOCATION_SLUG = "gatehouse";
 
-const DEATH_CONTENT = "Cut down by the turret in the fortress yard. ‡";
+const DEATH_CONTENT = "Cut down by the turret in the fortress yard.";
 
 // Deliberately not the Depot's wording. That gun identifies you and decides it
 // does not like your face; this one never looks up at all, and the lines say so.
 const GATEHOUSE_TURRET_DM = {
   graze:
-    "The gun on the rotor swings, finds you, and fires. The burst goes wide and takes a bite out of the wall. ‡",
-  hit: "The gun on the rotor swings, finds you, and fires. It does not check who you are first. ‡",
-  dead: "The gun on the rotor swings, finds you, and fires. It does not check who you are first, and it does not stop. ‡",
+    "The gun on the rotor swings, finds you, and fires. The burst goes wide and takes a bite out of the wall.",
+  hit: "The gun on the rotor swings, finds you, and fires.",
+  dead: "The gun on the rotor swings, finds you, fires, and does not stop.",
 };
 
 // What the world says when somebody flips the switch. Scenery, not an

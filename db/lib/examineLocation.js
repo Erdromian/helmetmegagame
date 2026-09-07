@@ -32,7 +32,7 @@ async function examineLines(prisma, locationId) {
       yields: { select: { kind: true, current: true } },
     },
   });
-  if (!location) return { ok: false, error: "That place is gone. ‡" };
+  if (!location) return { ok: false, error: "That place is gone." };
 
   // The gate state is read through the graph rather than off any button,
   // because a GM can flip an edge without anyone refreshing a message and

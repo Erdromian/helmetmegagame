@@ -65,7 +65,8 @@ const THREATS = [
     // /gm/dev/characters/[id] still shows up.
     seatTagSlug: "demoness",
     zone: "Fortress",
-    assign: { tagPoints: 7, tagSlugs: ["demoness", "hungerless", "beautiful"] },
+    // Rough Camper: she sleeps where she hunts (docs/systemdocs/FEAR.md).
+    assign: { tagPoints: 7, tagSlugs: ["demoness", "hungerless", "beautiful", "rough-camper"] },
     spawn: {
       gender: "WOMAN",
       // null: the seat has no default role, so the GM picks one when offering.
@@ -84,7 +85,8 @@ const THREATS = [
     assignable: true,
     seatTagSlug: "judge",
     zone: "Town, or Cave",
-    assign: { tagPoints: 17, tagSlugs: ["cruel", "judge"] },
+    // Nothing out there frightens him, and little else does (FEAR.md).
+    assign: { tagPoints: 17, tagSlugs: ["cruel", "judge", "rough-camper", "outsider", "brave"] },
     spawn: {
       gender: "MAN",
       roleSlug: null,

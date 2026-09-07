@@ -1,7 +1,7 @@
 // Writes the game transcript (ArchiveEntry), the store behind /archive.
 //
 // Rows are recorded at SEND time rather than reconstructed at Dawn. The old
-// db/lib/dawnWipe.js archived by reading every message back out of Discord and
+// db/lib/messageWipe.js archived by reading every message back out of Discord and
 // re-posting it into a single #archive channel — hundreds of sequential posts
 // down one ~1 msg/sec lane, the most expensive thing the bot did, and it grew
 // with player count. It also had to guess at two fields it can now be told
@@ -56,6 +56,35 @@ function feedRowShape(row, extra = {}) {
     deletedAt: row.deletedAt ? new Date(row.deletedAt).toISOString() : null,
     ...extra,
   };
+}
+
+// A batch of rows shaped with ONE `?v=` per character.
+//
+// feedRowShape falls back to the row's own sentAt when nobody hands it an
+// avatarVersion, and that is a different number on every line — so a page of
+// rows asked /api/avatar/<id> for the same face once per row, and a reader
+// watched a portrait blink down the whole scene. The live NOTIFY path already
+// passes the right number (web/lib/feedHub.js#avatarVersionFor); this is the
+// same answer for the three surfaces that render a batch instead of a row:
+// the first paint of /play, the stream's catch-up, and /api/feed/history.
+//
+// ArchiveEntry.characterId is a SNAPSHOT string rather than a foreign key, so
+// a row whose character has since been deleted simply misses the map and
+// keeps the old fallback.
+async function withAvatarVersions(prisma, rows, extra = {}) {
+  const list = Array.isArray(rows) ? rows : [];
+  const ids = [...new Set(list.map((row) => row?.characterId).filter(Boolean))];
+  const versions = new Map();
+  if (ids.length > 0) {
+    const characters = await prisma.character
+      .findMany({ where: { id: { in: ids } }, select: { id: true, updatedAt: true } })
+      .catch(() => []);
+    for (const c of characters) versions.set(c.id, c.updatedAt?.getTime?.() ?? null);
+  }
+  return list.map((row) => {
+    const version = row?.characterId ? versions.get(row.characterId) : undefined;
+    return feedRowShape(row, version === undefined ? extra : { ...extra, avatarVersion: version });
+  });
 }
 
 // Every write here is best-effort and swallows its own failure. A transcript
@@ -133,7 +162,12 @@ async function recordArchiveMessage(prisma, entry) {
 
     // After the insert, never inside it: a listener woken before the row is
     // committed would look it up and find nothing.
-    if (row.placeKey) await notifyFeed(prisma, { seq: row.seq, placeKey: row.placeKey });
+    //
+    // `clientId` rides along so the tab that typed this meets its own row as
+    // the row it already drew, rather than as a second one (db/lib/feedNotify.js).
+    if (row.placeKey) {
+      await notifyFeed(prisma, { seq: row.seq, placeKey: row.placeKey, clientId: entry.clientId ?? null });
+    }
     return row;
   });
 }
@@ -197,7 +231,7 @@ async function archiveRowForMessage(prisma, discordMessageId) {
 async function updateArchiveMessage(prisma, discordMessageId, content, options = {}) {
   return safely("message edit", async () => {
     const row = await archiveRowForMessage(prisma, discordMessageId);
-    if (!row) return { ok: false, refusal: "That message is gone. ‡" };
+    if (!row) return { ok: false, refusal: "That message is gone." };
     const { editSpeech } = require("./say");
     return editSpeech(prisma, { characterId: row.characterId, seq: row.seq, content, ...options });
   });
@@ -209,7 +243,7 @@ async function updateArchiveMessage(prisma, discordMessageId, content, options =
 async function deleteArchiveMessage(prisma, discordMessageId, options = {}) {
   return safely("message delete", async () => {
     const row = await archiveRowForMessage(prisma, discordMessageId);
-    if (!row) return { ok: false, refusal: "That message is gone. ‡" };
+    if (!row) return { ok: false, refusal: "That message is gone." };
     const { deleteSpeech } = require("./say");
     return deleteSpeech(prisma, { characterId: row.characterId, seq: row.seq, ...options });
   });
@@ -218,6 +252,7 @@ async function deleteArchiveMessage(prisma, discordMessageId, options = {}) {
 module.exports = {
   FEED_ROW_SELECT,
   feedRowShape,
+  withAvatarVersions,
   currentGameId,
   forgetGameId,
   recordArchiveMessage,

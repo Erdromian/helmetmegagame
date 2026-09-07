@@ -78,6 +78,40 @@ export function markSeen(placeKey, seq) {
   emit();
 }
 
+// The mark as it stands RIGHT NOW, outside the store. The NEW divider needs
+// the value a place had at the moment it was opened, and it captures it in
+// the same breath the place is opened in — a beat before markSeen moves it.
+export function peekSeen(placeKey) {
+  if (!placeKey) return null;
+  try {
+    return window.localStorage.getItem(`${PREFIX}${placeKey}`);
+  } catch {
+    return null;
+  }
+}
+
+// A browser that has never opened the Hall has no marks at all, and every
+// place it can hear would otherwise light up its dot on the first paint —
+// telling a new player that a week of somebody else's conversation is theirs
+// to catch up on. So a first visit starts caught up: every place is marked at
+// what was newest when the page loaded. Only ever on a genuinely empty slate;
+// one mark anywhere means this browser has been here.
+export function seedSeenIfFresh(entries) {
+  if (!Array.isArray(entries) || entries.length === 0) return;
+  try {
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      if (window.localStorage.key(i)?.startsWith(PREFIX)) return;
+    }
+    for (const entry of entries) {
+      if (!entry?.placeKey || !entry.seq) continue;
+      window.localStorage.setItem(`${PREFIX}${entry.placeKey}`, String(entry.seq));
+    }
+  } catch {
+    return;
+  }
+  emit();
+}
+
 export function useSeen() {
   const snapshot = useSyncExternalStore(subscribe, read, readServer);
   return parse(snapshot);

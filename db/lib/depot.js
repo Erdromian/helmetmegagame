@@ -33,6 +33,22 @@ function isMerchantRole(slug) {
 // and the sentry post at the cave mouth are one Location again.
 const DEPOT_LOCATION_SLUG = "customs";
 
+// Resources across the shuttle, and the reason the Merchant's own ⬢ counter
+// is gone. The station imports ⬢ at RESOURCE_IMPORT_PRICE and pays
+// RESOURCE_EXPORT_PRICE for them coming back, so the round trip loses money
+// in both directions. That asymmetry is the point: a marginless counter made
+// ⬢ and obols the same thing wearing two hats, and importing food was free.
+// It also means the spread can never be run in a loop to print obols, which
+// is the same invariant db/lib/syncTags.js enforces for every priced tag.
+const RESOURCE_IMPORT_PRICE = 2;
+const RESOURCE_EXPORT_PRICE = 1;
+
+// The id the ⬢ row carries on the Order and Price List tables. Resources are
+// not a Tag, so there is nothing to key a row on — this sentinel stands in,
+// and the order action splits it out before it ever reaches a Tag lookup. It
+// can never collide with a cuid.
+const RESOURCE_WARE_ID = "resources";
+
 // One sanity bound on a single line item, so a fat-fingered quantity cannot
 // file a request for ten thousand vials. Well above any real purchase.
 const DEPOT_MAX_QUANTITY = 99;
@@ -52,5 +68,8 @@ module.exports = {
   isMerchantRole,
   DEPOT_LOCATION_SLUG,
   DEPOT_MAX_QUANTITY,
+  RESOURCE_IMPORT_PRICE,
+  RESOURCE_EXPORT_PRICE,
+  RESOURCE_WARE_ID,
   normalizeQuantity,
 };

@@ -53,9 +53,6 @@ export default function CharacterSheet({
   // buttons on. They were passed here and dropped for a while, which is why
   // the Nuclear Datacard never showed its buttons: the provider's default
   // `false` won, silently.
-  canBindBook = false,
-  bindBlocked = null,
-  bookOptions = [],
   canCrucify = false,
   canDisguise = false,
   hasDatacard = false,
@@ -76,7 +73,6 @@ export default function CharacterSheet({
   desireFamilyGroups = [],
   desireLockNotes = [],
   desireAddiction = null,
-  desiresEnabled = true,
   canHeal = false,
   healsLeft = null,
   // Lessons and Craft (LESSONS.md, CRAFTING.md), all built in character/page.js.
@@ -84,6 +80,10 @@ export default function CharacterSheet({
   canTeach = false,
   knownRecipeIds = [],
   craftProjects = [],
+  // The turn's craft Move ledger and each ration's free units left, both
+  // computed in character/page.js (web/lib/craftBudget.js).
+  craftBudget = null,
+  craftAllowances = {},
   // Building (db/lib/structures.js): what stands at this Location, and
   // whether the ground takes anything new. Both built in character/page.js.
   sitesHere = [],
@@ -192,6 +192,8 @@ export default function CharacterSheet({
             canTeach={canTeach}
             knownRecipeIds={knownRecipeIds}
             craftProjects={craftProjects}
+            craftBudget={craftBudget}
+            craftAllowances={craftAllowances}
             sitesHere={sitesHere}
             buildable={buildable}
             teachers={teachers}
@@ -224,9 +226,6 @@ export default function CharacterSheet({
             harmTargets={harmTargets}
             harmTags={harmTags}
             examineBlocked={examineBlocked}
-            canBindBook={canBindBook}
-            bindBlocked={bindBlocked}
-            bookOptions={bookOptions}
             canCrucify={canCrucify}
             canDisguise={canDisguise}
             hasDatacard={hasDatacard}
@@ -244,6 +243,7 @@ export default function CharacterSheet({
                 travellingTo={travellingTo}
                 pendingOffers={pendingOffers}
                 sitesHere={sitesHere}
+                craftProjects={craftProjects}
               />
 
               <TagsPanel
@@ -271,7 +271,6 @@ export default function CharacterSheet({
               lockNotes={desireLockNotes}
               addiction={desireAddiction}
               openTurnNumber={openTurn?.number ?? null}
-              desiresEnabled={desiresEnabled}
             />
           )}
         </div>

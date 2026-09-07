@@ -22,10 +22,11 @@ const { postDmBatched } = require("./discordRest");
 // letting the send fail, and reuses the cached DM channel. One log row per
 // call carries the whole text, however many messages it took to deliver.
 // `opts.components` is an optional Discord action row — a DM that carries a
-// button (the Bird's Reply, so far). postDmBatched puts it on the LAST chunk.
+// button (the Bird's Reply, so far). postDmBatched puts it on the LAST chunk,
+// and the same goes for `opts.embeds`.
 async function sendDm(prisma, discordUserId, content, opts = {}) {
   const formatted = `» ${content}`;
-  const message = await postDmBatched(discordUserId, formatted, opts.components);
+  const message = await postDmBatched(discordUserId, formatted, { components: opts.components, embeds: opts.embeds });
   await prisma.directMessage
     .create({
       data: {

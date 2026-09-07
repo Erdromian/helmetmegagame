@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { loadPeoplePools } from "@/lib/peoplePools";
+import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import {
   LESSON_CATALOG_SELECT,
   teachableSkills,
@@ -31,16 +31,7 @@ import {
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryStatus } from "@lifeweb/db/lib/carry";
-import { canRead } from "@lifeweb/db/lib/reading";
-import {
-  PAPER_SLUG,
-  BOOK_SHEETS,
-  isBook,
-  isPaper,
-  isSeal,
-  sealLabel,
-  paperDescription,
-} from "@lifeweb/db/lib/paper";
+import { isPaper, paperDescription } from "@lifeweb/db/lib/paper";
 import {
   freeMovesLeft,
   freeZoneMovesReason,
@@ -53,22 +44,9 @@ import { deployVersion } from "@/lib/deployVersion";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
-import {
-  evaluateDesireCatalog,
-  slotStates,
-  describeDesireLocks,
-  bottomSlotAddiction,
-  unlockedBy,
-} from "@lifeweb/db/lib/desireGates";
-import {
-  desireFamilies,
-  desireFamilyGroups,
-} from "@lifeweb/db/lib/desireFamilies";
-import {
-  projectDesireTemplateForGates,
-  loadRoleBySlugForTemplates,
-  computeHiddenDesireTagIds,
-} from "@/lib/desireProjection";
+import { loadDesireView, loadLettersView } from "@/lib/selfPools";
+import { craftFreeUnits } from "@/lib/requests";
+import { summarizeCraftBudget } from "@/lib/craftBudget";
 import {
   getGuildMember,
   isApprovedPlayer,
@@ -88,11 +66,6 @@ import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { canBuildHere, structuresAt } from "@lifeweb/db/lib/structures";
-import {
-  canSendBird as holdsBirdAndLetters,
-  birdZones as birdZonesOf,
-} from "@lifeweb/db/lib/bird";
-import { describeTurn } from "@/lib/turnFormat";
 import { parseSelection } from "@/lib/portrait/catalog";
 import CharacterSheet from "../../components/CharacterSheet";
 import CreateCharacterWizard from "./CreateCharacterWizard";
@@ -121,7 +94,9 @@ async function loadCreationData(discordUserId) {
     loadPointBuyCatalog([], { includeRoleStartingTags: true }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     readGameState(prisma),
-    getGuildMember(discordUserId),
+    // At most a minute old: a role handed out in Discord shows up on the next
+    // reload, and the lobby refreshes itself every 30 s anyway.
+    getGuildMember(discordUserId, 60_000),
     dynastyLastName(),
     prisma.playerPreference.findUnique({ where: { discordUserId }, select: { antagonistOptIns: true } }),
   ]);
@@ -320,8 +295,6 @@ export default async function CharacterPage({ searchParams }) {
     openTurn,
     tagCatalog,
     tierRows,
-    desireHistory,
-    desireTemplateRows,
     gameConfig,
     { action: currentAction },
     frozen,
@@ -349,6 +322,9 @@ export default async function CharacterPage({ searchParams }) {
         // undefined and drops purchasable-only tags from the Add Tag menu.
         purchasableAfterStart: true,
         craftable: true,
+        // The custom-item opt-in (CRAFTING.md): the Craft dialog shows its
+        // name/description fields only when this crosses.
+        customizable: true,
         // A craftable carrying `placement` is raised on the ground instead
         // of landing in a pocket (db/lib/structures.js). The whole JSON
         // crosses rather than a boolean: the menu needs `unique` too, and
@@ -373,10 +349,17 @@ export default async function CharacterPage({ searchParams }) {
         },
         // Craft enforces recipe skills (CRAFTING.md); `knownRecipeIds`
         // below is the server's verdict per recipe.
-        requirementSkills: { select: { id: true, name: true, slug: true } },
+        // `catalogVisibility` is read and dropped before this list reaches the
+        // browser — see clientTagCatalog below.
+        requirementSkills: { select: { id: true, name: true, slug: true, catalogVisibility: true } },
         requirementTurns: true,
         requirementResources: true,
         requirementPerTurn: true,
+        // The ingredients, so the Craft dialog can say what a recipe spends
+        // and offer the picker an `anyOf` entry needs. Every surface that
+        // renders a Recipe line has to select this or it silently renders none
+        // (CORPSES.md §8).
+        requirementItems: true,
         // So the Craft menu can say what a piece of armour is worth before
         // somebody spends two turns and 26 ⬢ finding out.
         meleeArmor: true,
@@ -389,46 +372,6 @@ export default async function CharacterPage({ searchParams }) {
     prisma.tag.findMany({
       select: { id: true, slug: true, parentTagId: true },
     }),
-    // ALL statuses — the gate evaluator needs the whole history.
-    prisma.desire.findMany({
-      where: { characterId: character.id },
-      select: {
-        id: true,
-        templateId: true,
-        slotIndex: true,
-        status: true,
-        text: true,
-        points: true,
-        setTurnNumber: true,
-        endedTurnNumber: true,
-        template: {
-          select: { tier: true, cooldownTurns: true, onceEver: true },
-        },
-      },
-    }),
-    // Gate fields db/lib/desireGates.js needs, projected through
-    // web/lib/desireProjection.js below.
-    prisma.desireTemplate.findMany({
-      where: { retired: false },
-      orderBy: { sortOrder: "asc" },
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        description: true,
-        tier: true,
-        families: true,
-        onceEver: true,
-        cooldownTurns: true,
-        retired: true,
-        requiresAnyOf: true,
-        requiresAnyRoleSlugs: true,
-        requiresNotRoleSlugs: true,
-        requiresAnyTags: { select: { id: true, name: true } },
-        requiresAllTags: { select: { id: true, name: true } },
-        requiresNotTags: { select: { id: true, name: true } },
-      },
-    }),
     prisma.gameConfig.findUnique({
       where: { id: 1 },
       select: {
@@ -436,7 +379,6 @@ export default async function CharacterPage({ searchParams }) {
         avatarUploadsEnabled: true,
         portraitMakerEnabled: true,
         portraitFantasyPartsEnabled: true,
-        desiresEnabled: true,
         desireSlots: true,
         desireSlotLockTurns: true,
         maxDrawbackTags: true,
@@ -448,66 +390,19 @@ export default async function CharacterPage({ searchParams }) {
     readGameState(prisma, { nukeArmedTurn: true }),
   ]);
 
-  // Desires. Every evaluation happens HERE, server-side — the client never
-  // runs the gate logic or receives a hidden template.
-  const desireSlots = gameConfig?.desireSlots ?? 2;
-  const desireSlotLockTurns = gameConfig?.desireSlotLockTurns ?? 2;
-  const heldDesireTagIds = new Set(character.tags.map((ct) => ct.tagId));
-  const hiddenTagIds = await computeHiddenDesireTagIds(
-    prisma,
-    heldDesireTagIds,
-  );
-  const roleBySlugForDesires = await loadRoleBySlugForTemplates(
-    prisma,
-    desireTemplateRows,
-  );
-  const projectedDesireTemplates = desireTemplateRows.map((t) =>
-    projectDesireTemplateForGates(roleBySlugForDesires, t),
-  );
-  const { visible: desireCatalogEvaluated } = evaluateDesireCatalog({
-    templates: projectedDesireTemplates,
-    heldTags: character.tags.map((ct) => ct.tag),
-    hiddenTagIds,
-    roleSlug: character.role?.slug ?? null,
-    history: desireHistory,
-    openTurnNumber: openTurn?.number ?? 0,
+  // Desires: the slots, and the evaluated catalog behind the picker. Both
+  // are built in web/lib/selfPools.js, which the Hall's YOU column reads too,
+  // so the two surfaces cannot disagree about what is claimable.
+  const {
     desireSlots,
-  });
-  // The `hidden` half (db/lib/desireGates.js) never reaches this variable.
-  // A "locked" entry (unmet requires, or a family a held tag shuts) is
-  // dropped here too. Cooldown/once-ever-done rows stay, since those are
-  // claimed already, just not claimable right now.
-  const desireCatalog = desireCatalogEvaluated
-    .filter(({ state }) => state !== "locked")
-    .map(({ template, state, availableFromTurn, slotLocks }) => ({
-      slug: template.slug,
-      name: template.name,
-      description: template.description,
-      tier: template.tier,
-      families: template.families,
-      state,
-      availableFromTurn,
-      slotLocks,
-      cooldownTurns: template.cooldownTurns ?? template.tier,
-      onceEver: Boolean(template.onceEver),
-      unlockedBy: unlockedBy(template, {
-        heldTagIds: heldDesireTagIds,
-        roleSlug: character.role?.slug ?? null,
-      }),
-    }));
-  const desireLockNotes = describeDesireLocks(
-    character.tags.map((ct) => ct.tag),
-    new Map(desireFamilies().map((f) => [f.key, f.name])),
-  );
-  const desireSlotStates = slotStates({
-    history: desireHistory,
-    openTurnNumber: openTurn?.number ?? 0,
-    desireSlots,
-    lockTurns: desireSlotLockTurns,
-  });
-  const desireAddiction = bottomSlotAddiction(
-    character.tags.map((ct) => ct.tag),
-  );
+    desireSlotLockTurns,
+    slotStates: desireSlotStates,
+    catalog: desireCatalog,
+    families: desireFamilyList,
+    familyGroups: desireFamilyGroupList,
+    lockNotes: desireLockNotes,
+    addiction: desireAddiction,
+  } = await loadDesireView(character, { openTurn, gameConfig });
 
   // Held ids widen the store catalog so unpurchasable held tags (a
   // GM-granted item) still reach the client's byId map.
@@ -525,6 +420,7 @@ export default async function CharacterPage({ searchParams }) {
     here,
     zoneRoster,
     peopleParties,
+    transferParties,
     examineBlocked,
     satisfied,
     canHeal,
@@ -578,20 +474,12 @@ export default async function CharacterPage({ searchParams }) {
         },
       })
     : [];
-  const rooms = accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds).map(
-    (r) => ({
-      id: r.id,
-      name: r.name,
-      resources: r.resources,
-      tags: r.tags.map((rt) => ({
-        tagId: rt.tagId,
-        name: rt.tag.name,
-        quantity: rt.quantity,
-        stackable: rt.tag.stackable,
-        weightLbs: rt.tag.category === "Assets" ? 0 : (rt.tag.weightLbs ?? 0),
-      })),
-    }),
-  );
+  // The Transfer dialog's far side, from the shared helper rather than a
+  // second copy of the same map — /play builds the identical list off it, and
+  // two answers to "which doors are open to you" is exactly what
+  // web/lib/peoplePools.js exists to stop. `roomsHere` above is still this
+  // page's own, because corpsesInReach below needs the ROWS and not the shape.
+  const rooms = await loadStashRooms(character);
   // Every body in reach, for Butcher and Bury (docs/systemdocs/CORPSES.md).
   // Handed the ALREADY-FILTERED room list so it costs no second round-trip and
   // — more importantly — so the menu is built from exactly the rooms the
@@ -607,7 +495,7 @@ export default async function CharacterPage({ searchParams }) {
   const hasMulligan = character.tags.some((ct) => ct.tag.slug === "mulligan-potion");
 
   // From is you or a room; To is anyone here or a room (TransferDialog.js).
-  const transferParties = { characters: peopleParties, rooms };
+  const transferPartyList = { characters: transferParties, rooms };
   // Your faction's silo, if it has one and you are standing in its zone: a
   // deposit-only destination pinned above the rooms here (FACTIONS.md). The
   // `here` flag says whether it is already in `rooms` above, so the dialog
@@ -685,13 +573,118 @@ export default async function CharacterPage({ searchParams }) {
   // Craft (CRAFTING.md): the recipes whose every skill this character holds
   // (or a higher tier of), decided here and re-checked by craftRequest. The
   // client filters its picker to these ids and nothing else.
+  //
+  // Ingredient hiding is menu hygiene, not secrecy (planning/crafting-pass-
+  // goals.md): the recipe's DESCRIPTION and the public Tag Catalog's Recipe
+  // line still name every ingredient, GM-only or not — that's the recipe
+  // teaching itself. This only keeps a recipe you have no path to yet out of
+  // the picker, so a fresh crafter isn't offered Miasma before they've ever
+  // seen a corpse. The tagCatalog query above never selects
+  // `catalogVisibility` (it isn't craftable/purchasable itself, and an
+  // ingredient tag usually is neither), so the slugs and groups a craftable
+  // recipe's requirementItems name are resolved with one more targeted query.
+  const restrictedTagSlugs = new Set();
+  const restrictedGroupSlugs = new Set();
+  for (const t of tagCatalog) {
+    if (!t.craftable) continue;
+    for (const item of t.requirementItems ?? []) {
+      if (item.kind === "group") restrictedGroupSlugs.add(item.slug);
+      else if (item.kind === "anyOf")
+        item.slugs.forEach((s) => restrictedTagSlugs.add(s));
+      else restrictedTagSlugs.add(item.slug);
+    }
+  }
+  const ingredientVisibilityRows =
+    restrictedTagSlugs.size || restrictedGroupSlugs.size
+      ? await prisma.tag.findMany({
+          where: {
+            OR: [
+              restrictedTagSlugs.size
+                ? { slug: { in: [...restrictedTagSlugs] } }
+                : null,
+              restrictedGroupSlugs.size
+                ? { group: { slug: { in: [...restrictedGroupSlugs] } } }
+                : null,
+            ].filter(Boolean),
+          },
+          select: {
+            slug: true,
+            catalogVisibility: true,
+            group: { select: { slug: true } },
+          },
+        })
+      : [];
+  const visibilityBySlug = new Map(
+    ingredientVisibilityRows.map((r) => [r.slug, r.catalogVisibility]),
+  );
+  // A group entry (miasma/bone-mask's corpse) is non-public the moment ANY
+  // tag currently wearing that group is non-ALL — which for `items-corpse`
+  // is every row: the authored monster corpses are `catalog: secret`, and a
+  // corpse minted at death (db/lib/corpseMint.js) is never in docs/tags.yaml
+  // at all, so it carries the schema default (`GM`).
+  const nonAllGroupSlugs = new Set(
+    ingredientVisibilityRows
+      .filter((r) => r.group && r.catalogVisibility !== "ALL")
+      .map((r) => r.group.slug),
+  );
+  function isNonPublicRecipe(tag) {
+    return (tag.requirementItems ?? []).some((item) => {
+      if (item.kind === "group") return nonAllGroupSlugs.has(item.slug);
+      const slugs = item.kind === "anyOf" ? item.slugs : [item.slug];
+      return slugs.some((s) => visibilityBySlug.get(s) !== "ALL");
+    });
+  }
+  // Mirrors resolveRecipeItems' HOLD semantics (requestActions.js), at
+  // quantity 1 — a hidden recipe only has to prove itself known, not
+  // affordable, so this checks "holds one" rather than resolving a spend
+  // plan or an anyOf choice.
+  function satisfiesIngredientsAtQuantityOne(tag) {
+    return (tag.requirementItems ?? []).every((item) => {
+      if (item.kind === "group") {
+        return character.tags.some((ct) => ct.tag.group?.slug === item.slug);
+      }
+      const slugs = item.kind === "anyOf" ? item.slugs : [item.slug];
+      return character.tags.some((ct) => slugs.includes(ct.tag.slug));
+    });
+  }
   const knownRecipeIds = tagCatalog
     .filter(
       (t) =>
         t.craftable &&
-        (t.requirementSkills ?? []).every((skill) => satisfied.has(skill.id)),
+        (t.requirementSkills ?? []).every((skill) => satisfied.has(skill.id)) &&
+        (!isNonPublicRecipe(t) || satisfiesIngredientsAtQuantityOne(t)),
     )
     .map((t) => t.id);
+
+  // What the Add-tag and Craft menus may PRINT, as opposed to what the server
+  // reasons with. A recipe gated on a trade the catalog hides is stripped for
+  // anyone who doesn't hold that trade: the six courtier wax seals are made by
+  // a Forger — Brigands only, `catalog: gm` — and a "Recipe: Forger · 1 turn ·
+  // 2 ⬢" line on a seal chip would tell the whole game that seals get forged,
+  // which is the one thing a forger is paying for. The tag itself stays, with
+  // its name, its description and its honest point price. Same rule as
+  // web/lib/recipeCatalog.js, applied to this page's own query.
+  const clientTagCatalog = tagCatalog.map((t) => {
+    const skills = t.requirementSkills ?? [];
+    const hidden = skills.some(
+      (skill) => skill.catalogVisibility !== "ALL" && !satisfied.has(skill.id),
+    );
+    const requirementSkills = hidden
+      ? []
+      : skills.map(({ id, name, slug }) => ({ id, name, slug }));
+    return hidden
+      ? {
+          ...t,
+          craftable: false,
+          requirementSkills,
+          requirementItems: null,
+          requirementTurns: null,
+          requirementResources: null,
+          requirementPerTurn: null,
+          requirementGambit: false,
+        }
+      : { ...t, requirementSkills };
+  });
   const craftProjects = (
     await prisma.craftProject.findMany({
       where: { characterId: character.id, status: "ACTIVE" },
@@ -702,6 +695,7 @@ export default async function CharacterPage({ searchParams }) {
         turnsNeeded: true,
         turnsDone: true,
         resourcesCost: true,
+        consumed: true,
         payerName: true,
         lastTurnId: true,
         tag: { select: { id: true, name: true } },
@@ -715,10 +709,25 @@ export default async function CharacterPage({ searchParams }) {
     turnsNeeded: p.turnsNeeded,
     turnsDone: p.turnsDone,
     resourcesCost: p.resourcesCost,
+    // Whether ingredients went in at the start — the give-up note names them.
+    spentIngredients: Array.isArray(p.consumed) && p.consumed.length > 0,
     payerName: p.payerName,
     // Advanced this turn already — Continue greys until the next one.
     workedThisTurn: Boolean(openTurn && p.lastTurnId === openTurn.id),
   }));
+
+  // The turn's craft ledger, and how much of each ration is still free
+  // (docs/systemdocs/CRAFTING.md §2a). Both are the SERVER's arithmetic: the
+  // Craft dialog quotes these numbers and clamps its quantity field to them,
+  // but craftRequest re-reads the same rows under a row lock and refuses
+  // regardless, so a stale page can mislead nobody into a craft that lands.
+  const craftBudget = summarizeCraftBudget(currentAction);
+  const craftAllowances = await craftFreeUnits(
+    prisma,
+    character.id,
+    openTurn?.id ?? null,
+    tagCatalog,
+  );
 
   // Building (db/lib/structures.js). EVERY status comes down: the standing-
   // here panel lists a ruin as readily as a finished wall, and the Craft
@@ -754,97 +763,24 @@ export default async function CharacterPage({ searchParams }) {
   // it leaks nothing. disguiseSelfRequest re-checks it, since a hidden button
   // is a hint and not a lock.
   const canDisguise = heldSlugs.has("disguise-kit");
+  // Torture shows for a Torturer and nobody else — again your own sheet.
+  // tortureCharacterRequest re-checks the tag and that the target is Bound.
+  const canTorture = heldSlugs.has("torturer");
   // The bomb's two halves. Both read off your own sheet and nothing else, so
   // neither leaks anything about the room; nukeActions.js re-checks both,
   // since a hidden button is a hint and not a lock.
   const hasDatacard = heldSlugs.has("nuclear-datacard");
   const hasDevice = heldSlugs.has("nuclear-device");
-  const hasBird = holdsBirdAndLetters(character.tags);
-  // Paperwork (docs/systemdocs/PAPERWORK.md). Letters AND eyes — the same
-  // predicate the tag chips, the noticeboard and paperActions.js all use, so
-  // the button, the chip and the server's refusal can never disagree.
-  const canReadNow = canRead(character.tags, {
-    phase: openTurn?.phase ?? null,
-    indoors: character.location?.indoors ?? true,
-  });
-  // Something to write ON: a blank sheet, or a note already started. A sealed
-  // letter does not count — you would have to break the seal first.
-  const writables = character.tags.filter(
-    (ct) => ct.tag.slug === PAPER_SLUG || ct.tag.paperKind === "PAPER",
-  );
-  const canWrite = canReadNow && writables.length > 0;
-  // Wax stamps in hand, and letters worth closing. Both are facts about your
-  // own sheet, so both may hide or grey the button.
-  const seals = character.tags.filter((ct) => isSeal(ct.tag));
-  const hasSeal = seals.length > 0;
-  const sealables = character.tags.filter(
-    (ct) => ct.tag.paperKind === "PAPER" && (ct.tag.paperText ?? "").trim(),
-  );
-  const canSeal = hasSeal && sealables.length > 0;
-
-  // Binding and tearing up (docs/systemdocs/PAPERWORK.md). Both are facts about
-  // your own sheet — a stack of ten, or a book in your hands — so both may grey
-  // or hide their button. Binding needs letters as well, because you write the
-  // whole thing in one pass; tearing one up needs none at all.
-  const blankStock = character.tags.find((ct) => ct.tag.slug === PAPER_SLUG);
-  const sheetsHeld = blankStock?.quantity ?? 0;
-  const canBindBook = canReadNow && sheetsHeld >= BOOK_SHEETS;
-  // Why the button is dead, so a player reads it off the tooltip instead of
-  // writing a whole book into the box and finding out at the submit.
-  const bindBlocked = canBindBook
-    ? null
-    : `You have ${sheetsHeld} of the ${BOOK_SHEETS} blank sheets a book takes. ‡`;
-  const books = character.tags.filter((ct) => isBook(ct.tag));
-
-  // What the two dialogs list. The TEXT is deliberately not sent — the dialog
-  // asks for it on demand (paperActions.js#readMyPaper) so an unreadable sheet
-  // never has its contents sitting in a client payload waiting to be read out
-  // of the page source. The excerpt below is the same one the chip shows and
-  // is already gated by canReadNow.
-  const paperOptions = writables.map((ct) => ({
-    tagId: ct.tagId,
-    name: ct.tag.name,
-    blank: ct.tag.slug === PAPER_SLUG,
-    quantity: ct.quantity,
-    // Enough to tell two notes apart in a dropdown, and only for a reader.
-    excerpt:
-      canReadNow && ct.tag.paperKind === "PAPER"
-        ? (ct.tag.paperText ?? "").trim().slice(0, 60)
-        : null,
-  }));
-  // Everything a bird could carry. Sealed letters included — a courier does
-  // not have to be able to read what they are carrying, which is rather the
-  // use of an illiterate one.
-  const letterOptions = character.tags
-    .filter(
-      (ct) => ct.tag.paperKind === "PAPER" || ct.tag.paperKind === "SEALED",
-    )
-    .map((ct) => ({
-      tagId: ct.tagId,
-      name: ct.tag.name,
-      excerpt:
-        canReadNow && ct.tag.paperKind === "PAPER"
-          ? (ct.tag.paperText ?? "").trim().slice(0, 60)
-          : null,
-    }));
-  // Books in hand, for the Tear Up picker. No excerpt: a book's NAME is its
-  // title and already says which one it is, unlike a note's waybill code.
-  const bookOptions = books.map((ct) => ({
-    tagId: ct.tagId,
-    name: ct.tag.name,
-  }));
-  const sealOptions = {
-    stamps: seals.map((ct) => ({
-      tagId: ct.tagId,
-      name: ct.tag.name,
-      label: sealLabel(ct.tag),
-    })),
-    letters: sealables.map((ct) => ({
-      tagId: ct.tagId,
-      name: ct.tag.name,
-      excerpt: canReadNow ? (ct.tag.paperText ?? "").trim().slice(0, 60) : null,
-    })),
-  };
+  // Paperwork, seals, books and the Bird (docs/systemdocs/PAPERWORK.md). Every
+  // gate and every option list is built in web/lib/selfPools.js, because the
+  // Hall's composer opens the same four dialogs and two copies of these rules
+  // would be two answers to "can this character write".
+  // Spread into CharacterSheet below: hasBird, canRead, canWrite, hasSeal,
+  // canSeal, paperOptions, letterOptions, sealOptions, birdSentToday,
+  // birdTargets, birdZones — the loader names them as the props
+  // RequestActionsProvider takes, so the sheet and the Hall hand the dialogs
+  // one list.
+  const letters = await loadLettersView(character, { openTurn });
 
   // The sheet itself goes to a client component, so the raw text of every
   // paper on it would otherwise sit in the page source — readable straight out
@@ -870,12 +806,10 @@ export default async function CharacterPage({ searchParams }) {
       };
     }),
   };
-  // Compared against the in-game DAY (birdTurnId stores the day), not the
-  // turn. Advisory only — the server's conditional claim is the real gate.
-  const birdSentToday =
-    Boolean(openTurn) &&
-    character.birdTurnId === String(describeTurn(openTurn).day);
-
+  // The fear dial is hidden from players by design (docs/systemdocs/FEAR.md):
+  // they see the band tag, never the number. The sheet is handed to client
+  // components, so the column must not ride along in the payload.
+  delete sheetCharacter.fear;
   // Who can pay: you, anyone here, or a room stash here (same as Craft).
   const healParties = { characters: peopleParties, rooms };
 
@@ -977,25 +911,6 @@ export default async function CharacterPage({ searchParams }) {
       })
     : [];
 
-  // Only fetched for someone who holds a bird. Recipient list is EVERY
-  // character regardless of status; a letter to a dead name never arrives.
-  const birdTargets = hasBird
-    ? await prisma.character.findMany({
-        where: { id: { not: character.id } },
-        select: { id: true, name: true },
-        orderBy: { name: "asc" },
-      })
-    : [];
-  // Everywhere standable except the two deep cave levels (birdZones()).
-  const birdZoneOptions = hasBird
-    ? birdZonesOf(
-        await prisma.zone.findMany({
-          select: { id: true, name: true, slug: true, kind: true },
-          orderBy: { sortOrder: "asc" },
-        }),
-      ).map((z) => ({ id: z.id, name: z.name }))
-    : [];
-
   // A forced identity (Tag.forcedName — Apex Form's "Beast") shows the player
   // what the room sees: the forced name's letter plaque, not their own face.
   const forcedTag = character.tags.find((ct) => ct.tag.forcedName)?.tag ?? null;
@@ -1003,18 +918,16 @@ export default async function CharacterPage({ searchParams }) {
     ? { name: forcedTag.forcedName, tagName: forcedTag.name }
     : null;
   // And what is over their face, which decides whether the conceal switch is
-  // usable at all (PROXYING.md §5). Named here rather than in AvatarField so
-  // the refusal can say WHICH thing is doing it.
+  // usable at all (PROXYING.md §5). Only `forced` is read now — the label used
+  // to name WHICH thing was doing it, and says the rule once in a tooltip
+  // instead, so the tag's own name has no reader left.
   const concealingTag =
     character.tags
       .filter((ct) => ct.equipped && ct.tag.concealsIdentity)
       .sort((a, b) => (b.tag.equipLayer ?? 0) - (a.tag.equipLayer ?? 0))[0]
       ?.tag ?? null;
   const concealGear = concealingTag
-    ? {
-        tagName: concealingTag.name,
-        forced: Boolean(concealingTag.forcesConceal),
-      }
+    ? { forced: Boolean(concealingTag.forcesConceal) }
     : null;
   const avatarSrc = forcedIdentity
     ? presentedIdentity(character, { forcedName: forcedIdentity.name })
@@ -1044,7 +957,7 @@ export default async function CharacterPage({ searchParams }) {
       avatarSrc={avatarSrc}
       forcedIdentity={forcedIdentity}
       concealGear={concealGear}
-      transferParties={transferParties}
+      transferParties={transferPartyList}
       transferSilo={transferSilo}
       carry={carry}
       zoneMoves={zoneMoves}
@@ -1052,22 +965,23 @@ export default async function CharacterPage({ searchParams }) {
       travellingTo={character.travelTo?.name ?? null}
       examineBlocked={examineBlocked}
       hasWorkshop={hasWorkshop}
-      tagCatalog={tagCatalog}
+      tagCatalog={clientTagCatalog}
       desireSlots={desireSlots}
       desireSlotLockTurns={desireSlotLockTurns}
       desireAddiction={desireAddiction}
       desireSlotStates={desireSlotStates}
       desireCatalog={desireCatalog}
-      desireFamilies={desireFamilies()}
-      desireFamilyGroups={desireFamilyGroups()}
+      desireFamilies={desireFamilyList}
+      desireFamilyGroups={desireFamilyGroupList}
       desireLockNotes={desireLockNotes}
-      desiresEnabled={gameConfig?.desiresEnabled ?? true}
       canHeal={canHeal}
       healsLeft={healsLeft}
       hasMoved={Boolean(currentAction)}
       canTeach={canTeach}
       knownRecipeIds={knownRecipeIds}
       craftProjects={craftProjects}
+      craftBudget={craftBudget}
+      craftAllowances={craftAllowances}
       sitesHere={sitesHere}
       buildable={buildable}
       teachers={teachers}
@@ -1075,20 +989,7 @@ export default async function CharacterPage({ searchParams }) {
       confessors={confessors}
       mySins={mySins}
       pendingOffers={pendingOffers}
-      hasBird={hasBird}
-      canRead={canReadNow}
-      canWrite={canWrite}
-      hasSeal={hasSeal}
-      canSeal={canSeal}
-      paperOptions={paperOptions}
-      letterOptions={letterOptions}
-      sealOptions={sealOptions}
-      canBindBook={canBindBook}
-      bindBlocked={bindBlocked}
-      bookOptions={bookOptions}
-      birdSentToday={birdSentToday}
-      birdTargets={birdTargets}
-      birdZones={birdZoneOptions}
+      {...letters}
       equipSlots={gameConfig?.equipSlots ?? 10}
       avatarUploadsEnabled={gameConfig?.avatarUploadsEnabled ?? false}
       portraitMakerEnabled={gameConfig?.portraitMakerEnabled ?? false}
@@ -1115,6 +1016,7 @@ export default async function CharacterPage({ searchParams }) {
       bindTargets={bindTargets}
       canCrucify={canCrucify}
       canDisguise={canDisguise}
+      canTorture={canTorture}
       hasDatacard={hasDatacard}
       hasDevice={hasDevice}
       nukeArmedTurn={nukeState?.nukeArmedTurn ?? null}

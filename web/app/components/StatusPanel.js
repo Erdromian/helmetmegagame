@@ -1,12 +1,5 @@
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
-import { DISAPPOINTMENT_THRESHOLD } from "@lifeweb/db/lib/hungerPass";
-import {
-  ATE_MEAL_SLUG,
-  CATATONIC_SLUG,
-  DISAPPOINTED_SLUG,
-  NOBILITY_SLUG,
-  TRUMPET_SLUG,
-} from "@lifeweb/db/lib/constants";
+import { CATATONIC_SLUG, TRUMPET_SLUG } from "@lifeweb/db/lib/constants";
 import { moveKindLabel, rollLabel } from "@/lib/moves";
 import TagPointsValue from "./TagPointsValue";
 import ActionGrid from "./ActionGrid";
@@ -69,11 +62,11 @@ function ThisTurn({ currentAction, openTurn, pendingOffers = [] }) {
     <span key={o.id} className="text-muted">
       {o.mine
         ? o.kind === "BIND"
-          ? `Waiting for ${o.otherName} to agree to be bound. ‡`
-          : `Waiting for ${o.otherName} to accept the lesson${o.tagName ? ` in ${o.tagName}` : ""}. ‡`
+          ? `Waiting for ${o.otherName} to agree to be bound.`
+          : `Waiting for ${o.otherName} to accept the lesson${o.tagName ? ` in ${o.tagName}` : ""}.`
         : o.kind === "BIND"
-          ? `${o.otherName} wants to bind you — answer in your DMs. ‡`
-          : `${o.otherName} offered a lesson${o.tagName ? ` in ${o.tagName}` : ""} — answer in your DMs. ‡`}
+          ? `${o.otherName} wants to bind you. Answer in your DMs.`
+          : `${o.otherName} offered a lesson${o.tagName ? ` in ${o.tagName}` : ""}. Answer in your DMs.`}
     </span>
   ));
   if (!currentAction)
@@ -161,6 +154,12 @@ export default function StatusPanel({
   // What stands at this Location (db/lib/structures.js), built in
   // character/page.js. Empty on someone else's sheet.
   sitesHere = [],
+  // This character's own ACTIVE CraftProjects (db/lib/structures.js is the
+  // Structure half; CraftProject is the pocket-item half), also built in
+  // character/page.js and otherwise only visible by opening the Craft
+  // dialog. Empty on someone else's sheet — CharacterSheet only ever mounts
+  // this component for the sheet's own owner.
+  craftProjects = [],
 }) {
   // Hunger is the only Gambit contributor, and this is the same module the bot
   // rolls against (db/lib/gambitModifier.js) — so what a player reads here is
@@ -176,19 +175,16 @@ export default function StatusPanel({
   // Held, not equipped: you pick a trumpet up to blow it.
   const hasTrumpet = character.tags?.some((ct) => (ct?.tag?.slug ?? ct?.slug) === TRUMPET_SLUG);
 
-  // The Nobility dinner tracker. Same reasoning as the Catatonic row: the
-  // disappointed tag is granted by a turn pass (db/lib/hungerPass.js) and
-  // cleared by eating, so the sheet explains the state rather than leaving a
-  // grey chip to be puzzled out — and for a noble who is NOT yet Disappointed
-  // it answers the question the tag can't: "how long until it lands?"
-  // missedMealStreak counts turn closes without a Fine/Lavish Meal, same
-  // authorship rule as hungerStreak above.
-  const heldSlugs = new Set((character.tags ?? []).map((ct) => ct?.tag?.slug ?? ct?.slug));
-  const noble = heldSlugs.has(NOBILITY_SLUG);
-  const disappointed = heldSlugs.has(DISAPPOINTED_SLUG);
-  const ateMeal = heldSlugs.has(ATE_MEAL_SLUG);
-  const missedMeals = character.missedMealStreak ?? 0;
-  const missesLeft = DISAPPOINTMENT_THRESHOLD - missedMeals;
+  // Standing work, without opening the Craft dialog: a CraftProject is a
+  // pocket item in progress, a build site UNDER_CONSTRUCTION here is a
+  // Structure in progress (a half-built wall — leaving it off this list
+  // would read as a bug, not as "nothing to report"). A finished or ruined
+  // site isn't "in progress", so it's left to StandingHerePanel below.
+  const sitesInProgress = sitesHere.filter(
+    (s) => s.status === "UNDER_CONSTRUCTION",
+  );
+  const hasWorkInProgress =
+    craftProjects.length > 0 || sitesInProgress.length > 0;
 
   return (
     <>
@@ -213,26 +209,6 @@ export default function StatusPanel({
             </Row>
           )}
 
-          {disappointed && (
-            <Row label="Condition">
-              <span className="text-muted">Disappointed — a fine meal will fix it.</span>
-            </Row>
-          )}
-
-          {noble && !disappointed && (
-            <Row label="Dinner">
-              <span className="text-muted">
-                {ateMeal
-                  ? "Seen to."
-                  : missesLeft <= 1
-                    ? `${missedMeals === 1 ? "A day" : `${missedMeals} days`} without a fine meal — Disappointed at turn's end.`
-                    : missedMeals === 0
-                      ? `No fine meal yet. ${DISAPPOINTMENT_THRESHOLD} missed days and ${isSelf ? "you're" : "they're"} Disappointed.`
-                      : `${missedMeals === 1 ? "A day" : `${missedMeals} days`} without a fine meal — ${missesLeft} more and ${isSelf ? "you're" : "they're"} Disappointed.`}
-              </span>
-            </Row>
-          )}
-
           {/* Where they stand is the Location; the zone is the region it
               sits in, and what the #summary channel belongs to. */}
           <Row label="Location">{character.location?.name ?? "Nowhere"}</Row>
@@ -242,9 +218,9 @@ export default function StatusPanel({
           {/* A crossing that cost the Move is a day's walk, and the character
               stays put until the next turn opens (MAP.md §3). */}
           {travellingTo && (
-            <Row label="On the road ‡">
-              <span title="You arrive when the turn turns. Turn back from the Travel button on #turns. ‡">
-                walking to {travellingTo} ‡
+            <Row label="On the road">
+              <span title="You arrive when the turn turns. Turn back from the Travel button on #turns.">
+                walking to {travellingTo}
               </span>
             </Row>
           )}
@@ -253,7 +229,7 @@ export default function StatusPanel({
               crossing spends the Move; at zero — which is what Overburdened
               does — the first one already does. */}
           {zoneMoves != null && (
-            <Row label="Zone moves ‡">
+            <Row label="Zone moves">
               {/* The reason rides in the hover for the same reason the carry
                   cap's breakdown does: a bare 0 leaves a lamed or overloaded
                   player with nothing to act on. */}
@@ -262,7 +238,7 @@ export default function StatusPanel({
                 title={zoneMovesReason ?? undefined}
                 style={zoneMoves === 0 ? { color: "var(--accent-text)" } : undefined}
               >
-                {zoneMoves} free ‡
+                {zoneMoves} free
               </span>
             </Row>
           )}
@@ -292,7 +268,7 @@ export default function StatusPanel({
                 title={carryCapTitle(carry)}
                 style={carry.weightUsed > carry.weightCap ? { color: "var(--accent-text)" } : undefined}
               >
-                {carry.weightUsed} / {carry.weightCap} lb ‡
+                {carry.weightUsed} / {carry.weightCap} lb
               </span>
             </Row>
           )}
@@ -308,6 +284,32 @@ export default function StatusPanel({
           <Row label="Tag Points">
             <TagPointsValue points={character.tagPoints} />
           </Row>
+
+          {hasWorkInProgress && (
+            <Row label="In progress">
+              <div className="flex flex-wrap gap-2">
+                {craftProjects.map((p) => (
+                  <span key={`project-${p.id}`} className="chip">
+                    {p.quantity > 1 ? `${p.quantity}× ` : ""}
+                    {p.tagName} —{" "}
+                    <span className="mono">
+                      {p.turnsDone}/{p.turnsNeeded}
+                    </span>{" "}
+                    turns
+                  </span>
+                ))}
+                {sitesInProgress.map((s) => (
+                  <span key={`site-${s.id}`} className="chip">
+                    {s.typeName} —{" "}
+                    <span className="mono">
+                      {s.turnsDone}/{s.turnsNeeded}
+                    </span>{" "}
+                    turns
+                  </span>
+                ))}
+              </div>
+            </Row>
+          )}
 
           <Row label="This turn" stacked>
             <ThisTurn currentAction={currentAction} openTurn={openTurn} pendingOffers={pendingOffers} />

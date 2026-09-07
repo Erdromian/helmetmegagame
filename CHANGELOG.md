@@ -6,6 +6,166 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · The buttons stop explaining themselves, and books are crafted now
+
+− Craft, Destroy, Transfer, Write, Butcher, Free and Search lose their tooltips, and eleven explanatory paragraphs come out of the dialogs. The empty states and the refusals stay.  
+✚ Learn, Teach, Confess, Seal, Bury, Engrave, Bind and Move Player say one short true thing each instead
+✎ The Dead folds into People Here, which is now Others. Letters is now Paper  
+✚ Transfer reaches a concealed person, listed by their alias under an opaque handle, so a hood never has to say who it is to be handed a coin  
+✚ Transfer also takes from someone bound or dead, which is Loot — same rules, same fear, same notice, one implementation  
+✚ A blank book is an ordinary craft recipe: ten paper, no skill. Write fills one, with a title  
+− Bind a Book and Tear Up a Book. A book is permanent now  
+✚ A recipe can ask for ten of an ingredient (`count:`), and every surface that prints a recipe says the number
+
+## 2026-09-07 · The Play page forgets the last game, and the dev panel stops explaining itself
+
+✎ The Hall no longer shows the last game: /play is empty after a Restart instead of full of dead characters still talking  
+− Every tooltip, section blurb and how-it-works paragraph on the GM desks  
+✎ A shout arrives on one line now, instead of breaking the words onto a second  
+− The double dagger on any string of four words or fewer, since there is nothing to rewrite in "Save"
+
+## 2026-09-07 · Roleplay channels wipe every turn now, Summaries still at Dawn
+
+✎ Location channels, Rooms and Conversations are cleared at the end of every turn instead of every other one — a scene lives for one day, not two  
+✎ A Zone's Summary channel still only clears at Dawn, so what is posted there has two days to be read  
+− Five Dev Panel settings nobody had ever moved: the message-wipe switch, the Desire and Catatonic master switches, auto-reconcile after a turn, and the web-only cooldown  
+✎ The channel doctor's cheap reconcile now always runs after a turn advance, rather than waiting on a switch that was off
+
+## 2026-09-07 · The Steam Automobile is gone, and a Javelin arrives
+
+− The Steam Automobile, and the banneret desire to buy one. Nobody owned one, and the Merchant no longer stocks it  
+✚ A Javelin — a Simple throwing weapon, 6 ⬢ and a turn at a forge, and it needs Ranged (Basic) to throw  
+✎ The biggest ride in the game is now a horse and cart, seating six
+
+## 2026-09-07 · Destroy is for things you own
+
+✚ You can now throw away a letter, a book, a wax seal, a helmet or a suit of armour — 119 things that were stuck to you before  
+− The Destroy button is gone from Beliefs, Torturer, Hypochondriac, Mime's Vow and Bound. Converting a Belief mid-game is a GM's to make now  
+− Green is out of the game entirely, along with the Win your first ever fight Desire that was gated on it  
+✎ Seven things stay un-binnable on purpose: the three monster corpses, the Nuclear Device and its Datacard, the grafted nerve braid, and the bolted-down crating bench
+
+## 2026-09-07 · A Faction section and browser notifications on the Play page
+
+✚ A Faction row in the places column opening your roster, with ⬢ for the Leader and Treasurer, and a way to the silo  
+✚ A Notify me button beside the bell: a browser notification when you are named and when the turn opens
+
+## 2026-09-07 · Your things, your letters and your hood on the Play page
+
+✚ A Things drawer under You: every item and asset as a chip, with Equip, Use, Give and Destroy  
+✚ A quill beside the box: Write, Seal, Bind a book, Send by bird, the sheet's own dialogs  
+✚ A hood button beside the box to conceal or show your face; the box then names your alias  
+✚ A Depot link at Customs for licence or keycard holders, and Extract on Godflesh ground
+
+## 2026-09-07 · Slash commands, member controls, search and notices on the Play page
+
+✚ Type / in the box for a command list; a chosen command becomes a chip with its own pickers: /move /travel /conceal /shout /roll /add /remove /converse /look /report  
+✚ Conversations and private rooms show their members under the name, with × and an always-visible Add button  
+✚ Search the scene from the magnifier in the header; results jump to the line  
+✚ Pinned notices sit as cards at the top of the street feed with Read and Tear  
+✚ ⌘K knows your places and the people standing with you  
+✎ The feed no longer flashes empty while it loads, and every place is prefetched  
+✎ Storage is chips built from the room's rows, and the column renders markdown instead of showing -# and **  
+− A shout on the web is heard on Discord and kept in the archive; a die cast on the web is a line on both faces
+
+## 2026-09-07 · The editor's copy pass, applied
+
+− The Teaching Skills doc no longer says the teacher has to be standing where you are  
+− The last of the ‡ marks are gone from the handbook, the documents, the roles, the Craft dialog and the player action strings
+
+## 2026-09-07 · Torture: a Torturer can break a bound character for their secrets
+
+− A Torture button on the character panel for anyone holding Torturer. Pick someone Bound standing where you are; one die, resolved on the spot, and it spends your Move  
+− A break DMs the torturer the victim's true name and face, every tag but wounds and statuses, their last three fulfilled Desires, and the Thanati roster if they led it  
+− Being tortured is +40 fear whether you break or hold, unless Pain Immunity or an Opium High numbs it. Breaking also leaves you Depressed  
+− Brave characters break on a 5 or 6, Relentless only on a 6, Craven on anything but a 1. A 1 always fails  
+− Cruel, a carried Trench Knife, and Torturing Equipment in reach are each +1 on the roll; Hungry, Afraid and Panic count against it like any Gambit  
+− Torturing Equipment: a new kit a Torturer builds from a work knife, a hatchet and a cudgel for 2 ⬢. One waits in the Order Chambers  
+− Torturer now reads "You can torture people." Every Order role but the Preacher starts with it
+
+## 2026-09-07 · The Dinner row is gone from the character sheet
+
+− The Dinner row on the character sheet. A noble who skips a proper meal finds out the way everyone finds out about fear: the status tag, and its one-line DM.
+
+## 2026-09-07 · Merge PR #23: the crafting pass — real recipes, the Move economy, custom craftables, and the recipe book
+
+✚ Recipes are enforced: every ingredient in the brewing, smithing and cooking tables is spent when the work starts  
+✚ A turn's craft Routine is a budget: small crafts share one Move in fractions, and one Routine no longer buys 99 of anything  
+✚ Custom craftables: badge, hat, painting and a cook's meals can be made as your own for +1 ⬢, and the wayside shrine takes an inscription  
+✚ A Recipes tab on /documents, and a read-only /gm/crafts desk  
+✎ Prices moved: white-honey 6, succubus 8, grenade is now Crude Grenade under Smithing, bomb needs black powder, moonshine spends a Godflesh  
+✚ Art Supplies at the Depot; four new forageables (nightshade, raven's eye, poppy pods, coca leaves) that nothing drops yet — GM grant for now
+
+## 2026-09-07 · A hidden fear dial under every character, and the phobias that sharpen it
+
+✎ Every character now carries a hidden fear dial. Nights in the wilderness or the caves, wounds, hunger, a bad Caving Die, being bound or crucified and a death nearby all raise it; a roof, the Inn, the Keep or the Sanctuary, a drink, a lavish meal, tea, a smoke, a musician's playing, a confession and a fulfilled Desire lower it.  
+✚ Five status tags show where the dial sits: Uncomfortable, Stressed, Anxious, Afraid (−1 to Gambits) and Panic (−2). A player gets one plain DM when the band changes.  
+✚ A Fear intensity knob on /gm/dev, and the dial itself shown and editable on each character's Dev Panel.  
+✎ Phobias are multipliers now: Claustrophobia doubles cave fear, Agoraphobia (new) the wilderness, Hemophobia (new) wounds, Teratophobia triples a bad Caving Die, Pyrophobia triples burns. Acrophobia is gone.  
+✎ Brave costs 5 and halves all fear. Rough Camper halves the outdoors and the caves; Outsider and Spelunker (new, 1 pt each, behind Rough Camper) cancel one of the two. Pale halves the caves.  
+− Disappointed. A noble who ends the turn without a fine or lavish meal takes fear instead, and the Merchant is Nobility now too.  
+✎ Fine meals no longer calm anyone; lavish meals do.  
+✚ Rough Camper on both Brigands, the Tribune, the Ordinator, the Fisherman, the Mercenary, the hunter kit, the Demoness and the Judge; Outsider on the Brigands, the Tribune, the Ordinator and the Judge; Brave on the Ordinator and the Judge; Spelunker on the Mercenary.  
+✚ Wilderness and Haven markers on Locations, which Examine prints.  
+✎ Also riding along from other sessions: the 71 lb carry cap, the Underquarter basements and sewer, and a fix to who may work a room's door.
+
+## 2026-09-07 · The Play page shows your turn, your Move, your state and your Desires
+
+✚ A turn card in the right column: the phase, when Moves close, and the Move you filed with an Edit button until the lock  
+✚ A status strip: ⬢, carry, and every Status or Health tag you carry  
+✚ Your Desire slots with Claim, the same as the sheet  
+✚ A Yesterday block with what last turn's close told you  
+✎ You may change a Move's kind once a turn; the die is never re-rolled by editing the text
+
+## 2026-09-07 · A Move filed from the Play page now counts
+
+✎ Filing your Move on the web left it half-made: never rolled, never applied, and it blocked filing again. It is confirmed the same way the Discord console does it now
+
+## 2026-09-07 · The Play page is usable: a real right column, travel as nodes, no more blinking
+
+✎ Your own line no longer changes text or loses its face a second after you send it  
+✎ Unread dots clear when you open a place, and a NEW line marks where you left off  
+✎ Slowmode is a countdown beside the box, not a failed send  
+✚ A place card with the Location and Zone descriptions, always visible  
+✚ Everyone standing here, hoods included, each with a look-at eye  
+✚ Storage and fixtures shown only for the room you have open, so the Intercom is only in the Council Room  
+✚ Travel is a grid of square nodes with the cost on each, tinted for a zone crossing  
+✚ Look at and Photograph on other people's lines; a GM can remove a line  
+− Who's here?, Secret rooms?, Examine and the travel dropdown  
+✎ Summary is the first place in the column
+
+## 2026-09-07 · Eight new tags, and the combat lines all read the same way
+
+✚ Four new fighting specialisations: throwing weapons, sniping, reckless attack and monster hunting  
+✚ Drunken Master, which needs Alcoholic and pays off while you are Tipsy  
+✚ Subtle: the room no longer notices that you are whispering  
+✚ Steady for deliberate hands, and Dense for a slower head  
+✎ Every combat tag now names its own tree — melee, ranged, or genuinely both — and shifts tiers in the same words  
+✎ The crossbow's skill line was garbled, and claimed the wrong tree
+
+## 2026-09-07 · A copy pass over the player-facing text
+
+✎ A reviewer's rewrite of the player documents, the handbook, the Depot and Faction pages and the action tooltips, with the grammar and punctuation tidied on the way in  
+− The ‡ draft marks from every line that reviewer read: the handbook, twelve documents, the Depot and Faction pages, the action list, the offers and dialogs, and the world's ambient lines  
+✎ Laboring, Teaching, the Sanctuary, the Treasurer's brief and the Merchant's brief all read shorter now
+
+## 2026-09-07 · The Depot opens again
+
+− Fixed: the Merchant's Depot page loaded to an error reference for everyone
+
+## 2026-09-07 · The Baroness carries her own key
+
+✚ A Baroness's Key. It opens the Baron's Chambers and nothing else  
+✎ The Baroness starts with her own key instead of the Baron's whole ring
+
+## 2026-09-07 · The Play page opens for a living character again
+
+✎ Opening /play with a living character crashed the page since the right column arrived. The people column and the place buttons were handed a character without their tags.
+
+## 2026-09-07 · A role handed out in Discord reaches the lobby within a minute
+
+✎ The lobby and the character wizard re-read your Discord roles at most a minute old, so a Playtest or Player role granted mid-session shows up on the next reload instead of five minutes later  
+✎ Ready up, Skip, and Confirm always check your current roles, so a fresh role is never refused as "not on the roster"
+
 ## 2026-09-07 · Typing, speech, mentions, the wipe, and a Scene tab for the GMs
 
 ✚ "Cersei is typing…" on the Play page, under the character's presented name, whether they type on Discord or on the web.  

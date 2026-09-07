@@ -16,7 +16,7 @@ const { TITLE_WORDS, earnedTitles } = require("./titles");
 
 // Discord caps a webhook username at 80 characters, and bot/src/lib/proxy.js
 // sends `Character.name` as-is. Slicing there would silently break
-// db/lib/dawnWipe.js, which keys its charactersByName map on the same column
+// db/lib/messageWipe.js, which keys its charactersByName map on the same column
 // and looks it up by the webhook username — so cap the *inputs* instead and
 // let the composed name be short by construction:
 //

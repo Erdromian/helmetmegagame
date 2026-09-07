@@ -1,30 +1,35 @@
-// The single source of the summed Gambit die modifier. Two contributors:
-// Hunger at -1 * min(hungerStreak, cap), and Disappointed (the Nobility
-// upkeep tag, granted/cleared around db/lib/hungerPass.js) at a flat -1.
+// The single source of the summed Gambit die modifier. Three contributors:
+// Hunger at -1 * min(hungerStreak, cap), and the top two fear bands
+// (docs/systemdocs/FEAR.md) — Afraid at a flat -1, Panic at a flat -2. The
+// two are exclusive on a sheet (db/lib/fear.js#settleFearTag keeps one band
+// row), so they never sum.
 //
 // It stays a list-returning module rather than collapsing to one number,
 // because Action.diceModifier is one Int and the confirm DM still wants the
-// contribution NAMED ("−2 Hungry"). Keeping the shape also means a second
+// contribution NAMED ("−2 Hungry"). Keeping the shape also means a new
 // contributor is an append here rather than a rewrite of five call sites —
 // which is what happened when Mood was removed and this went from two
-// contributors to one, and again when Disappointed brought it back to two.
+// contributors to one, again when Disappointed brought it back to two, and
+// again when the fear dial replaced Disappointed.
 //
 // No prisma import, so both bot/ and web/ import it by subpath.
-const { HUNGER_SLUG, DISAPPOINTED_SLUG } = require("./constants");
+const { HUNGER_SLUG, AFRAID_SLUG, PANIC_SLUG } = require("./constants");
 const { HUNGER_STREAK_CAP } = require("./hungerPass");
 
 const HUNGER_LABEL = "Hungry";
-const DISAPPOINTED_LABEL = "Disappointed";
-const DISAPPOINTED_MODIFIER = -1;
+const AFRAID_LABEL = "Afraid";
+const AFRAID_MODIFIER = -1;
+const PANIC_LABEL = "Panicking";
+const PANIC_MODIFIER = -2;
 
 // Accepts the CharacterTag[] shape used everywhere else in the app
 // (`{ tag: { slug } }`), and tolerates a bare Tag[].
-function hasHunger(characterTags = []) {
-  return characterTags.some((ct) => (ct?.tag?.slug ?? ct?.slug) === HUNGER_SLUG);
+function holds(characterTags, slug) {
+  return (characterTags ?? []).some((ct) => (ct?.tag?.slug ?? ct?.slug) === slug);
 }
 
-function hasDisappointed(characterTags = []) {
-  return characterTags.some((ct) => (ct?.tag?.slug ?? ct?.slug) === DISAPPOINTED_SLUG);
+function hasHunger(characterTags = []) {
+  return holds(characterTags, HUNGER_SLUG);
 }
 
 // The escalating half of the Hunger penalty: -1 per consecutive hungry turn
@@ -49,8 +54,11 @@ function gambitModifiers(characterTags = [], { hungerStreak = 0 } = {}) {
 
   if (hasHunger(characterTags)) out.push({ label: HUNGER_LABEL, value: hungerModifier(hungerStreak) });
 
-  if (hasDisappointed(characterTags)) {
-    out.push({ label: DISAPPOINTED_LABEL, value: DISAPPOINTED_MODIFIER });
+  // Panic outranks Afraid if a GM grant ever puts both on one sheet.
+  if (holds(characterTags, PANIC_SLUG)) {
+    out.push({ label: PANIC_LABEL, value: PANIC_MODIFIER });
+  } else if (holds(characterTags, AFRAID_SLUG)) {
+    out.push({ label: AFRAID_LABEL, value: AFRAID_MODIFIER });
   }
 
   return out;

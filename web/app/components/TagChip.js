@@ -111,7 +111,7 @@ export default function TagChip({
         </button>
       )}
       <dl className="tag-meta">
-        {duration && <Meta label={duration.armed ? "Armed ‡" : "Expires"}>{duration.label}</Meta>}
+        {duration && <Meta label={duration.armed ? "Armed" : "Expires"}>{duration.label}</Meta>}
         {/* Reinforcement, not the only warning — every tag that gets worse
             says so in its own description too. This is the precise version.
             inTooltip: this text is rendered inside a HoverCard panel (this

@@ -26,6 +26,14 @@
 // only that one of them is heavier news than the others.
 
 const { DEPOT_KEYCARD_SLUG } = require("./depotState");
+const { PACKAGE_MAX_LBS, PACKAGE_MAX_UNITS } = require("./constants");
+
+// A crated ⬢ weighs a pound, so ⬢ pack against the same weight rule as
+// everything else and ride in a crate alongside other goods. Loose on a sheet
+// they weigh nothing at all and count against carryResourceCap instead
+// (docs/systemdocs/CARRY.md §1) — this is freight, and the two axes never
+// double-count the same ⬢.
+const RESOURCE_UNIT_LBS = 1;
 
 // Moderate. You can carry a couple; clearing a real shipment is several trips
 // or several people. See docs/systemdocs/CARRY.md for the ladder this sits on.
@@ -37,18 +45,30 @@ const { DEPOT_KEYCARD_SLUG } = require("./depotState");
 //
 // Rounded UP, and never below 1: an empty-ish crate of weightless things is
 // still a wooden box.
-function crateWeight(contents, weightByTagId) {
-  const inner = (contents ?? []).reduce(
-    (sum, line) => sum + (weightByTagId?.get?.(line.tagId) ?? 0) * (line.quantity ?? 1),
-    0,
-  );
+// `resources` defaults to 0 because the player-facing Package button calls
+// this too (packageItemsRequestImpl), and a player crate can never hold ⬢.
+function crateWeight(contents, weightByTagId, resources = 0) {
+  const inner =
+    (contents ?? []).reduce(
+      (sum, line) => sum + (weightByTagId?.get?.(line.tagId) ?? 0) * (line.quantity ?? 1),
+      0,
+    ) + (resources ?? 0) * RESOURCE_UNIT_LBS;
   return Math.max(1, Math.ceil(inner / 2));
 }
 
-// How many units of goods go in one crate, before the random split. Small
-// enough that a big order arrives as a genuine pallet of work.
-const CRATE_MIN_UNITS = 3;
-const CRATE_MAX_UNITS = 8;
+// A crate is a BOX, so what fits in one is a question about weight, not about
+// how many things you counted. It used to hold 3-8 units of anything, which
+// made a crate of tea and a crate of anvils the same size and burst an order
+// of ⬢ into eleven boxes.
+//
+// PACKAGE_MAX_LBS is the player Package button's cap, reused deliberately:
+// FACTORY.md §5 already says a Depot shipment and a hand-packed crate obey one
+// arithmetic, and now that is true of the ceiling as well as the halving.
+//
+// PACKAGE_MAX_UNITS is the second cap, and it exists because the weight cap
+// does not bound the weightless. Eight Depot wares weigh 0 lb — paper,
+// cigarettes, jewelry, spectacles and the four animals — so without it a paper
+// order packs into one crate however large it is.
 
 // A shipment never becomes more crates than this, however large the order —
 // otherwise a Merchant with 200 obols could bury the landing pad in tag rows.
@@ -83,56 +103,81 @@ function shuffle(list, rng = Math.random) {
 // shuffled, so a crate holds a random handful rather than one tidy line item,
 // and a crate holding any sealed unit becomes a sealed crate.
 //
-// Returns `[{ sealed, contents: [{ tagId, name, quantity }] }]`. Total units
-// out always equals total units in — the split loses nothing, which matters
-// because the Merchant has already paid for all of it.
-function splitIntoCrates(items = [], rng = Math.random) {
+// A line with NO `tagId` is Resources — the station ships ⬢ like anything
+// else. One ⬢ is one unit through the shuffle weighing RESOURCE_UNIT_LBS, so
+// they mix in with the goods, and the aggregation below collects them under
+// the null key and lifts them onto the crate as a plain number.
+//
+// Packing is by WEIGHT: units go into the open crate until adding one more
+// would put it over PACKAGE_MAX_LBS of contents or over PACKAGE_MAX_UNITS
+// things, and then a new crate opens. That is what makes a crate a box rather
+// than a counter — 99 tea in one, an anvil most of the way through another.
+//
+// Returns `[{ sealed, resources, contents: [{ tagId, name, quantity }] }]`.
+// Total units out always equals total units in — the split loses nothing,
+// which matters because the Merchant has already paid for all of it.
+function splitIntoCrates(items = [], { weightByTagId, rng = Math.random } = {}) {
   const units = [];
   for (const item of items) {
     const n = Math.max(0, Math.floor(item?.quantity ?? 0));
+    // A resources line carries no tagId and weighs a pound a unit; everything
+    // else weighs whatever the catalog says.
+    const lbs =
+      item?.tagId == null ? RESOURCE_UNIT_LBS : (weightByTagId?.get?.(item.tagId) ?? 0);
     for (let i = 0; i < n; i++) {
-      units.push({ tagId: item.tagId, name: item.name, sealed: Boolean(item.sealed) });
+      units.push({ tagId: item.tagId ?? null, name: item.name, sealed: Boolean(item.sealed), lbs });
     }
   }
   if (!units.length) return [];
 
   const shuffled = shuffle(units, rng);
 
-  // Aim for a crate size in the band, but never exceed MAX_CRATES — a huge
-  // order just means fuller crates.
-  const perCrate = Math.max(
-    CRATE_MIN_UNITS,
-    Math.ceil(shuffled.length / MAX_CRATES),
-  );
+  // A huge order does not become a hundred crates — past MAX_CRATES the last
+  // one just keeps filling. Overfull beats burying the landing pad in rows.
+  const slices = [];
+  let current = null;
+  for (const unit of shuffled) {
+    const last = slices.length >= MAX_CRATES;
+    const full =
+      current &&
+      !last &&
+      // The first unit always goes in, whatever it weighs. Without this a
+      // single ware heavier than the cap would never fit anywhere and the
+      // loop would not terminate. Nothing in the catalog is that heavy today
+      // — the worst is workshop-equipment at 100 lb — but that is a fact
+      // about the data, not something to rest a loop on.
+      (current.lbs + unit.lbs > PACKAGE_MAX_LBS ||
+        current.units.length + 1 > PACKAGE_MAX_UNITS);
+    if (!current || full) {
+      current = { lbs: 0, units: [] };
+      slices.push(current);
+    }
+    current.lbs += unit.lbs;
+    current.units.push(unit);
+  }
 
-  const crates = [];
-  let i = 0;
-  while (i < shuffled.length) {
-    const remaining = shuffled.length - i;
-    const span = Math.min(
-      remaining,
-      perCrate + Math.floor(rng() * Math.max(1, CRATE_MAX_UNITS - perCrate + 1)),
-    );
-    const slice = shuffled.slice(i, i + span);
-    i += span;
-
+  return slices.map((slice) => {
     // Re-aggregate the units back into countable line items, preserving the
     // order they came out of the shuffle so the printed manifest looks packed
     // rather than sorted.
     const byTag = new Map();
-    for (const unit of slice) {
+    let resources = 0;
+    for (const unit of slice.units) {
+      if (unit.tagId == null) {
+        resources += 1;
+        continue;
+      }
       const row = byTag.get(unit.tagId);
       if (row) row.quantity += 1;
       else byTag.set(unit.tagId, { tagId: unit.tagId, name: unit.name, quantity: 1 });
     }
 
-    crates.push({
-      sealed: slice.some((u) => u.sealed),
+    return {
+      sealed: slice.units.some((u) => u.sealed),
+      resources,
       contents: [...byTag.values()],
-    });
-  }
-
-  return crates;
+    };
+  });
 }
 
 // The line printed on the crate. Bascinet's format exactly: a bare name for a
@@ -142,6 +187,9 @@ function crateDescription(shipment, crate) {
   const parts = (crate?.contents ?? []).map((c) =>
     c.quantity > 1 ? `${c.name} x ${c.quantity}` : c.name,
   );
+  // ⬢ ride the manifest in the same shape as everything else, so a crate of
+  // them reads "Resources x 40" rather than looking empty.
+  if (crate?.resources > 0) parts.push(`Resources x ${crate.resources}`);
   return `[SHIPMENT ID ${shipment}]: ${parts.join(" | ")}`;
 }
 
@@ -181,9 +229,16 @@ function crateTagData(shipment, crates, { groupId = null, weightByTagId = new Ma
     pointCost: 0,
     tradeable: true,
     stackable: false,
-    weightLbs: crateWeight(crate.contents, weightByTagId),
+    weightLbs: crateWeight(crate.contents, weightByTagId, crate.resources),
     removable: true,
     sealedShipping: crate.sealed,
+    // A crate is opened by CONSUMING it, the same verb as anything else on
+    // the sheet — there is no Open button on /depot any more. canOpenCrate
+    // below is still the gate, re-checked inside that consume path.
+    consumable: true,
+    // ⬢ in the crate. The ordinary consume path already grants this field, so
+    // the Resources half of a shipment needs no special case downstream.
+    consumesIntoResources: crate.resources > 0 ? crate.resources : null,
     // What falls out when it is opened. Read by the crate-open action; nothing
     // else looks at it.
     crateContents: crate.contents,
@@ -191,6 +246,7 @@ function crateTagData(shipment, crates, { groupId = null, weightByTagId = new Ma
 }
 
 module.exports = {
+  RESOURCE_UNIT_LBS,
   shipmentId,
   splitIntoCrates,
   crateTagData,

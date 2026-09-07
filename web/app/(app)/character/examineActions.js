@@ -11,11 +11,9 @@ import { getMyFactionRole } from "@lifeweb/db/lib/factionPermissions";
 import { forcedNameFrom } from "@lifeweb/db/lib/presentedIdentity";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
 
-// Examine — looking at somebody standing where you stand. The second control
-// on the Actions grid that files no Request (see ReadDialog.js for the first):
-// it moves nothing, costs nothing, spends no Move and can be done as often as
-// you like, because reading a room is not an act. Nothing is undoable because
-// nothing was done.
+// Examine — looking at somebody standing where you stand. It moves nothing,
+// costs nothing, spends no Move and can be done as often as you like, because
+// reading a room is not an act, so it writes no audit row at all.
 //
 // It exists because 🔍 hangs off a proxied message, so until now you could
 // only look at someone who had SPOKEN. That was never a hiding rule, just a
@@ -47,7 +45,7 @@ async function looker() {
       location: { select: { indoors: true } },
     },
   });
-  if (!me) throw new UserError("No living character. ‡");
+  if (!me) throw new UserError("No living character.");
   return me;
 }
 
@@ -133,7 +131,7 @@ export async function examineCharacter(targetId) {
       where: { id: targetId ?? "", status: "ALIVE", locationId: me.locationId ?? "", NOT: { id: me.id } },
       select: EXAMINE_SUBJECT_SELECT,
     });
-    if (!subject) throw new UserError("They aren't here. ‡");
+    if (!subject) throw new UserError("They aren't here.");
 
     const [openTurn, skillCatalog] = await Promise.all([
       prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),

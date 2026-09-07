@@ -6,7 +6,7 @@ import { prisma } from "@lifeweb/db";
 import { readBlock } from "@lifeweb/db/lib/reading";
 import {
   PAPER_SLUG,
-  BOOK_SHEETS,
+  BLANK_BOOK_SLUG,
   WRITE_MAX,
   BOOK_MAX,
   TITLE_MAX,
@@ -15,7 +15,7 @@ import {
   isSeal,
   paperDescription,
 } from "@lifeweb/db/lib/paper";
-import { writeNewPaper, appendToPaper, sealPaper, bindBook, tearUpBook } from "@lifeweb/db/lib/paperMint";
+import { writeNewPaper, appendToPaper, sealPaper, bindBook } from "@lifeweb/db/lib/paperMint";
 import {
   CONCEALMENT_TAG_FIELDS,
   concealmentFrom,
@@ -85,7 +85,7 @@ async function requireWriter({ needs = null } = {}) {
 
   if (needs) {
     const blocker = blockerFor(character.tags, needs);
-    if (blocker) throw new UserError(`You can't do that right now — you're ${blocker.name}. ‡`);
+    if (blocker) throw new UserError(`You can't do that right now. You're ${blocker.name}.`);
   }
 
   const turn = await prisma.turn.findFirst({
@@ -119,26 +119,47 @@ function writerName(character) {
   }).name;
 }
 
-async function writePaperImpl({ tagId: rawTagId, text: rawText }) {
+async function writePaperImpl({ tagId: rawTagId, text: rawText, title: rawTitle }) {
   const { character, where } = await requireWriter({ needs: ACT });
 
   if (readBlock(character.tags, where)) {
     // The same sentence a paper shows a reader who can't read it. Saying
     // WHICH of letters or eyes stopped them would leak a condition.
-    throw new UserError("You can't read this. ‡");
+    throw new UserError("You can't read this.");
   }
-
-  const text = String(rawText ?? "").trim().slice(0, WRITE_MAX);
-  if (!text) throw new UserError("Write something first. ‡");
 
   const targetId = String(rawTagId ?? "");
   const held = character.tags.find((ct) => ct.tagId === targetId);
-  if (!held) throw new UserError("You aren't holding that. ‡");
+  if (!held) throw new UserError("You aren't holding that.");
+
+  // A book holds six times what a sheet does, and it is the whole thing in one
+  // pass — there is no second visit to add a chapter.
+  const writingBook = held.tag.slug === BLANK_BOOK_SLUG;
+  const text = String(rawText ?? "").trim().slice(0, writingBook ? BOOK_MAX : WRITE_MAX);
+  if (!text) throw new UserError("Write something first.");
+
+  // Only a book takes one: a sheet's Tag.name is a deliberately anonymous
+  // waybill code (db/lib/paper.js#paperName), a book's is its title on a shelf.
+  const title = writingBook ? String(rawTitle ?? "").trim().slice(0, TITLE_MAX) : null;
+  if (writingBook && !title) throw new UserError("Give it a title first.");
 
   const hand = writerName(character);
 
   let result;
   await prisma.$transaction(async (tx) => {
+    // A blank book becomes a written one. Locked and re-counted inside the
+    // transaction for the reason dropCharacterTag makes necessary: it CLAMPS
+    // rather than failing, so two submits a millisecond apart would both pass
+    // a check made outside and the second would mint a free book.
+    if (writingBook) {
+      const [locked] = await tx.$queryRaw`
+        SELECT "quantity" FROM "CharacterTag"
+        WHERE "characterId" = ${character.id} AND "tagId" = ${held.tagId}
+        FOR UPDATE`;
+      if (!locked || locked.quantity < 1) throw new UserError("You aren't holding that.");
+      result = await bindBook(tx, { id: character.id, name: hand }, held.tagId, title, text);
+      return;
+    }
     // A blank sheet becomes a written one: a unit off the stack, a new row.
     if (held.tag.slug === PAPER_SLUG) {
       result = await writeNewPaper(tx, { id: character.id, name: hand }, held.tagId, text);
@@ -151,94 +172,19 @@ async function writePaperImpl({ tagId: rawTagId, text: rawText }) {
       return;
     }
     if (held.tag.paperKind === "SEALED") {
-      throw new UserError("It's sealed. Break the seal first. ‡");
+      throw new UserError("It's sealed. Break the seal first.");
     }
     // The one rule a book has that a sheet does not. What is bound in is what
     // it says; there is no page left to add.
     if (isBook(held.tag)) {
-      throw new UserError("It's bound. You'd have to tear it up and start again. ‡");
+      throw new UserError("It's bound. You'd have to tear it up and start again.");
     }
-    throw new UserError("You can't write on that. ‡");
+    throw new UserError("You can't write on that.");
   });
 
   await afterInventoryChange([character.id]);
   revalidateAll();
   return { name: result.name, tagId: result.id };
-}
-
-// Binding. Ten blank sheets go in, one book comes out, and the text is fixed
-// at that moment — see bindBook in db/lib/paperMint.js for why.
-//
-// Files no Request, for the same reason writing files none: it costs no Move
-// and there is nothing to adjudicate. It DOES need literacy, unlike sealing —
-// you are writing the whole thing in one pass.
-async function bindBookImpl({ title: rawTitle, text: rawText }) {
-  const { character, where } = await requireWriter({ needs: ACT });
-
-  if (readBlock(character.tags, where)) {
-    throw new UserError("You can't read this. ‡");
-  }
-
-  const title = String(rawTitle ?? "").trim().slice(0, TITLE_MAX);
-  if (!title) throw new UserError("Give it a title first. ‡");
-
-  const text = String(rawText ?? "").trim().slice(0, BOOK_MAX);
-  if (!text) throw new UserError("Write something first. ‡");
-
-  // The snapshot only decides whether to bother. The count that matters is
-  // re-read under a row lock below.
-  const blank = character.tags.find((ct) => ct.tag.slug === PAPER_SLUG);
-  if (!blank || (blank.quantity ?? 0) < BOOK_SHEETS) {
-    throw new UserError(`You need ${BOOK_SHEETS} sheets of blank paper to bind a book. ‡`);
-  }
-
-  const hand = writerName(character);
-
-  let book;
-  await prisma.$transaction(async (tx) => {
-    // Ten sheets is a big enough stake to race for, and dropCharacterTag
-    // CLAMPS rather than failing — it deletes the row and returns quietly when
-    // you ask for more than is there. So two submits a millisecond apart would
-    // both pass a check made outside the transaction, and the second would
-    // mint a free book off a stack the first already spent. Lock the holding
-    // and re-count inside, the same shape handleGateToggle uses for a gate.
-    const [locked] = await tx.$queryRaw`
-      SELECT "quantity" FROM "CharacterTag"
-      WHERE "characterId" = ${character.id} AND "tagId" = ${blank.tagId}
-      FOR UPDATE`;
-    if (!locked || locked.quantity < BOOK_SHEETS) {
-      throw new UserError(`You need ${BOOK_SHEETS} sheets of blank paper to bind a book. ‡`);
-    }
-    book = await bindBook(tx, { id: character.id, name: hand }, blank.tagId, title, text);
-  });
-
-  await afterInventoryChange([character.id]);
-  revalidateAll();
-  return { name: book.name, tagId: book.id };
-}
-
-// The other direction. Needs no literacy at all — tearing a book apart is not
-// reading it, and an illiterate thief pulping the Library is a thing the game
-// should let happen.
-async function tearUpBookImpl({ tagId: rawTagId }) {
-  const { character } = await requireWriter({ needs: ACT });
-
-  const held = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));
-  if (!held) throw new UserError("You aren't holding that. ‡");
-  if (!isBook(held.tag)) throw new UserError("That isn't a book. ‡");
-
-  // Looked up rather than read off the character: somebody tearing up their
-  // only book may well be holding no blank paper at all.
-  const blank = await prisma.tag.findUnique({ where: { slug: PAPER_SLUG }, select: { id: true } });
-  if (!blank) throw new UserError("There's no paper in the catalog to tear it into. ‡");
-
-  await prisma.$transaction(async (tx) => {
-    await tearUpBook(tx, character.id, held.tag, blank.id);
-  });
-
-  await afterInventoryChange([character.id]);
-  revalidateAll();
-  return { name: held.tag.name, sheets: BOOK_SHEETS };
 }
 
 async function sealLetterImpl({ tagId: rawTagId, stampTagId: rawStampId }) {
@@ -247,14 +193,14 @@ async function sealLetterImpl({ tagId: rawTagId, stampTagId: rawStampId }) {
   const paperRow = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));
   const stampRow = character.tags.find((ct) => ct.tagId === String(rawStampId ?? ""));
 
-  if (!paperRow || !stampRow) throw new UserError("You aren't holding that. ‡");
-  if (!isSeal(stampRow.tag)) throw new UserError("That isn't a wax stamp. ‡");
+  if (!paperRow || !stampRow) throw new UserError("You aren't holding that.");
+  if (!isSeal(stampRow.tag)) throw new UserError("That isn't a wax stamp.");
   if (!isPaper(paperRow.tag) || paperRow.tag.paperKind !== "PAPER") {
-    throw new UserError("That isn't a letter you can seal. ‡");
+    throw new UserError("That isn't a letter you can seal.");
   }
   // A blank sheet folded shut is a joke, not a letter, and it would put an
   // unreadable "Blank paper" behind a seal somebody has to break to find out.
-  if (!(paperRow.tag.paperText ?? "").trim()) throw new UserError("There's nothing written on it. ‡");
+  if (!(paperRow.tag.paperText ?? "").trim()) throw new UserError("There's nothing written on it.");
 
   // Sealing does not need literacy — pressing wax into a fold is not reading —
   // but it does need the paper, and holding it is the check.
@@ -278,14 +224,6 @@ export async function sealLetter(input) {
   return guarded(() => sealLetterImpl(input));
 }
 
-export async function bindABook(input) {
-  return guarded(() => bindBookImpl(input));
-}
-
-export async function tearUpABook(input) {
-  return guarded(() => tearUpBookImpl(input));
-}
-
 // What the Write dialog needs that the sheet does not already hold: the text
 // of a paper the caller can read, so the box can show it above the cursor.
 // Composed through paperDescription so a reader who has since gone blind, or
@@ -293,7 +231,7 @@ export async function tearUpABook(input) {
 export async function readMyPaper(rawTagId) {
   const { character, where } = await requireWriter();
   const held = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));
-  if (!held || !isPaper(held.tag)) return { ok: false, error: "You aren't holding that. ‡" };
+  if (!held || !isPaper(held.tag)) return { ok: false, error: "You aren't holding that." };
   return {
     ok: true,
     text: paperDescription(held.tag, { tags: character.tags, ...where }),

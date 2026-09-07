@@ -104,7 +104,7 @@ reason.
 | `TRANSFER_RESOURCES` | Moves ⬢ from you or a Room stash at your Location to a person at your Location or a Room stash there (`CARRY.md`). Nothing is ever pulled off a living person — Loot is the only way to take from someone. `direction: "LOOT"` pulls ⬢ off a corpse in the same room | — | Reverses the movement |
 | `ADD_TAG` | Craft: makes a tag whose `requirement.skills` you hold, charging its `resourceCost` up front to a payer — yourself, a Room stash here, or a person here (`CRAFTING.md`). `turnsCost` 0 is Dead Simple (no Move, rationed per turn); 1 is this turn's Routine; 2+ opens a `CraftProject`, continued from the same dialog. Stackable tags take a quantity and stay on the menu once held. Desk label: **Craft** | cost; remove what this request added | Drops what it added, refunds the cost, marks any project CANCELLED |
 | `BUY_TAGS` | Checks out a whole `/store` cart with Tag Points — one request per cart, `effect.items` listing every tag | — | Returns every tag in the cart, refunds the points |
-| `REMOVE_TAG` | Destroy: drops one of their own `removable` tags, no ⬢ field and nothing refunded, in a quantity if it stacks. A tag with `removesInto` leaves its treated form behind (`TAGS.md` §5c). Health tags are no longer `removable` — a wound is healed, not thrown away. Desk label: **Destroy** | — | Restores the tag and its count, takes back the aftermath it granted |
+| `REMOVE_TAG` | Destroy: drops one of their own items, no ⬢ field and nothing refunded, in a quantity if it stacks. `Tag.removable` is derived from the category — Items and Assets only (`CRAFTING.md` §5) — so a Health tag is healed rather than thrown away, and a Belief cannot be dropped at all. A tag with `removesInto` leaves its treated form behind (`TAGS.md` §5c). Desk label: **Destroy** | — | Restores the tag and its count, takes back the aftermath it granted |
 | `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
 | `TRANSFER_TAG` | Hands an Item or Asset from you or a Room stash to a person at your Location or a Room stash there, in a quantity if it stacks. Nothing is ever taken from another person this way. The merged Transfer dialog files one of these per tag line (`CARRY.md` §6). `direction: "LOOT"` lifts one off a corpse at your Location | — | Moves that many back to where they came from |
 | `FULFILL_DESIRE` | Claims one active, slotted Desire (`desireId`, not "the" active one — a character can hold several at once, one per slot) | Tag Points awarded | Revokes the points and reopens the *row*. Because a GM Fulfil/Cancel operates on a specific `desireId` rather than "whatever's in the slot now," an Undo is safe even after a new Desire has since been set in that same slot — it only ever touches the row it snapshotted, never the slot's current occupant |
@@ -118,6 +118,7 @@ reason.
 | `BIND_CHARACTER` | Ties up anyone at their Location who isn't concealed. A conscious, unhelpless target must accept an Offer first (`LESSONS.md` §3b); a target who is dead or already holds an incapacitating tag is bound on the spot | — | Cuts them loose |
 | `FREE_CHARACTER` | Cuts someone in their zone loose | — | Puts Bound back with its original expiry |
 | `CRUCIFY_CHARACTER` | Puts the `crucified` status on anyone standing at their Location. Needs the `fundamentalist` tag and a `COMPLETE` `crucifix` Structure standing there. **No consent and no Move** — the cross is the gate. Crucified blocks ACT and not SPEAK (`TAGS.md` §5f), becomes Dying at the close of the turn, and the Dying pass kills at the next | — | Drops `crucified`. After the close only Dying is left, and Undo leaves it — heal that |
+| `TORTURE_CHARACTER` | A Torturer works on someone Bound and standing here. One d6 resolved on the spot (`TORTURE.md`): a break DMs the torturer every tag but wounds and statuses, the last three Desires and, off a Thanati Leader, the cult roster, and puts Depressed on the victim; either way the victim takes +40 fear and the torturer's Move is spent as an auto-Routine | — | Take Depressed off from `/gm/dev`; the fear is a dial edit. Reject the Action to give the Move back |
 | `HARM_CHARACTER` | Inflicts a Health affliction on someone already helpless, **kills** them, or both — see §5b | — | Heals what was inflicted; never revives |
 | `BURY_CHARACTER` | Puts a body into the ground, lifting the **Cursed** role off the dead player's Discord account. Needs their **actual corpse tag**, held or reachable in a room here, and spends the filer's Move | — | Raises the body and puts the corpse back where it came from; does **not** re-curse, and the Move stays spent |
 | `ENGRAVE_HEADSTONE` | Frees a soul with a stone instead of a body, for **4 ⬢** and the filer's Move. Target is **typed**, first name only, matched **game-wide**. Leaves a `{name}'s Headstone` tag | — | Refunds the ⬢, takes the stone, reopens the grave; does **not** re-curse |
@@ -263,8 +264,8 @@ Three notes on deliberate choices:
 
 Hunger is the Needs layer, and the only thing that modifies a Gambit die.
 
-It is a `hungry` Status tag (`docs/tags.yaml`, `durationTurns: 1`,
-`purchasable`/`removable` false). Its penalty is not flat — it escalates with
+It is a `hungry` Status tag (`docs/tags.yaml`, `durationTurns: 1`, not
+`purchasable`, and not destroyable — Status never is). Its penalty is not flat — it escalates with
 `Character.hungerStreak`, a plain Int column counting consecutive turns closed
 hungry.
 
@@ -382,7 +383,7 @@ clears. A quiet −1 ⬢ sends nothing.
 streak changed from eating, carrying `discordUserId`, a `kind` (`starved` /
 `recovering` / `recovered`), the already-clamped `streak`, and `justDied` —
 and the sending happens in `advanceTurn()`'s `runSideEffects()` thunk,
-alongside the turn announcement and the Dawn wipe. The pass is therefore two
+alongside the turn announcement and the message wipe. The pass is therefore two
 reads and several bulk writes with no network call in it at all — which
 matters because at 100+ players the DMs are
 sequential Discord round-trips *per starving character*, and awaiting that
@@ -464,11 +465,10 @@ is their problem, not a GM's. The same "even into negative" posture applies
 by adjudication, not code, to curing an Addiction or Restriction tag —
 `DESIRES.md` §7's clawback rule.
 
-`GameConfig.desiresEnabled` is the Dev Panel switch that closes the faucet
-without freezing what's already in flight: off blocks `setDesire` (checked
-server-side in `setDesireImpl`, not just hidden in the UI) so nobody can
-start a **new** Desire, but an already-`ACTIVE` one in any slot can still be
-fulfilled or cancelled — the system drains out rather than stopping
+`GameConfig.desiresEnabled` used to be a Dev Panel switch that closed the
+faucet without freezing what was already in flight. It was deleted in the
+2026-09-07 config trim, unused — Desires are the only way Tag Points are
+earned in play, so closing them stops
 mid-goal. `/character` greys the "set a new Desire" form and shows
 "Temporarily disabled." in its place. Unaffected: `setDesireGm`/`endDesireGm`
 on the Dev Panel (host access, not game permission — same split
@@ -763,7 +763,7 @@ a revived character is never a live person marked buried.
 **Fast Travel is retired as a Request, and its mechanic has moved.** There is
 no `fastTravelRequestImpl` any more, no `FAST_TRAVEL` row is ever written, and
 `Character.fastTravelTurnId` is gone from the schema. What the `horse` and
-`steam-automobile` tags promise is now part of ordinary travel: an **equipped**
+`motorcycle` tags promise is now part of ordinary travel: an **equipped**
 mount adds one to the free-zone-move allowance every character gets each turn,
 and it refreshes each turn rather than once a day. See [`CARRY.md`](CARRY.md)
 §2a for the allowance and [`MAP.md`](MAP.md) for the crossing itself.
@@ -926,7 +926,7 @@ All obol-denominated, all moving `Depot.accountObols` rather than anyone's
 `Character.resources`. They are audit `actionType`s now
 (`request_depot_order`, `request_depot_atm`, `request_depot_credit`,
 `request_depot_crate_open`, `request_depot_refuel`,
-`request_depot_shuttle_call` / `_send`, `request_depot_exchange`), and the
+`request_depot_shuttle_call` / `_send`), and the
 Depot's own visible Ledger on `/depot` is built by reading exactly that set
 back out of `AuditLog` — `DEPOT_LEDGER_KINDS` in `web/app/(app)/depot/page.js`
 is the one list, so a new depot verb has to be added there or it moves obols

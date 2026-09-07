@@ -1,18 +1,25 @@
 import { redirect } from "next/navigation";
-import { prisma, feedRowShape, FEED_ROW_SELECT } from "@lifeweb/db";
-import { feedWipeFloor, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
+import { prisma, FEED_ROW_SELECT } from "@lifeweb/db";
+import { withAvatarVersions } from "@lifeweb/db/lib/archive";
+import { feedWipeFloors, floorForPlace, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 import EmptyState from "@/app/components/EmptyState";
 import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
-import { linksFor } from "@lifeweb/db/lib/locationGraph";
+import { examineLines } from "@lifeweb/db/lib/examineLocation";
+import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
-import { loadPeoplePools } from "@/lib/peoplePools";
+import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import RequestActionsProvider from "@/app/components/RequestActionsProvider";
 import CharacterMentionsProvider from "@/app/components/CharacterMentionsProvider";
 import Hall from "./Hall";
-import { waitingOnYou } from "./actions";
+import { waitingOnYou, myMove } from "./actions";
+import { loadDesireView, loadLettersView, loadFactionView } from "@/lib/selfPools";
+import { thingGroups } from "./thingRows";
+import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
+import { extractToolFor } from "@lifeweb/db/lib/godflesh";
+import { MERCHANT_LICENSE_SLUG, DEPOT_LOCATION_SLUG, DEPOT_KEYCARD_SLUG } from "@lifeweb/db";
 
 // /play — the Hall. Three columns on a desktop, one on a phone: everywhere
 // this character can hear on the left, the open scene in the middle, and (in
@@ -47,7 +54,7 @@ export default async function PlayPage() {
     return (
       <div className="hall-body hall-body--empty">
         <div className="panel">
-          <EmptyState>You are nowhere yet. ‡</EmptyState>
+          <EmptyState>You are nowhere yet.</EmptyState>
         </div>
       </div>
     );
@@ -58,11 +65,16 @@ export default async function PlayPage() {
   // happened while the page was loading, across every place at once — asking
   // from this place's own newest would have replayed every other place's whole
   // backlog down the stream.
-  // The Dawn watermark, read before the rows so the first paint and the
+  // The wipe watermarks, read before the rows so the first paint and the
   // stream's catch-up agree about where the day starts (db/lib/feedWipe.js).
-  const floor = await feedWipeFloor(prisma);
+  // Two of them: a zone summary clears at Dawn, everywhere else every turn.
+  const floors = await feedWipeFloors(prisma);
+  const floor = floorForPlace(floors, first.placeKey);
 
-  const [rows, watermark, forcedName, concealment] = await Promise.all([
+  // GameConfig is read out here rather than inside the aside below, because
+  // the composer needs one field off it (tupperAutocorrectEnabled) and a GM
+  // watching a zone has no aside to have loaded it.
+  const [rows, watermark, forcedName, concealment, gameConfig] = await Promise.all([
     prisma.archiveEntry.findMany({
       where: { placeKey: first.placeKey, deletedAt: null, seq: seqFilterAbove(floor) },
       orderBy: { seq: "desc" },
@@ -72,7 +84,13 @@ export default async function PlayPage() {
     prisma.archiveEntry.aggregate({ _max: { seq: true } }),
     viewer.character ? loadForcedName(prisma, viewer.character.id) : null,
     viewer.character ? loadConcealment(prisma, viewer.character.id) : null,
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
   ]);
+
+  // The first paint's rows, with ONE `?v=` per character rather than the
+  // per-row sentAt fallback — otherwise every line asked for the same face at
+  // a different URL (db/lib/archive.js#withAvatarVersions).
+  const initialRows = await withAvatarVersions(prisma, rows.reverse());
 
   // The name this character's own optimistic rows wear before the server
   // answers — forced beats concealed beats their own, the same resolution the
@@ -90,49 +108,151 @@ export default async function PlayPage() {
   // nobody to act on and no Move to file. They get the feed and no column.
   const aside = viewer.character
     ? await (async () => {
-        const [people, affordances, links, waiting, pools] = await Promise.all([
-          whosHere(prisma, viewer.character),
-          affordancesFor(prisma, viewer.character),
-          viewer.character.locationId ? linksFor(prisma, viewer.character.locationId) : [],
-          waitingOnYou(),
-          // The people dialogs the sheet has, over the same pools the sheet
-          // builds (web/lib/peoplePools.js) so the two cannot disagree about
-          // who is standing near you.
-          loadPeoplePools(viewer.character, {
-            discordUserId: viewer.discordUserId,
-            openTurn: await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, phase: true } }),
-          }),
-        ]);
-        // What this character is carrying, and what it weighs against their
-        // cap — the Transfer dialog projects a hand-over off both, and an
-        // empty pair would offer nothing to give away.
-        const [sheet, gameConfig] = await Promise.all([
+        // The sheet FIRST. The viewer loader is shared with every feed route
+        // and selects no tags, but the people pools, the affordances and the
+        // carry line all read character.tags (and the role, for the gate) —
+        // the page once handed them the bare viewer and fell over on the
+        // first living character it met.
+        const [sheet, openTurn] = await Promise.all([
           prisma.character.findUnique({
             where: { id: viewer.character.id },
             select: {
               resources: true,
-              tags: { select: { tagId: true, quantity: true, equipped: true, tag: true } },
+              // `id` is the CharacterTag row, which is what an equip toggle
+              // acts on; the Things drawer is the only thing here that needs
+              // one (./thingRows.js).
+              tags: { select: { id: true, tagId: true, quantity: true, equipped: true, tag: true } },
+              role: { select: { slug: true } },
+              // Which in-game DAY the bird last left on
+              // (docs/systemdocs/PAPERWORK.md §Bird).
+              birdTurnId: true,
             },
           }),
-          prisma.gameConfig.findUnique({ where: { id: 1 } }),
+          prisma.turn.findFirst({
+            where: { status: "OPEN" },
+            // `number` for the Desire gates and the turn card's label,
+            // `startedAt` for the Move window (db/lib/turnClock.js).
+            select: { id: true, number: true, phase: true, startedAt: true },
+          }),
         ]);
-        const rooms = viewer.character.locationId
-          ? await prisma.room.count({ where: { locationId: viewer.character.locationId } })
-          : 0;
+        const character = { ...viewer.character, ...sheet };
+        const heldSlugs = new Set((sheet?.tags ?? []).map((ct) => ct.tag.slug));
+        // The sheet crosses into client components from here, so the raw text
+        // of every paper on it would otherwise sit in the page source —
+        // readable straight out of DevTools by a holder who is blind, drunk or
+        // illiterate, which is the one thing the whole paperwork system exists
+        // to prevent (character/page.js strips it the same way). The dialogs
+        // fetch the text on demand instead.
+        const clientSheet = {
+          ...sheet,
+          tags: (sheet?.tags ?? []).map((ct) => {
+            if (ct.tag?.paperText == null) return ct;
+            const { paperText, ...tag } = ct.tag;
+            return { ...ct, tag };
+          }),
+        };
+
+        const [people, affordances, examine, waiting, pools, stashRooms, mine, desires, letters, boardLocation] = await Promise.all([
+          whosHere(prisma, character),
+          affordancesFor(prisma, character),
+          // What Examine used to answer in a modal. It is the place card's
+          // body now, rendered on the server with the rest of the column —
+          // db/lib/examineLocation.js is the same composer the Discord
+          // anchor's Examine button reads from.
+          character.locationId ? examineLines(prisma, character.locationId) : null,
+          waitingOnYou(),
+          // The people dialogs the sheet has, over the same pools the sheet
+          // builds (web/lib/peoplePools.js) so the two cannot disagree about
+          // who is standing near you.
+          loadPeoplePools(character, { discordUserId: viewer.discordUserId, openTurn }),
+          // The rooms a Transfer can reach, so "Move things" in a room can
+          // hand the dialog its far side already picked.
+          loadStashRooms(character),
+          // The turn card's first paint: which turn is open, whether Moves
+          // have locked, and the Move already filed into it. The same server
+          // action the column re-polls, so the two answers cannot differ.
+          myMove(),
+          // The Desire SLOTS only — the ~271-template catalog behind the
+          // picker is fetched when somebody opens it (web/lib/selfPools.js).
+          loadDesireView(character, { openTurn, gameConfig, withCatalog: false }),
+          // Write, Seal, Bind a book and the Bird, behind the ✉ beside the
+          // composer. The SAME loader the sheet calls, so the two surfaces
+          // cannot disagree about whether this character can write
+          // (web/lib/selfPools.js).
+          loadLettersView(character, { openTurn }),
+          // Is there a board on this street? One attribute, and it decides
+          // whether the Location's feed carries the notice cards at its top
+          // (db/lib/noticeboard.js). The cards load themselves; this only
+          // says whether to draw them at all.
+          character.locationId
+            ? prisma.location.findUnique({
+                where: { id: character.locationId },
+                // `slug` for the Depot, `attributes` for the noticeboard and
+                // the Factory's godflesh.
+                select: { slug: true, attributes: true },
+              })
+            : null,
+        ]);
         return {
           people,
           affordances,
-          rooms,
-          exits: links.length,
           place: viewer.character.location ?? null,
+          zone: viewer.character.location?.zone ?? null,
+          placeLines: examine?.ok ? examine.lines : [],
           waiting: waiting.ok ? waiting.rows : [],
-          selfId: viewer.character.id,
+          selfId: character.id,
           pools,
-          sheet,
-          carry: carryStatus({ ...viewer.character, ...sheet }, gameConfig),
+          stashRooms,
+          sheet: clientSheet,
+          // What this character is carrying against their cap — the Transfer
+          // dialog projects a hand-over off both.
+          carry: carryStatus(character, gameConfig),
+          hasBoard: hasNoticeboard(boardLocation),
+          turn: mine.ok ? mine.turn : null,
+          move: mine.ok ? mine.move : null,
+          desires,
+          letters,
+          // What is in this character's pockets, for the Things drawer under
+          // YOU. The drawer re-reads it for itself after every verb
+          // (./actions.js#myThings).
+          things: thingGroups(sheet?.tags ?? []),
+          // The Depot terminal is a thing in a room: standing at it is not
+          // enough, you need the licence or the keycard, and /depot bounces
+          // anybody without one — so the link is offered only where it would
+          // open (web/app/(app)/depot/page.js).
+          depotHref:
+            boardLocation?.slug === DEPOT_LOCATION_SLUG &&
+            (heldSlugs.has(MERCHANT_LICENSE_SLUG) || heldSlugs.has(DEPOT_KEYCARD_SLUG))
+              ? "/depot"
+              : null,
+          // The Godard Factory's Extract, opened as the sheet's own dialog
+          // (docs/systemdocs/FACTORY.md). Shown where the ground is godflesh;
+          // whether there is a tool in hand is the dialog's sentence, not a
+          // reason to hide the button.
+          canSeeExtract: hasAttribute(boardLocation, GODFLESH_ATTRIBUTE),
+          canExtract: Boolean(extractToolFor(sheet?.tags ?? [])),
+          extractBlocked:
+            hasAttribute(boardLocation, GODFLESH_ATTRIBUTE) && !extractToolFor(sheet?.tags ?? [])
+              ? "You need a hatchet, a battle-axe or a chainsaw in your hands. ‡"
+              : null,
         };
       })()
     : null;
+
+  // The faction, for the ⚑ row at the foot of the places column. The SAME
+  // loaders /faction runs (web/lib/factionView.js), so the two surfaces cannot
+  // disagree about the roster — and a member's ⬢ is on the rows only for that
+  // faction's own Leader or Treasurer (FACTIONS.md §6).
+  const factionView = viewer.character
+    ? await loadFactionView({ discordUserId: viewer.discordUserId }, viewer.character)
+    : null;
+
+  // Is there an instant camera in this character's hands? One slug off the
+  // sheet already loaded above (db/lib/photoMint.js#CAMERA_SLUG), so the row
+  // action bar can decide whether to draw the 📷 without a second query.
+  const hasCamera = (aside?.sheet?.tags ?? []).some(
+    (entry) => entry.tag?.slug === "instant-camera" && (entry.quantity ?? 0) > 0,
+  );
 
   // The @ list, and the lookup a {char:…} in a row resolves against — one
   // roster for both, so a mention can only ever name somebody the writer could
@@ -149,7 +269,7 @@ export default async function PlayPage() {
     <Hall
       initialPlaces={places}
       initialPlace={first.placeKey}
-      initialRows={rows.reverse().map((row) => feedRowShape(row))}
+      initialRows={initialRows}
       initialSeq={watermark._max.seq === null ? "0" : String(watermark._max.seq)}
       self={{
         characterId: viewer.character?.id ?? null,
@@ -157,8 +277,40 @@ export default async function PlayPage() {
         avatarVersion: viewer.character?.updatedAt?.getTime?.() ?? null,
       }}
       aside={aside}
+      // What the server will do to the words on their way in, so the row the
+      // composer draws in the same frame says what the confirmed one will say
+      // (db/lib/say.js#transformSpeech).
+      autocorrect={Boolean(gameConfig?.tupperAutocorrectEnabled)}
       webOnly={Boolean(viewer.character?.webOnly)}
       roster={mentionRoster}
+      // A GM with no living character reads every zone they may see and may
+      // take a line down (web/app/api/feed/delete/route.js).
+      gm={Boolean(viewer.gm)}
+      // The 📷 on somebody else's line, only for a character actually
+      // carrying one. photographRow() re-checks the sheet, so this is the
+      // hint and never the lock.
+      hasCamera={hasCamera}
+      // The ✉ beside the composer, and the hood next to it. `canConceal` is
+      // db/lib/conceal.js's own three refusals asked in advance: a forced name
+      // has nothing to hide, a bare face has nothing to toggle, and something
+      // that FORCES a hood does not come off by asking. toggleConceal re-asks
+      // all three.
+      letters={
+        aside?.letters
+          ? {
+              canWrite: aside.letters.canWrite,
+              canSeal: aside.letters.canSeal,
+              hasBird: aside.letters.hasBird,
+              birdSentToday: aside.letters.birdSentToday,
+            }
+          : null
+      }
+      faction={factionView}
+      conceal={{
+        canConceal: Boolean(concealment) && !concealment.forced && !forcedName,
+        concealed: Boolean(identity.concealed),
+        alias: identity.alias ?? null,
+      }}
     />
   );
 
@@ -181,13 +333,20 @@ export default async function PlayPage() {
         healsLeft={aside.pools.healsLeft}
         healTargets={aside.pools.healTargets}
         healParties={{ characters: aside.pools.peopleParties, rooms: [] }}
-        transferParties={{ characters: aside.pools.peopleParties, rooms: [] }}
+        transferParties={{ characters: aside.pools.transferParties, rooms: aside.stashRooms }}
         lootTargets={aside.pools.lootTargets}
         moveTargets={aside.pools.moveTargets}
         moveLocations={aside.pools.moveLocations}
         bindTargets={aside.pools.bindTargets}
         harmTargets={aside.pools.harmTargets}
         harmTags={aside.pools.harmTags}
+        // The four paperwork dialogs the ✉ opens, named exactly as
+        // web/lib/selfPools.js returns them.
+        {...aside.letters}
+        // Extract, from the place card's Factory button.
+        canSeeExtract={aside.canSeeExtract}
+        canExtract={aside.canExtract}
+        extractBlocked={aside.extractBlocked}
       >
         {hall}
       </RequestActionsProvider>

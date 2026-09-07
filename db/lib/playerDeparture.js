@@ -39,7 +39,7 @@ async function markPlayerDeparted(prisma, { discordUserId, username, viaReconcil
     return { character: null, alert: `${playerName} has left. They had no living character.`, roleUpdate: null };
   }
 
-  // Not gated on GameConfig.catatonicEnabled: that switch governs the AFK
+  // Not gated on the AFK-flagging pass in db/lib/catatonicPass.js: that governs the AFK
   // flagging pass, but a departed player is a fact, not a staleness
   // heuristic. Only the death itself has a dial (catatonicDeathTurns).
   const catatonicTag = await prisma.tag.findUnique({

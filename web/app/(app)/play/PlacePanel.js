@@ -5,16 +5,11 @@ import Modal from "@/app/components/Modal";
 import Select from "@/app/components/Select";
 import FormError from "@/app/components/FormError";
 import EmptyState from "@/app/components/EmptyState";
+import { NoticeText } from "./NoticeCards";
 import useActionRunner from "@/app/components/useActionRunner";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import {
   loadAffordances,
-  examineHere,
-  readStash,
-  loadTravel,
-  travelTo,
-  turnBackTravel,
   flipGate,
   holdKeyed,
   readBoard,
@@ -29,54 +24,42 @@ import {
   speakOnIntercom,
 } from "./actions";
 
-// THE PLACE: every button the Location's pinned anchor and the Room starters
-// carry on Discord, as web dialogs.
+// THE PLACE's dialogs, and the one hook that owns them.
 //
-// The LIST is not written here. It comes from
-// db/lib/placeAffordances.js#affordancesFor, which is also what
-// db/lib/locationAnchorRow.js and db/lib/roomStarterRow.js draw their buttons
-// from — so a place that grew a noticeboard grows one on both faces, and a
-// new affordance is one entry in that catalog rather than two lists to keep
-// in step.
+// This file used to draw a panel of its own: every affordance
+// db/lib/placeAffordances.js#affordancesFor returned, as one flat strip of
+// buttons. That was the Discord anchor's shape rendered verbatim, Intercom
+// and all six Storage buttons at once, and it is gone. The affordances are
+// now split across the column by what they belong to — the Location's own on
+// PlaceCard.js, the OPEN room's on RoomPanel.js, Converse on a person's row
+// in HereList.js, Travel on TravelNodes.js.
+//
+// What survives is the part that was never the panel's shape: the dialogs,
+// and the refresh rule. Anything that changes a label a button wears — a gate
+// now shut, a door now held — re-reads the whole list rather than patching a
+// row, which is what keeps this column and the anchor saying the same thing.
 //
 // Each dialog's work is a server action in ./actions.js. None of them trusts
 // what this component sent: standing in the room is re-checked there every
 // time, because a dialog outlives somebody walking out of it.
 
-const TONE_CLASS = { go: "btn", danger: "btn-danger", plain: "btn-secondary" };
+// The button tone an affordance asks for, as a class. Shared by the two
+// panels that draw fixtures — PlaceCard.js for the Location's own and
+// RoomPanel.js for the open room's — because a Location's danger button and a
+// room's should never be able to look different.
+export const TONE_CLASS = { go: "btn", danger: "btn-danger", plain: "btn-secondary" };
 
-// The affordances that open a dialog of their own, and the ones that are a
-// single click. Anything not named here is handled by its `kind`.
-function dialogFor(entry) {
-  if (entry.kind === "gate" || entry.kind === "keyed") return null;
-  return entry.id;
-}
-
-function Readout({ title, lines, onClose }) {
-  return (
-    <Modal open title={title} onClose={onClose} width="default">
-      <div className="flex flex-col gap-2">
-        {lines.map((line, index) => (
-          <p key={index} className="text-sm">
-            {line}
-          </p>
-        ))}
-      </div>
-    </Modal>
-  );
-}
-
-export default function PlacePanel({ initialAffordances, place, rooms = 0, exits = 0 }) {
+// ONE instance of this, in HallAside.js. The affordance list, the notice and
+// the open dialog are shared by every section of the column, so a gate opened
+// from the place card relabels itself and a room's Intercom and the card's
+// noticeboard cannot both be open at once.
+export function usePlaceActions(initialAffordances, onChanged) {
   const [affordances, setAffordances] = useState(initialAffordances ?? []);
   const [dialog, setDialog] = useState(null);
   const [notice, setNotice] = useState(null);
   const { run, pending, error, setError } = useActionRunner();
   const confirm = useConfirm();
-  const actions = useRequestActions();
 
-  // Anything that changes a label a button wears — a gate now shut, a door
-  // now held — re-reads the whole list rather than patching one row, which
-  // is what keeps this panel and the anchor saying the same thing.
   const refresh = useCallback(() => {
     loadAffordances()
       .then((res) => {
@@ -89,20 +72,25 @@ export default function PlacePanel({ initialAffordances, place, rooms = 0, exits
 
   const say = useCallback(
     (res) => {
-      setNotice([res.line, res.note].filter(Boolean).join(" "));
+      setNotice([res.line, res.note].filter(Boolean).join(" ") || null);
       refresh();
+      // Anything else on the page that is drawn off the same place — the
+      // noticeboard cards pinned to the top of the Location's feed are the
+      // one so far — is told to re-read. A pin made in this dialog and a
+      // card in the street are the same board.
+      onChanged?.(res);
     },
-    [refresh],
+    [refresh, onChanged],
   );
 
-  const onClick = useCallback(
+  const openFixture = useCallback(
     async (entry) => {
       setError(null);
       setNotice(null);
       if (entry.kind === "gate") {
         const ask = entry.isOpen
-          ? { title: "Shut the way? ‡", message: `The way to ${entry.farName} closes. ‡`, confirmLabel: "Shut it ‡" }
-          : { title: "Open the way? ‡", message: `The way to ${entry.farName} opens. ‡`, confirmLabel: "Open it ‡" };
+          ? { title: "Shut the way?", message: `The way to ${entry.farName} closes. ‡`, confirmLabel: "Shut it" }
+          : { title: "Open the way?", message: `The way to ${entry.farName} opens. ‡`, confirmLabel: "Open it" };
         // Confirm first, transition second — never inside startTransition
         // (DESIGN-SYSTEM.md §8).
         if (!(await confirm(ask))) return;
@@ -117,9 +105,28 @@ export default function PlacePanel({ initialAffordances, place, rooms = 0, exits
         run(holdKeyed, entry.linkId, { onOk: say });
         return;
       }
-      setDialog({ kind: dialogFor(entry), entry });
+      // Everything left is a dialog named by its own id: gates and keyed
+      // doors have already returned above, and they were the only branch a
+      // mapping function had.
+      setDialog({ kind: entry.id, entry });
     },
     [confirm, run, say, setError],
+  );
+
+  // Converse hangs off a person's row now rather than a button of its own:
+  // it is a corner you take somebody into, so the place to ask for one is
+  // beside the somebody.
+  //
+  // `person` is whoever's row it was opened from — {id, name} — so the dialog
+  // opens with them already ticked. The place card's own Converse passes
+  // nothing, and so does a hood's, which has no id to tick.
+  const openConverse = useCallback(
+    (person = null) => {
+      setError(null);
+      setNotice(null);
+      setDialog({ kind: "converse", entry: null, person: person?.id ? person : null });
+    },
+    [setError],
   );
 
   const close = useCallback(() => {
@@ -127,275 +134,19 @@ export default function PlacePanel({ initialAffordances, place, rooms = 0, exits
     setError(null);
   }, [setError]);
 
-  return (
-    <div className="hall-place-panel">
-      <p className="hall-section-title">{place?.name ?? "Here ‡"}</p>
-      <p className="hall-quiet-line">
-        {rooms} room{rooms === 1 ? "" : "s"} · {exits} exit{exits === 1 ? "" : "s"} ‡
-      </p>
-
-      {affordances.length === 0 ? (
-        <EmptyState>There is nothing to work here. ‡</EmptyState>
-      ) : (
-        <div className="hall-buttons">
-          {affordances.map((entry) => (
-            <button
-              key={`${entry.id}:${entry.linkId ?? entry.roomId ?? "place"}`}
-              type="button"
-              className={TONE_CLASS[entry.tone] ?? "btn-secondary"}
-              disabled={pending}
-              onClick={() => onClick(entry)}
-            >
-              {entry.roomName && entry.id === "storage" ? `Storage · ${entry.roomName}` : entry.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {notice && <p className="hall-quiet-line">{notice}</p>}
-      <FormError>{error}</FormError>
-
-      {dialog?.kind === "travel" && <TravelDialog onClose={close} onDone={say} />}
-      {dialog?.kind === "examine" && <ExamineHereDialog onClose={close} />}
-      {dialog?.kind === "storage" && (
-        <StorageDialog entry={dialog.entry} onClose={close} onTransfer={() => actions?.open?.("transfer")} />
-      )}
+  const dialogs = (
+    <>
       {dialog?.kind === "noticeboard" && <NoticeboardDialog onClose={close} onDone={say} />}
-      {dialog?.kind === "converse" && <ConverseDialog onClose={close} onDone={say} />}
+      {dialog?.kind === "converse" && (
+        <ConverseDialog person={dialog.person} onClose={close} onDone={say} />
+      )}
       {dialog?.kind === "bell" && <BellDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "turret" && <TurretDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "intercom" && <IntercomDialog entry={dialog.entry} onClose={close} onDone={say} />}
-      {dialog?.kind === "whosHere" && (
-        <Modal open title="Who's here? ‡" onClose={close}>
-          <p className="text-sm text-muted">Everyone standing here is in the column beside you. ‡</p>
-        </Modal>
-      )}
-      {dialog?.kind === "secretRooms" && (
-        <Modal open title="Secret rooms? ‡" onClose={close}>
-          <p className="text-sm text-muted">
-            Every room a key of yours opens is already in your places, on the left. ‡
-          </p>
-        </Modal>
-      )}
-    </div>
+    </>
   );
-}
 
-// ------------------------------------------------------------------ travel
-
-function TravelDialog({ onClose, onDone }) {
-  const [data, setData] = useState(null);
-  const [target, setTarget] = useState("");
-  const [dragged, setDragged] = useState([]);
-  const { run, pending, error } = useActionRunner();
-
-  // Loaded on open rather than with the page: an exit's state moves under a
-  // player standing still, and a stale list would offer a shut gate.
-  useEffect(() => {
-    let cancelled = false;
-    loadTravel()
-      .then((res) => {
-        if (!cancelled) setData(res);
-      })
-      .catch(() => {
-        if (!cancelled) setData({ ok: false, error: "Couldn't read the ways out. ‡" });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const toggleDrag = (id) =>
-    setDragged((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-
-  if (!data) {
-    return (
-      <Modal open title="Travel" onClose={onClose}>
-        <p className="text-sm text-muted">Reading the road… ‡</p>
-      </Modal>
-    );
-  }
-  if (!data.ok) {
-    return (
-      <Modal open title="Travel" onClose={onClose}>
-        <FormError>{data.error}</FormError>
-      </Modal>
-    );
-  }
-
-  // Already walking: a paid crossing is a day on the road, and the only thing
-  // on offer is turning round (MAP.md §3).
-  if (data.heading) {
-    return (
-      <Modal open title="Travel" onClose={onClose}>
-        <p className="text-sm">You are on the road to {data.heading}. You arrive next turn. ‡</p>
-        <FormError>{error}</FormError>
-        <div className="modal-actions">
-          <button
-            type="button"
-            className="btn-secondary"
-            disabled={pending}
-            onClick={() =>
-              run(turnBackTravel, undefined, {
-                onOk: (res) => {
-                  onDone(res);
-                  onClose();
-                },
-              })
-            }
-          >
-            Turn back ‡
-          </button>
-        </div>
-      </Modal>
-    );
-  }
-
-  const chosen = data.options.find((o) => o.id === target) ?? null;
-
-  return (
-    <Modal open title="Travel" onClose={onClose}>
-      <div className="field">
-        <label className="field-label" htmlFor="hall-travel">
-          Where to? ‡
-        </label>
-        <Select id="hall-travel" value={target} onChange={(e) => setTarget(e.target.value)}>
-          <option value="">Pick a way out… ‡</option>
-          {data.options.map((option) => (
-            <option key={option.id} value={option.id} disabled={!option.passable}>
-              {option.name}
-              {option.crossesZone && option.zoneName ? ` — into ${option.zoneName}` : ""}
-              {option.passable ? "" : " — shut"}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      {chosen?.crossesZone && (
-        <p className="text-sm text-muted">
-          {data.freeReason
-            ? `${data.freeReason} ‡`
-            : data.freeLeft > 0
-              ? `${data.freeLeft} free ${data.freeLeft === 1 ? "crossing" : "crossings"} left this turn. ‡`
-              : "This one costs your Move, and you arrive next turn. ‡"}
-        </p>
-      )}
-
-      {data.drag.length > 0 && (
-        <div className="chip-row" role="group" aria-label="Bring somebody ‡">
-          {data.drag.map((person) => (
-            <button
-              key={person.id}
-              type="button"
-              className="chip"
-              data-active={dragged.includes(person.id) ? "true" : undefined}
-              aria-pressed={dragged.includes(person.id)}
-              onClick={() => toggleDrag(person.id)}
-            >
-              {person.name}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <FormError>{error}</FormError>
-      <div className="modal-actions">
-        <button
-          type="button"
-          className="btn"
-          disabled={!target || pending}
-          onClick={() =>
-            run(travelTo, { locationId: target, draggedIds: dragged }, {
-              onOk: (res) => {
-                onDone(res);
-                onClose();
-              },
-            })
-          }
-        >
-          Go ‡
-        </button>
-      </div>
-    </Modal>
-  );
-}
-
-// ----------------------------------------------------------------- examine
-
-function ExamineHereDialog({ onClose }) {
-  const [data, setData] = useState(null);
-  useEffect(() => {
-    let cancelled = false;
-    examineHere()
-      .then((res) => {
-        if (!cancelled) setData(res);
-      })
-      .catch(() => {
-        if (!cancelled) setData({ ok: false, error: "Couldn't take it in. ‡" });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (!data) {
-    return (
-      <Modal open title="Examine" onClose={onClose}>
-        <p className="text-sm text-muted">Looking around… ‡</p>
-      </Modal>
-    );
-  }
-  if (!data.ok) {
-    return (
-      <Modal open title="Examine" onClose={onClose}>
-        <FormError>{data.error}</FormError>
-      </Modal>
-    );
-  }
-  return <Readout title={data.name} lines={data.lines} onClose={onClose} />;
-}
-
-// ----------------------------------------------------------------- storage
-
-function StorageDialog({ entry, onClose, onTransfer }) {
-  const [data, setData] = useState(null);
-  useEffect(() => {
-    let cancelled = false;
-    readStash(entry.roomId)
-      .then((res) => {
-        if (!cancelled) setData(res);
-      })
-      .catch(() => {
-        if (!cancelled) setData({ ok: false, error: "Couldn't see in there. ‡" });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [entry.roomId]);
-
-  return (
-    <Modal open title={data?.name ?? "Storage"} onClose={onClose}>
-      {!data && <p className="text-sm text-muted">Looking… ‡</p>}
-      {data && !data.ok && <FormError>{data.error}</FormError>}
-      {data?.ok && <p className="text-sm">{data.line}</p>}
-      {data?.ok && (
-        <div className="modal-actions">
-          {/* The same Transfer dialog the sheet has — a room stash is one of
-              its destinations, so there is nothing here to fork. */}
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => {
-              onClose();
-              onTransfer();
-            }}
-          >
-            Move things ‡
-          </button>
-        </div>
-      )}
-    </Modal>
-  );
+  return { affordances, openFixture, openConverse, say, notice, error, pending, dialogs };
 }
 
 // ------------------------------------------------------------- noticeboard
@@ -409,7 +160,7 @@ function NoticeboardDialog({ onClose, onDone }) {
   const load = useCallback(() => {
     readBoard()
       .then(setBoard)
-      .catch(() => setBoard({ ok: false, error: "Couldn't read the board. ‡" }));
+      .catch(() => setBoard({ ok: false, error: "Couldn't read the board." }));
   }, []);
 
   useEffect(() => {
@@ -419,7 +170,7 @@ function NoticeboardDialog({ onClose, onDone }) {
   if (!board) {
     return (
       <Modal open title="Noticeboard" onClose={onClose}>
-        <p className="text-sm text-muted">Reading the board… ‡</p>
+        <p className="text-sm text-muted">Reading the board…</p>
       </Modal>
     );
   }
@@ -435,7 +186,7 @@ function NoticeboardDialog({ onClose, onDone }) {
     <Modal open title="Noticeboard" onClose={onClose}>
       <p className="text-sm text-muted">{board.heading}</p>
 
-      {board.notices.length === 0 && <EmptyState>Nothing is up. ‡</EmptyState>}
+      {board.notices.length === 0 && <EmptyState>Nothing is up.</EmptyState>}
       {board.notices.map((notice) => (
         <div key={notice.id} className="hall-notice-row">
           <span className="hall-person-name">{notice.name}</span>
@@ -445,7 +196,7 @@ function NoticeboardDialog({ onClose, onDone }) {
             disabled={pending}
             onClick={() => run(readNotice, notice.id, { onOk: setReading })}
           >
-            Read ‡
+            Read
           </button>
           <button
             type="button"
@@ -460,29 +211,25 @@ function NoticeboardDialog({ onClose, onDone }) {
               })
             }
           >
-            Tear down ‡
+            Tear down
           </button>
         </div>
       ))}
 
-      {/* A notice is shown as written, in a plain block, so nothing on it can
-          render as markup or ping anybody. A sealed or unreadable one comes
-          back as the refusal instead, in the same shape, so nobody watching
-          learns which it was. */}
-      {reading?.ok && (
-        <div className="field">
-          <span className="field-label">{reading.name}</span>
-          {reading.plain ? <p className="text-sm">{reading.text}</p> : <pre className="hall-notice-text">{reading.text}</pre>}
-        </div>
-      )}
+      {/* The same block the feed's notice cards draw (NoticeCards.js), so a
+          paper read from the street and one read from this dialog are one
+          rendering. A sealed or unreadable one comes back as the refusal
+          instead, in the same shape, so nobody watching learns which it
+          was. */}
+      <NoticeText reading={reading} />
 
       {board.holding.length > 0 && (
         <div className="field">
           <label className="field-label" htmlFor="hall-pin">
-            Pin a paper ‡
+            Pin a paper
           </label>
           <Select id="hall-pin" value={pinId} onChange={(e) => setPinId(e.target.value)}>
-            <option value="">Pick one… ‡</option>
+            <option value="">Pick one…</option>
             {board.holding.map((paper) => (
               <option key={paper.tagId} value={paper.tagId}>
                 {paper.name}
@@ -510,7 +257,7 @@ function NoticeboardDialog({ onClose, onDone }) {
               })
             }
           >
-            Pin it ‡
+            Pin it
           </button>
         </div>
       )}
@@ -520,10 +267,18 @@ function NoticeboardDialog({ onClose, onDone }) {
 
 // ---------------------------------------------------------------- converse
 
-function ConverseDialog({ onClose, onDone }) {
+// Exported for Hall.js: the `/converse` command opens this same dialog from
+// the composer, and on a phone the right column that owns it is not even
+// mounted (Hall.js). One dialog either way — a second copy of the room picker
+// and the invite list would be two answers to one question.
+export function ConverseDialog({ person = null, onClose, onDone }) {
   const [rooms, setRooms] = useState(null);
   const [roomId, setRoomId] = useState("");
   const [name, setName] = useState("");
+  // Opened from somebody's row: they are in it unless you untick them. The
+  // server re-checks that they are ALIVE and standing here before it writes
+  // the membership row, so this chip is a tick and never a lock.
+  const [invited, setInvited] = useState(person?.id ? true : false);
   const { run, pending, error } = useActionRunner();
 
   useEffect(() => {
@@ -533,7 +288,7 @@ function ConverseDialog({ onClose, onDone }) {
         if (!cancelled) setRooms(res);
       })
       .catch(() => {
-        if (!cancelled) setRooms({ ok: false, error: "Couldn't find a room. ‡" });
+        if (!cancelled) setRooms({ ok: false, error: "Couldn't find a room." });
       });
     return () => {
       cancelled = true;
@@ -543,7 +298,7 @@ function ConverseDialog({ onClose, onDone }) {
   return (
     <Modal open title="Converse" onClose={onClose}>
       <p className="text-sm text-muted">That room hears that someone is whispering, never who. ‡</p>
-      {!rooms && <p className="text-sm text-muted">Looking for a corner… ‡</p>}
+      {!rooms && <p className="text-sm text-muted">Looking for a corner…</p>}
       {rooms && !rooms.ok && <FormError>{rooms.error}</FormError>}
       {rooms?.ok && rooms.rooms.length === 0 && (
         <EmptyState>There&apos;s no room here to hold a conversation in. ‡</EmptyState>
@@ -555,7 +310,7 @@ function ConverseDialog({ onClose, onDone }) {
               Which room is this linked to? ‡
             </label>
             <Select id="hall-converse-room" value={roomId} onChange={(e) => setRoomId(e.target.value)}>
-              <option value="">Pick a room… ‡</option>
+              <option value="">Pick a room…</option>
               {rooms.rooms.map((room) => (
                 <option key={room.id} value={room.id}>
                   {room.name}
@@ -564,9 +319,22 @@ function ConverseDialog({ onClose, onDone }) {
               ))}
             </Select>
           </div>
+          {person?.id && (
+            <div className="chip-row" role="group" aria-label="Who comes with you">
+              <button
+                type="button"
+                className="chip"
+                data-active={invited ? "true" : undefined}
+                aria-pressed={invited}
+                onClick={() => setInvited((on) => !on)}
+              >
+                {person.name}
+              </button>
+            </div>
+          )}
           <div className="field">
             <label className="field-label" htmlFor="hall-converse-name">
-              Call it what? ‡
+              Call it what?
             </label>
             <input
               id="hall-converse-name"
@@ -582,7 +350,7 @@ function ConverseDialog({ onClose, onDone }) {
               className="btn"
               disabled={!roomId || !name.trim() || pending}
               onClick={() =>
-                run(openConversation, { roomId, name }, {
+                run(openConversation, { roomId, name, inviteIds: invited && person?.id ? [person.id] : [] }, {
                   onOk: (res) => {
                     onDone(res);
                     onClose();
@@ -590,7 +358,7 @@ function ConverseDialog({ onClose, onDone }) {
                 })
               }
             >
-              Open it ‡
+              Open it
             </button>
           </div>
         </>
@@ -612,7 +380,7 @@ function WordDialog({ title, word, help, danger, onClose, onSubmit, pending, err
       <p className="text-sm text-muted">{help}</p>
       <div className="field">
         <label className="field-label" htmlFor="hall-word">
-          Type {word} to confirm ‡
+          Type {word} to confirm
         </label>
         <input id="hall-word" value={typed} maxLength={16} onChange={(e) => setTyped(e.target.value)} />
       </div>
@@ -635,7 +403,7 @@ function BellDialog({ entry, onClose, onDone }) {
   const { run, pending, error } = useActionRunner();
   return (
     <WordDialog
-      title="Sound the bell ‡"
+      title="Sound the bell"
       word="RING"
       help="Heard for a long way around, loudest near the Cathedral. Nobody is pinged. ‡"
       onClose={onClose}
@@ -667,7 +435,7 @@ function TurretDialog({ entry, onClose, onDone }) {
         if (!cancelled) setState(res);
       })
       .catch(() => {
-        if (!cancelled) setState({ ok: false, error: "The panel is dead. ‡" });
+        if (!cancelled) setState({ ok: false, error: "The panel is dead." });
       });
     return () => {
       cancelled = true;
@@ -676,14 +444,14 @@ function TurretDialog({ entry, onClose, onDone }) {
 
   if (!state) {
     return (
-      <Modal open title="The turret ‡" onClose={onClose}>
-        <p className="text-sm text-muted">Reading the panel… ‡</p>
+      <Modal open title="The turret" onClose={onClose}>
+        <p className="text-sm text-muted">Reading the panel…</p>
       </Modal>
     );
   }
   if (!state.ok) {
     return (
-      <Modal open title="The turret ‡" onClose={onClose}>
+      <Modal open title="The turret" onClose={onClose}>
         <FormError>{state.error}</FormError>
       </Modal>
     );
@@ -691,7 +459,7 @@ function TurretDialog({ entry, onClose, onDone }) {
 
   return (
     <WordDialog
-      title={state.armed ? "Disarm the turret ‡" : "Arm the turret ‡"}
+      title={state.armed ? "Disarm the turret" : "Arm the turret"}
       word={state.word}
       danger={!state.armed}
       help={
@@ -724,7 +492,7 @@ function IntercomDialog({ entry, onClose, onDone }) {
       </p>
       <div className="field">
         <label className="field-label" htmlFor="hall-pa">
-          What goes out ‡
+          What goes out
         </label>
         <textarea id="hall-pa" rows={3} value={body} maxLength={1000} onChange={(e) => setBody(e.target.value)} />
       </div>
@@ -743,7 +511,7 @@ function IntercomDialog({ entry, onClose, onDone }) {
             })
           }
         >
-          Speak ‡
+          Speak
         </button>
       </div>
     </Modal>

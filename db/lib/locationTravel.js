@@ -509,7 +509,7 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
 // spent — a day on the road you turned round halfway through is still a day.
 // Lived in the bot's Travel button until phase 3; both faces call it now.
 async function turnBack(prisma, character) {
-  if (!character?.travelToLocationId) return { ok: false, error: "You're not going anywhere. ‡" };
+  if (!character?.travelToLocationId) return { ok: false, error: "You're not going anywhere." };
   await prisma.character.update({
     where: { id: character.id },
     data: { travelToLocationId: null, travelTurnId: null },

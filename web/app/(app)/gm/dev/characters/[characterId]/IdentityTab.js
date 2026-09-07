@@ -2,7 +2,6 @@
 
 import CheckField from "@/app/components/CheckField";
 import Switch from "@/app/components/Switch";
-import InfoIcon from "@/app/components/InfoIcon";
 import Select from "@/app/components/Select";
 import { TITLE_WORDS, NAME_LIMITS, AGE_MIN, AGE_MAX, GENDERS, GENDER_LABELS } from "@/lib/characterName";
 
@@ -27,9 +26,8 @@ export default function IdentityTab({ staged, lastNameLocked, factions, location
               second-guessed (TAGS.md §3), and this is the only way to clear
               one whose owner can no longer re-select it. */}
           <label className="field">
-            <span className="field-label flex items-center gap-1.5">
+            <span className="field-label">
               Honorific
-              <InfoIcon text="Ungated here. Players only see titles their role and tags earned them; you see all of them." />
             </span>
             <Select
               value={staged.honorific ?? ""}
@@ -60,18 +58,14 @@ export default function IdentityTab({ staged, lastNameLocked, factions, location
             <input
               value={staged.title ?? ""}
               maxLength={NAME_LIMITS.title}
-              placeholder={'renders as "the Blind"'}
               onChange={(e) => onField("title", e.target.value)}
               className={touched("title")}
             />
           </label>
 
           <label className="field">
-            <span className="field-label flex items-center gap-1.5">
+            <span className="field-label">
               Last name
-              {lastNameLocked && (
-                <InfoIcon text="Inherited from the Baron. Change it on his sheet and all three of his family follow." />
-              )}
             </span>
             <input
               value={staged.lastName ?? ""}
@@ -88,9 +82,8 @@ export default function IdentityTab({ staged, lastNameLocked, factions, location
               — a Lord becomes a Lady — but never rewrites the word they
               already wear. */}
           <label className="field">
-            <span className="field-label flex items-center gap-1.5">
+            <span className="field-label">
               Gender
-              <InfoIcon text="Fixed for the player at creation; only you can change it. Four seats force it — Baron and Heir are men, Baroness and Successor women — but nothing here enforces that, so a deliberate exception is yours to make." />
             </span>
             <Select
               value={staged.gender ?? "NEUTRAL"}
@@ -190,7 +183,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, location
             onChange={(e) => onField("locationId", e.target.value || null)}
             className={touched("locationId")}
           >
-            <option value="">(nowhere — grants no channel access) ‡</option>
+            <option value="">(nowhere — grants no channel access)</option>
             {locationsByZone(locations).map((group) => (
               <optgroup key={group.zoneId ?? "loose"} label={group.zoneName ?? "Unzoned"}>
                 {group.locations.map((l) => (
@@ -215,15 +208,28 @@ export default function IdentityTab({ staged, lastNameLocked, factions, location
             />
           </label>
           <label className="field">
-            <span className="field-label flex items-center gap-1.5">
+            <span className="field-label">
               Unspent Tag Points
-              <InfoIcon text="May go negative on purpose — clamping it at zero would let a broke player take a drawback's points for free." />
             </span>
             <input
               type="number"
               value={staged.tagPoints ?? 0}
               onChange={(e) => onField("tagPoints", Number(e.target.value))}
               className={touched("tagPoints")}
+            />
+          </label>
+          <label className="field">
+            <span className="field-label">
+              Fear
+            </span>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              value={staged.fear ?? 0}
+              onChange={(e) => onField("fear", Number(e.target.value))}
+              className={touched("fear")}
             />
           </label>
         </div>

@@ -126,7 +126,7 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
   // channel is scenery rather than speech (CHANNELS.md §2), which is why this
   // refusal now has a second wording behind it.
   if (web && !(await mayWritePlace(prisma, character, placeKey))) {
-    return { ok: false, refusal: "You can't speak there. ‡" };
+    return { ok: false, refusal: "You can't speak there." };
   }
 
   const voice = await loadVoiceState(prisma, character.id);
@@ -180,10 +180,13 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
 async function recordSpeech(
   prisma,
   prepared,
-  { discordMessageId = null, discordChannelId = null, zoneId = null, zoneName = null, channelKind = null, threadName = null, content = null } = {},
+  { discordMessageId = null, discordChannelId = null, zoneId = null, zoneName = null, channelKind = null, threadName = null, content = null, clientId = null } = {},
 ) {
   if (!prepared?.ok) return null;
   return recordArchiveMessage(prisma, {
+    // The web composer's token for the copy it has already drawn. Null on the
+    // Discord path, which has no optimistic row to reconcile.
+    clientId,
     // A caller that appended something to the prepared text (the proxy adds
     // its attachment placeholders) hands the finished string back here.
     // Otherwise the ROW's spelling is what is stored, not Discord's.
@@ -243,7 +246,7 @@ function pastWindow(row) {
 }
 
 const WINDOW_REFUSAL = "That was said more than five minutes ago and stands. ‡";
-const GONE_REFUSAL = "That message is gone. ‡";
+const GONE_REFUSAL = "That message is gone.";
 const NOT_YOURS_REFUSAL = "That isn't yours to change. ‡";
 
 // Shared by both verbs: find the row, and answer whether this caller may

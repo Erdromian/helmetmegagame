@@ -425,7 +425,7 @@ function formatLaborBonusNote(
   if (parts.length === 0) return null;
   const [first, ...rest] = parts;
   const sentence = `${first.charAt(0).toUpperCase()}${first.slice(1)}${rest.length ? `, ${rest.join(", ")}` : ""}`;
-  return `-# Includes ${sentence.charAt(0).toLowerCase()}${sentence.slice(1)}. ‡`;
+  return `-# Includes ${sentence.charAt(0).toLowerCase()}${sentence.slice(1)}.`;
 }
 
 // Async convenience for the one-character call sites (the Move modal and the

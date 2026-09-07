@@ -8,6 +8,34 @@ export function isTradeable(tag) {
   return Boolean(tag?.tradeable);
 }
 
+// The skills that mark a recipe as smithing/crafting work. Every smithing rung
+// counts, not just the one Dead Simple actually gates on, so a future 0-turn
+// recipe at a higher rung is covered without editing this list.
+const DEAD_SIMPLE_SKILL_SLUGS = (slug) => slug === "crafting" || slug.startsWith("smithing");
+
+// There is no "tier" column — Dead Simple is only a comment header in
+// docs/tags.yaml — so the tier is recognised by its recipe: 0 turns of work,
+// and a smithing or crafting skill gate. That is exactly the craftables
+// under the Dead Simple headers today. The one other tag in the catalog with
+// `turnsCost: 0` is Frostbite, whose requirement block is a CURE (medical
+// skills, the removal direction), so the skill test keeps it out.
+//
+// `tag.requirementSkills` must be loaded ({ slug }) or this reads false.
+export function isDeadSimple(tag) {
+  if (tag?.requirementTurns !== 0) return false;
+  return (tag.requirementSkills ?? []).some((skill) => DEAD_SIMPLE_SKILL_SLUGS(skill.slug));
+}
+
+// How many Dead Simple items a character may make in one turn.
+//
+// Dead Simple is the bottom rung of the smithing ladder (SMITHING.md §2) and
+// the only one that costs 0 turns, so nothing was rationing it: a player could
+// file Add Tag requests all turn and walk away with any number of work knives.
+// The cap is on UNITS, not requests — the Dead Simple items are stackable and
+// one request can carry a quantity of 20 — and it is summed across every
+// ADD_TAG request the character has filed this turn.
+export const DEAD_SIMPLE_PER_TURN = 4;
+
 // Craft's recipe list: `craftable`, and every recipe skill held — the page
 // hands the client the ids it already checked (docs/systemdocs/CRAFTING.md).
 // A stackable tag stays on offer once held; an ordinary one drops off.
@@ -88,6 +116,38 @@ export function needsWorkshop(tag) {
   return skills.some((skill) =>
     WORKSHOP_SKILL_PREFIXES.some((prefix) => skill.slug === prefix || skill.slug?.startsWith(`${prefix}-`)),
   );
+}
+
+// Which FAMILY of work a recipe is, read off the same `requirementSkills` the
+// forge rule reads. A turn's craft Routine commits to one family and takes
+// nothing else (docs/systemdocs/CRAFTING.md §2a): you cannot spend half a
+// Routine at the still and half at the anvil.
+//
+// The family is the skill slug's prefix, so `brewing-basic` and
+// `brewing-skilled` are one family and a new rung joins it for free —
+// barbed-net's `fundamentalist` sits beside `crafting` and the recipe is
+// crafting. A recipe gated outside the five trades takes its first skill
+// prefix AS its family (bone-mask is `butcher` work, holy water `blessing`
+// work), and a recipe with no skill at all is generic `craft` — EVERY
+// recipe is Move-priced by the same arithmetic (Chris 2026-09-06); before
+// this, a family-less recipe couldn't spend the Move at all, which is what
+// let one Routine hold 99 of a thing.
+const CRAFT_FAMILIES = ["brewing", "cooking", "smithing", "builder", "crafting"];
+
+export function craftFamily(tag) {
+  // Walked in CRAFT_FAMILIES order, not relation order — requirementSkills
+  // comes back from Prisma unordered, and "first matching skill" would make
+  // a two-craft-skill recipe's family depend on row order. No such recipe
+  // exists today; the first one shouldn't find a nondeterministic seam.
+  const prefixes = (tag?.requirementSkills ?? []).map(
+    (skill) => (skill?.slug ?? "").split("-")[0],
+  );
+  const set = new Set(prefixes);
+  for (const family of CRAFT_FAMILIES) {
+    if (set.has(family)) return family;
+  }
+  // Sorted for the same determinism reason as the walk above.
+  return [...set].filter(Boolean).sort()[0] ?? "craft";
 }
 
 export function transferableTags(characterTags = []) {

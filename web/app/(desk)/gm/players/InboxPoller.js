@@ -1,7 +1,6 @@
 "use client";
 
 import useGatedRefreshPoll from "@/app/components/useGatedRefreshPoll";
-import useReloadTelemetry from "@/app/components/useReloadTelemetry";
 
 const REFRESH_MS = 30_000;
 
@@ -10,10 +9,8 @@ const REFRESH_MS = 30_000;
 // open, or anything has unsaved edits, and version-gated so a refresh never
 // crosses a deploy boundary (that's a full browser navigation, and this
 // desk's poll firing right after an inbound DM landed is exactly why "the
-// page reloads whenever we receive a message"). Also hosts the temporary
-// reload telemetry for this desk — see useReloadTelemetry.js.
+// page reloads whenever we receive a message").
 export default function InboxPoller({ deployVersion }) {
   useGatedRefreshPoll(REFRESH_MS, deployVersion);
-  useReloadTelemetry("players", deployVersion);
   return null;
 }

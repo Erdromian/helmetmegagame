@@ -127,7 +127,7 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
   // card's width.
   if (role.whitelistBlocked) {
     return (
-      <Tooltip text="Whitelist only ‡" className="block">
+      <Tooltip text="Whitelist only" className="block">
         {card}
       </Tooltip>
     );
@@ -396,7 +396,7 @@ export default function CreateCharacterWizard({
           <span className="text-muted">
             This seat is yours until{" "}
             {new Date(lockedRole.expiresAt).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
-            . After that it opens to anyone. ‡
+            . After that it opens to anyone.
           </span>
         </div>
       )}
@@ -611,7 +611,7 @@ export default function CreateCharacterWizard({
               // Greyed, not hidden: a whitelisted box is still a thing that
               // exists, the same way a whitelisted role card is.
               return locked ? (
-                <Tooltip key={a.slug} text="Whitelist only ‡" className="block">
+                <Tooltip key={a.slug} text="Whitelist only" className="block">
                   {box}
                 </Tooltip>
               ) : (
@@ -655,8 +655,8 @@ export default function CreateCharacterWizard({
               <dt className="text-muted">Starts in</dt>
               <dd>
                 {role.startingLocationName
-                  ? `${role.startingLocationName}${role.startingZoneName ? `, ${role.startingZoneName}` : ""} ‡`
-                  : "Nowhere yet ‡"}
+                  ? `${role.startingLocationName}${role.startingZoneName ? `, ${role.startingZoneName}` : ""}`
+                  : "Nowhere yet"}
               </dd>
             </div>
             <div>

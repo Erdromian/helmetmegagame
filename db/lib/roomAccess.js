@@ -88,19 +88,15 @@ async function roomAccessKeys(prisma, characterId) {
 // Every private room in the game gets at most one idempotent call. A miss is
 // logged and left for the doctor.
 //
-// `guestsOnly` is what the MOVER passes. A move cannot change entitlement, so
-// there is nothing to add and nothing to remove — except where the guest sweep
-// above just spent a row, which is the one thing walking out does change. In
-// the ordinary case that set is empty and this makes ZERO Discord calls, which
-// is the entire feature. Everyone else omits it and gets the full recompute.
-//
-// The old `locationOnly` option is gone and must not come back: it narrowed the
-// recompute to the character's current Location, which under the entitlement
-// rule would silently miss a key gained or lost for a room on the other side of
-// the map.
-async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null, guestsOnly = false } = {}) {
+// THERE IS NO CHEAP MODE, and there deliberately isn't one. The diff below
+// already makes a move cost zero Discord calls — entitlement did not change, so
+// the delta is empty — and every narrowing option tried here has been a bug:
+// `locationOnly` missed a key gained for a room in another zone, and a
+// `guestsOnly` fast path narrowed the scope so a move could never repair drift
+// the diff would otherwise catch. One path, always the full recompute.
+async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = {}) {
   const result = { added: 0, removed: 0 };
-  if (!character?.discordUserId) return result;
+  if (!character?.id) return result;
 
   const rooms = await prisma.room.findMany({
     where: { kind: "PRIVATE", discordThreadId: { not: null } },
@@ -122,25 +118,17 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null, gue
     characterId: character.id,
     ...(alive && character.locationId ? { room: { locationId: { not: character.locationId } } } : {}),
   };
-  // Read the rows before deleting them: `guestsOnly` needs to know which rooms
-  // were actually spent, and deleteMany only returns a count.
-  const spentGuestRoomIds = new Set(
-    (
-      await prisma.roomGuest
-        .findMany({ where: staleGuestWhere, select: { roomId: true } })
-        .catch(() => [])
-    ).map((row) => row.roomId),
-  );
   await prisma.roomGuest
     .deleteMany({ where: staleGuestWhere })
     .catch((err) => console.error(`Room guest sweep failed for ${character.id}:`, err.message ?? err));
 
   if (rooms.length === 0) return result;
   if (!process.env.DISCORD_TOKEN) return result;
-
-  // A move changes nothing but the guest rows it just spent, so that is all it
-  // touches. Empty in the ordinary case, which means no Discord calls at all.
-  if (guestsOnly && spentGuestRoomIds.size === 0) return result;
+  // Below this line is Discord work, and a character with no account cannot be
+  // a thread member. The guest sweep above still had to run for them: /add
+  // writes a RoomGuest row whatever the id, and a row nothing ever spends
+  // grants that room forever to every accessibleRooms() reader.
+  if (!character.discordUserId) return result;
 
   // Entitlement, and deliberately NOT filtered by where they are standing:
   // holding the key is the whole test. A dead character is entitled to nothing,
@@ -155,33 +143,27 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null, gue
   // is the whole reason the tag-change path is affordable: entitlement is
   // recomputed constantly (every equip, every meal) and almost never changes,
   // so the delta is almost always empty and this makes no calls at all.
-  const stored = new Set(
-    (
-      await prisma.character
-        .findUnique({ where: { id: character.id }, select: { roomThreadRoomIds: true } })
-        .catch(() => null)
-    )?.roomThreadRoomIds ?? [],
-  );
+  const record = await prisma.character
+    .findUnique({ where: { id: character.id }, select: { roomThreadRoomIds: true, webOnly: true } })
+    .catch(() => null);
+  const stored = new Set(record?.roomThreadRoomIds ?? []);
 
   // The "web only" switch (docs/systemdocs/HALL.md §6) holds this account out
   // of every channel, so it is entitled to no thread at all until it comes
   // back off. Cleared rather than never computed, on purpose: the diff below
   // then REMOVES whatever they still stand in. Read here rather than off the
   // passed-in `character`, because a dozen callers hand this function a row
-  // with their own select. Feed access is untouched — placesFor reads
-  // accessibleRooms directly.
-  const flags = await prisma.character
-    .findUnique({ where: { id: character.id }, select: { webOnly: true } })
-    .catch(() => null);
-  if (flags?.webOnly) entitled.clear();
+  // with their own select and only one of them would have thought to ask.
+  // Feed access is untouched — placesFor reads accessibleRooms directly.
+  if (record?.webOnly) entitled.clear();
 
-  const scope = guestsOnly ? rooms.filter((r) => spentGuestRoomIds.has(r.id)) : rooms;
-  const targets = scope.filter((room) => entitled.has(room.id) !== stored.has(room.id));
+  const targets = rooms.filter((room) => entitled.has(room.id) !== stored.has(room.id));
+  if (targets.length === 0) return result;
+
   // A door opened or shut, so this character's /play place list changed —
   // wake their tabs before the Discord calls, which are the slow part and can
   // fail without changing the answer the web gives (docs HALL.md §3).
   await notifyPresence(prisma, character.id);
-  if (targets.length === 0) return result;
 
   const next = new Set(stored);
   for (const room of targets) {
@@ -209,7 +191,34 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null, gue
   return result;
 }
 
+// Record — or unrecord — one room in Character.roomThreadRoomIds, for the code
+// paths that push a thread membership WITHOUT going through the recompute
+// above: /add and /remove (bot/src/events/interactionCreate.js) and the
+// channel doctor's room-membership repair.
+//
+// They must call this or the column lies, and a lying column is not a wasted
+// call, it is an ACCESS CONTROL FAILURE in the quiet direction: the diff at
+// the heart of syncCharacterRoomAccess only acts where `entitled` and `stored`
+// DISAGREE, so a membership Discord has but the column does not is a
+// membership that can never be removed. A guest let in by /add would keep the
+// room forever, and after a doctor backfill every key revocation in the game
+// would silently stop evicting.
+async function recordRoomThread(prisma, characterId, roomId, present) {
+  if (!characterId || !roomId) return;
+  const row = await prisma.character
+    .findUnique({ where: { id: characterId }, select: { roomThreadRoomIds: true } })
+    .catch(() => null);
+  if (!row) return;
+  const current = row.roomThreadRoomIds ?? [];
+  if (current.includes(roomId) === Boolean(present)) return; // already right
+  const next = present ? [...current, roomId] : current.filter((id) => id !== roomId);
+  await prisma.character
+    .update({ where: { id: characterId }, data: { roomThreadRoomIds: next } })
+    .catch((err) => console.error(`Room membership record failed for ${characterId}:`, err.message ?? err));
+}
+
 module.exports = {
+  recordRoomThread,
   syncCharacterRoomAccess,
   accessibleRooms,
   heldTagSlugs,

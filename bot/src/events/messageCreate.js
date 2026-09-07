@@ -91,7 +91,7 @@ module.exports = {
             meta: attachmentNames ? { attachments: attachmentNames } : undefined,
           },
         })
-        .catch(() => {});
+        .catch(() => { });
       return;
     }
 
@@ -101,7 +101,7 @@ module.exports = {
     // surface (bot/src/lib/reportChannel.js's Open Ticket button).
     const channelName = message.channel.name?.toLowerCase();
     if (channelName === "turns" || message.channel.id === REPORT_CHANNEL_ID) {
-      await message.delete().catch(() => {});
+      await message.delete().catch(() => { });
       return;
     }
 
@@ -113,7 +113,7 @@ module.exports = {
     if (!isDesignatedTupperChannel(message.channel)) return;
 
     // Activity clock for Conversations. Informational since Bascinet 2
-    // retired inactivity expiry — the Dawn wipe takes them instead — and
+    // retired inactivity expiry — the message wipe takes them instead — and
     // debounced to one write per thread per turn; runs before the character
     // gate on purpose, so a GM talking in a scene counts too.
     if (message.channel.isThread?.()) {
@@ -210,7 +210,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
   // One line per ping makes it diagnosable from the Railway logs.
   console.log(
     `[mentions] roles=${mentionedRoleIds.join(",")} resolved=${mentioned.length} ` +
-      `location=${context.locationId ?? "none"} kind=${context.channelKind ?? "none"}`,
+    `location=${context.locationId ?? "none"} kind=${context.channelKind ?? "none"}`,
   );
   if (mentioned.length === 0) return;
 
@@ -226,9 +226,9 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
     await sendDm(
       message.author,
       `» *That pinged ${mentioned.length} people at once, so only the first ${MAX_MENTION_RELAYS} were told. ` +
-        `Not notified: ${dropped.map((t) => t.name).join(", ")}.* ‡`,
+      `Not notified: ${dropped.map((t) => t.name).join(", ")}.*`,
       { source: "system_notice" },
-    ).catch(() => {});
+    ).catch(() => { });
   }
 
   const link = messageLink(message.guildId, channel.id, proxied.id);
@@ -288,9 +288,9 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
     await sendDm(
       message.author,
       notHere.length === 1
-        ? `» *${notHere[0]} isn't in ${where} — they're invited, and they'll see this conversation when they arrive.* ‡`
-        : `» *${notHere.join(", ")} aren't in ${where} — they're invited, and they'll see this conversation when they arrive.* ‡`,
+        ? `» *${notHere[0]} isn't in ${where}. They'll see this conversation when they arrive.*`
+        : `» *${notHere.join(", ")} aren't in ${where}. They'll see this conversation when they arrive.*`,
       { source: "system_notice" },
-    ).catch(() => {});
+    ).catch(() => { });
   }
 }

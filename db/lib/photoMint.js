@@ -41,9 +41,9 @@ const PHOTO_SHAPE = {
   weightLbs: 0,
   // One photo is one photo. Two shots of the same man are not the same object.
   stackable: false,
-  // Not binnable from the Destroy menu, for paper's reason: burning evidence
-  // is a thing the fiction should have to say out loud.
-  removable: false,
+  // Binnable, for paper's reason (db/lib/paperMint.js): a photo is an item,
+  // and Destroy is what you do with an item you no longer want.
+  removable: true,
   purchasable: false,
   purchasableAfterStart: false,
   // A photo in your pocket is not something the room can read over your

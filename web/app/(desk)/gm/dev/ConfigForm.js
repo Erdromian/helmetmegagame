@@ -2,7 +2,6 @@ import { GROUPS, fieldsInGroup } from "@lifeweb/db/lib/gameConfigFields";
 import { updateGameConfig } from "@/app/(app)/gm/dev/actions";
 import SubmitButton from "@/app/components/SubmitButton";
 import Switch from "@/app/components/Switch";
-import InfoIcon from "@/app/components/InfoIcon";
 
 // The Configuration section, rendered from the registry rather than written
 // by hand — see db/lib/gameConfigFields.js for why. A plain server component:
@@ -12,12 +11,9 @@ function NumberField({ field, value }) {
   const id = `config-${field.key}`;
   return (
     <div className="field">
-      <span className="flex items-center gap-2">
-        <label htmlFor={id} className="field-label">
-          {field.label}
-        </label>
-        {field.help ? <InfoIcon text={field.help} /> : null}
-      </span>
+      <label htmlFor={id} className="field-label">
+        {field.label}
+      </label>
       <input
         type="number"
         id={id}
@@ -35,13 +31,9 @@ function BoolField({ field, value }) {
   return (
     <div className="ops-toggle">
       <div className="flex flex-1 min-w-0 flex-col gap-1">
-        <div className="flex items-center gap-3">
-          <Switch name={field.key} defaultChecked={Boolean(value)}>
-            {field.label}
-          </Switch>
-          {field.help ? <InfoIcon text={field.help} /> : null}
-        </div>
-        {field.note ? <p className="ops-toggle-note">{field.note}</p> : null}
+        <Switch name={field.key} defaultChecked={Boolean(value)}>
+          {field.label}
+        </Switch>
       </div>
     </div>
   );

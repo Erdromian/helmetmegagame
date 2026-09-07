@@ -18,7 +18,7 @@ export default function AssignmentPreview({ draft, rows, roles }) {
   if (!draft) {
     return (
       <div className="flex flex-col gap-2">
-        <p className="ops-lede">No preview yet. Roll one to see who would get what before you start. ‡</p>
+        <p className="ops-lede">No preview yet.</p>
         <div className="ops-actions">
           <button type="button" className="btn" onClick={() => run(previewAssignment)} disabled={pending}>
             {pending ? "Rolling…" : "Preview assignment"}

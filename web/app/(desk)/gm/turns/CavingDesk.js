@@ -153,7 +153,7 @@ export default function CavingDesk({
             {roll.lootUndoneAt
               ? "That find was taken back — the tag is off the sheet. ‡"
               : roll.lootTagId
-                ? "Already on their sheet. ‡"
+                ? "Already on their sheet."
                 : "Already granted, but the tag is no longer on record — take it off by hand from the Dev Panel. ‡"}
           </p>
           {roll.lootTagId && !roll.lootUndoneAt && (

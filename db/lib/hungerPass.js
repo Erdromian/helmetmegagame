@@ -9,10 +9,9 @@ const {
   FAST_METABOLISM_SLUG,
   ATE_MEAL_SLUG,
   DYING_SLUG,
-  NOBILITY_SLUG,
-  DISAPPOINTED_SLUG,
 } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
+const { applyFear } = require("./fear");
 
 const HUNGER_STREAK_CAP = 6;
 
@@ -31,17 +30,6 @@ function hungerDm(notice) {
 const DYING_DM =
   "You haven't eaten in 6 turns straight. Your body is giving out — you're **Dying**. A GM will decide what happens next.";
 
-// Missed turn closes in a row before a noble wakes Disappointed. The web
-// sheet's Dinner row (StatusPanel.js) counts against the same number.
-const DISAPPOINTMENT_THRESHOLD = 3;
-
-function disappointedDm(notice) {
-  if (notice.kind === "warned") {
-    return "2 days without a fine meal. One more and you'll wake **Disappointed**.";
-  }
-  return "3 days without a fine meal. You're **Disappointed** — −1 to Gambits until you eat one.";
-}
-
 async function runHungerPass(prisma, turn) {
   const tags = await prisma.tag.findMany({
     where: {
@@ -52,8 +40,6 @@ async function runHungerPass(prisma, turn) {
           FAST_METABOLISM_SLUG,
           ATE_MEAL_SLUG,
           DYING_SLUG,
-          NOBILITY_SLUG,
-          DISAPPOINTED_SLUG,
         ],
       },
     },
@@ -79,17 +65,10 @@ async function runHungerPass(prisma, turn) {
   if (!dyingId) {
     console.error(`Hunger pass: no "${DYING_SLUG}" tag — run npm run db:sync-tags. Streak cap won't grant it.`);
   }
-  const nobilityId = tags.find((t) => t.slug === NOBILITY_SLUG)?.id ?? null;
-  const disappointedId = tags.find((t) => t.slug === DISAPPOINTED_SLUG)?.id ?? null;
-  if (nobilityId && !disappointedId) {
-    console.error(
-      `Hunger pass: no "${DISAPPOINTED_SLUG}" tag — run npm run db:sync-tags. Nobility upkeep won't be tracked.`,
-    );
-  }
-  const trackNobles = Boolean(nobilityId && disappointedId);
 
+  // A noble's dinner is no longer this pass's business: skipping it costs
+  // fear at the fear pass instead (db/lib/fearPass.js, the `dined` marker).
   const gateIds = [hungerlessId, fastMetabolismId, ateMealId].filter(Boolean);
-  if (trackNobles) gateIds.push(nobilityId, disappointedId, ...(dyingId ? [dyingId] : []));
   const characters = await prisma.character.findMany({
     where: { status: "ALIVE" },
     select: {
@@ -97,7 +76,6 @@ async function runHungerPass(prisma, turn) {
       discordUserId: true,
       resources: true,
       hungerStreak: true,
-      missedMealStreak: true,
       // Only the gating tags, not the whole tag set — keeps this cheap at
       // 100+ characters.
       tags: { where: { tagId: { in: gateIds } }, select: { tagId: true } },
@@ -113,14 +91,8 @@ async function runHungerPass(prisma, turn) {
   const fed = []; // ate-meal or paid: streak drops by ONE tick
   let skipped = 0;
 
-  const nobleFedIds = [];
-  const nobleMissedIds = [];
-  const toDisappointIds = [];
-  const disappointedNotices = [];
-
   for (const character of characters) {
     const held = new Set(character.tags.map((ct) => ct.tagId));
-    const noble = trackNobles && held.has(nobilityId) && !(dyingId && held.has(dyingId));
 
     if (hungerlessId && held.has(hungerlessId)) {
       skipped += 1;
@@ -131,21 +103,7 @@ async function runHungerPass(prisma, turn) {
     if (ateMealId && held.has(ateMealId)) {
       shieldedIds.push(character.id);
       fed.push(character);
-      if (noble) nobleFedIds.push(character.id);
       continue;
-    }
-
-    if (noble) {
-      const missed = character.missedMealStreak + 1;
-      nobleMissedIds.push(character.id);
-      if (missed >= DISAPPOINTMENT_THRESHOLD) {
-        if (!held.has(disappointedId)) {
-          toDisappointIds.push(character.id);
-          disappointedNotices.push({ discordUserId: character.discordUserId, kind: "disappointed" });
-        }
-      } else if (missed === DISAPPOINTMENT_THRESHOLD - 1) {
-        disappointedNotices.push({ discordUserId: character.discordUserId, kind: "warned" });
-      }
     }
 
     // Under the full cost the character pays NOTHING and goes hungry, keeping
@@ -231,26 +189,6 @@ async function runHungerPass(prisma, turn) {
       where: { id: { in: toStarve.map((character) => character.id) } },
       data: { hungerStreak: { increment: 1 } },
     }),
-    prisma.character.updateMany({
-      where: { id: { in: nobleFedIds } },
-      data: { missedMealStreak: 0 },
-    }),
-    prisma.character.updateMany({
-      where: { id: { in: nobleMissedIds } },
-      data: { missedMealStreak: { increment: 1 } },
-    }),
-    prisma.characterTag.deleteMany({
-      where: { characterId: { in: nobleFedIds }, tagId: disappointedId ?? "" },
-    }),
-    prisma.characterTag.createMany({
-      data: toDisappointIds.map((characterId) => ({
-        characterId,
-        tagId: disappointedId ?? "",
-        source: "EVENT",
-        expiresTurn: null, // cleared by eating, not by time
-      })),
-      skipDuplicates: true,
-    }),
     ...(newlyDyingIds.length && dyingId
       ? [
           prisma.characterTag.createMany({
@@ -268,6 +206,18 @@ async function runHungerPass(prisma, turn) {
       : []),
   ]);
 
+  // Starving to death's door is frightening (docs/systemdocs/FEAR.md). The
+  // grant above is a batch createMany, so the dial moves here, after it lands;
+  // the band DMs ride back beside the hunger notices rather than being sent.
+  const fearDms = [];
+  for (const characterId of newlyDyingIds) {
+    const moved = await applyFear(prisma, characterId, { kind: "DYING", notify: false }).catch((err) => {
+      console.error(`Hunger pass: dying fear failed for ${characterId}:`, err.message ?? err);
+      return null;
+    });
+    if (moved?.dm) fearDms.push(moved.dm);
+  }
+
   // DMs are deliberately NOT sent here — the list is handed back and sent
   // from advanceTurn()'s runSideEffects() instead, after the response
   // already flushed.
@@ -279,10 +229,9 @@ async function runHungerPass(prisma, turn) {
     shielded: shieldedIds.length,
     skipped,
     recovering: stillHungryAfterEating.length,
-    disappointed: toDisappointIds.length,
     starvedCharacterIds: toStarve.map((character) => character.id),
     hungerNotices,
-    disappointedNotices,
+    fearDms,
     newlyDyingCharacterIds: newlyDyingIds,
   };
 }
@@ -290,8 +239,6 @@ async function runHungerPass(prisma, turn) {
 module.exports = {
   runHungerPass,
   hungerDm,
-  disappointedDm,
   DYING_DM,
   HUNGER_STREAK_CAP,
-  DISAPPOINTMENT_THRESHOLD,
 };

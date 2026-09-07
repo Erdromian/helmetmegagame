@@ -6,7 +6,7 @@
     - [Turn Overview](#turn-overview)  
     - [Quick Reference](#quick-reference)  
 3. [The Game Clock](#the-game-clock)  
-    - [The Dawn Wipe](#the-dawn-wipe)  
+    - [The Wipe](#the-wipe)  
 4. [Character Creation](#character-creation)  
 5. [Playing A Turn](#playing-a-turn)  
     - [Don't Ignore The Previous Turn's Results](#dont-ignore-the-previous-turns-results)  
@@ -48,13 +48,13 @@ Each part of the game is explained in detail later in this Handbook. At a high l
 Each turn you will receive the results of your Move and other Moves that affected you. Some Moves may also have results posted publicly. Read these to find out what events your character is involved in or witnesses.
 
 **Read What People Are Doing Around You**  
-Each Zone has a Summary channel, where players can post descriptions of what their character can be seen doing, and each Location in the Zone has its own channel, where the people standing there interact. See what's happening around you and consider how your character might respond. ‡
+Each Zone has a Summary channel, where players can post descriptions of what their character can be seen doing, and each Location in the Zone has its own channel, where the people standing there interact. See what's happening around you and consider how your character might respond.
 
 **Talk To People**  
-Introduce yourself, barge into conversations, make plans, offer services, beg for food, ask questions, etc. The bulk of the game is roleplaying as your character in a Location's channel, its Rooms, or a private Conversation. OOC discussions should take place in `#general`, keeping in mind that you should not intentionally reveal which character you play. ‡
+Introduce yourself, barge into conversations, make plans, offer services, beg for food, ask questions, etc. The bulk of the game is roleplaying as your character in a Location's channel, its Rooms, or a private Conversation. OOC discussions should take place in `#general`, keeping in mind that you should not intentionally reveal which character you play.
 
 **Decide What You're Doing**  
-Walk between Locations as often as you like, travel to another Zone, submit a description of what your character is trying to accomplish during the turn, or do neither and spend the day laboring. ‡  
+Walk between Locations as often as you like, travel to another Zone, submit a description of what your character is trying to accomplish during the turn, or do neither and spend the day laboring.  
 
 ### Help & GMs
 
@@ -72,54 +72,56 @@ General questions can be asked in the `#general` channel or by creating a thread
 | Command | Effect |
 |---|---|
 | `/move` | Open the Move submission form. |
-| `/location` | Open the Travel picker — walk to a connected Location, or cross into another Zone. ‡ |
+| `/location` | Open the Travel picker — walk to a connected Location, or cross into another Zone. |
 | `/message` | Speak as your character directly into a channel. |
 | `/roll` | Roll a 1d6 into the channel, for everyone to see. |
-| `/add` | Invite a character into your Conversation. ‡ |
-| `/remove` | Remove a character from your Conversation. ‡ |
-| `/conceal` | Toggle concealment. While it's on, everything you say posts under a vague alias. ‡ |
+| `/add` | Invite a character into your Conversation. |
+| `/remove` | Remove a character from your Conversation. |
+| `/conceal` | Toggle concealment. While it's on, everything you say posts under a vague alias. |
 
 #### **Channels**  
 | Channel | What it's for |
 |---|---|
 | **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode and is not meant for conversations. |
-| **A Location** (text channel) | The one place you're standing in. Talk in the channel itself, step into one of its public Rooms (threads), or use the pinned message's buttons: **Who's here?**, **Secret rooms?**, **Converse**. ‡ |
+| **A Location** (text channel) | The one place you're standing in. Talk in the channel itself, step into one of its public Rooms (threads), or use the pinned message's buttons: **Who's here?**, **Secret rooms?**, **Converse**. |
 
 #### **Website**
 | Page | Content |
 |---|---|
-| **Character** | Your character sheet. Current Location, Resources, Gambit modifier, Tag Points, tags and equipment, Desires, your bio and portrait, all requests functions. ‡ |
-| **Faction** | Faction roster and leadership. ‡ |
+| **Character** | Your character sheet. Current Location, Resources, Gambit modifier, Tag Points, tags and equipment, Desires, your bio and portrait, all requests functions. |
+| **Faction** | Faction roster and leadership. |
 | **Documents** | Game rules and briefs. **Assigned** has specific documents provided by your role or tags. |
 | **Notes** | Your private Journal, plus messages saved with ⭐. Both are visible only to you. |
 | **Archive** | A full transcript of all roleplay channels. Hidden until after the game ends. |
 | **Handbook** | A full page version of this document. |
 
 ## The Game Clock
-Bascinet runs for 30 real days. One turn is one of those days, and turns alternate — Dawn, then Dusk, then Dawn again — so an in-game day is two of them and the game ends somewhere around in-game Day 15. ‡
-- **Every turn begins at midnight US Central.** ‡
+Bascinet runs for 30 real days. One turn is one of those days, and turns alternate — Dawn, then Dusk, then Dawn again — so an in-game day is two of them and the game ends somewhere around in-game Day 15.
+- **Every turn begins at midnight US Central.**
 
 At the end of each turn the game resolves what happened during it. Move results are posted, Resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
 
 You can find information on the current turn in the `#turns` channel, in addition to the three main controls:  
-- **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. You get one free Zone crossing a turn, and an **equipped mount** gives you a second; past those, crossing spends your Move, and once you've acted you can't cross at all. Your sheet shows how many you have left. Either way you arrive immediately, and the picker always lets you bring along anyone you could carry: someone bound or helpless, a body, or a member of your faction if you lead it. ‡  
+- **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. You get one free Zone crossing a turn, and an **equipped mount** gives you a second; past those, crossing spends your Move, and once you've acted you can't cross at all. Your sheet shows how many you have left. Either way you arrive immediately, and the picker always lets you bring along anyone you could carry: someone bound or helpless, a body, or a member of your faction if you lead it.  
 - **Move** is used to submit your character's Move for the turn.  
 - **Speak** allows you to post as your character without typing into a channel, helping to obscure your identity.
 
-### The Dawn Wipe
+### The Wipe
 
-At the start of every Dawn turn all roleplay channels are cleared and their contents are sent to the Archive, which is unlocked for players to read after the game ends. This helps to keep scenes and threads focused on the day at hand, rather than long-running conversations. Since Dawn comes around every other turn, a scene has two days to run before the wipe reaches it. ‡
+At the start of every turn all roleplay channels are cleared and their contents are sent to the Archive, which is unlocked for players to read after the game ends. This keeps scenes focused on the day at hand, rather than becoming long-running conversations. A scene lives for one turn. ‡
+
+The one exception is your Zone's Summary channel, which is only cleared at Dawn — so what is posted there has two days to be read. ‡
 
 What survives:
 - Every Room keeps its thread and its description; the messages in it are archived. ‡
 - Conversations do not survive. Open a new one after the wipe. ‡
 
-If you want to remember something, use the ⭐ reaction on the message before Dawn to save it to your [Notes](https://ravenheart.quest/notes) page.
+If you want to remember something, use the ⭐ reaction on the message before the turn ends to save it to your [Notes](https://ravenheart.quest/notes) page. ‡
 
 ## Character Creation
 The first thing you will do is open the **Character** page on the website, from the button at the top of the sidebar.
 
-**Before the game starts** that page is the lobby. Set how much you want each role — Off, Low, Med or High, with only one High at a time — say what should happen if none of them is free (join as a Commoner, join as a Migrant, or sit it out and join by hand later), tick any antagonist you are open to being handed, and press **Ready**. Everything saves as you go and is remembered for the next game. When the GMs start the game, the roll hands out seats: players who wanted a role more get it before players who wanted it less, and a role's seats fill until they run out. You get a DM with your seat, a link, and a deadline. Build your character before it, or the seat opens to anyone. ‡
+**Before the game starts** that page is the lobby. Set how much you want each role — Off, Low, Med or High, with only one High at a time — say what should happen if none of them is free (join as a Commoner, join as a Migrant, or sit it out and join by hand later), tick any antagonist you are open to being handed, and press **Ready**. Everything saves as you go and is remembered for the next game. When the GMs start the game, the roll hands out seats: players who wanted a role more get it before players who wanted it less, and a role's seats fill until they run out. You get a DM with your seat, a link, and a deadline. Build your character before it, or the seat opens to anyone.
 
 **After the game starts**, or if you missed the roll, you join by hand: pick from whatever seats are open. Character creation takes place in 5 steps:
 
@@ -133,7 +135,7 @@ Tags represent your character's skills, assets, injuries, and other attributes. 
 Your identity is your character's name, gender, age, and title. Names must be a single word, and titles must be earned or granted by your role.
 
 **Antagonists**  
-Antagonists are secret villain roles that may be granted by a GM. You can select one or more of these options to indicate you're open to receiving one. A few need the whitelist, like the leader roles do. ‡
+Antagonists are secret villain roles that may be granted by a GM. You can select one or more of these options to indicate you're open to receiving one. A few need the whitelist, like the leader roles do.
 
 **Confirm**  
 Once you've made your selections and reviewed your character details, clicking Confirm will create the character and assign it to your Discord account. It will also take you to the Character page, which is your full character sheet.
@@ -181,27 +183,27 @@ There are seven Zones in Bascinet:
 - The Caves
 - The Depths
 
-Every Zone is made of Locations — the Gatehouse, the Keep and the Garrison in the Fortress, say. Your character stands in exactly one Location at a time, and sees only that Location's channel (plus the Zone's Summary). Locations are connected like a map: use **Travel** to walk to a neighbouring one. Walking inside your Zone is free, with a short cooldown between steps; crossing into another Zone costs your Move. ‡
+Every Zone is made of Locations — the Gatehouse, the Keep and the Garrison in the Fortress, say. Your character stands in exactly one Location at a time, and sees only that Location's channel (plus the Zone's Summary). Locations are connected like a map: use **Travel** to walk to a neighbouring one. Walking inside your Zone is free, with a short cooldown between steps; crossing into another Zone costs your Move.
 
-Out in the wild, a Location carries its Zone in its name — the Ravine in the Black Hills is hills-ravine, the Village in the Marshes is marshes-village. Every zone has a ravine and a river of its own, so the Zone is part of the name. Built places need no such help and go by what they are: the Keep, the Cathedral, the Factory. ‡
+Out in the wild, a Location carries its Zone in its name — the Ravine in the Black Hills is hills-ravine, the Village in the Marshes is marshes-village. Every zone has a ravine and a river of its own, so the Zone is part of the name. Built places need no such help and go by what they are: the Keep, the Cathedral, the Factory.
 
-Not every way is simply open. A **gate** announces you in the Zone's Summary when you cross it — a manned one names you outright, an unmanned one only reports what a passer-by would have seen. A **locked** way appears in your Travel list but refuses you until you carry the right thing. Some ways can be **opened and closed** by the people who hold them, with a button on the Location's pinned message; while shut, nobody passes. And some ways you will not see listed at all. ‡
+Not every way is simply open. A **gate** announces you in the Zone's Summary when you cross it — a manned one names you outright, an unmanned one only reports what a passer-by would have seen. A **locked** way appears in your Travel list but refuses you until you carry the right thing. Some ways can be **opened and closed** by the people who hold them, with a button on the Location's pinned message; while shut, nobody passes. And some ways you will not see listed at all.
 
-Some ways are too tight, too steep or too enclosed for a horse or a cart — a crawl, a cliff path, a lift, a culvert. You'll be turned back at those while you're mounted. Unequip the animal and you can go through on your own two feet. ‡
+Some ways are too tight, too steep or too enclosed for a horse or a cart — a crawl, a cliff path, a lift, a culvert. You'll be turned back at those while you're mounted. Unequip the animal and you can go through on your own two feet.
 
-If you have the key to one of those, you may be asked in a DM whether to leave it open for the next 24 hours. Say yes and anyone can see it and use it until the day is out — which is how somebody without a key follows you through. Say no and it falls shut behind you. ‡
+If you have the key to one of those, you may be asked in a DM whether to leave it open for the next 24 hours. Say yes and anyone can see it and use it until the day is out — which is how somebody without a key follows you through. Say no and it falls shut behind you.
 
-Each Location's channel has a pinned message at the top with its description, the list of its public Rooms, and three buttons. ‡
+Each Location's channel has a pinned message at the top with its description, the list of its public Rooms, and three buttons.
 | Channel | What it's for |
 |---|---|
 | **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode and is not meant for conversations. |
-| **A Location** (text channel) | The open street. Anyone standing here can talk in the channel itself. ‡ |
-| **Rooms** (threads under the Location) | The places inside a Location — the Old Cock Inn on the Square, the Throne Room in the Keep. Public Rooms are open to everyone here. Private Rooms are hidden: you only see one if you hold the right tag, such as a key. ‡ |
+| **A Location** (text channel) | The open street. Anyone standing here can talk in the channel itself. |
+| **Rooms** (threads under the Location) | The places inside a Location — the Old Cock Inn on the Square, the Throne Room in the Keep. Public Rooms are open to everyone here. Private Rooms are hidden: you only see one if you hold the right tag, such as a key. |
 
-The three buttons on the pinned message: ‡
-- **Who's here?** — the characters standing in this Location. Anyone concealed shows up as "a young man" or the like. ‡
-- **Secret rooms?** — the private Rooms you can enter here, and the Conversations you're part of. ‡
-- **Converse** — open a private Conversation, linked to one of the Rooms. ‡
+The three buttons on the pinned message:
+- **Who's here?** — the characters standing in this Location. Anyone concealed shows up as "a young man" or the like.
+- **Secret rooms?** — the private Rooms you can enter here, and the Conversations you're part of.
+- **Converse** — open a private Conversation, linked to one of the Rooms.
 
 You may also gain access to unique roleplay channels by other means, such as acquiring a specific tag.
 
@@ -209,35 +211,35 @@ You may also gain access to unique roleplay channels by other means, such as acq
 
 ### Public Scenes
 
-Use the Location's channel or one of its public Rooms when you want to play out a scene or conversation visible to everyone in the area. It could be a meeting, a conversation or argument, starting a confrontation, or anything else your character might do that involves others. ‡
+Use the Location's channel or one of its public Rooms when you want to play out a scene or conversation visible to everyone in the area. It could be a meeting, a conversation or argument, starting a confrontation, or anything else your character might do that involves others.
 
-If you see someone post a description of their Character in the Summary channel and want to interact with them, walk to where they are and do so there. ‡
+If you see someone post a description of their Character in the Summary channel and want to interact with them, walk to where they are and do so there.
 
 ### Private Conversations
 
-To hold a private conversation with one or more other characters at your Location: ‡
-1. Press **Converse** on the Location's pinned message and pick which Room it's linked to. ‡
-2. Give it a name. The bot opens a private thread with you in it. ‡
-3. Use `/add` in the thread and choose who you want to invite. ‡
-4. Use `/remove` if someone should leave the conversation. ‡
+To hold a private conversation with one or more other characters at your Location:
+1. Press **Converse** on the Location's pinned message and pick which Room it's linked to.
+2. Give it a name. The bot opens a private thread with you in it.
+3. Use `/add` in the thread and choose who you want to invite.
+4. Use `/remove` if someone should leave the conversation.
 
-A Conversation isn't silent. Every fifteen minutes, the Room it's linked to hears who has been whispering — never names, only descriptions: *A young man and an old woman are whispering…* Conversations are cleared every Dawn. ‡
+A Conversation isn't silent. Every fifteen minutes, the Room it's linked to hears who has been whispering — never names, only descriptions: *You hear a young man and an old woman whispering.* Conversations are cleared at the end of every turn. ‡
 
 ### Character Mentions
 
 Every character has a unique Discord role that you can mention by typing `@` followed by their character name. The bot will then DM the player telling them where they were mentioned.
 
-Mentions only work within the same Location — you can't mention characters standing elsewhere in the game world to bring them into a conversation. ‡
+Mentions only work within the same Location — you can't mention characters standing elsewhere in the game world to bring them into a conversation.
 
 ### Concealing Your Identity
 
-To hide your identity, run `/conceal` (anywhere, the bot's DMs included) or flip the switch on your [Character](https://ravenheart.quest/character) page. It stays on until you turn it off. ‡
+To hide your identity, run `/conceal` (anywhere, the bot's DMs included) or flip the switch on your [Character](https://ravenheart.quest/character) page. It stays on until you turn it off.
 
-While you're concealed, everything you say posts under a vague descriptor such as "Old Man" or "Young Woman" with a blank portrait, and **Who's here?** lists you the same way. ‡
+While you're concealed, everything you say posts under a vague descriptor such as "Old Man" or "Young Woman" with a blank portrait, and **Who's here?** lists you the same way.
 
 Other players can still 🔎 you and see any visible wounds or gear, but your name, face, and faction remain hidden.
 
-Some transformations take the choice away. A tag like Apex Form fixes your name and face to what you have become, and `/conceal` stops working while you hold it. ‡
+Some transformations take the choice away. A tag like Apex Form fixes your name and face to what you have become, and `/conceal` stops working while you hold it.
 
 ### Talking OOC
 
@@ -264,17 +266,17 @@ Resources in Bascinet are shown with the ⬢ symbol. They represent your access 
 
 ### Transferring & Storage
 
-**Transfer** on your [Character](https://ravenheart.quest/character) page moves ⬢ and items in one go: from you or a **room** stash you're standing in, to a person standing with you or to a room stash. Every room is a stash. Put things down, come back for them later — and know that anyone else who can get into that room can take them. The room's thread hears about it, without names. ‡
+**Transfer** on your [Character](https://ravenheart.quest/character) page moves ⬢ and items in one go: from you or a **room** stash you're standing in, to a person standing with you or to a room stash. Every room is a stash. Put things down, come back for them later — and know that anyone else who can get into that room can take them. The room's thread hears about it, without names.
 
-Transfer is give-only, both ways — you can never take ⬢ or an item from another character with it. The only way to take something from someone is **Loot**, and only if they're dead or helpless; a mugging plays out that way, not through Transfer. ‡
+Transfer is give-only, both ways — you can never take ⬢ or an item from another character with it. The only way to take something from someone is **Loot**, and only if they're dead or helpless; a mugging plays out that way, not through Transfer.
 
-The **Storage** button on a room's first post lists what's there. ‡
+The **Storage** button on a room's first post lists what's there.
 
 ### Upkeep
 
 Each turn your character spends 1 ⬢ on upkeep to feed yourself. You never need to account for this in your Move — it happens automatically. If you don't have at least 1 ⬢ to spend, your character becomes {tag:hungry}.
 
-A character with {tag:fast-metabolism} eats 2 ⬢ a turn instead of 1. Come up short and nothing is taken at all — you keep what you have and go hungry anyway. ‡
+A character with {tag:fast-metabolism} eats 2 ⬢ a turn instead of 1. If they don't have 2 ⬢, nothing is taken and they become {tag:hungry}.
 
 If your character has the {tag:ate-meal} tag or the {tag:hungerless} tag, you stay fed without paying the upkeep.
 
@@ -285,6 +287,10 @@ Hunger gives a penalty to Gambit rolls. The first turn you spend hungry causes a
 Eating removes **one turn's worth** of Hunger, not all of it. If you've gone several turns without eating, one meal only brings the penalty down by 1 — you need to eat every turn to fully recover, the same number of turns it took you to build the penalty up.
 
 After 6 turns spent hungry, you receive the {tag:dying} tag and a GM will review your situation to determine what happens next.
+
+### Fear
+
+Some things wear on a character's nerves — nights spent out in the wilderness or down in the caves, a wound, going hungry, worse. It shows up on your sheet as a Condition: Uncomfortable, Stressed, Anxious, Afraid, or Panicking, in rising order. Afraid costs you −1 on Gambit rolls; Panic costs −2. A roof settles it back down, and the Inn, the Keep, or the Sanctuary more so than an ordinary room. So does a drink, a lavish meal, a pot of tea, a smoke, hearing a Musician play, confession, or getting what you wanted from a Desire. A noble who skips a fine meal gets stressed the same way anyone else does from a rough night outdoors.
 
 
 ## Submitting A Move
@@ -301,7 +307,7 @@ A paragraph describing your character's objective, where it's happening, who els
 **Kind**  
 Routine, Gambit, or Labor.
 
-If you don't submit a Move at all, you'll automatically Labor — provided you have a Laboring skill and aren't Exhausted. Nothing is filed for you otherwise. ‡
+If you don't submit a Move at all, you'll automatically Labor — provided you have a Laboring skill and aren't Exhausted. Nothing is filed for you otherwise.
 
 Moves are collectively adjudicated by the GMs at the end of every turn. If the Baron's intent was to stay in his castle then the Bandit's intent to rob him won't succeed. If the Baron was wandering in the forest, the Bandit may very well get him. Adjudication results are messaged to players at the end of every turn.
 
@@ -316,13 +322,13 @@ When you submit a Gambit, the bot rolls a d6 immediately — but doesn't tell yo
 
 You'll find out how your die fell when the turn ends — the bot DMs you the number alongside whatever the GMs decided it did. Playing the turn without knowing is the point: your character doesn't know how it went either.
 
-Choose **Labor** to spend the day working. It isn't adjudicated and it doesn't roll — it simply pays, based on your skills and where you're standing. Choosing it means choosing not to do anything else that turn. ‡
+Choose **Labor** to spend the day working. It isn't adjudicated and it doesn't roll — it simply pays, based on your skills and where you're standing. Choosing it means choosing not to do anything else that turn.
 
 The choice between Routine or Gambit is left to you because you know what your character is attempting with your Move. It's not a mechanism to choose whether you succeed, and Moves submitted using the wrong option may be adjusted by the GMs.
 
 ### Labor
 
-Labor is how you produce ⬢, and **you need a skill to do it at all**. Without one of the Laboring tags below, a day of work produces nothing. ‡
+Labor is how you produce ⬢, and **you need a skill to do it at all**. Without one of the Laboring tags below, a day of work produces nothing.
 
 Laboring is hard work: after your first day of it you're {tag:tired}, which doesn't stop you working again — but a second day running (or a third, or however many you push it) leaves you {tag:exhausted} instead, and you can't Labor again until you've rested. Exhausted also won't do you any favors in a fight. Rest one turn and Exhausted eases back down to Tired; rest a second and Tired clears completely, so how you pace it is up to you. ‡
 
@@ -334,13 +340,13 @@ Laboring is hard work: after your first day of it you're {tag:tired}, which does
 | {tag:laboring-farming} | {resource:labor:farming} | Fields and worked ground, scaled by the place |
 | {tag:laboring-fishing} | {resource:labor:fishing} | Water, scaled by the place |
 
-The bottom three need {tag:laboring-skilled} behind them, and they're **side-grades rather than upgrades** — you can hold several, and you never have to pick. Laboring always pays the best result you're entitled to for wherever you happen to be standing. ‡
+The bottom three need {tag:laboring-skilled} behind them, and they're **side-grades rather than upgrades** — you can hold several, and you never have to pick. Laboring always pays the best result you're entitled to for wherever you happen to be standing.
 
-The numbers above are what those three pay at an ordinary spot. A real place is better or worse than ordinary, and **what a place is worth changes** — some ground is quietly reliable, some swings wildly from week to week. Press the **Examine** button in any location's channel to see what it's yielding right now, along with anything else worth knowing about the place. Hunting is the wildest of the three; a field is a field. ‡
+The numbers above are what those three pay at an ordinary spot. A real place is better or worse than ordinary, and **what a place is worth changes** — some ground is quietly reliable, some swings wildly from week to week. Press the **Examine** button in any location's channel to see what it's yielding right now, along with anything else worth knowing about the place. Hunting is the wildest of the three; a field is a field.
 
-Tools help. A bow or a gun makes hunting pay more while it's equipped, a Pitchfork or a Plow does the same for farming, and a Fishing Rod for fishing. Each one names what it does in its own description. Carrying two weapons does not pay twice — you hunt with one of them, so only the better one counts — but a weapon, a set of gear and a skill all stack. ‡
+Tools help. A bow or a gun makes hunting pay more while it's equipped, a Pitchfork or a Plow does the same for farming, and a Fishing Rod for fishing. Each one names what it does in its own description. Carrying two weapons does not pay twice — you hunt with one of them, so only the better one counts — but a weapon, a set of gear and a skill all stack.
 
-If the Lifeweb fails, all of this very nearly stops. ‡
+If the Lifeweb fails, all of this very nearly stops.
 
 Farming is how Ravenheart is fed, and as such it's taxed by the Headman. More information can be found in {document:ravenhearteconomy}, on the [Documents](https://ravenheart.quest/documents) page.
 
@@ -374,27 +380,27 @@ You can spend Tag Points, using the option on your character sheet, to acquire n
 
 Tags are gained, used, and removed via options on your [Character](https://ravenheart.quest/character) page. Each is a *request*. It applies immediately, but prompts for a reason which a GM will review.
 
-- **Craft** picks a recipe you know the skills for and pays its ⬢ cost right away — from you, a room stash, or someone standing with you who agrees to pay. It files as your Move. **Dead Simple** recipes take no turns to make, so they're capped instead: at most **4 Dead Simple items per turn**. A long recipe becomes a project you can keep working on from the same button, turn after turn, or cancel with no refund. ‡
-- **Destroy** drops items or otherwise removes applicable tags. Health tags aren't included — a wound gets healed, not destroyed. ‡
+- **Craft** picks a recipe you know the skills for and pays its ⬢ cost right away — from you, a room stash, or someone standing with you who agrees to pay. It files as your Move. **Dead Simple** recipes take no turns to make, so they're capped instead: at most **4 Dead Simple items per turn**. A long recipe becomes a project you can keep working on from the same button, turn after turn, or cancel with no refund.
+- **Destroy** drops items or otherwise removes applicable tags. Health tags aren't included — a wound gets healed, not destroyed.
 - **Consume** removes item tags that can be eaten, drunk, or otherwise used.
-- **Transfer** hands a tag from you or a room stash you're in, to someone standing with you or to a room stash. Give only — taking from a person is Loot's job, not Transfer's. ‡
+- **Transfer** hands a tag from you or a room stash you're in, to someone standing with you or to a room stash. Give only — taking from a person is Loot's job, not Transfer's.
 - **Heal** heals injuries and ailments based on your Medical skill.
 
 **Stacks:** Some tags can stack, such as meals or ammunition. A stacked chip will show the count, such as `×4`.
 
-**Carrying:** Everything you own has a weight, and you can carry 84 lb of it to start, plus 25 ⬢. Skills and wounds weigh nothing, and neither do your **Assets** — a horse carries itself, and a house doesn't move. Being **Strong**, being a **Pack Mule**, or pulling an equipped **Cart** raises both caps. ‡
+**Carrying:** Everything you own has a weight, and you can carry 71 lb of it to start, plus 25 ⬢. Skills and wounds weigh nothing, and neither do your **Assets** — a horse carries itself, and a house doesn't move. Being **Strong**, being a **Pack Mule**, or pulling an equipped **Cart** raises both caps.
 
-You can go over. Past the cap you're **Overburdened**, which costs you your free Zone moves — you can still travel, you just spend your Move to do it. Past *half again* the cap, though, it simply can't be yours: someone handing it to you is refused, and anything that arrives on its own (a day's harvest, a cave's loot) lands on the floor of a random public room where you stand. ‡
+You can go over. Past the cap you're **Overburdened**, which costs you your free Zone moves — you can still travel, you just spend your Move to do it. Past *half again* the cap, though, it simply can't be yours: someone handing it to you is refused, and anything that arrives on its own (a day's harvest, a cave's loot) lands on the floor of a random public room where you stand.
 
-**Carts and horses have to be equipped to do anything**, and they take up an equipment slot like anything else. You can't bring either one indoors — into the Cathedral, the Sanctuary, the Inn, the Keep, the Undercroft, the Factory, the Mountain, or anywhere underground — so they're left at the door for you when you walk in, and you take them up again on the way out. ‡
+**Carts and horses have to be equipped to do anything**, and they take up an equipment slot like anything else. You can't bring either one indoors — into the Cathedral, the Sanctuary, the Inn, the Keep, the Undercroft, the Factory, the Mountain, or anywhere underground — so they're left at the door for you when you walk in, and you take them up again on the way out.
 
-**Equipment:** Weapons and armor must be **equipped** to use them in a fight. You have 10 slots for equippable tags. Click a tag to equip or unequip it instantly. ‡
+**Equipment:** Weapons and armor must be **equipped** to use them in a fight. You have 10 slots for equippable tags. Click a tag to equip or unequip it instantly.
 
 Equipping is also a public act. Some gear — a dagger, a pistol, a badge — is small enough to keep out of sight, and other people only see it while you have it equipped. A tag's tooltip says which: **Seen by others · Only while worn**. Big things (a sword, a shield, plate, a banner) are seen whether you have them equipped or not, because you can't hide them.
 
 **Durations:** Some tags run out (`· 2t` on the chip). Some get *worse* instead of running out.
 
-**Teaching:** Most skills can be taught by someone standing with you who holds them. Press Learn Skill (or have them press Teach Skill), and they get a DM asking to accept. If they do, teaching becomes their Routine for the turn, and learning becomes your Gambit — you succeed on a roll of 5 or 6, or 4, 5, or 6 if the teacher has the Drill Instructor tag and it's a fighting skill. A teacher with the Lecturing tag can teach up to three students on one Routine. ‡
+**Teaching:** Most skills can be taught by someone standing with you who holds them. Press Learn Skill (or have them press Teach Skill), and they get a DM asking to accept. If they do, teaching becomes their Routine for the turn, and learning becomes your Gambit — you succeed on a roll of 5 or 6, or 4, 5, or 6 if the teacher has the Drill Instructor tag and it's a fighting skill. A teacher with the Lecturing tag can teach up to three students on one Routine.
 
 ### Examining Tags
 
@@ -414,19 +420,19 @@ Even if you don't possess the skills needed to heal an injury or ailment, you ma
 
 ## Building
 
-Structures are built on the ground where you stand — a palisade, a forge, a watchtower, a fishing weir. Once raised, anyone can see them: they show up when someone Examines the Location. ‡
+Structures are built on the ground where you stand — a palisade, a forge, a watchtower, a fishing weir. Once raised, anyone can see them: they show up when someone Examines the Location.
 
-Opening a build site costs the recipe's skill like any other craft, its ⬢ paid up front and never refunded, and your Move for the day. ‡
+Opening a build site costs the recipe's skill like any other craft, its ⬢ paid up front and never refunded, and your Move for the day.
 
-Anyone standing at the site can put their Move into it too. Crew makes it finish faster — it never makes something possible that isn't unlocked yet. ‡
+Anyone standing at the site can put their Move into it too. Crew makes it finish faster — it never makes something possible that isn't unlocked yet.
 
-A finished structure serves everyone standing there, not just whoever built it. A Forge is a smithy for anyone who walks up to it, and racks or a weir pay out to whoever works that ground. ‡
+A finished structure serves everyone standing there, not just whoever built it. A Forge is a smithy for anyone who walks up to it, and racks or a weir pay out to whoever works that ground.
 
-Whoever opened a site can abandon it. ‡
+Whoever opened a site can abandon it.
 
-What stands can be damaged, burned, or torn down. Attacking a structure is a Gambit like anything else risky and uncertain — and taking on a whole community's held ground gets declared publicly a turn before it can actually happen. ‡
+What stands can be damaged, burned, or torn down. Attacking a structure is a Gambit like anything else risky and uncertain — and taking on a whole community's held ground gets declared publicly a turn before it can actually happen.
 
-A destroyed structure leaves a ruin standing until somebody clears it away. ‡
+A destroyed structure leaves a ruin standing until somebody clears it away.
 
 ## Character Page
 
@@ -438,11 +444,11 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 
 | Row | Meaning |
 |---|---|
-| **Location** | The Location you're standing in, and its Zone. ‡ |
+| **Location** | The Location you're standing in, and its Zone. |
 | **Resources** | Your personally held ⬢. |
 | **Gambit** | The modifier for your Gambit die. |
 | **Tag Points** | Points available to spend on new tags. |
-| **This turn** | Displays whether you've submitted a Move for this turn. If not, you'll Labor instead — if you can. ‡ |
+| **This turn** | Displays whether you've submitted a Move for this turn. If not, you'll Labor instead — if you can. |
 
 **Actions:** This is the grid of buttons next to your Status. Each button opens a dialog that asks for your reason and applies immediately. These operate on a system of trust and verification. Your changes take effect when you submit, but are reviewed by GMs to ensure proper use.
 
@@ -450,12 +456,12 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 
 | Button | Effect | When You Can Use |
 |---|---|---|
-| **Craft** | Pick a recipe you know the skills for and pay its ⬢ cost right away, from your own purse, a Room stash you're in, or someone standing with you who agrees to pay (they get a DM naming what it's for). Files as your Routine. A long recipe becomes a project you can keep working on turn after turn from the same button (Continue), or cancel — no refund. A Dead Simple recipe needs no Move at all, just a cap per turn. ‡ | Always, but ensure you use your Move accordingly. |
-| **Destroy** | Drops a tag you're allowed to throw away. Health tags aren't on this list — a wound gets healed, not destroyed. ‡ | When holding something you could reasonably drop or remove. |
+| **Craft** | Pick a recipe you know the skills for and pay its ⬢ cost right away, from your own purse, a Room stash you're in, or someone standing with you who agrees to pay (they get a DM naming what it's for). Files as your Routine. A long recipe becomes a project you can keep working on turn after turn from the same button (Continue), or cancel — no refund. A Dead Simple recipe needs no Move at all, just a cap per turn. | Always, but ensure you use your Move accordingly. |
+| **Destroy** | Drops a tag you're allowed to throw away. Health tags aren't on this list — a wound gets healed, not destroyed. | When holding something you could reasonably drop or remove. |
 | **Consume** | Consumes an item tag (drinking alcohol, eating food). Clicking the tag performs the same action. | When holding a consumable item. |
-| **Transfer** | Give ⬢ or a tag from yourself or a Room stash you're in, to someone standing with you or to a Room stash. Giving only — the only way to take something from someone else is Loot, and only if they're dead or helpless. Not everything can change hands — a house isn't portable, and some things are part of you. ‡ | When holding something you can transfer. |
-| **Learn Skill** | Ask someone standing with you who teaches a skill to teach it to you. Files as your Gambit if they accept. ‡ | Always. |
-| **Teach Skill** | Offer to teach a skill to someone standing with you. Files as your Routine if they accept. ‡ | When holding the skill. |
+| **Transfer** | Give ⬢ or a tag from yourself or a Room stash you're in, to someone standing with you or to a Room stash. Giving only — the only way to take something from someone else is Loot, and only if they're dead or helpless. Not everything can change hands — a house isn't portable, and some things are part of you. | When holding something you can transfer. |
+| **Learn Skill** | Ask someone standing with you who teaches a skill to teach it to you. Files as your Gambit if they accept. | Always. |
+| **Teach Skill** | Offer to teach a skill to someone standing with you. Files as your Routine if they accept. | When holding the skill. |
 
 **People here**
 
@@ -463,10 +469,10 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 |---|---|---|
 | **Heal** | Treat an affliction on yourself or another person within reach, based on your medical skill. | {tag:medical-basic} or better. |
 | **Loot** | Search a dead or incapacitated person standing with you and take their ⬢ and whatever they were carrying that can be carried off. Their property, and anything grafted or bound to them, stays with them. | Always; the game rejects invalid targets. |
-| **Bind** | Tie up someone within reach. They must agree, unless they're dead or already helpless. ‡ | Always. |
+| **Bind** | Tie up someone within reach. They must agree, unless they're dead or already helpless. | Always. |
 | **Free** | Cut loose someone within reach. | Always. |
 | **Harm** | Injure a helpless person within reach, or finish off a Dying or bound person. This never kills instantly; a GM verifies first. | Always. |
-| **Move Player** | Carry a dead or bound person, or a member of your faction if you're the Leader, to a connected Location. This doesn't spend their Move or yours. The Travel picker on Discord offers the same thing as you go. ‡ | Always. |
+| **Move Player** | Carry a dead or bound person, or a member of your faction if you're the Leader, to a connected Location. This doesn't spend their Move or yours. The Travel picker on Discord offers the same thing as you go. | Always. |
 | **Bury Person** | Lift a body's Curse by burying it — type the character's first name to confirm. | Always. |
 
 **Letters**
@@ -476,7 +482,7 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 | **Send Bird** | Send a letter by Bird. | Always. |
 | **Read** | Read a letter you've received. | Always. |
 
-The menus list the people standing where you are who haven't hidden their face, and the rooms you can get into. Act on information your character actually has, don't guess. ‡
+The menus list the people standing where you are who haven't hidden their face, and the rooms you can get into. Act on information your character actually has, don't guess.
 
 **Tags:** Every tag your character currently has, grouped by category. Hover over them for details, and click on an item tag to consume it.
 
@@ -490,7 +496,7 @@ Claiming shuts that slot for a couple of turns, and puts that specific Desire on
 
 A Desire arranged purely to claim a Desire doesn't count — asking someone for a hug so you can tick off "Get a hug" is not a hug.
 
-**Labor:** What your character does on any turn you don't submit a Move at all — provided you hold a Laboring skill and aren't Exhausted. ‡
+**Labor:** What your character does on any turn you don't submit a Move at all — provided you hold a Laboring skill and aren't Exhausted.
 
 **Bio:** Your character details.
 - **Name:** Your title (if present), name, and age. Click the **Change name** button to submit a GM request.
@@ -504,8 +510,8 @@ Your character may die. Several of your characters may die. Luckily, that doesn'
 
 When your character dies:
 
-- Their body drops somewhere public where they died, as something anyone can pick up and carry off. Their ⬢ and anything portable they carried can be **looted** from wherever the body currently is, and the body can be carried elsewhere, buried, or cut up. What can't be carried off a corpse — a house, a manor, something grafted into them — stays with them. ‡
+- Their body drops somewhere public where they died, as something anyone can pick up and carry off. Their ⬢ and anything portable they carried can be **looted** from wherever the body currently is, and the body can be carried elsewhere, buried, or cut up. What can't be carried off a corpse — a house, a manor, something grafted into them — stays with them.
 - Your Discord account becomes **Cursed** as you now exist as a ghost. You can read what's going on in every Zone, but you can no longer interact with the world of the living.
-- As a ghost you have no voice at all. What speaks for you is your body: while it lies unburied it stinks, and every few hours the Location it is in is told so. ‡
+- As a ghost you have no voice at all. What speaks for you is your body: while it lies unburied it stinks, and every few hours the Location it is in is told so.
 - You can create a new character at any time, but while Cursed you only have access to the **Bum** and **Migrant** roles. You also receive a 6-point penalty during character creation.
-- The curse lifts the moment somebody buries your body (traditionally the Mortii's or the Church's job, but anyone who has your body in hand can do so). A buried body can no longer be looted or moved. If nobody can find you, someone can **engrave** a headstone with your name instead — it costs them, but it frees you the same way. Being cut up is not a burial, and does not free you. ‡
+- The curse lifts the moment somebody buries your body (traditionally the Mortii's or the Church's job, but anyone who has your body in hand can do so). A buried body can no longer be looted or moved. If nobody can find you, someone can **engrave** a headstone with your name instead — it costs them, but it frees you the same way. Being cut up is not a burial, and does not free you.

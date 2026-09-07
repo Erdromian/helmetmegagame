@@ -119,7 +119,7 @@ export async function updateCharacterProfile(_prevState, formData) {
       webOnlyError = flip.readyAt
         ? `You switched ${flip.minutes} minutes ago. You can switch again at ${clockLabel(
             flip.readyAt.getTime(),
-          )}. ‡`
+          )}.`
         : flip.error;
     }
   }
@@ -161,7 +161,7 @@ export async function setPortraitAvatar(rawSelection) {
   // The face is fixed while a forced identity is held (Tag.forcedName); the
   // button is hidden, and this is the lock.
   if (await loadForcedName(prisma, character.id)) {
-    return { ok: false, error: "Your face is not yours to change right now. ‡" };
+    return { ok: false, error: "Your face is not yours to change right now." };
   }
 
   // Anything invalid, out of range, or fantasy-while-gated silently becomes

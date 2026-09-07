@@ -9,7 +9,11 @@ import QuantityField from "./QuantityField";
 // lives in RequestActionsProvider like every other mode — this component is
 // the form, not the owner.
 //
-// The source is YOU or a Room here — never another person. You can't reach
+// The source is YOU, a Room here, or somebody helpless (`lootable`). The
+// destination is anyone standing here, a concealed person included, listed by
+// alias under an opaque "hood:<token>" key.
+//
+// Formerly: the source was YOU or a Room here — never another person. You can't reach
 // into someone's pockets, and listing what's in them would show their hidden
 // tags; Loot is how you take from a (helpless) person. The destination is
 // anyone standing here and unconcealed — INCLUDING YOURSELF, which is how a
@@ -28,6 +32,7 @@ function stackLabel(name, quantity) {
 export default function TransferDialog({
   selfId,
   parties,
+  lootable = [],
   silo = null,
   transferable,
   carry,
@@ -45,6 +50,15 @@ export default function TransferDialog({
   const rooms = parties?.rooms ?? [];
   const people = parties?.characters ?? [];
   const self = people.filter((c) => c.id === selfId);
+  // Sources: you, the rooms, and anybody who can't stop you. Taking from a
+  // person IS Loot — the server hands that case to lootCharacterRequestImpl,
+  // so the helpless gate, the fear hit and the "your body was searched" notice
+  // fire whichever button was pressed.
+  const sources = [...self, ...lootable.map(({ id, name }) => ({ id, name }))];
+  const fromPerson =
+    fromKey.startsWith("character:") && fromKey !== selfKey
+      ? lootable.find((c) => `character:${c.id}` === fromKey)
+      : null;
   const fromRoom = fromKey.startsWith("room:") ? rooms.find((r) => `room:${r.id}` === fromKey) : null;
   const toRoom = toKey.startsWith("room:") ? rooms.find((r) => `room:${r.id}` === toKey) : null;
   // The silo when it is the destination: either the elsewhere-in-zone entry
@@ -66,8 +80,20 @@ export default function TransferDialog({
           // projection must not charge you for handing one over either.
           weightLbs: t.category === "Assets" ? 0 : (t.weightLbs ?? 0),
         }))
-      : (fromRoom?.tags ?? []);
-  const canOfferTags = fromKey === selfKey || Boolean(fromRoom);
+      : fromPerson
+        ? // Their tradeable tags, already filtered server-side. No weight:
+          // lootTargets does not carry it, and Loot has never charged the carry
+          // cap for what comes off a body (CARRY.md §2), so the projection
+          // below sits this case out rather than lying about it.
+          fromPerson.tags.map((t) => ({
+            tagId: t.tagId,
+            name: t.tagName,
+            quantity: t.quantity,
+            stackable: t.stackable,
+            weightLbs: null,
+          }))
+        : (fromRoom?.tags ?? []);
+  const canOfferTags = fromKey === selfKey || Boolean(fromRoom) || Boolean(fromPerson);
   const balance =
     fromKey === selfKey
       ? carry?.resources
@@ -85,9 +111,18 @@ export default function TransferDialog({
   let projected = null;
   if (carry && fromKey === selfKey) {
     projected = { weight: round(carry.weightUsed - lbs), resources: carry.resources - moved };
-  } else if (carry && toKey === selfKey) {
+  } else if (carry && toKey === selfKey && !fromPerson) {
     projected = { weight: round(carry.weightUsed + lbs), resources: carry.resources + moved };
   }
+  // What to warn about the destination, or null for the cases that need no
+  // warning at all (a room, and any source-side pick).
+  const note =
+    toSilo && !toSilo.canOpen
+      ? `${toSilo.name} is locked to you. This will go in, and you won't be able to take it back out.`
+      : toSilo
+        ? "Anyone in the faction who can get into the silo can take what you leave there."
+        : null;
+
   const overAfter = projected && (projected.weight > carry.weightCap || projected.resources > carry.resourcesCap);
   // Past the ceiling the server refuses outright, so say so rather than
   // letting them submit into an error (CARRY.md §1).
@@ -101,27 +136,31 @@ export default function TransferDialog({
           label="From"
           value={fromKey}
           onChange={onFrom}
-          hint="Choose a source… ‡"
-          characters={self}
+          hint="Choose a source…"
+          characters={sources}
           rooms={rooms}
           selfId={selfId}
         />
+        {/* What comes off a person goes in YOUR hands — there is no verb for
+            going through somebody's pockets straight into a cupboard, and the
+            server refuses it. So the picker narrows rather than letting the
+            submit be the thing that says so. */}
         <PartySelect
           label="To"
           value={toKey}
           onChange={onTo}
-          hint="Choose a destination… ‡"
-          characters={people}
-          rooms={rooms}
+          hint="Choose a destination…"
+          characters={fromPerson ? self : people}
+          rooms={fromPerson ? [] : rooms}
           selfId={selfId}
-          silo={silo && (!silo.here || !silo.canOpen) ? silo : null}
+          silo={!fromPerson && silo && (!silo.here || !silo.canOpen) ? silo : null}
         />
       </div>
       {sameParty && <p className="text-xs text-accent">Source and recipient are the same.</p>}
 
       <div className="panel flex flex-col gap-3 p-3">
         <label className="field" style={{ width: "10rem" }}>
-          <span className="field-label">Resources{balance != null ? ` (of ${balance})` : ""} ‡</span>
+          <span className="field-label">Resources{balance != null ? ` (of ${balance})` : ""}</span>
           <input
             type="number"
             min="0"
@@ -134,11 +173,15 @@ export default function TransferDialog({
         {canOfferTags &&
           (offered.length === 0 ? (
             <p className="text-xs text-muted">
-              {fromRoom ? "Nothing is stored here. ‡" : "You're carrying nothing you could hand over. ‡"}
+              {fromRoom
+                ? "Nothing is stored here."
+                : fromPerson
+                  ? "They're carrying nothing worth taking."
+                  : "You're carrying nothing you could hand over."}
             </p>
           ) : (
             <div className="flex flex-col gap-2">
-              <span className="field-label">{fromRoom ? "Take" : "Hand over ‡"}</span>
+              <span className="field-label">{fromRoom || fromPerson ? "Take" : "Give"}</span>
               {offered.map((t) => {
                 const checked = t.tagId in picks;
                 // A non-stackable tag pins at one per character, so a pull out
@@ -151,7 +194,7 @@ export default function TransferDialog({
                     </CheckField>
                     {checked && max > 1 && (
                       <QuantityField
-                        label="How many? ‡"
+                        label="How many?"
                         max={max}
                         value={picks[t.tagId]}
                         onChange={(v) => onPickQuantity(t.tagId, v)}
@@ -166,25 +209,19 @@ export default function TransferDialog({
 
       {projected && (
         <p className={`text-xs ${overAfter || refusedAfter ? "text-accent" : "text-muted"}`}>
-          After this you carry {projected.weight} / {carry.weightCap} lb and {projected.resources} /{" "}
+          After this you&apos;ll carry {projected.weight} / {carry.weightCap} lb and {projected.resources} /{" "}
           {carry.resourcesCap} ⬢.
           {refusedAfter
             ? " That's more than you could hold even overburdened, so it won't go through."
             : overAfter
               ? " That's more than you can manage — you'll be Overburdened until you set some down."
               : ""}{" "}
-          ‡
         </p>
       )}
-      <p className="text-xs text-muted">
-        {toSilo && !toSilo.canOpen
-          ? `${toSilo.name} is locked to you. This will go in, and you will not be able to take it back out. ‡`
-          : toSilo
-            ? "Anyone in the faction who can get into the silo can take what you leave there. ‡"
-            : toRoom
-              ? "Anyone who can get into that room can take what you leave there. ‡"
-              : "Only people standing where you are, with their face showing, are listed. ‡"}
-      </p>
+      {/* A room says nothing: leaving something in one is the ordinary case,
+          and the warning was noise on every drop. A silo still speaks, because
+          a locked one is genuinely one-way. */}
+      {note && <p className="text-xs text-muted">{note}</p>}
     </>
   );
 }

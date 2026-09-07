@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Tooltip from "./Tooltip";
 import DepotOrderTab from "./DepotOrderTab";
 import DepotPriceListTab from "./DepotPriceListTab";
 import DepotHoldTab from "./DepotHoldTab";
@@ -39,18 +38,16 @@ function FuelGauge({ fuel, fuelMax, turnsLeft, on }) {
   // the detail behind it.
   const tone = !on || turnsLeft <= 1 ? "danger" : turnsLeft <= 2 ? "warning" : "positive";
   return (
-    <Tooltip text={`${fuel} of ${fuelMax} units in the tank. The generator burns a fixed amount every turn; at zero it shuts itself off and nothing at the Depot works.`}>
-      <span className="depot-stat">
-        <span className="depot-stat-label">Generator</span>
-        <span className={`depot-gauge depot-gauge-${tone}`} aria-hidden="true">
-          <span className="depot-gauge-fill" style={{ width: `${pct}%` }} />
-        </span>
-        <span className="mono">
-          {turnsLeft == null ? `${fuel}` : `${turnsLeft}t`}
-        </span>
-        <span className={`depot-lamp depot-lamp-${on ? "on" : "off"}`}>{on ? "ON" : "OFF"}</span>
+    <span className="depot-stat">
+      <span className="depot-stat-label">Generator</span>
+      <span className={`depot-gauge depot-gauge-${tone}`} aria-hidden="true">
+        <span className="depot-gauge-fill" style={{ width: `${pct}%` }} />
       </span>
-    </Tooltip>
+      <span className="mono">
+        {turnsLeft == null ? `${fuel}` : `${turnsLeft}t`}
+      </span>
+      <span className={`depot-lamp depot-lamp-${on ? "on" : "off"}`}>{on ? "ON" : "OFF"}</span>
+    </span>
   );
 }
 
@@ -64,31 +61,21 @@ function ShuttleStat({ shuttleState, turnsLeft }) {
         ? "inbound"
         : "at the station";
   return (
-    <Tooltip text="The shuttle sits on the landing pad for at most six turns and then flies back on its own, loaded or not. Anything still on the pad when it goes stays on the pad. ‡">
-      <span className="depot-stat">
-        <span className="depot-stat-label">Shuttle</span>
-        <span className={shuttleState === "DOCKED" ? "text-accent" : "text-muted"}>{text}</span>
-      </span>
-    </Tooltip>
+    <span className="depot-stat">
+      <span className="depot-stat-label">Shuttle</span>
+      <span className={shuttleState === "DOCKED" ? "text-accent" : "text-muted"}>{text}</span>
+    </span>
   );
 }
 
-function TurretStat({ armed, face }) {
+function TurretStat({ armed }) {
   return (
-    <Tooltip
-      text={
-        armed
-          ? `Armed. It will fire on everyone in the depot except ${face || "nobody — no face is on file, so it will fire on everyone"}.`
-          : "Disarmed. A lump of metal in the ceiling."
-      }
-    >
-      <span className="depot-stat">
-        <span className="depot-stat-label">Turret</span>
-        <span className={`depot-lamp depot-lamp-${armed ? "armed" : "off"}`}>
-          {armed ? "ARMED" : "SAFE"}
-        </span>
+    <span className="depot-stat">
+      <span className="depot-stat-label">Turret</span>
+      <span className={`depot-lamp depot-lamp-${armed ? "armed" : "off"}`}>
+        {armed ? "ARMED" : "SAFE"}
       </span>
-    </Tooltip>
+    </span>
   );
 }
 
@@ -115,12 +102,10 @@ export default function DepotConsole(props) {
       <section className="panel depot-cockpit">
         <div className="depot-cockpit-head">
           <span className="depot-greeting">
-            {greetingName ? `Good evening, ${greetingName}.` : "The Depot. ‡"}
+            {greetingName ? `Good evening, ${greetingName}.` : "The Depot."}
           </span>
           <span className="depot-cockpit-money">
-            <Tooltip text="The station's account, in obols — one for every ⬢ it is worth. It is the Depot's money, not yours: hand the licence to someone else and the balance goes with it. ‡">
-              <span className="depot-balance mono">{depot.accountObols} ¢</span>
-            </Tooltip>
+            <span className="depot-balance mono">{depot.accountObols} ¢</span>
           </span>
         </div>
         <div className="depot-cockpit-stats">
@@ -131,36 +116,35 @@ export default function DepotConsole(props) {
             on={depot.generatorOn}
           />
           <ShuttleStat shuttleState={depot.shuttleState} turnsLeft={shuttleTurnsLeft} />
-          <TurretStat armed={depot.turretArmed} face={depot.merchantFace} />
+          <TurretStat armed={depot.turretArmed} />
         </div>
       </section>
 
       {/* One banner, in priority order, rather than three stacked. The most
           blocking thing is the only thing worth reading. */}
       {!atDepot ? (
-        <p className="depot-notice">
-          You are not at the Depot. The readings are live, but nothing down here answers a
-          keyboard three zones away. ‡
-        </p>
+        <p className="depot-notice">You&apos;re not at the depot.</p>
       ) : !powered ? (
         // Ahead of the papers note now, because a keycard can fix this one and
         // being told what your card cannot do is no use while the lights are
         // out.
         <p className="depot-notice depot-notice-danger">
           The generator is out. Nothing works until it is running again — the Station tab has the
-          switch and the coal. ‡
+          switch and the coal.
         </p>
       ) : readOnly && hand ? (
         <p className="depot-notice">
           Your keycard works the machinery — the shuttle, the generator, the crates — but not the
-          money or the gun. Ordering, the bank and the turret want the Merchant&apos;s Licence. ‡
+          money or the gun. Ordering, the bank and the turret want the Merchant&apos;s Licence.
         </p>
       ) : readOnly ? (
         <p className="depot-notice">
           Read-only. You can see the state of the station; working it wants a Depot Keycard, and
-          running it wants the Merchant&apos;s Licence. ‡
+          running it wants the Merchant&apos;s Licence.
         </p>
-      ) : null}
+      ) : (
+        <p className="depot-notice">You&apos;re at the depot.</p>
+      )}
 
       <nav className="depot-tabs" aria-label="Depot sections">
         {TABS.map((t) => (

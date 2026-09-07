@@ -46,7 +46,7 @@ banner: assets/info-banner.png
 main_message: |-
   Bascinet is a large-scale, rules-light story generator, 70% roleplay and 30% strategy. It's intended to be serious, grim, heroic, and occasionally funny.
 
-  The game runs for 30 real days. Once a day, you declare what your character did, making a Move. Based on dice and your character's Tags, the GMs adjudicate the resulting consequences. Mechanics are handled on the companion web panel while the roleplay takes place on Discord. ‡
+  The game runs for 30 real days. Once a day, you declare what your character did, making a Move. Based on dice and your character's Tags, the GMs adjudicate the resulting consequences. Mechanics are handled on the companion web panel while the roleplay takes place on Discord.
 
   Bascinet simultaneously plays out on several levels. Kings win wars and move big pieces around the map while commoners try to fulfill their day-to-day desires.
 
@@ -102,13 +102,13 @@ categories:
           Everyone's a human (?).
   - name: Gameplay
     intro: |-
-      Bascinet has two layers: the Move layer (strategic) and the Roleplay layer (narrative). Moves are adjudicated once a day, and are where mechanical effects take place. The Roleplay layer is always going on, and takes the results of the Move layer as its canon. ‡
+      Bascinet has two layers: the Move layer (strategic) and the Roleplay layer (narrative). Moves are adjudicated once a day, and are where mechanical effects take place. The Roleplay layer is always going on, and takes the results of the Move layer as its canon.
     threads:
       - title: Moves
         body: |-
-          One turn is one real day, beginning at midnight US Central. Turns alternate between Dawn and Dusk, so an in-game day takes two of them. Every turn, you can optionally plan a Move that'll take effect the next turn. ‡
+          One turn is one real day, beginning at midnight US Central. Turns alternate between Dawn and Dusk, so an in-game day takes two of them. Every turn, you can optionally plan a Move that'll take effect the next turn.
 
-          Moves are your abstracted intent of what you planned to do over the turn. Moves are reserved for lengthy, time-consuming, or difficult activities. ‡
+          Moves are your abstracted intent of what you planned to do over the turn. Moves are reserved for lengthy, time-consuming, or difficult activities.
 
           **Examples**:
           - robbing someone;
@@ -136,13 +136,13 @@ categories:
           The game's roleplay layer is where the results of last turn's Moves come to life. If the Gamemaster declared you were bested in a duel, that's canon; you can describe how it went down in the roleplay channels. You can also use the roleplay channels at any time to chat, exchange information, or coordinate your Moves with other players.
 
           **Channels and Zones**
-          There are five surface zones — the Fortress, the Town, the Forest, the Black Hills, and the Marshes — and below them the Underground, which holds two cave levels: the Caves and the Depths. Each is made of Locations, and you stand in exactly one of them. Walking to a connected Location inside your Zone is free (with a short cooldown); crossing into another Zone costs your Move, the cave levels included. ‡
+          There are five surface zones — the Fortress, the Town, the Forest, the Black Hills, and the Marshes — and below them the Underground, which holds two cave levels: the Caves and the Depths. Each is made of Locations, and you stand in exactly one of them. Walking to a connected Location inside your Zone is free (with a short cooldown); crossing into another Zone costs your Move, the cave levels included.
 
-          Every surface zone has a summary channel: optionally describe, in broad terms, what other people in your Zone saw you doing. ‡
+          Every surface zone has a summary channel: optionally describe, in broad terms, what other people in your Zone saw you doing.
 
-          Every Location has its own channel — the only one you see. Talk in it, step into one of its public Rooms (the threads under it), or use the pinned message's buttons: **Who's here?**, **Secret rooms?** (the private Rooms your tags let you into), and **Converse** (a private thread; then `/add (character)` to invite people). ‡
+          Every Location has its own channel — the only one you see. Talk in it, step into one of its public Rooms (the threads under it), or use the pinned message's buttons: **Who's here?**, **Secret rooms?** (the private Rooms your tags let you into), and **Converse** (a private thread; then `/add (character)` to invite people).
 
-          A cave level has Location channels of its own — just no summary. ‡
+          A cave level has Location channels of its own — just no summary.
 
           You cannot roleplay in DMs or outside of the server.
 
@@ -159,14 +159,14 @@ categories:
 
           Players are responsible for producing, taxing, distributing, and trading Resources.
 
-          Characters automatically consume 1 ⬢ a day — 2 if you have a Big Appetite. Come up short and you'll go **Hungry**, netting you −1 to all rolls until the next time you eat. The penalty increases until you die at −6. ‡
+          Characters automatically consume 1 ⬢ a day — 2 if you have a Big Appetite. Come up short and you'll go **Hungry**, netting you −1 to all rolls until the next time you eat. The penalty increases until you die at −6.
 
           **Laboring**
-          Labor is its own kind of Move, and it takes a skill — without a Laboring tag you produce nothing at all. Submit no Move and you'll Labor automatically. ‡
+          Labor is its own kind of Move, and it takes a skill — without a Laboring tag you produce nothing at all. Submit no Move and you'll Labor automatically.
 
-          Past the two general tiers there are three specialisations — hunting, farming and fishing — and **where you stand decides what they pay**. Some ground is rich, some is barren, and what a place is worth shifts over the course of the game. Press **Examine** in any Location's channel to see what it yields today. ‡
+          Past the two general tiers there are three specialisations — hunting, farming and fishing — and **where you stand decides what they pay**. Some ground is rich, some is barren, and what a place is worth shifts over the course of the game. Press **Examine** in any Location's channel to see what it yields today.
 
-          Farming feeds Ravenheart, and as such it is taxed by the Baron in order to distribute food through the valley. ‡
+          Farming feeds Ravenheart, and as such it is taxed by the Baron in order to distribute food through the valley.
       - title: Tags
         body: |-
           Tags represent your character's health, items, traits, and skills.

@@ -1,15 +1,17 @@
 "use client";
 
 import { memo } from "react";
+import IconButton from "@/app/components/IconButton";
+import { BellIcon, BellOffIcon, BellRingIcon, SendIcon } from "@/app/components/icons";
 import { isUnread } from "./seenStore";
 
 // The left column of the Hall: everywhere this character may read, grouped the
 // way a person would think of them.
 //
+//   SUMMARY        the zone's own channel — the widest room, so it sits on top
 //   HERE           the Location you are standing in — scenery, not speech
 //   ROOMS          the public rooms off it, then the private ones you can open
 //   CONVERSATIONS  the private threads you are in
-//   SUMMARY        the zone's own channel
 //
 // Under 720px the same list is a horizontal .tab-bar of .tab-item above the
 // feed, which is the second half of this file. The sections are the only
@@ -22,6 +24,9 @@ function glyph(place) {
   if (place.kind === "loc") return "▸";
   if (place.kind === "conv") return "»";
   if (place.kind === "zone") return "▤";
+  // The faction is a pseudo-place: a banner, not a door. It has no channel —
+  // the panel it opens is a roster (./FactionPanel.js).
+  if (place.kind === "faction") return "⚑";
   return place.roomKind === "PRIVATE" ? "▪" : "";
 }
 
@@ -37,7 +42,7 @@ const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
         {glyph(place)}
       </span>
       <span className="hall-place-name">{place.name}</span>
-      {unread && <span className="hall-dot" aria-label="Unread ‡" />}
+      {unread && <span className="hall-dot" aria-label="Unread" />}
     </button>
   );
 });
@@ -69,45 +74,60 @@ export default function PlacesColumn({
   webOnly = false,
   chimeMuted = false,
   onToggleChime = null,
+  // The push toggle beside the bell. Null on a browser with no PushManager,
+  // and on a deployment with no VAPID keys set (HALL.md §5a).
+  push = null,
 }) {
   const here = places.filter((p) => p.kind === "loc");
   const rooms = places.filter((p) => p.kind === "room");
   const conversations = places.filter((p) => p.kind === "conv");
   const summary = places.filter((p) => p.kind === "zone");
+  const faction = places.filter((p) => p.kind === "faction");
 
   return (
-    <nav className="hall-places" aria-label="Places ‡">
-      {/* The quiet reminder that this character's Discord account is out of
-          every channel and this page is the whole of the game for them
-          (docs/systemdocs/HALL.md §6). */}
-      {webOnly && <span className="chip hall-webonly">Playing from the web ‡</span>}
-      <Section title="Here ‡" places={here} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
-      <Section title="Rooms ‡" places={rooms} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+    <nav className="hall-places" aria-label="Places">
+      <Section title="Summary" places={summary} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      <Section title="Here" places={here} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      <Section title="Rooms" places={rooms} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section
-        title="Conversations ‡"
+        title="Conversations"
         places={conversations}
         selected={selected}
         seen={seen}
         newest={newest}
         onSelect={onSelect}
       />
-      <Section title="Summary ‡" places={summary} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
-      {/* The one preference this column carries: whether being named in a
-          scene makes a sound. Per browser, not per character
-          (useHallChimeMuted.js), because it is about the room you are sitting
-          in rather than the one you are standing in. */}
-      {onToggleChime && (
-        <div className="hall-places-foot">
-          <button
-            type="button"
-            className="btn-quiet"
-            aria-pressed={chimeMuted}
+      {/* Last, under the places a voice can reach: the people you are in it
+          with, wherever they are standing. One row, and it opens a panel
+          rather than a feed. */}
+      <Section title="Faction" places={faction} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      {/* The foot: the one preference this column carries — whether being
+          named in a scene makes a sound, per browser rather than per
+          character (useHallChimeMuted.js) — and the quiet reminder that this
+          character's Discord account is out of every channel, so this page is
+          the whole of the game for them (HALL.md §6). An icon and a chip
+          rather than two sentences: the column is 15rem wide and the places
+          are what it is for. */}
+      <div className="hall-places-foot">
+        {onToggleChime && (
+          <IconButton
+            icon={chimeMuted ? BellOffIcon : BellIcon}
+            label={chimeMuted ? "Mentions are silent" : "Mentions chime"}
+            aria-pressed={!chimeMuted}
             onClick={() => onToggleChime(!chimeMuted)}
-          >
-            {chimeMuted ? "Mentions are silent ‡" : "Mentions chime ‡"}
-          </button>
-        </div>
-      )}
+          />
+        )}
+        {push && (
+          <IconButton
+            icon={push.on ? BellRingIcon : SendIcon}
+            label={push.on ? "Notifications on" : "Notify me"}
+            aria-pressed={push.on}
+            disabled={push.busy}
+            onClick={push.onToggle}
+          />
+        )}
+        {webOnly && <span className="chip hall-webonly">Playing from the web</span>}
+      </div>
     </nav>
   );
 }
@@ -117,7 +137,7 @@ export default function PlacesColumn({
 // keyed on data-active, which is exactly what this is.
 export function PlacesTabs({ places, selected, seen, newest, onSelect }) {
   return (
-    <div className="tab-bar hall-tabs" role="tablist" aria-label="Places ‡">
+    <div className="tab-bar hall-tabs" role="tablist" aria-label="Places">
       {places.map((place) => (
         <button
           key={place.placeKey}
@@ -130,7 +150,7 @@ export function PlacesTabs({ places, selected, seen, newest, onSelect }) {
         >
           {place.name}
           {place.placeKey !== selected && isUnread(seen, place.placeKey, newest(place)) && (
-            <span className="hall-dot" aria-label="Unread ‡" />
+            <span className="hall-dot" aria-label="Unread" />
           )}
         </button>
       ))}

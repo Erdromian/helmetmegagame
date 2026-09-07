@@ -17,7 +17,7 @@ const { sendDm } = require("./dm");
 async function loadOfferFor(interaction, offerId) {
   const offer = await prisma.offer.findUnique({ where: { id: offerId } });
   if (!offer)
-    return { offer: null, responder: null, problem: "That offer's gone. ‡" };
+    return { offer: null, responder: null, problem: "That offer's gone." };
   const responder = await prisma.character.findFirst({
     where: { id: offer.responderId, status: "ALIVE" },
     select: { id: true, name: true, discordUserId: true },

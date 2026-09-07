@@ -109,7 +109,7 @@ function RosterTab({ faction, isOfficer, isLeader, meId, run, pending }) {
                       onClick={async () => {
                         const ok = await confirm({
                           title: `Remove ${c.name}?`,
-                          message: `They go back to Unaffiliated and lose any office they hold here. They keep everything they are carrying. ‡`,
+                          message: `They go back to Unaffiliated and lose any office they hold here. They keep everything they are carrying.`,
                           confirmLabel: "Remove them",
                         });
                         if (ok) run(() => removeMember({ characterId: c.id }));
@@ -122,7 +122,7 @@ function RosterTab({ faction, isOfficer, isLeader, meId, run, pending }) {
               )}
             </tr>
           ))}
-          {faction.members.length === 0 && <EmptyRow cols={isOfficer ? 4 : 2}>Nobody yet. ‡</EmptyRow>}
+          {faction.members.length === 0 && <EmptyRow cols={isOfficer ? 4 : 2}>Nobody yet.</EmptyRow>}
         </tbody>
       </table>
     </section>
@@ -140,8 +140,7 @@ function SiloTab({ faction, silo, isOfficer, rooms, run, pending }) {
     return (
       <section className="panel p-4 flex flex-col gap-3">
         <EmptyState>
-          {faction.name} banks nowhere. A silo is just a room somebody picked — everything in it
-          stays where it is if you pick another one. ‡
+          Where {faction.name} keeps its Resources.
         </EmptyState>
         {isOfficer && (
           <div>
@@ -168,12 +167,12 @@ function SiloTab({ faction, silo, isOfficer, rooms, run, pending }) {
       {!silo.inZone ? (
         <Notice>
           The silo is in {silo.zoneName}. You can put things in from anywhere in that zone, and you
-          have to be standing in {silo.name} to take anything out. ‡
+          have to be standing in {silo.name} to take anything out.
         </Notice>
       ) : !silo.canOpen ? (
         <Notice tone="danger">
           {silo.name} is locked to you. You can still hand things in from anywhere in {silo.zoneName}
-          {" "}— but you will not be able to take them back out, or see what is in there. ‡
+          {" "}— but you will not be able to take them back out, or see what is in there.
         </Notice>
       ) : null}
 
@@ -192,7 +191,7 @@ function SiloTab({ faction, silo, isOfficer, rooms, run, pending }) {
                 <td className="mono">{t.quantity}</td>
               </tr>
             ))}
-            {silo.tags.length === 0 && <EmptyRow cols={2}>Nothing but the ⬢. ‡</EmptyRow>}
+            {silo.tags.length === 0 && <EmptyRow cols={2}>Nothing but the ⬢.</EmptyRow>}
           </tbody>
         </table>
       ) : null}
@@ -202,7 +201,7 @@ function SiloTab({ faction, silo, isOfficer, rooms, run, pending }) {
         <Link href="/character" className="link">
           character sheet
         </Link>
-        . The silo sits at the top of the destination list. ‡
+        . The silo sits at the top of the destination list.
       </p>
 
       {isOfficer && (
@@ -234,7 +233,7 @@ function SiloTab({ faction, silo, isOfficer, rooms, run, pending }) {
                 const ok = await confirm({
                   title: "Re-point the silo?",
                   message:
-                    "This moves nothing. Whatever is in the old room stays in the old room — somebody has to carry it. ‡",
+                    "This does not move anything. Whatever is in the old silo has to be carried by someone.",
                   confirmLabel: "Re-point it",
                 });
                 if (!ok) return;
@@ -260,8 +259,7 @@ function SiloTab({ faction, silo, isOfficer, rooms, run, pending }) {
           </Select>
         </label>
         <p className="text-sm text-muted mt-2">
-          A locked room still takes deposits from anyone in the faction. Only people holding its key
-          can open it again, so pick one deliberately. ‡
+          A locked silo still takes deposits from anyone in the faction. Only people holding its key can open it again.
         </p>
       </Modal>
     );
@@ -328,7 +326,7 @@ function ApplicationsTab({ faction, applications, invites, siloKeys, candidates,
                 </td>
               </tr>
             ))}
-            {applications.length === 0 && <EmptyRow cols={3}>Nobody is knocking. ‡</EmptyRow>}
+            {applications.length === 0 && <EmptyRow cols={3}>Nobody is knocking.</EmptyRow>}
           </tbody>
         </table>
 
@@ -344,7 +342,7 @@ function ApplicationsTab({ faction, applications, invites, siloKeys, candidates,
                 checked={grantKey === k.slug}
                 onChange={(e) => setGrantKey(e.target.checked ? k.slug : "")}
               >
-                Hand them {k.name} on accept — without it they can&apos;t reach the silo. ‡
+                Hand them {k.name} on accept — without it they can&apos;t reach the silo.
               </CheckField>
             ))}
           </div>
@@ -380,7 +378,7 @@ function ApplicationsTab({ faction, applications, invites, siloKeys, candidates,
                 </td>
               </tr>
             ))}
-            {invites.length === 0 && <EmptyRow cols={3}>None outstanding. ‡</EmptyRow>}
+            {invites.length === 0 && <EmptyRow cols={3}>None outstanding.</EmptyRow>}
           </tbody>
         </table>
       </section>
@@ -416,18 +414,18 @@ function ApplicationsTab({ faction, applications, invites, siloKeys, candidates,
           </Select>
         </label>
         <label className="field">
-          <span className="field-label">Note (optional) ‡</span>
+          <span className="field-label">Note (optional)</span>
           <textarea
             rows={3}
             maxLength={500}
             value={inviteNote}
             onChange={(e) => setInviteNote(e.target.value)}
-            placeholder="Why them? ‡"
+            placeholder="Why them?"
           />
         </label>
         <p className="text-sm text-muted mt-2">
           They get a DM and answer it on their own faction page. Nothing happens to them until they
-          say yes. ‡
+          say yes.
         </p>
       </RequestDialog>
     </div>
@@ -450,14 +448,14 @@ function StandingTab({ faction, isLeader, myApplications, run, pending }) {
         <p>
           {faction.parentName ? (
             <>
-              {faction.name} answers to <strong>{faction.parentName}</strong>. ‡
+              {faction.name} answers to <strong>{faction.parentName}</strong>.
             </>
           ) : (
-            <>{faction.name} answers to nobody. ‡</>
+            <>{faction.name} answers to nobody.</>
           )}
         </p>
         {faction.subjectNames.length > 0 && (
-          <p className="text-muted">Subject to it: {faction.subjectNames.join(", ")}. ‡</p>
+          <p className="text-muted">Subject to it: {faction.subjectNames.join(", ")}.</p>
         )}
       </section>
 
@@ -529,7 +527,7 @@ function StandingTab({ faction, isLeader, myApplications, run, pending }) {
             onClick={async () => {
               const ok = await confirm({
                 title: `Secede from ${faction.parentName}?`,
-                message: `${faction.name} stops answering to them. Nobody moves, nothing is lost, and their Leader will be told. ‡`,
+                message: `${faction.name} stops answering to them. Their Leader will be told.`,
                 confirmLabel: "Secede",
               });
               if (ok) run(() => secedeFaction());
@@ -552,8 +550,8 @@ function StandingTab({ faction, isLeader, myApplications, run, pending }) {
             const ok = await confirm({
               title: `Leave ${faction.name}?`,
               message: isLeader
-                ? "You lose the Leader's seat, and the longest-standing member takes it. You keep everything you are carrying, but the silo stops being yours. ‡"
-                : "You keep everything you are carrying, but the silo stops being yours. ‡",
+                ? "You lose the Leader's seat, and the longest-standing member takes it. You keep everything you are carrying, but the silo stops being yours."
+                : "You keep everything you are carrying, but the silo stops being yours.",
               confirmLabel: "Walk out",
             });
             if (ok) run(() => leaveFaction());
@@ -610,8 +608,7 @@ function StandingTab({ faction, isLeader, myApplications, run, pending }) {
           />
         </label>
         <p className="text-sm text-muted mt-2">
-          You leave {faction.name} and become the new faction&apos;s Leader. It starts with nobody
-          else in it, no silo and no standing. ‡
+          You leave {faction.name} and become the new faction&apos;s Leader.
         </p>
       </RequestDialog>
     </div>
@@ -686,7 +683,7 @@ function Directory({ directory, myApplications, run, pending }) {
                 </td>
               </tr>
             ))}
-            {table.pageRows.length === 0 && <EmptyRow cols={4}>There are none yet. ‡</EmptyRow>}
+            {table.pageRows.length === 0 && <EmptyRow cols={4}>There are none yet.</EmptyRow>}
           </tbody>
         </table>
         <Pager
@@ -760,18 +757,17 @@ function Directory({ directory, myApplications, run, pending }) {
         }}
       >
         <p className="text-sm text-muted">
-          Their Leader and Treasurer get a DM. Say something worth reading — they can turn you
-          down. ‡
+          Their Leader and Treasurer get a DM about your application.
         </p>
         <label className="field">
-          <span className="field-label">Your message ‡</span>
+          <span className="field-label">Your message</span>
           <textarea
             rows={4}
             maxLength={500}
             autoFocus
             value={applyNote}
             onChange={(e) => setApplyNote(e.target.value)}
-            placeholder="Why you, why them. ‡"
+            placeholder="Why you, why them."
           />
         </label>
       </RequestDialog>
@@ -798,8 +794,7 @@ function Directory({ directory, myApplications, run, pending }) {
           <input className="field-input" value={name} onChange={(e) => setName(e.target.value)} maxLength={48} />
         </label>
         <p className="text-sm text-muted mt-2">
-          You become its Leader. It starts with nobody else in it, no silo and no standing — all of
-          which are yours to arrange. ‡
+          You become its Leader.
         </p>
       </RequestDialog>
     </div>

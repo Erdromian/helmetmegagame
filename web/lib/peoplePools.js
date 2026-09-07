@@ -3,7 +3,9 @@ import { prisma } from "@lifeweb/db";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
+import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { peopleHere } from "@/lib/peopleHere";
+import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { isTradeable } from "@/lib/tagRequests";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { MEDICAL_TIER_CAPS } from "@/lib/requests";
@@ -40,7 +42,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // and the server re-checks the same predicate. `here` carries what Heal and
   // Learn need; `zoneRoster` is the roster for the actions that also work on
   // a corpse.
-  const [here, zoneRoster, tierRows] = await Promise.all([
+  const [here, zoneRoster, tierRows, roomNow] = await Promise.all([
     peopleHere(character, {
       select: {
         id: true,
@@ -92,10 +94,31 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
       },
     }),
     prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } }),
+    // The hoods, for TRANSFER'S recipient list and nothing else. A hood hides
+    // WHO somebody is, not THAT they are standing there, and handing a coin to
+    // a stranger is a thing you can plainly do to a person whose name you do
+    // not know. They arrive as { alias, token } — an HMAC handle, so the
+    // browser is never told the character id behind the mask, and
+    // resolveHoodToken re-checks co-presence when one is posted back.
+    whosHere(prisma, character, { includeSelf: false }),
   ]);
 
   const selfEntry = { id: character.id, name: character.name };
   const peopleParties = [selfEntry, ...here.map(({ id, name }) => ({ id, name }))];
+  // TRANSFER'S list, and only Transfer's. `peopleParties` above is also the
+  // Heal payer list and Craft's, and transferRequestImpl is the one action that
+  // knows how to resolve a hood token — offering one anywhere else would be a
+  // row you can pick and cannot use.
+  //
+  // `kind: "hood"` makes PartySelect write "hood:<token>" instead of
+  // "character:<id>". A token is null when AUTH_SECRET is unset, and an
+  // untokened hood is not offerable.
+  const transferParties = [
+    ...peopleParties,
+    ...roomNow.concealed
+      .filter((c) => c.token)
+      .map((c) => ({ id: c.token, name: c.alias, kind: "hood" })),
+  ];
 
   // Whether their eyes are good enough to look anybody over — Nearsighted
   // without spectacles on, Sun Sensitivity in daylight. Resolved server-side
@@ -266,6 +289,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     here,
     zoneRoster,
     peopleParties,
+    transferParties,
     examineBlocked,
     satisfied,
     canHeal,
@@ -278,4 +302,52 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     harmTargets,
     harmTags,
   };
+}
+
+// The rooms a Transfer can hand things to or take things from: every room at
+// this Location the character can actually get into, with its stash.
+//
+// The same shape web/app/(app)/character/page.js builds for the sheet's own
+// Transfer dialog, including the Assets-weigh-nothing rule (CARRY.md §1) the
+// projection under the dialog reads. It lives here rather than being a second
+// query in the Hall's page: two answers to "which doors are open to you" is
+// exactly what web/lib/peoplePools.js exists to stop.
+export async function loadStashRooms(character) {
+  if (!character?.locationId) return [];
+  const [rows, keys] = await Promise.all([
+    prisma.room.findMany({
+      where: { locationId: character.locationId },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        kind: true,
+        accessTagSlugs: true,
+        resources: true,
+        tags: {
+          where: { quantity: { gt: 0 } },
+          select: {
+            tagId: true,
+            quantity: true,
+            tag: { select: { name: true, stackable: true, weightLbs: true, category: true } },
+          },
+        },
+      },
+    }),
+    roomAccessKeys(prisma, character.id),
+  ]);
+
+  return accessibleRooms(rows, keys.heldSlugs, keys.guestRoomIds).map((room) => ({
+    id: room.id,
+    name: room.name,
+    resources: room.resources,
+    tags: room.tags.map((rt) => ({
+      tagId: rt.tagId,
+      name: rt.tag.name,
+      quantity: rt.quantity,
+      stackable: rt.tag.stackable,
+      weightLbs: rt.tag.category === "Assets" ? 0 : (rt.tag.weightLbs ?? 0),
+    })),
+  }));
 }

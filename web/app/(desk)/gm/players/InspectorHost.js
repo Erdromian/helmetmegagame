@@ -152,7 +152,7 @@ export default function InspectorHost({
   // its stream moves with them.
   const extraTabs = useMemo(
     () => ({
-      "Scene ‡": ({ inspected: who }) => <SceneTab key={who.characterId} characterId={who.characterId} />,
+      "Scene": ({ inspected: who }) => <SceneTab key={who.characterId} characterId={who.characterId} />,
     }),
     [],
   );

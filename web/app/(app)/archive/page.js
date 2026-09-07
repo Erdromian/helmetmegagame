@@ -116,29 +116,19 @@ export default async function ArchivePage({ searchParams }) {
   }
 
   const epilogue = game.epilogue ?? null;
-  const span = [game.startedAt, game.endedAt]
-    .map((d) => (d ? new Date(d).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" }) : null));
-
   return (
     <PageShell width="wide">
       <PageHeader
         title={`Archive · Game ${game.number}`}
-        subtitle={
-          isCurrent
-            ? gm && !state?.archiveVisible
-              ? "The current game. Hidden from players until it ends. ‡"
-              : "The current game. ‡"
-            : `${span[0] ?? "?"} – ${span[1] ?? "?"} ‡`
-        }
       />
 
       {epilogue ? (
         <section className="panel flex flex-col gap-3 p-4">
-          <h2 className="panel-header">How it ended ‡</h2>
+          <h2 className="panel-header">How it ended</h2>
           {epilogue.closingNote ? <p className="text-sm">» {epilogue.closingNote}</p> : null}
           <p className="text-sm text-muted">{factsLine(epilogue.facts)}</p>
           <details className="archive-fold">
-            <summary>Who was who ‡</summary>
+            <summary>Who was who</summary>
             <ul>
               {epilogue.roster.map((r) => (
                 <li key={`${r.handle}-${r.name}`}>{rosterLine(r)}</li>

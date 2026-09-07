@@ -222,6 +222,7 @@ zones:
             stash:
               resources: 4
               items:
+                paper: 12
                 hatchet: 1
           square-smithery-storeroom:
             name: Smithery Storeroom
@@ -236,6 +237,8 @@ zones:
       # it a place you walk to. Its prose is unchanged.
       old-cock-inn:
         name: The Old Cock Inn
+        attributes:
+          haven: true
         indoors: true
         description: >-
           The coziest part of Ravenheart, open all hours of the day. It draws people from all walks of life here with the promise of hot food and liquor. Alcohol heals the soul, and will surely help you win the bar fight that is no doubt brewing.
@@ -324,6 +327,7 @@ zones:
               items:
                 paper: 12
                 inquisitors-wax-stamp: 1
+                torturing-equipment: 1
                 bag: 1
                 mace: 1
                 padded-cap: 1
@@ -362,6 +366,8 @@ zones:
                 bishops-wax-stamp: 1
       sanctuary:
         name: Sanctuary
+        attributes:
+          haven: true
         indoors: true
         description: >-
           A squat but elegant place built into the ruins of an old fort. Immaculately clean, bathed by light. The Barons funded it with electrical and mechanical equipment, but not all of it works — the wooden contraptions are more reliable.
@@ -425,10 +431,23 @@ zones:
             name: Sewers
             description: >-
               Automated machineries used to provide plumbing, but now it's still and dirty. The sewer grate is locked.
-            access: [sewer-key, tunnel-rat]
+            access: [sewer, tunnel-rat, sewer-key]
             stash:
               items:
                 feces: 6
+          underquarter-basements:
+            name: Basements
+            description: >-
+              Four connected basements, their separating walls knocked down. Originally some sort of hidden den, this now is a perfect place for organizing. It's accessed through the sewers.
+            access: [underquarter-basements]
+            stash:
+              resources: 8
+              items:
+                sewer-key: 1
+                elevator-key: 1
+                obol: 4
+                dagger: 3
+                fine-meal: 1
           underquarter-pushers-room:
             name: Pusher's Room
             description: >-
@@ -524,6 +543,7 @@ zones:
             stash:
               items:
                 obol: 1
+                paper: 4
                 hatchet: 1
                 cudgel: 1
                 mortus-rags: 1
@@ -568,6 +588,8 @@ zones:
             destroys: true
       keep:
         name: Keep
+        attributes:
+          haven: true
         indoors: true
         description: |-
           Stone walls reinforced with ceramite, the color of terracotta and steel, draped with the Baron's fluttering heraldry. Old electric lamps of various colors illuminate the warm, comfortable interiors.
@@ -628,10 +650,10 @@ zones:
                 basic-strategy: 1
           # Was one "Noble Chambers". Three rooms now, each with its own key —
           # and the Baron's opens all three, which is rather the point of being
-          # the Baron.
+          # the Baron. The Baroness's key opens his chambers alone.
           keep-barons-chambers:
             name: Baron's Chambers
-            access: [barons-key]
+            access: [barons-key, baroness-key]
             description: >-
               The Baron's room opens into a large, ornately decorated bedroom with a stunningly comfortable bed at the center. A wardrobe built into the wall contains all manner of fine attire for both the Baron and Baroness.
             stash:
@@ -669,6 +691,7 @@ zones:
               A narrow office.
             stash:
               items:
+                paper: 25
                 states-of-matter: 1
           keep-hands-office:
             name: Hand's Office
@@ -885,6 +908,7 @@ zones:
               The landscaping is incomplete, with grasses growing through the stones. However, the interior is well kept, with an old rug, a wine cabinet, and a hearth.
             stash:
               items:
+                paper: 23
                 ravenheart-red: 1
                 instrument: 1
                 sabre: 1
@@ -912,6 +936,8 @@ zones:
     locations:
       forest-headwaters:
         name: Headwaters
+        attributes:
+          wilderness: true
         map_node: 1
         description: >-
           The trees thin: tough grasses fill the gaps, snapping in the mountain breeze. Rubble from the mountain crowds the creek, creating pockets and swimming holes fed by small waterfalls. It turns into scree further up. You'd have to climb to get a better look, but there's a big waterfall up north.
@@ -938,6 +964,8 @@ zones:
                 gladiator-helmet: 1
       forest-cliffs:
         name: Cliffs
+        attributes:
+          wilderness: true
         map_node: 2
         description: >-
           The mountains loom overhead. Blue pines crop out from lichen-covered granite. The cliffs have inaccessible gaps in them. It's very thickly forested here and hard to see.
@@ -961,6 +989,8 @@ zones:
             access: [elevator-key]
       forest-creekside:
         name: Creekside
+        attributes:
+          wilderness: true
         map_node: 3
         description: >-
           Matted roots knit the rocky banks together. The trees rise to the west. You can't see anything, as thick as the forest is, but there's a boulder splitting the creek that you could climb to get a better view.
@@ -973,6 +1003,8 @@ zones:
             access: [forester]
       forest-north-road:
         name: North Road
+        attributes:
+          wilderness: true
         map_node: 4
         description: >-
           The road starts to climb up to the keep with rocky switchbacks. The first steep jumps have rock steps.
@@ -984,6 +1016,8 @@ zones:
               There's a wooden post bearing the Ravenheart banner. The grass is dry on either side of the road. On each turn, you can start to see the town lower and lower.
       forest-west-riverbank:
         name: West Riverbank
+        attributes:
+          wilderness: true
         map_node: 5
         description: >-
           The forest creek widens into a river. Planks, docks, and other bits of waterlogged wood mark the territory of fishermen.
@@ -1004,6 +1038,8 @@ zones:
             access: [animal-friend]
       forest-deep-forest:
         name: Deep Forest
+        attributes:
+          wilderness: true
         map_node: 6
         description: >-
           Trees thickly clustered together. It's hard to move through here — it's thorny and overgrown. There's ferns and spiderwebs in the gloom.
@@ -1039,6 +1075,8 @@ zones:
                 workshop-equipment: 1
       forest-bend:
         name: Bend
+        attributes:
+          wilderness: true
         map_node: 7
         description: >-
           The river bends into a messy tangle of deadfall, where a storm broke the trees, making it hard to fish. The forest is thick to the west.
@@ -1055,6 +1093,8 @@ zones:
             access: [mountaineering]
       forest-crossroads:
         name: Crossroads
+        attributes:
+          wilderness: true
         map_node: 8
         description: >-
           Welcome to Ravenheart.
@@ -1068,6 +1108,8 @@ zones:
               Two men have been hanging from parallel posts for weeks, unrecognizable. The road branches north to the town, south to the caves, and east to the fields. Farmers and migrants frequently take this road.
       forest-sparse-field:
         name: Sparse Field
+        attributes:
+          wilderness: true
         map_node: 9
         description: >-
           Sparse, muddy fields, collecting puddles in the deepest spots. There's a lot of fallen trees here. You can see all the way south to the Depot.
@@ -1084,6 +1126,8 @@ zones:
             access: [mountaineering]
       forest-culvert:
         name: Culvert
+        attributes:
+          wilderness: true
         map_node: 10
         description: >-
           There's a culvert on the other side of the river, locked, leading into the town.
@@ -1095,6 +1139,8 @@ zones:
               The road is flat, but you can see the Black Hills up ahead, sparse and mountainous, covered with a sparse dry flooring.
       forest-east-river:
         name: East River
+        attributes:
+          wilderness: true
         map_node: 36
         description: >-
           The river meets and starts to grow, forming a canyon between the Black Hills and a large promontory to the south. You can't go directly down the river, so you'll have to climb up the hills to the north.
@@ -1150,6 +1196,8 @@ zones:
     locations:
       hills-mountain:
         name: Mountain
+        attributes:
+          wilderness: true
         indoors: true
         description: >-
           The pass over the peak, and the only way across the range on foot. Cut steps where the rock allows and a fixed rope where it does not, both maintained by nobody in particular. From the top you can see the fortress on one side and the western woods on the other, which is the only place in the barony where both are true at once. ‡
@@ -1157,6 +1205,8 @@ zones:
 
       hills-descent:
         name: Descent
+        attributes:
+          wilderness: true
         map_node: 12
         description: >-
           Where the mountain road finally comes down out of the rock. The trees here are wrong — taller, further apart, quieter — and the ground between them is clear in a way no forest manages by itself. ‡
@@ -1164,6 +1214,8 @@ zones:
         rooms: {}
       hills-ferry:
         name: Ferry
+        attributes:
+          wilderness: true
         map_node: 13
         description: >-
           The river again, wider and slower, with the far bank invisible in the haze. A ferry rope is still strung across it. There is no ferry. ‡
@@ -1171,6 +1223,8 @@ zones:
         rooms: {}
       hills-trails:
         name: Hunters' Trails
+        attributes:
+          wilderness: true
         map_node: 25
         description: >-
           Hunters' country. Trails braid and rejoin, marked by cuts in the bark at shoulder height, and the marks are not in any alphabet the town uses. ‡
@@ -1178,6 +1232,8 @@ zones:
         rooms: {}
       hills-ravine:
         name: Ravine
+        attributes:
+          wilderness: true
         map_node: 26
         description: >-
           The high ground, where you can see the whole eastern spread and understand for the first time how much of it there is. The hills split here, a dry cut too steep to walk into and too deep to see the bottom of. Roots come through the wall of it. Somebody has been up and down this more than once, and has been careful about where they put their feet. ‡
@@ -1205,6 +1261,8 @@ zones:
                 paper: 4
       hills-black-pines:
         name: Black Pines
+        attributes:
+          wilderness: true
         map_node: 27
         description: >-
           A crossroads of deer paths in a stand of black pine, so dense that noon reads as evening. Sound does not carry. Neither do shouts. ‡
@@ -1212,6 +1270,8 @@ zones:
         rooms: {}
       hills-ruins:
         name: Ruins
+        attributes:
+          wilderness: true
         map_node: 28
         description: >-
           Ruins under moss: footings, a doorstep, the stub of a chimney, all laid out in a grid too regular for a village. Whatever stood here was planned by somebody with a straight edge. ‡
@@ -1219,6 +1279,8 @@ zones:
         rooms: {}
       hills-bowl:
         name: The Bowl
+        attributes:
+          wilderness: true
         map_node: 29
         description: >-
           A dead end that does not look like one until you are in it — a bowl of ground ringed by rock, floored in fern. Excellent for hiding. Terrible for leaving. ‡
@@ -1226,6 +1288,8 @@ zones:
         rooms: {}
       hills-scrub:
         name: Scrub
+        attributes:
+          wilderness: true
         map_node: 30
         description: >-
           The eastern edge, where the forest thins into scrub and the ground starts its long fall toward the marsh. The air changes here. You can taste it before you see it. ‡
@@ -1243,7 +1307,7 @@ zones:
         name: Village
         description: >-
           Half-submerged houses connected by bridges, their owners gone. Cypress forms a thick treeline all around, their bases packed with cattails. There's big fish in the water.
-        yield: { fishing: 1.3 }
+        yield: { fishing: 1.0 }
         attributes:
           godflesh: true
         rooms:
@@ -1335,6 +1399,7 @@ zones:
           Firm ground, barely — a tongue of gravel reaching into the wet, which is why every road in the marsh eventually comes here. Cart ruts fill with brown water and hold their shape for weeks. ‡
         yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
+          wilderness: true
           godflesh: true
         rooms: {}
       marshes-reedcut:
@@ -1344,6 +1409,7 @@ zones:
           Reed beds over your head, cut through by a channel somebody dug straight. Straight is not natural here. Follow it and you are following somebody's intention. ‡
         yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
+          wilderness: true
           godflesh: true
         rooms: {}
       marshes-duckboards:
@@ -1353,6 +1419,7 @@ zones:
           Where the ground gives up pretending. Duckboards run from hummock to hummock, and under them the water is black and warm and moves against the current. ‡
         yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
+          wilderness: true
           godflesh: true
         rooms: {}
       marshes-pasture:
@@ -1362,6 +1429,7 @@ zones:
           Drowned pasture. Fence posts stand in three feet of water in lines that go on past where you can see, and the animals they were built for have been gone a long time. ‡
         yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
+          wilderness: true
           godflesh: true
         rooms: {}
       marshes-sink:
@@ -1371,6 +1439,7 @@ zones:
           The southern sink, where everything the marsh carries finally stops. There is a smell. There is also a stairwell, going down, with water lapping at the fourth step. ‡
         yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
+          wilderness: true
           godflesh: true
         rooms: {}
 
@@ -1432,12 +1501,19 @@ zones:
                 access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key]
                 description: >-
                   Set into the gate. The tower's windows allow peering into the caves, where a floodlight is pointed. Metal grates on the floor allow pouring oil onto any invaders.
-                stash: [shortbow, spear]
+                stash:
+                  items:
+                    paper: 8
+                    shortbow: 1
+                    spear: 1
               customs-merchants-office:
                 name: Merchant's Office
                 access: [merchants-license]
                 description: >-
                   A desk, filing cabinets, and a big red button.
+                stash:
+                  items:
+                    paper: 32
               # The lock moved off the Landing Pad and onto here: the pad is
               # just a hole in the roof, but the goods are worth a door.
               customs-cargo-bay:

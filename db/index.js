@@ -21,15 +21,14 @@ const { reconcileCorpses } = require("./lib/corpseFollow");
 const { runTravelArrivalPass } = require("./lib/travelArrivalPass");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 // By path, not the barrel — same reason as db/lib/dm.js below.
-const { runDawnWipe } = require("./lib/dawnWipe");
+const { runMessageWipe } = require("./lib/messageWipe");
 const {
   runHungerPass,
   hungerDm,
-  disappointedDm,
   DYING_DM,
 } = require("./lib/hungerPass");
 const { runCarryPass } = require("./lib/carryPass");
-const { runPhobiaPass } = require("./lib/phobiaPass");
+const { runFearPass } = require("./lib/fearPass");
 const { runDawnAfflictionPass } = require("./lib/dawnAfflictionPass");
 const { runDepotPass } = require("./lib/depotPass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
@@ -106,6 +105,11 @@ const prisma =
   });
 
 globalForPrisma.prisma = prisma;
+
+// The fear dial DMs a player when their band changes, from hooks deep inside
+// tag writes that have no DM plumbing of their own. Hand it the logged REST
+// sender once, here, where both faces load the client (db/lib/fear.js).
+require("./lib/fear").setFearDmSender((discordUserId, content) => sendDm(prisma, discordUserId, content));
 
 // Hands the Discord circuit breaker somewhere durable to keep its counters.
 // discordRest.js has no prisma dependency (this file requires IT), so the
@@ -200,9 +204,12 @@ const TURN_PASSES = [
   // hunger so it sees the final sheet. See db/lib/dawnAfflictionPass.js.
   "dawnAfflictions",
   "carry",
-  // Phobia safety net for anyone whose mood went stale off the per-Move
-  // settle. After carry so it sees the final sheet. See db/lib/phobiaPass.js.
-  "phobias",
+  // The fear dial's nightly settle: the place each character sleeps in, the
+  // decay, hunger, a body in the room, a noble's missed dinner. After hunger
+  // (it reads the final streak) and carry (the final sheet), and before
+  // travelArrival, so a traveller pays the night where they set out from.
+  // See db/lib/fearPass.js and docs/systemdocs/FEAR.md.
+  "fear",
   // After "carry", because the overflow drop can put a corpse on a floor.
   // Pull-based, so it just re-reads where every body's tag ended up.
   "corpseFollow",
@@ -699,10 +706,12 @@ async function resolveNeeds(turn, config) {
 
   const {
     hungerNotices = [],
-    disappointedNotices = [],
+    fearDms: hungerFearDms = [],
     ...summary
   } = hunger ?? {};
   if (hunger) {
+    // Starving into Dying moved the fear dial; the band DM is a tag notice.
+    tagExpiryDms.push(...hungerFearDms);
     await prisma.auditLog
       .create({
         data: {
@@ -766,27 +775,30 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Carry audit log failed:", err));
   }
 
-  // Phobia safety net: settlePhobias already runs on every Move
-  // (db/lib/locationMove.js); this catches anyone whose phobia mood went
-  // stale some other way. See db/lib/phobiaPass.js.
-  let phobias = null;
-  if (!done.has("phobias")) {
-    phobias = await runPhobiaPass(prisma, turn).catch(async (err) => {
-      await passFailed("Phobias", err);
+  // The fear dial's nightly settle (docs/systemdocs/FEAR.md): every ALIVE
+  // character pays or earns the night for where they stand, decays a little,
+  // and has the band tag on their sheet re-projected. See db/lib/fearPass.js.
+  let fear = null;
+  if (!done.has("fear")) {
+    fear = await runFearPass(prisma, turn).catch(async (err) => {
+      await passFailed("Fear", err);
       return null;
     });
-    if (phobias) await markDone("phobias");
+    if (fear) await markDone("fear");
   }
-  if (phobias) {
+  if (fear) {
+    // "You are now Stressed." is a tag notice like any other; same channel.
+    const { dms: fearDms = [], ...fearSummary } = fear;
+    tagExpiryDms.push(...fearDms);
     await prisma.auditLog
       .create({
         data: {
           actorDiscordUserId: "system",
-          actionType: "phobias_resolved",
-          details: phobias,
+          actionType: "fear_resolved",
+          details: fearSummary,
         },
       })
-      .catch((err) => console.error("Phobias audit log failed:", err));
+      .catch((err) => console.error("Fear audit log failed:", err));
   }
 
   // Every dead sheet catches up with wherever its corpse ended up. Last of
@@ -966,7 +978,6 @@ async function resolveNeeds(turn, config) {
   return {
     lifewebBlood,
     hungerNotices,
-    disappointedNotices,
     autoLaborDms,
     lessonDms,
     confessionDms,
@@ -1010,7 +1021,7 @@ async function getConfig() {
 // Resolves the OPEN turn and opens the next, alternating DAWN/DUSK. Shared
 // by the bot's cron advance and the GM "End Turn" action. Discord side
 // effects are returned as a `runSideEffects()` thunk rather than run here —
-// the Dawn wipe can take minutes, so a caller awaits it only where safe
+// the message wipe can take minutes, so a caller awaits it only where safe
 // (the bot's cron inline; the web action via next/server's after()).
 //
 // Returns { advanced, previousTurn, newTurn, note, runSideEffects }.
@@ -1038,7 +1049,6 @@ async function advanceTurn() {
 
   let lifewebBlood = state.lifewebBlood;
   let hungerNotices = [];
-  let disappointedNotices = [];
   let autoLaborDms = [];
   let lessonDms = [];
   let confessionDms = [];
@@ -1086,7 +1096,6 @@ async function advanceTurn() {
     ({
       lifewebBlood,
       hungerNotices,
-      disappointedNotices,
       autoLaborDms,
       lessonDms,
       confessionDms,
@@ -1175,7 +1184,6 @@ async function advanceTurn() {
       ({
         lifewebBlood,
         hungerNotices,
-        disappointedNotices,
         autoLaborDms,
         lessonDms,
         confessionDms,
@@ -1267,8 +1275,8 @@ async function advanceTurn() {
   // that talks to Discord; every resolveNeeds() pass hands back posts/DMs
   // instead of sending them.
   const runSideEffects = async () => {
-    // Cutoff for the Dawn wipe below, taken before the first Discord call so
-    // nothing posted by this thunk gets swept. See db/lib/dawnWipe.js.
+    // Cutoff for the message wipe below, taken before the first Discord call so
+    // nothing posted by this thunk gets swept. See db/lib/messageWipe.js.
     const sideEffectsStartedAt = Date.now();
 
     for (const dm of autoLaborDms) {
@@ -1474,16 +1482,6 @@ async function advanceTurn() {
           console.error(`Dying DM to ${notice.discordUserId} failed:`, err),
         );
       }
-    }
-
-    for (const notice of disappointedNotices) {
-      await sendDm(prisma, notice.discordUserId, disappointedDm(notice)).catch(
-        (err) =>
-          console.error(
-            `Disappointed DM to ${notice.discordUserId} failed:`,
-            err,
-          ),
-      );
     }
 
     const { applyLocationMoveSideEffects } = require("./lib/locationMove");
@@ -1703,7 +1701,13 @@ async function advanceTurn() {
       console.error("Failed to post turn announcement:", err),
     );
 
-    if (newTurn.phase === "DAWN" && config.messageWipeEnabled) {
+    // The wipe runs on EVERY turn now. A turn is one real day, and Dawn/Dusk
+    // alternate, so the old Dawn gate meant a Room scene ran for 48 hours.
+    // Only the zone summaries keep that slower life — CHANNELS.md §8.
+    // `messageWipeEnabled` is no longer a GM knob; the column stays as a
+    // hand-flippable escape hatch if Discord starts rate-limiting.
+    if (config.messageWipeEnabled) {
+      const wipeSummaries = newTurn.phase === "DAWN";
       // The web's half of the same wipe, and it goes FIRST: the watermark is
       // the newest row as the pass begins, which is the same instant
       // `cutoffMs` names on the Discord side. Taking it afterwards would put
@@ -1711,18 +1715,20 @@ async function advanceTurn() {
       // Discord's view and hidden from the Hall's, for no reason but that the
       // sweep was slow. See db/lib/feedWipe.js and HALL.md §7.
       const { markFeedWiped } = require("./lib/feedWipe");
-      await markFeedWiped(prisma);
-      await runDawnWipe(prisma, { cutoffMs: sideEffectsStartedAt }).catch(
-        (err) => console.error("Dawn message wipe failed:", err),
+      await markFeedWiped(prisma, { summaries: wipeSummaries });
+      await runMessageWipe(prisma, { cutoffMs: sideEffectsStartedAt, wipeSummaries }).catch(
+        (err) => console.error("Message wipe failed:", err),
       );
     }
 
-    if (config.autoReconcileEnabled) {
-      const { runChannelDoctor } = require("./lib/channelDoctor");
-      await runChannelDoctor(prisma, { apply: true, scope: "cheap" }).catch(
-        (err) => console.error("Post-turn channel doctor failed:", err),
-      );
-    }
+    // The channel doctor's cheap reconcile — roles and membership only, a
+    // handful of requests. It used to sit behind autoReconcileEnabled, a
+    // switch nobody ever turned on; keeping Discord in step with the database
+    // after a turn moves people around is not a thing to opt into.
+    const { runChannelDoctor } = require("./lib/channelDoctor");
+    await runChannelDoctor(prisma, { apply: true, scope: "cheap" }).catch(
+      (err) => console.error("Post-turn channel doctor failed:", err),
+    );
   };
 
   return {

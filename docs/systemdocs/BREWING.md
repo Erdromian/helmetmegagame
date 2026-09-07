@@ -10,20 +10,34 @@ document in `docs/documents.yaml`.
 is usually the ingredient rather than the ⬢. So the tables below are the
 ladder — there is nothing above them to derive a price from.
 
-**This paragraph used to say no code enforced any of it. That is no longer
-true of anything in it.** The Craft flow charges the ⬢, spends the Move and
-checks the skills; and **three recipes now have a real, enforced ingredient** —
-`miasma` needs a corpse, `dreamers-draught` needs a Skinless Brain, and
-`moonshine` needs Godflesh (`Tag.requirementItems`, `CORPSES.md` §8,
-`FACTORY.md` §8). Holding it is the check: **nothing is consumed**, so you keep
-the corpse you bottled the Miasma over. Everything else in the Ingredient column
-below is still prose that a GM adjudicates.
+**This paragraph used to say no code enforced any of it, and then that only
+the ingredient was on the honour system. Neither is true any more.** The Craft
+flow charges the ⬢, spends the Move, checks the skills — and **every
+ingredient in the tables below is a real tag that the craft SPENDS**
+(`Tag.requirementItems`, `CORPSES.md` §8). Three units of a brew take three
+units of its ingredient, the same way they take three lots of ⬢. There is no
+prose ingredient left in brewing: the ones nothing could ever track were either
+turned into real tags (`nightshade-herb`, `aberrant-heart`, `ravens-eye`) or
+dropped, with the ⬢ raised to be the gate instead.
+
+**Two exceptions, both kept rather than spent.** `miasma` matches any corpse
+and `bone-mask` cuts one, and both only need the body *to hand* — you bottle
+the smell, you don't use the body up. That is what a `group:` ingredient means
+and the only thing it can mean: a group names no single stack to take a unit
+out of. Everything else spends.
+
+**Ingredients go in when the work STARTS**, the rule the ⬢ already lived
+under — so a multi-turn project pays up front and abandoning it keeps
+nothing. The finishing audit row records what was spent
+(`details.consumed`), for a GM reversing the work by hand.
 
 Moonshine is the only recipe in the game that costs **0 ⬢** and still has a
 real ingredient, and that is deliberate rather than an oversight: the marsh
 hands you the Godflesh, the throttle is the Routine, and at 3 ⬢ a bottle it
 undercuts a farming day badly enough to be nobody's living. What it costs is
-the drinker's eyes, a notch at a time (`FACTORY.md` §8).
+the drinker's eyes, a notch at a time (`FACTORY.md` §8) — and, since the pass
+that made ingredients real, one whole Godflesh a bottle, which is what stops
+it undercutting the Factory's refining.
 
 ## 1. Skills
 
@@ -34,41 +48,60 @@ the drinker's eyes, a notch at a time (`FACTORY.md` §8).
 
 ## 2. Brewing (Basic)
 
+Every ingredient below is **spent** unless the row says *kept*. The Turns
+column is the recipe's own `turnsCost` — a `1/N` is a fraction of a turn's
+work, so three ⅓-turn Alcohol fill one Routine and a spare third takes more
+brewing; a *max N/turn* on a 0-turn row is a `perTurn` ration, the hard cap
+kind (CRAFTING.md §2).
+
 | Brew | ⬢ | Turns | Ingredient | Consumes into |
 |---|---|---|---|---|
-| `bliss` | 0 | 0 | cave fungus | `euphoric`, `high` (3t) |
-| `feces` | 0 | 0 | feces | — |
-| `alcohol` | 2 | 1 | — | `tipsy` (and up the ladder — §5a) |
-| `moonshine` | **0** | 1 | **Godflesh** (enforced, kept) | `tipsy` (ladder, §5a), `blind-drunk` (2t), `damaged-vision` |
-| `miasma` | 2 | 1 | **a corpse** (enforced, kept) | — |
-| `poppy` | 2 | 1 | — | `opium-high` |
-| `molotov-cocktail` | 2 | 0 | alcohol | — |
-| `cleaning-powder` | 2 | 1 | — | — |
-| `cat` | 3 | 1 | alcohol | `night-vision` (1t) |
-| `nightshade` | 3 | 1 | a forest herb | — |
+| `bliss` | 0 | 0 (max 2/turn) | `cave-fungus` | `euphoric`, `high` (3t) |
+| `feces` | 0 | 0 (max 2/turn) | — | — |
+| `alcohol` | 2 | 1/3 | — | `tipsy` (and up the ladder — §5a) |
+| `moonshine` | **0** | 1 | `godflesh` | `tipsy` (ladder, §5a), `blind-drunk` (2t), `damaged-vision` |
+| `miasma` | 2 | 1 | **a corpse** — *kept* | — |
+| `poppy` | 2 | 1/2 | `poppy-pods` | `opium-high` |
+| `molotov-cocktail` | 2 | 0 (max 2/turn) | `alcohol` | — |
+| `cleaning-powder` | 2 | 1/2 | — | — |
+| `cat` | 3 | 1 | `alcohol` | `night-vision` (1t) |
+| `nightshade` | 3 | 1 | `nightshade-herb` | — |
 
 ## 3. Brewing (Skilled)
 
 | Brew | ⬢ | Turns | Ingredient | Consumes into |
 |---|---|---|---|---|
-| `pure-luck` | 0 | 1 | an Aberrant's heart | `aberrant-luck` |
-| `graga-sweat` | 2 | 1 | a graga sac | `brutish-strength` |
-| `white-honey` | 2 | 1 | a rainbow trout's heart | — |
-| `deadeye-drops` | 2 | 1 | cave fungus | `increased-accuracy` |
-| `mercy` | 2 | 1 | cave fungus | `increased-recovery` |
-| `mindbreaker-toxin` | 2 | 1 | cave fungus | `hallucinating` |
-| `invisibility-potion` | 2 | 1 | a graga sac | `invisible` |
-| `succubus-draught` | 2 | 1 | a willing lover's blood | `mindreading` |
-| `raven-draught` | 2 | 1 | a raven's eye | — |
-| `ravenheart-red` | 4 | 1 | — | `tipsy` (and up the ladder — §5a) |
-| `distilled-coca` | 4 | 1 | coca leaves | `stimulant-high` |
-| `advanced-poppy` | 4 | 1 | poppy | `pain-immunity` |
+| `pure-luck` | 0 | 1 | `aberrant-heart` | `aberrant-luck` |
+| `graga-sweat` | 2 | 1 | `graga-sac` | `brutish-strength` |
+| `deadeye-drops` | 2 | 1 | `cave-fungus` | `increased-accuracy` |
+| `mercy` | 2 | 1/2 | `cave-fungus` | `increased-recovery` |
+| `mindbreaker-toxin` | 2 | 1 | `cave-fungus` | `hallucinating` |
+| `invisibility-potion` | 2 | 1 | `graga-sac` | `invisible` |
+| `raven-draught` | 2 | 1 | `ravens-eye` | — |
+| `ravenheart-red` | 4 | 1/2 | `alcohol` | `tipsy` (and up the ladder — §5a) |
+| `distilled-coca` | 4 | 1 | `coca-leaves` | `stimulant-high` |
+| `advanced-poppy` | 4 | 1 | `poppy` | `pain-immunity` |
 | `phrygian-tears` | 4 | 2 | — | — |
-| `gunpowder-grenade` | 6 | 1 | saltpeter | — |
-| `purifier` | 6 | 1 | cave fungus | — |
-| `dreamers-draught` | 6 | 1 | **a skinless brain** (enforced, kept) | — |
-| `forgiveness` | 8 | 1 | someone's tears | — |
-| `flawless-skin` | 8 | 1 | a lock of Nobility hair | `otherworldly-beauty` |
+| `white-honey` | **6** | 1 | `honey` | — |
+| `purifier` | 6 | 1 | `cave-fungus` | — |
+| `dreamers-draught` | 6 | 1 | `skinless-brain` | — |
+| `succubus-draught` | **8** | 1 | — | `mindreading` |
+| `forgiveness` | 8 | 1 | — | — |
+| `flawless-skin` | 8 | 1 | — | `otherworldly-beauty` |
+
+Four recipes lost a prose ingredient and pay in ⬢ instead, because the
+ingredient was the whole gate: `white-honey` 2 → **6** (it cures any poisoning),
+`succubus-draught` 2 → **8** (it grants mindreading), and `forgiveness` /
+`flawless-skin` keep their 8, which was already doing the work. White Honey
+has since regained a real gate — it spends a `honey`, a gm-catalog Depot
+import, which also makes it one of the HIDDEN recipes (off the Recipes tab,
+out of the Craft menu until the brewer holds one). Its 6 ⬢ stays for now;
+whether it drops back toward 2 is an open ruling.
+
+`gunpowder-grenade` (now named **Crude Grenade**) left this table
+altogether: it is smith's work now (Smithing (Skilled), `items-weapons`),
+listed in the Smithing paper beside `black-powder` and the `bomb`. See
+`SMITHING.md`.
 
 An empty **Consumes into** cell is not an oversight. `consumable` with no
 `consumesInto` is set where the brew is spent *by a Move* rather than by the
@@ -77,50 +110,82 @@ someone else's wound — so the GM applies the result to whoever it happened to.
 
 ## 4. Ingredients
 
-Six ingredients are real tags, so a GM can see whether the brewer holds one:
+**Every ingredient is a real tag now.** There is no honour-system column left:
+either the brewer's sheet carries the thing, or the craft is refused.
 
-| Tag | Where it comes from | Enforced? |
+| Tag | Where it comes from | How the recipe uses it |
 |---|---|---|
-| `cave-fungus` | foraged in the caves. 0 ⬢. Eaten raw it gives `high` (2t). | no |
-| `graga-sac` | **butchered** out of a {Graga Corpse} | no |
-| `skinless-brain` | **butchered** out of a {Skinless Corpse} | **yes** — `dreamers-draught` |
-| `saltpeter` | mined in the caverns | no |
-| `alcohol` | brewed, one tier down | no |
-| `poppy` | brewed, one tier down | no |
+| `cave-fungus` | foraged in the caves — never crafted, since the pass that took its 0-⬢ recipe away. Eaten raw it gives `high` (2t). | spent |
+| `alcohol` | brewed, one tier down (also what `ravenheart-red` is made of) | spent |
+| `poppy` | brewed, one tier down | spent |
+| `graga-sac` | **butchered** out of a {Graga Corpse} | spent |
+| `skinless-brain` | **butchered** out of a {Skinless Corpse} | spent |
+| `godflesh` | hauled out of the marshes (`FACTORY.md`) | spent |
+| `nightshade-herb` | forageable — the loot pass wires it | spent |
+| `poppy-pods` | forageable — the loot pass wires it | spent |
+| `coca-leaves` | forageable — the loot pass wires it | spent |
+| `aberrant-heart` | off a fallen Aberrant | spent |
+| `ravens-eye` | forageable — the loot pass wires it | spent |
+| `honey` | Depot import, gm-catalog — the White Honey link is a secret | spent |
+| `tea` / `sweets` / `honey` | Depot imports; the cook picks one | spent (`anyOf`) |
+| **a corpse** (`items-corpse` group) | died, or was killed | **kept** |
 
-"A corpse", for `miasma`, is enforced too, and is the one entry that matches a
-whole tag GROUP rather than a slug — any corpse will do, including the one a
-dead player leaves behind. See `CORPSES.md` §8.
+(`saltpeter` left this table with the grenade — powder is smith's business
+now, `SMITHING.md`.)
+
+The forageable tags in that table are new, and **nothing drops them yet**. The
+laboring loot-table pass wires acquisition; this pass only had to make the
+slugs exist. Until then they arrive by GM grant.
+
+`skinless-brain` is the one ingredient that is also a moral problem. A Graga is
+a beast; the Skinless used to be people and, per the Caves brief, can be talked
+down. Making an expensive Skilled brew means someone decided not to — and the
+brain is spent now, so it is a decision taken once per bottle rather than once
+ever. That is the recipe, not an oversight, but it is worth a GM knowing it is
+there before a player finds it.
 
 **`nekker-pheromones` is no longer brewed at all.** It is butchered out of a
 Nekker Corpse; it lost its `craftable` flag and its row in §2.
 
-`skinless-brain` is the one ingredient that is also a moral problem. A Graga is
-a beast; the Skinless used to be people and, per the Caves brief, can be talked
-down. Making the second-most-expensive Skilled brew now means someone decided
-not to. That is the recipe, not an oversight — but it is worth a GM knowing it
-is there before a player finds it.
-
-The rest — a corpse, a raven's eye, a rainbow trout's heart, an Aberrant's
-heart, a willing lover's blood, a lock of Nobility hair — are prose. Nothing
-tracks them, and that is the point: getting hold of one is meant to be a scene
-with another player rather than a purchase. If it is just flavor, the player
-tells the GMs how they got it.
+**What used to be prose, and where it went.** A forest herb, an Aberrant's
+heart and a raven's eye became `nightshade-herb`, `aberrant-heart` and
+`ravens-eye`. A rainbow trout's heart, a willing lover's blood, someone's tears
+and a lock of Nobility hair are simply gone, with the ⬢ carrying the gate
+instead (§3) — though White Honey's gate has since been re-hung on `honey`,
+and Poppy and Distilled Coca, which never had a prose ingredient at all, now
+spend `poppy-pods` and `coca-leaves`. The old argument for keeping them — that getting one should be a
+scene rather than a purchase — held for the social ones and never held for the
+huntable ones, where there was no player on the other side, just a GM ruling on
+whether somebody's fishing trip counted.
 
 ## 5. Yields
 
-A few brews come out in a batch. The `requirement` block has no field for a
-yield, so the number is written into the **Alcohol & Drugs** document's Turns
-column instead, phrased the same way every time — "yields up to N per turn":
+Two different numbers used to share one field here; they are two concepts
+now (CRAFTING.md §2, Chris 2026-09-06). A brew that comes out in a batch
+authors its WORK as a fraction — `turnsCost: 1/3` — and the arithmetic does
+the rest: three Alcohol fill one Routine, one Alcohol leaves two thirds of
+it for other brewing work. A hard RATION — `perTurn`, 0-turn recipes only —
+caps a Dead Simple brew below the shared pool of 4.
 
-| Brew | Per turn |
-|---|---|
-| `alcohol` | 3 |
-| `bliss` | 2 |
-| `poppy` | 2 |
-| `molotov-cocktail` | 2 |
-| `cleaning-powder` | 2 |
-| `mercy` | 2 |
+| Brew | turnsCost (work each) | perTurn (ration) |
+|---|---|---|
+| `alcohol` | 1/3 | — |
+| `lavish-meal` | 1/3 | — |
+| `fine-meal` | 1/4 | — |
+| `poppy` | 1/2 | — |
+| `cleaning-powder` | 1/2 | — |
+| `mercy` | 1/2 | — |
+| `ravenheart-red` | 1/2 | — |
+| `bliss` | 0 | 2 |
+| `feces` | 0 | 2 |
+| `molotov-cocktail` | 0 | 2 |
+| `bone-mask` | 0 | 1 |
+
+`bone-mask` is not a brew, but it is the other recipe the ration exists for: 0
+turns and a `butcher` gate put it outside the Dead Simple pool, so one corpse
+would have minted masks forever. Its skill derives a `butcher` family now
+like any other (CRAFTING.md §2a), so a mask past the ration spills into the
+Move instead of walling.
 
 **The ⬢ cost is per unit, and it multiplies.** Three alcohols in one turn cost
 6 ⬢, not 2. Every yield row in the document carries an `{info:…}` tooltip
@@ -172,12 +237,12 @@ is how Tipsy has always worked.
 consumeGrants.js#resolveConsumeGrants`. Lightweight sends the character's
 *first* drink straight to the second rung (Sober → Wasted, skipping Tipsy).
 Iron Liver does the opposite to a climb already underway: it costs a drink to
-grant a hidden `steady` marker instead of climbing, and only the drink after
-that actually climbs (clearing the marker too) — so an Iron Liver drinker
-paces at 1 drink → Tipsy, two more → Wasted, two more → Unconscious. The
-catalog's `conflictsWith` keeps a character from holding both at once. The
-three slugs (`lightweight`, `iron-liver`, `steady`) are duplicated by hand at
-the top of `consumeGrants.js`, because that file is imported by client
+grant a hidden `holding-it-down` marker instead of climbing, and only the
+drink after that actually climbs (clearing the marker too) — so an Iron Liver
+drinker paces at 1 drink → Tipsy, two more → Wasted, two more → Unconscious.
+The catalog's `conflictsWith` keeps a character from holding both at once. The
+three slugs (`lightweight`, `iron-liver`, `holding-it-down`) are duplicated by
+hand at the top of `consumeGrants.js`, because that file is imported by client
 components (`TagsPanel.js`, `RequestActionsProvider.js`) and pulling
 `@lifeweb/db/lib/constants` into the browser bundle isn't an option — keep
 them in sync with `db/lib/constants.js` if either ever changes.

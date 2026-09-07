@@ -46,11 +46,13 @@
 # COOLDOWN POLICY (2026-09-02 balance sweep). Two things make the bare tier a
 # bad cooldown for a cheap goal:
 #
-#   1. The per-slot lock already shuts a slot for the turn a Desire ends AND
-#      the next one, so the soonest anything can be re-fulfilled is 2 turns
-#      later. `cooldownTurns: 1` and `2` therefore do NOTHING — they are
-#      dominated by a gate that was going to fire anyway. 3 is the smallest
-#      value that has any effect at all. Don't write 1 or 2.
+#   1. The per-slot lock already shuts a slot for the turn a Desire ends, so
+#      the soonest anything can be re-fulfilled is the turn after.
+#      `cooldownTurns: 1` therefore does NOTHING — it is dominated by a gate
+#      that was going to fire anyway. 2 is the smallest value that has any
+#      effect at all. Don't write 1.
+#      (This tracked desireSlotLockTurns, which was 2 until 2026-09-07 and is
+#      now 1. At a lock of 2 it was `1` and `2` that were inert.)
 #   2. A gate is not a throttle. `requires` decides WHO may take a goal, never
 #      how often; a tag or role you hold permanently costs nothing on the
 #      second repetition. What actually throttles a Desire is a per-attempt
@@ -90,9 +92,14 @@
 #     5, which mostly taught players to ignore them. 3 is honest about what
 #     they are: small, frequent, and worth a point.
 #
-# Four singles are set by hand against their own act rather than by either
+# Seven singles are set by hand against their own act rather than by either
 # rule: make-a-merchant-purchase 5 (buying anything at all is not an
 # achievement), see-a-monster 4, save-a-life-medical 3, torture-someone 6.
+# Three more on 2026-09-07: critique-art 3 (a tier-1 goal the ladder would put
+# at 5, but critiquing a DIFFERENT piece is the point), and feed-the-lifeweb 6
+# and steal-fate-item 6, both above tier 3 and so outside the ladder entirely —
+# each is a killing or a theft big enough that the bare tier came back too
+# fast.
 #
 # ‡ marks text the Desires-rework planner wrote — a drafted name/description,
 # an invented tier, or a resolved conflict — exactly like docs/tags.yaml's
@@ -300,7 +307,7 @@ families:
 desires:
   # === 4a. Ungated ==========================================================
   con-a-noble:
-    name: Con a noble or courtier out of their cash
+    name: Con a member of royalty or a courtier out of resources or an item.
     tier: 3
     families: [theft, scheming]
 
@@ -311,7 +318,7 @@ desires:
     cooldownTurns: 4
 
   win-a-compliment:
-    name: Win a compliment
+    name: Earn a compliment.
     tier: 3
     families: [vanity, social]
 
@@ -340,7 +347,7 @@ desires:
     cooldownTurns: 3
 
   try-a-new-drug:
-    name: "Try a kind of recreational drug you never have ‡"
+    name: Use a drug or tonic you have never used before.
     tier: 2
     families: [drugs]
     cooldownTurns: 3
@@ -457,7 +464,7 @@ desires:
     families: [wealth]
 
   get-someone-indebted:
-    name: Get someone indebted to you
+    name: Have someone become indebted to you.
     tier: 2
     families: [scheming, wealth]
 
@@ -480,7 +487,7 @@ desires:
     oncePerLife: true
 
   win-a-game:
-    name: Win a game of chance with something staked
+    name: Win a game of chance with something on the line.
     tier: 1
     families: [gambling, social]
 
@@ -562,7 +569,7 @@ desires:
     families: [faith]
 
   make-a-merchant-purchase:
-    name: Make a purchase from the Merchant
+    name: Purchase something from the merchant.
     tier: 1
     families: [wealth]
     cooldownTurns: 5
@@ -592,7 +599,7 @@ desires:
     cooldownTurns: 3
 
   better-person:
-    name: Get someone to be a better person
+    name: Help someone become a better person.
     tier: 2
     families: [faith, charity]
     requires:
@@ -610,11 +617,11 @@ desires:
 
   critique-art:
     name: Critique someone else's art
-    tier: 2
+    tier: 1
     families: [craft, social]
     requires:
       anyTags: [artist]
-    cooldownTurns: 4
+    cooldownTurns: 3
 
   learn-to-read:
     name: Learn to read
@@ -639,14 +646,6 @@ desires:
     # — carried through as the planner wrote it.
     requires:
       anyTags: [existentialist]
-
-  praised-footwork:
-    name: Be complimented on your footwork
-    tier: 2
-    families: [vanity, craft]
-    requires:
-      anyTags: [dancer]
-    cooldownTurns: 4
 
   dance-with-someone:
     name: Dance with someone
@@ -717,7 +716,7 @@ desires:
 
   top-of-a-building:
     name: Reach the top of a building
-    tier: 3
+    tier: 2
     families: [adventure]
     requires:
       anyTags: [climbing]
@@ -730,7 +729,7 @@ desires:
       anyTags: [climbing]
 
   beat-plate-armour:
-    name: Beat a plate-armoured enemy
+    name: Win a fight against someone in plate armor.
     tier: 7
     families: [violence, bravery]
     requires:
@@ -738,14 +737,15 @@ desires:
 
   feed-the-lifeweb:
     name: Feed someone to the Lifeweb, killing them
-    tier: 3
+    tier: 4
     families: [mortality, cruelty]
     requires:
       anyTags: [mortus]
       anyRoles: [mortus]
+    cooldownTurns: 6
 
   drink-to-unconscious:
-    name: Drink until you're unconscious
+    name: Drink until you blackout.
     tier: 2
     families: [alcohol]
     requires:
@@ -766,7 +766,7 @@ desires:
       anyTags: [artist]
 
   eat-dangerous:
-    name: Eat something impressively dangerous
+    name: Eat something dangerous.
     tier: 4
     families: [food, bravery]
     requires:
@@ -780,7 +780,7 @@ desires:
       anyTags: [courtier, old-blood]
 
   disparage-new-blood:
-    name: Disparage a courtier for being new blood
+    name: Disparage a courtier for being of new blood.
     tier: 1
     families: [social, status]
     requires:
@@ -818,12 +818,19 @@ desires:
       anyTags: [cruel]
 
   steal-fate-item:
-    name: Steal a fate-specific item — one with the name of its class in it
+    name: Steal a role-specific item — one with the name of its role in it.
     tier: 5
     families: [theft]
     requires:
       anyTags: [kleptomaniac]
-    oncePerLife: true
+    cooldownTurns: 6
+
+  fistful-of-stolen:
+    name: Successfully steal and have on your person items from at least 3 different people.
+    tier: 2
+    families: [theft]
+    requires:
+      anyTags: [kleptomaniac]
 
   steal-the-barons-key:
     name: Steal the Baron's key
@@ -851,17 +858,9 @@ desires:
       anyTags: [mortus]
       anyRoles: [mortus]
 
-  feed-web-beautiful:
-    name: Feed someone with the Pretty or Beautiful trait to the Web
-    tier: 4
-    families: [mortality, cruelty]
-    requires:
-      anyTags: [mortus]
-      anyRoles: [mortus]
-
   feed-web-willing:
     name: Donate someone's blood to the Lifeweb
-    tier: 4
+    tier: 2
     families: [mortality]
     requires:
       anyTags: [mortus]
@@ -894,20 +893,13 @@ desires:
 
   execute-someone:
     name: Execute someone
-    tier: 2
+    tier: 3
     families: [duty, violence]
     requires:
       anyRoles: [inquisitor, practicus, preacher]
 
   interrogate-with-info:
     name: Interrogate someone and gain information
-    tier: 3
-    families: [duty, cruelty]
-    requires:
-      anyRoles: [inquisitor, practicus, preacher]
-
-  interrogate-without-info:
-    name: Interrogate someone, even without information
     tier: 2
     families: [duty, cruelty]
     requires:
@@ -927,6 +919,13 @@ desires:
     families: [theft]
     requires:
       anyRoles: [servant]
+
+  # Ungated on purpose: the throttle is the Routine it costs the teacher, not
+  # a tag or a role. Teaching literacy keeps its own gated entry below.
+  teach-a-skill:
+    name: Successfully teach a skill.
+    tier: 1
+    families: [craft]
 
   teach-literacy:
     name: Teach someone literacy
@@ -950,7 +949,7 @@ desires:
       anyRoles: [esculap, serpent]
 
   install-cybernetic:
-    name: Install a cybernetic
+    name: Install a cybernetic part on a living person.
     tier: 4
     families: [medical]
     requires:
@@ -985,7 +984,7 @@ desires:
       anyRoles: [headman]
 
   three-days-no-disappearance:
-    name: Go 3 days without a disappearance
+    name: Have no one disappear from town for three consecutive days.
     tier: 4
     families: [duty]
     requires:
@@ -999,7 +998,7 @@ desires:
       anyTags: [literate]
 
   protection-racket:
-    name: Start a protection racket
+    name: Have someone pay you to not turn them in to the guards.
     tier: 3
     families: [theft, cruelty]
     requires:
@@ -1163,7 +1162,7 @@ desires:
 
   cash-in-loan-interest:
     name: Cash in interest on a loan
-    tier: 3
+    tier: 2
     families: [wealth]
     requires:
       anyRoles: [merchant]
@@ -1205,7 +1204,7 @@ desires:
       anyRoles: [baron]
 
   censor-turret-multikill:
-    name: Get a multi-kill with the automated turret without killing friendlies
+    name: Have the turret kill at least 2 enemies without friendly fire.
     tier: 3
     families: [violence, duty]
     requires:
@@ -1219,7 +1218,7 @@ desires:
       anyRoles: [incarn]
 
   mercenary-sign-contract:
-    name: Sign a contract with an employer
+    name: Sign a contract with someone to hire you.
     tier: 2
     families: [wealth, duty]
     requires:
@@ -1233,7 +1232,7 @@ desires:
       anyRoles: [mercenary]
 
   kill-deadly-cave-creature:
-    name: Land the killing blow on a very dangerous creature of the Caves
+    name: Kill a dangerous creature of the Caves.
     tier: 3
     families: [violence, adventure, bravery]
     requires:
@@ -1262,7 +1261,7 @@ desires:
       anyRoles: [pusher]
 
   pusher-new-drug:
-    name: Innovate a new type of drug
+    name: Create a new kind of drug not seen before.
     tier: 3
     families: [drugs, craft]
     requires:
@@ -1293,7 +1292,7 @@ desires:
   # === 4d. Gated on new Interests / Restrictions ===========================
     cooldownTurns: 4
   torture-someone:
-    name: Torture someone, for a good enough reason
+    name: Torture someone for a reason.
     tier: 4
     families: [cruelty, violence]
     requires:
@@ -1398,7 +1397,7 @@ desires:
       anyTags: [hot-headed]
 
   insult-rightfully:
-    name: Insult someone rightfully
+    name: Insult someone with the truth.
     tier: 1
     families: [social]
     requires:
@@ -1427,7 +1426,7 @@ desires:
       anyTags: [mad-doctor]
 
   gruesome-procedure:
-    name: Do a gruesome, immoral medical procedure for the good of science
+    name: Perform an immoral procedure for the sake of science.
     tier: 2
     families: [medical, cruelty]
     requires:
@@ -1457,15 +1456,15 @@ desires:
 
   receive-praise:
     name: Receive praise
-    tier: 2
+    tier: 1
     families: [social, vanity]
     requires:
       anyTags: [desperate]
     cooldownTurns: 4
 
   berated-for-desperation:
-    name: Be verbally berated for your clear desperation
-    tier: 4
+    name: Be verbally insulted for your desperation.
+    tier: 2
     families: [social]
     requires:
       anyTags: [desperate]
@@ -1559,16 +1558,8 @@ desires:
     requires:
       anyTags: [death-wish]
 
-  elevator-over-the-pit:
-    name: Take an elevator ride down over a very deep pit ‡
-    tier: 3
-    oncePerLife: true
-    families: [adventure, mortality]
-    requires:
-      anyTags: [death-wish]
-
   harvest-godflesh-barehanded:
-    name: Harvest Godflesh without gloves ‡
+    name: Harvest Godflesh with your bare hands.
     tier: 3
     oncePerLife: true
     families: [mortality, stupidity]
@@ -1576,7 +1567,7 @@ desires:
       anyTags: [death-wish]
 
   enter-the-depths:
-    name: Enter the Depths ‡
+    name: Enter the Depths.
     tier: 2
     oncePerLife: true
     families: [adventure]
@@ -1584,7 +1575,7 @@ desires:
       anyTags: [death-wish]
 
   wrestle-a-giant:
-    name: Wrestle a giant ‡
+    name: Wrestle a giant
     tier: 4
     oncePerLife: true
     families: [violence, bravery]
@@ -1592,7 +1583,7 @@ desires:
       anyTags: [death-wish]
 
   survive-a-turret-shot:
-    name: Take a shot from an automated turret without dying ‡
+    name: Survive being hit with a turret.
     tier: 5
     oncePerLife: true
     families: [mortality, stupidity]
@@ -1600,7 +1591,7 @@ desires:
       anyTags: [death-wish]
 
   kill-a-monster-barehanded:
-    name: Kill a monster barehanded ‡
+    name: Kill a monster with only your bare hands.
     tier: 3
     oncePerLife: true
     families: [violence, bravery]
@@ -1610,7 +1601,7 @@ desires:
   # === 4e. ‡ drafted fill-ins ===============================================
   # Corrupt (T: corrupt, R: cerberus/sheriff)
   look-the-other-way:
-    name: Look the other way for a friend
+    name: Look the other way in return for something.
     tier: 1
     families: [duty, theft]
     requires:
@@ -1626,7 +1617,7 @@ desires:
       anyRoles: [cerberus, sheriff]
 
   shake-down-a-merchant:
-    name: Shake down someone with more to lose than you
+    name: Attack and loot the Merchant.
     tier: 1
     families: [theft, cruelty]
     requires:
@@ -1651,7 +1642,7 @@ desires:
       anyTags: [brave]
 
   take-a-wound-for-someone:
-    name: Take a wound that was meant for someone else
+    name: Take an attack that was meant for someone else.
     tier: 2
     families: [bravery, charity]
     requires:
@@ -1695,7 +1686,7 @@ desires:
       anyTags: [schemer]
 
   pry-out-a-secret:
-    name: Get a secret out of somebody who meant to keep it
+    name: Have a stranger or superior reveal a secret to you.
     tier: 3
     families: [scheming, social]
     requires:
@@ -1808,7 +1799,7 @@ desires:
       anyTags: [pacifist]
 
   stop-a-war:
-    name: Single-handedly stop a war
+    name: Help in a significant way stop a war.
     tier: 5
     families: [bravery, duty]
     oncePerLife: true
@@ -1875,7 +1866,7 @@ desires:
       anyTags: [forester]
 
   warn-the-town:
-    name: Alert the town to a threat coming through the woods
+    name: Warn the town of a threat moving toward town.
     tier: 2
     families: [duty]
     requires:
@@ -1922,7 +1913,7 @@ desires:
   # --- Role-flavoured: the Brigands -----------------------------------------
   # Open to the Brigand Leader too — nothing here is beneath them.
   loot-a-captive:
-    name: Loot a role-specific item off a captive
+    name: Loot something valuable from a captive.
     tier: 2
     families: [theft]
     requires:
@@ -2052,7 +2043,7 @@ desires:
     oncePerLife: true
 
   kick-the-incapacitated:
-    name: Kick someone while they are incapacitated
+    name: Kick someone unable to fight back.
     tier: 1
     families: [cruelty]
     requires:
@@ -2159,7 +2150,7 @@ desires:
     oncePerLife: true
 
   flee-a-fight:
-    name: "Escape from a fight unharmed, that you should've fought at"
+    name: Run away unharmed from a fight people expected you to fight in.
     tier: 3
     families: [duty, violence]
     requires:
@@ -2172,14 +2163,6 @@ desires:
     families: [status, social]
     requires:
       anyTags: [eunuch]
-    oncePerLife: true
-
-  win-first-fight:
-    name: Win your first ever fight
-    tier: 3
-    families: [violence, bravery]
-    requires:
-      anyTags: [green]
     oncePerLife: true
 
   survive-martyrdom:
@@ -2202,14 +2185,14 @@ desires:
   # Both need {tag:human-flesh}, which only the Butcher button produces, so
   # the real gate is upstream of `requires` and neither entry restates it.
   eat-human-flesh:
-    name: Eat human flesh ‡
+    name: Eat human meat.
     tier: 2
     families: [cruelty, food]
     requires:
       anyTags: [cruel]
 
   feast-on-human-flesh:
-    name: Discover what a person tastes like ‡
+    name: Try human flesh for the first time.
     tier: 4
     families: [food, cruelty]
     requires:
@@ -2297,13 +2280,6 @@ desires:
     name: Get a manor near the keep
     tier: 4
     families: [wealth, status]
-    requires:
-      anyRoles: [banneret]
-    oncePerLife: true
-  buy-yourself-an-automobile:
-    name: Buy yourself an automobile
-    tier: 4
-    families: [wealth]
     requires:
       anyRoles: [banneret]
     oncePerLife: true

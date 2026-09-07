@@ -1,6 +1,7 @@
 import { prisma } from "@lifeweb/db";
 import { MAX_REASON_LENGTH } from "@/lib/constants";
 import { UserError } from "@/lib/actionResult";
+import { DEAD_SIMPLE_PER_TURN, isDeadSimple } from "@/lib/tagRequests";
 
 // What is left of the old Request system: the per-turn rations, and the one
 // helper every player action writes its audit row through. A player action
@@ -8,16 +9,6 @@ import { UserError } from "@/lib/actionResult";
 // review step and no Undo. See docs/systemdocs/REQUESTS.md.
 
 export { MAX_REASON_LENGTH };
-
-// How many Dead Simple items a character may make in one turn.
-//
-// Dead Simple is the bottom rung of the smithing ladder (SMITHING.md §2) and
-// the only one that costs 0 turns, so nothing was rationing it: a player could
-// file Add Tag requests all turn and walk away with any number of work knives.
-// The cap is on UNITS, not requests — the Dead Simple items are stackable and
-// one request can carry a quantity of 20 — and it is summed across every
-// ADD_TAG request the character has filed this turn.
-export const DEAD_SIMPLE_PER_TURN = 4;
 
 // How many ROUTINE cures a medic may work in one turn, by their highest
 // medical tier (docs/systemdocs/TAGS.md §5c). A doctor's day has a floor and a
@@ -37,22 +28,115 @@ export const MEDICAL_TIER_CAPS = {
   "medical-expert": 4,
 };
 
-// The skills that mark a recipe as smithing/crafting work. Every smithing rung
-// counts, not just the one Dead Simple actually gates on, so a future 0-turn
-// recipe at a higher rung is covered without editing this list.
-const DEAD_SIMPLE_SKILL_SLUGS = (slug) => slug === "crafting" || slug.startsWith("smithing");
+// isDeadSimple and DEAD_SIMPLE_PER_TURN live in tagRequests.js now (recipe
+// facts a client component can reach); imported above for the counters below
+// and re-exported further down so server-side imports keep working.
 
-// There is no "tier" column — Dead Simple is only a comment header in
-// docs/tags.yaml — so the tier is recognised by its recipe: 0 turns of work,
-// and a smithing or crafting skill gate. That is exactly the craftables
-// under the Dead Simple headers today. The one other tag in the catalog with
-// `turnsCost: 0` is Frostbite, whose requirement block is a CURE (medical
-// skills, the removal direction), so the skill test keeps it out.
+// The free allowance a 0-turn recipe has each turn: its own `perTurn` ration
+// if it sets one, otherwise the shared Dead Simple pool. Null means "no
+// allowance to count" — either the recipe costs a Move (so the Action rations
+// it) or it is a 0-turn recipe outside both schemes, which stays a free
+// action with no ceiling.
 //
-// `tag.requirementSkills` must be loaded ({ slug }) or this reads false.
-export function isDeadSimple(tag) {
-  if (tag?.requirementTurns !== 0) return false;
-  return (tag.requirementSkills ?? []).some((skill) => DEAD_SIMPLE_SKILL_SLUGS(skill.slug));
+// Units past the allowance are no longer simply refused: for a recipe with a
+// craft family they spill into the Move at 1/allowance each
+// (web/lib/craftBudget.js, docs/systemdocs/CRAFTING.md §2a). This function is
+// only the number, so the server's enforcement and the page's readout can
+// never disagree about what "free" means.
+export function craftAllowance(tag) {
+  if ((tag?.requirementTurns ?? 1) !== 0) return null;
+  if (tag?.requirementPerTurn != null) return tag.requirementPerTurn;
+  return isDeadSimple(tag) ? DEAD_SIMPLE_PER_TURN : null;
+}
+
+// Units of ONE recipe already made this turn, for a tag that sets its own
+// `perTurn` (Tag.requirementPerTurn). Distinct from the Dead Simple pool
+// below: that one is a shared allowance across every 0-turn recipe, this is a
+// ration on a single item.
+//
+// Every counter here counts `request_craft_tag` AuditLog rows — the one row
+// grantCrafted writes per grant — because that row is the whole record of a
+// craft now (REQUESTS.md §1a). `AuditLog.turnId` is what separates this
+// turn's work from last turn's.
+// A custom craft grants a MINTED row and records the recipe it came off as
+// `details.baseTagId` (grantCrafted) — the ration is a fact about the
+// RECIPE, so every counter here bills against that id, or three custom
+// Lavish Meals would dodge the three-a-turn the plain ones obey.
+function effectiveTagId(details) {
+  return details?.baseTagId ?? details?.tagId;
+}
+
+function craftsThisTurn(db, characterId, turnId) {
+  if (!turnId) return [];
+  return db.auditLog.findMany({
+    where: {
+      targetCharacterId: characterId,
+      actionType: "request_craft_tag",
+      turnId,
+    },
+    select: { details: true },
+  });
+}
+
+export async function unitsOfTagThisTurn(db, characterId, turnId, tagId) {
+  const filed = await craftsThisTurn(db, characterId, turnId);
+  return filed.reduce((sum, r) => {
+    if (effectiveTagId(r.details) !== tagId) return sum;
+    return sum + (Number(r.details?.quantity) || 0);
+  }, 0);
+}
+
+// Dead Simple units already filed this turn (DEAD_SIMPLE_PER_TURN).
+// `db` is prisma or a tx client.
+export async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
+  const filed = await craftsThisTurn(db, characterId, turnId);
+  const filedTagIds = [
+    ...new Set(filed.map((r) => effectiveTagId(r.details)).filter(Boolean)),
+  ];
+  const filedTags = filedTagIds.length
+    ? await db.tag.findMany({
+        where: { id: { in: filedTagIds } },
+        select: {
+          id: true,
+          requirementTurns: true,
+          requirementSkills: { select: { slug: true } },
+        },
+      })
+    : [];
+  const deadSimpleIds = new Set(filedTags.filter(isDeadSimple).map((t) => t.id));
+  return filed.reduce((sum, r) => {
+    if (!deadSimpleIds.has(effectiveTagId(r.details))) return sum;
+    return sum + (Number(r.details?.quantity) || 0);
+  }, 0);
+}
+
+// Every rationed recipe's free units left this turn, in one query, keyed by
+// tag id: `{ per, left }`. The Craft dialog's readout, so it can say which
+// units of an order are free and which spill into the Move. `tags` is the
+// page's catalog rows — they must carry `requirementTurns`,
+// `requirementPerTurn` and `requirementSkills.slug` or nothing is rationed.
+export async function craftFreeUnits(db, characterId, turnId, tags) {
+  const out = {};
+  const rationed = tags.filter((t) => craftAllowance(t) != null);
+  if (!turnId || !rationed.length) return out;
+  const filed = await craftsThisTurn(db, characterId, turnId);
+  const units = new Map();
+  for (const r of filed) {
+    const id = effectiveTagId(r.details);
+    if (!id) continue;
+    units.set(id, (units.get(id) ?? 0) + (Number(r.details?.quantity) || 0));
+  }
+  const byId = new Map(tags.map((t) => [t.id, t]));
+  let pool = 0;
+  for (const [id, n] of units) {
+    if (isDeadSimple(byId.get(id))) pool += n;
+  }
+  for (const tag of rationed) {
+    const per = craftAllowance(tag);
+    const used = tag.requirementPerTurn != null ? (units.get(tag.id) ?? 0) : pool;
+    out[tag.id] = { per, left: Math.max(0, per - used) };
+  }
+  return out;
 }
 
 // Server actions are public endpoints, so the reason is validated here rather

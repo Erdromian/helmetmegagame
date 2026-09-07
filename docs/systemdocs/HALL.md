@@ -133,7 +133,7 @@ the conversation appear on the target's web page with no reload.
 `PlayerThreadInvite` stays beside it and keeps its old job: it is what replays
 the **Discord** add when the target finally walks into the Location.
 
-The dawn wipe needs no new step — `deletePlayerThread` cascades.
+The message wipe needs no new step — `deletePlayerThread` cascades.
 
 ## 3. Realtime: server-sent events from the web process
 
@@ -175,6 +175,15 @@ stream recomputes its place list, moves its subscriptions, sends `places`, and
 catches the newly visible places up from its own high-water mark rather than
 from zero — so walking into a room does not replay a day of it. The page asks
 for that with `GET /api/feed/history?place=` when the reader actually opens it.
+
+**Prefetch, capped at twelve, and never for a GM.** After the first paint
+`Hall.js` warms the backlogs of the other places one at a time so opening a
+room is instant. A player's list is a Location, its rooms, their conversations
+and a summary; past twelve of those the warmth is not worth the requests. A GM
+is exempt outright — their list is every zone, Location and Room they may
+watch, which is two hundred and more, and warming a hall they will open one
+room of is a storm the database pays for and nobody sees. A GM fetches on
+selection. ‡
 
 `GET /api/feed/places` answers the same list on its own, for a client that has
 reason to think it moved and no stream open to be told.
@@ -256,26 +265,56 @@ like everything else.
 
 ### The wireframes Bascinet chose
 
-Desktop, three columns — `15rem minmax(0,1fr) 17rem`:
+Desktop, three columns — `15rem minmax(0,1fr) 20rem`. The right column grew
+from 17rem in the second pass: it is the game suite now, not a button strip.
 
 ```
-┌──────────────────┬──────────────────────────────────────┬────────────────────┐
-│ TOWN · Dusk 12   │  The Keep                        ⋯   │ HERE · 7           │
-│──────────────────│  A vaulted hall, damp and echoing…   │ ◉ Cersei · Baroness│
-│ HERE             │──────────────────────────────────────│ ◉ a young man      │
-│ ▸ The Keep       │  -# Somebody has entered from the    │ ◌ a hooded figure  │
-│ ROOMS            │     Square.                          │────────────────────│
-│   Throne Room  ● │  ⊙ Cersei · Baroness          12:04  │ THE KEEP           │
-│   Cellar         │    "Shut the door behind you."       │ 3 rooms · 4 exits  │
-│   ▪ Baron's Off. │                                      │ [Travel][Examine]  │
-│ CONVERSATIONS    │  ⊙ a young man                12:05  │ [Storage][Notices] │
-│   With Old Tom ● │    *pulls his cloak tighter*         │ [Converse][Bell]   │
-│ SUMMARY          │                                      │────────────────────│
-│   Town           │  ▢ Say something in the Throne Room…⌤│ YOU                │
-│                  │                                      │ [Move…] [Sheet ›]  │
-│                  │                                      │ [Report to the GMs]│
-│                  │                                      │ Waiting on you (2) │
-└──────────────────┴──────────────────────────────────────┴────────────────────┘
+┌───────────────┬────────────────────────────────────────────┬──────────────────────┐
+│ PLACES        │ Council Room                     ◔ Dusk 4  │ THE KEEP             │
+│               │────────────────────────────────────────────│ Fortress             │
+│ ▤ Summary   ● │                                            │ [Place] [Zone]       │
+│               │ ◉ Alexandra Hristov  13:58                 │ A high hall of black │
+│ ▸ The Keep    │   Nobody saw it leave.                     │ stone; the winch for │
+│   Council     │                                            │ the gate is in the   │
+│   Kitchens  ● │ ──────────────── NEW ─────────────────────│ tower.               │
+│   ▪ Vault     │                                            │ [Noticeboard]        │
+│               │ ◉ Knife Hristov  14:02             ✎  ✕   │──────────────────────│
+│ » Alexandra   │   "Where did the tithe go?"                │ HERE · 3             │
+│               │                                            │ ◉ Knife Hristov  you │
+│               │ ◉ Alexandra Hristov  14:03        🔍  📷   │ ◉ Alexandra      🔍  │
+│               │   Ask the Censor.                          │ ◉ a hooded figure 🔍 │
+│               │                                            │──────────────────────│
+│               │ · Alexandra is typing…                     │ THIS ROOM            │
+│               │────────────────────────────────────────────│ Storage · 2 loaves,  │
+│ 🔔  web-only  │ [ Say something in Council Room…         ] │ a key   [Move things]│
+│               │                                  4 s       │ [Intercom]           │
+│               │                                            │──────────────────────│
+│               │                                            │ TRAVEL · 1 free      │
+│               │                                            │ ┌────────┐┌────────┐ │
+│               │                                            │ │Gatehse ││Road    │ │
+│               │                                            │ │FORTRESS││FOREST  │ │
+│               │                                            │ │free    ││the turn│ │
+│               │                                            │ └────────┘└────────┘ │
+│               │                                            │ ┌────────┐           │
+│               │                                            │ │Barracks│           │
+│               │                                            │ │FORTRESS│           │
+│               │                                            │ │shut    │           │
+│               │                                            │ └────────┘           │
+│               │                                            │──────────────────────│
+│               │                                            │ YOU                  │
+│               │                                            │ DAY 4 · DUSK  5 h    │
+│               │                                            │ [Routine]  Ask the   │
+│               │                                            │ Censor about…  [✎]   │
+│               │                                            │ 12 ⬢  31/71 lb       │
+│               │                                            │ Hungry  Dying        │
+│               │                                            │ DESIRES              │
+│               │                                            │ [Claim]              │
+│               │                                            │ Opens on turn 9      │
+│               │                                            │ [Sheet ›]            │
+│               │                                            │ Waiting on you · 1   │
+│               │                                            │ ▾ YESTERDAY          │
+│               │                                            │ Report to the GMs    │
+└───────────────┴────────────────────────────────────────────┴──────────────────────┘
 ```
 
 Under 720px, one column — the places column becomes a `.tab-bar` of
@@ -302,22 +341,9 @@ header, and the rest of the right column comes up as a bottom sheet from the
 └────────────────────────────────────┘
 ```
 
-…and ⚡ opens the sheet, which is THE PLACE and YOU in the same order the
-column draws them:
-
-```
-┌────────────────────────────────────┐
-│ THE KEEP                        ✕  │
-│ 3 rooms · 4 exits                  │
-│ [Travel][Examine][Storage][Notices]│
-│ [Converse][Bell]                   │
-│────────────────────────────────────│
-│ YOU                                │
-│ [Move…] [Sheet ›]                  │
-│ [Report to the GMs]                │
-│ Waiting on you (2)                 │
-└────────────────────────────────────┘
-```
+…and ⋯ opens the sheet, which is the same five sections in the same order the
+column draws them, minus HERE (the phone has the avatar strip under the place
+header instead).
 
 ### The parts
 
@@ -338,16 +364,53 @@ column draws them:
   written when the reader scrolls to the bottom, never merely on selection.
   It only ever moves forward.
 - **`Feed.js`** (phase 0's `PlayFeed.js`, generalised) draws one place: its
-  name, a one-line description with **more ‡**, the runs, and the composer.
+  name, a search button, the runs, and the composer.
   Enter appends the pending row in the same frame and clears the box; the POST
   swaps the real row in behind it. A failed send stays on screen as "Not sent.
   Retry". Runs group one speaker's messages within seven minutes, the same rule
   as `DmThread.js`. The list scrolls itself, never the document, and only while
   the reader is already at the bottom; otherwise a "New messages" pill. On a
   coarse pointer, Enter is a newline and a Send button appears, as in Discord's
-  app. Your own rows carry ✎ and ✕ — on hover with a mouse, always on a touch
-  screen — and an edited row says "(edited)" after the time. ✕ goes through the
-  shared `useConfirm()` dialog.
+  app. An edited row says "(edited)" after the time.
+- **The row action bar** (`.hall-row-actions`) floats at a row's top-right the
+  way Discord's does — absolute, over the corner, so appearing on hover never
+  reflows the sentence under it. Shown on hover with a mouse and always on a
+  touch screen, and never on a row that has not confirmed yet. What it holds
+  depends on whose line it is:
+
+  | Row | Buttons |
+  |---|---|
+  | Yours | ✎ **Change** · ✕ **Take back**. The five-minute window is checked when the button is pressed, not while the page sits open, and again by `deleteSpeech`. Take back goes through the shared `useConfirm()`. |
+  | Somebody else's | 🔍 **Look at** — the SHEET's own Examine dialog, opened with the speaker already chosen; and 📷 **Photograph**, only while the sheet holds an `instant-camera`. |
+  | Any row, viewer is a GM with no character | ✕ **Remove**, confirmed, through the same `/api/feed/delete` route with `{ gm: true }`. |
+  | Any row that has a `seq` | ★ **Save to Notes** — the web twin of Discord's ⭐ (`PROXYING.md` §7), writing the same `Note` row through `starRow`. Offered on your own lines too, exactly as the reaction is, which is why the bar is now drawn on every row rather than only on one somebody can act against. |
+
+  **The eye is offered only on a row that carries the speaker's own name.** A
+  row written under an alias — a hood, or a forced name — has `alias` set
+  (`db/lib/archive.js#feedRowShape`), and opening a dialog on its character id
+  would be looking a hood up BY ID, which is the whole thing the token in
+  `whosHere.js` exists to prevent. The eye on that person is in HERE instead,
+  where it goes through `examineHooded`.
+
+  **The camera has no such problem**, and is offered on a hood's line too: it
+  is pressed against a **seq**, the server resolves the speaker itself, and
+  what it prints is the impoverished concealed readout — the hood the ROOM SAW
+  at the time, not the one they are wearing now (`examineReadout`'s
+  `wasConcealedAs`). `photographRow(seq)` in `play/actions.js` is the web twin
+  of the 📸 reaction and mirrors it exactly: blind refuses, no camera refuses,
+  the viewer's own sight is stripped (`viewerTags: []`, an empty `satisfied`)
+  so a surgeon's photograph carries no diagnosis, and `mintPhoto` files the
+  print as an ephemeral Tag row. **One shot per line per photographer**,
+  because nothing is spent and a second press would otherwise mint a second
+  permanent catalog row: the bot keeps that bound in memory, which a restart
+  empties and a web process cannot share, so this face keeps it as an
+  `AuditLog` row — `photo_taken`, with the seq in `details`. No `turnId`: that
+  column is for the per-turn rations, and this ration is per line.
+
+  **GM remove** is the same route the player's Take back uses. It pays for the
+  `isGm` REST check only when there is no living character to be, writes a
+  `gm_feed_remove` audit row after the removal, and a GM who DOES have a living
+  character takes the player path — the rule `loadFeedViewer` already applies.
 - **The words themselves go through `ChatMarkdown.js`**, not
   `MarkdownContent.js` — that one stays exactly as it is for DMs. It is
   `react-markdown` + `remark-gfm` + `remarkTokens` + **`remarkChat.js`**, which
@@ -370,49 +433,372 @@ column draws them:
   Being named rings the shared `chime.js`, muted per browser by
   `hall-chime-muted` (`useHallChimeMuted.js`) with the toggle at the foot of
   the places column.
+- **Slash commands in the composer** (`commands.js`, `CommandMenu.js`). Typing
+  `/` at the START of the box opens a popover — the sibling of `MentionMenu`,
+  same ↑↓ / Enter / Tab / Escape wiring — listing the commands the OPEN PLACE
+  allows. Picking one, or typing its whole name and a space, puts the composer
+  in **command mode**: an accent-tinted `.hall-cmd-chip` sits above the
+  textarea, the textarea holds the command's one free-text argument with that
+  argument's placeholder, and any other argument it wants is a `.chip-row`
+  under the box — everyone standing here for a `person`, the three Move kinds
+  for a `moveKind`, the reachable places for a `destination`. Enter runs it
+  through `useActionRunner`; Escape, or Backspace on an empty box, drops the
+  chip and hands the text back. **An unknown `/word` stays plain speech** — the
+  chip is the tell that it parsed.
+
+  | Command | What it runs | Extracted for it |
+  |---|---|---|
+  | `/move` | `submitMove` | — |
+  | `/travel` | selects that node in `TravelNodes` and opens its confirm strip. It never moves anybody: Go still does | — |
+  | `/conceal` | `toggleConceal()` | `db/lib/conceal.js` |
+  | `/shout` | `shoutHere(text, placeKey)` | `db/lib/shout.js#shout` |
+  | `/roll` | `rollHere(placeKey)` | `db/lib/roll.js#castDie` |
+  | `/look` | `lookAt(ref)` — a character id or a hood token, told apart server-side | — |
+  | `/converse` | opens the same `ConverseDialog` the right column's Converse opens | — |
+  | `/add`, `/remove` | `addMember` / `removeMember` (below) | `db/lib/roomGuests.js` |
+  | `/report` | `reportToGms` | — |
+
+  **`where` is a filter, not a greying.** `/roll` is absent in the street and
+  `/add` is absent in the zone summary, because a list of things you can type
+  is not a menu of things you are being refused. `/roll` is absent in the zone
+  summary too, for the reason `/shout` is: a summary is a broadcast, not a
+  place anybody stands in.
+
+  **The street gets a COMMAND-ONLY composer.** A Location is `canSpeak: false`
+  (§5b) and used to draw no box at all — which meant `/shout`, the one command
+  whose entire point is being heard outdoors, had nowhere on the web to be
+  typed. So the same box is drawn there, placeholdered *"Type / for a
+  command… ‡"*, and it accepts a slash and nothing else: Enter on plain prose
+  answers *"This is the open street. Step into a room to speak. ‡"*, keeps the
+  draft, and sends nothing. The sentence is the same one that used to stand
+  there in place of the composer.
+
+  Three of these are the first web twins of commands that were **Discord-only**
+  — `/conceal`, `/shout` and `/roll` — which is to say a "web only" character
+  simply could not do them before. The extraction is faithful and the bot has
+  **not been rewired yet**: each new `db/lib` module opens with a
+  `TODO(rewire)` naming the handler it duplicates, so switching the bot over is
+  one later change with no behaviour in it. Until then two cooldowns exist for
+  `/shout` — the bot's in-memory `Map` and this one's `AuditLog` row — because
+  there is no timestamp column on `Character` to share and this batch carries
+  no migration.
+
+  **A shout writes to both faces itself.** `db/lib/shout.js#shout` answers who
+  hears it and what they hear; the action then writes one `sceneLine` row per
+  hearing Location **and** posts the same line to that Location's channel,
+  sequentially. Both halves are needed, because the outbox carries `WEB` rows
+  only and a `SYSTEM` row is deliberately never echoed into a channel (§2). The
+  room or conversation you are standing IN hears the distance-0 line too — the
+  street loop is Location channels only, and without that the one door you are
+  inside of would be the only place that did not hear you. `db/lib/roll.js`
+  does the same two-sided write for one die.
+- **The members strip** (`MembersStrip.js`) sits under the feed's name for a
+  `conv:` place and for a PRIVATE `room:` place, and nowhere else — a public
+  room needs no guest list, and `placeMembers()` says so with a null `members`
+  rather than a refusal. It is a 20px avatar chip per member with a `×`, and a
+  plain, always-visible `+ Add ‡` opening a picker of everyone standing here
+  who is not already in. `HereList`'s person menu gains **Add to `<name>` ‡**
+  for the same two kinds of place.
+
+  Until now the only way to let somebody into either was `/add` on Discord,
+  which a web-only player cannot type. The rules are unchanged and all on the
+  server: a conversation asks that you are a **living** member; a private room
+  asks that you are INSIDE it and that they are standing at its Location, and
+  refuses to show out somebody whose own key admits them ("take the key").
+
+  **Inside, not merely outside the door.** Being inside is a key (one of
+  `Room.accessTagSlugs`) or a `RoomGuest` row — `roomAccessKeys` in
+  `db/lib/roomAccess.js`, the same pair `accessibleRooms` tests. On Discord
+  that half of the gate was implicit, because `/add` is typed into the room's
+  own thread and a thread is invisible to anybody not entitled to it; lifting
+  the code out of the bot dropped it, and for a moment anybody in the street
+  could hand out a door they could not open. Both `db/lib/roomGuests.js#doorwayFor`
+  and `play/actions.js#privateRoomHere` now test it, which also stops
+  `placeMembers()` handing a guest list to somebody outside.
+
+  A **key-holder is not offered in the picker**: they are already in by their
+  key, `roomGuests()` deliberately does not list them, and a guest row written
+  for one grants nothing and cannot be taken back.
+
+  The row is written first and Discord's thread membership follows,
+  `PlayerThreadInvite` included — §2a's rule, not a second one. Every write
+  calls `notifyPresence`, so the added person's own places column updates
+  without a reload. The strip re-reads on three things: the stream's `places`
+  frame (the viewer's own presence), any message in the open `conv:`/`room:`
+  place (which is the cheapest honest sign that a third party was let in or
+  shown out — no frame is sent for somebody ELSE's add), and a 60-second
+  interval while it is mounted, for a key granted while the room stays quiet.
 - **A `SYSTEM` row renders as `.hall-subtext`**: muted, small, no face. That is
   the web half of the `-#` those lines go out as on Discord
   (`db/lib/ambientLine.js`). Phase 4 is what actually writes them.
-- **The composer is hidden where `canSpeak` is false** — every place for a GM,
-  and the Location for everybody (§5a). In its place, one line saying so.
+- **The composer is hidden where `canSpeak` is false** — every place for a GM
+  (§5a). In its place, one line saying so. The **Location is the exception**:
+  it is `canSpeak: false` and still draws the box, command-only, so `/shout`
+  has somewhere to be typed. See the slash-commands bullet above.
 - **`HallAside.js`** is the right column — and, under 720px, everything
-  inside the ⚡ sheet. One component either way, because the phone's version
-  is the same three panels in the same order; only the box around them
-  changes, and the sheet is a `Modal` wearing `.hall-sheet` rather than a
-  drawer of its own, so it keeps Escape, the focus trap and the backdrop
-  `Modal` already owns.
-- **`HereList.js`** draws **HERE** off `db/lib/whosHere.js#whosHere` — the
-  same function the Discord anchor's "Who's here?" answers with. A named row
-  is an avatar, the presented name and, for a fellow member of a real
-  faction, their Role; a concealed one is the alias and the hood and **no
-  menu**, because there is nobody there to act on until the hood comes off. A
-  named row opens a `.hall-menu` of the SHEET's own people dialogs — Look at,
-  Heal, Transfer, Loot, Bind, Free, Harm, Move Player — by mounting
-  `RequestActionsProvider` on the page with the people pools and calling
-  `open(mode, null, { targetId })`, so the person is already filled in.
-  Nothing is forked: same dialogs, same server actions. The metagaming rule
-  (`actionRegistry.js`) still holds — no row is greyed for a fact about the
-  person it names.
-- **`PlacePanel.js`** draws **THE PLACE** off
-  `db/lib/placeAffordances.js#affordancesFor` (§5c), one dialog per
-  affordance, each calling a server action in `play/actions.js`. Anything
-  that changes a label a button wears — a gate now shut, a door now held —
-  re-reads the whole list rather than patching a row.
-- **`YouPanel.js`** draws **YOU**: the Move dialog (`db/lib/moves.js#fileMove`,
-  the same call the `#turns` console's modal makes), a link to the sheet,
-  **Report to the GMs** and **Waiting on you**. Report writes an INBOUND
-  `DirectMessage` prefixed `[Play] ` and sends nothing to Discord, so it
-  lands in `/gm/players` beside everything else that player has said and the
-  answer comes back down the ordinary DM path. Waiting on you lists the
-  pending offers, threat spawns, unanswered bird letters and a lobby
-  assignment; Accept and Decline call the **same** `db/lib` functions the DM
-  buttons call (`lessons.js`, `bind.js`, `confession.js`, `threatSpawn.js`,
-  `lobby.js`), so an answer given here and one given in Discord are one
-  answer, and the second surface finds nothing left to answer.
+  inside the ⋯ sheet. One component either way, because the phone's version
+  is the same sections in the same order; only the box around them changes,
+  and the sheet is a `Modal` wearing `.hall-sheet` rather than a drawer of its
+  own, so it keeps Escape, the focus trap and the backdrop `Modal` already
+  owns. It composes five sections, top to bottom, and owns the affordance list
+  they share through `usePlaceActions`:
+  1. **`PlaceCard.js`** — the Location's name, its zone muted under it, a
+     `Place` / `Zone` chip pair and the chosen text, always on the page inside
+     a scrolling `max-height`. **Place** is `Location.description` plus the
+     `examineLines` (`db/lib/examineLocation.js`) the page renders server-side;
+     **Zone** is `Zone.description`, which nothing on the web drew before.
+     Under the text, the Location's own fixtures — the noticeboard, a gate a
+     watchtower opens to this character, a keyed door they hold the key to —
+     and **Converse**, which is otherwise only reachable from a person's row
+     in HERE and so left somebody standing alone with no way to open one.
+     The old **Examine** dialog is gone: this is what it said.
+  2. **`HereList.js`** — everyone standing here, hooded or not, off
+     `db/lib/whosHere.js#whosHere`. A row is a 24px avatar, the presented name
+     (their Role for a fellow member of a real faction, `you` on your own) and
+     an eye at the row's right edge that opens **Look at** in one click. The
+     name opens a `.hall-menu` of the SHEET's own people dialogs — Look at,
+     Heal, Transfer, Loot, Bind, Free, Harm, Move Player, **Converse** — by
+     mounting `RequestActionsProvider` on the page with the people pools and
+     calling `open(mode, null, { targetId })`. Nothing is forked: same
+     dialogs, same server actions. A hood gets the same row and the same eye;
+     its menu is Converse alone. Looking at a hood goes through
+     `examineHooded(token)`, where the token is an HMAC of the character id
+     keyed with `AUTH_SECRET` (`whosHere` mints it, `resolveHoodToken`
+     resolves it over the people actually standing here) — so the browser is
+     handed a handle it can send back and never a name. The metagaming rule
+     (`actionRegistry.js`) still holds: no row is greyed for a fact about the
+     person it names.
+  3. **`RoomPanel.js`** — drawn only when the OPEN place is a Room, and it is
+     the fix for the Intercom-in-every-Keep-room complaint. `affordancesFor`
+     answers what this character can do where they stand, which at a Location
+     with six rooms is six rooms' buttons at once; the panel groups by
+     `roomId` and shows the open one. Its storage line comes from
+     `readStash`, with **Move things** opening the sheet's Transfer preset to
+     `room:<id>`, and then that room's own fixtures — Intercom in the Council
+     Room, the Bell in the tower, the red Turret in the Censor's office.
+  4. **`TravelNodes.js`** — the ways out as a grid of square nodes, two to a
+     row, off `loadTravel`. Each node carries the destination, its zone in
+     small caps and one foot line: `free` for a local hop or a crossing with a
+     free move left, `the turn` for a crossing that spends the Move and lands
+     next turn (MAP.md §3), and `shut` / `locked` / the refusal for one that
+     will not open — dimmed, still drawn, because knowing the way is there and
+     shut is what sends you to find the winch. A zone crossing is tinted. The
+     header is `Travel · N free` with `freeReason` as its title. Clicking a
+     node opens an inline confirm strip under the grid — the sentence, the
+     drag-along chips, `Go` and `Cancel` — not a modal. While
+     `travelToLocationId` is set the grid is replaced by "Leaving for X at the
+     turn" and **Turn back**.
+  5. **`YouPanel.js`** — below.
+- **`PlacePanel.js`** is no longer a panel. It is `usePlaceActions()` plus the
+  dialogs the sections open: Noticeboard, Converse, Bell, Turret, Intercom.
+  The hook owns the affordance list and the refresh rule — anything that
+  changes a label a button wears re-reads the whole list rather than patching
+  a row, which is what keeps this column and the Discord anchor saying the
+  same thing. The web filters the ids `travel`, `whosHere`, `secretRooms` and
+  `examine` out of that list; they stay in
+  `db/lib/placeAffordances.js` for the anchor, which has no column beside it.
+- **`YouPanel.js`** draws **YOU**, in the order a player asks it — and every
+  section of it is about the character rather than the street they are
+  standing in:
+  1. **`TurnCard.js`** — `DAY 4 · DUSK`, a `closes in 5 h ‡` countdown
+     computed in the browser off an ISO end time on a 60-second tick (absent
+     entirely when `moveWindow` reports no lock: a frozen clock or a short
+     manual turn has no honest end to count to), and then either the **Move…**
+     button or the Move already filed — its kind as a chip, its text clamped
+     to three lines until clicked, and **Edit ‡** while it is still the
+     player's to change.
+  2. **`StatusStrip.js`** — one wrapping row of data chips: `{n} ⬢`, the carry
+     line against the cap, and every held tag whose `Tag.category` is
+     **Status** or **Health**. The category test is the sheet's own
+     (`TagsPanel.js`), so a new affliction appears here the day it is added to
+     `docs/tags.yaml`. Overburdened, Dying and Catatonic — and a carry line
+     over its cap — wear the danger tone.
+  3. **`ThingsDrawer.js`** — **Things ‡**, the pockets drawer, collapsed by
+     default and remembered in `localStorage` the way Yesterday is. Every tag
+     whose category is **Items** or **Assets**, grouped in that order, as one
+     chip each (`Paper ×23`, a `·` after anything equipped). A chip opens a
+     menu of at most four: **Equip / Unequip** (`equippable`, the sheet's own
+     instant `toggleEquip`), **Use** (`consumable`), **Give** (`tradeable`)
+     and **Destroy** (`removable`) — the last three open the SHEET's dialogs
+     through `RequestActionsProvider.open(mode, tagId)`, with the item already
+     picked. The flags come off the catalog through `web/lib/tagRequests.js`,
+     built once in `play/thingRows.js` so the first paint and the `myThings()`
+     re-read after every verb cannot disagree. It polls on its own minute, and
+     only while it is open.
+  4. **`DesiresBlock.js`** — the sheet's slot view, in the column: per slot
+     either **Claim ‡** or `Opens on turn N ‡`, the last claim as a muted
+     line, and the Addiction note on the bottom slot. The claim is the real
+     one (`claimDesire`), over `DesireCatalog` and `RequestDialog`, exactly as
+     `DesirePanel.js` does it. What is different is *when* the catalog
+     arrives: the page carries the slots only, and the ~271 evaluated
+     templates are fetched by `desireCatalogView()` the first time somebody
+     opens the picker.
+  5. **`Sheet ›`** — the link to `/character`.
+  6. **`WaitingList`** — the pending offers, threat spawns, unanswered bird
+     letters and a lobby assignment. Accept and Decline call the **same**
+     `db/lib` functions the DM buttons call (`lessons.js`, `bind.js`,
+     `confession.js`, `threatSpawn.js`, `lobby.js`), so an answer given here
+     and one given in Discord are one answer, and the second surface finds
+     nothing left to answer.
+  7. **`Yesterday.js`** — collapsed by default, and it stays however this
+     browser left it (`localStorage`, read through `useSyncExternalStore`).
+     Opened, it fetches `yesterday()`: the OUTBOUND `DirectMessage` rows from
+     the last closed turn's close window, `source` in `staged_push` (the GMs'
+     staged messages) or `bot_auto` (the Routine result and the Gambit
+     reveal, which `db/lib/dm.js` defaults). It **reads** — it sends nothing,
+     and it is not a second inbox.
+  8. **Report to the GMs**, last and quiet. It writes an INBOUND
+     `DirectMessage` prefixed `[Play] ` and sends nothing to Discord, so it
+     lands in `/gm/players` beside everything else that player has said and
+     the answer comes back down the ordinary DM path.
+
+  The card and the waiting list share **one** 60-second interval (`myMove()`
+  and `waitingOnYou()` on the same tick), so a Move filed from the `#turns`
+  console shows up here without a reload.
+- **The composer's two hand controls**, beside the send and the phone's ⋯.
+  A ✉ (`QuillIcon`) opens a small menu of **Write ‡**, **Seal ‡** and **Send
+  by bird ‡** — each shown only where the sheet would show it, each opening
+  the sheet's own dialog through
+  `RequestActionsProvider.open("write"|"seal"|"bird")`. Bind a Book used to sit
+  in that menu; a blank book is an ordinary craft recipe now and Write is what
+  fills one (`PAPERWORK.md` §4a). The bird is
+  the one that greys rather than hides: with one already gone today it reads
+  **Sent today ‡**. Beside it, a hood (`HoodIcon`, `aria-pressed`) calls
+  `toggleConceal()` — drawn only where `db/lib/conceal.js` would not refuse
+  outright, and while it is up the composer's placeholder and label read
+  *Say something as {alias}… ‡*, which is the name every row it writes will
+  wear. A toggle ends in `router.refresh()`, because that name is a server
+  prop.
+- **The place card's two doors** (`PlaceCard.js`). A **Depot › ‡** link when
+  this character is standing at the Depot AND holds the merchant licence or
+  the keycard — offered only where it would open, since `/depot` bounces
+  anybody without one — and a **Factory ‡** button on godflesh ground, opening
+  the sheet's Extract dialog. Both decided server-side in `play/page.js`; the
+  page and the action re-check their own gate.
+- **`web/lib/selfPools.js#loadLettersView`** builds the paperwork half of a
+  character's own state — the four gates plus the paper, letter, seal, book,
+  bird-target and bird-zone lists — named as the props
+  `RequestActionsProvider` takes, so the sheet and the Hall hand the dialogs
+  one list. The raw text of a paper never comes back from it: only an excerpt,
+  and only for a reader. Both surfaces strip `paperText` off the tags they
+  hand to a client component for the same reason. ‡
+- **`web/lib/selfPools.js#loadDesireView`** is to a character's own state what
+  `peoplePools.js` is to the people near them: one build of the Desire slots
+  and, on request, the evaluated catalog. The sheet asks for both; the Hall
+  asks for the slots and fetches the catalog when the picker opens. Every gate
+  is evaluated server-side — the client never runs the gate logic and never
+  receives a hidden template. ‡
 - **`web/lib/peoplePools.js#loadPeoplePools`** is the one build of every
   people pool — the roster standing here, the medical gate, the Loot / Move /
   Bind / Harm lists. It came out of `character/page.js`, which calls it too:
   a second copy of "who is helpless" would have been a second answer.
+- **The right column refreshes on a MOVE, not on a timer.** Everything in it
+  — the place card, the Examine lines, who is here, the rooms a Transfer can
+  reach — is a server prop off `page.js`, so `TravelNodes`' Go and Turn back
+  and the stream's own `places` event all call `router.refresh()`. That event
+  fires only when the viewer's own presence changed, and the feed store is
+  client state, so a refresh costs nothing that was on screen. ‡
+- **One aside is ever mounted.** The right column and the phone's ⋯ sheet are
+  the same `HallAside`, and CSS hiding the column under 720px still left both
+  live — two travel loads, two stash reads, two affordance states. `useNarrow()`
+  picks one; the CSS rule stays as belt and braces. ‡
+- **Nothing ever flashes "Nothing has been said here yet. ‡"**, and getting
+  there took three separate fixes, because the empty state had three ways to
+  win a race:
+  1. `Hall.js` seeded the store from an **effect**, so the first client render
+     drew an empty feed and the server's own rows landed a frame later. It is
+     a `useState` initializer now — client-guarded and in a try/catch, with
+     the effect left behind as the idempotent guard for a client-side
+     navigation back onto the page.
+  2. Opening another place fetched its history AFTER the empty state had
+     already drawn. So `feedStore.js` tracks a history state per place —
+     `"idle" | "loading" | "loaded"`, read through `useHistoryState(place)` —
+     and `Feed.js` draws the empty state only when it is `loaded` and empty.
+     While it is anything else it draws `.hall-skeleton`: three faded rows,
+     tokens only, no text, `aria-hidden`, so a screen reader is not read a
+     placeholder.
+  3. The store is a module-level CLIENT store, so its server snapshot is empty
+     by construction and the SERVER paint of a busy street was the skeleton.
+     `Feed` takes the server's own rows as `fallbackRows` and uses them while
+     the store holds nothing for that place — which, after hydration, is
+     never.
+
+  And then the switch itself: after the first paint, `Hall.js` walks the rest
+  of the place list and fetches each one's history, **one at a time** on
+  `setTimeout(0)` chaining, skipping what is already loaded and stopping on
+  unmount. Opening a room is then instant rather than a skeleton and a round
+  trip. One at a time on purpose — six parallel requests would compete with
+  the thing the reader is actually looking at.
+- **A server string a player reads is rendered by `ChatMarkdown`, never
+  `{text}`.** The same sentences go out to Discord, so they carry its markers:
+  `**Ways out**` from `examineLines`, a `-#` from anything that came through
+  `ambientLine`. The column used to print them raw, asterisks and all, and the
+  place card went the other way and *stripped* the `**` — throwing the
+  emphasis away rather than rendering it. Everything prose now goes through
+  the renderer: the place card's body, a notice's text when the reader could
+  actually read it, and every action `line` / `note` shown in
+  `.hall-quiet-line`. A bare label — a name, a chip — stays text.
+
+  The one thing that did not become markdown is the room stash.
+  `readStash` answers with **rows** now (`{ resources, items: [{ tagId, name,
+  quantity }] }`) rather than with `formatStashLine`'s Discord sentence, and
+  `RoomPanel` draws a `.chip-mono` `12 ⬢` and one `.chip` per stack —
+  `Paper ×23`, the `×` only where there is more than one — collapsing past
+  twelve behind `+9 more ‡`. `formatStashLine` stays exactly as it is for the
+  bot, which is talking into a channel that renders those markers.
+- **The noticeboard is in the street, not behind a button.** When the open
+  place is the Location and it has a board
+  (`db/lib/noticeboard.js#hasNoticeboard`, an attribute on the Location), the
+  pinned notices draw as `.hall-notice-card`s **pinned at the top of the feed
+  scroller** — the paper is standing there, and filing it into the scroll in
+  the order it went up would bury it under fifty lines of scene. Each card is
+  the notice's name, **Read ‡** and **Tear ‡**; Read opens the same block the
+  Noticeboard dialog draws (`NoticeCards.js#NoticeText`), so a paper read from
+  the street and one read from the dialog are one rendering. The dialog keeps
+  its own job — pinning one of YOUR papers, which needs a picker — and a pin
+  or a tear from either side bumps one counter in `Hall.js` that makes the
+  other re-read.
+
+  `db/lib/noticeboard.js#boardFor(prisma, locationId)` is the loader that made
+  this possible: Location-keyed, knowing nothing about who is asking. The
+  ACTOR gate — you have to be standing here — stays with the caller, which is
+  the one line `play/actions.js#boardHere` is now.
+- **Search the scene** (`/api/feed/search?q=&place=`). An `ILIKE '%q%'` over
+  `ArchiveEntry.content`, which is exactly the shape
+  `ArchiveEntry_content_trgm_idx` covers — the GIN trigram index that lives
+  only in raw migration SQL, and the reason `prisma migrate diff` keeps
+  proposing to drop it. Raw SQL rather than a Prisma `contains`, parameterised
+  and never concatenated, the same shape the GM desk's conversation search
+  uses.
+
+  **The gate is the place list.** It searches inside `placesFor` and nowhere
+  else, so a zone summary a character cannot hear is not searchable from the
+  Hall and a GM's search is bounded by their `GmZoneView` exactly as their
+  feed is. A named `?place=` has to be one of theirs, or it is a 403 rather
+  than a silent widening. `q` is trimmed and 2..80 characters; the floor is
+  the same Dawn watermark every other feed reader uses.
+
+  The UI is a magnifier in the feed header opening `.hall-search` under it —
+  a bar rather than a dialog, because the results are places to go in the
+  scene behind them. A hit is a name, a place, a time and a snippet; clicking
+  one loads the window around its seq (`/api/feed/history?around=<seq>`, 50
+  rows either side inclusive), opens that place, scrolls to the row by
+  `data-seq` and flashes it once with `.hall-row[data-hit]`. The window is
+  loaded FIRST, because the store holds the newest hundred and a hit from
+  three days ago is not in it.
+- **⌘K reaches the Hall.** `paletteActions.js#getPaletteIndex` gains two kinds
+  for a signed-in user with a living character: `place` entries for everywhere
+  `placesFor` says they can hear, and `person` entries for everyone
+  `whosHere().named` puts beside them — a hood deliberately absent, exactly as
+  it is from the composer's `@` list. Both are the same functions the Hall
+  itself uses, so the palette can never offer a place they may not read.
+
+  The href is `/play#<encoded placeKey>`, because the open place lives in the
+  URL hash and a link into one needs no client plumbing at all. One catch the
+  palette had to learn: `router.push` uses `history.pushState`, which does
+  **not** fire a `hashchange` — so from the Hall itself, a jump to another
+  place sets `window.location.hash` directly instead. The GM branches are
+  untouched, and the empty-query default still shows pages only.
 - **`feedStore.js`** is a module-level store read through
   `useSyncExternalStore`, modelled on the GM inbox's `liveInbox.js`. Confirmed
   rows are keyed by seq, pending rows by a client id, both per place. A
@@ -444,7 +830,9 @@ you are in **at this Location**, then the zone Summary. `newestSeq` is added by
 
 Two things are read-only:
 
-- **A Location is scenery, not speech** (§5b). `canSpeak: false`, no composer.
+- **A Location is scenery, not speech** (§5b). `canSpeak: false`. The box is
+  still drawn there, but only as a command line — nothing typed into it is
+  ever said aloud (see the slash-commands bullet under "The parts").
 - **A GM speaks nowhere.** A GM with no living character gets a read-only Hall
   over every place inside `visibleZoneIds(prisma, discordUserId)`
   (`db/lib/gmZoneView.js`; no rows means every zone). Watching is not standing
@@ -473,7 +861,8 @@ are a scene somebody chose to be in. Four changes carry it:
   **top-level** Location channel as a tupper channel. Threads and `#summary`
   still are. What is left at top level is a GM typing, and a GM's own words are
   theirs.
-- On the web the Location place is `canSpeak: false` and draws no composer.
+- On the web the Location place is `canSpeak: false`. It draws a command-only
+  composer — no speech goes through it, and `/shout` needs somewhere to live.
 
 ### 5c. One affordance catalog, two faces
 
@@ -499,7 +888,57 @@ they hold the key to. On Discord those last two are answered by a refusal
 instead, because an anchor cannot know who is reading it.
 
 Adding an affordance is one entry in the catalog, one dialog in
-`PlacePanel.js` and one server action. It is not two lists to keep in step.
+the Hall's right column and one server action. It is not two lists to keep in step.
+
+## 5a. Notifications: the chime, and Web Push
+
+Three things can tell a player something happened, and they are deliberately
+different sizes.
+
+**The chime** is for a tab that is already open. A row landing on the stream
+with `{char:<your id>}` in it plays a short tone (`playChime`), per browser
+rather than per character, muted with the bell at the foot of the places
+column (`web/app/components/useHallChimeMuted.js`). Never for your own words,
+and rate-limited by `chimedRecently()` so a busy room is not a bell tower.
+
+**The DM** is unchanged and is still the record: every mention relay writes a
+`DirectMessage` row, on both faces (`bot/src/lib/mentions.js` for a
+Discord-origin mention, `bot/src/lib/feedOutbox.js#relayWebMentions` for a web
+one). It carries where and a link and never the text.
+
+**Web Push** is for a tab that is closed, and it is the new half. A browser
+that has agreed is one `PushSubscription` row — `discordUserId`, the endpoint
+the push service minted, and the two keys. Per BROWSER, not per character: one
+player may hold a laptop's row and a phone's, and a character dying does not
+end them.
+
+- **The toggle** sits beside the chime bell in the places column: `Notify me ‡`
+  / `Notifications on ‡`, `aria-pressed`. Pressing it registers `/sw.js`, asks
+  for permission, subscribes and posts the subscription; pressing it again
+  unsubscribes. It draws only when the browser has a `PushManager` **and**
+  `/api/push/key` answers — the state is a module store read through
+  `useSyncExternalStore` (`web/app/(app)/play/pushStore.js`), never an effect
+  writing state.
+- **The service worker does one job.** `web/public/sw.js` draws the
+  notification and, on a click, focuses an open tab and navigates it to the
+  url the payload carries. It caches nothing: `/play` is a live feed, and a
+  worker serving it out of a cache would be showing yesterday's scene.
+- **What is sent.** Two things, and only two. A **mention** — after the DM, at
+  both call sites, `"{name} was named ‡"` / `"in {place} ‡"`, pointing at
+  `/play` (the web-origin one at `/play#<placeKey>`, which is the same hash the
+  places column round-trips). And the **turn opening**
+  (`db/lib/turnAnnouncement.js`), after the announcement is posted, to every
+  Discord account holding an ALIVE character, one at a time with a small gap.
+- **Nothing else may depend on it.** `db/lib/webPush.js` never throws. A 404 or
+  410 from the push service deletes the row — a browser that is gone for good
+  is the one thing an endpoint failure reliably means — and anything else is
+  logged and left alone.
+- **Unconfigured is the normal case.** Without `VAPID_PUBLIC_KEY`,
+  `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT`, `pushToUser` returns
+  `{ sent: 0, reason: "unconfigured" }` before it touches the database, the key
+  route answers 404, and the toggle never draws. The chime and the DM are
+  unaffected. The three go on **both** Railway services, since the bot sends
+  the mention pushes and the web app serves the key.
 
 ## 6. What comes next, in order
 
@@ -540,14 +979,17 @@ The desktop and mobile wireframes Bascinet chose are in §5.
 
 ### 6a. The "web only" switch
 
-**Play from the web ‡**, a `Switch` under the picture on the Bio card, right
-after the turn ping. It is the answer to §1's first reason: a Discord channel
+**Play from the web**, a `Switch` under the picture on the Bio card, right
+after the turn ping. What it does is in its own `InfoIcon` now rather than in a
+paragraph under the row — the same treatment the hood switch beside it got. It is the answer to §1's first reason: a Discord channel
 lists every account that can see it, so standing in the Keep tells everybody
 else in the Keep which Discord account you are, and the only fix is not being
 there.
 
 `Character.webOnly`, `Character.webOnlyChangedAt`, and
-`GameConfig.webOnlyCooldownSeconds` (7200 — **two hours**). One function flips
+`WEB_ONLY_COOLDOWN_SECONDS` in `db/lib/webOnly.js` (7200 — **two hours**;
+it was a `GameConfig` column nothing ever wrote until the 2026-09-07 config
+trim). One function flips
 it: `db/lib/webOnly.js#setWebOnly(prisma, character, on)`, returning
 `{ ok: true }` or `{ ok: false, error, minutes, readyAt }`.
 
@@ -594,26 +1036,63 @@ the list to check against when adding another.
 
 ## 7. The wipe: a watermark, not a delete
 
-The Dawn wipe (`CHANNELS.md` §8) empties every Discord channel. The Hall
+The message wipe (`CHANNELS.md` §8) empties every Discord channel. The Hall
 cannot do the same thing and should not want to: `ArchiveEntry` **is** the
 transcript `/archive` reads, so deleting a row to tidy a screen would burn the
 record.
 
-So the web reads past the wipe instead. `GameConfig.feedWipeSeq` is a
-watermark, and every feed query asks for `seq > feedWipeSeq` while
-`messageWipeEnabled` is on. `db/lib/feedWipe.js` is the whole of it —
-`markFeedWiped(prisma)` sets it, `feedWipeFloor(prisma)` reads it back as a
-BigInt (zero when the wipe is off, so a game running without it behaves
-exactly as it did before this existed), and `seqFilterAbove` folds it into a
-Prisma `seq` filter.
+So the web reads past the wipe instead — and since 2026-09-07 there are **two
+watermarks**, because the wipe has two cadences:
 
-Four readers, and they have to agree or the page and the stream disagree about
+| Column | Moves | Floors |
+|---|---|---|
+| `GameConfig.feedWipeSeq` | every turn | `loc:` / `room:` / `conv:` places |
+| `GameConfig.feedWipeSummarySeq` | Dawn only | `zone:` places |
+
+Both are set in one `update` so the pair can never half-land.
+`db/lib/feedWipe.js` is the whole of it — `markFeedWiped(prisma, { summaries })`
+sets them, `feedWipeFloors(prisma)` reads them back as
+`{ turn, summary }` BigInts (both zero when the wipe is off, so a game running
+without it behaves exactly as it did before this existed), and three helpers
+apply them:
+
+- `floorForPlace(floors, placeKey)` — one place, one floor. The two routes that
+  only ever look at a single place use this.
+- `placeSeqWhere(floors, placeKeys, extra)` — a Prisma `where` fragment for a
+  **mixed** set, ORing a zone clause and a non-zone clause. With one kind
+  present it collapses back to a plain single clause, which is the common case.
+- `lowestFloor(floors)` — for the one reader that has to pick a single number
+  for a mixed stream. See the trap below.
+
+Five readers, and they have to agree or the page and the stream disagree about
 where the day starts: the stream's catch-up (`/api/feed`), the history route
-(`/api/feed/history`), the page's first render (`play/page.js`), and the
-`newestSeq` watermark `web/lib/feedAccess.js` decorates the place list with.
+(`/api/feed/history`), the search route (`/api/feed/search`, raw SQL, so it
+picks with a `CASE WHEN ae."placeKey" LIKE 'zone:%'`), the page's first render
+(`play/page.js`), and the `newestSeq` watermark `web/lib/feedAccess.js`
+decorates the place list with.
+
+**The trap is the stream's high-water clamp.** `/api/feed` keeps one `lastSeq`
+for the whole connection and drops anything at or below it as already sent.
+That number must be the **lower** of the two floors, never the turn floor — a
+zone-summary row sitting between the two is legitimately older, because its
+channel is wiped on the slower schedule, and clamping to the turn floor would
+silently swallow it.
+
+There is a **second floor underneath that one, and it is never off**: every
+row belonging to a previous game. Restart Game keeps `ArchiveEntry` on purpose
+(`LOBBY.md` §8), but the Hall is the live room rather than the record, so last
+game's scenes have no business rendering under the names of characters who no
+longer exist. `seq` only ever climbs, so every row of every finished game sits
+below every row of this one, and `previousGameFloor` reads the highest of them
+back. It asks for the highest seq NOT in this game rather than the lowest seq
+in it, so a freshly wiped game with nothing said in it yet shows an empty Hall
+rather than yesterday's; a row with no `gameId` predates the column and is old
+by definition. `feedWipeFloors` folds it into whichever of its two watermarks
+is higher, which is why fixing this took no change to any of the readers
+above.
 
 **It is set as the pass BEGINS**, from `db/index.js#advanceTurn`'s side-effect
-thunk, immediately before `runDawnWipe`. That is the same instant `cutoffMs`
+thunk, immediately before `runMessageWipe`. That is the same instant `cutoffMs`
 names on the Discord side, and the reason is the same: a message posted while
 the wipe is still walking the map survives on Discord, so it has to survive
 here too. Taking the watermark afterwards would have made where you were

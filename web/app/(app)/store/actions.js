@@ -120,10 +120,11 @@ async function buyTagsImpl({ tagIds }) {
     // A tag the store PAYS for (the Addictions) must be one the player can
     // never hand back: remove/consume refund ⬢ but not Tag Points, so a
     // removable negative tag is buy → remove → buy again, forever. This is
-    // the real invariant behind TAGS.md §4 — checked here rather than trusted
-    // to the YAML, because a GM-authored custom tag or a future YAML edit can
-    // set the flags either way, and because the live catalog is only as
-    // current as the last db:sync-tags.
+    // the real invariant behind TAGS.md §4. The catalog can no longer break
+    // it on its own — a drawback is never an item, so the sync never derives
+    // `removable` on one — but the check stays for the two rows that dodge
+    // the sync: a GM-authored custom tag, and a live catalog only as current
+    // as the last db:sync-tags.
     if (effectiveCost(tag, byId, heldIds) < 0 && (tag.removable || tag.consumable)) {
       throw new UserError(`${tag.name} can't be bought mid-game.`);
     }
@@ -133,15 +134,13 @@ async function buyTagsImpl({ tagIds }) {
     if (!requirementSatisfied(tag, byId, heldOrSelectedIds)) {
       throw new UserError(`You're missing a prerequisite for ${tag.name}.`);
     }
-    // One exclusive tag at a time (the Beliefs). Conversion is still "drop
-    // one, buy another" — beliefs stay removable — so the error says so.
+    // One exclusive tag at a time (the Beliefs). Conversion used to be "drop
+    // one, buy another", which relied on a Belief being removable. Destroy is
+    // for items now (docs/systemdocs/CRAFTING.md §5), so a conversion is a
+    // GM's to make and there is no drop step to point the player at.
     const conflict = exclusiveConflict(tag, heldOrSelectedIds, byId);
     if (conflict) {
-      throw new UserError(
-        conflict.removable
-          ? `You already hold ${conflict.name}; drop it first to take ${tag.name}.`
-          : `${tag.name} can't be held with ${conflict.name}.`,
-      );
+      throw new UserError(`${tag.name} can't be held with ${conflict.name}.`);
     }
     // Named conflict pairs (Tag.conflictsWith — Sober vs. every Addiction).
     // `selected` didn't select the conflictsWith relation, so this reads the

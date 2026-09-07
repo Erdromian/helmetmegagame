@@ -17,7 +17,6 @@ export default function GoalsPanel({
   lockNotes = [],
   addiction = null,
   openTurnNumber,
-  desiresEnabled = true,
 }) {
   return (
     <section className="panel p-4">
@@ -30,7 +29,6 @@ export default function GoalsPanel({
         familyGroups={familyGroups}
         lockNotes={lockNotes}
         addiction={addiction}
-        desiresEnabled={desiresEnabled}
       />
     </section>
   );

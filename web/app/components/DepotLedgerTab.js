@@ -22,7 +22,7 @@ export default function DepotLedgerTab({ ledger }) {
     return (
       <section className="panel p-5">
         <h2 className="panel-header">Ledger</h2>
-        <EmptyState>Nothing has moved through the Depot yet. ‡</EmptyState>
+        <EmptyState>Nothing has moved through the Depot yet.</EmptyState>
       </section>
     );
   }
@@ -31,7 +31,7 @@ export default function DepotLedgerTab({ ledger }) {
     <section className="panel p-5">
       <h2 className="panel-header">Ledger</h2>
       <p className="mt-1 text-sm text-muted">
-        Everything that has moved through the station, and who moved it. ‡
+        Everything that has moved through the station, and who moved it.
       </p>
 
       <div className="mt-4 flex flex-col gap-3">

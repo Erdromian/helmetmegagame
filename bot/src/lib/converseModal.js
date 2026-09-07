@@ -17,11 +17,11 @@ const CONVERSE_NAME_FIELD = "conv:name";
 function buildConverseModal(roomId) {
   return new ModalBuilder()
     .setCustomId(`${CONVERSE_MODAL_PREFIX}${roomId}`)
-    .setTitle("Start a conversation ‡")
+    .setTitle("Start a conversation")
     .addLabelComponents(
       new LabelBuilder()
         .setLabel("Name")
-        .setDescription("What this conversation is about. Everyone you invite sees it. ‡")
+        .setDescription("What this conversation is about. Everyone you invite sees it.")
         .setTextInputComponent(
           new TextInputBuilder()
             .setCustomId(CONVERSE_NAME_FIELD)

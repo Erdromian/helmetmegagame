@@ -1107,8 +1107,8 @@ async function undoCavingFindImpl({ rollId }) {
     where: { id: rollId ?? "" },
     include: { lootTag: { select: { name: true } } },
   });
-  if (!roll) throw new UserError("That roll is gone. ‡");
-  if (!roll.lootTagId) throw new UserError("That roll found nothing. ‡");
+  if (!roll) throw new UserError("That roll is gone.");
+  if (!roll.lootTagId) throw new UserError("That roll found nothing.");
   if (roll.lootUndoneAt) throw new UserError("That find has already been taken back. ‡");
 
   await prisma.$transaction(async (tx) => {

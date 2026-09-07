@@ -15,7 +15,7 @@ function jsonResponse(body, status = 200) {
 
 export async function POST(request) {
   const session = await auth();
-  if (!session?.discordUserId) return jsonResponse({ error: "Sign in first. ‡" }, 401);
+  if (!session?.discordUserId) return jsonResponse({ error: "Sign in first." }, 401);
 
   const character = await loadFeedCharacter(session.discordUserId);
   if (!character) return jsonResponse({ error: "You have no living character. ‡" }, 403);
@@ -35,7 +35,7 @@ export async function POST(request) {
   // The character is the session's. Nothing about which row this is allowed
   // to touch comes from the request beyond the seq itself.
   const result = await editSpeech(prisma, { characterId: character.id, seq, content });
-  if (!result?.ok) return jsonResponse({ error: result?.refusal ?? "That didn't change. ‡" }, 403);
+  if (!result?.ok) return jsonResponse({ error: result?.refusal ?? "That didn't change." }, 403);
 
   return jsonResponse({ row: feedRowShape(result.row) });
 }

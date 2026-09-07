@@ -27,13 +27,24 @@ function formatTagRequirement(tag) {
     // stopped being harmless the moment a real conjunction landed.
     parts.push(tag.requirementSkills.map((t) => t.name).join(" + "));
   }
-  // The ingredient, where a recipe has one that is actually enforced
-  // (Tag.requirementItems — two recipes do). `label` is denormalized into the
-  // stored Json by the sync precisely so this stays pure and synchronous; see
-  // db/lib/tagShapes.js. The chip has no room to add "and you keep it", so the
-  // Craft dialog says that instead.
+  // The ingredients, where a recipe has any (Tag.requirementItems). `label` is
+  // denormalized into the stored Json by the sync precisely so this stays pure
+  // and synchronous; see db/lib/tagShapes.js.
+  //
+  // Spent and kept are said differently, because they are different bargains
+  // and the chip is the only place most players will read either one. "uses
+  // Cave Fungus" means the stack goes down; "needs a corpse to hand" means it
+  // does not. Two clauses rather than one, so a recipe with both still reads.
   if (tag.requirementItems?.length) {
-    parts.push(`with ${tag.requirementItems.map((i) => i.label).join(" and ")}`);
+    // A count above 1 rides on the label — "uses Paper ×10" — because the
+    // number is the whole bargain for a recipe like the blank book, and a chip
+    // reading "uses Paper" would be off by nine.
+    const spent = tag.requirementItems
+      .filter((i) => !i.keep)
+      .map((i) => ((i.count ?? 1) > 1 ? `${i.label} ×${i.count}` : i.label));
+    const kept = tag.requirementItems.filter((i) => i.keep).map((i) => i.label);
+    if (spent.length) parts.push(`uses ${spent.join(" and ")}`);
+    if (kept.length) parts.push(`needs ${kept.join(" and ")} to hand`);
   }
   // The Move kind is always stated, so "no Gambit needed" reads differently
   // from "no data" — but only once there's something to qualify. A tag with no

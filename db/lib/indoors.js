@@ -44,7 +44,7 @@ async function parkMountsIndoors(prisma, characterId, locationId) {
 // web app can never word it differently.
 function parkedMessage(names, locationName) {
   const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-  return `You leave your ${list} outside ${locationName}. You can take ${names.length === 1 ? "it" : "them"} up again on your way out. ‡`;
+  return `You leave your ${list} outside ${locationName}. You can take ${names.length === 1 ? "it" : "them"} up again on your way out.`;
 }
 
 module.exports = { parkMountsIndoors, parkedMessage };

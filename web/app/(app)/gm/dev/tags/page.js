@@ -41,7 +41,6 @@ export default async function DevTagsPage() {
     <PageShell width="wide">
       <PageHeader
         title="Tag Catalog"
-        subtitle="Everything in the catalog, plus the tags GMs have written themselves."
         actions={<DevSubNav current="tags" />}
       />
 

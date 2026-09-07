@@ -12,7 +12,7 @@ import { loadFeedViewer } from "@/lib/feedAccess";
 export default async function HallTurn({ turnPromise }) {
   const [turn, viewer] = await Promise.all([turnPromise, loadFeedViewer()]);
   const { label } = describeTurn(turn);
-  const zone = viewer.character?.location?.zone?.name ?? (viewer.gm ? "Gamemaster ‡" : null);
+  const zone = viewer.character?.location?.zone?.name ?? (viewer.gm ? "Gamemaster" : null);
 
   return (
     <span className="hall-turn">

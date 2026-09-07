@@ -162,7 +162,7 @@ function teacherCapacity(teacher) {
 
 // --- shared checks -------------------------------------------------------
 
-const GONE = "That offer's gone. ‡";
+const GONE = "That offer's gone.";
 const LOCKED_IN = "You've already locked in a Move this turn. ‡";
 
 async function openTurnAndWindow(db) {
@@ -226,11 +226,11 @@ async function validateLesson(
     return "That teacher isn't around any more. ‡";
   if (!learner || learner.status !== "ALIVE")
     return "That student isn't around any more. ‡";
-  if (teacher.id === learner.id) return "You can't teach yourself. ‡";
+  if (teacher.id === learner.id) return "You can't teach yourself.";
   if (!isHere(teacher, learner)) return notHereMessage(learner);
   if (!isHere(learner, teacher)) return notHereMessage(teacher);
-  if (!isTeacher(teacher)) return `${teacher.name} can't teach. ‡`;
-  if (!tag) return "Unknown skill. ‡";
+  if (!isTeacher(teacher)) return `${teacher.name} can't teach.`;
+  if (!tag) return "Unknown skill.";
   const catalog = await db.tag.findMany({ select: LESSON_CATALOG_SELECT });
   if (
     !teachableSkills(teacher, learner, catalog).some((t) => t.id === tag.id)
@@ -266,7 +266,7 @@ async function createLessonOffer(
   { initiatorId, teacherId, learnerId, tagId },
 ) {
   const { turn, locked } = await openTurnAndWindow(prisma);
-  if (!turn) return { ok: false, reason: "No turn is open. ‡" };
+  if (!turn) return { ok: false, reason: "No turn is open." };
   if (locked) return { ok: false, reason: "Moves are locked for this turn. ‡" };
 
   const [teacher, learner, tag] = await Promise.all([
@@ -280,7 +280,7 @@ async function createLessonOffer(
       : null,
   ]);
   if (initiatorId !== teacherId && initiatorId !== learnerId)
-    return { ok: false, reason: "That isn't your lesson. ‡" };
+    return { ok: false, reason: "That isn't your lesson." };
 
   const problem = await validateLesson(prisma, {
     teacher,
@@ -293,7 +293,7 @@ async function createLessonOffer(
 
   const responder = initiatorId === teacherId ? learner : teacher;
   if (!responder.discordUserId)
-    return { ok: false, reason: `${responder.name} can't be reached. ‡` };
+    return { ok: false, reason: `${responder.name} can't be reached.` };
 
   const duplicate = await prisma.offer.findFirst({
     where: {
@@ -423,7 +423,7 @@ async function acceptLesson(prisma, offer, responder) {
           confirmedAt: new Date(),
           moveKind: "GAMBIT",
           moveReviewStatus: "OPEN",
-          description: `Learning ${tag.name} from ${teacher.name}. ‡`,
+          description: `Learning ${tag.name} from ${teacher.name}.`,
           diceRoll: rollDie(),
           diceModifier: gambitModifierTotal(learner.tags, {
             hungerStreak: learner.hungerStreak,
@@ -447,7 +447,7 @@ async function acceptLesson(prisma, offer, responder) {
             confirmedAt: new Date(),
             moveKind: "ROUTINE",
             moveReviewStatus: "PASSED",
-            description: `Teaching ${tag.name} to ${learner.name}. ‡`,
+            description: `Teaching ${tag.name} to ${learner.name}.`,
             appliedEffects: {},
             zoneId: teacher.zoneId ?? null,
             gmNotes: "auto:lesson",
@@ -457,7 +457,7 @@ async function acceptLesson(prisma, offer, responder) {
         const base = teacherAction.description.replace(/\.\s*‡?\s*$/, "");
         teacherAction = await tx.action.update({
           where: { id: teacherAction.id },
-          data: { description: `${base}, ${tag.name} to ${learner.name}. ‡` },
+          data: { description: `${base}, ${tag.name} to ${learner.name}.` },
         });
       }
 
@@ -504,11 +504,11 @@ async function acceptLesson(prisma, offer, responder) {
         responderIsLearner
           ? {
               discordUserId: teacher.discordUserId,
-              content: `${learner.name} accepted. ‡\n${teacherLines}`,
+              content: `${learner.name} accepted.\n${teacherLines}`,
             }
           : {
               discordUserId: learner.discordUserId,
-              content: `${teacher.name} accepted. ‡\n${learnerLines}`,
+              content: `${teacher.name} accepted.\n${learnerLines}`,
             },
       ].filter((dm) => dm.discordUserId),
     };
@@ -565,12 +565,12 @@ async function declineOffer(prisma, offer, responder) {
   });
   const content =
     offer.kind === "BIND"
-      ? `${responder.name} won't be bound. ‡`
-      : `${responder.name} declined the lesson. ‡`;
+      ? `${responder.name} won't be bound.`
+      : `${responder.name} declined the lesson.`;
   return {
     ok: true,
     line:
-      offer.kind === "BIND" ? "You said no. ‡" : "You passed on the lesson. ‡",
+      offer.kind === "BIND" ? "You said no." : "You passed on the lesson. ‡",
     dms: initiator?.discordUserId
       ? [{ discordUserId: initiator.discordUserId, content }]
       : [],

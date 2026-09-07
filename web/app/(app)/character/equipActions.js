@@ -44,7 +44,7 @@ export async function toggleEquip(characterTagId) {
   // sack off their own head would not be much of a hostage.
   const blocker = blockerFor(character.tags, ACT);
   if (blocker) {
-    return { error: `You can't work your hands right now — you're ${blocker.name}. ‡` };
+    return { error: `You can't work your hands right now — you're ${blocker.name}.` };
   }
 
   const held = await prisma.characterTag.findFirst({
@@ -60,7 +60,7 @@ export async function toggleEquip(characterTagId) {
   // point of it. The incapacitation check above is the gate that runs both
   // ways.
   if (!held.equipped && STOWABLE_SLUGS.has(held.tag.slug) && character.location?.indoors) {
-    return { error: `You can't set up ${held.tag.name} inside ${character.location.name}. ‡` };
+    return { error: `You can't set up ${held.tag.name} inside ${character.location.name}.` };
   }
 
   // Motion Sickness: the only gate is here, on equipping a mount or a boat
@@ -71,7 +71,7 @@ export async function toggleEquip(characterTagId) {
     (FAST_TRAVEL_SLUGS.has(held.tag.slug) || WATER_TRAVEL_SLUGS.has(held.tag.slug)) &&
     character.tags.some((ct) => ct.tag.slug === MOTION_SICKNESS_SLUG)
   ) {
-    return { error: `Your stomach won't have it — you can't ride ${held.tag.name}. ‡` };
+    return { error: `Your stomach won't have it — you can't ride ${held.tag.name}.` };
   }
 
   // You are either riding or poling. The boat and the road kit compete for the
@@ -88,7 +88,7 @@ export async function toggleEquip(characterTagId) {
       const other = character.tags.find((ct) => ct.equipped && conflicting.has(ct.tag.slug));
       if (other) {
         return {
-          error: `Put ${other.tag.name} away first — you can't have that and ${held.tag.name} out at once. ‡`,
+          error: `Put ${other.tag.name} away first — you can't have that and ${held.tag.name} out at once.`,
         };
       }
     }

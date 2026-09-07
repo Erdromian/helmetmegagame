@@ -30,11 +30,6 @@ export default function DepotPriceListTab({ priceList }) {
   return (
     <section className="panel p-5">
       <h2 className="panel-header">Price List</h2>
-      <p className="mt-1 text-sm text-muted">
-        Everything the Depot has a price for, in either direction. An obol is one ⬢, so these
-        are both what the station settles at and what the thing is worth. What you charge
-        Ravenheart is between you and Ravenheart. ‡
-      </p>
 
       <div className="mt-4 flex flex-col gap-3">
         <FilterBar
@@ -60,7 +55,9 @@ export default function DepotPriceListTab({ priceList }) {
             {table.pageRows.map((row) => (
               <tr key={row.id}>
                 <td>
-                  <TagChip tag={row.tag} />
+                  {/* The ⬢ row has no Tag behind it, so it renders as a
+                      plain name rather than a chip. */}
+                  {row.synthetic ? <span>{row.name}</span> : <TagChip tag={row.tag} />}
                 </td>
                 <td className="mono">{row.price != null ? `${row.price} ¢` : "—"}</td>
                 <td className="mono">{row.sellPrice != null ? `${row.sellPrice} ¢` : "—"}</td>

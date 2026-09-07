@@ -123,13 +123,13 @@ Keep 0.2.
 
 **Fishing** — `forest-headwaters` / `forest-creekside` / `forest-north-road` /
 `forest-deep-forest` / `forest-culvert` / `forest-east-river` 0.9 ·
-`hills-black-pines` 0.8 · the five open Marshes 1.0.
+`hills-black-pines` 0.8 · the five open Marshes 1.0 · the marsh Village 1.0.
 
 **Hunting** — Forest 0.5 except `forest-west-riverbank` 0.8 · the five open
 Marshes 1.0 · Black Hills 1.0 throughout · the four Caves 0.4 · Depths 0.6
 except `depths-runnel` 1.8 and `depths-saltrise` 1.6.
 
-The marsh Village fishes at 1.3 and does nothing else; the Godard Factory has
+The marsh Village fishes at 1.0 and does nothing else; the Godard Factory has
 no rows at all and is worked anyway (§3b). The Fortress has neither hunting nor
 fishing — the Keep and the Manors farm, and nothing else inside it is worked at
 all. Town carries no rows of any kind. Nothing farms or fishes underground.
@@ -228,21 +228,27 @@ that doesn't exist.
 | tag | kind | ⬢ | note |
 |---|---|---|---|
 | Sling | hunting | +1 | equipped |
-| Shortbow | hunting | +2 | equipped |
-| Longbow | hunting | +3 | equipped |
-| Crossbow | hunting | +3 | equipped |
-| Trapping Gear | hunting | +3 | equipped; new, craftable and depot stock |
-| Butcher | hunting | +2 | **not** equipped — it's a skill |
+| Shortbow | hunting | +1 | equipped |
+| Longbow | hunting | +1 | equipped |
+| Crossbow | hunting | +1 | equipped |
+| Trapping Gear | hunting | +1 | equipped; craftable and depot stock |
+| Butcher | hunting | +1 | **not** equipped — it's a skill |
 | every firearm | hunting | +2 | equipped |
 | Pitchfork | farming | +1 | equipped |
-| Plow | farming | +4 | not equipped; needs a `horse` |
-| Fishing Rod | fishing | +1 | equipped; new |
+| Plow | farming | +3 | not equipped; needs a `horse` |
+| Fishing Rod | fishing | +1 | equipped |
+
+**The hunting tools were flattened on 2026-09-06.** Every bow and the Trapping
+Gear pay +1, and Butcher pays +1, where the ladder used to run +1 to +3 and
+stack to +8. A fully kitted hunter was adding more to the roll than most
+Locations were worth, so which weapon you owned decided the day more than where
+you stood. A firearm keeps +2 as the one thing that still buys an edge.
 
 **Weapon bonuses do not stack with each other.** You hunt with one weapon in
 your hands, so only the best-paying tag in the `items-weapons` group counts —
-a Longbow and a Crossbow pay +3, not +6, and the second one is dead weight.
+a Longbow and a Crossbow pay +1, not +2, and the second one is dead weight.
 Everything outside that group sums on top of it, so a Longbow, Trapping Gear
-and Butcher is +3 +3 +2 = **+8**. `GameConfig.equipSlots` still caps how much
+and Butcher is +1 +1 +1 = **+3**. `GameConfig.equipSlots` still caps how much
 of it you can carry at once.
 
 The group is the whole test, which means a tag's `group:` is now load-bearing
@@ -251,7 +257,8 @@ stacking. The Pitchfork sits in that group too — it pays into farming rather
 than hunting, so it competes with no other weapon and the rule never bites it.
 
 **Butcher's bonus narrowed.** It used to be a hardcoded flat +2 on every tier
-but farming. It is hunting-only now, and it moved out of code into the YAML.
+but farming. It is hunting-only now, it is +1, and it moved out of code into
+the YAML.
 
 **A COMPLETE structure pays into labor too, as a synthetic tool nobody
 carries.** A structure whose `placement.laborBonus` names a kind (the same

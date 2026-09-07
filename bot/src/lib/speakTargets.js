@@ -160,7 +160,7 @@ async function listSpeakTargets(guild, member) {
       buckets.room.push({
         value: channel.id,
         label: `#${channel.name}`.slice(0, 100),
-        description: (where ? `${where} — the open street ‡` : "The open street ‡").slice(0, 100),
+        description: (where ? `${where} — the open street` : "The open street").slice(0, 100),
       });
       continue;
     }

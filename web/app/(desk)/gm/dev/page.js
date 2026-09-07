@@ -35,7 +35,6 @@ import EndTurnButton from "@/app/(app)/gm/dev/EndTurnButton";
 import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
 import ThreatAssignmentsTable from "@/app/(app)/gm/dev/threats/ThreatAssignmentsTable";
 import ThreatRosterTable from "@/app/(app)/gm/dev/threats/ThreatRosterTable";
-import { DEPOT_HELP } from "@/app/(app)/gm/dev/devHelp";
 import { effectivePlayerCount, GAME_STATE_CREATE } from "@lifeweb/db/lib/gameState";
 import GameControls from "./GameControls";
 import ConfigForm from "./ConfigForm";
@@ -46,24 +45,18 @@ import DeskHeader from "@/app/components/DeskHeader";
 import OpsNav from "./OpsNav";
 import SendLetterForm from "./SendLetterForm";
 import Switch from "@/app/components/Switch";
-import InfoIcon from "@/app/components/InfoIcon";
 import Select from "@/app/components/Select";
 import StatusPill from "@/app/components/StatusPill";
 import EmptyState from "@/app/components/EmptyState";
 
 // Eight numeric Depot knobs share one shape, so they share one component
 // rather than eight copies of the same six lines.
-function DepotField({ name, label, value, help }) {
+function DepotField({ name, label, value }) {
   return (
-    <div className="field">
-      <span className="flex items-center gap-2">
-        <label htmlFor={`depot-${name}`} className="field-label">
-          {label}
-        </label>
-        <InfoIcon text={help} />
-      </span>
+    <label className="field">
+      <span className="field-label">{label}</span>
       <input type="number" id={`depot-${name}`} name={name} min="0" defaultValue={value} />
-    </div>
+    </label>
   );
 }
 
@@ -124,7 +117,7 @@ const SECTIONS = new Set([
 
 // A report's per-step breakdown is the useful half but far too long to dump
 // inline, so the JSON line drops it and the five slowest steps get their own
-// rows. That is how the Dawn wipe says which zone ate the hour.
+// rows. That is how the message wipe says which zone ate the hour.
 function summaryHead(summary) {
   const { steps, ...rest } = summary ?? {};
   return rest;
@@ -199,7 +192,7 @@ export default async function DevPanelPage({ searchParams }) {
   const currentPhase = openTurnRecord?.phase ?? (lastTurn?.phase === "DAWN" ? "DUSK" : "DAWN");
 
   // Mirrors advanceTurn()'s own phase alternation, so the confirm dialog can
-  // warn about the Dawn wipe only when the next turn actually triggers one.
+  // warn about the summaries half of the wipe only when the next turn is a Dawn.
   const lastForPhase = openTurnRecord ?? lastTurn;
   const nextPhase = !lastForPhase || lastForPhase.phase === "DUSK" ? "DAWN" : "DUSK";
 
@@ -475,7 +468,6 @@ export default async function DevPanelPage({ searchParams }) {
             {openTurnRecord ? `${describeTurn(openTurnRecord).label} — OPEN` : "No open turn"}
           </span>
         }
-        actions={<span className="text-xs text-muted">Superadmin — edits here bypass every game rule</span>}
       />
       <div className="desk-body desk-body--ops">
         <OpsNav section={section} />
@@ -511,7 +503,6 @@ export default async function DevPanelPage({ searchParams }) {
                 <section className="ops-section ops-section--wide">
                   <div className="ops-section-head">
                     <h2 className="section-title">Preview</h2>
-                    <p className="ops-lede">The roll Start will commit. Hand-set a row to override it; re-roll for a fresh seed. Close the lobby first and nobody can change it under you. ‡</p>
                   </div>
                   <AssignmentPreview draft={state.assignmentDraft} rows={draftRows} roles={pickableRoles} />
                 </section>
@@ -520,24 +511,19 @@ export default async function DevPanelPage({ searchParams }) {
               <section className="ops-section ops-section--wide">
                 <div className="ops-section-head">
                   <h2 className="section-title">Lobby</h2>
-                  <p className="ops-lede">Who readied up and what they asked for. Priorities are the player&apos;s; the roll is on Preview. ‡</p>
                 </div>
                 <LobbyRoster rows={lobbyRows} started={state.phase === "RUNNING" || state.phase === "ENDED"} />
               </section>
 
               <section className="ops-section">
                 <div className="ops-section-head">
-                  <h2 className="section-title">The world ‡</h2>
-                  <p className="ops-lede">Per-game state. A restart resets all of it; the Configuration section does not. ‡</p>
+                  <h2 className="section-title">The world</h2>
                 </div>
                 <form action={updateWorldState} className="flex flex-wrap items-end gap-3">
                   <div className="field">
-                    <span className="flex items-center gap-2">
-                      <label htmlFor="world-lifewebBlood" className="field-label">
-                        Lifeweb Blood
-                      </label>
-                      <InfoIcon text="0-100, raw override." />
-                    </span>
+                    <label htmlFor="world-lifewebBlood" className="field-label">
+                      Lifeweb Blood
+                    </label>
                     <input
                       type="number"
                       id="world-lifewebBlood"
@@ -582,16 +568,12 @@ export default async function DevPanelPage({ searchParams }) {
                 {state.phase === "RUNNING" ? (
                   <EndTurnButton
                     turnLabel={openTurnRecord ? describeTurn(openTurnRecord).label : null}
-                    wipesMessages={nextPhase === "DAWN" && config.messageWipeEnabled}
+                    wipesSummaries={nextPhase === "DAWN"}
                   />
                 ) : (
-                  <p className="ops-lede">Turns only advance while the game is running. ‡</p>
+                  null
                 )}
 
-                <p className="ops-lede">
-                  Save overrides the current turn&apos;s day and phase directly. Changing the
-                  phase also picks a new banner for it. ‡
-                </p>
               </section>
 
               <section className="ops-section">
@@ -610,9 +592,6 @@ export default async function DevPanelPage({ searchParams }) {
                     <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
                   </div>
                 </form>
-                <p className="ops-lede">
-                  Applies on next turn (via End turn above or the bot&apos;s nightly cron).
-                </p>
               </section>
             </div>
           ) : null}
@@ -621,9 +600,6 @@ export default async function DevPanelPage({ searchParams }) {
             <section className="ops-section">
               <div className="ops-section-head">
                 <h2 className="section-title">Configuration</h2>
-                <p className="ops-lede">
-                  Durable knobs. These survive a restart — what a game does to the world lives on the Game section instead. ‡
-                </p>
               </div>
               <ConfigForm config={config} />
             </section>
@@ -634,38 +610,27 @@ export default async function DevPanelPage({ searchParams }) {
               <div className="ops-section-head">
                 <h2 className="section-title">The Depot</h2>
               </div>
-              <p className="ops-lede">
-                The Merchant&apos;s station. The top half is live state you can override; the bottom
-                half is the tuning the game runs on. The turret&apos;s severity table is edited as JSON
-                — every column has to sum to 1 or the save is refused. ‡
-              </p>
               <form action={updateDepot} className="flex flex-col gap-4">
                 <div className="ops-grid">
                   <DepotField
                     name="accountObols"
                     label="Account (¢)"
                     value={depot.accountObols}
-                    help={DEPOT_HELP.accountObols}
                   />
                   <DepotField
                     name="debtObols"
                     label="Drawn on the line (¢)"
                     value={depot.debtObols}
-                    help={DEPOT_HELP.debtObols}
                   />
                   <DepotField
                     name="generatorFuel"
                     label="Fuel in the tank"
                     value={depot.generatorFuel}
-                    help={DEPOT_HELP.generatorFuel}
                   />
                   <div className="field">
-                    <span className="flex items-center gap-2">
-                      <label htmlFor="depot-merchantFace" className="field-label">
-                        Face the turret spares
-                      </label>
-                      <InfoIcon text={DEPOT_HELP.merchantFace} />
-                    </span>
+                    <label htmlFor="depot-merchantFace" className="field-label">
+                      Face the turret spares
+                    </label>
                     <input
                       type="text"
                       id="depot-merchantFace"
@@ -681,58 +646,48 @@ export default async function DevPanelPage({ searchParams }) {
                     <Switch name="generatorOn" defaultChecked={depot.generatorOn}>
                       Generator running
                     </Switch>
-                    <InfoIcon text={DEPOT_HELP.generatorOn} />
                   </div>
                   <div className="ops-toggle">
                     <Switch name="turretArmed" defaultChecked={depot.turretArmed}>
                       Turret armed
                     </Switch>
-                    <InfoIcon text={DEPOT_HELP.turretArmed} />
                   </div>
                 </div>
 
                 <div className="ops-grid">
-                  <DepotField name="fuelMax" label="Tank size" value={depot.fuelMax} help={DEPOT_HELP.fuelMax} />
+                  <DepotField name="fuelMax" label="Tank size" value={depot.fuelMax} />
                   <DepotField
                     name="fuelBurnPerTurn"
                     label="Fuel burned per turn"
                     value={depot.fuelBurnPerTurn}
-                    help={DEPOT_HELP.fuelBurnPerTurn}
                   />
-                  <DepotField name="coalFuel" label="Fuel per Coal" value={depot.coalFuel} help={DEPOT_HELP.coalFuel} />
+                  <DepotField name="coalFuel" label="Fuel per Coal" value={depot.coalFuel} />
                   <DepotField
                     name="saltpeterFuel"
                     label="Fuel per Saltpeter"
                     value={depot.saltpeterFuel}
-                    help={DEPOT_HELP.saltpeterFuel}
                   />
                   <DepotField
                     name="shuttleMaxTurns"
                     label="Shuttle stays (turns)"
                     value={depot.shuttleMaxTurns}
-                    help={DEPOT_HELP.shuttleMaxTurns}
                   />
                   <DepotField
                     name="shuttleCooldown"
                     label="Shuttle cooldown (turns)"
                     value={depot.shuttleCooldown}
-                    help={DEPOT_HELP.shuttleCooldown}
                   />
                   <DepotField
                     name="creditCapObols"
                     label="Credit cap (¢)"
                     value={depot.creditCapObols}
-                    help={DEPOT_HELP.creditCapObols}
                   />
                 </div>
 
                 <div className="field">
-                  <span className="flex items-center gap-2">
-                    <label htmlFor="depot-turretTable" className="field-label">
-                      Turret severity table
-                    </label>
-                    <InfoIcon text={DEPOT_HELP.turretTable} />
-                  </span>
+                  <label htmlFor="depot-turretTable" className="field-label">
+                    Turret severity table
+                  </label>
                   <textarea
                     id="depot-turretTable"
                     name="turretTable"
@@ -753,10 +708,6 @@ export default async function DevPanelPage({ searchParams }) {
             <section className="ops-section">
               <div className="ops-section-head">
                 <h2 className="section-title">Bulk Move</h2>
-                <p className="ops-lede">
-                  Relocate several characters to one location at once. A raw move — no Move
-                  cost, no adjacency check, no walk cooldown. ‡
-                </p>
               </div>
               <form action={bulkMoveCharacters} className="flex flex-wrap items-end gap-3">
                 <label className="field">
@@ -784,10 +735,6 @@ export default async function DevPanelPage({ searchParams }) {
                 </label>
                 <SubmitButton pendingLabel="Moving…">Move them</SubmitButton>
               </form>
-              <p className="ops-lede">
-                Their location and zone roles resync in the background; the report lands under
-                System Reports. ‡
-              </p>
             </section>
           ) : null}
 
@@ -795,17 +742,8 @@ export default async function DevPanelPage({ searchParams }) {
             <section className="ops-section">
               <div className="ops-section-head">
                 <h2 className="section-title">Send a Letter</h2>
-                <p className="ops-lede">
-                  A bird arrives carrying a letter from whoever you say it is from. The paper
-                  lands on their sheet like any other, and they can answer it until the end of
-                  next turn — the answer comes back in their conversation on the Players desk. ‡
-                </p>
               </div>
               <SendLetterForm characters={livingCharacters} />
-              <p className="ops-lede">
-                A sealed letter reads as a seal and nothing else until somebody breaks it. An
-                illiterate recipient still gets the paper; they just get no Reply button. ‡
-              </p>
             </section>
           ) : null}
 
@@ -816,19 +754,16 @@ export default async function DevPanelPage({ searchParams }) {
                   of the game. */}
               {(state.nukeArmedTurn != null || state.nukeDetonatedTurn != null) && (
                 <div className="ops-section-head">
-                  <h2 className="section-title">The device ‡</h2>
+                  <h2 className="section-title">The device</h2>
                   {state.nukeDetonatedTurn != null ? (
                     <p className="ops-lede">
-                      It went off at the close of turn {state.nukeDetonatedTurn}. Everyone who
-                      was not underground died. Nothing here can undo that. ‡
+                      It went off at the close of turn {state.nukeDetonatedTurn}. ‡
                     </p>
                   ) : (
                     <>
                       <p className="ops-lede">
                         <strong>Armed.</strong> It detonates at the close of turn{" "}
-                        {state.nukeArmedTurn}, and will kill every living character who is not
-                        in the Caves or the Depths. This is the only thing that can stop it
-                        without the datacard. ‡
+                        {state.nukeArmedTurn}. ‡
                       </p>
                       <form action={defuseNukeAction}>
                         <SubmitButton className="btn-secondary" pendingLabel="Defusing…">
@@ -842,11 +777,6 @@ export default async function DevPanelPage({ searchParams }) {
 
               <div className="ops-section-head">
                 <h2 className="section-title">System Reports</h2>
-                <p className="ops-lede">
-                  The last run of each operational pass. A report without a finish time means the container
-                  died mid-pass — re-run the pass or the doctor. Failures listed here are live problems,
-                  not history.
-                </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <form action={runDoctorAction}>
@@ -905,12 +835,6 @@ export default async function DevPanelPage({ searchParams }) {
             <section className="ops-section ops-section--wide">
               <div className="ops-section-head">
                 <h2 className="section-title">Gamemasters</h2>
-                <p className="ops-lede">
-                  Everyone holding a GM seat, read-only. Who runs which zones is nobody&apos;s to
-                  assign any more — each GM picks that for themselves, from the Zones control at the
-                  bottom of the inspector on the players and adjudication desks, or with{" "}
-                  <code>/zone</code> in Discord.
-                </p>
               </div>
               <table className="data-table">
                 <thead>
@@ -967,11 +891,6 @@ export default async function DevPanelPage({ searchParams }) {
             <section className="ops-section ops-section--wide">
               <div className="ops-section-head">
                 <h2 className="section-title">Assignments</h2>
-                <p className="ops-lede">
-                  Every player on the roster, in the game or not. Assign hands a seat to a character
-                  who already exists; Spawn offers a whole new one over DM. Most opt-ins are decoys,
-                  so what somebody ticked is context, not a gate. ‡
-                </p>
               </div>
               <ThreatAssignmentsTable
                 rows={assignmentRows}
@@ -986,10 +905,6 @@ export default async function DevPanelPage({ searchParams }) {
             <section className="ops-section ops-section--wide">
               <div className="ops-section-head">
                 <h2 className="section-title">Antagonists</h2>
-                <p className="ops-lede">
-                  Who holds a seat right now, read off the seat tag itself — so a tag granted by hand
-                  from a character panel shows up here too. ‡
-                </p>
               </div>
               <ThreatRosterTable
                 rows={seatRows}

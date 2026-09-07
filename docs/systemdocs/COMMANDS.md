@@ -645,6 +645,69 @@ click behind until the bot's next redraw or the channel doctor's pass, which
 is the cheaper half of the two options — a NOTIFY would have been a second
 long-lived listener for one message. ‡
 
+## 6a. The web twins
+
+Every **player** command in §2 now has a web twin in the Hall's composer
+(`HALL.md` §5). Typing `/` at the start of the box opens the same list; the
+registry is `web/app/(app)/play/commands.js`, and each entry lands on a server
+action in `web/app/(app)/play/actions.js`.
+
+That matters for three of them in particular. `/conceal`, `/shout` and `/roll`
+were **guild-only and Discord-only**, which meant a character on the "web only"
+switch (`HALL.md` §6a) had no way to hide their face, yell, or roll a die at
+all. The web is not a second implementation of any of them: the rule was pulled
+out of the handler into `db/lib` and both faces call it.
+
+| Command | Rule | Web action |
+|---|---|---|
+| `/conceal` | `db/lib/conceal.js#toggleConceal` | `toggleConceal()` |
+| `/shout` | `db/lib/shout.js#shout` | `shoutHere(text, placeKey)` |
+| `/roll` | `db/lib/roll.js#castDie` | `rollHere(placeKey)` |
+| `/add`, `/remove` (room half) | `db/lib/roomGuests.js` | `addMember` / `removeMember` |
+| `/add`, `/remove` (conversation half) | `db/lib/conversations.js` | the same two |
+| `/move` `/travel` `/converse` `/report` | already shared | `submitMove`, `TravelNodes`, `ConverseDialog`, `reportToGms` |
+
+**The bot has not been rewired yet.** Each of those new `db/lib` modules opens
+with a `TODO(rewire)` comment naming the handler and the lines it duplicates,
+so the switch is one later change with no behaviour in it. Until it happens,
+two things run in parallel and are worth knowing about:
+
+- **`/shout` has two cooldowns.** The bot's is a five-minute in-memory `Map`;
+  the shared one is the newest `AuditLog` row with `actionType: "shout"` for
+  the character, because there is no timestamp column on `Character` and the
+  batch that added this carried no migration. A player who shouts on Discord
+  and then on the web can beat the timer once, until the rewiring.
+- **`/roll` records nothing on the bot's side.** `castDie` writes a `SYSTEM`
+  archive row so the Hall and `/archive` both see the die; the bot's handler
+  still posts a plain message that no row remembers.
+
+**Where each of the three may be typed on the web.** `/shout` runs in a
+Location, a Room and a conversation — the street included, which is the whole
+point of it, and which is why the street has a command-only composer at all
+(`HALL.md` §5). `/roll` runs in a Room and a conversation. Neither runs in the
+zone summary: that is a broadcast rather than a place anybody stands in, and a
+die cast into one has no audience to see it thrown.
+
+**`/add` and `/remove` need you INSIDE the private room, not merely at its
+Location.** On Discord that gate is implicit — the command is typed into the
+room's own thread, and a thread is only visible to a character entitled to it
+— so the extraction into `db/lib/roomGuests.js` had to state it. Both faces now
+test the same pair: one of `Room.accessTagSlugs` held, or a `RoomGuest` row
+for that room (`db/lib/roomAccess.js#roomAccessKeys`). Without it, anybody
+standing in the street could have let anybody through a door they could not
+open themselves. `web/app/(app)/play/actions.js#privateRoomHere` applies the
+identical test, so the members strip never draws a guest list for somebody
+outside the room either.
+
+Two smaller rules on the same pair:
+
+- **A key-holder is not offered in the Add picker.** They are already in, by
+  their key, and a guest row written for one grants nothing and cannot be taken
+  back — `/remove` refuses a key-holder on purpose ("their key admits them,
+  take the key").
+- **`/remove` on a conversation takes a living character**, the same `ALIVE`
+  gate `/add` applies. A dead character is off the roster on both faces.
+
 ## 7. Where the code lives
 
 | File | Role |
@@ -664,6 +727,11 @@ long-lived listener for one message. ‡
 | `db/lib/whosHere.js` | `whosHere` / `whosHereLines` — who is standing here, shared with `/play` |
 | `db/lib/examineLocation.js` | `examineLines` — the Examine readout, read by `/play` |
 | `db/lib/roomAccess.js` | `syncCharacterRoomAccess`, `accessibleRooms`, `heldTagSlugs` — private Room membership |
+| `db/lib/roomGuests.js` | `addRoomGuest` / `removeRoomGuest` / `roomGuests` — the Room half of `/add` and `/remove`, extracted for the web (§6a) |
+| `db/lib/conceal.js` | `toggleConceal` — `/conceal`'s rule, both faces (§6a) |
+| `db/lib/shout.js` | `shoutLine` / `shoutParts` / `shout` — what a shout sounds like at N hops, and who hears it (§6a) |
+| `db/lib/roll.js` | `castDie` — one d6 as a `SYSTEM` archive row beside its Discord post (§6a) |
+| `web/app/(app)/play/commands.js` | The web twin registry the Hall's composer reads (§6a) |
 | `bot/src/lib/converseModal.js` | The Converse modal |
 | `bot/src/lib/whisperPoll.js` | The 15-minute Room whisper cron |
 | `bot/src/lib/moveConfirm.js` | Resolving a Move |

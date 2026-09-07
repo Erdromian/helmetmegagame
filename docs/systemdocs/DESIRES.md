@@ -270,7 +270,7 @@ own two entries (`break-up-a-fight`, `stop-a-war`) demonstrate.
 
 | Group | Shape | Price band |
 |---|---|---|
-| `general-addictions` | `exclusive: true`, `removable: false`, `consumable: false` drawbacks. Each shuts the **bottom slot only**, to everything outside its own family — see §3. **One Addiction at a time** — that rule is why this stayed its own group. | −4 flat |
+| `general-addictions` | `exclusive: true`, `consumable: false` drawbacks — never `removable`, since Destroy is for items (`CRAFTING.md` §5). Each shuts the **bottom slot only**, to everything outside its own family — see §3. **One Addiction at a time** — that rule is why this stayed its own group. | −4 flat |
 | `general-personality` | Everything else about who a character is. Nothing here is `exclusive`, so a character can hold Pacifist + Cruel + Schemer, or Pacifist + Craven. `Depressed` is the near-exception, and by named conflict rather than by the flag: because it locks the whole catalog it `conflictsWith` every tag here that also touches Desires, and only those — so Lazy, Insomniac, Guilt Ridden, Torturer and the phobias stay legal beside it (`TAGS.md` §3). Some members close the catalog down (`Depressed` locks everything; `Nobility` locks tier 1; `Eunuch` locks `romance`), some open it up (`Mad Doctor`, `Esoteric`, `Adventurer`, `Cruel`, `Charitable`, `Schemer`, and `Death Wish` — the Interest, not the old Bacchus tag), and the point of the merge is that one tag may do both. | −8…+5 |
 
 `general-restrictions` and `general-interests` survive as **orphaned, empty
@@ -411,16 +411,13 @@ Which is the right place for it: the difference between an evening that
 happened and an evening staged to be claimed is a judgement about fiction, and
 no gate was ever going to make it.
 
-## 9. Config: `desiresEnabled` / `desireSlots` / `desireSlotLockTurns` / `maxDrawbackTags`
+## 9. Config: `desireSlots` / `desireSlotLockTurns` / `maxDrawbackTags`
 
-Four `GameConfig` knobs govern this system, all live-editable from
-`/gm/dev` and all reset by a Restart Game wipe:
-
-- **`desiresEnabled`** (default `true`) — closes the faucet. Off blocks
-  `claimDesire` server-side, not just in the UI, and `/character` shows
-  "Temporarily disabled." in place of the whole panel.
-  `awardDesireGm`/`revokeDesireGm` on the Dev Panel are unaffected (host
-  access, not game permission).
+Three `GameConfig` knobs govern this system, all live-editable from
+`/gm/dev` and all reset by a Restart Game wipe. There used to be a fourth, a
+`desiresEnabled` master switch; it was deleted in the 2026-09-07 config trim,
+since nobody had ever turned it off and Desires are the only faucet Tag Points
+have in play:
 - **`desireSlots`** (default 2) — how many slots a character has. The
   **bottom** one is what an Addiction binds (§3). Lowering this hides a slot
   rather than deleting what was claimed in it. See §1.

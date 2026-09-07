@@ -75,8 +75,8 @@ function confessableTags(penitent) {
 
 // --- shared checks -------------------------------------------------------
 
-const GONE = "That confession's gone. ‡";
-const LOCKED_IN = "You've already locked in a Move this turn. ‡";
+const GONE = "That confession's gone.";
+const LOCKED_IN = "You've already locked in a Move this turn.";
 
 async function openTurnAndWindow(db) {
   const [turn, frozen] = await Promise.all([
@@ -98,7 +98,7 @@ async function freeSlot(db, character, turnId) {
   return action
     ? {
         ok: false,
-        reason: `${character.name} has already locked in a Move this turn. ‡`,
+        reason: `${character.name} has already locked in a Move this turn.`,
       }
     : { ok: true };
 }
@@ -111,21 +111,21 @@ async function validateConfession(
   { chaplain, penitent, tag, turnId, checkSlotsFor },
 ) {
   if (!chaplain || chaplain.status !== "ALIVE")
-    return "That chaplain isn't around any more. ‡";
+    return "That chaplain isn't around any more.";
   if (!penitent || penitent.status !== "ALIVE")
-    return "That penitent isn't around any more. ‡";
+    return "That penitent isn't around any more.";
   if (heldSlugs(penitent).has(GUILT_RIDDEN_SLUG))
-    return "You can't bring yourself to confess. ‡";
-  if (chaplain.id === penitent.id) return "You can't confess to yourself. ‡";
+    return "You can't bring yourself to confess.";
+  if (chaplain.id === penitent.id) return "You can't confess to yourself.";
   if (!isHere(chaplain, penitent)) return notHereMessage(penitent);
   if (!isHere(penitent, chaplain)) return notHereMessage(chaplain);
   if (!isChaplain(chaplain))
-    return `${chaplain.name} can't take a confession. ‡`;
-  if (!tag) return "Unknown burden. ‡";
+    return `${chaplain.name} can't take a confession.`;
+  if (!tag) return "Unknown burden.";
   // Re-derived from the penitent's own row, never trusted from the client:
   // they must still hold it, and it must still be a psychological one.
   if (!confessableTags(penitent).some((t) => t.id === tag.id)) {
-    return `That isn't something ${penitent.name} can confess. ‡`;
+    return `That isn't something ${penitent.name} can confess.`;
   }
   for (const who of checkSlotsFor) {
     const slot = await freeSlot(
@@ -159,8 +159,8 @@ async function createConfessionOffer(
   { penitentId, chaplainId, tagId },
 ) {
   const { turn, locked } = await openTurnAndWindow(prisma);
-  if (!turn) return { ok: false, reason: "No turn is open. ‡" };
-  if (locked) return { ok: false, reason: "Moves are locked for this turn. ‡" };
+  if (!turn) return { ok: false, reason: "No turn is open." };
+  if (locked) return { ok: false, reason: "Moves are locked for this turn." };
 
   const [chaplain, penitent, tag] = await Promise.all([
     loadCharacter(prisma, chaplainId),
@@ -183,7 +183,7 @@ async function createConfessionOffer(
   if (problem) return { ok: false, reason: problem };
 
   if (!chaplain.discordUserId)
-    return { ok: false, reason: `${chaplain.name} can't be reached. ‡` };
+    return { ok: false, reason: `${chaplain.name} can't be reached.` };
 
   const duplicate = await prisma.offer.findFirst({
     where: {
@@ -198,7 +198,7 @@ async function createConfessionOffer(
   if (duplicate)
     return {
       ok: false,
-      reason: "That confession is already waiting on an answer. ‡",
+      reason: "That confession is already waiting on an answer.",
     };
 
   const offer = await prisma.offer.create({
@@ -218,7 +218,7 @@ async function createConfessionOffer(
 
   // The tag is deliberately absent from this line. Naming it here would put
   // the sin in the chaplain's DMs before they had agreed to hear it.
-  const content = `*${penitent.name}* wants to confess to you. Accept? ‡`;
+  const content = `*${penitent.name}* wants to confess to you. Accept?`;
   return {
     ok: true,
     offer,
@@ -263,11 +263,11 @@ async function acceptConfession(prisma, offer, responder) {
     return await cancelWith(
       prisma,
       offer,
-      "That confession was for a turn that's over. ‡",
+      "That confession was for a turn that's over.",
     );
   }
   if (locked)
-    return await cancelWith(prisma, offer, "Moves are locked for this turn. ‡");
+    return await cancelWith(prisma, offer, "Moves are locked for this turn.");
 
   const [chaplain, penitent, tag] = await Promise.all([
     loadCharacter(prisma, offer.teacherId),
@@ -307,7 +307,7 @@ async function acceptConfession(prisma, offer, responder) {
           confirmedAt: new Date(),
           moveKind: "GAMBIT",
           moveReviewStatus: "OPEN",
-          description: `Confessing ${tag.name} to ${chaplain.name}. ‡`,
+          description: `Confessing ${tag.name} to ${chaplain.name}.`,
           diceRoll: rollDie(),
           diceModifier: gambitModifierTotal(penitent.tags, {
             hungerStreak: penitent.hungerStreak,
@@ -329,7 +329,7 @@ async function acceptConfession(prisma, offer, responder) {
           confirmedAt: new Date(),
           moveKind: "ROUTINE",
           moveReviewStatus: "PASSED",
-          description: `Hearing ${penitent.name}'s confession. ‡`,
+          description: `Hearing ${penitent.name}'s confession.`,
           appliedEffects: {},
           zoneId: chaplain.zoneId ?? null,
           gmNotes: "auto:confession",
@@ -375,7 +375,7 @@ async function acceptConfession(prisma, offer, responder) {
       dms: [
         {
           discordUserId: penitent.discordUserId,
-          content: `${chaplain.name} will hear you. ‡\n${confirmLines(result.penitentAction)}`,
+          content: `${chaplain.name} will hear you.\n${confirmLines(result.penitentAction)}`,
         },
       ].filter((dm) => dm.discordUserId),
     };

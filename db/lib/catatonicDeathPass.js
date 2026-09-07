@@ -21,7 +21,7 @@ async function runCatatonicDeathPass(prisma, turn) {
 
   // Off (0) is a real, supported state — return an object, not null. null
   // means "did not run, retry it forever" and would wedge the turn. Not
-  // additionally gated on catatonicEnabled: that switch governs AFK
+  // additionally gated on the AFK-flagging pass: that pass governs AFK
   // *flagging*, and a leaver's tag comes from playerDeparture.js regardless
   // — their countdown should still resolve.
   const deathTurns = Math.max(0, config?.catatonicDeathTurns ?? 0);

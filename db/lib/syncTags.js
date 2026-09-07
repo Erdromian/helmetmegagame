@@ -23,6 +23,8 @@ const {
   validateEscalationChains,
   normalizePlacement,
   validatePlacement,
+  validateCustomizable,
+  normalizeTurnsCost,
 } = require("./tagShapes");
 const { normalizeDesireLocks, validateDesireLocks } = require("./desireShapes");
 const { desireFamilyKeys } = require("./desireFamilies");
@@ -64,6 +66,13 @@ const CATALOG_BY_YAML = new Map([
 // hidden power's name ("Heal", "Seductive") is generic enough to collide with
 // a general tag. Everywhere else the slug is exactly the slugified name.
 const HIDDEN_CATEGORIES = new Set(["demoness"]);
+
+// Destroy is for things you own, so `Tag.removable` is DERIVED from the
+// category rather than hand-set 300 times — which is how it drifted into a
+// state where you could bin a Belief but not a letter. `removable: false` in
+// the YAML is the opt-out and the only legal value there; the two checks in
+// validateTags refuse anything else.
+const DESTROYABLE_CATEGORIES = new Set(["items", "assets"]);
 
 // JSON.stringify with object keys sorted recursively, array order kept.
 // Only for the change-detection compare below — jsonb hands keys back in its
@@ -171,7 +180,7 @@ function sealDescription(entry) {
   const office = entry.sealOffice?.trim();
   if (!mark && !office) return null;
   const opening = office ? `The ${office}'s wax stamp.` : "A wax stamp for sealing letters.";
-  return mark ? `${opening} ${mark} ‡` : `${opening} Nobody has pressed it yet. ‡`;
+  return mark ? `${opening} ${mark}` : `${opening} Nobody has pressed it yet.`;
 }
 
 function requireDocsPath(...segments) {
@@ -379,6 +388,20 @@ async function syncTagsFromYaml(prisma) {
         `docs/tags.yaml: tag "${t.slug}" is an item but sets no weight — give it a pounds figure off the band table in the header of that file`,
       );
     }
+    // `removable` is opt-out only now (DESTROYABLE_CATEGORIES). An authored
+    // `true` is a stale line from before the rule, and a `false` outside
+    // items/assets does nothing — both are worth a throw rather than a shrug,
+    // since a silently ignored key is exactly how the old flag went stale.
+    if (t.removable === true) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" sets removable: true — the Destroy menu is derived from the category now, so drop the line (see that file's header)`,
+      );
+    }
+    if (t.removable === false && !DESTROYABLE_CATEGORIES.has(t.category)) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" sets removable: false but is in category "${t.category}", which never had a Destroy button — drop the line`,
+      );
+    }
     if (typeof t.weight === "number" && !(t.weight >= 0)) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" has a negative weight`);
     }
@@ -508,7 +531,8 @@ async function syncTagsFromYaml(prisma) {
       selfSlug: t.slug,
       knownSlugs: allTagSlugs,
     });
-    // requirement.items — the enforced, non-consuming ingredient check.
+    // requirement.items — the enforced ingredient block: spent by default,
+    // held where the entry says `keep` (docs/systemdocs/CORPSES.md §8).
     validateRequirementItems(
       normalizeRequirementItems(t.requirement?.items, { tagNameBySlug, groupNameBySlug }),
       {
@@ -516,6 +540,7 @@ async function syncTagsFromYaml(prisma) {
         tagSlugs: allTagSlugs,
         groupSlugs: allGroupSlugs,
         craftable: t.craftable ?? false,
+        placement: t.placement ?? null,
       },
     );
     // laborBonus — the tools table (docs/systemdocs/LABORING.md). A bonus that
@@ -535,6 +560,9 @@ async function syncTagsFromYaml(prisma) {
       tag: t,
       knownSlugs: allTagSlugs,
     });
+    // customizable — the custom-craft opt-in (CRAFTING.md): craftable and
+    // stackable only, and never alongside placement.
+    validateCustomizable(t, { slug: t.slug });
     // desires.locks — validated via the shared desireShapes rules. A missing
     // docs/desires.yaml yields an empty family set, so this only throws when
     // a tag actually names one.
@@ -655,8 +683,9 @@ async function syncTagsFromYaml(prisma) {
       depotPrice: entry.depotPrice ?? null,
       sealedShipping: entry.sealedShipping ?? false,
       defaultDurationTurns: entry.durationTurns ?? null,
-      removable: entry.removable ?? false,
+      removable: DESTROYABLE_CATEGORIES.has(entry.category) && entry.removable !== false,
       craftable: entry.craftable ?? false,
+      customizable: entry.customizable ?? false,
       healable: entry.healable ?? false,
       teachable: entry.teachable ?? false,
       psychological: entry.psychological ?? false,
@@ -665,10 +694,12 @@ async function syncTagsFromYaml(prisma) {
       expiresInto: normalizeExpiresInto(entry.expiresInto),
       escalatesInto: entry.escalatesInto ?? null,
       removesInto: normalizeRemovesInto(entry.removesInto),
-      requirementTurns: entry.requirement?.turnsCost ?? null,
+      // turnsCost "1/N" lands as requirementTurns 1 + requirementPerTurn N
+      // (the work fraction); an authored perTurn survives only on a 0-turn
+      // ration — normalizeTurnsCost refuses every other pairing.
+      ...normalizeTurnsCost(entry.requirement, { slug: entry.slug }),
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,
-      requirementPerTurn: entry.requirement?.perTurn ?? null,
       requirementItems: normalizeRequirementItems(entry.requirement?.items, { tagNameBySlug, groupNameBySlug }),
       laborBonus: normalizeLaborBonus(entry.laborBonus),
       placement: normalizePlacement(entry.placement),

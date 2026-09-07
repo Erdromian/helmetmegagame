@@ -59,7 +59,7 @@ async function windowState(birdMessageId) {
     include: { tags: { include: { tag: true } } },
   });
   if (!replier || !canReadLetters(replier.tags) || replier.tags.some((ct) => ct.tag.slug === STUPID_SLUG)) {
-    return { ok: false, reason: "You cannot write. The bird leaves without an answer. ‡" };
+    return { ok: false, reason: "You cannot write. The bird leaves without an answer." };
   }
 
   return { ok: true, message, replier };
@@ -85,13 +85,13 @@ async function handleBirdReplyOpen(interaction, birdMessageId) {
   if (letters.length === 0) {
     return respond(interaction, {
       content:
-        "You have nothing written to send back. Write a letter on your sheet, then answer before the bird goes. ‡",
+        "You have nothing written to send back. Write a letter on your sheet, then answer before the bird goes.",
       ephemeral: true,
     });
   }
 
   return respond(interaction, {
-    content: `The bird waits for something to carry back to **${state.message.senderName}**. It will not wait past next turn. ‡`,
+    content: `The bird waits for something to carry back to **${state.message.senderName}**. It will not wait past next turn.`,
     ephemeral: true,
     components: [
       {
@@ -100,7 +100,7 @@ async function handleBirdReplyOpen(interaction, birdMessageId) {
           {
             type: 3,
             custom_id: `${BIRD_REPLY_PICK_PREFIX}${birdMessageId}`,
-            placeholder: "Which letter? ‡",
+            placeholder: "Which letter?",
             options: letters.map((ct) => ({
               label: ct.tag.name.slice(0, 100),
               value: ct.tagId,
@@ -117,7 +117,7 @@ async function handleBirdReplyPick(interaction, birdMessageId) {
   await ack(interaction, { ephemeral: true });
 
   const tagId = interaction.values?.[0];
-  if (!tagId) return respond(interaction, { content: "Nothing picked. ‡", ephemeral: true });
+  if (!tagId) return respond(interaction, { content: "Nothing picked.", ephemeral: true });
 
   // Re-checked on the pick, not just on open: the panel can sit on screen
   // across a turn boundary, and this is the check that cannot be outrun.
@@ -130,7 +130,7 @@ async function handleBirdReplyPick(interaction, birdMessageId) {
   // The two kinds the picker offers, named rather than "has a paperKind" —
   // a bird carries letters, not spent envelopes or books.
   if (!held || (held.tag.paperKind !== "PAPER" && held.tag.paperKind !== "SEALED")) {
-    return respond(interaction, { content: "You aren't holding that. ‡", ephemeral: true });
+    return respond(interaction, { content: "You aren't holding that.", ephemeral: true });
   }
 
   // A GM letter has no sender Character (BIRD.md §9). Everything below that
@@ -138,7 +138,7 @@ async function handleBirdReplyPick(interaction, birdMessageId) {
   const gmSender = message.gmSenderDiscordUserId ?? null;
 
   if (!gmSender && !message.senderDiscordUserId) {
-    return respond(interaction, { content: "The bird can't find who sent it. ‡", ephemeral: true });
+    return respond(interaction, { content: "The bird can't find who sent it.", ephemeral: true });
   }
 
   // The claim IS the check, the same shape every other race in this codebase
@@ -168,7 +168,7 @@ async function handleBirdReplyPick(interaction, birdMessageId) {
     });
     if (!senderAlive) {
       return respond(interaction, {
-        content: "The bird will not go. Something has happened to whoever sent it. ‡",
+        content: "The bird will not go. Something has happened to whoever sent it.",
         ephemeral: true,
       });
     }
@@ -214,7 +214,7 @@ async function handleBirdReplyPick(interaction, birdMessageId) {
         .catch((err) => console.error(`GM letter reply row for ${message.recipientId} failed:`, err));
     }
 
-    return respond(interaction, { content: `The bird is away with ${held.tag.name}. ‡`, ephemeral: true });
+    return respond(interaction, { content: `The bird is away with ${held.tag.name}.`, ephemeral: true });
   }
 
   await sendDm(prisma, message.senderDiscordUserId, replyDm({ replierName: message.recipientName, letterName: held.tag.name }), {
@@ -222,7 +222,7 @@ async function handleBirdReplyPick(interaction, birdMessageId) {
     meta: { kind: "bird_reply", birdMessageId: message.id, letterName: held.tag.name },
   }).catch((err) => console.error(`Bird reply DM to ${message.senderDiscordUserId} failed:`, err));
 
-  return respond(interaction, { content: `The bird is away with ${held.tag.name}. ‡`, ephemeral: true });
+  return respond(interaction, { content: `The bird is away with ${held.tag.name}.`, ephemeral: true });
 }
 
 module.exports = { handleBirdReplyOpen, handleBirdReplyPick };

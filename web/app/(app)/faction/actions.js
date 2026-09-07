@@ -192,7 +192,7 @@ async function requireActor() {
       faction: { select: { id: true, slug: true, name: true, siloRoomId: true, parentFactionId: true } },
     },
   });
-  if (!character) throw new UserError("You don't have a living character. ‡");
+  if (!character) throw new UserError("You don't have a living character.");
   return { session, character };
 }
 
@@ -224,7 +224,7 @@ async function officersOf(factionId) {
 
 async function unaffiliatedFaction() {
   const row = await prisma.faction.findFirst({ where: { slug: UNAFFILIATED_SLUG }, select: { id: true } });
-  if (!row) throw new UserError("The game has no Unaffiliated faction to leave to. ‡");
+  if (!row) throw new UserError("The game has no Unaffiliated faction to leave to.");
   return row;
 }
 
@@ -277,13 +277,13 @@ async function freeSlug(name) {
     const taken = await prisma.faction.findUnique({ where: { slug: candidate }, select: { id: true } });
     if (!taken) return candidate;
   }
-  throw new UserError("Too many factions are called that. Pick another name. ‡");
+  throw new UserError("Too many factions are called that. Pick another name.");
 }
 
 function cleanName(raw) {
   const name = (raw ?? "").toString().trim().replace(/\s+/g, " ");
-  if (name.length < 2) throw new UserError("A faction needs a name. ‡");
-  if (name.length > 48) throw new UserError("That name is too long. ‡");
+  if (name.length < 2) throw new UserError("A faction needs a name.");
+  if (name.length > 48) throw new UserError("That name is too long.");
   return name;
 }
 
@@ -299,7 +299,7 @@ async function requireFreeName(name, exceptFactionId = null) {
     },
     select: { id: true },
   });
-  if (clash) throw new UserError("Something is already called that. ‡");
+  if (clash) throw new UserError("Something is already called that.");
 }
 
 function cleanNote(raw) {
@@ -310,7 +310,7 @@ function cleanNote(raw) {
 
 async function leaveFactionImpl() {
   const { session, character } = await requireActor();
-  if (isUnaffiliated(character.faction)) throw new UserError("You aren't in a faction. ‡");
+  if (isUnaffiliated(character.faction)) throw new UserError("You aren't in a faction.");
 
   const old = character.faction;
   const unaffiliated = await unaffiliatedFaction();
@@ -320,7 +320,7 @@ async function leaveFactionImpl() {
   await audit(session, "faction_left", character.id, { factionId: old.id, factionName: old.name });
 
   for (const officer of await officersOf(old.id)) {
-    notifyCharacter(officer, `${character.name} has left ${old.name}. ‡`);
+    notifyCharacter(officer, `${character.name} has left ${old.name}.`);
   }
   revalidateFaction();
   return { factionName: old.name };
@@ -329,16 +329,16 @@ async function leaveFactionImpl() {
 // The officer-side twin of leaving. Same machinery, someone else's decision.
 async function removeMemberImpl({ characterId }) {
   const { session, character } = await requireActor();
-  if (!character.isLeader && !character.isTreasurer) throw new UserError("Only an officer can do that. ‡");
-  if (characterId === character.id) throw new UserError("Use Leave to walk out yourself. ‡");
+  if (!character.isLeader && !character.isTreasurer) throw new UserError("Only an officer can do that.");
+  if (characterId === character.id) throw new UserError("Use Leave to walk out yourself.");
 
   const target = await prisma.character.findUnique({
     where: { id: characterId?.toString() ?? "" },
     select: { id: true, name: true, factionId: true, isLeader: true, discordUserId: true },
   });
-  if (!target || target.factionId !== character.factionId) throw new UserError("They aren't in your faction. ‡");
+  if (!target || target.factionId !== character.factionId) throw new UserError("They aren't in your faction.");
   // A Treasurer cannot throw out the Leader they answer to.
-  if (target.isLeader && !character.isLeader) throw new UserError("Only the Leader can do that. ‡");
+  if (target.isLeader && !character.isLeader) throw new UserError("Only the Leader can do that.");
 
   const factionName = character.faction.name;
   const unaffiliated = await unaffiliatedFaction();
@@ -347,7 +347,7 @@ async function removeMemberImpl({ characterId }) {
   });
   await audit(session, "faction_member_removed", target.id, { factionId: character.factionId });
 
-  notifyCharacter(target, `You are no longer part of ${factionName}. ‡`);
+  notifyCharacter(target, `You are no longer part of ${factionName}.`);
   revalidateFaction();
   return { name: target.name };
 }
@@ -360,9 +360,9 @@ async function applyToFactionImpl({ factionId, note }) {
     where: { id: factionId?.toString() ?? "" },
     select: { id: true, name: true, slug: true },
   });
-  if (!faction) throw new UserError("No such faction. ‡");
-  if (isUnaffiliated(faction)) throw new UserError("Unaffiliated isn't a faction to join. ‡");
-  if (faction.id === character.factionId) throw new UserError("You're already in it. ‡");
+  if (!faction) throw new UserError("No such faction.");
+  if (isUnaffiliated(faction)) throw new UserError("Unaffiliated isn't a faction to join.");
+  if (faction.id === character.factionId) throw new UserError("You're already in it.");
 
   const existing = await prisma.factionApplication.findFirst({
     where: { factionId: faction.id, characterId: character.id, status: "PENDING" },
@@ -373,8 +373,8 @@ async function applyToFactionImpl({ factionId, note }) {
   if (existing) {
     throw new UserError(
       existing.kind === "INVITE"
-        ? `${faction.name} has already invited you — answer that instead. ‡`
-        : "You've already asked them. ‡",
+        ? `${faction.name} has already invited you. Answer that instead.`
+        : "You've already asked them.",
     );
   }
 
@@ -384,7 +384,7 @@ async function applyToFactionImpl({ factionId, note }) {
   await audit(session, "faction_application_filed", character.id, { factionId: faction.id });
 
   for (const officer of await officersOf(faction.id)) {
-    notifyCharacter(officer, `${character.name} has asked to join ${faction.name}. ‡`);
+    notifyCharacter(officer, `${character.name} has asked to join ${faction.name}.`);
   }
   revalidateFaction();
   return { factionName: faction.name };
@@ -392,15 +392,15 @@ async function applyToFactionImpl({ factionId, note }) {
 
 async function inviteToFactionImpl({ characterId, note }) {
   const { session, character } = await requireActor();
-  if (!character.isLeader && !character.isTreasurer) throw new UserError("Only an officer can invite. ‡");
-  if (isUnaffiliated(character.faction)) throw new UserError("Unaffiliated isn't a faction to invite into. ‡");
+  if (!character.isLeader && !character.isTreasurer) throw new UserError("Only an officer can invite.");
+  if (isUnaffiliated(character.faction)) throw new UserError("Unaffiliated isn't a faction to invite into.");
 
   const target = await prisma.character.findFirst({
     where: { id: characterId?.toString() ?? "", status: "ALIVE" },
     select: { id: true, name: true, factionId: true, discordUserId: true },
   });
-  if (!target) throw new UserError("No such character. ‡");
-  if (target.factionId === character.factionId) throw new UserError("They're already with you. ‡");
+  if (!target) throw new UserError("No such character.");
+  if (target.factionId === character.factionId) throw new UserError("They're already with you.");
 
   const existing = await prisma.factionApplication.findFirst({
     where: { factionId: character.factionId, characterId: target.id, status: "PENDING" },
@@ -409,8 +409,8 @@ async function inviteToFactionImpl({ characterId, note }) {
   if (existing) {
     throw new UserError(
       existing.kind === "APPLICATION"
-        ? `${target.name} has already applied — answer that instead. ‡`
-        : "They've already been invited. ‡",
+        ? `${target.name} has already applied — answer that instead.`
+        : "They've already been invited.",
     );
   }
 
@@ -419,7 +419,7 @@ async function inviteToFactionImpl({ characterId, note }) {
   });
   await audit(session, "faction_invite_sent", target.id, { factionId: character.factionId });
 
-  notifyCharacter(target, `${character.faction.name} has invited you to join them. ‡`);
+  notifyCharacter(target, `${character.faction.name} has invited you to join them.`);
   revalidateFaction();
   return { name: target.name };
 }
@@ -430,7 +430,7 @@ async function withdrawApplicationImpl({ applicationId }) {
     where: { id: applicationId?.toString() ?? "" },
     select: { id: true, kind: true, status: true, characterId: true, factionId: true },
   });
-  if (!row || row.status !== "PENDING") throw new UserError("That's already been answered. ‡");
+  if (!row || row.status !== "PENDING") throw new UserError("That's already been answered.");
 
   // You may pull back what YOU opened: your own application, or an invite
   // your faction sent — and for the invite, only as an officer.
@@ -438,7 +438,7 @@ async function withdrawApplicationImpl({ applicationId }) {
     row.kind === "APPLICATION"
       ? row.characterId === character.id
       : row.factionId === character.factionId && (character.isLeader || character.isTreasurer);
-  if (!mine) throw new UserError("That isn't yours to withdraw. ‡");
+  if (!mine) throw new UserError("That isn't yours to withdraw.");
 
   await prisma.factionApplication.update({
     where: { id: row.id },
@@ -461,12 +461,12 @@ async function decideApplicationImpl({ applicationId, accept, grantTagSlug }) {
       character: { select: { id: true, name: true, factionId: true, isLeader: true, discordUserId: true, status: true } },
     },
   });
-  if (!row || row.status !== "PENDING") throw new UserError("That's already been answered. ‡");
+  if (!row || row.status !== "PENDING") throw new UserError("That's already been answered.");
 
   const isOfficerHere =
     row.factionId === character.factionId && (character.isLeader || character.isTreasurer);
   const mayAnswer = row.kind === "APPLICATION" ? isOfficerHere : row.characterId === character.id;
-  if (!mayAnswer) throw new UserError("That isn't yours to answer. ‡");
+  if (!mayAnswer) throw new UserError("That isn't yours to answer.");
 
   if (!accept) {
     await prisma.factionApplication.update({
@@ -475,10 +475,10 @@ async function decideApplicationImpl({ applicationId, accept, grantTagSlug }) {
     });
     await audit(session, "faction_application_declined", row.characterId, { factionId: row.factionId });
     if (row.kind === "APPLICATION") {
-      notifyCharacter(row.character, `${row.faction.name} has turned down your application. ‡`);
+      notifyCharacter(row.character, `${row.faction.name} has turned down your application.`);
     } else {
       for (const officer of await officersOf(row.factionId)) {
-        notifyCharacter(officer, `${row.character.name} has declined your invitation. ‡`);
+        notifyCharacter(officer, `${row.character.name} has declined your invitation.`);
       }
     }
     revalidateFaction();
@@ -486,8 +486,8 @@ async function decideApplicationImpl({ applicationId, accept, grantTagSlug }) {
   }
 
   // A character who died or moved on between the ask and the answer.
-  if (row.character.status !== "ALIVE") throw new UserError(`${row.character.name} is beyond joining. ‡`);
-  if (row.character.factionId === row.factionId) throw new UserError("They're already with you. ‡");
+  if (row.character.status !== "ALIVE") throw new UserError(`${row.character.name} is beyond joining.`);
+  if (row.character.factionId === row.factionId) throw new UserError("They're already with you.");
 
   // The keys a recruit needs to reach their new faction's silo. The Brigands'
   // camp is behind a tag, so letting somebody in without it hands them a home
@@ -511,7 +511,7 @@ async function decideApplicationImpl({ applicationId, accept, grantTagSlug }) {
     grantSlugs = keySlugs;
   } else if (grantTagSlug) {
     const wanted = grantTagSlug.toString();
-    if (!keySlugs.includes(wanted)) throw new UserError("That tag isn't a key to your silo. ‡");
+    if (!keySlugs.includes(wanted)) throw new UserError("That tag isn't a key to your silo.");
     grantSlugs = [wanted];
   }
   const grantTags = grantSlugs.length
@@ -549,10 +549,10 @@ async function decideApplicationImpl({ applicationId, accept, grantTagSlug }) {
   });
 
   if (grantTags.length) await syncCharacterRoomAccessFor(row.characterId);
-  notifyCharacter(row.character, `You are now part of ${row.faction.name}. ‡`);
+  notifyCharacter(row.character, `You are now part of ${row.faction.name}.`);
   for (const officer of await officersOf(row.factionId)) {
     if (officer.id === row.characterId) continue;
-    notifyCharacter(officer, `${row.character.name} has joined ${row.faction.name}. ‡`);
+    notifyCharacter(officer, `${row.character.name} has joined ${row.faction.name}.`);
   }
   revalidateFaction();
   return { accepted: true, name: row.character.name };
@@ -587,8 +587,8 @@ async function syncCharacterRoomAccessFor(characterId) {
 
 async function renameFactionImpl({ name }) {
   const { session, character } = await requireActor();
-  if (!character.isLeader) throw new UserError("Only the Leader can rename a faction. ‡");
-  if (isUnaffiliated(character.faction)) throw new UserError("Unaffiliated can't be renamed. ‡");
+  if (!character.isLeader) throw new UserError("Only the Leader can rename a faction.");
+  if (isUnaffiliated(character.faction)) throw new UserError("Unaffiliated can't be renamed.");
 
   const clean = cleanName(name);
   await requireFreeName(clean, character.factionId);
@@ -603,8 +603,8 @@ async function renameFactionImpl({ name }) {
 
 async function secedeFactionImpl() {
   const { session, character } = await requireActor();
-  if (!character.isLeader) throw new UserError("Only the Leader can secede. ‡");
-  if (!character.faction.parentFactionId) throw new UserError("You answer to nobody already. ‡");
+  if (!character.isLeader) throw new UserError("Only the Leader can secede.");
+  if (!character.faction.parentFactionId) throw new UserError("You answer to nobody already.");
 
   const parent = await prisma.faction.findUnique({
     where: { id: character.faction.parentFactionId },
@@ -618,7 +618,7 @@ async function secedeFactionImpl() {
 
   if (parent) {
     for (const officer of await officersOf(parent.id)) {
-      notifyCharacter(officer, `${character.faction.name} no longer answers to ${parent.name}. ‡`);
+      notifyCharacter(officer, `${character.faction.name} no longer answers to ${parent.name}.`);
     }
   }
   revalidateFaction();
@@ -658,7 +658,7 @@ async function foundFactionImpl({ name }) {
 
   if (was && !isUnaffiliated(was)) {
     for (const officer of await officersOf(was.id)) {
-      notifyCharacter(officer, `${character.name} has left ${was.name} to found ${clean}. ‡`);
+      notifyCharacter(officer, `${character.name} has left ${was.name} to found ${clean}.`);
     }
   }
   revalidateFaction();
@@ -669,8 +669,8 @@ async function foundFactionImpl({ name }) {
 // which is why the confirm on the other end says so out loud.
 async function setSiloRoomImpl({ roomId }) {
   const { session, character } = await requireActor();
-  if (!character.isLeader && !character.isTreasurer) throw new UserError("Only an officer can do that. ‡");
-  if (isUnaffiliated(character.faction)) throw new UserError("Unaffiliated has no silo. ‡");
+  if (!character.isLeader && !character.isTreasurer) throw new UserError("Only an officer can do that.");
+  if (isUnaffiliated(character.faction)) throw new UserError("Unaffiliated has no silo.");
 
   const id = roomId ? roomId.toString() : null;
   let room = null;
@@ -679,7 +679,7 @@ async function setSiloRoomImpl({ roomId }) {
       where: { id },
       select: { id: true, name: true, location: { select: { name: true, zoneId: true, zone: { select: { name: true } } } } },
     });
-    if (!room) throw new UserError("No such room. ‡");
+    if (!room) throw new UserError("No such room.");
     // A silo has to be in the faction's own zone. Otherwise deposits — which
     // are zone-scoped — would never work for anybody, and the picker would
     // happily offer a room on the far side of the map.
@@ -689,7 +689,7 @@ async function setSiloRoomImpl({ roomId }) {
     });
     if (home?.zoneId && room.location.zoneId !== home.zoneId) {
       throw new UserError(
-        `A silo has to be somewhere in ${home.zone?.name ?? "your own zone"} — nobody could put anything into one in ${room.location.zone?.name ?? "another zone"}. ‡`,
+        `A silo has to be somewhere in ${home.zone?.name ?? "your own zone"} — nobody could put anything into one in ${room.location.zone?.name ?? "another zone"}.`,
       );
     }
   }
@@ -704,8 +704,8 @@ async function setSiloRoomImpl({ roomId }) {
     notifyCharacter(
       officer,
       room
-        ? `${character.faction.name} banks in ${room.name} now. ‡`
-        : `${character.faction.name} has no silo any more. ‡`,
+        ? `${character.faction.name} banks in ${room.name} now.`
+        : `${character.faction.name} has no silo any more.`,
     );
   }
   revalidateFaction();
@@ -718,13 +718,13 @@ async function setSiloRoomImpl({ roomId }) {
 async function setMemberTreasurerImpl({ characterId, grant }) {
   const { session, character } = await requireActor();
   const { isGm: gm } = await getGmSession();
-  if (!gm && !character.isLeader) throw new UserError("Only the Leader can do that. ‡");
+  if (!gm && !character.isLeader) throw new UserError("Only the Leader can do that.");
 
   const target = await prisma.character.findUnique({
     where: { id: characterId?.toString() ?? "" },
     select: { id: true, name: true, factionId: true, discordUserId: true },
   });
-  if (!target || target.factionId !== character.factionId) throw new UserError("They aren't in your faction. ‡");
+  if (!target || target.factionId !== character.factionId) throw new UserError("They aren't in your faction.");
 
   await prisma.character.update({ where: { id: target.id }, data: { isTreasurer: Boolean(grant) } });
   await audit(session, grant ? "faction_treasurer_assigned" : "faction_treasurer_revoked", target.id, {
@@ -733,8 +733,8 @@ async function setMemberTreasurerImpl({ characterId, grant }) {
   notifyCharacter(
     target,
     grant
-      ? `You are ${character.faction.name}'s Treasurer now. ‡`
-      : `You are no longer ${character.faction.name}'s Treasurer. ‡`,
+      ? `You are ${character.faction.name}'s Treasurer now.`
+      : `You are no longer ${character.faction.name}'s Treasurer.`,
   );
   revalidateFaction();
   return { name: target.name };

@@ -116,7 +116,7 @@ zones:
               - >-
                 Stay happy. An unhappy Baron is an unproductive, dangerous baron.
               - >-
-                The Council Room has an intercom. Anyone standing at that table can speak into it, and everyone above ground will hear — except the Black Hills, which no speaker was ever strung out to. The yard also has an automated machine gun turret which can be turned on from the Censor's office. It can't tell hostiles or friendlies apart. ‡
+                The Council Room has an intercom. Anyone standing at that table can speak into it, and everyone above ground will hear — except the Black Hills, which no speaker was ever strung out to. The yard also has an automated machine gun turret which can be turned on from the Censor's office. It can't tell hostiles or friendlies apart.
               - >-
                 You have three missions:
               - >-
@@ -182,7 +182,7 @@ zones:
               - Nobility
               - Jewelry
               - Literate
-              - Baron's Key
+              - Baroness's Key
               - Obol x5
               - Post-Christian
             doc_elements:
@@ -381,7 +381,7 @@ zones:
               Compose ballads, smuggle drugs from the Town, and keep the Baron happy.
             description:
               - >-
-                Peddle what you smuggle to the courtiers — quietly. ‡
+                Peddle what you smuggle to the courtiers — quietly.
             difficulty: easy
             multiple: true
             weight: 1
@@ -746,7 +746,7 @@ zones:
               - >-
                 Rather than being thirsty for power, you are sane, and just doing what is necessary to bring about the goodness of God. To this end, organize your followers and radicalize the Town, the Church, and possibly even the Court. A wary, suspicious, and ready Ravenheart is the only one that can survive.
               - >-
-                Get the Bishop on your side. Deploy the Preacher wisely to radicalize and convert people to fundamentalism. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions.
+                Get the Bishop on your side. Deploy the Preacher wisely to radicalize and convert people to fundamentalism. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions. You can torture people from the character panel, forcing them to reveal their secrets.
               - >-
                 Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
             difficulty: hard
@@ -784,7 +784,7 @@ zones:
               - >-
                 Rather than being thirsty for power, you are sane, and just doing what is necessary to bring about the goodness of God. To this end, organize your followers and radicalize the Town, the Church, and possibly even the Court. A wary, suspicious, and ready Ravenheart is the only one that can survive.
               - >-
-                Get the Bishop on your side. Follow the Inquisitor's orders. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions.
+                Get the Bishop on your side. Follow the Inquisitor's orders. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions. You can torture people from the character panel, forcing them to reveal their secrets.
               - >-
                 Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
             difficulty: easy
@@ -804,6 +804,7 @@ zones:
               - Practicii's Robes
               - Gas Mask
               - Fundamentalist
+              - Torturer
             doc_elements:
               - townstarting
               - postchristianity
@@ -818,7 +819,7 @@ zones:
               - >-
                 Rather than being thirsty for power, you are sane, and just doing what is necessary to bring about the goodness of God. To this end, organize your followers and radicalize the Town, the Church, and possibly even the Court. A wary, suspicious, and ready Ravenheart is the only one that can survive.
               - >-
-                Get the Bishop on your side. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions.
+                Get the Bishop on your side. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions. You can torture people from the character panel, forcing them to reveal their secrets.
               - >-
                 Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
             difficulty: easy
@@ -1104,13 +1105,13 @@ zones:
               - >-
                 Ravenheart's poor souls are a great source of business, but it's a terrible place otherwise. You wouldn't dare put your heart here — the place is doomed. Time to make some money.
               - >-
-                Your Depot sits in the Customs, down inside the Caverns: a hangar door up in the ceiling and a shuttle you call down through it. Your License runs the place. There's a mini-turret that's almost always off, and it does not read papers — it reads faces. It will not fire on yours. It will fire on everyone else's, including your Dockers, and including you if you are wearing somebody else's. ‡
+                Your Depot is in Customs, between the forest and the caverns. Your License lets you call down a shuttle. The mini-turret is keyed to your face, so it will shoot everyone except you. Be careful not to conceal your face, however.
               - >-
-                You deal in obols (¢), not ⬢. You are the only place they come from and the only place they go back to. You can buy at the Depot's price and sell it at whatever makes sense for profit. ‡ You can also buy things from Ravenheartians and sell them to the Depot: brews, ore, cave fungus, smithing production, paintings. {tag:ravenheart-red} and paintings especially fetch a good price.
+                You deal in obols (¢), not ⬢. You are the only place they come from and the only place they go back to. You can buy at the Depot's price and sell it at whatever makes sense for profit. You can also buy things from Ravenheartians and sell them to the Depot: brews, ore, cave fungus, smithing production, paintings. {tag:ravenheart-red} and paintings especially fetch a good price.
               - >-
-                The Company will advance you up to 75 ¢ against the business. Your licence will be revoked if you fail to pay it. ‡
+                The Company will advance you up to 75 ¢ against the business. Your licence will be revoked if you fail to pay it.
               - >-
-                Try your hand at usury. Lend at high rates and call on your Dockers to collect. That's probably the easiest way to make serious bucks.
+                You may issue loans, lending at high rates and calling on your Dockers to collect.
               - >-
                 Taking the shuttle instead of the Railroad like a normal migrant costs 30 ⬢. And you have to have your license.
             difficulty: hard
@@ -1128,6 +1129,7 @@ zones:
               - Depot Keycard
               - Silencer
               - Obol x20
+              - Nobility
             doc_elements:
               - godking
               - squeeze
@@ -1196,6 +1198,8 @@ zones:
               - Buckler
               - Mail Coif
               - Shortbow
+              - Rough Camper
+              - Spelunker
             doc_elements: [caving]
   - name: Marshes
     factions:
@@ -1328,6 +1332,7 @@ zones:
               - Laboring (Skilled)
               - Laboring (Fishing)
               - Fisherman's Key
+              - Rough Camper
             doc_elements:
               - godardfactory
 
@@ -1389,6 +1394,9 @@ zones:
               - Strong
               - Tactician
               - Cruel
+              - Rough Camper
+              - Outsider
+              - Brave
             doc_elements:
               - godking
               - ravenhearteconomy
@@ -1428,6 +1436,8 @@ zones:
               - Supply Kit
               - Military Autoinjector x2
               - Tough
+              - Rough Camper
+              - Outsider
             doc_elements:
               - godking
               - ravenhearteconomy
@@ -1472,6 +1482,8 @@ zones:
               - Buckler
               - Crossbow
               - Plebeian Hood
+              - Rough Camper
+              - Outsider
             doc_elements:
               - concealing
           brigand:
@@ -1507,5 +1519,7 @@ zones:
               - Buckler
               - Shortbow
               - Plebeian Hood
+              - Rough Camper
+              - Outsider
             doc_elements:
               - concealing

@@ -9,7 +9,7 @@ lesson. This is the game's first code-adjudicated Gambit.
 - **Teaching** (5 pt, a standalone `skills` tag): you can train someone in a
   skill you have. Teaching is your **Routine** for the turn; learning is the student's
   **Gambit**. They succeed on a **5 or 6** — the die after its modifier
-  (Hunger, Disappointed; `db/lib/gambitModifier.js`).
+  (Hunger, Afraid, Panic; `db/lib/gambitModifier.js`).
 - **Teaching (Lecturing)** (5 pt, upgrade of Teaching): up to **three**
   students on the one Routine.
 - **Teaching (Drill Instructor)** (3 pt, `skills` category but grouped under

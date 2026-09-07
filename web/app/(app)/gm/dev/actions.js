@@ -7,6 +7,7 @@ import { parseConfigForm } from "@lifeweb/db/lib/gameConfigFields";
 import { getGameConfig, getGameState, GAME_STATE_CREATE } from "@lifeweb/db/lib/gameState";
 import { buildEpilogue } from "@lifeweb/db/lib/epilogue";
 import { forgetGameId } from "@lifeweb/db/lib/archive";
+import { forgetGameFloor } from "@lifeweb/db/lib/feedWipe";
 import {
   prisma,
   advanceTurn as advanceTurnInDb,
@@ -217,7 +218,7 @@ export async function updateWorldState(formData) {
 }
 
 // advanceTurnInDb() hands back its Discord side effects as a thunk. That
-// thunk goes to after(), not the request, since the Dawn wipe can take
+// thunk goes to after(), not the request, since the message wipe can take
 // minutes and a pending server action blocks client-side navigation.
 export async function forceAdvanceTurn() {
   const session = await requireSuperadmin();
@@ -226,7 +227,7 @@ export async function forceAdvanceTurn() {
     const { advanced, refused, previousTurn, newTurn, runSideEffects } = await advanceTurnInDb();
 
     if (refused === "NOT_RUNNING") {
-      return { ok: false, error: "The game isn't running, so there is no turn to end. Start it from the Game section first. ‡" };
+      return { ok: false, error: "The game isn't running, so there is no turn to end. Start it from the Game section first." };
     }
 
     // Lost the race to the bot's cron or a second click; turn already advanced.
@@ -373,6 +374,9 @@ export async function wipeGameData(formData) {
       prisma.gameState.create({ data: { id: 1, gameId: nextGame.id } }),
     ]);
     forgetGameId();
+    // The Hall reads past a finished game by seq (db/lib/feedWipe.js); drop
+    // the memo so it empties now rather than in half a minute.
+    forgetGameFloor();
 
     // After the character sweep above, so the FK from Character.factionId is
     // already gone and the delete cannot be blocked by a member.
@@ -645,10 +649,10 @@ export async function defuseNukeAction() {
 
   const state = await getGameState(prisma);
   if (state.nukeDetonatedTurn != null) {
-    return { ok: false, error: "It already went off. ‡" };
+    return { ok: false, error: "It already went off." };
   }
   if (state.nukeArmedTurn == null) {
-    return { ok: false, error: "Nothing is armed. ‡" };
+    return { ok: false, error: "Nothing is armed." };
   }
 
   const wasFiringOn = state.nukeArmedTurn;
@@ -695,7 +699,7 @@ export async function bulkMoveCharacters(formData) {
   const locationId = str(formData, "locationId");
   const characterIds = formData.getAll("characterIds").map(String).filter(Boolean);
   if (!locationId || characterIds.length === 0) {
-    return { ok: false, error: "Pick a location and at least one character. ‡" };
+    return { ok: false, error: "Pick a location and at least one character." };
   }
 
   const location = await prisma.location.findUnique({
@@ -703,14 +707,14 @@ export async function bulkMoveCharacters(formData) {
     include: { zone: true },
   });
   if (!location) {
-    return { ok: false, error: "That isn't a place a character can stand. ‡" };
+    return { ok: false, error: "That isn't a place a character can stand." };
   }
 
   const characters = await prisma.character.findMany({
     where: { id: { in: characterIds }, status: "ALIVE" },
     select: { id: true, name: true, discordUserId: true, locationId: true, zoneId: true },
   });
-  if (characters.length === 0) return { ok: false, error: "No living characters matched. ‡" };
+  if (characters.length === 0) return { ok: false, error: "No living characters matched." };
 
   // The denormalization contract: locationId and zoneId are written together.
   await prisma.character.updateMany({
@@ -800,26 +804,26 @@ export async function sendGmLetter(_prevState, formData) {
   const sealLabelText = str(formData, "sealLabel").trim().slice(0, 40);
   const sealMarkText = str(formData, "sealMark").trim().slice(0, 200);
 
-  if (!senderName) return { ok: false, error: "Say who it's from. ‡" };
-  if (!recipientId) return { ok: false, error: "Pick who it's for. ‡" };
-  if (!body) return { ok: false, error: "Write something first. ‡" };
-  if (sealed && !sealLabelText) return { ok: false, error: "A seal needs a name — it goes in the letter's title. ‡" };
-  if (sealed && !sealMarkText) return { ok: false, error: "Say what the wax carries. ‡" };
+  if (!senderName) return { ok: false, error: "Say who it's from." };
+  if (!recipientId) return { ok: false, error: "Pick who it's for." };
+  if (!body) return { ok: false, error: "Write something first." };
+  if (sealed && !sealLabelText) return { ok: false, error: "Name the seal. It goes in the letter's title." };
+  if (sealed && !sealMarkText) return { ok: false, error: "Say what the wax carries." };
 
   // The reply window is arrivalTurn + 1, so a letter sent between turns would
   // land already unanswerable. Refuse rather than send a mute one.
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-  if (!openTurn) return { ok: false, error: "No turn is open. The bird waits for one. ‡" };
+  if (!openTurn) return { ok: false, error: "No turn is open. The bird waits for one." };
 
   const recipient = await prisma.character.findUnique({
     where: { id: recipientId },
     include: { tags: { include: { tag: true } } },
   });
-  if (!recipient) return { ok: false, error: "No such character. ‡" };
+  if (!recipient) return { ok: false, error: "No such character." };
   // Unlike the picker, which lists the dead too (BIRD.md §2 — a list of the
   // living is a casualty report), the SEND refuses. A letter to a corpse would
   // mint paper onto a sheet nobody reads.
-  if (recipient.status !== "ALIVE") return { ok: false, error: "They're past reading it. ‡" };
+  if (recipient.status !== "ALIVE") return { ok: false, error: "They're past reading it." };
 
   const canReply = canReadLetters(recipient.tags);
 
@@ -890,7 +894,7 @@ export async function sendGmLetter(_prevState, formData) {
   return {
     ok: true,
     message: canReply
-      ? `${letter.name} is on ${recipient.name}'s sheet. They can answer it until turn ${openTurn.number + 1}. ‡`
-      : `${letter.name} is on ${recipient.name}'s sheet. They can't read, so there's no Reply button. ‡`,
+      ? `${letter.name} is on ${recipient.name}'s sheet. They can answer it until turn ${openTurn.number + 1}.`
+      : `${letter.name} is on ${recipient.name}'s sheet. They can't read, so there's no Reply button.`,
   };
 }

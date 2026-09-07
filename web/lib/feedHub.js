@@ -97,7 +97,9 @@ const NAME_MEMO_MS = 30_000;
 async function typingNameFor(characterId) {
   const h = hub();
   const cached = h.nameMemo.get(characterId);
-  if (cached && Date.now() - cached.at < NAME_MEMO_MS) return cached.name;
+  // A miss on `name` rather than on the key: the same entry is written by
+  // avatarVersionFor below, which knows the face and not the mask.
+  if (cached && cached.name != null && Date.now() - cached.at < NAME_MEMO_MS) return cached.name;
 
   const character = await prisma.character.findUnique({
     where: { id: characterId },
@@ -109,8 +111,40 @@ async function typingNameFor(characterId) {
     loadConcealment(prisma, characterId),
   ]);
   const name = presentedIdentity(character, { forcedName, concealment }).name ?? null;
-  h.nameMemo.set(characterId, { name, at: Date.now() });
+  h.nameMemo.set(characterId, {
+    ...(cached ?? {}),
+    name,
+    avatarVersion: character.updatedAt?.getTime?.() ?? null,
+    at: Date.now(),
+  });
   return name;
+}
+
+// The cache-buster on a face's URL, which has to be the character's updatedAt
+// and nothing else.
+//
+// ArchiveEntry holds characterId as a SNAPSHOT column, not a foreign key
+// (schema.prisma), so a row cannot join its character and feedRowShape falls
+// back to the row's own sentAt. That fallback is a different number for every
+// message, so /api/avatar/<id>?v=… changed on every line and the browser
+// refetched a face it already had — most visibly on your own send, where the
+// optimistic row (updatedAt) and the streamed row (sentAt) disagreed and the
+// avatar blinked. Memoised beside the typing name for the same reason: nobody
+// gets a new portrait often enough to pay a query per message.
+async function avatarVersionFor(characterId) {
+  if (!characterId) return null;
+  const h = hub();
+  const cached = h.nameMemo.get(characterId);
+  if (cached && Date.now() - cached.at < NAME_MEMO_MS && cached.avatarVersion !== undefined) {
+    return cached.avatarVersion;
+  }
+  const character = await prisma.character.findUnique({
+    where: { id: characterId },
+    select: { updatedAt: true },
+  });
+  const avatarVersion = character?.updatedAt?.getTime?.() ?? null;
+  h.nameMemo.set(characterId, { ...(cached ?? { name: null }), at: Date.now(), avatarVersion });
+  return avatarVersion;
 }
 
 async function handleTyping(payload) {
@@ -182,7 +216,19 @@ async function handleNotification(msg) {
   // An edit goes out as the whole row, and the client replaces by seq. That
   // way there is one shape on the wire for "here is a message" whether it is
   // the first time or the second.
-  fanOut(parsed.placeKey, feedRowShape(row, { op: op === "edit" ? "edit" : "new" }));
+  //
+  // `clientId` goes back out to EVERY watcher of the place, not just the tab
+  // that sent it. That is fine and cheaper than the alternative: it is a
+  // random token with nothing in it, and a browser only ever acts on one it
+  // is still holding a pending row for.
+  fanOut(
+    parsed.placeKey,
+    feedRowShape(row, {
+      op: op === "edit" ? "edit" : "new",
+      avatarVersion: await avatarVersionFor(row.characterId),
+      ...(parsed.clientId ? { clientId: String(parsed.clientId) } : {}),
+    }),
+  );
 }
 
 function scheduleReconnect() {

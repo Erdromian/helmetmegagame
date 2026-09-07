@@ -7,6 +7,8 @@ import DocumentMarkdown from "../../components/DocumentMarkdown";
 import ChipText from "../../components/ChipText";
 import { getDocumentHeadings } from "@/lib/documentHeadings";
 import TagCatalogTab from "./TagCatalogTab";
+import RecipesTab from "./RecipesTab";
+import { recipeRows } from "@/lib/recipeCatalog";
 
 // One card in the pinned board. Collapsed it shows its title, its source and
 // a few lines of the text bleeding out under a fade; clicking opens the full
@@ -157,6 +159,7 @@ export default function DocumentsBoard({
   allDocs = [],
   tagCatalog = [],
   hasCharacter,
+  mySkillIds = null,
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -234,8 +237,14 @@ export default function DocumentsBoard({
     setQuery("");
   };
 
-  // "tags" isn't a key in listsByTab — its rows aren't doc-shaped, so this
-  // whole search/sort/board machinery is skipped for it below.
+  // The Recipes tab is a second reading of the catalog the Tags tab already
+  // has — no extra query, no second payload. Counted here so the tab button can
+  // carry the number and stay hidden when there is nothing to show.
+  const recipeCount = useMemo(() => recipeRows(tagCatalog).length, [tagCatalog]);
+
+  // "tags" and "recipes" aren't keys in listsByTab — their rows aren't
+  // doc-shaped, so this whole search/sort/board machinery is skipped for them
+  // below.
   const activeList = listsByTab[tab] ?? [];
   const { pinned, rest } = applyFilters(activeList, query, sortMode);
   const totalCount = activeList.length;
@@ -328,10 +337,22 @@ export default function DocumentsBoard({
             Tags ({tagCatalog.length})
           </button>
         )}
+        {recipeCount > 0 && (
+          <button
+            type="button"
+            className="tab-item"
+            data-active={tab === "recipes"}
+            onClick={() => switchTab("recipes")}
+          >
+            Recipes ({recipeCount})
+          </button>
+        )}
       </div>
 
       {tab === "tags" ? (
         <TagCatalogTab tags={tagCatalog} />
+      ) : tab === "recipes" ? (
+        <RecipesTab tags={tagCatalog} mySkillIds={mySkillIds} />
       ) : (
         <>
           {totalCount > 0 && (

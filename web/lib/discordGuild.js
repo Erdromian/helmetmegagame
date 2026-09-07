@@ -82,9 +82,12 @@ export const getLocationChannelIds = cache(async () => {
 function ttlCache(ttlMs) {
   const store = new Map();
   return {
-    get(key) {
+    // maxAgeMs, when given, is a tighter bound than the TTL: a caller that
+    // has to see a role handed out in Discord a moment ago passes a small one.
+    get(key, maxAgeMs) {
       const entry = store.get(key);
       if (!entry || entry.expiresAt <= Date.now()) return undefined;
+      if (maxAgeMs != null && Date.now() - entry.fetchedAt > maxAgeMs) return undefined;
       return entry.value;
     },
     // getStale: only for the failure path — serving a stale value beats both
@@ -94,7 +97,7 @@ function ttlCache(ttlMs) {
       return entry ? entry.value : undefined;
     },
     set(key, value) {
-      store.set(key, { value, expiresAt: Date.now() + ttlMs });
+      store.set(key, { value, expiresAt: Date.now() + ttlMs, fetchedAt: Date.now() });
     },
     delete(key) {
       store.delete(key);
@@ -129,8 +132,13 @@ async function fetchGuildMember(discordUserId) {
   return discordRequest(`/guilds/${guildId}/members/${discordUserId}`, { allow404: true });
 }
 
-export const getGuildMember = cache(async (discordUserId) => {
-  const cached = memberCache.get(discordUserId);
+// maxAgeMs: accept a cached member only this fresh (0 = always refetch). A
+// number rather than an options object so React's cache() still memoizes the
+// call per request. The character page's no-character branch and the creation
+// gates use it — a Playtest or Player role granted in Discord a moment ago has
+// to be visible there, and five minutes of "no Skip button" reads as a bug.
+export const getGuildMember = cache(async (discordUserId, maxAgeMs) => {
+  const cached = memberCache.get(discordUserId, maxAgeMs);
   if (cached !== undefined) return cached;
 
   try {
@@ -507,10 +515,13 @@ export async function killCharacter(character, reason = null) {
 
 // Applies the `»` prefix and logs the DM so /gm/messages keeps the full
 // conversation. postDmBatched splits anything over Discord's 2000-char limit;
-// `opts.components` is an optional action row, placed on the LAST chunk.
+// `opts.components` is an optional action row and `opts.embeds` an optional
+// list of embed objects; both land on the LAST chunk. A caller sending an
+// embed should also pass `meta: { embed: true }`, which is what keeps it out
+// of the GM conversation view (web/lib/dmThread.js).
 export async function sendDm(discordUserId, content, opts = {}) {
   const formatted = `» ${content}`;
-  const message = await postDmBatched(discordUserId, formatted, opts.components);
+  const message = await postDmBatched(discordUserId, formatted, { components: opts.components, embeds: opts.embeds });
   await prisma.directMessage
     .create({
       data: {

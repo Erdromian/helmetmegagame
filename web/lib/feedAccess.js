@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@lifeweb/db";
 import { placesFor as placesForCharacter, findPlace, mayReadPlace, mayWritePlace } from "@lifeweb/db/lib/feedAccess";
-import { feedWipeFloor, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
+import { feedWipeFloors, placeSeqWhere } from "@lifeweb/db/lib/feedWipe";
 import { getGmSession } from "@/lib/discordGuild";
 
 // The web's half of the feed gate. The rules live in db/lib/feedAccess.js,
@@ -23,17 +23,18 @@ export async function placesFor(client, character, options) {
 
   const newest = new Map();
   try {
-    // Above the Dawn watermark only (db/lib/feedWipe.js). That is what makes
-    // the unread dots reset with the wipe on their own: after it there is no
-    // newest seq in a place until somebody speaks there again, so nothing is
-    // left for the browser's `hall:seen:<placeKey>` to be behind.
-    const floor = await feedWipeFloor(client);
+    // Above each place's own watermark (db/lib/feedWipe.js). That is what
+    // makes the unread dots reset with the wipe on their own: after it there is
+    // no newest seq in a place until somebody speaks there again, so nothing is
+    // left for the browser's `hall:seen:<placeKey>` to be behind. The list
+    // mixes zone summaries with Locations and Rooms, and those two clear on
+    // different days now, so the floors have to be applied per place.
+    const floors = await feedWipeFloors(client);
     const grouped = await client.archiveEntry.groupBy({
       by: ["placeKey"],
       where: {
-        placeKey: { in: places.map((entry) => entry.placeKey) },
+        ...placeSeqWhere(floors, places.map((entry) => entry.placeKey)),
         deletedAt: null,
-        seq: seqFilterAbove(floor),
       },
       _max: { seq: true },
     });
@@ -66,7 +67,7 @@ export async function loadFeedCharacter(discordUserId) {
       // The chip in the places column (docs/systemdocs/HALL.md §6).
       webOnly: true,
       location: {
-        select: { id: true, name: true, description: true, zone: { select: { id: true, name: true } } },
+        select: { id: true, name: true, description: true, indoors: true, zone: { select: { id: true, name: true, description: true } } },
       },
     },
   });

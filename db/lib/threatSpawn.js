@@ -122,7 +122,7 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
       location: { include: { zone: true } },
     },
   });
-  if (!spawn) return { ok: false, reason: "That offer's gone. ‡" };
+  if (!spawn) return { ok: false, reason: "That offer's gone." };
   if (spawn.discordUserId !== discordUserId) return { ok: false, reason: "That's not yours to answer. ‡" };
   if (spawn.status !== "PENDING") return { ok: false, reason: "That offer has already been answered. ‡" };
 
@@ -253,7 +253,7 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
 
 async function declineThreatSpawn(prisma, spawnId, discordUserId) {
   const spawn = await prisma.threatSpawn.findUnique({ where: { id: spawnId } });
-  if (!spawn) return { ok: false, reason: "That offer's gone. ‡" };
+  if (!spawn) return { ok: false, reason: "That offer's gone." };
   if (spawn.discordUserId !== discordUserId) return { ok: false, reason: "That's not yours to answer. ‡" };
   if (spawn.status !== "PENDING") return { ok: false, reason: "That offer has already been answered. ‡" };
 

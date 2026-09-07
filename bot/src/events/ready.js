@@ -175,7 +175,7 @@ module.exports = {
     };
     // Midnight Chicago time, once a day — one turn per real day. The
     // staged-arbitration push rides the turn advance, and midnight is the hour
-    // fewest players are mid-scene when the Dawn wipe runs. There used to be a
+    // fewest players are mid-scene when the message wipe runs. There used to be a
     // second job at noon; a turn was half a day then. db/lib/turnClock.js
     // derives every deadline from this same boundary, so the two must agree.
     cron.schedule("0 0 * * *", runAdvanceTurn, { timezone: "America/Chicago" });

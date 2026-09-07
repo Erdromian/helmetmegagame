@@ -134,12 +134,16 @@ Up to **150 lb** of held goods, plus a line the packer types, become one runtime
 
 **The crate weighs half what went in**, rounded up, floor of 1. Depot shipments
 now use the same arithmetic — `CRATE_WEIGHT_LBS = 15` is gone, and a crate of
-obols no longer outweighs the obols.
+obols no longer outweighs the obols. `PACKAGE_MAX_LBS` is shared with them too:
+a Depot shipment packs itself to the same 150 lb ceiling this button enforces
+(`DEPOT.md` §0e), so the two kinds of crate agree on the cap as well as on the
+halving.
 
 **Unpacking needed no new code.** The crate is an ordinary `consumable` whose
 `consumesInto` lists its contents, repeated per unit, so the Consume button
-already on the sheet opens it. That matters: the Depot's own `openCrate` lives
-on `/depot`, which a Banneret in the Marshes cannot reach.
+already on the sheet opens it. A Depot crate is opened the same way now
+(`DEPOT.md` §0e), though it takes its own road out of the consume path, since
+what falls out of one is a list of runtime tag IDs rather than catalog slugs.
 
 A crate cannot go inside a crate. Halving twice is a free carry exploit, and it
 would nest a `consumesInto` chain arbitrarily deep. Refused on both faces.
@@ -159,8 +163,8 @@ cargo — it gets handed over, carted and stolen — so returning the contents t
 the packer would be a way to rob the person you sold it to, and restoring them
 alongside an already-unpacked crate would mint 150 lb of goods out of nothing.
 
-**Packaging Equipment is `tradeable: false`.** `removable: false` only blocks
-the Destroy menu; while it was tradeable, anyone with a Factory Key could carry
+**Packaging Equipment is `tradeable: false`.** Its `removable: false` opt-out
+(`CRAFTING.md` §5) only blocks the Destroy menu; while it was tradeable, anyone with a Factory Key could carry
 the bench off or tip it into the Spillway, and there are exactly two in the
 world with no recipe to make a third.
 
@@ -169,20 +173,20 @@ world with no recipe to make a third.
 **A cube weighs 17 lb; a crated cube weighs 8.5.** (It was 20/10 until
 2026-09-06, Bascinet's call. A catalog-wide 30% cut the same day took it to
 12 by accident and was reverted — `CARRY.md` §1a. What did stick from that
-day is the **base carry cap: 84 lb, down from 120**.) Working back from the
-target: 5 turns of production is ~2.5 producing turns, 3 refugees × 8 cubes ×
-2.5 = 60 cubes, and a Banneret with Horse + Cart carries 84 × (1 + 4) =
-420 lb. 60 cubes is 1020 lb raw, 510 crated — so a wagon **no longer clears a
-five-turn run in one trip**. It takes about 49 cubes, four turns' worth; the
-rest waits in the Logistics Room for the next wagon.
+day is the **base carry cap: 71 lb, down from 120 via 84**.) Working back from
+the target: 5 turns of production is ~2.5 producing turns, 3 refugees × 8 cubes
+× 2.5 = 60 cubes, and a Banneret with Horse + Cart carries 71 × (1 + 4) =
+355 lb. 60 cubes is 1020 lb raw, 510 crated — so a wagon **no longer clears a
+five-turn run in one trip**. It takes about 41 cubes, a bit over three turns'
+worth; the rest waits in the Logistics Room for the next wagon.
 
 Through the crate cap: 150 lb packs **8** cubes into a 68 lb crate, and
-420/68 ≈ 6.2 crates ≈ 49 cubes.
+355/68 ≈ 5.2 crates ≈ 41 cubes.
 
-A refugee's 8-cube day is 136 lb against an 84 lb cap and a 126 lb ceiling,
+A refugee's 8-cube day is 136 lb against a 71 lb cap and a 106 lb ceiling,
 so they cannot even hold their own output, let alone walk it anywhere: past
 the ceiling the overflow drop fires on the *intended* loop every day. **4**
-cubes (68 lb) fit under the cap; **7** (119 lb) fit under the ceiling,
+cubes (68 lb) fit under the cap; **6** (102 lb) fit under the ceiling,
 Overburdened. They stash the rest in the Logistics Room and the carry pass
 handles the overflow. The cart and the silo are the business; that is
 deliberate, not an oversight.
@@ -228,10 +232,12 @@ check at all before this, only the global `tupperAutocorrectEnabled` flag.
 ## 8. Moonshine, and going blind
 
 `brewing-basic`, **0 ⬢**, and `requirement.items: [godflesh]` — the marsh gives
-you the ingredient. Holding the Godflesh is the check and it is not consumed,
-the same as every other enforced recipe (`BREWING.md` §1). That is safe here:
-Moonshine sells for 3 ⬢ against farming's 11–15, so it is not an income tap, and
-the Routine it costs is the throttle.
+you the ingredient. **One Godflesh per bottle, and it is used up**, like every
+other spent ingredient (`BREWING.md` §4). It used to be a hold-check, which
+made the still a strictly better use of a haul than the Factory; spending it
+puts the two in honest competition. The rest of the throttle stands: Moonshine
+sells for 3 ⬢ against farming's 11–15, so it is not an income tap, and the
+Routine it costs is a Routine either way.
 
 Drinking it grants Tipsy, **Blind Drunk** (2 turns, blocks Examine with no
 corrective) and one **Damaged Vision**, which is permanent and stacks.
@@ -277,7 +283,7 @@ written, so nothing can be fished back out.
 through the same seam:** `db/lib/roomStash.js#pickRandomPublicRoom`, which the
 carry pass and corpse placement use to shed overflow. A destroying room is never
 eligible. That is not a nicety — a refining shift makes 136 lb of Squeeze
-against an 84 lb cap, so the overflow drop fires on the *intended* loop every
+against a 71 lb cap, so the overflow drop fires on the *intended* loop every
 day, and one of the Factory's three public rooms is the trough. Tipping
 something in has to stay a thing you do on purpose.
 

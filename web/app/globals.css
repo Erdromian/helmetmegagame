@@ -1031,6 +1031,53 @@ input[type="radio"]:disabled {
   cursor: not-allowed;
 }
 
+/* Touch. The painted box stays 16px — the tick above is drawn to that size —
+   so the LABEL is what grows to the 44px floor the rest of the stylesheet
+   keeps (.equip-slot). That is only restating what this section already
+   claims: the label is the hit target. Coarse pointers only, so no desktop
+   row moves.
+
+   touch-action matters as much as the height. Without it iOS holds every tap
+   back waiting to see whether a second one is coming, which both delays the
+   first tap and lets a quick second tap disappear into a zoom gesture — two
+   phone players reported exactly that. The :active border is the other half:
+   a tap that lands says so at once, rather than after a 400ms save. */
+@media (pointer: coarse) {
+  .check-row,
+  .switch-row {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  .check-row:active input[type="checkbox"]:not(:disabled) {
+    border-color: var(--accent-text);
+  }
+}
+
+/* A checkbox with no sentence beside it — the tag catalog's select box sits
+   inline among chips — has no label to grow, so the label is an empty wrapper
+   whose only job is to be the hit area. It grows only on touch, and only
+   outward: no negative margin, because a hit area reaching over the row above
+   is the mis-tap this is trying to stop. */
+.check-hit {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .check-hit {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    touch-action: manipulation;
+  }
+
+  .check-hit:active input[type="checkbox"]:not(:disabled) {
+    border-color: var(--accent-text);
+  }
+}
+
 /* --- The archive transcript (docs/systemdocs/ARCHIVE.md §5) ----------------
    Dense on purpose: one line per thing said, the audit log's grid at the
    audit log's sizes. Day headers stick; system rows fold. */
@@ -1185,6 +1232,21 @@ input[type="radio"]:disabled {
 
 .priority-row .chip-high[data-active] {
   font-weight: 700;
+}
+
+/* Four chips in a row is the densest thing a player taps on a phone, and a
+   near-miss here lands on the neighbouring level. Same floor, same reasoning
+   as .check-row above. */
+@media (pointer: coarse) {
+  .priority-row .chip {
+    min-height: 44px;
+    padding-inline: var(--sp-3);
+    touch-action: manipulation;
+  }
+
+  .priority-row .chip:active {
+    border-color: var(--accent);
+  }
 }
 
 /* The ready card's dot: hollow until readied, filled positive after. */
@@ -4643,7 +4705,7 @@ label.chip {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr) 17rem;
+  grid-template-columns: 15rem minmax(0, 1fr) 20rem;
 }
 
 .hall-body--empty {
@@ -4673,11 +4735,10 @@ label.chip {
   padding: var(--sp-3);
 }
 
-/* The "Playing from the web" chip at the top of the places column. The column
-   itself has no side padding (its rows draw their own), so the chip supplies
-   its own and sits inline rather than stretching the full width. */
+/* The "Playing from the web" chip, in the foot beside the chime toggle. The
+   foot is a flex row and carries the padding now, so the chip carries none. */
 .hall-webonly {
-  margin: 0 var(--sp-3) var(--sp-2);
+  margin: 0;
 }
 
 /* The centre is itself a column: the phone's tab strip, then the scene. */
@@ -4762,15 +4823,13 @@ label.chip {
 }
 
 .hall-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-4);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-}
-
-.hall-blurb {
-  font-size: var(--fs-sm);
-  color: var(--muted);
-  margin-top: 2px;
 }
 
 .hall-quiet {
@@ -4789,6 +4848,217 @@ label.chip {
 .hall-row {
   display: flex;
   gap: var(--sp-3);
+  /* The row is the positioning context for the action bar that floats at its
+     top-right. */
+  position: relative;
+  /* A line does not blink into existence, it arrives. 80ms is under the
+     threshold where it reads as an animation at all — it just stops the
+     jump. */
+  animation: hall-row-in 80ms ease-out;
+}
+
+@keyframes hall-row-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hall-row {
+    animation: none;
+  }
+}
+
+/* The row action bar: Change, Take back, Look at, Photograph, Remove.
+   It FLOATS at the row's top-right the way Discord's does, so appearing on
+   hover never reflows the words underneath it — the earlier inline version
+   pushed the sentence left every time the mouse crossed the row. Lifted
+   slightly above the row so it reads as belonging to the line it is over
+   rather than to the line above it. */
+.hall-row-actions {
+  position: absolute;
+  right: var(--sp-2);
+  top: -10px;
+  z-index: 1;
+  display: flex;
+  gap: var(--sp-1);
+  padding: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+/* Discord's red line: everything below it arrived since you last had this
+   place open. A rule with its label at the right-hand end, where the eye
+   leaves the row above it. */
+.hall-new-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: var(--sp-3) 0 var(--sp-1);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.08em;
+  color: var(--danger);
+}
+
+.hall-new-line::before {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--danger);
+}
+
+/* A row a search hit took the reader to. A flash and then nothing: the point
+   is to say WHICH line, not to leave it marked. */
+.hall-row[data-hit="true"],
+.hall-subtext[data-hit="true"] {
+  animation: hall-hit 2s ease-out;
+  border-radius: var(--r-sm);
+}
+
+@keyframes hall-hit {
+  from {
+    background: var(--accent-soft);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hall-row[data-hit="true"],
+  .hall-subtext[data-hit="true"] {
+    animation: none;
+    background: var(--accent-soft);
+  }
+}
+
+/* While a place's backlog is on the wire. Three faded rows in the shape of
+   the scene, so nothing has to claim the place is empty and then take it
+   back a frame later. No text in them at all — a skeleton that says words
+   is a skeleton somebody tries to read. */
+.hall-skeleton {
+  display: flex;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  opacity: 0.5;
+}
+
+.hall-skeleton-face {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--row-hover);
+}
+
+.hall-skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  flex: 1;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.hall-skeleton-bar {
+  height: 8px;
+  border-radius: var(--r-sm);
+  background: var(--row-hover);
+}
+
+.hall-skeleton-bar[data-w="short"] {
+  width: 30%;
+}
+
+/* Search, under the feed header. A bar rather than a dialog: the results are
+   places to go in the scene behind them, and a modal would cover the thing
+   being searched. */
+.hall-search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+  flex-shrink: 0;
+}
+
+.hall-search-results {
+  max-height: 16rem;
+  overflow-y: auto;
+  margin: 0;
+}
+
+.hall-search-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--sp-2);
+  border-radius: var(--r-sm);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.hall-search-row:hover,
+.hall-search-row:focus-visible {
+  background: var(--row-hover);
+}
+
+.hall-search-who {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  margin-right: var(--sp-2);
+}
+
+.hall-search-where,
+.hall-search-when {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  margin-right: var(--sp-2);
+}
+
+.hall-search-snip {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+/* The noticeboard, nailed to the top of the Location's feed. Paper-coloured
+   and edged, so it reads as a thing standing in the street rather than as
+   something somebody said in it. */
+/* The noticeboard is a thing NAILED UP, so it stays nailed up: it sticks to
+   the top of the scroller rather than being the first thing you scroll past.
+   A busy street is fifty lines deep by mid-afternoon, and a notice you can
+   only find by scrolling back to the beginning of the day is not a notice.
+   The opaque background and the rule under it are what keep the scene from
+   showing through as it passes beneath. */
+.hall-notices {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-bottom: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+
+.hall-notice-card {
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.hall-notice-card-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  margin-bottom: var(--sp-1);
 }
 
 /* What the WORLD says: an arrival, a smell, a turret, the turn line. The web
@@ -4816,8 +5086,10 @@ label.chip {
 
 /* ---- The right column: who is here, the place, and you ---- */
 
+.hall-card,
 .hall-here,
-.hall-place-panel,
+.hall-room,
+.hall-travel,
 .hall-you {
   padding-bottom: var(--sp-3);
   margin-bottom: var(--sp-3);
@@ -4857,11 +5129,6 @@ label.chip {
   outline-offset: -2px;
 }
 
-/* A hood is not a person you can act on, so its row is not a button. */
-.hall-person--hooded {
-  cursor: default;
-}
-
 .hall-person-name {
   flex: 1;
   min-width: 0;
@@ -4886,6 +5153,139 @@ label.chip {
   box-shadow: var(--e-3);
 }
 
+/* A person's row is the name button plus the eye that looks at them. A
+   button inside a button is not markup, so the eye sits beside it and the
+   name takes the slack. */
+.hall-person-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.hall-person-row .hall-person {
+  flex: 1;
+  min-width: 0;
+}
+
+.hall-person-eye {
+  flex-shrink: 0;
+  display: flex;
+}
+
+/* ---- The place card: where you are, in words ---- */
+
+/* The description is as long as whoever wrote the Location made it, and the
+   column has four more sections under it. It scrolls inside itself rather
+   than pushing Travel off the bottom of the screen. */
+.hall-card-text {
+  max-height: 12rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0;
+}
+
+/* ---- Travel: the ways out, as a map of nodes ---- */
+
+.hall-nodes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-2);
+}
+
+.hall-node {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text);
+  overflow: hidden;
+}
+
+.hall-node:hover {
+  background: var(--surface-raised);
+}
+
+.hall-node:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+}
+
+/* A crossing leaves the zone you are standing in, which is the one thing on
+   a node worth seeing before you read it. A tint of the accent over the
+   surface, not a second token: the border carries the rest. */
+.hall-node[data-crossing="true"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+
+.hall-node[data-crossing="true"]:hover {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+}
+
+/* Shut, locked, or too tight for the horse. Still drawn: knowing the way is
+   there and shut is what sends you to find the winch. */
+.hall-node[data-dim="true"] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.hall-node[data-active="true"] {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+}
+
+.hall-node-name {
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hall-node-zone {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hall-node-foot {
+  margin-top: auto;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* The confirm is a strip under the grid, not a modal: you have already
+   pointed at where you are going, and a dialog would only cover it up. */
+.hall-travel-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+}
+
 .hall-quiet-line {
   font-size: var(--fs-xs);
   color: var(--muted);
@@ -4898,6 +5298,116 @@ label.chip {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-2);
+}
+
+/* ---- The YOU column: the turn card, the status strip, Yesterday ---- */
+
+/* A wrapping row of data chips: the turn and its countdown, ⬢ and carry, and
+   every Status/Health tag being worn. Not .chip-row — that one is a MULTI-
+   select control, and none of these is pressable. */
+.hall-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+
+/* The one bad-news tone, scoped to this column so it cannot leak into the
+   chips the rest of the app draws: Overburdened, Dying, Catatonic, and a
+   carry line over its cap. */
+.hall-chips .chip[data-tone="danger"] {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.hall-move {
+  margin-bottom: var(--sp-3);
+}
+
+.hall-move-filed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* The filed Move, three lines of it. A Move can be a paragraph and the column
+   is not where the whole of one belongs, so it clamps until it is clicked. */
+.hall-move-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  text-align: left;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--text);
+  font-size: var(--fs-sm);
+  white-space: pre-wrap;
+  cursor: pointer;
+}
+
+.hall-move-text[data-open="true"] {
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  overflow: visible;
+}
+
+.hall-desires {
+  margin-bottom: var(--sp-3);
+}
+
+.hall-desire-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  padding: var(--sp-2) 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Yesterday: closed by default, and the chevron is the only thing saying so. */
+.hall-details {
+  margin: var(--sp-3) 0;
+}
+
+.hall-details-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.hall-details-summary svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 120ms ease-out;
+}
+
+.hall-details-summary svg[data-open="true"] {
+  transform: rotate(180deg);
+}
+
+.hall-details-body {
+  margin-top: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.hall-yesterday-row {
+  font-size: var(--fs-sm);
+  padding-left: var(--sp-2);
+  border-left: 1px solid var(--border);
 }
 
 .hall-notice-row,
@@ -4917,15 +5427,6 @@ label.chip {
 
 .hall-waiting {
   margin-top: var(--sp-3);
-}
-
-/* A notice is a thing with edges, and nothing written on it may render as
-   markup. */
-.hall-notice-text {
-  white-space: pre-wrap;
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  overflow-x: auto;
 }
 
 /* The phone's people strip: faces only, under the place header. Hidden on a
@@ -4987,7 +5488,11 @@ label.chip {
     display: flex;
   }
 
-  /* The ⚡ sheet: the right column, come up from the bottom over the scene.
+  .hall-sheet-trigger {
+    display: inline-flex;
+  }
+
+  /* The ⋯ sheet: the right column, come up from the bottom over the scene.
      A dialog rather than a drawer of its own, so it keeps Escape, the focus
      trap and the backdrop that Modal already owns. */
   .hall-sheet {
@@ -5088,11 +5593,154 @@ label.chip {
   flex: 1;
 }
 
-/* The mute toggle at the foot of the places column. Quiet on purpose — it is
-   a preference, not a place. */
+/* ---- The composer's slash commands ---- */
+
+/* A command in the box, as a chip above the text it is taking. Accent-tinted
+   and mono, so it reads as a mode the box is IN rather than as something that
+   was typed into it — which is the whole tell that the slash parsed. */
+.hall-cmd-chip {
+  align-self: flex-start;
+  padding: 2px var(--sp-2);
+  font-size: var(--fs-2xs);
+  /* --accent-text for the letters, --accent for the rule. They are different
+     colours on purpose (the header of this file, rule 2). */
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-sm);
+}
+
+/* A row of the `/` popover: the name, then what it does. The name is fixed
+   width so the descriptions line up — a ragged left edge on a ten-row list is
+   harder to scan than the extra space costs. */
+.hall-cmd-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.hall-cmd-name {
+  flex-shrink: 0;
+  min-width: 5rem;
+  color: var(--accent-text);
+}
+
+/* ---- Who is in this conversation or private room ---- */
+
+/* Under the feed's name, above the scene. It wraps: a conversation with a
+   dozen people in it is a real thing, and the strip growing a line is better
+   than it scrolling sideways away from the Add button. */
+.hall-members {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.hall-member {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  max-width: 14rem;
+}
+
+/* The picker under the strip, so the people already in and the people who
+   could be are not one undifferentiated row of chips. */
+.hall-member-picker {
+  padding-top: var(--sp-1);
+  border-top: 1px dashed var(--border);
+}
+
+/* Slowmode, counted down rather than refused. Quiet: it is the answer to a
+   question nobody asked yet. */
+.hall-countdown {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  white-space: nowrap;
+  padding-bottom: var(--sp-2);
+  flex-shrink: 0;
+}
+
+/* Pressing Enter inside the hold. The box stays typeable, so the chip is what
+   answers — it flinches once rather than the keystroke doing nothing at all. */
+.hall-countdown[data-nudge="true"] {
+  animation: hall-nudge 0.4s ease-out;
+}
+
+@keyframes hall-nudge {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  40% {
+    transform: scale(1.35);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hall-countdown[data-nudge="true"] {
+    animation: none;
+  }
+}
+
+/* THINGS: the pockets drawer under YOU. The chips are pressable — each one
+   opens the menu of what you can do with that item — so they take a pointer
+   the status strip's chips do not. */
+.hall-things .chip {
+  cursor: pointer;
+}
+
+/* A chip is the button its menu hangs off. */
+.hall-thing-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Paperwork and the hood, at the composer's right edge. */
+.hall-composer-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+/* The ✉ menu opens UPWARD: the composer sits at the foot of the scene, and
+   downward there is nothing but the edge of the window. */
+.hall-tool-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.hall-tool-wrap .hall-menu {
+  top: auto;
+  bottom: 100%;
+  margin-bottom: var(--sp-1);
+}
+
+/* The phone's way into the right column. On a desktop the column is already
+   there, so the button is not — hidden by the default and shown by the same
+   media query that hides .hall-aside. */
+.hall-sheet-trigger {
+  display: none;
+}
+
+/* The foot of the places column: the chime toggle and the web-only chip. The
+   column's rows draw their own side padding and the column has none, so the
+   foot supplies its own or the button clips against the border. */
 .hall-places-foot {
   margin-top: auto;
-  padding-top: var(--sp-3);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-3) 0;
   font-size: var(--fs-2xs);
 }
 

@@ -342,7 +342,11 @@ blocks: **Behaviour** (`stackable`, `equippable`, `concealsIdentity`,
 `expiresInto`, `removesInto`), **Economy** (`pointCost`, `purchasable`,
 `purchasableAfterStart`, `sellable`, `sellablePrice`) and **Requirement**
 (`requirementTurns`, `requirementResources`, `requirementGambit`,
-`requirementSkills`). The edit dialog opens that disclosure, since a GM there
+`requirementSkills`). `removable` is editable here like the rest, but on a
+CATALOG tag the next `db:sync-tags` derives it back from the category
+(`CRAFTING.md` §5) — the checkbox is for custom rows, which no sync sees.
+
+The edit dialog opens that disclosure, since a GM there
 came to change a field; the quick door leaves it shut.
 
 Group is still offered only when the caller's tag rows carry a group id —
@@ -530,8 +534,6 @@ Lifeweb blood override) or the Turn section (next-turn overrides).
 
 | Knob | Does |
 |---|---|
-| `autoReconcileEnabled` | Run the channel doctor's cheap reconcile after every turn advance. It always runs on bot restart regardless |
-| `desiresEnabled` | Let players set a NEW Desire, in any slot, on `/character`. Off greys that form with "Temporarily disabled." An already-ACTIVE Desire in any slot can still be fulfilled or cancelled, and GMs are unaffected — `setDesireGm`/`endDesireGm` on this panel bypass every catalog gate regardless (`DESIRES.md` §6, `REQUESTS.md` §5) |
 | `desireSlots` | How many Desires a character may hold ACTIVE at once, one per slot (default 2). Each slot sets/cancels/fulfils independently (`DESIRES.md` §1) |
 | `maxDrawbackTags` | Character-creation cap on the COUNT of drawback tags a player may point-buy (default 6) — not their combined point value. A GM grant bypasses it, same as every other creation gate (`TAGS.md` §4a) |
 | `maxDrawbackPoints` | The other half of the same ceiling: how many points those drawbacks may claim back in total, as a positive magnitude (default 13). A build stops at whichever cap it reaches first (`TAGS.md` §4a) |

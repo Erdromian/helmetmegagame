@@ -166,9 +166,11 @@ enum TagSource {
   LESSON
   // Made through the Craft flow (docs/systemdocs/CRAFTING.md).
   CRAFT
-  // A mood sustained by where the character stands, written only by
-  // db/lib/phobias.js — owned and cleared by that settle, never granted by
-  // a person.
+  // A status the game derives from hidden state rather than a person
+  // granting it — today the fear band tags (Uncomfortable … Panic), written
+  // only by db/lib/fear.js#settleFearTag, which owns and clears them. A GM
+  // grant of the same slug is never CONDITION, which is how the settle tells
+  // its own row from a person's and leaves the latter alone.
   CONDITION
 }
 
@@ -220,27 +222,34 @@ model GameConfig {
   id                  Int @id @default(1)
   lifewebDecayPerTurn Int @default(10)
 
-  // Gates the whole Dawn message-wipe system (db/lib/dawnWipe.js) — off by
-  // default so nothing gets swept until a GM explicitly opts in from the
-  // Dev Panel.
-  messageWipeEnabled Boolean @default(false)
+  // The one fear knob (docs/systemdocs/FEAR.md): every gain is multiplied by
+  // it, every relief and the nightly decay divided by it. 1 is the tuning as
+  // written; 0 switches the system off and the next turn close empties every
+  // dial. Live on /gm/dev.
+  fearIntensity Float @default(1)
+
+  // The message wipe (db/lib/messageWipe.js). NOT a GM knob any more — the
+  // wipe is how the game works, so it is on and it stays on. The column
+  // survives as a hand-flippable escape hatch: set it false straight in the
+  // database if Discord ever starts rate-limiting the sweep.
+  messageWipeEnabled Boolean @default(true)
 
   // The web half of the same wipe (docs/systemdocs/HALL.md §7). Discord loses
   // its messages; the Hall keeps its rows and reads past them instead — every
-  // feed query filters `seq > feedWipeSeq` while messageWipeEnabled is on.
-  // Set by db/lib/feedWipe.js#markFeedWiped as the Dawn pass begins.
-  feedWipeSeq BigInt @default(0)
+  // feed query filters `seq > <floor>` while messageWipeEnabled is on.
+  //
+  // TWO watermarks, because the wipe has two cadences. `feedWipeSeq` moves on
+  // every turn and floors loc:/room:/conv: places; `feedWipeSummarySeq` moves
+  // only on a Dawn and floors zone: places, matching what the Discord sweep
+  // actually clears. Both set by db/lib/feedWipe.js#markFeedWiped as the pass
+  // begins.
+  feedWipeSeq        BigInt @default(0)
+  feedWipeSummarySeq BigInt @default(0)
 
   // How long a character waits between two walks from one Location to
   // another inside the same zone (db/lib/locationTravel.js). Edited on
   // /gm/dev. Crossing into another zone is gated by the Move, not by this.
   locationMoveCooldownSeconds Int @default(60)
-
-  // How long a character waits between two flips of the "web only" switch
-  // (db/lib/webOnly.js). Each flip is a burst of Discord writes — every
-  // overwrite, every role, every thread — so the cooldown is hours, not
-  // seconds. Two by default.
-  webOnlyCooldownSeconds Int @default(7200)
 
   // Capitalizes the first letter of each sentence in Tupper-proxied messages
   // before they're reposted (bot/src/lib/textCorrection.js) — on by default,
@@ -344,7 +353,7 @@ model GameConfig {
   // arrives anyway — everyone falls through to their letter plaque (see
   // "Character proxying" in CLAUDE.md). Existing Character.avatarData is
   // untouched either way; this only gates new uploads. Deliberately off by
-  // default, same posture as messageWipeEnabled.
+  // default.
   avatarUploadsEnabled Boolean @default(false)
 
   // Master switch for the in-app portrait maker (docs/systemdocs/PORTRAITS.md).
@@ -377,7 +386,7 @@ model GameConfig {
   // allowed up to 1.5× (carry.js HARD_CAP_RATIO); past that the goods cannot
   // enter the sheet at all. Assets — a horse, a cart, a house — are exempt
   // from the weight load entirely. Live on /gm/dev.
-  carryWeightLbs   Int @default(84)
+  carryWeightLbs   Int @default(71)
   carryResourceCap Int @default(25)
 
   // Free zone crossings per character per turn, before a crossing starts
@@ -431,21 +440,21 @@ model GameConfig {
   // makes a role in the YAML unpickable.
   playerCount Int @default(80)
 
-  // The narrowcast channels (#cerberon, #intercom) live under a
-  // shared Discord "radio" category — see db/lib/specialChannels.js.
-  // Provisioned once by npm run db:sync-narrowcast-channels; never touched
-  // again after that.
+  // The narrowcast channel (#cerberon) lives under a shared Discord "radio"
+  // category — see db/lib/specialChannels.js. Provisioned once by
+  // npm run db:sync-narrowcast-channels; never touched again after that.
+  // #intercom used to be the second one; it is a button on the Council Room
+  // table now, so its column is gone with it.
   radioCategoryId   String?
   cerberonChannelId String?
-  intercomChannelId String?
 
   // The Catatonic (AFK) pass (db/lib/catatonicPass.js): any ALIVE character
   // with no player-filed Action and no in-character speech for
   // catatonicTurns turns straight is flagged; the flag lifts the moment they
   // act or speak again. On by default — this doesn't delete anything, it
-  // just marks the sheet for a GM to see.
-  catatonicEnabled Boolean @default(true)
-  catatonicTurns   Int     @default(4)
+  // just marks the sheet for a GM to see, and it always runs — the turn
+  // count below is the dial, not an on/off switch.
+  catatonicTurns Int @default(4)
 
   // Consecutive turns holding `catatonic-afk` before
   // db/lib/catatonicDeathPass.js kills the character outright at turn close. This is the ONE thing in the
@@ -460,19 +469,6 @@ model GameConfig {
   // See docs/systemdocs/PAPERWORK.md.
   noticeExpiryTurns Int @default(10)
 
-  // Whether the bot runs the channel doctor's cheap reconciliation pass
-  // (db/lib/channelDoctor.js) automatically after every turn advance, on top
-  // of its pass at ready. Off by default.
-  autoReconcileEnabled Boolean @default(false)
-
-  // Master switch for players setting a NEW Desire on /character
-  // (docs/systemdocs/REQUESTS.md §5). Off greys the panel and shows
-  // "Temporarily disabled." in place of every slot, and blocks claimDesire
-  // server-side. GMs are unaffected: awardDesireGm/revokeDesireGm on the Dev
-  // Panel are host access, same split as the rest of the Discord permission
-  // model. On by default, since Desires are the only way Tag Points are
-  // earned in play.
-  desiresEnabled Boolean @default(true)
 }
 
 /// Where a game is in its life. The turn cron and the force-advance button
@@ -1126,7 +1122,7 @@ enum LinkAnnounce {
 }
 
 /// A thread under a Location's channel, sync-owned: the starter message is the
-/// room's description, the Dawn wipe empties the thread down to that starter,
+/// room's description, the message wipe empties the thread down to that starter,
 /// and nothing player-facing can create, delete or unwipe one. PUBLIC rooms
 /// are public threads; PRIVATE rooms are private threads whose membership is
 /// exactly "holds one of accessTagSlugs", reconciled by db/lib/roomAccess.js
@@ -1379,7 +1375,7 @@ model RoomGuest {
 }
 
 /// The outcome of a long-running operational pass that runs in after() or a
-/// side-effect thunk — Restart Game, the channel doctor, the Dawn wipe, a GM
+/// side-effect thunk — Restart Game, the channel doctor, the message wipe, a GM
 /// bulk move — where the UI has already returned "ok" long before the work
 /// finishes. The Dev Panel shows the latest report per kind instead of
 /// claiming a success it cannot know about. A row with finishedAt null is
@@ -1441,7 +1437,7 @@ model Character {
   // Denormalized mirror of formatCharacterName(...) above, same posture as
   // zoneId below. It exists because ~60 readers want a single string —
   // orderBy, `select: { name: true }`, the /gm/audit `contains` search, the
-  // proxy webhook username and the dawnWipe map key — and Prisma cannot
+  // proxy webhook username and the messageWipe map key — and Prisma cannot
   // concatenate columns in orderBy or contains, so dropping it would force
   // search and sort into OR-over-three-columns for correctness nobody sees.
   //
@@ -1592,15 +1588,19 @@ model Character {
   // every other terminal chain (tagExpiryPass.js).
   hungerStreak Int @default(0)
 
-  // Consecutive turn closes without a Fine/Lavish Meal — written only by
-  // db/lib/hungerPass.js, and only ever moved for characters holding
-  // `nobility` (everyone else stays at 0, so granting the tag mid-game
-  // starts the count fresh). At DISAPPOINTMENT_THRESHOLD the pass grants
-  // `disappointed` (flat −1 Gambit, gambitModifier.js); a fed turn resets
-  // the count to 0 outright — unlike hungerStreak there is no slow climb
-  // back down, one proper meal settles the matter. Eating also clears the
-  // tag on the spot (web/app/(app)/character/requestActions.js); the pass's
-  // reset is the backstop for GM-granted meals.
+  // The hidden fear dial, 0–100 (docs/systemdocs/FEAR.md). Nothing shows the
+  // number to a player; db/lib/fear.js projects the band it falls in onto one
+  // status tag (Uncomfortable … Panic, `source: CONDITION`). Moved by the
+  // world — wilderness, caves, wounds, hunger, a death nearby — and settled
+  // back by comfort, then decayed at every turn close by db/lib/fearPass.js.
+  // Float because GameConfig.fearIntensity divides. Editable on the Dev Panel.
+  fear Float @default(0)
+
+  // ORPHAN. The retired Disappointed track (Nobility upkeep) counted missed
+  // meals here until 2026-09-06; nothing reads or writes it now — a noble who
+  // skips dinner takes fear instead (db/lib/fearPass.js). Kept, like
+  // mindlinkChannelId, because this schema drops no columns; the values are
+  // stale history.
   missedMealStreak Int @default(0)
 
   // Turn number this character last acted or spoke in character — a
@@ -1665,7 +1665,8 @@ model Character {
   // the next pass would quietly put them back. The fiction is untouched: they
   // still stand there and still appear in Who's here.
   webOnly          Boolean   @default(false)
-  // Stamped on every flip, and the GameConfig.webOnlyCooldownSeconds clock.
+  // Stamped on every flip, and the WEB_ONLY_COOLDOWN_SECONDS clock in
+  // db/lib/webOnly.js.
   webOnlyChangedAt DateTime?
 
   // 18-90, or null until the player first sets one. Free to edit while null;
@@ -1713,7 +1714,6 @@ model Character {
   stagedMessageRecipients StagedMessageRecipient[]
   stagedEffects           StagedEffect[]
   cavingRolls             CavingRoll[]
-  gmNotes                 GmCharacterNote[]
   craftProjects           CraftProject[]
   roomGuestOf             RoomGuest[]
   noticePosts             NoticePost[]             @relation("NoticePostAuthor")
@@ -2235,14 +2235,16 @@ model Tag {
   escalatesInto String?
 
   // The four capability flags. Each one fills exactly one player menu and is
-  // re-checked server-side by the matching request; none is derived from the
-  // category (docs/systemdocs/TAGS.md §5). All four are explicit in
-  // docs/tags.yaml — the sync never infers one.
+  // re-checked server-side by the matching request (docs/systemdocs/TAGS.md
+  // §5). Three are explicit in docs/tags.yaml; `removable` is the one the
+  // sync derives.
   //
   // removable: the Destroy menu (web/lib/tagRequests.js#destroyableTags,
-  // REMOVE_TAG). Destroying refunds nothing — so a removable,
-  // purchasableAfterStart tag (the Beliefs group) costs its price again on
-  // every re-purchase.
+  // REMOVE_TAG). DERIVED by db/lib/syncTags.js from the category — Destroy is
+  // for things you own, so every Items and Assets tag has it and nothing else
+  // does, less a short opt-out list the YAML writes as `removable: false`.
+  // Runtime-minted rows (paperMint, corpseMint, the packed crate) set it by
+  // hand, since no sync ever sees them. Destroying refunds nothing.
   removable Boolean @default(false)
 
   // craftable: the Craft menu (docs/systemdocs/CRAFTING.md). A recipe also
@@ -2276,34 +2278,52 @@ model Tag {
   // requirementResources and needs requirementSkills held by the medic;
   // Craft (docs/systemdocs/CRAFTING.md) needs requirementSkills held by the
   // crafter, charges requirementResources up front, and spends
-  // requirementTurns Moves (0 = Dead Simple, no Move). requirementGambit is
-  // a cure-only flag: crafting is always a Routine.
+  // requirementTurns Moves of work per unit (0 = Dead Simple, no Move; the
+  // YAML's fractional `turnsCost: 1/N` stores as 1 here with N in
+  // requirementPerTurn below). requirementGambit is a cure-only flag:
+  // crafting is always a Routine.
   requirementTurns     Int?
   requirementResources Int?
   requirementGambit    Boolean @default(false)
 
-  // How many UNITS of this recipe one character may make in a turn. Only
-  // meaningful for a 0-turn recipe: anything costing a Move is already
-  // rationed to one by Action's unique constraint. Null falls back to
-  // DEAD_SIMPLE_PER_TURN (web/lib/requests.js), which is what every Dead
-  // Simple rung used before this was a field. See SMITHING.md §2.
+  // Two authoring concepts share this column, told apart by requirementTurns
+  // (CRAFTING.md §2). At 0 turns it is a RATION — the YAML's `perTurn:`, a
+  // hard daily cap below the Dead Simple pool; null falls back to
+  // DEAD_SIMPLE_PER_TURN (web/lib/tagRequests.js). At 1 turn it is the WORK
+  // DENOMINATOR the sync derives from `turnsCost: 1/N` — each unit is 1/N
+  // of a turn's work (web/lib/craftBudget.js), and null means a whole turn:
+  // one per Routine by arithmetic. Never authored directly on a Move-costing
+  // recipe (normalizeTurnsCost refuses it). A project (2+ turns) makes one
+  // unit, full stop.
   requirementPerTurn Int?
   requirementSkills  Tag[] @relation("TagRequirementSkill")
   requiredForSkillOf Tag[] @relation("TagRequirementSkill")
 
-  // The INGREDIENT half of a recipe, and the first of these ever enforced —
-  // BREWING.md's "no code enforces a recipe, least of all the ingredient" is
-  // no longer true of the two entries that carry this. Authored in
-  // docs/tags.yaml as `requirement.items`, normalized and validated by
+  // This recipe may be crafted as a CUSTOM item: +1 ⬢ a unit, and the player
+  // names and/or describes it. The craft then mints a runtime Tag row —
+  // custom+ephemeral, the paperMint.js door — cloning this tag's mechanics
+  // with the player's words on top, and grants that row instead. YAML
+  // `customizable: true` on the designated recipes only; the sync refuses it
+  // on anything not craftable+stackable, or carrying `placement`
+  // (db/lib/tagShapes.js). See CRAFTING.md.
+  customizable Boolean @default(false)
+
+  // The INGREDIENT half of a recipe — BREWING.md's "no code enforces a
+  // recipe, least of all the ingredient" is no longer true of any entry that
+  // carries this. Authored in docs/tags.yaml as `requirement.items`,
+  // normalized and validated by
   // db/lib/tagShapes.js#normalizeRequirementItems.
   //
-  // Json rather than a Tag[] relation, because an entry is EITHER a tag slug
-  // ({ slug: "skinless-brain" }) OR a whole group ({ group: "items-corpse" }),
-  // and Miasma needs the second: a corpse tag written at death is never in the
-  // YAML, so no relation authored there could ever name one.
+  // Json rather than a Tag[] relation, because an entry is a tag slug
+  // ({ slug: "godflesh" }), a whole group ({ group: "items-corpse" }, which
+  // Miasma needs: a corpse tag written at death is never in the YAML, so no
+  // relation authored there could ever name one), or a choice of slugs
+  // ({ anyOf: ["tea", "sweets", "honey"] }).
   //
-  // HOLDING IT IS THE CHECK. Nothing here is consumed — you keep the corpse
-  // you bottled the Miasma over.
+  // SPENT BY DEFAULT: the craft consumes the ingredient when the work starts
+  // and snapshots what went in (CraftProject.consumed, then the audit row's
+  // details.consumed). `keep: true` makes holding it the whole check — you
+  // keep the corpse you bottled the Miasma over. See CRAFTING.md §3.
   requirementItems Json?
 
   // What holding (or wearing) this tag adds to one kind of Laboring, from
@@ -2496,7 +2516,7 @@ model Role {
   // decision that has nothing to do with faction mechanics. Declared as
   // `whitelist:` in docs/roles.yaml. Gated by GameConfig.leaderWhitelistEnabled;
   // superadmins bypass. See docs/systemdocs/CHARACTERS.md §2.
-  requiresWhitelist   Boolean  @default(false)
+  requiresWhitelist Boolean @default(false)
 
   // A seat that fixes the holder's gender rather than letting them choose:
   // Baron and Heir are MAN, Baroness and Successor are WOMAN. Null for every
@@ -2788,6 +2808,13 @@ model Action {
   // rather than an Int so the push can grow past resources without a
   // migration. Null means nothing has been pushed yet.
   appliedEffects Json?
+
+  // The craft ledger for this turn: which skill family the Move was spent in
+  // and how much of it is left, so several small crafts can share one Routine.
+  // Deliberately NOT folded into appliedEffects above, which the turn-end
+  // staged push owns and claims rows through. Written and read by the Craft
+  // path only. Null on every Action that is not a craft.
+  craftBudget Json?
 
   // The Result box — the GM-facing canon of what happened, never auto-sent
   // (players are told through StagedMessages at the push; ADJUDICATION.md).
@@ -3150,6 +3177,23 @@ model CraftProject {
   payerKey      String?
   payerName     String?
 
+  // What the ingredients cost, snapshotted when the work STARTED — the same
+  // rule resourcesCost lives under, because a multi-turn project spends both
+  // up front. Shape is the `replaced` snapshot list
+  // (`[{ tagId, tagName, quantity, source, expiresTurn }]`). Copied onto the
+  // completing `request_craft_tag` audit row's `details.consumed` — the only
+  // record of the spend, what a GM repairing by hand reads. Null on a recipe
+  // with no spent ingredient, and on every project filed before this column
+  // existed.
+  consumed      Json?
+
+  // Pending custom-item fields (`{ name?, description? }`) for a customizable
+  // recipe's multi-turn project — held here until the finishing turn, when
+  // continueCraftImpl mints the runtime row and grants it. Null on an
+  // ordinary project. The +1 ⬢ a unit was charged into resourcesCost when
+  // the work started, like everything else.
+  custom Json?
+
   status        CraftStatus @default(ACTIVE)
   startedTurnId String
   // The turn whose Routine last advanced it — one advance per turn.
@@ -3214,7 +3258,14 @@ model Structure {
   builderCharacterId String?
   builderName        String?
 
-  startedTurnId String?
+  // The builder's optional line, offered only where the type's
+  // `placement.inscribable` says so (the wayside shrine). When set it
+  // REPLACES placement.examine in the Examine readout — and prints WITHOUT
+  // the ‡, because these are a player's words, not drafted copy. Sanitized
+  // on the way in (web/lib/customCraft.js): no rich tokens, no ‡, no @.
+  inscription String?
+
+  startedTurnId    String?
   // Claim column for a FUTURE decay/upkeep pass; nothing reads it yet. Here
   // so a later pass needs no migration to be resume-safe.
   lastUpkeepTurnId String?
@@ -3544,7 +3595,7 @@ model Desire {
 // The game's transcript, and the backing store for /archive.
 //
 // Written at SEND time (db/lib/archive.js, called from the two proxy paths),
-// not reconstructed at Dawn. The old dawnWipe.js archived by reading messages
+// not reconstructed at the wipe. The old messageWipe.js archived by reading messages
 // back out of Discord and re-posting them into one #archive channel — ~850
 // sequential posts down a single ~1 msg/sec lane on a busy turn, which was the
 // most expensive thing the bot did and grew with player count. It also had to
@@ -3672,17 +3723,6 @@ model ArchiveEntry {
 // AuditLog) that store snapshot columns on purpose: a note is live data ABOUT
 // a character rather than a record of something that happened, and it has no
 // meaning once the character is gone.
-model GmCharacterNote {
-  id                  String    @id @default(cuid())
-  characterId         String
-  character           Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  authorDiscordUserId String
-  content             String
-  createdAt           DateTime  @default(now())
-
-  @@index([characterId, createdAt])
-}
-
 // A threat seat offered to somebody who has no character yet: the GM presses
 // SPAWN on /gm/dev?s=assignments, this row is written, and the target gets a
 // DM carrying Accept / Decline. Accepting creates the character
@@ -3735,4 +3775,25 @@ enum ThreatSpawnStatus {
   ACCEPTED
   DECLINED
   CANCELLED
+}
+
+// One browser that has agreed to be notified. Web Push is per-BROWSER, not
+// per-character: the endpoint is minted by the push service for that install,
+// and one player may hold several (a laptop and a phone). Keyed on the Discord
+// user id for the same reason every other row here is -- there is no user
+// table.
+//
+// A dead endpoint is deleted the first time the push service answers 404 or
+// 410 (db/lib/webPush.js), so this table cleans itself.
+model PushSubscription {
+  id            String    @id @default(cuid())
+  discordUserId String
+  endpoint      String    @unique
+  p256dh        String
+  auth          String
+  userAgent     String?
+  createdAt     DateTime  @default(now())
+  lastUsedAt    DateTime?
+
+  @@index([discordUserId])
 }

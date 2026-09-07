@@ -17,6 +17,7 @@
 // failed pass to retry.
 const { dropCharacterTag } = require("./tagWrites");
 const { CONFESSION_THRESHOLD } = require("./constants");
+const { applyFear } = require("./fear");
 
 function rollLine(turn, action) {
   const mod = action.diceModifier ?? 0;
@@ -110,9 +111,13 @@ async function runConfessionPass(prisma, turn) {
         if (succeeded && offer.tagId) {
           await dropCharacterTag(tx, offer.learnerId, offer.tagId);
         }
+        // Absolution lightens more than the one burden (FEAR.md). Only on
+        // success: a confession the die refused lifted nothing. The band DM,
+        // if any, rides back with the pass's own rather than being sent.
+        const eased = succeeded ? await applyFear(tx, offer.learnerId, { kind: "CONFESSION", notify: false }) : null;
         const resultMessage = succeeded
-          ? `Confessed to ${nameOf(offer.teacherId)}; ${burden} lifted (${total} vs ${threshold}). ‡`
-          : `Confessed to ${nameOf(offer.teacherId)}; ${burden} stayed (${total} vs ${threshold}). ‡`;
+          ? `Confessed to ${nameOf(offer.teacherId)}; ${burden} lifted (${total} vs ${threshold}).`
+          : `Confessed to ${nameOf(offer.teacherId)}; ${burden} stayed (${total} vs ${threshold}).`;
         await tx.action.update({
           where: { id: action.id },
           data: {
@@ -135,25 +140,26 @@ async function runConfessionPass(prisma, turn) {
             },
           },
         });
-        return { text, succeeded, burden };
+        return { text, succeeded, burden, fearDm: eased?.dm ?? null };
       });
       if (!outcome) continue;
+      if (outcome.fearDm) dms.push(outcome.fearDm);
       resolved += 1;
       if (outcome.succeeded) absolved += 1;
 
       const penitentDm = dmTo(
         offer.learnerId,
         outcome.succeeded
-          ? `${outcome.text} → **${outcome.burden}** is off you. ‡`
-          : `${outcome.text} → **${outcome.burden}** has not let go of you. ‡`,
+          ? `${outcome.text} → **${outcome.burden}** is off you.`
+          : `${outcome.text} → **${outcome.burden}** has not let go of you.`,
       );
       // The chaplain is told whether it took, and still never told what it
       // was. They heard it in the fiction; the sheet does not repeat it.
       const chaplainDm = dmTo(
         offer.teacherId,
         outcome.succeeded
-          ? `${nameOf(offer.learnerId)} left lighter than they came. ‡`
-          : `${nameOf(offer.learnerId)} confessed, but it did not take. ‡`,
+          ? `${nameOf(offer.learnerId)} left lighter than they came.`
+          : `${nameOf(offer.learnerId)} confessed, but it did not take.`,
       );
       for (const dm of [penitentDm, chaplainDm]) if (dm) dms.push(dm);
     } catch (err) {

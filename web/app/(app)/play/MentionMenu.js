@@ -18,7 +18,7 @@ import CharacterAvatar from "@/app/components/CharacterAvatar";
 const MentionMenu = memo(function MentionMenu({ matches, active, onPick }) {
   if (matches.length === 0) return null;
   return (
-    <div className="hall-mentions" role="listbox" aria-label="Mention somebody ‡">
+    <div className="hall-mentions" role="listbox" aria-label="Mention somebody">
       {matches.map((person, i) => (
         <button
           key={person.id}
@@ -64,12 +64,21 @@ export function mentionQueryAt(text, caret) {
 // Case-insensitive prefix on the whole name or on any word in it, so "@bar"
 // finds "Cersei, the Baroness" the way a person expects. Capped, because the
 // popover is twelve rems tall and a scroll list of forty is not a shortcut.
-export function matchRoster(roster, query) {
+//
+// `limit` is a parameter rather than the constant it used to be, because the
+// composer's person picker (Feed.js#CommandArgs) filters the same way and
+// wants a wider row of chips — and it needs the UNCAPPED count to say how many
+// it left out, which it gets by asking for Infinity and slicing itself.
+//
+// A hood has an `alias` where a named person has a `name`, and the picker
+// offers both. Matching the one it has keeps typing a few letters working for
+// whichever list this is called on.
+export function matchRoster(roster, query, limit = 6) {
   const q = query.trim().toLowerCase();
   const hits = roster.filter((person) => {
     if (!q) return true;
-    const name = person.name?.toLowerCase() ?? "";
+    const name = (person.name ?? person.alias ?? "").toLowerCase();
     return name.startsWith(q) || name.split(/\s+/).some((word) => word.startsWith(q));
   });
-  return hits.slice(0, 6);
+  return limit === Infinity ? hits : hits.slice(0, limit);
 }

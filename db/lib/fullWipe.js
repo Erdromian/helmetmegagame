@@ -1,13 +1,13 @@
 // Full Discord channel wipe for a dev-mode game restart (wipeGameData,
 // web/app/(app)/gm/dev/actions.js) — distinct from the routine Dawn message
-// wipe (dawnWipe.js), which spares the Room threads' starters and the
+// wipe (messageWipe.js), which spares the Room threads' starters and the
 // location anchors. This is a hard reset: nothing is spared, Rooms and
 // anchors included. That's correct: wipeGameData re-runs syncZonesFromYaml,
 // which regenerates every Room thread and anchor from docs/zones.yaml (their
 // recorded ids are cleared here so the sync rebuilds rather than trusting a
 // dangling id). PlayerThread/PlayerThreadInvite rows are purged by
 // wipeGameData's DB transaction, not here.
-// Entirely sequential, same rate-limit reasoning as dawnWipe.js.
+// Entirely sequential, same rate-limit reasoning as messageWipe.js.
 const {
   getGuildChannels,
   fetchAllMessages,

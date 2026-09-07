@@ -33,7 +33,7 @@ const {
   locationChannelSpec,
   LOCATION_MEMBER_ALLOW,
 } = require("./zoneChannelSpec");
-const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
+const { accessibleRooms, roomAccessKeys, recordRoomThread } = require("./roomAccess");
 const { reconcileChannelOverwrites, managedOverwriteIds } = require("./syncZones");
 const {
   spectatorsVisible,
@@ -571,6 +571,11 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     // `cheap` and never reaches this line — but "only on demand" is not
     // "never".
     if (privateRooms.length > 0) {
+      // recordRoomThread keys on the CHARACTER, and everything down here is
+      // keyed on the Discord user, so the two need bridging once.
+      const userIdToCharacterId = new Map(
+        alive.filter((c) => c.discordUserId).map((c) => [c.discordUserId, c.id]),
+      );
       const keysByCharacter = new Map();
       for (const c of alive) keysByCharacter.set(c.id, await roomAccessKeys(prisma, c.id));
       for (const room of privateRooms) {
@@ -593,16 +598,23 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
         const present = new Set(live.map((m) => m.user_id));
         for (const userId of shouldHave) {
           if (present.has(userId)) continue;
-          await report("room-membership", `${room.label}/${userId}`, "holds a key and isn't in the room", () =>
-            addThreadMember(room.discordThreadId, userId),
-          );
+          // The record follows the repair. Without it the doctor's own backfill
+          // would poison every later key revocation: syncCharacterRoomAccess
+          // acts only where entitlement and the record disagree, so a
+          // membership the doctor added but never recorded can never be taken
+          // away again. See db/lib/roomAccess.js#recordRoomThread.
+          await report("room-membership", `${room.label}/${userId}`, "holds a key and isn't in the room", async () => {
+            await addThreadMember(room.discordThreadId, userId);
+            await recordRoomThread(prisma, userIdToCharacterId.get(userId), room.id, true);
+          });
         }
         for (const userId of present) {
           if (shouldHave.has(userId)) continue;
           if (!characterUserIds.has(userId)) continue; // GMs and the bot may sit in any thread
-          await report("room-membership", `${room.label}/${userId}`, "in the room without a key", () =>
-            removeThreadMember(room.discordThreadId, userId),
-          );
+          await report("room-membership", `${room.label}/${userId}`, "in the room without a key", async () => {
+            await removeThreadMember(room.discordThreadId, userId);
+            await recordRoomThread(prisma, userIdToCharacterId.get(userId), room.id, false);
+          });
         }
       }
     }

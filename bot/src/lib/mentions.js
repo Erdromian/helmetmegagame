@@ -1,5 +1,6 @@
 const { prisma, buildNarrowcastContext, computeNarrowcastAccess, NARROWCAST_SLUGS } = require("@lifeweb/db");
 const { sendDm } = require("./dm");
+const { pushToUser } = require("@lifeweb/db/lib/webPush");
 
 // Character-role mentions: who was pinged, may they hear it, and (in a private
 // thread) letting them in.
@@ -69,6 +70,14 @@ async function notifyMentioned(client, character, context, link) {
   const user = await client.users.fetch(character.discordUserId).catch(() => null);
   if (!user) return;
   await sendDm(user, `» *You were mentioned in ${where}.* ‡\n${link}`, { source: "system_notice" }).catch(() => {});
+  // And a browser notification, for a player whose /play tab is closed. Never
+  // in front of the DM and never allowed to affect it: an unconfigured
+  // deployment is a no-op and every failure is swallowed (db/lib/webPush.js).
+  await pushToUser(prisma, character.discordUserId, {
+    title: `${character.name} was named`,
+    body: `in ${where}`,
+    url: "/play",
+  }).catch(() => {});
 }
 
 module.exports = {

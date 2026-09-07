@@ -1,5 +1,6 @@
-import { prisma, feedRowShape, FEED_ROW_SELECT } from "@lifeweb/db";
-import { feedWipeFloor, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
+import { prisma, FEED_ROW_SELECT } from "@lifeweb/db";
+import { withAvatarVersions } from "@lifeweb/db/lib/archive";
+import { feedWipeFloors, lowestFloor, placeSeqWhere } from "@lifeweb/db/lib/feedWipe";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 import { subscribeToPlace, subscribeToPresence, subscribeToTyping } from "@/lib/feedHub";
 
@@ -57,13 +58,18 @@ export async function GET(request) {
       // placeKey -> { rows, typing }, each an unsubscribe. Two channels, one
       // entry: a place is subscribed and dropped as a unit.
       const subscriptions = new Map();
-      // Everything the Dawn wipe put below the line, for the length of this
+      // Everything the wipe put below the line, for the length of this
       // connection (db/lib/feedWipe.js). Read once: a wipe mid-stream leaves
       // rows a reader already has on their screen until the tab reloads,
       // which is the same thing that happens to a Discord client that had the
       // channel open.
-      const floor = await feedWipeFloor(prisma);
-      if (floor > lastSeq) lastSeq = floor;
+      const floors = await feedWipeFloors(prisma);
+      // The clamp is one number for every place on this stream, so it has to
+      // be the LOWER of the two floors. Clamping to the turn floor would drop
+      // a zone-summary row underneath it as "already sent" — the summary is
+      // wiped on the slower Dawn schedule and its rows are legitimately older.
+      const clamp = lowestFloor(floors);
+      if (clamp > lastSeq) lastSeq = clamp;
 
       const write = (text) => {
         if (closed) return;
@@ -108,15 +114,16 @@ export async function GET(request) {
         try {
           const rows = await prisma.archiveEntry.findMany({
             where: {
-              placeKey: { in: placeKeys },
+              ...placeSeqWhere(floors, placeKeys, { gt: from }),
               deletedAt: null,
-              seq: seqFilterAbove(floor, { gt: from }),
             },
             orderBy: { seq: "asc" },
             take: CATCH_UP_LIMIT,
             select: FEED_ROW_SELECT,
           });
-          for (const row of rows) sendRow(feedRowShape(row));
+          // One `?v=` per character across the batch — see
+          // db/lib/archive.js#withAvatarVersions.
+          for (const row of await withAvatarVersions(prisma, rows)) sendRow(row);
         } catch (err) {
           console.error("Feed catch-up failed:", err);
         }

@@ -110,7 +110,7 @@ export function useTyping(placeKey) {
 // Three people is where naming them stops helping and starts being a list.
 export function typingLine(names) {
   if (!names || names.length === 0) return null;
-  if (names.length === 1) return `${names[0]} is typing… ‡`;
+  if (names.length === 1) return `${names[0]} is typing…`;
   if (names.length === 2) return `${names[0]} and ${names[1]} are typing… ‡`;
-  return "Several people are typing… ‡";
+  return "Several people are typing…";
 }

@@ -25,6 +25,9 @@
 const GODFLESH_ATTRIBUTE = "godflesh";
 const REFINERY_ATTRIBUTE = "refinery";
 const SAFE_ATTRIBUTE = "safe";
+// The two the fear dial reads (db/lib/fear.js#placeClassOf).
+const WILDERNESS_ATTRIBUTE = "wilderness";
+const HAVEN_ATTRIBUTE = "haven";
 
 // key -> { describe(value, ctx) -> string|null }
 //
@@ -67,6 +70,21 @@ const ATTRIBUTES = {
   // a player choosing where to camp should be able to read the answer.
   safe: {
     describe: () => "**Safe**: the Caving Die doesn't roll here. Nothing underground stalks this place. ‡",
+  },
+
+  // Open country: nobody lives here, and a night in it wears on you
+  // (docs/systemdocs/FEAR.md). Worn by every Location in the Forest, the Black
+  // Hills and the Marshes that is not a settled place — the Factory, the Farms
+  // and the marsh Village are the exceptions. Walking in costs a little fear,
+  // ending the turn here costs more, and Rough Camper / Outsider soften it.
+  wilderness: {
+    describe: () => "**Wilderness**: nobody lives out here, and a night in it wears on you. ‡",
+  },
+
+  // A place that settles a person more than any roof does: the Inn, the Keep,
+  // the Sanctuary. The best turn-end relief the dial has.
+  haven: {
+    describe: () => "**Haven**: a night here settles the nerves like nowhere else. ‡",
   },
 
   // A public board somebody can pin a paper to. What the Noticeboard button on
@@ -136,12 +154,12 @@ function depotLines(ctx = {}) {
   if (!depot.powered) {
     lines.push("**Generator**: it's off, so nothing in here works. ‡");
   } else if (depot.fuelTurnsLeft == null) {
-    lines.push("**Generator**: it's running. ‡");
+    lines.push("**Generator**: it's running.");
   } else {
     const days = depot.fuelTurnsLeft;
     lines.push(`**Generator**: ${days} day${days === 1 ? "" : "s"} of coal left. ‡`);
   }
-  lines.push(depot.shuttleDocked ? "**Shuttle**: it's here. ‡" : "**Shuttle**: it's not here. ‡");
+  lines.push(depot.shuttleDocked ? "**Shuttle**: it's here." : "**Shuttle**: it's not here.");
   // Only worth a line when it is a danger. A disarmed turret is a fixture, and
   // saying so every time would train people to stop reading the line that
   // matters.
@@ -174,16 +192,26 @@ function structureLines(ctx = {}) {
     // the note mid-line, and Examine puts each one after a **topic** of its
     // own. They pick the ‡ up on the way out.
     const note = structure.placement?.defenseNote;
-    const noteLines = note ? [`**Defense**: ${note} ‡`] : [];
+    const noteLines = note ? [`**Defense**: ${note}`] : [];
+    // The builder's inscription replaces the stock examine fragment — and
+    // prints WITHOUT the ‡, because these are a player's words, not drafted
+    // copy (sanitized on the way in by web/lib/customCraft.js). » is the
+    // quoted-player-content prefix, same as everywhere else.
+    const inscribed = structure.inscription?.trim();
     switch (structure.status) {
       case "UNDER_CONSTRUCTION":
         return [`**${typeName}**: going up, ${structure.turnsDone} of ${structure.turnsNeeded} days done. ‡`];
       case "COMPLETE":
-        return [`**${typeName}**: ${structure.placement?.examine ?? "it stands here."} ‡`, ...noteLines];
+        return [
+          inscribed
+            ? `**${typeName}**: » ${inscribed}`
+            : `**${typeName}**: ${structure.placement?.examine ?? "it stands here."} ‡`,
+          ...noteLines,
+        ];
       case "DAMAGED":
-        return [`**${typeName}**: it's damaged. ‡`, ...noteLines];
+        return [`**${typeName}**: it's damaged.`, ...noteLines];
       case "RUINED":
-        return [`**${typeName}**: a ruin. ‡`];
+        return [`**${typeName}**: a ruin.`];
       case "ABANDONED":
         return [`**${typeName}**: abandoned groundwork, gone nowhere. ‡`];
       default:
@@ -236,6 +264,8 @@ module.exports = {
   GODFLESH_ATTRIBUTE,
   REFINERY_ATTRIBUTE,
   SAFE_ATTRIBUTE,
+  WILDERNESS_ATTRIBUTE,
+  HAVEN_ATTRIBUTE,
   depotLines,
   structureLines,
   ATTRIBUTES,

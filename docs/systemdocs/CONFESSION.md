@@ -14,8 +14,9 @@ deliberately removed, and everything below is written as a delta from it.
   chaplain's **Routine**. There is no Lecturing rung: one confession is one
   whole day, and a queue outside the box is the intended texture.
 - At turn end the penitent's d6 plus the ordinary Gambit modifier (Hunger,
-  Disappointed — `db/lib/gambitModifier.js`) is checked against **5**. On a
-  pass the tag comes off. On a fail it stays and the Move is spent.
+  Afraid, Panic — `db/lib/gambitModifier.js`) is checked against **5**. On a
+  pass the tag comes off. On a fail it stays and the Move is spent. Absolution
+  also eases the penitent's fear by 15 (`FEAR.md`).
 - Both sides must be at the same Location and unconcealed
   (`db/lib/presence.js`), both alive, and neither may already have a Move.
 - You cannot confess to yourself.
@@ -47,11 +48,10 @@ The GM sees all of it. The audit rows (`request_confession_offer`,
 A classification, not a capability flag — it fills the penitent's dropdown and
 nothing else. Set in `docs/tags.yaml`, mapped in `db/lib/syncTags.js`.
 
-Fifteen tags carry it: the five addictions (`alcoholic`, `drug-habit`,
+Fourteen tags carry it: the five addictions (`alcoholic`, `drug-habit`,
 `gambler`, `glutton`, `vain`), six compulsions and dispositions (`depressed`,
 `craven`, `devoted-follower`, `prudish`, `nobility`, `kleptomaniac`),
-`heavy-sleeper`, `green`, and `stutter` and `shell-shocked`
-out of `health-mind`.
+`heavy-sleeper`, and `stutter` and `shell-shocked` out of `health-mind`.
 
 **`health-mind` could not stand in for the flag**, which is why the flag
 exists. Half that group is `blind`, `mute`, `night-blind`, `paralyzed` —

@@ -13,13 +13,11 @@
 const {
   PAPER_GROUP_SLUG,
   paperName,
-  noteCode,
   sealedName,
   brokenSealName,
   appendText,
   sealLabel,
   bookName,
-  BOOK_SHEETS,
 } = require("./paper");
 const { addToStack, dropCharacterTag } = require("./tagWrites");
 
@@ -50,10 +48,11 @@ const PAPER_SHAPE = {
   // One sheet is one sheet. Two notes are never the same object, so the
   // non-stackable pin in tagWrites.js is doing real work here.
   stackable: false,
-  // Not binnable from the Destroy menu. Paper leaves the world by being torn
-  // off a noticeboard and expiring, or by a GM — burning a letter is a thing
-  // the fiction should have to say out loud.
-  removable: false,
+  // Binnable, like every other item (docs/systemdocs/CRAFTING.md §5). This
+  // used to be false, on the argument that burning a letter should be said
+  // out loud in the fiction — but a player holding a note they cannot put
+  // down has no verb for the ordinary case, so the ordinary case wins.
+  removable: true,
   purchasable: false,
   purchasableAfterStart: false,
   // A letter in your hand is a letter anyone can see you holding. What it SAYS
@@ -61,10 +60,11 @@ const PAPER_SHAPE = {
   inspectVisibility: "HIDDEN",
 };
 
-// Tag.name is @unique across the whole catalog, so retry on the violation
+// Tag.slug is @unique across the whole catalog, so retry on the violation
 // rather than checking first: two players writing in the same millisecond
 // would both pass a pre-check and then one would throw. Six attempts is far
-// past anything the game can produce.
+// past anything the game can produce. (Tag.name is NOT unique — see
+// db/lib/paper.js#paperName — so only the slug is ever what collides.)
 //
 // Exported, because db/lib/photoMint.js mints runtime rows the same way and a
 // second copy of this loop is exactly the drift a shared helper prevents.
@@ -89,7 +89,8 @@ async function createWithRetry(tx, buildData) {
     try {
       return await tx.tag.create({ data: buildData(attempt) });
     } catch (err) {
-      // P2002 is the @unique on name or slug.
+      // P2002 is the @unique on slug. (Tag.name is no longer unique — see
+      // db/lib/paper.js#paperName — so a name can never be what collides.)
       if (err?.code !== "P2002") throw err;
     }
   }
@@ -140,10 +141,9 @@ async function mintUnownedPaper(tx, seed, authorName, text) {
     ...PAPER_SHAPE,
     groupId,
     slug: paperSlug(seed, attempt),
-    // A fresh code per attempt, so a collision is resolved by re-rolling the
-    // waybill rather than by appending "(2)" — two sheets called "A Note
-    // (TG-4596)" and "A Note (TG-4596) (2)" would look related and are not.
-    name: paperName(noteCode()),
+    // Every sheet is called this. It is the slug that has to be unique, and
+    // paperSlug re-rolls it per attempt.
+    name: paperName(),
     // Never the text. The description column is broadcast to every browser;
     // paperDescription composes what a given reader is allowed to see.
     description: null,
@@ -156,8 +156,8 @@ async function mintUnownedPaper(tx, seed, authorName, text) {
   return tag;
 }
 
-// Binding ten sheets into a book: the stack pays, one row comes back, and the
-// text is fixed there and then. That last part is the only rule a book has
+// Writing a blank book: one off the stack, one titled row back, and the text
+// is fixed there and then. That last part is the only rule a book has
 // that a sheet does not — appendToPaper refuses a BOOK, so what is bound in is
 // what it says forever. See docs/systemdocs/PAPERWORK.md.
 //
@@ -168,7 +168,9 @@ async function mintUnownedPaper(tx, seed, authorName, text) {
 //
 // `character` needs { id, name } — the PRESENTED name, same as writeNewPaper.
 async function bindBook(tx, character, blankTagId, title, text) {
-  await dropCharacterTag(tx, character.id, blankTagId, BOOK_SHEETS);
+  // One blank book, not ten sheets: the sheets were spent at the craft
+  // (docs/tags.yaml `blank-book`).
+  await dropCharacterTag(tx, character.id, blankTagId, 1);
   const groupId = await paperGroupId(tx);
 
   const tag = await createWithRetry(tx, (attempt) => ({
@@ -191,27 +193,6 @@ async function bindBook(tx, character, blankTagId, title, text) {
 
   await addToStack(tx, character.id, tag.id, 1, {});
   return tag;
-}
-
-// Tearing one up, in either direction: a bound book becomes ten blank sheets
-// again. The row goes rather than being renamed, because unlike a broken seal
-// there is nothing left worth keeping — the words are the thing, and tearing
-// them up is the point.
-//
-// An AUTHORED book (docs/tags.yaml, not `custom`) is left in the catalog and
-// only taken out of the character's hands. Deleting it would take a Library
-// book out of the game for good on one player's whim, and the next
-// db:sync-tags would put it straight back.
-async function tearUpBook(tx, characterId, bookTag, blankTagId) {
-  await dropCharacterTag(tx, characterId, bookTag.id, 1);
-  if (bookTag.custom) {
-    await tx.tag.deleteMany({ where: { id: bookTag.id, custom: true } });
-  }
-  // `stackable: true` is load-bearing: without it addToStack caps the add at
-  // one and refuses to increment a stack that already exists, so tearing up a
-  // book would return a single sheet — or none at all if you were already
-  // holding paper.
-  await addToStack(tx, characterId, blankTagId, BOOK_SHEETS, { stackable: true });
 }
 
 // Writing more on a sheet that already has words on it. Append-only, always —
@@ -269,33 +250,29 @@ async function sealWithMark(tx, paperTag, { label, mark }) {
 async function breakSeal(tx, characterId, sealedTag) {
   const label = sealLabel(sealedTag);
 
-  let paper = null;
-  for (let attempt = 0; attempt < 6; attempt += 1) {
-    try {
-      paper = await tx.tag.update({
-        where: { id: sealedTag.id },
-        data: {
-          // Back to an anonymous note. The letter inside says whatever it
-          // said; who sealed it survives on the envelope, not on the paper.
-          name: paperName(noteCode()),
-          paperKind: "PAPER",
-          sealMark: null,
-          consumable: false,
-        },
-      });
-      break;
-    } catch (err) {
-      if (err?.code !== "P2002") throw err;
-    }
-  }
-  if (!paper) throw new Error("Could not name the opened letter.");
+  // No retry loop: this touches the name and not the slug, and Tag.name is no
+  // longer unique (db/lib/paper.js#paperName), so there is nothing left here
+  // that can collide.
+  const paper = await tx.tag.update({
+    where: { id: sealedTag.id },
+    data: {
+      // Back to an anonymous note. The letter inside says whatever it said;
+      // who sealed it survives on the envelope, not on the paper.
+      name: paperName(),
+      paperKind: "PAPER",
+      sealMark: null,
+      consumable: false,
+    },
+  });
 
   const envelopeGroupId = await paperGroupId(tx);
   const envelope = await createWithRetry(tx, (attempt) => ({
     ...PAPER_SHAPE,
     groupId: envelopeGroupId,
     slug: sealSlug(characterId, attempt),
-    name: attempt ? `${brokenSealName(label)} (${attempt + 1})` : brokenSealName(label),
+    // No "(2)" suffix on a retry: the attempt only re-rolls the slug, which is
+    // the unique one, and two envelopes bearing the same wax SHOULD read alike.
+    name: brokenSealName(label),
     description: null,
     paperKind: "BROKEN_SEAL",
     sealMark: sealedTag.sealMark ?? null,
@@ -310,7 +287,6 @@ module.exports = {
   createWithRetry,
   writeNewPaper,
   bindBook,
-  tearUpBook,
   mintLetterFor,
   mintUnownedPaper,
   sealWithMark,

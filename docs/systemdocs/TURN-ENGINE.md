@@ -73,7 +73,7 @@ each arrived at by getting them wrong first.
    skipped outright is one whose `gmNotes` carry an `auto:` marker, meaning
    another pass is already DMing them about it. Every Gambit gets its own DM
    regardless: the d6 is rolled and
-   stored at submit (`bot/src/lib/moveConfirm.js`) and shown to the player
+   stored at submit (`db/lib/moveConfirm.js`) and shown to the player
    nowhere else, so this is where they find out how it fell. `/character`
    used to reveal it at Moves lock — three hours early
    (`MOVE_LOCK_HOURS`, `db/lib/turnClock.js`) — which handed players a bare
@@ -175,8 +175,7 @@ each arrived at by getting them wrong first.
    countdown clock is `catatonicSinceTurn`, not `lastActivityTurn`, so a GM
    moving `catatonicTurns` mid-game doesn't move anyone's execution date; a
    GM hand-grant with no stamp never counts down at all. Players one close
-   from death get a warning DM (`warnings`), same posture as the
-   Disappointed track's.
+   from death get a warning DM (`warnings`).
 7c. **Bird pass** (`db/lib/birdPass.js`) — the delayed half of the Bird
    (`BIRD.md`). A letter whose zone guess missed, or whose recipient was
    already dead, resolved into nothing when it was sent; this is what finally
@@ -203,10 +202,17 @@ each arrived at by getting them wrong first.
    `settleCarry` for every ALIVE character holding a tradeable tag,
    Overburdened, or more ⬢ than the base cap — one transaction each — and the
    overflow drops ride back for the thunk (`CARRY.md` §3).
-8c. **Phobia pass** (`db/lib/phobiaPass.js`) — right after the carry pass, as
-   the turn-close safety net for Claustrophobia/Acrophobia moods that
-   `settlePhobias` didn't already settle on a Move this turn (`TAGS.md`).
-   Audit action `phobias_resolved`.
+8c. **Fear pass** (`db/lib/fearPass.js`, `"fear"` in `TURN_PASSES`) — the
+   nightly settle for the hidden fear dial (`FEAR.md`). Slotted after hunger,
+   so it sees the final Hunger streak, and after carry, so it sees the final
+   sheet; before travel arrival, so a traveller pays the night for the
+   Location they set out from rather than the one they haven't reached yet.
+   It applies the turn's flat gains and reliefs to `Character.fear`, settles
+   the one status tag the band produces (`db/lib/fear.js#settleFearTag`,
+   `source: TagSource.CONDITION`, same convention the old phobia system used),
+   and deletes each character's `dined` marker so a fresh turn starts
+   unmarked. Audit action `fear_resolved`; its DMs ride the `tagExpiryDms`
+   channel back on the thunk.
 8d. **Travel arrival pass** (`db/lib/travelArrivalPass.js`, `"travelArrival"`
    in `TURN_PASSES`) — everyone who spent their Move crossing a zone last turn
    finally lands (`MAP.md` §3). **Last of the passes**, and the slot is
@@ -251,7 +257,7 @@ Two things follow from that, and both are load-bearing:
 `{ advanced, previousTurn, newTurn, note, runSideEffects }`, and the caller
 decides when the thunk runs.
 
-That split is load-bearing. The Dawn wipe walks every zone's channels
+That split is load-bearing. The message wipe walks every zone's channels
 sequentially; awaiting it inside a server action holds the action open, and a
 pending server action blocks client-side navigation — which froze the entire
 web app until a hard refresh.
@@ -283,21 +289,22 @@ The thunk performs, in narrative order:
    crash mid-way leaves the remainder visibly unsent — the workspace's
    missed-push banner — rather than falsely delivered.
 6. The `#turns` announcement (`db/lib/turnAnnouncement.js`).
-7. The Dawn wipe, if the new phase is `DAWN` and `GameConfig.messageWipeEnabled`
-   is on (`db/lib/dawnWipe.js`; see `CHANNELS.md` §8). It is handed a
+7. The message wipe, on **every** turn while `GameConfig.messageWipeEnabled` is
+   on (`db/lib/messageWipe.js`; see `CHANNELS.md` §8). Location channels, Rooms
+   and Conversations clear every turn; a zone's `#summary` only when the new
+   phase is `DAWN`, which the thunk passes as `wipeSummaries`. It is handed a
    **cutoff** — a timestamp the thunk takes as its very first statement, before
    any Discord call — and deletes nothing created at or after it. That is what
    lets the slow wipe stay last in the order without eating the summaries step
    5 just posted. Move the cutoff and you reintroduce that bug.
-8. The thread expiry pass, on **every** Dawn, unconditionally. After the wipe
-   on purpose, so a thread the wipe just deleted isn't also "expired"
-   (`db/lib/threadExpiryPass.js`; `CHANNELS.md` §4).
-9. The channel doctor's **cheap** reconcile, if `GameConfig.autoReconcileEnabled`
-   is on — roles and membership only, a handful of requests
-   (`db/lib/channelDoctor.js`; `CHANNELS.md` §6).
+8. The channel doctor's **cheap** reconcile — roles and membership only, a
+   handful of requests (`db/lib/channelDoctor.js`; `CHANNELS.md` §6). It used
+   to sit behind a `GameConfig.autoReconcileEnabled` switch nobody ever turned
+   on; keeping Discord in step with the database after a turn moves people
+   around is not a thing to opt into.
 
 Everything is sequential and individually `.catch()`'d, so a Discord failure
-never blocks the turn. The Dawn wipe additionally guards **per zone**, so
+never blocks the turn. The message wipe additionally guards **per zone**, so
 one channel a GM deleted by hand costs that room rather than every room after
 it plus `#cerberon`. **Never `Promise.all` a fan-out here** — sequential
 awaiting is what keeps the bot from emitting the burst of 429s that earns an
@@ -435,28 +442,18 @@ One summary `hunger_resolved` audit row per turn, not one per character: at
 
 Full writeup: `REQUESTS.md` §4.
 
-### 5a. Nobility upkeep (Disappointed)
+### 5a. Nobility upkeep
 
-The same pass runs a parallel track for characters holding `nobility`: each
-turn close **without** the `ate-meal` shield ticks `Character.missedMealStreak`
-up — paying the 1 ⬢ upkeep is commoner food and does not count. At
-**3 missed days** (`DISAPPOINTMENT_THRESHOLD` in `db/lib/hungerPass.js`) the
-pass grants `disappointed`: a flat **−1 to Gambits**
-(`db/lib/gambitModifier.js`), no expiry. A warning DM goes out at 2 missed
-days, one more DM when the tag lands, and nothing in between.
+The Disappointed track is gone — no separate tag, no streak counter driving
+it. A noble who ends the turn without the `dined` marker (no fine or lavish
+meal that turn) instead takes +10 fear at the fear pass (8c, `FEAR.md`), the
+same as any other fear gain. Hungerless and Dying nobles are exempt.
 
-Unlike the hunger streak there is no slow climb back down: **one Fine or
-Lavish Meal settles the whole count.** Consuming anything that becomes
-`ate-meal` clears the tag **on the spot** and the pass resets the count to 0
-at the next close (`web/app/(app)/character/requestActions.js`; the pass's
-shielded-branch delete is only the backstop for meals a GM granted directly).
-Undoing the CONSUME_TAG request puts the Disappointment back off the
-`cleared` snapshot on the request effect.
-
-Hungerless and Dying nobles are exempt — a hungerless noble's count freezes
-where it is. The player-facing tracker is the **Dinner row** on the sheet's
-Status panel (`web/app/components/StatusPanel.js`), which counts missed days
-against the threshold and flips to a Condition row once the tag lands.
+`Character.missedMealStreak` is an orphan column now — nothing writes or
+reads it any more, same as `GameConfig.mindlinkChannelId`. There is no
+player-facing tracker: the sheet's old Dinner row went with the track
+(Bascinet's call, 2026-09-07). A noble learns they skipped dinner the way
+everyone learns about fear — the band tag, and its one-line DM.
 
 ## 6. Auto-labor
 
@@ -548,6 +545,75 @@ Surfaced to players on the `#turns` announcement (`Moves must be sent by
 <t:C:t>`, added by `buildTurnAnnouncement` when `hasLock`), in `/character`'s
 "This turn" row, and in the handbook.
 
+The Hall's turn card counts to the **cutoff**, not to the turn's end: `myMove`
+sends `moveWindow(...).cutoffAt` as `closesAt`, and `TurnCard.js` renders
+`closes in N h` from it, or `locked` once the window has shut. Counting to
+`endsAt` told a player they had three hours they did not have.
+
+### 6a-i. Editing a Move already filed
+
+A filed Move can be **changed** until that same cutoff
+(`db/lib/moves.js#editMove`). The one-Move-a-turn row IS the turn — the
+`@@unique([characterId, turnId])` Action — so there is nothing to cancel and
+re-file; the row is edited in place. It refuses unless every one of these
+holds: the Move belongs to the character asking (ownership and the open turn
+are part of the *query*, never trusted from the post), **the player filed it
+themselves**, Moves are not locked, `status` is `PENDING_TYPE` or `CONFIRMED`,
+`moveReviewStatus` is `OPEN` or `PASSED` (anything else is a GM holding the
+row), the adjudication lock is not live, the character is not blocked from
+ACT (`db/lib/incapacitation.js` — a Bound or Dying character cannot change a
+Move any more than they could file one), and `appliedEffects` is still null.
+The audit row is `move_edited`, with `turnId` set, the previous kind, and
+`kindChanged` in `details`.
+
+**Not every Action on a turn was filed by the player.** A lesson writes the
+learner a Gambit and the teacher a Routine (`db/lib/lessons.js`), a confession
+writes the penitent one and the chaplain another (`db/lib/confession.js`), the
+auto-labor pass writes a Labor, a paid zone crossing writes a travel stub, and
+a GM can spend somebody's turn from the dev panel. All of them come out
+`CONFIRMED`/`OPEN` with `appliedEffects` null, which is exactly the shape Edit
+was written for — so they all used to be editable, and re-picking the kind on
+one would have rolled a fresh die for a lesson nobody re-taught. Every one of
+those writers stamps an **`auto:` marker into `gmNotes`**, and
+`moves.js#filedByPlayer` is the single test both faces run against it; the
+refusal is *"That turn is already spoken for."* `myMove` selects `gmNotes` for
+the same reason, so the Edit button is never drawn on one.
+
+Changing the KIND re-confirms the row: the old Gambit die and any Labor payout
+are cleared and `db/lib/moveConfirm.js#confirmMove` runs again, so switching
+into Gambit rolls a die and switching into Labor rolls the new range. Changing
+only the *text* touches neither — Edit is not a re-roll button, and a Gambit
+that already has a die keeps it.
+
+Which is why the kind change is **once a turn**. Re-confirming rolls, so an
+uncapped Edit was a re-roll button after all: flip Gambit → Routine → Gambit
+and the die is thrown again, all afternoon, for free. The cap is a ration
+counted off the audit log the way the other three are (`REQUESTS.md` §1a) —
+`move_edited` rows on this turn whose `details.kindChanged` is true — so it
+survives a reload and a second browser tab. A second attempt is refused with
+*"You can change what kind of Move it is once a turn."*, and the text stays
+editable regardless. `myMove` returns the same fact as `kindLocked`, which
+greys the dialog's kind chips and puts that sentence where the help line goes.
+
+The final write is an `updateMany` filtered on `appliedEffects: DbNull` and
+the editable statuses rather than a bare `update` on the id — the staged push
+claims rows under the same `DbNull` filter (`db/lib/stagedPush.js`), and
+between the read and the write a turn can close underneath an open dialog. A
+lost race edits nothing and answers *"That Move has already been settled."*
+
+An edit of a `PENDING_TYPE` row always re-confirms, whether or not the kind
+changed. That status is a draft abandoned half-way through the Discord
+dropdowns; the push skips it and the desk never shows it, so finishing the
+text and leaving it `PENDING_TYPE` would still have cost the player the turn
+silently.
+
+The Discord `#turns` console has no Edit twin yet. A player who filed in the
+Hall can still edit in the Hall; a player who filed in Discord can also edit on
+the web, but not the other way round. ‡
+
+`web/lib/auditNarrative.js` has no `move_edited` entry, so `/gm/audit` renders
+that row as its raw slug until somebody writes the sentence.
+
 ## 7. Where the code lives
 
 | File | Role |
@@ -570,12 +636,12 @@ Surfaced to players on the `#turns` announcement (`Moves must be sent by
 | `db/lib/playerDeparture.js` | Guild-leave marking, shared by the live handler and the startup reconcile |
 | `db/lib/tagExpiryPass.js` | The tag progression pass (`Tag.expiresInto`) |
 | `db/lib/turnAnnouncement.js` | The rolling `#turns` announcement |
-| `db/lib/dawnWipe.js` | The Dawn wipe (`CHANNELS.md` §8) |
+| `db/lib/messageWipe.js` | The message wipe (`CHANNELS.md` §8) |
 | `db/lib/threadExpiryPass.js` | Inactivity expiry for player threads (`CHANNELS.md` §4) |
 | `db/lib/channelDoctor.js` | The optional post-turn reconcile (`CHANNELS.md` §6) |
 | `bot/src/lib/turnEngine.js` | The cron caller |
 | `bot/src/lib/moveModal.js` | The Move modal a player files a Move through (`COMMANDS.md`) |
-| `bot/src/lib/moveConfirm.js` | Resolving a filed Move |
+| `db/lib/moveConfirm.js` | Confirming a filed Move — both faces call it, and a Move that never reaches it stays `PENDING_TYPE` and is skipped by the staged push (`bot/src/lib/moveConfirm.js` is a shim that binds `prisma`) |
 | `web/app/(app)/gm/dev/actions.js` | `forceAdvanceTurn`, the GM caller |
 
 ## The Depot pass

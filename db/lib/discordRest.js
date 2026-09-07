@@ -149,7 +149,7 @@ function routeKey(method, path) {
   return `${method} ${major}/${tail}`;
 }
 
-// Read by db/lib/dawnWipe.js for its report.
+// Read by db/lib/messageWipe.js for its report.
 let requestCount = 0;
 let sleepMsTotal = 0;
 let retryCount = 0;
@@ -353,13 +353,16 @@ async function createDmChannel(discordUserId) {
 // in `content` — which is right for bot-composed text and wrong for anything
 // a player typed. Pass one whenever the content carries user text; the proxy
 // (bot/src/lib/proxy.js) and the intercom (db/lib/intercom.js) both do.
-async function postMessage(channelId, content, components = undefined, allowedMentions = undefined) {
+// `embeds` is a list of plain embed objects (Discord's own JSON shape). The
+// only sender of one from this side is the torture DM (db/lib/torture.js).
+async function postMessage(channelId, content, components = undefined, allowedMentions = undefined, embeds = undefined) {
   return discordRequest(`/channels/${channelId}/messages`, {
     method: "POST",
     body: {
       content,
       ...(components ? { components } : {}),
       ...(allowedMentions ? { allowed_mentions: allowedMentions } : {}),
+      ...(embeds?.length ? { embeds } : {}),
     },
   });
 }
@@ -375,29 +378,31 @@ async function postMessageBatched(channelId, text) {
 // Discord JSON error code for a channel it no longer recognises.
 const UNKNOWN_CHANNEL = 10003;
 
-async function postDmOnce(discordUserId, content, components = undefined) {
+// `extras` is { components, embeds }, both optional.
+async function postDmOnce(discordUserId, content, extras = {}) {
+  const { components, embeds } = extras ?? {};
   const channel = await createDmChannel(discordUserId);
   try {
-    return await postMessage(channel.id, content, components);
+    return await postMessage(channel.id, content, components, undefined, embeds);
   } catch (err) {
     if (err.discordCode !== UNKNOWN_CHANNEL && err.status !== 404) throw err;
     forgetDmChannel(discordUserId);
     const fresh = await createDmChannel(discordUserId);
-    return postMessage(fresh.id, content, components);
+    return postMessage(fresh.id, content, components, undefined, embeds);
   }
 }
 
 // DM equivalent of postMessageBatched. The `»` prefix (applied by the
-// caller) lands only on the first chunk; `components` rides the LAST chunk
-// only, or Discord renders one live row per chunk.
-async function postDmBatched(discordUserId, text, components = undefined) {
+// caller) lands only on the first chunk; `components` and `embeds` ride the
+// LAST chunk only, or Discord renders one live row (or one card) per chunk.
+async function postDmBatched(discordUserId, text, extras = {}) {
   const chunks = chunkMessage(text);
   if (chunks.length === 0) chunks.push(text);
 
   let sent = null;
   for (let i = 0; i < chunks.length; i++) {
     const last = i === chunks.length - 1;
-    sent = await postDmOnce(discordUserId, chunks[i], last ? components : undefined);
+    sent = await postDmOnce(discordUserId, chunks[i], last ? extras : {});
   }
   return sent;
 }
@@ -531,7 +536,7 @@ async function deleteMessage(channelId, messageId) {
 
 // Paginates GET .../messages (newest-first per page) until short of a full
 // page, then reverses to chronological order. `before` seeds Discord's own
-// cursor to bound the walk — see snowflakeForTimestamp and dawnWipe.js.
+// cursor to bound the walk — see snowflakeForTimestamp and messageWipe.js.
 async function fetchAllMessages(channelId, { before: startBefore } = {}) {
   const pageSize = 100;
   const messages = [];

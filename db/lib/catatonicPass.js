@@ -4,8 +4,8 @@
 // Flags any ALIVE character whose lastActivityTurn is stale past
 // GameConfig.catatonicTurns with the `catatonic-afk` tag, and clears it once
 // their clock moves again. catatonicSinceTurn drives
-// db/lib/catatonicDeathPass.js's auto-kill; the tag itself is removable:
-// false. Shaped for 100+ players: no network call, DMs/role updates returned
+// db/lib/catatonicDeathPass.js's auto-kill; the tag itself is not destroyable,
+// Status never being an Items category. Shaped for 100+ players: no network call, DMs/role updates returned
 // for advanceTurn() to apply. Takes `prisma` as a parameter — see db/lib/dm.js.
 const { CATATONIC_SLUG } = require("./constants");
 const { formatBareName } = require("./characterName");
@@ -24,13 +24,6 @@ function catatonicDm(turns, deathTurns) {
 
 async function runCatatonicPass(prisma, turn) {
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-
-  // Off is a real, supported state — return an object, not null. null means
-  // "did not run, retry it forever," and would wedge the turn permanently on
-  // a game that has this switched off on purpose.
-  if (!config?.catatonicEnabled) {
-    return { turnNumber: turn.number, enabled: false, flagged: 0, cleared: 0, dms: [], roleUpdates: [] };
-  }
 
   const catatonicTag = await prisma.tag.findUnique({
     where: { slug: CATATONIC_SLUG },
@@ -135,7 +128,6 @@ async function runCatatonicPass(prisma, turn) {
 
   return {
     turnNumber: turn.number,
-    enabled: true,
     flagged: flagged.count,
     cleared: toClear.length,
     dms: toFlag

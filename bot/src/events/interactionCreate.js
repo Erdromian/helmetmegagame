@@ -32,6 +32,7 @@ const {
   performMove,
 } = require("../lib/locationTravel");
 const { dragCandidates } = require("@lifeweb/db/lib/locationTravel");
+const { applyFear } = require("@lifeweb/db/lib/fear");
 const {
   travelOptions,
   canToggleGate,
@@ -45,10 +46,15 @@ const {
 const { reconcileNarrowcastAccess } = require("@lifeweb/db/lib/locationMove");
 const {
   syncCharacterRoomAccess,
+  recordRoomThread,
   accessibleRooms,
   roomAccessKeys,
   heldTagSlugs,
 } = require("@lifeweb/db/lib/roomAccess");
+const {
+  addConversationMember,
+  removeConversationMember,
+} = require("@lifeweb/db/lib/conversations");
 const { settleCarry, deliverCarryDrop } = require("@lifeweb/db/lib/carry");
 const { sendDm } = require("../lib/dm");
 const { buildMoveModal } = require("../lib/moveModal");
@@ -59,7 +65,6 @@ const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const { postAsCharacterTo, loadVoiceState } = require("../lib/proxy");
 const { prepareSpeech, recordSpeech } = require("@lifeweb/db/lib/say");
-const { addConversationMember, removeConversationMember } = require("@lifeweb/db/lib/conversations");
 const { resolveLaborRate, qualityWord } = require("@lifeweb/db");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
@@ -249,7 +254,7 @@ async function handleZoneViewPick(interaction) {
     orderBy: { sortOrder: "asc" },
     select: { name: true },
   });
-  await respond(interaction, `» You can see ${zones.map((z) => z.name).join(", ")}. ‡`);
+  await respond(interaction, `» You can see ${zones.map((z) => z.name).join(", ")}.`);
 }
 
 async function handleGmCommand(interaction) {
@@ -384,7 +389,7 @@ async function handleThreadMemberCommand(interaction, action) {
       await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.* ‡");
       return;
     }
-    await respond(interaction, `» *${target.name} was removed.* ‡`, { fleeting: true });
+    await respond(interaction, `» *${target.name} was removed.*`, { fleeting: true });
     return;
   }
 
@@ -411,7 +416,7 @@ async function handleThreadMemberCommand(interaction, action) {
       console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err);
     }
     await notifyLetIn(interaction, target, row.name, row.location?.name, channel.id);
-    await respond(interaction, `» *${target.name} was added.* ‡`, { fleeting: true });
+    await respond(interaction, `» *${target.name} was added.*`, { fleeting: true });
     return;
   }
   await respond(
@@ -436,9 +441,15 @@ async function notifyLetIn(interaction, target, threadName, placeName, threadId)
 
 // The Room half of /add and /remove.
 //
-// Who may work the door: anyone already inside it, which — because membership
-// is pulled from standing here with a key or a guest row — is exactly the set
-// the fiction wants. A GM may always.
+// Who may work the door: anyone STANDING here who can get in — a key or a
+// guest row, plus their own feet. A GM may always.
+//
+// That used to be read off Discord thread membership, which was the same set
+// back when membership tracked presence. It no longer does (db/lib/
+// roomAccess.js, 2026-09-06): a keyholder is a member of every room their key
+// opens, everywhere on the map, so the old check had quietly become "holds a
+// key" and let somebody three zones away let a guest into a room they were
+// nowhere near. The location comparison is the thing that was always meant.
 //
 // /remove refuses a key-holder on purpose. Their key is what admits them, and
 // the next arrival or tag change would let them straight back in; taking the
@@ -452,8 +463,8 @@ async function handleRoomGuestCommand(interaction, action, room) {
 
   const gm = isGmMember(interaction);
   if (!gm) {
-    const member = await interaction.channel.members.fetch(interaction.user.id).catch(() => null);
-    if (!member) {
+    const standing = await findAliveCharacter(interaction.user.id);
+    if (!standing || !room.locationId || standing.locationId !== room.locationId) {
       await respond(interaction, "» *You're not in this room.* ‡");
       return;
     }
@@ -485,17 +496,20 @@ async function handleRoomGuestCommand(interaction, action, room) {
     // Calling with an undefined id fails, and the catch below would report it
     // as a missing bot permission — a wrong answer to a question nobody asked.
     if (!target.discordUserId) {
-      await respond(interaction, `» *${target.name} was shown out.* ‡`, { fleeting: true });
+      await respond(interaction, `» *${target.name} was shown out.*`, { fleeting: true });
       return;
     }
     try {
       await removeThreadMember(room.discordThreadId, target.discordUserId);
+      // The record has to follow, or the diff in syncCharacterRoomAccess sees
+      // no disagreement and this eviction un-does itself on the next sync.
+      await recordRoomThread(prisma, target.id, room.id, false);
     } catch (err) {
       console.error(`Failed to remove ${target.discordUserId} from room ${room.id}:`, err);
       await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.* ‡");
       return;
     }
-    await respond(interaction, `» *${target.name} was shown out.* ‡`, { fleeting: true });
+    await respond(interaction, `» *${target.name} was shown out.*`, { fleeting: true });
     return;
   }
 
@@ -510,10 +524,15 @@ async function handleRoomGuestCommand(interaction, action, room) {
 
   // The guest ROW above is the grant; thread membership is only Discord's copy
   // of it, and a "web only" character has no Discord copy of anything
-  // (HALL.md §6). The web feed shows them the room off the guest row regardless.
+  // (HALL.md §6). Their record is left saying "not in the thread", which is
+  // true, and the web feed shows them the room off the guest row regardless.
   if (!target.webOnly) {
     try {
       await addThreadMember(room.discordThreadId, target.discordUserId);
+      // Without this the guest is never shown out: the mover's recompute only
+      // acts where entitlement and the record DISAGREE, and an unrecorded
+      // membership agrees with "not entitled" forever. See recordRoomThread.
+      await recordRoomThread(prisma, target.id, room.id, true);
     } catch (err) {
       console.error(`Failed to add ${target.discordUserId} to room ${room.id}:`, err);
     }
@@ -542,7 +561,7 @@ async function handleIntercomOpen(interaction, roomId) {
 async function handleTurretOpen(interaction, roomId) {
   const room = await prisma.room.findUnique({ where: { id: roomId }, select: { slug: true } });
   if (room?.slug !== CENSOR_OFFICE_ROOM_SLUG) {
-    await interaction.reply({ content: "» *There's no button here.* ‡", ephemeral: true });
+    await interaction.reply({ content: "» *There's no button here.*", ephemeral: true });
     return;
   }
   await interaction.showModal(buildTurretModal(roomId, await gatehouseTurretArmed(prisma)));
@@ -554,7 +573,7 @@ async function handleTurretOpen(interaction, roomId) {
 async function handleBellOpen(interaction, roomId) {
   const room = await prisma.room.findUnique({ where: { id: roomId }, select: { slug: true } });
   if (room?.slug !== BELL_ROOM_SLUG) {
-    await interaction.reply({ content: "» *There's no bell here.* ‡", ephemeral: true });
+    await interaction.reply({ content: "» *There's no bell here.*", ephemeral: true });
     return;
   }
   await interaction.showModal(buildBellModal(roomId));
@@ -573,7 +592,7 @@ async function handleBellSubmit(interaction, roomId) {
     select: { id: true, name: true, slug: true, locationId: true },
   });
   if (!room || room.slug !== BELL_ROOM_SLUG) {
-    await respond(interaction, "» *There's no bell here.* ‡");
+    await respond(interaction, "» *There's no bell here.*");
     return;
   }
   // Decided at submit, never at open: the modal outlives somebody walking back
@@ -638,7 +657,7 @@ async function handleTurretSubmit(interaction, roomId) {
     select: { id: true, name: true, slug: true, locationId: true },
   });
   if (!room || room.slug !== CENSOR_OFFICE_ROOM_SLUG) {
-    await respond(interaction, "» *There's no button here.* ‡");
+    await respond(interaction, "» *There's no button here.*");
     return;
   }
   // Decided at submit, never at open: the modal outlives somebody walking out
@@ -703,7 +722,7 @@ async function handleIntercomSubmit(interaction, roomId) {
     select: { id: true, name: true, slug: true, locationId: true },
   });
   if (!room || room.slug !== INTERCOM_ROOM_SLUG) {
-    await respond(interaction, "» *There's no intercom here.* ‡");
+    await respond(interaction, "» *There's no intercom here.*");
     return;
   }
   if (character.locationId !== room.locationId) {
@@ -713,7 +732,7 @@ async function handleIntercomSubmit(interaction, roomId) {
 
   const body = interaction.fields.getTextInputValue("intercom:body").trim();
   if (!body) {
-    await respond(interaction, "» *Say something first.* ‡");
+    await respond(interaction, "» *Say something first.*");
     return;
   }
 
@@ -946,7 +965,7 @@ async function handleTravelPick(interaction) {
   const left = crossing ? freeMovesLeft(character, config, openTurn) : null;
 
   const cost = !character.locationId
-    ? "-# Arriving costs you nothing. ‡"
+    ? "-# Arriving costs you nothing."
     : !crossing
       ? "-# A step inside the zone is free. ‡"
       : left > 0
@@ -992,7 +1011,7 @@ async function handleTravelDrag(interaction, locationId) {
   const lines = interaction.message.content
     .split("\n")
     .filter((line) => !line.startsWith("-# Bringing:"));
-  if (chosen.length > 0) lines.push(`-# Bringing: ${chosen.map((c) => c.name).join(", ")} ‡`);
+  if (chosen.length > 0) lines.push(`-# Bringing: ${chosen.map((c) => c.name).join(", ")}`);
 
   await interaction.editReply({ content: lines.join("\n") }).catch((err) =>
     console.error("Failed to show the drag list:", err),
@@ -1049,7 +1068,7 @@ async function handleTravelTurnBack(interaction) {
 
   const character = await loadMover(interaction.user.id);
   if (!character?.travelToLocationId) {
-    await respond(interaction, { content: "» *You're not going anywhere.* ‡", components: [] });
+    await respond(interaction, { content: "» *You're not going anywhere.*", components: [] });
     return;
   }
   await prisma.character.update({
@@ -1064,7 +1083,7 @@ async function handleTravelTurnBack(interaction) {
 
 async function handleTravelCancel(interaction) {
   forgetDrag(interaction.user.id);
-  await interaction.update({ content: "» *Canceled.* ‡", components: [] });
+  await interaction.update({ content: "» *Canceled.*", components: [] });
   scheduleDismiss(interaction);
 }
 
@@ -1086,7 +1105,7 @@ async function handleWhosHere(interaction, locationId) {
   const rows = await whosHere(prisma, viewer, { locationId });
   const lines = whosHereLines(rows);
   if (lines.length === 0) {
-    await respond(interaction, "» *Nobody is here.* ‡");
+    await respond(interaction, "» *Nobody is here.*");
     return;
   }
   await respond(interaction, `${lines.join("\n")} ‡`);
@@ -1122,7 +1141,7 @@ async function handleExamine(interaction, locationId) {
     },
   });
   if (!location) {
-    await respond(interaction, "» *That place is gone.* ‡");
+    await respond(interaction, "» *That place is gone.*");
     return;
   }
 
@@ -1310,7 +1329,7 @@ async function handleConverseCreate(interaction, roomId) {
 
   const name = interaction.fields.getTextInputValue(CONVERSE_NAME_FIELD).trim().slice(0, 90);
   if (!name) {
-    await respond(interaction, "» *Give it a name.* ‡");
+    await respond(interaction, "» *Give it a name.*");
     return;
   }
 
@@ -1355,7 +1374,7 @@ async function handleConverseCreate(interaction, roomId) {
     })
     .catch((err) => console.error("Conversation audit log failed:", err));
 
-  await respond(interaction, `» *Opened.* ‡\n<#${thread.id}>`, { fleeting: true });
+  await respond(interaction, `» *Opened.*\n<#${thread.id}>`, { fleeting: true });
 }
 
 // /conceal: a standing state, not a per-message prefix. While it is on, every
@@ -1754,6 +1773,50 @@ const NOTE_GLYPHS = ["♫", "♩", "♪", "♬"];
 const PLAY_COOLDOWN_MS = 5 * 60_000;
 const lastPlayed = new Map();
 
+const PLAY_SOOTHE_AUDIT_ACTION = "fear_soothed_play";
+
+// −10 fear to every living character standing at the musician's Location, the
+// musician included. The ration is an AuditLog row per listener with turnId
+// set (REQUESTS.md §1a); /play is rate-limited to one a few minutes and a
+// room holds a dozen people at most, so the rows stay few. The band DM goes
+// out through the sender db/index.js registered.
+async function sootheListeners(musician) {
+  if (!musician.locationId) return;
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
+  if (!openTurn) return;
+  const listeners = await prisma.character.findMany({
+    where: { locationId: musician.locationId, status: "ALIVE" },
+    select: { id: true },
+  });
+  const soothedAlready = new Set(
+    (
+      await prisma.auditLog.findMany({
+        where: {
+          actionType: PLAY_SOOTHE_AUDIT_ACTION,
+          turnId: openTurn.id,
+          targetCharacterId: { in: listeners.map((c) => c.id) },
+        },
+        select: { targetCharacterId: true },
+      })
+    ).map((row) => row.targetCharacterId),
+  );
+  for (const { id } of listeners) {
+    if (soothedAlready.has(id)) continue;
+    await prisma.$transaction(async (tx) => {
+      await applyFear(tx, id, { kind: "MUSIC" });
+      await tx.auditLog.create({
+        data: {
+          actorDiscordUserId: musician.discordUserId ?? "system",
+          actionType: PLAY_SOOTHE_AUDIT_ACTION,
+          targetCharacterId: id,
+          turnId: openTurn.id,
+          details: { musicianId: musician.id, locationId: musician.locationId },
+        },
+      });
+    });
+  }
+}
+
 // Three glyphs, repeats allowed — "a random combination of 3", not three
 // distinct ones, so ♩♩♪ is a legal result.
 function noteFlourish() {
@@ -1807,10 +1870,19 @@ async function handlePlayCommand(interaction) {
   // performance.
   const posted = await channel.send(`${line} ‡`).catch(() => null);
   if (!posted) {
-    await respond(interaction, "» *Couldn't play here.* ‡");
+    await respond(interaction, "» *Couldn't play here.*");
     return;
   }
   lastPlayed.set(character.id, Date.now());
+
+  // A musician's playing settles everyone in earshot, once per listener per
+  // turn (docs/systemdocs/FEAR.md). Only a MUSICIAN's: a bad performance calms
+  // nobody. Wrapped, so the dial can never swallow the performance.
+  if (held(MUSICIAN_SLUG)) {
+    await sootheListeners(character).catch((err) =>
+      console.error(`/play: soothing failed for ${character.id}:`, err.message ?? err),
+    );
+  }
 
   // ...and the street outside hears it, small. Only when the room WAS a
   // thread — run on the open street, the channel above already is the
@@ -1820,7 +1892,7 @@ async function handlePlayCommand(interaction) {
     await channel.parent.send(ambientLine(line)).catch(() => null);
   }
 
-  await respond(interaction, "» *You play.* ‡");
+  await respond(interaction, "» *You play.*");
 }
 
 // /shout — the one thing a character can say that leaves the room they said
@@ -1839,7 +1911,7 @@ async function handleShoutCommand(interaction) {
 
   const text = interaction.options.getString("message")?.trim();
   if (!text) {
-    await respond(interaction, "» *Say something.* ‡");
+    await respond(interaction, "» *Say something.*");
     return;
   }
 
@@ -1862,7 +1934,7 @@ async function handleShoutCommand(interaction) {
     return;
   }
   if (!character.locationId) {
-    await respond(interaction, "» *You're nowhere.* ‡");
+    await respond(interaction, "» *You're nowhere.*");
     return;
   }
 
@@ -1929,10 +2001,10 @@ async function handleShoutCommand(interaction) {
   }
 
   if (posted === 0) {
-    await respond(interaction, "» *Couldn't shout here.* ‡");
+    await respond(interaction, "» *Couldn't shout here.*");
     return;
   }
-  await respond(interaction, "» *You shout.* ‡");
+  await respond(interaction, "» *You shout.*");
 }
 
 module.exports = {

@@ -97,9 +97,46 @@ async function conversationsFor(prisma, characterId, { locationId = undefined } 
   return rows.map((row) => row.playerThread).filter(Boolean);
 }
 
+// Who is in one conversation. The rows ARE the membership (Discord's thread
+// member list is their projection), so this is the whole answer and it needs
+// no REST call — which is the point: the Hall draws it beside every message.
+//
+// Dead members are dropped rather than shown greyed. A conversation is a
+// corner of a room, not a roster, and a body cannot be in one.
+//
+// Two queries rather than one join: PlayerThreadMember.characterId is a plain
+// column with no relation behind it (see the model), so there is nothing for
+// an `include` to walk.
+async function conversationMembers(prisma, playerThreadId) {
+  if (!playerThreadId) return [];
+  const rows = await prisma.playerThreadMember.findMany({
+    where: { playerThreadId },
+    orderBy: { createdAt: "asc" },
+    select: { characterId: true },
+  });
+  if (rows.length === 0) return [];
+
+  const people = await prisma.character.findMany({
+    where: { id: { in: rows.map((row) => row.characterId) }, status: "ALIVE" },
+    select: { id: true, name: true, updatedAt: true },
+  });
+  const byId = new Map(people.map((person) => [person.id, person]));
+  // Kept in the order they were added, which is the order the rows came back
+  // in — the map above is only the lookup.
+  return rows
+    .map((row) => byId.get(row.characterId))
+    .filter(Boolean)
+    .map((entry) => ({
+      characterId: entry.id,
+      name: entry.name,
+      avatarVersion: entry.updatedAt?.getTime?.() ?? null,
+    }));
+}
+
 module.exports = {
   conversationByThreadId,
   addConversationMember,
   removeConversationMember,
   conversationsFor,
+  conversationMembers,
 };

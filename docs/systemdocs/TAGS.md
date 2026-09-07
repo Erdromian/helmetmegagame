@@ -128,8 +128,9 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
   `requiredTagId` or the rule silently stops applying (or, missing `groupId`,
   applies across groups). In `PointBuy` a conflict with another *pick*
   swaps (like a chain sibling); a conflict with something already held is
-  dimmed and named. Conversion mid-game is "drop one, buy another" — Beliefs
-  stay `removable` — and the store's error says exactly that.
+  dimmed and named. Conversion mid-game is a GM's to make: Destroy is for
+  items now (`CRAFTING.md` §5), so a Belief cannot be dropped from the sheet
+  and the store's error just names the pair.
 - **`Tag.conflictsWith`** — a named pairwise conflict, distinct from
   `exclusive`'s at-most-one-per-group rule: it isn't scoped to a group and
   isn't carved out for a `requiredTag` pair, so it's the right tool for a
@@ -158,7 +159,7 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
   gates on from `docs/desires.yaml` (Mad Doctor, Esoteric, Adventurer, Cruel,
   Charitable, Death Wish, Schemer, Superstitious, Desperate, Hypochondriac,
   Hot-Headed, Corrupt). A tag that never touches Desires has no quarrel with
-  it: Lazy, Insomniac, Guilt Ridden, Torturer, the four phobias, Debtor, Poor
+  it: Lazy, Insomniac, Guilt Ridden, Torturer, the five phobias, Debtor, Poor
   Swimmer, Motion Sickness and Lightweight all sit beside Depressed quite
   happily. **Adding a Personality tag? It belongs on Depressed's list only if
   it locks or opens Desires** — that test, not a frozen enumeration.
@@ -288,7 +289,7 @@ also work a needle. Note the second entry is not a skill at all — the sync
 resolves any tag slug here (`db/lib/syncTags.js`), which is what lets a recipe
 require a *belief*.
 
-`isDeadSimple()` (`web/lib/requests.js`) reads the same slugs for the
+`isDeadSimple()` (`web/lib/tagRequests.js`) reads the same slugs for the
 4-per-turn cap, so callers still select `requirementSkills { name, slug }`.
 
 ## 3a. Hidden categories, and gated groups
@@ -386,16 +387,16 @@ and never through the menu.
 `web/app/components/PointBuy.js`: character creation offers every
 `purchasable` tag, while the mid-game store offers only those still marked
 `purchasableAfterStart`. That's what lets a pick like "Secretly an Android"
-exist at launch and never afterward. **Every negative-cost tag must be
-`purchasableAfterStart: false` — *unless* it is deliberately farmable, in
-which case it must also be non-removable.** A drawback that can be bought
-mid-game and then shed is a point farm, because `REMOVE_TAG` and
-`CONSUME_TAG` refund resources but never Tag Points. A deliberate exception
-is possible — a negative tag that's `purchasableAfterStart: true` but also
-`removable: false, consumable: false`, so it can be taken for the points but
-never shed — but nothing in the current catalog uses it (the four
-Addictions did, before the Cult of Bacchus was archived). The flag is the
-whole rule — there is no second, hardcoded refusal behind it.
+exist at launch and never afterward. **Every negative-cost tag should be
+`purchasableAfterStart: false`.** A drawback that can be bought mid-game and
+then shed is a point farm, because `REMOVE_TAG` and `CONSUME_TAG` refund
+resources but never Tag Points. Half of that door is now shut by the catalog's
+own shape: Destroy is for Items and Assets (`CRAFTING.md` §5), and a drawback
+is neither, so no negative tag is `removable` any more and none can be. What
+is left is `consumable`, and the store's own guard in
+`web/app/(app)/store/actions.js` refuses a negative-cost tag carrying either
+flag whatever the YAML says — which is what covers a GM-authored custom row,
+the one place the rule can still be broken.
 
 That invariant has three enforcement points. `purchasableTags()` honours it
 via `PointBuy`'s `afterStartOnly` prop, which **`/store`** mounts — the
@@ -495,21 +496,41 @@ of the Desire catalog it closes against how much it opens, and Depressed
 closes everything and opens nothing, so it is that band's floor. Teaching and
 Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
 (`LESSONS.md` §1).
+**Torturing Equipment is 0** — unpurchasable, like the other kits' `purchasable:
+false` rows; what it costs is its recipe (`TORTURE.md` §5), not a price.
 
 **The Personality batch of 2026-09-05 sits partly off-band too, again
 Bascinet's call rather than a new scale.** Poor Swimmer is −1 (below the −2
-band, alongside Leper). Acrophobia, Claustrophobia and Guilt Ridden are each
+band, alongside Leper). Claustrophobia and Guilt Ridden are each
 −3 (between −2 and −5). Motion Sickness, Insomniac and Lazy are each −4
 (also between −2 and −5). Pyrophobia and Teratophobia sit on-scale at the
-ordinary −2 band.
+ordinary −2 band. Hemophobia and Agoraphobia (2026-09-06) are −4 each,
+Bascinet's call, the same off-band spot as Motion Sickness and Insomniac.
 
 **The Tag Redo batch of 2026-09-05 moved a lot of the catalog off-band, and
 that is Bascinet's call rather than a new scale.** Fourteen tags now sit
 between bands: Adventurer 3, Dagger 3, Death Wish 3, Knuckle Duster 3,
-Pickpocket 3, Skeleton Wedge 3 and Nine Lives 3 (between 2 and 5); Brave 4,
-Escape Artist 4, Esoteric 4, Lockpicking 4, Pavise 4 and Camouflage 4 (also
-between 2 and 5); Light Sleeper and Old Blood at 1 (below the 2 band, alongside
-Pilgrim and Instrument). Don't read a pattern into any of them.
+Pickpocket 3, Skeleton Wedge 3 and Nine Lives 3 (between 2 and 5); Brave was 4 here too, but the fear-dial batch of
+2026-09-06 moved it to 5 (repriced for its new ×0.5 relief on every fear
+gain, FEAR.md) — it sits on the ordinary 5 band now, so drop it from this
+off-band list. Escape Artist 4, Esoteric 4, Lockpicking 4, Pavise 4 and
+Camouflage 4 (also between 2 and 5); Light Sleeper and Old Blood at 1 (below
+the 2 band, alongside Pilgrim and Instrument). Don't read a pattern into any
+of them.
+
+**The combat and traits batch of 2026-09-06 adds seven more off-band calls,
+again Bascinet's rather than a new scale.** Steady is 1 (below the 2 band,
+alongside Pilgrim, Instrument, Light Sleeper and Old Blood). Ranged (Throwing
+Weapons) is 4 and Ranged (Sniper) 7, against a nominal sidegrade price of 10 —
+Sniper on the Melee (Flamboyant) precedent, since "at long range" is a real
+condition of its own rather than a situational-but-free one. Reckless Attacker
+and Monster Hunter are 5 each, both ungated for Guerrilla's reason. Drunken
+Master is 5 and gated behind Alcoholic, so it is bought at a −4 discount
+nothing else in the group pays. Dense is −3 (between −2 and −5, alongside
+Tremor, which is the same magnitude of nuisance). Don't read a pattern into
+any of them — and note that the sidegrade band now has four exceptions
+(Flamboyant, Sniper, Throwing Weapons, Guerrilla), so "sidegrades cost 10" is
+a starting point rather than a rule.
 
 **Corrupt at −2 is the one that argues with this section**, and it is
 deliberate. By the income rule below it should be positive: it opens five
@@ -523,7 +544,7 @@ Sheriff qualify for all five *without* holding Corrupt, which empties the tag
 for the only two seats it is written for and makes its own description false
 to them. The AND stands. What the −2 does leave open is a character outside
 those seats buying Corrupt once for two points and no unlocks; that is bounded
-(once per character, and `removable: false` means it can never be sold back)
+(once per character, and being a non-item means it can never be sold back)
 and is accepted.
 
 **At character creation a build faces TWO ceilings on drawbacks, and it stops
@@ -643,12 +664,11 @@ has since been deleted outright along with the channel it opened.
 - **Combat items ride a fixed six-tier ladder.** Weapons and armor are priced
   from the tier they sit in, not by feel. See
   [`SMITHING.md`](SMITHING.md) for the table.
-- **Every negative tag is `purchasableAfterStart: false` unless it is
-  deliberately farmable, in which case it must be non-removable.** Restated
-  from §4 because it is the one invariant the scale can be used to violate: a
-  drawback that can be bought mid-game *and* shed is a point farm. The four
-  Addictions are the deliberate exception and carry `removable: false,
-  consumable: false` to close the loop.
+- **Every negative tag is `purchasableAfterStart: false`.** Restated from §4
+  because it is the one invariant the scale can be used to violate: a drawback
+  that can be bought mid-game *and* shed is a point farm. A drawback is not an
+  item, so it is never `removable`; `consumable` is the half still worth
+  watching, and the store's guard is the backstop under both.
 - **Items are `purchasableAfterStart: false` too**, without exception. An
   object enters play by being crafted or found; its route in is `craftable`
   plus a `requirement` block, never points. 18 items violated this before the
@@ -870,9 +890,11 @@ convention as `buildNickname`. Change both copies together; don't collapse them
 them).
 - `removable` — whether a player can strip this tag off themselves mid-game
   without a GM. Live: it is the whole filter behind the Destroy menu (Remove
-  Tag, renamed — `CRAFTING.md`) (`removableTags()`, `web/lib/tagRequests.js`)
-  and is re-checked by `destroyTagRequest`. Never true on a Health tag any
-  more — a wound is healed, not destroyed; see `healable` below.
+  Tag, renamed — `CRAFTING.md`) (`destroyableTags()`, `web/lib/tagRequests.js`)
+  and is re-checked by `destroyTagRequest`. The one flag of the four the sync
+  DERIVES rather than reads: Destroy is for things you own, so an Items or
+  Assets tag has it and nothing else does. Never true on a Health tag — a
+  wound is healed, not destroyed; see `healable` below.
 - `craftable` — whether this tag represents something a player can
   craft/make, as opposed to one that only ever arrives via role, GM grant,
   or automatic game logic. Live: `addableTags()` offers Craftable tags in the
@@ -901,20 +923,24 @@ them).
   `requiresTag` naming a tag that does not exist — a typo'd `kind` would
   otherwise make a tool silently worthless. Full rules in `LABORING.md` §5.
 - `requirementItems` (YAML: `requirement.items`) — the recipe's
-  **ingredients**, and the first ones this game ever actually enforced. Only
-  two recipes carry one: `miasma` needs a corpse, `dreamers-draught` needs a
-  Skinless Brain. **Holding it is the check — nothing is consumed**, so you
-  keep the corpse you bottled the Miasma over, and a second craft off the same
-  body is allowed. An entry is either a tag slug (`items: [skinless-brain]`) or
-  a whole **group** (`items: [{ group: items-corpse }]`); the group form is not
-  a convenience but a necessity, since a corpse written at death is never in
-  `docs/tags.yaml` for a slug to name. Stored as Json rather than a relation
-  for that reason, with a denormalized display `label` the sync rewrites every
-  run. Validated in `db/lib/tagShapes.js` — which throws on an `items` block on
-  a tag that is not `craftable`, because the Craft path is the only enforcement
-  point and an `items` block anywhere else would look enforced and do nothing.
-  Enforced against the crafter's **own sheet only**, never a room stash. Full
-  writeup in [`CORPSES.md`](CORPSES.md) §8.
+  **ingredients**, and the only ones the game has. **Spent by default**:
+  `quantity` units come off the crafter's sheet per craft, the same scaling ⬢
+  has, and they go when the work *starts* rather than when it finishes. Three
+  entry shapes — a tag slug (`items: [cave-fungus]`), a whole **group**
+  (`items: [{ group: items-corpse }]`), or a player's pick
+  (`items: [{ anyOf: [tea, sweets, honey] }]`). The group form is not a
+  convenience but a necessity, since a corpse written at death is never in
+  `docs/tags.yaml` for a slug to name — and it is always **kept**, never spent,
+  because a group names no single stack to decrement (`keep: false` on one is
+  refused). `keep: true` turns a slug entry back into a hold-check. Stored as
+  Json rather than a relation, with a denormalized display `label` — and, on an
+  `anyOf`, denormalized member `options` — that the sync rewrites every run.
+  Validated in `db/lib/tagShapes.js`, which throws on an `items` block on a tag
+  that is not `craftable` (the Craft path is the only enforcement point), on
+  one paired with `placement:` (a build site has no one sheet to spend from),
+  and on a second `anyOf` in one recipe (the dialog posts one choice). Enforced
+  against the crafter's **own sheet only**, never a room stash. Full writeup in
+  [`CORPSES.md`](CORPSES.md) §8.
 - `requirementTurns` / `requirementResources` / `requirementGambit` /
   `requirementPerTurn` / `requirementSkills` (YAML: nested under
   `requirement:` as `turnsCost` / `resourceCost` / `gambit` / `perTurn` /
@@ -1162,12 +1188,16 @@ presence of a `requirement:` block (§5, `isHealable`). A rung priced
 carelessly can still be wrong twice, on both surfaces — just remember they're
 two different flags now, not one inference.
 
+The ladder is read a third time by the fear dial: a new wound's rung decides
+how much it frightens the character who takes it, `db/lib/fear.js` reading the
+same rungs as the table above (FEAR.md). Pricing a rung carelessly is now
+wrong three ways, not two.
+
 **Remove/Destroy no longer cures anything.** Before `healable` existed, the
 old Remove Tag door doubled as a rough cure for some conditions — stripping a
-tag off yourself with no medic involved. `removable` and `healable` are
-disjoint on every Health tag now: something a doctor treats is `healable`,
-never `removable`; nothing in Health can be self-stripped through Destroy any
-more. Healing is the only door.
+tag off yourself with no medic involved. Health is not an Items category, so
+nothing in it can be `removable` at all now: something a doctor treats is
+`healable`, and healing is the only door.
 
 Four things about it are deliberate.
 
@@ -1455,8 +1485,9 @@ of who is qualified; `healRequests.js` re-exports it.
 1. Pick the group by what kind of medicine it wants.
 2. Pick a ladder rung by what the work would really take, and copy its block
    verbatim. Tier 0 means no `requirement:` at all, and `healable: false`.
-   Any rung above 0 gets `healable: true` — and `removable: false`; Health
-   tags are cured, not destroyed.
+   Any rung above 0 gets `healable: true`. Nothing in Health needs a
+   `removable` line — a Health tag never gets one; it is cured, not
+   destroyed.
 3. Set `visible` by whether a bystander could tell.
 4. If it worsens, give it `durationTurns` and `expiresInto` — **and say so in
    the description**, naming what it becomes. The tooltip's "Becomes" row is
@@ -1600,8 +1631,8 @@ handed renders inert rather than either vanishing or leaking.
 by automatic game logic rather than by a player, a GM, or a starting package —
 `db/lib/hungerPass.js` is their only writer, and `db/lib/gambitModifier.js`
 their only reader. `db/lib/constants.js` holds the slugs so neither file
-hardcodes a string. `catatonic-afk` is a third: `db/lib/catatonicPass.js` (gated on
-`GameConfig.catatonicEnabled`/`catatonicTurns`) and
+hardcodes a string. `catatonic-afk` is a third: `db/lib/catatonicPass.js` (after
+`GameConfig.catatonicTurns` idle turns) and
 `db/lib/playerDeparture.js` (a guild leave, ungated — departure is a fact,
 not a dial) are its two writers, it now carries a consequence — held for
 `GameConfig.catatonicDeathTurns` turns straight, the character dies at close
@@ -1630,10 +1661,10 @@ at all.
 The Personality batch of 2026-09-05 added a second wave of scripted
 drawbacks, each with its own writer:
 
-- **Claustrophobia and Acrophobia** sustain a mood (Afraid or Panic) for as
-  long as the character stands somewhere that triggers them —
-  `db/lib/phobias.js` (the rule table) and `db/lib/phobiaPass.js` (the
-  turn-close safety net). See "Phobias" below.
+- **Claustrophobia, Hemophobia, Agoraphobia, Pyrophobia and Teratophobia**
+  each multiply one kind of fear gain rather than sustaining a mood of their
+  own — `db/lib/fear.js` (the multiplier table) and `db/lib/fearPass.js` (the
+  nightly turn pass). See `FEAR.md`.
 - **Guilt Ridden and Insomniac** each carry a nightly chance of a bad night's
   sleep, stepped through the same Tired -> Exhausted ladder a day's Labor uses
   (`LABORING.md` §4) — `db/lib/dawnAfflictionPass.js`, run right after the
@@ -1645,7 +1676,7 @@ drawbacks, each with its own writer:
   `db/lib/confession.js#confessableTags`/`validateConfession` (`CONFESSION.md`).
 - **Lightweight and Iron Liver** reshape the drinking ladder —
   `web/lib/consumeGrants.js` (`BREWING.md` §5a).
-- **Motion Sickness** refuses mounting a horse, steam automobile or fishing
+- **Motion Sickness** refuses mounting a horse, motorcycle or fishing
   boat (`web/app/(app)/character/equipActions.js`), and grants Vomiting to a
   Motion Sick passenger dragged along a mounted or boated zone crossing
   (`db/lib/locationTravel.js#vomitOnTheRide`).
@@ -1654,32 +1685,9 @@ drawbacks, each with its own writer:
 
 ## Phobias
 
-A phobia doesn't act on its own — it sustains a mood tag (`afraid` or
-`panic`) for as long as the character stands somewhere that triggers it. The
-rule table is `PHOBIA_RULES` in `db/lib/phobias.js`: one row per phobia slug,
-reading only the character's current location and zone and returning the
-mood it wants, or `null`. Today that's Claustrophobia (wants Afraid in any
-`CAVE_LEVEL` zone) and Acrophobia (wants Afraid in the Black Hills, Panic at
-the Mountain location specifically).
-
-`settlePhobias` runs on every Move (`db/lib/locationMove.js`), and
-`runPhobiaPass` sweeps everyone else at turn close, right after the carry
-pass, as a safety net for a phobia granted mid-turn or a zone that changed
-under someone without a Move.
-
-A phobia-owned mood row is the one with `source: TagSource.CONDITION` — a
-dedicated `TagSource`, so a GM grant (even a "never expires" one) can
-never be mistaken for the phobia's own row. Every other grant of Afraid or
-Panic — a GM grant, timed or not, a consume — is a person's row, and
-`settlePhobias` leaves it entirely alone rather than rewriting its expiry: it
-just lets the sweep remove it when it expires and puts its own `CONDITION`
-row in on the next settle. A character who isn't ALIVE (dead, Catatonic)
-wants nothing, so this is also what clears a leftover `CONDITION` row off a
-corpse. `afraid` itself is now a 1-turn default duration (down from 2), since
-a phobia keeps refreshing it anyway for as long as it applies.
-
-**Adding a phobia** is one more row in `PHOBIA_RULES` — nothing else in
-either file needs to change.
+A phobia is no longer its own system. It's a multiplier on one kind of fear
+gain in the hidden fear dial — see `FEAR.md` for the dial, the five mood
+bands it produces, and the full multiplier table.
 
 ## `equippable` / `concealsIdentity`
 

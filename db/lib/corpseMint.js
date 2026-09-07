@@ -20,7 +20,7 @@ function corpseName(name) {
 }
 
 function corpseDescription(name) {
-  return `The lifeless body of ${name}. ‡`;
+  return `The lifeless body of ${name}.`;
 }
 
 // Slugified from the name like every other slug in the catalog, with the

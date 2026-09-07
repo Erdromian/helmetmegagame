@@ -5,7 +5,12 @@
 // Players are a flat, alphabetical list, deliberately NOT nested under their
 // faction — that grouping would leak allegiances to anyone who opened the
 // dropdown. The list itself is already narrowed to who is at your Location
-// and not concealed (web/lib/peopleHere.js).
+// (web/lib/peopleHere.js).
+//
+// An entry may carry `kind: "hood"`, which writes "hood:<token>" instead. That
+// is a concealed person, listed by their alias — Transfer is the one caller
+// that offers them, and the token is an opaque handle rather than an id
+// (db/lib/whosHere.js#hoodToken).
 //
 // Lives here rather than inside the Transfer dialog because Heal and Craft
 // ask the same question ("who pays for this?") over the same people.
@@ -32,15 +37,15 @@ export default function PartySelect({ label, value, onChange, characters, rooms,
           {hint}
         </option>
         {silo ? (
-          <optgroup label="Your silo ‡">
+          <optgroup label="Your silo">
             <option value={`room:${silo.id}`}>
               ★ {silo.name}
-              {silo.here ? " — locked to you ‡" : ` — ${silo.locationName} ‡`}
+              {silo.here ? " — locked to you" : ` — ${silo.locationName}`}
             </option>
           </optgroup>
         ) : null}
         {rooms?.length ? (
-          <optgroup label="Rooms here ‡">
+          <optgroup label="Rooms here">
             {rooms.map((r) => (
               <option key={r.id} value={`room:${r.id}`}>
                 {r.name}
@@ -49,11 +54,11 @@ export default function PartySelect({ label, value, onChange, characters, rooms,
           </optgroup>
         ) : null}
         {characters?.length ? (
-          <optgroup label="People here ‡">
+          <optgroup label="People here">
             {characters.map((c) => (
-              <option key={c.id} value={`character:${c.id}`}>
+              <option key={c.id} value={`${c.kind ?? "character"}:${c.id}`}>
                 {c.name}
-                {selfId && c.id === selfId ? " (you) ‡" : ""}
+                {selfId && c.id === selfId ? " (you)" : ""}
               </option>
             ))}
           </optgroup>

@@ -15,6 +15,7 @@
 const { drawLoot } = require("./cavingLoot");
 const { hasAttribute, SAFE_ATTRIBUTE } = require("./locationAttributes");
 const { addToStack } = require("./tagWrites");
+const { applyFear } = require("./fear");
 const { rollDie } = require("./moveEffects");
 const { expiryFrom } = require("./turnFormat");
 
@@ -63,6 +64,9 @@ async function rollCaving(prisma, character, turn, location) {
             resolvedAt: kind === "QUIET" ? new Date() : null,
           },
         });
+        // Something is wrong down here — and the caver knows it (FEAR.md).
+        // Teratophobia triples this one.
+        if (kind === "TROUBLE") await applyFear(tx, character.id, { kind: "CAVE_TROUBLE" });
         return {
           roll: row,
           dm: {

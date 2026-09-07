@@ -18,7 +18,7 @@ function jsonResponse(body, status = 200) {
 
 export async function POST(request) {
   const session = await auth();
-  if (!session?.discordUserId) return jsonResponse({ error: "Sign in first. ‡" }, 401);
+  if (!session?.discordUserId) return jsonResponse({ error: "Sign in first." }, 401);
 
   const character = await loadFeedCharacter(session.discordUserId);
   if (!character) return jsonResponse({ error: "You have no living character. ‡" }, 403);
@@ -53,6 +53,9 @@ export async function POST(request) {
     zoneName: context.zoneName,
     channelKind: context.channelKind,
     threadName: context.threadName,
+    // Carried through the write and out on the NOTIFY, so the stream's copy
+    // of this row lands in the sending tab as the row it already drew.
+    clientId,
   });
 
   if (!said.ok) {

@@ -89,7 +89,7 @@ function buildBlocks(entries) {
 
 export default function ArchiveTranscript({ entries }) {
   if (entries.length === 0) {
-    return <p className="panel p-4 text-sm text-muted">Nothing here. ‡</p>;
+    return <p className="panel p-4 text-sm text-muted">Nothing here.</p>;
   }
   const blocks = buildBlocks(entries);
   return (

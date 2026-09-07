@@ -53,7 +53,7 @@ async function setMerchantSeal(tx, name) {
     where: { slug: MERCHANT_STAMP_SLUG },
     data: {
       sealMark: mark,
-      description: `The Merchant's wax stamp. ${mark} ‡`,
+      description: `The Merchant's wax stamp. ${mark}`,
     },
   });
 }

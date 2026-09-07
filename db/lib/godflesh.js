@@ -114,13 +114,13 @@ function extractionDm(result, { locationName = null } = {}) {
 
   if (result.injury) {
     lines.push(
-      "» *It got a hand round your wrist before you got the blade in.* ‡",
+      "» *It got a hand round your wrist before you got the blade in.*",
       result.injury.column === "none"
-        ? "-# You were not wearing your Armored Gloves. ‡"
-        : "-# Your Armored Gloves took most of it. ‡",
+        ? "-# You were not wearing your Armored Gloves."
+        : "-# Your Armored Gloves took most of it.",
     );
   } else if (result.die === 6) {
-    lines.push("» *A good seam. It came away in one piece and then some.* ‡");
+    lines.push("» *A good seam. It came away in one piece and then some.*");
   }
 
   lines.push(`**Godflesh:** +${result.quantity}`);

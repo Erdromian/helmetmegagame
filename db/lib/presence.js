@@ -13,12 +13,18 @@
 // inspectVision.js.
 
 // The Prisma where-clause for "everyone here but me".
-function hereWhere(character, { includeDead = false } = {}) {
+// `allowConcealed` is the one opt-out, and TRANSFER is its only caller. A hood
+// hides WHO somebody is, not THAT somebody is standing there — handing a coin
+// to a stranger is a thing you can plainly do to a person whose name you do not
+// know. Every other action keeps the strict rule: learning a skill from a hood,
+// or confessing to one, would be acting on an identity rather than on a body in
+// the room.
+function hereWhere(character, { includeDead = false, allowConcealed = false } = {}) {
   return {
     locationId: character.locationId,
     id: { not: character.id },
     OR: [
-      { status: "ALIVE", concealed: false },
+      allowConcealed ? { status: "ALIVE" } : { status: "ALIVE", concealed: false },
       ...(includeDead ? [{ status: "DEAD", buriedAt: null }] : []),
     ],
   };
@@ -27,11 +33,11 @@ function hereWhere(character, { includeDead = false } = {}) {
 // The gate. Both rows need `locationId`; the target also `status`,
 // `concealed` and `buriedAt`. Reaching yourself is free — you are always
 // where you are. An unplaced actor reaches no one: nowhere is not everywhere.
-function isHere(actor, target, { allowDead = false } = {}) {
+function isHere(actor, target, { allowDead = false, allowConcealed = false } = {}) {
   if (!actor?.locationId || !target) return false;
   if (target.id === actor.id) return true;
   if (target.locationId !== actor.locationId) return false;
-  if (target.status === "ALIVE") return !target.concealed;
+  if (target.status === "ALIVE") return allowConcealed || !target.concealed;
   if (allowDead && target.status === "DEAD") return !target.buriedAt;
   return false;
 }
@@ -41,7 +47,7 @@ const HERE_FIELDS = { id: true, locationId: true, status: true, concealed: true,
 
 // One message for every "they aren't here" refusal, so the actions agree.
 function notHereMessage(target) {
-  return target?.name ? `${target.name} isn't here. ‡` : "They aren't here. ‡";
+  return target?.name ? `${target.name} isn't here.` : "They aren't here.";
 }
 
 module.exports = { hereWhere, isHere, HERE_FIELDS, notHereMessage };

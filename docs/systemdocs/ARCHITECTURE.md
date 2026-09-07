@@ -155,7 +155,7 @@ Two reasons, both load-bearing:
 1. **The caller knows which Discord client it has.** The bot awaits inline; the
    web app has no gateway and often defers to `after()`.
 2. **Awaiting Discord inside a server action freezes the web app.** A pending
-   server action blocks client-side navigation, and the Dawn wipe is minutes
+   server action blocks client-side navigation, and the message wipe is minutes
    long. The turn commits, the response flushes, Discord catches up behind it.
 
 ## 5. Rate-limit discipline
@@ -221,7 +221,7 @@ and `MAP.md`.
 |---|---|
 | `TURN-ENGINE.md` | How a turn closes and opens, turn banners, hunger, auto-labor |
 | `SYNC.md` | The YAML masters and their sync scripts |
-| `CHANNELS.md` | Discord channel layout, visibility, the Dawn wipe |
+| `CHANNELS.md` | Discord channel layout, visibility, the message wipe |
 | `CHARACTERS.md` | Creation, roles, point economy, death |
 | `TAGS.md` | The tag catalog and its gates |
 | `REQUESTS.md` | Act-first/review-after player actions |

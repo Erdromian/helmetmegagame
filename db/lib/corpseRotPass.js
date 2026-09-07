@@ -30,7 +30,7 @@ function rottenName(name) {
 }
 
 function rottenDescription(name) {
-  return `The rotten body of ${name}. It makes you sick to be near it. ‡`;
+  return `The rotten body of ${name}. It makes you sick to be near it.`;
 }
 
 // The rename, with the same collision dance minting does — and it needs it for

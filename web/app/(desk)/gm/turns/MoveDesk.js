@@ -185,7 +185,7 @@ export default function MoveDesk({
             {move.locationLabel} · {move.factionName || "No faction"} · {move.resources} ⬢ on hand
           </p>
           {move.standingHere?.length ? (
-            <p className="text-xs text-muted">Standing here: {move.standingHere.join(" · ")} ‡</p>
+            <p className="text-xs text-muted">Standing here: {move.standingHere.join(" · ")}</p>
           ) : null}
         </div>
         <div className="flex items-center gap-2">

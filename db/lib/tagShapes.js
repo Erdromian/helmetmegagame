@@ -154,72 +154,196 @@ function rollTagChain(normalized) {
   return slugs;
 }
 
-// requirement.items — the INGREDIENT half of a recipe, and the first one this
-// game has ever actually enforced (docs/systemdocs/BREWING.md was explicit
-// that nothing did). Two entry shapes, because the two recipes that use it
-// want different things:
+// requirement.items — the INGREDIENT half of a recipe. Three entry shapes:
 //
-//     items: [skinless-brain]              a specific tag
-//     items: [{ group: items-corpse }]     any tag in a group
+//     items: [cave-fungus]                 a specific tag, SPENT
+//     items: [{ group: items-corpse }]     any tag in a group, KEPT
+//     items: [{ anyOf: [tea, sweets] }]    the player picks one, SPENT
 //
 // The group form is not a convenience — it is the only thing that can work for
 // Miasma. A person's corpse tag is written at death (db/lib/corpseMint.js) and
 // never appears in docs/tags.yaml, so no authored slug could ever name one.
 // That is also why the stored column is Json rather than a Tag[] relation.
 //
-// HOLDING IT IS THE CHECK. Nothing here is consumed, no quantity moves, and
-// crafting twice off one corpse is allowed: the recipe says you need one to
-// hand, not that you use it up.
+// CONSUMED OR KEPT, and the default differs by shape. A slug (or an `anyOf`
+// pick) is SPENT — `quantity` units per craft, scaled the same way ⬢ is. A
+// GROUP entry is KEPT: a body has its own lifecycle, and "any member of a
+// group" has no single stack to decrement, so `keep: false` on a group is
+// refused rather than guessed at. `keep: true` on a slug turns it back into
+// the old hold-check (dreamers-draught's brain used to be one).
 //
 // `label` on each normalized entry is DENORMALIZED on purpose.
 // formatTagRequirement() is pure and synchronous and is called from four
 // surfaces with four different selects; resolving a group's name at render
 // time would mean widening every one of them and giving the bot an extra
 // query. The sync rewrites the label every run, which is the same freshness
-// contract every other denormalized field in the catalog has.
+// contract every other denormalized field in the catalog has. An `anyOf`
+// entry carries `options: [{ slug, name }]` for the same reason: the Craft
+// dialog's picker needs the members' names and has only the recipe row.
+function joinWithOr(names) {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
+}
+
+// requirement.turnsCost carries the WORK one unit takes: an integer number
+// of Moves, or a `1/N` fraction — a brew that is a third of a turn's work is
+// `turnsCost: 1/3`, and three of them fill a Routine (Chris 2026-09-06, the
+// work-arithmetic concept: quantity is limited by work, never by a separate
+// cap). Internally a fraction stores as requirementTurns: 1 +
+// requirementPerTurn: N — the engine's existing share encoding — so this is
+// an authoring surface, not a schema change. `perTurn:` itself is ONLY legal
+// on a 0-turn recipe, where it is a RATION (a hard daily cap below the Dead
+// Simple pool's 4); writing it on anything that costs a Move is refused,
+// because that is the double-duty this function exists to end.
+function normalizeTurnsCost(requirement, { slug }, label = "docs/tags.yaml") {
+  const raw = requirement?.turnsCost;
+  const perTurn = requirement?.perTurn ?? null;
+  let turns = null;
+  let workDen = null;
+  if (raw == null) {
+    turns = null;
+  } else if (Number.isInteger(raw) && raw >= 0) {
+    turns = raw;
+  } else if (typeof raw === "string" && /^1\/[2-9][0-9]*$/.test(raw.trim())) {
+    turns = 1;
+    workDen = Number(raw.trim().slice(2));
+  } else {
+    throw new Error(
+      `${label}: tag "${slug}" requirement.turnsCost must be a whole number of Moves or a "1/N" fraction — got ${JSON.stringify(raw)}`,
+    );
+  }
+  if (perTurn != null) {
+    if (!Number.isInteger(perTurn) || perTurn < 1) {
+      throw new Error(`${label}: tag "${slug}" requirement.perTurn must be a positive integer`);
+    }
+    if ((turns ?? 1) !== 0) {
+      throw new Error(
+        `${label}: tag "${slug}" sets perTurn on a recipe that costs a Move — perTurn is a 0-turn ration; write the work as turnsCost: 1/${perTurn} instead`,
+      );
+    }
+  }
+  return {
+    requirementTurns: turns,
+    requirementPerTurn: workDen ?? perTurn,
+  };
+}
+
 function normalizeRequirementItems(entries, { tagNameBySlug = null, groupNameBySlug = null } = {}, label = "docs/tags.yaml") {
   if (entries == null) return null;
   if (!Array.isArray(entries)) throw new Error(`${label}: requirement.items must be a list`);
   if (entries.length === 0) return null;
   return entries.map((entry) => {
     if (typeof entry === "string") {
-      return { kind: "tag", slug: entry, label: tagNameBySlug?.get(entry) ?? entry };
+      return { kind: "tag", slug: entry, label: tagNameBySlug?.get(entry) ?? entry, keep: false };
     }
     const hasTag = typeof entry?.tag === "string";
     const hasGroup = typeof entry?.group === "string";
-    if (hasTag === hasGroup) {
-      throw new Error(`${label}: a requirement.items entry needs exactly one of \`tag:\` or \`group:\``);
+    const hasAnyOf = entry?.anyOf != null;
+    if ([hasTag, hasGroup, hasAnyOf].filter(Boolean).length !== 1) {
+      throw new Error(`${label}: a requirement.items entry needs exactly one of \`tag:\`, \`group:\` or \`anyOf:\``);
     }
+    if (entry.keep != null && typeof entry.keep !== "boolean") {
+      throw new Error(`${label}: a requirement.items \`keep:\` must be a boolean`);
+    }
+    // How many units of THIS ingredient one craft takes, on top of the craft
+    // quantity — a blank book is ten sheets, and three of them are thirty.
+    // Carried only when it isn't 1: every reader writes `count ?? 1`, so
+    // storing the default would fatten each recipe's Json for nothing.
+    //
+    // Refused on a `group:` and alongside `keep: true` for the same reason
+    // `keep: false` is refused on a group: both are hold-checks with no single
+    // stack to decrement, so a count on one would silently mean nothing.
+    const count = entry.count ?? 1;
+    if (!Number.isInteger(count) || count < 1) {
+      throw new Error(`${label}: a requirement.items \`count:\` must be a whole number of 1 or more`);
+    }
+    if (count !== 1 && (hasGroup || entry.keep === true)) {
+      throw new Error(
+        `${label}: a requirement.items \`count:\` only applies to an ingredient that is SPENT — a kept entry names no stack to draw from`,
+      );
+    }
+    const countField = count === 1 ? {} : { count };
     if (hasTag) {
-      return { kind: "tag", slug: entry.tag, label: entry.as ?? tagNameBySlug?.get(entry.tag) ?? entry.tag };
+      return {
+        kind: "tag",
+        slug: entry.tag,
+        label: entry.as ?? tagNameBySlug?.get(entry.tag) ?? entry.tag,
+        keep: entry.keep === true,
+        ...countField,
+      };
+    }
+    if (hasAnyOf) {
+      if (!Array.isArray(entry.anyOf) || entry.anyOf.length < 2 || entry.anyOf.some((s) => typeof s !== "string")) {
+        throw new Error(`${label}: a requirement.items \`anyOf:\` must list 2 or more tag slugs`);
+      }
+      const slugs = [...entry.anyOf];
+      const options = slugs.map((slug) => ({ slug, name: tagNameBySlug?.get(slug) ?? slug }));
+      return {
+        kind: "anyOf",
+        slugs,
+        options,
+        label: entry.as ?? joinWithOr(options.map((o) => o.name)),
+        keep: entry.keep === true,
+        ...countField,
+      };
+    }
+    // A group is HELD, never spent: there is no one stack to take it out of.
+    if (entry.keep === false) {
+      throw new Error(
+        `${label}: a requirement.items \`group:\` entry cannot set \`keep: false\` — a group names no single stack to spend`,
+      );
     }
     // "Corpses" -> "a corpse". Graceless for some group names, which is what
     // the `as:` override is there for.
     const name = groupNameBySlug?.get(entry.group) ?? entry.group;
     const derived = name.replace(/s$/i, "").toLowerCase();
-    return { kind: "group", slug: entry.group, label: entry.as ?? `a ${derived}` };
+    return { kind: "group", slug: entry.group, label: entry.as ?? `a ${derived}`, keep: true };
   });
 }
 
-function validateRequirementItems(normalized, { selfSlug, tagSlugs, groupSlugs, craftable, label = "docs/tags.yaml" }) {
+function validateRequirementItems(normalized, { selfSlug, tagSlugs, groupSlugs, craftable, placement = null, label = "docs/tags.yaml" }) {
   if (!normalized) return;
   const seen = new Set();
+  let pickers = 0;
   for (const entry of normalized) {
-    const known = entry.kind === "tag" ? tagSlugs : groupSlugs;
-    if (!known?.has(entry.slug)) {
-      throw new Error(`${label}: tag "${selfSlug}" references unknown requirement item ${entry.kind} "${entry.slug}"`);
+    const slugs = entry.kind === "anyOf" ? entry.slugs : [entry.slug];
+    const known = entry.kind === "group" ? groupSlugs : tagSlugs;
+    for (const slug of slugs) {
+      if (!known?.has(slug)) {
+        throw new Error(`${label}: tag "${selfSlug}" references unknown requirement item ${entry.kind} "${slug}"`);
+      }
     }
-    const key = `${entry.kind}:${entry.slug}`;
+    if (entry.kind === "anyOf" && new Set(slugs).size !== slugs.length) {
+      throw new Error(`${label}: tag "${selfSlug}" lists the same slug twice inside one anyOf`);
+    }
+    if (entry.kind === "anyOf") pickers += 1;
+    const key = entry.kind === "anyOf" ? `anyOf:${[...slugs].sort().join("|")}` : `${entry.kind}:${entry.slug}`;
     if (seen.has(key)) {
-      throw new Error(`${label}: tag "${selfSlug}" lists requirement item "${entry.slug}" twice`);
+      throw new Error(`${label}: tag "${selfSlug}" lists requirement item "${slugs.join("/")}" twice`);
     }
     seen.add(key);
+  }
+  // ONE picker per recipe. The Craft dialog posts a single `ingredientChoice`,
+  // so a second anyOf would have no way to be answered — refuse it here rather
+  // than ship a recipe nobody can file.
+  if (pickers > 1) {
+    throw new Error(`${label}: tag "${selfSlug}" has ${pickers} anyOf ingredients — the Craft dialog posts one choice`);
   }
   // Not pedantry. The only enforcement point is the Craft path, so an `items`
   // block on anything else would sit in the catalog looking enforced and do
   // nothing — which is the exact failure mode this field exists to end.
   if (!craftable) {
     throw new Error(`${label}: tag "${selfSlug}" declares requirement.items but is not craftable — nothing would ever check it`);
+  }
+  // A `placement:` recipe is raised by a CREW over several turns
+  // (openBuildSiteImpl / joinBuildSite), and nothing on that path spends an
+  // ingredient — whose stack would it come out of, on turn three, when a
+  // second builder lends the Move? Refusing at sync is cheaper than inventing
+  // crew-turn ingredient semantics nobody asked for.
+  if (placement) {
+    throw new Error(
+      `${label}: tag "${selfSlug}" declares requirement.items and placement — a build site never spends an ingredient`,
+    );
   }
 }
 
@@ -310,6 +434,9 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
   if (raw.provides != null && (!Array.isArray(raw.provides) || raw.provides.some((s) => typeof s !== "string"))) {
     throw new Error(`${label}: placement.provides must be a list of tag slugs`);
   }
+  if (raw.inscribable != null && typeof raw.inscribable !== "boolean") {
+    throw new Error(`${label}: placement.inscribable must be a boolean`);
+  }
   let laborBonus = null;
   if (raw.laborBonus != null) {
     if (typeof raw.laborBonus !== "object" || Array.isArray(raw.laborBonus)) {
@@ -335,7 +462,33 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     defenseNote: raw.defenseNote ?? null,
     laborBonus,
     provides: raw.provides ?? [],
+    // The builder may write a line on the finished thing
+    // (Structure.inscription) — their words replace `examine` in the
+    // readout. The wayside shrine's flag; see CRAFTING.md.
+    inscribable: raw.inscribable === true,
   };
+}
+
+// `customizable:` — the recipe may be crafted as a player-named custom item
+// (CRAFTING.md; the craft mints a custom+ephemeral row via the paperMint.js
+// door). Three rules, each closing a real hole rather than expressing taste:
+// not craftable and nothing would ever mint one; not stackable and the
+// one-per-character checks (craftGrantChecks, tier replacement) compare the
+// BASE tag's id against held ids, which a minted row never matches — so a
+// non-stackable custom would dodge its own exclusivity; and a `placement:`
+// recipe is a Structure with its own words (placement.inscribable), not a
+// pocket item to rename.
+function validateCustomizable(entry, { slug, label = "docs/tags.yaml" }) {
+  if (!entry?.customizable) return;
+  if (!entry.craftable) {
+    throw new Error(`${label}: tag "${slug}" is customizable but not craftable — nothing would ever mint one`);
+  }
+  if (!entry.stackable) {
+    throw new Error(`${label}: tag "${slug}" is customizable but not stackable — a minted custom row dodges the base recipe's one-per-character checks`);
+  }
+  if (entry.placement) {
+    throw new Error(`${label}: tag "${slug}" is customizable and carries placement — a structure takes placement.inscribable, not a custom name`);
+  }
 }
 
 // Two things the shape alone can't catch: a placement block on a tag nothing
@@ -395,8 +548,10 @@ module.exports = {
   validateEscalatesInto,
   validateEscalationChains,
   rollTagChain,
+  normalizeTurnsCost,
   normalizeRequirementItems,
   validateRequirementItems,
   normalizePlacement,
   validatePlacement,
+  validateCustomizable,
 };
