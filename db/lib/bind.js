@@ -75,12 +75,12 @@ async function applyBind(prisma, { actor, target, turn, offerId = null }) {
 
 // Files the consent offer. Returns { ok, offer, dm } or { ok: false, reason }.
 async function createBindOffer(prisma, { actor, target, turn }) {
-  if (!target.discordUserId) return { ok: false, reason: `${target.name} can't be reached. ‡` };
+  if (!target.discordUserId) return { ok: false, reason: `${target.name} can't be reached.` };
   const duplicate = await prisma.offer.findFirst({
     where: { kind: "BIND", status: "PENDING", turnId: turn.id, initiatorId: actor.id, responderId: target.id },
     select: { id: true },
   });
-  if (duplicate) return { ok: false, reason: "You've already asked. ‡" };
+  if (duplicate) return { ok: false, reason: "You've already asked." };
   const offer = await prisma.offer.create({
     data: { kind: "BIND", turnId: turn.id, initiatorId: actor.id, responderId: target.id },
   });
@@ -89,7 +89,7 @@ async function createBindOffer(prisma, { actor, target, turn }) {
     offer,
     dm: {
       discordUserId: target.discordUserId,
-      content: `*${actor.name}* wants to bind you. Accept? ‡`,
+      content: `*${actor.name}* wants to bind you. Accept?`,
       components: offerButtonRow(offer.id),
     },
   };
@@ -113,17 +113,17 @@ async function acceptBind(prisma, offer, responder) {
       dms: actor?.discordUserId ? [{ discordUserId: actor.discordUserId, content: `Your offer fell through: ${reason}` }] : [],
     };
   };
-  if (!turn || turn.id !== offer.turnId) return refuse("That offer was for a turn that's over. ‡");
-  if (!actor || actor.status !== "ALIVE") return refuse("They aren't around any more. ‡");
-  if (!target || target.status !== "ALIVE") return refuse("You aren't in a state to be bound. ‡");
+  if (!turn || turn.id !== offer.turnId) return refuse("That offer was for a turn that's over.");
+  if (!actor || actor.status !== "ALIVE") return refuse("They aren't around any more.");
+  if (!target || target.status !== "ALIVE") return refuse("You aren't in a state to be bound.");
   if (!isHere(actor, target)) return refuse(notHereMessage(target));
-  if (isBound(target)) return refuse(`${target.name} is already bound. ‡`);
+  if (isBound(target)) return refuse(`${target.name} is already bound.`);
 
   const claim = await prisma.offer.updateMany({
     where: { id: offer.id, status: "PENDING" },
     data: { status: "ACCEPTED", respondedAt: new Date() },
   });
-  if (claim.count === 0) return { ok: false, reason: "That offer's gone. ‡", dms: [] };
+  if (claim.count === 0) return { ok: false, reason: "That offer's gone.", dms: [] };
 
   await applyBind(prisma, { actor, target, turn, offerId: offer.id });
   await prisma.offer.update({
@@ -133,8 +133,8 @@ async function acceptBind(prisma, offer, responder) {
   return {
     ok: true,
     boundId: target.id,
-    line: `You let ${actor.name} bind you. ‡`,
-    dms: actor.discordUserId ? [{ discordUserId: actor.discordUserId, content: `${target.name} let you bind them. ‡` }] : [],
+    line: `You let ${actor.name} bind you.`,
+    dms: actor.discordUserId ? [{ discordUserId: actor.discordUserId, content: `${target.name} let you bind them.` }] : [],
   };
 }
 

@@ -31,9 +31,7 @@ export default function DepotPriceListTab({ priceList }) {
     <section className="panel p-5">
       <h2 className="panel-header">Price List</h2>
       <p className="mt-1 text-sm text-muted">
-        Everything the Depot has a price for, in either direction. An obol is one ⬢, so these
-        are both what the station settles at and what the thing is worth. What you charge
-        Ravenheart is between you and Ravenheart. ‡
+        Everything the Depot has a price for. An obol is one ⬢, so these are both what the station settles at and what the thing is worth. What you charge Ravenheart is up to you.
       </p>
 
       <div className="mt-4 flex flex-col gap-3">

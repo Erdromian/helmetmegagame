@@ -168,7 +168,7 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
     const locationId = trimmedOrNull(picked.locationId);
     if (locationId) {
       const location = await prisma.location.findUnique({ where: { id: locationId } });
-      if (!location) throw new UserError("That location no longer exists. ‡");
+      if (!location) throw new UserError("That location no longer exists.");
       data.locationId = locationId;
       data.zoneId = location.zoneId;
     } else {

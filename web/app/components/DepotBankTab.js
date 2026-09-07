@@ -55,8 +55,7 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
       <section className="panel p-5">
         <h2 className="panel-header">The ATM</h2>
         <p className="mt-1 text-sm text-muted">
-          Coins out of the account, or coins back into it. An obol is worth one ⬢, and only at
-          this counter — anywhere else it is a coin somebody has to agree to take. ‡
+          Take obols out of your account, or put them back in.
         </p>
 
         <dl className="depot-totals">
@@ -71,7 +70,7 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
         </dl>
 
         <div className="mt-4 flex gap-2">
-          <Tooltip text="Takes obols out of the account as physical coins you can carry, spend, lend, or lose. ‡">
+          <Tooltip text="Takes obols out of the account as coins you can carry.">
             <button
               type="button"
               className="btn"
@@ -81,7 +80,7 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
               Withdraw
             </button>
           </Tooltip>
-          <Tooltip text="Puts coins you are carrying back into the account. ‡">
+          <Tooltip text="Puts coins you are carrying back into the account.">
             <button
               type="button"
               className="btn-quiet"
@@ -97,9 +96,7 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
       <section className="panel p-5">
         <h2 className="panel-header">The ⬢ Counter</h2>
         <p className="mt-1 text-sm text-muted">
-          Your own float, both ways, with no spread. One obol is one ⬢ whichever way it goes —
-          you do not charge yourself a margin to use your own till. What this counter really does
-          is make the number on your sheet into coins you can hand over, and back again. ‡
+          The Company&apos;s exchange, tied to your License. It trades Resources for obols, or obols for Resources, one for one.
         </p>
 
         <dl className="depot-totals">
@@ -114,7 +111,7 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
         </dl>
 
         <div className="mt-4 flex gap-2">
-          <Tooltip text="Turns obols in the account into Resources on your sheet, one for one. ‡">
+          <Tooltip text="Turns obols in the account into Resources on your sheet, one for one.">
             <button
               type="button"
               className="btn"
@@ -124,7 +121,7 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
               Buy ⬢
             </button>
           </Tooltip>
-          <Tooltip text="Turns Resources on your sheet into obols in the account, one for one. ‡">
+          <Tooltip text="Turns Resources on your sheet into obols in the account, one for one.">
             <button
               type="button"
               className="btn-quiet"
@@ -141,7 +138,7 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
         <h2 className="panel-header">The Company&apos;s Line</h2>
         <p className="mt-1 text-sm text-muted">
           Credit advanced against the business, in obols. Nothing in the code punishes a standing
-          balance — the Company is not code. ‡
+          balance — the Company is not code.
         </p>
 
         <div className="depot-meter" role="img" aria-label={`${debt} of ${cap} obols drawn`}>
@@ -215,7 +212,7 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
           </label>
           <p className="mt-2 text-xs text-muted">
             At most {dialog.max} ¢
-            {dialog.kind === "exchange" ? ", and an obol is one ⬢ either way" : ""}. ‡
+            {dialog.kind === "exchange" ? ", and an obol is one ⬢ either way" : ""}.
           </p>
         </RequestDialog>
       )}

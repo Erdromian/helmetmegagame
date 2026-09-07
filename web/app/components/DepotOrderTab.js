@@ -99,7 +99,7 @@ export default function DepotOrderTab({ wares, depot, disabled, handDisabled, ma
         <h2 className="panel-header">Order</h2>
         <p className="mt-1 text-sm text-muted">
           What the orbital station will put on a shuttle. Obols leave the account when you order;
-          the goods arrive when you call the shuttle down. ‡
+          the goods arrive when you call the shuttle down.
         </p>
 
         <div className="mt-4 flex flex-col gap-3">
@@ -130,7 +130,7 @@ export default function DepotOrderTab({ wares, depot, disabled, handDisabled, ma
                   <td>
                     <TagChip tag={row.tag} />
                     {row.sealed && (
-                      <Tooltip text="Ships sealed. Its crate prints no manifest, and only a Depot Keycard opens it. ‡">
+                      <Tooltip text="Ships sealed. Its crate prints no manifest, and only a Depot Keycard opens it.">
                         <span className="depot-seal">SEALED</span>
                       </Tooltip>
                     )}
@@ -194,7 +194,7 @@ export default function DepotOrderTab({ wares, depot, disabled, handDisabled, ma
         )}
 
         {cartLines.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">Nothing picked yet. ‡</p>
+          <p className="mt-3 text-sm text-muted">Nothing picked yet.</p>
         ) : (
           <ul className="depot-list mt-3">
             {cartLines.map((l) => (
@@ -267,7 +267,7 @@ export default function DepotOrderTab({ wares, depot, disabled, handDisabled, ma
         >
           <p className="text-sm text-muted">
             {cartResources} ⬢ of goods, which is {cartTotal} ¢ out of the account now. The goods arrive as crates the next time you call
-            the shuttle down. ‡
+            the shuttle down.
           </p>
         </RequestDialog>
       )}
@@ -284,7 +284,7 @@ export default function DepotOrderTab({ wares, depot, disabled, handDisabled, ma
         >
           <p className="text-sm text-muted">
             It lands on the pad and stays for up to {depot.shuttleMaxTurns} turns, then leaves on
-            its own. Anything still on the pad when it goes stays behind. ‡
+            its own. Anything still on the pad when it goes stays behind.
           </p>
         </RequestDialog>
       )}

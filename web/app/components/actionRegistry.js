@@ -49,67 +49,66 @@ import {
 
 export const ACTION_HELP = {
   craft:
-    "Make something from a recipe you know. The ⬢ are charged now, your Move is filed for you, and a long job comes back here to continue. ‡",
-  destroy: "Throw away something you're holding. It's gone. ‡",
+    "Make something from a recipe you know. The ⬢ are charged now, your Move is filed for you, and a long job comes back here to continue.",
+  destroy: "Throw away something you're holding.",
   examine:
-    "Look someone over without saying a word to them. You see what anyone standing here could see — their face, and whatever they are carrying openly. Somebody concealed stays concealed. Costs nothing, takes no time, and they are never told. ‡",
-  heal: "Works on others nearby too. Gated by your Medical skill.",
+    "Look at someone.",
+  heal: "Heal yourself or someone nearby. Gated by your Medical skill.",
   consume:
     "Use something up. You can also just click on the tag on your sheet.",
   transfer: (
     <>
       <p>
         Hand over things and ⬢, or stash them in a room and pick them up later.
-        ‡
       </p>
       <p>
         <strong>To a person</strong> They have to be standing where you are. You
-        can&apos;t take from a person &mdash; that&apos;s Loot. ‡
+        can&apos;t take from a person &mdash; that&apos;s Loot.
       </p>
       <p>
         <strong>To or from a room</strong> Be standing in it. Anyone who can get
-        in can take what&apos;s there. ‡
+        in can take what&apos;s there.
       </p>
     </>
   ),
   learn:
-    "Ask someone here who can teach to show you a skill. If they accept, it's your Gambit for the turn — a 5 or 6 and it's yours. ‡",
+    "Ask someone here who can teach to show you a skill. If they accept, it's your Gambit for the turn — a 5 or 6 and it's yours.",
   teach:
-    "Offer to teach someone here a skill you have. It's your Routine for the turn once they accept. ‡",
+    "Offer to teach someone here a skill you have. It's your Routine for the turn once they accept.",
   confess:
-    "Unburden yourself to a chaplain standing here. They only see that you asked, never what about. If they accept, it's your Gambit for the turn — a 5 or 6 and it's off you. ‡",
-  loot: "Search someone, or the room you're standing in. A person has to be a body, or Bound, Dying, Paralyzed or Catatonic; a room only needs you to be able to get in. ‡",
-  move: "Forcibly move someone with the Bound tag, from where you stand to somewhere next door. Use this before moving yourself. If you're a Leader, you can also move people within your own faction. It does not spend their turn. Bodies can be dragged by anyone. ‡",
-  bind: "Tie someone up. They have to agree — unless they're already helpless. Once they're Bound you can loot them or march them somewhere. ‡",
-  free: "Cut someone loose. Anyone standing here can do this, including a rescuer.",
+    "Unburden yourself to a chaplain standing here. They only see that you asked, never what about. If they accept, it's your Gambit for the turn — a 5 or 6 and it's off you.",
+  loot: "Search someone, or the room you're standing in. A person has to be a body, or Bound, Dying, Paralyzed or Catatonic; a room only needs you to be able to get in.",
+  move: "Forcibly move someone with the Bound tag, from where you stand to somewhere next door. Use this before moving yourself. If you're a Leader, you can also move people within your own faction. It does not spend their turn. Bodies can be dragged by anyone.",
+  bind: "Tie someone up. They have to agree — unless they're already helpless. Once they're Bound you can loot them or march them somewhere.",
+  free: "Cut someone loose.",
   crucify:
-    "Put someone standing here on the cross. It needs a Cross built where you stand, and it doesn't spend your Move. They hang there unable to act, and in a turn they are Dying. ‡",
+    "Put someone standing here on the cross. It needs a Cross built where you stand, and it doesn't spend your Move. They hang there unable to act, and in a turn they are Dying.",
   harm: "Further injure someone who is bound or incapacitated.",
   butcher:
-    "Cut up a body — one you're carrying, or one lying in a room you can get into here — for what's inside it. Costs nothing and takes no time, and the body is gone afterwards. It does not free their soul. ‡",
-  bury: "Put a body in the ground. You have to be holding their corpse, or be somewhere you can reach it. Takes your turn. Allows their soul to respawn. ‡",
+    "Cut up the body of someone you're carrying, or one lying in a room you can get into from here. Costs nothing, takes no time, and the body is gone afterwards. It does not free their soul.",
+  bury: "Put a body in the ground. You have to be holding their corpse, or be somewhere you can reach it. Takes your turn. Allows their soul to respawn.",
   engrave:
-    "Memorialize someone's name, in case you can't find their body. Frees their soul to respawn. ‡",
+    "Memorialize someone's name, in case you can't find their body. Frees their soul to respawn.",
   disguise:
-    "Put on a false name and face for 3 turns. Nobody sees who you are — not your name, not your portrait — and you cannot conceal yourself on top of it. The kit is not used up. ‡",
+    "Put on a false name and face for 3 turns. Nobody sees who you are — not your name, not your portrait — and you cannot conceal yourself on top of it. The kit is not used up.",
   pointer:
-    "Read the datacard. It names the next place on the way to the nuclear device, or tells you the device is already here. Costs nothing, takes no time, and nobody is told you looked. ‡",
+    "Read the datacard. It names the next place on the way to the nuclear device, or tells you the device is already here. Costs nothing, takes no time, and nobody is told you looked.",
   arm:
-    "Put the datacard into the device and start the countdown. It detonates at the close of the turn after next, and it will kill everyone who is not underground. You can still disarm it before then. ‡",
+    "Put the datacard into the device and start the countdown. It detonates at the close of the turn after next, and it will kill everyone who is not underground. You can still disarm it before then.",
   disarm:
-    "Take the datacard out and stop the countdown. Safe again, and you can arm it as many times as you like. ‡",
+    "Take the datacard out and stop the countdown. Safe again, and you can arm it as many times as you like.",
   extract:
-    "Cut Godflesh out of the marsh. Takes your turn, and you need a hatchet, a battle-axe or a chainsaw in your hands. It rolls 1d6: a 6 gives you an extra, and a 1 means it got hold of you first. Wear your Armored Gloves. ‡",
+    "Cut Godflesh out of the marsh. Takes your turn, and you need a hatchet, a battle-axe or a chainsaw in your hands. It rolls 1d6: a 6 gives you an extra, and a 1 means it got hold of you first. Wear your Armored Gloves.",
   package:
-    "Pack up to 150 lb of what you're carrying into one crate. The crate weighs half what went into it, and you write the line on the side yourself. Anyone holding it can open it again. ‡",
-  bird: "Send a letter you're holding to someone, by bird. You have to guess their zone — guess wrong and the bird comes back with it still on. ‡",
+    "Pack up to 150 lb of what you're carrying into one crate. The crate weighs half what went into it, and you write the line on the side yourself. Anyone holding it can open it again.",
+  bird: "Send a letter you're holding to someone, by bird. You have to guess their zone — guess wrong and the bird comes back with it still on.",
   write:
-    "Put words on a sheet of paper. You can always write more on a paper you're holding; you can never take anything back off it. ‡",
-  seal: "Close a letter with wax so nobody can read it without breaking the seal — and so everyone can see whose wax it was. The stamp is not used up. ‡",
+    "Put words on a sheet of paper. More can be added later, but nothing can be taken away.",
+  seal: "Close a letter with your wax seal. The stamp isn't used up.",
   bindbook:
-    "Bind ten blank sheets into a book and write it in one pass. What goes in is what it says — a bound book can never be added to. ‡",
+    "Bind ten blank sheets into a book and write it in one pass. A bound book can never be added to.",
   tearbook:
-    "Pull a book apart for its paper. You get ten blank sheets back and the words are gone. ‡",
+    "Pull a book apart for its paper. You get ten blank sheets back and the words are gone.",
 };
 
 export const ACTION_SECTIONS = [
@@ -142,13 +141,13 @@ export const ACTION_SECTIONS = [
       {
         mode: "learn",
         icon: DocumentsIcon,
-        label: "Learn Skill ‡",
+        label: "Learn Skill",
         gate: "canLearn",
       },
       {
         mode: "teach",
         icon: SpeakerIcon,
-        label: "Teach Skill ‡",
+        label: "Teach Skill",
         gate: "canTeach",
       },
       // Gated on whether YOU have anything to confess — your own sheet,
@@ -190,20 +189,20 @@ export const ACTION_SECTIONS = [
   // your hands, which is the one thing a card-holder needs told.
   {
     key: "device",
-    label: "The device ‡",
+    label: "The device",
     actions: [
-      { mode: "pointer", icon: EyeIcon, label: "Use Pointer ‡", show: "hasDatacard" },
+      { mode: "pointer", icon: EyeIcon, label: "Use Pointer", show: "hasDatacard" },
       {
         mode: "arm",
         icon: WoundIcon,
-        label: "Arm Nuke ‡",
+        label: "Arm Nuke",
         show: "hasDatacard",
         gate: "hasDevice",
       },
       {
         mode: "disarm",
         icon: KeyIcon,
-        label: "Disarm Nuke ‡",
+        label: "Disarm Nuke",
         show: "hasDatacard",
         gate: "hasDevice",
       },
@@ -211,7 +210,7 @@ export const ACTION_SECTIONS = [
   },
   {
     key: "others",
-    label: "People here ‡",
+    label: "People here",
     actions: [
       // The gate is on your EYES, never on who is standing near you — the
       // rule at the top of this file forbids the second and says nothing
@@ -221,7 +220,7 @@ export const ACTION_SECTIONS = [
       {
         mode: "examine",
         icon: EyeIcon,
-        label: "Look at ‡",
+        label: "Look at",
         gate: "canExamine",
       },
       { mode: "heal", icon: BandageIcon, label: "Heal", gate: "canHeal" },
@@ -231,7 +230,7 @@ export const ACTION_SECTIONS = [
       // HIDDEN rather than greyed, the Extract rule: whether YOU are a
       // Fundamentalist standing at a Cross is your own fact, and a dead
       // Crucify icon on every other sheet would teach nothing.
-      { mode: "crucify", icon: WoundIcon, label: "Crucify ‡", show: "canCrucify" },
+      { mode: "crucify", icon: WoundIcon, label: "Crucify", show: "canCrucify" },
       { mode: "harm", icon: WoundIcon, label: "Harm" },
       { mode: "move", icon: MapIcon, label: "Move Player" },
     ],
@@ -241,7 +240,7 @@ export const ACTION_SECTIONS = [
     // an object lying in a room, not a person standing next to you, and
     // Butcher works on a Nekker as readily as on somebody's uncle.
     key: "dead",
-    label: "The dead ‡",
+    label: "The dead",
     actions: [
       // Greys only on whether YOU hold the Butcher tag — a fact about your own
       // sheet, which the metagaming rule above allows. Never on whether
@@ -280,7 +279,7 @@ export const ACTION_SECTIONS = [
       {
         mode: "seal",
         icon: SealIcon,
-        label: "Seal Letter ‡",
+        label: "Seal Letter",
         show: "hasSeal",
         gate: "canSeal",
       },
@@ -290,14 +289,14 @@ export const ACTION_SECTIONS = [
       {
         mode: "bindbook",
         icon: BookIcon,
-        label: "Bind a Book ‡",
+        label: "Bind a Book",
         show: "canRead",
         gate: "canBindBook",
       },
       {
         mode: "tearbook",
         icon: TrashIcon,
-        label: "Tear Up a Book ‡",
+        label: "Tear Up a Book",
         show: "hasBook",
       },
       {

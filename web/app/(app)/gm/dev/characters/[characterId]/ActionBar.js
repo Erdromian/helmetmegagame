@@ -160,7 +160,7 @@ export default function ActionBar({
     startTransition(async () => {
       const res = await onApplyTags(ops);
       if (!res?.ok) {
-        setError(res?.error ?? "Something went wrong. ‡");
+        setError(res?.error ?? "Something went wrong.");
         return;
       }
       setDone(said);
@@ -360,7 +360,7 @@ export default function ActionBar({
         </div>
 
         <FormError>{error}</FormError>
-        {!error && done && <p className="w-full text-sm text-accent">{done}. ‡</p>}
+        {!error && done && <p className="w-full text-sm text-accent">{done}.</p>}
         {!error && !done && staged && pendingCount > 0 && (
           <p className="w-full text-sm text-accent">
             Staged {staged} — press <strong>Apply</strong> below to commit it.
@@ -477,7 +477,7 @@ export default function ActionBar({
                   >
                     {l.name}
                     <span className="text-muted"> — {l.zoneName ?? "unzoned"}</span>
-                    {character.locationId === l.id ? " — already there ‡" : ""}
+                    {character.locationId === l.id ? " — already there" : ""}
                   </button>
                 </li>
               ))}

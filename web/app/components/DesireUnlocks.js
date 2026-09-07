@@ -26,7 +26,7 @@ export default function DesireUnlocks({ tag, visibleTagSlugs = null, compact = t
   return (
     <span className={compact ? "desire-unlocks" : "desire-unlocks desire-unlocks-roomy"}>
       <span className="desire-unlocks-head">
-        Unlocks {rows.length} {rows.length === 1 ? "Desire" : "Desires"} ‡
+        Unlocks {rows.length} {rows.length === 1 ? "Desire" : "Desires"}
       </span>
       <span className="desire-unlocks-list">
         {rows.map((row) => (

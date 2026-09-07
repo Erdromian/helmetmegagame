@@ -75,7 +75,7 @@ async function runDawnAfflictionPass(prisma, turn, { rng = Math.random } = {}) {
     if (character.discordUserId) {
       notices.push({
         discordUserId: character.discordUserId,
-        content: "You barely slept. You wake **Exhausted**. ‡",
+        content: "You barely slept. You wake **Exhausted**.",
       });
     }
   }

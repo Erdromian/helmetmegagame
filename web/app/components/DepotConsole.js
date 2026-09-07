@@ -64,7 +64,7 @@ function ShuttleStat({ shuttleState, turnsLeft }) {
         ? "inbound"
         : "at the station";
   return (
-    <Tooltip text="The shuttle sits on the landing pad for at most six turns and then flies back on its own, loaded or not. Anything still on the pad when it goes stays on the pad. ‡">
+    <Tooltip text="The shuttle sits on the landing pad for at most six turns and then flies back on its own, loaded or not. Anything still on the pad when it goes stays on the pad.">
       <span className="depot-stat">
         <span className="depot-stat-label">Shuttle</span>
         <span className={shuttleState === "DOCKED" ? "text-accent" : "text-muted"}>{text}</span>
@@ -115,10 +115,10 @@ export default function DepotConsole(props) {
       <section className="panel depot-cockpit">
         <div className="depot-cockpit-head">
           <span className="depot-greeting">
-            {greetingName ? `Good evening, ${greetingName}.` : "The Depot. ‡"}
+            {greetingName ? `Good evening, ${greetingName}.` : "The Depot."}
           </span>
           <span className="depot-cockpit-money">
-            <Tooltip text="The station's account, in obols — one for every ⬢ it is worth. It is the Depot's money, not yours: hand the licence to someone else and the balance goes with it. ‡">
+            <Tooltip text="The station's account, in obols — one for every ⬢ it is worth. It is the Depot's money, not yours: hand the licence to someone else and the balance goes with it.">
               <span className="depot-balance mono">{depot.accountObols} ¢</span>
             </Tooltip>
           </span>
@@ -140,7 +140,7 @@ export default function DepotConsole(props) {
       {!atDepot ? (
         <p className="depot-notice">
           You are not at the Depot. The readings are live, but nothing down here answers a
-          keyboard three zones away. ‡
+          keyboard three zones away.
         </p>
       ) : !powered ? (
         // Ahead of the papers note now, because a keycard can fix this one and
@@ -148,17 +148,17 @@ export default function DepotConsole(props) {
         // out.
         <p className="depot-notice depot-notice-danger">
           The generator is out. Nothing works until it is running again — the Station tab has the
-          switch and the coal. ‡
+          switch and the coal.
         </p>
       ) : readOnly && hand ? (
         <p className="depot-notice">
           Your keycard works the machinery — the shuttle, the generator, the crates — but not the
-          money or the gun. Ordering, the bank and the turret want the Merchant&apos;s Licence. ‡
+          money or the gun. Ordering, the bank and the turret want the Merchant&apos;s Licence.
         </p>
       ) : readOnly ? (
         <p className="depot-notice">
           Read-only. You can see the state of the station; working it wants a Depot Keycard, and
-          running it wants the Merchant&apos;s Licence. ‡
+          running it wants the Merchant&apos;s Licence.
         </p>
       ) : null}
 

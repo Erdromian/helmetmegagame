@@ -182,7 +182,7 @@ export default function FactionsTable({ rows, rooms = [], members = [], applicat
           <SubmitButton pendingLabel="Moving…">Move</SubmitButton>
         </form>
         <p className="text-xs text-muted">
-          Making somebody Leader demotes whoever held it. Any handshake they had open is dropped. ‡
+          Making somebody Leader demotes whoever held it. Any handshake they had open is dropped.
         </p>
       </section>
 

@@ -156,7 +156,7 @@ function carryAdmits(character, config, { weightLbs = 0, resources = 0 } = {}) {
     if (after > hard.weight) {
       return {
         ok: false,
-        reason: `That would put you at ${Math.round(after)} lb, past the ${hard.weight} lb you could carry even overburdened. Put something down first. ‡`,
+        reason: `That would put you at ${Math.round(after)} lb, past the ${hard.weight} lb you could carry even overburdened. Put something down first.`,
       };
     }
   }
@@ -165,7 +165,7 @@ function carryAdmits(character, config, { weightLbs = 0, resources = 0 } = {}) {
     if (after > hard.resources) {
       return {
         ok: false,
-        reason: `That would put you at ${after} ⬢, past the ${hard.resources} ⬢ you could carry even overburdened. Put something down first. ‡`,
+        reason: `That would put you at ${after} ⬢, past the ${hard.resources} ⬢ you could carry even overburdened. Put something down first.`,
       };
     }
   }
@@ -184,7 +184,7 @@ function carryBonusLine(config, bonus) {
   const lbs = moved.weight - base.weight;
   const resources = moved.resources - base.resources;
   if (lbs < 0 || resources < 0) {
-    return `You can carry ${Math.abs(lbs)} lb less, and ${Math.abs(resources)} ⬢ less. ‡`;
+    return `You can carry ${Math.abs(lbs)} lb less, and ${Math.abs(resources)} ⬢ less.`;
   }
   return `You can carry ${lbs} more lb, and ${resources} ⬢.`;
 }
@@ -439,7 +439,7 @@ async function deliverCarryDrop(prisma, result) {
     await sendDm(
       prisma,
       drop.character.discordUserId,
-      `You can't carry it all any more. You leave ${goods} in ${drop.room.name}. ‡`,
+      `You can't carry it all any more. You leave ${goods} in ${drop.room.name}.`,
     ).catch((err) => console.error(`Carry drop DM to ${drop.character.discordUserId} failed:`, err.message));
   }
   await announceInRoom(drop.room, drop.character, "sets down more than they could carry.", [goods]);

@@ -48,7 +48,7 @@ export default function CraftDialog({
   const projectOptions = projects.map((p) => (
     <option key={p.id} value={`project:${p.id}`}>
       {p.quantity > 1 ? `${p.quantity}× ` : ""}
-      {p.tagName} — {p.turnsDone} of {p.turnsNeeded} turns ‡
+      {p.tagName} — {p.turnsDone} of {p.turnsNeeded} turns
     </option>
   ));
   const turns = chosen?.requirementTurns ?? 1;
@@ -64,22 +64,22 @@ export default function CraftDialog({
     <>
       {(projects.length > 0 || sites.length > 0) && (
         <label className="field">
-          <span className="field-label">In progress ‡</span>
+          <span className="field-label">In progress</span>
           <Select value={inProgress} onChange={(e) => onPick(e.target.value)}>
-            <option value="">Start something new… ‡</option>
+            <option value="">Start something new…</option>
             {/* Grouped only when there is a second group to tell them apart
                 from — one list of your own projects reads better bare. */}
             {projects.length > 0 &&
               (sites.length > 0 ? (
-                <optgroup label="Your work ‡">{projectOptions}</optgroup>
+                <optgroup label="Your work">{projectOptions}</optgroup>
               ) : (
                 projectOptions
               ))}
             {sites.length > 0 && (
-              <optgroup label="Build sites here ‡">
+              <optgroup label="Build sites here">
                 {sites.map((s) => (
                   <option key={s.id} value={`site:${s.id}`}>
-                    {s.typeName} ({s.turnsDone}/{s.turnsNeeded}) ‡
+                    {s.typeName} ({s.turnsDone}/{s.turnsNeeded})
                   </option>
                 ))}
               </optgroup>
@@ -99,7 +99,7 @@ export default function CraftDialog({
                 onChange={() => onProjectChoice("continue")}
                 disabled={hasMoved}
               />
-              Keep working on it ‡
+              Keep working on it
             </label>
             {/* Only the person who opened the site may call it off, and
                 cancelBuildSite refuses anyone else regardless. */}
@@ -111,14 +111,14 @@ export default function CraftDialog({
                   checked={projectChoice === "cancel"}
                   onChange={() => onProjectChoice("cancel")}
                 />
-                Give it up ‡
+                Give it up
               </label>
             )}
           </div>
           <p className="text-xs text-muted">
             {hasMoved
-              ? "You've used your Move this turn, so the work waits. ‡"
-              : `One more turn of work — your Move for this turn. ${site.turnsNeeded - site.turnsDone === 1 ? "That finishes it." : `${site.turnsNeeded - site.turnsDone} to go.`} ‡`}
+              ? "You've used your Move this turn, so the work waits."
+              : `One more turn of work — your Move for this turn. ${site.turnsNeeded - site.turnsDone === 1 ? "That finishes it." : `${site.turnsNeeded - site.turnsDone} to go.`}`}
           </p>
         </>
       ) : project ? (
@@ -132,7 +132,7 @@ export default function CraftDialog({
                 onChange={() => onProjectChoice("continue")}
                 disabled={hasMoved || project.workedThisTurn}
               />
-              Keep working on it ‡
+              Keep working on it
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -141,17 +141,17 @@ export default function CraftDialog({
                 checked={projectChoice === "cancel"}
                 onChange={() => onProjectChoice("cancel")}
               />
-              Give it up ‡
+              Give it up
             </label>
           </div>
           <p className="text-xs text-muted">
             {project.workedThisTurn
-              ? "You've already put this turn into it. Come back next turn. ‡"
+              ? "You've already put this turn into it. Come back next turn."
               : hasMoved
-                ? "You've used your Move this turn, so the work waits. ‡"
-                : `One more turn of work — your Move for this turn. ${project.turnsNeeded - project.turnsDone === 1 ? "That finishes it." : `${project.turnsNeeded - project.turnsDone} to go.`} ‡`}
+                ? "You've used your Move this turn, so the work waits."
+                : `One more turn of work — your Move for this turn. ${project.turnsNeeded - project.turnsDone === 1 ? "That finishes it." : `${project.turnsNeeded - project.turnsDone} to go.`}`}
             {project.resourcesCost
-              ? ` The ${project.resourcesCost} ⬢ went into materials when you started and don't come back. ‡`
+              ? ` The ${project.resourcesCost} ⬢ went into materials when you started and don't come back.`
               : ""}
           </p>
         </>
@@ -166,7 +166,7 @@ export default function CraftDialog({
                   here. */}
               {stacking && (
                 <QuantityField
-                  label="How many? ‡"
+                  label="How many?"
                   max={99}
                   value={quantity}
                   onChange={onQuantity}
@@ -174,10 +174,10 @@ export default function CraftDialog({
               )}
               {cost > 0 && (
                 <PartySelect
-                  label="Paid for by ‡"
+                  label="Paid for by"
                   value={payerKey}
                   onChange={onPayer}
-                  hint="Choose who pays… ‡"
+                  hint="Choose who pays…"
                   characters={parties?.characters ?? []}
                   rooms={parties?.rooms ?? []}
                   selfId={selfId}
@@ -186,24 +186,24 @@ export default function CraftDialog({
               <p className="text-xs text-muted">
                 {turns === 0
                   ? chosen.requirementPerTurn != null
-                    ? `No Move needed, up to ${chosen.requirementPerTurn} a turn. ‡`
-                    : "Dead Simple: no Move needed, up to 4 a turn. ‡"
+                    ? `No Move needed, up to ${chosen.requirementPerTurn} a turn.`
+                    : "Dead Simple: no Move needed, up to 4 a turn."
                   : turns === 1
-                    ? "One turn of work — this is your Move for the turn. ‡"
+                    ? "One turn of work — this is your Move for the turn."
                     : chosen.placement
                       ? // The crew-turns pitch, said at the point of decision:
                         // a build site is anybody's to advance, which is the
                         // one way it differs from a project of your own.
-                        `${turns} turns of work, and not necessarily yours alone: anyone standing at the site can put their Move into it. This turn is the first. ‡`
-                      : `${turns} turns of work. This turn is the first; come back here to continue. ‡`}
-                {cost > 0 ? ` Costs ${cost} ⬢, paid now. ‡` : " Costs nothing. ‡"}
-                {turns > 0 && hasMoved ? " You've already used your Move this turn. ‡" : ""}
+                        `${turns} turns of work, and not necessarily yours alone: anyone standing at the site can put their Move into it. This turn is the first.`
+                      : `${turns} turns of work. This turn is the first; come back here to continue.`}
+                {cost > 0 ? ` Costs ${cost} ⬢, paid now.` : " Costs nothing."}
+                {turns > 0 && hasMoved ? " You've already used your Move this turn." : ""}
               </p>
               {wantsWorkshop && (
                 <p className={`text-xs ${hasWorkshop ? "text-muted" : "text-accent"}`}>
                   {hasWorkshop
-                    ? "Smith's work, and the means are in reach — a kit to hand, or one standing where you are. ‡"
-                    : "Smith's work: you need Workshop Equipment, held or set up where you're standing. ‡"}
+                    ? "Smith's work, and the means are in reach — a kit to hand, or one standing where you are."
+                    : "Smith's work: you need Workshop Equipment, held or set up where you're standing."}
                 </p>
               )}
             </>

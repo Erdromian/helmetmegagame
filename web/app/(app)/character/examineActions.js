@@ -47,7 +47,7 @@ async function looker() {
       location: { select: { indoors: true } },
     },
   });
-  if (!me) throw new UserError("No living character. ‡");
+  if (!me) throw new UserError("No living character.");
   return me;
 }
 
@@ -133,7 +133,7 @@ export async function examineCharacter(targetId) {
       where: { id: targetId ?? "", status: "ALIVE", locationId: me.locationId ?? "", NOT: { id: me.id } },
       select: EXAMINE_SUBJECT_SELECT,
     });
-    if (!subject) throw new UserError("They aren't here. ‡");
+    if (!subject) throw new UserError("They aren't here.");
 
     const [openTurn, skillCatalog] = await Promise.all([
       prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),

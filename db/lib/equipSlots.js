@@ -53,7 +53,7 @@ function findSlotClash(tags) {
  */
 function describeSlotClash({ a, b }) {
   const where = SLOT_LABELS[a.equipSlot] ?? "there";
-  return `${a.name} and ${b.name} can't both go ${where}. ‡`;
+  return `${a.name} and ${b.name} can't both go ${where}.`;
 }
 
 module.exports = { findSlotClash, describeSlotClash };

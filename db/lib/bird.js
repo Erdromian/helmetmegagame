@@ -120,7 +120,7 @@ function canSendBird(tags) {
 function deliveryDm({ senderName, letterName }) {
   return (
     `A bird finds you, and there is a letter tied to its leg. It is from **${senderName}**.\n\n` +
-    `You take it: **${letterName}**. It is on your sheet. ‡`
+    `You take it: **${letterName}**. It is on your sheet.`
   );
 }
 
@@ -129,7 +129,7 @@ function deliveryDm({ senderName, letterName }) {
 function replyDm({ replierName, letterName }) {
   return (
     `Your bird's returned, and it is carrying an answer from **${replierName}**.\n\n` +
-    `You take it: **${letterName}**. It is on your sheet. ‡`
+    `You take it: **${letterName}**. It is on your sheet.`
   );
 }
 
@@ -142,7 +142,7 @@ function replyDm({ replierName, letterName }) {
 // finds out by looking at their own sheet a turn later, which is the same
 // information at the same cost as everybody else's.
 function sentReceiptDm({ recipientName, zoneName, letterName }) {
-  return `You let the bird go with **${letterName}**, for **${recipientName}**, in the **${zoneName}**. ‡`;
+  return `You let the bird go with **${letterName}**, for **${recipientName}**, in the **${zoneName}**.`;
 }
 
 // One button, on the letter itself. The id is the BirdMessage row's, which is

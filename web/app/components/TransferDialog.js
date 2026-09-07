@@ -101,7 +101,7 @@ export default function TransferDialog({
           label="From"
           value={fromKey}
           onChange={onFrom}
-          hint="Choose a source… ‡"
+          hint="Choose a source…"
           characters={self}
           rooms={rooms}
           selfId={selfId}
@@ -110,7 +110,7 @@ export default function TransferDialog({
           label="To"
           value={toKey}
           onChange={onTo}
-          hint="Choose a destination… ‡"
+          hint="Choose a destination…"
           characters={people}
           rooms={rooms}
           selfId={selfId}
@@ -121,7 +121,7 @@ export default function TransferDialog({
 
       <div className="panel flex flex-col gap-3 p-3">
         <label className="field" style={{ width: "10rem" }}>
-          <span className="field-label">Resources{balance != null ? ` (of ${balance})` : ""} ‡</span>
+          <span className="field-label">Resources{balance != null ? ` (of ${balance})` : ""}</span>
           <input
             type="number"
             min="0"
@@ -134,11 +134,11 @@ export default function TransferDialog({
         {canOfferTags &&
           (offered.length === 0 ? (
             <p className="text-xs text-muted">
-              {fromRoom ? "Nothing is stored here. ‡" : "You're carrying nothing you could hand over. ‡"}
+              {fromRoom ? "Nothing is stored here." : "You're carrying nothing you could hand over."}
             </p>
           ) : (
             <div className="flex flex-col gap-2">
-              <span className="field-label">{fromRoom ? "Take" : "Hand over ‡"}</span>
+              <span className="field-label">{fromRoom ? "Take" : "Hand over"}</span>
               {offered.map((t) => {
                 const checked = t.tagId in picks;
                 // A non-stackable tag pins at one per character, so a pull out
@@ -151,7 +151,7 @@ export default function TransferDialog({
                     </CheckField>
                     {checked && max > 1 && (
                       <QuantityField
-                        label="How many? ‡"
+                        label="How many?"
                         max={max}
                         value={picks[t.tagId]}
                         onChange={(v) => onPickQuantity(t.tagId, v)}
@@ -173,17 +173,16 @@ export default function TransferDialog({
             : overAfter
               ? " That's more than you can manage — you'll be Overburdened until you set some down."
               : ""}{" "}
-          ‡
         </p>
       )}
       <p className="text-xs text-muted">
         {toSilo && !toSilo.canOpen
-          ? `${toSilo.name} is locked to you. This will go in, and you will not be able to take it back out. ‡`
+          ? `${toSilo.name} is locked to you. This will go in, and you won't be able to take it back out.`
           : toSilo
-            ? "Anyone in the faction who can get into the silo can take what you leave there. ‡"
+            ? "Anyone in the faction who can get into the silo can take what you leave there."
             : toRoom
-              ? "Anyone who can get into that room can take what you leave there. ‡"
-              : "Only people standing where you are, with their face showing, are listed. ‡"}
+              ? "Anyone who can get into that room can take what you leave there."
+              : "Only people standing where you are, with their face showing, are listed."}
       </p>
     </>
   );

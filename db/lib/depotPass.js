@@ -37,9 +37,9 @@ const SHUTTLE_DEPARTED_LINE = {
 
 const TURRET_DM = {
   graze:
-    "The turret tracked you across the depot floor and fired. It missed by an inch and put a hole in the wall behind you. ‡",
-  hit: "The turret in the depot ceiling identified your face, decided it did not like it, and fired. ‡",
-  dead: "The turret in the depot ceiling identified your face, decided it did not like it, and did not miss. ‡",
+    "The turret tracked you across the depot floor and fired. It missed by an inch and put a hole in the wall behind you.",
+  hit: "The turret in the depot ceiling identified your face, decided it did not like it, and fired.",
+  dead: "The turret in the depot ceiling identified your face, decided it did not like it, and did not miss.",
 };
 
 // One turn of the generator. Returns the line to speak if it died this turn.

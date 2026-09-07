@@ -190,7 +190,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, location
             onChange={(e) => onField("locationId", e.target.value || null)}
             className={touched("locationId")}
           >
-            <option value="">(nowhere — grants no channel access) ‡</option>
+            <option value="">(nowhere — grants no channel access)</option>
             {locationsByZone(locations).map((group) => (
               <optgroup key={group.zoneId ?? "loose"} label={group.zoneName ?? "Unzoned"}>
                 {group.locations.map((l) => (

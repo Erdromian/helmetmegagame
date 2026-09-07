@@ -186,7 +186,7 @@ function overCapSentence({
   // Capitalised here rather than in the JSX: the first clause is whichever
   // limit is over, so nothing else knows which word starts the sentence.
   const text = parts.join("; ");
-  return `${text.charAt(0).toUpperCase()}${text.slice(1)}. ‡`;
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
 }
 
 // A filled bar for one of the build pane's two budgets.

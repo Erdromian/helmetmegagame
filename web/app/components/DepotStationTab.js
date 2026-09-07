@@ -72,8 +72,8 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
       message: arming
         ? `It will fire on everyone standing in the depot except the face it has on file${
             depot.merchantFace ? ` — ${depot.merchantFace}` : ", and no face is on file, so it will fire on everyone"
-          }. It reads faces, not papers: concealing yourself makes you a target, and a keycard will not save a Docker. People will be shot on the way in and again at the end of every turn. ‡`
-        : "It goes quiet and the depot is open to anyone who walks in. ‡",
+          }. Concealing yourself makes you a target, and a keycard will not save a Docker. People will be shot on the way in and again at the end of every turn.`
+        : "It goes quiet and the depot is open to anyone who walks in.",
       confirmLabel: arming ? "Arm it" : "Disarm it",
       cancelLabel: "Leave it",
     });
@@ -86,7 +86,7 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
         <h2 className="panel-header">Generator</h2>
         <p className="mt-1 text-sm text-muted">
           It burns {depot.fuelBurnPerTurn} units a turn while it runs. With it out, nothing at the
-          Depot works — no ordering, no shuttle, no ATM, no turret. ‡
+          Depot works.
         </p>
 
         <dl className="depot-totals">
@@ -157,7 +157,7 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
         <h2 className="panel-header">Turret</h2>
         <p className="mt-1 text-sm text-muted">
           Facially identified. It fires on everyone in the depot whose face is not the one on file,
-          on the way in and again at the end of every turn. Armour matters a great deal. ‡
+          on the way in and again at the end of every turn. Armour matters a great deal.
         </p>
 
         <dl className="depot-totals">
@@ -177,7 +177,7 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
           <p className="mt-3 text-sm text-danger">
             No face is on file, so it would fire on everyone including you. The Depot learns the
             Merchant&apos;s face when he is created, so either nobody holds the seat yet or a GM
-            has cleared it. A GM can set it on the Dev Panel. ‡
+            has cleared it. A GM can set it on the Dev Panel.
           </p>
         )}
 
@@ -215,7 +215,7 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
           </label>
           <p className="mt-2 text-xs text-muted">
             {dialog.perUnit} units each, and the tank holds {depot.fuelMax}. Anything over the top
-            is wasted. ‡
+            is wasted.
           </p>
         </RequestDialog>
       )}
@@ -232,8 +232,8 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
         >
           <p className="text-sm text-muted">
             {depot.generatorOn
-              ? "The lights go out and the Depot stops working until it is running again. It also stops burning fuel. ‡"
-              : "The lights come up and it starts burning fuel again. ‡"}
+              ? "The lights go out and the Depot stops working until it is running again. It also stops burning fuel."
+              : "The lights come up and it starts burning fuel again."}
           </p>
         </RequestDialog>
       )}
@@ -249,7 +249,7 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
           onConfirm={submitTurret}
         >
           <p className="text-sm text-muted">
-            A GM will see this in the log either way. ‡
+            A GM will see this in the log either way.
           </p>
         </RequestDialog>
       )}

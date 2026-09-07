@@ -214,7 +214,7 @@ async function requireCharacter({ needs = null } = {}) {
       throw new UserError(
         needs === SPEAK
           ? `You can't speak right now — you're ${blocker.name}. ‡`
-          : `You can't do that right now — you're ${blocker.name}. ‡`,
+          : `You can't do that right now. You're ${blocker.name}.`,
       );
     }
   }

@@ -111,8 +111,8 @@ async function runConfessionPass(prisma, turn) {
           await dropCharacterTag(tx, offer.learnerId, offer.tagId);
         }
         const resultMessage = succeeded
-          ? `Confessed to ${nameOf(offer.teacherId)}; ${burden} lifted (${total} vs ${threshold}). ‡`
-          : `Confessed to ${nameOf(offer.teacherId)}; ${burden} stayed (${total} vs ${threshold}). ‡`;
+          ? `Confessed to ${nameOf(offer.teacherId)}; ${burden} lifted (${total} vs ${threshold}).`
+          : `Confessed to ${nameOf(offer.teacherId)}; ${burden} stayed (${total} vs ${threshold}).`;
         await tx.action.update({
           where: { id: action.id },
           data: {
@@ -144,16 +144,16 @@ async function runConfessionPass(prisma, turn) {
       const penitentDm = dmTo(
         offer.learnerId,
         outcome.succeeded
-          ? `${outcome.text} → **${outcome.burden}** is off you. ‡`
-          : `${outcome.text} → **${outcome.burden}** has not let go of you. ‡`,
+          ? `${outcome.text} → **${outcome.burden}** is off you.`
+          : `${outcome.text} → **${outcome.burden}** has not let go of you.`,
       );
       // The chaplain is told whether it took, and still never told what it
       // was. They heard it in the fiction; the sheet does not repeat it.
       const chaplainDm = dmTo(
         offer.teacherId,
         outcome.succeeded
-          ? `${nameOf(offer.learnerId)} left lighter than they came. ‡`
-          : `${nameOf(offer.learnerId)} confessed, but it did not take. ‡`,
+          ? `${nameOf(offer.learnerId)} left lighter than they came.`
+          : `${nameOf(offer.learnerId)} confessed, but it did not take.`,
       );
       for (const dm of [penitentDm, chaplainDm]) if (dm) dms.push(dm);
     } catch (err) {

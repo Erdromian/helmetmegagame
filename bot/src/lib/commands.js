@@ -67,12 +67,12 @@ const commandDefinitions = [
   // isn't one (GM, spectator, player roles).
   new SlashCommandBuilder()
     .setName("add")
-    .setDescription("Bring a character into this conversation or private room. ‡")
+    .setDescription("Bring a character into this conversation or private room.")
     .addRoleOption((opt) => opt.setName("character").setDescription("Whose role to add").setRequired(true))
     .setContexts(GUILD_ONLY),
   new SlashCommandBuilder()
     .setName("remove")
-    .setDescription("Show a character out of this conversation or private room. ‡")
+    .setDescription("Show a character out of this conversation or private room.")
     .addRoleOption((opt) => opt.setName("character").setDescription("Whose role to remove").setRequired(true))
     .setContexts(GUILD_ONLY),
 
@@ -86,7 +86,7 @@ const commandDefinitions = [
     .setContexts(ANYWHERE),
   new SlashCommandBuilder()
     .setName("location")
-    .setDescription("Travel to a connected location. ‡")
+    .setDescription("Travel to a connected location.")
     .setContexts(ANYWHERE),
   // The same flow under the name people actually reach for. /location is the
   // historical name and stays registered so nobody's muscle memory breaks;
@@ -96,13 +96,13 @@ const commandDefinitions = [
   // too and is not worth a migration.
   new SlashCommandBuilder()
     .setName("travel")
-    .setDescription("Travel to a connected location. ‡")
+    .setDescription("Travel to a connected location.")
     .setContexts(ANYWHERE),
   // A standing state, not a per-message one: it stays on until it is turned
   // off, so it needs to be reachable from a DM the same way /location is.
   new SlashCommandBuilder()
     .setName("conceal")
-    .setDescription("Hide your name behind an anonymous alias, until you turn it off. ‡")
+    .setDescription("Hide your name behind an anonymous alias, until you turn it off.")
     .setContexts(ANYWHERE),
   // Run inside a channel you can speak in, this skips the destination picker
   // and posts there. Run anywhere else — including a DM — it asks where first.
@@ -115,7 +115,7 @@ const commandDefinitions = [
   // tag is the gate; the Musician tag decides which of the two lines it plays.
   new SlashCommandBuilder()
     .setName("play")
-    .setDescription("Play your instrument, for the room to hear. ‡")
+    .setDescription("Play your instrument, for the room to hear.")
     .setContexts(GUILD_ONLY),
   // Guild-only, /play's reason: a shout with nobody to hear it is not a shout.
   //
@@ -129,7 +129,7 @@ const commandDefinitions = [
   // of blocks is not a message anybody reads.
   new SlashCommandBuilder()
     .setName("shout")
-    .setDescription("Yell, loud enough that the next few places over hear you. ‡")
+    .setDescription("Yell, loud enough that the next few places over hear you.")
     .addStringOption((opt) =>
       opt.setName("message").setDescription("What you yell").setRequired(true).setMaxLength(300),
     )

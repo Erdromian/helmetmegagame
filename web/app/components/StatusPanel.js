@@ -69,11 +69,11 @@ function ThisTurn({ currentAction, openTurn, pendingOffers = [] }) {
     <span key={o.id} className="text-muted">
       {o.mine
         ? o.kind === "BIND"
-          ? `Waiting for ${o.otherName} to agree to be bound. ‡`
-          : `Waiting for ${o.otherName} to accept the lesson${o.tagName ? ` in ${o.tagName}` : ""}. ‡`
+          ? `Waiting for ${o.otherName} to agree to be bound.`
+          : `Waiting for ${o.otherName} to accept the lesson${o.tagName ? ` in ${o.tagName}` : ""}.`
         : o.kind === "BIND"
-          ? `${o.otherName} wants to bind you — answer in your DMs. ‡`
-          : `${o.otherName} offered a lesson${o.tagName ? ` in ${o.tagName}` : ""} — answer in your DMs. ‡`}
+          ? `${o.otherName} wants to bind you. Answer in your DMs.`
+          : `${o.otherName} offered a lesson${o.tagName ? ` in ${o.tagName}` : ""}. Answer in your DMs.`}
     </span>
   ));
   if (!currentAction)
@@ -242,9 +242,9 @@ export default function StatusPanel({
           {/* A crossing that cost the Move is a day's walk, and the character
               stays put until the next turn opens (MAP.md §3). */}
           {travellingTo && (
-            <Row label="On the road ‡">
-              <span title="You arrive when the turn turns. Turn back from the Travel button on #turns. ‡">
-                walking to {travellingTo} ‡
+            <Row label="On the road">
+              <span title="You arrive when the turn turns. Turn back from the Travel button on #turns.">
+                walking to {travellingTo}
               </span>
             </Row>
           )}
@@ -253,7 +253,7 @@ export default function StatusPanel({
               crossing spends the Move; at zero — which is what Overburdened
               does — the first one already does. */}
           {zoneMoves != null && (
-            <Row label="Zone moves ‡">
+            <Row label="Zone moves">
               {/* The reason rides in the hover for the same reason the carry
                   cap's breakdown does: a bare 0 leaves a lamed or overloaded
                   player with nothing to act on. */}
@@ -262,7 +262,7 @@ export default function StatusPanel({
                 title={zoneMovesReason ?? undefined}
                 style={zoneMoves === 0 ? { color: "var(--accent-text)" } : undefined}
               >
-                {zoneMoves} free ‡
+                {zoneMoves} free
               </span>
             </Row>
           )}
@@ -292,7 +292,7 @@ export default function StatusPanel({
                 title={carryCapTitle(carry)}
                 style={carry.weightUsed > carry.weightCap ? { color: "var(--accent-text)" } : undefined}
               >
-                {carry.weightUsed} / {carry.weightCap} lb ‡
+                {carry.weightUsed} / {carry.weightCap} lb
               </span>
             </Row>
           )}

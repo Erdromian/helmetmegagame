@@ -48,7 +48,7 @@ export default function AvatarField({
       <div className="flex flex-wrap items-center gap-3">
         {forcedIdentity && (
           <span className="text-sm text-muted">
-            Your face is fixed while you hold {forcedIdentity.tagName}. Everyone sees {forcedIdentity.name}. ‡
+            Your face is fixed while you hold {forcedIdentity.tagName}. Everyone sees {forcedIdentity.name}.
           </span>
         )}
         {!forcedIdentity && portraitMakerEnabled && (
@@ -101,11 +101,11 @@ export default function AvatarField({
             The cooldown is enforced server-side in db/lib/webOnly.js — this is
             the hint, not the lock. */}
         <Switch name="webOnly" defaultChecked={defaultWebOnly}>
-          Play from the web ‡
+          Play from the web
         </Switch>
         <p className="text-sm text-muted">
           Your Discord account leaves every room channel, so nobody can see who you are. You play from the Play
-          page instead. Switching cools for two hours. ‡
+          page instead. Switching cools for two hours.
         </p>
         {/* While this is on every message you send posts under your alias and
             the concealing item's own face, and Who's here? lists the alias too.
@@ -120,12 +120,12 @@ export default function AvatarField({
           disabled={Boolean(forcedIdentity) || !concealGear || concealGear.forced}
         >
           {forcedIdentity
-            ? `Speak under an anonymous alias — not while you are ${forcedIdentity.name}. ‡`
+            ? `Speak under an anonymous alias — not while you are ${forcedIdentity.name}.`
             : !concealGear
-              ? "Speak under an anonymous alias — your face is bare. Equip something that covers it. ‡"
+              ? "Speak under an anonymous alias — your face is bare. Equip something that covers it."
               : concealGear.forced
-                ? `Speak under an anonymous alias — no choice while you are wearing ${concealGear.tagName}. ‡`
-                : "Speak under an anonymous alias ‡"}
+                ? `Speak under an anonymous alias — no choice while you are wearing ${concealGear.tagName}.`
+                : "Speak under an anonymous alias"}
         </Switch>
         {fileName ? (
           <span className="text-sm text-muted">

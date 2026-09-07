@@ -88,7 +88,7 @@ const FLAG_LABELS = [
   ["stackable", "Stackable"],
   ["equippable", "Equippable"],
   ["concealsIdentity", "Conceals identity"],
-  ["forcesConceal", "Conceals by force ‡"],
+  ["forcesConceal", "Conceals by force"],
   ["consumable", "Consumable"],
   ["removable", "Removable"],
   ["tradeable", "Tradeable"],
@@ -145,23 +145,23 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
     ...FLAG_LABELS.filter(([key]) => tag[key]).map(([, label]) => label),
     VISIBILITY_CHIP[tag.inspectVisibility],
     // Not a boolean: the name the holder is forced to wear (TAGS.md §5).
-    tag.forcedName ? `Forces name: ${tag.forcedName} ‡` : null,
+    tag.forcedName ? `Forces name: ${tag.forcedName}` : null,
     // Nor these: the face a concealed wearer shows, and where the thing sits.
     // Both are worth a chip rather than a fold — "which helmet slot is this?"
     // is the question a GM building kit actually asks.
-    tag.concealSprite ? `Conceal sprite: ${tag.concealSprite} ‡` : null,
+    tag.concealSprite ? `Conceal sprite: ${tag.concealSprite}` : null,
     tag.equipSlot
-      ? `Worn: ${tag.equipSlot.toLowerCase()}${tag.equipLayer ? ` · layer ${tag.equipLayer} ‡` : " ‡"}`
+      ? `Worn: ${tag.equipSlot.toLowerCase()}${tag.equipLayer ? ` · layer ${tag.equipLayer}` : ""}`
       : null,
     // This sheet is the GM's door onto a tag, so it carries the raw numbers
     // the word scale hides everywhere else — tuning a piece of gear against
     // "Sufficient" would be guesswork.
     formatTagArmor(tag)
-      ? `Armour: ${formatTagArmor(tag)} (${tag.meleeArmor ?? 0} / ${tag.ballisticArmor ?? 0}) ‡`
+      ? `Armour: ${formatTagArmor(tag)} (${tag.meleeArmor ?? 0} / ${tag.ballisticArmor ?? 0})`
       : null,
     // What it costs the carry cap, per unit. Null for the weightless half of
     // the catalog and for anything a character does not haul (CARRY.md §1).
-    formatTagWeight(tag) ? `Weighs ${formatTagWeight(tag)} ‡` : null,
+    formatTagWeight(tag) ? `Weighs ${formatTagWeight(tag)}` : null,
   ].filter(Boolean);
   const requirement = formatTagRequirement(tag);
 

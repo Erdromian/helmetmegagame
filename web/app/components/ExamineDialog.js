@@ -32,7 +32,7 @@ function ExamineDialogBody({ onClose }) {
       const res = await peopleToExamine();
       if (cancelled) return;
       if (res?.ok) setRoster({ loading: false, people: res.people, error: null });
-      else setRoster({ loading: false, people: [], error: res?.error ?? "Couldn't see who's here. ‡" });
+      else setRoster({ loading: false, people: [], error: res?.error ?? "Couldn't see who's here." });
     })();
     return () => {
       cancelled = true;
@@ -48,17 +48,17 @@ function ExamineDialogBody({ onClose }) {
     setLook({ loading: true, readout: null, error: null });
     const res = await examineCharacter(id);
     if (res?.ok) setLook({ loading: false, readout: res.readout, error: null });
-    else setLook({ loading: false, readout: null, error: res?.error ?? "You can't see them. ‡" });
+    else setLook({ loading: false, readout: null, error: res?.error ?? "You can't see them." });
   }
 
   return (
     <Modal title="Look at" onClose={onClose}>
       <div className="mt-3 flex flex-col gap-3">
-        {roster.loading && <p className="text-sm text-muted">Looking around… ‡</p>}
+        {roster.loading && <p className="text-sm text-muted">Looking around…</p>}
         {roster.error && <FormError>{roster.error}</FormError>}
 
         {!roster.loading && !roster.error && roster.people.length === 0 && (
-          <p className="text-sm text-muted">There is nobody else here. ‡</p>
+          <p className="text-sm text-muted">There is nobody else here.</p>
         )}
 
         {roster.people.length > 0 && (
@@ -75,7 +75,7 @@ function ExamineDialogBody({ onClose }) {
           </label>
         )}
 
-        {look.loading && <p className="text-sm text-muted">Looking… ‡</p>}
+        {look.loading && <p className="text-sm text-muted">Looking…</p>}
         {look.error && <FormError>{look.error}</FormError>}
         {look.readout && <Readout readout={look.readout} />}
       </div>
@@ -106,7 +106,7 @@ function Readout({ readout }) {
       {readout.line && <p className="text-sm text-muted">{readout.line}</p>}
       {readout.appearance && <p className="text-sm" style={{ whiteSpace: "pre-wrap" }}>{readout.appearance}</p>}
       {!readout.concealed && !readout.appearance && (
-        <p className="text-sm text-muted">Nothing about them stands out. ‡</p>
+        <p className="text-sm text-muted">Nothing about them stands out.</p>
       )}
 
       <Line label="Ailments" values={readout.ailments} />
@@ -140,7 +140,7 @@ function Readout({ readout }) {
         <div className="field">
           <span className="field-label">Last Desire</span>
           <p className="text-sm">
-            {readout.desire.text ? `» ${readout.desire.text} (+${readout.desire.points})` : "Nothing you can read. ‡"}
+            {readout.desire.text ? `» ${readout.desire.text} (+${readout.desire.points})` : "Nothing you can read."}
           </p>
         </div>
       )}

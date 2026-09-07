@@ -85,7 +85,7 @@ async function requireWriter({ needs = null } = {}) {
 
   if (needs) {
     const blocker = blockerFor(character.tags, needs);
-    if (blocker) throw new UserError(`You can't do that right now — you're ${blocker.name}. ‡`);
+    if (blocker) throw new UserError(`You can't do that right now. You're ${blocker.name}.`);
   }
 
   const turn = await prisma.turn.findFirst({

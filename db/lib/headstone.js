@@ -28,7 +28,7 @@ function headstoneSlug(name) {
 async function mintHeadstone(tx, target) {
   const slug = headstoneSlug(target.name);
   const name = `${target.name}'s Headstone`;
-  const description = `A headstone commemorating ${target.name}'s life. ‡`;
+  const description = `A headstone commemorating ${target.name}'s life.`;
   const existing = await tx.tag.findUnique({ where: { slug } });
   if (existing) return existing;
   try {

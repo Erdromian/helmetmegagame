@@ -62,12 +62,12 @@ export default function DepotHoldTab({ pad, crates, depot, handDisabled, shuttle
         <h2 className="panel-header">The Landing Pad</h2>
         <p className="mt-1 text-sm text-muted">
           {docked
-            ? `The shuttle is on the pad${shuttleTurnsLeft != null ? `, and leaves on its own in ${shuttleTurnsLeft} turn${shuttleTurnsLeft === 1 ? "" : "s"}` : ""}. ‡`
-            : "The pad is empty of anything that flies. What is stacked on it stays where it is. ‡"}
+            ? `The shuttle is on the pad${shuttleTurnsLeft != null ? `, and leaves on its own in ${shuttleTurnsLeft} turn${shuttleTurnsLeft === 1 ? "" : "s"}` : ""}.`
+            : "The shuttle isn't on the pad. Crates stacked on the pad stay where they are."}
         </p>
 
         {pad.rows.length === 0 && !pad.resources ? (
-          <EmptyState>Nothing on the pad. ‡</EmptyState>
+          <EmptyState>Nothing on the pad.</EmptyState>
         ) : (
           <ul className="depot-list mt-4">
             {pad.rows.map((row) => (
@@ -95,7 +95,7 @@ export default function DepotHoldTab({ pad, crates, depot, handDisabled, shuttle
           </div>
         </dl>
 
-        <Tooltip text="Everything on the pad goes up and comes back as obols, one for every ⬢ it is worth. ‡">
+        <Tooltip text="Everything on the pad goes up and comes back as obols, one for every ⬢ it is worth.">
           <button
             type="button"
             className="btn mt-4"
@@ -111,11 +111,10 @@ export default function DepotHoldTab({ pad, crates, depot, handDisabled, shuttle
       <section className="panel p-5">
         <h2 className="panel-header">Crates you are carrying</h2>
         <p className="mt-1 text-sm text-muted">
-          A crate has to be opened before anything inside it is yours. A sealed one wants a Depot
-          Keycard. ‡
+          A crate has to be opened before anything inside it is yours. A sealed one needs a Depot Keycard.
         </p>
         {crates.length === 0 ? (
-          <EmptyState>You are not carrying any crates. ‡</EmptyState>
+          <EmptyState>You are not carrying any crates.</EmptyState>
         ) : (
           <ul className="depot-list mt-4">
             {crates.map((crate) => (
@@ -150,7 +149,6 @@ export default function DepotHoldTab({ pad, crates, depot, handDisabled, shuttle
         >
           <p className="text-sm text-muted">
             Everything on the pad goes with it, and {payout} ¢ lands in the account.
-            This is the only way Resources become obols. ‡
           </p>
         </RequestDialog>
       )}
@@ -167,7 +165,7 @@ export default function DepotHoldTab({ pad, crates, depot, handDisabled, shuttle
         >
           <p className="text-sm text-muted">
             The crate is destroyed and whatever is inside goes into your hands. Mind your carry
-            weight. ‡
+            weight.
           </p>
         </RequestDialog>
       )}

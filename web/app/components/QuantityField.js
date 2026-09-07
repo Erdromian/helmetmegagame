@@ -68,7 +68,7 @@ export default function QuantityField({
         className="qty-btn"
         onClick={() => step(-1)}
         disabled={disabled || atMin}
-        aria-label="One fewer ‡"
+        aria-label="One fewer"
         tabIndex={-1}
       >
         −
@@ -89,7 +89,7 @@ export default function QuantityField({
         className="qty-btn"
         onClick={() => step(1)}
         disabled={disabled || atMax}
-        aria-label="One more ‡"
+        aria-label="One more"
         tabIndex={-1}
       >
         +
