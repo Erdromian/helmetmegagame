@@ -21,7 +21,8 @@ async function lobbyGate() {
   const [state, config, member, alive] = await Promise.all([
     readGameState(prisma, { phase: true }),
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { leaderWhitelistEnabled: true } }),
-    getGuildMember(discordUserId),
+    // Always fresh: a gate must not refuse on a five-minute-old roles list.
+    getGuildMember(discordUserId, 0),
     prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" }, select: { id: true } }),
   ]);
   const superadmin = isSuperadmin(discordUserId);

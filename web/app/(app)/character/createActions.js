@@ -154,7 +154,8 @@ export async function createCharacter(formData) {
     }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     readGameState(prisma),
-    getGuildMember(discordUserId),
+    // Always fresh: a gate must not refuse on a five-minute-old roles list.
+    getGuildMember(discordUserId, 0),
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
   ]);
   if (!role) return { error: "That role no longer exists." };
@@ -550,7 +551,8 @@ export async function reserveRoleAction(roleId) {
     prisma.role.findUnique({ where: { id: roleId }, include: { faction: { include: { zone: true } } } }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     readGameState(prisma),
-    getGuildMember(discordUserId),
+    // Always fresh: a gate must not refuse on a five-minute-old roles list.
+    getGuildMember(discordUserId, 0),
   ]);
   if (!role) return { error: "That role no longer exists." };
 

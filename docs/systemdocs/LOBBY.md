@@ -81,6 +81,13 @@ playtester also passes the roster check without the Player role — the seat
 exists so a contributor can test creation and play without being seated as a
 GM or a player.
 
+A role handed out in Discord reaches these surfaces within a minute. The web
+app caches a member's roles for five minutes
+(`web/lib/discordGuild.js#getGuildMember`), which once meant a fresh Playtest
+holder reloaded into a lobby with no Skip button; the character page's
+no-character branch now accepts a cached member at most a minute old, and the
+creation gates (`createActions.js`, `lobbyActions.js`) always refetch.
+
 ## 3. The roll
 
 `db/lib/roleAssignment.js#assignRoles` is a pure function, a port of

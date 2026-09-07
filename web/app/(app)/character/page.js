@@ -121,7 +121,9 @@ async function loadCreationData(discordUserId) {
     loadPointBuyCatalog([], { includeRoleStartingTags: true }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     readGameState(prisma),
-    getGuildMember(discordUserId),
+    // At most a minute old: a role handed out in Discord shows up on the next
+    // reload, and the lobby refreshes itself every 30 s anyway.
+    getGuildMember(discordUserId, 60_000),
     dynastyLastName(),
     prisma.playerPreference.findUnique({ where: { discordUserId }, select: { antagonistOptIns: true } }),
   ]);
