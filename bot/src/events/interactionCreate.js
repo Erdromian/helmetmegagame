@@ -1056,6 +1056,14 @@ async function handleTravelConfirm(interaction, locationId) {
     );
   }
   if (brought.length > 0) parts.push(`Bringing ${listNames(brought)}.`);
+  // The way was too narrow for what they had out — dismounted rather than
+  // refused (db/lib/indoors.js#dismountForNarrowWay), already applied by
+  // performLocationMove by the time this reads it.
+  if (result.dismounted?.length > 0) {
+    parts.push(
+      `Too narrow for your ${listNames(result.dismounted)} — you leave ${result.dismounted.length === 1 ? "it" : "them"} and go on foot.`,
+    );
+  }
 
   await respond(interaction, { content: `${parts.join(" ")} ‡`, components: [] });
 }

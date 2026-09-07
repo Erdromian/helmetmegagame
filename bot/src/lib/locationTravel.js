@@ -185,6 +185,10 @@ async function performMove(character, targetLocation, dragged = []) {
       characterId: entry.character.id,
       fromLocationId: entry.fromLocationId,
       toLocationId: entry.toLocationId,
+      // Only ever computed for the mover themselves — performLocationMove
+      // checks the mover's own equipped mount against the edge, never a
+      // dragged passenger's.
+      dismounted: entry.character.id === character.id ? result.dismounted : undefined,
     }).catch((err) =>
       console.error(`Move side effects failed for ${entry.character.name}:`, err.message ?? err),
     );

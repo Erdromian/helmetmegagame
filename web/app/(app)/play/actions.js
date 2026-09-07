@@ -14,6 +14,7 @@ import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "@/lib/dmThread";
 import { PLAYER_DM_MAX_LENGTH } from "@/lib/constants";
 import { whosHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
+import { blocksOnFoot, equippedSlugs } from "@lifeweb/db/lib/mounts";
 import {
   performLocationMove,
   turnBack,
@@ -24,6 +25,7 @@ import {
 } from "@lifeweb/db/lib/locationTravel";
 import { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
+import { dismountedMessage } from "@lifeweb/db/lib/indoors";
 import { boardFor, boardText, pinnedLine, tornLine, BOARD_OPTION_LIMIT } from "@lifeweb/db/lib/noticeboard";
 import { paperDescription, paperView } from "@lifeweb/db/lib/paper";
 import { readBlock } from "@lifeweb/db/lib/reading";
@@ -476,6 +478,11 @@ export async function loadTravel() {
     heading: heading?.name ?? null,
     freeLeft: freeMovesLeft(character, config, openTurn),
     freeReason: freeZoneMovesReason(character),
+    // Whether there's anything to dismount at all — the node list only
+    // marks a specific way or a specific destination as a consequence when
+    // this is true, since neither "on foot" nor "indoors" means anything to
+    // somebody already walking.
+    mounted: blocksOnFoot(equippedSlugs(character.tags ?? [])),
     options: options.map((row) => ({
       id: row.location.id,
       name: row.location.name,
@@ -486,7 +493,15 @@ export async function loadTravel() {
       zoneName: row.location.zone?.name ?? null,
       crossesZone: row.crossesZone,
       passable: row.passable,
-      reason: row.reason ?? null,
+      // A Location a mount gets parked at on arrival (db/lib/indoors.js).
+      indoors: Boolean(row.location.indoors),
+      // A way too narrow to ride or push through — crossing it dismounts
+      // instead of refusing (db/lib/indoors.js#dismountForNarrowWay).
+      dismounts: Boolean(row.dismounts),
+      // crossingCheck's field is `refusal`, not `reason` — this was silently
+      // dropping the actual message (e.g. the locked/shut wording) and
+      // falling back to the node's generic "no way".
+      reason: row.refusal ?? null,
     })),
     drag: drag.map((t) => ({ id: t.id, name: t.name, reason: t.reason ?? null })),
   };
@@ -520,7 +535,16 @@ export async function travelTo({ locationId, draggedIds = [] } = {}) {
         `*${me.character.name} is taking you to ${target.name}. You'll get there next turn.* ‡`,
       ).catch(() => {});
     }
-    return { ok: true, line: `You set out for ${target.name}. You arrive next turn, and your Move is spent. ‡` };
+    const setOutLine = `You set out for ${target.name}. You arrive next turn, and your Move is spent.`;
+    // dismountedMessage already carries its own mark, so only one line ends
+    // the block either way.
+    return {
+      ok: true,
+      line:
+        result.dismounted.length > 0
+          ? `${setOutLine} ${dismountedMessage(result.dismounted)}`
+          : `${setOutLine} ‡`,
+    };
   }
 
   // Sequential on purpose: each entry is a handful of REST calls, and firing
@@ -531,6 +555,10 @@ export async function travelTo({ locationId, draggedIds = [] } = {}) {
       characterId: entry.character.id,
       fromLocationId: entry.fromLocationId,
       toLocationId: entry.toLocationId,
+      // Only ever computed for the mover themselves — performLocationMove
+      // checks the mover's own equipped mount against the edge, never a
+      // dragged passenger's.
+      dismounted: entry.character.id === me.character.id ? result.dismounted : undefined,
     }).catch(() => {});
   }
   // The Caving Die's "on arrival" trigger (CAVING.md), and the word owed to

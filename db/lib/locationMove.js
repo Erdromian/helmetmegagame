@@ -25,7 +25,7 @@ const { syncCharacterRoomAccess } = require("./roomAccess");
 const { ambientLine } = require("./ambientLine");
 const { sceneLineAt } = require("./scene");
 const { settleCarry, deliverCarryDrop } = require("./carry");
-const { parkMountsIndoors, parkedMessage } = require("./indoors");
+const { parkMountsIndoors, parkedMessage, dismountForNarrowWay, dismountedMessage } = require("./indoors");
 const { applyArrivalFear } = require("./fear");
 const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW } = require("./zoneChannelSpec");
@@ -239,10 +239,14 @@ async function offerToHoldKeyed(prisma, character, fromLocationId, toLocation) {
 // changed too, swap the zone
 // role and reconcile narrowcast access; then private-room membership for
 // wherever they now stand, and any standing conversation invites there.
-// `entry` is { characterId, fromLocationId, toLocationId } — zones are read
-// from the locations, and the character's row is re-read so a stale caller
-// can't swap the wrong account.
-async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationId, toLocationId }) {
+// `entry` is { characterId, fromLocationId, toLocationId, dismounted } — zones
+// are read from the locations, and the character's row is re-read so a stale
+// caller can't swap the wrong account. `dismounted` is optional: the names
+// db/lib/locationTravel.js#performLocationMove already unequipped for a way
+// too narrow to ride or push through, if this move came from there — see the
+// comment below on why that has to happen inside performLocationMove's own
+// transaction rather than here.
+async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationId, toLocationId, dismounted }) {
   if (!characterId || !toLocationId) return;
   if (fromLocationId === toLocationId) return;
 
@@ -254,6 +258,26 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     console.error(`Move: parking mounts failed for ${characterId}:`, err.message ?? err);
     return [];
   });
+
+  // The other trigger for the same thing: a way too narrow for what they had
+  // out. `performLocationMove` already does this itself, inside its own
+  // transaction, so a mount that doesn't survive a crossing can never bank
+  // the extra free move it buys (MAP.md §2c) — the caller passes those names
+  // straight through as `dismounted` and this skips redoing the check, which
+  // would only ever find nothing left to unequip. A caller with no such
+  // result (a GM teleport, a rite, a spawn — none of which cross a graph
+  // edge) leaves it undefined and gets the independent check below, a no-op
+  // unless there really is a matching onFoot link.
+  const dismountedNames =
+    dismounted ??
+    (fromLocationId
+      ? await linkBetween(prisma, fromLocationId, toLocationId)
+          .then((link) => dismountForNarrowWay(prisma, characterId, link))
+          .catch((err) => {
+            console.error(`Move: dismounting for a narrow way failed for ${characterId}:`, err.message ?? err);
+            return [];
+          })
+      : []);
 
   // What walking in here does to the nerves is a DB fact too, same as parking
   // a mount above — before the Discord guard, so it lands whether or not
@@ -354,6 +378,11 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
   if (parked.length > 0) {
     await sendDm(prisma, discordUserId, parkedMessage(parked, toLocation.name)).catch((err) =>
       console.error(`Move: parked-mount DM to ${discordUserId} failed:`, err.message ?? err),
+    );
+  }
+  if (dismountedNames.length > 0) {
+    await sendDm(prisma, discordUserId, dismountedMessage(dismountedNames)).catch((err) =>
+      console.error(`Move: dismount DM to ${discordUserId} failed:`, err.message ?? err),
     );
   }
 
