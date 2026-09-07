@@ -3117,7 +3117,7 @@ tags:
     name: Increased Recovery
     category: status
     group: status-buffs
-    description: "Your body heals faster than it normally should."
+    description: "Your body heals faster than it normally should — an untreated infection or wound holds off one more turn before it worsens. It can't stop what's already reached death's door. ‡"
     pointCost: 0
     visible: false
     purchasable: false
@@ -5861,12 +5861,16 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # HIDDEN recipe (graga-sac is non-public; medical pass, 2026-09-08) —
+  # picker-gated by the existing machinery, not secret: a medical-expert
+  # holding a Graga Sac sees the recipe in their Craft menu, same as
+  # {tag:white-honey}.
   military-autoinjector:
     catalog: gm
     name: Military Autoinjector
     category: items
     group: items-gear
-    description: "Using this heals you immediately, clearing all minor and moderate wounds (remove the tags yourself.)"
+    description: "A field trauma kit, self-triggering. One jab clears the small stuff at once — bruises, sprains, a shallow cut, a cracked rib, even a broken bone. Nothing past that; a punctured lung wants a real surgeon. ‡"
     pointCost: 0
     tradeable: true
     weight: 2
@@ -5874,8 +5878,30 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    cures:
+      [
+        bruised,
+        sprained-ankle,
+        burned,
+        minor-bleeding,
+        minor-wound,
+        dislocated-shoulder,
+        deep-wound,
+        broken-bone,
+        cracked-ribs,
+        blunt-force-trauma,
+        frostbite,
+      ]
+    requirement:
+      turnsCost: 2
+      resourceCost: 8
+      skills: [medical-expert]
+      gambit: false
+      items: [graga-sac]
     sellable: true
-    sellablePrice: 10
+    sellablePrice: 38
 
   # A creation-only bundle rather than a thing you carry: it sits on the sheet
   # until the player unpacks it from their own character sheet (see consumable
@@ -9660,7 +9686,7 @@ tags:
     name: Antibiotics
     category: items
     group: items-drink
-    description: "Immediately cures all stages of infection."
+    description: "Cures {tag:feverish} and {tag:sepsis} outright. ‡"
     pointCost: 0
     depotPrice: 82
     sellable: true
@@ -9672,6 +9698,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     consumable: true
+    cures: [feverish, sepsis]
     consumesInto: []
 
   # Hardware. The wall. A gun costs more than a house and that is the point.
@@ -10282,7 +10309,7 @@ tags:
     name: Purifier
     category: items
     group: items-drink
-    description: "Brewed from {tag:cave-fungus}. Clears {tag:infected}, {tag:festering} and {tag:feverish} without medical attention, and greatly improves the condition of someone with {tag:sepsis}."
+    description: "Brewed from {tag:cave-fungus}. Clears {tag:infected}, {tag:festering} and {tag:feverish} without medical attention. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10292,6 +10319,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    cures: [infected, festering, feverish]
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -10328,8 +10356,9 @@ tags:
       skills: [brewing-skilled]
       gambit: false
       items: [honey, trout-heart]
+    cures: [poisoned, envenomated, phrygian-toxin]
     sellable: true
-    sellablePrice: 6
+    sellablePrice: 26
 
   deadeye-drops:
     catalog: all
@@ -10362,7 +10391,7 @@ tags:
     name: Mercy
     category: items
     group: items-drink
-    description: "Brewed from {tag:cave-fungus}. Grants {tag:increased-recovery}. Goes down smoothly."
+    description: "Brewed from {tag:cave-fungus}. Grants {tag:increased-recovery} — hold someone's head up and give it to them yourself, or drink it down for your own. Goes down smoothly. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10372,16 +10401,17 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    administerable: true
     consumesInto:
       - increased-recovery
     requirement:
       turnsCost: 1/2
-      resourceCost: 2
+      resourceCost: 3
       skills: [brewing-skilled]
       gambit: false
       items: [cave-fungus]
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 12
 
   distilled-coca:
     catalog: all
@@ -10644,6 +10674,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    cures: [shell-shocked]
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -10654,6 +10685,231 @@ tags:
       items: [poppy]
     sellable: true
     sellablePrice: 18
+
+  # --- Medical pass: the item roster (M3) -----------------------------
+
+  antidote:
+    catalog: all
+    name: Antidote
+    category: items
+    group: items-drink
+    description: "A bitter draught that fights a poison already in the blood. Cures {tag:poisoned} and {tag:envenomated}. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    cures: [poisoned, envenomated]
+    requirement:
+      turnsCost: 1/2
+      resourceCost: 4
+      skills: [medical-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 10
+
+  fever-draught:
+    catalog: all
+    name: Fever Draught
+    category: items
+    group: items-drink
+    description: "Cool and bitter going down, it breaks a fever inside the hour. Cures {tag:feverish}, {tag:heatstroke} and {tag:cave-fever}. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    cures: [feverish, heatstroke, cave-fever]
+    requirement:
+      turnsCost: 1/2
+      resourceCost: 3
+      skills: [medical-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 9
+
+  burn-dressing:
+    catalog: all
+    name: Burn Dressing
+    category: items
+    group: items-gear
+    description: "A cooling salve pressed on and wrapped tight. Cures {tag:burned} and {tag:severe-burns}. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    cures: [burned, severe-burns]
+    requirement:
+      turnsCost: 1/2
+      resourceCost: 4
+      skills: [medical-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 10
+
+  # No `cures:` — it doesn't treat anything. It substitutes for Surgical
+  # Equipment on a single medical Gambit's +1 die bonus, and only when no
+  # real equipment (held, room-stashed, or a Surgical Theater) is already in
+  # reach — see healCharacterRequestImpl. Deliberately not `consumable`: it
+  # is spent automatically inside that transaction, never through the
+  # ordinary Consume button.
+  portable-surgical-pack:
+    catalog: all
+    name: Portable Surgical Pack
+    category: items
+    group: items-gear
+    description: "A rolled kit of clamps, needles and sutures — not a proper theater, but enough to steady a medic's hand for one attempt. It spends itself the moment it's used: +1 on a single surgical Gambit, and only when no real Surgical Equipment or Surgical Theater is already in reach. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [medical-expert]
+      gambit: false
+    sellable: true
+    sellablePrice: 20
+
+  # HIDDEN recipe (aberrant-heart is non-public; medical pass, 2026-09-08),
+  # and the tag itself is secret on top of that: unlike {tag:white-honey},
+  # this one isn't public knowledge with a hidden ingredient, it's a genuine
+  # secret. Nothing drops aberrant-heart yet (loot-table pass) — buildable
+  # the day that lands, inert until then. The one item door onto a tier-7
+  # cure that isn't a Gambit: Dying is always a roll through Heal, but an
+  # item cure never rolls, the same way White Honey bypasses envenomated's
+  # own tier. Chris 2026-09-08: this is a FULL cure, not a mere improvement.
+  last-breath:
+    catalog: secret
+    name: Last Breath
+    category: items
+    group: items-drink
+    description: "Rendered from an aberrant heart, black and thick. Poured past the lips of the dying, it does what no ordinary medicine can — cures {tag:dying} outright. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    cures: [dying]
+    requirement:
+      turnsCost: 3
+      resourceCost: 12
+      skills: [medical-expert]
+      gambit: false
+      items: [aberrant-heart]
+    sellable: true
+    sellablePrice: 100
+
+  # The medical mirror of {tag:forge} (SMITHING.md §2a): a standing site
+  # rather than a kit you haul. Satisfies the surgery-site rule the same way
+  # a forge satisfies Workshop Equipment — `provides: [surgical-equipment]`
+  # is read by the same hasEquipmentInReach() check the portable kit uses,
+  # so nothing in the heal path has to know the two apart. Gate and cost are
+  # a default, flagged TBD for Gunboat to price (medical-pass plan, M3).
+  surgical-theater:
+    catalog: all
+    name: Surgical Theater
+    category: assets
+    group: assets-structures
+    description: "A dedicated surgery: scrubbed tables, hung lamps, instruments laid out and ready. Anyone working this ground can do the deepest medicine here without hauling a kit around. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 3
+      resourceCost: 30
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      examine: "instruments laid out, lamps hung."
+      provides: [surgical-equipment]
+
+  # --- Medical pass: new ailments (M3) --------------------------------
+
+  lockjaw:
+    catalog: all
+    name: Lockjaw
+    category: health
+    group: health-infection
+    description: "Your jaw has seized shut and every muscle is drawing tight. Left alone for 2 turns, it steals your breath entirely and you'll be {tag:choking}. ‡"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+    expiresInto: [choking]
+    removesInto: [recovering]
+    healable: true
+    requirement:
+      turnsCost: 1/3
+      resourceCost: 4
+      skills: [medical-skilled]
+      gambit: false
+
+  cave-fever:
+    catalog: all
+    name: Cave Fever
+    category: health
+    group: health-illness
+    description: "A shivering, cave-borne sickness that settles in the lungs. Left alone for 2 turns, it spikes into {tag:feverish}. ‡"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+    expiresInto: [feverish]
+    removesInto: [recovering]
+    healable: true
+    requirement:
+      turnsCost: 1/3
+      resourceCost: 2
+      skills: [medical-skilled]
+      gambit: false
+
+  crush-injury:
+    catalog: all
+    name: Crush Injury
+    category: health
+    group: health-wounds
+    description: "Something heavy came down on you, and the tissue underneath is already dying. Left alone for 2 turns, it turns to {tag:necrosis}. ‡"
+    pointCost: 0
+    carryBonus: -0.1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+    expiresInto: [necrosis]
+    removesInto: [stitched-up]
+    healable: true
+    requirement:
+      turnsCost: 1/2
+      resourceCost: 7
+      skills: [medical-skilled]
+      gambit: false
 
   flawless-skin:
     catalog: all
