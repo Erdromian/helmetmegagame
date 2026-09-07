@@ -6,6 +6,16 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Torture: a Torturer can break a bound character for their secrets
+
+− A Torture button on the character panel for anyone holding Torturer. Pick someone Bound standing where you are; one die, resolved on the spot, and it spends your Move  
+− A break DMs the torturer the victim's true name and face, every tag but wounds and statuses, their last three fulfilled Desires, and the Thanati roster if they led it  
+− Being tortured is +40 fear whether you break or hold, unless Pain Immunity or an Opium High numbs it. Breaking also leaves you Depressed  
+− Brave characters break on a 5 or 6, Relentless only on a 6, Craven on anything but a 1. A 1 always fails  
+− Cruel, a carried Trench Knife, and Torturing Equipment in reach are each +1 on the roll; Hungry, Afraid and Panic count against it like any Gambit  
+− Torturing Equipment: a new kit a Torturer builds from a work knife, a hatchet and a cudgel for 2 ⬢. One waits in the Order Chambers  
+− Torturer now reads "You can torture people." Every Order role but the Preacher starts with it
+
 ## 2026-09-07 · The Dinner row is gone from the character sheet
 
 − The Dinner row on the character sheet. A noble who skips a proper meal finds out the way everyone finds out about fear: the status tag, and its one-line DM.
