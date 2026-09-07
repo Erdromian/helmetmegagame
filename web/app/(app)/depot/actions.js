@@ -446,6 +446,12 @@ async function depotSendShuttleImpl() {
 
   await prisma.$transaction(async (tx) => {
     for (const rt of room.tags) {
+      // The `{ ok, poisonedTaken, poisonPayload }` return is deliberately
+      // ignored here (spec review nit, M4 fix round) — this is a pure
+      // destroy, quantity null, and the shuttle takes the whole stack
+      // whatever the landing pad held a moment ago; there is no recipient on
+      // the other end to carry poison state onward to. Don't "fix" this into
+      // threading poison through a payout that's about to vanish.
       await dropRoomTag(tx, room.id, rt.tagId, null);
       // A runtime crate tag with nothing left pointing at it is litter. The
       // catalog row goes with the last instance.
@@ -539,6 +545,14 @@ async function openCrateImpl({ tagId }) {
           characterId: character.id,
           where: "openCrate",
         }),
+        // LAUNDERING CLASS (fix round, M4): a Depot shipment's own contents
+        // are never poisoned, but a player-packed crate can be carried here
+        // and cracked at this SAME action (requestActions.js's own
+        // openHeldCrateImpl reads the identical manifest shape for the
+        // ordinary Consume road) — without this, opening one at the Depot
+        // instead of on the sheet would launder it clean.
+        poisonedCount: line.poisonedCount ?? 0,
+        poisonPayload: line.poisonPayload ?? null,
       });
       const landed = tag.stackable ? line.quantity : before ? 0 : 1;
       if (landed > 0) granted.push({ tagId: tag.id, name: tag.name, quantity: landed });
