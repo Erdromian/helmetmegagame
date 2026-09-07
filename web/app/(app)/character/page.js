@@ -377,6 +377,7 @@ export default async function CharacterPage({ searchParams }) {
       select: {
         equipSlots: true,
         avatarUploadsEnabled: true,
+        playPanelEnabled: true,
         portraitMakerEnabled: true,
         portraitFantasyPartsEnabled: true,
         desireSlots: true,
@@ -992,6 +993,7 @@ export default async function CharacterPage({ searchParams }) {
       {...letters}
       equipSlots={gameConfig?.equipSlots ?? 10}
       avatarUploadsEnabled={gameConfig?.avatarUploadsEnabled ?? false}
+      playPanelEnabled={gameConfig?.playPanelEnabled ?? true}
       portraitMakerEnabled={gameConfig?.portraitMakerEnabled ?? false}
       portraitFantasyPartsEnabled={
         gameConfig?.portraitFantasyPartsEnabled ?? false

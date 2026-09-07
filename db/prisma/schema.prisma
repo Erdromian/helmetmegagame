@@ -267,6 +267,12 @@ model GameConfig {
   // turn before anyone says a word).
   archiveTravelEvents Boolean @default(false)
 
+  // The Hall (docs/systemdocs/HALL.md §5). Off, /play bounces to /character,
+  // the rail drops Play, ⌘K stops offering places and people, and the "Play
+  // from the web" switch is neither drawn nor honoured. The feed API stays up
+  // either way: the GM desk's Scene tab streams from it.
+  playPanelEnabled Boolean @default(true)
+
   // The anchor message in #turns carrying the Travel / Move / Speak buttons
   // (see bot/src/lib/turnsConsole.js) — same tracked-message pattern as
   // turnsAnnouncement* above, but reused across restarts rather than

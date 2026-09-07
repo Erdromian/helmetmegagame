@@ -26,6 +26,7 @@ export default function BioForm({
   lastNameLocked,
   hasMulligan = false,
   avatarUploadsEnabled,
+  playPanelEnabled = true,
   portraitMakerEnabled,
   portraitFantasyPartsEnabled,
   portraitSelection,
@@ -41,6 +42,7 @@ export default function BioForm({
       <AvatarField
         defaultTurnPingOptIn={character.turnPingOptIn}
         defaultWebOnly={character.webOnly}
+        playPanelEnabled={playPanelEnabled}
         defaultConcealed={character.concealed}
         uploadsEnabled={avatarUploadsEnabled}
         portraitMakerEnabled={portraitMakerEnabled}

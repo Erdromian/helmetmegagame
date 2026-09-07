@@ -37,6 +37,14 @@ export default async function PlayPage() {
   const viewer = await loadFeedViewer();
   if (!viewer.discordUserId) redirect("/");
 
+  // The Hall switch on /gm/dev (GameConfig.playPanelEnabled). GMs bounce too:
+  // a GM watching a scene has the desk's Scene tab, and off means off.
+  const config = await prisma.gameConfig.findUnique({
+    where: { id: 1 },
+    select: { playPanelEnabled: true },
+  });
+  if (config && !config.playPanelEnabled) redirect("/character");
+
   if (!viewer.character && !viewer.gm) {
     return (
       <div className="hall-body hall-body--empty">

@@ -124,6 +124,7 @@ export default function CharacterSheet({
   harmTags = [],
   equipSlots = 6,
   avatarUploadsEnabled = false,
+  playPanelEnabled = true,
   portraitMakerEnabled = false,
   portraitFantasyPartsEnabled = false,
   portraitSelection = null,
@@ -284,6 +285,7 @@ export default function CharacterSheet({
                 lastNameLocked={lastNameLocked}
                 hasMulligan={hasMulligan}
                 avatarUploadsEnabled={avatarUploadsEnabled}
+                playPanelEnabled={playPanelEnabled}
                 portraitMakerEnabled={portraitMakerEnabled}
                 portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
                 portraitSelection={portraitSelection}

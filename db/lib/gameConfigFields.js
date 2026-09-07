@@ -139,6 +139,10 @@ const FIELDS = [
     key: "archiveTravelEvents", type: "bool", group: "features", default: false,
     label: "Archive travel events",
   },
+  {
+    key: "playPanelEnabled", type: "bool", group: "features", default: true,
+    label: "Play page",
+  },
 
   // --- Discord ---------------------------------------------------------------
   {

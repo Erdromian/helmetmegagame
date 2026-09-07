@@ -257,7 +257,14 @@ the same NOTIFY.
 ## 5. The page
 
 `web/app/(app)/play/`. Rail item **Play**, right under Character
-(`web/lib/navItems.js`). Since phase 2 it has **left PageShell**: the Hall owns
+(`web/lib/navItems.js`). **`GameConfig.playPanelEnabled`** is the switch, in
+the Features group on `/gm/dev`, on by default. Off, the rail drops Play,
+`/play` bounces to `/character` (GMs included — they have the desk's Scene
+tab), ⌘K stops offering places and people, and the "Play from the web" switch
+is neither drawn nor honoured — except for a character already `webOnly`, who
+keeps it so they can come back, and is otherwise **not** flipped: check
+`/gm/players` for them before turning it off. `/api/feed/*` stays up for the
+Scene tab. Since phase 2 it has **left PageShell**: the Hall owns
 its whole screen the way the `(desk)` workspaces do, as the `.hall-*` family in
 `globals.css` — a `100dvh` column whose regions scroll inside it, because a
 chat that scrolled the document would drag the header off the top every time

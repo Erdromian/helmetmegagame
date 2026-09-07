@@ -23,6 +23,11 @@ function SwitchInfo({ text }) {
 export default function AvatarField({
   defaultTurnPingOptIn,
   defaultWebOnly = false,
+  // GameConfig.playPanelEnabled. Off, the "Play from the web" switch is drawn
+  // only for a player who is already web-only — a character taken out of
+  // Discord with no Hall to play in would be out of the game, but one already
+  // out must be able to come back. The server action holds the same line.
+  playPanelEnabled = true,
   defaultConcealed,
   uploadsEnabled = false,
   portraitMakerEnabled = false,
@@ -113,12 +118,14 @@ export default function AvatarField({
             sidebar can no longer say which account is standing in the room.
             The cooldown is enforced server-side in db/lib/webOnly.js — this is
             the hint, not the lock. */}
-        <Switch name="webOnly" defaultChecked={defaultWebOnly}>
-          <span className="inline-flex items-center gap-1.5">
-            Play from the web
-            <SwitchInfo text="Removes you from the Discord channels, preserving your character's anonymity. Recommended." />
-          </span>
-        </Switch>
+        {(playPanelEnabled || defaultWebOnly) && (
+          <Switch name="webOnly" defaultChecked={defaultWebOnly}>
+            <span className="inline-flex items-center gap-1.5">
+              Play from the web
+              <SwitchInfo text="Removes you from the Discord channels, preserving your character's anonymity. Recommended." />
+            </span>
+          </Switch>
+        )}
         {/* While this is on every message you send posts under your alias and
             the concealing item's own face, and Who's here? lists the alias too.
             Three ways it can be locked — a forced name, a bare face, or

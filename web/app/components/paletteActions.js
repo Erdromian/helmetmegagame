@@ -74,12 +74,18 @@ async function getPaletteIndexImpl() {
   //
   // A GM has no character, so this is skipped for them entirely; their own
   // branch below is untouched.
-  const character = await prisma.character.findFirst({
-    where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    select: { id: true, name: true, locationId: true, factionId: true },
-  });
+  const [character, config] = await Promise.all([
+    prisma.character.findFirst({
+      where: { discordUserId: session.discordUserId, status: "ALIVE" },
+      select: { id: true, name: true, locationId: true, factionId: true },
+    }),
+    // Every entry below links into /play, so none is offered while the Hall
+    // is switched off (GameConfig.playPanelEnabled).
+    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true } }),
+  ]);
+  const playEnabled = config?.playPanelEnabled ?? true;
 
-  if (character?.locationId) {
+  if (playEnabled && character?.locationId) {
     const places = await placesFor(prisma, character, { gm: false, discordUserId: session.discordUserId });
     for (const place of places) {
       entries.push({
