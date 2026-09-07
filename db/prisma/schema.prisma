@@ -1262,6 +1262,12 @@ model RoomTag {
   quantity    Int  @default(1)
   expiresTurn Int?
 
+  // Same pair as CharacterTag's, and the reason a room stash isn't a
+  // laundering hole by accident: dropping a poisoned meal here and picking
+  // it up carries the count and payload with it. Schema only for now.
+  poisonedCount Int   @default(0)
+  poisonPayload Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -2232,6 +2238,55 @@ model Tag {
   // left alone, matching the expiry pass.
   removesInto Json?
 
+  // --- The medical pass: item cures (docs/systemdocs/TAGS.md §5c) --------
+  //
+  // The health-tag slugs this CONSUMABLE cures — explicit catalog slugs, no
+  // rung selector. Every slug must exist and be category Health; the carrier
+  // must itself be `consumable`. Deliberately NOT validated against
+  // `healable` — Forgiveness cures the untreatable Shell Shocked, which is
+  // the whole point: medicine can do what no medic can. Validated by
+  // db/lib/tagShapes.js on both authoring doors (docs/tags.yaml's sync and
+  // the GM tag form), applied by `consumeTagRequestImpl`
+  // (web/app/(app)/character/requestActions.js), which fires `removesInto`
+  // (or the `curesInto` override right below) and half fear relief per
+  // cured tag — the same aftermath a Heal leaves.
+  cures Json?
+
+  // Per-item aftermath override for a cured slug: `{ <cured-slug>:
+  // <aftermath-slug> }`. What a cure leaves behind can depend on the ITEM
+  // rather than the wound alone — a crafted peg-leg cures Missing Leg into
+  // Peg Leg, while a cybernetic leg leaves nothing at all. Keys must be a
+  // subset of this tag's own `cures`; values are any catalog slug. A cured
+  // slug with no entry here falls back to its own `removesInto`, same as an
+  // ordinary Heal.
+  curesInto Json?
+
+  // An item may be administered to someone else even with no `cures`
+  // intersection at all — Mercy grants increased-recovery, which stabilizes
+  // rather than curing anything on a list. "May this be applied to someone
+  // else?" is `cures` non-empty OR this flag; see consumeTagRequestImpl.
+  administerable Boolean @default(false)
+
+  // The skill required to APPLY this item to anyone — the actor's own self
+  // included (fitting a prosthetic needs medical-expert even on your own
+  // leg). A catalog slug, the same single-slug convention `escalatesInto`
+  // uses rather than a relation; null means anyone may administer it. This
+  // gates EVERY consume of the item, self or targeted — a different question
+  // from ACT, which self-consume stays exempt from (TAGS.md §5f) and this
+  // never is.
+  administerSkill String?
+
+  // Whether this tag is a POISON that can be dosed into a held food/drink
+  // stack. Schema only for now — the Poison action that reads it is a later
+  // milestone of the medical pass.
+  poison Boolean @default(false)
+
+  // Slugs whose consume/poison-path grant this trait shrugs off — Iron
+  // Constitution's eventual `resists: [poisoned, ...]`. Meant to live on the
+  // consume/poison path only, never in `grantTagSlugs` itself, so a GM's
+  // `/heal` grant is never filtered by it. Schema only for now.
+  resists Json?
+
   // The drinking ladder (docs/systemdocs/BREWING.md). A STATUS tag names the
   // rung above it, so consuming something that grants a rung you already hold
   // moves you up instead of doing nothing: tipsy -> wasted -> unconscious.
@@ -2481,6 +2536,15 @@ model CharacterTag {
   // below 1 — the row is deleted instead. Point-buy never sets this: the
   // wizard is a toggle-set, so a bought tag lands on the default.
   quantity Int @default(1)
+
+  // Poison state on this REAL food/drink row (never a minted clone — a
+  // poisoned meal is the same row a bystander sees, so there is no name/leak
+  // problem to solve). How many of the held `quantity` units are dosed, and
+  // the payload identifying which poison (its Tag id) produced them. Schema
+  // only for now — the Poison action that reads/writes this is a later
+  // milestone of the medical pass.
+  poisonedCount Int   @default(0)
+  poisonPayload Json?
 
   @@unique([characterId, tagId])
 }
