@@ -752,6 +752,23 @@ make that the place syncs, wipes and migrations get tried first.
 
 ## Git workflow
 
+**This file describes two different workflows, and which one applies depends
+on whose checkout this is.** Detect it before touching git — don't guess from
+a commit author or a display name, check the remotes:
+
+```
+git remote -v
+```
+
+- `origin` resolves to `peace-lock/helmetmegagame` → this is **Bascinet's own
+  checkout**. Follow "Bascinet: master-only" below.
+- `origin` resolves to somewhere else — a fork, e.g. a contributor's own
+  GitHub account — typically alongside an `upstream` remote pointing at
+  `peace-lock/helmetmegagame` → this is a **contributor's checkout**. Follow
+  "Contributors: branch and PR" instead.
+
+### Bascinet: master-only
+
 **Bascinet is master-only. There are no branches and no pull requests.** All
 work is committed straight to `master` and pushed as soon as it's finished,
 so it can be pulled locally the moment it's done. That immediacy is the point
@@ -776,10 +793,44 @@ container clones once at session start and then goes stale. Without the
 fetch, a session can spend an hour editing files that `master` moved past
 hours ago.
 
-**Pushing to `master` is a deploy.** Read the next section before pushing
-anything that carries a schema change.
+**Pushing to `master` is a deploy.** Read the Deploy workflow section before
+pushing anything that carries a schema change.
+
+### Contributors: branch and PR
+
+Everyone else uses the ordinary GitHub fork workflow: a feature branch, cut
+from an up-to-date `master`, pushed to your own fork (`origin`), with a pull
+request opened against `upstream`'s `master`.
+
+```
+git checkout -b my-change            # branch off master
+# ...commit...
+git push -u origin my-change         # push to YOUR fork, never upstream
+gh pr create --base master --repo peace-lock/helmetmegagame
+```
+
+- **Never push to `upstream`.** You don't have write access to it, and even
+  if you did, the master-only flow above is Bascinet's, not a contributor's.
+- **`.claude/hooks/session-start.sh` is safe to leave alone.** It only ever
+  moves the checkout onto `master` or deletes a branch when that branch has
+  no commits `origin/master` (your fork's master) doesn't already have — an
+  active feature branch with real commits is never touched. It only prunes
+  merged branches under the literal `claude/*` name, so an ordinarily-named
+  branch is unaffected either way.
+- **`npm run push`, `npm run changelog` and `npm run deploy` are Bascinet-only
+  conveniences** — they push straight to `master`, post to the live Discord
+  server, and (deploy) touch the production Railway services and database.
+  Don't run them from a contributor checkout; plain `git`/`gh` is the whole
+  job.
+- **The changelog and Discord announcement for a merged contribution are
+  Bascinet's to write when accepting the PR**, not something a contributor
+  adds to `CHANGELOG.md` themselves. Describe what changed and why in the PR
+  body instead.
 
 ### The changelog
+
+**Bascinet-only** — see "Contributors: branch and PR" above for what a
+contribution's changelog entry should look like instead.
 
 **Every push writes an entry in `CHANGELOG.md` and posts the same entry to
 Discord.** `npm run push` does both for you — the entry is written *before* the
@@ -843,6 +894,12 @@ The channel id is hardcoded in `scripts/changelog/log.js` for the reason
 a missing env var would have failed silently.
 
 ## Deploy workflow
+
+**Bascinet's checkout only** — see "Git workflow" above for how to tell.
+`npm run deploy` pushes straight to `master` and touches the live Railway
+services and database; a contributor's checkout has no business running it
+and almost certainly lacks the `RAILWAY_TOKEN` to anyway. A contribution
+gets deployed when Bascinet merges and pushes it, not by the contributor.
 
 Unless the user says otherwise, after finishing a set of changes, run
 `npm run deploy` from the repo root.
