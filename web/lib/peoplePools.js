@@ -135,6 +135,10 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
         .map((tag) => ({
           tagId: tag.id,
           tagName: tag.name,
+          // Lets the Heal dialog match this row against the medic's own held
+          // items' `cures` lists (medical pass, TAGS.md §5c) for the "or use:
+          // …" affordance — Tag.cures names slugs, not ids.
+          slug: tag.slug,
           cost: healCost(tag),
           requirementLabel: formatTagRequirement(tag),
           // Above your tier, or the ladder's top rung, and it's a roll rather

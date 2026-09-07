@@ -94,6 +94,7 @@ const FLAG_LABELS = [
   ["tradeable", "Tradeable"],
   ["healable", "Healable"],
   ["teachable", "Teachable"],
+  ["administerable", "Administerable"],
 ];
 
 // Tag.inspectVisibility isn't a flag, so it can't ride in FLAG_LABELS — but it
@@ -141,6 +142,14 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
     .filter(Boolean);
   const becomes = chainTokens(tag.expiresInto, bySlug);
   const treated = chainTokens(tag.removesInto, bySlug);
+  // Tag.cures (the medical pass, TAGS.md §5c) — what THIS item cures.
+  const cures = (tag.cures ?? []).map((slug) => bySlug.get(slug)).filter(Boolean);
+  // The derived reverse: every OTHER tag whose own `cures` names this one —
+  // "Cured by", for a Health tag reader wondering what to reach for.
+  const curedBy = useMemo(
+    () => tags.filter((t) => t.id !== tag.id && (t.cures ?? []).includes(tag.slug)),
+    [tags, tag.id, tag.slug],
+  );
   const flags = [
     ...FLAG_LABELS.filter(([key]) => tag[key]).map(([, label]) => label),
     VISIBILITY_CHIP[tag.inspectVisibility],
@@ -255,6 +264,24 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
             <Row label="Consumes into">
               <span className="flex flex-wrap gap-1">
                 {consumesInto.map((t) => (
+                  <TagButton key={t.id} tag={t} onOpen={onOpen} />
+                ))}
+              </span>
+            </Row>
+          )}
+          {cures.length > 0 && (
+            <Row label="Cures">
+              <span className="flex flex-wrap gap-1">
+                {cures.map((t) => (
+                  <TagButton key={t.id} tag={t} onOpen={onOpen} />
+                ))}
+              </span>
+            </Row>
+          )}
+          {curedBy.length > 0 && (
+            <Row label="Cured by">
+              <span className="flex flex-wrap gap-1">
+                {curedBy.map((t) => (
                   <TagButton key={t.id} tag={t} onOpen={onOpen} />
                 ))}
               </span>

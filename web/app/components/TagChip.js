@@ -24,6 +24,14 @@ function chainTokens(chain) {
     .join(" and ");
 }
 
+// Tag.cures — a flat list of slugs, not the { oneOf } chain shape above: an
+// item cures everything on the list that the target happens to hold, not a
+// random pick between them.
+function curesTokens(cures) {
+  if (!Array.isArray(cures) || !cures.length) return null;
+  return cures.map((slug) => `{tag:${slug}}`).join(" and ");
+}
+
 // One label/value row. Labels are muted and values carry --text, so the panel
 // reads as answers rather than the flat block of grey <p>s it used to be.
 function Meta({ label, children }) {
@@ -83,6 +91,9 @@ export default function TagChip({
   const becomes = chainTokens(tag.expiresInto);
   // And what its treated form is — the aftermath a removal or Heal leaves.
   const treated = chainTokens(tag.removesInto);
+  // What this item cures when consumed or administered (the medical pass,
+  // TAGS.md §5c).
+  const cures = curesTokens(tag.cures);
 
   const panel = (
     <>
@@ -125,6 +136,11 @@ export default function TagChip({
         {treated && (
           <Meta label="Treated">
             <ChipText text={treated} inTooltip />
+          </Meta>
+        )}
+        {cures && (
+          <Meta label="Cures">
+            <ChipText text={cures} inTooltip />
           </Meta>
         )}
         {/* Labelled, not bare: formatTagRequirement's leading "1t" is turns of

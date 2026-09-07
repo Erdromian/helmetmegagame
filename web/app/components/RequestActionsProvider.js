@@ -630,6 +630,21 @@ export default function RequestActionsProvider({
     () => patient?.healable.find((h) => h.tagId === tagId) ?? null,
     [patient, tagId],
   );
+  // The "or use: …" affordance (medical pass, TAGS.md §5c): items this
+  // character is holding whose `cures` names the affliction picked above.
+  // Consumable is already this character's own held items, unfiltered by
+  // mode, so it works from any dialog state.
+  const curativeItems = useMemo(
+    () => (affliction ? consumable.filter((t) => (t.cures ?? []).includes(affliction.slug)) : []),
+    [affliction, consumable],
+  );
+  // Consume's optional target — everyone alive at this Location, same roster
+  // Move Player draws from (moveTargets), filtered to the living: a corpse
+  // cannot be administered to. Empty selection means self, the default.
+  const consumeTargets = useMemo(
+    () => moveTargets.filter((t) => t.status === "ALIVE"),
+    [moveTargets],
+  );
   // The room stashes here, in lootTargets' shape, keyed "room:<id>" so the
   // one picker can hold both and the submit can tell them apart. Same list
   // Transfer's From uses (accessibleRooms — locked rooms you can't open never
@@ -1164,7 +1179,16 @@ export default function RequestActionsProvider({
       case "confess":
         return confessRequest({ chaplainId: targetId, tagId });
       case "consume":
-        return consumeTagRequest({ tagId });
+        // Only sent for a cure/administerable item — matches the picker's own
+        // visibility rule above, so a stale target left over from a previous
+        // pick can never ride along on a plain meal.
+        return consumeTagRequest({
+          tagId,
+          targetCharacterId:
+            chosen && (chosen.cures?.length > 0 || chosen.administerable) && targetId
+              ? targetId
+              : undefined,
+        });
       case "extract":
         return extractGodfleshRequest();
       case "package":
@@ -1734,6 +1758,21 @@ export default function RequestActionsProvider({
                     ))}
                   </Select>
                 </label>
+                {/* Only for a cure/administerable item — targeting someone
+                    else with an ordinary meal would only ever be refused
+                    server-side, so the picker stays hidden rather than
+                    offering a choice that can't work. */}
+                {chosen && (chosen.cures?.length > 0 || chosen.administerable) && consumeTargets.length > 0 && (
+                  <label className="field">
+                    <span className="field-label">Give it to ‡</span>
+                    <Select value={targetId} onChange={(e) => setTargetId(e.target.value)}>
+                      <option value="">Yourself</option>
+                      {consumeTargets.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </Select>
+                  </label>
+                )}
                 {chosen && (
                   <p className="text-xs text-muted">
                     {becomes.length
@@ -1788,6 +1827,26 @@ export default function RequestActionsProvider({
                       ))}
                     </Select>
                   </label>
+                )}
+                {/* The medical pass' item-cure shortcut (TAGS.md §5c): skip
+                    the Heal request entirely and post a targeted Consume
+                    instead, pre-seeded with the patient. */}
+                {affliction && curativeItems.length > 0 && (
+                  <p className="text-xs">
+                    <span className="text-muted">or use: </span>
+                    {curativeItems.map((item, i) => (
+                      <span key={item.id}>
+                        {i > 0 && ", "}
+                        <button
+                          type="button"
+                          className="btn-quiet"
+                          onClick={() => open("consume", item.id, { targetId: patientId })}
+                        >
+                          {item.name}
+                        </button>
+                      </span>
+                    ))}
+                  </p>
                 )}
                 {affliction && (
                   <>
