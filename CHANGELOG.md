@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Bascinet logs every DM it receives
+
+✎ A message typed to Bascinet in Discord is written to the DM record with a log line either way, so a lost one can be traced instead of vanishing  
+✎ Restart Game wipes the DM thread; the Chat doc said otherwise
+
 ## 2026-09-07 · A locked Desire slot says how long it stays locked
 
 ✎ A slot on cooldown now reads Locked (1t) — turns left — instead of Opens on turn 3, on the sheet, in Chat, in the picker and on the GM's Goals tab

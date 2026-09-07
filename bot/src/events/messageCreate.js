@@ -80,6 +80,11 @@ module.exports = {
       // button and a modal (bot/src/lib/editModal.js), so nothing a player
       // types for a mechanic travels as a DM message; web/lib/dmThread.js
       // still filters "prompt_reply" rows out of the read side.
+      //
+      // Loud on purpose. This insert used to fail into an empty catch, and the
+      // first sign anything was wrong was a player saying their message to
+      // Bascinet never reached the web (HALL.md §2b). One line per DM is cheap.
+      console.log(`[dm] inbound from ${message.author.id} (${content.length} chars)`);
       await prisma.directMessage
         .create({
           data: {
@@ -91,7 +96,7 @@ module.exports = {
             meta: attachmentNames ? { attachments: attachmentNames } : undefined,
           },
         })
-        .catch(() => { });
+        .catch((err) => console.error(`[dm] inbound log failed for ${message.author.id}:`, err.message));
       return;
     }
 

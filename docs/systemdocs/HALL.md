@@ -203,8 +203,10 @@ the open place: a DM is always about you.
 **What it replaced.** `Yesterday.js` and `yesterday()` are gone — the same
 `staged_push` / `bot_auto` rows are in the thread, every day rather than only
 the last close. There is no separate "Report to the GMs": writing to Bascinet
-is the report. Restart Game keeps `DirectMessage` (`LOBBY.md` §8), so the
-thread shows last game's messages exactly as the desk does.
+is the report. Restart Game **wipes** `DirectMessage` along with the rest of
+the per-game state (`web/app/(app)/gm/dev/actions.js`, the wipe transaction),
+so a new game opens with an empty thread — and a "my DM never showed up"
+report from before a restart has no row left to check.
 
 ## 3. Realtime: server-sent events from the web process
 
