@@ -75,10 +75,11 @@ import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { canBuildHere, structuresAt } from "@lifeweb/db/lib/structures";
 import { parseSelection } from "@/lib/portrait/catalog";
-import CharacterSheet from "../../components/CharacterSheet";
-import CreateCharacterWizard from "./CreateCharacterWizard";
-import CreationClosed from "./CreationClosed";
-import Lobby from "./lobby/Lobby";
+import { Suspense } from "react";
+import SnapshotPage from "@/lib/snapshot/SnapshotPage";
+import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
+import CharacterView from "./CharacterView";
+import Loading from "./loading";
 
 // Everything the creation wizard needs, shaped as the Zone -> Faction -> Role
 // tree it renders. Seat counts are computed here, not the client, so the
@@ -206,9 +207,28 @@ async function loadCreationData(discordUserId) {
   };
 }
 
+// Snapshotted (web/lib/snapshot, CHAT.md §5c): the page reads the session,
+// mounts the shell, and streams FreshCharacter in behind it. A browser that
+// has been here before paints its last sheet in the first frame.
 export default async function CharacterPage({ searchParams }) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
+  return (
+    <SnapshotPage scope="character" userId={session.discordUserId} render={CharacterView} fallback={<Loading />}>
+      <Suspense fallback={null}>
+        <FreshCharacter userId={session.discordUserId} searchParams={searchParams} />
+      </Suspense>
+    </SnapshotPage>
+  );
+}
+
+// The whole load. Four outcomes — a closed door, the lobby, the wizard, the
+// sheet — each a `kind` in the one object CharacterView draws. Every prop of
+// the sheet below used to be a JSX attribute on <CharacterSheet> right here;
+// the names are unchanged.
+async function FreshCharacter({ userId, searchParams }) {
+  const session = { discordUserId: userId };
+  const fresh = (data) => <SnapshotFresh scope="character" userId={userId} data={data} />;
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
@@ -247,7 +267,7 @@ export default async function CharacterPage({ searchParams }) {
     const { create } = (await searchParams) ?? {};
     const skipping = create === "1" && (gate.gm || gate.superadmin);
     if (gate.phase === "LOBBY" && !skipping) {
-      if (!gate.approved) return <CreationClosed open />;
+      if (!gate.approved) return fresh({ kind: "closed", open: true });
       const [preference, entry, readyCount] = await Promise.all([
         prisma.playerPreference.findUnique({ where: { discordUserId: session.discordUserId } }),
         prisma.lobbyEntry.findUnique({ where: { discordUserId: session.discordUserId } }),
@@ -269,22 +289,23 @@ export default async function CharacterPage({ searchParams }) {
           whitelistBlocked: r.whitelistBlocked,
         })),
       }));
-      return (
-        <Lobby
-          groups={lobbyGroups}
-          initial={{
+      return fresh({
+        kind: "lobby",
+        lobby: {
+          groups: lobbyGroups,
+          initial: {
             rolePriorities: preference?.rolePriorities ?? {},
             antagonistOptIns: creation.initialAntagonists,
             joblessRole: preference?.joblessRole ?? "COMMONER",
-          }}
-          entry={entry?.status === "READY" ? { readyAt: entry.readyAt.toISOString() } : null}
-          readyCount={readyCount}
-          whitelisted={creation.whitelisted}
-          canSkip={gate.gm || gate.superadmin}
-        />
-      );
+          },
+          entry: entry?.status === "READY" ? { readyAt: entry.readyAt.toISOString() } : null,
+          readyCount,
+          whitelisted: creation.whitelisted,
+          canSkip: gate.gm || gate.superadmin,
+        },
+      });
     }
-    if (!gate.open || !gate.approved) return <CreationClosed open={gate.open} />;
+    if (!gate.open || !gate.approved) return fresh({ kind: "closed", open: gate.open });
     // A seat from the roll, still inside its window: the wizard opens on the
     // Tags step with the role fixed. createCharacter enforces the same lock.
     const assigned = await prisma.lobbyEntry.findFirst({
@@ -296,7 +317,7 @@ export default async function CharacterPage({ searchParams }) {
       creation.groups.some((g) => g.roles.some((r) => r.id === assigned.assignedRoleId))
         ? { id: assigned.assignedRoleId, expiresAt: assigned.expiresAt.toISOString() }
         : null;
-    return <CreateCharacterWizard {...creation} lockedRole={lockedRole} />;
+    return fresh({ kind: "wizard", wizard: { ...creation, lockedRole } });
   }
 
   const [
@@ -998,93 +1019,92 @@ export default async function CharacterPage({ searchParams }) {
     ? { ...currentAction, diceRoll: null, diceModifier: null }
     : currentAction;
 
-  return (
-    <CharacterSheet
-      character={sheetCharacter}
-      mode="self"
-      openTurn={openTurnWithWindow}
-      currentAction={sheetAction}
-      avatarSrc={avatarSrc}
-      forcedIdentity={forcedIdentity}
-      concealGear={concealGear}
-      transferParties={transferPartyList}
-      transferSilo={transferSilo}
-      carry={carry}
-      zoneMoves={zoneMoves}
-      zoneMovesReason={zoneMovesReason}
-      travellingTo={character.travelTo?.name ?? null}
-      examineBlocked={examineBlocked}
-      hasWorkshop={hasWorkshop}
-      tagCatalog={clientTagCatalog}
-      desireSlots={desireSlots}
-      desireSlotLockTurns={desireSlotLockTurns}
-      desireAddiction={desireAddiction}
-      desireSlotStates={desireSlotStates}
-      desireCatalog={desireCatalog}
-      desireFamilies={desireFamilyList}
-      desireFamilyGroups={desireFamilyGroupList}
-      desireLockNotes={desireLockNotes}
-      canHeal={canHeal}
-      healsLeft={healsLeft}
-      hasMoved={Boolean(currentAction)}
-      canTeach={canTeach}
-      knownRecipeIds={knownRecipeIds}
-      craftProjects={craftProjects}
-      craftBudget={craftBudget}
-      craftAllowances={craftAllowances}
-      sitesHere={sitesHere}
-      buildable={buildable}
-      teachers={teachers}
-      learners={learners}
-      confessors={confessors}
-      mySins={mySins}
-      pendingOffers={pendingOffers}
-      {...letters}
-      equipSlots={gameConfig?.equipSlots ?? 10}
-      avatarUploadsEnabled={gameConfig?.avatarUploadsEnabled ?? false}
-      playPanelEnabled={gameConfig?.playPanelEnabled ?? true}
-      portraitMakerEnabled={gameConfig?.portraitMakerEnabled ?? false}
-      portraitFantasyPartsEnabled={
-        gameConfig?.portraitFantasyPartsEnabled ?? false
-      }
+  return fresh({
+    kind: "sheet",
+    sheet: {
+      character: sheetCharacter,
+      mode: "self",
+      openTurn: openTurnWithWindow,
+      currentAction: sheetAction,
+      avatarSrc: avatarSrc,
+      forcedIdentity: forcedIdentity,
+      concealGear: concealGear,
+      transferParties: transferPartyList,
+      transferSilo: transferSilo,
+      carry: carry,
+      zoneMoves: zoneMoves,
+      zoneMovesReason: zoneMovesReason,
+      travellingTo: character.travelTo?.name ?? null,
+      examineBlocked: examineBlocked,
+      hasWorkshop: hasWorkshop,
+      tagCatalog: clientTagCatalog,
+      desireSlots: desireSlots,
+      desireSlotLockTurns: desireSlotLockTurns,
+      desireAddiction: desireAddiction,
+      desireSlotStates: desireSlotStates,
+      desireCatalog: desireCatalog,
+      desireFamilies: desireFamilyList,
+      desireFamilyGroups: desireFamilyGroupList,
+      desireLockNotes: desireLockNotes,
+      canHeal: canHeal,
+      healsLeft: healsLeft,
+      hasMoved: Boolean(currentAction),
+      canTeach: canTeach,
+      knownRecipeIds: knownRecipeIds,
+      craftProjects: craftProjects,
+      craftBudget: craftBudget,
+      craftAllowances: craftAllowances,
+      sitesHere: sitesHere,
+      buildable: buildable,
+      teachers: teachers,
+      learners: learners,
+      confessors: confessors,
+      mySins: mySins,
+      pendingOffers: pendingOffers,
+      ...letters,
+      equipSlots: gameConfig?.equipSlots ?? 10,
+      avatarUploadsEnabled: gameConfig?.avatarUploadsEnabled ?? false,
+      playPanelEnabled: gameConfig?.playPanelEnabled ?? true,
+      portraitMakerEnabled: gameConfig?.portraitMakerEnabled ?? false,
+      portraitFantasyPartsEnabled: gameConfig?.portraitFantasyPartsEnabled ?? false,
       // Re-validated here: a stored index can outlive a catalog change.
-      portraitSelection={parseSelection(character.portrait, {
-        allowFantasy: gameConfig?.portraitFantasyPartsEnabled ?? false,
-      })}
-      hasCustomAvatar={Boolean(character.avatarMimeType)}
-      healTargets={healTargets}
-      healParties={healParties}
-      corpses={corpses}
-      canButcher={canButcher}
-      hasMulligan={hasMulligan}
-      canSeeExtract={canSeeExtract}
-      canExtract={canExtract}
-      extractBlocked={extractBlocked}
-      canSeePackage={canSeePackage}
-      lootTargets={lootTargets}
-      moveTargets={moveTargets}
-      moveLocations={moveLocations}
-      bindTargets={bindTargets}
-      canCrucify={canCrucify}
-      canDisguise={canDisguise}
-      canTorture={canTorture}
-      canMutilate={canMutilate}
-      isThanati={isThanati}
-      isThanatiLeader={isThanatiLeader}
-      atHideout={atHideout}
-      hideoutRooms={hideoutRooms}
-      hideoutStock={hideoutStock}
-      thanatiWares={thanatiWares}
-      hasDatacard={hasDatacard}
-      hasDevice={hasDevice}
-      nukeArmedTurn={nukeState?.nukeArmedTurn ?? null}
-      deployVersion={deployVersion()}
-      harmTargets={harmTargets}
-      harmTags={harmTags}
-      lastNameLocked={isDynastyMember(character.role?.slug)}
-      storeTags={storeTags}
-      storeHeldTags={storeHeldTags}
-      storeRoleSlug={character.role?.slug ?? null}
-    />
-  );
+      portraitSelection: parseSelection(character.portrait, {
+      allowFantasy: gameConfig?.portraitFantasyPartsEnabled ?? false,
+      }),
+      hasCustomAvatar: Boolean(character.avatarMimeType),
+      healTargets: healTargets,
+      healParties: healParties,
+      corpses: corpses,
+      canButcher: canButcher,
+      hasMulligan: hasMulligan,
+      canSeeExtract: canSeeExtract,
+      canExtract: canExtract,
+      extractBlocked: extractBlocked,
+      canSeePackage: canSeePackage,
+      lootTargets: lootTargets,
+      moveTargets: moveTargets,
+      moveLocations: moveLocations,
+      bindTargets: bindTargets,
+      canCrucify: canCrucify,
+      canDisguise: canDisguise,
+      canTorture: canTorture,
+      canMutilate: canMutilate,
+      isThanati: isThanati,
+      isThanatiLeader: isThanatiLeader,
+      atHideout: atHideout,
+      hideoutRooms: hideoutRooms,
+      hideoutStock: hideoutStock,
+      thanatiWares: thanatiWares,
+      hasDatacard: hasDatacard,
+      hasDevice: hasDevice,
+      nukeArmedTurn: nukeState?.nukeArmedTurn ?? null,
+      deployVersion: deployVersion(),
+      harmTargets: harmTargets,
+      harmTags: harmTags,
+      lastNameLocked: isDynastyMember(character.role?.slug),
+      storeTags: storeTags,
+      storeHeldTags: storeHeldTags,
+      storeRoleSlug: character.role?.slug ?? null,
+    },
+  });
 }

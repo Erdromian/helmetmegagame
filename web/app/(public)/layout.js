@@ -5,6 +5,7 @@ import AppRail from "../components/AppRail";
 import TurnChip from "../components/TurnChip";
 import TurnChipAsync from "../components/TurnChipAsync";
 import { GM_NAV, PLAYER_NAV } from "@/lib/navItems";
+import SnapshotGuard from "@/lib/snapshot/SnapshotGuard";
 
 // The one route group that renders for a signed-out visitor. (app) redirects
 // to "/" without a session (AppLayout), and (desk) is GM-only — neither can
@@ -25,8 +26,12 @@ export default async function PublicLayout({ children }) {
   const { session, isGm } = await getGmSession();
 
   if (!session?.discordUserId) {
+    // A signed-out browser lands here. No account on the page means every
+    // stored page snapshot is somebody's old sheet (CHAT.md §5c), so the
+    // guard clears them.
     return (
       <div className="app-shell">
+        <SnapshotGuard userId={null} />
         <main className="app-main">{children}</main>
       </div>
     );
