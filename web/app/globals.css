@@ -5691,6 +5691,39 @@ label.chip {
   }
 }
 
+/* THINGS: the pockets drawer under YOU. The chips are pressable — each one
+   opens the menu of what you can do with that item — so they take a pointer
+   the status strip's chips do not. */
+.hall-things .chip {
+  cursor: pointer;
+}
+
+/* A chip is the button its menu hangs off. */
+.hall-thing-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Paperwork and the hood, at the composer's right edge. */
+.hall-composer-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+/* The ✉ menu opens UPWARD: the composer sits at the foot of the scene, and
+   downward there is nothing but the edge of the window. */
+.hall-tool-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.hall-tool-wrap .hall-menu {
+  top: auto;
+  bottom: 100%;
+  margin-bottom: var(--sp-1);
+}
+
 /* The phone's way into the right column. On a desktop the column is already
    there, so the button is not — hidden by the default and shown by the same
    media query that hides .hall-aside. */

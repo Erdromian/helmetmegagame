@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import { TONE_CLASS } from "./PlacePanel";
@@ -36,6 +37,14 @@ export default function PlaceCard({
   fixtures = [],
   onFixture,
   onConverse = null,
+  // The Depot terminal, when this character is standing at it AND holds the
+  // licence or the keycard. Offered as a link rather than blind: /depot bounces
+  // anybody without one, and a button that only ever redirects is a lie.
+  depotHref = null,
+  // The Godard Factory (docs/systemdocs/FACTORY.md). Drawn where the ground is
+  // godflesh; the dialog itself says what is missing when there is no tool in
+  // hand, and extractGodfleshRequest re-checks both.
+  onFactory = null,
   pending = false,
 }) {
   const [side, setSide] = useState("place");
@@ -74,7 +83,7 @@ export default function PlaceCard({
         )}
       </div>
 
-      {(fixtures.length > 0 || onConverse) && (
+      {(fixtures.length > 0 || onConverse || depotHref || onFactory) && (
         <div className="hall-buttons">
           {fixtures.map((entry) => (
             <button
@@ -87,6 +96,16 @@ export default function PlaceCard({
               {entry.label}
             </button>
           ))}
+          {depotHref && (
+            <Link className="btn-secondary" href={depotHref}>
+              Depot › ‡
+            </Link>
+          )}
+          {onFactory && (
+            <button type="button" className="btn-secondary" disabled={pending} onClick={onFactory}>
+              Factory ‡
+            </button>
+          )}
           {/* Starting a conversation is otherwise only reachable from a
               person's row in HERE, which leaves somebody standing alone with
               no way to open one and invite the people who arrive after. Same

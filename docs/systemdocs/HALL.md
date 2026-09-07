@@ -612,7 +612,19 @@ header instead).
      (`TagsPanel.js`), so a new affliction appears here the day it is added to
      `docs/tags.yaml`. Overburdened, Dying and Catatonic — and a carry line
      over its cap — wear the danger tone.
-  3. **`DesiresBlock.js`** — the sheet's slot view, in the column: per slot
+  3. **`ThingsDrawer.js`** — **Things ‡**, the pockets drawer, collapsed by
+     default and remembered in `localStorage` the way Yesterday is. Every tag
+     whose category is **Items** or **Assets**, grouped in that order, as one
+     chip each (`Paper ×23`, a `·` after anything equipped). A chip opens a
+     menu of at most four: **Equip / Unequip** (`equippable`, the sheet's own
+     instant `toggleEquip`), **Use** (`consumable`), **Give** (`tradeable`)
+     and **Destroy** (`removable`) — the last three open the SHEET's dialogs
+     through `RequestActionsProvider.open(mode, tagId)`, with the item already
+     picked. The flags come off the catalog through `web/lib/tagRequests.js`,
+     built once in `play/thingRows.js` so the first paint and the `myThings()`
+     re-read after every verb cannot disagree. It polls on its own minute, and
+     only while it is open.
+  4. **`DesiresBlock.js`** — the sheet's slot view, in the column: per slot
      either **Claim ‡** or `Opens on turn N ‡`, the last claim as a muted
      line, and the Addiction note on the bottom slot. The claim is the real
      one (`claimDesire`), over `DesireCatalog` and `RequestDialog`, exactly as
@@ -620,21 +632,21 @@ header instead).
      arrives: the page carries the slots only, and the ~271 evaluated
      templates are fetched by `desireCatalogView()` the first time somebody
      opens the picker.
-  4. **`Sheet ›`** — the link to `/character`.
-  5. **`WaitingList`** — the pending offers, threat spawns, unanswered bird
+  5. **`Sheet ›`** — the link to `/character`.
+  6. **`WaitingList`** — the pending offers, threat spawns, unanswered bird
      letters and a lobby assignment. Accept and Decline call the **same**
      `db/lib` functions the DM buttons call (`lessons.js`, `bind.js`,
      `confession.js`, `threatSpawn.js`, `lobby.js`), so an answer given here
      and one given in Discord are one answer, and the second surface finds
      nothing left to answer.
-  6. **`Yesterday.js`** — collapsed by default, and it stays however this
+  7. **`Yesterday.js`** — collapsed by default, and it stays however this
      browser left it (`localStorage`, read through `useSyncExternalStore`).
      Opened, it fetches `yesterday()`: the OUTBOUND `DirectMessage` rows from
      the last closed turn's close window, `source` in `staged_push` (the GMs'
      staged messages) or `bot_auto` (the Routine result and the Gambit
      reveal, which `db/lib/dm.js` defaults). It **reads** — it sends nothing,
      and it is not a second inbox.
-  7. **Report to the GMs**, last and quiet. It writes an INBOUND
+  8. **Report to the GMs**, last and quiet. It writes an INBOUND
      `DirectMessage` prefixed `[Play] ` and sends nothing to Discord, so it
      lands in `/gm/players` beside everything else that player has said and
      the answer comes back down the ordinary DM path.
@@ -642,6 +654,31 @@ header instead).
   The card and the waiting list share **one** 60-second interval (`myMove()`
   and `waitingOnYou()` on the same tick), so a Move filed from the `#turns`
   console shows up here without a reload.
+- **The composer's two hand controls**, beside the send and the phone's ⋯.
+  A ✉ (`QuillIcon`) opens a small menu of **Write ‡**, **Seal ‡**, **Bind a
+  book ‡** and **Send by bird ‡** — each shown only where the sheet would show
+  it, each opening the sheet's own dialog through
+  `RequestActionsProvider.open("write"|"seal"|"bindbook"|"bird")`. The bird is
+  the one that greys rather than hides: with one already gone today it reads
+  **Sent today ‡**. Beside it, a hood (`HoodIcon`, `aria-pressed`) calls
+  `toggleConceal()` — drawn only where `db/lib/conceal.js` would not refuse
+  outright, and while it is up the composer's placeholder and label read
+  *Say something as {alias}… ‡*, which is the name every row it writes will
+  wear. A toggle ends in `router.refresh()`, because that name is a server
+  prop.
+- **The place card's two doors** (`PlaceCard.js`). A **Depot › ‡** link when
+  this character is standing at the Depot AND holds the merchant licence or
+  the keycard — offered only where it would open, since `/depot` bounces
+  anybody without one — and a **Factory ‡** button on godflesh ground, opening
+  the sheet's Extract dialog. Both decided server-side in `play/page.js`; the
+  page and the action re-check their own gate.
+- **`web/lib/selfPools.js#loadLettersView`** builds the paperwork half of a
+  character's own state — the four gates plus the paper, letter, seal, book,
+  bird-target and bird-zone lists — named as the props
+  `RequestActionsProvider` takes, so the sheet and the Hall hand the dialogs
+  one list. The raw text of a paper never comes back from it: only an excerpt,
+  and only for a reader. Both surfaces strip `paperText` off the tags they
+  hand to a client component for the same reason. ‡
 - **`web/lib/selfPools.js#loadDesireView`** is to a character's own state what
   `peoplePools.js` is to the people near them: one build of the Desire slots
   and, on request, the evaluated catalog. The sheet asks for both; the Hall

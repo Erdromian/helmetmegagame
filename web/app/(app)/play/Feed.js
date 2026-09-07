@@ -1,18 +1,19 @@
 "use client";
 
-import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
 import Modal from "@/app/components/Modal";
-import { CameraIcon, EditIcon, EyeIcon, MoreIcon, SearchIcon, TrashIcon } from "@/app/components/icons";
+import { CameraIcon, EditIcon, EyeIcon, HoodIcon, MoreIcon, QuillIcon, SearchIcon, TrashIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { Readout } from "@/app/components/ExamineDialog";
 import useActionRunner from "@/app/components/useActionRunner";
-import { photographRow, lookAt, loadTravel, placeMembers } from "./actions";
+import { photographRow, lookAt, loadTravel, placeMembers, toggleConceal } from "./actions";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import {
   useFeed,
@@ -512,6 +513,18 @@ export default function Feed({
   // Bumped by Hall.js on the stream's `places` event, so a key turning or
   // somebody else's /add re-reads the members strip.
   placesVersion = 0,
+  // Paperwork, beside the composer rather than on the sheet
+  // (docs/systemdocs/PAPERWORK.md): { canWrite, canSeal, canBindBook, hasBird,
+  // birdSentToday }, all resolved server-side in web/lib/selfPools.js. Each
+  // entry opens the SHEET's own dialog; the four actions re-check every gate.
+  letters = null,
+  // The hood (PROXYING.md §5). `canConceal` is "something over your face that
+  // is not forced" — drawn only then, because a bare face has nothing to
+  // toggle. `alias` is what the room reads while it is on, which is what the
+  // composer says its name is.
+  canConceal = false,
+  concealed = false,
+  alias = null,
 }) {
   const placeKey = place?.placeKey ?? null;
   const stored = useFeed(placeKey);
@@ -561,6 +574,26 @@ export default function Feed({
   // those rows.
   const requestActions = useRequestActions();
   const openAction = requestActions?.open ?? null;
+  // The ✉ menu's entries. Each one is shown only where the SHEET would show
+  // it, off the same server-resolved gates (web/lib/selfPools.js), and each
+  // opens the sheet's own dialog. The bird is the one that greys rather than
+  // hides: it is a thing you have and have already used today, and saying so
+  // is better than a button that vanishes overnight.
+  const lettersMenu = useMemo(() => {
+    if (!letters || !openAction) return [];
+    const rows = [];
+    if (letters.canWrite) rows.push({ mode: "write", label: "Write ‡" });
+    if (letters.canSeal) rows.push({ mode: "seal", label: "Seal ‡" });
+    if (letters.canBindBook) rows.push({ mode: "bindbook", label: "Bind a book ‡" });
+    if (letters.hasBird) {
+      rows.push({
+        mode: "bird",
+        label: letters.birdSentToday ? "Sent today ‡" : "Send by bird ‡",
+        disabled: Boolean(letters.birdSentToday),
+      });
+    }
+    return rows;
+  }, [letters, openAction]);
 
   // What this place looked like the moment it was opened, plus whatever hold
   // this tab has since put on its own composer. Both are per-place, and both
@@ -605,6 +638,12 @@ export default function Feed({
   // the server tells a 32-hex token from a cuid itself, so the browser never
   // learns which it sent (play/actions.js#lookAt).
   const [look, setLook] = useState(null);
+  // The ✉ menu beside the composer, and the hood's own in-flight state. Both
+  // are the composer's, not the scene's, so they live here.
+  const [lettersOpen, setLettersOpen] = useState(false);
+  const [concealPending, startConceal] = useTransition();
+  const [concealError, setConcealError] = useState(null);
+  const router = useRouter();
   const {
     run: runCommand,
     pending: cmdPending,
@@ -1476,7 +1515,9 @@ export default function Feed({
                   aria-label={
                     commandOnly
                       ? `Run a command in ${place.name} ‡`
-                      : `Say something in ${place.name} ‡`
+                      : concealed && alias
+                        ? `Say something as ${alias} ‡`
+                        : `Say something in ${place.name} ‡`
                   }
                   rows={2}
                   value={draft}
@@ -1485,7 +1526,9 @@ export default function Feed({
                       ? (textArgOf(command.entry)?.placeholder ?? "Press Enter to run it ‡")
                       : commandOnly
                         ? "Type / for a command… ‡"
-                        : `Say something in ${place.name}… ‡`
+                        : concealed && alias
+                          ? `Say something as ${alias}… ‡`
+                          : `Say something in ${place.name}… ‡`
                   }
                   onChange={onDraftChange}
                   onKeyDown={(e) => {
@@ -1617,6 +1660,67 @@ export default function Feed({
             // above, and says STREET_LINE when somebody types prose into it.
             <p className="hall-quiet">You can only watch here. ‡</p>
           )}
+          {/* Paperwork and the hood, beside the send. Neither is a place's
+              affordance — they are things you do with your own hands wherever
+              you are standing — so they sit on the composer rather than in the
+              right column. */}
+          {(lettersMenu.length > 0 || canConceal) && (
+            <span className="hall-composer-tools">
+              {lettersMenu.length > 0 && (
+                <span className="hall-tool-wrap">
+                  <IconButton
+                    icon={QuillIcon}
+                    label="Letters ‡"
+                    aria-haspopup="menu"
+                    aria-expanded={lettersOpen}
+                    onClick={() => setLettersOpen((was) => !was)}
+                  />
+                  {lettersOpen && (
+                    <div className="hall-menu" role="menu" aria-label="Letters ‡">
+                      {lettersMenu.map((entry) => (
+                        <button
+                          key={entry.mode}
+                          type="button"
+                          role="menuitem"
+                          className="menu-item"
+                          disabled={entry.disabled}
+                          onClick={() => {
+                            setLettersOpen(false);
+                            openAction?.(entry.mode);
+                          }}
+                        >
+                          {entry.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </span>
+              )}
+              {canConceal && (
+                <IconButton
+                  icon={HoodIcon}
+                  label={concealed ? "Take the hood off ‡" : "Put the hood up ‡"}
+                  aria-pressed={concealed}
+                  disabled={concealPending}
+                  onClick={() => {
+                    setConcealError(null);
+                    startConceal(async () => {
+                      try {
+                        const res = await toggleConceal();
+                        // The name every row this composer writes will wear
+                        // is a server prop, so the page is what has to
+                        // re-read it.
+                        if (res?.ok) router.refresh();
+                        else setConcealError(res?.error ?? "Something went wrong. ‡");
+                      } catch {
+                        setConcealError("Could not reach the server. Nothing was changed. ‡");
+                      }
+                    });
+                  }}
+                />
+              )}
+            </span>
+          )}
           {/* The phone's way to the right column: the people, the place panel
               and the You strip, as a sheet over the scene. Hidden on a
               desktop by the same media query that hides the column, since
@@ -1635,7 +1739,7 @@ export default function Feed({
           <ChatMarkdown content={cmdLine} />
         </div>
       )}
-      <FormError>{error ?? cmdError}</FormError>
+      <FormError>{error ?? cmdError ?? concealError}</FormError>
 
       {photo && <PhotoReadout state={photo} onClose={() => setPhoto(null)} />}
       {look && <LookReadout state={look} onClose={() => setLook(null)} />}

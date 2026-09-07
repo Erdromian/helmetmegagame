@@ -31,16 +31,7 @@ import {
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryStatus } from "@lifeweb/db/lib/carry";
-import { canRead } from "@lifeweb/db/lib/reading";
-import {
-  PAPER_SLUG,
-  BOOK_SHEETS,
-  isBook,
-  isPaper,
-  isSeal,
-  sealLabel,
-  paperDescription,
-} from "@lifeweb/db/lib/paper";
+import { isPaper, paperDescription } from "@lifeweb/db/lib/paper";
 import {
   freeMovesLeft,
   freeZoneMovesReason,
@@ -53,7 +44,7 @@ import { deployVersion } from "@/lib/deployVersion";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
-import { loadDesireView } from "@/lib/selfPools";
+import { loadDesireView, loadLettersView } from "@/lib/selfPools";
 import { craftFreeUnits } from "@/lib/requests";
 import { summarizeCraftBudget } from "@/lib/craftBudget";
 import {
@@ -75,11 +66,6 @@ import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { canBuildHere, structuresAt } from "@lifeweb/db/lib/structures";
-import {
-  canSendBird as holdsBirdAndLetters,
-  birdZones as birdZonesOf,
-} from "@lifeweb/db/lib/bird";
-import { describeTurn } from "@/lib/turnFormat";
 import { parseSelection } from "@/lib/portrait/catalog";
 import CharacterSheet from "../../components/CharacterSheet";
 import CreateCharacterWizard from "./CreateCharacterWizard";
@@ -754,92 +740,16 @@ export default async function CharacterPage({ searchParams }) {
   // since a hidden button is a hint and not a lock.
   const hasDatacard = heldSlugs.has("nuclear-datacard");
   const hasDevice = heldSlugs.has("nuclear-device");
-  const hasBird = holdsBirdAndLetters(character.tags);
-  // Paperwork (docs/systemdocs/PAPERWORK.md). Letters AND eyes — the same
-  // predicate the tag chips, the noticeboard and paperActions.js all use, so
-  // the button, the chip and the server's refusal can never disagree.
-  const canReadNow = canRead(character.tags, {
-    phase: openTurn?.phase ?? null,
-    indoors: character.location?.indoors ?? true,
-  });
-  // Something to write ON: a blank sheet, or a note already started. A sealed
-  // letter does not count — you would have to break the seal first.
-  const writables = character.tags.filter(
-    (ct) => ct.tag.slug === PAPER_SLUG || ct.tag.paperKind === "PAPER",
-  );
-  const canWrite = canReadNow && writables.length > 0;
-  // Wax stamps in hand, and letters worth closing. Both are facts about your
-  // own sheet, so both may hide or grey the button.
-  const seals = character.tags.filter((ct) => isSeal(ct.tag));
-  const hasSeal = seals.length > 0;
-  const sealables = character.tags.filter(
-    (ct) => ct.tag.paperKind === "PAPER" && (ct.tag.paperText ?? "").trim(),
-  );
-  const canSeal = hasSeal && sealables.length > 0;
-
-  // Binding and tearing up (docs/systemdocs/PAPERWORK.md). Both are facts about
-  // your own sheet — a stack of ten, or a book in your hands — so both may grey
-  // or hide their button. Binding needs letters as well, because you write the
-  // whole thing in one pass; tearing one up needs none at all.
-  const blankStock = character.tags.find((ct) => ct.tag.slug === PAPER_SLUG);
-  const sheetsHeld = blankStock?.quantity ?? 0;
-  const canBindBook = canReadNow && sheetsHeld >= BOOK_SHEETS;
-  // Why the button is dead, so a player reads it off the tooltip instead of
-  // writing a whole book into the box and finding out at the submit.
-  const bindBlocked = canBindBook
-    ? null
-    : `You have ${sheetsHeld} of the ${BOOK_SHEETS} blank sheets a book takes. ‡`;
-  const books = character.tags.filter((ct) => isBook(ct.tag));
-
-  // What the two dialogs list. The TEXT is deliberately not sent — the dialog
-  // asks for it on demand (paperActions.js#readMyPaper) so an unreadable sheet
-  // never has its contents sitting in a client payload waiting to be read out
-  // of the page source. The excerpt below is the same one the chip shows and
-  // is already gated by canReadNow.
-  const paperOptions = writables.map((ct) => ({
-    tagId: ct.tagId,
-    name: ct.tag.name,
-    blank: ct.tag.slug === PAPER_SLUG,
-    quantity: ct.quantity,
-    // Enough to tell two notes apart in a dropdown, and only for a reader.
-    excerpt:
-      canReadNow && ct.tag.paperKind === "PAPER"
-        ? (ct.tag.paperText ?? "").trim().slice(0, 60)
-        : null,
-  }));
-  // Everything a bird could carry. Sealed letters included — a courier does
-  // not have to be able to read what they are carrying, which is rather the
-  // use of an illiterate one.
-  const letterOptions = character.tags
-    .filter(
-      (ct) => ct.tag.paperKind === "PAPER" || ct.tag.paperKind === "SEALED",
-    )
-    .map((ct) => ({
-      tagId: ct.tagId,
-      name: ct.tag.name,
-      excerpt:
-        canReadNow && ct.tag.paperKind === "PAPER"
-          ? (ct.tag.paperText ?? "").trim().slice(0, 60)
-          : null,
-    }));
-  // Books in hand, for the Tear Up picker. No excerpt: a book's NAME is its
-  // title and already says which one it is, unlike a note's waybill code.
-  const bookOptions = books.map((ct) => ({
-    tagId: ct.tagId,
-    name: ct.tag.name,
-  }));
-  const sealOptions = {
-    stamps: seals.map((ct) => ({
-      tagId: ct.tagId,
-      name: ct.tag.name,
-      label: sealLabel(ct.tag),
-    })),
-    letters: sealables.map((ct) => ({
-      tagId: ct.tagId,
-      name: ct.tag.name,
-      excerpt: canReadNow ? (ct.tag.paperText ?? "").trim().slice(0, 60) : null,
-    })),
-  };
+  // Paperwork, seals, books and the Bird (docs/systemdocs/PAPERWORK.md). Every
+  // gate and every option list is built in web/lib/selfPools.js, because the
+  // Hall's composer opens the same four dialogs and two copies of these rules
+  // would be two answers to "can this character write".
+  // Spread into CharacterSheet below: hasBird, canRead, canWrite, hasSeal,
+  // canSeal, paperOptions, letterOptions, sealOptions, canBindBook,
+  // bindBlocked, bookOptions, birdSentToday, birdTargets, birdZones — the
+  // loader names them as the props RequestActionsProvider takes, so the sheet
+  // and the Hall hand the dialogs one list.
+  const letters = await loadLettersView(character, { openTurn });
 
   // The sheet itself goes to a client component, so the raw text of every
   // paper on it would otherwise sit in the page source — readable straight out
@@ -869,12 +779,6 @@ export default async function CharacterPage({ searchParams }) {
   // they see the band tag, never the number. The sheet is handed to client
   // components, so the column must not ride along in the payload.
   delete sheetCharacter.fear;
-  // Compared against the in-game DAY (birdTurnId stores the day), not the
-  // turn. Advisory only — the server's conditional claim is the real gate.
-  const birdSentToday =
-    Boolean(openTurn) &&
-    character.birdTurnId === String(describeTurn(openTurn).day);
-
   // Who can pay: you, anyone here, or a room stash here (same as Craft).
   const healParties = { characters: peopleParties, rooms };
 
@@ -976,25 +880,6 @@ export default async function CharacterPage({ searchParams }) {
       })
     : [];
 
-  // Only fetched for someone who holds a bird. Recipient list is EVERY
-  // character regardless of status; a letter to a dead name never arrives.
-  const birdTargets = hasBird
-    ? await prisma.character.findMany({
-        where: { id: { not: character.id } },
-        select: { id: true, name: true },
-        orderBy: { name: "asc" },
-      })
-    : [];
-  // Everywhere standable except the two deep cave levels (birdZones()).
-  const birdZoneOptions = hasBird
-    ? birdZonesOf(
-        await prisma.zone.findMany({
-          select: { id: true, name: true, slug: true, kind: true },
-          orderBy: { sortOrder: "asc" },
-        }),
-      ).map((z) => ({ id: z.id, name: z.name }))
-    : [];
-
   // A forced identity (Tag.forcedName — Apex Form's "Beast") shows the player
   // what the room sees: the forced name's letter plaque, not their own face.
   const forcedTag = character.tags.find((ct) => ct.tag.forcedName)?.tag ?? null;
@@ -1076,20 +961,7 @@ export default async function CharacterPage({ searchParams }) {
       confessors={confessors}
       mySins={mySins}
       pendingOffers={pendingOffers}
-      hasBird={hasBird}
-      canRead={canReadNow}
-      canWrite={canWrite}
-      hasSeal={hasSeal}
-      canSeal={canSeal}
-      paperOptions={paperOptions}
-      letterOptions={letterOptions}
-      sealOptions={sealOptions}
-      canBindBook={canBindBook}
-      bindBlocked={bindBlocked}
-      bookOptions={bookOptions}
-      birdSentToday={birdSentToday}
-      birdTargets={birdTargets}
-      birdZones={birdZoneOptions}
+      {...letters}
       equipSlots={gameConfig?.equipSlots ?? 10}
       avatarUploadsEnabled={gameConfig?.avatarUploadsEnabled ?? false}
       portraitMakerEnabled={gameConfig?.portraitMakerEnabled ?? false}

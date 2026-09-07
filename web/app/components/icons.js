@@ -285,3 +285,16 @@ export function SealIcon(props) {
     </Glyph>
   );
 }
+
+// A hood pulled up over a bare face — the conceal toggle (PROXYING.md §5). The
+// cowl's peak and the shoulders are what read at 16px; there is deliberately
+// nothing inside it, because that is the whole point of the thing.
+export function HoodIcon(props) {
+  return (
+    <Glyph {...props}>
+      <path d="M12 3c-3.6 0-6 3.1-6 7 0 2.4 1 4.4 2.5 5.5" />
+      <path d="M12 3c3.6 0 6 3.1 6 7 0 2.4-1 4.4-2.5 5.5" />
+      <path d="M8.5 15.5 5 17.5V21h14v-3.5l-3.5-2" />
+    </Glyph>
+  );
+}

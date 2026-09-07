@@ -88,6 +88,12 @@ export default function Hall({
   // draws; the server re-decides every one of them when it is pressed.
   gm = false,
   hasCamera = false,
+  // The composer's own two: the paperwork gates (web/lib/selfPools.js) and
+  // whether there is anything over this character's face to put up or take
+  // down. Both are hints — the four dialogs and toggleConceal re-check every
+  // gate themselves.
+  letters = null,
+  conceal = null,
 }) {
   // The server's list is the first paint; the stream replaces it whole from
   // its first `places` event onward.
@@ -478,6 +484,10 @@ export default function Hall({
           placesVersion={placesVersion}
           gm={gm}
           hasCamera={hasCamera}
+          letters={letters}
+          canConceal={Boolean(conceal?.canConceal)}
+          concealed={Boolean(conceal?.concealed)}
+          alias={conceal?.alias ?? null}
           jump={jump}
           onJump={onJump}
           fallbackPlace={initialPlace}

@@ -70,6 +70,7 @@ import { photoCaption } from "@lifeweb/db/lib/photo";
 import { CAMERA_SLUG, mintPhoto } from "@lifeweb/db/lib/photoMint";
 import { sendDm } from "@/lib/discordGuild";
 import { examineCharacter } from "@/app/(app)/character/examineActions";
+import { thingGroups } from "./thingRows";
 
 // Every button in the Hall's right column, as a server action.
 //
@@ -302,6 +303,40 @@ export async function photographRow(seq) {
 // and all. That helper stays exactly as it is for the bot, which is talking
 // into a channel that renders those markers. The web draws its own chips off
 // the rows, so nothing is being formatted twice.
+// THE THINGS DRAWER (HALL.md §7). What is in this character's pockets, in the
+// two categories a player carries — read back after every Equip, Use, Give or
+// Destroy, and on the column's own minute, so a thing handed over in Discord
+// stops being listed here without a reload.
+//
+// Nothing is decided in the browser: the four verbs come off the catalog flags
+// through ./thingRows.js, and each one re-checks itself when it is pressed.
+export async function myThings() {
+  const me = await actor({
+    id: true,
+    tags: {
+      select: {
+        id: true,
+        tagId: true,
+        quantity: true,
+        equipped: true,
+        tag: {
+          select: {
+            id: true,
+            name: true,
+            category: true,
+            equippable: true,
+            consumable: true,
+            tradeable: true,
+            removable: true,
+          },
+        },
+      },
+    },
+  });
+  if (me.error) return { ok: false, error: me.error };
+  return { ok: true, groups: thingGroups(me.character.tags) };
+}
+
 export async function readStash(roomId) {
   const me = await actor();
   if (me.error) return { ok: false, error: me.error };

@@ -15,7 +15,11 @@ import RequestActionsProvider from "@/app/components/RequestActionsProvider";
 import CharacterMentionsProvider from "@/app/components/CharacterMentionsProvider";
 import Hall from "./Hall";
 import { waitingOnYou, myMove } from "./actions";
-import { loadDesireView } from "@/lib/selfPools";
+import { loadDesireView, loadLettersView } from "@/lib/selfPools";
+import { thingGroups } from "./thingRows";
+import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
+import { extractToolFor } from "@lifeweb/db/lib/godflesh";
+import { MERCHANT_LICENSE_SLUG, DEPOT_LOCATION_SLUG, DEPOT_KEYCARD_SLUG } from "@lifeweb/db";
 
 // /play — the Hall. Three columns on a desktop, one on a phone: everywhere
 // this character can hear on the left, the open scene in the middle, and (in
@@ -112,8 +116,14 @@ export default async function PlayPage() {
             where: { id: viewer.character.id },
             select: {
               resources: true,
-              tags: { select: { tagId: true, quantity: true, equipped: true, tag: true } },
+              // `id` is the CharacterTag row, which is what an equip toggle
+              // acts on; the Things drawer is the only thing here that needs
+              // one (./thingRows.js).
+              tags: { select: { id: true, tagId: true, quantity: true, equipped: true, tag: true } },
               role: { select: { slug: true } },
+              // Which in-game DAY the bird last left on
+              // (docs/systemdocs/PAPERWORK.md §Bird).
+              birdTurnId: true,
             },
           }),
           prisma.turn.findFirst({
@@ -124,8 +134,23 @@ export default async function PlayPage() {
           }),
         ]);
         const character = { ...viewer.character, ...sheet };
+        const heldSlugs = new Set((sheet?.tags ?? []).map((ct) => ct.tag.slug));
+        // The sheet crosses into client components from here, so the raw text
+        // of every paper on it would otherwise sit in the page source —
+        // readable straight out of DevTools by a holder who is blind, drunk or
+        // illiterate, which is the one thing the whole paperwork system exists
+        // to prevent (character/page.js strips it the same way). The dialogs
+        // fetch the text on demand instead.
+        const clientSheet = {
+          ...sheet,
+          tags: (sheet?.tags ?? []).map((ct) => {
+            if (ct.tag?.paperText == null) return ct;
+            const { paperText, ...tag } = ct.tag;
+            return { ...ct, tag };
+          }),
+        };
 
-        const [people, affordances, examine, waiting, pools, stashRooms, mine, desires, boardLocation] = await Promise.all([
+        const [people, affordances, examine, waiting, pools, stashRooms, mine, desires, letters, boardLocation] = await Promise.all([
           whosHere(prisma, character),
           affordancesFor(prisma, character),
           // What Examine used to answer in a modal. It is the place card's
@@ -148,6 +173,11 @@ export default async function PlayPage() {
           // The Desire SLOTS only — the ~271-template catalog behind the
           // picker is fetched when somebody opens it (web/lib/selfPools.js).
           loadDesireView(character, { openTurn, gameConfig, withCatalog: false }),
+          // Write, Seal, Bind a book and the Bird, behind the ✉ beside the
+          // composer. The SAME loader the sheet calls, so the two surfaces
+          // cannot disagree about whether this character can write
+          // (web/lib/selfPools.js).
+          loadLettersView(character, { openTurn }),
           // Is there a board on this street? One attribute, and it decides
           // whether the Location's feed carries the notice cards at its top
           // (db/lib/noticeboard.js). The cards load themselves; this only
@@ -155,7 +185,9 @@ export default async function PlayPage() {
           character.locationId
             ? prisma.location.findUnique({
                 where: { id: character.locationId },
-                select: { attributes: true },
+                // `slug` for the Depot, `attributes` for the noticeboard and
+                // the Factory's godflesh.
+                select: { slug: true, attributes: true },
               })
             : null,
         ]);
@@ -169,7 +201,7 @@ export default async function PlayPage() {
           selfId: character.id,
           pools,
           stashRooms,
-          sheet,
+          sheet: clientSheet,
           // What this character is carrying against their cap — the Transfer
           // dialog projects a hand-over off both.
           carry: carryStatus(character, gameConfig),
@@ -177,6 +209,30 @@ export default async function PlayPage() {
           turn: mine.ok ? mine.turn : null,
           move: mine.ok ? mine.move : null,
           desires,
+          letters,
+          // What is in this character's pockets, for the Things drawer under
+          // YOU. The drawer re-reads it for itself after every verb
+          // (./actions.js#myThings).
+          things: thingGroups(sheet?.tags ?? []),
+          // The Depot terminal is a thing in a room: standing at it is not
+          // enough, you need the licence or the keycard, and /depot bounces
+          // anybody without one — so the link is offered only where it would
+          // open (web/app/(app)/depot/page.js).
+          depotHref:
+            boardLocation?.slug === DEPOT_LOCATION_SLUG &&
+            (heldSlugs.has(MERCHANT_LICENSE_SLUG) || heldSlugs.has(DEPOT_KEYCARD_SLUG))
+              ? "/depot"
+              : null,
+          // The Godard Factory's Extract, opened as the sheet's own dialog
+          // (docs/systemdocs/FACTORY.md). Shown where the ground is godflesh;
+          // whether there is a tool in hand is the dialog's sentence, not a
+          // reason to hide the button.
+          canSeeExtract: hasAttribute(boardLocation, GODFLESH_ATTRIBUTE),
+          canExtract: Boolean(extractToolFor(sheet?.tags ?? [])),
+          extractBlocked:
+            hasAttribute(boardLocation, GODFLESH_ATTRIBUTE) && !extractToolFor(sheet?.tags ?? [])
+              ? "You need a hatchet, a battle-axe or a chainsaw in your hands. ‡"
+              : null,
         };
       })()
     : null;
@@ -224,6 +280,27 @@ export default async function PlayPage() {
       // carrying one. photographRow() re-checks the sheet, so this is the
       // hint and never the lock.
       hasCamera={hasCamera}
+      // The ✉ beside the composer, and the hood next to it. `canConceal` is
+      // db/lib/conceal.js's own three refusals asked in advance: a forced name
+      // has nothing to hide, a bare face has nothing to toggle, and something
+      // that FORCES a hood does not come off by asking. toggleConceal re-asks
+      // all three.
+      letters={
+        aside?.letters
+          ? {
+              canWrite: aside.letters.canWrite,
+              canSeal: aside.letters.canSeal,
+              canBindBook: aside.letters.canBindBook,
+              hasBird: aside.letters.hasBird,
+              birdSentToday: aside.letters.birdSentToday,
+            }
+          : null
+      }
+      conceal={{
+        canConceal: Boolean(concealment) && !concealment.forced && !forcedName,
+        concealed: Boolean(identity.concealed),
+        alias: identity.alias ?? null,
+      }}
     />
   );
 
@@ -253,6 +330,13 @@ export default async function PlayPage() {
         bindTargets={aside.pools.bindTargets}
         harmTargets={aside.pools.harmTargets}
         harmTags={aside.pools.harmTags}
+        // The four paperwork dialogs the ✉ opens, named exactly as
+        // web/lib/selfPools.js returns them.
+        {...aside.letters}
+        // Extract, from the place card's Factory button.
+        canSeeExtract={aside.canSeeExtract}
+        canExtract={aside.canExtract}
+        extractBlocked={aside.extractBlocked}
       >
         {hall}
       </RequestActionsProvider>

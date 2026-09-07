@@ -8,6 +8,7 @@ import RoomPanel from "./RoomPanel";
 import TravelNodes from "./TravelNodes";
 import YouPanel from "./YouPanel";
 import { usePlaceActions } from "./PlacePanel";
+import { useRequestActions } from "@/app/components/RequestActionsProvider";
 
 // The right column, and — under 720px — everything inside the ⋯ sheet. One
 // component either way, because the phone's version is the same sections in
@@ -37,6 +38,12 @@ export default function HallAside({
   sheet,
   carry,
   desires,
+  things,
+  // Standing at the Depot with a licence or a keycard, and standing on
+  // godflesh. Both decided on the server in page.js; the link's page and the
+  // dialog's action each re-check their own gate.
+  depotHref = null,
+  canSeeExtract = false,
   selected,
   // `/travel <somewhere>` reaching in from the composer. It selects the node
   // and opens its confirm strip; the Go button is still what moves anybody.
@@ -55,6 +62,9 @@ export default function HallAside({
 }) {
   const { affordances: live, openFixture, openConverse, say, notice, error, pending, dialogs } =
     usePlaceActions(affordances, onPlaceChanged);
+  // Extract is the SHEET's dialog, mounted on this page (play/page.js) over
+  // the same two facts the sheet resolves — there is no second copy of it.
+  const openAction = useRequestActions()?.open ?? null;
 
   // The Location's own fixtures. Travel, Who's here?, Secret rooms? and
   // Examine are filtered out: the first is the node grid below, and the other
@@ -77,6 +87,8 @@ export default function HallAside({
         fixtures={fixtures}
         onFixture={openFixture}
         onConverse={openConverse}
+        depotHref={depotHref}
+        onFactory={canSeeExtract && openAction ? () => openAction("extract") : null}
         pending={pending}
       />
       {/* What the action said back. A server string a player reads, so it is
@@ -116,6 +128,7 @@ export default function HallAside({
         move={move}
         status={{ resources: sheet?.resources ?? 0, carry, tags: sheet?.tags ?? [] }}
         desires={desires}
+        things={things}
       />
 
       {dialogs}

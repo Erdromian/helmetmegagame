@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Your things, your letters and your hood on the Play page
+
+✚ A Things drawer under You: every item and asset as a chip, with Equip, Use, Give and Destroy  
+✚ A quill beside the box: Write, Seal, Bind a book, Send by bird, the sheet's own dialogs  
+✚ A hood button beside the box to conceal or show your face; the box then names your alias  
+✚ A Depot link at Customs for licence or keycard holders, and Extract on Godflesh ground
+
 ## 2026-09-07 · Slash commands, member controls, search and notices on the Play page
 
 ✚ Type / in the box for a command list; a chosen command becomes a chip with its own pickers: /move /travel /conceal /shout /roll /add /remove /converse /look /report  

@@ -9,6 +9,7 @@ import useActionRunner from "@/app/components/useActionRunner";
 import MoveDialog from "./MoveDialog";
 import TurnCard from "./TurnCard";
 import StatusStrip from "./StatusStrip";
+import Things from "./ThingsDrawer";
 import DesiresBlock from "./DesiresBlock";
 import Yesterday from "./Yesterday";
 import { reportToGms, waitingOnYou, answerWaiting, myMove } from "./actions";
@@ -110,7 +111,16 @@ function WaitingList({ rows, onAnswered }) {
   );
 }
 
-export default function YouPanel({ initialWaiting = [], turn = null, move = null, status = null, desires = null }) {
+export default function YouPanel({
+  initialWaiting = [],
+  turn = null,
+  move = null,
+  status = null,
+  desires = null,
+  // What is in this character's pockets, grouped Items then Assets
+  // (./thingRows.js). The drawer re-reads it for itself after every verb.
+  things = [],
+}) {
   const [dialog, setDialog] = useState(null);
   const [notice, setNotice] = useState(null);
   const [waiting, setWaiting] = useState(initialWaiting);
@@ -160,6 +170,7 @@ export default function YouPanel({ initialWaiting = [], turn = null, move = null
         onEdit={() => setDialog("edit")}
       />
       <StatusStrip resources={status?.resources ?? 0} carry={status?.carry ?? null} tags={status?.tags ?? []} />
+      <Things groups={things} />
       <DesiresBlock view={desires} />
 
       <div className="hall-buttons">
