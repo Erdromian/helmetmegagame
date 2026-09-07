@@ -179,7 +179,7 @@ export default function CraftDialog({
           <p className="text-xs text-muted">
             {hasMoved
               ? budget
-                ? "A site's turn takes your whole Move, and part of this one is already spent. ‡"
+                ? "A site's turn takes your whole Move, and part of this one is already spent."
                 : "You've used your Move this turn, so the work waits."
               : `One more turn of work — your Move for this turn. ${site.turnsNeeded - site.turnsDone === 1 ? "That finishes it." : `${site.turnsNeeded - site.turnsDone} to go.`}`}
           </p>
@@ -212,7 +212,7 @@ export default function CraftDialog({
               ? "You've already put this turn into it. Come back next turn."
               : hasMoved
                 ? budget
-                  ? "A project's turn takes your whole Move, and part of this one is already spent. ‡"
+                  ? "A project's turn takes your whole Move, and part of this one is already spent."
                   : "You've used your Move this turn, so the work waits."
                 : `One more turn of work — your Move for this turn. ${project.turnsNeeded - project.turnsDone === 1 ? "That finishes it." : `${project.turnsNeeded - project.turnsDone} to go.`}`}
             {project.resourcesCost || project.spentIngredients
@@ -221,7 +221,7 @@ export default function CraftDialog({
                   project.spentIngredients ? "ingredients" : null,
                 ]
                   .filter(Boolean)
-                  .join(" and ")} went in when you started and don't come back. ‡`
+                  .join(" and ")} went in when you started and don't come back.`
               : ""}
           </p>
         </>
@@ -233,8 +233,8 @@ export default function CraftDialog({
           {budget && (
             <p className="text-xs text-accent">
               {budget.remainingNum > 0
-                ? `Your Routine this turn is ${craftFamilyLabel(budget.family)} work — ${formatMoveFraction(budget.remainingNum, budget.remainingDen)} of your Move is left. ‡`
-                : `Your Routine this turn is spent on ${craftFamilyLabel(budget.family)} work. ‡`}
+                ? `Your Routine this turn is ${craftFamilyLabel(budget.family)} work — ${formatMoveFraction(budget.remainingNum, budget.remainingDen)} of your Move is left.`
+                : `Your Routine this turn is spent on ${craftFamilyLabel(budget.family)} work.`}
             </p>
           )}
           {picker}
@@ -256,13 +256,13 @@ export default function CraftDialog({
                 (ingredientPick.options.length > 0 ? (
                   <label className="field">
                     <span className="field-label">
-                      Which goes in? ‡
+                      Which goes in?
                     </span>
                     <Select
                       value={ingredientChoice}
                       onChange={(e) => onIngredientChoice(e.target.value)}
                     >
-                      <option value="">Choose one… ‡</option>
+                      <option value="">Choose one…</option>
                       {ingredientPick.options.map((o) => (
                         <option key={o.slug} value={o.slug}>
                           {o.name}
@@ -273,13 +273,13 @@ export default function CraftDialog({
                 ) : (
                   <p className="text-xs text-accent">
                     This needs {ingredientPick.label}, and you have none of
-                    them. ‡
+                    them.
                   </p>
                 ))}
               {chosen.customizable && (
                 <>
                   <label className="field">
-                    <span className="field-label">Name it (optional) ‡</span>
+                    <span className="field-label">Name it (optional)</span>
                     <input
                       type="text"
                       value={customName}
@@ -289,7 +289,7 @@ export default function CraftDialog({
                     />
                   </label>
                   <label className="field">
-                    <span className="field-label">Describe it (optional) ‡</span>
+                    <span className="field-label">Describe it (optional)</span>
                     <textarea
                       value={customDescription}
                       onChange={(e) => onCustomDescription(e.target.value)}
@@ -300,7 +300,7 @@ export default function CraftDialog({
                   {custom?.active && (
                     <p className="text-xs text-muted">
                       Your words on your work, +{CUSTOM_SURCHARGE} ⬢ each. It
-                      will read as “{customCraftName(chosen.name, custom.name)}”. ‡
+                      will read as “{customCraftName(chosen.name, custom.name)}”.
                     </p>
                   )}
                 </>
@@ -309,7 +309,7 @@ export default function CraftDialog({
                 <>
                   <label className="field">
                     <span className="field-label">
-                      Write something on it (optional) ‡
+                      Write something on it (optional)
                     </span>
                     <textarea
                       value={inscription}
@@ -320,7 +320,7 @@ export default function CraftDialog({
                   </label>
                   <p className="text-xs text-muted">
                     Whoever examines it will read your words in place of the
-                    usual line. ‡
+                    usual line.
                   </p>
                 </>
               )}
@@ -341,15 +341,15 @@ export default function CraftDialog({
                     ? chosen.requirementPerTurn != null
                       ? // This recipe rations ITSELF — the count only moves
                         // when you make more of this one thing.
-                        `No Move needed for the first ${allowance.per} of these a turn, and ${allowance.left} of those are left today. ‡`
+                        `No Move needed for the first ${allowance.per} of these a turn, and ${allowance.left} of those are left today.`
                       : // The pool is SHARED across every Dead Simple recipe, so
                         // the count moves when you make a different simple item —
                         // said here, or the number reads as a per-recipe cap.
-                        `No Move needed for the first ${allowance.per} simple things a turn — shared across all of them — and ${allowance.left} of those are left today. ‡`
-                    : "No Move needed. ‡"
+                        `No Move needed for the first ${allowance.per} simple things a turn — shared across all of them — and ${allowance.left} of those are left today.`
+                    : "No Move needed."
                   : turns === 1
                     ? moveCost?.kind === "share" && moveCost.allowance > 1
-                      ? `${formatMoveFraction(1, moveCost.allowance)} of a turn's work each — ${formatMoveFraction(moveCost.num, moveCost.den)} of your Move for this order, up to ${moveCost.allowance} a turn. ‡`
+                      ? `${formatMoveFraction(1, moveCost.allowance)} of a turn's work each — ${formatMoveFraction(moveCost.num, moveCost.den)} of your Move for this order, up to ${moveCost.allowance} a turn.`
                       : "One turn of work — this is your Move for the turn."
                     : chosen.placement
                       ? // The crew-turns pitch, said at the point of decision:
@@ -362,23 +362,23 @@ export default function CraftDialog({
                     the overflow to the Move; one without (a butcher's mask)
                     simply cannot go past it. */}
                 {moveCost?.kind === "spill"
-                  ? ` The ${moveCost.billedQty} past that ${moveCost.billedQty === 1 ? "spends" : "spend"} ${formatMoveFraction(moveCost.num, moveCost.den)} of your Move. ‡`
+                  ? ` The ${moveCost.billedQty} past that ${moveCost.billedQty === 1 ? "spends" : "spend"} ${formatMoveFraction(moveCost.num, moveCost.den)} of your Move.`
                   : ""}
                 {moveCost?.kind === "capped"
-                  ? ` You can't make more than ${moveCost.allowance} in a turn. ‡`
+                  ? ` You can't make more than ${moveCost.allowance} in a turn.`
                   : ""}
                 {!moveOk && moveCost?.kind !== "capped"
                   ? budget
                     ? budget.family !== moveCost?.family
-                      ? ` Your Routine this turn is ${craftFamilyLabel(budget.family)} work, and this isn't. ‡`
-                      : " There isn't enough of your Move left this turn. ‡"
+                      ? ` Your Routine this turn is ${craftFamilyLabel(budget.family)} work, and this isn't.`
+                      : " There isn't enough of your Move left this turn."
                     : hasMoved
                       ? " You've already used your Move this turn."
-                      : " That's more than a turn's work — make fewer at once. ‡"
+                      : " That's more than a turn's work — make fewer at once."
                   : ""}
               </p>
               {ingredientNote && (
-                <p className="text-xs text-muted">{`${ingredientNote} ‡`}</p>
+                <p className="text-xs text-muted">{`${ingredientNote}`}</p>
               )}
               {wantsWorkshop && (
                 <p className={`text-xs ${hasWorkshop ? "text-muted" : "text-accent"}`}>

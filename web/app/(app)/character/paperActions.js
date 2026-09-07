@@ -125,15 +125,15 @@ async function writePaperImpl({ tagId: rawTagId, text: rawText }) {
   if (readBlock(character.tags, where)) {
     // The same sentence a paper shows a reader who can't read it. Saying
     // WHICH of letters or eyes stopped them would leak a condition.
-    throw new UserError("You can't read this. ‡");
+    throw new UserError("You can't read this.");
   }
 
   const text = String(rawText ?? "").trim().slice(0, WRITE_MAX);
-  if (!text) throw new UserError("Write something first. ‡");
+  if (!text) throw new UserError("Write something first.");
 
   const targetId = String(rawTagId ?? "");
   const held = character.tags.find((ct) => ct.tagId === targetId);
-  if (!held) throw new UserError("You aren't holding that. ‡");
+  if (!held) throw new UserError("You aren't holding that.");
 
   const hand = writerName(character);
 
@@ -151,14 +151,14 @@ async function writePaperImpl({ tagId: rawTagId, text: rawText }) {
       return;
     }
     if (held.tag.paperKind === "SEALED") {
-      throw new UserError("It's sealed. Break the seal first. ‡");
+      throw new UserError("It's sealed. Break the seal first.");
     }
     // The one rule a book has that a sheet does not. What is bound in is what
     // it says; there is no page left to add.
     if (isBook(held.tag)) {
-      throw new UserError("It's bound. You'd have to tear it up and start again. ‡");
+      throw new UserError("It's bound. You'd have to tear it up and start again.");
     }
-    throw new UserError("You can't write on that. ‡");
+    throw new UserError("You can't write on that.");
   });
 
   await afterInventoryChange([character.id]);
@@ -176,20 +176,20 @@ async function bindBookImpl({ title: rawTitle, text: rawText }) {
   const { character, where } = await requireWriter({ needs: ACT });
 
   if (readBlock(character.tags, where)) {
-    throw new UserError("You can't read this. ‡");
+    throw new UserError("You can't read this.");
   }
 
   const title = String(rawTitle ?? "").trim().slice(0, TITLE_MAX);
-  if (!title) throw new UserError("Give it a title first. ‡");
+  if (!title) throw new UserError("Give it a title first.");
 
   const text = String(rawText ?? "").trim().slice(0, BOOK_MAX);
-  if (!text) throw new UserError("Write something first. ‡");
+  if (!text) throw new UserError("Write something first.");
 
   // The snapshot only decides whether to bother. The count that matters is
   // re-read under a row lock below.
   const blank = character.tags.find((ct) => ct.tag.slug === PAPER_SLUG);
   if (!blank || (blank.quantity ?? 0) < BOOK_SHEETS) {
-    throw new UserError(`You need ${BOOK_SHEETS} sheets of blank paper to bind a book. ‡`);
+    throw new UserError(`You need ${BOOK_SHEETS} sheets of blank paper to bind a book.`);
   }
 
   const hand = writerName(character);
@@ -207,7 +207,7 @@ async function bindBookImpl({ title: rawTitle, text: rawText }) {
       WHERE "characterId" = ${character.id} AND "tagId" = ${blank.tagId}
       FOR UPDATE`;
     if (!locked || locked.quantity < BOOK_SHEETS) {
-      throw new UserError(`You need ${BOOK_SHEETS} sheets of blank paper to bind a book. ‡`);
+      throw new UserError(`You need ${BOOK_SHEETS} sheets of blank paper to bind a book.`);
     }
     book = await bindBook(tx, { id: character.id, name: hand }, blank.tagId, title, text);
   });
@@ -224,13 +224,13 @@ async function tearUpBookImpl({ tagId: rawTagId }) {
   const { character } = await requireWriter({ needs: ACT });
 
   const held = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));
-  if (!held) throw new UserError("You aren't holding that. ‡");
-  if (!isBook(held.tag)) throw new UserError("That isn't a book. ‡");
+  if (!held) throw new UserError("You aren't holding that.");
+  if (!isBook(held.tag)) throw new UserError("That isn't a book.");
 
   // Looked up rather than read off the character: somebody tearing up their
   // only book may well be holding no blank paper at all.
   const blank = await prisma.tag.findUnique({ where: { slug: PAPER_SLUG }, select: { id: true } });
-  if (!blank) throw new UserError("There's no paper in the catalog to tear it into. ‡");
+  if (!blank) throw new UserError("There's no paper in the catalog to tear it into.");
 
   await prisma.$transaction(async (tx) => {
     await tearUpBook(tx, character.id, held.tag, blank.id);
@@ -247,14 +247,14 @@ async function sealLetterImpl({ tagId: rawTagId, stampTagId: rawStampId }) {
   const paperRow = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));
   const stampRow = character.tags.find((ct) => ct.tagId === String(rawStampId ?? ""));
 
-  if (!paperRow || !stampRow) throw new UserError("You aren't holding that. ‡");
-  if (!isSeal(stampRow.tag)) throw new UserError("That isn't a wax stamp. ‡");
+  if (!paperRow || !stampRow) throw new UserError("You aren't holding that.");
+  if (!isSeal(stampRow.tag)) throw new UserError("That isn't a wax stamp.");
   if (!isPaper(paperRow.tag) || paperRow.tag.paperKind !== "PAPER") {
-    throw new UserError("That isn't a letter you can seal. ‡");
+    throw new UserError("That isn't a letter you can seal.");
   }
   // A blank sheet folded shut is a joke, not a letter, and it would put an
   // unreadable "Blank paper" behind a seal somebody has to break to find out.
-  if (!(paperRow.tag.paperText ?? "").trim()) throw new UserError("There's nothing written on it. ‡");
+  if (!(paperRow.tag.paperText ?? "").trim()) throw new UserError("There's nothing written on it.");
 
   // Sealing does not need literacy — pressing wax into a fold is not reading —
   // but it does need the paper, and holding it is the check.
@@ -293,7 +293,7 @@ export async function tearUpABook(input) {
 export async function readMyPaper(rawTagId) {
   const { character, where } = await requireWriter();
   const held = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));
-  if (!held || !isPaper(held.tag)) return { ok: false, error: "You aren't holding that. ‡" };
+  if (!held || !isPaper(held.tag)) return { ok: false, error: "You aren't holding that." };
   return {
     ok: true,
     text: paperDescription(held.tag, { tags: character.tags, ...where }),

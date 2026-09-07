@@ -23,7 +23,7 @@ import { peopleToExamine, examineCharacter } from "@/app/(app)/character/examine
 // dialog than the sheet's. It is only a shortcut past the ROSTER: the readout
 // is the same one round trip, and examineCharacter() re-resolves the looker
 // from the session and re-checks co-presence, so a stale or invented id is
-// refused rather than answered. ‡
+// refused rather than answered.
 export default function ExamineDialog({ open, onClose, targetId = null }) {
   if (!open) return null;
   // Keyed on the target, so opening the dialog on a second person while the

@@ -241,7 +241,7 @@ async function requireCharacter({ needs = null } = {}) {
     if (blocker) {
       throw new UserError(
         needs === SPEAK
-          ? `You can't speak right now — you're ${blocker.name}. ‡`
+          ? `You can't speak right now — you're ${blocker.name}.`
           : `You can't do that right now. You're ${blocker.name}.`,
       );
     }
@@ -316,7 +316,7 @@ async function loadRecipe(tagId) {
   if (!tag) throw new UserError("Unknown tag.");
   // Re-checked here because the client's filtered list is only advisory.
   if (!tag.craftable)
-    throw new UserError("That isn't something you can make. ‡");
+    throw new UserError("That isn't something you can make.");
   return tag;
 }
 
@@ -335,7 +335,7 @@ async function requireRecipeSkills(character, tag) {
   );
   if (missing.length) {
     throw new UserError(
-      `Making that needs ${missing.map((t) => t.name).join(" and ")}. ‡`,
+      `Making that needs ${missing.map((t) => t.name).join(" and ")}.`,
     );
   }
 }
@@ -352,7 +352,7 @@ async function requireWorkshop(character, tag) {
   if (await hasEquipmentInReach(prisma, character, WORKSHOP_EQUIPMENT_SLUG))
     return;
   throw new UserError(
-    `Making that is smith's work: hold Workshop Equipment, or stand somewhere a set is already put up. ‡`,
+    `Making that is smith's work: hold Workshop Equipment, or stand somewhere a set is already put up.`,
   );
 }
 
@@ -383,7 +383,7 @@ function resolveRecipeItems(character, tag, quantity, ingredientChoice) {
   for (const item of items) {
     if (item.kind === "group") {
       if (!held.some((ct) => ct.tag.group?.slug === item.slug)) {
-        throw new UserError(`Making that needs ${item.label}. ‡`);
+        throw new UserError(`Making that needs ${item.label}.`);
       }
       plan.hold.push({ kind: "group", slug: item.slug, label: item.label });
       continue;
@@ -393,22 +393,22 @@ function resolveRecipeItems(character, tag, quantity, ingredientChoice) {
       const choice =
         typeof ingredientChoice === "string" ? ingredientChoice.trim() : "";
       if (!choice || !item.slugs.includes(choice)) {
-        throw new UserError(`Choose which of ${item.label} goes into it. ‡`);
+        throw new UserError(`Choose which of ${item.label} goes into it.`);
       }
       slug = choice;
     }
     const ct = bySlug.get(slug);
     const name = ct?.tag?.name ?? item.label;
     if (item.keep) {
-      if (!ct) throw new UserError(`Making that needs ${item.label}. ‡`);
+      if (!ct) throw new UserError(`Making that needs ${item.label}.`);
       plan.hold.push({ kind: "tag", slug, label: item.label });
       continue;
     }
     if (!ct || ct.quantity < quantity) {
       throw new UserError(
         quantity > 1
-          ? `Making ${quantity} of those takes ${quantity} × ${name}, and you have ${ct?.quantity ?? 0}. ‡`
-          : `Making that needs ${name}. ‡`,
+          ? `Making ${quantity} of those takes ${quantity} × ${name}, and you have ${ct?.quantity ?? 0}.`
+          : `Making that needs ${name}.`,
       );
     }
     plan.spend.push({ tagId: ct.tagId, tagName: name, quantity });
@@ -445,7 +445,7 @@ async function consumeRecipeItems(tx, characterId, plan) {
             : { slug: item.slug },
       },
     });
-    if (!still) throw new UserError(`Making that needs ${item.label}. ‡`);
+    if (!still) throw new UserError(`Making that needs ${item.label}.`);
   }
   const consumed = [];
   for (const { tagId, tagName, quantity } of plan.spend) {
@@ -453,7 +453,7 @@ async function consumeRecipeItems(tx, characterId, plan) {
       where: { characterId_tagId: { characterId, tagId } },
     });
     const short = () =>
-      new UserError(`You don't have enough ${tagName} left for that. ‡`);
+      new UserError(`You don't have enough ${tagName} left for that.`);
     if (!row || row.quantity < quantity) throw short();
     if (row.quantity === quantity) {
       const { count } = await tx.characterTag.deleteMany({
@@ -516,7 +516,7 @@ async function craftGrantChecks(character, tag, db = prisma) {
   if (conflict) {
     throw new UserError(
       conflict.removable
-        ? `You already hold ${conflict.name}; destroy it first to make ${tag.name}. ‡`
+        ? `You already hold ${conflict.name}; destroy it first to make ${tag.name}.`
         : `${tag.name} can't be held with ${conflict.name}.`,
     );
   }
@@ -567,11 +567,11 @@ async function recheckGrantsUnderLock(tx, character, tag) {
 async function resolveCraftPayer(character, payerKey, cost) {
   const key = payerKey || `character:${character.id}`;
   const payer = await resolveParty(key);
-  if (!payer) throw new UserError("That payer isn't here any more — pick another. ‡");
+  if (!payer) throw new UserError("That payer isn't here any more — pick another.");
   if (!(await canReachParty(character, payer)))
     throw new UserError(outOfReachMessage(payer));
   if (cost > payer.balance)
-    throw new UserError(`${payer.name} only has ${payer.balance} ⬢. ‡`);
+    throw new UserError(`${payer.name} only has ${payer.balance} ⬢.`);
   return payer;
 }
 
@@ -581,14 +581,14 @@ async function resolveCraftPayer(character, payerKey, cost) {
 // use this. Crafting takes `resolveCraftMove` below instead, because a craft
 // may cost a FRACTION of the Move and share the rest with another craft.
 async function requireFreeMove(character, openTurn) {
-  if (!openTurn) throw new UserError("No turn is open. ‡");
+  if (!openTurn) throw new UserError("No turn is open.");
   const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
-  if (locked) throw new UserError("Moves are locked for this turn. ‡");
+  if (locked) throw new UserError("Moves are locked for this turn.");
   const acted = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: openTurn.id },
     select: { id: true },
   });
-  if (acted) throw new UserError("You've already used your Move this turn. ‡");
+  if (acted) throw new UserError("You've already used your Move this turn.");
 }
 
 // A Move the player never wrote: filed for them, already PASSED, so a GM sees
@@ -630,7 +630,7 @@ async function fileAutoRoutine(
     });
   } catch (err) {
     if (err?.code === "P2002")
-      throw new UserError("You've already used your Move this turn. ‡");
+      throw new UserError("You've already used your Move this turn.");
     throw err;
   }
 }
@@ -653,14 +653,14 @@ function craftLabel(tag, quantity) {
 // of this). There is no per-craft Undo; a GM reversing one craft by hand
 // gets no budget back either — Reject is the full reset.
 
-const MOVE_SPENT = "You've already used your Move this turn. ‡";
+const MOVE_SPENT = "You've already used your Move this turn.";
 
 // The Action's description, rebuilt from the ledger every time an entry lands,
 // so a GM reading the desk sees the whole turn's work in one line rather than
 // only the first thing made.
 function craftLedgerDescription(entries) {
   const made = entries.map((e) => (e.qty > 1 ? `${e.qty}× ${e.name}` : e.name));
-  return `Crafting this turn: ${made.join(", ")}. ‡`;
+  return `Crafting this turn: ${made.join(", ")}.`;
 }
 
 function craftLedgerEntry(tag, cost) {
@@ -687,7 +687,7 @@ function checkCraftMove(action, need) {
   // no ledger yet to fail against.
   if (!fitsInRemaining(need, WHOLE_MOVE)) {
     throw new UserError(
-      "That's more than a turn's work — make fewer at once. ‡",
+      "That's more than a turn's work — make fewer at once.",
     );
   }
   if (!action) return null;
@@ -702,7 +702,7 @@ function checkCraftMove(action, need) {
   const ledger = action.craftBudget;
   if (ledger.family !== need.family) {
     throw new UserError(
-      `Your Routine this turn is ${craftFamilyLabel(ledger.family)} work, and that isn't. ‡`,
+      `Your Routine this turn is ${craftFamilyLabel(ledger.family)} work, and that isn't.`,
     );
   }
   const left = ledgerRemaining(ledger);
@@ -713,8 +713,8 @@ function checkCraftMove(action, need) {
         : `${formatMoveFraction(need.num, need.den)} of a Move`;
     throw new UserError(
       left.num > 0
-        ? `That takes ${asks}, and you have ${formatMoveFraction(left.num, left.den)} of this turn's Routine left. ‡`
-        : `That takes ${asks}, and this turn's Routine is spent. ‡`,
+        ? `That takes ${asks}, and you have ${formatMoveFraction(left.num, left.den)} of this turn's Routine left.`
+        : `That takes ${asks}, and this turn's Routine is spent.`,
     );
   }
   return ledger;
@@ -724,7 +724,7 @@ function checkCraftMove(action, need) {
 // craft path only — Bury, Engrave, Extract and the build sites still take a
 // whole clean Move and keep it.
 async function resolveCraftMove(character, openTurn, need) {
-  if (!openTurn) throw new UserError("No turn is open. ‡");
+  if (!openTurn) throw new UserError("No turn is open.");
   const config = await prisma.gameConfig.findUnique({
     where: { id: 1 },
     select: { autoTurnAdvanceDisabled: true },
@@ -732,7 +732,7 @@ async function resolveCraftMove(character, openTurn, need) {
   const { locked } = moveWindow(openTurn, {
     autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
   });
-  if (locked) throw new UserError("Moves are locked for this turn. ‡");
+  if (locked) throw new UserError("Moves are locked for this turn.");
   const action = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: openTurn.id },
     select: { id: true, gmNotes: true, craftBudget: true },
@@ -804,7 +804,7 @@ async function spendCraftMove(
     data: { craftBudget: budget, description: line },
   });
   if (count === 0)
-    throw new UserError("A GM just reset your turn — try again. ‡");
+    throw new UserError("A GM just reset your turn — try again.");
   return { action: existing, budget };
 }
 
@@ -873,7 +873,7 @@ async function mintCustomCraft(db, baseTag, { name, description }) {
     expiresInto: baseTag.expiresInto ?? undefined,
   }));
   if (!tag)
-    throw new UserError("Couldn't find a free name for that — try different words. ‡");
+    throw new UserError("Couldn't find a free name for that — try different words.");
   return { tag, minted: true };
 }
 
@@ -955,7 +955,7 @@ function payerNotice(character, payer, cost, tag) {
   if (payer.kind !== "character" || payer.id === character.id || !cost) return;
   notifyCharacter(
     payer,
-    `${character.name} paid ${cost} ⬢ from your purse toward ${tag.name}. ‡`,
+    `${character.name} paid ${cost} ⬢ from your purse toward ${tag.name}.`,
   );
 }
 
@@ -1053,7 +1053,7 @@ async function craftRequestImpl({
       // alone), so the ration is still a wall.
       if (priced.kind === "capped") {
         throw new UserError(
-          `You can only make ${allowance} ${tag.name} per turn (${already} already this turn). ‡`,
+          `You can only make ${allowance} ${tag.name} per turn (${already} already this turn).`,
         );
       }
       return priced;
@@ -1066,7 +1066,7 @@ async function craftRequestImpl({
     const acknowledgeBill = (priced) => {
       if (priced.billedQty > billedSeen) {
         throw new UserError(
-          "Your free allowance changed since this page loaded — reload to see the new cost. ‡",
+          "Your free allowance changed since this page loaded — reload to see the new cost.",
         );
       }
     };
@@ -1103,7 +1103,7 @@ async function craftRequestImpl({
             autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
           });
           if (locked)
-            throw new UserError("Moves are locked for this turn. ‡");
+            throw new UserError("Moves are locked for this turn.");
         }
         ({ action, budget } = await spendCraftMove(tx, {
           character,
@@ -1154,7 +1154,7 @@ async function craftRequestImpl({
   // unit, its turns being per piece; wanting two means starting it twice.
   if (turns > 1 && quantity > 1) {
     throw new UserError(
-      `That's ${turns} turns of work apiece — make them one at a time. ‡`,
+      `That's ${turns} turns of work apiece — make them one at a time.`,
     );
   }
   const moveCost = craftMoveCost(tag, { quantity });
@@ -1170,7 +1170,7 @@ async function craftRequestImpl({
     );
     if (already + quantity > perTurn) {
       throw new UserError(
-        `You can only make ${perTurn} ${tag.name} per turn (${already} already this turn). ‡`,
+        `You can only make ${perTurn} ${tag.name} per turn (${already} already this turn).`,
       );
     }
   };
@@ -1203,8 +1203,8 @@ async function craftRequestImpl({
         moveCost.kind === "share"
           ? null
           : finishes
-            ? `Crafted ${craftLabel(tag, quantity)}. ‡`
-            : `Crafting ${craftLabel(tag, quantity)} (1/${turns}). ‡`,
+            ? `Crafted ${craftLabel(tag, quantity)}.`
+            : `Crafting ${craftLabel(tag, quantity)} (1/${turns}).`,
     });
     const replacedNow =
       (await recheckGrantsUnderLock(tx, character, tag)) ?? replaced;
@@ -1295,7 +1295,7 @@ async function loadOwnProject(character, projectId) {
     },
   });
   if (!project)
-    throw new UserError("That project isn't yours, or it's finished. ‡");
+    throw new UserError("That project isn't yours, or it's finished.");
   return project;
 }
 
@@ -1317,7 +1317,7 @@ async function continueCraftImpl({ projectId }) {
   const moveCost = { family: craftFamily(tag), num: 1, den: 1 };
   await resolveCraftMove(character, openTurn, moveCost);
   if (project.lastTurnId === openTurn.id)
-    throw new UserError("You've already worked on that this turn. ‡");
+    throw new UserError("You've already worked on that this turn.");
 
   const payerKeyParts = (project.payerKey ?? "").split(":");
   const payer = {
@@ -1349,7 +1349,7 @@ async function continueCraftImpl({ projectId }) {
       data: { turnsDone: next, lastTurnId: openTurn.id },
     });
     if (claim.count === 0)
-      throw new UserError("That project moved on without you — reload. ‡");
+      throw new UserError("That project moved on without you — reload.");
     const { action, budget } = await spendCraftMove(tx, {
       character,
       openTurn,
@@ -1362,8 +1362,8 @@ async function continueCraftImpl({ projectId }) {
         den: 1,
       },
       description: done
-        ? `Crafted ${craftLabel(tag, project.quantity)}. ‡`
-        : `Crafting ${craftLabel(tag, project.quantity)} (${next}/${project.turnsNeeded}). ‡`,
+        ? `Crafted ${craftLabel(tag, project.quantity)}.`
+        : `Crafting ${craftLabel(tag, project.quantity)} (${next}/${project.turnsNeeded}).`,
     });
     if (done) {
       const replacedNow =
@@ -1568,11 +1568,11 @@ async function refuseSameTypeHere(db, location, tag, placement) {
   const sameType = standing.filter((s) => s.typeSlug === tag.slug);
   if (sameType.some((s) => s.status === "UNDER_CONSTRUCTION")) {
     throw new UserError(
-      `A ${tag.name} is already going up here — lend a hand to that one instead. ‡`,
+      `A ${tag.name} is already going up here — lend a hand to that one instead.`,
     );
   }
   if (placement.unique && sameType.length) {
-    throw new UserError(`There is already a ${tag.name} here. ‡`);
+    throw new UserError(`There is already a ${tag.name} here.`);
   }
 }
 
@@ -1641,8 +1641,8 @@ async function openBuildSiteImpl(
       character,
       openTurn,
       done
-        ? `Raised a ${tag.name}. ‡`
-        : `Raising a ${tag.name} (1/${turns}). ‡`,
+        ? `Raised a ${tag.name}.`
+        : `Raising a ${tag.name} (1/${turns}).`,
       "auto:build",
     );
     await tx.structureWork.create({
@@ -1695,7 +1695,7 @@ async function openBuildSiteImpl(
     await notifyStakeholders(
       structureId,
       { except: character.id, payerKey: `${payer.kind}:${payer.id}` },
-      `The ${tag.name} at ${location.name} stands finished. ‡`,
+      `The ${tag.name} at ${location.name} stands finished.`,
     );
   }
   revalidateAll();
@@ -1717,7 +1717,7 @@ async function joinBuildSiteImpl({ structureId }) {
       locationId: character.locationId ?? "",
     },
   });
-  if (!site) throw new UserError("That site isn't here. ‡");
+  if (!site) throw new UserError("That site isn't here.");
 
   const openTurn = await getOpenTurn();
   await requireFreeMove(character, openTurn);
@@ -1742,7 +1742,7 @@ async function joinBuildSiteImpl({ structureId }) {
       });
     } catch (err) {
       if (err?.code === "P2002")
-        throw new UserError("You've already worked on that this turn. ‡");
+        throw new UserError("You've already worked on that this turn.");
       throw err;
     }
     const action = await fileAutoRoutine(
@@ -1750,8 +1750,8 @@ async function joinBuildSiteImpl({ structureId }) {
       character,
       openTurn,
       done
-        ? `Raised a ${site.typeName}. ‡`
-        : `Raising a ${site.typeName} (${next}/${site.turnsNeeded}). ‡`,
+        ? `Raised a ${site.typeName}.`
+        : `Raising a ${site.typeName} (${next}/${site.turnsNeeded}).`,
       "auto:build",
     );
     await tx.structureWork.update({
@@ -1772,7 +1772,7 @@ async function joinBuildSiteImpl({ structureId }) {
         : { turnsDone: next },
     });
     if (claim.count === 0)
-      throw new UserError("The work moved on without you — reload. ‡");
+      throw new UserError("The work moved on without you — reload.");
     if (done) {
       await finishStructure(tx, {
         session,
@@ -1810,7 +1810,7 @@ async function joinBuildSiteImpl({ structureId }) {
     await notifyStakeholders(
       site.id,
       { except: character.id, payerKey: site.payerKey },
-      `The ${site.typeName} at ${location?.name ?? "the site"} stands finished. ‡`,
+      `The ${site.typeName} at ${location?.name ?? "the site"} stands finished.`,
     );
   }
   revalidateAll();
@@ -1837,7 +1837,7 @@ async function cancelBuildSiteImpl({ structureId }) {
     },
   });
   if (!site)
-    throw new UserError("That isn't your site, or the work is already over. ‡");
+    throw new UserError("That isn't your site, or the work is already over.");
   const location = await prisma.location.findUnique({
     where: { id: site.locationId },
     select: { name: true, discordChannelId: true },
@@ -1853,7 +1853,7 @@ async function cancelBuildSiteImpl({ structureId }) {
       data: { status: "ABANDONED" },
     });
     if (claim.count === 0)
-      throw new UserError("The work moved on without you — reload. ‡");
+      throw new UserError("The work moved on without you — reload.");
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "build_cancelled",
@@ -1874,7 +1874,7 @@ async function cancelBuildSiteImpl({ structureId }) {
   await notifyStakeholders(
     site.id,
     { except: character.id, payerKey: site.payerKey },
-    `Work on the ${site.typeName} at ${location?.name ?? "the site"} has been called off. ‡`,
+    `Work on the ${site.typeName} at ${location?.name ?? "the site"} has been called off.`,
   );
   revalidateAll();
   return { cancelled: site.typeName };
@@ -1979,7 +1979,7 @@ async function destroyTagRequestImpl({
   const held = character.tags.find((ct) => ct.tagId === tagId);
   if (!held) throw new UserError("You don't have that tag.");
   if (!held.tag.removable)
-    throw new UserError("That isn't something you can destroy. ‡");
+    throw new UserError("That isn't something you can destroy.");
 
   const quantity = held.tag.stackable
     ? (parseCount(rawQuantity, { min: 1, max: held.quantity }) ?? 1)
@@ -2252,7 +2252,7 @@ async function transferRequestImpl({
     rawAmount == null || rawAmount === ""
       ? 0
       : parseCount(rawAmount, { min: 0 });
-  if (amount == null) throw new UserError("Amount must be a whole number. ‡");
+  if (amount == null) throw new UserError("Amount must be a whole number.");
   const lines = Array.isArray(rawTags)
     ? rawTags.map((t) => ({
         tagId: String(t?.tagId ?? ""),
@@ -2260,12 +2260,12 @@ async function transferRequestImpl({
       }))
     : [];
   if (lines.some((l) => !l.tagId || l.quantity == null)) {
-    throw new UserError("Each line needs a tag and a whole number. ‡");
+    throw new UserError("Each line needs a tag and a whole number.");
   }
   if (new Set(lines.map((l) => l.tagId)).size !== lines.length)
-    throw new UserError("A tag is listed twice. ‡");
+    throw new UserError("A tag is listed twice.");
   if (amount === 0 && lines.length === 0)
-    throw new UserError("Nothing to move. ‡");
+    throw new UserError("Nothing to move.");
 
   const [from, to] = await Promise.all([
     resolveParty(fromKey),
@@ -2279,7 +2279,7 @@ async function transferRequestImpl({
   // The source is you or a room. Everything else is Loot's business.
   if (from.kind === "character" && from.id !== character.id) {
     throw new UserError(
-      "You can only hand over your own things. Loot is how you take from a person. ‡",
+      "You can only hand over your own things. Loot is how you take from a person.",
     );
   }
   // Both ends have to be where you stand — re-checked here on the posted
@@ -2350,16 +2350,16 @@ async function transferRequestImpl({
     if (!held) {
       throw new UserError(
         from.kind === "room"
-          ? "That isn't there any more. ‡"
+          ? "That isn't there any more."
           : "You don't have that tag.",
       );
     }
     if (!isTradeable(held.tag))
-      throw new UserError("That isn't something that can change hands. ‡");
+      throw new UserError("That isn't something that can change hands.");
     let max = held.quantity;
     if (!held.tag.stackable && to.kind === "character") {
       if (recipientHeld.has(line.tagId))
-        throw new UserError(`${to.name} already has ${held.tag.name}. ‡`);
+        throw new UserError(`${to.name} already has ${held.tag.name}.`);
       max = 1;
     }
     const quantity = Math.min(line.quantity, max);
@@ -2501,9 +2501,9 @@ async function transferRequestImpl({
         to,
         character,
         destroyed
-          ? `tips ${goods} into the trough. It is gone. ‡`
+          ? `tips ${goods} into the trough. It is gone.`
           : nothingDestroyed
-            ? `tips ${goods} into the trough. It settles at the bottom, intact. ‡`
+            ? `tips ${goods} into the trough. It settles at the bottom, intact.`
             : `leaves ${goods} here.`,
       ),
     );
@@ -2594,7 +2594,7 @@ async function healCharacterRequestImpl({
     );
     if (already >= allowance) {
       throw new UserError(
-        `You've treated ${already} ${already === 1 ? "case" : "cases"} this turn, which is all you can manage. First aid still costs you nothing. ‡`,
+        `You've treated ${already} ${already === 1 ? "case" : "cases"} this turn, which is all you can manage. First aid still costs you nothing.`,
       );
     }
   }
@@ -2668,7 +2668,7 @@ async function healCharacterRequestImpl({
       const already = await routineHealsThisTurn(tx, session.discordUserId, openTurn.id);
       if (already >= allowance) {
         throw new UserError(
-          "You've treated all the cases you can manage this turn. ‡",
+          "You've treated all the cases you can manage this turn.",
         );
       }
     }
@@ -2698,7 +2698,7 @@ async function healCharacterRequestImpl({
             confirmedAt: new Date(),
             moveKind: "GAMBIT",
             moveReviewStatus: "OPEN",
-            description: `Treating ${target.id === character.id ? "their own" : `${target.name}'s`} ${held.tag.name}. ‡`,
+            description: `Treating ${target.id === character.id ? "their own" : `${target.name}'s`} ${held.tag.name}.`,
             diceRoll: rollDie(),
             diceModifier:
               gambitModifierTotal(character.tags, {
@@ -2710,7 +2710,7 @@ async function healCharacterRequestImpl({
         });
       } catch (err) {
         if (err?.code === "P2002")
-          throw new UserError("You've already used your Move this turn. ‡");
+          throw new UserError("You've already used your Move this turn.");
         throw err;
       }
       effect.actionId = action.id;
@@ -2751,14 +2751,14 @@ async function healCharacterRequestImpl({
     notifyCharacter(
       target,
       gambit
-        ? `${character.name} is working on your ${held.tag.name}. You'll know how it went at the end of the turn. ‡`
+        ? `${character.name} is working on your ${held.tag.name}. You'll know how it went at the end of the turn.`
         : `Your ${held.tag.name} was treated.`,
     );
   }
   if (payer.kind === "character" && payer.id !== character.id && cost > 0) {
     notifyCharacter(
       payer,
-      `${character.name} paid ${cost} ⬢ from your purse to treat ${target.id === character.id ? "themselves" : target.name}. ‡`,
+      `${character.name} paid ${cost} ⬢ from your purse to treat ${target.id === character.id ? "themselves" : target.name}.`,
     );
   }
   revalidateAll();
@@ -3011,7 +3011,7 @@ async function moveCharacterRequestImpl({
       toLocationId: targetLocation.id,
     }).catch(() => {});
   }
-  notifyCharacter(target, `You were moved to ${targetLocation.name}. ‡`);
+  notifyCharacter(target, `You were moved to ${targetLocation.name}.`);
   revalidateAll();
   return {};
 }
@@ -3043,7 +3043,7 @@ async function bindCharacterRequestImpl({
     throw new UserError(`${target.name} is already bound.`);
 
   const openTurn = await getOpenTurn();
-  if (!openTurn) throw new UserError("No turn is open. ‡");
+  if (!openTurn) throw new UserError("No turn is open.");
 
   const actor = {
     id: character.id,
@@ -3159,16 +3159,16 @@ async function crucifyCharacterRequestImpl({
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
   if (targetCharacterId === character.id)
-    throw new UserError("You can't crucify yourself. ‡");
+    throw new UserError("You can't crucify yourself.");
   if (!character.tags.some((ct) => ct.tag.slug === FUNDAMENTALIST_SLUG))
-    throw new UserError("Only a Fundamentalist would. ‡");
+    throw new UserError("Only a Fundamentalist would.");
 
   const location = await loadBuildGround(character.locationId);
   const standing = await structuresAt(prisma, character.locationId, {
     statuses: ["COMPLETE"],
   });
   const cross = standing.find((s) => s.typeSlug === CRUCIFIX_SLUG) ?? null;
-  if (!cross) throw new UserError("There is no cross standing here. ‡");
+  if (!cross) throw new UserError("There is no cross standing here.");
 
   const target = await prisma.character.findFirst({
     where: { id: targetCharacterId ?? "", status: "ALIVE" },
@@ -3185,16 +3185,16 @@ async function crucifyCharacterRequestImpl({
   if (!target || !isHere(character, target))
     throw new UserError(notHereMessage(target));
   if (target.tags.some((ct) => ct.tag.slug === CRUCIFIED_SLUG))
-    throw new UserError(`${target.name} is already on the cross. ‡`);
+    throw new UserError(`${target.name} is already on the cross.`);
 
   const crucified = await prisma.tag.findUnique({
     where: { slug: CRUCIFIED_SLUG },
   });
   if (!crucified)
-    throw new UserError("The Crucified tag is missing from the catalog — tell a GM. ‡");
+    throw new UserError("The Crucified tag is missing from the catalog — tell a GM.");
 
   const openTurn = await getOpenTurn();
-  if (!openTurn) throw new UserError("No turn is open. ‡");
+  if (!openTurn) throw new UserError("No turn is open.");
   const expiresTurn = await expiryForGrant(prisma, crucified, openTurn);
 
   const effect = {
@@ -3224,7 +3224,7 @@ async function crucifyCharacterRequestImpl({
   });
 
   await afterInventoryChange(target.id);
-  notifyCharacter(target, "You've been put on the cross. ‡");
+  notifyCharacter(target, "You've been put on the cross.");
   speakAtSite(
     location?.discordChannelId,
     ambientLine(`${target.name} hangs on the cross.`),
@@ -3255,11 +3255,11 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
   if (targetCharacterId === character.id)
-    throw new UserError("You can't torture yourself. ‡");
+    throw new UserError("You can't torture yourself.");
   // Re-checked here and not merely in the UI: the hidden button is a hint.
   const torturerSlugs = character.tags.map((ct) => ct.tag.slug);
   if (!torturerSlugs.includes(TORTURER_SLUG))
-    throw new UserError("You don't know how. ‡");
+    throw new UserError("You don't know how.");
 
   const target = await prisma.character.findFirst({
     where: { id: targetCharacterId ?? "", status: "ALIVE" },
@@ -3280,7 +3280,7 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
   if (!target || !isHere(character, target))
     throw new UserError(notHereMessage(target));
   if (!isBoundTarget(target))
-    throw new UserError(`${target.name} isn't tied up. ‡`);
+    throw new UserError(`${target.name} isn't tied up.`);
 
   const openTurn = await getOpenTurn();
   await requireFreeMove(character, openTurn);
@@ -3355,7 +3355,7 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
       tx,
       character,
       openTurn,
-      `Tortured ${target.name}: ${rollLine} — ${outcome}. ‡`,
+      `Tortured ${target.name}: ${rollLine} — ${outcome}.`,
       "auto:torture",
     );
     await logAudit(tx, {
@@ -3387,7 +3387,7 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
   if (reveal) {
     notifyCharacter(
       character,
-      `${rollLine}. ‡`,
+      `${rollLine}.`,
       {
         embeds: [
           buildTortureEmbed({
@@ -3406,7 +3406,7 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
       "You were tortured and failed to conceal your secrets. The torturer now knows everything about you.",
     );
   } else {
-    notifyCharacter(character, `${rollLine}. They held out. ‡`);
+    notifyCharacter(character, `${rollLine}. They held out.`);
     notifyCharacter(target, "You were tortured, but held out. It won't be long, now...");
   }
   revalidateAll();
@@ -3434,30 +3434,30 @@ async function disguiseSelfRequestImpl({ name: rawName }) {
   // Re-checked here and not merely in the UI: a server action is a public
   // endpoint, and page.js's predicate is a hint.
   if (!character.tags.some((ct) => ct.tag.slug === DISGUISE_KIT_SLUG))
-    throw new UserError("You have no disguise kit. ‡");
+    throw new UserError("You have no disguise kit.");
 
   const name = normalizeDisguiseName(rawName);
-  if (!name) throw new UserError("Pick a name to go by. ‡");
+  if (!name) throw new UserError("Pick a name to go by.");
   if (name === character.name)
-    throw new UserError("That is already your name. ‡");
+    throw new UserError("That is already your name.");
 
   // One at a time. Two forcedName rows would race, and forcedNameFrom takes
   // whichever comes back first.
   const already = await activeDisguise(prisma, character.id);
   if (already)
     throw new UserError(
-      `You are already going by ${already.tag.forcedName}. Wait for it to wear off. ‡`,
+      `You are already going by ${already.tag.forcedName}. Wait for it to wear off.`,
     );
 
   const openTurn = await getOpenTurn();
-  if (!openTurn) throw new UserError("No turn is open. ‡");
+  if (!openTurn) throw new UserError("No turn is open.");
 
   // Minted OUTSIDE the transaction, on purpose: the retry loop it uses cannot
   // run inside one, because Postgres aborts the whole transaction on the first
   // failed statement (see db/lib/paperMint.js). Two players picking the same
   // false name is exactly the collision it retries past.
   const tag = await mintDisguise(prisma, character.id, name, openTurn);
-  if (!tag) throw new UserError("Couldn't put that name on. Try another. ‡");
+  if (!tag) throw new UserError("Couldn't put that name on. Try another.");
 
   const effect = {
     tagId: tag.id,
@@ -3789,7 +3789,7 @@ async function changeNameRequestImpl({
   const potion = character.tags.find((ct) => ct.tag.slug === MULLIGAN_SLUG);
   if (!potion) {
     throw new UserError(
-      "You need a Mulligan Potion to take a new name. ‡",
+      "You need a Mulligan Potion to take a new name.",
     );
   }
 
@@ -3845,7 +3845,7 @@ async function changeNameRequestImpl({
       where: { characterId: character.id, tagId: potion.tagId, quantity: { gt: 0 } },
       select: { id: true },
     });
-    if (!stillHeld) throw new UserError("You need a Mulligan Potion to take a new name. ‡");
+    if (!stillHeld) throw new UserError("You need a Mulligan Potion to take a new name.");
     updated = await tx.character.update({
       where: { id: character.id },
       data: next,
@@ -3905,7 +3905,7 @@ async function resolveCorpseSource(character, { tagId, sourceKey }) {
   // One message for both "you made that up" and "someone got there first",
   // deliberately: telling them apart would say whether a body they cannot see
   // exists, which is the scouting leak the reach rule exists to prevent.
-  if (!found) throw new UserError("That body isn't there any more. ‡");
+  if (!found) throw new UserError("That body isn't there any more.");
   return found;
 }
 
@@ -3915,14 +3915,14 @@ async function resolveCorpseSource(character, { tagId, sourceKey }) {
 async function takeCorpse(tx, corpse) {
   if (corpse.source.kind === "room") {
     const ok = await dropRoomTag(tx, corpse.source.id, corpse.tagId, 1);
-    if (!ok) throw new UserError("That body isn't there any more. ‡");
+    if (!ok) throw new UserError("That body isn't there any more.");
     return;
   }
   const gone = await tx.characterTag.deleteMany({
     where: { characterId: corpse.source.id, tagId: corpse.tagId },
   });
   if (gone.count === 0)
-    throw new UserError("That body isn't there any more. ‡");
+    throw new UserError("That body isn't there any more.");
 }
 
 // Butchering. FREE — no ⬢, no Move — and it consumes the body.
@@ -3939,7 +3939,7 @@ async function butcherCorpseRequestImpl({
 
   // The gate, re-checked here because a disabled button is a hint, not a lock.
   if (!character.tags.some((ct) => ct.tag?.slug === BUTCHER_SLUG)) {
-    throw new UserError("You don't know how to butcher. ‡");
+    throw new UserError("You don't know how to butcher.");
   }
 
   const corpse = await resolveCorpseSource(character, { tagId, sourceKey });
@@ -3948,7 +3948,7 @@ async function butcherCorpseRequestImpl({
   });
   // A catalog out of step with the code. Refusing is right: silently granting
   // nothing would read to the player as the button being broken.
-  if (!yieldTag) throw new UserError("Nothing comes of that one. Tell a GM. ‡");
+  if (!yieldTag) throw new UserError("Nothing comes of that one. Tell a GM.");
 
   const openTurn = await getOpenTurn();
   const expiresTurn = await expiryForGrant(prisma, yieldTag, openTurn, {
@@ -3982,7 +3982,7 @@ async function butcherCorpseRequestImpl({
     const dead = await prisma.character.findUnique({
       where: { id: corpse.deadCharacterId },
     });
-    if (dead) notifyCharacter(dead, "Somebody has cut your body apart. ‡");
+    if (dead) notifyCharacter(dead, "Somebody has cut your body apart.");
   }
   // A public room's contents changing is public by nature (CARRY.md §6).
   if (corpse.source.kind === "room") {
@@ -4009,13 +4009,13 @@ async function buryCharacterRequestImpl({
 
   const corpse = await resolveCorpseSource(character, { tagId, sourceKey });
   if (!corpse.human || !corpse.deadCharacterId) {
-    throw new UserError("There's no soul in that one. ‡");
+    throw new UserError("There's no soul in that one.");
   }
   const target = await prisma.character.findUnique({
     where: { id: corpse.deadCharacterId },
   });
-  if (!target) throw new UserError("There's nobody left to bury. ‡");
-  if (target.buriedAt) throw new UserError("They're already in the ground. ‡");
+  if (!target) throw new UserError("There's nobody left to bury.");
+  if (target.buriedAt) throw new UserError("They're already in the ground.");
 
   const openTurn = await getOpenTurn();
   await requireFreeMove(character, openTurn);
@@ -4028,7 +4028,7 @@ async function buryCharacterRequestImpl({
       tx,
       character,
       openTurn,
-      `Buried ${target.name}. ‡`,
+      `Buried ${target.name}.`,
       "auto:bury",
     );
     await logAudit(tx, {
@@ -4085,10 +4085,10 @@ async function engraveHeadstoneRequestImpl({
     },
   });
   if (matches.length === 0)
-    throw new UserError("Nobody by that name is dead and unburied. ‡");
+    throw new UserError("Nobody by that name is dead and unburied.");
   if (matches.length > 1) {
     throw new UserError(
-      "More than one dead person answers to that name. A GM will have to do it. ‡",
+      "More than one dead person answers to that name. A GM will have to do it.",
     );
   }
   const target = matches[0];
@@ -4096,7 +4096,7 @@ async function engraveHeadstoneRequestImpl({
   // The friendly refusal. The real check is the conditional debit below, which
   // is what actually stops the balance going negative.
   if (character.resources < ENGRAVE_RESOURCE_COST) {
-    throw new UserError(`Engraving costs ${ENGRAVE_RESOURCE_COST} ⬢. ‡`);
+    throw new UserError(`Engraving costs ${ENGRAVE_RESOURCE_COST} ⬢.`);
   }
 
   const openTurn = await getOpenTurn();
@@ -4122,7 +4122,7 @@ async function engraveHeadstoneRequestImpl({
       tx,
       character,
       openTurn,
-      `Engraved a headstone for ${target.name}. ‡`,
+      `Engraved a headstone for ${target.name}.`,
       "auto:engrave",
     );
     await logAudit(tx, {
@@ -4144,7 +4144,7 @@ async function engraveHeadstoneRequestImpl({
 
   notifyCharacter(
     target,
-    "Somebody carved your name in stone. The curse has lifted. ‡",
+    "Somebody carved your name in stone. The curse has lifted.",
   );
 
   revalidateAll();
@@ -4170,11 +4170,11 @@ async function extractGodfleshRequestImpl() {
       })
     : null;
   if (!hasAttribute(location, GODFLESH_ATTRIBUTE)) {
-    throw new UserError("There's nothing to cut here. ‡");
+    throw new UserError("There's nothing to cut here.");
   }
   if (!extractToolFor(character.tags)) {
     throw new UserError(
-      "You need a hatchet, a battle-axe or a chainsaw in your hands. ‡",
+      "You need a hatchet, a battle-axe or a chainsaw in your hands.",
     );
   }
   // Bound, Dying, Paralyzed, Catatonic — or mid-Seizure from a cube, which is
@@ -4183,7 +4183,7 @@ async function extractGodfleshRequestImpl() {
   // into the marsh with an axe.
   const floored = blockerFor(character.tags, ACT);
   if (floored) {
-    throw new UserError(`You're in no state to be swinging anything — you're ${floored.name}. ‡`);
+    throw new UserError(`You're in no state to be swinging anything — you're ${floored.name}.`);
   }
 
   const openTurn = await getOpenTurn();
@@ -4203,7 +4203,7 @@ async function extractGodfleshRequestImpl() {
       : null,
   ]);
   if (!godflesh)
-    throw new UserError("The catalog has no Godflesh in it. Tell a GM. ‡");
+    throw new UserError("The catalog has no Godflesh in it. Tell a GM.");
 
   const effect = {
     die: result.die,
@@ -4234,7 +4234,7 @@ async function extractGodfleshRequestImpl() {
       tx,
       character,
       openTurn,
-      "*Out in the marsh, cutting.* ‡",
+      "*Out in the marsh, cutting.*",
       "auto:extract",
     );
     effect.actionId = action.id;
@@ -4278,7 +4278,7 @@ async function packageItemsRequestImpl({
   const label = String(rawLabel ?? "")
     .trim()
     .slice(0, PACKAGE_LABEL_MAX);
-  if (!label) throw new UserError("Say what's in it. ‡");
+  if (!label) throw new UserError("Say what's in it.");
 
   const lines = (Array.isArray(rawLines) ? rawLines : [])
     .map((l) => ({
@@ -4286,12 +4286,12 @@ async function packageItemsRequestImpl({
       quantity: Math.max(1, Math.trunc(Number(l?.quantity) || 1)),
     }))
     .filter((l) => l.tagId);
-  if (lines.length === 0) throw new UserError("Nothing selected. ‡");
+  if (lines.length === 0) throw new UserError("Nothing selected.");
 
   if (
     !(await hasEquipmentInReach(prisma, character, PACKAGING_EQUIPMENT_SLUG))
   ) {
-    throw new UserError("There's no packaging equipment here. ‡");
+    throw new UserError("There's no packaging equipment here.");
   }
 
   // Resolved against what they ACTUALLY hold, never against what was posted.
@@ -4300,12 +4300,12 @@ async function packageItemsRequestImpl({
   );
   const contents = lines.map((line) => {
     const row = held.find((ct) => ct.tagId === line.tagId);
-    if (!row) throw new UserError("You aren't carrying that. ‡");
+    if (!row) throw new UserError("You aren't carrying that.");
     if (!isTradeable(row.tag))
-      throw new UserError("That isn't something that can be packed. ‡");
+      throw new UserError("That isn't something that can be packed.");
     // A crate of crates would nest a consumesInto chain arbitrarily deep, and
     // halving twice is a free carry exploit besides.
-    if (isCrate(row.tag)) throw new UserError("You can't crate a crate. ‡");
+    if (isCrate(row.tag)) throw new UserError("You can't crate a crate.");
     const quantity = Math.min(line.quantity, row.quantity);
     return {
       tagId: row.tagId,
@@ -4322,7 +4322,7 @@ async function packageItemsRequestImpl({
   );
   if (innerLbs > PACKAGE_MAX_LBS) {
     throw new UserError(
-      `A crate holds ${PACKAGE_MAX_LBS} lb. That's ${Math.round(innerLbs)}. ‡`,
+      `A crate holds ${PACKAGE_MAX_LBS} lb. That's ${Math.round(innerLbs)}.`,
     );
   }
   // A second cap, on COUNT rather than weight, because the weight cap does not
@@ -4333,7 +4333,7 @@ async function packageItemsRequestImpl({
   const units = contents.reduce((sum, c) => sum + c.quantity, 0);
   if (units > PACKAGE_MAX_UNITS) {
     throw new UserError(
-      `A crate holds ${PACKAGE_MAX_UNITS} things. That's ${units}. ‡`,
+      `A crate holds ${PACKAGE_MAX_UNITS} things. That's ${units}.`,
     );
   }
 
@@ -4531,19 +4531,19 @@ async function birdMessageRequestImpl({
   const { session, character } = await requireCharacter({ needs: ACT });
 
   if (!holdsBirdAndLetters(character.tags)) {
-    throw new UserError("You need a bird, and you need to be able to write. ‡");
+    throw new UserError("You need a bird, and you need to be able to write.");
   }
 
   // The bird carries an OBJECT now. Resolved against what they actually hold,
   // never against what was posted. See docs/systemdocs/PAPERWORK.md.
   const held = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));
-  if (!held) throw new UserError("You aren't holding that. ‡");
+  if (!held) throw new UserError("You aren't holding that.");
   const kind = held.tag.paperKind;
   if (kind !== "PAPER" && kind !== "SEALED") {
-    throw new UserError("A bird carries letters, not that. ‡");
+    throw new UserError("A bird carries letters, not that.");
   }
   if (kind === "PAPER" && !(held.tag.paperText ?? "").trim()) {
-    throw new UserError("There's nothing written on it. ‡");
+    throw new UserError("There's nothing written on it.");
   }
 
   // A snapshot for the GM desk, so a letter that is later resealed, torn up or

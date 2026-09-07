@@ -288,7 +288,7 @@ After 6 turns spent hungry, you receive the {tag:dying} tag and a GM will review
 
 ### Fear
 
-Some things wear on a character's nerves — nights spent out in the wilderness or down in the caves, a wound, going hungry, worse. It shows up on your sheet as a Condition: Uncomfortable, Stressed, Anxious, Afraid, or Panicking, in rising order. Afraid costs you −1 on Gambit rolls; Panic costs −2. A roof settles it back down, and the Inn, the Keep, or the Sanctuary more so than an ordinary room. So does a drink, a lavish meal, a pot of tea, a smoke, hearing a Musician play, confession, or getting what you wanted from a Desire. A noble who skips a fine meal gets stressed the same way anyone else does from a rough night outdoors. ‡
+Some things wear on a character's nerves — nights spent out in the wilderness or down in the caves, a wound, going hungry, worse. It shows up on your sheet as a Condition: Uncomfortable, Stressed, Anxious, Afraid, or Panicking, in rising order. Afraid costs you −1 on Gambit rolls; Panic costs −2. A roof settles it back down, and the Inn, the Keep, or the Sanctuary more so than an ordinary room. So does a drink, a lavish meal, a pot of tea, a smoke, hearing a Musician play, confession, or getting what you wanted from a Desire. A noble who skips a fine meal gets stressed the same way anyone else does from a rough night outdoors.
 
 
 ## Submitting A Move
@@ -386,7 +386,7 @@ Tags are gained, used, and removed via options on your [Character](https://raven
 
 **Stacks:** Some tags can stack, such as meals or ammunition. A stacked chip will show the count, such as `×4`.
 
-**Carrying:** Everything you own has a weight, and you can carry 71 lb of it to start, plus 25 ⬢. Skills and wounds weigh nothing, and neither do your **Assets** — a horse carries itself, and a house doesn't move. Being **Strong**, being a **Pack Mule**, or pulling an equipped **Cart** raises both caps. ‡
+**Carrying:** Everything you own has a weight, and you can carry 71 lb of it to start, plus 25 ⬢. Skills and wounds weigh nothing, and neither do your **Assets** — a horse carries itself, and a house doesn't move. Being **Strong**, being a **Pack Mule**, or pulling an equipped **Cart** raises both caps.
 
 You can go over. Past the cap you're **Overburdened**, which costs you your free Zone moves — you can still travel, you just spend your Move to do it. Past *half again* the cap, though, it simply can't be yours: someone handing it to you is refused, and anything that arrives on its own (a day's harvest, a cave's loot) lands on the floor of a random public room where you stand.
 

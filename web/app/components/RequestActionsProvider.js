@@ -823,7 +823,7 @@ export default function RequestActionsProvider({
             ? (item.options ?? []).some((o) => (heldBySlug.get(o.slug) ?? 0) > 0)
             : (heldBySlug.get(item.slug) ?? 0) > 0;
         if (!held)
-          return `You don't have the ${item.label || "ingredients"} it uses. ‡`;
+          return `You don't have the ${item.label || "ingredients"} it uses.`;
       }
       if (!hasMoved) return null;
       const cost = priceRecipe(tag, 1);
@@ -831,13 +831,13 @@ export default function RequestActionsProvider({
       // A capped recipe hit its ration, not the Move — bone-mask past its
       // one-a-turn would otherwise be blamed on a Routine it never touches.
       if (cost.kind === "capped") {
-        return "You've made all of those a turn allows. ‡";
+        return "You've made all of those a turn allows.";
       }
       if (craftBudget && craftBudget.family !== cost.family) {
-        return `Your Routine is ${craftFamilyLabel(craftBudget.family)} work this turn. ‡`;
+        return `Your Routine is ${craftFamilyLabel(craftBudget.family)} work this turn.`;
       }
-      if (!craftBudget) return "You've already used your Move this turn. ‡";
-      return "There isn't enough of your Move left for that. ‡";
+      if (!craftBudget) return "You've already used your Move this turn.";
+      return "There isn't enough of your Move left for that.";
     },
     [hasMoved, craftBudget, priceRecipe, affordsMove, heldBySlug],
   );
@@ -1051,7 +1051,7 @@ export default function RequestActionsProvider({
               : null,
             moveLine,
             // The one-line Move note is signed-off copy; the budget wording is not.
-            moveLine && moveLine !== "This is your Move for the turn." ? "‡" : "",
+            moveLine && moveLine !== "This is your Move for the turn." ? "" : "",
           ]
             .filter(Boolean)
             .join(" "),
@@ -1473,8 +1473,8 @@ export default function RequestActionsProvider({
             submitLabel={
               mode === "craft" && (projectId || siteId)
                 ? projectChoice === "cancel"
-                  ? "Give it up ‡"
-                  : "Keep working ‡"
+                  ? "Give it up"
+                  : "Keep working"
                 : title
             }
             width={dialogWidth}
@@ -1508,7 +1508,7 @@ export default function RequestActionsProvider({
                     byId={gateById}
                     heldIds={heldIds}
                     blockedReason={recipeBlocked}
-                    emptyLabel="Nothing you could make right now. ‡"
+                    emptyLabel="Nothing you could make right now."
                   />
                 }
                 chosen={chosen}
@@ -2220,7 +2220,7 @@ export default function RequestActionsProvider({
                       : mode === "free"
                         ? "Nobody here is bound."
                         : mode === "torture"
-                          ? "Nobody here is tied up. ‡"
+                          ? "Nobody here is tied up."
                           : "There’s nobody here to put on the cross."}
                   </NobodyHere>
                 ) : (
@@ -2231,7 +2231,7 @@ export default function RequestActionsProvider({
                         : mode === "free"
                           ? "Who are you cutting loose?"
                           : mode === "torture"
-                            ? "Who are you torturing? ‡"
+                            ? "Who are you torturing?"
                             : "Who are you crucifying?"}
                     </span>
                     <Select
@@ -2256,7 +2256,7 @@ export default function RequestActionsProvider({
                     : mode === "free"
                       ? "Anyone standing here can do this, including someone who came to rescue them."
                       : mode === "torture"
-                        ? "It takes your Move. One die, resolved now: what they gave up arrives by DM. ‡"
+                        ? "It takes your Move. One die, resolved now: what they gave up arrives by DM."
                         : "They go up on the cross now. They can still speak, but nothing else — and in a turn they are Dying. It doesn't spend your Move. Say why."}
                 </p>
               </>

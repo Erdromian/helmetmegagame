@@ -136,7 +136,7 @@ documents:
     name: Teaching Skills
     public: true
     tags: []
-    description: "Skills can be taught. Find someone standing where you are who holds the skill and the {tag:teaching} tag, and press Learn Skill on your sheet — or they press Teach Skill. Teaching is a Routine for the teacher; learning is a Gambit for the student. The student learns the skill on a 5 or 6. Someone with {tag:teaching-lecturing} can take up to three students at once. A {tag:teaching-drill-instructor}'s students succeed on a 4 when the skill is a fighting skill."
+    description: "Skills can be taught. Find someone who holds the skill and the {tag:teaching} tag, and press Learn Skill on your sheet — or they press Teach Skill. Teaching is a Routine for the teacher; learning is a Gambit for the student. The student learns the skill on a 5 or 6. Someone with {tag:teaching-lecturing} can take up to three students at once. A {tag:teaching-drill-instructor}'s students succeed on a 4 when the skill is a fighting skill."
   production:
     name: Producing Resources
     public: true
@@ -338,12 +338,12 @@ documents:
 
       - Weapons: {tag:musketoon}, {tag:bore-pistol}
       - {tag:bomb} — each one is built around a charge of {tag:black-powder},
-        used up in the making. ‡
+        used up in the making.
 
-      One smaller piece of powder-work, at its own price: ‡
+      One smaller piece of powder-work, at its own price:
 
       - {tag:black-powder} — 3 ⬢, 1 turn. Refines one {tag:saltpeter}, used
-        up. ‡
+        up.
 
       **Odds and ends.** These sit off the tiers above — their own price, their
       own skill:
@@ -351,9 +351,9 @@ documents:
       - {tag:salvage-plate} — 5 ⬢, 1 turn, no skill at all. Scrap lashed
         together by anyone desperate enough.
       - {tag:bear-trap} — 5 ⬢, 1 turn, Smithing.
-      - {tag:trench-knife} — 8 ⬢, 1 turn, Smithing. ‡
+      - {tag:trench-knife} — 8 ⬢, 1 turn, Smithing.
       - {tag:gunpowder-grenade} — 6 ⬢, 1 turn, Smithing (Skilled). No
-        powder in it — just one raw {tag:saltpeter}, used up. ‡
+        powder in it — just one raw {tag:saltpeter}, used up.
       - {tag:disguise-kit}, {tag:jester-outfit} — 8 ⬢, 1 turn, Crafting.
       - Any {tag:wax-seal-ox} or other courtier seal — 2 ⬢, 1 turn, Forger.
         A brigand's trade: the mark is somebody else's, and you can only carry
@@ -361,15 +361,15 @@ documents:
       - {tag:workshop-equipment} — 26 ⬢, 2 turns, Smithing (Skilled). The one
         piece of smith's work you can do without a forge, because otherwise
         nobody could ever make the first one.
-      - {tag:painting} — 4 turns, a set of {tag:art-supplies}, and Artist. ‡
-      - {tag:badge} — 2 ⬢, 1 turn, Crafting. ‡
-      - {tag:hat} — 3 ⬢, 1 turn, Crafting. ‡
+      - {tag:painting} — 4 turns, a set of {tag:art-supplies}, and Artist.
+      - {tag:badge} — 2 ⬢, 1 turn, Crafting.
+      - {tag:hat} — 3 ⬢, 1 turn, Crafting.
 
       **Make it your own.** A few crafts — the {tag:badge}, the {tag:hat},
       the {tag:painting}, and a cook's meals — can be made as YOURS: pay 1 ⬢
       extra per piece and give it your own name and description. A named
       piece always shows what it is underneath, so a "Dockers' Mark (Badge)"
-      is still plainly a badge. ‡
+      is still plainly a badge.
 
   caving:
     name: Caving
@@ -414,9 +414,9 @@ documents:
       Fine meals make average people happy, but Nobility have them as a baseline. They need to eat them every once in a while or they'll be unhappy. Lavish meals make everyone happy and are valid objects of a Desire.
 
       **{tag:fine-meal}:** cost 2 ⬢ per meal. You can make up to 4 Fine meals in one Routine Move.
-      **{tag:lavish-meal}:** cost 3 ⬢ per meal, plus one imported delicacy per meal — {tag:tea}, {tag:sweets} or {tag:honey}, your pick, and it is used up. You can make up to 3 Lavish meals in one Routine Move. ‡
+      **{tag:lavish-meal}:** cost 3 ⬢ per meal, plus one imported delicacy per meal — {tag:tea}, {tag:sweets} or {tag:honey}, your pick, and it is used up. You can make up to 3 Lavish meals in one Routine Move.
 
-      **A dish of your own.** Either meal can be cooked as a signature dish for 1 ⬢ extra per meal: you name it and describe it, and it still plainly shows what it is — "Steak Dinner (Lavish Meal)". ‡
+      **A dish of your own.** Either meal can be cooked as a signature dish for 1 ⬢ extra per meal: you name it and describe it, and it still plainly shows what it is — "Steak Dinner (Lavish Meal)".
   alcoholdrugs:
     name: Alcohol & Drugs
     public: true
@@ -433,7 +433,7 @@ documents:
       ingredient. Requires Brewing (Basic).
 
       Every ingredient below is a real thing you have to be holding, and the
-      brewing uses it up unless the row says otherwise. ‡
+      brewing uses it up unless the row says otherwise.
 
       **Brewing (Basic)**
 
