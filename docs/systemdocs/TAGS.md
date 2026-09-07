@@ -1634,8 +1634,10 @@ drawbacks, each with its own writer:
   long as the character stands somewhere that triggers them —
   `db/lib/phobias.js` (the rule table) and `db/lib/phobiaPass.js` (the
   turn-close safety net). See "Phobias" below.
-- **Guilt Ridden and Insomniac** each carry a nightly chance of waking
-  Exhausted — `db/lib/dawnAfflictionPass.js`, run right after the hunger pass.
+- **Guilt Ridden and Insomniac** each carry a nightly chance of a bad night's
+  sleep, stepped through the same Tired -> Exhausted ladder a day's Labor uses
+  (`LABORING.md` §4) — `db/lib/dawnAfflictionPass.js`, run right after the
+  hunger pass.
 - **Lazy** takes a quarter off a labor roll's yield, after the roll —
   `lazyYield()` in `db/lib/laborAccess.js`, called from both
   `db/lib/autoLaborPass.js` and `bot/src/lib/moveConfirm.js`.

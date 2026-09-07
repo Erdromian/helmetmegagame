@@ -324,7 +324,7 @@ The choice between Routine or Gambit is left to you because you know what your c
 
 Labor is how you produce ⬢, and **you need a skill to do it at all**. Without one of the Laboring tags below, a day of work produces nothing. ‡
 
-Laboring is hard work: it leaves you with the {tag:exhausted} tag, and you can't Labor again until it wears off the following turn — one Labor per day. ‡
+Laboring is hard work: after your first day of it you're {tag:tired}, which doesn't stop you working again — but a second day running (or a third, or however many you push it) leaves you {tag:exhausted} instead, and you can't Labor again until you've rested. Exhausted also won't do you any favors in a fight. Rest one turn and Exhausted eases back down to Tired; rest a second and Tired clears completely, so how you pace it is up to you. ‡
 
 | Tag | ⬢ Yield | Where |
 |---|---|---|

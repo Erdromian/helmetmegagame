@@ -3225,19 +3225,37 @@ tags:
     purchasable: false
     durationTurns: 3
 
-  # Granted automatically by a Labor payout (db/lib/moveEffects.js), and read
-  # back by the Labor gate (db/lib/laborAccess.js) — one Labor per day, i.e.
-  # every other turn. durationTurns: 1 is what makes the clock work: granted
-  # while turn T closes, it blocks turn T+1 and is swept when T+1 closes.
+  # The precursor to Exhausted (db/lib/laborFatigue.js). Granted by a day's
+  # Labor, or by a bad night's sleep (Guilt Ridden, Insomniac). Doesn't block
+  # anything by itself — Labor, or a second bad night, escalates it straight
+  # to Exhausted instead of refreshing this. Left alone, it clears on its
+  # own — durationTurns: 1 the same way Exhausted's does, so it only survives
+  # into the very next turn.
+  tired:
+    catalog: gm
+    name: Tired
+    category: status
+    group: status-debuffs
+    description: "You worked hard, or slept badly. Push yourself again before you've rested and you'll wear yourself out. ‡"
+    pointCost: 0
+    purchasable: false
+    durationTurns: 1
+
+  # The escalated half of the same ladder (db/lib/laborFatigue.js). Reached by
+  # Laboring, or a bad night's sleep, while already Tired — two days running,
+  # or two bad nights running. durationTurns: 1 is what makes the clock work:
+  # granted while turn T closes, it blocks turn T+1 and degrades back into
+  # Tired when T+1 closes.
   exhausted:
     catalog: gm
     name: Exhausted
     category: status
     group: status-debuffs
-    description: "You are tired. You can't Labor again."
+    description: "You've pushed yourself too far. You can't Labor again until you've rested, and you won't fight well like this either. ‡"
     pointCost: 0
     purchasable: false
     durationTurns: 1
+    expiresInto: [tired]
 
   # Over a carry cap. Granted and cleared by db/lib/carry.js#settleCarry —
   # never by a player, never on a clock — and read by the zone-crossing gate

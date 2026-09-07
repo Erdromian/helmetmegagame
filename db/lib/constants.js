@@ -10,6 +10,8 @@ const COURTIER_SLUG = "courtier";
 const ATE_MEAL_SLUG = "ate-meal";
 const MORTUS_SLUG = "mortus";
 const DRAINED_SLUG = "drained";
+// The two-stage labor-fatigue ladder — see db/lib/laborFatigue.js.
+const TIRED_SLUG = "tired";
 const EXHAUSTED_SLUG = "exhausted";
 const LABORING_BASIC_SLUG = "laboring-basic";
 const LABORING_SKILLED_SLUG = "laboring-skilled";
@@ -132,6 +134,7 @@ module.exports = {
   ATE_MEAL_SLUG,
   MORTUS_SLUG,
   DRAINED_SLUG,
+  TIRED_SLUG,
   EXHAUSTED_SLUG,
   LABORING_BASIC_SLUG,
   LABORING_SKILLED_SLUG,
