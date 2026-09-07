@@ -181,6 +181,8 @@ Held tags scale a **gain** by its kind; the factors multiply, and a 0 wins:
 | `pyrophobia` (−2) | WOUND, only `burned` / `severe-burns` | ×3 |
 | `pain-immunity` (status) | TORTURED | ×0 |
 | `opium-high` (status) | TORTURED | ×0 |
+| `blessed` (status, 3t — a `chrism`'s anointing) | everything | ×0.5 |
+| `heartforged-blade` (**while equipped** — the first equipped-conditional rule; a caller that can't say what's equipped skips it, failing safe) | everything | ×0 |
 
 Brave × Rough Camper × Agoraphobia on a wilderness night is ×0.5; Pale ×
 Claustrophobia in the caves is ×1, which is funny and correct. Acrophobia is

@@ -15,8 +15,8 @@
 const { addToStack, replaceLowerTiers } = require("./tagWrites");
 const { LESSON_THRESHOLD } = require("./constants");
 
-function rollLine(turn, action) {
-  const mod = action.diceModifier ?? 0;
+function rollLine(turn, action, bonus = 0) {
+  const mod = (action.diceModifier ?? 0) + bonus;
   const total = (action.diceRoll ?? 0) + mod;
   const die = mod
     ? `**${action.diceRoll}** (${mod > 0 ? `+${mod}` : mod}) → **${total}**`
@@ -104,7 +104,16 @@ async function runLessonPass(prisma, turn) {
           return null;
         }
         const learner = people.get(offer.learnerId);
-        const { text, total } = rollLine(turn, action);
+        // The Minted Charm (docs/tags.yaml): +1 to the wearer's Learn roll
+        // while EQUIPPED at resolution — the student-side sibling of
+        // Teaching (Drill Instructor), which moves the threshold from the
+        // teacher's side instead.
+        const charm = await tx.characterTag.findFirst({
+          where: { characterId: offer.learnerId, equipped: true, tag: { slug: "minted-charm" } },
+          select: { id: true },
+        });
+        const charmBonus = charm ? 1 : 0;
+        const { text, total } = rollLine(turn, action, charmBonus);
         const threshold = offer.threshold ?? LESSON_THRESHOLD;
         const succeeded = learner?.status === "ALIVE" && total >= threshold;
         const skill = offer.tag?.name ?? "the skill";
@@ -148,6 +157,7 @@ async function runLessonPass(prisma, turn) {
             outcome: {
               diceRoll: action.diceRoll,
               diceModifier: action.diceModifier ?? 0,
+              charmBonus,
               total,
               threshold,
               succeeded,

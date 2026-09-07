@@ -74,6 +74,12 @@ function main() {
     const gaps = entriesOf(tags, "slug")
       .filter((t) => t.craftable && groups.includes(t.group))
       .filter((t) => !isWithheldRecipe(t, tags))
+      // A recipe whose TAG is not public (bone-mask, death-mask) is hidden a
+      // different way — the catalog flag — and is never DEMANDED in a public
+      // paper. Asymmetric on purpose: one already listed (bone-mask) is not
+      // flagged either, that being an authored choice, not a leak of the
+      // ingredient-hiding rule this audit polices.
+      .filter((t) => t.catalog === "all")
       .filter((t) => !listed.has(t.slug))
       .map((t) => ({
         slug: t.slug,

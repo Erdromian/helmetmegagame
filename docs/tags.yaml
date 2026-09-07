@@ -3172,6 +3172,23 @@ tags:
     purchasableAfterStart: false
     durationTurns: 3
 
+  # What a chrism anoints (Chris 2026-09-07). Two real mechanics, neither
+  # named here so the tag leaks no secrets: db/lib/tagWrites.js refuses to
+  # grant `broken` / `broken-enslaved` to a holder, and db/lib/fear.js halves
+  # every fear gain (MULTIPLIERS). Visible on purpose — a ward someone can
+  # see is a statement, and the Demoness seeing it is the point.
+  blessed:
+    catalog: gm
+    name: Blessed
+    category: status
+    group: status-buffs
+    description: "Anointed. While it holds, what would claim your soul cannot, and fear finds less purchase on you. ‡"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 3
+
   pheromones:
     catalog: secret
     name: Pheromones
@@ -5149,6 +5166,62 @@ tags:
     sellable: true
     sellablePrice: 6
 
+  # HIDDEN recipe (old-coin is non-public; Chris 2026-09-07): the smith's
+  # secret, struck from coinage older than Ravenheart. Its mechanic lives in
+  # db/lib/lessonPass.js: +1 to the wearer's Learn Skill roll while equipped
+  # — the student-side sibling of Teaching (Drill Instructor). Deliberately a
+  # 3-turn project at a real price: stacked with the teaching tags it makes
+  # learning trivial, so the charm itself must not be.
+  minted-charm:
+    catalog: all
+    name: Minted Charm
+    category: items
+    group: items-gear
+    description: "A talisman struck from a coin older than Ravenheart, worn on a cord. Old metal remembers old learning, and some of it rubs off. ‡"
+    pointCost: 3
+    equippable: true
+    visible: worn
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 3
+      resourceCost: 15
+      skills: [smithing]
+      gambit: false
+      items: [old-coin]
+    sellable: true
+    sellablePrice: 23
+
+  # HIDDEN recipe (nekker-pheromones is non-public; Chris 2026-09-07): the
+  # trapper's insurance. Not consumable by hand — db/lib/cavingPass.js spends
+  # it: the first TROUBLE the Caving Die rolls a holder is negated, the lure
+  # eaten in their place. One a turn, bone-mask's exact 0-turn butcher shape.
+  musk-lure:
+    catalog: all
+    name: Musk Lure
+    category: items
+    group: items-gear
+    description: "A wax plug of rendered nekker musk. Things in the dark would rather follow it than you. ‡"
+    pointCost: 2
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 2
+      perTurn: 1
+      skills: [butcher]
+      gambit: false
+      items: [nekker-pheromones]
+
   # --- Three brewing ingredients that used to be prose ---------------------
   #
   # Nightshade's "forest herb", Pure Luck's Aberrant heart and Raven Draught's
@@ -5552,7 +5625,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     customizable: true
     requirement:
@@ -7320,6 +7392,34 @@ tags:
     sellable: true
     sellablePrice: 42
 
+  # HIDDEN recipe (aberrant-heart is non-public; Chris 2026-09-07). Fights as
+  # Exceptional tier — the ladder's own language — and its second mechanic
+  # lives in db/lib/fear.js: while EQUIPPED, every fear gain is ×0. Not for
+  # the counter: no sell price on purpose. The heart drops nowhere until the
+  # loot pass lands; a GM grants it.
+  heartforged-blade:
+    catalog: all
+    name: Heartforged Blade
+    category: items
+    group: items-weapons
+    description: "A blade quenched, still glowing, in an Aberrant's heart. It keeps a faint warmth the forge cannot explain, and its wielder's hands do not shake. Anyone who examines it knows what was done to make it. ‡"
+    pointCost: 14
+    requiredTag: melee-basic
+    equippable: true
+    tradeable: true
+    weight: 5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 3
+      resourceCost: 34
+      skills: [smithing-skilled]
+      gambit: false
+      items: [aberrant-heart]
+
   crossbow:
     catalog: all
     name: Crossbow
@@ -7577,7 +7677,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -7604,7 +7703,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     craftable: true
     consumable: true
     consumesInto:
@@ -9705,6 +9803,33 @@ tags:
       skills: [blessing]
       gambit: false
 
+  # HIDDEN recipe (honey is non-public; Chris 2026-09-07): the Cathedral's
+  # second craft. Holy water poured on a thing; this is worked into a person.
+  # What Blessed actually does is documented on that tag, not here.
+  chrism:
+    catalog: all
+    name: Chrism
+    category: items
+    group: items-special
+    description: "Consecrated oil, thickened with honey and prayer. Anointing someone marks them {tag:blessed} for a time. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    consumesInto:
+      - blessed
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [blessing]
+      gambit: false
+      items: [holy-water, honey]
+
   bliss:
     catalog: all
     name: Bliss
@@ -10765,6 +10890,41 @@ tags:
       items:
         - group: items-corpse
 
+  # The rare artistic recipe (Chris 2026-09-07). gm-catalog like the Bone
+  # Mask: the group ingredient hides nothing on the Recipes tab, so the tag's
+  # own catalog flag is what keeps it out of the book — an artist standing
+  # with a corpse still finds it in the Craft menu. The craft path stamps the
+  # dead character's name onto the finished item ("Death Mask of Ada"),
+  # refuses a corpse whose face was already taken (one mask per body, ever —
+  # the request_craft_tag audit row is the record), and appends the fact to
+  # the corpse's own description. No sell price: the market is Nobles who
+  # commission one and enemies who want it, never the Depot counter.
+  death-mask:
+    catalog: gm
+    name: Death Mask
+    category: items
+    group: items-headgear
+    description: "A likeness taken from the dead in wax and plaster, saltpeter-cured so it keeps. A memorial, an evidence, or a prop — depending entirely on whose face it is and who is holding it. ‡"
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 1
+    visible: true
+    tradeable: true
+    weight: 1
+    stackable: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 4
+      skills: [artist]
+      gambit: false
+      items:
+        - group: items-corpse
+        - saltpeter
+
   balaclava:
     catalog: all
     name: Balaclava
@@ -11157,6 +11317,39 @@ tags:
     sellablePrice: 9
 
   # ─── Moderate (3 pt / 14 ⬢ / 1 turn, skilled smithing) ───
+  # HIDDEN recipe (non-public ingredient, Chris 2026-09-07): the tailor's
+  # secret. Competes with Padded Armor for the layer-1 slot — worse against a
+  # blade (0.2 vs 0.3), better against a bullet (0.1 vs 0.05), 8 lb against
+  # 12, and it reads as a garment rather than armor. Also competes with the
+  # brewers for sacs, deliberately.
+  graga-hide-cloak:
+    catalog: all
+    name: Graga-Hide Cloak
+    category: items
+    group: items-armor
+    description: "Thick, rubbery hide, cured and cut into a heavy travelling cloak. It sheds rain like a roof and takes a blow better than any coat has a right to. ‡"
+    pointCost: 3
+    equippable: true
+    equipSlot: BODY
+    equipLayer: 1
+    melee: 0.2
+    ballistic: 0.1
+    visible: true
+    tradeable: true
+    weight: 8
+    stackable: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [crafting]
+      gambit: false
+      items: [graga-sac]
+    sellable: true
+    sellablePrice: 9
+
   mail-shirt:
     catalog: all
     name: Mail Shirt

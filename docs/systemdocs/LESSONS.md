@@ -92,7 +92,11 @@ dead character's offers stay readable.
    Action already `SOLVED` → RESOLVED with `outcome.gmDecided`, no grant (the
    GM's word stands); otherwise `total = diceRoll + diceModifier`,
    `succeeded = total >= threshold`, grant on success, set the Action `SOLVED`
-   with a `resultMessage`. Both sides are DM'd the die and the result in one
+   with a `resultMessage`. A **Minted Charm** the learner has EQUIPPED at
+   resolution adds +1 to the total (2026-09-07; docs/tags.yaml
+   `minted-charm`, a hidden smith craft) — the student-side sibling of
+   Drill Instructor, which moves the threshold from the teacher's side; the
+   bonus is folded into the die line and recorded on `outcome.charmBonus`. Both sides are DM'd the die and the result in one
    line, so `stagedPush.js` skips its own 🎲 DM for `auto:lesson` Gambits.
    Every PENDING offer on the turn expires with a DM to the initiator.
 

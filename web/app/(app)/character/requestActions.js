@@ -823,8 +823,12 @@ async function spendCraftMove(
 // player's words — its query also filters `ephemeral` as a second lock),
 // and catalogVisibility (the GM default keeps a mint out of the public
 // catalog; referenceData ships an ephemeral row only to who holds it).
-async function mintCustomCraft(db, baseTag, { name, description }) {
-  const composedName = customCraftName(baseTag.name, name);
+async function mintCustomCraft(db, baseTag, { name, description, literal = false }) {
+  // `literal` is the Death Mask's door: the name arrives finished ("Death
+  // Mask of Ada" — stamped from the corpse, never typed) and must not gain
+  // the "(Death Mask)" suffix a player-worded custom wears, because the base
+  // identity is already the first two words.
+  const composedName = literal ? name : customCraftName(baseTag.name, name);
   const composedDescription = description || baseTag.description;
   const existing = await db.tag.findFirst({
     where: {
@@ -901,6 +905,9 @@ async function grantCrafted(
     // counters bill this grant against (web/lib/requests.js reads
     // details.baseTagId), and what a GM reading the audit row sees it was.
     baseTag = null,
+    // Recipe-specific extras for the audit row (the Death Mask records its
+    // source corpse here).
+    extraDetails = {},
   },
 ) {
   for (const snapshot of replaced)
@@ -942,8 +949,70 @@ async function grantCrafted(
       // it here. A multi-turn project spent these when it STARTED and
       // carried the snapshot on CraftProject.consumed until now.
       ...(consumed?.length ? { consumed } : {}),
+      ...extraDetails,
     },
   });
+}
+
+// --- The Death Mask (docs/tags.yaml `death-mask`) -------------------------
+//
+// The one recipe whose OUTPUT is named by an ingredient: the finished item is
+// stamped with the dead character's name ("Death Mask of Ada"), read off the
+// corpse it was cast over. The corpse is a group ingredient and so KEPT — but
+// a face can only be cut once, so the craft marks the corpse's own
+// description and refuses one already marked. The marker doubles as the
+// fiction: Examine says the face is gone.
+const DEATH_MASK_SLUG = "death-mask";
+const FACE_TAKEN_SENTENCE = "The face has been taken.";
+
+function maskNameFor(corpseName) {
+  // "Ada's Corpse" → "Ada"; "Ada's Corpse (2)" → "Ada (2)"; the authored
+  // monster corpses ("Graga Corpse") lose the bare word instead.
+  const who = corpseName.replace(/'s Corpse\b/, "").replace(/ Corpse\b/, "").trim();
+  return `Death Mask of ${who || "Nobody"}`;
+}
+
+// Which held corpse the mask is taken from. `ingredientChoice` carries the
+// corpse tag's SLUG (the same channel an anyOf pick uses — a recipe has at
+// most one of the two, so they cannot collide); a single unmarked corpse is
+// taken as chosen, the dialog's one-option convention.
+function resolveDeathMaskSource(character, ingredientChoice) {
+  const corpses = character.tags.filter(
+    (ct) => ct.tag?.group?.slug === "items-corpse",
+  );
+  if (!corpses.length) throw new UserError("Making that needs a corpse to hand.");
+  const untaken = corpses.filter(
+    (ct) => !(ct.tag.description ?? "").includes(FACE_TAKEN_SENTENCE),
+  );
+  if (!untaken.length)
+    throw new UserError("Every face here has already been taken.");
+  const choice = typeof ingredientChoice === "string" ? ingredientChoice.trim() : "";
+  const picked = choice
+    ? untaken.find((ct) => ct.tag.slug === choice)
+    : untaken.length === 1
+      ? untaken[0]
+      : null;
+  if (!picked) throw new UserError("Choose whose face the mask is taken from.");
+  return { tagId: picked.tagId, name: picked.tag.name };
+}
+
+// Marks the corpse inside the craft transaction. Compare-and-swap on the
+// exact description text, so two artists racing over one body cannot both
+// take the face — the loser's write matches nothing and the craft refuses.
+async function takeFace(tx, source) {
+  const row = await tx.tag.findUnique({
+    where: { id: source.tagId },
+    select: { description: true },
+  });
+  const current = row?.description ?? "";
+  if (current.includes(FACE_TAKEN_SENTENCE))
+    throw new UserError("That face has already been taken.");
+  const next = `${current.replace(/\s*‡\s*$/, "")} ${FACE_TAKEN_SENTENCE} ‡`.trim();
+  const { count } = await tx.tag.updateMany({
+    where: { id: source.tagId, description: current },
+    data: { description: next },
+  });
+  if (!count) throw new UserError("That face has already been taken.");
 }
 
 function payerNotice(character, payer, cost, tag) {
@@ -1007,6 +1076,13 @@ async function craftRequestImpl({
     quantity,
     ingredientChoice,
   );
+  // The Death Mask binds a SPECIFIC corpse (the group entry above only
+  // proved one is held) — resolved out here for the fast fail, marked
+  // inside the transaction by takeFace.
+  const deathMask =
+    tag.slug === DEATH_MASK_SLUG
+      ? resolveDeathMaskSource(character, ingredientChoice)
+      : null;
   // Customizing is +CUSTOM_SURCHARGE ⬢ a unit, like every other per-unit
   // cost. Fields posted against a non-customizable recipe are ignored, not
   // refused — the same posture as quantity on a non-stackable.
@@ -1175,9 +1251,19 @@ async function craftRequestImpl({
   let done = false;
   // A finishing craft mints now (outside the tx — mintCustomCraft says why);
   // a longer project carries the words on CraftProject.custom instead, and
-  // continueCraftImpl mints them on the finishing turn.
-  const grant =
-    custom.active && finishes ? await mintCustomCraft(prisma, tag, custom) : null;
+  // continueCraftImpl mints them on the finishing turn. The Death Mask's
+  // stamped name rides the same machinery in literal mode.
+  const grant = finishes
+    ? deathMask
+      ? await mintCustomCraft(prisma, tag, {
+          name: maskNameFor(deathMask.name),
+          description: "",
+          literal: true,
+        })
+      : custom.active
+        ? await mintCustomCraft(prisma, tag, custom)
+        : null
+    : null;
   try {
   await prisma.$transaction(async (tx) => {
     // Ingredients go in when the work starts, the same moment the ⬢ do — and
@@ -1204,6 +1290,10 @@ async function craftRequestImpl({
     const replacedNow =
       (await recheckGrantsUnderLock(tx, character, tag)) ?? replaced;
     const consumed = await consumeRecipeItems(tx, character.id, itemPlan);
+    // The face comes off when the work starts, like every other ingredient
+    // cost — an abandoned mask still ruined the face, and no second cast
+    // can ever be taken from this body.
+    if (deathMask) await takeFace(tx, deathMask);
     if (cost) await moveResources(tx, payer, -cost);
     const project = await tx.craftProject.create({
       data: {
@@ -1215,9 +1305,17 @@ async function craftRequestImpl({
         resourcesCost: cost,
         consumed: consumed.length ? consumed : undefined,
         custom:
-          custom.active && !finishes
-            ? { name: custom.name, description: custom.description }
-            : undefined,
+          deathMask && !finishes
+            ? {
+                deathMask: {
+                  name: maskNameFor(deathMask.name),
+                  sourceCorpseTagId: deathMask.tagId,
+                  sourceCorpseName: deathMask.name,
+                },
+              }
+            : custom.active && !finishes
+              ? { name: custom.name, description: custom.description }
+              : undefined,
         payerKey: `${payer.kind}:${payer.id}`,
         payerName: payer.name,
         startedTurnId: openTurn.id,
@@ -1239,6 +1337,9 @@ async function craftRequestImpl({
         project,
         action,
         consumed,
+        extraDetails: deathMask
+          ? { sourceCorpseTagId: deathMask.tagId, sourceCorpseName: deathMask.name }
+          : {},
       });
       await tx.craftProject.update({
         where: { id: project.id },
@@ -1334,9 +1435,21 @@ async function continueCraftImpl({ projectId }) {
           customDescription: project.custom.description,
         })
       : { active: false };
-  const grant = pendingCustom.active
-    ? await mintCustomCraft(prisma, tag, pendingCustom)
-    : null;
+  // A Death Mask project stamped its name (and source corpse) at start —
+  // stored under its own key so customCraftFields above ignores it.
+  const pendingMask =
+    done && project.custom && typeof project.custom === "object" && project.custom.deathMask
+      ? project.custom.deathMask
+      : null;
+  const grant = pendingMask
+    ? await mintCustomCraft(prisma, tag, {
+        name: pendingMask.name,
+        description: "",
+        literal: true,
+      })
+    : pendingCustom.active
+      ? await mintCustomCraft(prisma, tag, pendingCustom)
+      : null;
   try {
   await prisma.$transaction(async (tx) => {
     const claim = await tx.craftProject.updateMany({
@@ -1378,6 +1491,12 @@ async function continueCraftImpl({ projectId }) {
         // Spent back when the work began; carried here so the audit row
         // records the full price of the finished thing.
         consumed: Array.isArray(project.consumed) ? project.consumed : [],
+        extraDetails: pendingMask
+          ? {
+              sourceCorpseTagId: pendingMask.sourceCorpseTagId,
+              sourceCorpseName: pendingMask.sourceCorpseName,
+            }
+          : {},
       });
       await tx.craftProject.update({
         where: { id: project.id },

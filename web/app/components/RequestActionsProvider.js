@@ -407,6 +407,9 @@ export default function RequestActionsProvider({
   // Craft (CRAFTING.md): the recipe ids whose skills you hold, decided
   // server-side, and your projects in progress.
   knownRecipeIds = [],
+  // The Death Mask's corpse shortlist — held corpses whose face is still
+  // theirs, server-computed in character/page.js. See ingredientPick below.
+  deathMaskCorpses = [],
   craftProjects = [],
   // The craft Move budget (CRAFTING.md §2a), both server-computed in
   // character/page.js. `craftBudget` is this turn's ledger — which family of
@@ -735,6 +738,14 @@ export default function RequestActionsProvider({
   // not a gate. At most one per recipe; the sync refuses a second.
   const ingredientPick = useMemo(() => {
     if (mode !== "craft") return null;
+    // The Death Mask's `group` corpse entry needs a SPECIFIC body — same
+    // picker, same ingredientChoice channel (a recipe never carries both an
+    // anyOf and this; the sync caps anyOf at one and only this recipe binds
+    // a group member). The server re-resolves the choice like any other
+    // (requestActions.js#resolveDeathMaskSource).
+    if (chosen?.slug === "death-mask") {
+      return { label: "Whose face?", options: deathMaskCorpses };
+    }
     const entry = (chosen?.requirementItems ?? []).find(
       (i) => i?.kind === "anyOf",
     );
@@ -743,7 +754,7 @@ export default function RequestActionsProvider({
       label: entry.label,
       options: (entry.options ?? []).filter((o) => heldSlugs.has(o.slug)),
     };
-  }, [mode, chosen, heldSlugs]);
+  }, [mode, chosen, heldSlugs, deathMaskCorpses]);
   // One option needs no decision, so it is taken as made rather than asked for.
   const ingredientChoiceValue =
     ingredientChoice ||

@@ -527,8 +527,16 @@ documents:
       | {tag:pure-luck} | Brewing (Skilled) | 0 | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
       | {tag:raven-draught} | Brewing (Skilled) | 2 | {tag:ravens-eye} | foraged — GM-granted until the loot pass wires it |
       | {tag:honeyed-cakes} | Cooking (Skilled) | 3 | {tag:honey} | the Depot's shelf, 4 ⬢ |
+      | {tag:graga-hide-cloak} | Crafting | 6 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
+      | {tag:minted-charm} | Smithing | 15, 3-turn project | {tag:old-coin} | caving loot |
+      | {tag:musk-lure} | Butcher | 2 | {tag:nekker-pheromones} | butchered from a {tag:nekker-corpse} |
+      | {tag:chrism} | Blessing | 2 | {tag:holy-water} and {tag:honey} | the Cathedral's still and the Depot's shelf |
+      | {tag:heartforged-blade} | Smithing (Skilled) | 34, 3-turn project | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
+      | {tag:death-mask} | Artist | 4, 2-turn project | a corpse (kept) and {tag:saltpeter} | hidden by its own catalog flag, like the {tag:bone-mask}: an artist standing with a body finds it |
 
       The {tag:lavish-meal} also takes {tag:honey} as an unlisted third delicacy — a cook holding a jar sees the option; the public paper names only tea and sweets. ‡
+
+      Mechanics a GM adjudicates or should know: the {tag:blessed} status a {tag:chrism} grants blocks Break-family grants outright and halves fear gains for 3 turns; an equipped {tag:heartforged-blade} zeroes fear gains and fights as Exceptional; a held {tag:musk-lure} is auto-spent to negate its holder's first cave TROUBLE; an equipped {tag:minted-charm} adds +1 to Learn Skill rolls; a {tag:death-mask} can be taken ONCE per corpse — the body's description says when a face is gone — and the finished mask is named for the dead. ‡
 
   # The Demoness threat's own brief (db/lib/threats.js). Assigned by the
   # Demoness tag, which is also what unlocks the hidden Demoness tag

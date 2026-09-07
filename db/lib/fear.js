@@ -133,6 +133,14 @@ const MULTIPLIERS = Object.freeze([
   // torturer who waits a day gets the full +40 (db/lib/torture.js).
   { slug: "pain-immunity", kinds: ["TORTURED"], factor: 0 },
   { slug: "opium-high", kinds: ["TORTURED"], factor: 0 },
+  // A chrism's anointing steadies the whole dial for its three turns —
+  // half of Brave's own rule, on a status instead of a build.
+  { slug: "blessed", kinds: "*", factor: 0.5 },
+  // The blade quenched in an Aberrant's heart: the wielder's dial does not
+  // climb AT ALL while it is in hand. `equipped` rules only fire when the
+  // caller can say what is equipped (equippedSlugs below); a caller that
+  // cannot simply never applies them, which fails safe — no free immunity.
+  { slug: "heartforged-blade", kinds: "*", factor: 0, equipped: true },
 ]);
 // Every slug the tables above read, so a caller loading a sheet knows what to
 // select — and so the turn pass can filter its candidate query.
@@ -207,11 +215,15 @@ function woundFearFor(tag) {
 
 // The product of every applicable factor. A 0 anywhere wins, whatever else is
 // held — Outsider means the wilderness costs nothing, full stop.
-function multiplierFor(kind, heldSlugs, ctx = {}) {
+function multiplierFor(kind, heldSlugs, ctx = {}, equippedSlugs = null) {
   const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
+  const worn = equippedSlugs instanceof Set ? equippedSlugs : new Set(equippedSlugs ?? []);
   let factor = 1;
   for (const rule of MULTIPLIERS) {
     if (!held.has(rule.slug)) continue;
+    // An `equipped` rule reads the sheet's equipped state, not just holding —
+    // a Heartforged Blade in a bag steadies nobody.
+    if (rule.equipped && !worn.has(rule.slug)) continue;
     if (rule.kinds !== "*" && !rule.kinds.includes(kind)) continue;
     if (rule.when && !rule.when(ctx)) continue;
     factor *= rule.factor;
@@ -221,10 +233,10 @@ function multiplierFor(kind, heldSlugs, ctx = {}) {
 
 // One term -> the signed change to the dial. Gains: base × multipliers × k.
 // Relief and decay: base ÷ k, untouched by any tag. k = 0 zeroes both.
-function resolveDelta({ kind, base, heldSlugs, intensity = 1, ctx = {} }) {
+function resolveDelta({ kind, base, heldSlugs, intensity = 1, ctx = {}, equippedSlugs = null }) {
   const k = Number.isFinite(intensity) && intensity > 0 ? intensity : 0;
   if (!base || k === 0) return 0;
-  const raw = base > 0 ? base * multiplierFor(kind, heldSlugs, ctx) * k : base / k;
+  const raw = base > 0 ? base * multiplierFor(kind, heldSlugs, ctx, equippedSlugs) * k : base / k;
   return Math.round(raw * 100) / 100;
 }
 
@@ -334,7 +346,7 @@ const FEAR_CHARACTER_SELECT = {
   status: true,
   fear: true,
   discordUserId: true,
-  tags: { select: { tagId: true, source: true, tag: { select: { slug: true } } } },
+  tags: { select: { tagId: true, source: true, equipped: true, tag: { select: { slug: true } } } },
 };
 async function applyFearTerms(tx, characterId, terms, { intensity = null, notify = true, character = null } = {}) {
   if (!character) {
@@ -343,13 +355,16 @@ async function applyFearTerms(tx, characterId, terms, { intensity = null, notify
   if (!character) return null;
 
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
+  // A caller that pre-loaded tags without `equipped` yields an empty set,
+  // and the equipped-only rules simply sit out — see MULTIPLIERS.
+  const equippedSlugs = new Set(character.tags.filter((ct) => ct.equipped).map((ct) => ct.tag.slug));
   const before = character.fear ?? 0;
   let delta = 0;
   if (character.status === "ALIVE" && terms?.length) {
     const k = intensity ?? (await loadIntensity(tx));
     for (const term of terms) {
       if (!term || !term.base) continue;
-      delta += resolveDelta({ kind: term.kind, base: term.base, heldSlugs, intensity: k, ctx: term.ctx });
+      delta += resolveDelta({ kind: term.kind, base: term.base, heldSlugs, intensity: k, ctx: term.ctx, equippedSlugs });
     }
     delta = Math.round(delta * 100) / 100;
   }

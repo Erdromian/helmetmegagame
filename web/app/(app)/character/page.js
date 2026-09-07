@@ -633,6 +633,17 @@ export default async function CharacterPage({ searchParams }) {
       return slugs.some((s) => visibilityBySlug.get(s) !== "ALL");
     });
   }
+  // The Death Mask's corpse picker (CraftDialog via RequestActionsProvider):
+  // which held corpses still have their face. Server-computed here so the
+  // list and its face-taken filter can never drift from the craft's own
+  // verdict (requestActions.js#resolveDeathMaskSource).
+  const deathMaskCorpses = character.tags
+    .filter(
+      (ct) =>
+        ct.tag.group?.slug === "items-corpse" &&
+        !(ct.tag.description ?? "").includes("The face has been taken."),
+    )
+    .map((ct) => ({ slug: ct.tag.slug, name: ct.tag.name }));
   // Mirrors resolveRecipeItems' HOLD semantics (requestActions.js), at
   // quantity 1 — a hidden recipe only has to prove itself known, not
   // affordable, so this checks "holds one" rather than resolving a spend
@@ -951,6 +962,7 @@ export default async function CharacterPage({ searchParams }) {
       hasMoved={Boolean(currentAction)}
       canTeach={canTeach}
       knownRecipeIds={knownRecipeIds}
+      deathMaskCorpses={deathMaskCorpses}
       craftProjects={craftProjects}
       craftBudget={craftBudget}
       craftAllowances={craftAllowances}
