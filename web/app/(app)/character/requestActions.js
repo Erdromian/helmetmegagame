@@ -2938,8 +2938,12 @@ async function healCharacterRequestImpl({
   // A held Portable Surgical Pack stands in for the +1 when nothing else is
   // in reach — the die's bonus only, never the site above. Which pack (if
   // any) actually gets spent is decided inside the transaction, under a row
-  // lock, so two tabs firing the same Gambit at once can't both spend it —
-  // this outside value is provisional, for the snapshot below only.
+  // lock, so two tabs firing the same Gambit at once can't both spend it.
+  // This outside value is only the initial seed for effect.surgical below —
+  // a Gambit corrects it in place once the pack question is settled (review
+  // fix: the old code let this stale pre-transaction value leak into the
+  // function's own return payload, wrong exactly when a pack got spent; it
+  // is never returned now, only audited).
   const surgical = gambit ? equipmentReach : false;
 
   const openTurn = await getOpenTurn();
@@ -3236,7 +3240,6 @@ async function healCharacterRequestImpl({
     tagName: held.tag.name,
     cost,
     gambit,
-    surgical,
   };
 }
 
