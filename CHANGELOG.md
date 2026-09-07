@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Chat fits the screen it is on
+
+− Rooms in the left column show their description when you rest the pointer on them  
+− Three widths above the phone now: the side columns shrink at 1200px and the right one folds into the ⋯ sheet at 900px, so a mid-sized window keeps a readable scene  
+− The ⋯ that opens the sheet on a phone finally shows, and the floating turn chip no longer sits on top of it  
+− The place card in the right column flows instead of scrolling inside a 12rem box  
+− Clicking an icon button no longer pins its own label open with a ×
+
 ## 2026-09-07 · Travel cards stop cutting their descriptions off
 
 − A location card on Travel is as tall as its three-line description needs, ends on a real ellipsis, and keeps the cost on one line under a hairline instead of squeezing the text above it
