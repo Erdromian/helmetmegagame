@@ -1204,6 +1204,12 @@ export default function RequestActionsProvider({
           targetCharacterId: patientId,
           tagId,
           payerKey,
+          // What the confirm just showed as costing the Move — 0 for a
+          // Gambit (its own Move, not this ledger) or a free cure, 1 for
+          // anything billed. Mirrors craft's billedSeen contract
+          // (CRAFTING.md §2a): a stale pool reading gets the "reload"
+          // refusal, not a silent Move charge (review fix, M2).
+          billedSeen: String(!affliction?.gambit && affliction?.moveCost?.kind !== "free" ? 1 : 0),
         });
       case "transfer":
         return transferRequest({
@@ -1784,11 +1790,27 @@ export default function RequestActionsProvider({
                   </p>
                 )}
                 {/* administerSkill's Move fee (M2, CRAFTING.md §2a /
-                    TAGS.md §5c) — fitting is surgery, even on your own leg. */}
+                    TAGS.md §5c) — fitting is surgery, even on your own leg.
+                    Same committed-Routine warning shape as the Heal dialog's
+                    (review fix, M2): a fixed 1/2 of the medical family,
+                    checked against whatever Routine is already filed. */}
                 {chosen?.administerSkill && (
-                  <p className="text-xs text-muted">
-                    Costs half your Move — the fitting is the skilled part. ‡
-                  </p>
+                  <>
+                    <p className="text-xs text-muted">
+                      Costs half your Move — the fitting is the skilled part. ‡
+                    </p>
+                    {craftBudget &&
+                      (craftBudget.family !== "medical" ? (
+                        <p className="text-xs text-accent">
+                          {`Your Routine this turn is ${craftFamilyLabel(craftBudget.family)} work, and this isn't. ‡`}
+                        </p>
+                      ) : !fitsInRemaining(
+                          { num: 1, den: 2 },
+                          { num: craftBudget.remainingNum, den: craftBudget.remainingDen },
+                        ) ? (
+                        <p className="text-xs text-accent">Your Move is spent for this turn. ‡</p>
+                      ) : null)}
+                  </>
                 )}
               </>
             )}
@@ -1876,18 +1898,25 @@ export default function RequestActionsProvider({
                           ? ` First aid doesn't cost a Move — ${healsLeft ?? "a few"} free treatments left today. ‡`
                           : ` This costs ${formatMoveFraction(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move${affliction.moveCost?.kind === "spill" ? ", past today's free first aid" : ""}. ‡`}
                     </p>
-                    {/* Cross-family warning, same shape as the Craft dialog's
-                        (CraftDialog.js) — a Routine already committed to
-                        another family's work refuses a heal exactly the way
-                        it refuses a mismatched craft (CRAFTING.md §2a). */}
+                    {/* Committed-Routine warning, same shape as the Craft
+                        dialog's (CraftDialog.js): a different family refuses
+                        outright, the SAME family with nothing left to give
+                        (medical at 8/8, e.g.) still can't pay even though the
+                        line above just quoted a price for it (review fix,
+                        M2 — that second case fell through silently before). */}
                     {!affliction.gambit &&
                       affliction.moveCost?.kind !== "free" &&
                       craftBudget &&
-                      craftBudget.family !== "medical" && (
+                      (craftBudget.family !== "medical" ? (
                         <p className="text-xs text-accent">
                           {`Your Routine this turn is ${craftFamilyLabel(craftBudget.family)} work, and treating isn't. ‡`}
                         </p>
-                      )}
+                      ) : !fitsInRemaining(
+                          { num: affliction.moveCost.num, den: affliction.moveCost.den },
+                          { num: craftBudget.remainingNum, den: craftBudget.remainingDen },
+                        ) ? (
+                        <p className="text-xs text-accent">Your Move is spent for this turn. ‡</p>
+                      ) : null)}
                   </>
                 )}
               </>
