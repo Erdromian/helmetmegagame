@@ -106,6 +106,7 @@ import {
 import { createLessonOffer } from "@lifeweb/db/lib/lessons";
 import { createConfessionOffer } from "@lifeweb/db/lib/confession";
 import { resolveConsumeGrants, heldSlugsOf, resistSlugsOf } from "@/lib/consumeGrants";
+import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { recordArchiveEvent } from "@/lib/archive";
 import {
   syncCharacterNarrowcastAccess,
@@ -2250,6 +2251,81 @@ async function photographNothingImpl({ session, character, held }) {
   return { ok: true, name: photo.name };
 }
 
+// Opening a player-packed crate (LAUNDERING CLASS, fix round M4). A crate is
+// an ordinary CONSUMABLE (packageItemsRequestImpl's own comment explains
+// why), but its real contents live in `crateContents`, not `consumesInto` —
+// the ordinary consume path resolves a grant through resolveConsumeGrants
+// and grantTagSlugs, and grantTagSlugs knows nothing whatsoever about
+// poison. A poisoned line item packed into this crate needs to land back on
+// the sheet poisoned, or packing it was a free bleach: same reasoning,
+// same road as breakSeal/photographNothing above, and the same shape
+// depot/actions.js#openCrateImpl already uses for a Depot shipment — one
+// manifest, unpacked identically wherever it's opened, since a player-packed
+// crate can be carried to the Depot and cracked there instead.
+async function openHeldCrateImpl({ session, character, held }) {
+  const contents = Array.isArray(held.tag.crateContents) ? held.tag.crateContents : [];
+  const openTurn = await getOpenTurn();
+  const inner = await prisma.tag.findMany({
+    where: { id: { in: contents.map((c) => c.tagId) } },
+  });
+  const byId = new Map(inner.map((t) => [t.id, t]));
+
+  const granted = [];
+  const skipped = [];
+  await prisma.$transaction(async (tx) => {
+    for (const line of contents) {
+      const tag = byId.get(line.tagId);
+      // A ware pruned out of the catalog since packing is gone. Skip it
+      // rather than fail the whole crate.
+      if (!tag) continue;
+      const before = await tx.characterTag.findUnique({
+        where: { characterId_tagId: { characterId: character.id, tagId: tag.id } },
+      });
+      await addToStack(tx, character.id, tag.id, line.quantity, {
+        source: "EVENT",
+        stackable: tag.stackable,
+        expiresTurn: await expiryForGrant(tx, tag, openTurn, {
+          characterId: character.id,
+          where: "openHeldCrate",
+        }),
+        // The laundering fix itself: what packageItemsRequestImpl's own
+        // manifest stored for this line, carried straight onto the landing
+        // row. Absent (undefined) on a clean line, same as addToStack's own
+        // no-poison default.
+        poisonedCount: line.poisonedCount ?? 0,
+        poisonPayload: line.poisonPayload ?? null,
+      });
+      const landed = tag.stackable ? line.quantity : before ? 0 : 1;
+      if (landed > 0) granted.push({ tagId: tag.id, name: tag.name, quantity: landed });
+      else skipped.push({ tagId: tag.id, name: tag.name, reason: "already held, and only one can be carried" });
+    }
+
+    await dropCharacterTag(tx, character.id, held.tagId, 1);
+
+    const effect = { crateTagId: held.tagId, crateName: held.tag.name, granted, skipped };
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_consume_tag",
+      targetCharacterId: character.id,
+      turnId: openTurn?.id ?? null,
+      details: effect,
+    });
+
+    // The crate is a one-off catalog row (packageItemsRequestImpl mints one
+    // per packing) and this was the last of it — same cleanup
+    // depot/actions.js#openCrateImpl does for a shipment crate.
+    const stillHeld = await tx.characterTag.count({ where: { tagId: held.tagId } });
+    const stillStashed = await tx.roomTag.count({ where: { tagId: held.tagId } });
+    if (stillHeld === 0 && stillStashed === 0) {
+      await tx.tag.delete({ where: { id: held.tagId } }).catch(() => {});
+    }
+  });
+
+  await afterInventoryChange([character.id]);
+  revalidateAll();
+  return {};
+}
+
 async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   const { session, character } = await requireCharacter();
 
@@ -2269,6 +2345,15 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   // row rather than into anything the catalog can name.
   if (held.tag.slug === CAMERA_SLUG) {
     return photographNothingImpl({ session, character, held });
+  }
+
+  // A crate's own road (M4 fix round, see openHeldCrateImpl above) — only
+  // for opening it yourself. Administering a crate to someone else is not a
+  // thing (it has no `cures` and isn't `administerable`), so that case falls
+  // through to the ordinary path below, which already refuses it with the
+  // same message any other non-curative item gets.
+  if (isCrate(held.tag) && (!targetCharacterId || targetCharacterId === character.id)) {
+    return openHeldCrateImpl({ session, character, held });
   }
 
   // Administerable: the item's `cures` intersects what a target holds, or
@@ -2395,20 +2480,12 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     resources: resourcesGranted,
   } = resolveConsumeGrants(held.tag, heldSlugsOf(target.tags), ladder, resistSlugs);
 
-  // The rungs the climb clears — Tipsy coming off as Wasted goes on.
-  // Snapshotted the same way `cleared` below is, so an Undo puts the drinker
-  // back exactly where they were rather than leaving them Wasted with no
-  // Tipsy underneath.
-  const climbed = climbedFrom
-    .map((slug) => target.tags.find((ct) => ct.tag.slug === slug))
-    .filter(Boolean)
-    .map((ct) => ({
-      tagId: ct.tagId,
-      tagName: ct.tag.name,
-      source: ct.source,
-      expiresTurn: ct.expiresTurn,
-      quantity: 1,
-    }));
+  // The rungs the climb clears — Tipsy coming off as Wasted goes on. Built
+  // INSIDE the transaction below, once the poisoned draw is known (fix
+  // round, M4: the poison's own `removes` merges in there too) — snapshotted
+  // the same way `cleared` normally is, so an Undo puts the drinker back
+  // exactly where they were rather than leaving them Wasted with no Tipsy
+  // underneath.
 
   // What this eases (docs/systemdocs/FEAR.md): a drink or a drug by the state
   // it lands you in, a lavish meal, tea or a cigarette by what it is. The
@@ -2522,10 +2599,33 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
       }
     }
     const allGrantSlugs = poisonDraw ? [...grantSlugs, ...poisonDraw.grants.slugs] : grantSlugs;
+    // A collision here is the food's own duration override against the
+    // poison's — spread order means the POISON wins (it's applied last),
+    // which is deliberate: a poison landing on top of a food grant is the
+    // more dangerous half of the two, and its own timing should be the one
+    // that sticks rather than getting silently overridden by whatever the
+    // meal itself happened to specify for the same slug.
     const allGrantDurations = poisonDraw
       ? { ...grantDurations, ...poisonDraw.grants.durations }
       : grantDurations;
     const allResisted = poisonDraw ? [...resistedSlugs, ...poisonDraw.grants.resisted] : resistedSlugs;
+    // Grant asymmetry (fix round, M4): the merge above used to drop the
+    // poison's own `removes` (ladder rungs ITS consumesInto clears) and
+    // `resources` (flat ⬢ it grants) on the floor — honored below, the same
+    // way the food's own halves already are.
+    const allClimbedFrom = poisonDraw ? [...climbedFrom, ...poisonDraw.grants.removes] : climbedFrom;
+    const allResourcesGranted = resourcesGranted + (poisonDraw?.grants.resources ?? 0);
+
+    const climbed = allClimbedFrom
+      .map((slug) => target.tags.find((ct) => ct.tag.slug === slug))
+      .filter(Boolean)
+      .map((ct) => ({
+        tagId: ct.tagId,
+        tagName: ct.tag.name,
+        source: ct.source,
+        expiresTurn: ct.expiresTurn,
+        quantity: 1,
+      }));
 
     for (const rung of climbed) await dropCharacterTag(tx, target.id, rung.tagId, 1);
     const granted = await grantTagSlugs(
@@ -2537,11 +2637,11 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     );
     // The Resources half — Purse and Supply Kit (CAVING.md). Most
     // consumables grant none, so this is usually a no-op.
-    if (resourcesGranted) {
+    if (allResourcesGranted) {
       await creditResources(
         tx,
         { kind: "character", id: target.id, name: target.name },
-        resourcesGranted,
+        allResourcesGranted,
       );
     }
     // db/lib/hiddenCures.js. Runs after the ordinary grants and records
@@ -2601,7 +2701,7 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
         tagName: held.tag.name,
         restore,
         granted: granted.map((g) => g.tagName),
-        resourcesGranted,
+        resourcesGranted: allResourcesGranted,
         fearRelief: fearRelief || undefined,
         climbed: climbed.map((c) => c.tagName),
         cured: cured.length ? cured : undefined,
@@ -2653,9 +2753,28 @@ async function poisonItemRequestImpl({ poisonTagId, targetTagId }) {
   }
 
   const openTurn = await getOpenTurn();
+  // THE ORACLE (fix round, M4): the refusals below used to fire for anyone,
+  // which made lacing a stack a free, repeatable poison detector — the
+  // dialog even advertised it (see poisonUse === "food"'s help text). Gated
+  // on canDetectPoison now: a detector's own sense really would notice the
+  // stack before committing the dose, so they keep the refusal (and the
+  // vial); anyone else's dose is silently accepted and lost in the mix
+  // instead of teaching them anything. Computed off the pre-transaction
+  // snapshot like every other gate in this file — a trait or gadget held a
+  // moment ago is not the kind of thing that changes mid-click.
+  const canDetect = canDetectPoison(character.tags);
 
   await prisma.$transaction(async (tx) => {
     await lockCharacter(tx, character.id);
+    // Double-fire (fix round, M4): re-verify the vial itself is still held
+    // under the lock — dropCharacterTag below is a silent no-op on a gone
+    // row, so without this a second tab could dose the same stack a second
+    // time for free once the first tab's vial is already spent (the file's
+    // own craftRequestImpl comments document this exact trap).
+    const freshPoison = await tx.characterTag.findUnique({
+      where: { characterId_tagId: { characterId: character.id, tagId: poisonTagId } },
+    });
+    if (!freshPoison || freshPoison.quantity < 1) throw new UserError("You don't have that any more.");
     // Re-read the food's row fresh under the lock — the same patient-side
     // race shape consumeTagRequestImpl already guards: the stack may have
     // been eaten, transferred away, or already tainted between the load
@@ -2669,14 +2788,30 @@ async function poisonItemRequestImpl({ poisonTagId, targetTagId }) {
     // never disclosed to whoever eventually eats it, and it never refuses on
     // the eating end (that would be the recipient-side leak the merge rule
     // below exists to avoid).
-    if (freshFood.poisonPayload && freshFood.poisonPayload !== poisonTagId) {
+    const taintedDifferently = Boolean(
+      freshFood.poisonPayload && freshFood.poisonPayload !== poisonTagId,
+    );
+    if (taintedDifferently && canDetect) {
       throw new UserError("That's already tainted with something else. ‡");
     }
-    const poisonedCount = Math.min(freshFood.poisonedCount + 1, freshFood.quantity);
-    await tx.characterTag.update({
-      where: { id: freshFood.id },
-      data: { poisonedCount, poisonPayload: poisonTagId },
-    });
+    // Over-lacing (fix round, M4): same gate as the oracle above. The stack
+    // is already fully poisoned, so one more dose has nowhere to land — a
+    // detector is told outright and keeps the vial; anyone else just wastes
+    // it, same silent-loss shape as dosing a differently-tainted stack.
+    const stackFull = freshFood.poisonedCount > 0 && freshFood.poisonedCount >= freshFood.quantity;
+    if (stackFull && !taintedDifferently && canDetect) {
+      throw new UserError("It can't hold any more poison than that. ‡");
+    }
+    const wasted = taintedDifferently || (stackFull && !taintedDifferently);
+    const poisonedCount = wasted
+      ? freshFood.poisonedCount
+      : Math.min(freshFood.poisonedCount + 1, freshFood.quantity);
+    if (!wasted) {
+      await tx.characterTag.update({
+        where: { id: freshFood.id },
+        data: { poisonedCount, poisonPayload: poisonTagId },
+      });
+    }
     await dropCharacterTag(tx, character.id, poisonTagId, 1);
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
@@ -2690,6 +2825,10 @@ async function poisonItemRequestImpl({ poisonTagId, targetTagId }) {
         foodName: heldFood.tag.name,
         poisonedCount,
         quantity: freshFood.quantity,
+        // GM-only detail (see the audit-desk comment on consumeTagRequestImpl's
+        // own `poisoned` field) — never surfaced to the actor, whose own
+        // response is identical whether this landed or was silently lost.
+        wasted: wasted || undefined,
       },
     });
   });
@@ -2731,7 +2870,7 @@ async function poisonCharacterRequestImpl({ poisonTagId, targetCharacterId }) {
   const heldSlugs = new Set(target.tags.map((ct) => ct.tag.slug));
   if (![...heldSlugs].some((slug) => INCAPACITATING_SLUGS.has(slug))) {
     throw new UserError(
-      "They're conscious and can stop you — that's what poisoned food is for.",
+      "They're conscious and can stop you — that's what poisoned food is for. ‡",
     );
   }
 
@@ -2740,7 +2879,10 @@ async function poisonCharacterRequestImpl({ poisonTagId, targetCharacterId }) {
   // No ladder walk here, unlike Consume's: every catalog item with
   // `poison: true` is a status vial, never a drinking-ladder rung, so the
   // extra query the ordinary Consume path always pays for would resolve
-  // nothing.
+  // nothing. Caveat: that is a fact about today's catalog, not something
+  // this call enforces — if a future poison's own consumesInto ever named a
+  // slug that IS a ladder rung, passing `null` here would silently skip the
+  // climb (consumeGrants.js's own comment on this same assumption).
   const grants = resolveConsumeGrants(heldPoison.tag, heldSlugsOf(target.tags), null, resistSlugs);
 
   await prisma.$transaction(async (tx) => {
@@ -2748,6 +2890,15 @@ async function poisonCharacterRequestImpl({ poisonTagId, targetCharacterId }) {
     // branch: lock in sorted-id order, never actor-then-target.
     const lockIds = [character.id, target.id].sort();
     for (const id of lockIds) await lockCharacter(tx, id);
+
+    // Double-fire (fix round, M4): re-verify the vial itself is still held
+    // under the lock, same reasoning as poisonItemRequestImpl's own re-check
+    // — dropCharacterTag below is a silent no-op on a gone row, so two tabs
+    // firing at once would otherwise force two doses out of one vial.
+    const freshPoison = await tx.characterTag.findUnique({
+      where: { characterId_tagId: { characterId: character.id, tagId: poisonTagId } },
+    });
+    if (!freshPoison || freshPoison.quantity < 1) throw new UserError("You don't have that any more.");
 
     // Patient-side race: re-verify helplessness under the lock. Somebody
     // could have freed, healed or revived them between the load above and
@@ -2758,7 +2909,7 @@ async function poisonCharacterRequestImpl({ poisonTagId, targetCharacterId }) {
     });
     const freshSlugs = new Set(freshTags.map((ct) => ct.tag.slug));
     if (![...freshSlugs].some((slug) => INCAPACITATING_SLUGS.has(slug))) {
-      throw new UserError("They're no longer helpless.");
+      throw new UserError("They're no longer helpless. ‡");
     }
 
     await dropCharacterTag(tx, character.id, poisonTagId, 1);
@@ -5065,6 +5216,29 @@ async function packageItemsRequestImpl({
 
   let crate;
   await prisma.$transaction(async (tx) => {
+    // Laundering fix (M4): drop the contents FIRST and capture what actually
+    // left as poisoned — dropCharacterTag's own return, previously discarded
+    // here, which is exactly how packing a poisoned item into a crate used
+    // to launder it clean. Per-entry, carried on the manifest below, so
+    // BOTH ways this crate can later be opened (the ordinary Consume branch
+    // just below, and the Depot Hold tab's openCrate — a player-packed crate
+    // can be carried to either) re-apply it rather than silently dropping it
+    // a second time on the unpack side.
+    const poisonedContents = [];
+    for (const c of contents) {
+      const { poisonedTaken, poisonPayload } = await dropCharacterTag(
+        tx,
+        character.id,
+        c.tagId,
+        c.quantity,
+      );
+      poisonedContents.push({
+        ...c,
+        poisonedCount: poisonedTaken,
+        poisonPayload: poisonedTaken > 0 ? poisonPayload : null,
+      });
+    }
+
     crate = await tx.tag.create({
       data: {
         slug,
@@ -5090,20 +5264,27 @@ async function packageItemsRequestImpl({
         consumable: true,
         // Repeated per unit — that is how consumesInto expresses a quantity
         // (docs/tags.yaml header), and every packable thing worth crating in
-        // bulk is stackable.
+        // bulk is stackable. Left in place for the crate's printed
+        // description and as a fallback; the actual unpack (below) reads
+        // crateContents instead so the poison state on each line survives —
+        // grantTagSlugs (what consumesInto ultimately resolves through)
+        // knows nothing about poison at all.
         consumesInto: contents.flatMap((c) => Array(c.quantity).fill(c.slug)),
         // Carried too, for parity with a Depot crate, so anything that reads
-        // one manifest reads both.
-        crateContents: contents.map((c) => ({
+        // one manifest reads both. `poisonedCount`/`poisonPayload` per line
+        // (M4) — omitted (not written as 0/null) for a clean line, so an
+        // ordinary crate's manifest looks exactly as it always has.
+        crateContents: poisonedContents.map((c) => ({
           tagId: c.tagId,
           name: c.name,
           quantity: c.quantity,
+          ...(c.poisonedCount > 0
+            ? { poisonedCount: c.poisonedCount, poisonPayload: c.poisonPayload }
+            : {}),
         })),
       },
     });
 
-    for (const c of contents)
-      await dropCharacterTag(tx, character.id, c.tagId, c.quantity);
     await addToStack(tx, character.id, crate.id, 1, {
       source: "EVENT",
       stackable: false,
