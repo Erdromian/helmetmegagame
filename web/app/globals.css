@@ -5242,6 +5242,18 @@ label.chip {
   box-shadow: var(--e-3);
 }
 
+/* ThingsDrawer.js's menu, escaped to document.body (portalPlacement.js):
+   overrides the relative-to-its-chip positioning above with the fixed,
+   JS-computed coordinates a portaled panel needs, and matches .tag-tooltip /
+   .select-popup's z-index since it's the same "floating UI above everything,
+   including a scrolling Modal" tier. */
+.chat-menu-portal {
+  position: fixed;
+  right: auto;
+  top: auto;
+  z-index: 120;
+}
+
 /* A person's row is the name button plus the eye that looks at them. A
    button inside a button is not markup, so the eye sits beside it and the
    name takes the slack. */
