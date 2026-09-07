@@ -47,6 +47,68 @@ export function craftableTags(tags, heldTagIds = [], knownRecipeIds = null) {
   );
 }
 
+// The Craft picker's own verdict: which recipe ids this character may see
+// offered at ALL (craftableTags above then narrows further to what's held/
+// stackable). Every skill named in `requirementSkills` must be satisfied,
+// AND — for a recipe the sync flags non-public — the character must already
+// be proven to hold every ingredient at quantity one. Extracted to a pure
+// function (character/page.js used to inline this) so the exact production
+// logic is directly testable, not a reimplementation of it.
+//
+// A recipe is "non-public" two ways: an ingredient the sync marks non-`ALL`
+// (docs/tags.yaml `catalog:`), or — the recipe's OWN catalogVisibility. The
+// second is last-breath's discovery gate (M3 review ruling, recorded in
+// planning/medical-pass-plan.md): the recipe may surface in the Craft menu
+// ONLY for a character who BOTH satisfies medical-expert AND holds an
+// aberrant-heart. Without checking the recipe's own flag, that conjunction
+// would hold only by accident of aberrant-heart's own catalog value —
+// reclassify that ingredient as `catalog: all` later (plausible once the
+// loot-table pass lands) and the recipe would silently surface for any
+// Expert with no heart at all. Tying it to catalogVisibility keeps the
+// conjunction intact regardless of what the ingredient's catalog says.
+//
+// `visibilityBySlug` (ingredient slug -> catalogVisibility) and
+// `nonAllGroupSlugs` (group slugs where ANY member is non-`ALL`) are
+// resolved by the caller, which needs Prisma to answer them; `characterTags`
+// is `{ tag: { slug, group: { slug } } }` rows, the shape `character.tags`
+// already comes down in.
+export function computeKnownRecipeIds(
+  tagCatalog,
+  satisfied,
+  characterTags,
+  { visibilityBySlug = new Map(), nonAllGroupSlugs = new Set() } = {},
+) {
+  function isNonPublicRecipe(tag) {
+    if (tag.catalogVisibility !== "ALL") return true;
+    return (tag.requirementItems ?? []).some((item) => {
+      if (item.kind === "group") return nonAllGroupSlugs.has(item.slug);
+      const slugs = item.kind === "anyOf" ? item.slugs : [item.slug];
+      return slugs.some((s) => visibilityBySlug.get(s) !== "ALL");
+    });
+  }
+  // Mirrors resolveRecipeItems' HOLD semantics (requestActions.js), at
+  // quantity 1 — a hidden recipe only has to prove itself known, not
+  // affordable, so this checks "holds one" rather than resolving a spend
+  // plan or an anyOf choice.
+  function satisfiesIngredientsAtQuantityOne(tag) {
+    return (tag.requirementItems ?? []).every((item) => {
+      if (item.kind === "group") {
+        return characterTags.some((ct) => ct.tag.group?.slug === item.slug);
+      }
+      const slugs = item.kind === "anyOf" ? item.slugs : [item.slug];
+      return characterTags.some((ct) => slugs.includes(ct.tag.slug));
+    });
+  }
+  return tagCatalog
+    .filter(
+      (t) =>
+        t.craftable &&
+        (t.requirementSkills ?? []).every((skill) => satisfied.has(skill.id)) &&
+        (!isNonPublicRecipe(t) || satisfiesIngredientsAtQuantityOne(t)),
+    )
+    .map((t) => t.id);
+}
+
 // A placement is raised on the ground you stand on rather than landing in a
 // pocket (db/lib/structures.js), so the Craft menu drops the ones this ground
 // would refuse: nowhere to build at all, a site of the same type already

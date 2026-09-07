@@ -65,6 +65,7 @@ import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
 import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
+import { computeKnownRecipeIds } from "@/lib/tagRequests";
 import { canBuildHere, structuresAt } from "@lifeweb/db/lib/structures";
 import { parseSelection } from "@/lib/portrait/catalog";
 import CharacterSheet from "../../components/CharacterSheet";
@@ -322,6 +323,11 @@ export default async function CharacterPage({ searchParams }) {
         // undefined and drops purchasable-only tags from the Add Tag menu.
         purchasableAfterStart: true,
         craftable: true,
+        // A SECRET recipe's own discovery gate (M3 review, last-breath):
+        // `isNonPublicRecipe` below reads this so a secret recipe is
+        // withheld on the tag's OWN say-so, not only by accident of
+        // whatever its ingredient's catalog happens to be today.
+        catalogVisibility: true,
         // The custom-item opt-in (CRAFTING.md): the Craft dialog shows its
         // name/description fields only when this crosses.
         customizable: true,
@@ -579,11 +585,11 @@ export default async function CharacterPage({ searchParams }) {
   // reader was not sent (web/lib/recipeCatalog.js), and hidden-recipe tag
   // descriptions no longer name their ingredients. Here it keeps a recipe you
   // have no path to yet out of the picker, so a fresh crafter isn't offered
-  // Miasma before they've ever seen a corpse. The tagCatalog query above
-  // never selects `catalogVisibility` (it isn't craftable/purchasable itself,
-  // and an ingredient tag usually is neither), so the slugs and groups a
-  // craftable recipe's requirementItems name are resolved with one more
-  // targeted query.
+  // Miasma before they've ever seen a corpse. An ingredient tag's own
+  // catalogVisibility isn't on the tagCatalog query above (it usually isn't
+  // craftable/purchasable itself), so the slugs and groups a craftable
+  // recipe's requirementItems name are resolved with one more targeted
+  // query.
   const restrictedTagSlugs = new Set();
   const restrictedGroupSlugs = new Set();
   for (const t of tagCatalog) {
@@ -628,13 +634,6 @@ export default async function CharacterPage({ searchParams }) {
       .filter((r) => r.group && r.catalogVisibility !== "ALL")
       .map((r) => r.group.slug),
   );
-  function isNonPublicRecipe(tag) {
-    return (tag.requirementItems ?? []).some((item) => {
-      if (item.kind === "group") return nonAllGroupSlugs.has(item.slug);
-      const slugs = item.kind === "anyOf" ? item.slugs : [item.slug];
-      return slugs.some((s) => visibilityBySlug.get(s) !== "ALL");
-    });
-  }
   // The Death Mask's corpse picker (CraftDialog via RequestActionsProvider):
   // which held corpses still have their face. Server-computed here so the
   // list and its face-taken filter can never drift from the craft's own
@@ -646,27 +645,13 @@ export default async function CharacterPage({ searchParams }) {
         !(ct.tag.description ?? "").includes("The face has been taken."),
     )
     .map((ct) => ({ slug: ct.tag.slug, name: ct.tag.name }));
-  // Mirrors resolveRecipeItems' HOLD semantics (requestActions.js), at
-  // quantity 1 — a hidden recipe only has to prove itself known, not
-  // affordable, so this checks "holds one" rather than resolving a spend
-  // plan or an anyOf choice.
-  function satisfiesIngredientsAtQuantityOne(tag) {
-    return (tag.requirementItems ?? []).every((item) => {
-      if (item.kind === "group") {
-        return character.tags.some((ct) => ct.tag.group?.slug === item.slug);
-      }
-      const slugs = item.kind === "anyOf" ? item.slugs : [item.slug];
-      return character.tags.some((ct) => slugs.includes(ct.tag.slug));
-    });
-  }
-  const knownRecipeIds = tagCatalog
-    .filter(
-      (t) =>
-        t.craftable &&
-        (t.requirementSkills ?? []).every((skill) => satisfied.has(skill.id)) &&
-        (!isNonPublicRecipe(t) || satisfiesIngredientsAtQuantityOne(t)),
-    )
-    .map((t) => t.id);
+  // computeKnownRecipeIds is the shared, pure verdict (web/lib/tagRequests.js)
+  // — last-breath's "medical-expert AND holds an aberrant-heart" discovery
+  // gate lives there, directly testable, rather than inlined here.
+  const knownRecipeIds = computeKnownRecipeIds(tagCatalog, satisfied, character.tags, {
+    visibilityBySlug,
+    nonAllGroupSlugs,
+  });
   const craftProjects = (
     await prisma.craftProject.findMany({
       where: { characterId: character.id, status: "ACTIVE" },
