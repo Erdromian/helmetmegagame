@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · The character sheet paints at once on a return visit
+
+− Your sheet keeps its last data in your browser and draws it in the first frame the next time you open it; the server's answer replaces it a moment later  
+− Signing out clears every stored page
+
 ## 2026-09-07 · Chat paints at once on a return visit
 
 − Chat keeps its last data in your browser and draws it in the first frame the next time you open it; the server's answer replaces it a moment later, and the live stream fills the gap  
