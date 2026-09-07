@@ -96,6 +96,11 @@ export default async function DevTagsPage() {
           administerable: t.administerable,
           administerSkill: t.administerSkill,
           requirementTurns: t.requirementTurns,
+          // Without this a `turnsCost: 1/N` cure's detail sheet (formatTagRequirement,
+          // via TagDetailSheet) showed a flat "1 turn" instead of its real
+          // fraction (review fix, round 3 — same gap as the examine/catalog
+          // selects fixed the round before).
+          requirementPerTurn: t.requirementPerTurn,
           requirementResources: t.requirementResources,
           requirementGambit: t.requirementGambit,
           requirementSkills: t.requirementSkills,

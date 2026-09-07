@@ -81,6 +81,11 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
     removable: t.removable,
     craftable: t.craftable,
     requirementTurns: t.requirementTurns,
+    // Without this a fraction-priced purchasable drawback (appendicitis,
+    // disfigured) showed a flat "1 turn" cure cost on its point-buy chip
+    // instead of the real fraction (review fix, round 3 — same select gap
+    // fixed on the examine/catalog surfaces the round before).
+    requirementPerTurn: t.requirementPerTurn,
     requirementResources: t.requirementResources,
     requirementGambit: t.requirementGambit,
     requirementSkills: t.requirementSkills,
