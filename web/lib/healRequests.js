@@ -94,21 +94,26 @@ export function isGambitHeal(tag, satisfied) {
   return Boolean(tag.requirementGambit) || missingSkillsFor(tag, satisfied).length > 0;
 }
 
-// A 0-turn cure is a free action and never counts against the per-turn
-// allowance. See MEDICAL_TIER_CAPS in web/lib/requests.js.
+// Does this cure draw on the medic's shared free pool (M2,
+// docs/systemdocs/TAGS.md §5c)? Only a 0-turn cure does — a turns-costing
+// cure is billed the Move's own fraction instead (CRAFTING.md §2a) and never
+// touches this pool at all. See MEDICAL_SIMPLE_PER_TURN in
+// web/lib/requests.js. INVERTED from the pre-M2 predicate (`turns > 0`),
+// which counted turn-costing cures against a per-tier daily cap — that cap is
+// gone, replaced by the Move economy.
 export function countsAgainstHealCap(tag) {
-  return (tag?.requirementTurns ?? 0) > 0;
+  return (tag?.requirementTurns ?? 0) === 0;
 }
 
-// The medic's own allowance: the cap of the HIGHEST medical tier they hold.
-// Tiers replace each other up Tag.parentTagId, so an Expert is not also
-// spending a Basic's two — they simply get four.
+// The medic's own allowance: MEDICAL_SIMPLE_PER_TURN if they hold any
+// medical tier at all, 0 otherwise (M2 dropped the old per-tier scaling — an
+// Expert's edge is the Move fractions they can afford on turns-costing cures,
+// not a bigger free pool).
 //
-// `heldSlugs` is a Set of the character's tag slugs; `caps` is
-// MEDICAL_TIER_CAPS, passed in so this module stays free of that import and
-// the client and the server cannot disagree about the numbers.
-export function healCapFor(heldSlugs, caps) {
+// `heldSlugs` is a Set of the character's tag slugs; `pool` is
+// MEDICAL_SIMPLE_PER_TURN, passed in so this module stays free of that import
+// and the client and the server cannot disagree about the number.
+export function healCapFor(heldSlugs, pool) {
   const ladder = ["medical-expert", "medical-skilled", "medical-basic"];
-  for (const slug of ladder) if (heldSlugs.has(slug)) return caps[slug] ?? 0;
-  return 0;
+  return ladder.some((slug) => heldSlugs.has(slug)) ? pool : 0;
 }

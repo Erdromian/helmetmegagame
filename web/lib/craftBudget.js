@@ -12,6 +12,11 @@
 // thirds have to be exactly one Move, not 0.9999999999999998 of one.
 
 import { craftFamily } from "./tagRequests";
+// The deep path avoids the @lifeweb/db barrel, which unconditionally requires
+// @prisma/client and would leak node:fs into a "use client" bundle (this
+// module is imported by CraftDialog.js and RequestActionsProvider.js). Same
+// shim shape as web/lib/formatTagRequirement.js.
+import { formatMoveFraction } from "@lifeweb/db/lib/formatTagRequirement";
 
 const NO_MOVE = { num: 0, den: 1 };
 export const WHOLE_MOVE = { num: 1, den: 1 };
@@ -54,21 +59,12 @@ export function ledgerRemaining(ledger) {
 
 // Just the fraction, for a sentence to sit around — never a word, so a caller
 // can say "½ of a Move" or "½ left" without the phrasing being decided here.
-const FRACTION_GLYPHS = {
-  "1/2": "½",
-  "1/3": "⅓",
-  "2/3": "⅔",
-  "1/4": "¼",
-  "3/4": "¾",
-  // Mixed denominators (a ⅓ brew after a ½ one) land on sixths; twelfths
-  // have no glyphs and fall through to "n/m", which is fine.
-  "1/6": "⅙",
-  "5/6": "⅚",
-};
-
-export function formatMoveFraction(num, den) {
-  return FRACTION_GLYPHS[`${num}/${den}`] ?? `${num}/${den}`;
-}
+// Lives in db/lib/formatTagRequirement.js now (M2) so formatTagRequirement's
+// own compact chip line can show the same glyph for a `turnsCost: 1/N` tag —
+// db/ cannot import this web/ module, so the shared logic moved down instead
+// of growing a second copy. Re-exported here so every existing caller keeps
+// importing from where it always did.
+export { formatMoveFraction };
 
 // The word for a family of work, as it reads in a sentence: "brewing work",
 // "smith's work". The family itself is a skill-slug prefix, which is a key,
@@ -82,6 +78,10 @@ const FAMILY_LABELS = {
   // Off-trade families — any skill prefix can be one now (tagRequests.js).
   butcher: "butcher's",
   blessing: "blessing",
+  // Healing (M2, docs/systemdocs/TAGS.md §5c): hardcoded, never derived —
+  // craftMoveCost's family override below is what keeps it off craftFamily's
+  // guess.
+  medical: "medical",
 };
 
 export function craftFamilyLabel(family) {
@@ -109,13 +109,21 @@ export function craftFamilyLabel(family) {
 // `allowance`/`freeLeft` are only read on a 0-turn recipe: the ration and how
 // much of it today's turn has left. The caller counts those — the server off
 // the turn's requests, the dialog off the map the page hands it.
+//
+// `family` overrides craftFamily(tag)'s guess. Healing needs this (M2,
+// docs/systemdocs/TAGS.md §5c): the tag priced here is an AFFLICTION, not a
+// recipe, and craftFamily reads requirementSkills off it looking for a trade
+// prefix — which finds nothing on a skill-less cure like choking and would
+// drop it into the generic `craft` family, sharing a Routine with actual
+// crafting. The medic's family is always `medical`, said explicitly by every
+// caller that bills a heal or an administer fee.
 export function craftMoveCost(
   tag,
-  { quantity = 1, allowance = null, freeLeft = null } = {},
+  { quantity = 1, allowance = null, freeLeft = null, family: familyOverride = null } = {},
 ) {
   const turns = tag?.requirementTurns ?? 1;
   const perTurn = tag?.requirementPerTurn ?? null;
-  const family = craftFamily(tag);
+  const family = familyOverride ?? craftFamily(tag);
   const free = (qty) => ({
     kind: "free",
     family,
