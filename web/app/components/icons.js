@@ -154,9 +154,6 @@ export const SyncIcon = lucide(RefreshCw, "SyncIcon");
 export const TrashIcon = lucide(Trash2, "TrashIcon");
 // Craft — the recipe door on the action grid (actionRegistry.js).
 export const HammerIcon = lucide(Hammer, "HammerIcon");
-// Refund unspent tag points — the ⬡ of the point economy, hollow so it never
-// reads as the filled ⬢ Resources glyph.
-export const PointsIcon = lucide(Hexagon, "PointsIcon");
 // Transfer Resources — the filled ⬢ of the Resources glyph.
 export function ResourcesIcon(props) {
   return <Hexagon strokeWidth={STROKE} fill="currentColor" {...props} />;

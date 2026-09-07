@@ -1408,7 +1408,18 @@ input[type="radio"]:disabled {
   padding: 3px 9px;
   border-radius: var(--r-full);
   font-size: var(--fs-xs);
+  /* Pinned, not inherited. Without this a chip took the body's line-height
+     while any chip carrying Tailwind's text-xs took 1rem, so the two rendered
+     2px apart — which is why the desk headers' chips never lined up. */
+  line-height: 1.25;
   letter-spacing: var(--ls-tight);
+}
+
+/* A chip that is an aside rather than a statement — a count, a source, a
+   status echo. It used to be spelled `chip text-xs text-muted` at ten call
+   sites, and the text-xs half was what broke the height above. */
+.chip-quiet {
+  color: var(--muted);
 }
 
 /* A chip whose content is data, not a label — the resource-rate bubbles
@@ -2681,27 +2692,11 @@ input[type="radio"]:disabled {
   background: var(--border);
 }
 
-/* The action bar's staging cluster. Those buttons push into the pending diff
-   instead of firing, so they need to look like a different kind of control
-   from the verbs beside them. */
-.dev-bar-group {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.dev-bar-caption {
-  font-size: 0.6875rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
 /* The Apply/Cancel bar, pinned to the bottom of the viewport while there are
    pending changes. Sticky rather than fixed so it stays inside the page
    column and can't cover the nav rail on a narrow screen. Accent border
    because it is the thing a GM must notice: staged edits are lost on a
-   refresh, and the staging buttons above have no other feedback. */
+   refresh. */
 .dev-apply-bar {
   position: sticky;
   bottom: 1rem;
@@ -2810,6 +2805,10 @@ input[type="radio"]:disabled {
   flex-wrap: wrap;
   padding: 0.5rem 1rem;
   border-bottom: 1px solid var(--border);
+  /* The shells below are 100dvh flex columns whose body takes the rest. Left
+     shrinkable, a long meta row lets the header give up height it is actually
+     using and the first line clips. */
+  flex-shrink: 0;
 }
 
 .desk-body {
@@ -2839,7 +2838,10 @@ input[type="radio"]:disabled {
    to /gm/turns' QueueRail alone. */
 .desk-rail-lens {
   display: flex;
-  margin: 0.75rem;
+  /* No bottom margin: .desk-rail-filters sits directly under this and brings
+     its own 0.75rem of top padding, so a margin here would stack into a
+     1.5rem trench that only /gm/turns has. */
+  margin: 0.75rem 0.75rem 0;
 }
 .desk-rail-lens button {
   flex: 1;
@@ -2853,7 +2855,11 @@ input[type="radio"]:disabled {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  padding: 0 0.75rem 0.75rem;
+  /* Even padding. It used to open with 0 on top, which /gm/turns hid behind
+     the {header} its QueueRail renders first — but the player desk's rail
+     starts straight in on the Search field, so its label sat flush against
+     the header's bottom rule and read as clipped. */
+  padding: 0.75rem;
   border-bottom: 1px solid var(--border);
 }
 
@@ -4684,23 +4690,6 @@ label.chip {
   background: var(--bg);
 }
 
-/* "TOWN · DAY 6 · DUSK · CLEAR" — where you are and when it is. */
-.hall-crumb {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-4);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.hall-turn {
-  font-size: var(--fs-2xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
 .hall-body {
   flex: 1;
   min-height: 0;
@@ -5264,6 +5253,24 @@ label.chip {
   white-space: nowrap;
 }
 
+/* What the place is. The node is a fixed square (aspect-ratio: 1) and the
+   foot is pinned to its bottom by margin-top:auto, so this takes whatever is
+   left in between and clamps rather than pushing the box taller. min-height:0
+   is what lets a flex child actually shrink far enough to clamp. */
+.hall-node-desc {
+  flex: 1 1 auto;
+  min-height: 0;
+  font-style: italic;
+  font-size: var(--fs-2xs);
+  line-height: 1.3;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .hall-node-foot {
   margin-top: auto;
   font-size: var(--fs-2xs);
@@ -5474,8 +5481,7 @@ label.chip {
 
   .hall-head,
   .hall-feed,
-  .hall-composer,
-  .hall-crumb {
+  .hall-composer {
     padding-left: var(--sp-3);
     padding-right: var(--sp-3);
   }

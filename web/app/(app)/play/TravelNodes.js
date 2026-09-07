@@ -33,6 +33,13 @@ function footFor(option, freeLeft) {
   return freeLeft > 0 ? "free" : "the turn";
 }
 
+// The whole of it, for the hover — the node itself clamps both the name and
+// the description, and a refusal replaces the description entirely.
+function titleFor(option) {
+  if (!option.passable) return option.reason ?? option.name;
+  return option.description ? `${option.name} — ${option.description}` : option.name;
+}
+
 // `pick` is `/travel` reaching in from the composer: { locationId, at }, where
 // `at` is a timestamp so picking the same node twice re-opens the strip. It
 // only ever SELECTS — the confirm strip and its Go button are still the thing
@@ -150,7 +157,7 @@ export default function TravelNodes({ onDone, pick = null }) {
               data-crossing={option.crossesZone ? "true" : undefined}
               data-dim={option.passable ? undefined : "true"}
               data-active={target === option.id ? "true" : undefined}
-              title={option.passable ? option.name : (option.reason ?? option.name)}
+              title={titleFor(option)}
               disabled={!option.passable || pending}
               onClick={() => {
                 setTarget(target === option.id ? null : option.id);
@@ -159,6 +166,13 @@ export default function TravelNodes({ onDone, pick = null }) {
             >
               <span className="hall-node-name">{option.name}</span>
               <span className="hall-node-zone">{option.zoneName}</span>
+              {/* What the place IS, so a way out is more than a name. Clamped
+                  in CSS rather than truncated here: the whole line is on the
+                  node's title either way, and cutting the string would cut it
+                  at a character count instead of at the box. */}
+              {option.description && (
+                <span className="hall-node-desc">{option.description}</span>
+              )}
               <span className="hall-node-foot mono">{footFor(option, data.freeLeft)}</span>
             </button>
           ))}

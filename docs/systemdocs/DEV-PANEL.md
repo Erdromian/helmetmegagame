@@ -60,12 +60,13 @@ and a tags-only write never bumps `Character.updatedAt`, because
 So it cannot invalidate a core edit staged beside it, and the Tags tab
 deliberately sends no `expectedUpdatedAt`.
 
-**One staging button is left.** **Refund points** writes the `tagPoints`
-column, still a staged value, so it keeps the `stages` caption and the inline
-"Staged X — press Apply" line: an unlabelled icon that silently stages reads
-as a dead button, which is exactly how it was first reported. **Heal all**,
-**Feed** and the **Inflict wound** picker all push *tag* ops, so all three are
-now plain verbs — they fire, and say what they did. Each is one gesture, one
+**Every button in the bar is now a verb.** **Heal all**, **Feed** and the
+**Inflict wound** picker all push *tag* ops, so all three fire and say what
+they did. The bar used to carry one exception — a **Refund points** button
+that recomputed `tagPoints` from the creation budget and *staged* the result,
+which needed a `stages` caption and an inline "Staged X — press Apply" line to
+stop reading as a dead button. It is gone, and the caption and that line went
+with it. Each is one gesture, one
 call, one audit row, one DM however many ops it carries, since
 `applyTagOpsInTx` takes a batch: healing a ward is still one thing that
 happened to the player rather than a burst of them. Heal-all and Inflict both

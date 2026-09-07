@@ -548,7 +548,10 @@ option** rather than a user option on purpose: the picker then names
 characters, never Discord accounts, so inviting someone can't reveal who plays
 them. Anyone already in the thread may add or remove, plus GMs.
 
-**A mention is an invite, on the same contract as `/add`** (`COMMANDS.md` §2b):
+**A mention is an invite, on the same contract as `/add`** (`COMMANDS.md` §2b),
+and it reads the same typed into `/play` as typed into Discord — the web half
+lives in `bot/src/lib/feedOutbox.js#relayWebMentions`, which used to send the
+notification and stop there:
 a `PlayerThreadInvite` row is recorded, the Discord add is attempted now, and
 if the target is standing somewhere else `applyPendingInvites` replays it the
 moment they arrive in that Location. Discord still requires a thread member to

@@ -476,6 +476,10 @@ export async function loadTravel() {
     options: options.map((row) => ({
       id: row.location.id,
       name: row.location.name,
+      // Already loaded: locationGraph's LINK_INCLUDE pulls whole Location rows
+      // on both ends of a link, so this costs no query. The node draws it so
+      // the way out says what it leads to, not just where.
+      description: row.location.description || null,
       zoneName: row.location.zone?.name ?? null,
       crossesZone: row.crossesZone,
       passable: row.passable,
@@ -1192,29 +1196,6 @@ export async function desireCatalogView() {
   return { ok: true, view: await loadDesireView(me.character, { openTurn, gameConfig }) };
 }
 
-// "Report to the GMs" — the OOC ticket a web-only player loses with the
-// report channel. It writes the same INBOUND DirectMessage row an actual DM
-// to the bot writes (bot/src/events/messageCreate.js), so it lands in
-// /gm/players' conversation like every other word from this player. It sends
-// NOTHING to Discord: this is a message TO the GMs, and the reply comes back
-// down the ordinary DM path.
-export async function reportToGms(text) {
-  const me = await actor();
-  if (me.error) return { ok: false, error: me.error };
-  const body = String(text ?? "").trim();
-  if (!body) return { ok: false, error: "Write something first." };
-  if (body.length > 1800) return { ok: false, error: "That's too long to send. ‡" };
-
-  await prisma.directMessage.create({
-    data: {
-      discordUserId: me.discordUserId,
-      direction: "INBOUND",
-      content: `[Play] ${body}`,
-    },
-  });
-  return { ok: true, line: "Sent. A GM will see it on their desk. ‡" };
-}
-
 // ------------------------------------------------------------ waiting on you
 
 // Everything that is holding still until this player answers it: a lesson,
@@ -1380,9 +1361,9 @@ export async function answerWaiting({ kind, id, accept } = {}) {
 // the session, re-check the place, write the scene row beside the Discord
 // post — and nothing else.
 //
-// `/move`, `/travel`, `/converse`, `/look` and `/report` need no new action:
-// they are submitMove, travelTo, openConversation, the sheet's Examine dialog
-// and reportToGms, all of which already exist above.
+// `/move`, `/travel`, `/converse` and `/look` need no new action: they are
+// submitMove, travelTo, openConversation and the sheet's Examine dialog, all
+// of which already exist above.
 
 // /conceal. A standing state, not a per-message prefix — the alias is what
 // the composer wears from here until it is turned off again.

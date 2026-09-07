@@ -1,8 +1,9 @@
 import { describeTurn } from "@/lib/turnFormat";
 import { loadFeedViewer } from "@/lib/feedAccess";
 
-// "TOWN · DAY 6 · DUSK · CLEAR" — where you are and when it is, the one line
-// standing over the whole Hall.
+// "TOWN · DAY 6 · DUSK · CLEAR" — where you are and when it is, the one chip
+// standing over the whole Hall. A .chip, so it is the same bubble the desks'
+// turn chips are rather than a shape of its own.
 //
 // A server component inside the layout's Suspense boundary, so the shell
 // paints before either half of it resolves. It loads the zone itself rather
@@ -15,7 +16,7 @@ export default async function HallTurn({ turnPromise }) {
   const zone = viewer.character?.location?.zone?.name ?? (viewer.gm ? "Gamemaster" : null);
 
   return (
-    <span className="hall-turn">
+    <span className="chip">
       {zone ? `${zone} · ` : ""}
       {label}
     </span>

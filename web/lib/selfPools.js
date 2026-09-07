@@ -47,7 +47,7 @@ import {
 // through a server action the first time somebody opens the picker.
 export async function loadDesireView(character, { openTurn, gameConfig, withCatalog = true } = {}) {
   const desireSlots = gameConfig?.desireSlots ?? 2;
-  const desireSlotLockTurns = gameConfig?.desireSlotLockTurns ?? 2;
+  const desireSlotLockTurns = gameConfig?.desireSlotLockTurns ?? 1;
   const heldTags = (character.tags ?? []).map((ct) => ct.tag);
   const heldDesireTagIds = new Set((character.tags ?? []).map((ct) => ct.tagId));
   const openTurnNumber = openTurn?.number ?? 0;

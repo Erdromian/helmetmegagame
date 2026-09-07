@@ -58,6 +58,10 @@ const EXAMINE_SUBJECT_SELECT = {
       tag: {
         select: {
           name: true,
+          // The client resolves this against the catalog TagsProvider already
+          // ships, so the Examine readout can draw a hoverable TagChip without
+          // this select having to carry a whole tag row per line.
+          slug: true,
           category: true,
           inspectVisibility: true,
           forcedName: true,
@@ -95,6 +99,7 @@ function describeTag({ characterTag: ct, viaSkill }, openTurnNumber) {
   ].filter(Boolean);
   return {
     name: ct.tag.name,
+    slug: ct.tag.slug ?? null,
     detail: bits.length > 0 ? bits.join(" · ") : null,
     viaSkill: Boolean(viaSkill),
   };

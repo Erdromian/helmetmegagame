@@ -3764,7 +3764,7 @@ async function claimDesireImpl({
     },
   });
   const desireSlots = config?.desireSlots ?? 2;
-  const lockTurns = config?.desireSlotLockTurns ?? 2;
+  const lockTurns = config?.desireSlotLockTurns ?? 1;
 
   const slotIndex = parseCount(rawSlotIndex, { min: 0, max: desireSlots - 1 });
   if (slotIndex == null) throw new UserError("That Desire slot doesn't exist.");

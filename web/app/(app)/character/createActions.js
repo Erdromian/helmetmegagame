@@ -216,18 +216,20 @@ export async function createCharacter(formData) {
     return { error: "One of those tags isn't available for purchase." };
   }
 
-  // Role tags come from the catalog by name (roles.yaml, validated by
-  // db:sync-roles). An entry may carry a count — "Obol x5" — so the name is
-  // parsed out for the lookup and the count kept beside it. Repeating the name
-  // five times could not have worked: this is a `name: { in: [...] }` set
-  // lookup and would collapse the duplicates. See db/lib/startingTags.js.
+  // Role tags come from the catalog by SLUG. roles.yaml authors them as
+  // display names, but db:sync-roles resolves each one as it validates it, so
+  // Role.startingTagSlugs holds slugs and nothing here has to know a name. An
+  // entry may carry a count — "obol x5" — so the slug is parsed out for the
+  // lookup and the count kept beside it. Repeating the slug five times could
+  // not have worked: this is a `slug: { in: [...] }` set lookup and would
+  // collapse the duplicates. See db/lib/startingTags.js.
   const startingWanted = new Map();
   for (const entry of role.startingTagSlugs) {
-    const { name, quantity } = parseStartingTag(entry);
-    startingWanted.set(name, (startingWanted.get(name) ?? 0) + quantity);
+    const { slug, quantity } = parseStartingTag(entry);
+    startingWanted.set(slug, (startingWanted.get(slug) ?? 0) + quantity);
   }
   const startingTags = startingWanted.size
-    ? await prisma.tag.findMany({ where: { name: { in: [...startingWanted.keys()] } } })
+    ? await prisma.tag.findMany({ where: { slug: { in: [...startingWanted.keys()] } } })
     : [];
 
   // A word this character has no claim to lands as null, not a failed create.
@@ -340,7 +342,7 @@ export async function createCharacter(formData) {
     const expiresTurn = await expiryForGrant(prisma, tag, openTurn, { where: "createCharacter" });
     // A count only means anything on a stackable tag; asking for five of a
     // non-stackable one still yields the one row CharacterTag allows.
-    const quantity = tag.stackable ? (startingWanted.get(tag.name) ?? 1) : 1;
+    const quantity = tag.stackable ? (startingWanted.get(tag.slug) ?? 1) : 1;
     tagIdsToGrant.set(tag.id, { source: "GM_GRANT", expiresTurn, quantity });
   }
   for (const tag of selected) {

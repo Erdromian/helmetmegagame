@@ -665,7 +665,7 @@ out of the handler into `db/lib` and both faces call it.
 | `/roll` | `db/lib/roll.js#castDie` | `rollHere(placeKey)` |
 | `/add`, `/remove` (room half) | `db/lib/roomGuests.js` | `addMember` / `removeMember` |
 | `/add`, `/remove` (conversation half) | `db/lib/conversations.js` | the same two |
-| `/move` `/travel` `/converse` `/report` | already shared | `submitMove`, `TravelNodes`, `ConverseDialog`, `reportToGms` |
+| `/move` `/travel` `/converse` | already shared | `submitMove`, `TravelNodes`, `ConverseDialog` |
 
 **The bot has not been rewired yet.** Each of those new `db/lib` modules opens
 with a `TODO(rewire)` comment naming the handler and the lines it duplicates,

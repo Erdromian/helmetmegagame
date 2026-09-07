@@ -63,15 +63,15 @@ function normalizeDisguiseName(raw) {
 // it is removable so a player can drop the act early, and it carries the
 // forcedName that does the actual work.
 //
-// Tag.name is @unique across the whole catalog, so the NAME has to vary per
-// attempt, not just the slug — db/lib/photoMint.js#disambiguated is the same
-// problem and the same answer. "Disguised (John)" is a name the game will make
-// over and over, and varying only the slug would have re-submitted one
-// colliding name six times and then refused the disguise outright.
+// The NAME varies per attempt as well as the slug, which is no longer forced
+// by a constraint (Tag.name stopped being unique — db/lib/paper.js#paperName)
+// and is kept because it reads better: "Disguised (John)" is a name the game
+// makes over and over, and a list of identical ones tells a GM nothing about
+// which is which. db/lib/photoMint.js#disambiguated is the same answer.
 //
 // The first attempt stays clean; a retry appends a note code rather than a
-// "(2)", paperMint.js's reasoning exactly — two people going by John are two
-// different Johns, not the second draft of one.
+// "(2)" — two people going by John are two different Johns, not the second
+// draft of one.
 //
 // inspectVisibility is HIDDEN, so nobody reads "Disguised (Kellen Ward)" off a
 // 🔍 — which would give the whole thing away.

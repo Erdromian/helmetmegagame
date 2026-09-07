@@ -122,11 +122,12 @@ Every writer records the row first and then adds the account:
 |---|---|
 | Converse | `handleConverseCreate`, the creator |
 | `/add` on a conversation | `bot/src/events/interactionCreate.js` |
-| A mention into a conversation | `bot/src/events/messageCreate.js` |
+| A mention into a conversation, typed in Discord | `bot/src/events/messageCreate.js` |
+| A mention into a conversation, typed on /play | `bot/src/lib/feedOutbox.js#relayWebMentions` |
 | The invite replay on arrival | `db/lib/threadInvites.js#applyPendingInvites` |
 | `/remove` | deletes the row |
 
-All four go through `db/lib/conversations.js` —
+All five go through `db/lib/conversations.js` —
 `addConversationMember` / `removeConversationMember` / `conversationsFor` —
 which is also what fires the presence notify (§3), so a `/add` on Discord makes
 the conversation appear on the target's web page with no reload.
@@ -286,7 +287,8 @@ from 17rem in the second pass: it is the game suite now, not a button strip.
 │               │                                            │──────────────────────│
 │               │ · Alexandra is typing…                     │ THIS ROOM            │
 │               │────────────────────────────────────────────│ Storage · 2 loaves,  │
-│ 🔔  web-only  │ [ Say something in Council Room…         ] │ a key   [Move things]│
+│ 🔔  web-only  │ [ Say something in Council Room…         ] │ a key                │
+│               │                                            │ [Drop][Take][Transfer]│
 │               │                                  4 s       │ [Intercom]           │
 │               │                                            │──────────────────────│
 │               │                                            │ TRAVEL · 1 free      │
@@ -313,7 +315,6 @@ from 17rem in the second pass: it is the game suite now, not a button strip.
 │               │                                            │ [Sheet ›]            │
 │               │                                            │ Waiting on you · 1   │
 │               │                                            │ ▾ YESTERDAY          │
-│               │                                            │ Report to the GMs    │
 └───────────────┴────────────────────────────────────────────┴──────────────────────┘
 ```
 
@@ -356,13 +357,46 @@ header instead).
   the private ones a key or a guest row opens, marked `▪`), **Conversations**,
   **Summary**, and exports `PlacesTabs` — the same list as the phone's
   `.tab-bar`. Only one of the two is ever drawn.
-- **The unread dot** is one comparison: the newest seq said in a place against
-  the newest seq this browser has seen there. The first half comes down with
-  the place list (`newestSeq`, a string — the column is a bigint) and from
-  whatever the tab has heard live; the second is `hall:seen:<placeKey>` in
-  `localStorage`, read through `useSyncExternalStore` in `seenStore.js` and
-  written when the reader scrolls to the bottom, never merely on selection.
-  It only ever moves forward.
+- **The unread dot** is one comparison: the newest **notable** seq in a place
+  against the newest seq this browser has seen there.
+
+  Notable, not merely newest. Any-row-is-unread meant a place lit up for
+  scenery — somebody lifting a stamp off a table — so the dot stopped meaning
+  anything, which is the whole failure of an unread mark. A row is notable
+  when it is **in a conversation** (there is no scenery in one) or **carries
+  this character's `{char:…}` token**, and in neither case when they wrote it
+  themselves. One predicate, `feedStore.js#isNotableRow`.
+
+  The first half comes down with the place list (`notableSeq`, a string — the
+  column is a bigint, computed by `web/lib/feedAccess.js#notableWatermarks`)
+  **and** from whatever the tab has heard live; the LARGER of the two wins, so
+  a mention that landed while the page was shut is not hidden by a quieter one
+  since. `newestSeq` still rides along beside it, because that is what seeds a
+  first-time browser's read marks.
+
+  The second half is `hall:seen:<placeKey>` in `localStorage`, read through
+  `useSyncExternalStore` in `seenStore.js` and written when the reader scrolls
+  to the bottom, never merely on selection. It only ever moves forward, and it
+  is the newest seq **overall** — so reading a place to the bottom clears its
+  dot however the dot was lit.
+
+  The **chime** is deliberately narrower than the dot: `Hall.js` rings on the
+  mention half only. A busy conversation ringing on every line is a reason to
+  mute the Hall rather than to look at it — a dot is patient, a sound is not.
+- **A ping in a conversation adds them to it**, the way Discord does when you
+  @ a stranger in a thread. `POST /api/feed/say` calls
+  `db/lib/conversations.js#pullMentionedIntoConversation` after the row is
+  written: it reads the `{char:…}` tokens, re-checks each against the DB
+  (a token is player-typed text), and for anyone living and not already a
+  member writes the `PlayerThreadMember` row plus the `PlayerThreadInvite`
+  beside it. The route then does the Discord half — `addThreadMember` for
+  somebody standing in the Location and not `webOnly`, and a DM either way.
+  It can never fail the send: the words are the point.
+
+  Conversations only. A room is opened by a key or a guest row and a mention
+  is neither; the street is already open to everyone standing in it. And the
+  web path only — a mention typed into Discord is Discord's own to handle.
+
 - **`Feed.js`** (phase 0's `PlayFeed.js`, generalised) draws one place: its
   name, a search button, the runs, and the composer.
   Enter appends the pending row in the same frame and clears the box; the POST
@@ -456,7 +490,6 @@ header instead).
   | `/look` | `lookAt(ref)` — a character id or a hood token, told apart server-side | — |
   | `/converse` | opens the same `ConverseDialog` the right column's Converse opens | — |
   | `/add`, `/remove` | `addMember` / `removeMember` (below) | `db/lib/roomGuests.js` |
-  | `/report` | `reportToGms` | — |
 
   **`where` is a filter, not a greying.** `/roll` is absent in the street and
   `/add` is absent in the zone summary, because a list of things you can type
@@ -573,13 +606,17 @@ header instead).
      answers what this character can do where they stand, which at a Location
      with six rooms is six rooms' buttons at once; the panel groups by
      `roomId` and shows the open one. Its storage line comes from
-     `readStash`, with **Move things** opening the sheet's Transfer preset to
-     `room:<id>`, and then that room's own fixtures — Intercom in the Council
-     Room, the Bell in the tower, the red Turret in the Censor's office.
+     `readStash`, and every stack in it is a button: clicking one opens the
+     sheet's Transfer dialog with the room as the source and that stack
+     already ticked. Under it, **Drop** / **Take** / **Transfer** — the same
+     dialog seeded three ways (self→room, room→self, and nothing assumed).
+     Then that room's own fixtures — Intercom in the Council Room, the Bell in
+     the tower, the red Turret in the Censor's office.
   4. **`TravelNodes.js`** — the ways out as a grid of square nodes, two to a
      row, off `loadTravel`. Each node carries the destination, its zone in
-     small caps and one foot line: `free` for a local hop or a crossing with a
-     free move left, `the turn` for a crossing that spends the Move and lands
+     small caps, the Location's own description in italics (clamped to the
+     square, with the whole of it on the node's title) and one foot line:
+     `free` for a local hop or a crossing with a free move left, `the turn` for a crossing that spends the Move and lands
      next turn (MAP.md §3), and `shut` / `locked` / the refusal for one that
      will not open — dimmed, still drawn, because knowing the way is there and
      shut is what sends you to find the winch. A zone crossing is tinted. The
@@ -647,10 +684,6 @@ header instead).
      staged messages) or `bot_auto` (the Routine result and the Gambit
      reveal, which `db/lib/dm.js` defaults). It **reads** — it sends nothing,
      and it is not a second inbox.
-  8. **Report to the GMs**, last and quiet. It writes an INBOUND
-     `DirectMessage` prefixed `[Play] ` and sends nothing to Discord, so it
-     lands in `/gm/players` beside everything else that player has said and
-     the answer comes back down the ordinary DM path.
 
   The card and the waiting list share **one** 60-second interval (`myMove()`
   and `waitingOnYou()` on the same tick), so a Move filed from the `#turns`

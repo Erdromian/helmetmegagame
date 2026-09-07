@@ -19,7 +19,9 @@ const {
   ensureChannelWebhook,
   editWebhookMessage,
   deleteWebhookMessage,
+  addThreadMember,
 } = require("@lifeweb/db/lib/discordRest");
+const { addConversationMember } = require("@lifeweb/db/lib/conversations");
 const { loadForcedName, loadConcealment } = require("@lifeweb/db/lib/presentedIdentity");
 const { pushToUser } = require("@lifeweb/db/lib/webPush");
 const { FEED_CHANNEL } = require("@lifeweb/db/lib/feedNotify");
@@ -116,17 +118,46 @@ async function relayWebMentions({ row, characters, concealed, channelId, message
   const link = messageLink(channelId, messageId);
   if (!link) return;
 
-  const [earshot, context] = await Promise.all([
+  const [earshot, context, conversation] = await Promise.all([
     earshotForPlaceKey(prisma, row.placeKey),
     // The same zone/thread names the row itself was stamped with, so the DM
     // says the place the way /archive says it.
     archiveContextForPlaceKey(prisma, row.placeKey),
+    // A mention only becomes an invite inside a Conversation, exactly as it
+    // does on Discord (bot/src/events/messageCreate.js). A private Room is a
+    // private thread too, but it is gated on a key tag (db/lib/roomAccess.js),
+    // and letting a ping hand out a seat there would route around the lock.
+    prisma.playerThread
+      .findUnique({ where: { threadId: channelId }, select: { id: true, locationId: true } })
+      .catch((err) => {
+        console.error("Conversation lookup failed for a web mention:", err);
+        return null;
+      }),
   ]);
   const place = context.zoneName ?? "somewhere";
   const where = context.threadName ? `${place} · ${context.threadName}` : place;
 
   for (const target of characters.slice(0, MAX_MENTION_RELAYS)) {
-    if (!target.discordUserId || !inEarshot(target, earshot)) continue;
+    if (conversation) {
+      // The same contract /add has: the membership row first, the invite row
+      // beside it so db/lib/threadInvites.js can replay the Discord add when
+      // they walk in, and the Discord add now if they are already standing
+      // here. A "web only" target has no Discord presence to add (HALL.md §6)
+      // — the row above is their invite and they read it on /play.
+      await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: target.id });
+      await prisma.playerThreadInvite
+        .upsert({
+          where: { threadId_characterId: { threadId: channelId, characterId: target.id } },
+          update: {},
+          create: { threadId: channelId, characterId: target.id },
+        })
+        .catch((err) => console.error("Failed to record a web thread invite:", err?.message ?? err));
+      if (target.locationId === conversation.locationId && !target.webOnly && target.discordUserId) {
+        await addThreadMember(channelId, target.discordUserId).catch(() => {});
+      }
+    }
+    if (!target.discordUserId) continue;
+    if (!conversation && !inEarshot(target, earshot)) continue;
     await sendDm(prisma, target.discordUserId, `*You were mentioned in ${where}.* ‡\n${link}`, {
       source: "system_notice",
     }).catch((err) => console.error(`Feed outbox couldn't relay a mention to ${target.name}:`, err));

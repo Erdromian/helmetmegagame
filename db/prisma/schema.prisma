@@ -428,7 +428,7 @@ model GameConfig {
   // Whole turns a Desire slot stays shut after a Desire is claimed into it.
   // A claim on turn N leaves the slot shut on N and open again on
   // N + desireSlotLockTurns + 1 (db/lib/desireGates.js#slotStates).
-  desireSlotLockTurns Int @default(2)
+  desireSlotLockTurns Int @default(1)
 
   // Expected total number of players, the denominator for every role's seat
   // cap: a role with `weight: 6` in docs/roles.yaml gets
@@ -1759,8 +1759,17 @@ enum PaperKind {
 // Location/docs/locations.yaml: removing a tag from the YAML never deletes
 // its row here.
 model Tag {
-  id          String  @id @default(cuid())
-  name        String  @unique
+  id String @id @default(cuid())
+
+  // NOT unique, deliberately. It was, and that is the only reason a written
+  // sheet used to be titled "A Note (XY-1234)": every new one needed a name no
+  // other tag had, so the code went in the title. Identity is `slug`, which is
+  // unique and always was, and every lookup in the game matches on it —
+  // Role.startingTagSlugs included, since db:sync-roles resolves the display
+  // names docs/roles.yaml authors. /gm/dev/tags still refuses a duplicate name
+  // when a GM types one, because two identically named HOMEBREW tags is a
+  // confusion worth stopping; two notes both called "A Note" is the point.
+  name        String
   slug        String  @unique
   description String?
   category    String
@@ -3185,7 +3194,7 @@ model CraftProject {
   // record of the spend, what a GM repairing by hand reads. Null on a recipe
   // with no spent ingredient, and on every project filed before this column
   // existed.
-  consumed      Json?
+  consumed Json?
 
   // Pending custom-item fields (`{ name?, description? }`) for a customizable
   // recipe's multi-turn project — held here until the finishing turn, when

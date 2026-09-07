@@ -58,7 +58,7 @@ async function photoGroupId(tx) {
 }
 
 // createWithRetry comes from db/lib/paperMint.js rather than being retyped —
-// it is the same loop over the same @unique on Tag.name.
+// it is the same loop over the same @unique on Tag.slug.
 //
 // ** Everything below hands it the TOP-LEVEL client, never a transaction. **
 // Postgres aborts a whole transaction the moment one statement in it fails, so

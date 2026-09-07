@@ -133,9 +133,71 @@ async function conversationMembers(prisma, playerThreadId) {
     }));
 }
 
+// Pinging somebody into a conversation puts them IN it, the way it does in
+// Discord. A mention of somebody who is not a member used to be a name they
+// never saw: the row rendered as a chip, they were told nothing, and the one
+// person the message was for was the one person who could not read it.
+//
+// Only conversations. A room is opened by a key or a guest row and a mention
+// is neither, and the street is already open to everyone standing in it.
+//
+// Follows the returned-side-effects pattern (ARCHITECTURE.md): the rows are
+// written here — the PlayerThreadMember that IS the membership, and the
+// PlayerThreadInvite beside it that replays the Discord half when they next
+// reach the Location — and the caller performs the Discord adds and the DMs
+// with whichever client it holds. `content` is the row as stored, so the
+// tokens are the same ones the feed renders.
+//
+// The speaker cannot pull themselves in, and somebody already in is skipped
+// without a second notify.
+async function pullMentionedIntoConversation(prisma, { conversation, content, speakerId } = {}) {
+  if (!conversation?.id || typeof content !== "string") return [];
+
+  const ids = [...content.matchAll(/\{char:([A-Za-z0-9_-]+)\}/g)].map((m) => m[1]);
+  const wanted = [...new Set(ids)].filter((id) => id && id !== speakerId);
+  if (wanted.length === 0) return [];
+
+  const members = await prisma.playerThreadMember.findMany({
+    where: { playerThreadId: conversation.id, characterId: { in: wanted } },
+    select: { characterId: true },
+  });
+  const inside = new Set(members.map((row) => row.characterId));
+  const outside = wanted.filter((id) => !inside.has(id));
+  if (outside.length === 0) return [];
+
+  // Living characters only, and re-read from the DB rather than trusted off
+  // the token: a {char:…} is player-typed text.
+  const targets = await prisma.character.findMany({
+    where: { id: { in: outside }, status: "ALIVE" },
+    select: { id: true, name: true, locationId: true, discordUserId: true, webOnly: true },
+  });
+
+  const added = [];
+  for (const target of targets) {
+    const isNew = await addConversationMember(prisma, {
+      playerThreadId: conversation.id,
+      characterId: target.id,
+    });
+    if (!isNew) continue;
+
+    if (conversation.threadId) {
+      await prisma.playerThreadInvite
+        .upsert({
+          where: { threadId_characterId: { threadId: conversation.threadId, characterId: target.id } },
+          update: {},
+          create: { threadId: conversation.threadId, characterId: target.id },
+        })
+        .catch((err) => console.error("Failed to record thread invite:", err?.message ?? err));
+    }
+    added.push(target);
+  }
+  return added;
+}
+
 module.exports = {
   conversationByThreadId,
   addConversationMember,
+  pullMentionedIntoConversation,
   removeConversationMember,
   conversationsFor,
   conversationMembers,
