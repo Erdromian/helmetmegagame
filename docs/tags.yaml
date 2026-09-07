@@ -11390,7 +11390,7 @@ tags:
     name: Graga-Hide Cloak
     category: items
     group: items-armor
-    description: "Thick, rubbery hide, cured and cut into a heavy travelling cloak. It sheds rain like a roof and takes a blow better than any coat has a right to. ‡"
+    description: "Cut from a graga's thick, rubbery sac and cured whole, this heavy travelling cloak sheds rain like a roof and takes a blow better than any coat has a right to. ‡"
     pointCost: 3
     equippable: true
     equipSlot: BODY
