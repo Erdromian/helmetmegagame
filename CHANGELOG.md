@@ -6,6 +6,24 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · The buttons stop explaining themselves, and books are crafted now
+
+− Craft, Destroy, Transfer, Write, Butcher, Free and Search lose their tooltips, and eleven explanatory paragraphs come out of the dialogs. The empty states and the refusals stay.  
+✚ Learn, Teach, Confess, Seal, Bury, Engrave, Bind and Move Player say one short true thing each instead
+✎ The Dead folds into People Here, which is now Others. Letters is now Paper  
+✚ Transfer reaches a concealed person, listed by their alias under an opaque handle, so a hood never has to say who it is to be handed a coin  
+✚ Transfer also takes from someone bound or dead, which is Loot — same rules, same fear, same notice, one implementation  
+✚ A blank book is an ordinary craft recipe: ten paper, no skill. Write fills one, with a title  
+− Bind a Book and Tear Up a Book. A book is permanent now  
+✚ A recipe can ask for ten of an ingredient (`count:`), and every surface that prints a recipe says the number
+
+## 2026-09-07 · The Play page forgets the last game, and the dev panel stops explaining itself
+
+✎ The Hall no longer shows the last game: /play is empty after a Restart instead of full of dead characters still talking  
+− Every tooltip, section blurb and how-it-works paragraph on the GM desks  
+✎ A shout arrives on one line now, instead of breaking the words onto a second  
+− The double dagger on any string of four words or fewer, since there is nothing to rewrite in "Save"
+
 ## 2026-09-07 · Roleplay channels wipe every turn now, Summaries still at Dawn
 
 ✎ Location channels, Rooms and Conversations are cleared at the end of every turn instead of every other one — a scene lives for one day, not two  
