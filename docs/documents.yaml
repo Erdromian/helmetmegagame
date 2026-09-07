@@ -367,6 +367,10 @@ documents:
       - {tag:sketch} — 1 ⬢, half a turn's work, Artist. Two to a Routine. ‡
       - {tag:badge} — 2 ⬢, 1 turn, Crafting.
       - {tag:hat} — 3 ⬢, 1 turn, Crafting.
+      - {tag:burn-dressing} — 4 ⬢, half a turn's work, Medical (Skilled). ‡
+      - {tag:portable-surgical-pack} — 8 ⬢, 1 turn, Medical (Expert). Stands
+        in for Surgical Equipment's +1 on a single Gambit, once, and never
+        while real equipment is already in reach. ‡
 
       **Make it your own.** A few crafts — the {tag:badge}, the {tag:hat},
       the {tag:painting}, the {tag:sketch}, and a cook's meals — can be made
@@ -436,6 +440,10 @@ documents:
       {tag:brewing-skilled} — wine and everything that needs a hard-to-find
       ingredient. Requires Brewing (Basic).
 
+      A couple of tonics below are Medical work rather than Brewing —
+      {tag:medical-skilled} instead — but they're brewed the same way and
+      sit on the same shelf. ‡
+
       Every ingredient below is a real thing you have to be holding, and the
       brewing uses it up unless the row says otherwise.
 
@@ -459,7 +467,7 @@ documents:
       | Brew | ⬢ | Turns | Needs |
       |---|---|---|---|
       | {tag:deadeye-drops} | 2 | 1 | {tag:cave-fungus} |
-      | {tag:mercy} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:cave-fungus} |
+      | {tag:mercy} | 3 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:cave-fungus} |
       | {tag:mindbreaker-toxin} | 2 | 1 | {tag:cave-fungus} |
       | {tag:ravenheart-red} | 4 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:alcohol} |
       | {tag:distilled-coca} | 4 | 1 | {tag:coca-leaves} |
@@ -469,6 +477,13 @@ documents:
       | {tag:forgiveness} | 8 | 1 | {tag:poppy} |
       | {tag:mulligan-potion} | 8 | 2 | — |
       | {tag:flawless-skin} | 8 | 1 | — |
+
+      **Medical (Skilled)**
+
+      | Tonic | ⬢ | Turns | Needs |
+      |---|---|---|---|
+      | {tag:fever-draught} | 3 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
+      | {tag:antidote} | 4 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
 
       Rumor has it the skilled brewers of past generations knew recipes beyond these — worked from stranger ingredients than any listed here. If something rare and organic finds its way into your hands, a still is one way to ask it questions. ‡
   # GM-only. The `gamemaster` flag is not a property of any Character — the
@@ -532,6 +547,7 @@ documents:
       | {tag:graga-hide-cloak} | Crafting | 6 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
       | {tag:minted-charm} | Smithing | 15, 3-turn project | {tag:old-coin} | caving loot |
       | {tag:musk-lure} | Butcher | 2 | {tag:nekker-pheromones} | butchered from a {tag:nekker-corpse} |
+      | {tag:military-autoinjector} | Medical (Expert) | 8, 2 turns | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
       | {tag:chrism} | Blessing | 2 | {tag:holy-water} and {tag:honey} | the Cathedral's still and the Depot's shelf |
       | {tag:heartforged-blade} | Smithing (Skilled) | 34, 3-turn project | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
       | {tag:death-mask} | Artist | 4, 2-turn project | a corpse (kept) and {tag:saltpeter} | hidden by its own catalog flag, like the {tag:bone-mask}: an artist standing with a body finds it |
