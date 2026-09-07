@@ -11,11 +11,17 @@ const { sceneLineAt } = require("@lifeweb/db/lib/scene");
 //
 // Everyone is aliased, concealed or not (db/lib/concealedIdentity.js). The
 // room learns an age and a presentation, which is what standing across a
-// tavern tells you, and nothing else.
+// tavern tells you, and nothing else. Subtle is the one exception, below.
 //
 // Stateless: one 15-minute lookback per tick, no cursor column. A restart
 // across a tick may double-post a line or skip one, which is cheaper than a
 // row of bookkeeping for flavor text.
+
+// Subtle is the one tag that opts a character out of the line entirely: the
+// room never notices them at it. Everyone else in the thread is still named,
+// so a Subtle whisperer hides in a conversation rather than silencing it —
+// only an all-Subtle thread goes quiet.
+const SUBTLE_SLUG = "subtle";
 
 const WINDOW_MINUTES = 15;
 // Past this many, the line stops being informative and starts being a wall.
@@ -66,7 +72,12 @@ async function runWhisperPoll(prisma) {
     (
       await prisma.character.findMany({
         where: { id: { in: [...new Set(entries.map((e) => e.characterId))] } },
-        select: { id: true, age: true, gender: true },
+        select: {
+          id: true,
+          age: true,
+          gender: true,
+          tags: { where: { tag: { slug: SUBTLE_SLUG } }, select: { id: true } },
+        },
       })
     ).map((c) => [c.id, c]),
   );
@@ -77,7 +88,13 @@ async function runWhisperPoll(prisma) {
     // Nobody spoke, or the linked room was never provisioned a thread.
     if (!speakerIds?.length || !conversation.room?.discordThreadId) continue;
 
-    const aliases = speakerIds.map((id) =>
+    // Subtle drops out before anyone is aliased. Nothing downstream runs when
+    // that empties the thread, so the Discord post and the Room's feed row are
+    // skipped together — there is no half-suppressed whisper.
+    const audible = speakerIds.filter((id) => !speakers.get(id)?.tags?.length);
+    if (!audible.length) continue;
+
+    const aliases = audible.map((id) =>
       withArticle(concealedAlias(speakers.get(id) ?? {}).toLowerCase()),
     );
     // "You hear …" leads every audible line in the game, which is also what

@@ -511,6 +511,20 @@ Escape Artist 4, Esoteric 4, Lockpicking 4, Pavise 4 and Camouflage 4 (also
 between 2 and 5); Light Sleeper and Old Blood at 1 (below the 2 band, alongside
 Pilgrim and Instrument). Don't read a pattern into any of them.
 
+**The combat and traits batch of 2026-09-06 adds seven more off-band calls,
+again Bascinet's rather than a new scale.** Steady is 1 (below the 2 band,
+alongside Pilgrim, Instrument, Light Sleeper and Old Blood). Ranged (Throwing
+Weapons) is 4 and Ranged (Sniper) 7, against a nominal sidegrade price of 10 —
+Sniper on the Melee (Flamboyant) precedent, since "at long range" is a real
+condition of its own rather than a situational-but-free one. Reckless Attacker
+and Monster Hunter are 5 each, both ungated for Guerrilla's reason. Drunken
+Master is 5 and gated behind Alcoholic, so it is bought at a −4 discount
+nothing else in the group pays. Dense is −3 (between −2 and −5, alongside
+Tremor, which is the same magnitude of nuisance). Don't read a pattern into
+any of them — and note that the sidegrade band now has four exceptions
+(Flamboyant, Sniper, Throwing Weapons, Guerrilla), so "sidegrades cost 10" is
+a starting point rather than a rule.
+
 **Corrupt at −2 is the one that argues with this section**, and it is
 deliberate. By the income rule below it should be positive: it opens five
 Desires and closes nothing, which is the Interest shape. It is priced as a

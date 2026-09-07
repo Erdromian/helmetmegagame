@@ -14,9 +14,9 @@
 // Lightweight sends the FIRST drink one rung above whatever it would have
 // landed on — for every drink in the catalog that's Sober -> Wasted, skipping
 // Tipsy entirely. Iron Liver does the opposite to a CLIMB
-// (a rung already held moving up): it costs a drink to grant a "steady"
-// marker instead of climbing, and only the drink after that actually climbs
-// (clearing the marker too). Net Iron Liver pace: 1 drink -> Tipsy, two more
+// (a rung already held moving up): it costs a drink to grant a "holding it
+// down" marker instead of climbing, and only the drink after that actually
+// climbs (clearing the marker too). Net Iron Liver pace: 1 drink -> Tipsy, two more
 // -> Wasted, two more -> Unconscious. The catalog's conflictsWith keeps a
 // character from holding both; if that were ever bypassed, Lightweight wins
 // on a first drink and Iron Liver wins on a climb, since they check disjoint
@@ -26,7 +26,7 @@
 // needing a stable preview must read consumesIntoOneOf directly, not call
 // this twice — a second call can roll a different outcome.
 //
-// LIGHTWEIGHT_SLUG / IRON_LIVER_SLUG / STEADY_SLUG live only here, on
+// LIGHTWEIGHT_SLUG / IRON_LIVER_SLUG / HOLDING_SLUG live only here, on
 // purpose: this file is imported by "use client" components (TagsPanel.js,
 // RequestActionsProvider.js), so pulling in @lifeweb/db/lib/constants would
 // drag the db package into the browser bundle. docs/tags.yaml is the source
@@ -34,7 +34,7 @@
 // hand.
 const LIGHTWEIGHT_SLUG = "lightweight";
 const IRON_LIVER_SLUG = "iron-liver";
-const STEADY_SLUG = "steady";
+const HOLDING_SLUG = "holding-it-down";
 
 // `heldSlugs` may be a Set or any iterable of slugs. `ladder` is an optional
 // Map (or plain object) of slug -> escalatesInto, which the caller builds from
@@ -110,15 +110,15 @@ export function resolveConsumeGrants(tag, heldSlugs, ladder = null) {
       // instead of one.
       climbed = { slug: nextRung(picked), cleared: null };
     } else if (onLadder && held.has(IRON_LIVER_SLUG) && climbed.cleared !== null) {
-      // Iron Liver: a climb (not a first drink) costs a "steady" marker
+      // Iron Liver: a climb (not a first drink) costs a "holding it down" marker
       // before it's allowed to land, doubling the drinks a climb takes.
-      if (!willHold.has(STEADY_SLUG)) {
-        slugs.push(STEADY_SLUG);
-        willHold.add(STEADY_SLUG);
+      if (!willHold.has(HOLDING_SLUG)) {
+        slugs.push(HOLDING_SLUG);
+        willHold.add(HOLDING_SLUG);
         continue;
       }
-      removes.push(STEADY_SLUG);
-      willHold.delete(STEADY_SLUG);
+      removes.push(HOLDING_SLUG);
+      willHold.delete(HOLDING_SLUG);
     }
     const slug = climbed.slug;
     if (climbed.cleared) {

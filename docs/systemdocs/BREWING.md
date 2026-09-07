@@ -172,12 +172,12 @@ is how Tipsy has always worked.
 consumeGrants.js#resolveConsumeGrants`. Lightweight sends the character's
 *first* drink straight to the second rung (Sober → Wasted, skipping Tipsy).
 Iron Liver does the opposite to a climb already underway: it costs a drink to
-grant a hidden `steady` marker instead of climbing, and only the drink after
-that actually climbs (clearing the marker too) — so an Iron Liver drinker
-paces at 1 drink → Tipsy, two more → Wasted, two more → Unconscious. The
-catalog's `conflictsWith` keeps a character from holding both at once. The
-three slugs (`lightweight`, `iron-liver`, `steady`) are duplicated by hand at
-the top of `consumeGrants.js`, because that file is imported by client
+grant a hidden `holding-it-down` marker instead of climbing, and only the
+drink after that actually climbs (clearing the marker too) — so an Iron Liver
+drinker paces at 1 drink → Tipsy, two more → Wasted, two more → Unconscious.
+The catalog's `conflictsWith` keeps a character from holding both at once. The
+three slugs (`lightweight`, `iron-liver`, `holding-it-down`) are duplicated by
+hand at the top of `consumeGrants.js`, because that file is imported by client
 components (`TagsPanel.js`, `RequestActionsProvider.js`) and pulling
 `@lifeweb/db/lib/constants` into the browser bundle isn't an option — keep
 them in sync with `db/lib/constants.js` if either ever changes.

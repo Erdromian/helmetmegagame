@@ -21,7 +21,12 @@
 # ("Almost no one matches you"), hyphenated compounds ("one-shot", "one-on-
 # one"), or pure flavour with no mechanical weight ("six chambers"). A skill
 # tier shift always reads "counts as N tiers higher/lower" — not "levels",
-# not "rungs". A flat time cost always reads "Takes N turns."; a repeating
+# not "rungs", and it NAMES ITS TREE: "your melee skill", "your ranged skill".
+# "your fighting skill" is reserved for a shift that really does move both,
+# which is the five drinking/injury debuffs, Reckless Attacker and Monster
+# Hunter. A melee-only sidegrade writing "fighting" overclaims, since the two
+# halves of the tree never overlap. A flat time cost always reads "Takes N
+# turns."; a repeating
 # one always reads "Once per day/turn" or "Once every N turns/days."
 #
 # ENTRY FORMAT: every entry in `categories:` and `tags:` below is a map keyed
@@ -1105,7 +1110,7 @@ tags:
     purchasableAfterStart: false
 
   # Scripted: every rung above Tipsy takes two drinks, tracked by the hidden
-  # `steady` marker; web/lib/consumeGrants.js.
+  # `holding-it-down` marker; web/lib/consumeGrants.js.
   iron-liver:
     catalog: all
     name: Iron Liver
@@ -1765,6 +1770,47 @@ tags:
     purchasableAfterStart: false
     removable: false
 
+  # Scripted: dropped from the room's "You hear … whispering…" notice.
+  # bot/src/lib/whisperPoll.js.
+  subtle:
+    catalog: all
+    name: Subtle
+    category: general
+    group: general-traits
+    description: "You are talented at whispering and saying things quietly. The room never notices you doing it. ‡"
+    pointCost: 2
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  # conflictsWith tremor: that tag is this one's exact inverse, an incurable
+  # shake in the same hands.
+  steady:
+    catalog: all
+    name: Steady
+    category: general
+    group: general-traits
+    description: "You move very deliberately, especially with your hands. Work that needs real precision comes easier to you. ‡"
+    pointCost: 1
+    conflictsWith: [tremor]
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Unrelated to the `stupid` health tag, which is Squeeze damage and garbles
+  # speech in db/lib/babble.js. This one is prose a GM weighs, nothing more.
+  dense:
+    catalog: all
+    name: Dense
+    category: general
+    group: general-traits
+    description: "You are somewhat stupid. ‡"
+    pointCost: -3
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
   relentless:
     catalog: all
     name: Relentless
@@ -2049,7 +2095,7 @@ tags:
     psychological: true
     category: general
     group: general-cerberon
-    description: "Your Fighting skill counts as 1 tier lower in your first real fight. Remove the tag afterwards."
+    description: "Your fighting skill counts as 1 tier lower in your first real fight. Remove the tag afterwards."
     pointCost: -2
     visible: false
     purchasable: true
@@ -2359,9 +2405,11 @@ tags:
   # Both run Basic -> Trained -> Skilled -> Expert -> Legendary at 7 pt a
   # rung, Legendary at 14.
   #
-  # Sidegrades cost 10. A sidegrade buys two tiers inside one narrow
-  # circumstance, so it is priced at roughly 1.4x a rung: two tiers for a bit
-  # less than two rungs, and nothing at all outside the circumstance.
+  # Sidegrades nominally cost 10 — two tiers inside one narrow circumstance,
+  # roughly 1.4x a rung, and nothing at all outside it. The band has more
+  # exceptions than members by now: Flamboyant 7, Sniper 7, Throwing Weapons 4,
+  # Guerrilla 5. Each is Bascinet's own call and TAGS.md §4a records them;
+  # price a new one off that section rather than off this comment.
   #
   # Grappler is 5 and standalone — bare hands are not a rung of either tree,
   # so it gates on nothing. Guerrilla is ungated for a different reason: it
@@ -2528,7 +2576,7 @@ tags:
     category: skills
     group: skills-fighting
     teachable: true
-    description: "While using polearms, your fighting skill counts as 2 tiers higher."
+    description: "While using polearms, your melee skill counts as 2 tiers higher."
     pointCost: 10
     requiredTag: melee-basic
     visible: false
@@ -2541,7 +2589,7 @@ tags:
     category: skills
     group: skills-fighting
     teachable: true
-    description: "Versatile. You half-sword, pommel strike, shove them into visors, and, of course, cut through the unarmored. Your fighting skill counts as 2 tiers higher while using swords."
+    description: "Versatile. You half-sword, pommel strike, shove them into visors, and, of course, cut through the unarmored. Your melee skill counts as 2 tiers higher while using swords."
     pointCost: 10
     requiredTag: melee-basic
     visible: false
@@ -2555,7 +2603,7 @@ tags:
     category: skills
     group: skills-fighting
     teachable: true
-    description: "While using clubs, your fighting skill counts as 2 tiers higher."
+    description: "While using clubs, your melee skill counts as 2 tiers higher."
     pointCost: 8
     requiredTag: melee-basic
     visible: false
@@ -2620,6 +2668,72 @@ tags:
     group: skills-fighting
     teachable: true
     description: "When you start a fight with a surprise attack in difficult terrain, your fighting skill (whether melee or ranged) counts as 2 tiers higher."
+    pointCost: 5
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  drunken-master:
+    catalog: all
+    name: Drunken Master
+    category: skills
+    group: skills-fighting
+    teachable: true
+    description: "You fight better with a drink in you. While {tag:tipsy}, your fighting skill counts as 1 tier higher, and being {tag:wasted} costs you nothing at all. ‡"
+    pointCost: 5
+    requiredTag: alcoholic
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  ranged-throwing-weapons:
+    catalog: all
+    name: Ranged (Throwing Weapons)
+    category: skills
+    group: skills-fighting
+    teachable: true
+    description: "When throwing axes, javelins, or even stones, your ranged skill counts as 2 tiers higher. ‡"
+    pointCost: 4
+    requiredTag: ranged-basic
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  ranged-sniper:
+    catalog: all
+    name: Ranged (Sniper)
+    category: skills
+    group: skills-fighting
+    teachable: true
+    description: "You are at your best picking foes off from far away. At long range, your ranged skill counts as 2 tiers higher. ‡"
+    pointCost: 7
+    requiredTag: ranged-basic
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Ungated for Guerrilla's reason above: it reads "whether melee or ranged",
+  # and a single requiredTag cannot say "either tree".
+  reckless-attacker:
+    catalog: all
+    name: Reckless Attacker
+    category: skills
+    group: skills-fighting
+    teachable: true
+    description: "You put everything on the line in a fight, yielding your very flesh to claim victory. Your fighting skill always counts as 1 tier higher, and you are far likelier to come out of a fight badly hurt. ‡"
+    pointCost: 5
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Ungated for the same reason as Reckless Attacker above.
+  monster-hunter:
+    catalog: all
+    name: Monster Hunter
+    category: skills
+    group: skills-fighting
+    teachable: true
+    description: "When fighting unnatural creatures, your fighting skill counts as 2 tiers higher. ‡"
     pointCost: 5
     visible: false
     purchasable: true
@@ -2842,7 +2956,7 @@ tags:
     name: Tipsy
     category: status
     group: status-debuffs
-    description: "Your Fighting skill counts as 1 tier lower."
+    description: "Your fighting skill counts as 1 tier lower."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2854,7 +2968,7 @@ tags:
     name: Wasted
     category: status
     group: status-debuffs
-    description: "You're going to regret this… Your Fighting skill counts as 2 tiers lower. ‡"
+    description: "You're going to regret this… Your fighting skill counts as 2 tiers lower. ‡"
     pointCost: 0
     visible: true
     purchasable: false
@@ -2882,9 +2996,9 @@ tags:
 
   # The Iron Liver marker: the first drink at a rung sets it, the second
   # clears it and climbs. web/lib/consumeGrants.js.
-  steady:
+  holding-it-down:
     catalog: gm
-    name: Steady
+    name: Holding It Down
     category: status
     group: status-debuffs
     description: "You're holding it down. One more and you won't be. ‡"
@@ -2902,7 +3016,7 @@ tags:
     name: Hangover
     category: status
     group: status-debuffs
-    description: "Ugh… Your Fighting skill counts as 1 tier lower. ‡"
+    description: "Ugh… Your fighting skill counts as 1 tier lower. ‡"
     pointCost: 0
     visible: true
     purchasable: false
@@ -2956,7 +3070,7 @@ tags:
     name: Opium High
     category: status
     group: status-debuffs
-    description: "You can't feel pain and can't think clearly. Your Fighting skill counts as 1 tier lower."
+    description: "You can't feel pain and can't think clearly. Your fighting skill counts as 1 tier lower."
     pointCost: 0
     visible: true
     purchasable: false
@@ -5936,8 +6050,13 @@ tags:
 
   # The Baroness's own key. It opens the Baron's Chambers and nothing else --
   # she shares his bed, not his ring.
+  # keepSlug: the derived slug would be "baronesss-key" — the possessive of a
+  # name already ending in s. The slug is load-bearing (docs/zones.yaml's
+  # Baron's Chambers `access:` list), so the flag carries the mismatch rather
+  # than the triple s. Without it db:sync-tags throws for the whole catalog.
   baroness-key:
     catalog: gm
+    keepSlug: true
     name: "Baroness's Key"
     category: items
     group: items-keys
@@ -7095,7 +7214,7 @@ tags:
     name: Crossbow
     category: items
     group: items-weapons
-    description: "Bruises plate, punctures almost everything else. It's easy to point — anyone using it has their fighting skill counts as 1 tier higher. Hunting produces +3 ⬢ when equipped. ‡"
+    description: "Bruises plate, punctures almost everything else. It's easy to point — while using it, your ranged skill counts as 1 tier higher. Hunting produces +3 ⬢ when equipped. ‡"
     laborBonus: { kind: hunting, amount: 3 }
     pointCost: 9
     requiredTag: ranged-basic
