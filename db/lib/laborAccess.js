@@ -218,7 +218,7 @@ function structureTools(structures) {
 // genuinely yields nothing simply has no LocationYield rows.
 function computeLaborAccess(ctx) {
   if (ctx.tagSlugs.has(EXHAUSTED_SLUG)) {
-    return { ok: false, reason: "You're **Exhausted**. You need to rest before you can Labor again. ‡" };
+    return { ok: false, reason: "You're **Exhausted**. Rest before you can Labor again." };
   }
   // Tied up, bleeding out, on the floor or out cold. This is the seam the
   // manual Labor declaration and the Factory's production tiers share, so one

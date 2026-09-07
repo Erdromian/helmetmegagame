@@ -88,8 +88,8 @@ async function runDawnAfflictionPass(prisma, turn, { rng = Math.random } = {}) {
       notices.push({
         discordUserId: character.discordUserId,
         content: targetSlug === EXHAUSTED_SLUG
-          ? "You barely slept, again. You're **Exhausted**. ‡"
-          : "You barely slept. You wake **Tired**. ‡",
+          ? "You barely slept again. You're **Exhausted**."
+          : "You barely slept. You wake **Tired**.",
       });
     }
   }

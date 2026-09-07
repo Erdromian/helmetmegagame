@@ -3362,7 +3362,7 @@ tags:
     name: Tired
     category: status
     group: status-debuffs
-    description: "You worked hard, or slept badly. Push yourself again before you've rested and you'll wear yourself out. ‡"
+    description: "You worked hard, or slept badly. Push yourself again and you'll wear yourself out."
     pointCost: 0
     purchasable: false
     durationTurns: 1
@@ -3377,7 +3377,7 @@ tags:
     name: Exhausted
     category: status
     group: status-debuffs
-    description: "You've pushed yourself too far. You can't Labor again until you've rested, and you won't fight well like this either. ‡"
+    description: "You've pushed too far. You can't Labor again until you rest, and you won't fight well like this."
     pointCost: 0
     purchasable: false
     durationTurns: 1
