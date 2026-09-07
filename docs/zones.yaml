@@ -628,10 +628,10 @@ zones:
                 basic-strategy: 1
           # Was one "Noble Chambers". Three rooms now, each with its own key —
           # and the Baron's opens all three, which is rather the point of being
-          # the Baron.
+          # the Baron. The Baroness's key opens his chambers alone.
           keep-barons-chambers:
             name: Baron's Chambers
-            access: [barons-key]
+            access: [barons-key, baroness-key]
             description: >-
               The Baron's room opens into a large, ornately decorated bedroom with a stunningly comfortable bed at the center. A wardrobe built into the wall contains all manner of fine attire for both the Baron and Baroness.
             stash:

@@ -5934,6 +5934,23 @@ tags:
     weight: 0
     purchasable: false
 
+  # The Baroness's own key. It opens the Baron's Chambers and nothing else --
+  # she shares his bed, not his ring.
+  baroness-key:
+    catalog: gm
+    name: "Baroness's Key"
+    category: items
+    group: items-keys
+    description: "A key to the Baron's Chambers. It opens nothing else. ‡"
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
   # The rest of Ravenheart's locks. Every one is weightless, tradeable and
   # stackable: a key is meant to be handed over, stolen off a body or copied,
   # and a role that hands out three of them needs a stack to put them in.
