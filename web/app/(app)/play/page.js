@@ -39,12 +39,11 @@ export default async function PlayPage() {
   if (!viewer.discordUserId) redirect("/");
 
   // The Hall switch on /gm/dev (GameConfig.playPanelEnabled). GMs bounce too:
-  // a GM watching a scene has the desk's Scene tab, and off means off.
-  const config = await prisma.gameConfig.findUnique({
-    where: { id: 1 },
-    select: { playPanelEnabled: true },
-  });
-  if (config && !config.playPanelEnabled) redirect("/character");
+  // a GM watching a scene has the desk's Scene tab, and off means off. The
+  // whole row is read once here; the composer and the aside take theirs off
+  // it below.
+  const gameConfig = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  if (gameConfig && !gameConfig.playPanelEnabled) redirect("/character");
 
   if (!viewer.character && !viewer.gm) {
     return (
@@ -80,10 +79,7 @@ export default async function PlayPage() {
   const floors = await feedWipeFloors(prisma);
   const floor = floorForPlace(floors, first.placeKey);
 
-  // GameConfig is read out here rather than inside the aside below, because
-  // the composer needs one field off it (tupperAutocorrectEnabled) and a GM
-  // watching a zone has no aside to have loaded it.
-  const [rows, watermark, forcedName, concealment, gameConfig] = await Promise.all([
+  const [rows, watermark, forcedName, concealment] = await Promise.all([
     prisma.archiveEntry.findMany({
       where: { placeKey: first.placeKey, deletedAt: null, seq: seqFilterAbove(floor) },
       orderBy: { seq: "desc" },
@@ -93,7 +89,6 @@ export default async function PlayPage() {
     prisma.archiveEntry.aggregate({ _max: { seq: true } }),
     viewer.character ? loadForcedName(prisma, viewer.character.id) : null,
     viewer.character ? loadConcealment(prisma, viewer.character.id) : null,
-    prisma.gameConfig.findUnique({ where: { id: 1 } }),
   ]);
 
   // The first paint's rows, with ONE `?v=` per character rather than the

@@ -50,6 +50,9 @@ function createHub() {
     client: null,
     connecting: false,
     backoffMs: BACKOFF_MIN_MS,
+    // Whether this hub has ever held a LISTEN. A connect after that is a
+    // RE-connect, and everything raised in the gap is gone — see resyncDm.
+    everConnected: false,
   };
 }
 
@@ -212,6 +215,22 @@ async function handleDm(payload) {
   }
 }
 
+// The pg client dropped and came back. The place feed papers over the gap
+// with its `since` cursor; the DM path has none, so every DM subscriber is
+// handed a resync frame and the pane asks for its page again (HALL.md §2b).
+// The browser's own EventSource never broke, so nothing else would tell it.
+function resyncDm() {
+  for (const set of hub().dmSubscribers.values()) {
+    for (const send of [...set]) {
+      try {
+        send({ resync: true });
+      } catch (err) {
+        console.error("DM subscriber failed:", err);
+      }
+    }
+  }
+}
+
 async function handleNotification(msg) {
   if (msg.channel === DM_CHANNEL) {
     if (msg.payload) await handleDm(msg.payload);
@@ -323,6 +342,8 @@ async function connect() {
     h.client = client;
     h.connecting = false;
     h.backoffMs = BACKOFF_MIN_MS;
+    if (h.everConnected) resyncDm();
+    h.everConnected = true;
   } catch (err) {
     console.error("Feed hub could not start listening:", err);
     drop(null);

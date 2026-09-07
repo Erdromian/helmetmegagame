@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · The Bascinet conversation, tightened after review
+
+✎ Paging back through a long conversation no longer skips messages that landed in the same instant, which a turn push does.  
+✎ If the conversation fails to load it says so and offers a retry, instead of grey bars forever.  
+✎ A player whose character died with the page open can still read Bascinet and write back.  
+✎ A tab parked on Bascinet no longer swallows the dot and the chime while nobody is looking at it.  
+✚ Writing to Bascinet is capped at twelve messages a minute, and stops when the Play page is switched off.
+
 ## 2026-09-07 · You can cut pieces off people
 
 ✚ A Mutilate button, for anyone Cruel, a Torturer, or one of the Thanati. Take one piece off somebody tied up here, or off a body you can reach — an eye, a tongue, a hand, a foot, a stomach, a heart  

@@ -1129,26 +1129,40 @@ export async function updateMove({ actionId, moveKind, description } = {}) {
 // chair — so the two surfaces cannot disagree about what was said. The row
 // shape strips the author: a player never learns which GM answered.
 //
-// Paged from the newest backwards by `beforeId`, the way the desk pages.
+// Paged from the newest backwards by `beforeId`, with the desk's keyset
+// (createdAt, id) — a turn push writes several rows into one millisecond, and
+// a plain `createdAt <` would skip every row sharing the boundary's stamp.
+//
+// Gated on the ACCOUNT, not on a living character: the page itself is what
+// requires one, and a player whose character died with the tab open should
+// still be able to read what Bascinet said and write back — that is the
+// moment they most want to.
 const GM_THREAD_PAGE = 60;
 
+async function account() {
+  const session = await auth();
+  if (!session?.discordUserId) return { error: "You are not signed in. ‡" };
+  return { discordUserId: session.discordUserId };
+}
+
 export async function gmThread({ beforeId = null } = {}) {
-  const me = await actor({ id: true, discordUserId: true });
+  const me = await account();
   if (me.error) return { ok: false, error: me.error };
 
   let before = null;
   if (beforeId) {
-    const row = await prisma.directMessage.findFirst({
+    before = await prisma.directMessage.findFirst({
       where: { id: String(beforeId), discordUserId: me.discordUserId },
-      select: { createdAt: true },
+      select: { id: true, createdAt: true },
     });
-    if (row) before = row.createdAt;
   }
 
   const rows = await prisma.directMessage.findMany({
     where: withoutDmNoise({
       discordUserId: me.discordUserId,
-      ...(before ? { createdAt: { lt: before } } : {}),
+      ...(before
+        ? { OR: [{ createdAt: { lt: before.createdAt } }, { createdAt: before.createdAt, id: { lt: before.id } }] }
+        : {}),
     }),
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: GM_THREAD_PAGE + 1,
@@ -1169,14 +1183,33 @@ export async function gmThread({ beforeId = null } = {}) {
 // inbound, and the GM's answer goes out through sendDm to Discord and the
 // table both, so it reaches the player on whichever face they are on.
 // `meta.via` says where it was typed, for a GM reading the record later.
+//
+// Two refusals the Discord path has no equivalent of. The Play switch
+// (GameConfig.playPanelEnabled) is re-read here because a tab open when a GM
+// flips it keeps its stream; and a plain cap on how fast one account may
+// write, because every scene composer in the Hall is throttled and this one
+// is a pipe straight into the GM desk's inbox.
+const TO_GMS_WINDOW_MS = 60_000;
+const TO_GMS_PER_WINDOW = 12;
+
 export async function sendToGms(content) {
-  const me = await actor({ id: true, discordUserId: true });
+  const me = await account();
   if (me.error) return { ok: false, error: me.error };
   const text = typeof content === "string" ? content.trim() : "";
   if (!text) return { ok: false, error: "Write something first. ‡" };
   if (text.length > PLAYER_DM_MAX_LENGTH) {
     return { ok: false, error: `That is too long — ${PLAYER_DM_MAX_LENGTH} characters at most. ‡` };
   }
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true } });
+  if (config && !config.playPanelEnabled) return { ok: false, error: "The Play page is switched off. ‡" };
+  const recent = await prisma.directMessage.count({
+    where: {
+      discordUserId: me.discordUserId,
+      direction: "INBOUND",
+      createdAt: { gte: new Date(Date.now() - TO_GMS_WINDOW_MS) },
+    },
+  });
+  if (recent >= TO_GMS_PER_WINDOW) return { ok: false, error: "Slow down a moment. ‡" };
 
   const row = await prisma.directMessage.create({
     data: {

@@ -107,7 +107,7 @@ function NewLine() {
 // the rows land and nothing has to say "Nothing has been said here yet. ‡"
 // first and then take it back. Tokens only, and aria-hidden: there is nothing
 // here for a screen reader to read.
-function FeedSkeleton() {
+export function FeedSkeleton() {
   return (
     <ul className="list-none p-0" aria-hidden="true">
       {[0, 1, 2].map((i) => (

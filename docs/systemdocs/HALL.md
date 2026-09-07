@@ -186,7 +186,12 @@ in their own DM. The desk picks the row up on its 3 s poll like any inbound,
 and the GM's answer goes out through `sendDm` to Discord *and* the table, so
 it reaches the player on whichever face they are on. The send is optimistic
 the desk's way: the row draws `pending` at once and retires when its twin
-lands, whichever of the stream or the action brings it first.
+lands, whichever of the stream or the action brings it first. Both actions
+gate on the **account**, not on a living character — the page is what needs
+one, and a player whose character died with the tab open can still read what
+Bascinet said and write back. `sendToGms` re-reads `playPanelEnabled` (a tab
+open when the switch flips keeps its stream) and refuses past twelve messages
+a minute, since every other composer in the Hall is throttled.
 
 **The dot and the NEW line** use `seenStore` like every other place. The
 "newest seq" of the pseudo-place is the newest outbound row's **epoch ms** —
@@ -346,6 +351,7 @@ from 17rem in the second pass: it is the game suite now, not a button strip.
 ┌───────────────┬────────────────────────────────────────────┬──────────────────────┐
 │ PLACES        │ Council Room                     ◔ Dusk 4  │ THE KEEP             │
 │               │────────────────────────────────────────────│ Fortress             │
+│ ✉ Bascinet  ● │                                            │                      │
 │ ▤ Summary   ● │                                            │ [Place] [Zone]       │
 │               │ ◉ Alexandra Hristov  13:58                 │ A high hall of black │
 │ ▸ The Keep    │   Nobody saw it leave.                     │ stone; the winch for │
@@ -387,7 +393,7 @@ from 17rem in the second pass: it is the game suite now, not a button strip.
 │               │                                            │ Opens on turn 9      │
 │               │                                            │ [Sheet ›]            │
 │               │                                            │ Waiting on you · 1   │
-│               │                                            │ ▾ YESTERDAY          │
+│               │                                            │                      │
 └───────────────┴────────────────────────────────────────────┴──────────────────────┘
 ```
 
@@ -724,7 +730,7 @@ header instead).
      `docs/tags.yaml`. Overburdened, Dying and Catatonic — and a carry line
      over its cap — wear the danger tone.
   3. **`ThingsDrawer.js`** — **Things ‡**, the pockets drawer, collapsed by
-     default and remembered in `localStorage` the way Yesterday is. Every tag
+     default and remembered in `localStorage`. Every tag
      whose category is **Items** or **Assets**, grouped in that order, as one
      chip each (`Paper ×23`, a `·` after anything equipped). A chip opens a
      menu of at most four: **Equip / Unequip** (`equippable`, the sheet's own

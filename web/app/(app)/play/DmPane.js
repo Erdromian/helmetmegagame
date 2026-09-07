@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import DmThread from "@/app/components/DmThread";
+import { FeedSkeleton } from "./Feed";
 import EmptyState from "@/app/components/EmptyState";
 import IconButton from "@/app/components/IconButton";
 import { SendIcon } from "@/app/components/icons";
@@ -36,6 +37,11 @@ export default function DmPane({ self }) {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState(null);
   const [sending, startSending] = useTransition();
+  // The first page failed to load — a network blip, or a character that
+  // died with the tab open. Drawn as a line and a retry, never as the
+  // skeleton forever.
+  const [loadError, setLoadError] = useState(null);
+  const [retries, setRetries] = useState(0);
   // Where the NEW line goes is decided once, when the pane opens — the same
   // beat the mark moves in, which is why it is peeked here and not read from
   // the store.
@@ -52,24 +58,37 @@ export default function DmPane({ self }) {
     let cancelled = false;
     gmThread()
       .then((result) => {
-        if (cancelled || !result?.ok) return;
+        if (cancelled) return;
+        if (!result?.ok) {
+          setLoadError(result?.error ?? "Couldn't load the conversation. ‡");
+          return;
+        }
+        setLoadError(null);
         seedDmRows(result.rows, result.hasMore);
       })
       .catch(() => {
-        // The stream still delivers what comes next; the skeleton gives way
-        // to whatever the store has.
+        if (!cancelled) setLoadError("Couldn't load the conversation. ‡");
       });
     return () => {
       cancelled = true;
     };
-  }, [dm.reconnects]);
+  }, [dm.reconnects, retries]);
 
-  // Reading it is seeing it. The dot compares against the newest thing
-  // Bascinet said, and this pane being open means every one of them is on
-  // the screen.
+  // Reading it is seeing it — while somebody is actually looking. A tab
+  // parked on Bascinet overnight must not swallow the turn result's dot: the
+  // mark moves only while the document is visible, and again when it
+  // becomes visible.
+  const [visible, setVisible] = useState(() =>
+    typeof document === "undefined" ? true : document.visibilityState === "visible",
+  );
   useEffect(() => {
-    if (dm.newestOutboundMs !== null) markSeen(DM_PLACE_KEY, String(dm.newestOutboundMs));
-  }, [dm.newestOutboundMs]);
+    const onChange = () => setVisible(document.visibilityState === "visible");
+    document.addEventListener("visibilitychange", onChange);
+    return () => document.removeEventListener("visibilitychange", onChange);
+  }, []);
+  useEffect(() => {
+    if (visible && dm.newestOutboundMs !== null) markSeen(DM_PLACE_KEY, String(dm.newestOutboundMs));
+  }, [dm.newestOutboundMs, visible]);
 
   const loadOlder = useCallback(() => {
     const first = dm.rows[0];
@@ -119,7 +138,9 @@ export default function DmPane({ self }) {
       const result = await sendToGms(content);
       setPending((prev) => prev.filter((p) => p.id !== tempId));
       if (!result?.ok) {
-        setDraft(content);
+        // The words come back into the box — unless the player has already
+        // started the next line, which is theirs to keep.
+        setDraft((current) => (current.trim() ? current : content));
         setError(result?.error ?? "That didn't send. Try again. ‡");
         return;
       }
@@ -129,6 +150,7 @@ export default function DmPane({ self }) {
 
   const over = draft.length > PLAYER_DM_MAX_LENGTH;
   const nearLimit = draft.length > PLAYER_DM_MAX_LENGTH * 0.9;
+  const footError = error ?? (over ? `That is too long — ${PLAYER_DM_MAX_LENGTH} characters at most. ‡` : null);
 
   return (
     <div className="hall-main">
@@ -137,18 +159,15 @@ export default function DmPane({ self }) {
       </div>
 
       <div className="hall-feed hall-dm">
-        {!dm.seeded ? (
-          <ul className="list-none p-0" aria-hidden="true">
-            {[0, 1, 2].map((i) => (
-              <li key={i} className="hall-skeleton">
-                <span className="hall-skeleton-face" />
-                <span className="hall-skeleton-lines">
-                  <span className="hall-skeleton-bar" data-w="short" />
-                  <span className="hall-skeleton-bar" />
-                </span>
-              </li>
-            ))}
-          </ul>
+        {!dm.seeded && loadError ? (
+          <div className="hall-quiet-line">
+            <p>{loadError}</p>
+            <button type="button" className="btn-quiet" onClick={() => setRetries((n) => n + 1)}>
+              Try again
+            </button>
+          </div>
+        ) : !dm.seeded ? (
+          <FeedSkeleton />
         ) : messages.length === 0 ? (
           <EmptyState>Nothing yet. Bascinet writes here, and so can you. ‡</EmptyState>
         ) : (
@@ -156,7 +175,7 @@ export default function DmPane({ self }) {
             messages={messages}
             perspective="player"
             character={self?.characterId ? { id: self.characterId, name: self.name, avatarVersion: self.avatarVersion } : null}
-            onLoadOlder={dm.hasMore ? loadOlder : null}
+            onLoadOlder={loadOlder}
             hasMore={dm.hasMore}
             newSinceMs={newSinceMs}
           />
@@ -173,9 +192,9 @@ export default function DmPane({ self }) {
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={onKeyDown}
           />
-          {(nearLimit || error) && (
+          {(nearLimit || footError) && (
             <div className="hall-composer-foot">
-              {error ? <span className="hall-composer-error">{error}</span> : <span />}
+              {footError ? <span className="hall-composer-error">{footError}</span> : <span />}
               {nearLimit && (
                 <span className="mono" data-over={over ? "true" : undefined}>
                   {draft.length} / {PLAYER_DM_MAX_LENGTH}

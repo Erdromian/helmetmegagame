@@ -20,8 +20,8 @@ import { myThings } from "./actions";
 // says WHY a verb is missing, because the absence is a fact about the item and
 // not about the world, and every one of them is re-checked server-side.
 //
-// Closed by default, and it stays however this browser left it — the same
-// localStorage state Yesterday keeps.
+// Closed by default, and it stays however this browser left it, in
+// localStorage.
 
 const KEY = "hall-things-open";
 const POLL_MS = 60_000;

@@ -119,8 +119,8 @@ export async function updateCharacterProfile(_prevState, formData) {
   // missing checkbox reads as "off", not "unchanged" — so the field is ignored
   // outright rather than read: a hand-posted "on" is a hint, not a lock, and
   // nobody is flipped either way.
-  const webOnlyWanted =
-    gameConfig?.playPanelEnabled === false && !character.webOnly ? false : webOnly;
+  const playEnabled = gameConfig?.playPanelEnabled !== false;
+  const webOnlyWanted = playEnabled || character.webOnly ? webOnly : false;
   if (webOnlyWanted !== character.webOnly) {
     const flip = await setWebOnly(prisma, character, webOnlyWanted);
     if (!flip.ok) {

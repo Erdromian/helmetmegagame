@@ -3635,8 +3635,10 @@ label.chip {
 }
 
 /* DmThread caps its own height for the adjudication inspector, where it is
-   one tab among four. Here it IS the pane, and the pane owns the scroll. */
-.desk-convo-thread .dm-thread {
+   one tab among four. Here it IS the pane, and the pane owns the scroll — on
+   the GM desk, and in the Hall's Bascinet pane (play/DmPane.js) alike. */
+.desk-convo-thread .dm-thread,
+.hall-dm .dm-thread {
   min-height: 0;
   max-height: none;
   overflow-y: visible;
@@ -4834,14 +4836,6 @@ label.chip {
   padding: var(--sp-3) var(--sp-4);
 }
 
-/* The Bascinet conversation (DmPane.js) draws the desk's DmThread inside the
-   Hall's own scroller, so the thread gives up the height cap it wears in the
-   adjudication inspector — the same override .desk-convo-thread applies. */
-.hall-dm .dm-thread {
-  min-height: 0;
-  max-height: none;
-  overflow-y: visible;
-}
 
 .hall-row {
   display: flex;
@@ -5316,7 +5310,7 @@ label.chip {
   gap: var(--sp-2);
 }
 
-/* ---- The YOU column: the turn card, the status strip, Yesterday ---- */
+/* ---- The YOU column: the turn card, the status strip, the drawers ---- */
 
 /* A wrapping row of data chips: the turn and its countdown, ⬢ and carry, and
    every Status/Health tag being worn. Not .chip-row — that one is a MULTI-

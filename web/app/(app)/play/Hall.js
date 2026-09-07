@@ -423,13 +423,16 @@ export default function Hall({
     source.addEventListener("dm", (event) => {
       try {
         const row = JSON.parse(event.data);
+        // The hub's pg client came back from a drop (feedHub.js#resyncDm):
+        // not a row, a prompt to fetch the page again.
+        if (row?.resync) {
+          noteDmReconnect();
+          return;
+        }
         addDmRow(row);
-        if (
-          row?.direction === "OUTBOUND" &&
-          selectedRef.current !== DM_PLACE_KEY &&
-          !hallChimeMuted() &&
-          !chimedRecently()
-        ) {
+        // Quiet only while the pane is open AND somebody is looking at it.
+        const reading = selectedRef.current === DM_PLACE_KEY && document.visibilityState === "visible";
+        if (row?.direction === "OUTBOUND" && !reading && !hallChimeMuted() && !chimedRecently()) {
           playChime(0.35);
         }
       } catch {
