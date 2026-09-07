@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Travel cards stop cutting their descriptions off
+
+− A location card on Travel is as tall as its three-line description needs, ends on a real ellipsis, and keeps the cost on one line under a hairline instead of squeezing the text above it
+
 ## 2026-09-07 · Paper reads like paper
 
 − A letter, a notice, a book you hold and the text already on a sheet in the Write dialog all draw as one serif sheet now, with the writer's markdown rendered: bold, lists, quotes  
