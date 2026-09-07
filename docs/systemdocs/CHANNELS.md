@@ -766,6 +766,15 @@ The Dawn wipe is wired into `db/index.js#advanceTurn()`'s side-effect thunk,
 so it fires identically whether Dawn came from the bot's nightly cron or a
 GM's "End Turn" button.
 
+**The web has a watermark instead of a delete.** The same pass sets
+`GameConfig.feedWipeSeq` to the newest `ArchiveEntry.seq` as it BEGINS
+(`db/lib/feedWipe.js#markFeedWiped`, called from the Dawn branch in
+`db/index.js` immediately before `runDawnWipe`), and every feed query on
+`/play` reads `seq > feedWipeSeq`. The instant is deliberately the same one
+`cutoffMs` names below, so a message posted while the wipe is walking survives
+on both faces or neither. See `HALL.md` §7 — the unread dots reset with it for
+free.
+
 **The Dawn wipe only deletes.** The transcript is recorded at *send* time
 (`db/lib/archive.js`, read at `/archive` — `ARCHIVE.md`), so nothing here reads
 message content and there is no `#archive` channel. Deleting is the cheap half:

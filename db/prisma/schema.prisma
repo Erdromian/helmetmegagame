@@ -225,6 +225,12 @@ model GameConfig {
   // Dev Panel.
   messageWipeEnabled Boolean @default(false)
 
+  // The web half of the same wipe (docs/systemdocs/HALL.md §7). Discord loses
+  // its messages; the Hall keeps its rows and reads past them instead — every
+  // feed query filters `seq > feedWipeSeq` while messageWipeEnabled is on.
+  // Set by db/lib/feedWipe.js#markFeedWiped as the Dawn pass begins.
+  feedWipeSeq BigInt @default(0)
+
   // How long a character waits between two walks from one Location to
   // another inside the same zone (db/lib/locationTravel.js). Edited on
   // /gm/dev. Crossing into another zone is gated by the Move, not by this.

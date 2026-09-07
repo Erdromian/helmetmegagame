@@ -32,6 +32,9 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessageReactions,
+    // Not privileged, and the only thing it feeds is the Hall's "X is
+    // typing…" line (bot/src/events/typingStart.js, HALL.md §3).
+    GatewayIntentBits.GuildMessageTyping,
     GatewayIntentBits.DirectMessages,
   ],
   partials: [Partials.Channel, Partials.Message, Partials.Reaction],

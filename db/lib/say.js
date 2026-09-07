@@ -29,6 +29,7 @@ const {
   presentedIdentity,
 } = require("./presentedIdentity");
 const { mayWritePlace, slowmodeMsFor } = require("./feedAccess");
+const { rolesToTokens } = require("./characterMentions");
 
 // Discord's own ceiling for a message. Kept on the web side too, because the
 // outbox has to be able to repost whatever lands in a row.
@@ -151,6 +152,16 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
     autocorrect: Boolean(config?.tupperAutocorrectEnabled),
   });
 
+  // Two spellings of the same sentence, and the difference is only ever a
+  // mention. `content` is what DISCORD is handed — a Discord-origin send has
+  // to go back out with the `<@&roleId>` the player typed, or the chip they
+  // meant becomes literal text. `rowContent` is what the ARCHIVE stores, with
+  // every character-role mention folded into the face-neutral `{char:<id>}`
+  // the web renders and the outbox translates back (PROXYING.md §6,
+  // db/lib/characterMentions.js). A web send needs no translation in this
+  // direction: its composer already writes tokens.
+  const rowContent = source === "DISCORD" ? await rolesToTokens(prisma, text) : text;
+
   // Which name and face this goes out under: forced > concealed > own
   // (db/lib/presentedIdentity.js). Read off the character, never off the
   // caller — concealment is standing state and a caller's opinion of it would
@@ -161,7 +172,7 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
   ]);
   const identity = presentedIdentity(character, { forcedName, concealment });
 
-  return { ok: true, character, content: text, identity, placeKey: placeKey ?? null, source, voice };
+  return { ok: true, character, content: text, rowContent, identity, placeKey: placeKey ?? null, source, voice };
 }
 
 // The write half. `prepared` is what prepareSpeech returned; everything else
@@ -175,7 +186,8 @@ async function recordSpeech(
   return recordArchiveMessage(prisma, {
     // A caller that appended something to the prepared text (the proxy adds
     // its attachment placeholders) hands the finished string back here.
-    content: content ?? prepared.content,
+    // Otherwise the ROW's spelling is what is stored, not Discord's.
+    content: content ?? prepared.rowContent ?? prepared.content,
     character: prepared.character,
     concealedAlias: prepared.identity?.alias ?? null,
     placeKey: prepared.placeKey,
@@ -270,10 +282,15 @@ async function editSpeech(prisma, { characterId, seq, content, gm = false } = {}
     loadVoiceState(prisma, row.characterId),
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { tupperAutocorrectEnabled: true } }),
   ]);
-  const text = transformSpeech(raw, {
+  const transformed = transformSpeech(raw, {
     babbling: voice.babbling,
     autocorrect: Boolean(config?.tupperAutocorrectEnabled),
   });
+  // The row's spelling, both ways round. A ✏️ on Discord can add a mention the
+  // row has to store as a token; a ✎ on the web already wrote one. Running it
+  // unconditionally is safe because rolesToTokens only ever touches a role id
+  // that IS a character's name token.
+  const text = await rolesToTokens(prisma, transformed);
 
   const updated = await prisma.archiveEntry.update({
     where: { id: row.id },

@@ -43,9 +43,10 @@ selected and the conversation once somebody is picked. The **inspector is the
 third column of the shell**, not of the person view (§6): it is there on the
 roster too, and it does not get thrown away and rebuilt every time you open a
 different conversation. Its tabs are the five base ones —
-`Sheet · Tags · Moves · Archive · DMs`, same list as `/gm/turns`. Canon is not
-a sixth tab any more: it is folded into **Moves** as the "This turn" section
-above that person's past turns (§6).
+`Sheet · Tags · Moves · Archive · DMs`, same list as `/gm/turns` — plus this
+desk's own **Scene ‡**, the live feed where that character is standing (§6,
+`HALL.md` §8). Canon is not a sixth tab any more: it is folded into **Moves**
+as the "This turn" section above that person's past turns (§6).
 
 Under the shared `.desk-*` mobile breakpoint (720px, `DESIGN-SYSTEM.md` §8),
 this desk is the exception to the rest of the family: the rail is the content
@@ -319,7 +320,8 @@ client, not a support inbox.
 
 ## 6. The inspector
 
-`Sheet · Tags · Moves · Archive · DMs`, fetched on demand and memoized per
+`Sheet · Tags · Moves · Archive · DMs · Scene ‡`, the first five fetched on
+demand and memoized per
 `${characterId}:${tab}` for the life of the page view. **Moves** is that
 person's turns: this desk's **Canon** section on top ("This turn"), then that
 person's past turns underneath ("Past turns", ADJUDICATION.md §3). One
@@ -348,6 +350,18 @@ shared column renders *above* a base tab's own body. It replaced `extraTabs`
 seam: the only thing a desk wants above a tab is the part that changes, and a
 section can't fork the tab list or the tab-bar layout the way an extra tab
 could. The adjudication desk passes none.
+
+**`extraTabs` came back for exactly one thing, and it is not a regression of
+that argument.** `Scene ‡` (`SceneTab.js`) is the live feed where the inspected
+character is standing — the Hall's own `Feed` component, read-only, over that
+Location, its Rooms and its Conversations, on the same `/api/feed` stream and
+the same GM gate (`HALL.md` §8). It is not a section above anything: there is
+no base tab it belongs over, it fetches nothing the shared fetchers know about,
+and it must NOT take a slot in the per-`(character, tab)` cache, because a
+stream cached for the life of the page view is a stream pointed at wherever
+somebody used to be. `extraTabs` is `{ [tabKey]: (ctx) => node }` like
+`tabPreludes`, appended after the base five, with `useInspectorData` skipped
+for it entirely.
 
 **The caching story is the whole reason a prelude is not a tab.** A prelude
 owns its own fetching and its own freshness and takes **no** slot in the
@@ -499,6 +513,7 @@ this path ever reloads the page.
 | `[discordUserId]/ConversationPane.js` | Thread + composer, optimistic send |
 | `InspectorHost.js` | The shared inspector's player-desk half: derived selection, pins, the Canon prelude |
 | `components/InspectorColumn.js` | The shared inspector itself (ADJUDICATION.md §3) |
+| `SceneTab.js` | The **Scene ‡** tab — the Hall's `Feed`, read-only, on one place at a time through `/api/feed?place=` (HALL.md §8) |
 | `CanonTab.js` | The "This turn" section — current Move, staged messages/effects, stage-a-DM box — rendered as the Moves tab's `tabPreludes` entry, refetched per mount |
 | `dmDraft.js` | The composer draft's `localStorage` key, shared with Canon |
 | `BulkComposer.js` / `BulkMessageButton.js` | The broadcast modal and its header door |

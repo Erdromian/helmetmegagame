@@ -35,12 +35,12 @@ import { scoreMatch } from "@/lib/fuzzySearch";
 
 const BASE_TABS = ["Sheet", "Tags", "Moves", "Archive", "DMs"];
 
-function useInspectorData(characterId, tab, cache, setCache) {
+function useInspectorData(characterId, tab, cache, setCache, skip = false) {
   // The cache is Workspace-owned state (not a ref — entries are read during
   // render, and react-hooks/refs is an error here). The effect's only job is
   // filling a miss, and its setCache happens after the await — never
   // synchronously in the effect body (react-hooks/set-state-in-effect).
-  const key = characterId ? `${characterId}:${tab === "Tags" ? "Sheet" : tab}` : null;
+  const key = characterId && !skip ? `${characterId}:${tab === "Tags" ? "Sheet" : tab}` : null;
   const entry = key ? (cache.get(key) ?? null) : null;
 
   useEffect(() => {
@@ -561,6 +561,14 @@ export default function InspectorColumn({
   // refresh }. A prelude owns its own fetching and never takes a slot in the
   // shared per-(character, tab) cache.
   tabPreludes = {},
+  // Whole tabs a desk adds after the base five: { [tabKey]: (ctx) => node },
+  // ctx being { inspected, currentTurnNumber, refresh }. Unlike a prelude, an
+  // extra tab owns its whole body and takes NO slot in the shared
+  // per-(character, tab) cache — the shared fetchers know nothing about it, so
+  // it fetches for itself or does not fetch at all. The player desk's Scene
+  // tab is the one that needs this: it is a live stream rather than a snapshot,
+  // and there is no base tab for it to sit above.
+  extraTabs = {},
   // Buttons that belong beside the pins (the player desk's "Message pinned").
   pinsActions = null,
   emptyHint,
@@ -590,7 +598,15 @@ export default function InspectorColumn({
   const tab = current.tab;
   const setTab = (next) => setTabState((s) => ({ ...s, tab: next }));
   const [contextEntry, setContextEntry] = useState(null);
-  const { data, error, loading } = useInspectorData(inspected?.characterId ?? null, tab, cache, setCache);
+  const extraKeys = Object.keys(extraTabs);
+  const isExtra = extraKeys.includes(tab);
+  const { data, error, loading } = useInspectorData(
+    inspected?.characterId ?? null,
+    tab,
+    cache,
+    setCache,
+    isExtra,
+  );
 
   const isPinned = pinned.some((p) => p.characterId === inspected?.characterId);
   const pending = pendingByCharacter?.get(inspected?.characterId);
@@ -653,7 +669,7 @@ export default function InspectorColumn({
           </div>
 
           <div className="tab-bar" role="tablist">
-            {BASE_TABS.map((t) => (
+            {[...BASE_TABS, ...extraKeys].map((t) => (
               <button
                 key={t}
                 type="button"
@@ -700,6 +716,7 @@ export default function InspectorColumn({
             {data && tab === "DMs" && (
               <DmsView data={data} characterId={inspected.characterId} cacheKey={cacheKey} setCache={setCache} />
             )}
+            {isExtra && extraTabs[tab]({ inspected, currentTurnNumber, refresh })}
           </div>
         </>
       )}

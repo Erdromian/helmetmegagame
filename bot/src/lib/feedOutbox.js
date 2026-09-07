@@ -22,7 +22,13 @@ const {
 } = require("@lifeweb/db/lib/discordRest");
 const { loadForcedName, loadConcealment } = require("@lifeweb/db/lib/presentedIdentity");
 const { FEED_CHANNEL } = require("@lifeweb/db/lib/feedNotify");
-const { discordTargetForPlaceKey } = require("@lifeweb/db/lib/placeKey");
+const { discordTargetForPlaceKey, archiveContextForPlaceKey } = require("@lifeweb/db/lib/placeKey");
+const {
+  tokensToRoles,
+  earshotForPlaceKey,
+  inEarshot,
+} = require("@lifeweb/db/lib/characterMentions");
+const { sendDm } = require("@lifeweb/db/lib/dm");
 
 // How far back the catch-up looks. A row older than this that never reached
 // Discord is not worth posting into a scene that moved on hours ago — the
@@ -80,6 +86,52 @@ async function identityPiecesFor(characterId) {
   return { forcedName, concealment };
 }
 
+// How many people one web-sent line may DM. The Discord path caps at the same
+// place (bot/src/events/messageCreate.js) for the same reason: each target is
+// a DM channel open, a send and a row, all after the room has already read the
+// message.
+const MAX_MENTION_RELAYS = 10;
+
+function messageLink(channelId, messageId) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  if (!guildId) return null;
+  return `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
+}
+
+// The relay DM for a WEB-origin row, and it is the same DM a Discord-origin
+// mention sends (bot/src/lib/mentions.js#notifyMentioned): where, and a jump
+// link, never the words. A ping into a private thread the target has not
+// joined would otherwise hand them the room's content, and a DirectMessage row
+// outlives the ✕ that takes the message back.
+//
+// It goes through db/lib/dm.js rather than the gateway twin because the outbox
+// has no discord.js client — it is a pg listener with a REST lane. The `»`
+// prefix is that function's own, so the text passed here carries none.
+//
+// A CONCEALED send relays nothing at all. The room is not meant to know who
+// spoke, and a DM naming the place would hand the target a thread to pull on.
+async function relayWebMentions({ row, characters, concealed, channelId, messageId }) {
+  if (concealed || characters.length === 0) return;
+  const link = messageLink(channelId, messageId);
+  if (!link) return;
+
+  const [earshot, context] = await Promise.all([
+    earshotForPlaceKey(prisma, row.placeKey),
+    // The same zone/thread names the row itself was stamped with, so the DM
+    // says the place the way /archive says it.
+    archiveContextForPlaceKey(prisma, row.placeKey),
+  ]);
+  const place = context.zoneName ?? "somewhere";
+  const where = context.threadName ? `${place} · ${context.threadName}` : place;
+
+  for (const target of characters.slice(0, MAX_MENTION_RELAYS)) {
+    if (!target.discordUserId || !inEarshot(target, earshot)) continue;
+    await sendDm(prisma, target.discordUserId, `*You were mentioned in ${where}.* ‡\n${link}`, {
+      source: "system_notice",
+    }).catch((err) => console.error(`Feed outbox couldn't relay a mention to ${target.name}:`, err));
+  }
+}
+
 const ROW_SELECT = {
   id: true,
   seq: true,
@@ -129,7 +181,13 @@ async function pushRow(row) {
 
   const { forcedName, concealment } = await identityPiecesFor(character.id);
 
-  const posted = await postAsCharacter(target.channelId, character, row.content, {
+  // The row stores `{char:<id>}`; Discord reads `<@&roleId>`
+  // (db/lib/characterMentions.js). Rewritten here rather than at write time,
+  // so /play and /archive keep the face-neutral text and only the copy
+  // Discord receives wears Discord's spelling.
+  const { content, characters } = await tokensToRoles(prisma, row.content);
+
+  const posted = await postAsCharacter(target.channelId, character, content, {
     forcedName,
     concealment,
     threadId: target.threadId,
@@ -147,7 +205,20 @@ async function pushRow(row) {
       discordSyncedAt: new Date(),
     },
   });
-  return claimed.count > 0;
+  if (claimed.count === 0) return false;
+
+  // After the claim, so a row that lost the race never DMs twice. Best-effort
+  // like everything else on this path: a failed relay costs a notification,
+  // never the message that already landed.
+  await relayWebMentions({
+    row,
+    characters,
+    concealed: Boolean(forcedName) || Boolean(concealment),
+    channelId: target.threadId ?? target.channelId,
+    messageId: posted.id,
+  }).catch((err) => console.error("Feed outbox mention relay failed:", err));
+
+  return true;
 }
 
 // One row, edited on Discord. The row is the source of truth for the text
@@ -169,7 +240,10 @@ async function editRow(row) {
   if (!target) return false;
 
   const webhook = await ensureChannelWebhook(target.channelId);
-  await editWebhookMessage(webhook, fresh.discordMessageId, fresh.content, target.threadId);
+  // The same rewrite the post does: an edit that added a mention has to reach
+  // Discord in Discord's spelling.
+  const { content } = await tokensToRoles(prisma, fresh.content);
+  await editWebhookMessage(webhook, fresh.discordMessageId, content, target.threadId);
 
   await prisma.archiveEntry.update({ where: { id: row.id }, data: { discordSyncedAt: new Date() } });
   return true;

@@ -7,6 +7,7 @@ import DevPanelModal from "@/app/components/DevPanelModal";
 import usePins from "@/app/components/usePins";
 import BulkComposer from "./BulkComposer";
 import CanonTab from "./CanonTab";
+import SceneTab from "./SceneTab";
 import GmZoneRail from "@/app/components/GmZoneRail";
 
 // The player desk's half of the shared inspector (the other is
@@ -144,6 +145,18 @@ export default function InspectorHost({
     [segment],
   );
 
+  // The one tab this desk adds outright rather than as a prelude: the live
+  // scene where this character is standing (HALL.md §8). It is a stream, not a
+  // snapshot, so it has nothing to sit above and nothing to put in the shared
+  // fetch cache. Keyed on the character, so switching people remounts it and
+  // its stream moves with them.
+  const extraTabs = useMemo(
+    () => ({
+      "Scene ‡": ({ inspected: who }) => <SceneTab key={who.characterId} characterId={who.characterId} />,
+    }),
+    [],
+  );
+
   // The custom-tag door. It APPLIES here rather than staging: this desk is a
   // conversation, not a push — a GM inventing a tag mid-reply means the
   // player has it. (The toggle is still offered, hence allowStage.)
@@ -187,6 +200,7 @@ export default function InspectorHost({
         pendingByCharacter={pendingByCharacter}
         onOpenDev={(characterId, name) => setDevPanel({ characterId, name })}
         tabPreludes={tabPreludes}
+        extraTabs={extraTabs}
         pinsActions={pinsActions}
         customTag={customTag}
         requestedTab={tabRequest}

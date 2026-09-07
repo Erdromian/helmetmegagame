@@ -1704,6 +1704,14 @@ async function advanceTurn() {
     );
 
     if (newTurn.phase === "DAWN" && config.messageWipeEnabled) {
+      // The web's half of the same wipe, and it goes FIRST: the watermark is
+      // the newest row as the pass begins, which is the same instant
+      // `cutoffMs` names on the Discord side. Taking it afterwards would put
+      // everything said during the wipe below the floor — deleted from
+      // Discord's view and hidden from the Hall's, for no reason but that the
+      // sweep was slow. See db/lib/feedWipe.js and HALL.md §7.
+      const { markFeedWiped } = require("./lib/feedWipe");
+      await markFeedWiped(prisma);
       await runDawnWipe(prisma, { cutoffMs: sideEffectsStartedAt }).catch(
         (err) => console.error("Dawn message wipe failed:", err),
       );

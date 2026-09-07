@@ -7,7 +7,10 @@ import HallAside from "./HallAside";
 import HereList from "./HereList";
 import PlacesColumn, { PlacesTabs } from "./PlacesColumn";
 import Feed from "./Feed";
+import { playChime, chimedRecently } from "@/app/components/chime";
+import useHallChimeMuted, { hallChimeMuted } from "@/app/components/useHallChimeMuted";
 import { useSeen, markSeen } from "./seenStore";
+import { noteTyping } from "./typingStore";
 import {
   usePlaces,
   setPlaces,
@@ -56,7 +59,19 @@ function decodeHash(hash) {
   }
 }
 
-export default function Hall({ initialPlaces, initialPlace, initialRows, initialSeq, self, aside, webOnly = false }) {
+export default function Hall({
+  initialPlaces,
+  initialPlace,
+  initialRows,
+  initialSeq,
+  self,
+  aside,
+  webOnly = false,
+  // The people standing here, for the composer's @ list. The page hands the
+  // same list to CharacterMentionsProvider, so what can be typed and what can
+  // be rendered are one roster.
+  roster = [],
+}) {
   // The server's list is the first paint; the stream replaces it whole from
   // its first `places` event onward.
   const streamed = usePlaces();
@@ -83,6 +98,8 @@ export default function Hall({ initialPlaces, initialPlace, initialRows, initial
   // The phone's ⚡ sheet. The right column has no room to stand on a narrow
   // screen, so it comes up over the scene instead — the same three panels,
   // rendered by the same component.
+  const [chimeMuted, setChimeMuted] = useHallChimeMuted();
+
   const [sheetOpen, setSheetOpen] = useState(false);
   const openSheet = useCallback(() => setSheetOpen(true), []);
   const closeSheet = useCallback(() => setSheetOpen(false), []);
@@ -100,8 +117,30 @@ export default function Hall({ initialPlaces, initialPlace, initialRows, initial
       try {
         const row = JSON.parse(event.data);
         applyRow(row.placeKey, row);
+        // Somebody said your name. The token is what the row is made of on
+        // both faces (HALL.md §5), so this rings for a Discord-origin mention
+        // exactly as it does for a web one — and never for your own words.
+        if (
+          self?.characterId &&
+          row.characterId !== self.characterId &&
+          typeof row.content === "string" &&
+          row.content.includes(`{char:${self.characterId}}`) &&
+          !hallChimeMuted() &&
+          !chimedRecently()
+        ) {
+          playChime(0.35);
+        }
       } catch {
         // A malformed frame is not worth tearing the stream down over.
+      }
+    });
+    // Somebody is writing something, here or on Discord. Held for six seconds
+    // by typingStore.js and never sent for the viewer's own character.
+    source.addEventListener("typing", (event) => {
+      try {
+        noteTyping(JSON.parse(event.data));
+      } catch {
+        // Same.
       }
     });
     // A delete carries only a seq and its place: the words somebody took back
@@ -127,7 +166,7 @@ export default function Hall({ initialPlaces, initialPlace, initialRows, initial
     // EventSource reconnects by itself; the server's catch-up is bounded by
     // `since`, so a reconnect repeats little and the store dedupes by seq.
     return () => source.close();
-  }, [initialPlace, initialPlaces, initialRows, initialSeq]);
+  }, [initialPlace, initialPlaces, initialRows, initialSeq, self?.characterId]);
 
   // What was said BEFORE the page opened, for a place the reader has just
   // chosen. The stream only ever carries what happens next, so without this a
@@ -170,6 +209,8 @@ export default function Hall({ initialPlaces, initialPlace, initialRows, initial
         newest={newest}
         onSelect={onSelect}
         webOnly={webOnly}
+        chimeMuted={chimeMuted}
+        onToggleChime={setChimeMuted}
       />
       <div className="hall-centre">
         <PlacesTabs places={places} selected={selectedKey} seen={seen} newest={newest} onSelect={onSelect} />
@@ -177,7 +218,13 @@ export default function Hall({ initialPlaces, initialPlace, initialRows, initial
             opening the same per-person menu the column's rows do. It draws
             nowhere else — CSS hides it above 720px. */}
         {aside && <HereList people={aside.people} selfId={aside.selfId} strip />}
-        <Feed place={selected} self={self} onSeen={onSeen} onOpenSheet={aside ? openSheet : null} />
+        <Feed
+          place={selected}
+          self={self}
+          onSeen={onSeen}
+          onOpenSheet={aside ? openSheet : null}
+          roster={roster}
+        />
       </div>
       {aside && (
         <aside className="hall-aside">
