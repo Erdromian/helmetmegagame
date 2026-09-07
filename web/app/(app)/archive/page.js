@@ -116,20 +116,10 @@ export default async function ArchivePage({ searchParams }) {
   }
 
   const epilogue = game.epilogue ?? null;
-  const span = [game.startedAt, game.endedAt]
-    .map((d) => (d ? new Date(d).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" }) : null));
-
   return (
     <PageShell width="wide">
       <PageHeader
         title={`Archive · Game ${game.number}`}
-        subtitle={
-          isCurrent
-            ? gm && !state?.archiveVisible
-              ? "The current game. Hidden from players until it ends. ‡"
-              : "The current game."
-            : `${span[0] ?? "?"} – ${span[1] ?? "?"} ‡`
-        }
       />
 
       {epilogue ? (

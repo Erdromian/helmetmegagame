@@ -196,7 +196,13 @@ function IngredientEntry({ item, bySlug }) {
     );
   }
   const tag = bySlug.get(item.slug);
-  return tag ? <TagChip tag={tag} /> : <span>{item.label}</span>;
+  const many = (item.count ?? 1) > 1 ? <span className="mono text-xs">×{item.count}</span> : null;
+  return (
+    <span className="inline-flex items-center gap-1">
+      {tag ? <TagChip tag={tag} /> : <span>{item.label}</span>}
+      {many}
+    </span>
+  );
 }
 
 function RecipeRow({ row, byId, bySlug, onView }) {

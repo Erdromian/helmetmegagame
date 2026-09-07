@@ -53,7 +53,6 @@ import {
   Pickaxe,
   Flame,
   Feather,
-  Book,
   Package,
   DoorOpen,
   Bell,
@@ -155,6 +154,9 @@ export const SyncIcon = lucide(RefreshCw, "SyncIcon");
 export const TrashIcon = lucide(Trash2, "TrashIcon");
 // Craft — the recipe door on the action grid (actionRegistry.js).
 export const HammerIcon = lucide(Hammer, "HammerIcon");
+// Refund unspent tag points — the ⬡ of the point economy, hollow so it never
+// reads as the filled ⬢ Resources glyph.
+export const PointsIcon = lucide(Hexagon, "PointsIcon");
 // Transfer Resources — the filled ⬢ of the Resources glyph.
 export function ResourcesIcon(props) {
   return <Hexagon strokeWidth={STROKE} fill="currentColor" {...props} />;
@@ -188,9 +190,6 @@ export const ExtractIcon = lucide(Pickaxe, "ExtractIcon");
 export const TortureIcon = lucide(Flame, "TortureIcon");
 // A quill — the Write action. See docs/systemdocs/PAPERWORK.md.
 export const QuillIcon = lucide(Feather, "QuillIcon");
-// A bound volume — the Bind a Book action, and the books on the Keep's
-// shelves.
-export const BookIcon = lucide(Book, "BookIcon");
 // Package — a banded crate.
 export const CrateIcon = lucide(Package, "CrateIcon");
 

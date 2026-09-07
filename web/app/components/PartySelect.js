@@ -5,7 +5,12 @@
 // Players are a flat, alphabetical list, deliberately NOT nested under their
 // faction — that grouping would leak allegiances to anyone who opened the
 // dropdown. The list itself is already narrowed to who is at your Location
-// and not concealed (web/lib/peopleHere.js).
+// (web/lib/peopleHere.js).
+//
+// An entry may carry `kind: "hood"`, which writes "hood:<token>" instead. That
+// is a concealed person, listed by their alias — Transfer is the one caller
+// that offers them, and the token is an opaque handle rather than an id
+// (db/lib/whosHere.js#hoodToken).
 //
 // Lives here rather than inside the Transfer dialog because Heal and Craft
 // ask the same question ("who pays for this?") over the same people.
@@ -51,7 +56,7 @@ export default function PartySelect({ label, value, onChange, characters, rooms,
         {characters?.length ? (
           <optgroup label="People here">
             {characters.map((c) => (
-              <option key={c.id} value={`character:${c.id}`}>
+              <option key={c.id} value={`${c.kind ?? "character"}:${c.id}`}>
                 {c.name}
                 {selfId && c.id === selfId ? " (you)" : ""}
               </option>

@@ -4565,7 +4565,7 @@ tags:
     name: Horse
     category: assets
     group: assets-companions
-    description: "You have a horse and you know how to ride it. While it's equipped, you get 1 extra free zone move each turn, but you'll be easily visible. Do not use through caves. Can carry 2 people. It waits outside indoors. ‡"
+    description: "A horse. While it's equipped, you get 1 extra free zone move each turn, but you'll be easily visible."
     pointCost: 9
     tradeable: true
     equippable: true
@@ -6162,7 +6162,7 @@ tags:
     name: Elevator Key
     category: items
     group: items-keys
-    description: "Works the lift in the Undercroft, which comes out somewhere in the forest below the cliffs. The Baron would rather this were not common knowledge. ‡"
+    description: "A key to the elevator."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -6173,7 +6173,7 @@ tags:
     name: "Baron's Key"
     category: items
     group: items-keys
-    description: "The ring the Baron carries. It opens the Charon, his study and chambers, every office off the Library, and the Servant's Quarters. ‡"
+    description: "The Baron's key."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -6674,7 +6674,7 @@ tags:
     name: Plow
     category: assets
     group: assets-property
-    description: "It breaks the earth, but something has to pull it. If you also have a {tag:horse}, Farming produces +3 ⬢. ‡"
+    description: "If you also have a {tag:horse}, Farming produces +3 ⬢."
     pointCost: 5
     laborBonus: { kind: farming, amount: 3, equipped: false, requiresTag: horse }
     tradeable: true
@@ -7560,8 +7560,7 @@ tags:
     name: Workshop Equipment
     category: items
     group: items-gear
-    description: |-
-      An anvil, a bellows, a vice and a rack of tools. Smithing and building need it: hold it, or stand somewhere it's already set up. Ordinary crafting needs nothing but your hands. It weighs what you'd expect. ‡
+    description: "Allows you to build and smith."
     pointCost: 9
     visible: true
     tradeable: true
@@ -7826,7 +7825,7 @@ tags:
     name: Motorcycle
     category: items
     group: items-special
-    description: "Good luck hauling this one out of the Caves. While it's equipped you get 1 extra free zone move each turn, and you'll be heard coming. Carries 2 people. It waits outside indoors. ‡"
+    description: "A motorcycle."
     pointCost: 0
     equippable: true
     tradeable: true
@@ -8279,6 +8278,43 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+
+  # Ten sheets bound between boards, with nothing written in them yet. An
+  # ORDINARY craft recipe — it used to be a Bind a Book button of its own, and
+  # the reason it could not be a recipe was that `items:` had no way to say
+  # "ten". It does now (`count:`), so it does not need a button.
+  #
+  # No skill and no ⬢: bookbinding is the sort of thing anyone with paper and
+  # an evening can manage, which is what the old free button said too.
+  # `perTurn` rather than the shared Dead Simple pool, so binding four books
+  # does not eat somebody's knife-making for the day.
+  #
+  # NO literacy gate, unlike the old button — Craft has no notion of letters,
+  # and it turns out that is right: sewing pages together is not writing. The
+  # gate moved to where the writing is, which is where writePaperImpl's
+  # readBlock check has always been.
+  blank-book:
+    catalog: all
+    name: Blank Book
+    category: items
+    group: items-paper
+    description: "A book of blank pages, ready to be written in."
+    pointCost: 0
+    tradeable: true
+    weight: 1.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      perTurn: 4
+      resourceCost: 0
+      items:
+        - tag: paper
+          count: 10
+      gambit: false
 
   # The Keep's shelves. A book is declared BY its text: `bookText` goes on
   # Tag.paperText with paperKind BOOK, never on `description`, because the
@@ -8866,7 +8902,7 @@ tags:
     category: items
     group: items-paper
     sealOffice: Baron
-    sealMark: "A raven clutching a banner. Huge and magnificent."
+    sealMark: "A raven clutching a banner."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -9271,7 +9307,7 @@ tags:
     name: Light Infantry Armour
     category: items
     group: items-armor
-    description: "A bulletproof vest and pad combination. Nothing forged in Ravenheart comes close, and nothing forged in Ravenheart stops a bullet."
+    description: "A bulletproof vest and pad combination. It's not as good as plate armor in stopping melee, but it's one of the few things capable of stopping bullets."
     pointCost: 0
     depotPrice: 34
     sealedShipping: true
@@ -10164,7 +10200,7 @@ tags:
       resourceCost: 8
       skills: [brewing-skilled]
       gambit: false
-    depotPrice: 14
+    depotPrice: 15
     sellable: true
     sellablePrice: 10
     requiredTag: brigand
@@ -10467,8 +10503,8 @@ tags:
     equippable: true
     equipSlot: HEAD
     equipLayer: 3
-    melee: 0.35
-    ballistic: 0.1
+    melee: 0.4
+    ballistic: 0.28
     concealsIdentity: true
     concealSprite: fighterhelmet
     visible: true
@@ -10624,7 +10660,7 @@ tags:
     weight: 1
     purchasable: false
     purchasableAfterStart: false
-    depotPrice: 12
+    depotPrice: 5
     sellable: true
     sellablePrice: 7
 

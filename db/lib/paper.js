@@ -25,6 +25,10 @@ const { readBlock } = require("./reading");
 // paperKind at all, which is what tells it apart from a sheet somebody wrote
 // on and then rubbed out (there is no such thing — writing is append-only).
 const PAPER_SLUG = "paper";
+// The craftable blank book (docs/tags.yaml): ten sheets bound with nothing in
+// them yet. Writing on one is what mints a BOOK row, the way writing on a
+// sheet mints a PAPER row.
+const BLANK_BOOK_SLUG = "blank-book";
 
 // Where every paper row lives, catalog and runtime alike. Same idiom as
 // CORPSE_GROUP_SLUG: a written note is per-character and never in
@@ -32,9 +36,6 @@ const PAPER_SLUG = "paper";
 // match on, rather than any catalog flag.
 const PAPER_GROUP_SLUG = "items-paper";
 
-// How many blank sheets go into a book, and come back out of one. One number,
-// both directions, so binding and tearing up can never disagree.
-const BOOK_SHEETS = 10;
 
 // What the text boxes will take. Here rather than beside the server actions
 // because BOTH faces need them — the counter under the box has to promise
@@ -217,6 +218,7 @@ function appendText(existing, addition) {
 
 module.exports = {
   PAPER_SLUG,
+  BLANK_BOOK_SLUG,
   PAPER_GROUP_SLUG,
   WRITE_MAX,
   BOOK_MAX,
@@ -230,7 +232,6 @@ module.exports = {
   markOf,
   sealLabel,
   bookName,
-  BOOK_SHEETS,
   paperDescription,
   paperName,
   noteCode,

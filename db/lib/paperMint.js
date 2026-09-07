@@ -18,7 +18,6 @@ const {
   appendText,
   sealLabel,
   bookName,
-  BOOK_SHEETS,
 } = require("./paper");
 const { addToStack, dropCharacterTag } = require("./tagWrites");
 
@@ -157,8 +156,8 @@ async function mintUnownedPaper(tx, seed, authorName, text) {
   return tag;
 }
 
-// Binding ten sheets into a book: the stack pays, one row comes back, and the
-// text is fixed there and then. That last part is the only rule a book has
+// Writing a blank book: one off the stack, one titled row back, and the text
+// is fixed there and then. That last part is the only rule a book has
 // that a sheet does not — appendToPaper refuses a BOOK, so what is bound in is
 // what it says forever. See docs/systemdocs/PAPERWORK.md.
 //
@@ -169,7 +168,9 @@ async function mintUnownedPaper(tx, seed, authorName, text) {
 //
 // `character` needs { id, name } — the PRESENTED name, same as writeNewPaper.
 async function bindBook(tx, character, blankTagId, title, text) {
-  await dropCharacterTag(tx, character.id, blankTagId, BOOK_SHEETS);
+  // One blank book, not ten sheets: the sheets were spent at the craft
+  // (docs/tags.yaml `blank-book`).
+  await dropCharacterTag(tx, character.id, blankTagId, 1);
   const groupId = await paperGroupId(tx);
 
   const tag = await createWithRetry(tx, (attempt) => ({
@@ -192,27 +193,6 @@ async function bindBook(tx, character, blankTagId, title, text) {
 
   await addToStack(tx, character.id, tag.id, 1, {});
   return tag;
-}
-
-// Tearing one up, in either direction: a bound book becomes ten blank sheets
-// again. The row goes rather than being renamed, because unlike a broken seal
-// there is nothing left worth keeping — the words are the thing, and tearing
-// them up is the point.
-//
-// An AUTHORED book (docs/tags.yaml, not `custom`) is left in the catalog and
-// only taken out of the character's hands. Deleting it would take a Library
-// book out of the game for good on one player's whim, and the next
-// db:sync-tags would put it straight back.
-async function tearUpBook(tx, characterId, bookTag, blankTagId) {
-  await dropCharacterTag(tx, characterId, bookTag.id, 1);
-  if (bookTag.custom) {
-    await tx.tag.deleteMany({ where: { id: bookTag.id, custom: true } });
-  }
-  // `stackable: true` is load-bearing: without it addToStack caps the add at
-  // one and refuses to increment a stack that already exists, so tearing up a
-  // book would return a single sheet — or none at all if you were already
-  // holding paper.
-  await addToStack(tx, characterId, blankTagId, BOOK_SHEETS, { stackable: true });
 }
 
 // Writing more on a sheet that already has words on it. Append-only, always —
@@ -307,7 +287,6 @@ module.exports = {
   createWithRetry,
   writeNewPaper,
   bindBook,
-  tearUpBook,
   mintLetterFor,
   mintUnownedPaper,
   sealWithMark,

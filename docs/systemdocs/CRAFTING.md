@@ -59,6 +59,13 @@ of it:
   player chooses, posted from the dialog as `ingredientChoice` and re-checked
   server-side for membership and possession. A `placement:` recipe may not
   carry `items` at all; the sync refuses the pair.
+- `count:` on a spent `items` entry — how many units of THAT ingredient one
+  craft takes, on top of the craft quantity. A blank book is `paper` with
+  `count: 10`, and three of them take thirty sheets. Defaults to 1, which is
+  every recipe written before it existed. Refused on a `group:` and alongside
+  `keep: true`, for the same reason `keep: false` is refused on a group: both
+  are hold-checks with no single stack to draw from, so the number would mean
+  nothing. It rides the chip as `uses Paper ×10`.
 - `gambit` is ignored: crafting is always a Routine. The sweep cleared it on
   the two brews that carried one (BREWING.md).
 

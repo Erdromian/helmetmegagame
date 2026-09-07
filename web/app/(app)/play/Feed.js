@@ -8,12 +8,12 @@ import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
 import Modal from "@/app/components/Modal";
-import { CameraIcon, EditIcon, EyeIcon, HoodIcon, MoreIcon, QuillIcon, SearchIcon, TrashIcon } from "@/app/components/icons";
+import { CameraIcon, EditIcon, EyeIcon, HoodIcon, MoreIcon, NotesIcon, QuillIcon, SearchIcon, TrashIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { Readout } from "@/app/components/ExamineDialog";
 import useActionRunner from "@/app/components/useActionRunner";
-import { photographRow, lookAt, loadTravel, placeMembers, toggleConceal } from "./actions";
+import { photographRow, starRow, lookAt, loadTravel, placeMembers, toggleConceal } from "./actions";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import {
   useFeed,
@@ -146,6 +146,7 @@ const FeedRow = memo(function FeedRow({
   onDelete,
   onLookAt,
   onPhotograph,
+  onStar,
   onRemove,
 }) {
   const [hover, setHover] = useState(false);
@@ -153,7 +154,10 @@ const FeedRow = memo(function FeedRow({
 
   // Always reachable on a touch screen, where there is no hover to reveal
   // them; out of the way of a mouse until it is over the row.
-  const anyAction = mine || canLook || canPhoto || canRemove;
+  // ⭐ is offered on every line that HAS a seq — your own included, exactly as
+  // the reaction is in Discord — which is what widened the bar past the rows
+  // somebody can act against. A system line with no seq still has nothing.
+  const anyAction = mine || canLook || canPhoto || canRemove || row.seq != null;
   const showActions = anyAction && !editing && !row.pending && (coarse || hover);
 
   return (
@@ -237,6 +241,9 @@ const FeedRow = memo(function FeedRow({
             )}
             {canPhoto && (
               <IconButton icon={CameraIcon} label="Photograph" onClick={() => onPhotograph(row.seq)} />
+            )}
+            {row.seq != null && (
+              <IconButton icon={NotesIcon} label="Save to Notes" onClick={() => onStar(row.seq)} />
             )}
             {canRemove && (
               <IconButton icon={TrashIcon} label="Remove" onClick={() => onRemove(row.seq)} />
@@ -514,7 +521,7 @@ export default function Feed({
   // somebody else's /add re-reads the members strip.
   placesVersion = 0,
   // Paperwork, beside the composer rather than on the sheet
-  // (docs/systemdocs/PAPERWORK.md): { canWrite, canSeal, canBindBook, hasBird,
+  // (docs/systemdocs/PAPERWORK.md): { canWrite, canSeal, hasBird,
   // birdSentToday }, all resolved server-side in web/lib/selfPools.js. Each
   // entry opens the SHEET's own dialog; the four actions re-check every gate.
   letters = null,
@@ -584,7 +591,6 @@ export default function Feed({
     const rows = [];
     if (letters.canWrite) rows.push({ mode: "write", label: "Write" });
     if (letters.canSeal) rows.push({ mode: "seal", label: "Seal" });
-    if (letters.canBindBook) rows.push({ mode: "bindbook", label: "Bind a book" });
     if (letters.hasBird) {
       rows.push({
         mode: "bird",
@@ -1157,6 +1163,21 @@ export default function Feed({
       .catch(() => setPhoto({ error: "The camera caught nothing." }));
   }, []);
 
+  // ⭐ — the web twin of the reaction in Discord. It writes the same `Note`
+  // row, and the server upsert makes a second press on the same line a no-op
+  // rather than a second note, so this needs no pressed state of its own.
+  // The answer goes on the composer's quiet line, where every other one-shot
+  // command answer already lands.
+  const onStar = useCallback((seq) => {
+    setCmdError(null);
+    starRow(seq)
+      .then((res) => {
+        if (res?.ok) setCmdLine(res.line ?? "Saved to your Notes.");
+        else setCmdError(res?.error ?? "That line is gone.");
+      })
+      .catch(() => setCmdError("Could not reach the server. Nothing was changed. ‡"));
+  }, [setCmdError]);
+
   // A GM taking a line down. Same route as Take back, with no character on
   // the session — db/lib/say.js#deleteSpeech skips the owner and the window
   // for a GM, and the route is the one that decides they are one.
@@ -1469,6 +1490,7 @@ export default function Feed({
                     onDelete={onDelete}
                     onLookAt={onLookAt}
                     onPhotograph={onPhotograph}
+                    onStar={onStar}
                     onRemove={onRemove}
                   />
                 </Fragment>

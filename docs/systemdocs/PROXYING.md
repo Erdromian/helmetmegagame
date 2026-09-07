@@ -570,6 +570,13 @@ silently timing out.
 covered here only because it shares the page. Neither tab is ever
 GM-visible or shared between players; see below.
 
+There are two ways in now: the reaction in Discord, and the ★ on a row's
+action bar on `/play` (`web/app/(app)/play/actions.js#starRow`, `HALL.md` §5).
+Both write the same row. A line with no Discord message behind it — a web-only
+player's, or one the outbox has not pushed yet — is filed under `seq:<seq>`
+instead of a message id, so the `(discordMessageId, discordUserId)` unique
+still holds and a ⭐ in Discord and a ★ on the web make one note, not two.
+
 Reacting ⭐ to any guild message saves it as a personal `Note` for whoever
 reacted — not just a proxied one. `handleStarReaction` upserts a row keyed on
 `(discordMessageId, discordUserId)` with a speaker, a zone snapshot, content,

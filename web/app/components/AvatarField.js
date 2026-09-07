@@ -4,8 +4,21 @@ import Switch from "./Switch";
 import { useState, useTransition } from "react";
 import PortraitMaker from "./PortraitMaker";
 import HoverCard from "./HoverCard";
+import InfoIcon from "./InfoIcon";
 import { useConfirm } from "./ConfirmProvider";
 import { resetAvatarToDefault } from "../(app)/character/actions";
+
+// An InfoIcon sits INSIDE the Switch's <label>, so a click on the "?" — which
+// HoverCard uses to pin the panel open — would also flip the switch. The
+// preventDefault is what stops the label activating its control; HoverCard's
+// own onClick still runs, so the tooltip still pins.
+function SwitchInfo({ text }) {
+  return (
+    <span onClick={(e) => e.preventDefault()}>
+      <InfoIcon text={text} />
+    </span>
+  );
+}
 
 export default function AvatarField({
   defaultTurnPingOptIn,
@@ -101,17 +114,19 @@ export default function AvatarField({
             The cooldown is enforced server-side in db/lib/webOnly.js — this is
             the hint, not the lock. */}
         <Switch name="webOnly" defaultChecked={defaultWebOnly}>
-          Play from the web
+          <span className="inline-flex items-center gap-1.5">
+            Play from the web
+            <SwitchInfo text="Removes you from the Discord channels, preserving your character's anonymity. Recommended." />
+          </span>
         </Switch>
-        <p className="text-sm text-muted">
-          Your Discord account leaves every room channel, so nobody can see who you are. You play from the Play
-          page instead. Switching cools for two hours.
-        </p>
         {/* While this is on every message you send posts under your alias and
             the concealing item's own face, and Who's here? lists the alias too.
-            Three ways it can be locked, and the label says which: a forced
-            name, a bare face, or something you don't get to take off. The
-            server re-checks all three — this is the hint, not the lock. */}
+            Three ways it can be locked — a forced name, a bare face, or
+            something you don't get to take off. The label used to name which
+            one; it says the rule once in its tooltip instead now, so the
+            greying is the only signal left that one of the three applies. The
+            server re-checks all three regardless — this is the hint, not the
+            lock. */}
         <Switch
           name="concealed"
           defaultChecked={
@@ -119,13 +134,10 @@ export default function AvatarField({
           }
           disabled={Boolean(forcedIdentity) || !concealGear || concealGear.forced}
         >
-          {forcedIdentity
-            ? `Speak under an anonymous alias — not while you are ${forcedIdentity.name}.`
-            : !concealGear
-              ? "Speak under an anonymous alias — your face is bare. Equip something that covers it."
-              : concealGear.forced
-                ? `Speak under an anonymous alias — no choice while you are wearing ${concealGear.tagName}.`
-                : "Speak under an anonymous alias"}
+          <span className="inline-flex items-center gap-1.5">
+            Conceal.
+            <SwitchInfo text="Concealment is based on headgear. Some headgear allows you to optionally conceal yourself, while some is forced." />
+          </span>
         </Switch>
         {fileName ? (
           <span className="text-sm text-muted">

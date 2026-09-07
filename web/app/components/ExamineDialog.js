@@ -167,9 +167,6 @@ export function Readout({ readout }) {
 
       {readout.line && <p className="text-sm text-muted">{readout.line}</p>}
       {readout.appearance && <p className="text-sm" style={{ whiteSpace: "pre-wrap" }}>{readout.appearance}</p>}
-      {!readout.concealed && !readout.appearance && (
-        <p className="text-sm text-muted">Nothing about them stands out.</p>
-      )}
 
       <Line label="Ailments" values={readout.ailments} />
       <Line label="Equipment" values={readout.equipment} />

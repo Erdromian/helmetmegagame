@@ -95,17 +95,24 @@ finished — **Write refuses a `BOOK`**. That single rule is the whole differenc
 between a book and a sheet, and it is what makes a book worth stealing rather
 than editing.
 
-- **Bind a Book** and **Tear Up a Book** on the Actions grid, both in
-  `paperActions.js` beside Write and both filing no `Request`, for the same
-  reasons Write files none. `db/lib/paperMint.js#bindBook` spends
-  `BOOK_SHEETS` (10) off the blank stack and mints the row;
-  `#tearUpBook` takes the book and hands the ten sheets back.
-- Binding needs letters, because you write the whole thing at once. **Tearing
-  one up needs none** — an illiterate thief pulping the Library is a thing the
-  game should let happen.
-- Deliberately **not** a Craft/Destroy recipe. A recipe's `items:` are *held,
-  not consumed*, and `removesInto` is a bare slug list with no quantities, so
-  neither direction can express "ten sheets".
+**Two steps now, and neither is a button of its own.** `blank-book` is an
+ordinary craft recipe (`docs/tags.yaml`): ten Paper, no skill, no ⬢,
+`perTurn: 4`. Then **Write** takes a blank book like it takes a blank sheet —
+the option appears in "What are you writing on?", and choosing it grows a Title
+field and raises the box from `WRITE_MAX` to `BOOK_MAX`.
+`db/lib/paperMint.js#bindBook` still mints the row; it now spends **one blank
+book** rather than ten sheets, because the sheets were spent at the craft.
+
+- **Bind a Book and Tear Up a Book are gone.** Binding is the recipe plus
+  Write; tearing up has no replacement, so a book is permanent and the ten
+  sheets are not coming back.
+- The reason binding could not be a recipe was that `items:` had no way to say
+  "ten". It does now — `count:` on a spent ingredient
+  (`db/lib/tagShapes.js#normalizeRequirementItems`, `CRAFTING.md` §2), which
+  any recipe can use.
+- **Binding needs no letters any more.** Craft has no notion of literacy, and
+  that turned out to be right: sewing pages together is not writing. The gate
+  is where the writing is — `writePaperImpl`'s `readBlock` check.
 - **A book wears its title**, unlike a note's anonymous name (below). A title
   is what the binder chose to advertise, and a shelf of books all called
   `A Note` would be useless. The contents still sit
@@ -122,8 +129,6 @@ than editing.
   **holding** it (`viewer.holdsIt`, passed by `web/lib/referenceData.js`);
   everyone else reads `CLOSED_BOOK_LINE` and has to go and find it. Without
   that, one literate character would publish the whole Library.
-- Tearing up an **authored** book deletes no catalog row — it only leaves your
-  hands. `tearUpBook` deletes the `Tag` only when it is `custom`.
 
 **A note's name is deliberately anonymous** — every written sheet in the game
 is called `A Note`, and nothing else. `Tag.name` travels everywhere a tag does

@@ -106,9 +106,15 @@ export default function CraftDialog({
   // afterwards. Said here rather than only on the chip, since this is the
   // moment it costs something.
   const units = chosen?.stackable ? qty : 1;
+  // `count` is per craft, `units` is how many crafts — a blank book is ten
+  // sheets, and two of them are twenty. Both multiply, or the sentence at the
+  // moment of spending disagrees with the refusal that follows it.
   const spends = (chosen?.requirementItems ?? [])
     .filter((i) => !i.keep)
-    .map((i) => (units > 1 ? `${units} × ${i.label}` : i.label));
+    .map((i) => {
+      const n = units * (i.count ?? 1);
+      return n > 1 ? `${n} × ${i.label}` : i.label;
+    });
   const keeps = (chosen?.requirementItems ?? [])
     .filter((i) => i.keep)
     .map((i) => i.label);

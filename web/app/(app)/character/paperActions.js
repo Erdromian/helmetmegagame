@@ -6,7 +6,7 @@ import { prisma } from "@lifeweb/db";
 import { readBlock } from "@lifeweb/db/lib/reading";
 import {
   PAPER_SLUG,
-  BOOK_SHEETS,
+  BLANK_BOOK_SLUG,
   WRITE_MAX,
   BOOK_MAX,
   TITLE_MAX,
@@ -15,7 +15,7 @@ import {
   isSeal,
   paperDescription,
 } from "@lifeweb/db/lib/paper";
-import { writeNewPaper, appendToPaper, sealPaper, bindBook, tearUpBook } from "@lifeweb/db/lib/paperMint";
+import { writeNewPaper, appendToPaper, sealPaper, bindBook } from "@lifeweb/db/lib/paperMint";
 import {
   CONCEALMENT_TAG_FIELDS,
   concealmentFrom,
@@ -119,7 +119,7 @@ function writerName(character) {
   }).name;
 }
 
-async function writePaperImpl({ tagId: rawTagId, text: rawText }) {
+async function writePaperImpl({ tagId: rawTagId, text: rawText, title: rawTitle }) {
   const { character, where } = await requireWriter({ needs: ACT });
 
   if (readBlock(character.tags, where)) {
@@ -128,17 +128,38 @@ async function writePaperImpl({ tagId: rawTagId, text: rawText }) {
     throw new UserError("You can't read this.");
   }
 
-  const text = String(rawText ?? "").trim().slice(0, WRITE_MAX);
-  if (!text) throw new UserError("Write something first.");
-
   const targetId = String(rawTagId ?? "");
   const held = character.tags.find((ct) => ct.tagId === targetId);
   if (!held) throw new UserError("You aren't holding that.");
+
+  // A book holds six times what a sheet does, and it is the whole thing in one
+  // pass — there is no second visit to add a chapter.
+  const writingBook = held.tag.slug === BLANK_BOOK_SLUG;
+  const text = String(rawText ?? "").trim().slice(0, writingBook ? BOOK_MAX : WRITE_MAX);
+  if (!text) throw new UserError("Write something first.");
+
+  // Only a book takes one: a sheet's Tag.name is a deliberately anonymous
+  // waybill code (db/lib/paper.js#paperName), a book's is its title on a shelf.
+  const title = writingBook ? String(rawTitle ?? "").trim().slice(0, TITLE_MAX) : null;
+  if (writingBook && !title) throw new UserError("Give it a title first.");
 
   const hand = writerName(character);
 
   let result;
   await prisma.$transaction(async (tx) => {
+    // A blank book becomes a written one. Locked and re-counted inside the
+    // transaction for the reason dropCharacterTag makes necessary: it CLAMPS
+    // rather than failing, so two submits a millisecond apart would both pass
+    // a check made outside and the second would mint a free book.
+    if (writingBook) {
+      const [locked] = await tx.$queryRaw`
+        SELECT "quantity" FROM "CharacterTag"
+        WHERE "characterId" = ${character.id} AND "tagId" = ${held.tagId}
+        FOR UPDATE`;
+      if (!locked || locked.quantity < 1) throw new UserError("You aren't holding that.");
+      result = await bindBook(tx, { id: character.id, name: hand }, held.tagId, title, text);
+      return;
+    }
     // A blank sheet becomes a written one: a unit off the stack, a new row.
     if (held.tag.slug === PAPER_SLUG) {
       result = await writeNewPaper(tx, { id: character.id, name: hand }, held.tagId, text);
@@ -164,81 +185,6 @@ async function writePaperImpl({ tagId: rawTagId, text: rawText }) {
   await afterInventoryChange([character.id]);
   revalidateAll();
   return { name: result.name, tagId: result.id };
-}
-
-// Binding. Ten blank sheets go in, one book comes out, and the text is fixed
-// at that moment — see bindBook in db/lib/paperMint.js for why.
-//
-// Files no Request, for the same reason writing files none: it costs no Move
-// and there is nothing to adjudicate. It DOES need literacy, unlike sealing —
-// you are writing the whole thing in one pass.
-async function bindBookImpl({ title: rawTitle, text: rawText }) {
-  const { character, where } = await requireWriter({ needs: ACT });
-
-  if (readBlock(character.tags, where)) {
-    throw new UserError("You can't read this.");
-  }
-
-  const title = String(rawTitle ?? "").trim().slice(0, TITLE_MAX);
-  if (!title) throw new UserError("Give it a title first.");
-
-  const text = String(rawText ?? "").trim().slice(0, BOOK_MAX);
-  if (!text) throw new UserError("Write something first.");
-
-  // The snapshot only decides whether to bother. The count that matters is
-  // re-read under a row lock below.
-  const blank = character.tags.find((ct) => ct.tag.slug === PAPER_SLUG);
-  if (!blank || (blank.quantity ?? 0) < BOOK_SHEETS) {
-    throw new UserError(`You need ${BOOK_SHEETS} sheets of blank paper to bind a book.`);
-  }
-
-  const hand = writerName(character);
-
-  let book;
-  await prisma.$transaction(async (tx) => {
-    // Ten sheets is a big enough stake to race for, and dropCharacterTag
-    // CLAMPS rather than failing — it deletes the row and returns quietly when
-    // you ask for more than is there. So two submits a millisecond apart would
-    // both pass a check made outside the transaction, and the second would
-    // mint a free book off a stack the first already spent. Lock the holding
-    // and re-count inside, the same shape handleGateToggle uses for a gate.
-    const [locked] = await tx.$queryRaw`
-      SELECT "quantity" FROM "CharacterTag"
-      WHERE "characterId" = ${character.id} AND "tagId" = ${blank.tagId}
-      FOR UPDATE`;
-    if (!locked || locked.quantity < BOOK_SHEETS) {
-      throw new UserError(`You need ${BOOK_SHEETS} sheets of blank paper to bind a book.`);
-    }
-    book = await bindBook(tx, { id: character.id, name: hand }, blank.tagId, title, text);
-  });
-
-  await afterInventoryChange([character.id]);
-  revalidateAll();
-  return { name: book.name, tagId: book.id };
-}
-
-// The other direction. Needs no literacy at all — tearing a book apart is not
-// reading it, and an illiterate thief pulping the Library is a thing the game
-// should let happen.
-async function tearUpBookImpl({ tagId: rawTagId }) {
-  const { character } = await requireWriter({ needs: ACT });
-
-  const held = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));
-  if (!held) throw new UserError("You aren't holding that.");
-  if (!isBook(held.tag)) throw new UserError("That isn't a book.");
-
-  // Looked up rather than read off the character: somebody tearing up their
-  // only book may well be holding no blank paper at all.
-  const blank = await prisma.tag.findUnique({ where: { slug: PAPER_SLUG }, select: { id: true } });
-  if (!blank) throw new UserError("There's no paper in the catalog to tear it into.");
-
-  await prisma.$transaction(async (tx) => {
-    await tearUpBook(tx, character.id, held.tag, blank.id);
-  });
-
-  await afterInventoryChange([character.id]);
-  revalidateAll();
-  return { name: held.tag.name, sheets: BOOK_SHEETS };
 }
 
 async function sealLetterImpl({ tagId: rawTagId, stampTagId: rawStampId }) {
@@ -276,14 +222,6 @@ export async function writePaper(input) {
 
 export async function sealLetter(input) {
   return guarded(() => sealLetterImpl(input));
-}
-
-export async function bindABook(input) {
-  return guarded(() => bindBookImpl(input));
-}
-
-export async function tearUpABook(input) {
-  return guarded(() => tearUpBookImpl(input));
 }
 
 // What the Write dialog needs that the sheet does not already hold: the text

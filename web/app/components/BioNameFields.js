@@ -99,10 +99,7 @@ export default function BioNameFields({ character, lastNameLocked = false, hasMu
             key. Shown so a player can confirm what they picked; it is not
             published anywhere else, and never appears on 🔍 examine. */}
         <label className="field">
-          <span className="field-label flex items-center gap-1.5">
-            Gender
-            <InfoIcon text="Chosen when your character was made and fixed since. It decides which form of a title you wear — Lord, Lady or Noble. Ask a GM if it's wrong." />
-          </span>
+          <span className="field-label">Gender</span>
           <input defaultValue={GENDER_LABELS[character.gender] ?? ""} disabled />
         </label>
         {/* Free to set once, then fixed — same treatment as the
@@ -127,7 +124,7 @@ export default function BioNameFields({ character, lastNameLocked = false, hasMu
         <label className="field">
           <span className="field-label flex items-center gap-1.5">
             Title
-            <InfoIcon text="Granted by a GM, and rendered in quotes between your names. Make your case to a GM." />
+            <InfoIcon text="Rendered in quotes between your first and last name." />
           </span>
           <input defaultValue={character.title ?? ""} placeholder="None granted" disabled />
         </label>
@@ -142,14 +139,10 @@ export default function BioNameFields({ character, lastNameLocked = false, hasMu
         >
           Change name
         </button>
-        {/* Said out loud rather than left in a `title`: a disabled button
-            often never fires hover, and a tooltip is invisible on a phone and
-            to anyone using a keyboard. */}
-        <span className="text-xs text-muted">
-          {hasMulligan
-            ? "Drinks a Mulligan Potion."
-            : "Needs a Mulligan Potion — brew one, or buy one at the Depot. ‡"}
-        </span>
+        {/* Nothing is said when there is no potion — the button is already
+            greyed, and the sentence explaining how to get one was noise on a
+            card nobody comes to for shopping. */}
+        {hasMulligan && <span className="text-xs text-muted">Drinks a Mulligan Potion.</span>}
       </div>
 
       <RequestDialog

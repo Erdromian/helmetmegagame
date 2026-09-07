@@ -92,8 +92,6 @@ import { readPointer, armNuke, disarmNuke } from "@/app/(app)/character/nukeActi
 import {
   writePaper,
   sealLetter,
-  bindABook,
-  tearUpABook,
   readMyPaper,
 } from "../(app)/character/paperActions";
 // Safe from a client component: db/lib/constants.js is a leaf of bare strings
@@ -283,7 +281,9 @@ function TagPicker({
                         : []),
                       ...(() => {
                         const items = tag.requirementItems ?? [];
-                        const spends = items.filter((i) => !i.keep).map((i) => i.label);
+                        const spends = items
+                          .filter((i) => !i.keep)
+                          .map((i) => ((i.count ?? 1) > 1 ? `${i.label} ×${i.count}` : i.label));
                         const keeps = items.filter((i) => i.keep).map((i) => i.label);
                         return [
                           ...(spends.length ? [`uses ${spends.join(" + ")}`] : []),
@@ -466,9 +466,6 @@ export default function RequestActionsProvider({
   sealOptions = { stamps: [], letters: [] },
   // Books (docs/systemdocs/PAPERWORK.md). No excerpts here — a book's name IS
   // its title, unlike a note's deliberately anonymous waybill code.
-  canBindBook = false,
-  bindBlocked = null,
-  bookOptions = [],
   // The Godard Factory (docs/systemdocs/FACTORY.md). All three are facts about
   // where this character is standing and what is in their hands, resolved
   // server-side in character/page.js — the actions re-check every one.
@@ -552,7 +549,6 @@ export default function RequestActionsProvider({
   // Bind a Book: the title on the spine and everything inside it, written in
   // one pass because a bound book can never be added to.
   const [bookTitle, setBookTitle] = useState("");
-  const [bookBody, setBookBody] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
@@ -820,8 +816,8 @@ export default function RequestActionsProvider({
         if (item.keep || item.kind === "group") continue;
         const held =
           item.kind === "anyOf"
-            ? (item.options ?? []).some((o) => (heldBySlug.get(o.slug) ?? 0) > 0)
-            : (heldBySlug.get(item.slug) ?? 0) > 0;
+            ? (item.options ?? []).some((o) => (heldBySlug.get(o.slug) ?? 0) >= (item.count ?? 1))
+            : (heldBySlug.get(item.slug) ?? 0) >= (item.count ?? 1);
         if (!held)
           return `You don't have the ${item.label || "ingredients"} it uses.`;
       }
@@ -848,7 +844,7 @@ export default function RequestActionsProvider({
       if (item.keep || item.kind === "group") continue;
       const slug = item.kind === "anyOf" ? ingredientChoiceValue : item.slug;
       if (!slug) continue;
-      max = Math.min(max, heldBySlug.get(slug) ?? 0);
+      max = Math.min(max, Math.floor((heldBySlug.get(slug) ?? 0) / (item.count ?? 1)));
     }
     const per = craftAllowances[chosen.id]?.per ?? null;
     const left = craftAllowances[chosen.id]?.left ?? 0;
@@ -959,7 +955,6 @@ export default function RequestActionsProvider({
       setCustomName("");
       setCustomDescription("");
       setInscription("");
-      setBookBody("");
       setPaperExisting(null);
       setStampId("");
       setError(null);
@@ -983,12 +978,18 @@ export default function RequestActionsProvider({
   // shipped with the page: an unreadable sheet must never have its text
   // sitting in the page source where a blind or illiterate holder could read
   // it straight out of DevTools. The server re-checks the same gate.
+  // Which of the two things you can start from scratch: a sheet, or a blank
+  // book. A book takes a title and six times the text, and is finished for
+  // good the moment it is written (db/lib/paperMint.js#bindBook).
+  const writingBook = Boolean(paperOptions.find((o) => o.tagId === paperId)?.book);
+  const writeMax = writingBook ? BOOK_MAX : WRITE_MAX;
+
   const choosePaper = useCallback(
     (nextId) => {
       setPaperId(nextId);
       setPaperExisting(null);
       const chosenPaper = paperOptions.find((o) => o.tagId === nextId);
-      if (!nextId || chosenPaper?.blank) return;
+      if (!nextId || chosenPaper?.blank || chosenPaper?.book) return;
       startTransition(async () => {
         const res = await readMyPaper(nextId);
         // A refusal shows in the box like anything else — the sentence is the
@@ -1255,13 +1256,9 @@ export default function RequestActionsProvider({
       // Neither files a Request — see web/app/(app)/character/paperActions.js
       // for why. Both still come back as { ok, error } like everything else.
       case "write":
-        return writePaper({ tagId: paperId, text: paperBody });
+        return writePaper({ tagId: paperId, text: paperBody, title: bookTitle });
       case "seal":
         return sealLetter({ tagId: tagId, stampTagId: stampId });
-      case "bindbook":
-        return bindABook({ title: bookTitle, text: bookBody });
-      case "tearbook":
-        return tearUpABook({ tagId });
       case "bird":
         // No reason: the letter is the record. See RequestDialog.js.
         return birdMessageRequest({
@@ -1280,13 +1277,11 @@ export default function RequestActionsProvider({
   const canSubmit = (() => {
     switch (mode) {
       case "write":
-        return Boolean(paperId && paperBody.trim().length > 0);
+        return Boolean(
+          paperId && paperBody.trim().length > 0 && (!writingBook || bookTitle.trim()),
+        );
       case "seal":
         return Boolean(tagId && stampId);
-      case "bindbook":
-        return Boolean(bookTitle.trim() && bookBody.trim());
-      case "tearbook":
-        return Boolean(tagId);
       case "bird":
         return Boolean(targetId && zoneId && birdTagId);
       case "transfer":
@@ -1379,7 +1374,7 @@ export default function RequestActionsProvider({
       canExamine: !examineBlocked,
       // The sentence ActionGrid appends to a greyed button's tooltip, so a
       // player reads why instead of DMing to ask.
-      gateReason: { examine: examineBlocked, extract: extractBlocked, bindbook: bindBlocked },
+      gateReason: { examine: examineBlocked, extract: extractBlocked },
       canLearn: teachers.length > 0,
       canTeach,
       // Your own sheet only. Greying this on whether a chaplain happens to be
@@ -1393,9 +1388,7 @@ export default function RequestActionsProvider({
       canWrite,
       hasSeal,
       canSeal,
-      canBindBook,
       // Holding a book IS having one to tear up — no second prop for it.
-      hasBook: bookOptions.length > 0,
       canSendBirdToday: !birdSentToday,
       canButcher,
       canSeeExtract,
@@ -1416,7 +1409,6 @@ export default function RequestActionsProvider({
       canHeal,
       examineBlocked,
       extractBlocked,
-      bindBlocked,
       teachers,
       canTeach,
       mySins,
@@ -1425,8 +1417,6 @@ export default function RequestActionsProvider({
       canWrite,
       hasSeal,
       canSeal,
-      canBindBook,
-      bookOptions,
       birdSentToday,
       canButcher,
       canSeeExtract,
@@ -1583,9 +1573,6 @@ export default function RequestActionsProvider({
                     label={`How many? (you have ${heldCount})`}
                   />
                 )}
-                <p className="text-xs text-muted">
-                  Items are destroyed and nothing is refunded. A wound can&apos;t be destroyed, only healed.
-                </p>
               </>
             )}
 
@@ -1614,7 +1601,7 @@ export default function RequestActionsProvider({
                         required
                       >
                         <option value="" disabled>
-                          Choose someone here…
+                          Choose…
                         </option>
                         {lessonPeople.map((p) => (
                           <option key={p.id} value={p.id}>
@@ -1644,14 +1631,11 @@ export default function RequestActionsProvider({
                     )}
                   </>
                 )}
-                <p className="text-xs text-muted">
-                  {mode === "learn"
-                    ? "They get a DM and have to accept. Once they do, learning is your Gambit for the turn. A 5 or 6 learns the skill."
-                    : "They get a DM and have to accept. Once they do, teaching is your Routine for the turn. With Lecturing you can take up to three students at once."}
-                  {hasMoved && !canTeach
-                    ? " You've already used your Move this turn."
-                    : ""}
-                </p>
+                {hasMoved && !canTeach && (
+                  <p className="text-xs text-muted">
+                    You&apos;ve already used your Move this turn.
+                  </p>
+                )}
               </>
             )}
 
@@ -1671,7 +1655,7 @@ export default function RequestActionsProvider({
                         required
                       >
                         <option value="" disabled>
-                          Choose someone here…
+                          Choose…
                         </option>
                         {confessors.map((p) => (
                           <option key={p.id} value={p.id}>
@@ -1701,15 +1685,11 @@ export default function RequestActionsProvider({
                     </label>
                   </>
                 )}
-                <p className="text-xs text-muted">
-                  They get a DM asking whether they&apos;ll hear you, and it
-                  does not say what about &mdash; only you and the GMs ever see
-                  that. Once they accept, confessing is your Gambit for the
-                  turn: a 5 or 6 and it comes off you when the turn ends.
-                  {hasMoved
-                    ? " You've already used your Move this turn."
-                    : ""}
-                </p>
+                {hasMoved && (
+                  <p className="text-xs text-muted">
+                    You&apos;ve already used your Move this turn.
+                  </p>
+                )}
               </>
             )}
 
@@ -1733,7 +1713,12 @@ export default function RequestActionsProvider({
                     ))}
                   </Select>
                 </label>
-                {chosen && (
+                {/* A Depot crate says nothing here: what falls out of it is
+                    printed on the crate itself, and it grants runtime rows
+                    rather than the catalog slugs `becomes` reads — so the
+                    fallback line below would claim it leaves nothing behind,
+                    which is the one thing that is never true of a crate. */}
+                {chosen && !chosen.crateContents && (
                   <p className="text-xs text-muted">
                     {becomes.length
                       ? `Becomes: ${becomes.join(", ")}.`
@@ -1759,7 +1744,7 @@ export default function RequestActionsProvider({
                     required
                   >
                     <option value="" disabled>
-                      Choose someone here…
+                      Choose…
                     </option>
                     {healTargets.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -1818,6 +1803,7 @@ export default function RequestActionsProvider({
               <TransferDialog
                 selfId={selfId}
                 parties={transferParties}
+                lootable={lootTargets}
                 silo={transferSilo}
                 transferable={transferable}
                 carry={carry}
@@ -1846,7 +1832,7 @@ export default function RequestActionsProvider({
                   <>
                     <label className="field">
                       <span className="field-label">
-                        Who are you searching?
+                        What are you searching?
                       </span>
                       <Select
                         value={targetId}
@@ -1858,7 +1844,7 @@ export default function RequestActionsProvider({
                         required
                       >
                         <option value="" disabled>
-                          Choose someone here…
+                          Choose…
                         </option>
                         {lootRooms.length > 0 && (
                           <optgroup label="Rooms here">
@@ -1958,7 +1944,7 @@ export default function RequestActionsProvider({
                         required
                       >
                         <option value="" disabled>
-                          Choose someone here…
+                          Choose…
                         </option>
                         {moveTargets.map((t) => (
                           <option key={t.id} value={t.id}>
@@ -1988,9 +1974,6 @@ export default function RequestActionsProvider({
                         ))}
                       </Select>
                     </label>
-                    <p className="text-xs text-muted">
-                      You can move someone you lead, someone you&apos;ve bound, or a body. It doesn&apos;t spend their Move, and it doesn&apos;t move you.
-                    </p>
                   </>
                 )}
               </>
@@ -2122,13 +2105,6 @@ export default function RequestActionsProvider({
                       {mode === "butcher" && chosen ? (
                         <p className="text-xs text-muted">
                           Cutting this one up gives you {yieldLabel(chosen)}.
-                          The body is gone afterwards, and their soul stays
-                          where it is.
-                        </p>
-                      ) : null}
-                      {mode === "bury" ? (
-                        <p className="text-xs text-muted">
-                          This takes your turn, and it frees them to respawn.
                         </p>
                       ) : null}
                     </>
@@ -2156,9 +2132,7 @@ export default function RequestActionsProvider({
                 one searches every zone rather than just this room. You type a
                 name and find out whether you were right. */}
                 <p className="text-xs text-muted">
-                  Write the person&apos;s name letter by letter&mdash;be
-                  precise!&mdash;or the wrong soul goes free. This costs{" "}
-                  {ENGRAVE_RESOURCE_COST} ⬢ and your turn.
+                  Costs {ENGRAVE_RESOURCE_COST} ⬢ and your turn.
                 </p>
               </>
             )}
@@ -2250,7 +2224,7 @@ export default function RequestActionsProvider({
                       required
                     >
                       <option value="" disabled>
-                        Choose someone here…
+                        Choose…
                       </option>
                       {bindable.map((t) => (
                         <option key={t.id} value={t.id}>
@@ -2260,15 +2234,13 @@ export default function RequestActionsProvider({
                     </Select>
                   </label>
                 )}
-                <p className="text-xs text-muted">
-                  {mode === "bind"
-                    ? "Once they're Bound you can search them or march them somewhere. Say why."
-                    : mode === "free"
-                      ? "Anyone standing here can do this, including someone who came to rescue them."
-                      : mode === "torture"
-                        ? "It takes your Move. One die, resolved now: what they gave up arrives by DM."
-                        : "They go up on the cross now. They can still speak, but nothing else — and in a turn they are Dying. It doesn't spend your Move. Say why."}
-                </p>
+                {(mode === "torture" || mode === "crucify") && (
+                  <p className="text-xs text-muted">
+                    {mode === "torture"
+                      ? "It takes your Move. One die, resolved now: what they gave up arrives by DM."
+                      : "They go up on the cross now. They can still speak, but nothing else — and in a turn they are Dying. It doesn't spend your Move. Say why."}
+                  </p>
+                )}
               </>
             )}
 
@@ -2291,7 +2263,7 @@ export default function RequestActionsProvider({
                         required
                       >
                         <option value="" disabled>
-                          Choose someone here…
+                          Choose…
                         </option>
                         {harmTargets.map((t) => (
                           <option key={t.id} value={t.id}>
@@ -2350,7 +2322,7 @@ export default function RequestActionsProvider({
                         </option>
                         {paperOptions.map((o) => (
                           <option key={o.tagId} value={o.tagId}>
-                            {o.blank
+                            {o.blank || o.book
                               ? `${o.name}${o.quantity > 1 ? ` ×${o.quantity}` : ""} — blank`
                               : `${o.name}${o.excerpt ? ` — ${o.excerpt}` : ""}`}
                           </option>
@@ -2369,6 +2341,21 @@ export default function RequestActionsProvider({
                       </div>
                     )}
 
+                    {/* A book's Tag.name is its title, read off a shelf. A
+                    sheet's is an anonymous waybill code, so only a book asks. */}
+                    {writingBook && (
+                      <label className="field">
+                        <span className="field-label">What is it called?</span>
+                        <input
+                          type="text"
+                          value={bookTitle}
+                          onChange={(e) => setBookTitle(e.target.value)}
+                          maxLength={TITLE_MAX}
+                          required
+                        />
+                      </label>
+                    )}
+
                     <label className="field">
                       <span className="field-label">
                         {paperExisting
@@ -2376,16 +2363,21 @@ export default function RequestActionsProvider({
                           : "What does it say?"}
                       </span>
                       <textarea
-                        rows={6}
-                        maxLength={WRITE_MAX}
+                        rows={writingBook ? 12 : 6}
+                        maxLength={writeMax}
                         value={paperBody}
                         onChange={(e) => setPaperBody(e.target.value)}
                         placeholder="Write here."
                       />
                       <span className="text-xs text-muted mono">
-                        {paperBody.length} / {WRITE_MAX}
+                        {paperBody.length} / {writeMax}
                       </span>
                     </label>
+                    {writingBook && (
+                      <p className="text-xs text-muted">
+                        A book is written in one pass. Nothing can be added later.
+                      </p>
+                    )}
                   </>
                 )}
               </>
@@ -2434,74 +2426,8 @@ export default function RequestActionsProvider({
                           </option>
                         ))}
                       </Select>
-                      <p className="text-xs text-muted">
-                        Nobody can read it without breaking the seal, and everybody can see whose wax it was. The stamp isn&apos;t used up.
-                      </p>
                     </label>
                   </>
-                )}
-              </>
-            )}
-
-            {mode === "bindbook" && (
-              <>
-                <label className="field">
-                  <span className="field-label">What is it called?</span>
-                  <input
-                    type="text"
-                    maxLength={TITLE_MAX}
-                    value={bookTitle}
-                    onChange={(e) => setBookTitle(e.target.value)}
-                    placeholder="On the Draining of Blood"
-                  />
-                </label>
-
-                <label className="field">
-                  <span className="field-label">What does it say?</span>
-                  <textarea
-                    rows={12}
-                    maxLength={BOOK_MAX}
-                    value={bookBody}
-                    onChange={(e) => setBookBody(e.target.value)}
-                    placeholder="Write the whole thing here."
-                  />
-                  <span className="text-xs text-muted mono">
-                    {bookBody.length} / {BOOK_MAX}
-                  </span>
-                </label>
-
-                <p className="text-xs text-muted">
-                  Ten blank sheets go into it, and it is finished the moment you bind it. Nothing can be added after binding. Tear it up and you get the ten sheets back.
-                </p>
-              </>
-            )}
-
-            {mode === "tearbook" && (
-              <>
-                {bookOptions.length === 0 ? (
-                  <NobodyHere>You aren&apos;t carrying a book.</NobodyHere>
-                ) : (
-                  <label className="field">
-                    <span className="field-label">Which one?</span>
-                    <Select
-                      value={tagId ?? ""}
-                      onChange={(e) => setTagId(e.target.value)}
-                      required
-                    >
-                      <option value="" disabled>
-                        Pick a book
-                      </option>
-                      {bookOptions.map((o) => (
-                        <option key={o.tagId} value={o.tagId}>
-                          {o.name}
-                        </option>
-                      ))}
-                    </Select>
-                    <p className="text-xs text-muted">
-                      You get ten blank sheets back. What was written in it is
-                      gone.
-                    </p>
-                  </label>
                 )}
               </>
             )}

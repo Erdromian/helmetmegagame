@@ -245,12 +245,31 @@ function normalizeRequirementItems(entries, { tagNameBySlug = null, groupNameByS
     if (entry.keep != null && typeof entry.keep !== "boolean") {
       throw new Error(`${label}: a requirement.items \`keep:\` must be a boolean`);
     }
+    // How many units of THIS ingredient one craft takes, on top of the craft
+    // quantity — a blank book is ten sheets, and three of them are thirty.
+    // Carried only when it isn't 1: every reader writes `count ?? 1`, so
+    // storing the default would fatten each recipe's Json for nothing.
+    //
+    // Refused on a `group:` and alongside `keep: true` for the same reason
+    // `keep: false` is refused on a group: both are hold-checks with no single
+    // stack to decrement, so a count on one would silently mean nothing.
+    const count = entry.count ?? 1;
+    if (!Number.isInteger(count) || count < 1) {
+      throw new Error(`${label}: a requirement.items \`count:\` must be a whole number of 1 or more`);
+    }
+    if (count !== 1 && (hasGroup || entry.keep === true)) {
+      throw new Error(
+        `${label}: a requirement.items \`count:\` only applies to an ingredient that is SPENT — a kept entry names no stack to draw from`,
+      );
+    }
+    const countField = count === 1 ? {} : { count };
     if (hasTag) {
       return {
         kind: "tag",
         slug: entry.tag,
         label: entry.as ?? tagNameBySlug?.get(entry.tag) ?? entry.tag,
         keep: entry.keep === true,
+        ...countField,
       };
     }
     if (hasAnyOf) {
@@ -265,6 +284,7 @@ function normalizeRequirementItems(entries, { tagNameBySlug = null, groupNameByS
         options,
         label: entry.as ?? joinWithOr(options.map((o) => o.name)),
         keep: entry.keep === true,
+        ...countField,
       };
     }
     // A group is HELD, never spent: there is no one stack to take it out of.

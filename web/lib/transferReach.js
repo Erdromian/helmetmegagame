@@ -45,7 +45,7 @@ export async function isOwnFactionSilo(actor, party) {
 export async function canReachParty(
   actor,
   party,
-  { heldSlugs = null, guestRoomIds = null, allowDead = false, direction = null } = {},
+  { heldSlugs = null, guestRoomIds = null, allowDead = false, allowConcealed = false, direction = null } = {},
 ) {
   if (!party) return false;
   if (party.kind === "room") {
@@ -55,7 +55,7 @@ export async function canReachParty(
       heldSlugs && guestRoomIds ? { heldSlugs, guestRoomIds } : await roomAccessKeys(prisma, actor.id);
     return accessibleRooms([party], keys.heldSlugs, keys.guestRoomIds).length === 1;
   }
-  if (party.kind === "character") return isHere(actor, party, { allowDead });
+  if (party.kind === "character") return isHere(actor, party, { allowDead, allowConcealed });
   return false;
 }
 
