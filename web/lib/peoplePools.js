@@ -190,6 +190,15 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
             // 1/MEDICAL_SIMPLE_PER_TURN past it, `share` for a fraction/whole
             // turns-costing cure. Gambits never price here — they're a Move of
             // their own, not this ledger.
+            //
+            // The `kind` label for "past the pool" does NOT match the
+            // server's own for that same case — this reads the real tag
+            // (requirementTurns 0) with an allowance, landing on "spill";
+            // priceHeal (requestActions.js) prices a SYNTHETIC 1/8-turn tag
+            // there instead, landing on "share". Cosmetic only: both compute
+            // the identical num/den fraction, and nothing branches on `kind`
+            // except this dialog's own "past today's free first aid" wording,
+            // which reads its own client-side answer.
             moveCost: gambit
               ? null
               : countsAgainstHealCap(tag, gambit)

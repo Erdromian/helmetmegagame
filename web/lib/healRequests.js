@@ -95,18 +95,18 @@ export function isGambitHeal(tag, satisfied) {
 }
 
 // Does this cure draw on the medic's shared free pool (M2,
-// docs/systemdocs/TAGS.md §5c)? Only a 0-turn ROUTINE cure does — a
-// turns-costing cure is billed the Move's own fraction instead
-// (CRAFTING.md §2a) and never touches this pool at all, and neither does a
-// Gambit, which files a Move of its own. `gambit` is self-defending here
-// (review fix, M2) rather than trusted to every caller: both call sites
-// happen to pre-exclude a Gambit already (a 0-turn cure is never a Gambit in
-// practice — the ladder's free rungs sit well under any tier), but a
-// function this many places read off should not depend on that staying
-// true. See MEDICAL_SIMPLE_PER_TURN in web/lib/requests.js. The 0-turn half
-// of the check is INVERTED from the pre-M2 predicate (`turns > 0`), which
-// counted turn-costing cures against a per-tier daily cap — that cap is
-// gone, replaced by the Move economy.
+// docs/systemdocs/TAGS.md §5c)? Only a 0-turn cure does — a turns-costing
+// cure is billed the Move's own fraction instead (CRAFTING.md §2a) and
+// never touches this pool at all. See MEDICAL_SIMPLE_PER_TURN in
+// web/lib/requests.js. The 0-turn half of the check is INVERTED from the
+// pre-M2 predicate (`turns > 0`), which counted turn-costing cures against
+// a per-tier daily cap — that cap is gone, replaced by the Move economy.
+//
+// `gambit` is defense-in-depth here, not load-bearing (review fix, round
+// 3): both current callers already exclude a Gambit before this ever runs
+// — a Gambit files a Move of its own and never reaches the pool question at
+// all — so the parameter mostly guards a future caller that forgets to,
+// rather than changing today's answer.
 export function countsAgainstHealCap(tag, gambit = false) {
   return (tag?.requirementTurns ?? 0) === 0 && !gambit;
 }
