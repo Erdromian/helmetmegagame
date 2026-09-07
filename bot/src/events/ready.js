@@ -194,12 +194,20 @@ module.exports = {
     // and expire twelve hours after their first chant (db/lib/riteSweep.js).
     // Every minute, so "two minutes" means two or three rather than up to
     // seventeen.
+    // One sweep in flight at a time: a slow one (Summoning walks every
+    // cultist through Discord) must not overlap the next tick.
+    let riteSweepRunning = false;
     cron.schedule("* * * * *", () => {
+      if (riteSweepRunning) return;
+      riteSweepRunning = true;
       runRiteSweep(prisma)
         .then(({ expired, fired }) => {
           if (expired || fired) console.log(`Rite sweep: ${fired} fired, ${expired} expired.`);
         })
-        .catch((err) => console.error("Rite sweep failed:", err));
+        .catch((err) => console.error("Rite sweep failed:", err))
+        .finally(() => {
+          riteSweepRunning = false;
+        });
     });
 
     cron.schedule("*/15 * * * *", () => {

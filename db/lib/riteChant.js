@@ -94,7 +94,20 @@ async function attemptFor(db, rite, room) {
     orderBy: { openedAt: "desc" },
   });
   if (live) return live;
-  return db.riteAttempt.create({ data: { riteKey: rite.key, roomId: room.id, roomName: room.name } });
+  const created = await db.riteAttempt.create({ data: { riteKey: rite.key, roomId: room.id, roomName: room.name } });
+  // Two chanters posting the Word in the same second both miss the read
+  // above and both create. There is no unique index to refuse the second, so
+  // the loser folds into the oldest live attempt and its own row goes — a
+  // split would leave two half-counted attempts that never fire.
+  const oldest = await db.riteAttempt.findFirst({
+    where: { riteKey: rite.key, roomId: room.id, status: { in: ["OPEN", "READY"] }, openedAt: { gte: since } },
+    orderBy: { openedAt: "asc" },
+  });
+  if (oldest && oldest.id !== created.id) {
+    await db.riteAttempt.delete({ where: { id: created.id } }).catch(() => {});
+    return oldest;
+  }
+  return created;
 }
 
 // A rite waiting on a word from one of its own: the first participant's line

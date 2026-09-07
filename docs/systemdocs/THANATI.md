@@ -102,10 +102,11 @@ whole mechanism:
 4. **The sweep.** `db/lib/riteSweep.js#runRiteSweep`, every minute on the bot
    (`ready.js`). OPEN past twelve hours → EXPIRED. READY past `firesAt` →
    re-check the floor (gone → back to OPEN, clock cleared), claim the row
-   (`updateMany where status READY`), consume the floor ingredients, run
-   `rite.run` if the rite is scripted (else `result: { unscripted: true }`),
-   stamp participants (distinct chanters still ALIVE), write one audit row
-   `rite_fired`. Firing is within a minute of the mark, not on the second.
+   (`updateMany where status READY`), consume the floor ingredients, run the
+   rite's effect (`riteEffects.js#EFFECTS[key]`, §9), stamp participants
+   (distinct chanters still ALIVE), write one audit row `rite_fired`. Firing
+   is within a minute of the mark, not on the second. An effect that throws
+   is recorded on the row (`result.error`) and shown on the GM panel.
 
 Several rites may run in one room at once; the ingredients are the only real
 contention. A non-cultist who has robes, Flesh and a Grimoire chants like

@@ -20,6 +20,9 @@ const { revokeAllCharacterAccess } = require("./accessSweep");
 const { deleteCorpseFor } = require("./corpseMint");
 const { pickRandomPublicRoom } = require("./roomStash");
 const { characterRoleAppearance } = require("./characterRoleAppearance");
+const { formatBareName } = require("./characterName");
+const { STUPID_SLUG } = require("./babble");
+const { HUNGERLESS_SLUG } = require("./constants");
 const { applyLocationMoveSideEffects } = require("./locationMove");
 const { grantTagSlugs, addToRoomStack, dropRoomTag, dropCharacterTag } = require("./tagWrites");
 const { createWithRetry } = require("./paperMint");
@@ -39,8 +42,6 @@ const {
 } = require("./thanati");
 
 const FLESH_SLUG = "flesh-of-tzchernobog";
-const STUPID_SLUG = "stupid";
-const HUNGERLESS_SLUG = "hungerless";
 // What a sacrifice or a Judgement leaves behind: the parts a body has
 // (db/lib/mutilate.js's list). Bascinet's "the following items" list was not
 // given; this is the standing organ list until it is.
@@ -109,8 +110,10 @@ async function reviveByRite(db, dead, { location, turnNumber }) {
     await grantTagSlugs(tx, dead.id, [GHOUL_SLUG, SERVANT_SLUG, HUNGERLESS_SLUG], turnNumber);
   });
   await deleteCorpseFor(db, dead.id).catch(log(`corpse cleanup for ${dead.name}`));
+  // The BARE name, as every character role is titled (db/lib/characterName.js):
+  // a title would recolour and rename the role out of its signature.
   try {
-    const { name, color } = characterRoleAppearance(dead.name);
+    const { name, color } = characterRoleAppearance(formatBareName(dead));
     const role = await createGuildRole({ name, color, hoist: false, mentionable: true, permissions: "0" });
     await db.character.update({ where: { id: dead.id }, data: { discordRoleId: role.id } });
   } catch (err) {
@@ -119,7 +122,8 @@ async function reviveByRite(db, dead, { location, turnNumber }) {
   if (process.env.DISCORD_CURSED_ROLE_ID) {
     await removeMemberRole(dead.discordUserId, process.env.DISCORD_CURSED_ROLE_ID).catch(() => {});
   }
-  await setGuildNickname(dead.discordUserId, dead.name).catch(() => {});
+  // No nickname write here: the bot's nickname sync owns that, and it knows
+  // the web-only and sync-disabled rules a raw setGuildNickname would bypass.
   await applyLocationMoveSideEffects(db, { characterId: dead.id, fromLocationId: null, toLocationId: location.id }).catch(
     log(`placement for ${dead.name}`),
   );
@@ -280,7 +284,7 @@ const EFFECTS = {
     return { result: { target: target.name, told: participants.length, tags: names.length } };
   },
 
-  async summoning({ db, room, location }) {
+  async summoning({ db, location }) {
     const bound = await db.tag.findUnique({ where: { slug: BOUND_SLUG }, select: { id: true } });
     const cultists = await db.character.findMany({
       where: { status: "ALIVE", tags: { some: { quantity: { gt: 0 }, tag: { slug: THANATI_SLUG } } } },
@@ -298,7 +302,6 @@ const EFFECTS = {
       );
       moved.push(c.name);
     }
-    void room;
     return { result: { summoned: moved } };
   },
 
@@ -372,12 +375,19 @@ async function answerPanic(db, { attempt, content }) {
     db.zone.findMany({ select: { id: true, name: true } }),
     db.location.findMany({ select: { id: true, name: true, zoneId: true } }),
   ]);
-  const zone = zones.find((z) => containsPhrase(text, normalizeChant(z.name)));
-  const location = zone ? null : locations.find((l) => containsPhrase(text, normalizeChant(l.name)));
+  // The more specific name wins: "the Cathedral in Town" haunts the Cathedral.
+  const location = locations.find((l) => containsPhrase(text, normalizeChant(l.name)));
+  const zone = location ? null : zones.find((z) => containsPhrase(text, normalizeChant(z.name)));
   if (!zone && !location) return null;
 
+  // Rage does not become afraid (db/lib/fear.js) — this write bypasses the
+  // multiplier table, so the exemption is applied here by hand.
   const struck = await db.character.findMany({
-    where: { status: "ALIVE", ...(zone ? { zoneId: zone.id } : { locationId: location.id }) },
+    where: {
+      status: "ALIVE",
+      ...(zone ? { zoneId: zone.id } : { locationId: location.id }),
+      NOT: { tags: { some: { quantity: { gt: 0 }, tag: { slug: RAGE_SLUG } } } },
+    },
     select: { id: true, name: true },
   });
   for (const c of struck) {

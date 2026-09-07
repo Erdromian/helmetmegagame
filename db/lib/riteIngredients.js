@@ -99,7 +99,7 @@ async function corpseOnFloor(db, roomId) {
   for (const row of rows) {
     const dead = await db.character.findUnique({
       where: { id: row.tag.corpseOfCharacterId },
-      select: { id: true, name: true, discordUserId: true, status: true, buriedAt: true, locationId: true, zoneId: true },
+      select: { id: true, name: true, firstName: true, lastName: true, discordUserId: true, status: true, buriedAt: true, locationId: true, zoneId: true },
     });
     if (dead && dead.status === "DEAD") return { tag: row.tag, dead };
   }
@@ -121,10 +121,14 @@ async function pictured(db, tag) {
   }
   const name = nameOnPhoto(tag.name);
   if (!name) return null;
-  return db.character.findFirst({
+  // Two living characters may share a name (db/lib/corpseMint.js), and an old
+  // print cannot say which: an ambiguous name resolves to nobody.
+  const matches = await db.character.findMany({
     where: { name, status: "ALIVE" },
+    take: 2,
     select: { id: true, name: true, discordUserId: true, discordRoleId: true, status: true, locationId: true, zoneId: true, tags: { where: { quantity: { gt: 0 } }, select: { tag: { select: { slug: true } } } } },
   });
+  return matches.length === 1 ? matches[0] : null;
 }
 
 // Photographs on the floor first, then in the participants' hands. Returns
