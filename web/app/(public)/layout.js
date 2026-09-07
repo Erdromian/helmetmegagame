@@ -1,9 +1,10 @@
 import { Suspense } from "react";
-import { auth } from "@/lib/auth";
+import { getGmSession } from "@/lib/discordGuild";
 import { getOpenTurn } from "@/lib/turn";
 import AppRail from "../components/AppRail";
 import TurnChip from "../components/TurnChip";
 import TurnChipAsync from "../components/TurnChipAsync";
+import { GM_NAV, PLAYER_NAV } from "@/lib/navItems";
 
 // The one route group that renders for a signed-out visitor. (app) redirects
 // to "/" without a session (AppLayout), and (desk) is GM-only — neither can
@@ -17,7 +18,11 @@ import TurnChipAsync from "../components/TurnChipAsync";
 // doesn't exist. .app-main is a plain `flex: 1` (globals.css), so it needs no
 // extra class to fill the row on its own when AppRail isn't there beside it.
 export default async function PublicLayout({ children }) {
-  const session = await auth();
+  // Same call and the same reason as (app)'s layout: the rail's fallback has
+  // to know whether this reader is a GM, or /handbook paints a player rail
+  // and then shoves a GM section in above it. A signed-out visitor returns
+  // below before any of that, so the anonymous path pays nothing for it.
+  const { session, isGm } = await getGmSession();
 
   if (!session?.discordUserId) {
     return (
@@ -34,7 +39,7 @@ export default async function PublicLayout({ children }) {
 
   return (
     <div className="app-shell">
-      <AppRail discordUserId={session.discordUserId} />
+      <AppRail discordUserId={session.discordUserId} fallback={isGm ? GM_NAV : PLAYER_NAV} />
       <main className="app-main">{children}</main>
       <Suspense fallback={<TurnChip turn={null} />}>
         <TurnChipAsync turnPromise={turnPromise} />
