@@ -62,11 +62,14 @@ const EXAMINE_SUBJECT_SELECT = {
           inspectVisibility: true,
           forcedName: true,
           ...CONCEALMENT_TAG_FIELDS,
-          // The five formatTagRequirement() reads. It renders no ingredient
+          // The six formatTagRequirement() reads. It renders no ingredient
           // line rather than throwing when requirementItems is missing, which
-          // is the quiet failure this shared select exists to prevent.
+          // is the quiet failure this shared select exists to prevent — and
+          // without requirementPerTurn a `turnsCost: 1/N` cure showed as a
+          // flat "1 turn" instead of its real fraction (review fix, M2).
           requirementGambit: true,
           requirementTurns: true,
+          requirementPerTurn: true,
           requirementResources: true,
           requirementItems: true,
           requirementSkills: { select: { id: true, name: true } },
