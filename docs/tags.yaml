@@ -5341,9 +5341,9 @@ tags:
     sellable: true
     sellablePrice: 4
 
-  # Fished up by the labor loot pass. The bruise cure is their whole trade
-  # until the medical rework gives them more — enforced on consume by
-  # HIDDEN_CURES in db/lib/hiddenCures.js.
+  # Fished up by the labor loot pass. The bruise cure is now the `cures:`
+  # field below rather than the old HIDDEN_CURES entry in
+  # db/lib/hiddenCures.js, which the medical pass migrated it off of.
   leeches:
     catalog: all
     name: Leeches
@@ -5361,6 +5361,7 @@ tags:
     sellablePrice: 2
     consumable: true
     consumesInto: []
+    cures: [bruised]
 
   # The generator's proper fuel. Imported, so the Merchant has to buy it off
   # the station with the profit he makes selling everything else — which is the
@@ -10037,6 +10038,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    cures: [infected]
     requirement:
       turnsCost: 1/2
       resourceCost: 2
