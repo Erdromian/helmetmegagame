@@ -766,7 +766,9 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     carryBonus: -0.5
-    conflictsWith: [pack-mule]
+    # Same fiction as Giant's comment above, from the other end: a scrawny
+    # under-carrier can't also be the big body that hauls.
+    conflictsWith: [pack-mule, strong, giant]
 
   old:
     catalog: all
