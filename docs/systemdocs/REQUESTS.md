@@ -764,7 +764,7 @@ a revived character is never a live person marked buried.
 **Fast Travel is retired as a Request, and its mechanic has moved.** There is
 no `fastTravelRequestImpl` any more, no `FAST_TRAVEL` row is ever written, and
 `Character.fastTravelTurnId` is gone from the schema. What the `horse` and
-`steam-automobile` tags promise is now part of ordinary travel: an **equipped**
+`motorcycle` tags promise is now part of ordinary travel: an **equipped**
 mount adds one to the free-zone-move allowance every character gets each turn,
 and it refreshes each turn rather than once a day. See [`CARRY.md`](CARRY.md)
 §2a for the allowance and [`MAP.md`](MAP.md) for the crossing itself.

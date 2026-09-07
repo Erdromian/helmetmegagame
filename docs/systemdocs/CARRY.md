@@ -193,17 +193,16 @@ it.
 
 ## 3. Mounts, carts, and indoors
 
-`horse`, `steam-automobile`, `motorcycle` and `cart` are **equippable**, and
+`horse`, `motorcycle` and `cart` are **equippable**, and
 give nothing while stowed — no carry multiplier, no extra zone move, no
 passenger seats. They compete for the same six `GameConfig.equipSlots` as
 armour and weapons, which is the point: a cart should cost you something to
 keep out.
 
-**Seats, from `fastTravelCapacity()`:** the Steam Automobile is a flat 6 and
-does not stack with anything. A Horse alone is 2, and a Cart upgrades that
-pair to 6. The **Motorcycle is 2 and cannot be upgraded** — it is tested
-before the horse for exactly that reason, so the Cart's clause can never reach
-it. A hand-cart towed behind a motorcycle is not a thing, and letting it fall
+**Seats, from `fastTravelCapacity()`:** a Horse alone is 2, and a Cart upgrades
+that pair to 6 — the biggest ride there is. The **Motorcycle is 2 and cannot be
+upgraded** — it is tested before the horse for exactly that reason, so the
+Cart's clause can never reach it. A hand-cart towed behind a motorcycle is not a thing, and letting it fall
 through would have quietly turned one seat into six.
 
 The motorcycle was inert loot until 2026-09-06 — 100 lb of flavour with no

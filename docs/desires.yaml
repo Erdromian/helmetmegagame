@@ -2292,13 +2292,6 @@ desires:
     requires:
       anyRoles: [banneret]
     oncePerLife: true
-  buy-yourself-an-automobile:
-    name: Buy yourself an automobile
-    tier: 4
-    families: [wealth]
-    requires:
-      anyRoles: [banneret]
-    oncePerLife: true
   sell-squeeze-to-the-merchant:
     name: Sell squeeze to the merchant
     tier: 1

@@ -1674,7 +1674,7 @@ drawbacks, each with its own writer:
   `db/lib/confession.js#confessableTags`/`validateConfession` (`CONFESSION.md`).
 - **Lightweight and Iron Liver** reshape the drinking ladder —
   `web/lib/consumeGrants.js` (`BREWING.md` §5a).
-- **Motion Sickness** refuses mounting a horse, steam automobile or fishing
+- **Motion Sickness** refuses mounting a horse, motorcycle or fishing
   boat (`web/app/(app)/character/equipActions.js`), and grants Vomiting to a
   Motion Sick passenger dragged along a mounted or boated zone crossing
   (`db/lib/locationTravel.js#vomitOnTheRide`).

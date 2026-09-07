@@ -300,7 +300,7 @@ A free move files no Action at all. **Acting and crossing on your Move are
 mutually exclusive within a turn, in either order** — the enforcement is
 `@@unique([characterId, turnId])` on `Action`.
 
-**Mounts.** `horse` and `steam-automobile`
+**Mounts.** `horse` and `motorcycle`
 (`db/lib/mounts.js#FAST_TRAVEL_SLUGS`) each add one free crossing, **and it refreshes every
 turn** rather than once a day — a horse carries you at Dawn and again at Dusk.
 They only count while **equipped**, and they are unequipped for you at the door

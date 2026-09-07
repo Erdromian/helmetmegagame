@@ -555,7 +555,6 @@ buying one mid-game is still a real decision.
 | `silver-sword` | 123 | 74 | |
 | `chainsaw` | 126 | 76 | Cuts two Godflesh per Extract, and farms at +2 ⬢ — `FACTORY.md` |
 | `neoclassic-rw10` | 134 | 80 | Neoclassic R&W10. Also a 14-pt creation pick. |
-| `steam-automobile` | 134 | 80 | Fast-travels like a Horse — see below |
 | `energy-shield` | 145 | 87 | **The dearest thing on the shelf that is not a gun.** Stops bullets outright and softens a melee blow — the best odds against the Fortress turret in the game, though a minor wound is still very possible. Caving loot he also imports, and GM-granted until now. ‡ |
 | `ml-23` | 149 | 89 | A 9mm pistol |
 | `motorcycle` | 171 | 103 | Caving loot he also imports |
@@ -566,15 +565,11 @@ buying one mid-game is still a real decision.
 
 Three of these need code, not just catalog data:
 
-- **`steam-automobile`** and **`horse`** are `FAST_TRAVEL_SLUGS`
-  (`db/lib/mounts.js`). Same request and the
-  same once-a-day limit, which `fastTravelRequestImpl` really does enforce
-  along with adjacency. "Easily visible" and "not through the caves" are
-  **adjudicated, not enforced** — exactly as they already are for the two
-  horse, whose catalog text says the same thing. Worth knowing, since he buys
-  the thing standing in the Caves. The Horse is priced under the Automobile on
-  purpose: they buy the same free zone move, and the machine is the one that
-  never spooks, never eats and never has to wait outside.
+- **`horse`** and **`motorcycle`** are `FAST_TRAVEL_SLUGS`
+  (`db/lib/mounts.js`), so each buys the same extra zone crossing every turn
+  while equipped. "Not through the caves" is **adjudicated, not enforced** —
+  as the horse's own catalog text already says. Worth knowing, since he buys
+  the thing standing in the Caves.
 - **`coffee`** consumes into `caffeinated`, a status tag that exists only for
   it. **`soporific`** does *not* consume into `asleep`, and that is on purpose:
   you administer it to somebody else, so a self-targeting grant would put the

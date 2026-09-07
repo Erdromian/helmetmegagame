@@ -157,6 +157,7 @@ Life) used to be the example; they're archived in
 | Silver Knife | Simple | |
 | Gladius | Simple | |
 | Phrygian Spear | Simple | |
+| Javelin | Simple | `ranged-basic` — it is thrown, not held. |
 | Longbow | Simple | `crafting` |
 | Mace | Simple | |
 | Battle Axe | Simple | |

@@ -312,8 +312,8 @@ documents:
 
       **Simple — 6 ⬢, 1 turn**
 
-      - Weapons: {tag:spear}, {tag:dagger}, {tag:silver-knife}, {tag:gladius},
-        {tag:phrygian-spear}, {tag:mace}, {tag:battle-axe}
+      - Weapons: {tag:spear}, {tag:javelin}, {tag:dagger}, {tag:silver-knife},
+        {tag:gladius}, {tag:phrygian-spear}, {tag:mace}, {tag:battle-axe}
       - Armor: {tag:simple-helm}, {tag:mail-coif}
       - Mail Coif needs Smithing. Crafting instead of Smithing: {tag:longbow},
         {tag:shield}, {tag:pavise}, {tag:trapping-gear}

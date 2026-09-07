@@ -1683,7 +1683,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # Scripted: can't equip a horse, steam automobile or fishing boat; dragged
+  # Scripted: can't equip a horse, motorcycle or fishing boat; dragged
   # across a zone by a mounted mover you end up {tag:vomiting}.
   # web/app/(app)/character/equipActions.js, db/lib/locationTravel.js.
   motion-sickness:
@@ -4574,7 +4574,6 @@ tags:
     purchasableAfterStart: false
     # The Merchant is the only mid-game source, so the price is meant to hurt:
     # a free zone move every turn is the strongest thing on the assets shelf.
-    # Under the Steam Automobile, which does the same job and never spooks.
     depotPrice: 90
     sellable: true
     sellablePrice: 54
@@ -6949,6 +6948,30 @@ tags:
     sellable: true
     sellablePrice: 9
 
+  javelin:
+    catalog: all
+    name: Javelin
+    category: items
+    group: items-weapons
+    description: "A powerful throwing weapon."
+    pointCost: 5
+    requiredTag: ranged-basic
+    equippable: true
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [smithing]
+      gambit: false
+    sellable: true
+    sellablePrice: 9
+
   longbow:
     catalog: all
     name: Longbow
@@ -7757,8 +7780,8 @@ tags:
     purchasableAfterStart: false
     removable: false
 
-  # A mount, not loot: it sits in FAST_TRAVEL_SLUGS beside the Horse and the
-  # Steam Automobile (db/lib/mounts.js), so equipping it buys the extra
+  # A mount, not loot: it sits in FAST_TRAVEL_SLUGS beside the Horse
+  # (db/lib/mounts.js), so equipping it buys the extra
   # crossing, parks it at any indoors door, refuses to share a hand with the
   # boat, and turns a Motion Sick rider's stomach — all of that falls out of
   # the one set membership. It seats 2 like a horse and is checked BEFORE the
@@ -9407,25 +9430,6 @@ tags:
     consumesInto: []
 
   # Hardware. The wall. A gun costs more than a house and that is the point.
-  # The Steam Automobile carries the Horse's fast-travel behaviour and its
-  # caveats — web/lib/tagRequests.js#FAST_TRAVEL_SLUGS is what implements it,
-  # and this description is what that implements.
-  steam-automobile:
-    catalog: gm
-    name: Steam Automobile
-    category: assets
-    group: assets-property
-    description: "Fill it with water, warm it up, and move along a straight path without any obstacles. While it's equipped, you get 1 extra free zone move each turn, but you will be easily visible. Do not use through caves. It waits outside indoors. ‡"
-    pointCost: 0
-    equippable: true
-    depotPrice: 134
-    sellable: true
-    sellablePrice: 80
-    tradeable: true
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-
   ml-23:
     catalog: gm
     name: ML-23
