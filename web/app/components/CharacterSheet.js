@@ -128,6 +128,7 @@ export default function CharacterSheet({
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
+  doseTargets = [],
   equipSlots = 6,
   avatarUploadsEnabled = false,
   portraitMakerEnabled = false,
@@ -233,6 +234,7 @@ export default function CharacterSheet({
             bindTargets={bindTargets}
             harmTargets={harmTargets}
             harmTags={harmTags}
+            doseTargets={doseTargets}
             examineBlocked={examineBlocked}
             canBindBook={canBindBook}
             bindBlocked={bindBlocked}

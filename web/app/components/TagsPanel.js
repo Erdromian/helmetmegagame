@@ -90,6 +90,9 @@ export default function TagsPanel({
   // rather than rolled — resolveConsumeGrants commits to a real pick, and
   // this hint must not re-roll on every hover.
   function consumeHintFor(tag) {
+    // A poison opens its own dialog (lace it, dose someone, or drink it) —
+    // "Click to consume" would promise the wrong verb.
+    if (tag?.poison) return "Click to poison…";
     const names = (tag?.consumesInto ?? [])
       .map((slug, i) => {
         const blockers = tag?.consumesIntoUnless?.[slug] ?? null;
@@ -158,18 +161,30 @@ export default function TagsPanel({
               <ul className="flex flex-wrap gap-2">
                 {tags.map((ct) => {
                   // Only your own consumables are clickable — someone else's
-                  // sheet stays a read-only hover tooltip.
+                  // sheet stays a read-only hover tooltip. A poison item opens
+                  // its own three-option dialog instead of the ordinary
+                  // Consume one (M4) — the click routes on Tag.poison, the
+                  // one catalog fact that's always safe to read straight off
+                  // the tag.
                   const clickable = isSelf && ct.tag.consumable && openDialog;
+                  const dialogMode = ct.tag.poison ? "poison" : "consume";
                   return (
                     <li key={ct.tag.id}>
                       <TagChip
                         tag={ct.tag}
                         quantity={ct.quantity}
-                        onConsume={clickable ? () => openDialog("consume", ct.tag.id) : null}
+                        onConsume={clickable ? () => openDialog(dialogMode, ct.tag.id) : null}
                         consumeHint={clickable ? consumeHintFor(ct.tag) : null}
                         expiresTurn={ct.expiresTurn}
                         currentTurn={currentTurn}
                         armedTurn={ct.tag.slug === "nuclear-device" ? nukeArmedTurn : null}
+                        // "· smells wrong" (M4) — computed and gated
+                        // server-side (character/page.js): present ONLY when
+                        // this row is actually poisoned AND this viewer holds
+                        // poison-sense or a poison-snooper. Never the raw
+                        // count or which poison — see poisonMarker's own
+                        // comment there for why.
+                        poisonMarker={Boolean(ct.poisonMarker)}
                       />
                     </li>
                   );

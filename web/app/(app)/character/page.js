@@ -32,6 +32,7 @@ import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { isPaper, paperDescription } from "@lifeweb/db/lib/paper";
+import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import {
   freeMovesLeft,
   freeZoneMovesReason,
@@ -438,6 +439,7 @@ export default async function CharacterPage({ searchParams }) {
     bindTargets,
     harmTargets,
     harmTags,
+    doseTargets,
   } = await loadPeoplePools(character, {
     discordUserId: session.discordUserId,
     openTurn,
@@ -762,13 +764,32 @@ export default async function CharacterPage({ searchParams }) {
     phase: openTurn?.phase ?? null,
     indoors: character.location?.indoors ?? true,
   };
+  // Poison state (the medical pass, M4): CharacterTag.poisonedCount/
+  // poisonPayload are secret, and this loader's `tags: { include: { tag:
+  // {...} } }` above has no per-field select, so Prisma hands back both
+  // scalar columns on every row whether or not this character can smell a
+  // thing. They must NEVER reach the client raw — this is that surface's
+  // exact leak point, so the strip happens right here rather than trusting
+  // every future reader of `sheetCharacter` to remember not to spread `ct`.
+  // What crosses instead is `poisonMarker`, a plain yes/no — never the count,
+  // never which poison — and only a "yes" for a character holding
+  // poison-sense or a poison-snooper (canDetectPoison), computed ONCE for
+  // this viewer looking at their OWN sheet (the only mode this page renders;
+  // there is no "view someone else's held items" surface). Everyone else's
+  // row is the plain row, exactly as if the columns were never selected.
+  const canSmellPoison = canDetectPoison(character.tags);
   const sheetCharacter = {
     ...character,
     tags: character.tags.map((ct) => {
-      if (!isPaper(ct.tag)) return ct;
+      const { poisonedCount, poisonPayload, ...ctRest } = ct;
+      const stripped = {
+        ...ctRest,
+        poisonMarker: canSmellPoison && (poisonedCount ?? 0) > 0,
+      };
+      if (!isPaper(ct.tag)) return stripped;
       const { paperText, ...tag } = ct.tag;
       return {
-        ...ct,
+        ...stripped,
         tag: { ...tag, description: paperDescription(ct.tag, viewer) },
       };
     }),
@@ -995,6 +1016,7 @@ export default async function CharacterPage({ searchParams }) {
       deployVersion={deployVersion()}
       harmTargets={harmTargets}
       harmTags={harmTags}
+      doseTargets={doseTargets}
       lastNameLocked={isDynastyMember(character.role?.slug)}
       storeTags={storeTags}
       storeHeldTags={storeHeldTags}

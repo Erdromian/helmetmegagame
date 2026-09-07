@@ -70,6 +70,8 @@ import {
   confessRequest,
   transferRequest,
   consumeTagRequest,
+  poisonItemRequest,
+  poisonCharacterRequest,
   healCharacterRequest,
   lootCharacterRequest,
   moveCharacterRequest,
@@ -446,6 +448,10 @@ export default function RequestActionsProvider({
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
+  // Poison's own dose-a-helpless-person roster (M4) — the same helpless class
+  // HARM/LOOT use, built once server-side (web/lib/peoplePools.js) so this
+  // menu and the server's own re-check can't disagree.
+  doseTargets = [],
   // Corpses (CORPSES.md): every body in reach — yours and the ones lying in
   // rooms here — built once server-side by db/lib/corpses.js#corpsesInReach so
   // the menu and the two server re-checks can't disagree about what you can
@@ -522,6 +528,12 @@ export default function RequestActionsProvider({
   const [fromKey, setFromKey] = useState("");
   const [toKey, setToKey] = useState("");
   const [amount, setAmount] = useState("1");
+  // The poison-use dialog's own three-way choice (M4): "food" (lace a held
+  // meal/drink), "person" (dose someone helpless here) or "self" (drink it —
+  // an ordinary Consume posted from this dialog). `targetId` above already
+  // carries the sub-target either way — a food's tagId for "food", a
+  // character id for "person" — so it doesn't need a state of its own.
+  const [poisonUse, setPoisonUse] = useState("");
   // tagId -> quantity, for Loot. Always replaced wholesale, never mutated
   // (react-hooks/immutability is an error here).
   const [picks, setPicks] = useState({});
@@ -611,6 +623,18 @@ export default function RequestActionsProvider({
     [characterTags],
   );
   const packable = useMemo(() => packableTags(characterTags), [characterTags]);
+  // The poison-use dialog's own two narrowed views over `consumable` (M4):
+  // held poisons (what the chip click and the grid button both offer), and
+  // held food/drink a poison could lace — never another poison (you can't
+  // lace the bottle itself), and only the two groups the plan names.
+  const poisonable = useMemo(() => consumable.filter((t) => t.poison), [consumable]);
+  const foodTargets = useMemo(
+    () =>
+      consumable.filter(
+        (t) => !t.poison && (t.group?.slug === "items-food" || t.group?.slug === "items-drink"),
+      ),
+    [consumable],
+  );
   // What the current selection weighs, against the 150 lb a crate holds. The
   // server recomputes it — this is the readout that stops somebody filling a
   // form they can't submit.
@@ -700,7 +724,7 @@ export default function RequestActionsProvider({
         ? craftable
         : mode === "destroy"
           ? removable
-          : mode === "consume"
+          : mode === "consume" || mode === "poison"
             ? consumable
             : mode === "heal" ||
                 mode === "harm" ||
@@ -711,11 +735,15 @@ export default function RequestActionsProvider({
               : transferable;
     return pool.find((t) => t.id === tagId) ?? null;
   }, [mode, tagId, craftable, removable, transferable, consumable]);
-  // Consume always takes one, so it opts out of the quantity field. So does a
-  // placement: a structure is a place, not a stack, and openBuildSiteImpl
-  // ignores the count anyway.
+  // Consume always takes one, so it opts out of the quantity field. So does
+  // Poison — a dose is one unit of the poison, whatever's left on the
+  // stack — and a placement: a structure is a place, not a stack, and
+  // openBuildSiteImpl ignores the count anyway.
   const stacking =
-    Boolean(chosen?.stackable) && mode !== "consume" && !chosen?.placement;
+    Boolean(chosen?.stackable) &&
+    mode !== "consume" &&
+    mode !== "poison" &&
+    !chosen?.placement;
   const heldCount = mode === "craft" ? undefined : (chosen?.quantity ?? 1);
 
   // Lessons: the counterpart picked, and the skills on offer with them.
@@ -967,6 +995,7 @@ export default function RequestActionsProvider({
       setPatientId("");
       setPayerKey(selfId ? `character:${selfId}` : "");
       setTargetId("");
+      setPoisonUse("");
       setFromKey(selfId ? `character:${selfId}` : "");
       setToKey("");
       // Transfer's ⬢ is optional, so it starts at nothing rather than one.
@@ -1194,6 +1223,17 @@ export default function RequestActionsProvider({
               ? targetId
               : undefined,
         });
+      case "poison":
+        // The three-option dialog (M4): "food" laces a held meal/drink,
+        // "person" forces it on someone helpless here, "self" is the
+        // ordinary Consume path — no new server logic for that third one.
+        if (poisonUse === "person") {
+          return poisonCharacterRequest({ poisonTagId: tagId, targetCharacterId: targetId });
+        }
+        if (poisonUse === "self") {
+          return consumeTagRequest({ tagId });
+        }
+        return poisonItemRequest({ poisonTagId: tagId, targetTagId: targetId });
       case "extract":
         return extractGodfleshRequest();
       case "package":
@@ -1328,6 +1368,9 @@ export default function RequestActionsProvider({
         return Boolean(tagId);
       case "bird":
         return Boolean(targetId && zoneId && birdTagId);
+      case "poison":
+        if (!tagId || !poisonUse) return false;
+        return poisonUse === "self" ? true : Boolean(targetId);
       case "transfer":
         return Boolean(fromKey && toKey && !sameParty && takingSomething);
       case "heal":
@@ -1414,6 +1457,7 @@ export default function RequestActionsProvider({
         buildSites.length > 0,
       canDestroy: removable.length > 0,
       canConsume: consumable.length > 0,
+      canPoison: poisonable.length > 0,
       canHeal,
       canExamine: !examineBlocked,
       // The sentence ActionGrid appends to a greyed button's tooltip, so a
@@ -1452,6 +1496,7 @@ export default function RequestActionsProvider({
       buildSites,
       removable,
       consumable,
+      poisonable,
       canHeal,
       examineBlocked,
       extractBlocked,
@@ -1828,6 +1873,115 @@ export default function RequestActionsProvider({
                           <p className="text-xs text-accent">{`You've already used your Move this turn. ‡`}</p>
                         ) : null}
                   </>
+                )}
+              </>
+            )}
+
+            {/* Poison's own three-option dialog (M4): lace a held meal/drink,
+                dose someone helpless standing here, or drink it yourself —
+                an ordinary Consume posted from here, no new server logic.
+                Reuses `becomes`/`chosen` off the same `consumable` pool the
+                ordinary Consume dialog reads, so the two never disagree on
+                what a poison's own consumesInto grants. */}
+            {mode === "poison" && (
+              <>
+                <label className="field">
+                  <span className="field-label">Which poison?</span>
+                  <Select
+                    value={tagId ?? ""}
+                    onChange={(e) => {
+                      pick(e.target.value || null);
+                      setPoisonUse("");
+                      setTargetId("");
+                    }}
+                    required
+                  >
+                    <option value="" disabled>
+                      Choose a poison…
+                    </option>
+                    {poisonable.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                        {t.quantity > 1 ? ` ×${t.quantity}` : ""}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                {chosen && (
+                  <label className="field">
+                    <span className="field-label">What are you doing with it? ‡</span>
+                    <Select
+                      value={poisonUse}
+                      onChange={(e) => {
+                        setPoisonUse(e.target.value);
+                        setTargetId("");
+                      }}
+                      required
+                    >
+                      <option value="" disabled>
+                        Choose one…
+                      </option>
+                      <option value="food">Lace a meal or drink</option>
+                      <option value="person">Dose someone helpless here</option>
+                      <option value="self">Drink it yourself</option>
+                    </Select>
+                  </label>
+                )}
+                {chosen && poisonUse === "food" && (
+                  foodTargets.length === 0 ? (
+                    <NobodyHere>You aren&apos;t holding anything it could go in.</NobodyHere>
+                  ) : (
+                    <label className="field">
+                      <span className="field-label">Lace what?</span>
+                      <Select value={targetId} onChange={(e) => setTargetId(e.target.value)} required>
+                        <option value="" disabled>
+                          Choose a meal or drink…
+                        </option>
+                        {foodTargets.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                            {t.quantity > 1 ? ` ×${t.quantity}` : ""}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                  )
+                )}
+                {chosen && poisonUse === "food" && (
+                  <p className="text-xs text-muted">
+                    {`Refuses if what you're lacing already carries a different poison. Whoever eats it is never told. ‡`}
+                  </p>
+                )}
+                {chosen && poisonUse === "person" && (
+                  doseTargets.length === 0 ? (
+                    <NobodyHere>Nobody here is helpless enough to dose directly.</NobodyHere>
+                  ) : (
+                    <label className="field">
+                      <span className="field-label">Dose who?</span>
+                      <Select value={targetId} onChange={(e) => setTargetId(e.target.value)} required>
+                        <option value="" disabled>
+                          Choose someone here…
+                        </option>
+                        {doseTargets.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} — {t.condition}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                  )
+                )}
+                {chosen && poisonUse === "person" && (
+                  <p className="text-xs text-muted">
+                    {`They have to be helpless — bound, dying, paralyzed, unconscious, crucified or catatonic — and standing where you are. A conscious target can only be poisoned through what they eat or drink. ‡`}
+                  </p>
+                )}
+                {chosen && poisonUse === "self" && (
+                  <p className="text-xs text-muted">
+                    {becomes.length
+                      ? `Becomes: ${becomes.join(", ")}.`
+                      : "Gets used up — it doesn't leave anything behind."}
+                  </p>
                 )}
               </>
             )}

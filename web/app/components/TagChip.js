@@ -59,6 +59,12 @@ export default function TagChip({
   // (db/lib/nuke.js). Armed state is world state rather than a tag, so the
   // chip has to be told; null means not armed and the row simply isn't there.
   armedTurn = null,
+  // "· smells wrong" (the medical pass, M4) — whether THIS held stack is
+  // actually poisoned, already gated server-side to poison-sense holders /
+  // poison-snooper holders before it ever reaches this component (see
+  // TagsPanel.js). Never the raw poisonedCount or which poison — this prop
+  // carries only the yes/no doctor's-eye reads.
+  poisonMarker = false,
 }) {
   const stack = quantity > 1 ? quantity : null;
   // Minified "cost to add/remove this tag in play" — see Tag.requirement* in
@@ -101,6 +107,12 @@ export default function TagChip({
         <strong>
           {tag.name}
           {stack ? ` ×${stack}` : ""}
+          {/* The doctor's-eye read (M4): a poison-sense holder or a held
+              poison-snooper notices something's off about THIS stack. Never
+              names which poison, or how much of the stack carries it — the
+              server never even sends those two fields to a client that
+              can't see this. */}
+          {poisonMarker && <span className="text-muted"> · smells wrong ‡</span>}
         </strong>
         {/* Group · category, top right — same info ChipLabel's border colour
             implies, spelled out for whoever can't rely on the colour alone. */}
@@ -118,7 +130,7 @@ export default function TagChip({
       {consumeHint && <p className="text-accent">{consumeHint}</p>}
       {typeof onConsume === "function" && (
         <button type="button" className="btn-quiet" onClick={onConsume}>
-          Consume
+          {tag.poison ? "Poison" : "Consume"}
         </button>
       )}
       <dl className="tag-meta">
