@@ -2625,7 +2625,7 @@ body:has(.chat-shell) .turn-chip {
   font-size: var(--fs-base);
   line-height: 1.6;
   color: var(--text);
-  background: var(--surface-2);
+  background: var(--surface-raised);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   padding: var(--sp-3) var(--sp-4);
