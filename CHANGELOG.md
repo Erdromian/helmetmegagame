@@ -6,6 +6,22 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Put back the desk and Hall pass that got reverted
+
+✎ The desks and the Play page wear one header again, with same-sized bubbles  
+✎ Each desk's loading screen draws the frame it is about to become, so the page stops jumping when it lands  
+✎ The Search box on the players desk sits clear of the header again  
+− The entry count on the audit log, the tracked-player count on the players desk, the Report to the GMs button and the Dev Panel's Recompute unspent Tag Points button  
+✎ Room storage is clickable again, the room buttons read Drop, Take and Transfer, and a way out says where it goes  
+✎ The unread dot only lights for something meant for you, not for scenery  
+✚ Naming somebody on the Play page now adds them to the conversation, the way naming them in Discord already did  
+✎ A broken wax seal is not a wax stamp, a letter is called A Note, and the Desire slot lock is one turn — all three were true in the database and had been undone in the code
+
+## 2026-09-07 · The Play page has an off switch
+
+✚ A Play page switch in the Dev panel's Features group, on by default. Off, Play leaves the rail, /play sends people to their sheet, and ⌘K stops offering places and people.  
+✎ While it is off, Play from the web is shown only to a player already playing that way, so they can come back. Nobody is switched back automatically — check the players desk for web-only characters before turning it off.
+
 ## 2026-09-07 · The buttons stop explaining themselves, and books are crafted now
 
 − Craft, Destroy, Transfer, Write, Butcher, Free and Search lose their tooltips, and eleven explanatory paragraphs come out of the dialogs. The empty states and the refusals stay.  
