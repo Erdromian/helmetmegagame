@@ -2236,6 +2236,9 @@ async function photographNothingImpl({ session, character, held }) {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_consume_tag",
       targetCharacterId: character.id,
+      // REQUESTS.md §1a — its sibling consume audit row carries this now
+      // (review fix, round 3); this one was the one place it didn't.
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -2327,12 +2330,6 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   // does not apply rather than refusing "No turn is open."
   let administerMoveCost = null;
   if (held.tag.administerSkill) {
-    if (!administered) {
-      const blocker = blockerFor(character.tags, ACT);
-      if (blocker) {
-        throw new UserError(`You can't do that right now. You're ${blocker.name}.`);
-      }
-    }
     const catalog = await prisma.tag.findMany({
       select: { id: true, slug: true, name: true, parentTagId: true },
     });
@@ -2343,6 +2340,17 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
       throw new UserError(`You need ${skillTag?.name ?? "the right training"} to use ${held.tag.name}. ‡`);
     }
     if (openTurn) {
+      // The ACT gate belongs exactly here, not outside this branch (review
+      // fix, round 3): it exists because filing the Move below is what a
+      // Bound or Paralyzed character can't do even to themselves — self-
+      // consume is otherwise ACT-exempt (TAGS.md §5f). With no turn open,
+      // nothing files, so the gate has nothing to be about.
+      if (!administered) {
+        const blocker = blockerFor(character.tags, ACT);
+        if (blocker) {
+          throw new UserError(`You can't do that right now. You're ${blocker.name}.`);
+        }
+      }
       administerMoveCost = craftMoveCost(
         { requirementTurns: 1, requirementPerTurn: 2 },
         { quantity: 1, family: "medical" },
@@ -2406,7 +2414,27 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     : [];
 
   await prisma.$transaction(async (tx) => {
+    // Deadlock avoidance (review fix, round 3): this transaction can lock
+    // both the actor's row (the Move billing below) and the target's (the
+    // patient-race re-check further down) — lock them in sorted-id order up
+    // front, not actor-then-target, or two actors administering to each
+    // other at the same instant lock in opposite orders and deadlock
+    // (Postgres surfaces an unresolved cycle as a raw 40P01, not a
+    // UserError).
+    const lockIds =
+      administered && target.id !== character.id
+        ? [character.id, target.id].sort()
+        : [character.id];
+    for (const id of lockIds) await lockCharacter(tx, id);
+
     if (administerMoveCost) {
+      // Re-checked here (review fix, round 3 — this was the one billed path
+      // without an in-transaction window check): resolveCraftMove checked it
+      // outside, but that read and this spend are not atomic with each
+      // other, the same reasoning craftRequestImpl's spill path and
+      // healCharacterRequestImpl's own in-tx checks already act on.
+      const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(tx) });
+      if (locked) throw new UserError("Moves are locked for this turn.");
       // The Move is claimed first: it is the contended thing, and a refusal
       // here rolls back everything below it (craftRequestImpl's project path
       // does the same).
@@ -2423,14 +2451,13 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     // target in the same instant both pass the outside intersects gate,
     // both would spend ⬢ and (if administerSkill-gated) a Move fraction, and
     // dropCharacterTag on an already-gone row is a silent no-op — the loser
-    // would look successful and cure nothing. Lock the TARGET row and
-    // re-read its held tags under that lock before touching them. Only
-    // re-verified when this item's own gate depended on the intersection —
-    // an `administerable` item like Mercy has nothing to lose by curing
-    // nothing, race or not, so it never refuses here.
+    // would look successful and cure nothing. The target row is already
+    // locked, above; re-read its held tags under that lock before touching
+    // them. Only re-verified when this item's own gate depended on the
+    // intersection — an `administerable` item like Mercy has nothing to
+    // lose by curing nothing, race or not, so it never refuses here.
     let curedHeldNow = curedHeld;
     if (administered) {
-      await lockCharacter(tx, target.id);
       const freshTags = await tx.characterTag.findMany({
         where: { characterId: target.id },
         select: {
@@ -3012,7 +3039,17 @@ async function healCharacterRequestImpl({
     // re-prices to FREE under lock (the pool had room a moment ago and still
     // does) still needs the lock to hold across that re-read.
     if (!gambit) {
-      await lockCharacter(tx, character.id);
+      // Deadlock avoidance (review fix, round 3): the medic and the patient
+      // are two different Character rows once this is an administered heal,
+      // and this transaction locks both (Move billing here, the patient
+      // re-check further down) — lock them in sorted-id order, not
+      // medic-then-patient, or two medics treating each other at the same
+      // instant lock in opposite orders and deadlock (Postgres surfaces an
+      // unresolved cycle as a raw 40P01, not a UserError).
+      const lockIds =
+        target.id !== character.id ? [character.id, target.id].sort() : [character.id];
+      for (const id of lockIds) await lockCharacter(tx, id);
+
       const moveCost = await priceHeal(tx);
       acknowledgeBill(moveCost);
       if (moveCost) {
@@ -3080,12 +3117,11 @@ async function healCharacterRequestImpl({
       // wound in the same instant both pass the outside gates, both bill ⬢
       // and a Move fraction, and dropCharacterTag on an already-gone row is
       // a silent no-op — the loser would look successful and cure nothing.
-      // Lock the TARGET row too (self-heal already holds it, via the medic
-      // lock above) and re-read the held row under that lock; whoever loses
-      // the race gets a clean refusal instead of a phantom success, and the
-      // whole transaction — the ⬢ and the Move it already claimed included —
-      // rolls back with it.
-      if (target.id !== character.id) await lockCharacter(tx, target.id);
+      // The TARGET row is already locked (self-heal's own row, via the
+      // sorted-order lock above); re-read the held row under that lock.
+      // Whoever loses the race gets a clean refusal instead of a phantom
+      // success, and the whole transaction — the ⬢ and the Move it already
+      // claimed included — rolls back with it.
       const heldNow = await tx.characterTag.findUnique({
         where: { characterId_tagId: { characterId: target.id, tagId: held.tagId } },
       });
