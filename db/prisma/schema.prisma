@@ -1714,7 +1714,6 @@ model Character {
   stagedMessageRecipients StagedMessageRecipient[]
   stagedEffects           StagedEffect[]
   cavingRolls             CavingRoll[]
-  gmNotes                 GmCharacterNote[]
   craftProjects           CraftProject[]
   roomGuestOf             RoomGuest[]
   noticePosts             NoticePost[]             @relation("NoticePostAuthor")
@@ -3724,17 +3723,6 @@ model ArchiveEntry {
 // AuditLog) that store snapshot columns on purpose: a note is live data ABOUT
 // a character rather than a record of something that happened, and it has no
 // meaning once the character is gone.
-model GmCharacterNote {
-  id                  String    @id @default(cuid())
-  characterId         String
-  character           Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  authorDiscordUserId String
-  content             String
-  createdAt           DateTime  @default(now())
-
-  @@index([characterId, createdAt])
-}
-
 // A threat seat offered to somebody who has no character yet: the GM presses
 // SPAWN on /gm/dev?s=assignments, this row is written, and the target gets a
 // DM carrying Accept / Decline. Accepting creates the character
