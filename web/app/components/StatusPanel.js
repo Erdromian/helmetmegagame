@@ -1,10 +1,5 @@
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
-import {
-  CATATONIC_SLUG,
-  DINED_SLUG,
-  NOBILITY_SLUG,
-  TRUMPET_SLUG,
-} from "@lifeweb/db/lib/constants";
+import { CATATONIC_SLUG, TRUMPET_SLUG } from "@lifeweb/db/lib/constants";
 import { moveKindLabel, rollLabel } from "@/lib/moves";
 import TagPointsValue from "./TagPointsValue";
 import ActionGrid from "./ActionGrid";
@@ -180,14 +175,6 @@ export default function StatusPanel({
   // Held, not equipped: you pick a trumpet up to blow it.
   const hasTrumpet = character.tags?.some((ct) => (ct?.tag?.slug ?? ct?.slug) === TRUMPET_SLUG);
 
-  // The Nobility dinner row. A noble who ends the turn without a fine or
-  // lavish meal takes fear at the close (docs/systemdocs/FEAR.md); the hidden
-  // `dined` marker a meal grants is what the fear pass reads, so the sheet
-  // answers the one question the marker can't be seen to: "have I eaten?"
-  const heldSlugs = new Set((character.tags ?? []).map((ct) => ct?.tag?.slug ?? ct?.slug));
-  const noble = heldSlugs.has(NOBILITY_SLUG);
-  const dined = heldSlugs.has(DINED_SLUG);
-
   // Standing work, without opening the Craft dialog: a CraftProject is a
   // pocket item in progress, a build site UNDER_CONSTRUCTION here is a
   // Structure in progress (a half-built wall — leaving it off this list
@@ -218,14 +205,6 @@ export default function StatusPanel({
             <Row label="Condition">
               <span className="text-muted">
                 Catatonic — lifts the moment {isSelf ? "you" : "they"} act or speak in character.
-              </span>
-            </Row>
-          )}
-
-          {noble && (
-            <Row label="Dinner">
-              <span className="text-muted">
-                {dined ? "Seen to. ‡" : `No proper meal yet today. ${isSelf ? "You'll" : "They'll"} feel it tonight. ‡`}
               </span>
             </Row>
           )}

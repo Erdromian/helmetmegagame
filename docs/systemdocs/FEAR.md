@@ -201,7 +201,8 @@ Hungerless and Dying nobles are exempt. "Ate one this turn" is the hidden
 `ate-meal`. It has **no `durationTurns`** — a 1-turn grant would be swept at
 position 10 of `TURN_PASSES`, nine passes before the fear pass reads it — so
 the fear pass deletes it itself, exactly as the hunger pass eats `ate-meal`.
-The sheet's Dinner row (`StatusPanel.js`) reads the marker. The Merchant now
+The marker is hidden and the sheet shows no Dinner row for it — the old
+Disappointed tracker went with the track, on Bascinet's call. The Merchant now
 starts with Nobility too, and therefore with its 1-point Desire lock.
 `Character.missedMealStreak` is an orphan column: kept, never read. The
 `disappointed` tag left the catalog with this change; the rows still on live

@@ -448,10 +448,10 @@ meal that turn) instead takes +10 fear at the fear pass (8c, `FEAR.md`), the
 same as any other fear gain. Hungerless and Dying nobles are exempt.
 
 `Character.missedMealStreak` is an orphan column now — nothing writes or
-reads it any more, same as `GameConfig.mindlinkChannelId`. The player-facing
-tracker is the **Dinner row** on the sheet's Status panel
-(`web/app/components/StatusPanel.js`), which now just reads the `dined`
-marker.
+reads it any more, same as `GameConfig.mindlinkChannelId`. There is no
+player-facing tracker: the sheet's old Dinner row went with the track
+(Bascinet's call, 2026-09-07). A noble learns they skipped dinner the way
+everyone learns about fear — the band tag, and its one-line DM.
 
 ## 6. Auto-labor
 
