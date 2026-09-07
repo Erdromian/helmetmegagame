@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · A copy pass over the player-facing text
+
+✎ A reviewer's rewrite of the player documents, the handbook, the Depot and Faction pages and the action tooltips, with the grammar and punctuation tidied on the way in  
+− The ‡ draft marks from every line that reviewer read: the handbook, twelve documents, the Depot and Faction pages, the action list, the offers and dialogs, and the world's ambient lines  
+✎ Laboring, Teaching, the Sanctuary, the Treasurer's brief and the Merchant's brief all read shorter now
+
 ## 2026-09-07 · The Depot opens again
 
 − Fixed: the Merchant's Depot page loaded to an error reference for everyone
