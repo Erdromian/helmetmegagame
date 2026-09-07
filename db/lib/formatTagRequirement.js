@@ -20,6 +20,13 @@ const FRACTION_GLYPHS = {
   // have no glyphs and fall through to "n/m", which is fine.
   "1/6": "⅙",
   "5/6": "⅚",
+  // Eighths (review fix, M2): the medical pool's spill prices at
+  // 1/MEDICAL_SIMPLE_PER_TURN = 1/8, and the ledger's remaining fraction
+  // after a few of those lands on the other eighths too.
+  "1/8": "⅛",
+  "3/8": "⅜",
+  "5/8": "⅝",
+  "7/8": "⅞",
 };
 
 function formatMoveFraction(num, den) {
