@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · You can cut pieces off people
+
+✚ A Mutilate button, for anyone Cruel, a Torturer, or one of the Thanati. Take one piece off somebody tied up here, or off a body you can reach — an eye, a tongue, a hand, a foot, a stomach, a heart  
+✚ The piece is yours to keep, and it stays where you can trade it. Nothing eats one yet  
+✎ Taking an eye leaves them Missing an Eye; taking the second leaves them Blind. A foot, then the other, leaves them a Cripple. A hand goes to Missing Fingers, then Missing Arm. The tongue leaves them Mute  
+✎ The stomach and the heart kill somebody still using them. A corpse just keeps the mark  
+✎ It costs nothing at all — no Resources, no Move, no turn. Press it again for the next piece, and it leaves the body where it lies  
+✎ Losing a piece is worth 50 on the fear dial. A corpse feels nothing
+
 ## 2026-09-07 · Bascinet writes to you on the Play page now
 
 ✚ A Messages row at the top of the Play page's places column: Bascinet, the whole DM conversation — turn results, the Bird, GM replies — live, with a box to write back. What a player types there lands on the players desk like any DM, marked as sent from the web.  
