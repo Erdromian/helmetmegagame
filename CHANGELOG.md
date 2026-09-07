@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · The Dinner row is gone from the character sheet
+
+✎ -The Dinner row on the character sheet. A noble who skips a proper meal finds out the way everyone finds out about fear: the status tag, and its one-line DM.
+
 ## 2026-09-07 · Merge PR #23: the crafting pass — real recipes, the Move economy, custom craftables, and the recipe book
 
 ✚ Recipes are enforced: every ingredient in the brewing, smithing and cooking tables is spent when the work starts  
