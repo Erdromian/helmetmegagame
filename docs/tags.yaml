@@ -984,7 +984,7 @@ tags:
     category: general
     group: general-traits
     resists: [poisoned, vomiting, parasites, cave-fever, choking, asleep]
-    description: "Your body shrugs off what would fell most people. Brewed, force-fed or simply eaten, {tag:poisoned}, {tag:vomiting}, {tag:parasites}, {tag:cave-fever}, {tag:choking} and {tag:asleep} never take hold in you. ‡"
+    description: "Your body shrugs off more than most people's. Raw godflesh never turns your stomach, and neither nightshade nor soporific gets its hooks into you — no choking fit, no creeping drowsiness. ‡"
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true

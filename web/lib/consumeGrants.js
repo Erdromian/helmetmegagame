@@ -153,6 +153,16 @@ export function resolveConsumeGrants(tag, heldSlugs, ladder = null, resistSlugs 
     // ladder carries `resists`) but the order has to be right regardless.
     // Nothing lands: no clear, no willHold update, no grant — the trait
     // shrugs the whole thing off as if it never landed.
+    //
+    // M4 added two more callers of this same function for a poison's own
+    // consumesInto: consumeTagRequestImpl's poisoned draw passes the REAL
+    // drinking ladder (a poisoned Consume climbs it exactly like the food's
+    // own grant would), poisonCharacterRequestImpl's forced dose passes
+    // `null` (see its own comment). The "nothing on a drinking ladder
+    // carries resists" claim above still holds for both — no poison's
+    // consumesInto target (choking, asleep, phrygian-toxin) is itself a
+    // ladder rung — but it is now an assumption about the CATALOG, not a
+    // structural guarantee this function enforces.
     if (resistSet.has(slug)) {
       resisted.push(slug);
       continue;
