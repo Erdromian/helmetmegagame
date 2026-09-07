@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · A Move filed from the Play page now counts
+
+✎ Filing your Move on the web left it half-made: never rolled, never applied, and it blocked filing again. It is confirmed the same way the Discord console does it now
+
 ## 2026-09-07 · The Play page is usable: a real right column, travel as nodes, no more blinking
 
 ✎ Your own line no longer changes text or loses its face a second after you send it  

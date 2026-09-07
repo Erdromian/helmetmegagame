@@ -73,7 +73,7 @@ each arrived at by getting them wrong first.
    skipped outright is one whose `gmNotes` carry an `auto:` marker, meaning
    another pass is already DMing them about it. Every Gambit gets its own DM
    regardless: the d6 is rolled and
-   stored at submit (`bot/src/lib/moveConfirm.js`) and shown to the player
+   stored at submit (`db/lib/moveConfirm.js`) and shown to the player
    nowhere else, so this is where they find out how it fell. `/character`
    used to reveal it at Moves lock — three hours early
    (`MOVE_LOCK_HOURS`, `db/lib/turnClock.js`) — which handed players a bare
@@ -572,7 +572,7 @@ Surfaced to players on the `#turns` announcement (`Moves must be sent by
 | `db/lib/channelDoctor.js` | The optional post-turn reconcile (`CHANNELS.md` §6) |
 | `bot/src/lib/turnEngine.js` | The cron caller |
 | `bot/src/lib/moveModal.js` | The Move modal a player files a Move through (`COMMANDS.md`) |
-| `bot/src/lib/moveConfirm.js` | Resolving a filed Move |
+| `db/lib/moveConfirm.js` | Confirming a filed Move — both faces call it, and a Move that never reaches it stays `PENDING_TYPE` and is skipped by the staged push (`bot/src/lib/moveConfirm.js` is a shim that binds `prisma`) |
 | `web/app/(app)/gm/dev/actions.js` | `forceAdvanceTurn`, the GM caller |
 
 ## The Depot pass

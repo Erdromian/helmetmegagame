@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
 import { fileMove } from "@lifeweb/db/lib/moves";
+import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
 import { whosHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import {
@@ -839,12 +840,29 @@ export async function submitMove({ moveKind, description } = {}) {
     description,
   });
   if (!result.ok) return { ok: false, error: result.error };
-  return {
-    ok: true,
-    line: result.laborRate
-      ? `Filed. You work the day at ${result.laborRate.expression}. ‡`
-      : "Filed. The GMs have it. ‡",
-  };
+
+  // Filing is only half of it. The bot's modal
+  // (bot/src/events/interactionCreate.js#handleMoveSubmit) confirms straight
+  // after, and a Move that is never confirmed stays PENDING_TYPE: the staged
+  // push (db/lib/stagedPush.js) skips it, the GM desk never lists it, and
+  // re-filing is blocked — the player loses the turn and is told nothing.
+  // Same call, same order, same arguments.
+  const loaded = await prisma.action.findUnique({
+    where: { id: result.action.id },
+    include: { character: { include: { tags: { include: { tag: true } } } } },
+  });
+  const { roll } = await confirmMove(prisma, loaded, me.discordUserId, { laborRate: result.laborRate });
+
+  // The bot answers in Discord markdown; this panel prints plain text, so the
+  // same facts are said in words. The Gambit roll itself stays hidden until
+  // the turn-end reveal, exactly as it does in Discord.
+  const parts = ["Filed and locked in. ‡"];
+  if (roll.gambit) parts.push("The die is cast — you'll see how it fell when the turn ends. ‡");
+  if (roll.resourceValue != null) {
+    parts.push(`Your day's work (${roll.expression}) came to ${roll.resourceValue > 0 ? "+" : ""}${roll.resourceValue} ⬢. ‡`);
+    if (roll.bonusNote) parts.push(roll.bonusNote);
+  }
+  return { ok: true, line: parts.join(" ") };
 }
 
 // "Report to the GMs" — the OOC ticket a web-only player loses with the
