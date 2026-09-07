@@ -30,7 +30,7 @@ import {
   craftAllowance,
   unitsOfTagThisTurn,
   deadSimpleUnitsThisTurn,
-  MEDICAL_TIER_CAPS,
+  MEDICAL_SIMPLE_PER_TURN,
 } from "@/lib/requests";
 import {
   WHOLE_MOVE,
@@ -82,7 +82,6 @@ import {
   HEAL_SKILL_SLUG,
   buildSkillAncestry,
   countsAgainstHealCap,
-  healCapFor,
   healCost,
   isGambitHeal,
   isHealable,
@@ -278,12 +277,16 @@ function resolveParty(key, opts) {
 // `craftAllowance`, because character/page.js has to read the same numbers to
 // tell the Craft dialog how many free units are left.
 
-// Routine cures already worked this turn, against MEDICAL_TIER_CAPS.
+// 0-turn cures already worked this turn, against MEDICAL_SIMPLE_PER_TURN
+// (M2, docs/systemdocs/TAGS.md §5c) — the shared free-first-aid pool.
 //
 // Counts REQUESTS, not units — one heal is one patient — and only the ones
-// that cost a turn of work: a 0-turn cure is a free action (healRequests.js).
-// A gambit heal is never in here, because it files a Move instead and the
-// Action unique constraint rations those on its own.
+// that cost NO turn of work: a turns-costing cure never draws on this pool at
+// all any more, it bills the medical family's Move instead
+// (healCharacterRequestImpl below). A gambit heal is never in here either,
+// because it files a Move and the Action unique constraint rations those on
+// its own. INVERTED from the pre-M2 predicate (`turns > 0`), which counted
+// this pool's opposite against the old per-tier daily cap.
 // Keyed on the MEDIC — actorDiscordUserId — and NOT on targetCharacterId,
 // which is the patient the row is about. Counting the patient's axis caps the
 // wrong person: a medic treating other people would never be counted at all,
@@ -295,7 +298,7 @@ async function routineHealsThisTurn(db, discordUserId, turnId) {
     select: { details: true },
   });
   return filed.filter(
-    (r) => !r.details?.gambit && (r.details?.requirement?.turns ?? 0) > 0,
+    (r) => !r.details?.gambit && (r.details?.requirement?.turns ?? 0) === 0,
   ).length;
 }
 
@@ -658,6 +661,17 @@ function craftLedgerDescription(entries) {
   return `Crafting this turn: ${made.join(", ")}.`;
 }
 
+// Heal's own ledger line (M2, docs/systemdocs/CRAFTING.md §2a /
+// TAGS.md §5c) — same shape as craftLedgerDescription, but "Treating" is the
+// medic's verb, and a fresh string rather than a parameter on that one so the
+// existing crafting copy stays exactly as it was. spendCraftMove picks
+// between the two by family, since a turn's Routine is always one or the
+// other and never both.
+function healLedgerDescription(entries) {
+  const made = entries.map((e) => (e.qty > 1 ? `${e.qty}× ${e.name}` : e.name));
+  return `Treating this turn: ${made.join(", ")}. ‡`;
+}
+
 function craftLedgerEntry(tag, cost) {
   return {
     tagId: tag.id,
@@ -777,7 +791,11 @@ async function spendCraftMove(
     usedDen: used.den,
     entries,
   };
-  const line = description ?? craftLedgerDescription(entries);
+  // Medical shares this exact ledger (M2) but reads "Treating", not
+  // "Crafting" — the family already says which, since a turn commits to one.
+  const line =
+    description ??
+    (need.family === "medical" ? healLedgerDescription(entries) : craftLedgerDescription(entries));
   if (!existing) {
     return {
       action: await fileAutoRoutine(
@@ -2254,6 +2272,14 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     return photographNothingImpl({ session, character, held });
   }
 
+  // Administerable: the item's `cures` intersects what a target holds, or
+  // it's flagged `administerable` outright (Mercy, which cures nothing on a
+  // list but stabilizes all the same) — never a bare force-feed. Hoisted
+  // once here: the targeted-administer gate below and the cure-application
+  // pass further down both read this same list, and used to compute it
+  // twice.
+  const curesList = held.tag.cures ?? [];
+
   // Administering to someone else (the medical pass, TAGS.md §5c): the item
   // leaves the ACTOR's hand, but every grant it makes — the cure below
   // included — lands on `target`, which defaults to the actor. Self-consume
@@ -2276,10 +2302,6 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
       },
     });
     if (!found || !isHere(character, found)) throw new UserError(notHereMessage(found));
-    // Administerable: the item's `cures` intersects what they're holding, or
-    // it's flagged `administerable` outright (Mercy, which cures nothing on
-    // a list but stabilizes all the same) — never a bare force-feed.
-    const curesList = held.tag.cures ?? [];
     const targetSlugs = new Set(found.tags.map((ct) => ct.tag.slug));
     const intersects = curesList.some((slug) => targetSlugs.has(slug));
     if (!intersects && !held.tag.administerable) {
@@ -2288,10 +2310,22 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     target = found;
   }
 
+  const openTurn = await getOpenTurn();
+
   // administerSkill gates EVERY consume of the item — self included
   // (fitting a prosthetic needs medical-expert even on your own leg). A
   // different question from the ACT gate above, which self stays exempt
   // from and this never is.
+  //
+  // M2 lands the fee: a gated consume also costs 1/2 Move from the medical
+  // family (fitting is surgery, and the Expert's scarce Move is the fee —
+  // this replaces any separate fitting ⬢). A synthetic tag prices the fixed
+  // half, since the fee is a flat administer cost, never the ITEM's own
+  // craft requirementTurns (Mercy's craft cost has nothing to do with
+  // fitting it onto somebody). Priced and checked here for a fast fail, and
+  // spent for real inside the transaction below, same as every other budget
+  // craft.
+  let administerMoveCost = null;
   if (held.tag.administerSkill) {
     const catalog = await prisma.tag.findMany({
       select: { id: true, slug: true, name: true, parentTagId: true },
@@ -2302,12 +2336,13 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     if (!skillTag || !satisfied.has(skillTag.id)) {
       throw new UserError(`You need ${skillTag?.name ?? "the right training"} to use ${held.tag.name}. ‡`);
     }
-    // M2 lands the fee: an administerSkill-gated consume also costs 1/2
-    // Move from the medical family (the fitting-is-surgery point-economy
-    // control). Nothing billed yet — this milestone only lands the gate.
+    administerMoveCost = craftMoveCost(
+      { requirementTurns: 1, requirementPerTurn: 2 },
+      { quantity: 1, family: "medical" },
+    );
+    await resolveCraftMove(character, openTurn, administerMoveCost);
   }
 
-  const openTurn = await getOpenTurn();
   const restore = {
     tagId: held.tagId,
     source: held.source,
@@ -2356,13 +2391,24 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
 
   // Cure application (the medical pass, TAGS.md §5c): every cured slug the
   // TARGET actually holds — not just the first, since one item (white-honey,
-  // eventually) can cure several things a patient holds at once.
-  const curesList = held.tag.cures ?? [];
+  // eventually) can cure several things a patient holds at once. `curesList`
+  // itself was hoisted above, at the administer gate.
   const curedHeld = curesList.length
     ? target.tags.filter((ct) => curesList.includes(ct.tag.slug))
     : [];
 
   await prisma.$transaction(async (tx) => {
+    if (administerMoveCost) {
+      // The Move is claimed first: it is the contended thing, and a refusal
+      // here rolls back everything below it (craftRequestImpl's project path
+      // does the same).
+      await spendCraftMove(tx, {
+        character,
+        openTurn,
+        need: administerMoveCost,
+        entry: craftLedgerEntry(held.tag, administerMoveCost),
+      });
+    }
     await dropCharacterTag(tx, character.id, tagId, 1);
     for (const rung of climbed) await dropCharacterTag(tx, target.id, rung.tagId, 1);
     const granted = await grantTagSlugs(
@@ -2797,29 +2843,41 @@ async function healCharacterRequestImpl({
     : false;
 
   const openTurn = await getOpenTurn();
+
+  // The medical Move budget (M2, docs/systemdocs/CRAFTING.md §2a /
+  // TAGS.md §5c): a routine cure joins the same craft-budget arithmetic
+  // crafting uses. Family is hardcoded "medical" and passed as an override —
+  // never derived via craftFamily, which would drop a skill-less cure like
+  // choking into the generic `craft` family. Returns null for a free cure:
+  // no turn open at all (the pre-M2 posture — no turn, no Move economy,
+  // nothing to bill and nothing rationed), or a 0-turn cure still inside the
+  // day's shared MEDICAL_SIMPLE_PER_TURN pool. A turns-costing cure is never
+  // free; the old per-tier daily case cap it used to be checked against is
+  // gone, replaced entirely by the Move fraction.
+  //
+  // Priced twice, like every other budget craft: here for a fast fail, and
+  // again inside the transaction under the row lock, since two simultaneous
+  // heals would otherwise both read the same pool count and pass.
+  const priceHeal = async (db) => {
+    if (!openTurn) return null;
+    if (countsAgainstHealCap(held.tag)) {
+      const already = await routineHealsThisTurn(db, session.discordUserId, openTurn.id);
+      if (already < MEDICAL_SIMPLE_PER_TURN) return null;
+      return craftMoveCost(
+        { requirementTurns: 1, requirementPerTurn: MEDICAL_SIMPLE_PER_TURN },
+        { quantity: 1, family: "medical" },
+      );
+    }
+    return craftMoveCost(held.tag, { quantity: 1, family: "medical" });
+  };
+
   if (gambit) {
     // A roll costs the Move, and Action's @@unique([characterId, turnId]) is
     // what makes it one gambit heal a turn — no separate check needed.
     await requireFreeMove(character, openTurn);
-  } else if (openTurn && countsAgainstHealCap(held.tag)) {
-    // A doctor's day has a ceiling. Checked here for a fast fail and again
-    // inside the transaction under a row lock, since two simultaneous
-    // requests would otherwise both read the same count and pass — the same
-    // shape the Dead Simple cap uses.
-    const heldSlugs = new Set(
-      character.tags.map((ct) => ct.tag?.slug).filter(Boolean),
-    );
-    const allowance = healCapFor(heldSlugs, MEDICAL_TIER_CAPS);
-    const already = await routineHealsThisTurn(
-      prisma,
-      session.discordUserId,
-      openTurn.id,
-    );
-    if (already >= allowance) {
-      throw new UserError(
-        `You've treated ${already} ${already === 1 ? "case" : "cases"} this turn, which is all you can manage. First aid still costs you nothing.`,
-      );
-    }
+  } else {
+    const moveCost = await priceHeal(prisma);
+    if (moveCost) await resolveCraftMove(character, openTurn, moveCost);
   }
 
   const payer = await resolveParty(payerKey);
@@ -2879,20 +2937,22 @@ async function healCharacterRequestImpl({
   const aftermathSlugs = gambit ? [] : rollTagChain(held.tag.removesInto);
 
   await prisma.$transaction(async (tx) => {
-    // Re-check the day's allowance under a row lock. Two tabs would otherwise
-    // both read the same count and both pass (requestActions.js's Dead Simple
-    // cap has the same pair of checks for the same reason).
-    if (!gambit && openTurn && countsAgainstHealCap(held.tag)) {
-      await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
-      const heldSlugs = new Set(
-        character.tags.map((ct) => ct.tag?.slug).filter(Boolean),
-      );
-      const allowance = healCapFor(heldSlugs, MEDICAL_TIER_CAPS);
-      const already = await routineHealsThisTurn(tx, session.discordUserId, openTurn.id);
-      if (already >= allowance) {
-        throw new UserError(
-          "You've treated all the cases you can manage this turn.",
-        );
+    // Re-priced under a row lock. Two tabs would otherwise both read the same
+    // pool count or ledger and both pass (requestActions.js's Dead Simple cap
+    // has the same pair of checks for the same reason). The lock is taken
+    // here rather than left to spendCraftMove alone, because a heal that
+    // re-prices to FREE under lock (the pool had room a moment ago and still
+    // does) still needs the lock to hold across that re-read.
+    if (!gambit) {
+      await lockCharacter(tx, character.id);
+      const moveCost = await priceHeal(tx);
+      if (moveCost) {
+        await spendCraftMove(tx, {
+          character,
+          openTurn,
+          need: moveCost,
+          entry: craftLedgerEntry(held.tag, moveCost),
+        });
       }
     }
 
