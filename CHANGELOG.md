@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Eight new tags, and the combat lines all read the same way
+
+✚ Four new fighting specialisations: throwing weapons, sniping, reckless attack and monster hunting  
+✚ Drunken Master, which needs Alcoholic and pays off while you are Tipsy  
+✚ Subtle: the room no longer notices that you are whispering  
+✚ Steady for deliberate hands, and Dense for a slower head  
+✎ Every combat tag now names its own tree — melee, ranged, or genuinely both — and shifts tiers in the same words  
+✎ The crossbow's skill line was garbled, and claimed the wrong tree
+
 ## 2026-09-07 · A copy pass over the player-facing text
 
 ✎ A reviewer's rewrite of the player documents, the handbook, the Depot and Faction pages and the action tooltips, with the grammar and punctuation tidied on the way in  
