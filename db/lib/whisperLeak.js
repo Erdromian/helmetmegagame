@@ -19,9 +19,11 @@
 
 const { muffle } = require("./muffle");
 
-// Heavy on purpose, and the same 0.7 the shout loses at its furthest audible
-// remove. Past this the line stops being a message you failed to catch.
-const LEAK_MUFFLE = 0.7;
+// Heavy on purpose — a notch lighter than the 0.7 the shout loses at its
+// furthest audible remove, so a whisper gives up a few more letters than a
+// shout at the edge of earshot. Past 0.7 the line stops being a message you
+// failed to catch.
+const LEAK_MUFFLE = 0.65;
 
 // A run shorter than this is not worth printing; longer than this and the room
 // is being handed a sentence rather than a scrap.
@@ -74,7 +76,7 @@ function fragmentCountFor(totalWords) {
 }
 
 // Mentions and custom emoji come out BEFORE anything is sampled. A surviving
-// `<@id>` would ping a real person out of a leak, and 70% static is not the
+// `<@id>` would ping a real person out of a leak, and 65% static is not the
 // same thing as a guarantee — the odds of a short token coming through whole
 // are small, not zero, and "small" is the wrong bar for pinging someone.
 const MENTION = /<[@#!&:a-zA-Z]?[^<>]*>/g;

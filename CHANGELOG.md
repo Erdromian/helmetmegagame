@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Overheard whispers give up a little more
+
+✎ A room overhearing a Conversation now catches about 35% of the letters instead of 30% — the static is a notch lighter
+
 ## 2026-09-07 · The Bascinet conversation, tightened after review
 
 ✎ Paging back through a long conversation no longer skips messages that landed in the same instant, which a turn push does.  

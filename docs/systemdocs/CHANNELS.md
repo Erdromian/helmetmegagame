@@ -542,7 +542,8 @@ concealed message is, so the Room never learns who's actually inside.
 
 Under that line the Room also hears **fragments of what was said**, on one
 `»` line: a few contiguous runs of 4–10 words pulled out of the window at
-random and muffled at 70% by the same `db/lib/muffle.js` the shout uses, joined
+random and muffled at 65% by the same `db/lib/muffle.js` the shout uses (a notch
+lighter than the shout at its furthest audible remove, which loses 70%), joined
 by an ellipsis. Punctuation is ignored on purpose — a fragment that starts and
 ends mid-thought reads as something overheard, where a whole sentence would
 read as something quoted.
