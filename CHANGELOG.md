@@ -6,6 +6,24 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · The GM desks paint at once on a return visit
+
+− The player roster, a player's conversation, the turns workspace, the audit log, Crafts, Structures, the tag catalog and the dev panel all keep their last data in your browser and draw it in the first frame; the server's answer replaces it a moment later
+
+## 2026-09-07 · Documents, the Depot and Notes paint at once on a return visit
+
+− Three more pages keep their last data in your browser and draw it in the first frame; the server's answer replaces it a moment later
+
+## 2026-09-07 · The character sheet paints at once on a return visit
+
+− Your sheet keeps its last data in your browser and draws it in the first frame the next time you open it; the server's answer replaces it a moment later  
+− Signing out clears every stored page
+
+## 2026-09-07 · Chat paints at once on a return visit
+
+− Chat keeps its last data in your browser and draws it in the first frame the next time you open it; the server's answer replaces it a moment later, and the live stream fills the gap  
+− The stored copy is per account and is cleared when you sign out
+
 ## 2026-09-07 · Shouts carry one hop less, and the far ring says only that someone shouted
 
 − A shout reaches three Locations out instead of four  

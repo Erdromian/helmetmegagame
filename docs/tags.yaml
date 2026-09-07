@@ -706,6 +706,49 @@ tags:
     pointCost: 0
     purchasable: false
 
+  # THE RITE OF REANIMATION'S RISEN (docs/systemdocs/THANATI.md §4). A Ghoul
+  # growls instead of speaking (db/lib/babble.js); the Servant mark is the
+  # cult's claim on them and carries Hungerless with it. Bascinet's wording.
+  ghoul:
+    catalog: secret
+    name: Ghoul
+    category: general
+    group: general-traits
+    description: "You are animated. You don’t hunger and you can no longer think or speak, but you are a vicious fighter."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  servant-of-tzchernobog:
+    catalog: secret
+    name: Servant of Tzchernobog
+    category: general
+    group: general-traits
+    description: "Crudox Cruo!"
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  # The Rite of Rage. Permanent; fear never touches a Raging character
+  # (db/lib/fear.js MULTIPLIERS) and every Desire but cruelty is locked to
+  # them. Bascinet's wording.
+  rage:
+    catalog: secret
+    name: Rage
+    category: general
+    group: general-traits
+    description: "Inhumanly strong, fast, tough, and intelligent, but completely consumed by bloodlust. You are impatient and are uninterested in anything but killing people."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    desires:
+      locks:
+        - all: true
+          exceptFamilies: [cruelty]
+
   insightful:
     catalog: all
     name: Insightful
@@ -8547,6 +8590,24 @@ tags:
           count: 1
       gambit: false
 
+  # The Rite of Scrying's yield (docs/systemdocs/THANATI.md §4). Equipped, and
+  # only while the holder has the web-only switch on, it opens every room and
+  # conversation at their Location to them on /play, read-only
+  # (db/lib/feedAccess.js). Bascinet's wording.
+  scrying-eye:
+    catalog: secret
+    name: Scrying Eye
+    category: items
+    group: items-gear
+    description: "Lets you see, but not speak, in all rooms and conversations in a location. You must have the web-only option on."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    equippable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
   # The Keep's shelves. A book is declared BY its text: `bookText` goes on
   # Tag.paperText with paperKind BOOK, never on `description`, because the
   # description column is broadcast to every signed-in browser and these are
@@ -10861,6 +10922,29 @@ tags:
       resourceCost: 1
       skills: [thanati]
       gambit: false
+
+  # The Rite of Reflection's yield (docs/systemdocs/THANATI.md §4): Black Robes
+  # imbued. Counts as robes for chanting. Slightly under plate against a blade
+  # (0.7), as good as light infantry armour against a bullet (0.75). Not
+  # destroyable. Bascinet's wording.
+  shimmering-robes:
+    catalog: secret
+    name: Shimmering Robes
+    category: items
+    group: items-armor
+    description: "These dark robes shimmer. They are nearly indestructible…"
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    equippable: true
+    equipSlot: BODY
+    equipLayer: 2
+    melee: 0.65
+    ballistic: 0.75
+    visible: worn
+    removable: false
+    purchasable: false
+    purchasableAfterStart: false
 
   thanati-mask:
     catalog: gm

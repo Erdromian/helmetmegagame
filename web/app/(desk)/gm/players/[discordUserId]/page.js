@@ -1,14 +1,35 @@
 import { redirect, notFound } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { Suspense } from "react";
+import SnapshotPage from "@/lib/snapshot/SnapshotPage";
+import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
+import PersonView from "./PersonView";
+import Loading from "./loading";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { getOpenTurn } from "@/lib/turn";
 import { withoutDmNoise } from "@/lib/dmThread";
-import PersonShell from "./PersonShell";
 
 const TAKE = 100;
 
+// Snapshotted (web/lib/snapshot, CHAT.md §5c): the page reads the session,
+// mounts the shell, and streams FreshPlayerDeskPerson in behind it. A browser that has
+// been here before paints its last data in the first frame.
 export default async function PlayerDeskPersonPage({ params }) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+  const { discordUserId } = await params;
+  return (
+    <SnapshotPage scope={`gm-player:${discordUserId}`} userId={session.discordUserId} render={PersonView} fallback={<Loading />}>
+      <Suspense fallback={null}>
+        <FreshPlayerDeskPerson params={params} userId={session.discordUserId} />
+      </Suspense>
+    </SnapshotPage>
+  );
+}
+
+async function FreshPlayerDeskPerson({ params, userId }) {
   const { discordUserId } = await params;
   const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
@@ -64,24 +85,24 @@ export default async function PlayerDeskPersonPage({ params }) {
       : null;
 
   return (
-    <PersonShell
-      // Keying on the conversation makes a navigation between people a
-      // remount, which is what resets the pane's local page/claim state —
-      // simpler and safer than an effect that syncs state to a changed prop.
-      key={discordUserId}
-      discordUserId={discordUserId}
-      label={label}
-      characterId={aliveCharacter?.id ?? character?.id ?? null}
-      avatarVersion={(aliveCharacter ?? character)?.updatedAt.getTime() ?? null}
-      zoneName={aliveCharacter?.zone?.name ?? null}
-      status={character && character.status !== "ALIVE" ? character.status : null}
-      initialMessages={messages}
-      initialHasMore={hasMore}
-      gmProfiles={gmProfiles}
-      myDiscordUserId={session.discordUserId}
-      claimedByDiscordUserId={claim?.claimedByDiscordUserId ?? null}
-      moveId={openMove?.id ?? null}
-      lastReadAtMs={readCursor?.lastReadAt ? readCursor.lastReadAt.getTime() : 0}
+    <SnapshotFresh
+      scope={`gm-player:${discordUserId}`}
+      userId={userId}
+      data={{
+        discordUserId: discordUserId,
+        label: label,
+        characterId: aliveCharacter?.id ?? character?.id ?? null,
+        avatarVersion: (aliveCharacter ?? character)?.updatedAt.getTime() ?? null,
+        zoneName: aliveCharacter?.zone?.name ?? null,
+        status: character && character.status !== "ALIVE" ? character.status : null,
+        initialMessages: messages,
+        initialHasMore: hasMore,
+        gmProfiles: gmProfiles,
+        myDiscordUserId: session.discordUserId,
+        claimedByDiscordUserId: claim?.claimedByDiscordUserId ?? null,
+        moveId: openMove?.id ?? null,
+        lastReadAtMs: readCursor?.lastReadAt ? readCursor.lastReadAt.getTime() : 0,
+      }}
     />
   );
 }

@@ -102,10 +102,11 @@ whole mechanism:
 4. **The sweep.** `db/lib/riteSweep.js#runRiteSweep`, every minute on the bot
    (`ready.js`). OPEN past twelve hours → EXPIRED. READY past `firesAt` →
    re-check the floor (gone → back to OPEN, clock cleared), claim the row
-   (`updateMany where status READY`), consume the floor ingredients, run
-   `rite.run` if the rite is scripted (else `result: { unscripted: true }`),
-   stamp participants (distinct chanters still ALIVE), write one audit row
-   `rite_fired`. Firing is within a minute of the mark, not on the second.
+   (`updateMany where status READY`), consume the floor ingredients, run the
+   rite's effect (`riteEffects.js#EFFECTS[key]`, §9), stamp participants
+   (distinct chanters still ALIVE), write one audit row `rite_fired`. Firing
+   is within a minute of the mark, not on the second. An effect that throws
+   is recorded on the row (`result.error`) and shown on the GM panel.
 
 Several rites may run in one room at once; the ingredients are the only real
 contention. A non-cultist who has robes, Flesh and a Grimoire chants like
@@ -150,10 +151,37 @@ cascade. `GameState.riteWords` and `thanatiHideoutRoomId` go with the row.
 | `web/app/(app)/character/thanatiActions.js` | The four actions |
 | `web/app/(app)/gm/dev/threats/RitesPanel.js` | The GM view |
 
-## 9. Phase 2
+## 9. The rite scripts
 
-The rite scripts (Conversion, Sacrifice, Scrying, Possession, Reanimation,
-Stupidity, Omniscience, Summoning, Panic, Famine, Reflection, Rage,
-Judgement, and the Initial Rite's objective DM) are `run` handlers to write,
-plus the four non-floor ingredient kinds. The placeholder objective kinds in
-`db/lib/objectiveKinds.js` get their `script` or are pinned by the handler.
+`db/lib/riteEffects.js#EFFECTS`, one handler per rite key, run by the sweep on
+the top-level client after the floor is eaten. What each does, in Bascinet's
+words where a room or a player hears anything:
+
+| Rite | Needs (resolved by `riteIngredients.js`) | Does |
+|---|---|---|
+| Initial | 1 chanter | DMs every participant the cult's objectives with Success!/Incomplete |
+| Conversion | a Bound character at the Location with access to the room, not Pious, not already Thanati; leaders first | grants `thanati` (Belief conflicts resolved), pins the convert-* objectives naming them, DMs them, room hears "…’s eyes widen…" |
+| Sacrifice | a Bound character with access | pins the living sacrifice-* objectives, kills them (`killByRite`), 2–7 remains + 1–2 Flesh + 2–5 ⬢ on the floor, corpse removed |
+| Scrying | 15 ⬢ | a `scrying-eye` on the floor |
+| Possession | a weapon stack on the floor, 15 ⬢ | one unit becomes a custom "<Name> (Animated)" copy, indestructible |
+| Reanimation | a corpse on the floor, 1 heart, 5 ⬢ | `reviveByRite`: ALIVE in this Location with `ghoul`, `servant-of-tzchernobog`, `hungerless`; role, Cursed and placement restored |
+| Stupidity | 1 squeeze, a photograph (floor first, then hands), 5 ⬢ | target gets `stupid`; the print is spent |
+| Omniscience | 1 skinless-brain, a photograph | every participant is DMed the target's full tag list; print spent |
+| Summoning | 1 saltpeter, 15 ⬢ | every living Thanati not on hallowed ground moves to this Location and is unbound |
+| Panic | 1 heart, 20 ⬢ | room hears "Name a zone."; status **AWAITING**; the next participant line naming a Zone (else a Location) sets everyone there to fear 100 (`answerPanic`) |
+| Famine | 1 feces, 1 lavish-meal, 10 ⬢ | every faction silo loses up to 100 ⬢ |
+| Reflection | 1 black-robes (floor), 15 ⬢ | `shimmering-robes` on the floor (counts as robes for chanting) |
+| Rage | 1 ravenheart-red | every participant gets `rage`: fear ×0, Desires locked but cruelty |
+| Judgement | 1 heart, 2 eye, a photograph, 40 ⬢; target not Pious, not on hallowed ground | target killed wherever they stand, their Location hears "… explodes into mist!", remains where the body fell |
+
+"Hallowed ground" is `HALLOWED_LOCATION_SLUGS` (the Cathedral) in
+`riteIngredients.js`, a code constant rather than a zone attribute so it needs
+no sync. A rite whose resolved target is invalid never fires and never eats its
+floor: the sweep sends it back to OPEN with `result.rearmed` naming what was
+missing.
+
+Photographs: `Tag.photoOfCharacterId` (set by `photoMint.js` from both
+cameras) names the subject; older prints fall back to the name on the print.
+A Ghoul's speech goes through `babble.js#growl` (say.js `growling`). The
+Scrying Eye is `feedAccess.js#hasScryingEye`: equipped **and** web-only, every
+room and conversation at the Location becomes readable, `canSpeak: false`.

@@ -231,7 +231,21 @@ function formatAntagonistLines(reveal) {
   });
 }
 
+// A rite pinning its own objective (docs/systemdocs/THANATI.md §4): every row
+// of the party for these kinds that names this character goes to Success.
+// The pin is the GM's answer everywhere else; here the game is the one
+// answering, and a GM can still pin it back.
+async function fulfillObjectives(db, { partyKey, kinds, targetCharacterId }) {
+  if (!partyKey || !kinds?.length || !targetCharacterId) return 0;
+  const { count } = await db.objective.updateMany({
+    where: { partyKey, kind: { in: kinds }, targetCharacterId },
+    data: { pinned: true },
+  });
+  return count;
+}
+
 module.exports = {
+  fulfillObjectives,
   locationEligible,
   evaluateObjectives,
   listObjectives,

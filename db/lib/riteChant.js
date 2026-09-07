@@ -1,29 +1,42 @@
 // The chant hook: every line a character says on either face passes through
 // db/lib/say.js#recordSpeech, which hands the written row to noteChant() here
-// (docs/systemdocs/THANATI.md). There is no Rite button — this is how a rite
+// (docs/systemdocs/THANATI.md §4). There is no Rite button — this is how a rite
 // begins, and the sweep (db/lib/riteSweep.js) is how it ends.
 //
 // A chant COUNTS when all of these hold:
 //   - it was said in a Room's thread, or in a Conversation linked to a Room;
 //   - the line contains this game's Word of the Circle for some rite;
-//   - the speaker is wearing Black Robes and holds Dark Inspiration.
+//   - the speaker is wearing robes and holds Dark Inspiration.
 // It then joins (or opens) the RiteAttempt for that rite in that room, and the
-// attempt is re-judged: enough distinct chanters and the floor ingredients
-// present → READY, the two-minute clock starts, and the room hears one line.
+// attempt is re-judged: enough distinct chanters and every ingredient present
+// (db/lib/riteIngredients.js) → READY, the two-minute clock starts, and the
+// room hears one line.
+//
+// The same hook also carries a rite's ANSWER: the Rite of Panic fires and then
+// waits for a participant to name a zone in the same room (riteEffects.js).
 //
 // Best-effort, and it must NEVER slow or fail the message it rides on: the
 // caller fires it without awaiting and every path here is caught. Takes `db`
 // as a parameter, the db/lib/dm.js convention.
-const { RITES, WINDOW_MS, GRACE_MS, riteByKey, matchRites, floorIngredients } = require("./rites");
+const { WINDOW_MS, GRACE_MS, riteByKey, matchRites } = require("./rites");
 const { ensureRiteWords } = require("./riteWords");
 const { chanterReady } = require("./thanati");
-const { postMessage } = require("./discordRest");
-const { ambientLine } = require("./ambientLine");
-const { sceneLineAt } = require("./scene");
+const { resolveIngredients } = require("./riteIngredients");
+const { roomLine, answerPanic } = require("./riteEffects");
 
 // Bascinet's line, verbatim and unsigned. Posted once per attempt, the moment
 // the last requirement lands.
 const TENSE_LINE = "You feel tense... Anyone else who wants to participate should join in now.";
+
+const ROOM_SELECT = {
+  id: true,
+  name: true,
+  kind: true,
+  locationId: true,
+  accessTagSlugs: true,
+  discordThreadId: true,
+  location: { select: { id: true, name: true, slug: true, zoneId: true, discordChannelId: true } },
+};
 
 // room:<id> directly; conv:<id> through the Conversation's linked room. Null
 // for a Location channel, a zone, a DM, or a Conversation nobody linked.
@@ -40,25 +53,6 @@ async function roomIdForPlaceKey(db, placeKey) {
   return null;
 }
 
-// Whether the floor holds what the rite lists. Kinds the scripted rite
-// resolves itself (a bound person, a corpse, a photograph, a weapon) are not
-// judged here and count as present.
-async function floorHas(db, rite, roomId) {
-  const needs = floorIngredients(rite);
-  if (needs.length === 0) return true;
-  const room = await db.room.findUnique({
-    where: { id: roomId },
-    select: { resources: true, tags: { select: { quantity: true, tag: { select: { slug: true } } } } },
-  });
-  if (!room) return false;
-  const stacks = new Map(room.tags.map((t) => [t.tag.slug, t.quantity]));
-  for (const need of needs) {
-    if (need.resources && room.resources < need.resources) return false;
-    if (need.tag && (stacks.get(need.tag) ?? 0) < (need.count ?? 1)) return false;
-  }
-  return true;
-}
-
 async function distinctChanters(db, attemptId) {
   const rows = await db.riteChant.findMany({
     where: { attemptId },
@@ -71,12 +65,15 @@ async function distinctChanters(db, attemptId) {
 
 // Re-judge an OPEN attempt. Idempotent: the READY write is guarded on readyAt
 // still being null, so a second judge racing this one posts nothing twice.
-async function evaluateAttempt(db, attempt) {
+async function evaluateAttempt(db, attempt, room = null) {
   const rite = riteByKey(attempt.riteKey);
   if (!rite || attempt.status !== "OPEN") return false;
   const chanters = await distinctChanters(db, attempt.id);
   if (chanters.length < rite.minChanters) return false;
-  if (!(await floorHas(db, rite, attempt.roomId))) return false;
+  const where = room ?? (await db.room.findUnique({ where: { id: attempt.roomId }, select: ROOM_SELECT }));
+  if (!where) return false;
+  const { ok } = await resolveIngredients(db, rite, where, { participants: chanters });
+  if (!ok) return false;
 
   const now = new Date();
   const { count } = await db.riteAttempt.updateMany({
@@ -84,17 +81,7 @@ async function evaluateAttempt(db, attempt) {
     data: { status: "READY", readyAt: now, firesAt: new Date(now.getTime() + GRACE_MS) },
   });
   if (count === 0) return false;
-
-  const room = await db.room.findUnique({
-    where: { id: attempt.roomId },
-    select: { id: true, name: true, discordThreadId: true },
-  });
-  if (room?.discordThreadId) {
-    await postMessage(room.discordThreadId, ambientLine(TENSE_LINE)).catch((err) =>
-      console.error(`Rite tense line failed (${room.name}):`, err.message ?? err),
-    );
-  }
-  if (room?.id) await sceneLineAt(db, { roomId: room.id, text: TENSE_LINE, signed: false });
+  await roomLine(db, where, TENSE_LINE);
   return true;
 }
 
@@ -107,7 +94,36 @@ async function attemptFor(db, rite, room) {
     orderBy: { openedAt: "desc" },
   });
   if (live) return live;
-  return db.riteAttempt.create({ data: { riteKey: rite.key, roomId: room.id, roomName: room.name } });
+  const created = await db.riteAttempt.create({ data: { riteKey: rite.key, roomId: room.id, roomName: room.name } });
+  // Two chanters posting the Word in the same second both miss the read
+  // above and both create. There is no unique index to refuse the second, so
+  // the loser folds into the oldest live attempt and its own row goes — a
+  // split would leave two half-counted attempts that never fire.
+  const oldest = await db.riteAttempt.findFirst({
+    where: { riteKey: rite.key, roomId: room.id, status: { in: ["OPEN", "READY"] }, openedAt: { gte: since } },
+    orderBy: { openedAt: "asc" },
+  });
+  if (oldest && oldest.id !== created.id) {
+    await db.riteAttempt.delete({ where: { id: created.id } }).catch(() => {});
+    return oldest;
+  }
+  return created;
+}
+
+// A rite waiting on a word from one of its own: the first participant's line
+// that names a place answers it.
+async function answerAwaiting(db, { roomId, character, content }) {
+  const waiting = await db.riteAttempt.findMany({
+    where: { roomId, status: "AWAITING" },
+    orderBy: { firedAt: "asc" },
+  });
+  for (const attempt of waiting) {
+    const participants = Array.isArray(attempt.participants) ? attempt.participants : [];
+    if (!participants.some((p) => p.characterId === character.id)) continue;
+    const answered = await answerPanic(db, { attempt, content });
+    if (answered) return true;
+  }
+  return false;
 }
 
 async function noteChantImpl(db, { row, character }) {
@@ -115,13 +131,16 @@ async function noteChantImpl(db, { row, character }) {
   const roomId = await roomIdForPlaceKey(db, row.placeKey);
   if (!roomId) return;
 
+  // A rite already fired may be listening for its answer.
+  if (await answerAwaiting(db, { roomId, character, content: row.content })) return;
+
   const words = await ensureRiteWords(db);
   const keys = matchRites(row.content, words);
   if (keys.length === 0) return;
 
   if (!(await chanterReady(db, character.id))) return;
 
-  const room = await db.room.findUnique({ where: { id: roomId }, select: { id: true, name: true } });
+  const room = await db.room.findUnique({ where: { id: roomId }, select: ROOM_SELECT });
   if (!room) return;
 
   for (const key of keys) {
@@ -136,7 +155,7 @@ async function noteChantImpl(db, { row, character }) {
         archiveSeq: row.seq ?? null,
       },
     });
-    await evaluateAttempt(db, attempt);
+    await evaluateAttempt(db, attempt, room);
   }
 }
 
@@ -145,4 +164,4 @@ function noteChant(db, args) {
   return noteChantImpl(db, args).catch((err) => console.error("Rite chant hook failed:", err.message ?? err));
 }
 
-module.exports = { noteChant, evaluateAttempt, floorHas, distinctChanters, roomIdForPlaceKey, TENSE_LINE, RITES };
+module.exports = { noteChant, evaluateAttempt, distinctChanters, roomIdForPlaceKey, TENSE_LINE, ROOM_SELECT };

@@ -1,10 +1,14 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import SnapshotPage from "@/lib/snapshot/SnapshotPage";
+import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
+import DocumentsView from "./DocumentsView";
+import Loading from "./loading";
+import { auth } from "@/lib/auth";
 import { DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
 import { prisma, startingTagSlugs as parseStartingTagSlugs } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
-import PageShell, { PageHeader } from "../../components/PageShell";
-import DocumentsBoard from "./DocumentsBoard";
 import { toDocumentPreviewText } from "@/lib/documentPreview";
 import { assignedTo, isWritten, readerFromCharacter } from "@/lib/documentAccess";
 import { getHandbookBody, HANDBOOK_KEY } from "@/lib/handbook";
@@ -22,7 +26,22 @@ export const metadata = { title: "Documents" };
 // still runs here on the server, so the client only ever receives documents
 // that already apply.
 
+// Snapshotted (web/lib/snapshot, CHAT.md §5c): the page reads the session,
+// mounts the shell, and streams FreshDocuments in behind it. A browser that has
+// been here before paints its last data in the first frame.
 export default async function DocumentsPage() {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+  return (
+    <SnapshotPage scope="documents" userId={session.discordUserId} render={DocumentsView} fallback={<Loading />}>
+      <Suspense fallback={null}>
+        <FreshDocuments />
+      </Suspense>
+    </SnapshotPage>
+  );
+}
+
+async function FreshDocuments() {
   // getGmSession() wraps auth() and is React-cached, so asking Discord whether
   // this user is a GM costs this page nothing it wasn't already paying.
   const { session, isGm } = await getGmSession();
@@ -297,21 +316,19 @@ export default async function DocumentsPage() {
   );
 
   return (
-    <PageShell width="wide">
-      <PageHeader
-        title="Documents"
-        subtitle="Use these documents to learn more about your role, the game mechanics, and Ravenheart in general."
-      />
-      <DocumentsBoard
-        publicDocs={publicDocs}
-        assignedDocs={assigned}
-        gmDocs={gmDocs}
-        secretDocs={secretDocs}
-        allDocs={allDocs}
-        tagCatalog={tagCatalogList}
-        hasCharacter={!!character}
-        mySkillIds={mySkillIds}
-      />
-    </PageShell>
+    <SnapshotFresh
+      scope="documents"
+      userId={session.discordUserId}
+      data={{
+        publicDocs: publicDocs,
+        assignedDocs: assigned,
+        gmDocs: gmDocs,
+        secretDocs: secretDocs,
+        allDocs: allDocs,
+        tagCatalog: tagCatalogList,
+        hasCharacter: !!character,
+        mySkillIds: mySkillIds,
+      }}
+    />
   );
 }

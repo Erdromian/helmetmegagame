@@ -20,7 +20,7 @@
 
 const { recordArchiveMessage } = require("./archive");
 const { notifyFeed } = require("./feedNotify");
-const { babble, STUPID_SLUG } = require("./babble");
+const { babble, growl, STUPID_SLUG, GHOUL_SLUG } = require("./babble");
 const { blockerFor, slugsBlocking, SPEAK } = require("./incapacitation");
 const { capitalizeSentences, fixContractions } = require("./textCorrection");
 const {
@@ -49,7 +49,7 @@ const EDIT_WINDOW_MS = 5 * 60_000;
 // not even select `slug`, and the Speak modal's findAliveCharacter loads no
 // tags at all — so a gate that trusted the caller's include read undefined
 // and passed everybody.
-const VOICE_SLUGS = [...slugsBlocking(SPEAK), STUPID_SLUG];
+const VOICE_SLUGS = [...slugsBlocking(SPEAK), STUPID_SLUG, GHOUL_SLUG];
 
 async function loadVoiceState(prisma, characterId) {
   if (!characterId) return { block: null, babbling: false };
@@ -61,6 +61,9 @@ async function loadVoiceState(prisma, characterId) {
     // Blocked beats garbled: a Stupid Mute is silent, not babbling.
     block: blockerFor(rows, SPEAK),
     babbling: rows.some((ct) => ct.tag.slug === STUPID_SLUG),
+    // A Ghoul growls (docs/systemdocs/THANATI.md §4). Growl beats babble: a
+    // risen Stupid is a Ghoul first.
+    growling: rows.some((ct) => ct.tag.slug === GHOUL_SLUG),
   };
 }
 
@@ -80,8 +83,9 @@ function lengthRefusal(length) {
 // The two transforms a proxied message has always had. Stupid reads off the
 // SPEAKER rather than off GameConfig and it wins over the autocorrect below —
 // there is nothing left to capitalise once it has been through babble.
-function transformSpeech(text, { babbling, autocorrect }) {
+function transformSpeech(text, { babbling, growling = false, autocorrect }) {
   const content = text ?? "";
+  if (growling) return growl(content);
   if (babbling) return babble(content);
   return autocorrect ? capitalizeSentences(fixContractions(content)) : content;
 }
@@ -150,6 +154,7 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
   });
   const text = transformSpeech(raw, {
     babbling: voice.babbling,
+    growling: voice.growling,
     autocorrect: Boolean(config?.tupperAutocorrectEnabled),
   });
 

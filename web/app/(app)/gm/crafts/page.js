@@ -1,8 +1,12 @@
 import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { Suspense } from "react";
+import SnapshotPage from "@/lib/snapshot/SnapshotPage";
+import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
+import CraftsView from "./CraftsView";
+import Loading from "../../loading";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
-import CraftsTable from "./CraftsTable";
 
 // Every craft project, running or done — the pocket-item twin of
 // /gm/structures. A running project is otherwise invisible to a GM: it
@@ -11,7 +15,22 @@ import CraftsTable from "./CraftsTable";
 // is the read; the repair, when one is needed, stays by hand on /gm/dev,
 // with the Spent column saying exactly what went in. Open to every GM, no
 // rail item — reachable through ⌘K, like /gm/structures.
+// Snapshotted (web/lib/snapshot, CHAT.md §5c): the page reads the session,
+// mounts the shell, and streams FreshCrafts in behind it. A browser that has
+// been here before paints its last data in the first frame.
 export default async function CraftsPage() {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+  return (
+    <SnapshotPage scope="gm-crafts" userId={session.discordUserId} render={CraftsView} fallback={<Loading />}>
+      <Suspense fallback={null}>
+        <FreshCrafts userId={session.discordUserId} />
+      </Suspense>
+    </SnapshotPage>
+  );
+}
+
+async function FreshCrafts({ userId }) {
   const { session, isGm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   if (!isGm) redirect("/character");
@@ -70,11 +89,12 @@ export default async function CraftsPage() {
   }));
 
   return (
-    <PageShell>
-      <PageHeader
-        title="Craft projects"
-      />
-      <CraftsTable projects={projects} />
-    </PageShell>
+    <SnapshotFresh
+      scope="gm-crafts"
+      userId={userId}
+      data={{
+        projects: projects,
+      }}
+    />
   );
 }

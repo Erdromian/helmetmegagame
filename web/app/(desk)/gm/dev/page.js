@@ -511,6 +511,8 @@ export default async function DevPanelPage({ searchParams }) {
         roomName: a.roomName,
         status: a.status,
         chanters: [...new Map(a.chants.map((c) => [c.characterId, c.characterName])).values()],
+        // An effect that threw, or what a re-armed attempt was missing.
+        note: a.result?.error ? String(a.result.error) : Array.isArray(a.result?.rearmed) ? a.result.rearmed.join(", ") : null,
         openedAt: stamp(a.openedAt),
         firesAt: stamp(a.firesAt),
         firedAt: stamp(a.firedAt),

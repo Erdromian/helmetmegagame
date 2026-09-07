@@ -1,18 +1,37 @@
 import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { Suspense } from "react";
+import SnapshotPage from "@/lib/snapshot/SnapshotPage";
+import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
+import TagCatalogView from "./TagCatalogView";
+import Loading from "./loading";
 import { DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
 import DevSubNav from "../DevSubNav";
-import TagCatalog from "./TagCatalog";
 
 // The tag catalog, with a Create dialog for GM-authored tags.
 //
 // YAML-sourced rows are read-only here on purpose: docs/tags.yaml is their
 // source of truth and syncTags would revert a UI edit on its next run. Only
 // rows carrying Tag.custom are editable, and only a superadmin may delete one.
+// Snapshotted (web/lib/snapshot, CHAT.md §5c): the page reads the session,
+// mounts the shell, and streams FreshDevTags in behind it. A browser that has
+// been here before paints its last data in the first frame.
 export default async function DevTagsPage() {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+  return (
+    <SnapshotPage scope="gm-dev-tags" userId={session.discordUserId} render={TagCatalogView} fallback={<Loading />}>
+      <Suspense fallback={null}>
+        <FreshDevTags userId={session.discordUserId} />
+      </Suspense>
+    </SnapshotPage>
+  );
+}
+
+async function FreshDevTags({ userId }) {
   const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   if (!gm) redirect("/character");
@@ -38,14 +57,11 @@ export default async function DevTagsPage() {
   const heldCount = new Map(counts.map((c) => [c.tagId, c._count.tagId]));
 
   return (
-    <PageShell width="wide">
-      <PageHeader
-        title="Tag Catalog"
-        actions={<DevSubNav current="tags" />}
-      />
-
-      <TagCatalog
-        tags={tags.map((t) => ({
+    <SnapshotFresh
+      scope="gm-dev-tags"
+      userId={userId}
+      data={{
+        tags: tags.map((t) => ({
           id: t.id,
           name: t.name,
           slug: t.slug,
@@ -94,11 +110,11 @@ export default async function DevTagsPage() {
           requirementGambit: t.requirementGambit,
           requirementSkills: t.requirementSkills,
           held: heldCount.get(t.id) ?? 0,
-        }))}
-        groups={groups}
-        categories={[...new Set(tags.map((t) => t.category))].sort((a, b) => a.localeCompare(b))}
-        canDelete={isSuperadmin(session.discordUserId)}
-      />
-    </PageShell>
+        })),
+        groups: groups,
+        categories: [...new Set(tags.map((t) => t.category))].sort((a, b) => a.localeCompare(b)),
+        canDelete: isSuperadmin(session.discordUserId),
+      }}
+    />
   );
 }

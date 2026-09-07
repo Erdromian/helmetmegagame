@@ -10,6 +10,7 @@ import EmptyState from "@/app/components/EmptyState";
 const STATUS_TONE = {
   OPEN: "text-muted",
   READY: "",
+  AWAITING: "",
   FIRED: "",
   EXPIRED: "text-muted",
   CANCELLED: "text-muted",
@@ -61,7 +62,10 @@ export default function RitesPanel({ words, attempts }) {
                 <tr key={a.id}>
                   <td>{a.riteName}</td>
                   <td>{a.roomName}</td>
-                  <td className={`mono ${STATUS_TONE[a.status] ?? ""}`}>{a.status}</td>
+                  <td className={`mono ${STATUS_TONE[a.status] ?? ""}`}>
+                    {a.status}
+                    {a.note ? <span className="text-danger"> · {a.note}</span> : null}
+                  </td>
                   <td>
                     <span className="mono">{a.chanters.length}</span>
                     {a.chanters.length > 0 ? <span className="text-muted"> · {a.chanters.join(", ")}</span> : null}

@@ -1841,6 +1841,13 @@ model Tag {
   corpseOfCharacterId String?    @unique
   corpseOf            Character? @relation("CharacterCorpseTag", fields: [corpseOfCharacterId], references: [id], onDelete: Cascade)
 
+  // A photograph's subject (db/lib/photoMint.js): the character the camera
+  // was pointed at, so a rite that needs "a photograph of the target" can
+  // resolve one without parsing the name off the print. A snapshot id, no
+  // FK — the print outlives the person. Null on prints from before this
+  // column existed, which fall back to the name.
+  photoOfCharacterId String?
+
   // Whether other players who 🔍-react to this character's proxied messages
   // see this tag, alongside Character.appearance (see
   // bot/src/events/messageReactionAdd.js). Three states, authored in
@@ -3895,6 +3902,9 @@ model RiteAttempt {
 enum RiteAttemptStatus {
   OPEN
   READY
+  // Fired, but waiting on a word from a participant — the Rite of Panic asks
+  // the room to name a zone (db/lib/riteEffects.js).
+  AWAITING
   FIRED
   EXPIRED
   CANCELLED

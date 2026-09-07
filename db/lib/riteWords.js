@@ -7,11 +7,14 @@
 // barrel.
 const { Prisma } = require("@prisma/client");
 const { rollRiteWords } = require("./rites");
-const { getGameState } = require("./gameState");
+const { readGameState } = require("./gameState");
 
+// A READ first — this runs on every line of chat, and an upsert would take a
+// write lock on GameState for each one (db/lib/gameState.js). Only the very
+// first caller in a game reaches the write below.
 async function ensureRiteWords(db) {
-  const state = await getGameState(db);
-  if (state.riteWords && typeof state.riteWords === "object") return state.riteWords;
+  const state = await readGameState(db, { riteWords: true });
+  if (state?.riteWords && typeof state.riteWords === "object") return state.riteWords;
 
   // Guarded write: two first readers racing here both roll, and only the one
   // that finds the column still null lands. The loser re-reads the winner's.

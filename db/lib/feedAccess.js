@@ -24,6 +24,21 @@ const {
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { conversationsFor } = require("./conversations");
 const { visibleZoneIds } = require("./gmZoneView");
+const { SCRYING_EYE_SLUG } = require("./thanati");
+
+// Equipped Scrying Eye AND the web-only switch on: the eye works only for a
+// character who has left Discord, since Discord's channel permissions could
+// never show them the rooms it opens (docs/systemdocs/THANATI.md §4).
+async function hasScryingEye(prisma, characterId) {
+  const row = await prisma.character.findUnique({
+    where: { id: characterId },
+    select: {
+      webOnly: true,
+      tags: { where: { equipped: true, quantity: { gt: 0 }, tag: { slug: SCRYING_EYE_SLUG } }, select: { id: true } },
+    },
+  });
+  return Boolean(row?.webOnly && row.tags.length > 0);
+}
 
 // How long a character waits between two sends in one place, in ms. The zone
 // summary is a slower surface on purpose: it is a whole zone reading.
@@ -76,7 +91,7 @@ async function placesFor(prisma, character, { gm = false, discordUserId = null }
   });
   if (!location) return [];
 
-  const [rooms, keys, conversations] = await Promise.all([
+  const [rooms, keys, conversations, scrying] = await Promise.all([
     prisma.room.findMany({
       where: { locationId: location.id },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -84,17 +99,33 @@ async function placesFor(prisma, character, { gm = false, discordUserId = null }
     }),
     roomAccessKeys(prisma, character.id),
     conversationsFor(prisma, character.id, { locationId: location.id }),
+    hasScryingEye(prisma, character.id),
   ]);
 
   // The same accessibleRooms() every other door in the game reads, guests
   // included — a guest who is shown the thread on Discord and refused the
   // feed on the web would be two answers to one question.
   const reachable = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds);
+  // THE SCRYING EYE (docs/systemdocs/THANATI.md §4): equipped, and only with
+  // the web-only switch on, every room and every conversation at this Location
+  // is readable. What the eye adds arrives with canSpeak false, so
+  // mayWritePlace still refuses it; what the character could already enter
+  // keeps its voice.
+  const reachableIds = new Set(reachable.map((room) => room.id));
+  const seen = scrying ? rooms : reachable;
+  const memberConversationIds = conversations.map((c) => c.id);
+  const overheard = scrying
+    ? await prisma.playerThread.findMany({
+        where: { locationId: location.id, id: { notIn: memberConversationIds } },
+        orderBy: { lastActivityAt: "desc" },
+        select: { id: true, name: true },
+      })
+    : [];
   // Public first, then the private ones a key or a guest row opens: the
   // column draws them as two sections and the order is what separates them.
   const ordered = [
-    ...reachable.filter((room) => room.kind !== "PRIVATE"),
-    ...reachable.filter((room) => room.kind === "PRIVATE"),
+    ...seen.filter((room) => room.kind !== "PRIVATE"),
+    ...seen.filter((room) => room.kind === "PRIVATE"),
   ];
 
   const list = [
@@ -112,7 +143,7 @@ async function placesFor(prisma, character, { gm = false, discordUserId = null }
         name: room.name,
         description: room.description,
         roomKind: room.kind,
-        canSpeak: true,
+        canSpeak: reachableIds.has(room.id),
       }),
     ),
     ...conversations.map((conversation) =>
@@ -121,6 +152,14 @@ async function placesFor(prisma, character, { gm = false, discordUserId = null }
         kind: "conv",
         name: conversation.name,
         canSpeak: true,
+      }),
+    ),
+    ...overheard.map((conversation) =>
+      place({
+        placeKey: placeKeyForConversation(conversation.id),
+        kind: "conv",
+        name: conversation.name,
+        canSpeak: false,
       }),
     ),
   ];

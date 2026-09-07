@@ -8,11 +8,10 @@
 //
 // THERE IS NO RITE BUTTON. A rite happens because robed, Inspired cultists
 // said this game's word for it in a room whose floor holds the ingredients
-// (db/lib/riteChant.js). What each rite DOES is `run`, filled in as the rites
-// are scripted; a null `run` fires as "unscripted" and a GM reads the audit
-// row. Names, descriptions, minimums and ingredient lines are Bascinet's
-// words, verbatim and unsigned, apart from the {tag:…} links and the ⬢
-// glyph for quantities (CLAUDE.md).
+// (db/lib/riteChant.js). What each rite DOES is db/lib/riteEffects.js, keyed
+// by `key`, run by the sweep. Names, descriptions, minimums and ingredient
+// lines are Bascinet's words, verbatim and unsigned, apart from the {tag:…}
+// links and the ⬢ glyph for quantities (CLAUDE.md).
 
 // Bascinet's dictionary, spelling preserved. Matching is case- and
 // punctuation-insensitive (normalizeChant), so the odd capital and the curly
@@ -37,8 +36,8 @@ const GRACE_MS = 2 * 60_000;
 //   { tag, count }        a stack on the room floor (RoomTag)
 //   { resources: n }      ⬢ on the room floor (Room.resources)
 //   { kind }              "bound-person" | "corpse" | "photograph" | "weapon" —
-//                         things the scripted rite resolves itself. Until the
-//                         script exists these count as present (riteChant.js).
+//                         found in the room by db/lib/riteIngredients.js and
+//                         handed to the effect rather than eaten.
 const RITES = [
   {
     key: "initial",
@@ -47,7 +46,6 @@ const RITES = [
     ingredients: [],
     ingredientsText: "",
     description: "The most important of all rites. It will reveal to you what Tzchernobog requires of you.",
-    run: null,
   },
   {
     key: "conversion",
@@ -56,7 +54,6 @@ const RITES = [
     ingredients: [{ kind: "bound-person" }],
     ingredientsText: "1 {tag:bound} person in the same location. They must have room access to wherever you are chanting at",
     description: "Reveal the wicked truth of this reality, so they might join in its destruction! They must be added to whatever room or conversation you chant at.",
-    run: null,
   },
   {
     key: "sacrifice",
@@ -65,7 +62,6 @@ const RITES = [
     ingredients: [{ kind: "bound-person" }],
     ingredientsText: "A {tag:bound} person.",
     description: "Deliver unto Tzchernobog what he has demanded of you, and reap your rewards! The sacrificial victim must be bound and added to the room or conversation you’re in.",
-    run: null,
   },
   {
     key: "scrying",
@@ -74,7 +70,6 @@ const RITES = [
     ingredients: [{ resources: 15 }],
     ingredientsText: "15 ⬢",
     description: "Creates a Scrying Eye, which allows you to see through walls and hear conversations.",
-    run: null,
   },
   {
     key: "possession",
@@ -83,7 +78,6 @@ const RITES = [
     ingredients: [{ kind: "weapon" }, { resources: 15 }],
     ingredientsText: "1 weapon, 15 ⬢",
     description: "Vengeful spirits will inhabit this weapon, helping it find its targets, and crushing them! Make sure there is only one weapon in the room, or it will be selected at random.",
-    run: null,
   },
   {
     key: "reanimation",
@@ -92,7 +86,6 @@ const RITES = [
     ingredients: [{ kind: "corpse" }, { resources: 5 }, { tag: "heart", count: 1 }],
     ingredientsText: "1 corpse, 5 ⬢, 1 {tag:heart}",
     description: "Rise from your grave! Enlists a corpse to the service of both you, and Tzchernobog!",
-    run: null,
   },
   {
     key: "stupidity",
@@ -101,7 +94,6 @@ const RITES = [
     ingredients: [{ tag: "squeeze", count: 1 }, { kind: "photograph" }, { resources: 5 }],
     ingredientsText: "1 {tag:squeeze}, 1 photograph of the target, 5 ⬢",
     description: "Destroys the target’s brain.",
-    run: null,
   },
   {
     key: "omniscience",
@@ -110,7 +102,6 @@ const RITES = [
     ingredients: [{ tag: "skinless-brain", count: 1 }, { kind: "photograph" }],
     ingredientsText: "1 {tag:skinless-brain}, 1 photograph of the target",
     description: "Lets you peek into the mind of another, revealing every secret, even those they themselves are clueless of…",
-    run: null,
   },
   {
     key: "summoning",
@@ -119,7 +110,6 @@ const RITES = [
     ingredients: [{ tag: "saltpeter", count: 1 }, { resources: 15 }],
     ingredientsText: "1 {tag:saltpeter}, 15 ⬢",
     description: "Brings your fellow Thanati to you. Does not work for the dead, or those in hallowed grounds…",
-    run: null,
   },
   {
     key: "panic",
@@ -128,7 +118,6 @@ const RITES = [
     ingredients: [{ tag: "heart", count: 1 }, { resources: 20 }],
     ingredientsText: "1 {tag:heart}, 20 ⬢",
     description: "After fulfilling, you will be asked for a location. That place will become haunted, causing all of its denizens to panic and receive -2 to their Gambits.",
-    run: null,
   },
   {
     key: "famine",
@@ -137,7 +126,6 @@ const RITES = [
     ingredients: [{ tag: "feces", count: 1 }, { tag: "lavish-meal", count: 1 }, { resources: 10 }],
     ingredientsText: "1 {tag:feces}, 1 {tag:lavish-meal}, 10 ⬢",
     description: "Causes a blight to descend upon the stores of Ravenheart, destroying 100 resources in every faction silo.",
-    run: null,
   },
   {
     key: "reflection",
@@ -146,7 +134,6 @@ const RITES = [
     ingredients: [{ tag: "black-robes", count: 1 }, { resources: 15 }],
     ingredientsText: "1 {tag:black-robes}, 15 ⬢",
     description: "Imbues the robes with dark powers, allowing them to deflect significant physical damage and protect the wearer.",
-    run: null,
   },
   {
     key: "rage",
@@ -155,7 +142,6 @@ const RITES = [
     ingredients: [{ tag: "ravenheart-red", count: 1 }],
     ingredientsText: "1 {tag:ravenheart-red}",
     description: "All participants become permanently enraged, gaining inhuman strength but losing their humanity.",
-    run: null,
   },
   {
     key: "judgement",
@@ -164,7 +150,6 @@ const RITES = [
     ingredients: [{ tag: "heart", count: 1 }, { tag: "eye", count: 2 }, { kind: "photograph" }, { resources: 40 }],
     ingredientsText: "1 {tag:heart}, 2 {tag:eye}, 1 photograph of the target, 40 ⬢",
     description: "The target suddenly explodes into mist! It does not work on people within hallowed grounds…",
-    run: null,
   },
 ];
 
