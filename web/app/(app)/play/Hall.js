@@ -7,7 +7,7 @@ import Modal from "@/app/components/Modal";
 import HallAside from "./HallAside";
 import HereList from "./HereList";
 import PlacesColumn, { PlacesTabs } from "./PlacesColumn";
-import useNarrow from "./useNarrow";
+import useAsideFolded from "./useAsideFolded";
 import Feed from "./Feed";
 import FactionPanel from "./FactionPanel";
 import DmPane, { DM_PLACE_KEY } from "./DmPane";
@@ -217,11 +217,11 @@ export default function Hall({
   });
 
   // The phone's ⋯ sheet. The right column has no room to stand on a narrow
-  // screen, so it comes up over the scene instead — the same three panels,
+  // screen (under 900px, useAsideFolded.js), so it comes up over the scene instead — the same three panels,
   // rendered by the same component.
   const [chimeMuted, setChimeMuted] = useHallChimeMuted();
 
-  const narrow = useNarrow();
+  const asideFolded = useAsideFolded();
   const [sheetOpen, setSheetOpen] = useState(false);
   // The noticeboard cards at the top of the Location's feed, and the counter
   // that makes them re-read. The Noticeboard dialog in the right column pins
@@ -619,7 +619,7 @@ export default function Hall({
           hiding is not unmounting: both copies used to be live at once on a
           phone, which meant two travel loads, two stash reads and two
           separate answers about what can be worked here. */}
-      {aside && !narrow && (
+      {aside && !asideFolded && (
         <aside className="hall-aside">
           {/* The OPEN place, so the room panel knows which room's storage and
               fixtures to draw — the whole reason the Council Room's Intercom
@@ -646,7 +646,7 @@ export default function Hall({
           }}
         />
       )}
-      {aside && narrow && sheetOpen && (
+      {aside && asideFolded && sheetOpen && (
         <Modal open title="Here" onClose={closeSheet} panelClassName="modal-panel hall-sheet">
           <HallAside
             {...aside}

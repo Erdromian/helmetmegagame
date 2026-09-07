@@ -404,10 +404,28 @@ from 17rem in the second pass: it is the game suite now, not a button strip.
 └───────────────┴────────────────────────────────────────────┴──────────────────────┘
 ```
 
+Three widths above the phone, one breakpoint each (`globals.css`, the
+"ladder" comment above the `.hall-*` media blocks):
+
+```
+>= 1200        15rem | 1fr | 20rem     three columns
+900 - 1200     12rem | 1fr | 17rem     the flanks shrink
+720 - 900      11rem | 1fr   [⋯]       the aside folds into the sheet
+<= 720         tabs / strip / feed     one column
+```
+
+The aside folds at 900px in the CSS **and** in `useAsideFolded.js` — the
+same number in both, or there is a band where the column is gone and the ⋯
+that opens it is hidden too. `.hall-sheet` itself is unscoped: the sheet
+mounts only when the hook says folded, so a media query on the class was a
+second source of truth. The floating `.turn-chip` the (app) layout mounts is
+hidden on this route (`body:has(.hall-shell)`) — the header carries the turn,
+and on a phone the chip sat exactly on the ⋯.
+
 Under 720px, one column — the places column becomes a `.tab-bar` of
 `.tab-item`s with unread dots, **HERE** is an avatar strip under the place
 header, and the rest of the right column comes up as a bottom sheet from the
-⚡ button beside the composer:
+⋯ button beside the composer:
 
 ```
 ┌────────────────────────────────────┐
@@ -654,7 +672,7 @@ header instead).
   (§5a). In its place, one line saying so. The **Location is the exception**:
   it is `canSpeak: false` and still draws the box, command-only, so `/shout`
   has somewhere to be typed. See the slash-commands bullet above.
-- **`HallAside.js`** is the right column — and, under 720px, everything
+- **`HallAside.js`** is the right column — and, under 900px, everything
   inside the ⋯ sheet. One component either way, because the phone's version
   is the same sections in the same order; only the box around them changes,
   and the sheet is a `Modal` wearing `.hall-sheet` rather than a drawer of its
@@ -814,9 +832,9 @@ header instead).
   fires only when the viewer's own presence changed, and the feed store is
   client state, so a refresh costs nothing that was on screen. ‡
 - **One aside is ever mounted.** The right column and the phone's ⋯ sheet are
-  the same `HallAside`, and CSS hiding the column under 720px still left both
-  live — two travel loads, two stash reads, two affordance states. `useNarrow()`
-  picks one; the CSS rule stays as belt and braces. ‡
+  the same `HallAside`, and CSS hiding the column under 900px still left both
+  live — two travel loads, two stash reads, two affordance states.
+  `useAsideFolded()` picks one; the CSS rule stays as belt and braces. ‡
 - **Nothing ever flashes "Nothing has been said here yet. ‡"**, and getting
   there took three separate fixes, because the empty state had three ways to
   win a race:

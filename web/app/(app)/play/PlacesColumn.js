@@ -2,6 +2,7 @@
 
 import { memo } from "react";
 import IconButton from "@/app/components/IconButton";
+import HoverCard from "@/app/components/HoverCard";
 import { BellIcon, BellOffIcon, BellRingIcon, SendIcon } from "@/app/components/icons";
 import { isUnread } from "./seenStore";
 
@@ -33,8 +34,16 @@ function glyph(place) {
   return place.roomKind === "PRIVATE" ? "▪" : "";
 }
 
+// A row with a description shows it on hover or focus. Through HoverCard
+// because the column scrolls, and a tooltip drawn in-tree would be clipped by
+// it; `pinnable={false}` because the row is a button already — one tab stop,
+// Enter still selects the place, nothing sticks open. A row with nothing to
+// say (a Conversation, Bascinet, the faction) is a bare button, so thirty
+// rows do not each mount a portal. Phones get no hover and none of this: the
+// column is not rendered under 720px, and the place you are standing in has
+// its description at the top of the ⋯ sheet.
 const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
-  return (
+  const button = (
     <button
       type="button"
       className="hall-place"
@@ -47,6 +56,22 @@ const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
       <span className="hall-place-name">{place.name}</span>
       {unread && <span className="hall-dot" aria-label="Unread" />}
     </button>
+  );
+  const description = place.description?.trim();
+  if (!description) return button;
+  return (
+    <HoverCard
+      pinnable={false}
+      className="hall-place-hover"
+      panel={
+        <>
+          <span className="hall-tip-name">{place.name}</span>
+          <span className="hall-tip-desc">{description}</span>
+        </>
+      }
+    >
+      {button}
+    </HoverCard>
   );
 });
 

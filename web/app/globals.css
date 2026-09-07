@@ -71,6 +71,15 @@
      60vh, max-h-40, and nothing at all). */
   --list-h: 70vh;
 
+  /* The phone's fixed bottom bar. Every full-height surface that has to
+     clear it subtracts this — one number, not four hand-copied 72s. */
+  --rail-h: 72px;
+
+  /* The Chat row's avatar column: the face itself, the skeleton's stand-in,
+     and the indent under it that lines the world's `-#` lines up with the
+     text rather than the face. Three places that must agree. */
+  --hall-face: 32px;
+
   /* Elevation. --e-1 is border-only and intentionally has no shadow. */
   --e-2: 0 2px 6px var(--shadow-color);
   --e-3: 0 12px 32px var(--shadow-color);
@@ -2309,6 +2318,14 @@ input[type="radio"]:disabled {
   color: var(--text);
 }
 
+/* Chat draws the turn in its own header (play/layout.js), so the floating
+   chip is a second copy there — and at phone widths it sat exactly on the
+   composer's ⋯, which is why the sheet could not be opened. The (app) layout
+   mounts the chip for every route, so it is hidden here rather than there. */
+body:has(.hall-shell) .turn-chip {
+  display: none;
+}
+
 /* The mobile bottom bar's overflow affordance. On desktop the rail is a tall
    column with room for every item, so neither the More button nor its sheet
    has any business existing — see NavRail.js. */
@@ -2361,7 +2378,7 @@ input[type="radio"]:disabled {
   }
 
   .app-main {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--rail-h) + env(safe-area-inset-bottom, 0px));
   }
 
   /* Items past NavRail's MOBILE_PRIMARY cap live in the sheet instead. */
@@ -3567,7 +3584,7 @@ label.chip {
        that much dead scroll under the tray. */
     height: auto;
     overflow: visible;
-    min-height: calc(100dvh - 72px - env(safe-area-inset-bottom, 0px));
+    min-height: calc(100dvh - var(--rail-h) - env(safe-area-inset-bottom, 0px));
   }
 
   .desk-body {
@@ -3592,7 +3609,7 @@ label.chip {
      it. */
   .desk-tray {
     position: sticky;
-    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--rail-h) + env(safe-area-inset-bottom, 0px));
     background: var(--bg);
     z-index: 5;
   }
@@ -4805,7 +4822,11 @@ label.chip {
   margin-bottom: var(--sp-1);
 }
 
-.hall-place {
+/* A place row and a person row are the same button — a full-width flex
+   line with one focus ring — and differ only in padding, colour and the
+   active bar. One base, two skins. */
+.hall-place,
+.hall-person {
   all: unset;
   cursor: pointer;
   display: flex;
@@ -4813,20 +4834,58 @@ label.chip {
   gap: var(--sp-2);
   width: 100%;
   box-sizing: border-box;
-  padding: 5px var(--sp-3);
   font-size: var(--fs-sm);
+}
+
+.hall-place:focus-visible,
+.hall-person:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+}
+
+.hall-place-name,
+.hall-person-name,
+.hall-node-zone {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hall-place {
+  padding: var(--sp-1) var(--sp-3);
   color: var(--muted);
   border-left: 2px solid transparent;
+}
+
+/* A room row wrapped in a HoverCard so its description shows on hover
+   (PlacesColumn.js). The wrapper has to be a full-width block in the
+   column's own face — .tag-hover is inline-flex in mono for chips. */
+.hall-place-hover {
+  display: block;
+  width: 100%;
+  font-family: inherit;
+}
+
+.hall-tip-name {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--sp-1);
+}
+
+.hall-tip-desc {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  overflow: hidden;
+  color: var(--muted);
 }
 
 .hall-place:hover {
   color: var(--text);
   background: var(--surface);
-}
-
-.hall-place:focus-visible {
-  outline: 2px solid var(--accent-text);
-  outline-offset: -2px;
 }
 
 .hall-place[data-active="true"] {
@@ -4841,14 +4900,6 @@ label.chip {
   width: 0.75rem;
   flex-shrink: 0;
   text-align: center;
-}
-
-.hall-place-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .hall-dot {
@@ -4887,6 +4938,10 @@ label.chip {
 .hall-row {
   display: flex;
   gap: var(--sp-3);
+  /* A run of lines from one speaker sits tight; the first line of a new run
+     stands off from the last. Two booleans, so CSS rather than an inline
+     style (Feed.js sets data-run / data-pending). */
+  margin-top: var(--sp-1);
   /* The row is the positioning context for the action bar that floats at its
      top-right. */
   position: relative;
@@ -4949,6 +5004,22 @@ label.chip {
 
 /* A row a search hit took the reader to. A flash and then nothing: the point
    is to say WHICH line, not to leave it marked. */
+.hall-row[data-run="start"] {
+  margin-top: var(--sp-3);
+}
+
+/* A pending row is the same row, quieter. */
+.hall-row[data-pending] {
+  opacity: 0.6;
+}
+
+/* The avatar column. The face draws only on the first line of a run; the
+   column keeps its width on every line so the text stays aligned. */
+.hall-row-face {
+  width: var(--hall-face);
+  flex-shrink: 0;
+}
+
 .hall-row[data-hit="true"],
 .hall-subtext[data-hit="true"] {
   animation: hall-hit 2s ease-out;
@@ -4984,8 +5055,8 @@ label.chip {
 }
 
 .hall-skeleton-face {
-  width: 32px;
-  height: 32px;
+  width: var(--hall-face);
+  height: var(--hall-face);
   flex-shrink: 0;
   border-radius: 50%;
   background: var(--row-hover);
@@ -5106,7 +5177,7 @@ label.chip {
   font-size: var(--fs-xs);
   color: var(--muted);
   margin-top: var(--sp-2);
-  padding-left: calc(32px + var(--sp-3));
+  padding-left: calc(var(--hall-face) + var(--sp-3));
 }
 
 .hall-pill {
@@ -5147,33 +5218,12 @@ label.chip {
 }
 
 .hall-person {
-  all: unset;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  width: 100%;
-  box-sizing: border-box;
-  padding: 3px var(--sp-1);
-  font-size: var(--fs-sm);
+  padding: var(--sp-1);
   color: var(--text);
 }
 
 .hall-person:hover {
   background: var(--surface);
-}
-
-.hall-person:focus-visible {
-  outline: 2px solid var(--accent-text);
-  outline-offset: -2px;
-}
-
-.hall-person-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .hall-menu {
@@ -5213,12 +5263,11 @@ label.chip {
 
 /* ---- The place card: where you are, in words ---- */
 
-/* The description is as long as whoever wrote the Location made it, and the
-   column has four more sections under it. It scrolls inside itself rather
-   than pushing Travel off the bottom of the screen. */
+/* The description is as long as whoever wrote the Location made it. It used
+   to scroll inside itself at 12rem, which put a second wheel under the
+   pointer inside a column that already scrolls and cut a paragraph off with
+   no visible edge. The aside scrolls; this just flows. */
 .hall-card-text {
-  max-height: 12rem;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
@@ -5303,13 +5352,11 @@ label.chip {
 }
 
 .hall-node-zone {
+  flex: 0 0 auto;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-size: var(--fs-2xs);
   color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* What the place is. Clamped at three lines with a real ellipsis; the card
@@ -5510,23 +5557,87 @@ label.chip {
   flex-shrink: 0;
 }
 
+/* The phone's way into the right column. On a desktop the column is already
+   there, so the button is not — hidden by the default and shown by the same
+   media query that hides .hall-aside. */
+.hall-sheet-trigger {
+  display: none;
+}
+
+/* The ⋯ sheet: the right column, come up from the bottom over the scene.
+   A dialog rather than a drawer of its own, so it keeps Escape, the focus
+   trap and the backdrop that Modal already owns. Unscoped on purpose: the
+   sheet only mounts when useAsideFolded.js says the column is folded, and a
+   media query on the class was a second source of truth that disagreed
+   with it between 720 and 900px. */
+.hall-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  max-width: none;
+  max-height: 80dvh;
+  overflow-y: auto;
+  border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+}
+
+/* ---- The ladder. Three widths above the phone, one breakpoint each:
+
+     >= 1200          15rem | 1fr | 20rem     three columns
+     900 - 1200       12rem | 1fr | 17rem     flanks shrink
+     720 - 900        11rem | 1fr   [⋯]       aside folds into the sheet
+     <= 720           tabs / strip / feed     one column
+
+   The middle two are new: with one breakpoint at 720 a 900px window gave
+   the scene less room than either flank. The aside folds at 56.25rem
+   (900px) here AND in useAsideFolded.js — the same number in both, or
+   there is a band where the column is gone and the ⋯ that opens it is
+   hidden too. */
+@media (max-width: 75rem) {
+  .hall-body {
+    grid-template-columns: 12rem minmax(0, 1fr) 17rem;
+  }
+}
+
+@media (max-width: 56.25rem) {
+  .hall-body {
+    grid-template-columns: 11rem minmax(0, 1fr);
+  }
+
+  /* Belt and braces: the hook already stops the column mounting. */
+  .hall-aside {
+    display: none;
+  }
+
+  .hall-sheet-trigger {
+    display: inline-flex;
+  }
+}
+
 @media (max-width: 720px) {
   .hall-shell {
-    /* The 72px comes off because .app-main carries the fixed bottom bar's
-       clearance; a full 100dvh would put the composer underneath it. Unlike
-       .desk-shell, the height contract does NOT invert here — a chat whose
-       feed scrolls the page instead of itself loses its composer the moment
-       anybody says anything. */
-    height: calc(100dvh - 72px - env(safe-area-inset-bottom, 0px));
+    /* The bar's height comes off because .app-main carries the fixed bottom
+       bar's clearance; a full 100dvh would put the composer underneath it.
+       Unlike .desk-shell, the height contract does NOT invert here — a chat
+       whose feed scrolls the page instead of itself loses its composer the
+       moment anybody says anything. */
+    height: calc(100dvh - var(--rail-h) - env(safe-area-inset-bottom, 0px));
   }
 
   .hall-body {
     grid-template-columns: 1fr;
   }
 
-  .hall-places,
-  .hall-aside {
+  .hall-places {
     display: none;
+  }
+
+  /* A person row is a real tap target inside the sheet. */
+  .hall-sheet .hall-person {
+    min-height: 44px;
   }
 
   .hall-tabs {
@@ -5548,26 +5659,6 @@ label.chip {
     display: flex;
   }
 
-  .hall-sheet-trigger {
-    display: inline-flex;
-  }
-
-  /* The ⋯ sheet: the right column, come up from the bottom over the scene.
-     A dialog rather than a drawer of its own, so it keeps Escape, the focus
-     trap and the backdrop that Modal already owns. */
-  .hall-sheet {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: auto;
-    max-width: none;
-    max-height: 80dvh;
-    overflow-y: auto;
-    border-bottom: 0;
-    border-radius: var(--radius) var(--radius) 0 0;
-    padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
-  }
 }
 
 /* ---- Chat text: speech, spoilers, mentions (phase 6, HALL.md §5) ---- */
@@ -5802,13 +5893,6 @@ label.chip {
   top: auto;
   bottom: 100%;
   margin-bottom: var(--sp-1);
-}
-
-/* The phone's way into the right column. On a desktop the column is already
-   there, so the button is not — hidden by the default and shown by the same
-   media query that hides .hall-aside. */
-.hall-sheet-trigger {
-  display: none;
 }
 
 /* The foot of the places column: the chime toggle and the web-only chip. The

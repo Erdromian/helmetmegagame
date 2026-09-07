@@ -21,7 +21,13 @@ const MARGIN = 8;
 // visible after the pointer leaves, so the reader can reach into it (e.g. to
 // click a nested chip or the Consume button). Any onClick/onKeyDown a caller
 // passes still runs; HoverCard just also toggles the pin.
-export default function HoverCard({ children, panel, className = "", ...triggerProps }) {
+//
+// `pinnable={false}` is for wrapping something that is ALREADY a control — a
+// room row in the Chat places column. There the wrapper takes no tab stop
+// (the child button has one, and focus bubbles), a click is the child's
+// click and nothing else, and Enter/Space are left alone so they still
+// activate the child. Hover and focus still open the panel; nothing pins it.
+export default function HoverCard({ children, panel, className = "", pinnable = true, ...triggerProps }) {
   const triggerRef = useRef(null);
   const panelRef = useRef(null);
   const [hovering, setHovering] = useState(false);
@@ -37,20 +43,20 @@ export default function HoverCard({ children, panel, className = "", ...triggerP
   const togglePin = useCallback(
     (e) => {
       triggerOnClick?.(e);
-      setPinned((p) => !p);
+      if (pinnable) setPinned((p) => !p);
     },
-    [triggerOnClick],
+    [triggerOnClick, pinnable],
   );
 
   const handleTriggerKeyDown = useCallback(
     (e) => {
       triggerOnKeyDown?.(e);
-      if (e.key === "Enter" || e.key === " ") {
+      if (pinnable && (e.key === "Enter" || e.key === " ")) {
         e.preventDefault();
         setPinned((p) => !p);
       }
     },
-    [triggerOnKeyDown],
+    [triggerOnKeyDown, pinnable],
   );
 
   const place = useCallback(() => {
@@ -137,7 +143,7 @@ export default function HoverCard({ children, panel, className = "", ...triggerP
         {...restTriggerProps}
         ref={triggerRef}
         className={`tag-hover ${className}`.trim()}
-        tabIndex={0}
+        tabIndex={pinnable ? 0 : undefined}
         aria-describedby={open ? id : undefined}
         onPointerEnter={() => setHovering(true)}
         onPointerLeave={() => setHovering(false)}

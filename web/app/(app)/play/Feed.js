@@ -166,13 +166,10 @@ const FeedRow = memo(function FeedRow({
       data-seq={row.seq ?? undefined}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{
-        marginTop: startsRun ? "var(--sp-3)" : "var(--sp-1)",
-        // No hex anywhere — a pending row is the same row, quieter.
-        opacity: row.pending ? 0.6 : 1,
-      }}
+      data-run={startsRun ? "start" : undefined}
+      data-pending={row.pending ? "true" : undefined}
     >
-      <div style={{ width: 32, flexShrink: 0 }}>
+      <div className="hall-row-face">
         {startsRun && (
           <CharacterAvatar characterId={row.characterId} name={row.name ?? ""} version={row.avatarVersion} size={32} />
         )}
@@ -181,14 +178,8 @@ const FeedRow = memo(function FeedRow({
         {startsRun && (
           <div className="flex items-baseline gap-2">
             <span className="font-semibold">{row.name}</span>
-            <span className="mono text-xs" style={{ color: "var(--muted)" }}>
-              {timeLabel(row.sentAt)}
-            </span>
-            {row.editedAt && (
-              <span className="text-xs" style={{ color: "var(--muted)" }}>
-                (edited)
-              </span>
-            )}
+            <span className="mono text-xs text-muted">{timeLabel(row.sentAt)}</span>
+            {row.editedAt && <span className="text-xs text-muted">(edited)</span>}
           </div>
         )}
 
@@ -288,9 +279,7 @@ function PhotoReadout({ state, onClose }) {
         {/* The only thing that is the PHOTOGRAPH's rather than the subject's:
             what the print in your hands is called. */}
         {state?.photoName && (
-          <p className="text-xs" style={{ color: "var(--muted)" }}>
-            {state.photoName}
-          </p>
+          <p className="text-xs text-muted">{state.photoName}</p>
         )}
       </div>
     </Modal>
