@@ -176,6 +176,15 @@ catches the newly visible places up from its own high-water mark rather than
 from zero — so walking into a room does not replay a day of it. The page asks
 for that with `GET /api/feed/history?place=` when the reader actually opens it.
 
+**Prefetch, capped at twelve, and never for a GM.** After the first paint
+`Hall.js` warms the backlogs of the other places one at a time so opening a
+room is instant. A player's list is a Location, its rooms, their conversations
+and a summary; past twelve of those the warmth is not worth the requests. A GM
+is exempt outright — their list is every zone, Location and Room they may
+watch, which is two hundred and more, and warming a hall they will open one
+room of is a storm the database pays for and nobody sees. A GM fetches on
+selection. ‡
+
 `GET /api/feed/places` answers the same list on its own, for a client that has
 reason to think it moved and no stream open to be told.
 
@@ -355,7 +364,7 @@ header instead).
   written when the reader scrolls to the bottom, never merely on selection.
   It only ever moves forward.
 - **`Feed.js`** (phase 0's `PlayFeed.js`, generalised) draws one place: its
-  name, a one-line description with **more ‡**, the runs, and the composer.
+  name, a search button, the runs, and the composer.
   Enter appends the pending row in the same frame and clears the box; the POST
   swaps the real row in behind it. A failed send stays on screen as "Not sent.
   Retry". Runs group one speaker's messages within seven minutes, the same rule
@@ -423,11 +432,108 @@ header instead).
   Being named rings the shared `chime.js`, muted per browser by
   `hall-chime-muted` (`useHallChimeMuted.js`) with the toggle at the foot of
   the places column.
+- **Slash commands in the composer** (`commands.js`, `CommandMenu.js`). Typing
+  `/` at the START of the box opens a popover — the sibling of `MentionMenu`,
+  same ↑↓ / Enter / Tab / Escape wiring — listing the commands the OPEN PLACE
+  allows. Picking one, or typing its whole name and a space, puts the composer
+  in **command mode**: an accent-tinted `.hall-cmd-chip` sits above the
+  textarea, the textarea holds the command's one free-text argument with that
+  argument's placeholder, and any other argument it wants is a `.chip-row`
+  under the box — everyone standing here for a `person`, the three Move kinds
+  for a `moveKind`, the reachable places for a `destination`. Enter runs it
+  through `useActionRunner`; Escape, or Backspace on an empty box, drops the
+  chip and hands the text back. **An unknown `/word` stays plain speech** — the
+  chip is the tell that it parsed.
+
+  | Command | What it runs | Extracted for it |
+  |---|---|---|
+  | `/move` | `submitMove` | — |
+  | `/travel` | selects that node in `TravelNodes` and opens its confirm strip. It never moves anybody: Go still does | — |
+  | `/conceal` | `toggleConceal()` | `db/lib/conceal.js` |
+  | `/shout` | `shoutHere(text, placeKey)` | `db/lib/shout.js#shout` |
+  | `/roll` | `rollHere(placeKey)` | `db/lib/roll.js#castDie` |
+  | `/look` | `lookAt(ref)` — a character id or a hood token, told apart server-side | — |
+  | `/converse` | opens the same `ConverseDialog` the right column's Converse opens | — |
+  | `/add`, `/remove` | `addMember` / `removeMember` (below) | `db/lib/roomGuests.js` |
+  | `/report` | `reportToGms` | — |
+
+  **`where` is a filter, not a greying.** `/roll` is absent in the street and
+  `/add` is absent in the zone summary, because a list of things you can type
+  is not a menu of things you are being refused. `/roll` is absent in the zone
+  summary too, for the reason `/shout` is: a summary is a broadcast, not a
+  place anybody stands in.
+
+  **The street gets a COMMAND-ONLY composer.** A Location is `canSpeak: false`
+  (§5b) and used to draw no box at all — which meant `/shout`, the one command
+  whose entire point is being heard outdoors, had nowhere on the web to be
+  typed. So the same box is drawn there, placeholdered *"Type / for a
+  command… ‡"*, and it accepts a slash and nothing else: Enter on plain prose
+  answers *"This is the open street. Step into a room to speak. ‡"*, keeps the
+  draft, and sends nothing. The sentence is the same one that used to stand
+  there in place of the composer.
+
+  Three of these are the first web twins of commands that were **Discord-only**
+  — `/conceal`, `/shout` and `/roll` — which is to say a "web only" character
+  simply could not do them before. The extraction is faithful and the bot has
+  **not been rewired yet**: each new `db/lib` module opens with a
+  `TODO(rewire)` naming the handler it duplicates, so switching the bot over is
+  one later change with no behaviour in it. Until then two cooldowns exist for
+  `/shout` — the bot's in-memory `Map` and this one's `AuditLog` row — because
+  there is no timestamp column on `Character` to share and this batch carries
+  no migration.
+
+  **A shout writes to both faces itself.** `db/lib/shout.js#shout` answers who
+  hears it and what they hear; the action then writes one `sceneLine` row per
+  hearing Location **and** posts the same line to that Location's channel,
+  sequentially. Both halves are needed, because the outbox carries `WEB` rows
+  only and a `SYSTEM` row is deliberately never echoed into a channel (§2). The
+  room or conversation you are standing IN hears the distance-0 line too — the
+  street loop is Location channels only, and without that the one door you are
+  inside of would be the only place that did not hear you. `db/lib/roll.js`
+  does the same two-sided write for one die.
+- **The members strip** (`MembersStrip.js`) sits under the feed's name for a
+  `conv:` place and for a PRIVATE `room:` place, and nowhere else — a public
+  room needs no guest list, and `placeMembers()` says so with a null `members`
+  rather than a refusal. It is a 20px avatar chip per member with a `×`, and a
+  plain, always-visible `+ Add ‡` opening a picker of everyone standing here
+  who is not already in. `HereList`'s person menu gains **Add to `<name>` ‡**
+  for the same two kinds of place.
+
+  Until now the only way to let somebody into either was `/add` on Discord,
+  which a web-only player cannot type. The rules are unchanged and all on the
+  server: a conversation asks that you are a **living** member; a private room
+  asks that you are INSIDE it and that they are standing at its Location, and
+  refuses to show out somebody whose own key admits them ("take the key").
+
+  **Inside, not merely outside the door.** Being inside is a key (one of
+  `Room.accessTagSlugs`) or a `RoomGuest` row — `roomAccessKeys` in
+  `db/lib/roomAccess.js`, the same pair `accessibleRooms` tests. On Discord
+  that half of the gate was implicit, because `/add` is typed into the room's
+  own thread and a thread is invisible to anybody not entitled to it; lifting
+  the code out of the bot dropped it, and for a moment anybody in the street
+  could hand out a door they could not open. Both `db/lib/roomGuests.js#doorwayFor`
+  and `play/actions.js#privateRoomHere` now test it, which also stops
+  `placeMembers()` handing a guest list to somebody outside.
+
+  A **key-holder is not offered in the picker**: they are already in by their
+  key, `roomGuests()` deliberately does not list them, and a guest row written
+  for one grants nothing and cannot be taken back.
+
+  The row is written first and Discord's thread membership follows,
+  `PlayerThreadInvite` included — §2a's rule, not a second one. Every write
+  calls `notifyPresence`, so the added person's own places column updates
+  without a reload. The strip re-reads on three things: the stream's `places`
+  frame (the viewer's own presence), any message in the open `conv:`/`room:`
+  place (which is the cheapest honest sign that a third party was let in or
+  shown out — no frame is sent for somebody ELSE's add), and a 60-second
+  interval while it is mounted, for a key granted while the room stays quiet.
 - **A `SYSTEM` row renders as `.hall-subtext`**: muted, small, no face. That is
   the web half of the `-#` those lines go out as on Discord
   (`db/lib/ambientLine.js`). Phase 4 is what actually writes them.
-- **The composer is hidden where `canSpeak` is false** — every place for a GM,
-  and the Location for everybody (§5a). In its place, one line saying so.
+- **The composer is hidden where `canSpeak` is false** — every place for a GM
+  (§5a). In its place, one line saying so. The **Location is the exception**:
+  it is `canSpeak: false` and still draws the box, command-only, so `/shout`
+  has somewhere to be typed. See the slash-commands bullet above.
 - **`HallAside.js`** is the right column — and, under 720px, everything
   inside the ⋯ sheet. One component either way, because the phone's version
   is the same sections in the same order; only the box around them changes,
@@ -556,6 +662,103 @@ header instead).
   the same `HallAside`, and CSS hiding the column under 720px still left both
   live — two travel loads, two stash reads, two affordance states. `useNarrow()`
   picks one; the CSS rule stays as belt and braces. ‡
+- **Nothing ever flashes "Nothing has been said here yet. ‡"**, and getting
+  there took three separate fixes, because the empty state had three ways to
+  win a race:
+  1. `Hall.js` seeded the store from an **effect**, so the first client render
+     drew an empty feed and the server's own rows landed a frame later. It is
+     a `useState` initializer now — client-guarded and in a try/catch, with
+     the effect left behind as the idempotent guard for a client-side
+     navigation back onto the page.
+  2. Opening another place fetched its history AFTER the empty state had
+     already drawn. So `feedStore.js` tracks a history state per place —
+     `"idle" | "loading" | "loaded"`, read through `useHistoryState(place)` —
+     and `Feed.js` draws the empty state only when it is `loaded` and empty.
+     While it is anything else it draws `.hall-skeleton`: three faded rows,
+     tokens only, no text, `aria-hidden`, so a screen reader is not read a
+     placeholder.
+  3. The store is a module-level CLIENT store, so its server snapshot is empty
+     by construction and the SERVER paint of a busy street was the skeleton.
+     `Feed` takes the server's own rows as `fallbackRows` and uses them while
+     the store holds nothing for that place — which, after hydration, is
+     never.
+
+  And then the switch itself: after the first paint, `Hall.js` walks the rest
+  of the place list and fetches each one's history, **one at a time** on
+  `setTimeout(0)` chaining, skipping what is already loaded and stopping on
+  unmount. Opening a room is then instant rather than a skeleton and a round
+  trip. One at a time on purpose — six parallel requests would compete with
+  the thing the reader is actually looking at.
+- **A server string a player reads is rendered by `ChatMarkdown`, never
+  `{text}`.** The same sentences go out to Discord, so they carry its markers:
+  `**Ways out**` from `examineLines`, a `-#` from anything that came through
+  `ambientLine`. The column used to print them raw, asterisks and all, and the
+  place card went the other way and *stripped* the `**` — throwing the
+  emphasis away rather than rendering it. Everything prose now goes through
+  the renderer: the place card's body, a notice's text when the reader could
+  actually read it, and every action `line` / `note` shown in
+  `.hall-quiet-line`. A bare label — a name, a chip — stays text.
+
+  The one thing that did not become markdown is the room stash.
+  `readStash` answers with **rows** now (`{ resources, items: [{ tagId, name,
+  quantity }] }`) rather than with `formatStashLine`'s Discord sentence, and
+  `RoomPanel` draws a `.chip-mono` `12 ⬢` and one `.chip` per stack —
+  `Paper ×23`, the `×` only where there is more than one — collapsing past
+  twelve behind `+9 more ‡`. `formatStashLine` stays exactly as it is for the
+  bot, which is talking into a channel that renders those markers.
+- **The noticeboard is in the street, not behind a button.** When the open
+  place is the Location and it has a board
+  (`db/lib/noticeboard.js#hasNoticeboard`, an attribute on the Location), the
+  pinned notices draw as `.hall-notice-card`s **pinned at the top of the feed
+  scroller** — the paper is standing there, and filing it into the scroll in
+  the order it went up would bury it under fifty lines of scene. Each card is
+  the notice's name, **Read ‡** and **Tear ‡**; Read opens the same block the
+  Noticeboard dialog draws (`NoticeCards.js#NoticeText`), so a paper read from
+  the street and one read from the dialog are one rendering. The dialog keeps
+  its own job — pinning one of YOUR papers, which needs a picker — and a pin
+  or a tear from either side bumps one counter in `Hall.js` that makes the
+  other re-read.
+
+  `db/lib/noticeboard.js#boardFor(prisma, locationId)` is the loader that made
+  this possible: Location-keyed, knowing nothing about who is asking. The
+  ACTOR gate — you have to be standing here — stays with the caller, which is
+  the one line `play/actions.js#boardHere` is now.
+- **Search the scene** (`/api/feed/search?q=&place=`). An `ILIKE '%q%'` over
+  `ArchiveEntry.content`, which is exactly the shape
+  `ArchiveEntry_content_trgm_idx` covers — the GIN trigram index that lives
+  only in raw migration SQL, and the reason `prisma migrate diff` keeps
+  proposing to drop it. Raw SQL rather than a Prisma `contains`, parameterised
+  and never concatenated, the same shape the GM desk's conversation search
+  uses.
+
+  **The gate is the place list.** It searches inside `placesFor` and nowhere
+  else, so a zone summary a character cannot hear is not searchable from the
+  Hall and a GM's search is bounded by their `GmZoneView` exactly as their
+  feed is. A named `?place=` has to be one of theirs, or it is a 403 rather
+  than a silent widening. `q` is trimmed and 2..80 characters; the floor is
+  the same Dawn watermark every other feed reader uses.
+
+  The UI is a magnifier in the feed header opening `.hall-search` under it —
+  a bar rather than a dialog, because the results are places to go in the
+  scene behind them. A hit is a name, a place, a time and a snippet; clicking
+  one loads the window around its seq (`/api/feed/history?around=<seq>`, 50
+  rows either side inclusive), opens that place, scrolls to the row by
+  `data-seq` and flashes it once with `.hall-row[data-hit]`. The window is
+  loaded FIRST, because the store holds the newest hundred and a hit from
+  three days ago is not in it.
+- **⌘K reaches the Hall.** `paletteActions.js#getPaletteIndex` gains two kinds
+  for a signed-in user with a living character: `place` entries for everywhere
+  `placesFor` says they can hear, and `person` entries for everyone
+  `whosHere().named` puts beside them — a hood deliberately absent, exactly as
+  it is from the composer's `@` list. Both are the same functions the Hall
+  itself uses, so the palette can never offer a place they may not read.
+
+  The href is `/play#<encoded placeKey>`, because the open place lives in the
+  URL hash and a link into one needs no client plumbing at all. One catch the
+  palette had to learn: `router.push` uses `history.pushState`, which does
+  **not** fire a `hashchange` — so from the Hall itself, a jump to another
+  place sets `window.location.hash` directly instead. The GM branches are
+  untouched, and the empty-query default still shows pages only.
 - **`feedStore.js`** is a module-level store read through
   `useSyncExternalStore`, modelled on the GM inbox's `liveInbox.js`. Confirmed
   rows are keyed by seq, pending rows by a client id, both per place. A
@@ -587,7 +790,9 @@ you are in **at this Location**, then the zone Summary. `newestSeq` is added by
 
 Two things are read-only:
 
-- **A Location is scenery, not speech** (§5b). `canSpeak: false`, no composer.
+- **A Location is scenery, not speech** (§5b). `canSpeak: false`. The box is
+  still drawn there, but only as a command line — nothing typed into it is
+  ever said aloud (see the slash-commands bullet under "The parts").
 - **A GM speaks nowhere.** A GM with no living character gets a read-only Hall
   over every place inside `visibleZoneIds(prisma, discordUserId)`
   (`db/lib/gmZoneView.js`; no rows means every zone). Watching is not standing
@@ -616,7 +821,8 @@ are a scene somebody chose to be in. Four changes carry it:
   **top-level** Location channel as a tupper channel. Threads and `#summary`
   still are. What is left at top level is a GM typing, and a GM's own words are
   theirs.
-- On the web the Location place is `canSpeak: false` and draws no composer.
+- On the web the Location place is `canSpeak: false`. It draws a command-only
+  composer — no speech goes through it, and `/shout` needs somewhere to live.
 
 ### 5c. One affordance catalog, two faces
 

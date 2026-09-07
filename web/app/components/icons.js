@@ -59,6 +59,8 @@ import {
   Bell,
   BellOff,
   Camera,
+  Search,
+  X,
 } from "lucide-react";
 
 const STROKE = 1.6;
@@ -105,6 +107,15 @@ export const MoreIcon = lucide(Ellipsis, "MoreIcon");
 // The Hall's row action bar: pointing an instant camera at what somebody said,
 // the web twin of the 📸 reaction.
 export const CameraIcon = lucide(Camera, "CameraIcon");
+// The Hall's feed header: searching what was said, over the archive's trigram
+// index (/api/feed/search).
+export const SearchIcon = lucide(Search, "SearchIcon");
+
+// Showing somebody out of a conversation or a private room
+// (web/app/(app)/play/MembersStrip.js). A dismissal, not a deletion:
+// TrashIcon says the person is being thrown away, which is the wrong
+// sentence for "they may not come in here any more".
+export const CloseIcon = lucide(X, "CloseIcon");
 // The Play page: a doorway you speak through. A plain speech bubble would have
 // read as MessageIcon at rail size, which is the GM's inbox.
 export const PlayIcon = lucide(DoorOpen, "PlayIcon");

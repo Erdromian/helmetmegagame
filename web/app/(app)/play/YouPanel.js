@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import ChatMarkdown from "@/app/components/ChatMarkdown";
 import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
 import useActionRunner from "@/app/components/useActionRunner";
@@ -166,7 +167,11 @@ export default function YouPanel({ initialWaiting = [], turn = null, move = null
           Sheet ›
         </Link>
       </div>
-      {notice && <p className="hall-quiet-line">{notice}</p>}
+      {notice && (
+        <div className="hall-quiet-line">
+          <ChatMarkdown content={notice} />
+        </div>
+      )}
 
       <WaitingList rows={waiting} onAnswered={say} />
 

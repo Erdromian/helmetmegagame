@@ -4823,6 +4823,10 @@ label.chip {
 }
 
 .hall-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-4);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -4902,6 +4906,159 @@ label.chip {
   flex: 1;
   height: 1px;
   background: var(--danger);
+}
+
+/* A row a search hit took the reader to. A flash and then nothing: the point
+   is to say WHICH line, not to leave it marked. */
+.hall-row[data-hit="true"],
+.hall-subtext[data-hit="true"] {
+  animation: hall-hit 2s ease-out;
+  border-radius: var(--r-sm);
+}
+
+@keyframes hall-hit {
+  from {
+    background: var(--accent-soft);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hall-row[data-hit="true"],
+  .hall-subtext[data-hit="true"] {
+    animation: none;
+    background: var(--accent-soft);
+  }
+}
+
+/* While a place's backlog is on the wire. Three faded rows in the shape of
+   the scene, so nothing has to claim the place is empty and then take it
+   back a frame later. No text in them at all — a skeleton that says words
+   is a skeleton somebody tries to read. */
+.hall-skeleton {
+  display: flex;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  opacity: 0.5;
+}
+
+.hall-skeleton-face {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--row-hover);
+}
+
+.hall-skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  flex: 1;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.hall-skeleton-bar {
+  height: 8px;
+  border-radius: var(--r-sm);
+  background: var(--row-hover);
+}
+
+.hall-skeleton-bar[data-w="short"] {
+  width: 30%;
+}
+
+/* Search, under the feed header. A bar rather than a dialog: the results are
+   places to go in the scene behind them, and a modal would cover the thing
+   being searched. */
+.hall-search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+  flex-shrink: 0;
+}
+
+.hall-search-results {
+  max-height: 16rem;
+  overflow-y: auto;
+  margin: 0;
+}
+
+.hall-search-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--sp-2);
+  border-radius: var(--r-sm);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.hall-search-row:hover,
+.hall-search-row:focus-visible {
+  background: var(--row-hover);
+}
+
+.hall-search-who {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  margin-right: var(--sp-2);
+}
+
+.hall-search-where,
+.hall-search-when {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  margin-right: var(--sp-2);
+}
+
+.hall-search-snip {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+/* The noticeboard, nailed to the top of the Location's feed. Paper-coloured
+   and edged, so it reads as a thing standing in the street rather than as
+   something somebody said in it. */
+/* The noticeboard is a thing NAILED UP, so it stays nailed up: it sticks to
+   the top of the scroller rather than being the first thing you scroll past.
+   A busy street is fifty lines deep by mid-afternoon, and a notice you can
+   only find by scrolling back to the beginning of the day is not a notice.
+   The opaque background and the rule under it are what keep the scene from
+   showing through as it passes beneath. */
+.hall-notices {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-bottom: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+
+.hall-notice-card {
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.hall-notice-card-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  margin-bottom: var(--sp-1);
 }
 
 /* What the WORLD says: an arrival, a smell, a turret, the turn line. The web
@@ -5272,15 +5429,6 @@ label.chip {
   margin-top: var(--sp-3);
 }
 
-/* A notice is a thing with edges, and nothing written on it may render as
-   markup. */
-.hall-notice-text {
-  white-space: pre-wrap;
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  overflow-x: auto;
-}
-
 /* The phone's people strip: faces only, under the place header. Hidden on a
    desktop, where the column already has them with their names. */
 .hall-strip {
@@ -5443,6 +5591,67 @@ label.chip {
   position: relative;
   min-width: 0;
   flex: 1;
+}
+
+/* ---- The composer's slash commands ---- */
+
+/* A command in the box, as a chip above the text it is taking. Accent-tinted
+   and mono, so it reads as a mode the box is IN rather than as something that
+   was typed into it — which is the whole tell that the slash parsed. */
+.hall-cmd-chip {
+  align-self: flex-start;
+  padding: 2px var(--sp-2);
+  font-size: var(--fs-2xs);
+  /* --accent-text for the letters, --accent for the rule. They are different
+     colours on purpose (the header of this file, rule 2). */
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-sm);
+}
+
+/* A row of the `/` popover: the name, then what it does. The name is fixed
+   width so the descriptions line up — a ragged left edge on a ten-row list is
+   harder to scan than the extra space costs. */
+.hall-cmd-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.hall-cmd-name {
+  flex-shrink: 0;
+  min-width: 5rem;
+  color: var(--accent-text);
+}
+
+/* ---- Who is in this conversation or private room ---- */
+
+/* Under the feed's name, above the scene. It wraps: a conversation with a
+   dozen people in it is a real thing, and the strip growing a line is better
+   than it scrolling sideways away from the Add button. */
+.hall-members {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.hall-member {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  max-width: 14rem;
+}
+
+/* The picker under the strip, so the people already in and the people who
+   could be are not one undifferentiated row of chips. */
+.hall-member-picker {
+  padding-top: var(--sp-1);
+  border-top: 1px dashed var(--border);
 }
 
 /* Slowmode, counted down rather than refused. Quiet: it is the answer to a

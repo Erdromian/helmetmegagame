@@ -19,14 +19,52 @@ import { TONE_CLASS } from "./PlacePanel";
 // Absent entirely when the open place is the Location, a conversation or the
 // zone summary: the Location's own fixtures are on the place card above.
 
+// Past this many stacks the strip stops being a glance and starts being an
+// inventory. The rest are one click away and nothing is hidden.
+const VISIBLE_ITEMS = 12;
+
 function roomIdOf(selected) {
   if (!selected || selected.kind !== "room") return null;
   return selected.placeKey?.slice("room:".length) || null;
 }
 
+// What is lying in the room, as chips. The action answers with rows now
+// (readStash), so nothing here is parsing a sentence the bot wrote for a
+// Discord channel — the ⬢ is a mono chip and every stack is one .chip reading
+// "Paper ×23", with the × only where there is more than one of a thing.
+function StashChips({ stash, showAll, onToggle }) {
+  const items = stash.items ?? [];
+  if (items.length === 0 && !(stash.resources > 0)) {
+    return <p className="hall-quiet-line">Nothing is stored here. ‡</p>;
+  }
+  const shown = showAll ? items : items.slice(0, VISIBLE_ITEMS);
+  const hidden = items.length - shown.length;
+  return (
+    <div className="hall-chips">
+      <span className="chip chip-mono">{stash.resources ?? 0} ⬢</span>
+      {shown.map((item) => (
+        <span key={item.tagId} className="chip">
+          {item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name}
+        </span>
+      ))}
+      {/* Both ways. It opened and then had no way back, so a room holding
+          thirty stacks stayed thirty stacks tall for the rest of the visit. */}
+      {(hidden > 0 || showAll) && (
+        <button type="button" className="btn-quiet" onClick={onToggle}>
+          {showAll ? "Show less ‡" : `+${hidden} more ‡`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function RoomPanel({ selected, affordances = [], onFixture, pending = false }) {
   const roomId = roomIdOf(selected);
   const [stash, setStash] = useState(null);
+  // WHICH room is expanded, not whether one is: keyed that way, walking into
+  // another room collapses its own list without an effect having to reset a
+  // boolean (react-hooks/set-state-in-effect is an error here).
+  const [expanded, setExpanded] = useState(null);
   const actions = useRequestActions();
 
   // Re-read whenever the open room changes. The answer is stamped with the
@@ -63,7 +101,17 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
           sentence the action returned — it used to be swallowed and drawn as
           "looking…", so a locked cupboard looked like a slow one forever. */}
       {here?.ok ? (
-        <p className="hall-quiet-line">Storage · {here.line}</p>
+        <>
+          {/* The chips say WHAT is in there; without this they did not say
+              what the strip was. The Discord sentence used to carry the word
+              ("Storage · …") and the chips lost it. */}
+          <p className="hall-quiet-line">Storage ‡</p>
+          <StashChips
+            stash={here}
+            showAll={expanded === roomId}
+            onToggle={() => setExpanded((open) => (open === roomId ? null : roomId))}
+          />
+        </>
       ) : here ? (
         <FormError>{here.error ?? "Couldn't see in there. ‡"}</FormError>
       ) : (

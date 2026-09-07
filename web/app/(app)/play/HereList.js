@@ -49,7 +49,7 @@ const PEOPLE_ACTIONS = [
   { mode: "move", label: "Move Player ‡", preset: "targetId" },
 ];
 
-function PersonMenu({ person, onClose, onConverse }) {
+function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
   const actions = useRequestActions();
   const open = actions?.open ?? null;
 
@@ -76,6 +76,23 @@ function PersonMenu({ person, onClose, onConverse }) {
           {entry.label}
         </button>
       ))}
+      {/* Letting somebody into the conversation or the private room that is
+          OPEN in the feed. Only offered where there is a door to open — a
+          Location, the zone summary and a public room have none — and the
+          server re-checks that this character may work it. */}
+      {addPlace && onAddMember && (
+        <button
+          type="button"
+          role="menuitem"
+          className="menu-item"
+          onClick={() => {
+            onClose();
+            onAddMember(person.characterId);
+          }}
+        >
+          Add to {addPlace.name} ‡
+        </button>
+      )}
       {onConverse && (
         <button
           type="button"
@@ -128,7 +145,17 @@ function HoodReadout({ state, onClose }) {
 // copy of the same list, and one poller per screen is enough.
 const HERE_POLL_MS = 60_000;
 
-export default function HereList({ people, selfId, strip = false, onConverse = null, poll = false }) {
+export default function HereList({
+  people,
+  selfId,
+  strip = false,
+  onConverse = null,
+  poll = false,
+  // The open place, when it is one somebody can be let into: { placeKey,
+  // name }. Null everywhere else, which is what keeps the row off the menu.
+  addPlace = null,
+  onAddMember = null,
+}) {
   // Seeded from the server and replaced by the poll. HallAside keys this
   // component on the server list, so a move remounts it with the new street's
   // people rather than leaving a stale poll answer in place.
@@ -227,7 +254,13 @@ export default function HereList({ people, selfId, strip = false, onConverse = n
             )}
           </div>
           {openId === person.characterId && (
-            <PersonMenu person={person} onClose={close} onConverse={onConverse} />
+            <PersonMenu
+              person={person}
+              onClose={close}
+              onConverse={onConverse}
+              addPlace={addPlace}
+              onAddMember={onAddMember}
+            />
           )}
         </div>
       ))}

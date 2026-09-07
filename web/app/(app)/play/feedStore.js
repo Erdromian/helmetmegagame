@@ -28,11 +28,21 @@ const state = {
   confirmed: new Map(),
   // placeKey -> Map<clientId, row>
   pending: new Map(),
+  // placeKey -> "idle" | "loading" | "loaded"
+  history: new Map(),
 };
 
 const listeners = new Set();
 
+// Nonzero while seedInitial() below is running, which is the one moment this
+// store is written DURING a render rather than from an effect or a stream
+// frame. Notifying subscribers mid-render is the thing React warns about, so
+// that window simply does not notify: nothing has subscribed yet at that
+// point, and useSyncExternalStore reads the snapshot when it subscribes.
+let quiet = 0;
+
 function emit() {
+  if (quiet > 0) return;
   for (const cb of listeners) cb();
 }
 
@@ -227,17 +237,48 @@ export function usePlaces() {
   return useSyncExternalStore(subscribe, getPlaces, getServerPlaces);
 }
 
-// Whether this tab has already asked for a place's history. A place with no
-// rows and no fetch behind it looks exactly like an empty one, so without
-// this the empty state would fire a request on every render.
-const fetched = new Set();
+// Whether this tab has already asked for a place's history — and, since the
+// loading flash, WHICH of the three states it is in: "idle" (nobody has
+// asked), "loading" (a fetch is out) or "loaded" (the backlog is in the
+// store). A place with no rows and no fetch behind it looks exactly like an
+// empty one, which is why "Nothing has been said here yet. ‡" used to flash
+// for a beat every time a room was opened.
+//
+// A Map on `state` rather than a bare Set, because Feed.js SUBSCRIBES to this
+// now: the skeleton has to come down the moment the rows land.
+const HISTORY_IDLE = "idle";
 
-export function markHistoryLoaded(place) {
-  fetched.add(place);
+export function setHistoryState(place, next) {
+  if (!place) return;
+  if (state.history.get(place) === next) return;
+  state.history = new Map(state.history);
+  state.history.set(place, next);
+  emit();
 }
 
+export function markHistoryLoading(place) {
+  setHistoryState(place, "loading");
+}
+
+export function markHistoryLoaded(place) {
+  setHistoryState(place, "loaded");
+}
+
+// "Has this tab already asked?" — the guard that keeps the empty state from
+// firing a request on every render. Both a fetch in flight and one already
+// answered count as asked.
 export function historyLoaded(place) {
-  return fetched.has(place);
+  return (state.history.get(place) ?? HISTORY_IDLE) !== HISTORY_IDLE;
+}
+
+function historyStateOf(place) {
+  return state.history.get(place) ?? HISTORY_IDLE;
+}
+
+export function useHistoryState(place) {
+  const snapshot = useCallback(() => historyStateOf(place), [place]);
+  const server = useCallback(() => HISTORY_IDLE, []);
+  return useSyncExternalStore(subscribe, snapshot, server);
 }
 
 // The newest confirmed seq this tab holds for a place, as a string, or null.
@@ -251,6 +292,21 @@ export function newestSeq(place) {
     if (seq > best) best = seq;
   }
   return String(best);
+}
+
+// The Hall's FIRST seed, from the server render, run inside a useState
+// initializer so the store is full before the first client paint (Hall.js
+// says why). It is the same three writes the effect repeats, with the
+// notification held: see `quiet` at the top of this file.
+export function seedInitial({ places, place, rows }) {
+  quiet += 1;
+  try {
+    if (place && Array.isArray(rows)) seedRows(place, rows);
+    if (Array.isArray(places)) setPlaces(places);
+    if (place) markHistoryLoaded(place);
+  } finally {
+    quiet -= 1;
+  }
 }
 
 function getServerRows() {

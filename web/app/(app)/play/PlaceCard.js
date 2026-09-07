@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ChatMarkdown from "@/app/components/ChatMarkdown";
 import { TONE_CLASS } from "./PlacePanel";
 
 // THE PLACE CARD: where you are standing, in words, and the fixtures of the
@@ -23,11 +24,10 @@ const SIDES = [
 ];
 
 // The Examine lines carry Discord's bold markers, because the same strings
-// are printed into a channel. Nothing on this page renders markdown, so the
-// markers come off rather than showing as asterisks.
-function plain(line) {
-  return String(line ?? "").replaceAll("**", "");
-}
+// are printed into a channel — `**Ways out**`, and so on. They used to be
+// stripped here, which threw the emphasis away rather than rendering it; they
+// go through ChatMarkdown now, the same as every other string in this page
+// somebody wrote for a person to read.
 
 export default function PlaceCard({
   place,
@@ -43,7 +43,7 @@ export default function PlaceCard({
   const body =
     side === "zone"
       ? [zone?.description || "Nothing is written about this part of the world. ‡"]
-      : [place?.description, ...lines.map(plain)].filter(Boolean);
+      : [place?.description, ...lines].filter(Boolean);
 
   return (
     <div className="hall-card">
@@ -70,11 +70,7 @@ export default function PlaceCard({
         {body.length === 0 ? (
           <p className="text-sm text-muted">Nothing to see. ‡</p>
         ) : (
-          body.map((paragraph, index) => (
-            <p key={index} className="text-sm">
-              {paragraph}
-            </p>
-          ))
+          body.map((paragraph, index) => <ChatMarkdown key={index} content={paragraph} />)
         )}
       </div>
 

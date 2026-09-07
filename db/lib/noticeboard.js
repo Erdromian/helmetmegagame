@@ -15,7 +15,10 @@
 // ripping down a rival's proclamation is exactly the kind of thing the whole
 // system exists to make possible.
 //
-// Pure of Prisma by the usual rule; the two callers pass rows in.
+// Pure of Prisma by the usual rule, with ONE exception at the bottom:
+// boardFor() takes `prisma` as a parameter the way db/lib/dm.js does, because
+// "the board at this Location" was being spelled out again at every call site
+// and one of them had it keyed off the READER rather than off the Location.
 
 const NOTICEBOARD_ATTRIBUTE = "noticeboard";
 
@@ -62,8 +65,38 @@ function tornLine(tagName) {
   return `${tagName} has been torn down off the noticeboard.`;
 }
 
+// THE BOARD AT A LOCATION, loaded. `prisma` is a parameter for the reason
+// db/lib/dm.js gives — requiring db/index.js back from inside db/lib would
+// resolve to a partial exports object — so require this by path, never
+// through the barrel.
+//
+// It knows nothing about who is asking. That is deliberate: the ACTOR gate
+// (are you standing here, are you alive) belongs to the caller, and a loader
+// that carried it could not be used to draw a board into a page the way
+// web/app/(app)/play does. It answers `{ location, openTurn, posts }`, or
+// `{ error }` when there is no such place or no board on it.
+async function boardFor(prisma, locationId) {
+  const location = await prisma.location.findUnique({
+    where: { id: locationId ?? "" },
+    select: { id: true, name: true, indoors: true, attributes: true, discordChannelId: true },
+  });
+  if (!location) return { error: "That place is gone. ‡" };
+  if (!hasNoticeboard(location)) return { error: "There's no board here. ‡" };
+  const [openTurn, posts] = await Promise.all([
+    prisma.turn.findFirst({ where: { status: "OPEN" }, orderBy: { number: "desc" } }),
+    prisma.noticePost.findMany({
+      where: { locationId: location.id },
+      orderBy: { expiresTurn: "asc" },
+      take: BOARD_OPTION_LIMIT,
+      include: { tag: true },
+    }),
+  ]);
+  return { location, openTurn, posts };
+}
+
 module.exports = {
   NOTICEBOARD_ATTRIBUTE,
+  boardFor,
   BOARD_OPTION_LIMIT,
   hasNoticeboard,
   noticeLine,

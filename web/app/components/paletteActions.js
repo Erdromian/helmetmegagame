@@ -5,6 +5,8 @@ import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getOpenTurn } from "@/lib/turn";
 import { guarded } from "@/lib/actionResult";
 import { moveKindLabel } from "@/lib/moves";
+import { placesFor } from "@lifeweb/db/lib/feedAccess";
+import { whosHere } from "@lifeweb/db/lib/whosHere";
 
 // Everything ⌘K can jump to, in one payload. Fetched on first open and held
 // client-side for a minute rather than shipped with every page — a hundred
@@ -24,11 +26,19 @@ const GENERIC_PAGES = [
 // The GM screens with no rail item at all. Today these are reachable only by
 // knowing the URL or by hunting through a hand-rolled sub-nav on some other
 // page, which is most of the reason the palette exists.
+// What a place row says it is. Short on purpose: the label is the name, and
+// this is only what tells a room from the conversation named after it.
+const PLACE_HINTS = {
+  loc: "the street ‡",
+  room: "room ‡",
+  conv: "conversation ‡",
+  zone: "summary ‡",
+};
+
 const GM_PAGES = [
   { label: "Players", href: "/gm/players" },
   { label: "Adjudicate", href: "/gm/turns" },
   { label: "Structures", href: "/gm/structures" },
-  { label: "Craft projects", href: "/gm/crafts" },
   { label: "Dev Panel", href: "/gm/dev" },
   { label: "Dev · Characters", href: "/gm/dev/characters" },
   { label: "Dev · Factions", href: "/gm/dev/factions" },
@@ -54,6 +64,52 @@ async function getPaletteIndexImpl() {
     hint: p.href,
     href: p.href,
   }));
+
+  // A PLAYER's half: everywhere they can hear, and everyone standing beside
+  // them. Both come from the same functions the Hall itself uses
+  // (db/lib/feedAccess.js#placesFor, db/lib/whosHere.js), so the palette can
+  // never offer a place they may not read or name somebody the room has not
+  // shown them — a hood is deliberately absent, exactly as it is from the
+  // composer's @ list.
+  //
+  // A GM has no character, so this is skipped for them entirely; their own
+  // branch below is untouched.
+  const character = await prisma.character.findFirst({
+    where: { discordUserId: session.discordUserId, status: "ALIVE" },
+    select: { id: true, name: true, locationId: true, factionId: true },
+  });
+
+  if (character?.locationId) {
+    const places = await placesFor(prisma, character, { gm: false, discordUserId: session.discordUserId });
+    for (const place of places) {
+      entries.push({
+        kind: "place",
+        id: place.placeKey,
+        label: place.name,
+        hint: PLACE_HINTS[place.kind] ?? "here ‡",
+        // The Hall reads the open place off the URL hash (HALL.md §5), so a
+        // link into one is the hash and nothing else — no new client
+        // plumbing, and Back leaves the room the way it came.
+        href: `/play#${encodeURIComponent(place.placeKey)}`,
+      });
+    }
+
+    // Everyone in the street. The href is the LOCATION, not a person: /play
+    // has no route for "open this person's menu", and taking somebody to
+    // where that person is standing is the whole of what was being asked
+    // for.
+    const locationKey = `loc:${character.locationId}`;
+    const here = await whosHere(prisma, character, { includeSelf: false });
+    for (const person of here.named) {
+      entries.push({
+        kind: "person",
+        id: person.characterId,
+        label: person.name,
+        hint: `${person.roleTitle ? `${person.roleTitle} · ` : ""}here ‡`,
+        href: `/play#${encodeURIComponent(locationKey)}`,
+      });
+    }
+  }
 
   if (!gm) return { entries };
 

@@ -22,8 +22,7 @@ import {
 } from "@lifeweb/db/lib/locationTravel";
 import { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
-import { formatStashLine } from "@lifeweb/db/lib/roomStash";
-import { BOARD_OPTION_LIMIT, boardText, hasNoticeboard, pinnedLine, tornLine } from "@lifeweb/db/lib/noticeboard";
+import { boardFor, boardText, pinnedLine, tornLine, BOARD_OPTION_LIMIT } from "@lifeweb/db/lib/noticeboard";
 import { paperDescription } from "@lifeweb/db/lib/paper";
 import { readBlock } from "@lifeweb/db/lib/reading";
 import { addToStack, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
@@ -31,7 +30,19 @@ import { expiryFrom } from "@lifeweb/db/lib/turnFormat";
 import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { sceneLineAt } from "@lifeweb/db/lib/scene";
 import { postMessage, startPrivateThread, addThreadMember } from "@lifeweb/db/lib/discordRest";
-import { addConversationMember } from "@lifeweb/db/lib/conversations";
+import {
+  addConversationMember,
+  removeConversationMember,
+  conversationMembers,
+} from "@lifeweb/db/lib/conversations";
+import { toggleConceal as concealRule } from "@lifeweb/db/lib/conceal";
+import { shout } from "@lifeweb/db/lib/shout";
+import { castDie } from "@lifeweb/db/lib/roll";
+import { addRoomGuest, removeRoomGuest, roomGuests } from "@lifeweb/db/lib/roomGuests";
+import { notifyPresence } from "@lifeweb/db/lib/presenceNotify";
+import { sceneLine } from "@lifeweb/db/lib/scene";
+import { parsePlaceKey, discordTargetForPlaceKey } from "@lifeweb/db/lib/placeKey";
+import { removeThreadMember } from "@lifeweb/db/lib/discordRest";
 import { BELL_ROOM_SLUG, RING_WORD, bellWordMatches, bellCooldown, broadcastBell } from "@lifeweb/db/lib/bell";
 import {
   ARM_WORD,
@@ -51,7 +62,7 @@ import { acceptConfession } from "@lifeweb/db/lib/confession";
 import { settleCarry, deliverCarryDrop } from "@lifeweb/db/lib/carry";
 import { acceptThreatSpawn, declineThreatSpawn, applySpawnSideEffects } from "@lifeweb/db/lib/threatSpawn";
 import { declineAssignment } from "@lifeweb/db/lib/lobby";
-import { mayReadPlace } from "@lifeweb/db/lib/feedAccess";
+import { mayReadPlace, mayWritePlace } from "@lifeweb/db/lib/feedAccess";
 import { EXAMINE_SUBJECT_SELECT, examineReadout } from "@lifeweb/db/lib/examine";
 import { BLIND_SLUG } from "@lifeweb/db/lib/examineVision";
 import { getMyFactionRole } from "@lifeweb/db/lib/factionPermissions";
@@ -284,8 +295,13 @@ export async function photographRow(seq) {
   };
 }
 
-// What is lying in a room's stash, in Bascinet's own format. The Transfer
-// dialog is what MOVES any of it; this only reads.
+// What is lying in a room's stash, as STRUCTURE rather than as a sentence.
+//
+// It used to answer with formatStashLine's Discord line — `-# 0 ⬢ | **Tags**:
+// Paper ×23` — which the column then printed raw, subtext marker, asterisks
+// and all. That helper stays exactly as it is for the bot, which is talking
+// into a channel that renders those markers. The web draws its own chips off
+// the rows, so nothing is being formatted twice.
 export async function readStash(roomId) {
   const me = await actor();
   if (me.error) return { ok: false, error: me.error };
@@ -298,14 +314,25 @@ export async function readStash(roomId) {
       kind: true,
       accessTagSlugs: true,
       resources: true,
-      tags: { where: { quantity: { gt: 0 } }, select: { quantity: true, tag: { select: { name: true } } } },
+      tags: {
+        where: { quantity: { gt: 0 } },
+        orderBy: { tag: { name: "asc" } },
+        select: { tagId: true, quantity: true, tag: { select: { name: true } } },
+      },
     },
   });
   const keys = await roomAccessKeys(prisma, me.character.id);
   // A room you cannot get into is a locked door, not an empty one.
   const room = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds).find((r) => r.id === roomId);
   if (!room) return { ok: false, error: "You can't get in there. ‡" };
-  return { ok: true, name: room.name, line: formatStashLine(room) };
+  return {
+    ok: true,
+    name: room.name,
+    resources: room.resources ?? 0,
+    items: (room.tags ?? [])
+      .filter((rt) => (rt.quantity ?? 0) > 0)
+      .map((rt) => ({ tagId: rt.tagId, name: rt.tag.name, quantity: rt.quantity })),
+  };
 }
 
 // ---------------------------------------------------------------- travelling
@@ -460,23 +487,12 @@ const BOARD_ACTOR_SELECT = {
   tags: { select: { tagId: true, equipped: true, tag: true } },
 };
 
+// The board where this character is standing. The LOAD is
+// db/lib/noticeboard.js#boardFor, which is Location-keyed and knows nothing
+// about who is asking; the actor gate — you have to be standing here — is
+// this line, and it stays on this side.
 async function boardHere(character) {
-  const location = await prisma.location.findUnique({
-    where: { id: character.locationId ?? "" },
-    select: { id: true, name: true, indoors: true, attributes: true, discordChannelId: true },
-  });
-  if (!location) return { error: "That place is gone. ‡" };
-  if (!hasNoticeboard(location)) return { error: "There's no board here. ‡" };
-  const [openTurn, posts] = await Promise.all([
-    prisma.turn.findFirst({ where: { status: "OPEN" }, orderBy: { number: "desc" } }),
-    prisma.noticePost.findMany({
-      where: { locationId: location.id },
-      orderBy: { expiresTurn: "asc" },
-      take: BOARD_OPTION_LIMIT,
-      include: { tag: true },
-    }),
-  ]);
-  return { location, openTurn, posts };
+  return boardFor(prisma, character.locationId);
 }
 
 export async function readBoard() {
@@ -1241,4 +1257,374 @@ export async function answerWaiting({ kind, id, accept } = {}) {
   }
 
   return { ok: false, error: "There's nothing to answer there. ‡" };
+}
+
+// ------------------------------------------------------------ slash commands
+//
+// The web twins of the player slash commands (bot/src/lib/commands.js). Each
+// one is the SAME rule the Discord handler runs, extracted into db/lib so the
+// two faces cannot drift: db/lib/conceal.js, db/lib/shout.js, db/lib/roll.js.
+// What is left here is the sequencing the web needs — resolve the actor from
+// the session, re-check the place, write the scene row beside the Discord
+// post — and nothing else.
+//
+// `/move`, `/travel`, `/converse`, `/look` and `/report` need no new action:
+// they are submitMove, travelTo, openConversation, the sheet's Examine dialog
+// and reportToGms, all of which already exist above.
+
+// /conceal. A standing state, not a per-message prefix — the alias is what
+// the composer wears from here until it is turned off again.
+export async function toggleConceal() {
+  const me = await actor({
+    id: true,
+    name: true,
+    concealed: true,
+    age: true,
+    gender: true,
+    discordUserId: true,
+  });
+  if (me.error) return { ok: false, error: me.error };
+
+  const result = await concealRule(prisma, { ...me.character, discordUserId: me.discordUserId });
+  if (!result.ok) return { ok: false, error: result.error };
+  return { ok: true, concealed: result.concealed, alias: result.alias, line: result.line };
+}
+
+// /shout. db/lib/shout.js answers who hears it and what they hear; this does
+// both halves of the delivery, because a SYSTEM row is deliberately never
+// echoed into a channel by the outbox (db/lib/scene.js) and a shout that only
+// reached one face would be a shout half the game did not hear.
+//
+// Sequential, no Promise.all: this is up to a couple of dozen Locations, and
+// a fan-out across all of them would burst Discord's rate-limit buckets. Same
+// discipline as the bot's own loop. Every post is caught on its own, so one
+// dead channel cannot swallow the rest of the shout.
+export async function shoutHere(text, placeKey = null) {
+  const me = await actor({ id: true, name: true, locationId: true, discordUserId: true });
+  if (me.error) return { ok: false, error: me.error };
+
+  const result = await shout(prisma, { ...me.character, discordUserId: me.discordUserId }, text);
+  if (!result.ok) {
+    return { ok: false, error: result.error, retryAfter: result.retryAfter ?? null };
+  }
+
+  // The room you are standing in hears you first. The loop below writes to
+  // Location places only — a Room thread is behind a door, and a shout does
+  // not go through every door in the street — but the one door you are inside
+  // of would otherwise be the only place that did not hear you.
+  const here = parsePlaceKey(placeKey);
+  if (here && (here.kind === "room" || here.kind === "conv")) {
+    const mine = await mayWritePlace(prisma, me.character, placeKey, {
+      gm: false,
+      discordUserId: me.discordUserId,
+    });
+    const near = result.heard.find((entry) => entry.distance === 0);
+    if (mine && near) {
+      await sceneLine(prisma, { placeKey, text: near.scene.text, lines: near.scene.lines });
+      try {
+        const target = await discordTargetForPlaceKey(prisma, placeKey);
+        const channelId = target?.threadId ?? target?.channelId ?? null;
+        if (channelId) await postMessage(channelId, near.line, undefined, { parse: [] });
+      } catch {
+        // The archive row stands. A thread that refused the post is one
+        // audience short, not a failed shout.
+      }
+    }
+  }
+
+  for (const place of result.heard) {
+    // The row first: it is what the Hall shows and what /archive keeps, and
+    // it is the only half a web-only player ever sees.
+    await sceneLine(prisma, { placeKey: place.placeKey, text: place.scene.text, lines: place.scene.lines });
+    if (!place.discordChannelId) continue;
+    try {
+      // parse: [] — no mentions at all. The text is player-typed and this is
+      // the widest broadcast in the game; an "@everyone" in a shout would ping
+      // twenty-nine channels at once. A shout is a noise, not an address.
+      await postMessage(place.discordChannelId, place.line, undefined, { parse: [] });
+    } catch (err) {
+      console.error(`Shout into ${place.name} failed:`, err?.message ?? err);
+    }
+  }
+
+  return { ok: true, line: result.line };
+}
+
+// /roll. One d6, in the place that is open — and the place is re-checked
+// against the same gate the composer is, because a seq or a place key is a
+// string the browser sent.
+export async function rollHere(placeKey) {
+  const me = await actor({
+    id: true,
+    name: true,
+    age: true,
+    gender: true,
+    concealed: true,
+    locationId: true,
+    webOnly: true,
+    discordUserId: true,
+  });
+  if (me.error) return { ok: false, error: me.error };
+
+  const may = await mayWritePlace(prisma, me.character, placeKey, {
+    gm: false,
+    discordUserId: me.discordUserId,
+  });
+  if (!may) return { ok: false, error: "There's nobody here to see it. ‡" };
+
+  return castDie(prisma, me.character, placeKey);
+}
+
+// /look. One entry point for both kinds of person the column knows about: a
+// character id off a named row, or the opaque hood token db/lib/whosHere.js
+// mints for a concealed one. A token is 32 hex characters and a cuid never
+// is, so the two can be told apart without the browser saying which it sent.
+const HOOD_TOKEN = /^[0-9a-f]{32}$/;
+
+export async function lookAt(personRef) {
+  const ref = String(personRef ?? "").trim();
+  if (!ref) return { ok: false, error: "Look at who? ‡" };
+  if (HOOD_TOKEN.test(ref)) return examineHooded(ref);
+  return examineCharacter(ref);
+}
+
+// ------------------------------------------------- who is in this room, and
+// ------------------------------------------------- who may let somebody in
+//
+// The web twin of /add and /remove (bot/src/events/interactionCreate.js).
+// They work on two things, and the place decides which:
+//
+//   - A Conversation. Membership is a PlayerThreadMember row, and it works on
+//     any living character wherever they stand — the PlayerThreadInvite row
+//     beside it replays the Discord half when they arrive.
+//   - A private Room. Membership is a RoomGuest row, and the target has to be
+//     STANDING here, because the grant is spent the moment they leave.
+//
+// A public Room takes neither: everyone standing in the Location can already
+// read it, so `members` comes back null and the strip does not draw.
+
+// The conversation behind a `conv:` key, plus whether this character is in
+// it. Being a member IS the permission, the same gate the bot applies.
+async function conversationHere(character, placeKey) {
+  const parsed = parsePlaceKey(placeKey);
+  if (!parsed || parsed.kind !== "conv") return { error: "That isn't a conversation. ‡" };
+  const conversation = await prisma.playerThread.findUnique({
+    where: { id: parsed.id },
+    select: { id: true, threadId: true, name: true, locationId: true, location: { select: { name: true } } },
+  });
+  if (!conversation) return { error: "That conversation is gone. ‡" };
+  const members = await conversationMembers(prisma, conversation.id);
+  if (!members.some((entry) => entry.characterId === character.id)) {
+    return { error: "You're not in this conversation. ‡" };
+  }
+  return { conversation, members };
+}
+
+// The private room behind a `room:` key. Two things, not one: your feet at its
+// Location, AND a way in — a key or a guest row. The same pair
+// db/lib/roomGuests.js#doorwayFor tests, and it has to be both. On Discord the
+// second half was implicit, because /add was typed into the room's own thread
+// and only an entitled character can see one; without it here, anybody
+// standing in the street could hand out a door they cannot open themselves.
+async function privateRoomHere(character, placeKey) {
+  const parsed = parsePlaceKey(placeKey);
+  if (!parsed || parsed.kind !== "room") return { error: "That isn't a room. ‡" };
+  const room = await prisma.room.findUnique({
+    where: { id: parsed.id },
+    select: { id: true, name: true, kind: true, locationId: true, accessTagSlugs: true },
+  });
+  if (!room) return { error: "That room is gone. ‡" };
+  if (room.kind !== "PRIVATE") return { error: "Anyone standing here can already walk in. ‡" };
+  if (character.locationId !== room.locationId) return { error: "You're not in this room. ‡" };
+  const keys = await roomAccessKeys(prisma, character.id);
+  const inside =
+    room.accessTagSlugs.some((slug) => keys.heldSlugs.has(slug)) || keys.guestRoomIds.has(room.id);
+  if (!inside) return { error: "You are not inside that room. ‡" };
+  return { room };
+}
+
+// Who is in the open place, and who standing here could be let in. One call,
+// because the strip draws both and a second round trip for the picker would
+// show a list that was already a beat stale.
+export async function placeMembers(placeKey) {
+  const me = await actor({ id: true, factionId: true, locationId: true });
+  if (me.error) return { ok: false, error: me.error };
+  const parsed = parsePlaceKey(placeKey);
+  // Not an error: a Location, the zone summary and a public room simply have
+  // no guest list, and the strip asks about every place it is shown.
+  if (!parsed || (parsed.kind !== "conv" && parsed.kind !== "room")) {
+    return { ok: true, members: null, candidates: [] };
+  }
+
+  let members;
+  let room = null;
+  if (parsed.kind === "conv") {
+    const found = await conversationHere(me.character, placeKey);
+    if (found.error) return { ok: false, error: found.error };
+    members = found.members;
+  } else {
+    const found = await privateRoomHere(me.character, placeKey);
+    // A public room is not a refusal, it is a place with no strip.
+    if (found.error) {
+      return found.error.startsWith("Anyone standing here")
+        ? { ok: true, members: null, candidates: [] }
+        : { ok: false, error: found.error };
+    }
+    room = found.room;
+    members = await roomGuests(prisma, room.id);
+  }
+
+  // Everyone standing here who is not already in. Concealed people are
+  // absent: a hood has no id to hand this, and letting somebody into a room
+  // is not a thing you can do to a person you cannot name.
+  const here = await whosHere(prisma, me.character);
+  const inside = new Set(members.map((entry) => entry.characterId));
+  let candidates = (here.named ?? [])
+    .filter((person) => person.characterId !== me.character.id && !inside.has(person.characterId))
+    .map((person) => ({
+      characterId: person.characterId,
+      name: person.name,
+      avatarVersion: person.avatarVersion,
+    }));
+
+  // A key-holder is already in, by their key, and roomGuests() deliberately
+  // does not list them (they hold no guest row). Left in the picker they read
+  // as somebody outside, and letting one "in" writes a guest row that grants
+  // nothing and that /remove then refuses to take back. One query for the
+  // whole shortlist — whosHere() carries no tags.
+  if (room && candidates.length > 0 && room.accessTagSlugs.length > 0) {
+    const holders = await prisma.characterTag.findMany({
+      where: {
+        characterId: { in: candidates.map((person) => person.characterId) },
+        tag: { slug: { in: room.accessTagSlugs } },
+      },
+      select: { characterId: true },
+    });
+    const keyed = new Set(holders.map((row) => row.characterId));
+    candidates = candidates.filter((person) => !keyed.has(person.characterId));
+  }
+
+  return { ok: true, members, candidates };
+}
+
+export async function addMember(placeKey, characterId) {
+  const me = await actor({ id: true, name: true, locationId: true, discordUserId: true });
+  if (me.error) return { ok: false, error: me.error };
+  const parsed = parsePlaceKey(placeKey);
+  if (!parsed) return { ok: false, error: "That place is gone. ‡" };
+
+  if (parsed.kind === "conv") {
+    const found = await conversationHere(me.character, placeKey);
+    if (found.error) return { ok: false, error: found.error };
+    const { conversation } = found;
+
+    const target = await prisma.character.findFirst({
+      where: { id: String(characterId ?? ""), status: "ALIVE" },
+      select: { id: true, name: true, locationId: true, discordUserId: true, webOnly: true },
+    });
+    if (!target) return { ok: false, error: "That isn't a living character. ‡" };
+
+    // The ROW first, wherever they are standing; the invite row beside it is
+    // what replays the DISCORD add when they arrive
+    // (db/lib/threadInvites.js). addConversationMember writes the presence
+    // notify itself, and only when the row is genuinely new, so a second Add
+    // on somebody already in does not wake all of their tabs.
+    await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: target.id });
+    await prisma.playerThreadInvite
+      .upsert({
+        where: { threadId_characterId: { threadId: conversation.threadId, characterId: target.id } },
+        update: {},
+        create: { threadId: conversation.threadId, characterId: target.id },
+      })
+      .catch((err) => console.error("Failed to record thread invite:", err?.message ?? err));
+
+    // A "web only" target is out of every channel on purpose (HALL.md §6).
+    if (target.locationId === conversation.locationId && !target.webOnly && target.discordUserId) {
+      await addThreadMember(conversation.threadId, target.discordUserId).catch(() => {});
+    }
+
+    await sendDm(
+      target.discordUserId,
+      `*You were let into ${conversation.location?.name ?? "somewhere"} · ${conversation.name}.* ‡`,
+    ).catch(() => {});
+
+    return {
+      ok: true,
+      line:
+        target.locationId === conversation.locationId
+          ? `${target.name} was added. ‡`
+          : `${target.name} is invited — they'll see this when they reach ${conversation.location?.name ?? "this place"}. ‡`,
+    };
+  }
+
+  const found = await privateRoomHere(me.character, placeKey);
+  if (found.error) return { ok: false, error: found.error };
+
+  const result = await addRoomGuest(prisma, {
+    actor: me.character,
+    roomId: found.room.id,
+    characterId,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  // db/lib/roomGuests.js writes no presence notify of its own — it is the
+  // bot's code, and the bot has no places column to update. The added
+  // character's Hall has to learn the door opened without a reload.
+  await notifyPresence(prisma, result.target.id).catch(() => {});
+  await sendDm(
+    result.notify.discordUserId,
+    `*You were let into ${result.notify.placeName ?? "somewhere"} · ${result.notify.threadName}.* ‡`,
+  ).catch(() => {});
+
+  return { ok: true, line: result.line };
+}
+
+export async function removeMember(placeKey, characterId) {
+  const me = await actor({ id: true, name: true, locationId: true, discordUserId: true });
+  if (me.error) return { ok: false, error: me.error };
+  const parsed = parsePlaceKey(placeKey);
+  if (!parsed) return { ok: false, error: "That place is gone. ‡" };
+
+  if (parsed.kind === "conv") {
+    const found = await conversationHere(me.character, placeKey);
+    if (found.error) return { ok: false, error: found.error };
+    const { conversation } = found;
+
+    // ALIVE, the same gate the bot's /remove applies and the same one
+    // addMember above already applies: a dead character is off the roster on
+    // both faces, and the turn's death pass is what clears their rows.
+    const target = await prisma.character.findFirst({
+      where: { id: String(characterId ?? ""), status: "ALIVE" },
+      select: { id: true, name: true, discordUserId: true },
+    });
+    if (!target) return { ok: false, error: "That isn't a living character. ‡" };
+
+    // The ROW is what membership is (db/lib/conversations.js); the thread
+    // member list is its projection, and the invite row would replay the add
+    // on their next arrival if it were left behind.
+    await removeConversationMember(prisma, { playerThreadId: conversation.id, characterId: target.id });
+    await prisma.playerThreadInvite
+      .deleteMany({ where: { threadId: conversation.threadId, characterId: target.id } })
+      .catch((err) => console.error("Failed to delete thread invite:", err?.message ?? err));
+    if (target.discordUserId) {
+      await removeThreadMember(conversation.threadId, target.discordUserId).catch((err) =>
+        console.error(`Failed to remove ${target.discordUserId} from thread:`, err?.message ?? err),
+      );
+    }
+
+    return { ok: true, line: `${target.name} was removed. ‡` };
+  }
+
+  const found = await privateRoomHere(me.character, placeKey);
+  if (found.error) return { ok: false, error: found.error };
+
+  const result = await removeRoomGuest(prisma, {
+    actor: me.character,
+    roomId: found.room.id,
+    characterId,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  await notifyPresence(prisma, result.target.id).catch(() => {});
+  return { ok: true, line: result.line };
 }

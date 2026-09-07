@@ -7,20 +7,23 @@ import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
 import Modal from "@/app/components/Modal";
-import { CameraIcon, EditIcon, EyeIcon, MoreIcon, TrashIcon } from "@/app/components/icons";
+import { CameraIcon, EditIcon, EyeIcon, MoreIcon, SearchIcon, TrashIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { Readout } from "@/app/components/ExamineDialog";
-import { photographRow } from "./actions";
+import useActionRunner from "@/app/components/useActionRunner";
+import { photographRow, lookAt, loadTravel, placeMembers } from "./actions";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import {
   useFeed,
+  useHistoryState,
   applyRow,
   addPending,
   markPendingFailed,
   retryPending,
   newestSeq,
 } from "./feedStore";
+import FeedSearch from "./FeedSearch";
 import { useTyping, typingLine } from "./typingStore";
 import { peekSeen } from "./seenStore";
 // By PATH, never through the @lifeweb/db barrel: the barrel pulls Prisma and
@@ -30,6 +33,17 @@ import { peekSeen } from "./seenStore";
 // different from the row the server writes a moment later.
 import { capitalizeSentences, fixContractions } from "@lifeweb/db/lib/textCorrection";
 import MentionMenu, { mentionQueryAt, matchRoster } from "./MentionMenu";
+import CommandMenu from "./CommandMenu";
+import MembersStrip from "./MembersStrip";
+import {
+  commandsFor,
+  exactCommand,
+  matchCommands,
+  pendingArg,
+  slashQueryAt,
+  textArgOf,
+} from "./commands";
+import { MOVE_KINDS } from "./MoveDialog";
 
 // One place's scene: what has been said here, and — where the place allows it
 // — the box to say something.
@@ -70,7 +84,7 @@ function timeLabel(iso) {
 // renders the `-#` these lines go out as (db/lib/ambientLine.js).
 const SystemRow = memo(function SystemRow({ row }) {
   return (
-    <li className="hall-subtext">
+    <li className="hall-subtext" data-seq={row.seq ?? undefined}>
       <ChatMarkdown content={row.content} />
     </li>
   );
@@ -84,6 +98,27 @@ function NewLine() {
     <li className="hall-new-line" aria-hidden="true">
       <span>NEW ‡</span>
     </li>
+  );
+}
+
+// What a place looks like while its backlog is on the wire. Three faded rows
+// with no words in them, so the shape of the scene is already on the page when
+// the rows land and nothing has to say "Nothing has been said here yet. ‡"
+// first and then take it back. Tokens only, and aria-hidden: there is nothing
+// here for a screen reader to read.
+function FeedSkeleton() {
+  return (
+    <ul className="list-none p-0" aria-hidden="true">
+      {[0, 1, 2].map((i) => (
+        <li key={i} className="hall-skeleton">
+          <span className="hall-skeleton-face" />
+          <span className="hall-skeleton-lines">
+            <span className="hall-skeleton-bar" data-w="short" />
+            <span className="hall-skeleton-bar" />
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -123,6 +158,7 @@ const FeedRow = memo(function FeedRow({
   return (
     <li
       className="hall-row"
+      data-seq={row.seq ?? undefined}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -267,6 +303,160 @@ const TYPING_PING_MS = 4000;
 // tab talking to itself.
 const MAX_SLOWMODE_RETRIES = 3;
 
+// How often the members strip re-reads itself with nothing prompting it. See
+// the interval in Feed() for why a push-only strip is not enough.
+const MEMBERS_REFRESH_MS = 60_000;
+
+// What the open street answers to a sentence somebody typed at it. One string,
+// because the command-only composer says it on Enter and the read-only fall-
+// through below says it where there is no composer at all.
+const STREET_LINE = "This is the open street. Step into a room to speak. ‡";
+
+// The chips a command still wants: a person, a Move kind, or a destination.
+//
+// One row at a time — the FIRST unfilled argument is the question being
+// asked. Drawing every argument at once would make this a form, and the whole
+// point of a command line is that it asks one thing and then gets out of the
+// way.
+//
+// The person row includes HOODS where the command says it may (`/look`), and
+// their value is the opaque token db/lib/whosHere.js minted, not an id: the
+// browser is never told who is under one.
+// At most this many faces in the person row. Past a dozen the chips wrap into
+// a wall and the box they belong to is off the bottom of the screen; the
+// filter below is what a player uses to get past it.
+const PERSON_CHIP_LIMIT = 12;
+
+function CommandArgs({ command, people, members, query = "", onPick }) {
+  const { entry, values } = command;
+  const arg = pendingArg(entry, values);
+  const [destinations, setDestinations] = useState(null);
+
+  // The reachable places, only for a command that asks for one. Fetched on
+  // demand rather than with the page: an exit's state moves under a player
+  // standing still, and a stale list would offer a shut gate.
+  useEffect(() => {
+    if (arg?.kind !== "destination") return undefined;
+    let cancelled = false;
+    loadTravel()
+      .then((res) => {
+        if (!cancelled) setDestinations(res?.ok ? res.options : []);
+      })
+      .catch(() => {
+        if (!cancelled) setDestinations([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [arg?.kind]);
+
+  if (!arg) return null;
+
+  if (arg.kind === "moveKind") {
+    return (
+      <div className="chip-row" role="radiogroup" aria-label="What kind of Move ‡">
+        {MOVE_KINDS.map((kind) => (
+          <button
+            key={kind.value}
+            type="button"
+            role="radio"
+            aria-checked={values[arg.name] === kind.value}
+            className="chip"
+            data-active={values[arg.name] === kind.value ? "true" : undefined}
+            // The textarea must not lose focus to a chip: the next thing the
+            // player types is the command's text argument.
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onPick(arg.name, kind.value)}
+          >
+            {kind.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  if (arg.kind === "destination") {
+    if (!destinations) return <p className="text-sm text-muted">Reading the road… ‡</p>;
+    if (destinations.length === 0) return <p className="text-sm text-muted">No way out of here. ‡</p>;
+    return (
+      <div className="chip-row" aria-label="Where to ‡">
+        {destinations.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            className="chip"
+            title={option.reason ?? undefined}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onPick(arg.name, option.id)}
+          >
+            {option.name}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // `from: "members"` is /remove, whose people are the guest list rather than
+  // the street — a conversation member need not be standing beside you. It
+  // falls back to who is here when the list has not landed.
+  const roster =
+    arg.from === "members" && members.length > 0
+      ? members
+      : [...(people?.named ?? []), ...(arg.hoods ? (people?.concealed ?? []) : [])];
+
+  if (roster.length === 0) return <p className="text-sm text-muted">Nobody to pick. ‡</p>;
+
+  // What is in the box FILTERS the row. A command that asks for a person has
+  // no text argument, so the textarea is doing nothing else — and a Location
+  // with thirty people in it is otherwise a picker you scroll rather than one
+  // you use. Same prefix rule as the @ list, so the two behave alike.
+  const hits = matchRoster(roster, query, Infinity);
+  const shown = hits.slice(0, PERSON_CHIP_LIMIT);
+  const more = hits.length - shown.length;
+
+  if (shown.length === 0) return <p className="text-sm text-muted">Nobody here by that name. ‡</p>;
+
+  return (
+    <div className="chip-row" aria-label="Who ‡">
+      {shown.map((person, index) => {
+        // A hood has no characterId — the token is the whole handle, and it
+        // is what the server resolves back against the people standing here.
+        const value = person.characterId ?? person.token ?? null;
+        const label = person.name ?? person.alias ?? "somebody ‡";
+        return (
+          <button
+            key={value ?? `hooded-${index}`}
+            type="button"
+            className="chip"
+            disabled={!value}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onPick(arg.name, value)}
+          >
+            {label}
+          </button>
+        );
+      })}
+      {more > 0 && <span className="text-sm text-muted">…and {more} more ‡</span>}
+    </div>
+  );
+}
+
+// `/look`'s answer. The SAME readout the sheet's Look at dialog draws
+// (web/app/components/ExamineDialog.js), so a stranger looked at from the
+// composer tells you exactly what one looked at from the column does.
+function LookReadout({ state, onClose }) {
+  const readout = state?.readout ?? null;
+  return (
+    <Modal open title={readout?.name ?? "Look at ‡"} onClose={onClose} width="default">
+      <div className="flex flex-col gap-2">
+        {state?.loading && <p className="text-sm text-muted">Looking… ‡</p>}
+        {state?.error && <FormError>{state.error}</FormError>}
+        {readout && <Readout readout={readout} />}
+      </div>
+    </Modal>
+  );
+}
+
 export default function Feed({
   place,
   self,
@@ -292,9 +482,69 @@ export default function Feed({
   // and no sheet. A GM speaks nowhere (HALL.md §5a), so this only removes chrome
   // that would have refused anyway.
   readOnly = false,
+  // The Location's noticeboard, as cards pinned above the scene. A node
+  // rather than data: Hall.js owns the board's state, because the Noticeboard
+  // dialog in the right column pins to the same board this draws.
+  notices = null,
+  // A search hit somebody clicked: Hall.js selects the place and loads the
+  // window around the seq, and hands the seq back here to scroll to.
+  // { seq, at } — `at` is a timestamp, so clicking the same hit twice scrolls
+  // twice.
+  jump = null,
+  onJump = null,
+  // The rows page.js server-rendered, and which place they belong to.
+  // feedStore.js is a module-level client store, so its server snapshot is
+  // empty by construction — without this the SERVER paint of a busy street
+  // was a skeleton, and the scene only appeared once the browser had
+  // hydrated. Used only while the store has nothing for that place, which
+  // after hydration is never (Hall.js seeds it in a state initializer).
+  fallbackPlace = null,
+  fallbackRows = null,
+  // whosHere() whole — named AND hoods. `roster` above is the @ list and has
+  // no hoods in it on purpose; the slash commands' person picker does, because
+  // Look at is the one thing you may do to somebody you cannot name.
+  people = null,
+  // What the composer's commands can do that a server action cannot: pick a
+  // node in the Travel grid, open the Converse dialog. Hall.js owns both,
+  // because both live in the right column.
+  onTravelPick = null,
+  onConverse = null,
+  // Bumped by Hall.js on the stream's `places` event, so a key turning or
+  // somebody else's /add re-reads the members strip.
+  placesVersion = 0,
 }) {
   const placeKey = place?.placeKey ?? null;
-  const rows = useFeed(placeKey);
+  const stored = useFeed(placeKey);
+  // "idle" | "loading" | "loaded". The empty state is only honest once the
+  // backlog is actually in; before that it is the skeleton's turn.
+  const historyState = useHistoryState(placeKey);
+  // Which commands the open place allows (./commands.js). Recomputed per
+  // place rather than filtered at use: a /roll offered in the street and
+  // refused on Enter is a control that lied.
+  const available = useMemo(() => commandsFor(place?.kind), [place?.kind]);
+  // A COMMAND-ONLY composer. The street takes no speech (CHANNELS.md §2) and
+  // used to take no box either — which quietly meant /shout, the one command
+  // whose whole point is being heard outdoors, had nowhere to be typed
+  // (HALL.md §5). So the box is drawn, and it accepts a `/` and nothing else:
+  // plain text answers with the same sentence that used to sit here instead.
+  const commandOnly = Boolean(place) && !place.canSpeak && place.kind === "loc";
+  // The server rows stand in only until this place's history is actually
+  // loaded. Past that the store IS the scene — and it was the fallback that
+  // brought a deleted line back: take the only line in a quiet street down,
+  // the store empties, and the server's copy from page-load slid in behind it
+  // as though nothing had happened.
+  const rows =
+    historyState !== "loaded" &&
+    stored.length === 0 &&
+    placeKey &&
+    placeKey === fallbackPlace &&
+    fallbackRows?.length
+      ? fallbackRows
+      : stored;
+  const [searchOpen, setSearchOpen] = useState(false);
+  // The `at` of a jump whose failure the reader has already waved away, so
+  // closing the search box after a miss actually closes it.
+  const [dismissedJump, setDismissedJump] = useState(null);
   const typing = typingLine(useTyping(placeKey));
   const coarse = useIsCoarsePointer();
   const confirm = useConfirm();
@@ -336,6 +586,36 @@ export default function Feed({
   // a keystroke that both moves the caret and moves the highlight is one
   // render.
   const [mention, setMention] = useState(null);
+  // ---- Slash commands ------------------------------------------------------
+  //
+  // Three pieces of state, and they are three because they change on three
+  // different keystrokes.
+  //
+  //   slash    { query, active } while the `/` popover is open. Null the rest
+  //            of the time, including all of command mode — once a command is
+  //            picked there is nothing left to autocomplete.
+  //   command  { entry, values } — command MODE. The chip in the box is drawn
+  //            off `entry`, and the textarea holds the entry's one text arg.
+  //   cmdLine  what the command answered, under the composer. Cleared on the
+  //            next keystroke, so it never outlives the thing it explains.
+  const [slash, setSlash] = useState(null);
+  const [command, setCommand] = useState(null);
+  const [cmdLine, setCmdLine] = useState(null);
+  // A hood's readout, or a named person's, from `/look`. One path for both:
+  // the server tells a 32-hex token from a cuid itself, so the browser never
+  // learns which it sent (play/actions.js#lookAt).
+  const [look, setLook] = useState(null);
+  const {
+    run: runCommand,
+    pending: cmdPending,
+    error: cmdError,
+    setError: setCmdError,
+  } = useActionRunner();
+  // Who is in this conversation or private room, and who could be let in.
+  // Loaded here rather than inside MembersStrip because `/remove`'s picker is
+  // the same list, and two fetches of it would be two answers to one question.
+  const [members, setMembers] = useState(null);
+  const [membersNonce, setMembersNonce] = useState(0);
   const lastTypedAt = useRef(0);
   // Read inside the scroll handler and the arrival effect, where a stale
   // closure would stick the view to the wrong end of the list.
@@ -480,6 +760,52 @@ export default function Feed({
     [mention, roster],
   );
 
+  const cmdMatches = useMemo(
+    () => (slash ? matchCommands(available, slash.query) : []),
+    [slash, available],
+  );
+
+  // Only two kinds of place have a guest list at all: a conversation, and a
+  // PRIVATE room. Asked about anywhere else, placeMembers() answers with a
+  // null `members` rather than a refusal — but not asking is cheaper.
+  const hasMembers =
+    place?.kind === "conv" || (place?.kind === "room" && place?.roomKind === "PRIVATE");
+
+  useEffect(() => {
+    if (!hasMembers || !placeKey) return undefined;
+    let cancelled = false;
+    placeMembers(placeKey)
+      .then((res) => {
+        // Stamped with the place it answers for. The state outlives a walk
+        // across town, and an unstamped answer would draw the last room's
+        // guest list over this one's for a frame.
+        if (!cancelled) setMembers({ placeKey, res });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMembers({ placeKey, res: { ok: false, error: "Couldn't read who is in here. ‡" } });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasMembers, placeKey, membersNonce, placesVersion]);
+
+  // And once a minute regardless. The strip learns about a change from the
+  // stream's `places` frame and from a message in this place (Hall.js), but
+  // neither fires for a key GRANTED to somebody else while nobody is talking —
+  // there is no frame for that at all — so the list could sit wrong for as
+  // long as the room stayed quiet. A minute is slow enough to cost nothing and
+  // quick enough that nobody notices they waited.
+  useEffect(() => {
+    if (!hasMembers || !placeKey) return undefined;
+    const timer = setInterval(() => setMembersNonce((n) => n + 1), MEMBERS_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [hasMembers, placeKey]);
+
+  const reloadMembers = useCallback(() => setMembersNonce((n) => n + 1), []);
+  const membersData = members?.placeKey === placeKey ? members.res : null;
+
   // The `@word` under the caret, recomputed on every edit. In the handler, not
   // an effect: the caret is a DOM fact and reading it during a render would be
   // both impure and a frame late.
@@ -487,12 +813,44 @@ export default function Feed({
     (event) => {
       const value = event.target.value;
       const caret = event.target.selectionStart ?? value.length;
+      // The last command's answer explains the box as it was a moment ago, so
+      // it goes the instant the box changes.
+      setCmdLine(null);
+      setCmdError(null);
+
+      // Already in command mode: the box is the command's text argument, and
+      // neither menu belongs in it.
+      if (command) {
+        setDraft(value);
+        pingTyping();
+        return;
+      }
+
+      // `/shout ` — the whole name and a space. Discord's composer does this,
+      // and it is how anybody who knows the command avoids the menu entirely.
+      const exact = exactCommand(available, value);
+      if (exact) {
+        setDraft("");
+        setSlash(null);
+        setMention(null);
+        setCommand({ entry: exact, values: {} });
+        return;
+      }
+
       setDraft(value);
-      const found = mentionQueryAt(value, caret);
-      setMention(found ? { ...found, active: 0 } : null);
+      const found = slashQueryAt(value, caret);
+      if (found) {
+        setSlash({ ...found, active: 0 });
+        setMention(null);
+        pingTyping();
+        return;
+      }
+      setSlash(null);
+      const mentioned = mentionQueryAt(value, caret);
+      setMention(mentioned ? { ...mentioned, active: 0 } : null);
       pingTyping();
     },
-    [pingTyping],
+    [pingTyping, command, available, setCmdError],
   );
 
   // Swaps the half-typed `@bar` for the token the row is actually made of.
@@ -522,9 +880,103 @@ export default function Feed({
     [draft],
   );
 
+  // ---- Command mode --------------------------------------------------------
+
+  // Leaving command mode. The typed text comes BACK into the box rather than
+  // being thrown away — Escape on a half-written /report should not cost
+  // somebody the paragraph they had written into it.
+  const exitCommand = useCallback(
+    (keepText = "") => {
+      setCommand(null);
+      setSlash(null);
+      setCmdError(null);
+      setDraft(keepText);
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    },
+    [setCmdError],
+  );
+
+  const pickCommand = useCallback((entry) => {
+    setSlash(null);
+    setMention(null);
+    setDraft("");
+    setCmdLine(null);
+    setCommand({ entry, values: {} });
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, []);
+
+  // Looking somebody up from `/look`. ONE path for a name and for a hood: the
+  // server tells a 32-hex token from a character id itself, so the browser is
+  // never told which of the two it is holding (play/actions.js#lookAt).
+  const onLookUp = useCallback((ref) => {
+    setLook({ loading: true });
+    lookAt(ref)
+      .then((res) => {
+        if (res?.ok) setLook({ readout: res.readout });
+        else setLook({ error: res?.error ?? "You can't see them. ‡" });
+      })
+      .catch(() => setLook({ error: "You can't see them. ‡" }));
+  }, []);
+
+  // What a command can reach that a server action cannot. Hall.js owns the
+  // travel grid and the Converse dialog, so both arrive as callbacks.
+  const commandCtx = useMemo(
+    () => ({
+      placeKey,
+      travelTo: onTravelPick,
+      converse: onConverse,
+      lookAt: onLookUp,
+    }),
+    [placeKey, onTravelPick, onConverse, onLookUp],
+  );
+
+  // Enter, in command mode. Every gate here is a hint — each command's `run`
+  // lands on a server action that re-resolves the actor and re-checks
+  // everything, so a missing argument caught here only spares a round trip.
+  const runCurrent = useCallback(() => {
+    if (!command) return;
+    const { entry, values } = command;
+    const textArg = textArgOf(entry);
+    const body = draft.trim();
+    if (textArg && !body) {
+      setCmdError("Write something first. ‡");
+      return;
+    }
+    if (textArg?.maxLength && body.length > textArg.maxLength) {
+      setCmdError(`That is ${body.length} characters, and the most is ${textArg.maxLength}. ‡`);
+      return;
+    }
+    const missing = pendingArg(entry, values);
+    if (missing) {
+      setCmdError("Pick one first. ‡");
+      return;
+    }
+    const filled = textArg ? { ...values, [textArg.name]: body } : values;
+    runCommand(
+      // `run` may answer with nothing at all — /look and /converse only open
+      // something — and useActionRunner reads a missing `ok` as a failure.
+      async () => (await entry.run(filled, commandCtx)) ?? { ok: true },
+      undefined,
+      {
+        onOk: (res) => {
+          setCommand(null);
+          setDraft("");
+          setCmdLine(res?.line ?? null);
+        },
+      },
+    );
+  }, [command, draft, runCommand, commandCtx, setCmdError]);
+
   const submit = useCallback(() => {
     const content = draft.trim();
     if (!content || !placeKey) return;
+    // The street's box is for commands. The draft is KEPT — a player who meant
+    // to shout is one slash away from meaning it — and the sentence says which
+    // slash-less thing they just did.
+    if (commandOnly) {
+      setError(STREET_LINE);
+      return;
+    }
     // Inside the hold. The draft is kept — it is theirs, and they will send
     // it in a second — and the chip is what says so.
     if (deadline > Date.now()) {
@@ -559,7 +1011,7 @@ export default function Feed({
     // The RAW text goes to the server, which runs the same transforms itself
     // — sending the transformed copy would run them twice.
     void send(clientId, content);
-  }, [draft, placeKey, self, send, autocorrect, slowmodeMs, deadline]);
+  }, [draft, placeKey, self, send, autocorrect, slowmodeMs, deadline, commandOnly]);
 
   const onRetry = useCallback(
     (clientId) => {
@@ -735,6 +1187,29 @@ export default function Feed({
     if (el) el.scrollTop = el.scrollHeight;
   }, [placeKey]);
 
+  // A search hit. The row is already in the store by the time this runs —
+  // Hall.js loads the window around the seq before it hands the jump down —
+  // so this is only the scroll and the flash. DOM calls, no state: the
+  // highlight is an attribute the CSS animates and then nobody looks at
+  // again.
+  useEffect(() => {
+    // Only once the place it names is the place on screen: setting the hash
+    // and setting this happen together, but the hashchange that swaps the
+    // place arrives a beat later.
+    if (!jump?.seq || jump.placeKey !== placeKey) return undefined;
+    const el = scrollerRef.current;
+    if (!el) return undefined;
+    const row = el.querySelector(`[data-seq="${CSS.escape(String(jump.seq))}"]`);
+    if (!row) return undefined;
+    // The reader is being taken somewhere on purpose, so the follow-the-bottom
+    // rule stands down until they scroll again.
+    atBottomRef.current = false;
+    row.scrollIntoView({ block: "center" });
+    row.setAttribute("data-hit", "true");
+    const timer = setTimeout(() => row.removeAttribute("data-hit"), 2000);
+    return () => clearTimeout(timer);
+  }, [jump, placeKey]);
+
   // What actually clears the unread dot.
   //
   // This used to hang off the scroll handler alone, which meant a feed short
@@ -849,6 +1324,25 @@ export default function Feed({
     );
   }
 
+  // A search hit that went nowhere. Hall.js loads the window around the seq
+  // and then opens the place, so by the time this place's history is LOADED
+  // the line should be among its rows — and if it is not (a line deleted
+  // between the search and the click, a window request that failed), the box
+  // closing on nothing at all reads as a broken button. So the box comes back
+  // and says so. Derived from the rows rather than from the DOM, and derived
+  // rather than stored: react-hooks/set-state-in-effect is an error here.
+  const jumpMissed =
+    Boolean(jump?.seq) &&
+    jump.placeKey === placeKey &&
+    historyState === "loaded" &&
+    jump.at !== dismissedJump &&
+    !rows.some((row) => String(row.seq) === String(jump.seq));
+  const showSearch = Boolean(onJump) && (searchOpen || jumpMissed);
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setDismissedJump(jump?.at ?? null);
+  };
+
   // The head is the place's name and nothing else. The description used to
   // sit here with a "more" button on it, capped halfway down a fixed-height
   // strip; it belongs beside the scene rather than over it, and the turn is
@@ -857,11 +1351,48 @@ export default function Feed({
     <div className="hall-main">
       <div className="hall-head">
         <h1 className="section-title">{place.name}</h1>
+        {onJump && (
+          <IconButton
+            icon={SearchIcon}
+            label="Search what was said ‡"
+            aria-expanded={showSearch}
+            onClick={() => (showSearch ? closeSearch() : setSearchOpen(true))}
+          />
+        )}
       </div>
 
+      {/* Who is in this conversation or private room, and the two buttons that
+          change it. Only those two kinds of place have one — MembersStrip
+          draws nothing when placeMembers() answers with no list. */}
+      {hasMembers && !readOnly && (
+        <MembersStrip placeKey={placeKey} data={membersData} onChanged={reloadMembers} />
+      )}
+
+      {showSearch && (
+        <FeedSearch
+          place={place}
+          notice={jumpMissed ? "Couldn't find that line. ‡" : null}
+          onClose={closeSearch}
+          onPick={(hitPlace, seq) => {
+            // Not dismissed: if this hit turns out to be gone too, the box has
+            // to come back and say so rather than shutting on nothing.
+            setSearchOpen(false);
+            onJump(hitPlace, seq);
+          }}
+        />
+      )}
+
       <div ref={scrollerRef} onScroll={onScroll} className="hall-feed">
+        {/* The board is nailed to the top of the street, not filed into it in
+            the order it went up: a notice is a thing standing there, and it
+            has to still be readable after fifty lines of scene. */}
+        {notices}
         {withRuns.length === 0 ? (
-          <EmptyState>Nothing has been said here yet. ‡</EmptyState>
+          historyState === "loaded" ? (
+            <EmptyState>Nothing has been said here yet. ‡</EmptyState>
+          ) : (
+            <FeedSkeleton />
+          )
         ) : (
           <ul className="list-none p-0">
             {withRuns.map(({ row, startsRun, mine, system, canLook, canPhoto, canRemove, newLine }) => {
@@ -931,18 +1462,76 @@ export default function Feed({
 
       {!readOnly && (
         <div className="hall-composer">
-          {place.canSpeak ? (
+          {place.canSpeak || commandOnly ? (
             <>
               <div className="field hall-composer-box">
+                {command && (
+                  <span className="hall-cmd-chip mono" data-cmd={command.entry.name}>
+                    /{command.entry.name}
+                  </span>
+                )}
                 <textarea
                   id="hall-composer"
                   ref={textareaRef}
-                  aria-label={`Say something in ${place.name} ‡`}
+                  aria-label={
+                    commandOnly
+                      ? `Run a command in ${place.name} ‡`
+                      : `Say something in ${place.name} ‡`
+                  }
                   rows={2}
                   value={draft}
-                  placeholder={`Say something in ${place.name}… ‡`}
+                  placeholder={
+                    command
+                      ? (textArgOf(command.entry)?.placeholder ?? "Press Enter to run it ‡")
+                      : commandOnly
+                        ? "Type / for a command… ‡"
+                        : `Say something in ${place.name}… ‡`
+                  }
                   onChange={onDraftChange}
                   onKeyDown={(e) => {
+                    // The `/` list owns the keys while it is open, the same
+                    // way the @ list does below — and it is checked first,
+                    // because the two are never open at once and this one is
+                    // the more recently opened when they compete.
+                    if (slash && cmdMatches.length > 0) {
+                      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                        e.preventDefault();
+                        const step = e.key === "ArrowDown" ? 1 : cmdMatches.length - 1;
+                        setSlash((cur) => (cur ? { ...cur, active: (cur.active + step) % cmdMatches.length } : cur));
+                        return;
+                      }
+                      if (e.key === "Enter" || e.key === "Tab") {
+                        e.preventDefault();
+                        pickCommand(cmdMatches[slash.active] ?? cmdMatches[0]);
+                        return;
+                      }
+                      if (e.key === "Escape") {
+                        e.preventDefault();
+                        setSlash(null);
+                        return;
+                      }
+                    }
+                    // In command mode the box belongs to the command. Escape
+                    // drops the chip; so does Backspace on an empty box, which
+                    // is how Discord's composer lets go of one.
+                    if (command) {
+                      if (e.key === "Escape") {
+                        e.preventDefault();
+                        exitCommand(`/${command.entry.name} `);
+                        return;
+                      }
+                      if (e.key === "Backspace" && draft.length === 0) {
+                        e.preventDefault();
+                        exitCommand(`/${command.entry.name}`);
+                        return;
+                      }
+                      if (!coarse && e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        runCurrent();
+                        return;
+                      }
+                      return;
+                    }
                     // The @ list owns the arrows and Enter while it is open —
                     // it is the thing the keystroke is aimed at.
                     if (mention && matches.length > 0) {
@@ -975,6 +1564,24 @@ export default function Feed({
                 {mention && (
                   <MentionMenu matches={matches} active={mention.active} onPick={pickMention} />
                 )}
+                {slash && (
+                  <CommandMenu matches={cmdMatches} active={slash.active} onPick={pickCommand} />
+                )}
+                {/* The arguments a command still wants, as chips under the
+                    box. One row at a time: the first unfilled one is the
+                    question being asked, and drawing all of them at once would
+                    be a form rather than a command line. */}
+                {command && (
+                  <CommandArgs
+                    command={command}
+                    people={people}
+                    members={membersData?.members ?? []}
+                    query={draft}
+                    onPick={(name, value) =>
+                      setCommand((cur) => (cur ? { ...cur, values: { ...cur.values, [name]: value } } : cur))
+                    }
+                  />
+                )}
               </div>
               {waitSeconds > 0 && (
                 // Slowmode, said as a clock rather than as a refusal. The
@@ -984,19 +1591,31 @@ export default function Feed({
                 </span>
               )}
               {coarse && (
-                <button type="button" className="btn" onClick={submit} disabled={!draft.trim() || waitSeconds > 0}>
-                  Send ‡
+                // A phone's Enter is a newline (Discord's app does the same),
+                // so this button is the only way to run a command there too.
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={command ? runCurrent : submit}
+                  disabled={
+                    command
+                      ? cmdPending || (Boolean(textArgOf(command.entry)) && !draft.trim())
+                      : // In the street the button is live with text in the box
+                        // on purpose: pressing it is how a phone hears the
+                        // sentence explaining why nothing was said.
+                        !draft.trim() || (!commandOnly && waitSeconds > 0)
+                  }
+                >
+                  {command ? "Run ‡" : "Send ‡"}
                 </button>
               )}
             </>
           ) : (
-            // A Location is the street's scenery, not its speech (CHANNELS.md
-            // §2). Saying so beats a composer that refuses.
-            <p className="hall-quiet">
-              {place.kind === "loc"
-                ? "This is the open street. Step into a room to speak. ‡"
-                : "You can only watch here. ‡"}
-            </p>
+            // Everywhere else a character may read but not speak — the zone
+            // summary they are only listed in, somewhere a GM is watching.
+            // The street is not here any more: it has the command-only box
+            // above, and says STREET_LINE when somebody types prose into it.
+            <p className="hall-quiet">You can only watch here. ‡</p>
           )}
           {/* The phone's way to the right column: the people, the place panel
               and the You strip, as a sheet over the scene. Hidden on a
@@ -1008,9 +1627,18 @@ export default function Feed({
         </div>
       )}
 
-      <FormError>{error}</FormError>
+      {/* What a command answered. A server string a player reads, so it is
+          rendered rather than printed — several of them carry a `**` because
+          the same sentence goes out to Discord too. */}
+      {cmdLine && (
+        <div className="hall-quiet-line">
+          <ChatMarkdown content={cmdLine} />
+        </div>
+      )}
+      <FormError>{error ?? cmdError}</FormError>
 
       {photo && <PhotoReadout state={photo} onClose={() => setPhoto(null)} />}
+      {look && <LookReadout state={look} onClose={() => setLook(null)} />}
     </div>
   );
 }

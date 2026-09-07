@@ -7,6 +7,7 @@ import EmptyState from "@/app/components/EmptyState";
 import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
+import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
@@ -124,7 +125,7 @@ export default async function PlayPage() {
         ]);
         const character = { ...viewer.character, ...sheet };
 
-        const [people, affordances, examine, waiting, pools, stashRooms, mine, desires] = await Promise.all([
+        const [people, affordances, examine, waiting, pools, stashRooms, mine, desires, boardLocation] = await Promise.all([
           whosHere(prisma, character),
           affordancesFor(prisma, character),
           // What Examine used to answer in a modal. It is the place card's
@@ -147,6 +148,16 @@ export default async function PlayPage() {
           // The Desire SLOTS only — the ~271-template catalog behind the
           // picker is fetched when somebody opens it (web/lib/selfPools.js).
           loadDesireView(character, { openTurn, gameConfig, withCatalog: false }),
+          // Is there a board on this street? One attribute, and it decides
+          // whether the Location's feed carries the notice cards at its top
+          // (db/lib/noticeboard.js). The cards load themselves; this only
+          // says whether to draw them at all.
+          character.locationId
+            ? prisma.location.findUnique({
+                where: { id: character.locationId },
+                select: { attributes: true },
+              })
+            : null,
         ]);
         return {
           people,
@@ -162,6 +173,7 @@ export default async function PlayPage() {
           // What this character is carrying against their cap — the Transfer
           // dialog projects a hand-over off both.
           carry: carryStatus(character, gameConfig),
+          hasBoard: hasNoticeboard(boardLocation),
           turn: mine.ok ? mine.turn : null,
           move: mine.ok ? mine.move : null,
           desires,

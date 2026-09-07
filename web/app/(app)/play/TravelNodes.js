@@ -33,7 +33,12 @@ function footFor(option, freeLeft) {
   return freeLeft > 0 ? "free ‡" : "the turn ‡";
 }
 
-export default function TravelNodes({ onDone }) {
+// `pick` is `/travel` reaching in from the composer: { locationId, at }, where
+// `at` is a timestamp so picking the same node twice re-opens the strip. It
+// only ever SELECTS — the confirm strip and its Go button are still the thing
+// that moves anybody's feet, which is the whole reason the command does not
+// call travelTo itself.
+export default function TravelNodes({ onDone, pick = null }) {
   // Moving changes everything the rest of the column is: the place card, who
   // is here, the Examine lines, the rooms a Transfer can reach. All of those
   // are server props off page.js, so a move that only reloaded this list left
@@ -43,6 +48,17 @@ export default function TravelNodes({ onDone }) {
   const [nonce, setNonce] = useState(0);
   const [target, setTarget] = useState(null);
   const [dragged, setDragged] = useState([]);
+  // Following a prop by setting state DURING a render, which is the pattern
+  // React documents for exactly this and the one
+  // react-hooks/set-state-in-effect leaves open. Keyed on `at` rather than on
+  // the id, so choosing the same node again after cancelling still opens the
+  // strip.
+  const [tookPick, setTookPick] = useState(null);
+  if (pick?.at && pick.at !== tookPick) {
+    setTookPick(pick.at);
+    setTarget(pick.locationId ?? null);
+    setDragged([]);
+  }
   const { run, pending, error } = useActionRunner();
 
   useEffect(() => {

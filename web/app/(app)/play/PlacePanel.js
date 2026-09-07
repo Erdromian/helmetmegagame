@@ -5,6 +5,7 @@ import Modal from "@/app/components/Modal";
 import Select from "@/app/components/Select";
 import FormError from "@/app/components/FormError";
 import EmptyState from "@/app/components/EmptyState";
+import { NoticeText } from "./NoticeCards";
 import useActionRunner from "@/app/components/useActionRunner";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import {
@@ -52,7 +53,7 @@ export const TONE_CLASS = { go: "btn", danger: "btn-danger", plain: "btn-seconda
 // the open dialog are shared by every section of the column, so a gate opened
 // from the place card relabels itself and a room's Intercom and the card's
 // noticeboard cannot both be open at once.
-export function usePlaceActions(initialAffordances) {
+export function usePlaceActions(initialAffordances, onChanged) {
   const [affordances, setAffordances] = useState(initialAffordances ?? []);
   const [dialog, setDialog] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -73,8 +74,13 @@ export function usePlaceActions(initialAffordances) {
     (res) => {
       setNotice([res.line, res.note].filter(Boolean).join(" ") || null);
       refresh();
+      // Anything else on the page that is drawn off the same place — the
+      // noticeboard cards pinned to the top of the Location's feed are the
+      // one so far — is told to re-read. A pin made in this dialog and a
+      // card in the street are the same board.
+      onChanged?.(res);
     },
-    [refresh],
+    [refresh, onChanged],
   );
 
   const openFixture = useCallback(
@@ -210,16 +216,12 @@ function NoticeboardDialog({ onClose, onDone }) {
         </div>
       ))}
 
-      {/* A notice is shown as written, in a plain block, so nothing on it can
-          render as markup or ping anybody. A sealed or unreadable one comes
-          back as the refusal instead, in the same shape, so nobody watching
-          learns which it was. */}
-      {reading?.ok && (
-        <div className="field">
-          <span className="field-label">{reading.name}</span>
-          {reading.plain ? <p className="text-sm">{reading.text}</p> : <pre className="hall-notice-text">{reading.text}</pre>}
-        </div>
-      )}
+      {/* The same block the feed's notice cards draw (NoticeCards.js), so a
+          paper read from the street and one read from this dialog are one
+          rendering. A sealed or unreadable one comes back as the refusal
+          instead, in the same shape, so nobody watching learns which it
+          was. */}
+      <NoticeText reading={reading} />
 
       {board.holding.length > 0 && (
         <div className="field">
@@ -265,7 +267,11 @@ function NoticeboardDialog({ onClose, onDone }) {
 
 // ---------------------------------------------------------------- converse
 
-function ConverseDialog({ person = null, onClose, onDone }) {
+// Exported for Hall.js: the `/converse` command opens this same dialog from
+// the composer, and on a phone the right column that owns it is not even
+// mounted (Hall.js). One dialog either way — a second copy of the room picker
+// and the invite list would be two answers to one question.
+export function ConverseDialog({ person = null, onClose, onDone }) {
   const [rooms, setRooms] = useState(null);
   const [roomId, setRoomId] = useState("");
   const [name, setName] = useState("");

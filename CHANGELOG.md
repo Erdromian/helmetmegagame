@@ -6,6 +6,22 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Slash commands, member controls, search and notices on the Play page
+
+✚ Type / in the box for a command list; a chosen command becomes a chip with its own pickers: /move /travel /conceal /shout /roll /add /remove /converse /look /report  
+✚ Conversations and private rooms show their members under the name, with × and an always-visible Add button  
+✚ Search the scene from the magnifier in the header; results jump to the line  
+✚ Pinned notices sit as cards at the top of the street feed with Read and Tear  
+✚ ⌘K knows your places and the people standing with you  
+✎ The feed no longer flashes empty while it loads, and every place is prefetched  
+✎ Storage is chips built from the room's rows, and the column renders markdown instead of showing -# and **  
+− A shout on the web is heard on Discord and kept in the archive; a die cast on the web is a line on both faces
+
+## 2026-09-07 · The editor's copy pass, applied
+
+− The Teaching Skills doc no longer says the teacher has to be standing where you are  
+− The last of the ‡ marks are gone from the handbook, the documents, the roles, the Craft dialog and the player action strings
+
 ## 2026-09-07 · Torture: a Torturer can break a bound character for their secrets
 
 − A Torture button on the character panel for anyone holding Torturer. Pick someone Bound standing where you are; one die, resolved on the spot, and it spends your Move  
