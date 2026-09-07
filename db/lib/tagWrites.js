@@ -6,6 +6,7 @@
 // parameter rather than reaching for the singleton, so a caller can compose
 // it into a larger transaction — the db/lib/dm.js convention.
 const { expiryFrom } = require("./turnFormat");
+const { drawPoisonedUnits } = require("./poison");
 
 // A wound landing on a sheet frightens its owner (docs/systemdocs/FEAR.md).
 // Both creators below call this for the row they just made — a stack going up
@@ -26,43 +27,90 @@ async function chargeWoundFear(tx, characterId, tagIds) {
 // caller that forgot to check `tag.stackable` can't mint a phantom stack.
 // `options.stackable` is the catalog flag and nothing else — no caller, GM
 // surface included, may pass true for a tag the catalog says doesn't stack.
+//
+// `options.poisonedCount`/`options.poisonPayload` (the medical pass, M4):
+// how many of the incoming units are tainted, and with what (the poison
+// tag's id) — how Transfer and Loot carry a poisoned stack's state across
+// the same primitive an ordinary hand-over uses. "Poisons don't mix": a
+// batch merging into a row that already carries a DIFFERENT payload arrives
+// CLEAN — the concentration is silently diluted rather than refused, since a
+// refusal here would tell the recipient their food was tainted. A caller
+// that never passes these two (every ordinary grant) is unaffected — the
+// defaults are the no-poison case.
 async function addToStack(tx, characterId, tagId, quantity, options = {}) {
-  const { source = "GM_GRANT", expiresTurn = null, stackable = false } = options;
+  const {
+    source = "GM_GRANT",
+    expiresTurn = null,
+    stackable = false,
+    poisonedCount = 0,
+    poisonPayload = null,
+  } = options;
   const n = stackable ? Math.max(1, Math.trunc(quantity ?? 1)) : 1;
+  const incomingPoisoned = poisonedCount > 0 ? Math.min(Math.trunc(poisonedCount), n) : 0;
   const existing = await tx.characterTag.findUnique({
     where: { characterId_tagId: { characterId, tagId } },
   });
   if (!existing) {
     const created = await tx.characterTag.create({
-      data: { characterId, tagId, source, expiresTurn, quantity: n },
+      data: {
+        characterId,
+        tagId,
+        source,
+        expiresTurn,
+        quantity: n,
+        poisonedCount: incomingPoisoned,
+        poisonPayload: incomingPoisoned > 0 ? poisonPayload : null,
+      },
     });
     await chargeWoundFear(tx, characterId, [tagId]);
     return created;
   }
   if (!stackable) return existing;
+  const samePoison =
+    !existing.poisonPayload || !poisonPayload || existing.poisonPayload === poisonPayload;
   return tx.characterTag.update({
     where: { id: existing.id },
-    data: { quantity: existing.quantity + n },
+    data: {
+      quantity: existing.quantity + n,
+      poisonedCount: samePoison ? existing.poisonedCount + incomingPoisoned : existing.poisonedCount,
+      poisonPayload: existing.poisonPayload ?? (samePoison ? poisonPayload : null),
+    },
   });
 }
 
 // Removes `quantity` of a tag, deleting the row once nothing is left. Pass
 // null (the default) to drop the whole holding however large the stack —
 // that is what an ordinary, non-stackable tag always wants.
+//
+// Returns `{ poisonedTaken, poisonPayload }` (M4): how many of the units
+// that just left were drawn poisoned, and with what — a hypergeometric draw
+// against the row AS IT STOOD before this call, so the odds are exactly
+// `poisonedCount / quantity` per unit. Every caller that doesn't care (most
+// of them — dropping a climbed drinking rung, a cured tag, a spent
+// ingredient) simply ignores the return value, same as before this returned
+// anything at all.
 async function dropCharacterTag(tx, characterId, tagId, quantity = null) {
   const existing = await tx.characterTag.findUnique({
     where: { characterId_tagId: { characterId, tagId } },
   });
-  if (!existing) return;
+  if (!existing) return { poisonedTaken: 0, poisonPayload: null };
   const take = quantity == null ? existing.quantity : Math.max(1, Math.trunc(quantity));
+  const poisonedTaken = existing.poisonedCount
+    ? drawPoisonedUnits(existing.quantity, existing.poisonedCount, take)
+    : 0;
+  const poisonPayload = poisonedTaken > 0 ? existing.poisonPayload : null;
   if (take >= existing.quantity) {
     await tx.characterTag.delete({ where: { id: existing.id } });
-    return;
+    return { poisonedTaken, poisonPayload };
   }
   await tx.characterTag.update({
     where: { id: existing.id },
-    data: { quantity: existing.quantity - take },
+    data: {
+      quantity: existing.quantity - take,
+      poisonedCount: existing.poisonedCount - poisonedTaken,
+    },
   });
+  return { poisonedTaken, poisonPayload };
 }
 
 // A chain replaces upward (TAGS.md §3): gaining Melee (Trained) takes Melee
@@ -224,38 +272,73 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
 // CHARACTER can hold, and addToStack re-applies it on the way out.
 // `expiresTurn` carries over from the holder's row; an earlier clock wins
 // when stacks with different clocks merge, so stashing never extends one.
-async function addToRoomStack(tx, roomId, tagId, quantity, { expiresTurn = null } = {}) {
+//
+// `poisonedCount`/`poisonPayload` (M4) — same contract as addToStack's:
+// merging into a row that already carries a DIFFERENT payload dilutes the
+// incoming units clean rather than refusing.
+async function addToRoomStack(
+  tx,
+  roomId,
+  tagId,
+  quantity,
+  { expiresTurn = null, poisonedCount = 0, poisonPayload = null } = {},
+) {
   const n = Math.max(1, Math.trunc(quantity ?? 1));
+  const incomingPoisoned = poisonedCount > 0 ? Math.min(Math.trunc(poisonedCount), n) : 0;
   const existing = await tx.roomTag.findUnique({ where: { roomId_tagId: { roomId, tagId } } });
   if (!existing) {
-    return tx.roomTag.create({ data: { roomId, tagId, quantity: n, expiresTurn } });
+    return tx.roomTag.create({
+      data: {
+        roomId,
+        tagId,
+        quantity: n,
+        expiresTurn,
+        poisonedCount: incomingPoisoned,
+        poisonPayload: incomingPoisoned > 0 ? poisonPayload : null,
+      },
+    });
   }
   const clocks = [existing.expiresTurn, expiresTurn].filter((t) => t != null);
+  const samePoison =
+    !existing.poisonPayload || !poisonPayload || existing.poisonPayload === poisonPayload;
   return tx.roomTag.update({
     where: { id: existing.id },
     data: {
       quantity: { increment: n },
       expiresTurn: clocks.length ? Math.min(...clocks) : null,
+      poisonedCount: samePoison ? existing.poisonedCount + incomingPoisoned : existing.poisonedCount,
+      poisonPayload: existing.poisonPayload ?? (samePoison ? poisonPayload : null),
     },
   });
 }
 
 // Removes `quantity` of a tag from a room (null = the whole stack). Returns
-// false when the stack no longer covers it — a concurrent taker got there
-// first — so the caller can refuse cleanly instead of overdrawing.
+// `{ ok, poisonedTaken, poisonPayload }` — `ok` false when the stack no
+// longer covers it (a concurrent taker got there first), so the caller can
+// refuse cleanly instead of overdrawing. `poisonedTaken`/`poisonPayload` (M4)
+// mirror dropCharacterTag's: a hypergeometric draw against the row as it
+// stood before the decrement, ignored by every caller that doesn't move
+// poison state onward.
 async function dropRoomTag(tx, roomId, tagId, quantity = null) {
   if (quantity == null) {
+    const existing = await tx.roomTag.findUnique({ where: { roomId_tagId: { roomId, tagId } } });
     await tx.roomTag.deleteMany({ where: { roomId, tagId } });
-    return true;
+    return { ok: true, poisonedTaken: existing?.poisonedCount ?? 0, poisonPayload: existing?.poisonPayload ?? null };
   }
   const n = Math.max(1, Math.trunc(quantity));
+  const existing = await tx.roomTag.findUnique({ where: { roomId_tagId: { roomId, tagId } } });
+  if (!existing || existing.quantity < n) return { ok: false, poisonedTaken: 0, poisonPayload: null };
+  const poisonedTaken = existing.poisonedCount
+    ? drawPoisonedUnits(existing.quantity, existing.poisonedCount, n)
+    : 0;
+  const poisonPayload = poisonedTaken > 0 ? existing.poisonPayload : null;
   const { count } = await tx.roomTag.updateMany({
     where: { roomId, tagId, quantity: { gte: n } },
-    data: { quantity: { decrement: n } },
+    data: { quantity: { decrement: n }, poisonedCount: { decrement: poisonedTaken } },
   });
-  if (count === 0) return false;
+  if (count === 0) return { ok: false, poisonedTaken: 0, poisonPayload: null };
   await tx.roomTag.deleteMany({ where: { roomId, tagId, quantity: { lte: 0 } } });
-  return true;
+  return { ok: true, poisonedTaken, poisonPayload };
 }
 
 module.exports = { addToStack, dropCharacterTag, replaceLowerTiers, grantTagSlugs, addToRoomStack, dropRoomTag };
