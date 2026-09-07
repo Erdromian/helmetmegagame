@@ -73,10 +73,18 @@ function isBook(tag) {
   return tag?.paperKind === "BOOK";
 }
 
-// Is this row a wax stamp? Carrying a mark is what makes one — there is no
-// second flag to fall out of step with.
+// Is this row a wax stamp?
+//
+// Carrying a mark is most of it, but not all: a spent envelope keeps the mark
+// it was broken from (paperMint.js#breakSeal sets sealMark on the BROKEN_SEAL
+// row so the wax can still be described), so the mark alone said yes to one.
+// That put broken seals in the Seal picker and let a letter be closed with a
+// seal somebody had already opened.
+//
+// A stamp is stock, a document is not — so the second half is having no
+// paperKind at all, the same test isPaper()/isBook() read from the other side.
 function isSeal(tag) {
-  return Boolean(tag?.sealMark);
+  return Boolean(tag?.sealMark) && !tag?.paperKind;
 }
 
 // What a wax stamp presses into the wax. Falls back rather than printing

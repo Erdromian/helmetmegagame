@@ -2370,7 +2370,7 @@ export default function RequestActionsProvider({
                         maxLength={WRITE_MAX}
                         value={paperBody}
                         onChange={(e) => setPaperBody(e.target.value)}
-                        placeholder="Anyone who can read it will read this."
+                        placeholder="Write here."
                       />
                       <span className="text-xs text-muted mono">
                         {paperBody.length} / {WRITE_MAX}

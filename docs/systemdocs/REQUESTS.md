@@ -866,14 +866,12 @@ The sheet keeps everything else. Craft, the paperwork verbs, the Bird and the
 Factory are not mounted in the Hall, and `ActionGrid` is not either — the
 column is a list of people, not a second grid.
 
-`/play` also carries three player actions that were Discord-only, all of them
-in `play/actions.js` and all of them re-checking every gate the panel drew:
+`/play` also carries two player actions that were Discord-only, both of them
+in `play/actions.js` and both re-checking every gate the panel drew:
 **Move** (`db/lib/moves.js#fileMove`, the same call the `#turns` Move modal
-makes), **Report to the GMs** (an INBOUND `DirectMessage` prefixed `[Play] `,
-sent nowhere near Discord, so it lands in `/gm/players`), and **Waiting on
-you** — the Accept/Decline for a pending offer, a threat spawn or a lobby
-seat, calling the same `db/lib` functions the DM's buttons call. None of the
-three files an `Action` twice: `fileMove` is guarded by
+makes) and **Waiting on you** — the Accept/Decline for a pending offer, a
+threat spawn or a lobby seat, calling the same `db/lib` functions the DM's
+buttons call. Neither files an `Action` twice: `fileMove` is guarded by
 `@@unique([characterId, turnId])`, and the rest write no Move at all. ‡
 
 One consequence worth knowing: `CharacterSheet#groupTagsByCategory` now groups

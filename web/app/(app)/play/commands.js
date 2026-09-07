@@ -37,7 +37,6 @@
 
 import {
   submitMove,
-  reportToGms,
   toggleConceal,
   shoutHere,
   rollHere,
@@ -141,13 +140,6 @@ export const COMMANDS = [
     // them, and the picker falls back to who is here when it has none.
     args: [{ name: "person", kind: "person", from: "members" }],
     run: ({ person }, ctx) => removeMember(ctx.placeKey, person),
-  },
-  {
-    name: "report",
-    description: "Send a note to the GMs. Nobody in the game sees it. ‡",
-    where: EVERYWHERE,
-    args: [{ name: "text", kind: "text", placeholder: "What the GMs should know… ‡" }],
-    run: ({ text }) => reportToGms(text),
   },
 ];
 

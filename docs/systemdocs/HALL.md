@@ -313,7 +313,6 @@ from 17rem in the second pass: it is the game suite now, not a button strip.
 │               │                                            │ [Sheet ›]            │
 │               │                                            │ Waiting on you · 1   │
 │               │                                            │ ▾ YESTERDAY          │
-│               │                                            │ Report to the GMs    │
 └───────────────┴────────────────────────────────────────────┴──────────────────────┘
 ```
 
@@ -455,7 +454,6 @@ header instead).
   | `/look` | `lookAt(ref)` — a character id or a hood token, told apart server-side | — |
   | `/converse` | opens the same `ConverseDialog` the right column's Converse opens | — |
   | `/add`, `/remove` | `addMember` / `removeMember` (below) | `db/lib/roomGuests.js` |
-  | `/report` | `reportToGms` | — |
 
   **`where` is a filter, not a greying.** `/roll` is absent in the street and
   `/add` is absent in the zone summary, because a list of things you can type
@@ -646,10 +644,6 @@ header instead).
      staged messages) or `bot_auto` (the Routine result and the Gambit
      reveal, which `db/lib/dm.js` defaults). It **reads** — it sends nothing,
      and it is not a second inbox.
-  8. **Report to the GMs**, last and quiet. It writes an INBOUND
-     `DirectMessage` prefixed `[Play] ` and sends nothing to Discord, so it
-     lands in `/gm/players` beside everything else that player has said and
-     the answer comes back down the ordinary DM path.
 
   The card and the waiting list share **one** 60-second interval (`myMove()`
   and `waitingOnYou()` on the same tick), so a Move filed from the `#turns`

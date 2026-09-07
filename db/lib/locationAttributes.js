@@ -84,7 +84,7 @@ const ATTRIBUTES = {
   // A place that settles a person more than any roof does: the Inn, the Keep,
   // the Sanctuary. The best turn-end relief the dial has.
   haven: {
-    describe: () => "**Haven**: a night here settles the nerves like nowhere else. ‡",
+    describe: () => "**Haven**: ending your turn here calms your nerves. ‡",
   },
 
   // A public board somebody can pin a paper to. What the Noticeboard button on
@@ -117,7 +117,7 @@ function authoredLines(location, ctx = {}) {
 // stated in the place it bites, which is the worst moment to learn it.
 function placementLine(location) {
   return location?.indoors
-    ? "**Indoors**: your cart or horse has to stay at the door. ‡"
+    ? "**Indoors**: you can't equip a cart or horse here. ‡"
     : "**Outdoors**: you can use your horse or cart here. ‡";
 }
 

@@ -106,8 +106,8 @@ export const ACTION_HELP = {
     "Pack up to 150 lb of what you're carrying into one crate. The crate weighs half what went into it, and you write the line on the side yourself. Anyone holding it can open it again.",
   bird: "Send a letter you're holding to someone, by bird. You have to guess their zone — guess wrong and the bird comes back with it still on.",
   write:
-    "Put words on a sheet of paper. More can be added later, but nothing can be taken away.",
-  seal: "Close a letter with your wax seal. The stamp isn't used up.",
+    "Put words on a sheet of paper.",
+  seal: "Close a letter with your wax seal.",
   bindbook:
     "Bind ten blank sheets into a book and write it in one pass. A bound book can never be added to.",
   tearbook:

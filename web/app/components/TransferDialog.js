@@ -88,6 +88,17 @@ export default function TransferDialog({
   } else if (carry && toKey === selfKey) {
     projected = { weight: round(carry.weightUsed + lbs), resources: carry.resources + moved };
   }
+  // What to warn about the destination, or null for the cases that need no
+  // warning at all (a room, and any source-side pick).
+  const note =
+    toSilo && !toSilo.canOpen
+      ? `${toSilo.name} is locked to you. This will go in, and you won't be able to take it back out.`
+      : toSilo
+        ? "Anyone in the faction who can get into the silo can take what you leave there."
+        : toRoom
+          ? null
+          : "Only people standing where you are, with their face showing, are listed.";
+
   const overAfter = projected && (projected.weight > carry.weightCap || projected.resources > carry.resourcesCap);
   // Past the ceiling the server refuses outright, so say so rather than
   // letting them submit into an error (CARRY.md §1).
@@ -166,7 +177,7 @@ export default function TransferDialog({
 
       {projected && (
         <p className={`text-xs ${overAfter || refusedAfter ? "text-accent" : "text-muted"}`}>
-          After this you carry {projected.weight} / {carry.weightCap} lb and {projected.resources} /{" "}
+          After this you&apos;ll carry {projected.weight} / {carry.weightCap} lb and {projected.resources} /{" "}
           {carry.resourcesCap} ⬢.
           {refusedAfter
             ? " That's more than you could hold even overburdened, so it won't go through."
@@ -175,15 +186,10 @@ export default function TransferDialog({
               : ""}{" "}
         </p>
       )}
-      <p className="text-xs text-muted">
-        {toSilo && !toSilo.canOpen
-          ? `${toSilo.name} is locked to you. This will go in, and you won't be able to take it back out.`
-          : toSilo
-            ? "Anyone in the faction who can get into the silo can take what you leave there."
-            : toRoom
-              ? "Anyone who can get into that room can take what you leave there."
-              : "Only people standing where you are, with their face showing, are listed."}
-      </p>
+      {/* A room says nothing: leaving something in one is the ordinary case,
+          and the warning was noise on every drop. A silo still speaks, because
+          a locked one is genuinely one-way. */}
+      {note && <p className="text-xs text-muted">{note}</p>}
     </>
   );
 }
