@@ -57,6 +57,14 @@ export default function CharacterSheet({
   canDisguise = false,
   hasDatacard = false,
   hasDevice = false,
+  // The THANATI section (docs/systemdocs/THANATI.md), resolved in
+  // character/page.js and handed straight through to the dialogs.
+  isThanati = false,
+  isThanatiLeader = false,
+  atHideout = false,
+  hideoutRooms = [],
+  hideoutStock = null,
+  thanatiWares = [],
   // Same fate: BioForm's conceal toggle reads it, and it never arrived.
   concealGear = null,
   // World state the sheet shows: the bomb's countdown on its chip, and the
@@ -231,6 +239,12 @@ export default function CharacterSheet({
             canDisguise={canDisguise}
             hasDatacard={hasDatacard}
             hasDevice={hasDevice}
+            isThanati={isThanati}
+            isThanatiLeader={isThanatiLeader}
+            atHideout={atHideout}
+            hideoutRooms={hideoutRooms}
+            hideoutStock={hideoutStock}
+            thanatiWares={thanatiWares}
           >
             <div className="flex flex-col gap-6">
               <StatusPanel

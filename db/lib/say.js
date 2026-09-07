@@ -30,6 +30,7 @@ const {
 } = require("./presentedIdentity");
 const { mayWritePlace, slowmodeMsFor } = require("./feedAccess");
 const { rolesToTokens } = require("./characterMentions");
+const { noteChant } = require("./riteChant");
 
 // Discord's own ceiling for a message. Kept on the web side too, because the
 // outbox has to be able to repost whatever lands in a row.
@@ -183,7 +184,7 @@ async function recordSpeech(
   { discordMessageId = null, discordChannelId = null, zoneId = null, zoneName = null, channelKind = null, threadName = null, content = null, clientId = null } = {},
 ) {
   if (!prepared?.ok) return null;
-  return recordArchiveMessage(prisma, {
+  const row = await recordArchiveMessage(prisma, {
     // The web composer's token for the copy it has already drawn. Null on the
     // Discord path, which has no optimistic row to reconcile.
     clientId,
@@ -202,6 +203,11 @@ async function recordSpeech(
     channelKind,
     threadName,
   });
+  // The Thanati listen to every room (db/lib/riteChant.js). Not awaited: a
+  // chant that counts writes a row or two of its own, and none of that may
+  // slow or fail the message it rode in on.
+  if (row) void noteChant(prisma, { row, character: prepared.character });
+  return row;
 }
 
 // The web's order: decide, then write, and let the outbox put it on Discord.

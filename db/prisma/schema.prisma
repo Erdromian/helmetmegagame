@@ -591,6 +591,22 @@ model GameState {
   // object, and two people taking turns on it would be the same noise either
   // way. Null means it has never been rung.
   bellRungAt DateTime?
+
+  // THE THANATI (docs/systemdocs/THANATI.md). Both per-game, both wiped for
+  // free because Restart Game recreates this row.
+  //
+  // `riteWords` is this game's Word of the Circle per rite — { [riteKey]:
+  // "word word" } — rolled lazily by db/lib/riteWords.js the first time
+  // anything asks (a chant, the Grimoire document, the GM panel). Null means
+  // not rolled yet. Hidden game state: only a Grimoire holder and the GM
+  // panel ever read it back.
+  riteWords Json?
+
+  // The cult's hideout: the Room the Thanati Leader chose with Set Hideout,
+  // where Purchase Gear spends from and drops to. A snapshot id rather than
+  // an FK — Rooms are recreated by db:sync-zones and a dangling pointer just
+  // reads as "no hideout" (db/lib/thanati.js#hideoutRoom).
+  thanatiHideoutRoomId String?
 }
 
 /// Where the shuttle is. AWAY is the resting state — it lives at the orbital
@@ -3840,6 +3856,66 @@ model Objective {
 enum ObjectiveWeight {
   MINOR
   MAJOR
+}
+
+/// A rite in progress: one per (rite, room) while cultists are chanting
+/// (docs/systemdocs/THANATI.md). Opened by the first counted chant
+/// (db/lib/riteChant.js), advanced to READY the moment the last requirement
+/// lands, fired by the bot's minute sweep (db/lib/riteSweep.js) once the
+/// grace window has run, expired when twelve hours pass without it. Rooms
+/// and characters are snapshot ids, not FKs — the table is wiped outright by
+/// Restart Game, and a room recreated by the zone sync must not cascade it.
+model RiteAttempt {
+  id String @id @default(cuid())
+
+  // A key in db/lib/rites.js.
+  riteKey String
+
+  roomId   String
+  roomName String
+
+  status RiteAttemptStatus @default(OPEN)
+
+  openedAt DateTime  @default(now())
+  readyAt  DateTime?
+  firesAt  DateTime?
+  firedAt  DateTime?
+
+  // Who was counted when it fired: [{ characterId, name }].
+  participants Json?
+  // What the effect did, for the GM panel and the audit trail.
+  result Json?
+
+  chants RiteChant[]
+
+  @@index([status])
+  @@index([riteKey, roomId, status])
+}
+
+enum RiteAttemptStatus {
+  OPEN
+  READY
+  FIRED
+  EXPIRED
+  CANCELLED
+}
+
+/// One counted chant: a robed, Inspired speaker said the Word of the Circle
+/// in the attempt's room (or a Conversation linked to it). Several rows per
+/// chanter are normal; the sweep counts distinct characterIds.
+model RiteChant {
+  id String @id @default(cuid())
+
+  attemptId String
+  attempt   RiteAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  characterId   String
+  characterName String
+  // The ArchiveEntry.seq of the message, so a GM can find the line.
+  archiveSeq BigInt?
+  saidAt     DateTime @default(now())
+
+  @@index([attemptId])
 }
 
 // One browser that has agreed to be notified. Web Push is per-BROWSER, not

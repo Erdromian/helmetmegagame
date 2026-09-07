@@ -345,6 +345,9 @@ to survive: the reveal is on `Game.epilogue`.
 The words a seated player reads are the Role's, from `docs/roles.yaml`. Do not
 add prose to a catalog entry; write it on the role.
 
+The Thanati are the one party with gameplay of their own beyond the seat — the
+THANATI buttons, the hideout, the rites. That is `THANATI.md`, not this file.
+
 **The design doc is `SECRETS.md`** — gitignored, superadmin-only. Rationale, the
 real-vs-decoy roster and the round scripts live there. This file stays in the
 repo and stays mechanical: it should name no antagonist it does not have to.

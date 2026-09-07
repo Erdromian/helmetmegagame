@@ -2028,7 +2028,7 @@ tags:
     name: Thanati
     category: general
     group: general-beliefs
-    description: "This reality is cursed. Everyone must die before Tzchernobog can reset it."
+    description: "This reality is cursed. Kill everyone and praise Tzchernobog!"
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -3042,6 +3042,21 @@ tags:
     category: status
     group: status-buffs
     description: "You can see in the dark as though it were an overcast day."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+
+  # Eating Flesh of Tzchernobog. Two turns of being able to chant a rite that
+  # counts (db/lib/riteChant.js#chanterReady) — the other half of that gate is
+  # wearing black-robes. Bascinet's wording.
+  dark-inspiration:
+    catalog: gm
+    name: Dark Inspiration
+    category: status
+    group: status-buffs
+    description: "Crudox Cruo! You can cast rites."
     pointCost: 0
     visible: false
     purchasable: false
@@ -7689,6 +7704,33 @@ tags:
       items:
         - anyOf: [tea, sweets, honey]
 
+  # THE THANATI'S FOOD (docs/systemdocs/THANATI.md). Not a meal — it grants
+  # no ate-meal — only Dark Inspiration. Dead Simple, 1 ⬢, three a turn; the
+  # gate is the thanati Belief itself, which requireRecipeSkills reads as a
+  # plain "must hold". Bascinet's wording.
+  flesh-of-tzchernobog:
+    catalog: secret
+    name: Flesh of Tzchernobog
+    category: items
+    group: items-food
+    description: "Corrupted edible food. It is a sloppy, withered shadow of what it used to be."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    consumesInto: [dark-inspiration]
+    requirement:
+      turnsCost: 0
+      perTurn: 3
+      resourceCost: 1
+      skills: [thanati]
+      gambit: false
+
   # --- The three kits -----------------------------------------------------
   # None is gear you wear; all are gear you have to GET TO. Each is
   # satisfied by holding it OR by one sitting in a room you can reach at your
@@ -8454,6 +8496,35 @@ tags:
       items:
         - tag: paper
           count: 10
+      gambit: false
+
+  # THE GRIMOIRE (docs/systemdocs/THANATI.md). Not paper: its text is the
+  # Grimoire DOCUMENT, generated from this game's rolled Words of the Circle
+  # and unlocked by holding this tag (docs/documents.yaml gates on the name).
+  # Bound from one blank book by anyone holding the thanati Belief. The
+  # description is Bascinet's own sentence from the Cultist document.
+  grimoire:
+    catalog: secret
+    name: Grimoire
+    category: items
+    group: items-gear
+    description: "It will detail the available rites and their words of corruption."
+    pointCost: 0
+    tradeable: true
+    weight: 1.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      perTurn: 1
+      resourceCost: 0
+      skills: [thanati]
+      items:
+        - tag: blank-book
+          count: 1
       gambit: false
 
   # The Keep's shelves. A book is declared BY its text: `bookText` goes on
@@ -10743,6 +10814,33 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesInto: [ate-meal]
+
+  # THE CULTIST ROBES (docs/systemdocs/THANATI.md). Wearing these is half of
+  # what makes a chant count (the other half is Dark Inspiration), and every
+  # rite needs them on. The combat line is prose for a GM to apply, like
+  # Tipsy's; "Thanati equipment" means whatever Purchase Gear sells
+  # (db/lib/thanati.js#THANATI_WARES). Bascinet's wording.
+  black-robes:
+    catalog: secret
+    name: Black Robes
+    category: items
+    group: items-armor
+    description: "Stitched-together bags, dyed in black. While wearing this and using Thanati equipment, your combat skill is two levels higher."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    equippable: true
+    equipSlot: BODY
+    equipLayer: 2
+    visible: worn
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 1
+      skills: [thanati]
+      gambit: false
 
   thanati-mask:
     catalog: gm

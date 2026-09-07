@@ -50,7 +50,7 @@ import { titleFor } from "./actionRegistry";
 import Select from "./Select";
 import ChipText from "./ChipText";
 import ExamineDialog from "./ExamineDialog";
-import QuantityField from "./QuantityField";
+import QuantityField, { parseQuantity } from "./QuantityField";
 import { ENGRAVE_RESOURCE_COST } from "@/lib/constants";
 import { useConfirm } from "./ConfirmProvider";
 import { useTags } from "./TagsProvider";
@@ -88,6 +88,7 @@ import {
   packageItemsRequest,
 } from "../(app)/character/requestActions";
 import { readPointer, armNuke, disarmNuke } from "@/app/(app)/character/nukeActions";
+import { recallComrades, recoverEquipment, setHideout, purchaseGear } from "@/app/(app)/character/thanatiActions";
 // Writing and sealing file no Request, so they live apart from the rest —
 // see web/app/(app)/character/paperActions.js.
 import {
@@ -499,6 +500,16 @@ export default function RequestActionsProvider({
   // The datacard, and the device itself. Both facts about your own sheet.
   hasDatacard = false,
   hasDevice = false,
+  // THE THANATI (docs/systemdocs/THANATI.md). Whether you are one and whether
+  // you lead are your own sheet; the hideout is one you set. `hideoutRooms`
+  // is Set Hideout's picker, `thanatiWares` / `hideoutStock` are Purchase
+  // Gear's shelf and the purse on the hideout's floor.
+  isThanati = false,
+  isThanatiLeader = false,
+  atHideout = false,
+  hideoutRooms = [],
+  hideoutStock = null,
+  thanatiWares = [],
 }) {
   const [mode, setMode] = useState(null);
   const [tagId, setTagId] = useState(null);
@@ -569,6 +580,16 @@ export default function RequestActionsProvider({
   // one pass because a bound book can never be added to.
   const [bookTitle, setBookTitle] = useState("");
   const [error, setError] = useState(null);
+  // Set Hideout's room and Purchase Gear's cart (tagId -> quantity draft) and
+  // which of the hideout floor's two purses pays.
+  const [hideoutRoomId, setHideoutRoomId] = useState("");
+  const [gearCart, setGearCart] = useState({});
+  const [gearSource, setGearSource] = useState("obols");
+  const gearLines = thanatiWares
+    .map((w) => ({ ...w, quantity: parseQuantity(gearCart[w.tagId], { min: 0, max: 99 }) ?? 0 }))
+    .filter((w) => w.quantity > 0);
+  const gearTotal = gearLines.reduce((sum, w) => sum + w[gearSource] * w.quantity, 0);
+  const gearPurse = hideoutStock?.[gearSource] ?? 0;
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
 
@@ -996,6 +1017,9 @@ export default function RequestActionsProvider({
       setInscription("");
       setPaperExisting(null);
       setStampId("");
+      setHideoutRoomId("");
+      setGearCart({});
+      setGearSource("obols");
       setError(null);
       // After the resets above, never before — a preset is the exception to
       // the blank slate, not part of it.
@@ -1307,6 +1331,17 @@ export default function RequestActionsProvider({
         return disguiseSelfRequest({ name: disguiseName });
       case "pointer":
         return readPointer();
+      case "recall":
+        return recallComrades();
+      case "recover":
+        return recoverEquipment();
+      case "hideout":
+        return setHideout({ roomId: hideoutRoomId });
+      case "purchase":
+        return purchaseGear({
+          items: gearLines.map((w) => ({ tagId: w.tagId, quantity: w.quantity })),
+          source: gearSource,
+        });
       case "arm":
         return armNuke();
       case "disarm":
@@ -1370,6 +1405,13 @@ export default function RequestActionsProvider({
       // fill in before pressing it.
       case "pointer":
         return true;
+      case "recall":
+      case "recover":
+        return true;
+      case "hideout":
+        return Boolean(hideoutRoomId);
+      case "purchase":
+        return gearLines.length > 0 && gearTotal <= gearPurse;
       case "arm":
       case "disarm":
         return hasDevice;
@@ -1460,6 +1502,9 @@ export default function RequestActionsProvider({
       canMutilate,
       hasDatacard,
       hasDevice,
+      isThanati,
+      isThanatiLeader,
+      atHideout,
     }),
     [
       craftable,
@@ -1489,6 +1534,9 @@ export default function RequestActionsProvider({
       canMutilate,
       hasDatacard,
       hasDevice,
+      isThanati,
+      isThanatiLeader,
+      atHideout,
     ],
   );
 
@@ -1505,7 +1553,8 @@ export default function RequestActionsProvider({
     mode === "craft" ||
     mode === "harm" ||
     mode === "loot" ||
-    mode === "transfer"
+    mode === "transfer" ||
+    mode === "purchase"
       ? "wide"
       : undefined;
 
@@ -2204,6 +2253,83 @@ export default function RequestActionsProvider({
                 The card wakes and swings. Press to read it&mdash;the answer
                 comes to you privately, and nobody here is told you looked.
               </p>
+            )}
+
+            {/* THE THANATI (docs/systemdocs/THANATI.md). Recall and Recover
+                ask nothing — the dialog is the confirm — and by Bascinet's
+                ruling none of the four carries a line of explanation. */}
+            {mode === "hideout" && (
+              <label className="field">
+                <span className="field-label">Room</span>
+                <Select
+                  value={hideoutRoomId}
+                  onChange={(e) => setHideoutRoomId(e.target.value)}
+                  required
+                >
+                  <option value="" disabled>
+                    Choose a room…
+                  </option>
+                  {hideoutRooms.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                      {r.current ? " ✓" : ""}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            )}
+
+            {mode === "purchase" && (
+              <>
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <label className="field" style={{ width: "10rem" }}>
+                    <span className="field-label">Pay with</span>
+                    <Select value={gearSource} onChange={(e) => setGearSource(e.target.value)}>
+                      <option value="obols">Obols</option>
+                      <option value="resources">⬢</option>
+                    </Select>
+                  </label>
+                  <span className="mono text-sm text-muted">
+                    {hideoutStock?.obols ?? 0} ¢ · {hideoutStock?.resources ?? 0} ⬢
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Ware</th>
+                        <th>Obols</th>
+                        <th>⬢</th>
+                        <th>Qty</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {thanatiWares.map((w) => (
+                        <tr key={w.tagId}>
+                          <td>{w.name}</td>
+                          <td className="mono">{w.obols}</td>
+                          <td className="mono">{w.resources}</td>
+                          <td>
+                            <QuantityField
+                              inline
+                              min={0}
+                              max={99}
+                              ariaLabel={w.name}
+                              value={gearCart[w.tagId] ?? "0"}
+                              onChange={(v) => setGearCart((prev) => ({ ...prev, [w.tagId]: v }))}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex justify-end">
+                  <span className={`mono text-sm ${gearTotal > gearPurse ? "text-danger" : ""}`}>
+                    {gearTotal} {gearSource === "obols" ? "¢" : "⬢"}
+                  </span>
+                </div>
+              </>
             )}
 
             {(mode === "arm" || mode === "disarm") && (

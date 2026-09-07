@@ -47,6 +47,7 @@ import { describeTurn } from "@/lib/turnFormat";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
+import { requireFreeMove, fileAutoRoutine } from "@/lib/moveSpend";
 import {
   DISGUISE_KIT_SLUG,
   DISGUISE_TURNS,
@@ -576,65 +577,9 @@ async function resolveCraftPayer(character, payerKey, cost) {
   return payer;
 }
 
-// A whole Move, and nothing filed yet (ADJUDICATION.md §2): one Action per
-// character per turn, filed by the same rules the modal uses. Bury, Engrave,
-// Extract, a build site and a Gambit heal all want the turn to themselves and
-// use this. Crafting takes `resolveCraftMove` below instead, because a craft
-// may cost a FRACTION of the Move and share the rest with another craft.
-async function requireFreeMove(character, openTurn) {
-  if (!openTurn) throw new UserError("No turn is open.");
-  const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
-  if (locked) throw new UserError("Moves are locked for this turn.");
-  const acted = await prisma.action.findFirst({
-    where: { characterId: character.id, turnId: openTurn.id },
-    select: { id: true },
-  });
-  if (acted) throw new UserError("You've already used your Move this turn.");
-}
-
-// A Move the player never wrote: filed for them, already PASSED, so a GM sees
-// what happened without having to adjudicate it. Three callers now — Craft,
-// Bury and Engrave — which is why `gmNotes` is a parameter rather than the
-// hardcoded "auto:craft" this had while crafting was the only one.
-//
-// requireFreeMove() has usually run first, but the P2002 catch is what
-// actually holds: @@unique([characterId, turnId]) is the real gate, and two
-// tabs submitting at once get past a check that read the table a moment ago.
-async function fileAutoRoutine(
-  tx,
-  character,
-  openTurn,
-  description,
-  gmNotes,
-  // The craft ledger, on the one caller that keeps one. Omitted rather than
-  // written as null: a Prisma Json column wants `Prisma.JsonNull` for an
-  // explicit null, and "no ledger" is exactly what the column default says.
-  craftBudget = null,
-) {
-  try {
-    return await tx.action.create({
-      data: {
-        ...(craftBudget ? { craftBudget } : {}),
-        characterId: character.id,
-        turnId: openTurn.id,
-        type: "MOVE",
-        status: "CONFIRMED",
-        confirmedAt: new Date(),
-        moveKind: "ROUTINE",
-        moveReviewStatus: "PASSED",
-        description,
-        appliedEffects: {},
-        zoneId: character.zoneId ?? null,
-        locationId: character.locationId ?? null,
-        gmNotes,
-      },
-    });
-  } catch (err) {
-    if (err?.code === "P2002")
-      throw new UserError("You've already used your Move this turn.");
-    throw err;
-  }
-}
+// requireFreeMove and fileAutoRoutine moved to web/lib/moveSpend.js so the
+// Thanati's Recover Equipment (thanatiActions.js) spends a Move by the same
+// two rules as Bury, Engrave and Extract.
 
 function craftLabel(tag, quantity) {
   return quantity > 1 ? `${quantity}× ${tag.name}` : tag.name;

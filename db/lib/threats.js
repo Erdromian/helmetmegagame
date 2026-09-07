@@ -144,7 +144,9 @@ const THREATS = [
   // and "Cultist" — so the word Thanati is never on a checkbox. Both grant the
   // `thanati` Belief (docs/tags.yaml), which is what makes a holder one; the
   // leader wears the `thanati-leader` tag on top, which is how the roster tells
-  // the two seats apart. Points and kits are first drafts for Bascinet to tune.
+  // the two seats apart. Every cultist also arrives knowing the Underquarter
+  // Basements (the cult's usual start, docs/zones.yaml) and Literate, so the
+  // Grimoire is readable to them. Points are Bascinet's: 4 and 7.
   {
     slug: "thanati",
     name: "Thanati",
@@ -154,13 +156,13 @@ const THREATS = [
     zone: "Anywhere",
     party: THANATI_PARTY,
     brief: THANATI_BRIEF,
-    assign: { tagPoints: 5, tagSlugs: ["thanati"] },
+    assign: { tagPoints: 4, tagSlugs: ["thanati", "underquarter-basements", "literate"] },
     spawn: {
       gender: "NEUTRAL",
       roleSlug: null,
       resources: 3,
-      tagPoints: 5,
-      tagSlugs: ["obol x4"],
+      tagPoints: 4,
+      tagSlugs: ["underquarter-basements", "literate", "obol x4"],
     },
   },
   {
@@ -172,13 +174,13 @@ const THREATS = [
     zone: "Anywhere",
     party: THANATI_PARTY,
     brief: THANATI_LEADER_BRIEF,
-    assign: { tagPoints: 10, tagSlugs: ["thanati", "thanati-leader"] },
+    assign: { tagPoints: 7, tagSlugs: ["thanati", "thanati-leader", "underquarter-basements", "literate"] },
     spawn: {
       gender: "NEUTRAL",
       roleSlug: null,
       resources: 3,
-      tagPoints: 10,
-      tagSlugs: ["thanati-mask", "obol x4"],
+      tagPoints: 7,
+      tagSlugs: ["thanati-mask", "underquarter-basements", "literate", "obol x4"],
     },
   },
   // THE TRIBUNAL. Both carry `spawn.locationSlug`, which nothing else does:

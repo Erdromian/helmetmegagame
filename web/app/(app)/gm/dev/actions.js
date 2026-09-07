@@ -361,6 +361,8 @@ export async function wipeGameData(formData) {
       // Antagonist objectives are per-game state. The epilogue snapshot above
       // ran before this transaction opened, so it has already read them.
       prisma.objective.deleteMany({}),
+      // Rites in progress die with the game; the chants cascade off them.
+      prisma.riteAttempt.deleteMany({}),
       prisma.character.deleteMany({}),
       prisma.playerThread.deleteMany({}),
       prisma.playerThreadInvite.deleteMany({}),

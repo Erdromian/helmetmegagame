@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { guarded, UserError } from "@/lib/actionResult";
 import { concealedAlias, withArticle } from "@lifeweb/db/lib/concealedIdentity";
 import { EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire } from "@lifeweb/db/lib/examine";
+import { THANATI_SLUG } from "@lifeweb/db/lib/thanati";
 import { buildSkillAncestry, satisfiedSkillIds } from "@lifeweb/db/lib/medicalVision";
 import { getMyFactionRole } from "@lifeweb/db/lib/factionPermissions";
 import { forcedNameFrom } from "@lifeweb/db/lib/presentedIdentity";
@@ -175,6 +176,7 @@ export async function examineCharacter(targetId) {
         lastDesire,
         viewerFactionId: me.factionId,
         viewerIsOfficer: officer,
+        viewerIsThanati: me.tags.some((ct) => ct.tag?.slug === THANATI_SLUG),
       }),
     };
   });

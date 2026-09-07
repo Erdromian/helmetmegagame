@@ -37,6 +37,9 @@ import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
 import ThreatAssignmentsTable from "@/app/(app)/gm/dev/threats/ThreatAssignmentsTable";
 import ThreatRosterTable from "@/app/(app)/gm/dev/threats/ThreatRosterTable";
 import ObjectivesPanel from "@/app/(app)/gm/dev/threats/ObjectivesPanel";
+import RitesPanel from "@/app/(app)/gm/dev/threats/RitesPanel";
+import { RITES, riteByKey } from "@lifeweb/db/lib/rites";
+import { ensureRiteWords } from "@lifeweb/db/lib/riteWords";
 import { listObjectives, locationEligible, membersByParty } from "@lifeweb/db/lib/objectives";
 import { kindsForParty, OBJECTIVE_WEIGHTS, PARTY_DEFAULTS, INQUISITOR_OR_BARON_ROLE_SLUGS } from "@lifeweb/db/lib/objectiveKinds";
 import { effectivePlayerCount, GAME_STATE_CREATE } from "@lifeweb/db/lib/gameState";
@@ -210,6 +213,8 @@ export default async function DevPanelPage({ searchParams }) {
   let spawnLocations = [];
   let seatRows = [];
   let pendingSpawns = [];
+  let riteWordRows = [];
+  let riteAttemptRows = [];
   // The Objectives cards under the roster (THREATS.md §6a).
   let objectiveParties = [];
   let objectiveCharacters = [];
@@ -486,6 +491,31 @@ export default async function DevPanelPage({ searchParams }) {
         holder.tags.push({ tag: { slug: row.tag.slug } });
         seatHolders.set(row.character.id, holder);
       }
+      // The Thanati's rites, read-only (RitesPanel.js): this game's words —
+      // rolled here if nothing has asked for them yet — and the attempts in
+      // flight or lately finished, with who chanted.
+      const [riteWords, attempts] = await Promise.all([
+        ensureRiteWords(prisma),
+        prisma.riteAttempt.findMany({
+          where: { OR: [{ status: { in: ["OPEN", "READY"] } }, { firedAt: { not: null } }] },
+          orderBy: { openedAt: "desc" },
+          take: 40,
+          include: { chants: { select: { characterId: true, characterName: true } } },
+        }),
+      ]);
+      riteWordRows = RITES.map((r) => ({ key: r.key, name: r.name, minChanters: r.minChanters, phrase: riteWords[r.key] ?? "" }));
+      const stamp = (d) => (d ? d.toISOString().slice(0, 16).replace("T", " ") : null);
+      riteAttemptRows = attempts.map((a) => ({
+        id: a.id,
+        riteName: riteByKey(a.riteKey)?.name ?? a.riteKey,
+        roomName: a.roomName,
+        status: a.status,
+        chanters: [...new Map(a.chants.map((c) => [c.characterId, c.characterName])).values()],
+        openedAt: stamp(a.openedAt),
+        firesAt: stamp(a.firesAt),
+        firedAt: stamp(a.firedAt),
+      }));
+
       const partyMembers = membersByParty([...seatHolders.values()]);
       objectiveParties = PARTIES.map((party) => {
         return {
@@ -990,6 +1020,7 @@ export default async function DevPanelPage({ searchParams }) {
                 weights={OBJECTIVE_WEIGHTS}
                 ended={state.phase === "ENDED"}
               />
+              <RitesPanel words={riteWordRows} attempts={riteAttemptRows} />
             </section>
           ) : null}
 

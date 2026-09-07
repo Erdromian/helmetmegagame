@@ -44,6 +44,10 @@ function main() {
 
     const gaps = entriesOf(tags, "slug")
       .filter((t) => t.craftable && groups.includes(t.group))
+      // A `catalog: secret` recipe (the Thanati's Flesh, robes and Grimoire)
+      // is withheld from the player catalog on purpose, so its absence from
+      // the public recipe papers is the design, not a gap.
+      .filter((t) => t.catalog !== "secret")
       .filter((t) => !listed.has(t.slug))
       .map((t) => ({
         slug: t.slug,

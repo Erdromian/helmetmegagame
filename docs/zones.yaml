@@ -446,8 +446,10 @@ zones:
                 sewer-key: 1
                 elevator-key: 1
                 obol: 4
-                dagger: 3
+                dagger: 4
                 fine-meal: 1
+                black-robes: 1
+                paper: 19
           underquarter-pushers-room:
             name: Pusher's Room
             description: >-

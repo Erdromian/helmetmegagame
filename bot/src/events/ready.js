@@ -14,6 +14,7 @@ const { refreshLocationChannels } = require("../lib/channels");
 const { startFeedOutbox } = require("../lib/feedOutbox");
 const { runWhisperPoll } = require("../lib/whisperPoll");
 const { runLobbySweep } = require("@lifeweb/db/lib/lobbySweep");
+const { runRiteSweep } = require("@lifeweb/db/lib/riteSweep");
 const { getGameState } = require("@lifeweb/db/lib/gameState");
 const { startDeathSmell } = require("../lib/deathSmell");
 const { registerCommands } = require("../lib/commands");
@@ -188,6 +189,18 @@ module.exports = {
     // timer rather than a cron — the unpredictability is the feature. Self-
     // rescheduling; see bot/src/lib/deathSmell.js.
     startDeathSmell(prisma);
+
+    // The Thanati's rites fire two minutes after their last requirement lands
+    // and expire twelve hours after their first chant (db/lib/riteSweep.js).
+    // Every minute, so "two minutes" means two or three rather than up to
+    // seventeen.
+    cron.schedule("* * * * *", () => {
+      runRiteSweep(prisma)
+        .then(({ expired, fired }) => {
+          if (expired || fired) console.log(`Rite sweep: ${fired} fired, ${expired} expired.`);
+        })
+        .catch((err) => console.error("Rite sweep failed:", err));
+    });
 
     cron.schedule("*/15 * * * *", () => {
       runWhisperPoll(prisma)

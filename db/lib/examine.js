@@ -19,6 +19,7 @@
 // come in as arguments; see EXAMINE_SUBJECT_SELECT for the rest.
 const { concealedLine } = require("./concealedIdentity");
 const { inRealFaction } = require("./factionConstants");
+const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
 const { formatTagRequirement } = require("./formatTagRequirement");
 const { formatTagArmor } = require("./formatTagArmor");
 const { ARMOR_TAG_FIELDS } = require("./armorValue");
@@ -105,6 +106,16 @@ function describeTag({ characterTag: ct, viaSkill }, openTurnNumber) {
   };
 }
 
+// The cult's own sight: a fellow Thanati reads the seat off the subject's
+// sheet as one extra line — the leader's mark when they carry it, the Belief
+// otherwise. Same row shape as describeTag so the dialog renders it unchanged.
+function thanatiLines(subjectTags = []) {
+  const slugs = new Set(subjectTags.map((ct) => ct.tag?.slug));
+  if (!slugs.has(THANATI_SLUG)) return [];
+  const seat = subjectTags.find((ct) => ct.tag?.slug === (slugs.has(THANATI_LEADER_SLUG) ? THANATI_LEADER_SLUG : THANATI_SLUG));
+  return [{ name: seat.tag.name, slug: seat.tag.slug, detail: null, viaSkill: false }];
+}
+
 // The concealed read: deliberately impoverished, and built BEFORE any of the
 // normal field logic so nothing can leak through it. The hood hides the
 // identity, not the inventory — a drawn dagger still shows, by the same
@@ -145,6 +156,10 @@ function examineReadout({
   viewerFactionId = null,
   viewerIsOfficer = false,
   wasConcealedAs = null,
+  // A Thanati examining anybody sees whether they are one too, and whether
+  // they lead (docs/systemdocs/THANATI.md). Nobody else ever does: the
+  // Belief stays HIDDEN to a bystander, robes or no robes.
+  viewerIsThanati = false,
 }) {
   const identity = presentedIdentity(subject, {
     forcedName: forcedNameFrom(subject.tags),
@@ -175,7 +190,10 @@ function examineReadout({
     appearance: subject.appearance || null,
     ailments: [],
     equipment: [],
-    tags: medicallyVisibleTags(subject.tags, satisfied).map((entry) => describeTag(entry, openTurnNumber)),
+    tags: [
+      ...medicallyVisibleTags(subject.tags, satisfied).map((entry) => describeTag(entry, openTurnNumber)),
+      ...(viewerIsThanati ? thanatiLines(subject.tags) : []),
+    ],
     // An unseen field is ABSENT, never a "hidden" placeholder — and nothing
     // tells the subject they were read. Once the viewer holds the sight, an
     // empty result reads exactly as Inscrutable's block does, so a reader

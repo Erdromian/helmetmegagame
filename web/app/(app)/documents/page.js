@@ -11,6 +11,8 @@ import { getHandbookBody, HANDBOOK_KEY } from "@/lib/handbook";
 import { catalogTags } from "@/lib/tagCatalog";
 import { redactWithheldRecipes } from "@/lib/recipeCatalog";
 import { buildSkillAncestry, satisfiedSkillIds } from "@/lib/healRequests";
+import { GRIMOIRE_DOCUMENT_KEY, expandGrimoire } from "@/lib/grimoire";
+import { ensureRiteWords } from "@lifeweb/db/lib/riteWords";
 
 export const metadata = { title: "Documents" };
 
@@ -26,7 +28,7 @@ export default async function DocumentsPage() {
   const { session, isGm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
 
-  const [documents, characterRow, tagRows] = await Promise.all([
+  const [rawDocuments, characterRow, tagRows] = await Promise.all([
     prisma.document.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.character.findFirst({
       where: { discordUserId: session.discordUserId, status: "ALIVE" },
@@ -63,6 +65,16 @@ export default async function DocumentsPage() {
       },
     }),
   ]);
+
+  const riteWordsCache = rawDocuments.some((d) => d.key === GRIMOIRE_DOCUMENT_KEY)
+    ? await ensureRiteWords(prisma)
+    : null;
+  // The Grimoire is the one document whose text is generated: this game's
+  // Words of the Circle, rolled on first read (web/lib/grimoire.js). Only
+  // composed when the row exists, so a database without it rolls nothing.
+  const documents = rawDocuments.some((d) => d.key === GRIMOIRE_DOCUMENT_KEY)
+    ? rawDocuments.map((d) => expandGrimoire(d, riteWordsCache ?? {}))
+    : rawDocuments;
 
   const character = readerFromCharacter(characterRow);
   const written = documents.filter(isWritten);

@@ -19,6 +19,13 @@ import {
 } from "@lifeweb/db/lib/roomAccess";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import {
+  THANATI_SLUG,
+  THANATI_LEADER_SLUG,
+  THANATI_WARES,
+  OBOL_SLUG,
+  hideoutRoom,
+} from "@lifeweb/db/lib/thanati";
+import {
   BUTCHER_SLUG,
   MUTILATE_GATE_SLUGS,
   WORKSHOP_EQUIPMENT_SLUG,
@@ -772,6 +779,43 @@ export default async function CharacterPage({ searchParams }) {
   // facts, so it leaks nothing about who is standing here or what state they
   // are in. mutilateRequest re-checks the gate and the subject.
   const canMutilate = MUTILATE_GATE_SLUGS.some((slug) => heldSlugs.has(slug));
+  // THE THANATI (docs/systemdocs/THANATI.md). Whether you are one, and whether
+  // you lead, are your own sheet's facts; where the hideout is, you set
+  // yourself. thanatiActions.js re-checks every one of these.
+  const isThanati = heldSlugs.has(THANATI_SLUG);
+  const isThanatiLeader = heldSlugs.has(THANATI_LEADER_SLUG);
+  const hideout = isThanati ? await hideoutRoom(prisma) : null;
+  const atHideout = Boolean(hideout && hideout.locationId === character.locationId);
+  // Set Hideout's picker: the rooms at this Location the leader can get into.
+  const hideoutRooms = isThanatiLeader
+    ? accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds).map((r) => ({
+        id: r.id,
+        name: r.name,
+        current: r.id === hideout?.id,
+      }))
+    : [];
+  // Purchase Gear's shelf and purse: the wares priced in both currencies, and
+  // what the hideout's floor holds of each.
+  const [thanatiWares, hideoutObols] = atHideout
+    ? await Promise.all([
+        prisma.tag
+          .findMany({
+            where: { slug: { in: THANATI_WARES.map((w) => w.slug) } },
+            select: { id: true, slug: true, name: true },
+          })
+          .then((tags) =>
+            THANATI_WARES.map((w) => {
+              const tag = tags.find((t) => t.slug === w.slug);
+              return tag ? { tagId: tag.id, name: tag.name, obols: w.obols, resources: w.resources } : null;
+            }).filter(Boolean),
+          ),
+        prisma.roomTag.findFirst({
+          where: { roomId: hideout.id, tag: { slug: OBOL_SLUG } },
+          select: { quantity: true },
+        }),
+      ])
+    : [[], null];
+  const hideoutStock = atHideout ? { resources: hideout.resources, obols: hideoutObols?.quantity ?? 0 } : null;
   // The bomb's two halves. Both read off your own sheet and nothing else, so
   // neither leaks anything about the room; nukeActions.js re-checks both,
   // since a hidden button is a hint and not a lock.
@@ -1025,6 +1069,12 @@ export default async function CharacterPage({ searchParams }) {
       canDisguise={canDisguise}
       canTorture={canTorture}
       canMutilate={canMutilate}
+      isThanati={isThanati}
+      isThanatiLeader={isThanatiLeader}
+      atHideout={atHideout}
+      hideoutRooms={hideoutRooms}
+      hideoutStock={hideoutStock}
+      thanatiWares={thanatiWares}
       hasDatacard={hasDatacard}
       hasDevice={hasDevice}
       nukeArmedTurn={nukeState?.nukeArmedTurn ?? null}

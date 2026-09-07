@@ -85,6 +85,11 @@ export const ACTION_HELP = {
     "Pack up to 150 lb of what you're carrying into one crate. The crate weighs half what went into it, and you write the line on the side yourself. Anyone holding it can open it again.",
   bird: "Send a letter you're holding to someone, by bird. You have to guess their zone — guess wrong and the bird comes back with it still on.",
   seal: "Close a letter with your wax seal.",
+  // The Thanati's three, Bascinet's words verbatim (docs/systemdocs/THANATI.md).
+  // Purchase Gear carries none on purpose.
+  recall: "Remember the other Thanati cultists in Ravenheart.",
+  recover: "Recover your mask and robes from where you left them.",
+  hideout: "Set your hideout room, determining where you can purchase things from.",
 };
 
 export const ACTION_SECTIONS = [
@@ -181,6 +186,27 @@ export const ACTION_SECTIONS = [
         label: "Disarm Nuke",
         show: "hasDatacard",
         gate: "hasDevice",
+      },
+    ],
+  },
+  // THE THANATI (docs/systemdocs/THANATI.md). Every row HIDES rather than
+  // greys — whether you are a cultist, or its leader, is your own sheet's
+  // fact, and a dead row on everybody else's would only teach them the cult
+  // exists. Purchase Gear then GREYS on whether you are standing at the
+  // hideout's Location, which is your own ground.
+  {
+    key: "thanati",
+    label: "THANATI",
+    actions: [
+      { mode: "recall", icon: SpeakerIcon, label: "Recall Comrades", show: "isThanati" },
+      { mode: "recover", icon: CharacterIcon, label: "Recover Equipment", show: "isThanati" },
+      { mode: "hideout", icon: KeyIcon, label: "Set Hideout", show: "isThanatiLeader" },
+      {
+        mode: "purchase",
+        icon: CrateIcon,
+        label: "Purchase Gear",
+        show: "isThanati",
+        gate: "atHideout",
       },
     ],
   },
