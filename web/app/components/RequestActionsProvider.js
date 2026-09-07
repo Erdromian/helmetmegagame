@@ -401,6 +401,11 @@ export default function RequestActionsProvider({
   hasWorkshop = false,
   canHeal = false,
   healsLeft = null,
+  // Surgery needs a site (M3, TAGS.md §5c) — whether Surgical Equipment or a
+  // Surgical Theater is in reach right now, resolved server-side
+  // (web/lib/peoplePools.js). A hint for the tier-6/7 rows below; the
+  // server re-checks it under lock either way.
+  hasSurgicalSite = false,
   healTargets = [],
   // Who can pay for a treatment or a craft: you, anyone here, rooms here.
   healParties = null,
@@ -1887,6 +1892,20 @@ export default function RequestActionsProvider({
                         </button>
                       </span>
                     ))}
+                  </p>
+                )}
+                {/* Surgery needs a site (M3, TAGS.md §5c) — tier-6/7 rows
+                    only. Same shape as CraftDialog's Workshop hint: a
+                    warning, never a greyed-out row, since the server always
+                    offers the attempt (or refuses it outright without a
+                    site) rather than hiding it. */}
+                {affliction?.needsSite && (
+                  <p
+                    className={`text-xs ${hasSurgicalSite ? "text-muted" : "text-accent"}`}
+                  >
+                    {hasSurgicalSite
+                      ? "Surgery, and the means are in reach — Surgical Equipment to hand, or a Theater standing where you are."
+                      : "Surgery: you need Surgical Equipment, held or set up where you're standing, or a Surgical Theater — a Portable Surgical Pack alone won't do it."}
                   </p>
                 )}
                 {affliction && (

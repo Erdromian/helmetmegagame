@@ -330,6 +330,7 @@ export default async function PlayPage() {
         examineBlocked={aside.pools.examineBlocked}
         canHeal={aside.pools.canHeal}
         healsLeft={aside.pools.healsLeft}
+        hasSurgicalSite={aside.pools.hasSurgicalSite}
         healTargets={aside.pools.healTargets}
         healParties={{ characters: aside.pools.peopleParties, rooms: [] }}
         transferParties={{ characters: aside.pools.peopleParties, rooms: aside.stashRooms }}

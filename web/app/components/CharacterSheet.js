@@ -79,6 +79,7 @@ export default function CharacterSheet({
   desiresEnabled = true,
   canHeal = false,
   healsLeft = null,
+  hasSurgicalSite = false,
   // Lessons and Craft (LESSONS.md, CRAFTING.md), all built in character/page.js.
   hasMoved = false,
   canTeach = false,
@@ -193,6 +194,7 @@ export default function CharacterSheet({
             hasWorkshop={hasWorkshop}
             canHeal={canHeal}
             healsLeft={healsLeft}
+            hasSurgicalSite={hasSurgicalSite}
             hasMoved={hasMoved}
             canTeach={canTeach}
             knownRecipeIds={knownRecipeIds}

@@ -9,6 +9,8 @@ import { isTradeable } from "@/lib/tagRequests";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { craftMoveCost } from "@/lib/craftBudget";
 import { MEDICAL_SIMPLE_PER_TURN } from "@/lib/requests";
+import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
+import { SURGICAL_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
 import {
   HEALABLE_CATEGORY,
   HEAL_SKILL_SLUG,
@@ -17,6 +19,7 @@ import {
   isHealable,
   isInflictable,
   isGambitHeal,
+  needsSurgicalSite,
   countsAgainstHealCap,
   healCapFor,
   satisfiedSkillIds,
@@ -119,6 +122,13 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   const healSkillId = tierRows.find((t) => t.slug === HEAL_SKILL_SLUG)?.id;
   const canHeal = Boolean(healSkillId && satisfied.has(healSkillId));
 
+  // Surgery needs a site (M3, TAGS.md §5c): resolved once, server-side, so a
+  // tier-6/7 row can quote it the same way CraftDialog quotes hasWorkshop —
+  // a hint, never the gate; healCharacterRequestImpl re-checks it under lock.
+  const hasSurgicalSite = canHeal
+    ? await hasEquipmentInReach(prisma, character, SURGICAL_EQUIPMENT_SLUG)
+    : false;
+
   // Routine cures left in the medic's shared free pool (M2,
   // web/lib/requests.js MEDICAL_SIMPLE_PER_TURN). The predicate MUST match
   // routineHealsThisTurn in requestActions.js exactly — a Gambit never draws
@@ -183,6 +193,9 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
             cost: healCost(tag),
             requirementLabel: formatTagRequirement(tag),
             gambit,
+            // Tier 6/7 only (M3) — the dialog greys out nothing on this, since
+            // a Gambit is always offered rather than refused; it just warns.
+            needsSite: needsSurgicalSite(tag),
             // What this heal would cost the medical Move RIGHT NOW, family
             // hardcoded "medical" like the server bills (never derived —
             // craftFamily would drop a skill-less cure like choking into the
@@ -310,6 +323,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     canHeal,
     healTargets,
     healsLeft,
+    hasSurgicalSite,
     lootTargets,
     moveTargets,
     moveLocations,
