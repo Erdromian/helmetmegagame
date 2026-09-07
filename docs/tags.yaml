@@ -5173,11 +5173,11 @@ tags:
   # 3-turn project at a real price: stacked with the teaching tags it makes
   # learning trivial, so the charm itself must not be.
   minted-charm:
-    catalog: all
+    catalog: gm
     name: Minted Charm
     category: items
     group: items-gear
-    description: "A talisman struck from a coin older than Ravenheart, worn on a cord. Old metal remembers old learning, and some of it rubs off. ‡"
+    description: "A talisman of old metal worn smooth, hung on a cord. Old metal remembers old learning, and some of it rubs off. ‡"
     pointCost: 3
     equippable: true
     visible: worn
@@ -5201,11 +5201,11 @@ tags:
   # it: the first TROUBLE the Caving Die rolls a holder is negated, the lure
   # eaten in their place. One a turn, bone-mask's exact 0-turn butcher shape.
   musk-lure:
-    catalog: all
+    catalog: gm
     name: Musk Lure
     category: items
     group: items-gear
-    description: "A wax plug of rendered nekker musk. Things in the dark would rather follow it than you. ‡"
+    description: "A wax plug with a low animal smell that carries further than it should. Things in the dark would rather follow it than you. ‡"
     pointCost: 2
     tradeable: true
     weight: 0.5
@@ -7398,11 +7398,11 @@ tags:
   # the counter: no sell price on purpose. The heart drops nowhere until the
   # loot pass lands; a GM grants it.
   heartforged-blade:
-    catalog: all
+    catalog: gm
     name: Heartforged Blade
     category: items
     group: items-weapons
-    description: "A blade quenched, still glowing, in an Aberrant's heart. It keeps a faint warmth the forge cannot explain, and its wielder's hands do not shake. Anyone who examines it knows what was done to make it. ‡"
+    description: "A blade that came out of its quenching with a warmth the forge cannot explain, and it has never quite cooled since. Its wielder's hands do not shake. Anyone who examines it knows something terrible was done in the making. ‡"
     pointCost: 14
     requiredTag: melee-basic
     equippable: true
@@ -9807,11 +9807,11 @@ tags:
   # second craft. Holy water poured on a thing; this is worked into a person.
   # What Blessed actually does is documented on that tag, not here.
   chrism:
-    catalog: all
+    catalog: gm
     name: Chrism
     category: items
     group: items-special
-    description: "Consecrated oil, thickened with honey and prayer. Anointing someone marks them {tag:blessed} for a time. ‡"
+    description: "Consecrated oil, golden and slow to pour. Anointing someone marks them {tag:blessed} for a time. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11323,7 +11323,7 @@ tags:
   # 12, and it reads as a garment rather than armor. Also competes with the
   # brewers for sacs, deliberately.
   graga-hide-cloak:
-    catalog: all
+    catalog: gm
     name: Graga-Hide Cloak
     category: items
     group: items-armor

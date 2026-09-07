@@ -573,15 +573,16 @@ export default async function CharacterPage({ searchParams }) {
   // (or a higher tier of), decided here and re-checked by craftRequest. The
   // client filters its picker to these ids and nothing else.
   //
-  // Ingredient hiding is menu hygiene, not secrecy (planning/crafting-pass-
-  // goals.md): the recipe's DESCRIPTION and the public Tag Catalog's Recipe
-  // line still name every ingredient, GM-only or not — that's the recipe
-  // teaching itself. This only keeps a recipe you have no path to yet out of
-  // the picker, so a fresh crafter isn't offered Miasma before they've ever
-  // seen a corpse. The tagCatalog query above never selects
-  // `catalogVisibility` (it isn't craftable/purchasable itself, and an
-  // ingredient tag usually is neither), so the slugs and groups a craftable
-  // recipe's requirementItems name are resolved with one more targeted query.
+  // Ingredient hiding started as menu hygiene and is now also half of the
+  // secrecy story: the Recipes tab drops a recipe naming an ingredient the
+  // reader was not sent (web/lib/recipeCatalog.js), and hidden-recipe tag
+  // descriptions no longer name their ingredients. Here it keeps a recipe you
+  // have no path to yet out of the picker, so a fresh crafter isn't offered
+  // Miasma before they've ever seen a corpse. The tagCatalog query above
+  // never selects `catalogVisibility` (it isn't craftable/purchasable itself,
+  // and an ingredient tag usually is neither), so the slugs and groups a
+  // craftable recipe's requirementItems name are resolved with one more
+  // targeted query.
   const restrictedTagSlugs = new Set();
   const restrictedGroupSlugs = new Set();
   for (const t of tagCatalog) {
