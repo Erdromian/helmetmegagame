@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-07 · Documents, the Depot and Notes paint at once on a return visit
+
+− Three more pages keep their last data in your browser and draw it in the first frame; the server's answer replaces it a moment later
+
 ## 2026-09-07 · The character sheet paints at once on a return visit
 
 − Your sheet keeps its last data in your browser and draws it in the first frame the next time you open it; the server's answer replaces it a moment later  
