@@ -14,6 +14,10 @@
 
 const HIDDEN_CURES = {
   bliss: ["depressed"],
+  // The one ADVERTISED entry — the leeches' description says what they do,
+  // so nothing is discovered here; this is just the only consume hook that
+  // takes a tag off the eater. The medical rework owns the proper home.
+  leeches: ["bruised"],
 };
 
 // Drops whatever the consumed slug cures, if the character is holding it.

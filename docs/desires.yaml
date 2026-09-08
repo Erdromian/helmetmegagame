@@ -765,6 +765,16 @@ desires:
     requires:
       anyTags: [artist]
 
+  # Plain text on purpose — never a {tag:death-mask} token: the rich-text
+  # hovercard resolves against the UNFILTERED tag payload, so a token here
+  # would print the gm-catalog tag's description to anyone browsing desires.
+  # The name leaks that the thing exists, which is bait, not a spoiler; the
+  # recipe leaks nowhere.
+  own-a-death-mask:
+    name: Own a Death Mask
+    tier: 3
+    families: [status, mortality]
+
   eat-dangerous:
     name: Eat something dangerous.
     tier: 4

@@ -87,6 +87,7 @@ export default function CharacterSheet({
   hasMoved = false,
   canTeach = false,
   knownRecipeIds = [],
+  deathMaskCorpses = [],
   craftProjects = [],
   // The turn's craft Move ledger and each ration's free units left, both
   // computed in character/page.js (web/lib/craftBudget.js).
@@ -198,6 +199,7 @@ export default function CharacterSheet({
             hasMoved={hasMoved}
             canTeach={canTeach}
             knownRecipeIds={knownRecipeIds}
+            deathMaskCorpses={deathMaskCorpses}
             craftProjects={craftProjects}
             craftBudget={craftBudget}
             craftAllowances={craftAllowances}
