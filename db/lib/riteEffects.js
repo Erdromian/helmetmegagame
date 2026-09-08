@@ -67,9 +67,9 @@ const INGREDIENTS_CONSUMED = "The ingredients evaporate into dust.";
 // are the lines the death DM ends on, and the whole point of naming them here
 // is that Bascinet can rewrite them in one place.
 const SACRIFICE_DEATH_REASON =
-  "You were laid out on the cult's floor and opened up. Your body burst into a puddle of organs and gore. ‡";
+  "You were laid out on the cult's floor and opened up. Your body burst into a puddle of organs and gore.";
 const JUDGEMENT_DEATH_REASON =
-  "Something looked at your likeness and decided against you. You exploded into mist. ‡";
+  "Something looked at your likeness and decided against you. You exploded into mist.";
 const ANIMATED_LINE = "This weapon is animated! It is indestructible, it cuts through armor, and it heals its targets whenever it harms someone.";
 
 const log = (what) => (err) => console.error(`Rite: ${what} failed:`, err?.message ?? err);
@@ -267,7 +267,7 @@ const EFFECTS = {
     const { claimed } = await killByRite(db, victim, {
       turn: openTurn,
       gib: true,
-      content: `${victim.name} was sacrificed on the Thanati floor. ‡`,
+      content: `${victim.name} was sacrificed on the Thanati floor.`,
       reason: SACRIFICE_DEATH_REASON,
     });
     if (!claimed) {
@@ -437,7 +437,7 @@ const EFFECTS = {
     const { claimed } = await killByRite(db, full, {
       turn: openTurn,
       gib: true,
-      content: `${full.name} was judged. ‡`,
+      content: `${full.name} was judged.`,
       reason: JUDGEMENT_DEATH_REASON,
     });
     // Already dead when the rite landed. The print is spent either way — it

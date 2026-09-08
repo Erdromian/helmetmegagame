@@ -21,7 +21,7 @@ const INTERCOM_MODAL_PREFIX = "intercom:send:";
 // one message per zone. Chunking would ping @here once per chunk.
 const INTERCOM_MAX_LENGTH = 1200;
 
-const INTERCOM_HELP = "-# Heard everywhere above ground except the Black Hills. Everyone there is pinged. ‡";
+const INTERCOM_HELP = "-# Heard everywhere except in the Black Hills and the caves.";
 
 function buildIntercomModal(roomId) {
   return new ModalBuilder()

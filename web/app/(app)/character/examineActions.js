@@ -23,8 +23,7 @@ import { examineBlock } from "@lifeweb/db/lib/examineVision";
 // the hood's impoverished read.
 //
 // The readout itself is db/lib/examine.js, shared with the reaction handler so
-// the two surfaces cannot drift on the doctor's eye, Inscrutable, or what
-// "visible" means.
+// the two surfaces cannot drift on the doctor's eye or what "visible" means.
 
 // The looker, from the session and never from a posted id — a server action is
 // a public endpoint.

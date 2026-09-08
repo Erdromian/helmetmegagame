@@ -179,9 +179,9 @@ export function Readout({ readout }) {
       <Line label="Role" values={readout.roleTitle ? [readout.roleTitle] : null} />
       <Line label="Resources" values={readout.resources != null ? [`${readout.resources} ⬢`] : null} />
 
-      {/* Rendered only when the looker holds the sight that buys it. An empty
-          read prints the same words a guarded one does, so Inscrutable never
-          advertises itself — db/lib/inspectVision.js. */}
+      {/* Rendered only when the looker holds the sight that buys it. A subject
+          with nothing to read prints the same words either way, so the field
+          never reports more than it should — db/lib/inspectVision.js. */}
       {readout.desire && (
         <div className="field">
           <span className="field-label">Last Desire</span>

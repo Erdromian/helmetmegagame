@@ -182,7 +182,7 @@ words where a room or a player hears anything:
 |---|---|---|
 | Initial | 1 chanter | DMs every participant the cult's objectives with Success!/Incomplete |
 | Conversion | a Bound character at the Location with access to the room, not Pious, not already Thanati; leaders first | grants `thanati` (Belief conflicts resolved), pins the convert-* objectives naming them, DMs them, room hears "…’s eyes widen…" |
-| Sacrifice | a Bound character with access | pins the living sacrifice-* objectives, kills them (`killByRite`), 2–7 remains + 1–2 Flesh + 2–5 ⬢ on the floor, corpse removed |
+| Sacrifice | a Bound character with access | pins the living sacrifice-* objectives, **gibs** them (`killByRite`, `gib: true`), 2–7 remains + 1–2 Flesh + 2–5 ⬢ on the floor. No corpse is minted at all — see `CORPSES.md` §1a |
 | Scrying | 15 ⬢ | a `scrying-eye` on the floor |
 | Possession | a weapon stack on the floor, 15 ⬢ | one unit becomes a custom "<Name> (Animated)" copy, indestructible |
 | Reanimation | a corpse on the floor, 1 heart, 5 ⬢ | `reviveByRite`: ALIVE in this Location with `ghoul`, `servant-of-tzchernobog`, `hungerless`; role, Cursed and placement restored |
@@ -193,7 +193,7 @@ words where a room or a player hears anything:
 | Famine | 1 feces, 1 lavish-meal, 10 ⬢ | every faction silo loses up to 100 ⬢ |
 | Reflection | 1 black-robes (floor), 15 ⬢ | `shimmering-robes` on the floor (counts as robes for chanting) |
 | Rage | 1 ravenheart-red | every participant gets `rage`: fear ×0, Desires locked but cruelty |
-| Judgement | 1 heart, 2 eye, a photograph, 40 ⬢; target not Pious, not on hallowed ground | target killed wherever they stand, their Location hears "… explodes into mist!", remains where the body fell |
+| Judgement | 1 heart, 2 eye, a photograph, 40 ⬢; target not Pious, not on hallowed ground | target **gibbed** wherever they stand, their Location hears "… explodes into mist!", remains dropped in a random public Room there — there is no body to drop them beside |
 | Madness | 1 mindbreaker-toxin, a photograph, 15 ⬢; same target rule as Judgement | target gets `madness` for two turns; the print is spent |
 | Fulfillment | nothing on the floor — but the **leader must be among the chanters**, and it fires once per game | 100 ⬢ per completed cult objective, on the room's floor; room hears "Bounty! What success!" |
 | Ascension | 1 barons-scepter, 1 bishops-mitre, 250 ⬢, eight chanters | arms the end of the world for two turns' time and tells every zone where it is being planned |

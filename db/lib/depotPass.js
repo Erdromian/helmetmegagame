@@ -91,11 +91,11 @@ async function sweepTurret(prisma, depot) {
   });
 }
 
-const DEATH_CONTENT = "Shot dead by the turret in the depot ceiling. \u2021";
+const DEATH_CONTENT = "Shot dead by the turret in the depot ceiling.";
 // What the victim's death DM ends on, and what #leave reads. Separate from the
 // flavour line above, which the gun speaks in the moment — this is the plain
 // fact, and it has to survive being read a day later out of context.
-const DEATH_REASON = "the turret in the depot ceiling shot them dead. \u2021";
+const DEATH_REASON = "the turret in the depot ceiling shot them dead.";
 
 // Walking in while it is hot. `armed` is a thunk so loadDepot — an upsert, and
 // therefore a write on one contended row — never runs for the thousands of

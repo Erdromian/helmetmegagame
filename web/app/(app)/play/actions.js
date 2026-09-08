@@ -1034,9 +1034,12 @@ export async function ringBell({ roomId, word } = {}) {
 
   return {
     ok: true,
-    line: failed.length
-      ? `You haul on the rope. It carries to ${sent} place${sent === 1 ? "" : "s"}, and not to ${failed.join(", ")}. ‡`
-      : "You haul on the rope, and the whole barony hears it. ‡",
+    // Bascinet's wording, and the same on both faces — the bot's twin in
+    // bot/src/events/interactionCreate.js says exactly this. Which places
+    // Discord refused is a fact about Discord, not about the barony, so the
+    // names stay in soundBroadcast.js's console.error and the audit row above
+    // and the ringer hears none of it.
+    line: "The bell sounds.",
   };
 }
 

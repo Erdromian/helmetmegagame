@@ -34,7 +34,7 @@ const DETONATION_LINE =
 // `deaths` entries below carried no `reason` at all, and db/index.js's shared
 // death-DM loop interpolated it anyway — so everybody killed by the bomb was
 // DM'd the literal string "You have died. undefined".
-const BLAST_DEATH_REASON = "the blast caught them above ground and left nothing behind. ‡";
+const BLAST_DEATH_REASON = "the blast caught them above ground and left nothing behind.";
 
 async function runNukeExplosionPass(prisma, turn) {
   const state = await prisma.gameState.findUnique({ where: { id: 1 } });

@@ -3,11 +3,11 @@
 // Seductive (the Demoness tag, docs/tags.yaml's hidden `demoness` category) is
 // the one tag that buys automatic, free read access to another sheet's last
 // fulfilled Desire. Mindreading reads the same fact only via a GM-adjudicated
-// Gambit. Inscrutable is the counter, read off the subject.
+// Gambit.
 //
 // No Prisma import; imported by subpath from both bot/ and web/ so the rule
 // can't drift between the two faces of the game.
-const { SEDUCTIVE_DEMONESS_SLUG, INSCRUTABLE_SLUG } = require("./constants");
+const { SEDUCTIVE_DEMONESS_SLUG } = require("./constants");
 
 // A list, not a bare slug, so another tag can be added without touching the
 // check below.
@@ -27,13 +27,4 @@ function inspectVision(characterTags = []) {
   };
 }
 
-// Read off the SUBJECT: whether their Desire is closed to every reader.
-//
-// Separate from inspectVision() because the caller resolves the viewer before
-// it knows who's being looked at. Present this as "no Desire to read", not a
-// blocked field — a "hidden" placeholder would advertise what Inscrutable hides.
-function isInscrutable(characterTags = []) {
-  return slugSet(characterTags).has(INSCRUTABLE_SLUG);
-}
-
-module.exports = { inspectVision, isInscrutable };
+module.exports = { inspectVision };

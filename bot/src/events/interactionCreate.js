@@ -363,7 +363,7 @@ async function handleThreadMemberCommand(interaction, action) {
   if (!gm) {
     const member = await channel.members.fetch(interaction.user.id).catch(() => null);
     if (!member) {
-      await respond(interaction, "» *You're not in this conversation.* ‡");
+      await respond(interaction, "» *You're not in this conversation.*");
       return;
     }
   }
@@ -373,7 +373,7 @@ async function handleThreadMemberCommand(interaction, action) {
     where: { discordRoleId: role.id, status: "ALIVE" },
   });
   if (!target) {
-    await respond(interaction, "» *That isn't a living character's role.* ‡");
+    await respond(interaction, "» *That isn't a living character's role.*");
     return;
   }
 
@@ -388,7 +388,7 @@ async function handleThreadMemberCommand(interaction, action) {
       await channel.members.remove(target.discordUserId);
     } catch (err) {
       console.error(`Failed to remove ${target.discordUserId} from thread ${channel.id}:`, err);
-      await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.* ‡");
+      await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.*");
       return;
     }
     await respond(interaction, `» *${target.name} was removed.*`, { fleeting: true });
@@ -423,7 +423,7 @@ async function handleThreadMemberCommand(interaction, action) {
   }
   await respond(
     interaction,
-    `» *${target.name} is invited — they'll see this when they reach ${row.location?.name ?? "this place"}.* ‡`,
+    `» *${target.name} is invited — they'll see this when they reach ${row.location?.name ?? "this place"}.*`,
     { fleeting: true },
   );
 }
@@ -459,7 +459,7 @@ async function notifyLetIn(interaction, target, threadName, placeName, threadId)
 // itself.
 async function handleRoomGuestCommand(interaction, action, room) {
   if (room.kind !== "PRIVATE") {
-    await respond(interaction, "» *Anyone standing here can already walk in.* ‡");
+    await respond(interaction, "» *Anyone standing here can already walk in.*");
     return;
   }
 
@@ -467,7 +467,7 @@ async function handleRoomGuestCommand(interaction, action, room) {
   if (!gm) {
     const standing = await findAliveCharacter(interaction.user.id);
     if (!standing || !room.locationId || standing.locationId !== room.locationId) {
-      await respond(interaction, "» *You're not in this room.* ‡");
+      await respond(interaction, "» *You're not in this room.*");
       return;
     }
   }
@@ -477,18 +477,18 @@ async function handleRoomGuestCommand(interaction, action, room) {
     where: { discordRoleId: role.id, status: "ALIVE" },
   });
   if (!target) {
-    await respond(interaction, "» *That isn't a living character's role.* ‡");
+    await respond(interaction, "» *That isn't a living character's role.*");
     return;
   }
   if (target.locationId !== room.locationId) {
-    await respond(interaction, `» *${target.name} isn't here to be let in.* ‡`);
+    await respond(interaction, `» *${target.name} isn't here to be let in.*`);
     return;
   }
 
   if (action === "remove") {
     const held = await heldTagSlugs(prisma, target.id);
     if (room.accessTagSlugs.some((slug) => held.has(slug))) {
-      await respond(interaction, "» *Their key admits them. Take the key.* ‡");
+      await respond(interaction, "» *They have a key. You can't remove them.*");
       return;
     }
     await prisma.roomGuest
@@ -508,7 +508,7 @@ async function handleRoomGuestCommand(interaction, action, room) {
       await recordRoomThread(prisma, target.id, room.id, false);
     } catch (err) {
       console.error(`Failed to remove ${target.discordUserId} from room ${room.id}:`, err);
-      await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.* ‡");
+      await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.*");
       return;
     }
     await respond(interaction, `» *${target.name} was shown out.*`, { fleeting: true });
@@ -540,7 +540,7 @@ async function handleRoomGuestCommand(interaction, action, room) {
     }
   }
   await notifyLetIn(interaction, target, room.name, room.location?.name, room.discordThreadId);
-  await respond(interaction, `» *${target.name} was let in. They stay until they leave.* ‡`, {
+  await respond(interaction, `» *${target.name} was let in.*`, {
     fleeting: true,
   });
 }
@@ -600,11 +600,11 @@ async function handleBellSubmit(interaction, roomId) {
   // Decided at submit, never at open: the modal outlives somebody walking back
   // down the tower stairs, and reaching the rope is the only safeguard on it.
   if (character.locationId !== room.locationId) {
-    await respond(interaction, `» *You're not standing in the ${room.name} any more.* ‡`);
+    await respond(interaction, `» *You're not standing in the ${room.name} any more.*`);
     return;
   }
   if (!bellWordMatches(interaction.fields.getTextInputValue(BELL_WORD_FIELD))) {
-    await respond(interaction, "» *You leave the rope alone.* ‡");
+    await respond(interaction, "» *You leave the rope alone.*");
     return;
   }
 
@@ -618,7 +618,7 @@ async function handleBellSubmit(interaction, roomId) {
     const minutes = Math.max(1, Math.ceil(secondsLeft / 60));
     await respond(
       interaction,
-      `» *The bell is still humming from the last pull. About ${minutes} more minute${minutes === 1 ? "" : "s"}.* ‡`,
+      `» *The bell is on cooldown. About ${minutes} more minute${minutes === 1 ? "" : "s"}.*`,
     );
     return;
   }
@@ -641,8 +641,8 @@ async function handleBellSubmit(interaction, roomId) {
   await respond(
     interaction,
     failed.length
-      ? `» *You haul on the rope. It carries to ${sent} place${sent === 1 ? "" : "s"}, and not to ${failed.join(", ")}.* ‡`
-      : "» *You haul on the rope, and the whole barony hears it.* ‡",
+      ? `» *The bell sounds.*`
+      : "» *The bell sounds.*",
   );
 }
 
@@ -665,7 +665,7 @@ async function handleTurretSubmit(interaction, roomId) {
   // Decided at submit, never at open: the modal outlives somebody walking out
   // of the Garrison, and reaching the switch is the only safeguard on it.
   if (character.locationId !== room.locationId) {
-    await respond(interaction, `» *You're not standing in the ${room.name} any more.* ‡`);
+    await respond(interaction, `» *You're not standing in the ${room.name} any more.*`);
     return;
   }
 
@@ -674,7 +674,7 @@ async function handleTurretSubmit(interaction, roomId) {
   // to type is what says which way they meant to throw it.
   const armed = await gatehouseTurretArmed(prisma);
   if (!turretWordMatches(interaction.fields.getTextInputValue(TURRET_WORD_FIELD), armed)) {
-    await respond(interaction, "» *You leave the button alone.* ‡");
+    await respond(interaction, "» *You leave the button alone.*");
     return;
   }
 
@@ -706,8 +706,8 @@ async function handleTurretSubmit(interaction, roomId) {
   await respond(
     interaction,
     next
-      ? "» *The button clicks down. Somewhere below, the rotor comes alive.* ‡"
-      : "» *The button clicks up, and the yard goes quiet.* ‡",
+      ? "» *The button toggles on.*"
+      : "» *The button toggles off.*",
   );
 }
 
@@ -728,7 +728,7 @@ async function handleIntercomSubmit(interaction, roomId) {
     return;
   }
   if (character.locationId !== room.locationId) {
-    await respond(interaction, `» *You're not standing in the ${room.name} any more.* ‡`);
+    await respond(interaction, `» *You're not standing in the ${room.name} any more.*`);
     return;
   }
 
@@ -740,7 +740,7 @@ async function handleIntercomSubmit(interaction, roomId) {
 
   const voice = await loadVoiceState(character.id);
   if (voice.block) {
-    await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.* ‡`);
+    await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.*`);
     return;
   }
   const { sent, failed } = await broadcastIntercom(prisma, body);
@@ -765,7 +765,7 @@ async function handleIntercomSubmit(interaction, roomId) {
   // not a failure, but the speaker has to know which one nobody heard. One ‡
   // for the whole message, riding the last line rather than the first.
   const note = failed.length > 0 ? `\n-# Nothing came through in ${failed.join(", ")}.` : "";
-  await respond(interaction, `» *Your voice goes out across Ravenheart.*${note} ‡`, { fleeting: true });
+  await respond(interaction, `» *Your voice goes out across Ravenheart.*${note}`, { fleeting: true });
 }
 
 // Custom IDs below are "loc:"-namespaced for the travel flow off the Travel
@@ -823,7 +823,7 @@ async function handleTravelOpen(interaction) {
   }
 
   if (destinations.length === 0 && shut.length === 0) {
-    await respond(interaction, "» *Nowhere to go from here.* ‡");
+    await respond(interaction, "» *Nowhere to go from here.*");
     return;
   }
 
@@ -831,16 +831,16 @@ async function handleTravelOpen(interaction) {
   const truncated = destinations.length - Math.min(destinations.length, MENU_OPTION_LIMIT);
   const shutLine =
     shut.length > 0
-      ? `-# Closed to you right now: ${shut.map((row) => row.location.name).join(", ")}. ‡`
+      ? `-# Closed to you right now: ${shut.map((row) => row.location.name).join(", ")}.`
       : null;
   await respond(interaction, {
     content: [
       heading
         ? `» You're on the road to **${heading.name}**. You'll arrive next turn — until then this zone is still yours to walk.`
         : null,
-      destinations.length > 0 ? "Where would you like to go? ‡" : "» *Every way out of here is closed to you.* ‡",
+      destinations.length > 0 ? "Where would you like to go?" : "» *Every way out of here is closed to you.*",
       shutLine,
-      truncated > 0 ? `-# ${truncated} more not shown — Discord caps this list at 25. ‡` : null,
+      truncated > 0 ? `-# ${truncated} more not shown — Discord caps this list at 25.` : null,
     ]
       .filter(Boolean)
       .join("\n"),
@@ -938,7 +938,7 @@ async function handleTravelPick(interaction) {
     prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } }),
   ]);
   if (!target) {
-    await respond(interaction, { content: "» *That place no longer exists.* ‡", components: [] });
+    await respond(interaction, { content: "» *That place no longer exists.*", components: [] });
     return;
   }
   if (!character) {
@@ -969,15 +969,15 @@ async function handleTravelPick(interaction) {
   const cost = !character.locationId
     ? "-# Arriving costs you nothing."
     : !crossing
-      ? "-# A step inside the zone is free. ‡"
+      ? "-# You have free zone moves left, so this is free."
       : left > 0
-        ? `-# Crossing into ${target.zone.name} uses 1 of your ${left} free ${left === 1 ? "move" : "moves"} this turn. ‡`
-        : `-# You have no free moves left, so crossing into ${target.zone.name} spends your Move. ‡`;
+        ? `-# Crossing into ${target.zone.name} uses 1 of your ${left} free ${left === 1 ? "move" : "moves"} this turn.`
+        : `-# You have no free moves left, so crossing into ${target.zone.name} spends your Move.`;
 
   const stowed = crossing ? stowedMounts(character.tags) : [];
   const stowedLine =
     stowed.length > 0
-      ? `-# Your ${listNames(stowed)} ${stowed.length === 1 ? "isn't" : "aren't"} equipped, so ${stowed.length === 1 ? "it does" : "they do"} nothing for you. ‡`
+      ? `-# Your ${listNames(stowed)} ${stowed.length === 1 ? "isn't" : "aren't"} equipped, so ${stowed.length === 1 ? "it does" : "they do"} nothing for you.`
       : null;
 
   await respond(
@@ -988,7 +988,7 @@ async function handleTravelPick(interaction) {
         cost,
         seatWarning ? `-# ${seatWarning}` : null,
         stowedLine,
-        overflow > 0 ? `-# ${overflow} more not shown — Discord caps this list at 25. ‡` : null,
+        overflow > 0 ? `-# ${overflow} more not shown — Discord caps this list at 25.` : null,
       ]
         .filter(Boolean)
         .join("\n"),
@@ -1046,7 +1046,7 @@ async function handleTravelConfirm(interaction, locationId) {
     return;
   }
   if (!target) {
-    await respond(interaction, { content: "» *That place no longer exists.* ‡", components: [] });
+    await respond(interaction, { content: "» *That place no longer exists.*", components: [] });
     return;
   }
 
@@ -1081,7 +1081,7 @@ async function handleTravelConfirm(interaction, locationId) {
     );
   }
 
-  await respond(interaction, { content: `${parts.join(" ")} ‡`, components: [] });
+  await respond(interaction, { content: `${parts.join(" ")}`, components: [] });
 }
 
 async function handleTravelCancel(interaction) {
@@ -1110,7 +1110,7 @@ async function handleWhosHere(interaction, locationId) {
     await respond(interaction, "» *Nobody is here.*");
     return;
   }
-  await respond(interaction, `${lines.join("\n")} ‡`);
+  await respond(interaction, `${lines.join("\n")}`);
 }
 
 // "Secret rooms?": the doors this character can open here that nobody else
@@ -1243,10 +1243,10 @@ async function handleSecretRooms(interaction, locationId) {
     lines.push(`**Conversations:** ${conversations.map((c) => `<#${c.threadId}>`).join(" | ")}`);
   }
   if (lines.length === 0) {
-    await respond(interaction, "» *No secret rooms for you here.* ‡");
+    await respond(interaction, "» *No secret rooms here.*");
     return;
   }
-  await respond(interaction, `${lines.join("\n")} ‡`);
+  await respond(interaction, `${lines.join("\n")}`);
 }
 
 // "Converse": the only thread a player can still open. It is linked to a
@@ -1262,7 +1262,7 @@ async function handleConverseOpen(interaction, locationId) {
     return;
   }
   if (character.locationId !== locationId) {
-    await respond(interaction, "» *You're not there any more.* ‡");
+    await respond(interaction, "» *You're not there any more.*");
     return;
   }
 
@@ -1276,7 +1276,7 @@ async function handleConverseOpen(interaction, locationId) {
   ]);
   const options = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds).slice(0, MENU_OPTION_LIMIT);
   if (options.length === 0) {
-    await respond(interaction, "» *There's no room here to hold a conversation in.* ‡");
+    await respond(interaction, "» *There's no room here to hold a conversation in.*");
     return;
   }
 
@@ -1317,15 +1317,15 @@ async function handleConverseCreate(interaction, roomId) {
     include: { location: true },
   });
   if (!room) {
-    await respond(interaction, "» *That room no longer exists.* ‡");
+    await respond(interaction, "» *That room no longer exists.*");
     return;
   }
   if (character.locationId !== room.locationId) {
-    await respond(interaction, `» *You're not in ${room.location.name} any more.* ‡`);
+    await respond(interaction, `» *You're not in ${room.location.name} any more.*`);
     return;
   }
   if (!room.location.discordChannelId) {
-    await respond(interaction, "» *That place has no channel yet — tell a GM.* ‡");
+    await respond(interaction, "» *That place has no channel yet — tell a GM.*");
     return;
   }
 
@@ -1346,7 +1346,7 @@ async function handleConverseCreate(interaction, roomId) {
     if (!character.webOnly) await addThreadMember(thread.id, interaction.user.id);
   } catch (err) {
     console.error(`Failed to open a conversation in ${room.location.name}:`, err);
-    await respond(interaction, "» *Couldn't open that — try again, or tell a GM.* ‡");
+    await respond(interaction, "» *Couldn't open that — try again, or tell a GM.*");
     return;
   }
 
@@ -1394,7 +1394,7 @@ async function handleConcealCommand(interaction) {
 
   const forcedName = await loadForcedName(prisma, character.id);
   if (forcedName) {
-    await respond(interaction, `» *You are ${forcedName} now. There is no hiding that.* ‡`);
+    await respond(interaction, `» *You are ${forcedName} now.*`);
     return;
   }
 
@@ -1411,15 +1411,15 @@ async function handleConcealCommand(interaction) {
   // concealment rather than granted it. Name the piece where we know it.
   const concealment = await loadConcealment(prisma, character.id);
   if (!concealment) {
-    await respond(interaction, "» *Your face is bare. Put something over it first.* ‡");
+    await respond(interaction, "» *Your face is exposed. Wear a hood or helmet.*");
     return;
   }
   if (concealment.forced) {
     await respond(
       interaction,
       concealment.name
-        ? `» *The ${concealment.name} already hides you, and it does not come off by asking.* ‡`
-        : "» *That already hides you, and it does not come off by asking.* ‡",
+        ? `» *You're already hidden by the ${concealment.name}.*`
+        : "» *You're already hidden by the ${concealment.name}.*",
     );
     return;
   }
@@ -1440,8 +1440,8 @@ async function handleConcealCommand(interaction) {
   await respond(
     interaction,
     concealed
-      ? `» *You now speak as **${withArticle(concealedAlias(character).toLowerCase())}**. Nobody sees your name until you run \`/conceal\` again.* ‡`
-      : "» *You speak under your own name again.* ‡",
+      ? `» *You now speak as **${withArticle(concealedAlias(character).toLowerCase())}**.`
+      : "» *You're no longer concealed.",
   );
 }
 
@@ -1589,7 +1589,7 @@ async function handleSpeakSubmit(interaction, channelId) {
   const voice = await loadVoiceState(character.id);
   if (voice.block) {
     await touchCharacterActivity(prisma, character.id);
-    await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.* ‡`);
+    await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.*`);
     return;
   }
 
@@ -1841,7 +1841,7 @@ async function handlePlayCommand(interaction) {
 
   const held = (slug) => character.tags.some((ct) => ct.tag?.slug === slug && ct.quantity > 0);
   if (!held(INSTRUMENT_SLUG)) {
-    await respond(interaction, "» *You have nothing to play.* ‡");
+    await respond(interaction, "» *You have nothing to play.*");
     return;
   }
 
@@ -1852,14 +1852,14 @@ async function handlePlayCommand(interaction) {
   const channel = interaction.channel;
   const context = channel ? resolveChannelContext(channel) : null;
   if (!channel || context?.channelKind !== "location") {
-    await respond(interaction, "» *There's nobody here to hear it.* ‡");
+    await respond(interaction, "» *There's nobody here to hear it.*");
     return;
   }
 
   const since = Date.now() - (lastPlayed.get(character.id) ?? 0);
   if (since < PLAY_COOLDOWN_MS) {
     const minutes = Math.max(1, Math.ceil((PLAY_COOLDOWN_MS - since) / 60_000));
-    await respond(interaction, `» *Let the last one finish — about ${minutes} more minute${minutes === 1 ? "" : "s"}.* ‡`);
+    await respond(interaction, `» *Let the last one finish — about ${minutes} more minute${minutes === 1 ? "" : "s"}.*`);
     return;
   }
 
@@ -1870,7 +1870,7 @@ async function handlePlayCommand(interaction) {
   // The room first, and its result is what decides whether this counted. A
   // failed overhear must not cost the player their cooldown or swallow the
   // performance.
-  const posted = await channel.send(`${line} ‡`).catch(() => null);
+  const posted = await channel.send(`${line}`).catch(() => null);
   if (!posted) {
     await respond(interaction, "» *Couldn't play here.*");
     return;
@@ -1932,7 +1932,7 @@ async function handleShoutCommand(interaction) {
   // fired out of a zone #summary or a DM.
   const context = interaction.channel ? resolveChannelContext(interaction.channel) : null;
   if (context?.channelKind !== "location") {
-    await respond(interaction, "» *There's nobody here to hear it.* ‡");
+    await respond(interaction, "» *There's nobody here to hear it.*");
     return;
   }
   if (!character.locationId) {
@@ -1948,14 +1948,14 @@ async function handleShoutCommand(interaction) {
   // must not burn the throat timer.
   const voice = await loadVoiceState(character.id);
   if (voice.shoutBlock) {
-    await respond(interaction, `» *You can't get the words out — you're ${voice.shoutBlock.name}.* ‡`);
+    await respond(interaction, `» *You can't get the words out — you're ${voice.shoutBlock.name}.*`);
     return;
   }
 
   const since = Date.now() - (lastShouted.get(character.id) ?? 0);
   if (since < SHOUT_COOLDOWN_MS) {
     const minutes = Math.max(1, Math.ceil((SHOUT_COOLDOWN_MS - since) / 60_000));
-    await respond(interaction, `» *Your throat needs about ${minutes} more minute${minutes === 1 ? "" : "s"}.* ‡`);
+    await respond(interaction, `» *You need about ${minutes} more minute${minutes === 1 ? "" : "s"}.*`);
     return;
   }
   // Claimed BEFORE the posting loop, not after: the loop is a couple of dozen

@@ -25,7 +25,7 @@ const DEATH_CONTENT = "Cut down by the turret in the fortress yard.";
 // The plain fact under the flavour, for the death DM and #leave. Same split as
 // the Depot's: the line above is what the archive records, this is what the
 // person killed is told.
-const DEATH_REASON = "the gun on the rotor in the fortress yard cut them down. \u2021";
+const DEATH_REASON = "the gun on the rotor in the fortress yard cut them down.";
 
 // Deliberately not the Depot's wording. That gun identifies you and decides it
 // does not like your face; this one never looks up at all, and the lines say so.

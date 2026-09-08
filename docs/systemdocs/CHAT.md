@@ -1298,6 +1298,21 @@ trim). One function flips
 it: `db/lib/webOnly.js#setWebOnly(prisma, character, on)`, returning
 `{ ok: true }` or `{ ok: false, error, minutes, readyAt }`.
 
+**The same switch is offered during character creation**, on the wizard's
+Identity step beside name and age (`CreateCharacterWizard.js`, gated on
+`GameConfig.playPanelEnabled` exactly as the Bio card's copy is). It is not a
+flip: `createCharacter` writes `Character.webOnly` as a plain column inside the
+creating transaction, so `applyLocationMoveSideEffects` and everything under it
+already read it as on and grant nothing. The point is that a web-only player is
+never added to the Location channel, the zone role, the narrowcast channels, the
+Room threads or the standing Conversations in the first place — before this, the
+only place to ask was a page you could not reach until the character existed, so
+they were added to all of it and then removed again. `setWebOnly` is not called
+there: its Discord half would revoke access that was never granted, and its
+cooldown guard would fight the create. `webOnlyChangedAt` is left **null**, so
+an accidental tick can be undone on the Bio card immediately rather than two
+hours later.
+
 **ON** takes the account out of Discord: `revokeAllCharacterAccess(prisma,
 character, { keepGuests: true })` strips the zone role and every per-member
 overwrite (the Location channel, the zone channels, the narrowcast channels),

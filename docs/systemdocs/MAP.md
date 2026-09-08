@@ -155,6 +155,24 @@ is why `LocationLink` carries fields rather than one enum.
 | Keyed | `keyed`, `openUntil` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — yes and the way ignores its tag and becomes listed until the window lapses |
 | On foot | `onFoot` | too tight, steep or enclosed for a horse or a cart. A **mounted** character is dismounted crossing it, same as walking into an indoors Location |
 
+**Stealth is the one tag that reads on a crossing**, and it moves the
+announcement down exactly one step rather than switching it off
+(`db/lib/locationMove.js#announceLevelFor`, a pure function with its own test
+in `db/test/gateAnnounce.test.js`):
+
+| the edge says | an ordinary traveller | a **Stealth** traveller |
+|---|---|---|
+| `TRUE_NAME` (manned) | their real name | what a passer-by saw |
+| `CONCEALED` (unmanned) | what a passer-by saw | **nothing at all** |
+| `NONE` | nothing | nothing |
+
+The asymmetry is the point, and it is Bascinet's call: you can be quiet, but
+you cannot be quiet past a Cerberus who is reading your papers. So a stealthy
+traveller through the Fortress gatehouse lands exactly where an ordinary one
+lands at a Town gate. This is also the only thing in the game that suppresses
+an *individual's* arrival — everything else about announcing is a property of
+the edge and treats every traveller alike.
+
 **The winch is in the tower.** A modular gate's Open/Close button renders on
 one Room's starter post — the watchtower at that gate — and on neither
 endpoint's Location anchor, which is where it used to live. The four rooms are

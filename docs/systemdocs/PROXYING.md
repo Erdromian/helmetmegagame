@@ -283,7 +283,7 @@ DMs no longer carry any reaction-driven flow; the bot does not request the
 `db/lib/examine.js` is the one readout behind both, and neither surface
 builds its own. The bot maps it to an `EmbedBuilder`, the web app to JSX
 (`web/app/components/ExamineDialog.js`), but every rule that decides *what is
-in it* — the doctor's eye, the concealed read, Inscrutable, Role, ⬢ — is
+in it* — the doctor's eye, the concealed read, Role, ⬢ — is
 decided once, in that file. Add a field to one and both get it.
 
 **They no longer differ in who they can be pointed at.** They used to: 🔍
@@ -470,12 +470,9 @@ also the only ones that print what the tag costs (`TAGS.md` §5) — everything
 else on the embed is a bare name.
 
 The **Desire** field on that same embed is bought by exactly one tag, the
-Demoness's Seductive (`db/lib/inspectVision.js`), and closed by
-**Inscrutable**, the one rule in that file read off the *subject* rather than
-the viewer. A closed read renders `Nothing you can read.` — byte for byte what
-a subject with no active Desire produces, so a reader cannot tell "they're
-guarded" from "there's nothing there", and holding Inscrutable never
-advertises itself. Mindreading buys no field at all: it reads a Desire on a
+Demoness's Seductive (`db/lib/inspectVision.js`). A subject with no active
+Desire renders `Nothing you can read.`, so the field never reports more than
+it has. Mindreading buys no field at all: it reads a Desire on a
 Gambit after a conversation, and that is the GM's call, not the bot's. Being
 free and silent is what the Demoness tag is paying its extra point for.
 - **✏️/❌** are unchanged; both already gate on `proxy.discordUserId`.

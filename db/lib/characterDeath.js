@@ -30,6 +30,9 @@ const { applyFear } = require("./fear");
 // specific turn (the death pass hands the closing turn) rather than whatever
 // happens to be open.
 //
+// `gib` is the vaporised variant — no corpse at all, and every tag replaced by
+// one "Gibbed" row. See vaporizeTags below and docs/systemdocs/CORPSES.md §1a.
+//
 // Returns `corpse` alongside `claimed` — { tag, room } — so a caller that owes
 // Discord an announcement knows which Room the body landed in. `room` is null
 // when it stayed on the dead sheet for want of a public room to fall in.

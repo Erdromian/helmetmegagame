@@ -4239,7 +4239,7 @@ async function mutilateRequestImpl({
   // Unattributed, like every other request that acts on somebody else. The
   // death DM rides on killCharacter so nothing ever sends two.
   if (kills) {
-    await killCharacter(subject, `Your ${named.label.toLowerCase()} was cut out. ‡`).catch(
+    await killCharacter(subject, `Your ${named.label.toLowerCase()} was cut out.`).catch(
       (err) =>
         console.error(`Failed to kill mutilated character ${subject.id}:`, err),
     );

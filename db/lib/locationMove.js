@@ -23,6 +23,7 @@ const { conversationsFor } = require("./conversations");
 const { notifyPresence } = require("./presenceNotify");
 const { syncCharacterRoomAccess } = require("./roomAccess");
 const { ambientLine } = require("./ambientLine");
+const { STEALTH_SLUG } = require("./constants");
 const { sceneLineAt } = require("./scene");
 const { settleCarry, deliverCarryDrop } = require("./carry");
 const { parkMountsIndoors, parkedMessage, dismountForNarrowWay, dismountedMessage } = require("./indoors");
@@ -179,6 +180,29 @@ async function materializeDiscordPresence(prisma, character) {
   );
 }
 
+// What a crossing actually says, once the traveller's own tags have had their
+// say. Pure and exported so the rule is testable without a database — the
+// db/lib/inspectVision.js posture.
+//
+// Stealth takes the announcement down ONE step rather than silencing every
+// gate, which is the whole shape of the tag: you can be quiet, but you cannot
+// be quiet past somebody who is reading your papers.
+//
+//   unmanned (CONCEALED) -> NONE.      Nobody was watching.
+//   manned   (TRUE_NAME) -> CONCEALED. What a passer-by saw, not your papers.
+//
+// So at the Fortress gatehouse a stealthy traveller lands exactly where an
+// ordinary one lands at the Town gates, and at the Town gates they vanish.
+// NONE stays NONE: a gate that announces nothing cannot announce less.
+const STEALTH_DOWNGRADE = { TRUE_NAME: "CONCEALED", CONCEALED: "NONE" };
+
+function announceLevelFor(linkAnnounce, characterTags = []) {
+  if (linkAnnounce === "NONE") return "NONE";
+  const stealthy = (characterTags ?? []).some((ct) => (ct?.tag?.slug ?? ct?.slug) === STEALTH_SLUG);
+  if (!stealthy) return linkAnnounce;
+  return STEALTH_DOWNGRADE[linkAnnounce] ?? linkAnnounce;
+}
+
 // A gate crossing, announced in the destination zone's #summary. This is
 // game narration rather than the character speaking, so it is a plain bot
 // message and NOT postAsCharacter — a webhook post under the traveller's own
@@ -201,7 +225,10 @@ async function announceGateCrossing(prisma, character, fromLocationId, toLocatio
   const link = await linkBetween(prisma, fromLocationId, toLocation.id);
   if (!link || link.announce === "NONE") return;
 
-  const who = link.announce === "TRUE_NAME" ? character.name : aliasSubject(character);
+  const announce = announceLevelFor(link.announce, character.tags);
+  if (announce === "NONE") return;
+
+  const who = announce === "TRUE_NAME" ? character.name : aliasSubject(character);
   if (!who) return;
   const said = `${who} has entered ${toLocation.name}.`;
   await postMessage(channelId, ambientLine(said));
@@ -464,4 +491,9 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
   await notifyPresence(prisma, characterId);
 }
 
-module.exports = { applyLocationMoveSideEffects, materializeDiscordPresence, reconcileNarrowcastAccess };
+module.exports = {
+  applyLocationMoveSideEffects,
+  materializeDiscordPresence,
+  reconcileNarrowcastAccess,
+  announceLevelFor,
+};

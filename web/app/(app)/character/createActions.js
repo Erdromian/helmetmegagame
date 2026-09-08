@@ -114,6 +114,10 @@ export async function createCharacter(formData) {
   const rawAge = Number.parseInt(formData.get("age")?.toString() ?? "", 10);
   const age =
     Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
+  // "Play from the web", asked on the Identity step. Gated against
+  // GameConfig.playPanelEnabled below, once config is loaded — a server action
+  // is a public endpoint, so the wizard hiding the switch is not the lock.
+  const postedWebOnly = formData.get("webOnly") === "on";
   const postedRoleId = formData.get("roleId")?.toString();
   const tagIds = formData.getAll("tagIds").map((t) => t.toString()).filter(Boolean);
   // Consent for secretly-assigned antagonist seats; normalizeAntagonistSlugs
@@ -397,6 +401,15 @@ export async function createCharacter(formData) {
   // is not an assumption — it is the whole truth about a character this new.
   const heldTagRows = heldSlugs.map((slug) => ({ equipped: false, tag: { slug } }));
 
+  // `!== false` rather than truthy: no config row leaves the switch offered,
+  // matching actions.js#updateCharacterProfile. Written as a plain column on
+  // the new row rather than through db/lib/webOnly.js#setWebOnly — that is the
+  // FLIP path, and its Discord half would revoke access this character has not
+  // been granted. webOnlyChangedAt stays null on purpose, so a player who
+  // ticked it by mistake can untick it on the Bio card straight away instead
+  // of waiting out the two-hour cooldown.
+  const webOnly = config?.playPanelEnabled !== false && postedWebOnly;
+
   let created;
   try {
     created = await prisma.$transaction(async (tx) => {
@@ -421,6 +434,10 @@ export async function createCharacter(formData) {
           name,
           gender: effectiveGender,
           age,
+          // Set before placement runs, so applyLocationMoveSideEffects and
+          // every helper under it sees it already on and grants nothing
+          // (CHAT.md §6a).
+          webOnly,
           roleId: role.id,
           roleTitle: role.name,
           factionId: role.factionId,

@@ -160,6 +160,9 @@ async function loadCreationData(discordUserId) {
     }),
     playerCount,
     startingTagPoints: config?.startingTagPoints ?? 0,
+    // Same gate the Bio card's switch uses (AvatarField.js): with Chat off
+    // there is no web to play from, so the switch is not offered.
+    playPanelEnabled: config?.playPanelEnabled ?? true,
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
     maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     tags,
@@ -730,8 +733,9 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
 
   // What the Add-tag and Craft menus may PRINT, as opposed to what the server
   // reasons with. A recipe gated on a trade the catalog hides is stripped for
-  // anyone who doesn't hold that trade: the six courtier wax seals are made by
-  // a Forger — Brigands only, `catalog: gm` — and a "Recipe: Forger · 1 turn ·
+  // anyone who doesn't hold that trade: every wax seal in the game, the six
+  // courtier marks and all eight office stamps alike, is made by a Forger —
+  // Brigands only, `catalog: gm` — and a "Recipe: Forger · 1 turn ·
   // 2 ⬢" line on a seal chip would tell the whole game that seals get forged,
   // which is the one thing a forger is paying for. The tag itself stays, with
   // its name, its description and its honest point price. Same rule as

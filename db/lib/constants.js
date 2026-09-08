@@ -27,6 +27,12 @@ const CATATONIC_SLUG = "catatonic-afk";
 // never by a player; read by the travel gate in db/lib/locationTravel.js.
 const OVERBURDENED_SLUG = "overburdened";
 
+// Stepping lightly, read on a gate crossing (db/lib/locationMove.js
+// #announceGateCrossing). It takes the announcement down one step rather than
+// silencing every gate: an unmanned gate says nothing at all, a MANNED one
+// falls back to what a passer-by saw instead of the name off your papers.
+const STEALTH_SLUG = "stealth";
+
 // Corpses (docs/systemdocs/CORPSES.md). CORPSE_GROUP_SLUG is the whole
 // discriminator on the catalog side — the three monster corpses live in that
 // group, and so does every "{name}'s Corpse" a death writes. BUTCHER_SLUG
@@ -111,10 +117,6 @@ const CONFESSION_THRESHOLD = 5;
 // general-category tag that worked the same way, was retired 2026-09-05.)
 const SEDUCTIVE_DEMONESS_SLUG = "demoness-seductive";
 
-// The counter to both of the above, read off the SUBJECT rather than the
-// viewer — see db/lib/inspectVision.js.
-const INSCRUTABLE_SLUG = "inscrutable";
-
 // The five fear bands (docs/systemdocs/FEAR.md), lowest to highest. Owned by
 // db/lib/fear.js#settleFearTag; the top two are Gambit modifiers.
 const UNCOMFORTABLE_SLUG = "uncomfortable";
@@ -173,6 +175,7 @@ module.exports = {
   LABORING_FISHING_SLUG,
   CATATONIC_SLUG,
   OVERBURDENED_SLUG,
+  STEALTH_SLUG,
   CORPSE_GROUP_SLUG,
   BUTCHER_SLUG,
   WORKSHOP_EQUIPMENT_SLUG,
@@ -200,7 +203,6 @@ module.exports = {
   CHAPLAIN_SLUG,
   CONFESSION_THRESHOLD,
   SEDUCTIVE_DEMONESS_SLUG,
-  INSCRUTABLE_SLUG,
   UNCOMFORTABLE_SLUG,
   STRESSED_SLUG,
   ANXIOUS_SLUG,

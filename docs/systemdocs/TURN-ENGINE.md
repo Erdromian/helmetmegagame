@@ -279,6 +279,17 @@ Two things follow from that, and both are load-bearing:
   `needsResolvedAt` is the completion stamp rather than a lease, so neither
   could do this job.
 
+## 2a. What the bomb does to a body
+
+The nuke pass gibs rather than kills (`CORPSES.md` §1a): everybody above ground
+is vaporised, so the close mints no corpses and every tag they carried is
+deleted. Antagonist seat tags are the exception, because the epilogue that runs
+moments later reads them off live rows.
+
+It also, finally, tells them why. The pass used to push its death entries with
+no `reason` field while the thunk's shared DM loop interpolated one anyway, so
+every victim of the bomb was DM'd the literal string `You have died. undefined`.
+
 ## 3. The side-effect thunk
 
 `advanceTurn` **composes but does not run** the Discord work. It returns
@@ -719,8 +730,18 @@ It does three things:
   turret is armed.
 
 Like every other pass it returns its side effects — `lines` (ambient lines the
-caller speaks into the Depot channel) and `dms` — rather than making a network
-call. The turret's **other** trigger is on arrival, in
+caller speaks into the Depot channel), `dms`, and `deaths` — rather than making
+a network call.
+
+**A turret kill owes the same Discord teardown every other death gets**, and
+for a long time it got none of it: the sheet said `DEAD` while the character
+kept their personal role, every channel overwrite and their nickname, and never
+received the ghost seat. Both guns now hand their kills up as `deaths`, which
+the thunk folds into `turnDeaths` alongside the catatonic, Dying and blast
+ones. The walk itself lives in `db/lib/deathTeardown.js` so the four callers
+that perform it cannot drift. Turret deaths carry `ownDm: true`, because the
+gun has already spoken to the victim in its own voice and a generic "You have
+died" after it would be the same news twice. The turret's **other** trigger is on arrival, in
 `db/lib/locationMove.js`, deliberately before that function's `DISCORD_TOKEN`
 guard: being shot is a database fact and must not depend on there being a token
 to announce it with.

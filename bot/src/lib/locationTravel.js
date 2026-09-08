@@ -83,7 +83,7 @@ function buildLocationSelectRow(locations, from) {
         description: (from
           ? location.zoneId === from.zoneId
             ? "Same zone"
-            : `Into ${location.zone?.name ?? "another zone"} — free, or your Move and a day's walk ‡`
+            : `Into ${location.zone?.name ?? "another zone"} — free, or costs a Move`
           : `${location.zone?.name ?? "Somewhere"} ‡`
         ).slice(0, 100),
       })),
@@ -191,7 +191,7 @@ async function performMove(character, targetLocation) {
           ? `*You can't move ${entry.character.name} through here. They stay behind.* ‡`
           : `*${entry.character.name} isn't with you any more.* ‡`,
         { kind: DM_KIND.QUIET },
-      ).catch(() => {});
+      ).catch(() => { });
     }
     if (entry.character.status === "ALIVE" && entry.character.discordUserId) {
       await sendDm(
@@ -199,7 +199,7 @@ async function performMove(character, targetLocation) {
         entry.character.discordUserId,
         `*${character.name} went on without you.* ‡`,
         { kind: DM_KIND.QUIET },
-      ).catch(() => {});
+      ).catch(() => { });
     }
   }
 
