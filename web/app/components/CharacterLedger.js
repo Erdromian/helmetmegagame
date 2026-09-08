@@ -261,7 +261,7 @@ export default function CharacterLedger({
               {isSelf && (
                 <section className="panel p-4">
                   <h2 className="panel-header">Actions</h2>
-                  <ActionGrid />
+                  <ActionGrid variant="columns" />
                   {hasTrumpet && <SoundTrumpetButton />}
                 </section>
               )}

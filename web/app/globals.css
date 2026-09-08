@@ -2132,6 +2132,85 @@ input[type="radio"]:disabled {
 
 /* Square icon button for a table row action (adjudicate, message). Framed by
    default and filled on hover, matching .btn-quiet -> .btn. */
+/* The wide action rack (/ledger, ActionGrid variant="columns"). Sections side
+   by side with a rule between them, each a stack of full-width labelled
+   buttons — the same verbs the narrow .icon-btn rack carries on /character,
+   given the room a full-width page has. */
+.action-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  align-items: flex-start;
+}
+
+.action-column {
+  /* Grows to fill, but only so far: with two sections showing and a 1400px
+     panel, an uncapped column makes a 500px-wide button, which reads as a
+     banner rather than a verb. */
+  flex: 1 1 11rem;
+  max-width: 20rem;
+  min-width: 0;
+  padding-inline: var(--sp-4);
+  border-left: 1px solid var(--border);
+}
+
+.action-column:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+/* Under the ledger's own two-column breakpoint the sections stack, and the
+   rule turns with them — five slivers would be worse than the row it started
+   as. */
+@media (max-width: 900px) {
+  .action-column {
+    flex-basis: 100%;
+    max-width: none;
+    padding-inline: 0;
+    padding-top: var(--sp-3);
+    margin-top: var(--sp-3);
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+
+  .action-column:first-child {
+    padding-top: 0;
+    margin-top: 0;
+    border-top: none;
+  }
+}
+
+.action-tile {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1.2;
+}
+
+.action-tile:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent-text);
+}
+
+.action-tile:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.action-tile:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
 .icon-btn {
   all: unset;
   cursor: pointer;
