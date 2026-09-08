@@ -7818,9 +7818,16 @@ tags:
   # still sell them to each other for whatever they can get.
   #
   # The Merchant's station DOES buy them now, which is the ⬢ faucet the note
-  # above worried about — deliberately, and priced low enough that butchering
-  # a body is worth less than a day's labour. The eye and the heart are dearer
-  # than the rest because the rites eat those two (db/lib/rites.js).
+  # above worried about — deliberately, and priced so that butchering a body
+  # comes to roughly ONE good day's labour rather than three. Mutilate is a
+  # free action and every death mints a body, so the arithmetic that matters is
+  # the whole ladder at once: db/lib/mutilate.js takes nine pieces off one
+  # subject (two eyes, two hands, two feet, tongue, stomach, heart), which at
+  # these numbers is 49 ⬢ against 30-42 ⬢ for a specialised labour day. At the
+  # first pass it was 94 ⬢ and this comment claimed otherwise.
+  #
+  # The eye and the heart are dearer than the rest because the rites eat those
+  # two (db/lib/rites.js).
   #
   # `keepSlug` on the eye: it is called an Eyeball on the sheet now, and the
   # Rite of Judgement's ingredient list names the slug `eye`.
@@ -7840,7 +7847,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 15
+    sellablePrice: 8
 
   tongue:
     catalog: gm
@@ -7856,7 +7863,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 5
+    sellablePrice: 3
 
   hand:
     catalog: gm
@@ -7872,7 +7879,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 10
+    sellablePrice: 5
 
   foot:
     catalog: gm
@@ -7888,7 +7895,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 8
+    sellablePrice: 4
 
   stomach:
     catalog: gm
@@ -7904,7 +7911,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 8
+    sellablePrice: 4
 
   heart:
     catalog: gm
@@ -7920,7 +7927,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 15
+    sellablePrice: 8
 
   fine-meal:
     catalog: all

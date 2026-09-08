@@ -140,6 +140,12 @@ async function setHideoutImpl({ roomId }) {
   if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds).length === 0) {
     throw new UserError("That door is locked.");
   }
+  // NOT a faction silo. A silo is an ordinary Room with a pointer on the
+  // Faction (FACTIONS.md), so nothing else here would have stopped it — and
+  // Purchase Gear spends whatever is on the hideout floor, which would have
+  // turned a treasury into a cult shelf for anyone standing at that Location.
+  const silo = await prisma.faction.findFirst({ where: { siloRoomId: room.id }, select: { id: true } });
+  if (silo) throw new UserError("Not in a faction's silo. ‡");
   await prisma.gameState.update({ where: { id: 1 }, data: { thanatiHideoutRoomId: room.id } });
   await logAudit(prisma, {
     actorDiscordUserId: session.discordUserId,
@@ -166,6 +172,10 @@ function formatGoods(lines) {
   return lines.map((l) => (l.quantity > 1 ? `${l.name} ×${l.quantity}` : l.name)).join(", ");
 }
 
+// The shelf is ten wares long, so a cart longer than this is a crafted POST
+// rather than a player.
+const MAX_CART_LINES = 40;
+
 // A guarded decrement on a character's stack. dropCharacterTag reads first and
 // then writes, which is the wrong shape for money.
 async function spendCharacterTag(tx, characterId, tagId, quantity) {
@@ -183,6 +193,14 @@ async function purchaseGearImpl({ items, currency, purse }) {
   const hideout = await hideoutRoom(prisma);
   if (!hideout) throw new UserError("Set a hideout first.");
   if (hideout.locationId !== me.locationId) throw new UserError("Not at the hideout.");
+  // THE BUYER'S OWN KEY, not the leader's. Standing at the Location was the
+  // only gate before, so a cultist who could not open the hideout door still
+  // spent what was behind it — and the goods landed in a room they could not
+  // enter. Set Hideout has always run this check; this is the same one.
+  const buyerKeys = await roomAccessKeys(prisma, me.id);
+  if (accessibleRooms([hideout], buyerKeys.heldSlugs, buyerKeys.guestRoomIds).length === 0) {
+    throw new UserError("That door is locked.");
+  }
   const currencyFirst = currency === "obols" ? "obols" : "resources";
   const purseFirst = purse === "self" ? "self" : "room";
 
@@ -195,57 +213,66 @@ async function purchaseGearImpl({ items, currency, purse }) {
   const tagById = new Map(tags.map((t) => [t.id, t]));
   const obolTag = tags.find((t) => t.slug === OBOL_SLUG);
 
-  const lines = [];
-  for (const raw of wanted) {
+  // FOLDED BY TAG, and capped after folding. A posted cart is arbitrary: two
+  // lines of the same ware would otherwise each get their own 99, and an
+  // enormous list would be priced and written one round-trip at a time inside
+  // an interactive transaction until Prisma's timeout killed it.
+  const byTag = new Map();
+  for (const raw of wanted.slice(0, MAX_CART_LINES)) {
     const tag = tagById.get(String(raw?.tagId ?? ""));
     const ware = tag ? wareBySlug.get(tag.slug) : null;
     const quantity = Math.trunc(Number(raw?.quantity));
     if (!ware || !Number.isInteger(quantity) || quantity < 1) continue;
-    lines.push({ tagId: tag.id, name: tag.name, quantity: Math.min(quantity, 99), each: ware.price });
+    const existing = byTag.get(tag.id);
+    if (existing) existing.quantity += quantity;
+    else byTag.set(tag.id, { tagId: tag.id, name: tag.name, quantity, each: ware.price });
   }
+  const lines = [...byTag.values()].map((l) => ({ ...l, quantity: Math.min(l.quantity, 99) }));
   if (lines.length === 0) throw new UserError("Nothing to buy.");
   const total = lines.reduce((sum, l) => sum + l.each * l.quantity, 0);
 
-  // What each pool holds right now, only so the draw can be planned and a
-  // hopeless purchase refused before anything moves. The writes below still
-  // check for themselves, so a pool that shrinks in between fails the whole
-  // transaction rather than half-paying.
-  const [buyer, roomObols, myObols] = await Promise.all([
-    prisma.character.findUnique({ where: { id: me.id }, select: { resources: true } }),
-    obolTag
-      ? prisma.roomTag.findFirst({ where: { roomId: hideout.id, tagId: obolTag.id }, select: { quantity: true } })
-      : null,
-    obolTag
-      ? prisma.characterTag.findUnique({
-          where: { characterId_tagId: { characterId: me.id, tagId: obolTag.id } },
-          select: { quantity: true },
-        })
-      : null,
-  ]);
-  const pools = {
-    "room:resources": hideout.resources ?? 0,
-    "room:obols": roomObols?.quantity ?? 0,
-    "self:resources": buyer?.resources ?? 0,
-    "self:obols": myObols?.quantity ?? 0,
-  };
   // Purse is the outer preference and currency the inner one, so "room first,
   // obols first" reads room obols, room ⬢, own obols, own ⬢.
   const purses = purseFirst === "self" ? ["self", "room"] : ["room", "self"];
   const currencies = currencyFirst === "obols" ? ["obols", "resources"] : ["resources", "obols"];
   const order = purses.flatMap((k) => currencies.map((c) => `${k}:${c}`));
 
+  // PLANNED INSIDE THE TRANSACTION, off a read taken there. Planning outside
+  // it meant a pool that shrank in between refused the whole purchase — two
+  // cultists both planning against the same thirty obols, and the second told
+  // "not enough there" with three hundred ⬢ in their own pocket. The draw is
+  // re-derived here, so the second one simply pays from somewhere else.
   const draw = {};
-  let owed = total;
-  for (const key of order) {
-    if (owed <= 0) break;
-    const take = Math.min(owed, pools[key]);
-    if (take <= 0) continue;
-    draw[key] = take;
-    owed -= take;
-  }
-  if (owed > 0) throw new UserError("Not enough there.");
-
   await prisma.$transaction(async (tx) => {
+    const [buyer, roomNow, roomObols, myObols] = await Promise.all([
+      tx.character.findUnique({ where: { id: me.id }, select: { resources: true } }),
+      tx.room.findUnique({ where: { id: hideout.id }, select: { resources: true } }),
+      obolTag
+        ? tx.roomTag.findFirst({ where: { roomId: hideout.id, tagId: obolTag.id }, select: { quantity: true } })
+        : null,
+      obolTag
+        ? tx.characterTag.findUnique({
+            where: { characterId_tagId: { characterId: me.id, tagId: obolTag.id } },
+            select: { quantity: true },
+          })
+        : null,
+    ]);
+    const pools = {
+      "room:resources": roomNow?.resources ?? 0,
+      "room:obols": roomObols?.quantity ?? 0,
+      "self:resources": buyer?.resources ?? 0,
+      "self:obols": myObols?.quantity ?? 0,
+    };
+    let owed = total;
+    for (const key of order) {
+      if (owed <= 0) break;
+      const take = Math.min(owed, pools[key]);
+      if (take <= 0) continue;
+      draw[key] = take;
+      owed -= take;
+    }
+    if (owed > 0) throw new UserError("Not enough there.");
+
     for (const [key, amount] of Object.entries(draw)) {
       if (key === "room:resources") {
         const { count } = await tx.room.updateMany({

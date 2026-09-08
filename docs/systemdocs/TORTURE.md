@@ -197,19 +197,30 @@ through `killCharacter`, the one death path, so nothing sends two.
 ### What the actor gets
 
 Every press, whatever rung it landed on, drops one item on the actor's sheet:
-Eye, Tongue, Hand, Foot, Stomach, Heart — six new tags in the new
-**`items-remains`** group. Shaped like Human Flesh and **unpriced for the same
-reason**: mutilating is free and every death mints a body, so a part the Depot
-bought would be a code-enforced ⬢ faucet hanging off a free action. They stay
-`tradeable`, so the market between players is the real one.
+Eyeball, Tongue, Hand, Foot, Stomach, Heart — six tags in the
+**`items-remains`** group.
+
+**The station buys them, and the prices are small on purpose.** They started
+unpriced, on the argument that mutilating is free and every death mints a body,
+so a part the Depot bought would be a ⬢ faucet hanging off a free action. That
+argument was right about the shape and the answer is the number rather than a
+refusal: what matters is the LADDER, not one press. `MUTILATE_PARTS` takes nine
+pieces off one subject — two eyes, two hands, two feet, tongue, stomach, heart —
+so a whole body is 49 ⬢ at 8/8/5/4/4/3, against 30–42 ⬢ for a specialised day's
+labour. Butchering a prisoner is worth about a day of honest work, which is the
+line it should sit on. The first pass priced it at 94 ⬢, nearly three days, and
+that is the mistake to avoid if these are ever retuned: price the ladder, never
+the piece. They stay `tradeable` too, so the market between players is still the
+livelier one.
 
 The group is deliberately **not `items-corpse`**. That slug is
 `CORPSE_GROUP_SLUG`, what `db/lib/corpses.js#isCorpseTag` matches on, so an eye
 filed there would answer a `group: items-corpse` recipe ingredient and turn up
 in the Butcher and Bury pickers.
 
-Nothing in the game consumes a severed part yet. That is a stopping point, not
-an oversight.
+The rites eat them now (`THANATI.md` §9): Reanimation and Panic take a heart,
+Judgement takes a heart and two eyes. That is why the eye and the heart are the
+two dear ones — a cultist and the Merchant want the same organs.
 
 ### What it does to the victim
 

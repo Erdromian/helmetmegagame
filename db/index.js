@@ -189,8 +189,14 @@ const TURN_PASSES = [
   // the rows it deletes are its own. See db/lib/visionDecayPass.js.
   "visionDecay",
   "dyingDeath",
-  "nukeExplosion",
+  // ASCENSION BEFORE THE BOMB, deliberately. Both can come due on one close,
+  // and the rite is called off by its leader dying — so with the bomb first
+  // the blast killed that leader and the cult silently lost a game it had won.
+  // Ascension still sits after the staged push and dyingDeath, so a leader
+  // killed by another character this turn does stop it; only the blast, which
+  // is simultaneous rather than earlier, no longer does.
   "ascension",
+  "nukeExplosion",
   // Corpses turn before the sweep, and the order is load-bearing: the sweep
   // is a blind deleteMany over expiresTurn, so a body that reached its clock
   // would be deleted instead of rotting. See db/lib/corpseRotPass.js.
@@ -482,6 +488,52 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Dying death audit log failed:", err));
   }
 
+  // The Rite of Ascension. After the staged push and dyingDeath, so a leader
+  // killed by another character this turn calls it off — and BEFORE the bomb,
+  // which is the tiebreak when both doomsdays come due on one close. With the
+  // bomb first, its blast killed the cult's leader and the rite cancelled
+  // itself, so the cult always lost a race it had already won.
+  // See db/lib/ascensionPass.js.
+  let ascension = null;
+  if (!done.has("ascension")) {
+    ascension = await runAscensionPass(prisma, turn).catch(async (err) => {
+      await passFailed("Ascension", err);
+      return null;
+    });
+    if (ascension) await markDone("ascension");
+  }
+  const { broadcast: ascensionBroadcast = null, ...ascensionSummary } = ascension ?? {};
+  // Declared here, with the first of the two endings, and shared with the
+  // bomb below: whichever fires first writes the epilogue, and endGameInDb is
+  // a no-op on a state that is already ENDED.
+  let gameEndedPost = null;
+  if (ascension?.fired || ascension?.cancelled) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: ascension.fired ? "ascension_fired" : "ascension_cancelled",
+          details: ascensionSummary,
+        },
+      })
+      .catch((err) => console.error("Ascension audit log failed:", err));
+  }
+  // The second way a game ends. Unlike the bomb it kills nobody — there is
+  // simply nothing left to play in, so the clock stops and the archive opens.
+  // Running before the bomb means that when both land together the epilogue
+  // is the cult's; the blast still kills everyone above ground either way.
+  if (ascension?.fired) {
+    try {
+      const ended = await endGameInDb(prisma, {
+        closingNote: `The cult finished its work at the close of turn ${turn.number}. Ravenheart burned. ‡`,
+        reason: "ascension",
+      });
+      if (ended.ended) gameEndedPost = ended.post;
+    } catch (err) {
+      console.error("Ending the game after the ascension failed:", err);
+    }
+  }
+
   // The bomb. Sits here for the reason dyingDeath sits here: after the staged
   // push and tagExpiry, so a Disarm filed this turn (or a GM defusing it from
   // /gm/dev) beats the clock, and before the sweep, with its siblings.
@@ -504,7 +556,6 @@ async function resolveNeeds(turn, config) {
   // fireball into #turns. The new turn still opens below so the banner has
   // somewhere to hang. Ended locks only the clock — the survivors in the
   // caves keep playing until the wipe.
-  let gameEndedPost = null;
   if (nukeExplosion?.detonated) {
     await prisma.auditLog
       .create({
@@ -523,45 +574,6 @@ async function resolveNeeds(turn, config) {
       if (ended.ended) gameEndedPost = ended.post;
     } catch (err) {
       console.error("Ending the game after the detonation failed:", err);
-    }
-  }
-
-  // The Rite of Ascension, beside the bomb and for the same reason: it must
-  // sit after the staged push, so a leader killed this turn calls it off.
-  // See db/lib/ascensionPass.js.
-  let ascension = null;
-  if (!done.has("ascension")) {
-    ascension = await runAscensionPass(prisma, turn).catch(async (err) => {
-      await passFailed("Ascension", err);
-      return null;
-    });
-    if (ascension) await markDone("ascension");
-  }
-  const { broadcast: ascensionBroadcast = null, ...ascensionSummary } = ascension ?? {};
-  if (ascension?.fired || ascension?.cancelled) {
-    await prisma.auditLog
-      .create({
-        data: {
-          actorDiscordUserId: "system",
-          actionType: ascension.fired ? "ascension_fired" : "ascension_cancelled",
-          details: ascensionSummary,
-        },
-      })
-      .catch((err) => console.error("Ascension audit log failed:", err));
-  }
-  // The second way a game ends. Unlike the bomb it kills nobody — there is
-  // simply nothing left to play in, so the clock stops and the archive opens.
-  // A game already ended by the bomb keeps its first ending; endGameInDb is a
-  // no-op on an ENDED state.
-  if (ascension?.fired) {
-    try {
-      const ended = await endGameInDb(prisma, {
-        closingNote: `The cult finished its work at the close of turn ${turn.number}. Ravenheart burned. ‡`,
-        reason: "ascension",
-      });
-      if (ended.ended) gameEndedPost = ended.post;
-    } catch (err) {
-      console.error("Ending the game after the ascension failed:", err);
     }
   }
 
