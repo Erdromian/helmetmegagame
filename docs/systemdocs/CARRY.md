@@ -230,9 +230,13 @@ boated crossing doesn't get a say: `db/lib/locationTravel.js#vomitOnTheRide`
 grants them Vomiting (and DMs them) the moment a mounted or boated mover
 crosses a zone with them in tow.
 
-A **connection** can keep a mount out too — `on_foot: true`, which refuses a
-mounted character rather than parking them on arrival (`MAP.md` §2c). The two
-are complements: `indoors` covers a place, `on_foot` covers a way in.
+A **connection** can keep a mount out too — `on_foot: true`, which dismounts a
+mounted character crossing it rather than parking them on arrival (`MAP.md`
+§2c). The two are complements: `indoors` covers a place, `on_foot` covers a
+way in — and the timing has to differ: `on_foot` dismounts *inside* the
+crossing's own transaction, before the free-move accounting reads it, or a
+rider could bank the mount's bonus crossing on a ride that never survives the
+threshold (`MAP.md` §2c).
 
 A Location marked `indoors: true` in `docs/zones.yaml` — the Cathedral, the
 Sanctuary, the Inn, the Keep, the Undercroft, the Factory — is a place you walk

@@ -246,9 +246,18 @@ async function sealWithMark(tx, paperTag, { label, mark }) {
 // it was written, and the spent envelope stays behind as evidence that
 // somebody opened it and whose wax was on it.
 //
+// Envelopes STACK. Every envelope bearing the same wax reads identically (no
+// "(2)" suffix, and paperDescription composes nothing per-instance — it's
+// mark and paperKind, nothing else), so a second one merges into this
+// character's existing holding of that mark rather than minting a fresh row
+// for every letter they open. Scoped to what THIS character already holds:
+// an envelope somebody else is carrying, or one sitting in a room stash, is
+// a different object and never matched.
+//
 // Returns { paper, envelope }.
 async function breakSeal(tx, characterId, sealedTag) {
   const label = sealLabel(sealedTag);
+  const sealMark = sealedTag.sealMark ?? null;
 
   // No retry loop: this touches the name and not the slug, and Tag.name is no
   // longer unique (db/lib/paper.js#paperName), so there is nothing left here
@@ -265,19 +274,33 @@ async function breakSeal(tx, characterId, sealedTag) {
     },
   });
 
-  const envelopeGroupId = await paperGroupId(tx);
-  const envelope = await createWithRetry(tx, (attempt) => ({
-    ...PAPER_SHAPE,
-    groupId: envelopeGroupId,
-    slug: sealSlug(characterId, attempt),
-    // No "(2)" suffix on a retry: the attempt only re-rolls the slug, which is
-    // the unique one, and two envelopes bearing the same wax SHOULD read alike.
-    name: brokenSealName(label),
-    description: null,
-    paperKind: "BROKEN_SEAL",
-    sealMark: sealedTag.sealMark ?? null,
-  }));
-  if (envelope) await addToStack(tx, characterId, envelope.id, 1, {});
+  let envelope = await tx.tag.findFirst({
+    where: { paperKind: "BROKEN_SEAL", sealMark, characters: { some: { characterId } } },
+  });
+
+  if (envelope) {
+    await addToStack(tx, characterId, envelope.id, 1, { stackable: true });
+  } else {
+    const envelopeGroupId = await paperGroupId(tx);
+    envelope = await createWithRetry(tx, (attempt) => ({
+      ...PAPER_SHAPE,
+      groupId: envelopeGroupId,
+      slug: sealSlug(characterId, attempt),
+      // No "(2)" suffix on a retry: the attempt only re-rolls the slug, which is
+      // the unique one, and two envelopes bearing the same wax SHOULD read
+      // alike — which is also why the next one merges into this row's stack
+      // instead of minting its own.
+      name: brokenSealName(label),
+      description: null,
+      paperKind: "BROKEN_SEAL",
+      sealMark,
+      // The one paper shape that overrides PAPER_SHAPE's stackable: false —
+      // unlike a sheet or a letter, nothing about an envelope varies by which
+      // letter it came off, so two of them are the same object.
+      stackable: true,
+    }));
+    if (envelope) await addToStack(tx, characterId, envelope.id, 1, { stackable: true });
+  }
 
   return { paper, envelope };
 }

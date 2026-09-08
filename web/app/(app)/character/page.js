@@ -602,15 +602,16 @@ async function FreshCharacter({ userId, searchParams }) {
   // (or a higher tier of), decided here and re-checked by craftRequest. The
   // client filters its picker to these ids and nothing else.
   //
-  // Ingredient hiding is menu hygiene, not secrecy (planning/crafting-pass-
-  // goals.md): the recipe's DESCRIPTION and the public Tag Catalog's Recipe
-  // line still name every ingredient, GM-only or not — that's the recipe
-  // teaching itself. This only keeps a recipe you have no path to yet out of
-  // the picker, so a fresh crafter isn't offered Miasma before they've ever
-  // seen a corpse. The tagCatalog query above never selects
-  // `catalogVisibility` (it isn't craftable/purchasable itself, and an
-  // ingredient tag usually is neither), so the slugs and groups a craftable
-  // recipe's requirementItems name are resolved with one more targeted query.
+  // Ingredient hiding started as menu hygiene and is now also half of the
+  // secrecy story: the Recipes tab drops a recipe naming an ingredient the
+  // reader was not sent (web/lib/recipeCatalog.js), and hidden-recipe tag
+  // descriptions no longer name their ingredients. Here it keeps a recipe you
+  // have no path to yet out of the picker, so a fresh crafter isn't offered
+  // Miasma before they've ever seen a corpse. The tagCatalog query above
+  // never selects `catalogVisibility` (it isn't craftable/purchasable itself,
+  // and an ingredient tag usually is neither), so the slugs and groups a
+  // craftable recipe's requirementItems name are resolved with one more
+  // targeted query.
   const restrictedTagSlugs = new Set();
   const restrictedGroupSlugs = new Set();
   for (const t of tagCatalog) {
@@ -662,6 +663,17 @@ async function FreshCharacter({ userId, searchParams }) {
       return slugs.some((s) => visibilityBySlug.get(s) !== "ALL");
     });
   }
+  // The Death Mask's corpse picker (CraftDialog via RequestActionsProvider):
+  // which held corpses still have their face. Server-computed here so the
+  // list and its face-taken filter can never drift from the craft's own
+  // verdict (requestActions.js#resolveDeathMaskSource).
+  const deathMaskCorpses = character.tags
+    .filter(
+      (ct) =>
+        ct.tag.group?.slug === "items-corpse" &&
+        !(ct.tag.description ?? "").includes("The face has been taken."),
+    )
+    .map((ct) => ({ slug: ct.tag.slug, name: ct.tag.name }));
   // Mirrors resolveRecipeItems' HOLD semantics (requestActions.js), at
   // quantity 1 — a hidden recipe only has to prove itself known, not
   // affordable, so this checks "holds one" rather than resolving a spend
@@ -1059,6 +1071,7 @@ async function FreshCharacter({ userId, searchParams }) {
       hasMoved: Boolean(currentAction),
       canTeach: canTeach,
       knownRecipeIds: knownRecipeIds,
+      deathMaskCorpses: deathMaskCorpses,
       craftProjects: craftProjects,
       craftBudget: craftBudget,
       craftAllowances: craftAllowances,

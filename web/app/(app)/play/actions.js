@@ -14,6 +14,7 @@ import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "@/lib/dmThread";
 import { PLAYER_DM_MAX_LENGTH } from "@/lib/constants";
 import { whosHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
+import { blocksOnFoot, equippedSlugs, fastTravelCapacity } from "@lifeweb/db/lib/mounts";
 import {
   performLocationMove,
   freeMovesLeft,
@@ -30,9 +31,9 @@ import {
   acceptEscort,
   escortReason,
 } from "@lifeweb/db/lib/escort";
-import { fastTravelCapacity, equippedSlugs } from "@lifeweb/db/lib/mounts";
 import { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
+import { dismountedMessage } from "@lifeweb/db/lib/indoors";
 import { boardFor, boardText, pinnedLine, tornLine, BOARD_OPTION_LIMIT } from "@lifeweb/db/lib/noticeboard";
 import { paperDescription, paperView } from "@lifeweb/db/lib/paper";
 import { readBlock } from "@lifeweb/db/lib/reading";
@@ -487,6 +488,11 @@ export async function loadTravel() {
     // buys is gone, and the number here has to already say so (MAP.md §3a).
     freeLeft: freeMovesLeft(character, config, openTurn, party.length),
     freeReason: freeZoneMovesReason(character, party.length),
+    // Whether there's anything to dismount at all — the node list only
+    // marks a specific way or a specific destination as a consequence when
+    // this is true, since neither "on foot" nor "indoors" means anything to
+    // somebody already walking.
+    mounted: blocksOnFoot(equippedSlugs(character.tags ?? [])),
     options: options.map((row) => ({
       id: row.location.id,
       name: row.location.name,
@@ -497,7 +503,15 @@ export async function loadTravel() {
       zoneName: row.location.zone?.name ?? null,
       crossesZone: row.crossesZone,
       passable: row.passable,
-      reason: row.reason ?? null,
+      // A Location a mount gets parked at on arrival (db/lib/indoors.js).
+      indoors: Boolean(row.location.indoors),
+      // A way too narrow to ride or push through — crossing it dismounts
+      // instead of refusing (db/lib/indoors.js#dismountForNarrowWay).
+      dismounts: Boolean(row.dismounts),
+      // crossingCheck's field is `refusal`, not `reason` — this was silently
+      // dropping the actual message (e.g. the locked/shut wording) and
+      // falling back to the node's generic "no way".
+      reason: row.refusal ?? null,
     })),
     partySize: party.length,
   };
@@ -639,7 +653,10 @@ export async function travelTo({ locationId } = {}) {
     }
     const setOut = [`You set out for ${target.name}. You arrive next turn, and your Move is spent.`];
     if (stranded.length > 0) setOut.push(`You can't move ${stranded.join(", ")} through here.`);
-    return { ok: true, line: `${setOut.join(" ")} ‡` };
+    // dismountedMessage already carries its own mark, so only one ‡ ends the
+    // block either way.
+    if (result.dismounted.length > 0) setOut.push(dismountedMessage(result.dismounted));
+    return { ok: true, line: result.dismounted.length > 0 ? setOut.join(" ") : `${setOut.join(" ")} ‡` };
   }
 
   // Sequential on purpose: each entry is a handful of REST calls, and firing
@@ -650,6 +667,10 @@ export async function travelTo({ locationId } = {}) {
       characterId: entry.character.id,
       fromLocationId: entry.fromLocationId,
       toLocationId: entry.toLocationId,
+      // Only ever computed for the mover themselves — performLocationMove
+      // checks the mover's own equipped mount against the edge, never a
+      // dragged passenger's.
+      dismounted: entry.character.id === me.character.id ? result.dismounted : undefined,
     }).catch(() => {});
   }
   // The Caving Die's "on arrival" trigger (CAVING.md), and the word owed to

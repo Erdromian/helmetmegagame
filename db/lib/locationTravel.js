@@ -16,9 +16,10 @@ const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival } = require("./cavingPass");
 const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
 const { OVERBURDENED_SLUG } = require("./constants");
-const { isMounted, isBoated, blocksOnFoot, boatCrossing, equippedSlugs, fastTravelCapacity } = require("./mounts");
+const { isMounted, isBoated, blocksOnFoot, boatCrossing, equippedSlugs, fastTravelCapacity, STOWABLE_SLUGS } = require("./mounts");
 const { partyOf, escortAuthority, ESCORT_SELECT } = require("./escort");
 const { linkBetween, crossingCheck } = require("./locationGraph");
+const { dismountForNarrowWay } = require("./indoors");
 const { MOTION_SICKNESS_SLUG, VOMITING_SLUG } = require("./constants");
 const { expiryForGrant } = require("./grantExpiry");
 const { addToStack } = require("./tagWrites");
@@ -211,6 +212,7 @@ async function performLocationMove(prisma, character, targetLocation) {
   }
 
   let currentLocation = null;
+  let crossingLink = null;
   if (character.locationId) {
     if (character.locationId === targetLocation.id) {
       return { ok: false, reason: "You're already there." };
@@ -227,8 +229,8 @@ async function performLocationMove(prisma, character, targetLocation) {
     // one they hold no key to, a locked one and a shut modular gate all
     // refuse here — the picker filters the same verdict, but a client can
     // post any location id it likes, so this is the check that counts.
-    const link = await linkBetween(prisma, currentLocation.id, targetLocation.id);
-    const gate = crossingCheck(link, {
+    crossingLink = await linkBetween(prisma, currentLocation.id, targetLocation.id);
+    const gate = crossingCheck(crossingLink, {
       tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
       // Equipped, not merely held — CHARACTER_SELECT already loads `equipped`
       // for exactly this kind of question.
@@ -268,6 +270,9 @@ async function performLocationMove(prisma, character, targetLocation) {
     // rather than failing the whole move (MAP.md §3a); the caller DMs them
     // and their leader off this list.
     leftBehind: [],
+    // Mounts a too-narrow way made them leave behind — see the dismount step
+    // at the top of the transaction below.
+    dismounted: [],
   };
 
   // The party, read BEFORE the transaction so the free-move arithmetic below
@@ -281,6 +286,24 @@ async function performLocationMove(prisma, character, targetLocation) {
 
   try {
     await prisma.$transaction(async (tx) => {
+      // A way too narrow for what they had out dismounts them instead of
+      // refusing outright (db/lib/indoors.js#dismountForNarrowWay) — but it
+      // has to happen HERE, first, inside this same transaction, rather than
+      // as a post-commit side effect the way arriving indoors is. Arriving
+      // indoors only affects the NEXT crossing; this one affects the free-move
+      // accounting for THIS one. A mount buys an extra free zone crossing
+      // (freeZoneMoves below), so dismounting after the fact would let a rider
+      // bank that bonus on a ride that never survives the threshold — exactly
+      // the exploit refusing at the threshold used to exist to close
+      // (docs/systemdocs/MAP.md §2c). Mutating `character.tags` in memory is
+      // what makes freeZoneMoves see the dismount too, with no extra query.
+      outcome.dismounted = await dismountForNarrowWay(tx, character.id, crossingLink);
+      if (outcome.dismounted.length > 0) {
+        character.tags = (character.tags ?? []).map((ct) =>
+          STOWABLE_SLUGS.has(ct.tag?.slug) ? { ...ct, equipped: false } : ct,
+        );
+      }
+
       // The party is re-loaded and re-authorized INSIDE the transaction, and
       // this copy is the one that counts — everything above it is a preview.
       //
@@ -496,6 +519,9 @@ async function performLocationMove(prisma, character, targetLocation) {
       spentTurn: true,
       usedFreeMove: false,
       freeMovesLeft: outcome.freeMovesLeft,
+      // Already applied above, whether or not arrival is a turn away — the
+      // threshold was crossed now, not at the advance.
+      dismounted: outcome.dismounted,
       moved: [],
       travelers: [character, ...outcome.partyRows].map((row) => ({
         character: { id: row.id, name: row.name, discordUserId: row.discordUserId, status: row.status },
@@ -567,6 +593,7 @@ async function performLocationMove(prisma, character, targetLocation) {
     deferred: false,
     spentTurn: false,
     usedFreeMove: outcome.usedFreeMove,
+    dismounted: outcome.dismounted,
     travelers: [],
       // Followers the way would not take. Detached and still standing where
       // they were; the caller owes them and their leader a line. The reason

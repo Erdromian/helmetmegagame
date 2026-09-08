@@ -211,8 +211,9 @@ each arrived at by getting them wrong first.
    The other order collides with `@@unique([characterId, tagId])` and silently
    drops the re-grant, leaving a tag that expires immediately.
 8a. **Dawn afflictions pass** (`db/lib/dawnAfflictionPass.js`) — right after
-   hunger. Guilt Ridden and Insomniac each roll a nightly chance of waking
-   Exhausted (`TAGS.md`). Audit action `dawn_afflictions_resolved`.
+   hunger. Guilt Ridden and Insomniac each roll a nightly chance of a bad
+   night's sleep, stepping the Tired -> Exhausted ladder (`TAGS.md`,
+   `LABORING.md` §4). Audit action `dawn_afflictions_resolved`.
 8b. **Carry pass** (`db/lib/carryPass.js`) — **after** hunger, so it sees the
    final sheet: Labor payouts, staged pushes, the sweep and the ⬢ upkeep all
    happen earlier in the close and none of them may settle in place.
@@ -521,7 +522,9 @@ Action, no Resources, no DM:
   themselves (`REQUESTS.md` §5b).
 - **No Laboring tag at all.** Labor is a skill now, not a floor — a character
   without one who does nothing has simply done nothing.
-- **Exhausted.** They worked last turn; one labor per turn, which is one a day.
+- **Exhausted.** They've worked two turns running (or a bad night's sleep
+  pushed them there) and need to rest — `tired`, the rung below it, does not
+  block Labor (`LABORING.md` §4).
 - **Standing where none of their skills reach** — no `LocationYield` row of any
   kind they hold. Filing an empty Move to say so would only clutter the desk.
 

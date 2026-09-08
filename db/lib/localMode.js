@@ -4,20 +4,26 @@
 // `db/lib/discordRest.js#discordRequest` is the ONE place every Discord REST
 // call in this codebase goes through — web, bot and db alike (ARCHITECTURE.md
 // §5). That makes it the one point where local mode needs to hook in: a
-// member/role lookup answers with a synthetic member holding every role this
-// file grants, so isGm/isPlaytester/isApprovedPlayer/isLeaderWhitelisted all
-// pass with no changes of their own — they just read member.roles. Anything
+// member/role lookup answers with a synthetic member, so isGm/isPlaytester/
+// isApprovedPlayer/isLeaderWhitelisted all pass with no changes of their own
+// — they just read member.roles. Which roles depends on the id being asked
+// about: a recognized superadmin id (db/lib/roleIds.js#SUPERADMIN_DISCORD_IDS)
+// gets the full GM/Playtest/Leader-Whitelist bundle, and any other id — a
+// seeded character, "Start as a player", a `dev:session.mjs --character`
+// impersonation — gets only the Player role, so a local session can still
+// test the ordinary player view and still gets bounced from /gm/*. Anything
 // that would have posted, edited or deleted content is appended to
 // LOCAL_OUTBOX_PATH instead of reaching Discord, and answered with a
 // plausible stand-in so a caller reading `.id` off the result doesn't throw.
 //
 // Nothing else should grow its own `if (isLocalMode())` branch for Discord
-// behavior — extend localDiscordRequest here instead, so there is exactly one
-// place that knows what "local mode" pretends Discord looks like.
+// behavior — extend localDiscordRequest/localMember here instead, so there is
+// exactly one place that knows what "local mode" pretends Discord looks like.
 //
-// The one thing that CAN'T be reached this way is web/lib/superadmin.js:
-// isSuperadmin() is a hardcoded discordUserId allowlist with no Discord call
-// in it at all, so it imports isLocalMode() directly and checks it itself.
+// web/lib/superadmin.js#isSuperadmin doesn't need an isLocalMode() branch of
+// its own any more: it just checks the same SUPERADMIN_DISCORD_IDS allowlist
+// this file uses, and a locally-signed-in session carries a real
+// discordUserId either way (the superadmin id, or whichever id was minted).
 //
 // Turn it on with LOCAL_MODE=true in .env. DISCORD_TOKEN and DISCORD_GUILD_ID
 // still need to be SET to any non-empty placeholder — several callers in
@@ -27,23 +33,37 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
-const { PLAYER_ROLE_ID, LEADER_WHITELIST_ROLE_ID, PLAYTEST_ROLE_ID, TRIAL_GM_ROLE_ID } = require("./roleIds");
+const {
+  PLAYER_ROLE_ID,
+  LEADER_WHITELIST_ROLE_ID,
+  PLAYTEST_ROLE_ID,
+  TRIAL_GM_ROLE_ID,
+  SUPERADMIN_DISCORD_IDS,
+} = require("./roleIds");
 
 function isLocalMode() {
   return process.env.LOCAL_MODE === "true";
 }
 
-// Every role a locally-run session is granted. TRIAL_GM_ROLE_ID alone
-// satisfies hasGmRole() (db/lib/roleIds.js) with no DISCORD_GM_ROLE_ID env
-// var needed — it's a hardcoded id, not the env-configured one. Cursed and
+// Every role a superadmin's locally-run session is granted. TRIAL_GM_ROLE_ID
+// alone satisfies hasGmRole() (db/lib/roleIds.js) with no DISCORD_GM_ROLE_ID
+// env var needed — it's a hardcoded id, not the env-configured one. Cursed and
 // Spectator are deliberately absent: those are personas, not access, and
 // nothing about "developing locally" should imply either one.
 const LOCAL_ROLES = [TRIAL_GM_ROLE_ID, PLAYTEST_ROLE_ID, PLAYER_ROLE_ID, LEADER_WHITELIST_ROLE_ID];
 
+// Only a recognized superadmin id fakes the full GM/Playtest/Leader-Whitelist
+// bundle. Anything else — a seeded character's discordUserId, a "Start as a
+// player" account, a `dev:session.mjs --character` impersonation — gets just
+// the Player role, so it is bounced from /gm/* the same way a real non-GM
+// account would be. Without this split, every locally-run session looked like
+// a GM to isGm()/isSuperadmin(), and there was no way to test the ordinary
+// player view at all.
 function localMember(userId) {
+  const roles = SUPERADMIN_DISCORD_IDS.includes(userId) ? [...LOCAL_ROLES] : [PLAYER_ROLE_ID];
   return {
     user: { id: userId, username: "local-dev", global_name: "Local Tester", avatar: null },
-    roles: [...LOCAL_ROLES],
+    roles,
   };
 }
 

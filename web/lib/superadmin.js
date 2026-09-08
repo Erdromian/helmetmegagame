@@ -1,17 +1,15 @@
-import { isLocalMode } from "@lifeweb/db/lib/localMode";
+import { SUPERADMIN_DISCORD_IDS } from "@lifeweb/db/lib/roleIds";
 
-// Discord user IDs allowed onto the /gm/dev panel, independent of the
-// in-game GM role — this is host/developer access, not a game permission.
-export const SUPERADMIN_DISCORD_IDS = [
-  "1507184027919057108",
-  "262426987979735040",
-  "216301927242137600",
-];
+// Canonical list lives in db/lib/roleIds.js so db/lib/localMode.js can read it
+// too, without web/ importing back into db/. Re-exported here since this file
+// is the established place other web/ modules already import it from.
+export { SUPERADMIN_DISCORD_IDS };
 
-// The one check db/lib/localMode.js's discordRequest interception can't
-// reach: this is a hardcoded id list with no Discord call in it at all, so
-// local mode is checked here directly instead.
+// Under LOCAL_MODE a locally-signed-in session still carries a real
+// discordUserId (the superadmin id for "Sign in locally", or whichever
+// character's id "Start as a player" or dev:session.mjs minted), so the
+// allowlist check still applies — only local mode's own Discord-call
+// interception (db/lib/localMode.js#localMember) needed a bypass, not this.
 export function isSuperadmin(discordUserId) {
-  if (isLocalMode()) return true;
   return !!discordUserId && SUPERADMIN_DISCORD_IDS.includes(discordUserId);
 }

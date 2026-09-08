@@ -2625,7 +2625,7 @@ body:has(.chat-shell) .turn-chip {
   font-size: var(--fs-base);
   line-height: 1.6;
   color: var(--text);
-  background: var(--surface-2);
+  background: var(--surface-raised);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   padding: var(--sp-3) var(--sp-4);
@@ -5241,6 +5241,18 @@ label.chip {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--e-3);
+}
+
+/* ThingsDrawer.js's menu, escaped to document.body (portalPlacement.js):
+   overrides the relative-to-its-chip positioning above with the fixed,
+   JS-computed coordinates a portaled panel needs, and matches .tag-tooltip /
+   .select-popup's z-index since it's the same "floating UI above everything,
+   including a scrolling Modal" tier. */
+.chat-menu-portal {
+  position: fixed;
+  right: auto;
+  top: auto;
+  z-index: 120;
 }
 
 /* A person's row is the name button plus the eye that looks at them. A

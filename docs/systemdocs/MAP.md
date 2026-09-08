@@ -153,7 +153,7 @@ is why `LocationLink` carries fields rather than one enum.
 | Hidden | `requiredTagSlug` + `hidden` | needs the tag **and** is absent from every travel list. Refuses in the same words a nonexistent edge does, deliberately — a different refusal would tell a player the way is there |
 | Modular | `modular`, `isOpen`, `openerRoleSlugs`, `openerTagSlugs` | an Open/Close button on the **watchtower** at the gate; impassable while shut |
 | Keyed | `keyed`, `openUntil` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — yes and the way ignores its tag and becomes listed until the window lapses |
-| On foot | `onFoot` | too tight, steep or enclosed for a horse or a cart. A **mounted** character is refused at the threshold |
+| On foot | `onFoot` | too tight, steep or enclosed for a horse or a cart. A **mounted** character is dismounted crossing it, same as walking into an indoors Location |
 
 **The winch is in the tower.** A modular gate's Open/Close button renders on
 one Room's starter post — the watchtower at that gate — and on neither
@@ -212,16 +212,23 @@ rewrites `isOpen`: both are play state, not authoring.
 
 ### 2c. On-foot ways
 
-`onFoot` is the edge-level sibling of `Location.indoors`: same effect, earlier
-moment. Both keep a horse and a cart out of somewhere they do not fit, but
-`indoors` **parks** the mount on arrival (`db/lib/indoors.js#parkMountsIndoors`)
-whereas `onFoot` **refuses the crossing**.
+`onFoot` is the edge-level sibling of `Location.indoors`: same effect
+(`db/lib/indoors.js#dismountForNarrowWay`, right beside `parkMountsIndoors`),
+earlier moment. Both keep a horse and a cart out of somewhere they do not
+fit; `onFoot` used to refuse the crossing outright rather than dismount for
+it, on purpose — see the timing note below for why that mattered, and why
+dismounting works just as well now.
 
-That difference is the whole reason it exists. An equipped mount buys one extra
-free zone-crossing per turn (`freeZoneMoves`, `db/lib/locationTravel.js`), so a
-rider who is only dismounted on arrival has already spent it — which made every
-secret passage into the Fortress rideable. Refusing at the threshold is the only
-thing that closes that.
+**Timing is the whole reason it isn't a plain reuse of `parkMountsIndoors`.**
+An equipped mount buys one extra free zone-crossing per turn (`freeZoneMoves`,
+`db/lib/locationTravel.js`), so dismounting only on arrival — after that
+crossing's own cost was already computed — would let a rider bank the bonus
+on a ride that never survives the threshold, which made every secret passage
+into the Fortress rideable for free. `performLocationMove` dismounts them
+*first*, inside its own transaction, before `freeZoneMoves` ever runs, so the
+crossing is costed as the walk it actually is. `applyLocationMoveSideEffects`
+never repeats the check itself when the caller already has the answer — see
+the comment on its `dismounted` parameter.
 
 It is also the one gate that reads what a character has **equipped** rather than
 what they hold: `isMounted(equippedSlugs(tags))`, so a horse stowed in a pack is

@@ -116,18 +116,15 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
       refusal: "The way is shut. Somebody in the watchtower would have to work the winch. ‡",
     };
   }
-  // Last, because it is the one refusal the traveller can fix on the spot: a
-  // way too tight for a horse is listed, and unequipping the horse is the way
-  // through. Location.indoors would only have parked the mount on arrival,
-  // which is after the free crossing was already spent.
+  // Used to refuse outright and send the traveller to find their own Equip
+  // button first. Now it dismounts them instead — db/lib/indoors.js's
+  // dismountForNarrowWay, called from applyLocationMoveSideEffects the same
+  // way arriving indoors already parks a mount at the door. `dismounts` is
+  // surfaced here so the picker can say so before anyone commits to it.
   if (link.onFoot && onFootBlocked) {
-    return {
-      listed: true,
-      passable: false,
-      refusal: "No horse or cart fits through there. Unequip it and go on foot. ‡",
-    };
+    return { listed: true, passable: true, refusal: null, dismounts: true };
   }
-  return { listed: true, passable: true, refusal: null };
+  return { listed: true, passable: true, refusal: null, dismounts: false };
 }
 
 // Does this edge have a gate to work at all? Only a modular edge does. The

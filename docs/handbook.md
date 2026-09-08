@@ -189,7 +189,7 @@ Out in the wild, a Location carries its Zone in its name — the Ravine in the B
 
 Not every way is simply open. A **gate** announces you in the Zone's Summary when you cross it — a manned one names you outright, an unmanned one only reports what a passer-by would have seen. A **locked** way appears in your Travel list but refuses you until you carry the right thing. Some ways can be **opened and closed** by the people who hold them, with a button on the Location's pinned message; while shut, nobody passes. And some ways you will not see listed at all.
 
-Some ways are too tight, too steep or too enclosed for a horse or a cart — a crawl, a cliff path, a lift, a culvert. You'll be turned back at those while you're mounted. Unequip the animal and you can go through on your own two feet.
+Some ways are too tight, too steep or too enclosed for a horse or a cart — a crawl, a cliff path, a lift, a culvert. Cross one of those mounted and you leave the animal behind and go through on your own two feet, same as arriving somewhere indoors does — you can take it up again once you're through. ‡
 
 If you have the key to one of those, you may be asked in a DM whether to leave it open for the next 24 hours. Say yes and anyone can see it and use it until the day is out — which is how somebody without a key follows you through. Say no and it falls shut behind you.
 
@@ -330,7 +330,7 @@ The choice between Routine or Gambit is left to you because you know what your c
 
 Labor is how you produce ⬢, and **you need a skill to do it at all**. Without one of the Laboring tags below, a day of work produces nothing.
 
-Laboring is hard work: it leaves you with the {tag:exhausted} tag, and you can't Labor again until it wears off the following turn — one Labor per day.
+Laboring is hard work: your first day leaves you {tag:tired}. A second day running leaves you {tag:exhausted} — you can't Labor again until you rest, and you're worse in a fight too. One turn of rest eases it back to Tired; a second clears it completely.
 
 | Tag | ⬢ Yield | Where |
 |---|---|---|
