@@ -63,7 +63,7 @@ export default function IdentityDialog({ identity, open, onClose }) {
       onConfirm={submit}
     >
       <p className="text-muted text-xs">
-        What would you like your identity to be? This is permanent. ‡
+        What would you like your identity to be? This is permanent.
       </p>
       <label className="field">
         <span className="field-label">Prefix</span>
