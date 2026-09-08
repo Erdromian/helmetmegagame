@@ -138,6 +138,18 @@ each arrived at by getting them wrong first.
    thunk to follow the fireball (`LOBBY.md` §7). The new turn still opens so
    the banner has somewhere to hang; the next advance is refused.
 
+4d. **Ascension pass** (`db/lib/ascensionPass.js`) — the cult's doomsday, and
+   the second way a game ends (`THANATI.md` §9). Sits immediately after 4c and
+   for the identical reason: the ONLY thing that calls it off is the cult
+   leader dying, so a killing adjudicated this close has to beat the clock.
+   **Nobody dies here** — the bomb leaves survivors underground with a game to
+   play, this leaves nothing — so the pass writes one stamp and hands back one
+   line. `GameState.ascensionArmedTurn` due plus the snapshot leader still
+   ALIVE fires it: `ascensionFiredTurn` is claimed first, every `#summary`
+   hears the hellfire (no `@everyone`; the warning two turns ago was the one
+   worth waking anybody for), and `endGameInDb` runs exactly as at 4c. A dead
+   or missing leader clears the countdown and says nothing at all.
+
 5. **Expiry sweep** — delete non-stackable `CharacterTag`s whose `expiresTurn`
    has come due.
 6. **Stackable sweep** (`sweepExpiredStacks`) — a stack is one row carrying a
@@ -353,7 +365,8 @@ path that forgot — is not "no picture": the resolver picks one on the spot, so
 Turn 1 never posts bare.
 
 **After the bomb there is no morning, only the sky.** `GameState.nukeDetonatedTurn`
-pins `nuke.jpg` for the rest of the game, ahead of the ordinary plate.
+pins `nuke.jpg` for the rest of the game, ahead of the ordinary plate, and
+`ascensionFiredTurn` pins `hellfire.jpg` the same way.
 
 How it is posted (`db/lib/turnAnnouncement.js`): **`#turns` is ONE rolling
 message**, replaced each turn, carrying the announcement, the banner and the
@@ -658,6 +671,7 @@ that row as its raw slug until somebody writes the sentence.
 | `db/lib/catatonicDeathPass.js` | The Catatonic death pass (§2 7b) |
 | `db/lib/dyingDeathPass.js` | The Dying death pass (§2 4b) |
 | `db/lib/nukeExplosionPass.js` | The nuke explosion pass (§2 4c) |
+| `db/lib/ascensionPass.js` | The Rite of Ascension's pass (§2 4d) |
 | `db/lib/nuke.js` | Where the device is, and what the datacard's pointer says |
 | `db/lib/worldBroadcast.js` | The two whole-map fan-outs (every `#summary`, every Location) |
 | `db/lib/characterDeath.js` | The shared DB half of death (`applyDeathToRow`) |

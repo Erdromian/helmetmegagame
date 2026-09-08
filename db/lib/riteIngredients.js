@@ -34,6 +34,10 @@ function pick(list) {
   return list.length ? list[Math.floor(Math.random() * list.length)] : null;
 }
 
+// The rites that pick a target off a photograph and refuse a Pious one, or one
+// standing on hallowed ground.
+const HALLOWED_PROOF_RITES = new Set(["judgement", "madness"]);
+
 function onHallowedGround(location) {
   return Boolean(location?.slug && HALLOWED_LOCATION_SLUGS.includes(location.slug));
 }
@@ -200,7 +204,9 @@ async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
   }
 
   // Judgement: "Does not work on Pious people or people in the Cathedral."
-  if (rite.key === "judgement" && resolved.photograph) {
+  // Madness says the same thing in Bascinet's other words — "Does not work on
+  // hallowed people or places" — so it is one rule with two spellings, not two.
+  if (HALLOWED_PROOF_RITES.has(rite.key) && resolved.photograph) {
     const t = resolved.photograph.target;
     const slugs = new Set(t.tags.map((ct) => ct.tag.slug));
     const at = t.locationId

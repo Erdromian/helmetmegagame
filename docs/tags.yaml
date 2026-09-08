@@ -338,7 +338,7 @@ tags:
     catalog: secret
     name: Thanati Leader
     category: general
-    description: "The others look to you. ‡"
+    description: "The most senior and wicked member of the cult. You have spent many years nurturing it, now the time to strike approaches… View the Cult Leader document for more information."
     pointCost: 0
     purchasable: false
 
@@ -714,7 +714,7 @@ tags:
     name: Ghoul
     category: general
     group: general-traits
-    description: "You are animated. You don’t hunger and you can no longer think or speak, but you are a vicious fighter."
+    description: "A pallid corpse, stumbling over its own broken body."
     pointCost: 0
     visible: true
     purchasable: false
@@ -725,7 +725,7 @@ tags:
     name: Servant of Tzchernobog
     category: general
     group: general-traits
-    description: "Crudox Cruo!"
+    description: "You serve the Dark Lord now; you are unable to attack his servants or perform anything other than violence."
     pointCost: 0
     visible: false
     purchasable: false
@@ -2071,12 +2071,20 @@ tags:
     name: Thanati
     category: general
     group: general-beliefs
-    description: "This reality is cursed. Kill everyone and praise Tzchernobog!"
+    description: "Crudux Cruo! You must serve your master Tzchernobog to be rewarded with a better life after this one! View the Thanati document for further information and instructions. Good luck."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
     exclusive: true
     conflictsWith: [pacifist, charitable, saint, pilgrim]
+    # A cultist wants what the cult wants, and past that only the ugly things.
+    # The blood families stay open because hurting people is most of what a
+    # Thanati actually does; everything else — dinner, romance, a promotion —
+    # stops being a thing they can be rewarded for. Shaped like {tag:rage}'s.
+    desires:
+      locks:
+        - all: true
+          exceptFamilies: [thanati, cruelty, violence, feud, betrayal]
 
   # --- The Cerberon ---------------------------------------------------------
   cerberon:
@@ -4210,6 +4218,22 @@ tags:
     category: health
     group: health-mind
     description: "Nothing makes sense. What is happening?! Oh my God!"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+
+  # The Rite of Madness's yield (docs/systemdocs/THANATI.md §9). Nothing in
+  # code enforces the attacking — the rule lives in the words and a GM holds
+  # the player to it, the way {tag:rage} and Servant of Tzchernobog already do.
+  # Bascinet's wording.
+  madness:
+    catalog: secret
+    name: Madness
+    category: health
+    group: health-mind
+    description: "You no longer feel in control of your body! You must submit a gambit to attack those standing nearby, or if alone, yourself! You may not explicitly warn those around you, outside of acting very strange."
     pointCost: 0
     visible: true
     purchasable: false
@@ -7594,15 +7618,21 @@ tags:
   # faucet hanging off a free action. They stay `tradeable`, so players can
   # still sell them to each other for whatever they can get.
   #
-  # Nothing in the game consumes one yet. That is a stopping point, not an
-  # oversight — the parts exist first.
+  # The Merchant's station DOES buy them now, which is the ⬢ faucet the note
+  # above worried about — deliberately, and priced low enough that butchering
+  # a body is worth less than a day's labour. The eye and the heart are dearer
+  # than the rest because the rites eat those two (db/lib/rites.js).
+  #
+  # `keepSlug` on the eye: it is called an Eyeball on the sheet now, and the
+  # Rite of Judgement's ingredient list names the slug `eye`.
 
   eye:
     catalog: gm
-    name: Eye
+    name: Eyeball
+    keepSlug: true
     category: items
     group: items-remains
-    description: "An eyeball."
+    description: "A human eyeball, it looks back at you."
     pointCost: 0
     tradeable: true
     weight: 1
@@ -7610,14 +7640,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    sellable: false
+    sellable: true
+    sellablePrice: 15
 
   tongue:
     catalog: gm
     name: Tongue
     category: items
     group: items-remains
-    description: "A human tongue."
+    description: "Someone let their tongue slip!"
     pointCost: 0
     tradeable: true
     weight: 1
@@ -7625,7 +7656,8 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    sellable: false
+    sellable: true
+    sellablePrice: 5
 
   hand:
     catalog: gm
@@ -7640,7 +7672,8 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    sellable: false
+    sellable: true
+    sellablePrice: 10
 
   foot:
     catalog: gm
@@ -7655,7 +7688,8 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    sellable: false
+    sellable: true
+    sellablePrice: 8
 
   stomach:
     catalog: gm
@@ -7670,14 +7704,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    sellable: false
+    sellable: true
+    sellablePrice: 8
 
   heart:
     catalog: gm
     name: Heart
     category: items
     group: items-remains
-    description: "A human heart."
+    description: "Someone’s once beating heart, now in the palm of your hand."
     pointCost: 0
     tradeable: true
     weight: 1
@@ -7685,7 +7720,8 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    sellable: false
+    sellable: true
+    sellablePrice: 15
 
   fine-meal:
     catalog: all
@@ -8069,7 +8105,7 @@ tags:
     name: Sawn-Off Double Barrel
     category: items
     group: items-special
-    description: "Two big bangs, then a big long reload. Try not to miss. (Unlike a normal shotgun, you can hide this under a coat.)"
+    description: "Two big bangs, then a big long reload. Try not to miss. Unlike a normal shotgun, you can hide this under a coat."
     pointCost: 0
     equippable: true
     tradeable: true
@@ -8579,7 +8615,7 @@ tags:
     name: Scrying Eye
     category: items
     group: items-gear
-    description: "Lets you see, but not speak, in all rooms and conversations in a location. You must have the web-only option on."
+    description: "Its pupil darts around frantically, overwhelmed by vision through the veil. Holding it in your hand while wearing your robes lets you see through walls."
     pointCost: 0
     tradeable: true
     weight: 1
@@ -8587,6 +8623,113 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
+
+  # THE REST OF THE THANATI SHELF (docs/systemdocs/THANATI.md). Everything
+  # below is bought from the cult's own depot rather than the Merchant's —
+  # db/lib/thanati.js#THANATI_WARES holds the prices, because that shelf is
+  # code and not a `depotPrice`. None of it is purchasable with points, and
+  # none of it is in the catalog a player browses. Bascinet's descriptions.
+
+  sacrificial-knife:
+    catalog: secret
+    name: Sacrificial Knife
+    category: items
+    group: items-weapons
+    description: "A curved blade etched with all manner of heretical markings."
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: worn
+    purchasable: false
+    purchasableAfterStart: false
+
+  # Swallowed whole: the installed half is a trait, not an item, so it cannot
+  # be handed over or dropped. Biting down is a GM-adjudicated act, not a
+  # button — the tooth says what it does and the arbitration does it.
+  poison-tooth:
+    catalog: secret
+    name: Poison Tooth
+    category: items
+    group: items-gear
+    description: "A poisoned tooth. Once installed, it may be bitten down on, releasing a deadly nerve agent into the room you are in."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [installed-poison-tooth]
+
+  installed-poison-tooth:
+    catalog: secret
+    name: Installed Poison Tooth
+    category: general
+    group: general-traits
+    description: "You have had a poisoned tooth installed. You can bite down on it at any time to release a deadly nerve agent into the room you are in, inflicting {tag:phrygian-toxin}. You will not survive."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  adders-bite:
+    catalog: secret
+    name: Adder’s Bite
+    category: items
+    group: items-drink
+    description: "A small phial of black liquid. It can kill in seconds."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [phrygian-toxin]
+
+  # Five sticks make a bundle, and the bundle is an ordinary Craft recipe with
+  # an enforced ingredient — the `items:`/`count:` shape blank-book uses. No
+  # skill: taping dynamite together is not a trade.
+  dynamite-stick:
+    catalog: secret
+    name: Dynamite Stick
+    category: items
+    group: items-special
+    description: "A singular stick of dynamite, can be combined with four others to make a bundle."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  dynamite-bundle:
+    catalog: secret
+    name: Dynamite Bundle
+    category: items
+    group: items-special
+    description: "A bundle of dynamite, could easily devastate a crowd or building."
+    pointCost: 0
+    tradeable: true
+    weight: 5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      perTurn: 1
+      resourceCost: 0
+      items:
+        - tag: dynamite-stick
+          count: 5
+      gambit: false
 
   # The Keep's shelves. A book is declared BY its text: `bookText` goes on
   # Tag.paperText with paperKind BOOK, never on `description`, because the
@@ -10886,7 +11029,7 @@ tags:
     name: Black Robes
     category: items
     group: items-armor
-    description: "Stitched-together bags, dyed in black. While wearing this and using Thanati equipment, your combat skill is two levels higher."
+    description: "Dark brown robes drape the wearer. Gives bonuses to the servants of Tzchernobog in combat, and allows the use of Thanati enchanted items."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -10912,7 +11055,7 @@ tags:
     name: Shimmering Robes
     category: items
     group: items-armor
-    description: "These dark robes shimmer. They are nearly indestructible…"
+    description: "These robes glow with dark power! Their fabric is as hard as mail, and will deflect significant amounts of damage. They still function as normal robes. Their luminescence means they are visible upon inspection, even when not worn."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -10931,11 +11074,13 @@ tags:
     name: Thanati Mask
     category: items
     group: items-headgear
-    description: "A bold declaration of your faith, wrought out of iron. Offers some protection."
+    description: "A horrific mask that conceals the identity of the wearer. Provides minor protection to the face."
     pointCost: 5
     equippable: true
     equipSlot: HEAD
     equipLayer: 2
+    melee: 0.15
+    ballistic: 0.1
     concealsIdentity: true
     forcesConceal: true
     concealSprite: silvermask

@@ -49,6 +49,30 @@ test("every rite gets one to three words and no phrase nests in another", () => 
   }
 });
 
+test("a top-up keeps the words already rolled and fills only the missing ones", () => {
+  for (let seed = 1; seed <= 100; seed += 1) {
+    const full = rollRiteWords(seeded(seed));
+    // A game that was rolled before three rites joined the catalog.
+    const stale = { ...full };
+    for (const key of ["madness", "fulfillment", "ascension"]) delete stale[key];
+
+    const topped = rollRiteWords(seeded(seed + 5000), RITES, stale);
+    assert.equal(Object.keys(topped).length, RITES.length);
+    // Every phrase a player has already learned survives untouched.
+    for (const [key, phrase] of Object.entries(stale)) assert.equal(topped[key], phrase);
+    // And the new ones still nest in nothing, old or new.
+    const phrases = Object.values(topped).map(normalizeChant);
+    for (let i = 0; i < phrases.length; i += 1) {
+      for (let j = 0; j < phrases.length; j += 1) {
+        if (i === j) continue;
+        assert.ok(!containsPhrase(phrases[i], phrases[j]), `${phrases[j]} nests in ${phrases[i]} (seed ${seed})`);
+      }
+    }
+  }
+  // An empty top-up is the ordinary roll.
+  assert.equal(Object.keys(rollRiteWords(seeded(7), RITES, {})).length, RITES.length);
+});
+
 test("the matcher ignores case and punctuation and needs whole words in order", () => {
   const words = { a: "crudux cruo", b: "exim’ha", c: "cruonit" };
   assert.deepEqual(matchRites("Rise, brothers. CRUDUX CRUO!", words), ["a"]);

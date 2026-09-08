@@ -813,9 +813,10 @@ async function FreshCharacter({ userId, searchParams }) {
         current: r.id === hideout?.id,
       }))
     : [];
-  // Purchase Gear's shelf and purse: the wares priced in both currencies, and
-  // what the hideout's floor holds of each.
-  const [thanatiWares, hideoutObols] = atHideout
+  // Purchase Gear's shelf and the four purses it can draw on: the hideout
+  // floor's ⬢ and obols, and the buyer's own of each. One price per ware —
+  // an obol is one ⬢ (DEPOT.md) and the shelf spends both together.
+  const [thanatiWares, hideoutObols, myObols] = atHideout
     ? await Promise.all([
         prisma.tag
           .findMany({
@@ -825,16 +826,25 @@ async function FreshCharacter({ userId, searchParams }) {
           .then((tags) =>
             THANATI_WARES.map((w) => {
               const tag = tags.find((t) => t.slug === w.slug);
-              return tag ? { tagId: tag.id, name: tag.name, obols: w.obols, resources: w.resources } : null;
+              return tag ? { tagId: tag.id, name: tag.name, price: w.price } : null;
             }).filter(Boolean),
           ),
         prisma.roomTag.findFirst({
           where: { roomId: hideout.id, tag: { slug: OBOL_SLUG } },
           select: { quantity: true },
         }),
+        prisma.characterTag.findFirst({
+          where: { characterId: character.id, tag: { slug: OBOL_SLUG } },
+          select: { quantity: true },
+        }),
       ])
-    : [[], null];
-  const hideoutStock = atHideout ? { resources: hideout.resources, obols: hideoutObols?.quantity ?? 0 } : null;
+    : [[], null, null];
+  const hideoutStock = atHideout
+    ? {
+        room: { resources: hideout.resources, obols: hideoutObols?.quantity ?? 0 },
+        self: { resources: character.resources ?? 0, obols: myObols?.quantity ?? 0 },
+      }
+    : null;
   // The bomb's two halves. Both read off your own sheet and nothing else, so
   // neither leaks anything about the room; nukeActions.js re-checks both,
   // since a hidden button is a hint and not a lock.

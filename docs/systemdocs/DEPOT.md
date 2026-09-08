@@ -676,6 +676,19 @@ Four bands, about 106 tags in total:
 | Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
 | Factory goods | a day's output at ~2.2× a good farming day | `squeeze` 4 a cube — 8 cubes is a shift (`FACTORY.md` §6). Buy-only in the other direction: the station sells nobody a cube |
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **41** |
+| Body parts | low, on purpose | `eye` 15, `heart` 15, `hand` 10, `foot` 8, `stomach` 8, `tongue` 5 |
+
+**The station buys body parts now** (`CORPSES.md`, `TORTURE.md` §6). It is a ⬢
+faucet hanging off a free action — Mutilate costs nothing and every death mints
+a body — which is exactly why the numbers are what they are: a whole corpse
+butchered down comes to less than a good day's labour. The eye and the heart
+are dearer than the rest because the rites eat those two (`THANATI.md` §9), so
+a cultist and the Merchant now want the same organs.
+
+**The Thanati's own shelf is not this depot** (`THANATI.md` §3). It is a code
+list, `THANATI_WARES`, with one price per ware, spent out of the hideout room's
+floor and the buyer's pockets — ⬢ and obols together, since an obol is one ⬢.
+No `depotPrice` on any of it, and nothing there ever reaches the station.
 
 **Three numbers moved in the Butchering change** (`CORPSES.md`), and they are
 off the bands above on purpose. `skinless-brain` went 10 → 40 then **40 → 25**

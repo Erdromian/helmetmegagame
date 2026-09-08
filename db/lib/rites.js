@@ -151,6 +151,34 @@ const RITES = [
     ingredientsText: "1 {tag:heart}, 2 {tag:eye}, 1 photograph of the target, 40 ⬢",
     description: "The target suddenly explodes into mist! It does not work on people within hallowed grounds…",
   },
+  {
+    key: "madness",
+    name: "Rite of Madness",
+    minChanters: 4,
+    ingredients: [{ tag: "mindbreaker-toxin", count: 1 }, { kind: "photograph" }, { resources: 15 }],
+    ingredientsText: "1 {tag:mindbreaker-toxin}, 1 photograph of the target, 15 ⬢",
+    description: "Overwhelms the mind of the target with thoughts of violence and hatred! They will lash out at anything and everything around them. Does not work on hallowed people or places.",
+  },
+  {
+    key: "fulfillment",
+    name: "Rite of Fulfillment",
+    minChanters: 4,
+    ingredients: [],
+    ingredientsText: "",
+    description: "Time to break free from this torturous reality, and do so in spectacular fashion! For each of the Dark Lord’s objectives completed, you will be granted 100 ⬢. You may only perform this rite once, and your leader must be present!",
+  },
+  {
+    key: "ascension",
+    name: "Rite of Ascension",
+    minChanters: 8,
+    ingredients: [
+      { tag: "barons-scepter", count: 1 },
+      { tag: "bishops-mitre", count: 1 },
+      { resources: 250 },
+    ],
+    ingredientsText: "{tag:barons-scepter}, {tag:bishops-mitre}, 250 ⬢",
+    description: "You have exceeded even Lord Tzchernobog’s wildest expectations. Ravenheart’s very existence rests now in the palm of your hand. You know what to do.",
+  },
 ];
 
 const RITES_BY_KEY = new Map(RITES.map((r) => [r.key, r]));
@@ -183,11 +211,24 @@ function containsPhrase(normalizedText, normalizedPhrase) {
 // One to three distinct words per rite, shuffled, joined by a space. A phrase
 // that equals, contains or is contained in another rite's phrase is rerolled:
 // matching is "contains", so a nested pair would fire two rites off one line.
-function rollRiteWords(rng = Math.random, rites = RITES) {
+//
+// `existing` is a TOP-UP: any phrase already rolled for a rite is kept as-is
+// and counted among the taken, and only the rites missing from it are rolled.
+// That is what lets a running game gain a rite — the words are rolled once per
+// game and a new catalog entry would otherwise have none, forever.
+function rollRiteWords(rng = Math.random, rites = RITES, existing = null) {
   const words = [...THANATI_DICTIONARY];
   const out = {};
   const taken = [];
   for (const rite of rites) {
+    const kept = existing?.[rite.key];
+    if (typeof kept === "string" && kept.trim()) {
+      out[rite.key] = kept;
+      taken.push(normalizeChant(kept));
+    }
+  }
+  for (const rite of rites) {
+    if (out[rite.key]) continue;
     let phrase = null;
     for (let attempt = 0; attempt < 1000 && phrase == null; attempt += 1) {
       const count = 1 + Math.floor(rng() * 3);

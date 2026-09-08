@@ -38,13 +38,19 @@ Recall Comrades, the hideout is a pointer on `GameState`.
 | `black-robes` | BODY armor, `visible: worn`. Craftable by a Thanati, 1 ⬢, one Routine. The other half of a counted chant. The combat line in its description is prose for a GM. |
 | `thanati-mask` | Pre-existing headgear, conceals identity. |
 | `grimoire` | Craftable from one `blank-book`, Dead Simple, 1 a turn. Holding it unlocks the **Grimoire** document. |
+| `madness` | The Rite of Madness's yield. Two turns, and description-only: nothing enforces the attacking, a GM does. |
+| `poison-tooth` / `installed-poison-tooth` | Bought from the shelf, consumed into the installed half. Biting down is adjudicated, not a button. |
+| `adders-bite` | A phial, consumed into `phrygian-toxin`. |
+| `dynamite-stick` / `dynamite-bundle` | The bundle is an ordinary Craft recipe with an enforced ingredient: five sticks, no skill. |
+| `sacrificial-knife` | A knife. Shelf only. |
 
 The Basements stash (`docs/zones.yaml`) starts with one robe, four daggers and
 nineteen sheets of paper.
 
 "Thanati equipment", for the robes' combat line, means whatever
-`THANATI_WARES` in `db/lib/thanati.js` sells — a placeholder list Bascinet
-fills.
+`THANATI_WARES` in `db/lib/thanati.js` sells. That list carries ONE price per
+ware now, not an obol column and a ⬢ column: an obol is one ⬢ (`DEPOT.md`), the
+two were always equal, and Purchase Gear spends both together.
 
 ## 3. The buttons (`web/app/(app)/character/thanatiActions.js`)
 
@@ -65,10 +71,13 @@ re-checks the tag from the session.
   Location that `accessibleRooms` says they can enter; writes
   `GameState.thanatiHideoutRoomId` (a snapshot id, no FK). Re-settable.
 - **Purchase Gear** — greyed unless standing at the hideout's Location. Pays
-  from the hideout room's **floor**, `Room.resources` or the `obol` stack,
-  buyer's pick, decrement-as-check; drops the goods on the same floor via
-  `addToRoomStack`; the room hears the ordinary stash line. Audit
-  `thanati_purchase`.
+  from **four pools**: the hideout room's ⬢ and its `obol` stack, and the
+  buyer's own of each. The two controls are PREFERENCES, not restrictions —
+  which currency drains first and which purse — and the rest cover whatever is
+  left, so a cult with the money spread across four piles can still buy. All
+  four are decrement-as-check inside one transaction. Goods land on the hideout
+  floor via `addToRoomStack` whoever paid; the room hears the ordinary stash
+  line. Audit `thanati_purchase`, with the split it actually took.
 
 ## 4. Rites — no button
 
@@ -83,7 +92,10 @@ whole mechanism:
    into `GameState.riteWords` the first time anything asks (a chant, the
    Grimoire document, the GM panel) with a guarded `updateMany` so two first
    readers cannot both roll. Restart Game recreates GameState, so a new game
-   rolls new words.
+   rolls new words. A rite ADDED to the catalog mid-game would otherwise never
+   get one, so `ensureRiteWords` also tops up: `rollRiteWords(rng, RITES,
+   existing)` keeps every phrase already rolled, counts it among the taken, and
+   rolls only the missing keys.
 2. **The chant hook.** `db/lib/say.js#recordSpeech` calls
    `db/lib/riteChant.js#noteChant` after every archived line, on both faces,
    fire-and-forget. It counts a chant when the place is a Room thread
@@ -144,7 +156,8 @@ cascade. `GameState.riteWords` and `thanatiHideoutRoomId` go with the row.
 | `db/lib/riteWords.js` | `ensureRiteWords` |
 | `db/lib/thanati.js` | Slugs, roster, hideout, wares, `chanterReady` |
 | `db/lib/riteChant.js` | The chant hook and `evaluateAttempt` |
-| `db/lib/riteSweep.js` | Expire / fire |
+| `db/lib/riteSweep.js` | Expire / fire / rearm |
+| `db/lib/ascensionPass.js` | The end of the world, at a turn close |
 | `db/test/rites.test.js` | The pure half |
 | `web/lib/moveSpend.js` | `requireFreeMove`, `fileAutoRoutine` |
 | `web/lib/grimoire.js` | The Grimoire body |
@@ -173,6 +186,29 @@ words where a room or a player hears anything:
 | Reflection | 1 black-robes (floor), 15 ⬢ | `shimmering-robes` on the floor (counts as robes for chanting) |
 | Rage | 1 ravenheart-red | every participant gets `rage`: fear ×0, Desires locked but cruelty |
 | Judgement | 1 heart, 2 eye, a photograph, 40 ⬢; target not Pious, not on hallowed ground | target killed wherever they stand, their Location hears "… explodes into mist!", remains where the body fell |
+| Madness | 1 mindbreaker-toxin, a photograph, 15 ⬢; same target rule as Judgement | target gets `madness` for two turns; the print is spent |
+| Fulfillment | nothing on the floor — but the **leader must be among the chanters**, and it fires once per game | 100 ⬢ per completed cult objective, on the room's floor; room hears "Bounty! What success!" |
+| Ascension | 1 barons-scepter, 1 bishops-mitre, 250 ⬢, eight chanters | arms the end of the world for two turns' time and tells every zone where it is being planned |
+
+**Ascension is the second way a game ends** and is built like the bomb, on
+purpose. The rite stamps `GameState.ascensionArmedTurn = openTurn + 2` and
+snapshots the leader into `ascensionLeaderCharacterId`; `db/lib/ascensionPass.js`
+runs each close, beside `nukeExplosionPass` and after the staged push, so a
+leader killed this turn beats the clock. If that leader is not ALIVE the
+countdown is cleared and nothing more is said. Otherwise `ascensionFiredTurn`
+is stamped (never cleared), every `#summary` hears the hellfire line, the game
+ends through `endGameInDb`, and `turnBannerPath` pins `hellfire.jpg` on for
+good. A GM can also call it off from `/gm/dev?s=reports`, beside Defuse.
+
+The Rite of Fulfillment is the only handler that asks the sweep to rearm it —
+`{ rearm: ["leader"] }` — which is safe only because it has no floor
+ingredients, since the floor is eaten before the effect runs.
+
+**The consumption line is universal.** A rite whose only thing to say is "the
+floor is gone" says `INGREDIENTS_CONSUMED` — *The ingredients evaporate into
+dust.* — and nothing else. The flavoured lines (the eyeball, the shimmering
+robes, the rising corpse, the exploding sacrifice) are what the rite MADE and
+stay as they are.
 
 "Hallowed ground" is `HALLOWED_LOCATION_SLUGS` (the Cathedral) in
 `riteIngredients.js`, a code constant rather than a zone attribute so it needs
@@ -183,5 +219,8 @@ missing.
 Photographs: `Tag.photoOfCharacterId` (set by `photoMint.js` from both
 cameras) names the subject; older prints fall back to the name on the print.
 A Ghoul's speech goes through `babble.js#growl` (say.js `growling`). The
-Scrying Eye is `feedAccess.js#hasScryingEye`: equipped **and** web-only, every
-room and conversation at the Location becomes readable, `canSpeak: false`.
+Scrying Eye is `feedAccess.js#hasScryingEye`: equipped, **robes on**
+(`ROBE_SLUGS`, so the Rite of Reflection's pair counts) **and** web-only —
+then every room and conversation at the Location becomes readable, `canSpeak:
+false`. The robes are Bascinet's rule, and they mean a stolen eye is worth
+nothing to a thief who is not in the cult's dress.

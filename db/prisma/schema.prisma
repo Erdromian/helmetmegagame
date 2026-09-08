@@ -607,6 +607,30 @@ model GameState {
   // an FK — Rooms are recreated by db:sync-zones and a dangling pointer just
   // reads as "no hideout" (db/lib/thanati.js#hideoutRoom).
   thanatiHideoutRoomId String?
+
+  // THE RITE OF ASCENSION, which is the second way a game can end and the
+  // bomb's shape exactly (see nukeArmedTurn above for the reasoning — a
+  // countdown on a tag dies with its holder, and this one must not).
+  //
+  // `ascensionArmedTurn` is the absolute turn Ravenheart burns on, stamped by
+  // the rite as `openTurn + 2`. Null means nothing is coming.
+  ascensionArmedTurn Int?
+
+  // Set once, when it happens, and never cleared: what stops a resumed advance
+  // burning the world twice, and what pins the hellfire banner on for good
+  // (db/lib/turnBanner.js).
+  ascensionFiredTurn Int?
+
+  // The leader whose death is the only thing that calls it off. A snapshot id,
+  // no FK, the log-table convention — the row it points at may be deleted by a
+  // Restart, and a dangling pointer reads as "the leader is gone", which
+  // cancels, which is the safe direction.
+  ascensionLeaderCharacterId String?
+
+  // The Rite of Fulfillment pays out once per game. Claimed with a guarded
+  // write on this column, so two circles chanting at the same minute cannot
+  // both collect (db/lib/riteEffects.js).
+  fulfillmentFiredAt DateTime?
 }
 
 /// Where the shuttle is. AWAY is the resting state — it lives at the orbital

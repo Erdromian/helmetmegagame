@@ -45,7 +45,7 @@ async function postTurnsAnnouncement(prisma, newTurn, note) {
 
   const [config, state] = await Promise.all([
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
-    readGameState(prisma, { nukeDetonatedTurn: true }),
+    readGameState(prisma, { nukeDetonatedTurn: true, ascensionFiredTurn: true }),
   ]);
   const sent = await postTurnsConsole(prisma, turnsChannel.id, text, newTurn, config, state);
   if (!sent) console.error("Turn announcement: nothing could be posted to #turns");

@@ -581,12 +581,19 @@ export default function RequestActionsProvider({
   // which of the hideout floor's two purses pays.
   const [hideoutRoomId, setHideoutRoomId] = useState("");
   const [gearCart, setGearCart] = useState({});
-  const [gearSource, setGearSource] = useState("obols");
+  // Both PREFERENCES, not restrictions: which pool the shelf drains first.
+  // Everything the first one cannot cover comes out of the rest.
+  const [gearCurrency, setGearCurrency] = useState("obols");
+  const [gearPurse, setGearPurse] = useState("room");
   const gearLines = thanatiWares
     .map((w) => ({ ...w, quantity: parseQuantity(gearCart[w.tagId], { min: 0, max: 99 }) ?? 0 }))
     .filter((w) => w.quantity > 0);
-  const gearTotal = gearLines.reduce((sum, w) => sum + w[gearSource] * w.quantity, 0);
-  const gearPurse = hideoutStock?.[gearSource] ?? 0;
+  const gearTotal = gearLines.reduce((sum, w) => sum + w.price * w.quantity, 0);
+  const gearFunds =
+    (hideoutStock?.room?.resources ?? 0) +
+    (hideoutStock?.room?.obols ?? 0) +
+    (hideoutStock?.self?.resources ?? 0) +
+    (hideoutStock?.self?.obols ?? 0);
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
 
@@ -1016,7 +1023,8 @@ export default function RequestActionsProvider({
       setStampId("");
       setHideoutRoomId("");
       setGearCart({});
-      setGearSource("obols");
+      setGearCurrency("obols");
+      setGearPurse("room");
       setError(null);
       // After the resets above, never before — a preset is the exception to
       // the blank slate, not part of it.
@@ -1332,7 +1340,8 @@ export default function RequestActionsProvider({
       case "purchase":
         return purchaseGear({
           items: gearLines.map((w) => ({ tagId: w.tagId, quantity: w.quantity })),
-          source: gearSource,
+          currency: gearCurrency,
+          purse: gearPurse,
         });
       case "arm":
         return armNuke();
@@ -2222,25 +2231,33 @@ export default function RequestActionsProvider({
 
             {mode === "purchase" && (
               <>
-                <div className="flex flex-wrap items-end justify-between gap-3">
-                  <label className="field" style={{ width: "10rem" }}>
-                    <span className="field-label">Pay with</span>
-                    <Select value={gearSource} onChange={(e) => setGearSource(e.target.value)}>
+                <div className="flex flex-wrap items-end gap-3">
+                  <label className="field" style={{ width: "9rem" }}>
+                    <span className="field-label">Spend first</span>
+                    <Select value={gearCurrency} onChange={(e) => setGearCurrency(e.target.value)}>
                       <option value="obols">Obols</option>
                       <option value="resources">⬢</option>
                     </Select>
                   </label>
-                  <span className="mono text-sm text-muted">
-                    {hideoutStock?.obols ?? 0} ¢ · {hideoutStock?.resources ?? 0} ⬢
-                  </span>
+                  <label className="field" style={{ width: "9rem" }}>
+                    <span className="field-label">Take from</span>
+                    <Select value={gearPurse} onChange={(e) => setGearPurse(e.target.value)}>
+                      <option value="room">The floor</option>
+                      <option value="self">Your pockets</option>
+                    </Select>
+                  </label>
                 </div>
+                <p className="text-xs text-muted">
+                  Floor: {hideoutStock?.room?.obols ?? 0} ¢ · {hideoutStock?.room?.resources ?? 0} ⬢.
+                  You: {hideoutStock?.self?.obols ?? 0} ¢ · {hideoutStock?.self?.resources ?? 0} ⬢.
+                  Whatever you pick first pays until it runs out, then the rest covers it. ‡
+                </p>
                 <div className="overflow-x-auto">
                   <table className="data-table">
                     <thead>
                       <tr>
                         <th>Ware</th>
-                        <th>Obols</th>
-                        <th>⬢</th>
+                        <th>Price</th>
                         <th>Qty</th>
                       </tr>
                     </thead>
@@ -2248,8 +2265,7 @@ export default function RequestActionsProvider({
                       {thanatiWares.map((w) => (
                         <tr key={w.tagId}>
                           <td>{w.name}</td>
-                          <td className="mono">{w.obols}</td>
-                          <td className="mono">{w.resources}</td>
+                          <td className="mono">{w.price}</td>
                           <td>
                             <QuantityField
                               inline
@@ -2266,8 +2282,8 @@ export default function RequestActionsProvider({
                   </table>
                 </div>
                 <div className="flex justify-end">
-                  <span className={`mono text-sm ${gearTotal > gearPurse ? "text-danger" : ""}`}>
-                    {gearTotal} {gearSource === "obols" ? "¢" : "⬢"}
+                  <span className={`mono text-sm ${gearTotal > gearFunds ? "text-danger" : ""}`}>
+                    {gearTotal} / {gearFunds}
                   </span>
                 </div>
               </>

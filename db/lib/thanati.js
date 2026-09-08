@@ -25,16 +25,24 @@ const ROBE_SLUGS = Object.freeze([BLACK_ROBES_SLUG, SHIMMERING_ROBES_SLUG]);
 // holding.
 const RECOVERABLE_SLUGS = Object.freeze([BLACK_ROBES_SLUG, THANATI_MASK_SLUG]);
 
-// The network's shelf, in two currencies. An obol is one ⬢ everywhere else in
-// the game (DEPOT.md), so the two columns start equal — kept separate because
-// the brief shows both and Bascinet may price them apart. PLACEHOLDER LIST:
-// Bascinet fills it. This list is also what "Thanati equipment" means for the
-// Black Robes' combat line.
+// The network's shelf. ONE price per ware, not two: an obol is one ⬢
+// everywhere else in the game (DEPOT.md), the two columns here were always
+// equal, and the shelf now takes both currencies in the same purchase, so a
+// split price would have had no meaning anyway. Bascinet's numbers.
+//
+// This list is also what "Thanati equipment" means for the Black Robes'
+// combat line.
 const THANATI_WARES = Object.freeze([
-  { slug: "dagger", obols: 6, resources: 6 },
-  { slug: "black-robes", obols: 3, resources: 3 },
-  { slug: "thanati-mask", obols: 10, resources: 10 },
-  { slug: "paper", obols: 1, resources: 1 },
+  { slug: "paper", price: 1 },
+  { slug: "black-robes", price: 3 },
+  { slug: "sacrificial-knife", price: 4 },
+  { slug: "dagger", price: 6 },
+  { slug: "thanati-mask", price: 10 },
+  { slug: "adders-bite", price: 30 },
+  { slug: "dynamite-stick", price: 30 },
+  { slug: "poison-tooth", price: 40 },
+  { slug: "sawn-off-double-barrel", price: 45 },
+  { slug: "dynamite-bundle", price: 160 },
 ]);
 
 const OBOL_SLUG = "obol";

@@ -288,6 +288,13 @@ families:
     group: demoness
     color: "#d98ad0"
     # Predation, domination, enslavement, terror.
+  thanati:
+    name: Thanati
+    group: mind
+    color: "#8f3b3b"
+    # The cult's own. {tag:thanati} locks every family but this one and the
+    # four blood ones, so this is most of what a cultist has left to want:
+    # the Dark Lord's objectives, the church, the Silver Cross, the rites.
   stupidity:
     name: Stupidity
     group: mind
@@ -2341,3 +2348,81 @@ desires:
     families: [stupidity]
     requires:
       anyTags: [stupid]
+
+  # THE THANATI (docs/systemdocs/THANATI.md). All gated on the Belief, and
+  # all in the cult's own family, because {tag:thanati} locks nearly
+  # everything else — see that tag's `desires.locks` in docs/tags.yaml.
+  # Bascinet's wording throughout.
+  thanati-minor-objective:
+    name: Complete a minor objective
+    tier: 3
+    families: [thanati]
+    requires:
+      anyTags: [thanati]
+  thanati-major-objective:
+    name: Complete a major objective
+    tier: 5
+    families: [thanati]
+    cooldownTurns: 3
+    requires:
+      anyTags: [thanati]
+  thanati-save-the-leader:
+    name: Save the cult leader
+    tier: 4
+    families: [thanati]
+    oncePerLife: true
+    requires:
+      anyTags: [thanati]
+  thanati-kill-churchman:
+    name: Kill a member of the church
+    tier: 2
+    families: [thanati, violence]
+    requires:
+      anyTags: [thanati]
+  # Bascinet asked for no cooldown. Tier 1's default already IS none in
+  # practice — a cooldown of one turn expires the moment the turn it was
+  # fulfilled on closes (db/lib/desireGates.js) — and the sync refuses a
+  # literal 0, so this carries no override.
+  thanati-call-in-public:
+    name: Call Tzchernobog in public
+    tier: 1
+    families: [thanati]
+    requires:
+      anyTags: [thanati]
+  thanati-force-feed-flesh:
+    name: Forcefully feed a living non-Thanati the Flesh of Tzchernobog
+    tier: 2
+    families: [thanati, cruelty]
+    requires:
+      anyTags: [thanati]
+  thanati-dynamite-kill:
+    name: Kill someone with a stick or bundle of dynamite
+    tier: 3
+    families: [thanati, violence]
+    requires:
+      anyTags: [thanati]
+  thanati-wrong-execution:
+    name: Witness the inquisition incorrectly execute someone who isn’t a Thanati
+    tier: 4
+    families: [thanati]
+    requires:
+      anyTags: [thanati]
+  thanati-plant-heresy:
+    name: Plant a heretical item on someone, then get the inquisition after them
+    tier: 2
+    families: [thanati, scheming]
+    requires:
+      anyTags: [thanati]
+  thanati-carry-silver-cross:
+    name: Carry the stolen Silver Cross around with you
+    tier: 1
+    families: [thanati]
+    requires:
+      anyTags: [thanati]
+  thanati-steal-silver-cross:
+    name: Steal the Silver Cross
+    tier: 4
+    families: [thanati, theft]
+    oncePerLife: true
+    requires:
+      anyTags: [thanati]

@@ -71,6 +71,14 @@ function turnBannerPath(turn, state = null) {
     if (fs.existsSync(nuke)) return nuke;
     console.error(`Turn banner: nuke plate missing from ${TURN_BANNER_DIR}`);
   }
+  // And after the Rite of Ascension there is no sky at all, only the fire.
+  // Same shape, same fall-through: a missing asset costs the guild its banner,
+  // never its turn announcement.
+  if (state?.ascensionFiredTurn != null) {
+    const hellfire = path.join(TURN_BANNER_DIR, "hellfire.jpg");
+    if (fs.existsSync(hellfire)) return hellfire;
+    console.error(`Turn banner: hellfire plate missing from ${TURN_BANNER_DIR}`);
+  }
   if (!turn?.phase) return null;
   // A null banner is not "no picture" — it is a Turn row written before this
   // column existed, or by a path that forgot to set it. Pick one on the spot so

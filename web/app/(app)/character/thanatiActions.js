@@ -152,20 +152,39 @@ async function setHideoutImpl({ roomId }) {
 }
 
 // ---- Purchase Gear ---------------------------------------------------------
-// Pays from the hideout room's FLOOR — its ⬢ or its obols, the buyer's pick —
-// and drops the goods on the same floor. The cult stockpiles there, so this is
-// the shared purse spending on itself. Decrement-as-check on both currencies,
-// the room-stash rule (CARRY.md): two cultists buying at once cannot overdraw.
+// The shelf takes BOTH currencies out of BOTH purses. An obol is one ⬢
+// (DEPOT.md), so there is one price per ware and four pools to pay it from:
+// the hideout floor's ⬢ and obols, and the buyer's own. The two controls are
+// PREFERENCES, not restrictions — they say which pool drains first, and the
+// rest cover whatever is left. Anything else meant a cult sitting on 200 ⬢
+// across four piles being told it could not afford a 30 ⬢ stick.
+//
+// Decrement-as-check on every pool, the room-stash rule (CARRY.md): two
+// cultists buying at once must not overdraw. The goods still land on the
+// hideout floor whoever paid — the cult stockpiles there.
 function formatGoods(lines) {
   return lines.map((l) => (l.quantity > 1 ? `${l.name} ×${l.quantity}` : l.name)).join(", ");
 }
 
-async function purchaseGearImpl({ items, source }) {
+// A guarded decrement on a character's stack. dropCharacterTag reads first and
+// then writes, which is the wrong shape for money.
+async function spendCharacterTag(tx, characterId, tagId, quantity) {
+  const { count } = await tx.characterTag.updateMany({
+    where: { characterId, tagId, quantity: { gte: quantity } },
+    data: { quantity: { decrement: quantity } },
+  });
+  if (count === 0) return false;
+  await tx.characterTag.deleteMany({ where: { characterId, tagId, quantity: { lte: 0 } } });
+  return true;
+}
+
+async function purchaseGearImpl({ items, currency, purse }) {
   const { session, me } = await cultist();
   const hideout = await hideoutRoom(prisma);
   if (!hideout) throw new UserError("Set a hideout first.");
   if (hideout.locationId !== me.locationId) throw new UserError("Not at the hideout.");
-  if (source !== "obols" && source !== "resources") throw new UserError("Pick a currency.");
+  const currencyFirst = currency === "obols" ? "obols" : "resources";
+  const purseFirst = purse === "self" ? "self" : "room";
 
   const wanted = Array.isArray(items) ? items : [];
   const wareBySlug = new Map(THANATI_WARES.map((w) => [w.slug, w]));
@@ -182,20 +201,69 @@ async function purchaseGearImpl({ items, source }) {
     const ware = tag ? wareBySlug.get(tag.slug) : null;
     const quantity = Math.trunc(Number(raw?.quantity));
     if (!ware || !Number.isInteger(quantity) || quantity < 1) continue;
-    lines.push({ tagId: tag.id, name: tag.name, quantity: Math.min(quantity, 99), each: ware[source] });
+    lines.push({ tagId: tag.id, name: tag.name, quantity: Math.min(quantity, 99), each: ware.price });
   }
   if (lines.length === 0) throw new UserError("Nothing to buy.");
   const total = lines.reduce((sum, l) => sum + l.each * l.quantity, 0);
 
+  // What each pool holds right now, only so the draw can be planned and a
+  // hopeless purchase refused before anything moves. The writes below still
+  // check for themselves, so a pool that shrinks in between fails the whole
+  // transaction rather than half-paying.
+  const [buyer, roomObols, myObols] = await Promise.all([
+    prisma.character.findUnique({ where: { id: me.id }, select: { resources: true } }),
+    obolTag
+      ? prisma.roomTag.findFirst({ where: { roomId: hideout.id, tagId: obolTag.id }, select: { quantity: true } })
+      : null,
+    obolTag
+      ? prisma.characterTag.findUnique({
+          where: { characterId_tagId: { characterId: me.id, tagId: obolTag.id } },
+          select: { quantity: true },
+        })
+      : null,
+  ]);
+  const pools = {
+    "room:resources": hideout.resources ?? 0,
+    "room:obols": roomObols?.quantity ?? 0,
+    "self:resources": buyer?.resources ?? 0,
+    "self:obols": myObols?.quantity ?? 0,
+  };
+  // Purse is the outer preference and currency the inner one, so "room first,
+  // obols first" reads room obols, room ⬢, own obols, own ⬢.
+  const purses = purseFirst === "self" ? ["self", "room"] : ["room", "self"];
+  const currencies = currencyFirst === "obols" ? ["obols", "resources"] : ["resources", "obols"];
+  const order = purses.flatMap((k) => currencies.map((c) => `${k}:${c}`));
+
+  const draw = {};
+  let owed = total;
+  for (const key of order) {
+    if (owed <= 0) break;
+    const take = Math.min(owed, pools[key]);
+    if (take <= 0) continue;
+    draw[key] = take;
+    owed -= take;
+  }
+  if (owed > 0) throw new UserError("Not enough there.");
+
   await prisma.$transaction(async (tx) => {
-    if (source === "resources") {
-      const { count } = await tx.room.updateMany({
-        where: { id: hideout.id, resources: { gte: total } },
-        data: { resources: { decrement: total } },
-      });
-      if (count === 0) throw new UserError("Not enough there.");
-    } else {
-      if (!obolTag || !(await dropRoomTag(tx, hideout.id, obolTag.id, total))) {
+    for (const [key, amount] of Object.entries(draw)) {
+      if (key === "room:resources") {
+        const { count } = await tx.room.updateMany({
+          where: { id: hideout.id, resources: { gte: amount } },
+          data: { resources: { decrement: amount } },
+        });
+        if (count === 0) throw new UserError("Not enough there.");
+      } else if (key === "self:resources") {
+        const { count } = await tx.character.updateMany({
+          where: { id: me.id, resources: { gte: amount } },
+          data: { resources: { decrement: amount } },
+        });
+        if (count === 0) throw new UserError("Not enough there.");
+      } else if (key === "room:obols") {
+        if (!obolTag || !(await dropRoomTag(tx, hideout.id, obolTag.id, amount))) {
+          throw new UserError("Not enough there.");
+        }
+      } else if (!obolTag || !(await spendCharacterTag(tx, me.id, obolTag.id, amount))) {
         throw new UserError("Not enough there.");
       }
     }
@@ -207,8 +275,9 @@ async function purchaseGearImpl({ items, source }) {
       details: {
         room: hideout.name,
         roomId: hideout.id,
-        source,
         total,
+        paid: draw,
+        preferred: { currency: currencyFirst, purse: purseFirst },
         lines: lines.map((l) => ({ name: l.name, quantity: l.quantity, each: l.each })),
       },
     });

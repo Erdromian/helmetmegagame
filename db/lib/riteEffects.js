@@ -31,8 +31,10 @@ const { listObjectives, fulfillObjectives } = require("./objectives");
 const { settleFearTag } = require("./fear");
 const { normalizeChant, containsPhrase } = require("./rites");
 const { BOUND_SLUG, onHallowedGround } = require("./riteIngredients");
+const { broadcastToZones } = require("./worldBroadcast");
 const {
   THANATI_SLUG,
+  THANATI_LEADER_SLUG,
   SCRYING_EYE_SLUG,
   SHIMMERING_ROBES_SLUG,
   GHOUL_SLUG,
@@ -42,10 +44,23 @@ const {
 } = require("./thanati");
 
 const FLESH_SLUG = "flesh-of-tzchernobog";
+const MADNESS_SLUG = "madness";
+// The Rite of Fulfillment's rate, and the Rite of Ascension's fuse. Both are
+// Bascinet's numbers; the fuse matches the bomb's, which is not a coincidence —
+// two turns is how long the town has been given to stop a doomsday before.
+const FULFILLMENT_PER_OBJECTIVE = 100;
+const ASCENSION_DELAY_TURNS = 2;
 // What a sacrifice or a Judgement leaves behind: the parts a body has
 // (db/lib/mutilate.js's list). Bascinet's "the following items" list was not
 // given; this is the standing organ list until it is.
 const REMAINS_SLUGS = Object.freeze(["eye", "tongue", "hand", "foot", "stomach", "heart"]);
+// What a room hears when a rite eats its floor. One line for every rite that
+// has nothing more interesting to say about it — Bascinet asked for the wording
+// to be universal, and it used to be three near-identical sentences naming
+// whichever ingredient that rite happened to take. The flavoured lines (the
+// eyeball, the shimmering robes, the rising corpse) stay: those are not the
+// floor going, they are what the rite made.
+const INGREDIENTS_CONSUMED = "The ingredients evaporate into dust.";
 const ANIMATED_LINE = "This weapon is animated! It is indestructible, it cuts through armor, and it heals its targets whenever it harms someone.";
 
 const log = (what) => (err) => console.error(`Rite: ${what} failed:`, err?.message ?? err);
@@ -263,7 +278,7 @@ const EFFECTS = {
       if (holder.kind === "room") await dropRoomTag(tx, holder.id, tag.id, 1);
       else await dropCharacterTag(tx, holder.id, tag.id, 1);
     });
-    await roomLine(db, room, "The items evaporate into dust.");
+    await roomLine(db, room, INGREDIENTS_CONSUMED);
     return { result: { target: target.name, characterId: target.id } };
   },
 
@@ -280,7 +295,7 @@ const EFFECTS = {
       if (holder.kind === "room") await dropRoomTag(tx, holder.id, tag.id, 1);
       else await dropCharacterTag(tx, holder.id, tag.id, 1);
     });
-    await roomLine(db, room, "The items evaporate into dust.");
+    await roomLine(db, room, INGREDIENTS_CONSUMED);
     return { result: { target: target.name, told: participants.length, tags: names.length } };
   },
 
@@ -306,7 +321,7 @@ const EFFECTS = {
   },
 
   async panic({ db, room }) {
-    await roomLine(db, room, "The heart evaporates into dust. Name a zone.");
+    await roomLine(db, room, `${INGREDIENTS_CONSUMED} Name a zone.`);
     return { awaiting: "zone", result: { awaiting: "zone" } };
   },
 
@@ -325,7 +340,7 @@ const EFFECTS = {
         blighted[f.name] = take;
       }
     });
-    await roomLine(db, room, "The items evaporate into dust.");
+    await roomLine(db, room, INGREDIENTS_CONSUMED);
     return { result: { blighted } };
   },
 
@@ -339,7 +354,7 @@ const EFFECTS = {
     await db.$transaction(async (tx) => {
       for (const p of participants) await grantTagSlugs(tx, p.characterId, [RAGE_SLUG], openTurn?.number ?? null);
     });
-    await roomLine(db, room, "The wine evaporates into dust.");
+    await roomLine(db, room, INGREDIENTS_CONSUMED);
     return { result: { enraged: participants.map((p) => p.name) } };
   },
 
@@ -360,6 +375,90 @@ const EFFECTS = {
     if (corpse?.tag) await deleteCorpseFor(db, full.id).catch(log(`corpse cleanup for ${full.name}`));
     await locationLine(db, full.location, `${full.name} explodes into mist!`);
     return { result: { judged: full.name, characterId: full.id, spawned } };
+  },
+
+  // Judgement's shape without the killing: the print is spent, the target goes
+  // mad for two turns. The Pious/hallowed refusal is not here — it is in
+  // riteIngredients.js with Judgement's, so a rite that cannot land never eats
+  // its floor.
+  async madness({ db, room, resolved, openTurn }) {
+    const { target, holder, tag } = resolved.photograph;
+    await db.$transaction(async (tx) => {
+      await grantTagSlugs(tx, target.id, [MADNESS_SLUG], openTurn?.number ?? null);
+      if (holder.kind === "room") await dropRoomTag(tx, holder.id, tag.id, 1);
+      else await dropCharacterTag(tx, holder.id, tag.id, 1);
+    });
+    await roomLine(db, room, INGREDIENTS_CONSUMED);
+    return { result: { maddened: target.name, characterId: target.id } };
+  },
+
+  // The cult cashes out. Two guards, both before anything is written.
+  async fulfillment({ db, room, participants }) {
+    // The leader must be standing there. A rearm rather than a fire: they may
+    // walk in later, and the circle should not have to start over.
+    const leaders = await db.character.count({
+      where: {
+        id: { in: participants.map((p) => p.characterId) },
+        tags: { some: { quantity: { gt: 0 }, tag: { slug: THANATI_LEADER_SLUG } } },
+      },
+    });
+    if (leaders === 0) return { rearm: ["leader"], result: { rearmed: ["leader"] } };
+
+    // Once per game, claimed the way the bomb claims its detonation: a guarded
+    // write, so two circles chanting in the same minute cannot both collect.
+    const { count } = await db.gameState.updateMany({
+      where: { id: 1, fulfillmentFiredAt: null },
+      data: { fulfillmentFiredAt: new Date() },
+    });
+    if (count === 0) return { result: { alreadyPerformed: true } };
+
+    const objectives = await listObjectives(db, { partyKey: "thanati" });
+    const completed = objectives.filter((o) => o.done).length;
+    const granted = completed * FULFILLMENT_PER_OBJECTIVE;
+    if (granted > 0) {
+      await db.room.update({ where: { id: room.id }, data: { resources: { increment: granted } } });
+    }
+    await roomLine(db, room, "Bounty! What success!");
+    return { result: { completed, granted } };
+  },
+
+  // The end of the world, armed. Nothing burns for two turns — that window is
+  // the whole game the town gets to play, and killing the leader inside it is
+  // the only thing that calls it off (db/lib/ascensionPass.js).
+  async ascension({ db, room, participants, openTurn }) {
+    // Whose death calls this off. The leader standing in the room is the one
+    // that matters; if the seat is held by somebody elsewhere, they are still
+    // the leader, so they are the fallback rather than a refusal.
+    const here = participants.map((p) => p.characterId);
+    const isLeader = { tags: { some: { quantity: { gt: 0 }, tag: { slug: THANATI_LEADER_SLUG } } } };
+    const chosen =
+      (await db.character.findFirst({ where: { status: "ALIVE", id: { in: here }, ...isLeader }, select: { id: true, name: true } })) ??
+      (await db.character.findFirst({ where: { status: "ALIVE", ...isLeader }, orderBy: { id: "asc" }, select: { id: true, name: true } }));
+
+    // A rite fires off the minute sweep, not the turn engine, so there may be
+    // no open turn at all between a close and the next open. Fall back to the
+    // newest turn number: two turns from the last one that existed.
+    const base =
+      openTurn?.number ??
+      (await db.turn.findFirst({ orderBy: { number: "desc" }, select: { number: true } }))?.number ??
+      0;
+
+    const { count } = await db.gameState.updateMany({
+      where: { id: 1, ascensionArmedTurn: null, ascensionFiredTurn: null },
+      data: {
+        ascensionArmedTurn: base + ASCENSION_DELAY_TURNS,
+        ascensionLeaderCharacterId: chosen?.id ?? null,
+      },
+    });
+    // Already counting down, or already happened. Either way the world does
+    // not need telling twice.
+    if (count === 0) return { result: { alreadyRunning: true } };
+
+    await broadcastToZones(
+      db,
+      `The ground begins to shake. The cultists are planning something terrible in ${room.name}! Stop them!`,
+    );
+    return { result: { firesOn: base + ASCENSION_DELAY_TURNS, leader: chosen?.name ?? null } };
   },
 };
 

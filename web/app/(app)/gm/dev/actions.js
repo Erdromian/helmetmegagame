@@ -677,6 +677,38 @@ export async function defuseNukeAction() {
   return { ok: true, wasFiringOn };
 }
 
+// The same hand on the cult's countdown. The Rite of Ascension calls itself
+// off when the cult leader dies, and this is the other way out of it —
+// worth having for the same reason the Defuse button is: an eight-cultist
+// chant that lands by accident, or in a playtest, should not have to burn
+// the world to be undone.
+export async function cancelAscensionAction() {
+  const session = await requireSuperadmin();
+
+  const state = await getGameState(prisma);
+  if (state.ascensionFiredTurn != null) {
+    return { ok: false, error: "It already happened." };
+  }
+  if (state.ascensionArmedTurn == null) {
+    return { ok: false, error: "Nothing is coming." };
+  }
+
+  const wasFiringOn = state.ascensionArmedTurn;
+  await prisma.gameState.update({ where: { id: 1 }, data: { ascensionArmedTurn: null } });
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "ascension_cancelled",
+        details: { wasFiringOn, by: "gm" },
+      },
+    })
+    .catch((err) => console.error("Ascension cancel audit log failed:", err));
+
+  revalidatePath("/gm/dev");
+  return { ok: true, wasFiringOn };
+}
+
 // --- Channel doctor + system reports ----------------------------------
 
 // Runs in after() and lands on a SystemReport row; /gm/dev polls the

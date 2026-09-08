@@ -192,9 +192,11 @@ is the only writer.
 
 ## 7. Ending, the reveal, and games that outlive the wipe
 
-**`db/lib/gameEnd.js#endGameInDb`** is the one way a game ends: the End Game
-button, and the bomb from inside `advanceTurn` (the reveal is queued after
-the fireball broadcast). It writes GameState to ENDED with `archiveVisible`
+**`db/lib/gameEnd.js#endGameInDb`** is the one way a game ends, reached three
+ways: the End Game button, the bomb, and the Rite of Ascension — the last two
+from inside `advanceTurn`, with the reveal queued after their broadcast.
+Whichever lands first keeps the ending; `endGameInDb` is a no-op on a state
+that is already ENDED. It writes GameState to ENDED with `archiveVisible`
 on, and onto the current **`Game`** row its end, closing note and
 **epilogue** — `db/lib/epilogue.js#buildEpilogue`: the note, a facts line
 (days, turns, characters, deaths, letters, archive rows), **the antagonists**

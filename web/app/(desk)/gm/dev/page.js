@@ -30,6 +30,7 @@ import {
   updateWorldState,
   runDoctorAction,
   defuseNukeAction,
+  cancelAscensionAction,
   bulkMoveCharacters,
 } from "@/app/(app)/gm/dev/actions";
 import EndTurnButton from "@/app/(app)/gm/dev/EndTurnButton";
@@ -872,6 +873,31 @@ export default async function DevPanelPage({ searchParams }) {
                       <form action={defuseNukeAction}>
                         <SubmitButton className="btn-secondary" pendingLabel="Defusing…">
                           Defuse
+                        </SubmitButton>
+                      </form>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Same rule as the device: on screen only while there is
+                  something to say about it. */}
+              {(state.ascensionArmedTurn != null || state.ascensionFiredTurn != null) && (
+                <div className="ops-section-head">
+                  <h2 className="section-title">The cult&rsquo;s countdown</h2>
+                  {state.ascensionFiredTurn != null ? (
+                    <p className="ops-lede">
+                      Ravenheart burned at the close of turn {state.ascensionFiredTurn}. ‡
+                    </p>
+                  ) : (
+                    <>
+                      <p className="ops-lede">
+                        <strong>Running.</strong> Ravenheart burns at the close of turn{" "}
+                        {state.ascensionArmedTurn}, unless the cult leader is killed first. ‡
+                      </p>
+                      <form action={cancelAscensionAction}>
+                        <SubmitButton className="btn-secondary" pendingLabel="Calling it off…">
+                          Call it off
                         </SubmitButton>
                       </form>
                     </>

@@ -24,20 +24,29 @@ const {
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { conversationsFor } = require("./conversations");
 const { visibleZoneIds } = require("./gmZoneView");
-const { SCRYING_EYE_SLUG } = require("./thanati");
+const { SCRYING_EYE_SLUG, ROBE_SLUGS } = require("./thanati");
 
-// Equipped Scrying Eye AND the web-only switch on: the eye works only for a
-// character who has left Discord, since Discord's channel permissions could
-// never show them the rooms it opens (docs/systemdocs/THANATI.md §4).
+// Equipped Scrying Eye, ROBES ON, AND the web-only switch on. The web-only
+// half is technical: Discord's channel permissions could never show a
+// character the rooms the eye opens, so it works only for someone who has left
+// Discord. The robes are Bascinet's rule — "holding it in your hand while
+// wearing your robes lets you see through walls" — which also means a
+// stolen eye is worth nothing to a thief who is not in the cult's dress.
+// (docs/systemdocs/THANATI.md §4.)
 async function hasScryingEye(prisma, characterId) {
   const row = await prisma.character.findUnique({
     where: { id: characterId },
     select: {
       webOnly: true,
-      tags: { where: { equipped: true, quantity: { gt: 0 }, tag: { slug: SCRYING_EYE_SLUG } }, select: { id: true } },
+      tags: {
+        where: { equipped: true, quantity: { gt: 0 }, tag: { slug: { in: [SCRYING_EYE_SLUG, ...ROBE_SLUGS] } } },
+        select: { tag: { select: { slug: true } } },
+      },
     },
   });
-  return Boolean(row?.webOnly && row.tags.length > 0);
+  if (!row?.webOnly) return false;
+  const slugs = new Set(row.tags.map((ct) => ct.tag.slug));
+  return slugs.has(SCRYING_EYE_SLUG) && ROBE_SLUGS.some((slug) => slugs.has(slug));
 }
 
 // How long a character waits between two sends in one place, in ms. The zone

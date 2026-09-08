@@ -41,6 +41,7 @@ const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
 const { runVisionDecayPass } = require("./lib/visionDecayPass");
 const { runDyingDeathPass } = require("./lib/dyingDeathPass");
 const { runNukeExplosionPass } = require("./lib/nukeExplosionPass");
+const { runAscensionPass } = require("./lib/ascensionPass");
 const { endGameInDb, postGameEnded } = require("./lib/gameEnd");
 const { syncSpectatorAccess } = require("./lib/spectatorAccess");
 const { broadcastToZones } = require("./lib/worldBroadcast");
@@ -189,6 +190,7 @@ const TURN_PASSES = [
   "visionDecay",
   "dyingDeath",
   "nukeExplosion",
+  "ascension",
   // Corpses turn before the sweep, and the order is load-bearing: the sweep
   // is a blind deleteMany over expiresTurn, so a body that reached its clock
   // would be deleted instead of rotting. See db/lib/corpseRotPass.js.
@@ -521,6 +523,45 @@ async function resolveNeeds(turn, config) {
       if (ended.ended) gameEndedPost = ended.post;
     } catch (err) {
       console.error("Ending the game after the detonation failed:", err);
+    }
+  }
+
+  // The Rite of Ascension, beside the bomb and for the same reason: it must
+  // sit after the staged push, so a leader killed this turn calls it off.
+  // See db/lib/ascensionPass.js.
+  let ascension = null;
+  if (!done.has("ascension")) {
+    ascension = await runAscensionPass(prisma, turn).catch(async (err) => {
+      await passFailed("Ascension", err);
+      return null;
+    });
+    if (ascension) await markDone("ascension");
+  }
+  const { broadcast: ascensionBroadcast = null, ...ascensionSummary } = ascension ?? {};
+  if (ascension?.fired || ascension?.cancelled) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: ascension.fired ? "ascension_fired" : "ascension_cancelled",
+          details: ascensionSummary,
+        },
+      })
+      .catch((err) => console.error("Ascension audit log failed:", err));
+  }
+  // The second way a game ends. Unlike the bomb it kills nobody — there is
+  // simply nothing left to play in, so the clock stops and the archive opens.
+  // A game already ended by the bomb keeps its first ending; endGameInDb is a
+  // no-op on an ENDED state.
+  if (ascension?.fired) {
+    try {
+      const ended = await endGameInDb(prisma, {
+        closingNote: `The cult finished its work at the close of turn ${turn.number}. Ravenheart burned. ‡`,
+        reason: "ascension",
+      });
+      if (ended.ended) gameEndedPost = ended.post;
+    } catch (err) {
+      console.error("Ending the game after the ascension failed:", err);
     }
   }
 
@@ -1018,6 +1059,7 @@ async function resolveNeeds(turn, config) {
     dyingDeathWarnings,
     nukeDeaths,
     nukeBroadcast,
+    ascensionBroadcast,
     gameEndedPost,
     birdNotices,
     carryDrops,
@@ -1092,6 +1134,7 @@ async function advanceTurn() {
   let dyingDeaths = [];
   let nukeDeaths = [];
   let nukeBroadcast = null;
+  let ascensionBroadcast = null;
   let gameEndedPost = null;
   let dyingDeathWarnings = [];
   let birdNotices = [];
@@ -1136,6 +1179,7 @@ async function advanceTurn() {
       dyingDeathWarnings,
       nukeDeaths,
       nukeBroadcast,
+      ascensionBroadcast,
       gameEndedPost,
       birdNotices,
       carryDrops,
@@ -1224,6 +1268,7 @@ async function advanceTurn() {
         dyingDeathWarnings,
         nukeDeaths,
         nukeBroadcast,
+        ascensionBroadcast,
         gameEndedPost,
         birdNotices,
         carryDrops,
@@ -1633,6 +1678,16 @@ async function advanceTurn() {
         return { sent: 0, failed: [] };
       });
       console.log(`Nuke broadcast: ${sent} zones, ${failed.length} failed.`);
+    }
+
+    // The hellfire, same fan-out, no @everyone: the town was warned two turns
+    // ago and that was the message worth waking somebody for.
+    if (ascensionBroadcast) {
+      const { sent, failed } = await broadcastToZones(prisma, ascensionBroadcast.content).catch((err) => {
+        console.error("Ascension broadcast failed:", err);
+        return { sent: 0, failed: [] };
+      });
+      console.log(`Ascension broadcast: ${sent} zones, ${failed.length} failed.`);
     }
 
     // The reveal, after the sky and before anything else — the game is over.
