@@ -10906,6 +10906,13 @@ tags:
   # machinery — there is no separate fitting fee). Each cures a maiming into
   # its own cosmetic aftermath via `curesInto`, never the tag's own
   # `removesInto` (none of the four maimings below has one).
+  #
+  # PRICING IS DELIBERATE, and it is NOT the smithing markup ladder: sell
+  # prices here (17/17/29/31) come from the cure-value side — TAGS.md §5c's
+  # drawback-erasure anchor (≥2 ⬢ per drawback point erased, plan §M5) —
+  # because what's being sold is the cure, not the smithing labor. Deriving
+  # these from DEPOT.md §4's resourceCost+rate formula would land near 9/19
+  # and undervalue them; don't "fix" them down to it.
 
   wooden-leg:
     catalog: all
@@ -11015,14 +11022,15 @@ tags:
     sellable: true
     sellablePrice: 31
 
-  # Same shape as {tag:aberrant-heart}: an ingredient and nothing else, gated
-  # secret on top of its own gm-granted rarity (medical-pass plan, M5) —
-  # unlike the heart, nobody in-fiction has ever seen one of these, so even
-  # the ITEM'S existence is withheld, not just its ingredient status.
+  # Same shape as {tag:aberrant-heart}: an ingredient and nothing else,
+  # `catalog: gm` exactly like the heart (medical-pass plan, M5) — players
+  # never see it in the Tag Catalog, but a GM deciding whether to grant one
+  # can still look it up there. SECRET would hide it from the GM view too,
+  # and TAGS.md scopes that band to cave/antagonist content besides.
   # NOTHING DROPS THIS YET. The laboring loot-table pass wires acquisition;
   # our job was to make the slug exist. Until then a GM grants it.
   cybernetic-core:
-    catalog: secret
+    catalog: gm
     name: Cybernetic Core
     category: items
     group: items-gear
