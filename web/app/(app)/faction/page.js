@@ -304,7 +304,7 @@ export default async function FactionPage({ searchParams }) {
             props.faction ? (
               <ZoneChip zoneName={props.faction.zoneName} />
             ) : (
-              "You answer to nobody. Ask to join somebody, or start something. ‡"
+              "You answer to nobody. Ask somebody to take you in. ‡"
             )
           }
         />
