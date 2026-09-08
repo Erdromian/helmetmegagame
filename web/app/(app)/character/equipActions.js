@@ -10,10 +10,16 @@ import {
   FAST_TRAVEL_SLUGS,
 } from "@lifeweb/db/lib/mounts";
 import { MOTION_SICKNESS_SLUG } from "@lifeweb/db/lib/constants";
-import { describeSlotClash, findSlotClash } from "@lifeweb/db/lib/equipSlots";
+import { describeSlotClash, checkEquipLimits } from "@lifeweb/db/lib/equipSlots";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { auth } from "@/lib/auth";
+
+// A refusal a human caused (no free slots, a clash) rather than a real
+// failure — thrown inside the transaction below to roll the write back,
+// caught outside it to answer with the sentence a player reads. Never
+// crosses that boundary, so nothing else needs to know it exists.
+class EquipRefusalError extends Error {}
 
 // Equipping is instant and writes no Request and no AuditLog. That is
 // deliberate: it costs nothing, the player can undo it themselves in one tap,
@@ -135,24 +141,17 @@ export async function equipOne(characterTagId) {
       await tx.$queryRaw`SELECT id FROM "Character" WHERE id = ${character.id} FOR UPDATE`;
       const config = await tx.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true } });
       const slots = config?.equipSlots ?? 10;
-      const usage = await tx.characterTag.aggregate({
-        where: { characterId: character.id },
-        _sum: { equippedQuantity: true },
-      });
-      const inUse = usage._sum.equippedQuantity ?? 0;
-      if (inUse >= slots) throw new Error("NO_SLOTS");
       await tx.characterTag.update({
         where: { id: held.id },
         data: { equippedQuantity: { increment: 1 }, equipped: true },
       });
 
       // Written first, then checked, so this asks the same question the GM
-      // batch path asks: "is the resulting set wearable?". Inside the same
-      // transaction and behind the same row lock as the slot count, so a
-      // double-tap cannot slip a second helmet past it; the throw rolls the
-      // write back. Expanded by equippedQuantity, so a second unit of the
-      // very same slotted tag (a hat, say) still clashes with the first —
-      // a slot holds one physical thing, stacked or not.
+      // batch path asks: "is the resulting set wearable?" — checkEquipLimits
+      // is the shared, unit-tested answer to that question (db/lib/equipSlots.js).
+      // Inside the same transaction and behind the same row lock taken above,
+      // so a double-tap cannot slip a second helmet past it; the throw below
+      // rolls the write back.
       const wornRows = await tx.characterTag.findMany({
         where: { characterId: character.id, equippedQuantity: { gt: 0 } },
         select: {
@@ -160,13 +159,12 @@ export async function equipOne(characterTagId) {
           tag: { select: { name: true, equipSlot: true, equipLayer: true } },
         },
       });
-      const worn = wornRows.flatMap((r) => Array(r.equippedQuantity).fill({ tag: r.tag }));
-      const clash = findSlotClash(worn);
-      if (clash) throw new Error(`CLASH:${describeSlotClash(clash)}`);
+      const { overCap, clash } = checkEquipLimits(wornRows, slots);
+      if (overCap) throw new EquipRefusalError("You have no free equipment slots.");
+      if (clash) throw new EquipRefusalError(describeSlotClash(clash));
     });
   } catch (err) {
-    if (err.message === "NO_SLOTS") return { error: "You have no free equipment slots." };
-    if (err.message?.startsWith("CLASH:")) return { error: err.message.slice("CLASH:".length) };
+    if (err instanceof EquipRefusalError) return { error: err.message };
     throw err;
   }
 

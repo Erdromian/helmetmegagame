@@ -60,4 +60,34 @@ function describeSlotClash({ a, b }) {
   return `${a.name} and ${b.name} can't both go ${where}. ‡`;
 }
 
-module.exports = { findSlotClash, describeSlotClash };
+/**
+ * Whether a resulting equipped set — AFTER whatever write the caller is
+ * considering — is one a character could actually wear: a slot total under
+ * the cap, and no two units sharing a slot. Pure, so the two writers that
+ * ask this exact question of two very differently-shaped writes (a single
+ * unit in equipActions.js, a whole batch in tagOps.js) can share one answer
+ * and one set of tests instead of two hand-rolled copies quietly drifting
+ * apart.
+ *
+ * The caller applies its own delta first (in memory or already committed
+ * inside its own transaction) and hands over the RESULTING worn set —
+ * `findSlotClash`'s doc explains why write-then-check is the only shape that
+ * works for a batch. Returns the raw numbers and the clash, not a sentence:
+ * the two callers word a full rack differently (a GM sees "7 of 6 slots", a
+ * player sees "no free slots"), and that wording is theirs to own.
+ *
+ * @param {Array} wornRows equipped rows — CharacterTag[] carrying `equippedQuantity` and `tag`
+ * @param {number} slots GameConfig.equipSlots
+ * @returns {{equipped: number, overCap: boolean, clash: {a: object, b: object}|null}}
+ */
+function checkEquipLimits(wornRows, slots) {
+  const rows = wornRows ?? [];
+  const equipped = rows.reduce((sum, r) => sum + (r.equippedQuantity ?? 0), 0);
+  // One entry per PHYSICAL unit, not one per row — a stack with
+  // equippedQuantity 3 has to be able to clash with itself, since a slot
+  // holds one thing however large the stack behind it is.
+  const units = rows.flatMap((r) => Array(r.equippedQuantity ?? 0).fill({ tag: tagOf(r) }));
+  return { equipped, overCap: equipped > slots, clash: findSlotClash(units) };
+}
+
+module.exports = { findSlotClash, describeSlotClash, checkEquipLimits };

@@ -8,7 +8,7 @@
 // a stable address. Op shapes: DEV-PANEL.md §5. Every function takes a
 // transaction client (`tx`), so a caller composes them into its own.
 
-const { describeSlotClash, findSlotClash } = require("./equipSlots");
+const { describeSlotClash, checkEquipLimits } = require("./equipSlots");
 const { addToStack, dropCharacterTag, grantTagSlugs } = require("./tagWrites");
 const { rollTagChain } = require("./tagShapes");
 const { expiryForGrant } = require("./grantExpiry");
@@ -169,25 +169,17 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equip
         data: { equippedQuantity, equipped: equippedQuantity > 0 },
       });
     }
-    const usage = await tx.characterTag.aggregate({
-      where: { characterId },
-      _sum: { equippedQuantity: true },
-    });
-    const equipped = usage._sum.equippedQuantity ?? 0;
-    if (equipped > equipSlots) {
-      throw new TagOpError(`That would fill ${equipped} of ${equipSlots} equipment slots.`);
-    }
-    // And the other half of the limit: a count of six says nothing about six
-    // helmets. Same helper the player's own toggle uses, so a GM cannot stage
-    // a set the sheet would refuse. Expanded by equippedQuantity, so several
-    // units of the very same slotted tag (a hat, say) still clash with each
-    // other — a slot holds one physical thing, stacked or not.
+    // checkEquipLimits (db/lib/equipSlots.js) is the shared, unit-tested
+    // answer to "is the resulting set wearable?" — the same question, and
+    // the same answer, the player's own toggle asks (equipActions.js).
     const wornRows = await tx.characterTag.findMany({
       where: { characterId, equippedQuantity: { gt: 0 } },
       select: { equippedQuantity: true, tag: { select: { name: true, equipSlot: true, equipLayer: true } } },
     });
-    const worn = wornRows.flatMap((r) => Array(r.equippedQuantity).fill({ tag: r.tag }));
-    const clash = findSlotClash(worn);
+    const { equipped, overCap, clash } = checkEquipLimits(wornRows, equipSlots);
+    if (overCap) {
+      throw new TagOpError(`That would fill ${equipped} of ${equipSlots} equipment slots.`);
+    }
     if (clash) throw new TagOpError(describeSlotClash(clash));
   }
 
