@@ -171,7 +171,13 @@ const FeedRow = memo(function FeedRow({
     >
       <div className="chat-row-face">
         {startsRun && (
-          <CharacterAvatar characterId={row.characterId} name={row.name ?? ""} version={row.avatarVersion} size={32} />
+          <CharacterAvatar
+            characterId={row.characterId}
+            name={row.name ?? ""}
+            version={row.avatarVersion}
+            src={row.avatarPath ?? undefined}
+            size={32}
+          />
         )}
       </div>
       <div className="min-w-0 flex-1">
@@ -1030,6 +1036,7 @@ export default function Feed({
       characterId: self.characterId,
       name: self.name,
       avatarVersion: self.avatarVersion,
+      avatarPath: self.avatarPath,
       // What the SERVER will store, not what was typed. Both transforms, in
       // the order db/lib/say.js#transformSpeech runs them.
       content: autocorrect ? capitalizeSentences(fixContractions(content)) : content,

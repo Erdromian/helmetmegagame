@@ -24,6 +24,7 @@ const FEED_ROW_SELECT = {
   characterId: true,
   characterName: true,
   concealedAlias: true,
+  presentedAvatarPath: true,
   content: true,
   sentAt: true,
   source: true,
@@ -34,9 +35,17 @@ const FEED_ROW_SELECT = {
 // One archived row as the wire shape /play and /api/feed speak.
 //
 // `name` is the PRESENTED name: a concealed or forced send was written under
-// its alias, and that is the only name the room ever heard. `discordUserId`
-// is never sent — the whole point of the proxy is that the web page has no
-// more idea who is behind a character than a Discord channel does.
+// its alias, and that is the only name the room ever heard. `avatarPath` is
+// the same answer for the FACE — the mask or plaque frozen onto the row at
+// send time, null when the room saw the character's own face and the client
+// should ask /api/avatar for it. `discordUserId` is never sent — the whole
+// point of the proxy is that the web page has no more idea who is behind a
+// character than a Discord channel does.
+//
+// A row with an alias and no path predates the column, and cannot be given one
+// now: the sprite lived on the Tag equipped at the time. It gets the silhouette
+// rather than a guess, because the only wrong direction here is exposing
+// somebody the room could not see.
 //
 // `seq` is a BigInt on the row and a STRING here. JSON.stringify throws on a
 // BigInt, and a Number would lose precision at the far end of the range.
@@ -48,6 +57,7 @@ function feedRowShape(row, extra = {}) {
     characterId: row.characterId ?? null,
     name: row.concealedAlias ?? row.characterName ?? null,
     alias: row.concealedAlias ?? null,
+    avatarPath: row.presentedAvatarPath ?? (row.concealedAlias ? "/assets/unknown.png" : null),
     avatarVersion: row.avatarVersion ?? (row.sentAt ? new Date(row.sentAt).getTime() : null),
     content: row.content ?? "",
     sentAt: row.sentAt ? new Date(row.sentAt).toISOString() : null,
@@ -130,7 +140,8 @@ async function resolveTurn(prisma, turn) {
 // One proxied character message. `concealedAlias` is non-null only for a
 // /conceal send — both halves are kept, since the panel renders
 // "Young Man (Sir Alder)": the alias is what the room saw, characterName is
-// who it actually was.
+// who it actually was. `presentedAvatarPath` is the face that went with it,
+// frozen the same way and null whenever the room saw their own.
 async function recordArchiveMessage(prisma, entry) {
   return safely("message write", async () => {
     const [turn, gameId] = await Promise.all([resolveTurn(prisma, entry.turn), currentGameId(prisma)]);
@@ -146,6 +157,7 @@ async function recordArchiveMessage(prisma, entry) {
         characterId: entry.character?.id ?? null,
         characterName: entry.character?.name ?? null,
         concealedAlias: entry.concealedAlias ?? null,
+        presentedAvatarPath: entry.presentedAvatarPath ?? null,
         content: entry.content ?? "",
         discordMessageId: entry.discordMessageId ?? null,
         channelKind: entry.channelKind ?? null,

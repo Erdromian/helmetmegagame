@@ -199,6 +199,12 @@ async function recordSpeech(
     content: content ?? prepared.rowContent ?? prepared.content,
     character: prepared.character,
     concealedAlias: prepared.identity?.alias ?? null,
+    // The face that went with the name, frozen for the same reason: a live
+    // lookup would unmask every old line the moment the mask came off. Gated
+    // on `alias` rather than written unconditionally, because the own-face
+    // path carries a ?v=<updatedAt> cache-buster and freezing one would pin a
+    // stale portrait forever. Null is how "their own face" is recorded.
+    presentedAvatarPath: prepared.identity?.alias ? (prepared.identity.avatarPath ?? null) : null,
     placeKey: prepared.placeKey,
     source: prepared.source,
     discordMessageId,
@@ -243,6 +249,7 @@ const EDITABLE_SELECT = {
   characterId: true,
   characterName: true,
   concealedAlias: true,
+  presentedAvatarPath: true,
   content: true,
   sentAt: true,
   source: true,

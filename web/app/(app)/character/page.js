@@ -10,6 +10,7 @@ import {
   roleCapacity,
   isDynastyMember,
   presentedIdentity,
+  concealmentFrom,
   startingTagSlugs,
   normalizeAntagonistSlugs,
 } from "@lifeweb/db";
@@ -1027,18 +1028,15 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // usable at all (PROXYING.md §5). Only `forced` is read now — the label used
   // to name WHICH thing was doing it, and says the rule once in a tooltip
   // instead, so the tag's own name has no reader left.
-  const concealingTag =
-    character.tags
-      .filter((ct) => ct.equipped && ct.tag.concealsIdentity)
-      .sort((a, b) => (b.tag.equipLayer ?? 0) - (a.tag.equipLayer ?? 0))[0]
-      ?.tag ?? null;
-  const concealGear = concealingTag
-    ? { forced: Boolean(concealingTag.forcesConceal) }
-    : null;
-  const avatarSrc = forcedIdentity
-    ? presentedIdentity(character, { forcedName: forcedIdentity.name })
-        .avatarPath
-    : `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
+  const concealment = concealmentFrom(character.tags);
+  const concealGear = concealment ? { forced: concealment.forced } : null;
+  // The face the room sees, which is the face the sheet shows: the mask, the
+  // forced name's plaque, or their own. One resolver decides it for every
+  // surface, so a player is never the last to know what they look like.
+  const avatarSrc = presentedIdentity(character, {
+    forcedName: forcedIdentity?.name ?? null,
+    concealment,
+  }).avatarPath;
 
   // The Move cutoff for StatusPanel's "This turn" row.
   const openTurnWithWindow = openTurn

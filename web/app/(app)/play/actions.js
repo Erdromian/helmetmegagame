@@ -1780,6 +1780,7 @@ export async function placeMembers(placeKey) {
       characterId: person.characterId,
       name: person.name,
       avatarVersion: person.avatarVersion,
+      avatarPath: person.avatarPath ?? null,
     }));
 
   // A key-holder is already in, by their key, and roomGuests() deliberately

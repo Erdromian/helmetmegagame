@@ -32,7 +32,7 @@ function CatatonicDot({ size }) {
   );
 }
 
-export default function CharacterAvatar({ characterId, name, version, size = 20, catatonic = false }) {
+export default function CharacterAvatar({ characterId, name, version, src, size = 20, catatonic = false }) {
   const wrap = (face) =>
     catatonic ? (
       <span style={{ position: "relative", display: "inline-flex", flexShrink: 0, verticalAlign: "middle" }}>
@@ -47,7 +47,7 @@ export default function CharacterAvatar({ characterId, name, version, size = 20,
   // state rides it rather than a second stop for a screen reader.
   const label = catatonic ? `${name} — Catatonic (AFK)` : name;
 
-  if (!characterId) {
+  if (!characterId && !src) {
     return wrap(
       <span
         aria-hidden="true"
@@ -70,14 +70,23 @@ export default function CharacterAvatar({ characterId, name, version, size = 20,
     );
   }
 
-  const src = `/api/avatar/${characterId}${version ? `?v=${version}` : ""}`;
+  // An explicit src is a face somebody else already decided — the mask sprite
+  // or letter plaque presentedIdentity resolved, frozen onto an archive row or
+  // re-derived for a live roster. Used verbatim, with no `?v=`: the file is
+  // the same for every wearer and never changes, so cache-busting it would be
+  // both pointless and a fingerprint (PROXYING.md §5).
+  //
+  // Without one this builds the character's own URL, and that route is
+  // identity-BLIND — it serves the real face whatever is over it. Never send a
+  // concealed character down that branch.
+  const imageSrc = src ?? `/api/avatar/${characterId}${version ? `?v=${version}` : ""}`;
 
   return (
     <Tooltip text={label}>
       {wrap(
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={src}
+          src={imageSrc}
           alt=""
           width={size}
           height={size}

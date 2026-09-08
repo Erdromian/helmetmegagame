@@ -3769,6 +3769,20 @@ model ArchiveEntry {
   // and characterName is who it actually was.
   concealedAlias String?
 
+  // The FACE the room saw, frozen beside the name it heard. Only ever one of
+  // the static files under web/public/: a concealing item's own
+  // /assets/helms/<sprite>.webp, or a forced name's /assets/letters/<L>.webp.
+  //
+  // NULL means the character's own face, resolved live from /api/avatar/<id>.
+  // Never store that own-face URL here: it carries a ?v=<updatedAt>
+  // cache-buster, and freezing one would pin a portrait to whatever it was the
+  // day they spoke. Written only when presentedIdentity gave an alias
+  // (db/lib/say.js#recordSpeech).
+  //
+  // Frozen for the same reason concealedAlias is: a live lookup would unmask
+  // every line said behind a mask the moment it came off.
+  presentedAvatarPath String?
+
   content String
 
   // How ✏️ and ❌ find this row again to update or remove it. Null for system

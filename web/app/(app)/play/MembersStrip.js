@@ -113,6 +113,7 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
                   characterId={person.characterId}
                   name={person.name}
                   version={person.avatarVersion}
+                  src={person.avatarPath ?? undefined}
                   size={16}
                 />
                 {person.name}
