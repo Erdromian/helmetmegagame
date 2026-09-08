@@ -53,7 +53,7 @@ as "move them to null", which would unplace every buried character on the next
 pass. The update is also filtered to `status: DEAD, buriedAt: null`, so a
 revived character never gets teleported by their own old body.
 
-**`MOVE_CHARACTER` still drags corpses, and the tag is authoritative.** The
+**Escorting still carries corpses, and the tag is authoritative.** The
 reconcile is strictly one-directional — tag position decides sheet position,
 never the reverse. Do not add a reverse sync; two movers that can disagree is
 how this gets confusing.

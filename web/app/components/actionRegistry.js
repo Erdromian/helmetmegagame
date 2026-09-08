@@ -247,7 +247,6 @@ export const ACTION_SECTIONS = [
         show: "canMutilate",
       },
       { mode: "harm", icon: WoundIcon, label: "Harm" },
-      { mode: "move", icon: MapIcon, label: "Move Player" },
       // The three body actions used to sit in a section of their own, on the
       // argument that a corpse is an object rather than somebody standing
       // next to you. Two headings for one column of icons was the worse half

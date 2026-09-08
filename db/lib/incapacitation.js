@@ -64,7 +64,8 @@ const RESTRICTIONS = {
 
 // A living character who can't defend themselves or walk away — the target
 // class for LOOT_CHARACTER, HARM_CHARACTER and the "or helpless" branch of
-// MOVE_CHARACTER (REQUESTS.md, TAGS.md §5c). Slugs here must exist in
+// escorting, which takes them along without asking
+// (db/lib/escort.js, REQUESTS.md, TAGS.md §5c). Slugs here must exist in
 // docs/tags.yaml. Catatonic carries a death countdown
 // (GameConfig.catatonicDeathTurns, db/lib/catatonicDeathPass.js) and also
 // covers players who left the guild (db/lib/playerDeparture.js).

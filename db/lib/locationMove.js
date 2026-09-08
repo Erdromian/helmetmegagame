@@ -1,5 +1,5 @@
 // The Discord half of ANY location change — the Travel button, the web's
-// writers (creation, GM teleport, Bulk Move, MOVE_CHARACTER) and the staged
+// writers (creation, GM teleport, Bulk Move) and the staged
 // "Relocate to" at the turn push all call this after their DB write has
 // committed, never from inside it (see db/lib/stagedPush.js on why nothing
 // there touches Discord). Pure REST, so one implementation serves both

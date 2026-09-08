@@ -5198,6 +5198,7 @@ label.chip {
 
 .chat-card,
 .chat-here,
+.chat-party,
 .chat-room,
 .chat-travel,
 .chat-you {
@@ -5403,6 +5404,76 @@ label.chip {
   font-size: var(--fs-xs);
   color: var(--muted);
   margin-bottom: var(--sp-2);
+}
+
+/* ---- Bringing: the escort party, drawn as the seats it takes up ----
+
+   The cards reuse .equip-slots / .equip-slot rather than a second slot grid,
+   because they are the same idea: a fixed number of places, some of them
+   full. What is new is the overflow state. A dashed border already means
+   "empty" on the equipment rack, so the overflow card takes the accent as
+   well — dashed AND accented reads as "occupied, and it costs you", which
+   is exactly what a passenger past the saddle is (docs/systemdocs/MAP.md
+   §3a). It is never drawn on foot, where there are no seats to overfill. */
+.party-slot {
+  gap: var(--sp-1);
+  justify-content: flex-start;
+  cursor: default;
+  overflow: hidden;
+}
+
+.party-slot[data-overflow="true"] {
+  border-style: dashed;
+  border-color: var(--accent-text);
+  color: var(--accent-text);
+}
+
+.party-slot-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-xs);
+}
+
+.party-slot-why {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.party-slot[data-overflow="true"] .party-slot-why {
+  color: inherit;
+}
+
+/* Letting somebody go. Quiet until the card is hovered or it has focus, the
+   way a dismiss usually is — the card is mostly there to be read. */
+.party-slot-drop {
+  padding: 0 var(--sp-1);
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.party-slot-drop:hover:not(:disabled),
+.party-slot-drop:focus-visible {
+  opacity: 1;
+  color: var(--accent-text);
+}
+
+/* Somebody asking to take YOU along. The Accept and Cancel on the Discord DM
+   are unreachable for a player who never opens Discord. */
+.chat-party-ask {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+  padding: var(--sp-2);
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
 }
 
 /* Every place-bound button, wrapping. They are a list of things you can do

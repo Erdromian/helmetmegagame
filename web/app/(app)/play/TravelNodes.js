@@ -54,7 +54,6 @@ export default function TravelNodes({ onDone, pick = null }) {
   const [data, setData] = useState(null);
   const [nonce, setNonce] = useState(0);
   const [target, setTarget] = useState(null);
-  const [dragged, setDragged] = useState([]);
   // Following a prop by setting state DURING a render, which is the pattern
   // React documents for exactly this and the one
   // react-hooks/set-state-in-effect leaves open. Keyed on `at` rather than on
@@ -64,7 +63,6 @@ export default function TravelNodes({ onDone, pick = null }) {
   if (pick?.at && pick.at !== tookPick) {
     setTookPick(pick.at);
     setTarget(pick.locationId ?? null);
-    setDragged([]);
   }
   const { run, pending, error } = useActionRunner();
 
@@ -83,11 +81,6 @@ export default function TravelNodes({ onDone, pick = null }) {
   }, [nonce]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
-
-  const toggleDrag = useCallback(
-    (id) => setDragged((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])),
-    [],
-  );
 
   if (!data) {
     return (
@@ -140,10 +133,7 @@ export default function TravelNodes({ onDone, pick = null }) {
               data-active={target === option.id ? "true" : undefined}
               title={titleFor(option)}
               disabled={!option.passable || pending}
-              onClick={() => {
-                setTarget(target === option.id ? null : option.id);
-                setDragged([]);
-              }}
+              onClick={() => setTarget(target === option.id ? null : option.id)}
             >
               <span className="chat-node-name">{option.name}</span>
               <span className="chat-node-zone">{option.zoneName}</span>
@@ -166,26 +156,14 @@ export default function TravelNodes({ onDone, pick = null }) {
             {nextTurn ? `To ${chosen.name}, next turn.` : `To ${chosen.name}.`}
           </p>
 
-          {data.drag.length > 0 && (
-            <div className="chip-row" role="group" aria-label="Bring somebody">
-              {data.drag.map((person) => (
-                <button
-                  key={person.id}
-                  type="button"
-                  className="chip"
-                  // `reason` is why they CAN be brought along — a corpse, a
-                  // body that can't stop you, your own faction — not a
-                  // refusal (db/lib/locationTravel.js#dragReason). Every
-                  // candidate on this list is already draggable.
-                  title={person.reason ?? undefined}
-                  data-active={dragged.includes(person.id) ? "true" : undefined}
-                  aria-pressed={dragged.includes(person.id)}
-                  onClick={() => toggleDrag(person.id)}
-                >
-                  {person.name}
-                </button>
-              ))}
-            </div>
+          {/* Who comes along is the party rack's business now, not this
+              strip's — an escort is attached once and persists, so re-ticking
+              the same three chips before every hop is gone. All that is owed
+              here is the count. */}
+          {data.partySize > 0 && (
+            <p className="chat-quiet-line">
+              {data.partySize === 1 ? "One person" : `${data.partySize} people`} with you. ‡
+            </p>
           )}
 
           <FormError>{error}</FormError>
@@ -195,10 +173,9 @@ export default function TravelNodes({ onDone, pick = null }) {
               className="btn"
               disabled={pending}
               onClick={() =>
-                run(travelTo, { locationId: chosen.id, draggedIds: dragged }, {
+                run(travelTo, { locationId: chosen.id }, {
                   onOk: (res) => {
                     setTarget(null);
-                    setDragged([]);
                     onDone?.(res);
                     reload();
                     router.refresh();

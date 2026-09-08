@@ -83,6 +83,24 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
     .updateMany({ where: { characterId: character.id, equipped: true }, data: { equipped: false } })
     .catch((err) => console.error(`Failed to unequip on death for ${character.id}:`, err));
 
+  // A dead leader leads nobody, so everyone following them lets go — and
+  // their own standing agreement to follow somebody dies with them. What is
+  // deliberately NOT cleared is `escortedById` on this row: a corpse is still
+  // something a person can carry (db/lib/escort.js gives a body FORCED), so
+  // dying in somebody's arms leaves you in them.
+  await prisma.character
+    .updateMany({
+      where: { escortedById: character.id },
+      data: { escortedById: null },
+    })
+    .catch((err) => console.error(`Failed to release the party on death for ${character.id}:`, err));
+  await prisma.character
+    .update({
+      where: { id: character.id },
+      data: { escortConsentToId: null, escortConsentUntilTurn: null },
+    })
+    .catch((err) => console.error(`Failed to clear escort consent on death for ${character.id}:`, err));
+
   // A pending handshake either way is void, and a half-made thing stays
   // half-made (docs/systemdocs/LESSONS.md, CRAFTING.md). An ACCEPTED lesson
   // still resolves — it happened when it was accepted.

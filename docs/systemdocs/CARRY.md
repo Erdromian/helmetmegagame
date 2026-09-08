@@ -164,8 +164,8 @@ different ways:
 Being over the cap **zeroes your free zone moves** (§2a). It is no longer a
 refusal: an overloaded character can still cross into another zone, they just
 pay their Move to do it, and cannot then act. Only the mover is affected — the
-dragged are corpses and the helpless — and `MOVE_CHARACTER` is not gated at
-all.
+dragged are corpses and the helpless. Escorting is not gated at all: a party
+crosses on the leader's allowance.
 
 The tag itself (`docs/tags.yaml`, `OVERBURDENED_SLUG` in
 `db/lib/constants.js`) is granted the moment you are over either cap and
@@ -178,7 +178,10 @@ crossing per *day*. Now:
 
 - Everyone gets `GameConfig.freeZoneMovesPerTurn` crossings a turn, default 1.
 - An **equipped** mount adds one, and it refreshes every turn — a horse carries
-  you at Dawn and again at Dusk.
+  you at Dawn and again at Dusk. **Only while your escort party fits its
+  seats**: go over `fastTravelCapacity` and the mount buys nothing this
+  crossing (`MAP.md` §3a). On foot there are no seats and nothing to lose, so
+  walking any number of people is free.
 - Overburdened sets the allowance to **0**.
 - Past the allowance, a crossing files the `MOVE` Action as it always did.
   Once you have acted, you cannot cross.
@@ -206,7 +209,10 @@ armour and weapons, which is the point: a cart should cost you something to
 keep out.
 
 **Seats, from `fastTravelCapacity()`:** a Horse alone is 2, and a Cart upgrades
-that pair to 6 — the biggest ride there is. The **Motorcycle is 2 and cannot be
+that pair to 6 — the biggest ride there is. They count the **rider**, so a
+horse seats you and one other. Overfilling them is not refused; it costs the
+mount's extra crossing and nothing else (`MAP.md` §3a). This function had no
+live caller at all until escorting gave it one. The **Motorcycle is 2 and cannot be
 upgraded** — it is tested before the horse for exactly that reason, so the
 Cart's clause can never reach it. A hand-cart towed behind a motorcycle is not a thing, and letting it fall
 through would have quietly turned one seat into six.

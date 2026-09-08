@@ -2990,115 +2990,14 @@ async function lootCharacterRequestImpl({
   return {};
 }
 
-// --- Moving another character -------------------------------------------
-
-// A character who follows the filer: a faction member the filer leads, or
-// anyone helpless (bound, dying, paralyzed, catatonic, or dead). Who you may
-// take is judged by co-presence (web/lib/peopleHere.js — standing here, not
-// concealed, or a body), while where you may take them is judged by the
-// Location graph, the same edge an ordinary walk uses. This does NOT spend a Move or file an Action, and no
-// network call may run inside a $transaction (ARCHITECTURE.md §5), so the
-// Discord fan-out runs after commit.
-async function moveCharacterRequestImpl({
-  targetCharacterId,
-  targetLocationId,
-}) {
-  const { session, character } = await requireCharacter({ needs: ACT });
-
-  if (!character.locationId) {
-    throw new UserError("You aren't anywhere you could do that.");
-  }
-
-  const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: { in: ["ALIVE", "DEAD"] } },
-    include: { tags: { select: { tag: { select: { slug: true } } } } },
-  });
-  if (target?.buriedAt) throw new UserError("They're already in the ground.");
-  if (!target || !isHere(character, target, { allowDead: true }))
-    throw new UserError(notHereMessage(target));
-
-  // Dragging a corpse needs no authority over it. Same for anyone helpless,
-  // using the same INCAPACITATING_SLUGS set LOOT_CHARACTER and
-  // HARM_CHARACTER use.
-  const isCorpse = target.status === "DEAD";
-  const isHelpless = target.tags.some((ct) =>
-    INCAPACITATING_SLUGS.has(ct.tag.slug),
-  );
-  const commandsThem =
-    character.isLeader &&
-    target.factionId != null &&
-    target.factionId === character.factionId;
-  if (!isCorpse && !isHelpless && !commandsThem) {
-    throw new UserError(
-      "You can only move someone you lead, or someone who can't stop you.",
-    );
-  }
-
-  const targetLocation = await prisma.location.findUnique({
-    where: { id: targetLocationId ?? "" },
-    include: { zone: true },
-  });
-  if (!targetLocation) throw new UserError("Unknown destination.");
-  if (targetLocation.id === target.locationId)
-    throw new UserError("They're already there.");
-
-  // The edge is read off the FILER's location, not the target's — you walk
-  // them out of your own doorway — and gated against the FILER's tags, since
-  // they are the one opening the way. This is a server action, so it is a
-  // public endpoint: the picker already dropped everything impassable, and
-  // this is the check that actually holds when a client posts its own id.
-  const link = await linkBetween(
-    prisma,
-    character.locationId,
-    targetLocation.id,
-  );
-  const gate = crossingCheck(link, {
-    tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
-    // The FILER's mount or cart, since they are the one leading the way through.
-    onFootBlocked: blocksOnFoot(equippedSlugs(character.tags ?? [])),
-  });
-  if (!gate.passable) throw new UserError(gate.refusal);
-
-  const openTurn = await getOpenTurn();
-  const fromLocationId = target.locationId;
-  const fromZoneId = target.zoneId;
-
-  await prisma.$transaction(async (tx) => {
-    // The denormalization contract: locationId and zoneId written together.
-    await tx.character.update({
-      where: { id: target.id },
-      // travelTo* cleared alongside: being moved by somebody else ends any
-      // walk in progress (db/lib/travelArrivalPass.js).
-      data: {
-        locationId: targetLocation.id,
-        zoneId: targetLocation.zoneId,
-        travelToLocationId: null,
-        travelTurnId: null,
-      },
-    });
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_move_character",
-      targetCharacterId: target.id,
-      details: {
-        fromLocationId,
-        toLocationId: targetLocation.id,
-        toLocationName: targetLocation.name,
-      },
-    });
-  });
-
-  if (!isCorpse) {
-    await applyLocationMoveSideEffects(prisma, {
-      characterId: target.id,
-      fromLocationId,
-      toLocationId: targetLocation.id,
-    }).catch(() => {});
-  }
-  notifyCharacter(target, `You were moved to ${targetLocation.name}.`);
-  revalidateAll();
-  return {};
-}
+// --- Moving another character: GONE ------------------------------------
+//
+// MOVE_CHARACTER shoved one person one hop for free, with no consent and no
+// record beyond an audit row, and it duplicated the drag picker's predicate
+// word for word. Both are replaced by escorting: you attach somebody once and
+// they follow you, the helpless without asking and everyone else through an
+// Offer. db/lib/escort.js is the one authority now, and the party rack on
+// /play is the surface. See docs/systemdocs/MAP.md §3a.
 
 // --- Binding and freeing -------------------------------------------------
 
@@ -4710,10 +4609,6 @@ export async function changeNameRequest(input) {
 
 export async function lootCharacterRequest(input) {
   return guarded(() => lootCharacterRequestImpl(input));
-}
-
-export async function moveCharacterRequest(input) {
-  return guarded(() => moveCharacterRequestImpl(input));
 }
 
 export async function bindCharacterRequest(input) {

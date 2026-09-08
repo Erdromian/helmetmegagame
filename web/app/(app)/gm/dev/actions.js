@@ -727,7 +727,15 @@ export async function bulkMoveCharacters(formData) {
     where: { id: { in: characters.map((c) => c.id) } },
     // travelTo* cleared alongside: being put somewhere by a GM ends any walk
     // in progress, or db/lib/travelArrivalPass.js would undo this at Dawn.
-    data: { locationId: location.id, zoneId: location.zoneId, travelToLocationId: null, travelTurnId: null },
+    // escortedById with them: being picked up and put somewhere ends any
+    // escort, the same way travelTo* is cleared (docs/systemdocs/MAP.md §3a).
+    data: {
+      locationId: location.id,
+      zoneId: location.zoneId,
+      travelToLocationId: null,
+      travelTurnId: null,
+      escortedById: null,
+    },
   });
 
   const report = await prisma.systemReport.create({

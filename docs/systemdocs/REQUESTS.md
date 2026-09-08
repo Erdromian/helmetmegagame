@@ -114,7 +114,6 @@ reason.
 | `CHANGE_NAME` | Takes a new honorific/first/last name | — | Restores the previous name |
 | `CAVING_LOOT` | Nothing — the turn engine files it when a Caving Die rolls a 6 (`CAVING.md`) | — | Drops the find |
 | `LOOT_CHARACTER` | Searches a body, **or** anyone Bound/Dying/Paralyzed/Catatonic in their zone, taking Items, Assets and ⬢ in one act | — | Returns every tag with its original expiry, and the ⬢ |
-| `MOVE_CHARACTER` | Marches a faction member they lead, anyone helpless (Bound/Dying/Paralyzed/Catatonic), or a body, into a neighbouring zone. Does **not** spend the target's turn | — | Restores the previous zone in the DB only |
 | `BIND_CHARACTER` | Ties up anyone at their Location who isn't concealed. A conscious, unhelpless target must accept an Offer first (`LESSONS.md` §3b); a target who is dead or already holds an incapacitating tag is bound on the spot | — | Cuts them loose |
 | `FREE_CHARACTER` | Cuts someone in their zone loose | — | Puts Bound back with its original expiry |
 | `CRUCIFY_CHARACTER` | Puts the `crucified` status on anyone standing at their Location. Needs the `fundamentalist` tag and a `COMPLETE` `crucifix` Structure standing there. **No consent and no Move** — the cross is the gate. Crucified blocks ACT and not SPEAK (`TAGS.md` §5f), becomes Dying at the close of the turn, and the Dying pass kills at the next | — | Drops `crucified`. After the close only Dying is left, and Undo leaves it — heal that |
@@ -200,7 +199,7 @@ Three notes on deliberate choices:
   initiator. See `CHARACTERS.md` §5.
 - **Every request whose subject is a different character notifies that
   character.** `TRANSFER_TAG`, `TRANSFER_RESOURCES`, `HEAL_CHARACTER`,
-  `LOOT_CHARACTER`, `MOVE_CHARACTER`, `BIND_CHARACTER`, `FREE_CHARACTER`,
+  `LOOT_CHARACTER`, `BIND_CHARACTER`, `FREE_CHARACTER`,
   `CRUCIFY_CHARACTER`, `HARM_CHARACTER`, `BURY_CHARACTER`, `DONATE_BLOOD` and
   `FEED_PERSON` all DM
   their target through `web/lib/notifyCharacter.js` — one line, fired after
@@ -538,7 +537,8 @@ place in the Requests system where that second gate is worth the friction.
 Four requests that act on somebody else, and one tag holding them together.
 
 `bound` is the hinge. `LOOT_CHARACTER`, `HARM_CHARACTER` and the "or
-helpless" branch of `MOVE_CHARACTER` all read `db/lib/incapacitation.js`'s
+helpless" branch of escorting (`db/lib/escort.js`) all read
+`db/lib/incapacitation.js`'s
 `INCAPACITATING_SLUGS` — `dying / catatonic / paralyzed / bound` — and for a
 long time nothing in the game **granted** Bound. A GM had to place it by hand,
 which is the day of real time §1 exists to save, so `BIND_CHARACTER` and its
@@ -750,13 +750,13 @@ in the fiction (`docs/roles.yaml`) is not a permission in the code.
 sheet.** `removeCursedRole` runs *after* the transaction commits — no network
 call may run inside one (`ARCHITECTURE.md` §5) — which is also why **Undo does
 not re-curse**. It raises the body and says so in its note; putting the role
-back is a GM's manual edit, the same posture `MOVE_CHARACTER` and `CHANGE_NAME`
+back is a GM's manual edit, the same posture escorting and `CHANGE_NAME`
 already take with their Discord halves.
 
 **A buried body is out of the world.** `Character.buriedAt` is both the flag and
 the record of when. Five places treat a corpse as a target and all five now
 refuse a buried one — the `LOOT` direction of `TRANSFER_RESOURCES` and
-`TRANSFER_TAG`, `LOOT_CHARACTER`, `MOVE_CHARACTER`, and the zone roster in
+`TRANSFER_TAG`, `LOOT_CHARACTER`, and the zone roster in
 `character/page.js` that feeds all five target menus. A GM Revive clears it, so
 a revived character is never a live person marked buried.
 
@@ -768,12 +768,12 @@ mount adds one to the free-zone-move allowance every character gets each turn,
 and it refreshes each turn rather than once a day. See [`CARRY.md`](CARRY.md)
 §2a for the allowance and [`MAP.md`](MAP.md) for the crossing itself.
 
-`db/lib/mounts.js#fastTravelCapacity` survives with **no live caller** — it
-was the retired request's seat count, and ordinary travel gates dragging on
-`canDrag` (corpse, helpless, or your own faction) rather than on seats. It is
-kept because the catalog text still promises a horse carries two and a cart
-six, and whatever enforces that later should use this rather than re-derive it.
-It now reads the mount only while equipped.
+`db/lib/mounts.js#fastTravelCapacity` **has a live caller now.** It sat unused
+from the day the `FAST_TRAVEL` request was retired until escorting arrived, and
+this is what it was kept for: the catalog text promises a horse carries two and
+a cart six, and escorting is what finally enforces it. Overfilling the seats is
+not refused — it costs the mount's extra crossing (`MAP.md` §3a). It reads the
+mount only while equipped.
 
 Old `FAST_TRAVEL` rows stay undoable; nothing files a new one.
 

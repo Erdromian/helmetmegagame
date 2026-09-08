@@ -125,8 +125,6 @@ export default function CharacterSheet({
   extractBlocked = null,
   canSeePackage = false,
   lootTargets = [],
-  moveTargets = [],
-  moveLocations = [],
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
@@ -229,8 +227,6 @@ export default function CharacterSheet({
             extractBlocked={extractBlocked}
             canSeePackage={canSeePackage}
             lootTargets={lootTargets}
-            moveTargets={moveTargets}
-            moveLocations={moveLocations}
             bindTargets={bindTargets}
             harmTargets={harmTargets}
             harmTags={harmTags}

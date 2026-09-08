@@ -72,7 +72,6 @@ import {
   consumeTagRequest,
   healCharacterRequest,
   lootCharacterRequest,
-  moveCharacterRequest,
   bindCharacterRequest,
   freeCharacterRequest,
   crucifyCharacterRequest,
@@ -446,8 +445,6 @@ export default function RequestActionsProvider({
   hasMoved = false,
   // Built once in character/page.js so the four target menus can't disagree.
   lootTargets = [],
-  moveTargets = [],
-  moveLocations = [],
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
@@ -1273,11 +1270,6 @@ export default function RequestActionsProvider({
           })),
           amount,
         });
-      case "move":
-        return moveCharacterRequest({
-          targetCharacterId: targetId,
-          targetLocationId: locationId,
-        });
       case "bind":
         return bindCharacterRequest({ targetCharacterId: targetId });
       case "free":
@@ -1383,8 +1375,6 @@ export default function RequestActionsProvider({
         return Boolean(patientId && payerKey && affliction);
       case "loot":
         return Boolean(targetId && takingSomething);
-      case "move":
-        return Boolean(targetId && locationId);
       case "bind":
       case "free":
       case "crucify":
@@ -2036,55 +2026,6 @@ export default function RequestActionsProvider({
                         </label>
                       </>
                     )}
-                  </>
-                )}
-              </>
-            )}
-
-            {mode === "move" && (
-              <>
-                {moveTargets.length === 0 ? (
-                  <NobodyHere>There&apos;s nobody here to move.</NobodyHere>
-                ) : (
-                  <>
-                    <label className="field">
-                      <span className="field-label">Who are you moving?</span>
-                      <Select
-                        value={targetId}
-                        onChange={(e) => setTargetId(e.target.value)}
-                        required
-                      >
-                        <option value="" disabled>
-                          Choose…
-                        </option>
-                        {moveTargets.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}
-                            {t.status === "DEAD" ? " — body" : ""}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-                    <label className="field">
-                      <span className="field-label">Where to?</span>
-                      <Select
-                        value={locationId}
-                        onChange={(e) => setLocationId(e.target.value)}
-                        required
-                      >
-                        <option value="" disabled>
-                          Choose somewhere next door…
-                        </option>
-                        {moveLocations.map((l) => (
-                          <option key={l.id} value={l.id}>
-                            {l.name}
-                            {l.crossesZone && l.zoneName
-                              ? ` — crosses into ${l.zoneName}`
-                              : ""}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
                   </>
                 )}
               </>

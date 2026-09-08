@@ -1526,6 +1526,28 @@ model Character {
   travelTo           Location? @relation("CharacterTravelDestination", fields: [travelToLocationId], references: [id])
   travelTurnId       String?
 
+  // ESCORTING (docs/systemdocs/MAP.md §3a). Who this character is currently
+  // following: their party leader walks, and they walk too. One leader, so a
+  // column rather than a join table — the column IS the "you can only follow
+  // one person" rule, and nothing has to enforce it separately.
+  //
+  // The whole authority lives in db/lib/escort.js. A stale row is inert
+  // rather than dangerous: escortAuthority() returns null the moment the two
+  // are not standing in the same Location, so a GM teleport that leaves this
+  // set costs one poll of a wrong-looking panel and nothing else.
+  escortedById String?
+  escortedBy   Character?  @relation("Escort", fields: [escortedById], references: [id])
+  escorting    Character[] @relation("Escort")
+
+  // A standing agreement to be escorted, so a consented follower need not be
+  // asked again every time they are picked up. Stamped by acceptEscort on the
+  // RESPONDER's own row: who they said yes to, and the last turn NUMBER (not
+  // a turn id — the window is two turns of arithmetic) that yes still covers.
+  // One agreement at a time, which is the right rule: you cannot promise your
+  // feet to two people at once.
+  escortConsentToId      String?
+  escortConsentUntilTurn Int?
+
   // The conceal toggle (/conceal, or the switch on /character). While on,
   // every message proxies under the concealedAlias with the unknown avatar,
   // and Who's here? lists the alias instead of the name.
@@ -1749,6 +1771,8 @@ model Character {
   @@index([discordUserId])
   @@index([status])
   @@index([status, lastActivityTurn])
+  // The one query an escort party ever runs: everyone following this leader.
+  @@index([escortedById])
 }
 
 // Fresh or rotten. A player's corpse is written FRESH and turns ROTTEN three
@@ -3143,6 +3167,7 @@ enum OfferKind {
   LESSON
   BIND
   CONFESSION
+  ESCORT
 }
 
 enum OfferStatus {

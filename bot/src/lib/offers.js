@@ -10,6 +10,7 @@ const { prisma } = require("@lifeweb/db");
 const { acceptLesson, declineOffer } = require("@lifeweb/db/lib/lessons");
 const { acceptBind } = require("@lifeweb/db/lib/bind");
 const { acceptConfession } = require("@lifeweb/db/lib/confession");
+const { acceptEscort } = require("@lifeweb/db/lib/escort");
 const { settleCarry, deliverCarryDrop } = require("@lifeweb/db/lib/carry");
 const { syncCharacterRoomAccess } = require("@lifeweb/db/lib/roomAccess");
 const { sendDm } = require("./dm");
@@ -64,7 +65,9 @@ async function handleOfferAccept(interaction, offerId) {
       ? await acceptBind(prisma, offer, responder)
       : offer.kind === "CONFESSION"
         ? await acceptConfession(prisma, offer, responder)
-        : await acceptLesson(prisma, offer, responder);
+        : offer.kind === "ESCORT"
+          ? await acceptEscort(prisma, offer, responder)
+          : await acceptLesson(prisma, offer, responder);
   await settle(interaction, result.ok ? result.line : result.reason);
   await fanOut(interaction, result.dms);
 

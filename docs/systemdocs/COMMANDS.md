@@ -337,7 +337,7 @@ parsed by literal `startsWith` + `slice`.
 |---|---|---|
 | `loc:open` | Button | Offer the connected Locations |
 | `loc:pick` | Select | Pick a destination Location |
-| `loc:drag:{locationId}` | Select | Pick who to bring along (min 0) |
+| `loc:bring` | Select | Set your escort party — who comes with you (min 0) |
 | `loc:confirm:{locationId}` | Button | Execute the travel |
 | `loc:cancel` | Button | Dismiss |
 | `loc:who:{locationId}` | Button | Reply privately with who's standing here (§ below) |
@@ -387,21 +387,26 @@ description and a `-#` line rather than asking the server anything: "Same
 zone" (free, on a cooldown), "Crosses into {Zone} — costs your Move", or
 "Arriving costs you nothing" on a first placement.
 
-**Every hop always offers dragging**, on the same message as the Confirm/
-Cancel row: `loc:drag:{locationId}` lists zone-mates (not just Location-mates)
-who are a corpse, hold an incapacitating tag, or are in the mover's faction
-if the mover leads it — `db/lib/locationTravel.js#dragCandidates`. The select
-is `minValues: 0`, and `buildDragRow` returns `null` (dropping the row
-entirely) when there is nobody to bring, since Discord rejects an empty
-select. The picked list is **not** carried on the component — Discord hands
-the Confirm click no memory of what the drag select last held — so
-`handleTravelDrag` parks it in an in-memory `Map` keyed on Discord user id,
-`DRAG_TTL_MS` = 10 minutes, same posture as `recentProxies`
-(`bot/src/lib/proxy.js`): a missing entry means "nobody picked", never a
-gate. `handleTravelConfirm` re-resolves and re-authorizes everyone server-side
-inside `performLocationMove`'s own transaction (`canDrag`) — a candidate who
-wandered off between the picker and the confirm fails the whole move rather
-than being silently dropped. See `MAP.md` §3.
+**Every hop offers the party**, on the same message as the Confirm/Cancel
+row: `loc:bring` lists everyone standing **here** with a verdict from
+`db/lib/escort.js#escortCandidates` — a corpse, anyone helpless, a member of
+the faction you lead, or somebody you'd have to ask. The select is
+`minValues: 0`, is pre-ticked with whoever is already following you, and
+`buildBringRow` returns `null` (dropping the row entirely) when there is
+nobody to bring, since Discord rejects an empty select.
+
+**Nothing is parked between the two clicks any more.** The drag select this
+replaced could not carry its picks on the component — Discord hands the
+Confirm click no memory of what a select last held — so it kept them in an
+in-memory `Map` with a ten-minute TTL, and a bot restart between the two
+clicks silently cost a player their passengers. An escort is a row on the
+follower now (`Character.escortedById`), so `handleTravelBring` writes it
+straight away and `handleTravelConfirm` reads it back out of the database.
+The `Map`, its TTL and its three helpers are gone. Anyone ticked who could say
+no gets the Accept DM instead of being attached; anyone unticked is put down.
+The party is re-authorized inside `performLocationMove`'s own transaction, and
+a follower the way refuses is dropped there rather than failing the hop. See
+`MAP.md` §3a.
 
 **The three anchor buttons ride on the Location anchors**
 (`db/lib/locationAnchorRow.js` — plain component JSON, because the sync

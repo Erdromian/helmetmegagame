@@ -20,4 +20,22 @@ function offerButtonRow(offerId) {
   ];
 }
 
-module.exports = { OFFER_ACCEPT_PREFIX, OFFER_DECLINE_PREFIX, offerButtonRow };
+// The escort ask (db/lib/escort.js) wears the same two prefixes, so the bot's
+// router and bot/src/lib/offers.js need no new branch to find it — only the
+// kind switch inside handleOfferAccept knows the difference. What changes is
+// the chrome: green rather than blurple, and "Cancel" rather than "Decline",
+// because being taken along is an invitation and declining one is not a
+// refusal of anything.
+function escortButtonRow(offerId) {
+  return [
+    {
+      type: 1,
+      components: [
+        { type: 2, style: 3, custom_id: `${OFFER_ACCEPT_PREFIX}${offerId}`, label: "Accept" },
+        { type: 2, style: 2, custom_id: `${OFFER_DECLINE_PREFIX}${offerId}`, label: "Cancel" },
+      ],
+    },
+  ];
+}
+
+module.exports = { OFFER_ACCEPT_PREFIX, OFFER_DECLINE_PREFIX, offerButtonRow, escortButtonRow };

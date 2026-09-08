@@ -38,7 +38,10 @@ import { examineHooded, loadPeopleHere } from "./actions";
 //
 // Look at is NOT on this menu: the eye on the row is the Look at, on every
 // named row and on every hood, and a second copy of it inside the menu was
-// the same dialog one click further away.
+// the same dialog one click further away. Neither is Move Player, which is
+// gone entirely — taking somebody with you is the party rack below this list
+// now, and it is a thing you keep rather than a thing you re-do every hop
+// (docs/systemdocs/MAP.md §3a).
 const PEOPLE_ACTIONS = [
   { mode: "heal", label: "Heal", preset: "patientId" },
   { mode: "transfer", label: "Transfer", preset: "toKey", prefix: "character:" },
@@ -46,7 +49,6 @@ const PEOPLE_ACTIONS = [
   { mode: "bind", label: "Bind", preset: "targetId" },
   { mode: "free", label: "Free", preset: "targetId" },
   { mode: "harm", label: "Harm", preset: "targetId" },
-  { mode: "move", label: "Move Player", preset: "targetId" },
 ];
 
 function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {

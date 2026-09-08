@@ -303,7 +303,7 @@ Every call inside it is individually catch-logged, never thrown — the channel
 doctor is the safety net for whatever one call misses.
 
 It's pure REST, so the Travel button on `#turns`, `/location`, the web's
-writers (creation, GM raw edit, GM Bulk Move, `MOVE_CHARACTER`) and the staged
+writers (creation, GM raw edit, GM Bulk Move) and the staged
 "Relocate to" applied at the turn push all call it after their own DB write
 has committed. Grant-before-revoke throughout, deliberately: an interrupted
 swap leaves the player seeing two Locations for a moment (harmless,

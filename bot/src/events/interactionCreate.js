@@ -14,22 +14,20 @@ const {
 const {
   MENU_OPTION_LIMIT,
   PICK_ID,
-  DRAG_PREFIX,
+  BRING_ID,
   CONFIRM_PREFIX,
   CANCEL_ID,
   loadMover,
   listNames,
   buildLocationSelectRow,
-  buildDragRow,
+  buildBringRow,
+  applyBring,
+  freeZoneMovesReason,
   buildConfirmRow,
-  rememberDrag,
-  takeDrag,
-  forgetDrag,
   freeMovesLeft,
   stowedMounts,
   performMove,
 } = require("../lib/locationTravel");
-const { dragCandidates } = require("@lifeweb/db/lib/locationTravel");
 const { applyFear } = require("@lifeweb/db/lib/fear");
 const {
   travelOptions,
@@ -55,6 +53,7 @@ const {
 } = require("@lifeweb/db/lib/conversations");
 const { settleCarry, deliverCarryDrop } = require("@lifeweb/db/lib/carry");
 const { sendDm } = require("../lib/dm");
+const { escortCandidates, partyOf } = require("@lifeweb/db/lib/escort");
 const { buildMoveModal } = require("../lib/moveModal");
 const { confirmMove } = require("../lib/moveConfirm");
 const { buildSpeakModal, buildSpeakPicker } = require("../lib/speakModal");
@@ -929,7 +928,6 @@ async function handleTravelPick(interaction) {
   await ack(interaction, { update: true });
 
   const locationId = interaction.values[0];
-  forgetDrag(interaction.user.id);
 
   const [character, target] = await Promise.all([
     loadMover(interaction.user.id),
@@ -944,10 +942,6 @@ async function handleTravelPick(interaction) {
     return;
   }
 
-  const candidates = await dragCandidates(prisma, character);
-  const dragRow = buildDragRow(locationId, candidates);
-  const overflow = candidates.length - Math.min(candidates.length, MENU_OPTION_LIMIT);
-
   // The cost model in one line, and — when they are about to walk a day's road
   // with a horse still in their pocket — a warning before the Confirm rather
   // than a regret after it (docs/systemdocs/CARRY.md §2).
@@ -956,8 +950,17 @@ async function handleTravelPick(interaction) {
     where: { id: 1 },
     select: { freeZoneMovesPerTurn: true },
   });
-  const openTurn = crossing ? await prisma.turn.findFirst({ where: { status: "OPEN" } }) : null;
-  const left = crossing ? freeMovesLeft(character, config, openTurn) : null;
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+
+  const candidates = await escortCandidates(prisma, character, openTurn?.number ?? null);
+  const bringRow = buildBringRow(candidates);
+  const overflow = candidates.length - Math.min(candidates.length, MENU_OPTION_LIMIT);
+
+  // The party is what decides whether the mount's extra crossing survives, so
+  // the number quoted below has to count it (MAP.md §3a).
+  const party = await partyOf(prisma, character.id);
+  const left = crossing ? freeMovesLeft(character, config, openTurn, party.length) : null;
+  const seatWarning = crossing ? freeZoneMovesReason(character, party.length) : null;
 
   const cost = !character.locationId
     ? "-# Arriving costs you nothing."
@@ -979,37 +982,51 @@ async function handleTravelPick(interaction) {
       content: [
         `Move to **${target.name}**?`,
         cost,
+        seatWarning ? `-# ${seatWarning}` : null,
         stowedLine,
         overflow > 0 ? `-# ${overflow} more not shown — Discord caps this list at 25. ‡` : null,
       ]
         .filter(Boolean)
         .join("\n"),
-      components: [dragRow, buildConfirmRow(locationId)].filter(Boolean),
+      components: [bringRow, buildConfirmRow(locationId)].filter(Boolean),
     },
     { fleeting: false },
   );
 }
 
-// The picked passengers, parked until Confirm. deferUpdate rather than an
-// `update` payload because the names have to be read first, and the list is
-// re-authorized server-side at Confirm anyway — this is a hint, not a lock.
-async function handleTravelDrag(interaction, locationId) {
+// The Bring select WRITES the party — an escort is a row, not a ten-minute
+// memory of a click (bot/src/lib/locationTravel.js). Anyone ticked who could
+// say no gets the Accept DM instead of being attached, and anyone unticked is
+// put down. deferUpdate rather than an `update` payload because the work has
+// to happen before there is anything to say about it.
+async function handleTravelBring(interaction) {
   await interaction.deferUpdate();
 
-  const ids = interaction.values ?? [];
-  rememberDrag(interaction.user.id, locationId, ids);
+  const character = await loadMover(interaction.user.id);
+  if (!character) return;
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+  const outcome = await applyBring(character, interaction.values ?? [], openTurn);
 
-  const chosen =
-    ids.length > 0
-      ? await prisma.character.findMany({ where: { id: { in: ids } }, select: { name: true } })
-      : [];
+  for (const dm of outcome.dms) {
+    const user = await interaction.client.users.fetch(dm.discordUserId).catch(() => null);
+    if (!user) continue;
+    await sendDm(user, { content: `» ${dm.content}`, components: dm.components }).catch((err) =>
+      console.error("Escort ask DM failed:", err.message ?? err),
+    );
+  }
+
+  const notes = [];
+  if (outcome.attached.length > 0) notes.push(`Bringing: ${outcome.attached.join(", ")}`);
+  if (outcome.asked.length > 0) notes.push(`Asked: ${outcome.asked.join(", ")}`);
+  if (outcome.dropped.length > 0) notes.push(`Left: ${outcome.dropped.join(", ")}`);
+
   const lines = interaction.message.content
     .split("\n")
-    .filter((line) => !line.startsWith("-# Bringing:"));
-  if (chosen.length > 0) lines.push(`-# Bringing: ${chosen.map((c) => c.name).join(", ")}`);
+    .filter((line) => !line.startsWith("-# Bringing:") && !line.startsWith("-# Asked:") && !line.startsWith("-# Left:"));
+  for (const note of notes) lines.push(`-# ${note}`);
 
   await interaction.editReply({ content: lines.join("\n") }).catch((err) =>
-    console.error("Failed to show the drag list:", err),
+    console.error("Failed to show the party:", err),
   );
 }
 
@@ -1020,8 +1037,6 @@ async function handleTravelConfirm(interaction, locationId) {
     loadMover(interaction.user.id),
     prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } }),
   ]);
-  const dragged = takeDrag(interaction.user.id, locationId);
-
   if (!character) {
     await respond(interaction, { content: "» *You don't have a living character.* ‡", components: [] });
     return;
@@ -1031,7 +1046,7 @@ async function handleTravelConfirm(interaction, locationId) {
     return;
   }
 
-  const result = await performMove(character, target, dragged);
+  const result = await performMove(character, target);
   if (!result.ok) {
     await respond(interaction, { content: `» *${result.reason}*`, components: [] });
     return;
@@ -1051,12 +1066,13 @@ async function handleTravelConfirm(interaction, locationId) {
     );
   }
   if (brought.length > 0) parts.push(`Bringing ${listNames(brought)}.`);
+  const stranded = (result.leftBehind ?? []).map((entry) => entry.character.name);
+  if (stranded.length > 0) parts.push(`${listNames(stranded)} couldn't follow.`);
 
   await respond(interaction, { content: `${parts.join(" ")} ‡`, components: [] });
 }
 
 async function handleTravelCancel(interaction) {
-  forgetDrag(interaction.user.id);
   await interaction.update({ content: "» *Canceled.*", components: [] });
   scheduleDismiss(interaction);
 }
@@ -2087,8 +2103,8 @@ module.exports = {
       } else if (interaction.isStringSelectMenu()) {
         if (interaction.customId === ZONE_VIEW_ID) return void (await handleZoneViewPick(interaction));
         if (interaction.customId === PICK_ID) return void (await handleTravelPick(interaction));
-        if (interaction.customId.startsWith(DRAG_PREFIX)) {
-          return void (await handleTravelDrag(interaction, interaction.customId.slice(DRAG_PREFIX.length)));
+        if (interaction.customId === BRING_ID) {
+          return void (await handleTravelBring(interaction));
         }
         // Must NOT be acked first: it opens a modal.
         if (interaction.customId.startsWith(CONVERSE_ROOM_PREFIX)) {

@@ -16,11 +16,21 @@ import { whosHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import {
   performLocationMove,
-  dragCandidates,
   freeMovesLeft,
   freeZoneMovesReason,
-  CHARACTER_SELECT as MOVER_SELECT,
 } from "@lifeweb/db/lib/locationTravel";
+import {
+  ESCORT_SELECT as MOVER_SELECT,
+  escortAuthority,
+  escortCandidates,
+  partyOf,
+  attach,
+  detach,
+  createEscortOffer,
+  acceptEscort,
+  escortReason,
+} from "@lifeweb/db/lib/escort";
+import { fastTravelCapacity, equippedSlugs } from "@lifeweb/db/lib/mounts";
 import { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { boardFor, boardText, pinnedLine, tornLine, BOARD_OPTION_LIMIT } from "@lifeweb/db/lib/noticeboard";
@@ -463,9 +473,9 @@ export async function loadTravel() {
     ? await prisma.location.findUnique({ where: { id: character.travelToLocationId }, select: { name: true } })
     : null;
 
-  const [options, drag] = await Promise.all([
+  const [options, party] = await Promise.all([
     travelOptions(prisma, character, character.locationId),
-    dragCandidates(prisma, character),
+    partyOf(prisma, character.id),
   ]);
 
   return {
@@ -473,8 +483,10 @@ export async function loadTravel() {
     // Already walking? A paid crossing is a day on the road, and the only
     // thing on offer is turning round.
     heading: heading?.name ?? null,
-    freeLeft: freeMovesLeft(character, config, openTurn),
-    freeReason: freeZoneMovesReason(character),
+    // Both count the party: over the mount's seats, the extra crossing it
+    // buys is gone, and the number here has to already say so (MAP.md §3a).
+    freeLeft: freeMovesLeft(character, config, openTurn, party.length),
+    freeReason: freeZoneMovesReason(character, party.length),
     options: options.map((row) => ({
       id: row.location.id,
       name: row.location.name,
@@ -487,24 +499,130 @@ export async function loadTravel() {
       passable: row.passable,
       reason: row.reason ?? null,
     })),
-    drag: drag.map((t) => ({ id: t.id, name: t.name, reason: t.reason ?? null })),
+    partySize: party.length,
   };
 }
 
-export async function travelTo({ locationId, draggedIds = [] } = {}) {
+// ------------------------------------------------------------------ escort
+
+// The party rack: who is standing here, who is already with you, and how many
+// seats your mount has. One round trip, polled by the panel the way HereList
+// polls its own list — somebody walking up to you has to appear.
+export async function loadParty() {
+  const me = await actor(MOVER_SELECT);
+  if (me.error) return { ok: false, error: me.error };
+  const character = me.character;
+
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+  const [candidates, party, incoming] = await Promise.all([
+    escortCandidates(prisma, character, openTurn?.number ?? null),
+    partyOf(prisma, character.id),
+    // Asks aimed at THIS character. The Discord buttons are unreachable for a
+    // web-only player, so the rack answers them too.
+    prisma.offer.findMany({
+      where: { kind: "ESCORT", status: "PENDING", responderId: character.id },
+      select: { id: true, initiator: { select: { name: true } } },
+    }),
+  ]);
+
+  return {
+    ok: true,
+    seats: fastTravelCapacity(equippedSlugs(character.tags ?? [])),
+    candidates,
+    // The rack draws this, in the order they were picked up. Its verdict is
+    // re-derived rather than read off `candidates`: a follower can be with you
+    // and no longer be a candidate, which is exactly the state a stale
+    // attachment leaves and exactly what the rack has to keep showing.
+    party: party.map((row) => ({
+      id: row.id,
+      name: row.name,
+      status: row.status,
+      reason: escortReason(row, escortAuthority(character, row, openTurn?.number ?? null)),
+    })),
+    incoming: incoming.map((offer) => ({ id: offer.id, from: offer.initiator?.name ?? "Somebody" })),
+  };
+}
+
+// Pick somebody up. FORCED and CONSENTED attach at once; anyone else is asked
+// and attaches only when they accept. The verdict is re-derived here — the
+// panel's is a hint, and this is a public endpoint.
+export async function bringAlong(targetId) {
+  const me = await actor(MOVER_SELECT);
+  if (me.error) return { ok: false, error: me.error };
+
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+  const target = await prisma.character.findUnique({ where: { id: targetId ?? "" }, select: MOVER_SELECT });
+  const verdict = escortAuthority(me.character, target, openTurn?.number ?? null);
+  if (!verdict) return { ok: false, error: "You can't take them along. ‡" };
+
+  if (verdict === "ASK") {
+    if (!openTurn) return { ok: false, error: "No turn is open." };
+    const offer = await createEscortOffer(prisma, { actor: me.character, target, turn: openTurn });
+    if (!offer.ok) return { ok: false, error: offer.reason };
+    await sendDm(offer.dm.discordUserId, offer.dm.content, { components: offer.dm.components }).catch(() => {});
+    return { ok: true, line: `You asked ${target.name} to come with you. ‡` };
+  }
+
+  if (!(await attach(prisma, me.character.id, target.id))) {
+    return { ok: false, error: "Somebody else has them. ‡" };
+  }
+  return { ok: true, line: `${target.name} is with you. ‡` };
+}
+
+// Put somebody down. Always allowed: letting go is never gated.
+export async function putDown(targetId) {
+  const me = await actor(MOVER_SELECT);
+  if (me.error) return { ok: false, error: me.error };
+  const target = await prisma.character.findFirst({
+    where: { id: targetId ?? "", escortedById: me.character.id },
+    select: { id: true, name: true },
+  });
+  if (!target) return { ok: false, error: "They aren't with you. ‡" };
+  await detach(prisma, target.id);
+  return { ok: true, line: `You let ${target.name} go. ‡` };
+}
+
+// Answering an ask from the web, for a player who never opens Discord. The
+// same two functions the bot's buttons call, so the two faces cannot drift.
+export async function answerEscort({ offerId, accept } = {}) {
+  const me = await actor(MOVER_SELECT);
+  if (me.error) return { ok: false, error: me.error };
+  const offer = await prisma.offer.findFirst({
+    where: { id: offerId ?? "", kind: "ESCORT", status: "PENDING", responderId: me.character.id },
+  });
+  if (!offer) return { ok: false, error: "That offer's gone. ‡" };
+
+  const result = accept
+    ? await acceptEscort(prisma, offer, me.character)
+    : await declineOffer(prisma, offer, me.character);
+  for (const dm of result.dms ?? []) {
+    await sendDm(dm.discordUserId, dm.content).catch(() => {});
+  }
+  return result.ok ? { ok: true, line: result.line } : { ok: false, error: result.reason };
+}
+
+export async function travelTo({ locationId } = {}) {
   const me = await actor(MOVER_SELECT);
   if (me.error) return { ok: false, error: me.error };
 
   const target = await prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } });
   if (!target) return { ok: false, error: "That place no longer exists. ‡" };
 
-  // Re-resolved from the DB rather than trusted off the form: the picker's
-  // list is a hint, and canDrag is the lock.
-  const candidates = await dragCandidates(prisma, me.character);
-  const dragged = candidates.filter((c) => draggedIds.includes(c.id));
-
-  const result = await performLocationMove(prisma, me.character, target, { dragged });
+  // Who comes along is read off Character.escortedById inside the move's own
+  // transaction — nothing is posted from the browser, so there is nothing to
+  // re-authorize here (MAP.md §3a).
+  const result = await performLocationMove(prisma, me.character, target);
   if (!result.ok) return { ok: false, error: result.reason };
+
+  // Followers the way would not take: already detached, still standing where
+  // they were. The leader's line must not name the reason — a hidden crawl's
+  // refusal would announce that the crawl is there (MAP.md §2a).
+  const stranded = [];
+  for (const entry of result.leftBehind ?? []) {
+    stranded.push(entry.character.name);
+    if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
+    await sendDm(entry.character.discordUserId, `*${me.character.name} went on without you.* ‡`).catch(() => {});
+  }
 
   // A paid crossing is a day on the road: nobody has moved yet, so there are
   // no roles to swap — db/lib/travelArrivalPass.js does all of it at the next
@@ -519,7 +637,9 @@ export async function travelTo({ locationId, draggedIds = [] } = {}) {
         `*${me.character.name} is taking you to ${target.name}. You'll get there next turn.* ‡`,
       ).catch(() => {});
     }
-    return { ok: true, line: `You set out for ${target.name}. You arrive next turn, and your Move is spent. ‡` };
+    const setOut = [`You set out for ${target.name}. You arrive next turn, and your Move is spent.`];
+    if (stranded.length > 0) setOut.push(`You can't move ${stranded.join(", ")} through here.`);
+    return { ok: true, line: `${setOut.join(" ")} ‡` };
   }
 
   // Sequential on purpose: each entry is a handful of REST calls, and firing
@@ -557,6 +677,7 @@ export async function travelTo({ locationId, draggedIds = [] } = {}) {
     );
   }
   if (brought.length > 0) parts.push(`Bringing ${brought.join(", ")}.`);
+  if (stranded.length > 0) parts.push(`You can't move ${stranded.join(", ")} through here.`);
   return { ok: true, line: `${parts.join(" ")} ‡` };
 }
 

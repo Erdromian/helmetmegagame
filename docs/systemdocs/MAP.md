@@ -174,9 +174,9 @@ Two things about the gating that are easy to get wrong:
   A hidden one is neither. Any surface that renders a list must filter on
   `listed`; the mover checks `passable`. `travelOptions` does the first for you.
 - **The refusal is re-derived server-side, every time.** A picker that dropped
-  an option is a hint; `performLocationMove` and the web's `MOVE_CHARACTER`
-  both run `crossingCheck` again on their own, because a server action is a
-  public endpoint and a client can post any location id it likes.
+  an option is a hint; `performLocationMove` runs `crossingCheck` again on
+  its own — once for the mover and once per follower (§3a) — because a server
+  action is a public endpoint and a client can post any location id it likes.
 - **A propped-open keyed way satisfies its own tag requirement**, which also
   makes a hidden one listed. That is not a leak, it is the whole feature: a
   door somebody held open has to be visible to the people meant to follow them
@@ -286,9 +286,9 @@ the Travel button offers nothing at all until the arrival pass walks them
 over — there is no turning back (the Turn back control was removed on
 2026-09-07). Nothing is announced at departure; the ordinary arrival lines fire next
 turn, plus a "You arrive at X" DM. Every raw relocation (a GM teleport, Bulk
-Move, the staged "Relocate to", `MOVE_CHARACTER`) clears the pending
-destination too, or the pass would undo the teleport at Dawn, and so does
-death.
+Move, the staged "Relocate to") clears the pending destination too, or the
+pass would undo the teleport at Dawn, and so does death. Each of them clears
+`escortedById` in the same statement (§3a).
 
 Spending the Move is written as a real, auto-resolved `Action`
 (`type: MOVE`, `status: CONFIRMED`, `moveReviewStatus: SOLVED`,
@@ -311,23 +311,18 @@ cannot both spend the last one. The **`FAST_TRAVEL` Request is retired** —
 there's no separate route through `requestActions.js`; a mount is just a
 larger allowance.
 
-**Travel always offers dragging.** Anyone in the mover's **zone** (not just
-their Location) who is a corpse, holds an incapacitating tag (bound / dying
-/ paralyzed / catatonic — `INCAPACITATING_SLUGS`), or is in the mover's
-faction if the mover leads it, can be brought along — the same
-`MOVE_CHARACTER` authority as before, now re-checked **server-side inside
-the move's own transaction** (`canDrag`) rather than trusted from a picker.
-A candidate who wandered off between the picker and the confirm fails the
-whole move rather than being silently dropped. Dragged characters get no
-Action, no cooldown claim and no mount claim of their own — one
-`updateMany` moves them all — and the move writes one `characters_dragged`
-`AuditLog` row naming the mover, the destination and everyone brought.
-`lastLocationMoveAt` is set for the dragged too, so a character who's just
-been walked somewhere doesn't get an extra free hop the instant they can act
-again.
+**Travel brings your escort party.** Who follows is not a parameter and never
+reaches `performLocationMove` from a client — it is read off
+`Character.escortedById` inside the move's own transaction. See §3a. Party
+members get no Action, no cooldown claim and no mount claim of their own —
+one `updateMany` moves them all — and the move writes one
+`characters_escorted` `AuditLog` row naming the mover, the destination,
+everyone brought and everyone the way refused. `lastLocationMoveAt` is set
+for them too, so a character who's just been walked somewhere doesn't get an
+extra free hop the instant they can act again.
 
-**The Caving Die rolls on arrival** for the mover and every dragged
-character, on any `CAVE_LEVEL` destination — and arrival is now the *only*
+**The Caving Die rolls on arrival** for the mover and everyone in their
+party, on any `CAVE_LEVEL` destination — and arrival is now the *only*
 time it rolls, so walking is what wakes the dark. A Location wearing the
 `safe` attribute is exempt; Customs is the only one (`CAVING.md` §2).
 
@@ -337,11 +332,88 @@ so `travelArrivalPass` rolls it next turn through the thunk.
 `performLocationMove` returns `{ ok, oldLocation, oldZone, targetLocation,
 targetZone, crossedZone, spentTurn, usedHorse, moved: [{ character,
 fromLocationId, fromZoneId, toLocationId, toZoneId, zoneChanged, cavingDm },
-...] }` (mover first) on success, or `{ ok: false, reason,
-retryAfterSeconds? }` on refusal. A deferred crossing adds `deferred: true`
-and returns **`moved: []`** — every caller drives its role swaps off that list
-and nothing has moved — with the party in `travelers` instead, for the DM that
-tells a passenger they are being walked somewhere.
+...], leftBehind: [{ character, reason }] }` (mover first) on success, or
+`{ ok: false, reason, retryAfterSeconds? }` on refusal. A deferred crossing
+adds `deferred: true` and returns **`moved: []`** — every caller drives its
+role swaps off that list and nothing has moved — with the party in
+`travelers` instead, for the DM that tells a passenger they are being walked
+somewhere. `leftBehind` is filled on both, and is the caller's cue to DM.
+
+## 3a. Escorting — the party you carry
+
+**You attach people once and they follow you.** This replaced two mechanics
+that answered the same question with the same predicate written twice: the
+`MOVE_CHARACTER` request, which shoved one person one hop for free with no
+consent, and the drag picker on the Travel confirm, which had to be re-ticked
+before every single hop. Both are gone. `db/lib/escort.js` is the one
+authority, and `Character.escortedById` is the one column.
+
+**`escortAuthority(leader, target, turnNumber)` is the whole rule set**, and
+it is pure, so the panel, the bot's picker and the server-side re-check share
+one answer:
+
+| Verdict | Who | On click |
+|---|---|---|
+| `FORCED` | a corpse; anyone holding an `INCAPACITATING_SLUGS` tag; a member of the faction you lead | attaches at once |
+| `CONSENTED` | somebody whose standing agreement to *you* has not lapsed | attaches at once |
+| `ASK` | any other living character standing with you | files an `ESCORT` `Offer` and DMs them |
+| `null` | not standing with you, hooded, yourself, buried, or already following somebody else | not offered |
+
+Three things about it are easy to get wrong:
+
+- **It is Location grain.** The old `canDrag` scooped the whole **zone**, so a
+  body could be picked up from across the map. You walk to somebody now.
+- **It needs the faction RELATION, not `factionId`.** `isUnaffiliated` reads
+  `leader.faction`, and returns `true` for `undefined` — so a select that
+  loaded only the id quietly refused every faction leader. That was live in
+  `canDrag`, which `performLocationMove` re-ran against a `CHARACTER_SELECT`
+  row that had no `faction`. `ESCORT_SELECT` carries it, and
+  `db/test/escort.test.js` pins the case.
+- **`ESCORT_SELECT` is a strict superset of `CHARACTER_SELECT`**, because
+  every caller now loads a mover with it and hands that row straight to
+  `performLocationMove`. Drop `travelToLocationId` and a character on the road
+  walks off it; drop `zoneMoves*` and free crossings never run out. A test
+  asserts the superset holds.
+
+**Consent lasts two turns.** Accepting stamps `escortConsentToId` and
+`escortConsentUntilTurn` (`turn.number + CONSENT_TURNS`) on the **responder's**
+row and attaches them there and then. Inside the window they are picked back
+up with no second DM; outside it, they are asked again. One agreement at a
+time — you cannot promise your feet to two people. The ask rides the existing
+`Offer` table and the existing `bot/src/lib/offers.js` router; only
+`handleOfferAccept`'s kind switch knows it is new. Its buttons are green and
+grey (`escortButtonRow`) rather than the blurple `offerButtonRow`, because
+being taken along is an invitation and refusing one is not a refusal.
+
+**A follower the way will not take is dropped, not a refusal.** Each one is
+run through `crossingCheck` with **their own** tags and their own mount — a
+crawl the leader has the Caving for is still a crawl their companion cannot
+follow them down. One who fails is detached and left standing, and the mover
+goes on. Dragging used to throw the whole hop away instead. **The leader's DM
+must never say why**: naming a hidden edge's refusal would announce that the
+edge is there (§2a). It says only "You can't move X through here."
+
+**Walking under your own power detaches you.** Every branch of
+`performLocationMove` clears the mover's own `escortedById`, so a willing
+follower leaves by leaving. A helpless one never reaches that line. Death
+releases everyone following the dead character and clears their own standing
+agreement — but **not** their `escortedById`, because a corpse is still
+something a person can carry.
+
+**Seats decide the mount's bonus, not the party's size.** There is no cap on
+how many people you take. `fastTravelCapacity` (horse 2, horse + cart 6,
+motorcycle 2, on foot 0 — the rider counts) gates the `isMounted` branch of
+`freeZoneMoves`: fit, and the mount buys its usual extra crossing; go over,
+and it buys nothing. On foot there is no bonus to lose, so walking any number
+of people is free — an overloaded horse is never *worse* than legs, only no
+better. This is `fastTravelCapacity`'s first live caller; it had none from the
+day it was written until this rework.
+
+**A stale attachment is inert, not dangerous.** `escortAuthority` returns
+`null` the moment two people are not co-located, so a row left behind by a GM
+teleport costs one poll of a wrong-looking panel and nothing else. The raw
+relocation writers clear it anyway, beside the `travelTo*` they already
+cleared.
 
 ## 4. The Discord half
 
@@ -357,8 +429,8 @@ whatever it misses. See `CHANNELS.md` §3–§4 for the roles and the private
 Room membership it drives.
 
 Every caller — the Travel button on `#turns`, `/location`, character
-creation, a GM's raw edit or teleport, GM Bulk Move, `MOVE_CHARACTER`, and
-the staged "Relocate to" applied at the turn push — runs
+creation, a GM's raw edit or teleport, GM Bulk Move, and the staged
+"Relocate to" applied at the turn push — runs
 `performLocationMove` (or a raw relocation, for the GM/creation paths) then
 this function. Any new writer of `Character.locationId` must call both, or a
 player either sees the wrong place or none.
@@ -389,13 +461,14 @@ the geography it described no longer exists. The
 
 | File | Role |
 |---|---|
-| `db/lib/locationTravel.js` | `performLocationMove` — validation, the cooldown or the Move, dragging, the Caving roll; no Discord |
+| `db/lib/locationTravel.js` | `performLocationMove` — validation, the cooldown or the Move, walking the party, the Caving roll; no Discord |
+| `db/lib/escort.js` | The escort authority, the party, and the consent handshake — §3a. The ONLY module that decides who follows whom |
 | `db/lib/travelArrivalPass.js` | the turn pass that lands a paid crossing — the relocation and the archive row; no Discord |
 | `db/lib/locationMove.js` | `applyLocationMoveSideEffects` — the Discord half, shared by every caller |
 | `db/lib/roomAccess.js` | `syncCharacterRoomAccess` — private Room membership |
 | `db/lib/threadInvites.js` | `applyPendingInvites` — replays standing `/add` invites on arrival |
 | `db/lib/seatZone.js` | `seatZoneIdFor` — the presence-zone → seat-zone mapping |
-| `db/lib/mounts.js` | `FAST_TRAVEL_SLUGS`, `isMounted`, `fastTravelCapacity` |
+| `db/lib/mounts.js` | `FAST_TRAVEL_SLUGS`, `isMounted`, `fastTravelCapacity` (the seat count §3a gates the mount's bonus on) |
 | `db/lib/turnFormat.js` | `turnDay` — the in-game day a mount's second crossing is claimed against |
 | `db/lib/locationGraph.js` | `LocationLink` reads and the gating verdict — the only module that touches the edge model |
 | `db/lib/locationAttributes.js` | The attribute registry, its sync-time validation, and the prose Examine prints |

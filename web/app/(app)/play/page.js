@@ -365,8 +365,6 @@ async function FreshPlay({ userId }) {
         healParties: { characters: aside.pools.peopleParties, rooms: [] },
         transferParties: { characters: aside.pools.transferParties, rooms: aside.stashRooms },
         lootTargets: aside.pools.lootTargets,
-        moveTargets: aside.pools.moveTargets,
-        moveLocations: aside.pools.moveLocations,
         bindTargets: aside.pools.bindTargets,
         harmTargets: aside.pools.harmTargets,
         harmTags: aside.pools.harmTags,

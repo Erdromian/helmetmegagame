@@ -563,16 +563,24 @@ async function declineOffer(prisma, offer, responder) {
     where: { id: offer.initiatorId },
     select: { discordUserId: true },
   });
-  const content =
-    offer.kind === "BIND"
-      ? `${responder.name} won't be bound.`
-      : `${responder.name} declined the lesson.`;
+  // Per kind, because "you passed on the lesson" is a strange thing to read
+  // after refusing to be tied up or to be led away.
+  const WORDING = {
+    BIND: { content: `${responder.name} won't be bound.`, line: "You said no." },
+    ESCORT: {
+      content: `${responder.name} isn't coming with you.`,
+      line: "You stay where you are. ‡",
+    },
+  };
+  const wording = WORDING[offer.kind] ?? {
+    content: `${responder.name} declined the lesson.`,
+    line: "You passed on the lesson. ‡",
+  };
   return {
     ok: true,
-    line:
-      offer.kind === "BIND" ? "You said no." : "You passed on the lesson. ‡",
+    line: wording.line,
     dms: initiator?.discordUserId
-      ? [{ discordUserId: initiator.discordUserId, content }]
+      ? [{ discordUserId: initiator.discordUserId, content: wording.content }]
       : [],
   };
 }

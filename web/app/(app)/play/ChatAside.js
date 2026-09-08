@@ -3,6 +3,7 @@
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import FormError from "@/app/components/FormError";
 import HereList from "./HereList";
+import PartyRack from "./PartyRack";
 import PlaceCard from "./PlaceCard";
 import RoomPanel from "./RoomPanel";
 import TravelNodes from "./TravelNodes";
@@ -121,6 +122,10 @@ export default function ChatAside({
       )}
 
       <RoomPanel selected={selected} affordances={live} onFixture={openFixture} pending={pending} />
+      {/* Between who is here and the ways out, because it is about both:
+          you pick people off the first list and they follow you down the
+          second (docs/systemdocs/MAP.md §3a). */}
+      {!inSheet && <PartyRack />}
       <TravelNodes onDone={say} pick={travelPick} />
       <YouPanel
         initialWaiting={waiting}

@@ -4,8 +4,8 @@
 //
 // Every surface that offers a destination and every check that authorises a
 // crossing comes through here: db/lib/locationTravel.js#performLocationMove,
-// the bot's Travel picker, the web's MOVE_CHARACTER re-validation, and the
-// modular gate button. That matters because the gating rules are not
+// the bot's Travel picker, the per-follower check an escort party is run
+// through at a crossing (MAP.md §3a), and the modular gate button. That matters because the gating rules are not
 // cosmetic — a hidden edge must be genuinely absent from a list, and a
 // locked one must refuse server-side even when a client sends its id
 // directly.

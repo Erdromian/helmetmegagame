@@ -221,28 +221,11 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
       })),
   }));
 
-  // Everyone here, not just who you may move: the server's own gate says who
-  // follows, and a menu that narrowed to the bound would announce them.
-  const moveTargets = zoneRoster.map(({ id, name, status }) => ({ id, name, status }));
-
-  // Where you may walk someone: the neighbours of YOUR OWN location, the same
-  // edge an ordinary walk uses, gated the same way. travelOptions drops the
-  // hidden ways this character holds no key to, and `passable` drops the
-  // locked and the shut — a walk-someone dialog has no room to explain a
-  // refusal, so it only ever offers a hop that will actually work. Each
-  // option carries its zone so the dialog can warn that the hop crosses one.
-  const moveLocations = character.locationId
-    ? (await travelOptions(prisma, character, character.locationId))
-        .filter((row) => row.passable)
-        .map((row) => ({
-          id: row.location.id,
-          name: row.location.name,
-          zoneName: row.location.zone?.name ?? null,
-          // The UI says "crosses into Fortress" only for an edge that leaves
-          // the zone you're standing in.
-          crossesZone: row.crossesZone,
-        }))
-    : [];
+  // The two pools that fed the Move Player dialog are gone with it. Taking
+  // somebody along is the party rack on /play now, and it reads its own
+  // candidates off db/lib/escort.js#escortCandidates — a Location roster
+  // rather than a zone one, with a verdict per row (docs/systemdocs/MAP.md
+  // §3a).
 
   // Bind and Free split this one list on `bound`; Crucify on `crucified`.
   const bindTargets = zoneRoster
@@ -296,8 +279,6 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     healTargets,
     healsLeft,
     lootTargets,
-    moveTargets,
-    moveLocations,
     bindTargets,
     harmTargets,
     harmTags,
