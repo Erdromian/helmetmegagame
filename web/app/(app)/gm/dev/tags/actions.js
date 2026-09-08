@@ -508,8 +508,12 @@ async function deleteCustomTagImpl({ tagId }) {
     prisma.tag.count({ where: { requiredTagId: tagId } }),
     prisma.tagGroup.count({ where: { requiredTagId: tagId } }),
     prisma.tag.count({ where: { requirementSkills: { some: { id: tagId } } } }),
-    prisma.characterTag.count({ where: { poisonPayload: tagId } }),
-    prisma.roomTag.count({ where: { poisonPayload: tagId } }),
+    // `{ equals: … }` is required, not shorthand: poisonPayload is a Json
+    // column, and Prisma's Json filter has no bare-scalar form — the naked
+    // `{ poisonPayload: tagId }` shape throws PrismaClientValidationError
+    // on every call, taking the whole delete button down with it.
+    prisma.characterTag.count({ where: { poisonPayload: { equals: tagId } } }),
+    prisma.roomTag.count({ where: { poisonPayload: { equals: tagId } } }),
     prisma.tag.findMany({ where: { crateContents: { not: null } }, select: { crateContents: true } }),
   ]);
   if (held) throw new UserError(`${held} character${held === 1 ? "" : "s"} still hold that tag.`);

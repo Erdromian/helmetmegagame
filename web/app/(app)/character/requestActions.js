@@ -123,7 +123,7 @@ import { CAMERA_SLUG, attachPhoto, createBlankPhotoRow } from "@lifeweb/db/lib/p
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { mintHeadstone } from "@lifeweb/db/lib/headstone";
-import { dropRoomTag } from "@lifeweb/db/lib/tagWrites";
+import { dropRoomTag, lockRoom } from "@lifeweb/db/lib/tagWrites";
 import {
   BUTCHER_SLUG,
   ENGRAVE_RESOURCE_COST,
@@ -3164,6 +3164,16 @@ async function transferRequestImpl({
   const toCharacterId = to.kind === "character" ? to.id : null;
 
   await prisma.$transaction(async (tx) => {
+    // A room-to-room move (two public rooms at one Location — the Keep alone
+    // has five) would otherwise lock from-room then to-room in request order
+    // inside the primitives, and the reverse-direction transfer locks them
+    // the other way round — the same 40P01 AB-BA trap the character locks
+    // below this file already defend against with a sorted order. Pre-lock
+    // both rooms sorted; the primitives' own lockRoom re-acquisitions inside
+    // this transaction are then no-ops.
+    if (from.kind === "room" && to.kind === "room") {
+      for (const roomId of [from.id, to.id].sort()) await lockRoom(tx, roomId);
+    }
     for (const move of moves) {
       const { tagId, quantity, held } = move;
       const restore = {

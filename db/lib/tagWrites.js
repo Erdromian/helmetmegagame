@@ -421,4 +421,4 @@ async function dropRoomTag(tx, roomId, tagId, quantity = null) {
   return { ok: true, poisonedTaken, poisonPayload };
 }
 
-module.exports = { addToStack, dropCharacterTag, replaceLowerTiers, grantTagSlugs, addToRoomStack, dropRoomTag };
+module.exports = { addToStack, dropCharacterTag, replaceLowerTiers, grantTagSlugs, addToRoomStack, dropRoomTag, lockRoom };
