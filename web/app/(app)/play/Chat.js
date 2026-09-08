@@ -32,6 +32,7 @@ import {
   markHistoryLoaded,
   markHistoryLoading,
   historyLoaded,
+  isOwnRow,
 } from "./feedStore";
 
 // Chat: everywhere this character can hear, and one of them open.
@@ -381,7 +382,7 @@ export default function Chat({
         // exactly as it does for a web one — and never for your own words.
         if (
           self?.characterId &&
-          row.characterId !== self.characterId &&
+          !isOwnRow(row, self.characterId, self.speakerKey) &&
           typeof row.content === "string" &&
           row.content.includes(`{char:${self.characterId}}`) &&
           !chatChimeMuted() &&

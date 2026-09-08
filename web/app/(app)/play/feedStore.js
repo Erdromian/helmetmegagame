@@ -300,6 +300,25 @@ export function newestSeq(place) {
   return String(best);
 }
 
+// Is this row one the VIEWER wrote?
+//
+// The one place to ask, because an aliased row — a hood or a forced name —
+// ships no character id to anybody at all (db/lib/archive.js#feedRowShape).
+// Four separate hand-rolled `row.characterId === self.characterId` checks
+// answered this before, and when the id went away three of them silently
+// started answering "no" for a player's own hooded lines: the slow-mode
+// countdown stopped counting, the NEW divider drew above their own words, and
+// the chime rang at them for their own mention.
+//
+// `selfKey` is the viewer's own hoodToken (play/page.js). Learning your own
+// tells you nothing — it is the one hood you were already under.
+export function isOwnRow(row, selfId, selfKey = null) {
+  if (!row) return false;
+  if (selfId && row.characterId === selfId) return true;
+  if (selfKey && row.speakerKey === selfKey) return true;
+  return false;
+}
+
 // Is this row ABOUT the viewer, rather than just near them?
 //
 // What the unread dot draws off. Two ways to qualify, and one disqualifier:
@@ -317,11 +336,8 @@ export function newestSeq(place) {
 // Chat rather than a reason to look at it. A dot is patient; a sound is not.
 export function isNotableRow(place, row, selfId, selfKey = null) {
   if (!selfId || !row) return false;
-  // Your own line, whichever handle it carries. An aliased row ships no
-  // character id to anybody (db/lib/archive.js#feedRowShape), so without the
-  // key half a player speaking from under a hood lit their own unread dot.
-  if (row.characterId === selfId) return false;
-  if (selfKey && row.speakerKey === selfKey) return false;
+  // Your own words are not news, whichever handle the row carries.
+  if (isOwnRow(row, selfId, selfKey)) return false;
   if (typeof place === "string" && place.startsWith("conv:")) return true;
   return typeof row.content === "string" && row.content.includes(`{char:${selfId}}`);
 }

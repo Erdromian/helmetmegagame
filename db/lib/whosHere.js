@@ -151,7 +151,12 @@ async function whosHere(prisma, viewer, { locationId, includeSelf = true, withSi
         ? presentedIdentity(c, { concealment: c.livePiece }).avatarPath
         : (c.sighting?.avatarPath ?? null);
       return {
-        alias: c.sighting?.name ?? withArticle(concealedAlias(c).toLowerCase()),
+        // The column's own styling either way. ArchiveEntry.concealedAlias is
+        // frozen Title Case ("Young Person"), because it is a NAME on a line;
+        // a row in a list of who is standing here is a description, and reads
+        // "a young person". Taking the frozen string raw made the same hood
+        // change wording the moment you heard it speak.
+        alias: withArticle((c.sighting?.name ?? concealedAlias(c)).toLowerCase()),
         token: hoodToken(c.id),
         avatarPath: c.seen ? face : null,
         unknownFace: !c.seen || Boolean(c.sighting?.unknownFace),
