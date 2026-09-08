@@ -24,6 +24,7 @@ import {
   markPendingFailed,
   retryPending,
   newestSeq,
+  isOwnRow,
 } from "./feedStore";
 import FeedSearch from "./FeedSearch";
 import { useTyping, typingLine } from "./typingStore";
@@ -680,7 +681,7 @@ export default function Feed({
     if (slowmodeMs <= 0) return 0;
     let best = 0;
     for (const row of rows) {
-      if (!row.seq || row.characterId !== self.characterId || !row.sentAt) continue;
+      if (!row.seq || !isOwnRow(row, self.characterId, self.speakerKey) || !row.sentAt) continue;
       const at = new Date(row.sentAt).getTime();
       if (at > best) best = at;
     }
@@ -1322,7 +1323,7 @@ export default function Feed({
       return null;
     }
     for (const row of rows) {
-      if (!row.seq || row.characterId === self.characterId) continue;
+      if (!row.seq || isOwnRow(row, self.characterId, self.speakerKey)) continue;
       try {
         if (BigInt(row.seq) > mark) return row.seq;
       } catch {
@@ -1359,14 +1360,11 @@ export default function Feed({
         // and so does a SYSTEM line's `row.characterId` — so without the first
         // half of this, every ownerless line in the scene wore Change and Take
         // back as if the GM had said it.
-        // Your own lines, hooded ones included. A hooded row carries no
-        // character id for anybody, so this matches on the key instead — the
-        // page is handed its own (play/page.js). Only ever a hint: Change and
-        // Take back both re-resolve the actor from the session.
-        const mine =
-          Boolean(row.seq) &&
-          ((Boolean(self.characterId) && row.characterId === self.characterId) ||
-            (Boolean(self.speakerKey) && row.speakerKey === self.speakerKey));
+        // Your own lines, hooded ones included — feedStore.js#isOwnRow is the
+        // one place that knows an aliased row carries a key instead of an id.
+        // Only ever a hint: Change and Take back both re-resolve the actor
+        // from the session.
+        const mine = Boolean(row.seq) && isOwnRow(row, self.characterId, self.speakerKey);
         const theirs = Boolean(row.seq) && !system && Boolean(who(row)) && !mine;
         // THE HOOD RULE IS GONE, and the eye is offered on every line
         // somebody else said. It used to be withheld from a row written under
