@@ -19,6 +19,42 @@ const { getGameState } = require("@lifeweb/db/lib/gameState");
 const { startDeathSmell } = require("../lib/deathSmell");
 const { registerCommands } = require("../lib/commands");
 
+// What this process needs from the environment, and what quietly stops working
+// without it. Every one of these is read behind an `if (process.env.X)` or an
+// optional chain somewhere, so a missing one is not an error — it is a feature
+// that is simply off, with nothing in the logs to say so.
+//
+// This check exists because DISCORD_CURSED_ROLE_ID was set on the web service
+// and not on the bot for the whole of a playtest. Deaths on the web side
+// cursed the player; deaths on THIS side — every rite kill, the Catatonic
+// clock, the Dying clock, the nuke pass — silently did not, and the ghost
+// seat's channel overwrites were never written either. Nobody could have known
+// from a log line, because there wasn't one.
+//
+// Printed, not thrown. A bot that refuses to start over a missing turn-ping
+// role is worse than one that runs with the turn ping off.
+const REQUIRED_ENV = [
+  ["DATABASE_URL", "everything"],
+  ["DISCORD_TOKEN", "login"],
+  ["DISCORD_GUILD_ID", "every REST call"],
+  ["DISCORD_GM_ROLE_ID", "the GM gate on /gm and /message"],
+  ["DISCORD_CURSED_ROLE_ID", "the Cursed role on a rite or turn-clock death, and the ghost seat"],
+  ["DISCORD_TURN_PING_ROLE_ID", "the turn ping"],
+  ["WEB_BASE_URL", "every link the bot writes into a DM"],
+];
+
+function reportMissingEnv() {
+  // LOCAL_MODE answers every Discord call locally, so it runs legitimately
+  // without most of the above (docs/systemdocs/LOCAL-DEV.md).
+  if (process.env.LOCAL_MODE === "true") return;
+  const missing = REQUIRED_ENV.filter(([name]) => !process.env[name]);
+  if (missing.length === 0) return;
+  console.error(
+    `Missing env on the bot — these are silently OFF:\n` +
+      missing.map(([name, what]) => `  ${name} — ${what}`).join("\n"),
+  );
+}
+
 module.exports = {
   name: "ready",
   once: true,
@@ -31,6 +67,8 @@ module.exports = {
     // The whole point of the health line below is to report what the LAST
     // process left behind.
     await loadBreakerState();
+
+    reportMissingEnv();
 
     // discord.js runs its own REST manager, so everything the gateway client
     // does — the ~130 nickname syncs below, every channel permission edit,
