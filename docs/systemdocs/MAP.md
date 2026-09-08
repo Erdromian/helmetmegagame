@@ -23,8 +23,8 @@ semantics, including the format).
 
 **How a Location is slugged.** A built place takes a bare slug and a bare
 name — `keep`, `factory`, `cathedral`, `customs`. Open country takes its zone as
-a prefix — `forest-river`, `hills-ravine`, `marshes-village`,
-`depths-runnel` — because a ravine and a river are things every zone has one
+a prefix — `forest-creekside`, `hills-gullies`, `marshes-village`,
+`depths-obelisk` — because a ravine and a river are things every zone has one
 of, and the slug is also the Discord channel name. The wilderness used to be
 numbered instead (`forest-7`, `Depths 3`), with the hand-drawn map's number
 buried in the slug and a different one in the display name; the drawing's

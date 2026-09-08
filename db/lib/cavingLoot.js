@@ -53,6 +53,7 @@ const LOOT_TABLE = {
     "dagger",
     "padded-armor",
     "mail-coif",
+    "prospectors-notes",
   ],
   rare: [
     "ravenheart-red",
@@ -65,6 +66,7 @@ const LOOT_TABLE = {
     "gas-mask",
     "broadsword",
     "war-hammer",
+    "convoy-directions",
   ],
   "extremely-rare": [
     "emp-grenade",
@@ -76,6 +78,7 @@ const LOOT_TABLE = {
     "autocannon-shell",
     "zweihander",
     "crossbow",
+    "ancient-keycard",
   ],
   "nearly-impossible": ["energy-shield", "power-fist", "neoclassic-rw10", "stepstone", "dark-eye-lenses", "motorcycle"],
 };

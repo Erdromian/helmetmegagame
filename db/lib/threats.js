@@ -215,7 +215,7 @@ const THREATS = [
     spawn: {
       gender: "NEUTRAL",
       roleSlug: "tribunal-ordinator",
-      locationSlug: "hills-black-pines",
+      locationSlug: "hills-waterway",
       resources: 8,
       tagPoints: 10,
     },
@@ -244,7 +244,7 @@ const THREATS = [
     spawn: {
       gender: "NEUTRAL",
       roleSlug: "tribune",
-      locationSlug: "hills-black-pines",
+      locationSlug: "hills-waterway",
       resources: 8,
       tagPoints: 10,
     },

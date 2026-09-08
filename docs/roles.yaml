@@ -1169,7 +1169,7 @@ zones:
             weight: unlimited
             starting_resources: 1
             starting_zone: caves
-            starting_location: caves-stairhead
+            starting_location: caves-abandoned-camp
             extra_starting_points: 10
             starting_tags: [Pale]
             doc_elements: [caving]
@@ -1369,7 +1369,7 @@ zones:
             weight: 1
             starting_resources: 8
             starting_zone: hills
-            starting_location: hills-black-pines
+            starting_location: hills-waterway
             starting_tags:
               - Melee (Skilled)
               - Ranged (Skilled)
@@ -1420,7 +1420,7 @@ zones:
             weight: 1
             starting_resources: 8
             starting_zone: hills
-            starting_location: hills-black-pines
+            starting_location: hills-waterway
             starting_tags:
               - Melee (Skilled)
               - Ranged (Skilled)
@@ -1468,11 +1468,12 @@ zones:
             multiple: false
             starting_resources: 3
             starting_zone: hills
-            starting_location: hills-ravine
+            starting_location: hills-grand-ravine
             leader: true
             whitelist: true
             starting_tags:
               - Ravine Camp
+              - Brigand Leader
               - Brigand
               - Melee (Basic)
               - Ranged (Basic)
@@ -1506,7 +1507,7 @@ zones:
             weight: 3
             starting_resources: 2
             starting_zone: hills
-            starting_location: hills-ravine
+            starting_location: hills-grand-ravine
             starting_tags:
               - Ravine Camp
               - Brigand

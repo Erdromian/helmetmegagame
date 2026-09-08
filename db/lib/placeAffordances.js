@@ -37,9 +37,9 @@ const CENSOR_OFFICE_ROOM_SLUG = "garrison-censors-office";
 // open road.
 const WATCHTOWER_ROOM_SLUGS = new Set([
   "gatehouse-watchtower", //  fortress/gatehouse <-> fortress/road
-  "customs-watchtower", //    caves/customs      <-> caves/caves-narrows
-  "north-gate-watchtower", // town/north-gate    <-> forest/forest-north-road
-  "south-gate-watchtower", // town/south-gate    <-> forest/forest-crossroads
+  "customs-watchtower", //    caves/customs      <-> caves/caves-approach
+  "north-gate-watchtower", // town/north-gate    <-> forest/forest-northern-road
+  "south-gate-watchtower", // town/south-gate    <-> forest/forest-south
 ]);
 
 // Not a prefix but one fixed id, shared with the #turns console and the

@@ -544,6 +544,48 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  convoy-directions:
+    catalog: all
+    name: Convoy Directions
+    category: general
+    group: general-location
+    description: "The itinerary of a trade convoy moving through the caves long ago."
+    pointCost: 0
+    tradeable: false
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  invitation:
+    catalog: all
+    name: Invitation
+    category: general
+    group: general-location
+    description: "You have been invited to the picnic table in the Brooding Grounds."
+    pointCost: 0
+    tradeable: false
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  # Not knowledge of a place so much as arrival at one: the Walkways' pit is
+  # a room you can only be in once you have fallen into it, so a GM grants
+  # this from /gm/dev and takes it back when the character climbs out.
+  cave-pit:
+    catalog: all
+    name: Cave Pit
+    category: general
+    group: general-location
+    description: "You fell into the pit."
+    pointCost: 0
+    tradeable: false
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
   # Moved out of general-court (2026-08-31, Desires rework) — anyone can be
   # vain, not just the court.
   vain:
@@ -1234,6 +1276,26 @@ tags:
     category: general
     group: general-traits
     description: "You know the Undercroft and the Underquarter very well. You're hard to follow there."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  refugee:
+    catalog: all
+    name: Refugee
+    category: general
+    group: general-traits
+    description: "You came here from somewhere else, with nothing."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  scholastic:
+    catalog: all
+    name: Scholastic
+    category: general
+    group: general-traits
+    description: "You were schooled, and you have not stopped reading since."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -2217,6 +2279,17 @@ tags:
     pointCost: 3
     purchasable: true
     purchasableAfterStart: true
+
+  brigand-leader:
+    catalog: gm
+    name: Brigand Leader
+    category: general
+    group: general-brigand
+    description: "The camp in the Black Hills answers to you."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
 
   # The new general `climbing` skill overlaps this brigand-gated trait.
   # Gunboat to decide whether one of them should go.
@@ -5729,6 +5802,20 @@ tags:
     sellablePrice: 8
     depotPrice: 13
 
+  pet-rat:
+    catalog: gm
+    name: Pet Rat
+    category: items
+    group: items-gear
+    description: "A rat that has decided to stay with you."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
   # What the Painting spends (Chris 2026-09-06). catalog: all on purpose — a
   # gm-catalog ingredient would pull the Painting into the hidden-recipe rule
   # (web/lib/recipeCatalog.js) and blank its row on the Recipes tab.
@@ -6445,6 +6532,39 @@ tags:
     category: items
     group: items-keys
     description: "A key to the elevator."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    purchasable: false
+
+  foresters-key:
+    catalog: gm
+    name: "Forester's Key"
+    category: items
+    group: items-keys
+    description: "A key to the forester's waystation."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    purchasable: false
+
+  graywall-key:
+    catalog: gm
+    name: Graywall Key
+    category: items
+    group: items-keys
+    description: "A key to the property room at Graywall."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    purchasable: false
+
+  ancient-keycard:
+    catalog: gm
+    name: Ancient Keycard
+    category: items
+    group: items-keys
+    description: "A small piece of plastic, with a metal lining on one edge."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -7897,6 +8017,22 @@ tags:
     sellable: true
     sellablePrice: 4
 
+  bone:
+    catalog: gm
+    name: Bone
+    category: items
+    group: items-remains
+    description: "A human bone."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 1
+
   stomach:
     catalog: gm
     name: Stomach
@@ -8801,6 +8937,19 @@ tags:
     tradeable: true
     weight: 0
     stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  prospectors-notes:
+    catalog: gm
+    name: "Prospector's Notes"
+    category: items
+    group: items-paper
+    description: "Notes describing the location of a vein of ore, in a vast chasm."
+    pointCost: 0
+    tradeable: true
+    weight: 0
     visible: false
     purchasable: false
     purchasableAfterStart: false

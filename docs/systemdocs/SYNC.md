@@ -56,7 +56,7 @@ rejects a duplicate across all three lists.
 
 Locations follow one naming rule, split between built places and open country.
 A built place takes a bare slug — `keep`, `factory`, `cathedral`, `depot`.
-Open country takes its zone as a prefix — `forest-river`, `hills-ravine`,
+Open country takes its zone as a prefix — `forest-creekside`, `hills-gullies`,
 `marshes-village` — because every zone has a ravine and a river, and the slug
 is also the Discord channel name.
 
@@ -174,7 +174,7 @@ connections:              # the whole travel graph. ONE entry per edge — it is
       open: true
   - pair: [fortress/undercroft, forest/forest-cliffs]
     hidden: elevator-key
-  - pair: [fortress/road, hills/hills-descent]
+  - pair: [fortress/road, hills/hills-underlocks]
     locked: mountaineering
     on_foot: true
 ```
