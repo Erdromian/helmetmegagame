@@ -4305,7 +4305,7 @@ tags:
     name: Hook Hand
     category: health
     group: health-maiming
-    description: "Where a hand used to be, now a fitted iron hook."
+    description: "Where a hand used to be, now a fitted iron hook. ‡"
     pointCost: 0
     visible: true
     purchasable: false
@@ -4318,7 +4318,7 @@ tags:
     name: Prosthetic Hand (Worn)
     category: health
     group: health-maiming
-    description: "A carved hand where fingers used to be missing. Close up, you can tell."
+    description: "A carved hand where fingers used to be missing. Close up, you can tell. ‡"
     pointCost: 0
     visible: true
     purchasable: false
@@ -4374,7 +4374,7 @@ tags:
     name: Glass Eye (Worn)
     category: health
     group: health-maiming
-    description: "A painted glass eye, fitted where the real one was lost."
+    description: "A painted glass eye, fitted where the real one was lost. ‡"
     pointCost: 0
     visible: true
     purchasable: false
