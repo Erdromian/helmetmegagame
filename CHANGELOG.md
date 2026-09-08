@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · Shouts name who shouted, and some rooms swallow them
+
+✎ A shout now says who shouted, in your own place only — one step away it is still just "someone", so a concealed character can yell without unmasking. A hood shouts as "a young man", a Beast as "Beast".  
+✚ Soundproof rooms. A shout from inside one never leaves the room: not the street outside, not one place in earshot, and everyone in the room is told it was muffled. Fifteen of them — the Vault, the Oubliette, the Dungeons, the Order Chambers, the Charon, the Nook, the windowless Operating Theater, the Underquarter Basements and Organ Shop, and the cellars and crypts. Tie somebody up in one and nobody is coming.  
+✎ The Graga Pit is deliberately not one, and neither are the Echoing Halls.  
+✎ A muffled shout still costs the five-minute throat timer. It happened.  
+− The bot's second copy of the shout rules, and its in-memory cooldown, which a restart emptied and the website could never see. One throat now.  
+✎ Fixed: shouting into a room you may not speak in burned five minutes for nothing.
+
 ## 2026-09-08 · The cargo bay stops at the gate, and a trade is a trade
 
 ✎ The Merchant, the Docker and the Mercenary no longer start knowing the Migrants' camp, which was handing them the brooding grounds and both mouths of the Depths on their first morning. The Migrant, who lives there, still does  
