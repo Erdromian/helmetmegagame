@@ -73,7 +73,7 @@ async function recallComradesImpl() {
   return {
     ok: true,
     roster: rows.map((r) => ({ name: r.name, role: r.role, leader: r.leader })),
-    line: rows.length ? "Your comrades. ‡" : "You are the last of them. ‡",
+    line: rows.length ? "Your comrades." : "You are the last of them.",
   };
 }
 
@@ -123,7 +123,7 @@ async function recoverEquipmentImpl() {
   return {
     ok: true,
     granted: names,
-    line: `${names.join(" and ")} back in your hands — and that's your Move for the turn. ‡`,
+    line: `${names.join(" and ")} back in your hands — and that's your Move for the turn.`,
   };
 }
 

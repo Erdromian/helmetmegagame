@@ -57,7 +57,7 @@ export const BIND_VERBS = {
     note: "They go up on the cross now. They can still speak, but nothing else — and in a turn they are Dying. It doesn't spend your Move.",
     confirm: (name) => ({
       title: `Crucify ${name}?`,
-      message: "They go up now, and in a turn they are Dying. It doesn't spend your Move. ‡",
+      message: "They go up now, and in a turn they are Dying. It doesn't spend your Move.",
       confirmLabel: "Crucify them",
     }),
     run: (id) => crucifyCharacterRequest({ targetCharacterId: id }),

@@ -42,7 +42,7 @@ export const INSTANT = {
       const missing = (pools?.recoverMissing ?? []).map((s) => RECOVER_NAMES[s]).filter(Boolean);
       return {
         title: "Recover your things?",
-        message: `${missing.length ? `You get ${missing.join(" and ")} back.` : "You get them back."} It takes your Move for the turn. ‡`,
+        message: `${missing.length ? `You get ${missing.join(" and ")} back.` : "You get them back."} It takes your Move for the turn.`,
         confirmLabel: "Recover",
       };
     },
@@ -63,7 +63,7 @@ export const INSTANT = {
     confirm: () => ({
       title: "Cut Godflesh?",
       message:
-        "You wade out and cut. A day of it — this is your Move for the turn. It rolls 1d6: a 6 pays extra, and a 1 means it grabbed hold of you first. ‡",
+        "You wade out and cut. A day of it — this is your Move for the turn. It rolls 1d6: a 6 pays extra, and a 1 means it grabbed hold of you first.",
       confirmLabel: "Cut",
     }),
   },
@@ -138,7 +138,7 @@ export const FAST_PATHS = {
             : affliction.counts
               ? ` One of the ${bag.healsLeft ?? "few"} cases you can work this turn.`
               : " First aid doesn't cost a Move."
-        } ‡`,
+        }`,
         confirmLabel: "Treat",
       },
       run: () =>

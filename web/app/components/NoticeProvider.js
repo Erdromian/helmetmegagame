@@ -13,7 +13,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState } fro
 //
 //   const notice = useNotice();
 //   notice("Ada is tied up.");
-//   notice({ text: "Your comrades. ‡", rows: [{ name, note, mark }] });
+//   notice({ text: "Your comrades.", rows: [{ name, note, mark }] });
 //   notice({ text: res.error, tone: "bad" });
 //
 // Mounted once in layout.js, like ConfirmProvider. It renders a fixed stack

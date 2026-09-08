@@ -235,7 +235,7 @@ export default function ActionBar({
                 confirmThenRun(
                   {
                     title: `Kill ${character.name}?`,
-                    message: "They are dead now. Their role, nickname and channel access go, and they get the Cursed seat. ‡",
+                    message: "They are dead now. Their role, nickname and channel access go, and they get the Cursed seat.",
                     confirmLabel: "Kill them",
                   },
                   () => killCharacterNow({ characterId: character.id }),
@@ -269,7 +269,7 @@ export default function ActionBar({
               confirmThenRun(
                 {
                   title: "Give their turn back?",
-                  message: "Their Move for this turn is undone and they are told they can act again. ‡",
+                  message: "Their Move for this turn is undone and they are told they can act again.",
                   confirmLabel: "Restore turn",
                 },
                 () => restoreTurn({ characterId: character.id }),
@@ -284,7 +284,7 @@ export default function ActionBar({
               confirmThenRun(
                 {
                   title: "Spend their turn?",
-                  message: "A Routine worth nothing is filed for them, and they are told. ‡",
+                  message: "A Routine worth nothing is filed for them, and they are told.",
                   confirmLabel: "Spend it",
                 },
                 () => spendTurn({ characterId: character.id }),

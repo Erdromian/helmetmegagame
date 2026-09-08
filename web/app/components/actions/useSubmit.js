@@ -20,7 +20,7 @@ export default function useSubmit() {
         }
         onOk?.(res);
       } catch {
-        setError("Could not reach the server. Nothing was changed. ‡");
+        setError("Could not reach the server. Nothing was changed.");
       }
     });
   }

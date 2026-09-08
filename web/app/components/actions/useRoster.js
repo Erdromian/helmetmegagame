@@ -51,7 +51,7 @@ export default function useRoster(need, { seed = null } = {}) {
         .then((res) => {
           if (seq.current !== mine) return;
           if (!res?.ok) {
-            setState((prev) => ({ roster: prev.roster, loading: false, error: res?.error ?? "Couldn't see who's here. ‡" }));
+            setState((prev) => ({ roster: prev.roster, loading: false, error: res?.error ?? "Couldn't see who's here." }));
             return;
           }
           cache.set(key, { at: Date.now(), roster: res });
@@ -59,7 +59,7 @@ export default function useRoster(need, { seed = null } = {}) {
         })
         .catch(() => {
           if (seq.current !== mine) return;
-          setState((prev) => ({ roster: prev.roster, loading: false, error: "Couldn't see who's here. ‡" }));
+          setState((prev) => ({ roster: prev.roster, loading: false, error: "Couldn't see who's here." }));
         });
     },
     [key],

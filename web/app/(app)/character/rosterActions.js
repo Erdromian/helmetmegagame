@@ -21,7 +21,7 @@ import { whosHere } from "@lifeweb/db/lib/whosHere";
 
 async function me() {
   const session = await auth();
-  if (!session?.discordUserId) return { error: "You are not signed in. ‡" };
+  if (!session?.discordUserId) return { error: "You are not signed in." };
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
     include: {
@@ -33,7 +33,7 @@ async function me() {
       },
     },
   });
-  if (!character) return { error: "You have no living character. ‡" };
+  if (!character) return { error: "You have no living character." };
   return { session, character };
 }
 

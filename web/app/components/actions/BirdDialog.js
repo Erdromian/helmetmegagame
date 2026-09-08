@@ -45,7 +45,7 @@ export default function BirdDialog({ onDone, onClose }) {
       onSubmit={() =>
         submit(
           () => birdMessageRequest({ recipientId: targetId, guessedZoneId: zoneId, tagId }),
-          () => onDone(`The bird is away to ${recipient?.name ?? "them"}. ‡`),
+          () => onDone(`The bird is away to ${recipient?.name ?? "them"}.`),
         )
       }
     >

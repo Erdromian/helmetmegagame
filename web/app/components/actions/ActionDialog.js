@@ -54,7 +54,7 @@ export default function ActionDialog({
       }
     >
       {loading ? (
-        <p className="text-sm text-muted">Looking… ‡</p>
+        <p className="text-sm text-muted">Looking…</p>
       ) : closeOnly ? (
         <p className="text-sm text-muted">{empty}</p>
       ) : (

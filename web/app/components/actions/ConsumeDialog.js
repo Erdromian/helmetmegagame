@@ -27,7 +27,7 @@ export default function ConsumeDialog({ mode, presets, onDone, onClose }) {
       title="Consume"
       busy={busy}
       error={error}
-      empty={consumable.length === 0 ? "Nothing you're carrying can be used up. ‡" : null}
+      empty={consumable.length === 0 ? "Nothing you're carrying can be used up." : null}
       canSubmit={Boolean(chosen)}
       onClose={onClose}
       onSubmit={() =>

@@ -47,7 +47,7 @@ export default function PackageDialog({ onDone, onClose }) {
       onSubmit={() =>
         submit(
           () => packageItemsRequest({ lines: lines.map((l) => ({ tagId: l.tagId, quantity: String(l.quantity) })), label }),
-          () => onDone(`Packed into a ${crateLbs} lb crate, marked "${label.trim()}". ‡`),
+          () => onDone(`Packed into a ${crateLbs} lb crate, marked "${label.trim()}".`),
         )
       }
     >

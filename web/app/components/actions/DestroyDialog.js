@@ -45,7 +45,7 @@ export default function DestroyDialog({ presets, onDone, onClose }) {
       title="Destroy"
       busy={busy}
       error={error}
-      empty={rows.length === 0 ? "You're carrying nothing you could destroy. ‡" : null}
+      empty={rows.length === 0 ? "You're carrying nothing you could destroy." : null}
       canSubmit={Boolean(chosen)}
       onClose={onClose}
       onSubmit={onSubmit}

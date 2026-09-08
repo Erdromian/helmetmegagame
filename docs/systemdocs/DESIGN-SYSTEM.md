@@ -182,7 +182,7 @@ an error. Each now has one component.
 |---|---|---|
 | A boolean | `CheckField` (a row is selected) or `Switch` (a setting is on) | A bare `<input type="checkbox">` in a hand-rolled `<label>` |
 | A dialog | `Modal`, or `useConfirm()` / `RequestDialog` on top of it; a player action's dialog is `ActionDialog` (`components/actions/`) | `.modal-overlay` markup of your own |
-| What just happened | `useNotice()` — one sentence, ‡-marked, from the server's `line` or `actions/noticeLines.js` | A dialog that just closes, or a `router.refresh()` as the only signal |
+| What just happened | `useNotice()` — one sentence,-marked, from the server's `line` or `actions/noticeLines.js` | A dialog that just closes, or a `router.refresh()` as the only signal |
 | A state | `StatusPill` with a **tone**, or `EnumPill` for a DB enum | A raw enum, or a colour picked at the call site |
 | Nothing here | `EmptyState`, or `EmptyRow` in a table | A bespoke `<p className="text-muted">` |
 | In flight / failed | `SubmitButton` and `FormError` | A `<form action>` with no pending state |
@@ -430,7 +430,7 @@ owns its own fields, its own `useConfirm`, its own submit (`useSubmit.js`) and
 its own roster read (`useRoster.js`, which replaced the whole-page
 `router.refresh()` that used to fire on every open). It renders exactly one
 `ActionDialog`, which is `RequestDialog` plus the two states the old inline
-bodies got wrong: `loading` ("Looking… ‡", Confirm off) and `empty` (the
+bodies got wrong: `loading` ("Looking…", Confirm off) and `empty` (the
 sentence and a lone Close — never a disabled Confirm under "Nobody here is
 bound."). A dialog never raises a notice itself: it calls `onDone(line)` and
 the provider says it, so every success reads the same way.

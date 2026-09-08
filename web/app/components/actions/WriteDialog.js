@@ -57,7 +57,7 @@ export default function WriteDialog({ onDone, onClose }) {
       onSubmit={() =>
         submit(
           () => writePaper({ tagId: paperId, text: body, title }),
-          (res) => onDone(book ? `${res.name ?? "The book"} is written and bound. ‡` : `Written on ${res.name ?? "the sheet"}. ‡`),
+          (res) => onDone(book ? `${res.name ?? "The book"} is written and bound.` : `Written on ${res.name ?? "the sheet"}.`),
         )
       }
     >
@@ -71,7 +71,7 @@ export default function WriteDialog({ onDone, onClose }) {
         value={paperId}
         onChange={choose}
       />
-      {reading && <p className="text-xs text-muted">Reading… ‡</p>}
+      {reading && <p className="text-xs text-muted">Reading…</p>}
       {/* Read-only, always. You can always write more; you can never take
           anything back off a sheet. */}
       {existing && (

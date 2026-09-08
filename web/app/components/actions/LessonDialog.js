@@ -90,7 +90,7 @@ export default function LessonDialog({ mode, onDone, onClose }) {
           options={choices.map((t) => ({ id: t.id, label: t.name }))}
           value={tagId}
           onChange={setTagId}
-          emptyLabel="Nothing to pass on. ‡"
+          emptyLabel="Nothing to pass on."
         />
       )}
       {pools.hasMoved && (mode === "confess" || !pools.canTeach) && (

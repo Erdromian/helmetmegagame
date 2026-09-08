@@ -161,14 +161,14 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
   function onSubmit() {
     const what = whatMoved();
     const line = fromPerson
-      ? `Took ${what} off ${nameOf(fromKey)}. ‡`
+      ? `Took ${what} off ${nameOf(fromKey)}.`
       : fromSelf
         ? toKey.startsWith("room:")
-          ? `Left ${what} in ${nameOf(toKey)}. ‡`
-          : `Gave ${nameOf(toKey)} ${what}. ‡`
+          ? `Left ${what} in ${nameOf(toKey)}.`
+          : `Gave ${nameOf(toKey)} ${what}.`
         : toSelf
-          ? `Took ${what} from ${nameOf(fromKey)}. ‡`
-          : `Moved ${what} from ${nameOf(fromKey)} to ${nameOf(toKey)}. ‡`;
+          ? `Took ${what} from ${nameOf(fromKey)}.`
+          : `Moved ${what} from ${nameOf(fromKey)} to ${nameOf(toKey)}.`;
     const tags = lines.map((l) => ({ tagId: l.tagId, quantity: String(l.quantity) }));
     submit(
       () =>
@@ -206,7 +206,7 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
           if (key.startsWith("character:") && key !== selfKey) setToKey(selfKey);
           else if (toKey === key) setToKey("");
         }}
-        emptyLabel="Nothing here to take from. ‡"
+        emptyLabel="Nothing here to take from."
       />
       {fromKey && (
         <ChipPicker
@@ -214,7 +214,7 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
           options={destinations}
           value={toKey}
           onChange={setToKey}
-          emptyLabel="Nobody here to give it to. ‡"
+          emptyLabel="Nobody here to give it to."
         />
       )}
       {sameParty && <p className="text-xs text-accent">Source and recipient are the same.</p>}

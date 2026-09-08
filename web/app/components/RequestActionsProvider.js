@@ -291,7 +291,7 @@ export default function RequestActionsProvider({
               : null,
           });
         } catch {
-          notice({ text: "Could not reach the server. Nothing was changed. ‡", tone: "bad" });
+          notice({ text: "Could not reach the server. Nothing was changed.", tone: "bad" });
         } finally {
           setBusy(null);
         }

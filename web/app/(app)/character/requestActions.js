@@ -4528,7 +4528,7 @@ async function extractGodfleshRequestImpl() {
     die: result.die,
     quantity: result.quantity,
     injury: injury?.name ?? null,
-    line: `You went out into the marsh and cut. The die came up ${result.die}: ${got}.${hurt} ‡`,
+    line: `You went out into the marsh and cut. The die came up ${result.die}: ${got}.${hurt}`,
   };
 }
 

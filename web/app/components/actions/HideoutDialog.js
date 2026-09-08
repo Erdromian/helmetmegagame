@@ -21,7 +21,7 @@ export default function HideoutDialog({ mode, onDone, onClose }) {
       title="Set Hideout"
       busy={busy}
       error={error}
-      empty={rooms.length === 0 ? "There’s no room here you could use. ‡" : null}
+      empty={rooms.length === 0 ? "There’s no room here you could use." : null}
       canSubmit={Boolean(roomId)}
       onClose={onClose}
       onSubmit={() =>

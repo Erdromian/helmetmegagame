@@ -67,7 +67,7 @@ export default function MutilateDialog({ mode, onDone, onClose }) {
       busy={busy}
       error={error}
       loading={loading && none}
-      empty={!loading && none ? "There’s nobody here you could do that to. ‡" : null}
+      empty={!loading && none ? "There’s nobody here you could do that to." : null}
       canSubmit={Boolean(subjectKey && part)}
       onClose={onClose}
       onSubmit={onSubmit}

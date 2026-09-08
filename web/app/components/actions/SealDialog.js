@@ -28,7 +28,7 @@ export default function SealDialog({ onDone, onClose }) {
       onSubmit={() =>
         submit(
           () => sealLetter({ tagId, stampTagId: stampId }),
-          (res) => onDone(`${res.name ?? "The letter"} is sealed. ‡`),
+          (res) => onDone(`${res.name ?? "The letter"} is sealed.`),
         )
       }
     >

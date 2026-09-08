@@ -58,7 +58,7 @@ export default function HealDialog({ mode, presets, onDone, onClose }) {
       (res) =>
         onDone(
           res.gambit
-            ? `${self ? "Your" : `${patient.name}'s`} ${affliction.tagName} is a Gambit — you'll both know at the end of the turn. ‡`
+            ? `${self ? "Your" : `${patient.name}'s`} ${affliction.tagName} is a Gambit — you'll both know at the end of the turn.`
             : noticeLine(mode, res, { name: self ? "You" : patient.name, self }),
         ),
     );
@@ -71,7 +71,7 @@ export default function HealDialog({ mode, presets, onDone, onClose }) {
       busy={busy}
       error={error}
       loading={loading && targets.length === 0}
-      empty={!loading && targets.length === 0 ? "Nobody here needs treating. ‡" : null}
+      empty={!loading && targets.length === 0 ? "Nobody here needs treating." : null}
       canSubmit={Boolean(patient && affliction && payerKey)}
       onClose={onClose}
       onSubmit={onSubmit}
@@ -91,7 +91,7 @@ export default function HealDialog({ mode, presets, onDone, onClose }) {
           options={patient.healable.map((h) => ({ id: h.tagId, label: h.tagName, note: h.gambit ? "Gambit" : null }))}
           value={tagId}
           onChange={setTagId}
-          emptyLabel="Nothing on them you could treat. ‡"
+          emptyLabel="Nothing on them you could treat."
         />
       )}
       {affliction && (

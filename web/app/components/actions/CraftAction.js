@@ -355,12 +355,12 @@ export default function CraftAction({ presets, onDone, onClose }) {
       (res) =>
         onDone(
           giving
-            ? "The work is given up. ‡"
+            ? "The work is given up."
             : working
-              ? "Another turn goes into it. ‡"
+              ? "Another turn goes into it."
               : res.made
-                ? `${res.made} made. ‡`
-                : `${chosen?.name ?? "The work"} is begun. ‡`,
+                ? `${res.made} made.`
+                : `${chosen?.name ?? "The work"} is begun.`,
         ),
     );
   }

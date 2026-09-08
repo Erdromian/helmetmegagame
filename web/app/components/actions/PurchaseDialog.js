@@ -35,7 +35,7 @@ export default function PurchaseDialog({ mode, onDone, onClose }) {
       width="wide"
       busy={busy}
       error={error}
-      empty={rows.length === 0 ? "The shelf is bare. ‡" : null}
+      empty={rows.length === 0 ? "The shelf is bare." : null}
       canSubmit={lines.length > 0 && total <= funds}
       onClose={onClose}
       onSubmit={() =>
@@ -67,7 +67,7 @@ export default function PurchaseDialog({ mode, onDone, onClose }) {
       </div>
       <p className="text-xs text-muted">
         Floor: {stock?.room?.obols ?? 0} ¢ · {stock?.room?.resources ?? 0} ⬢. You: {stock?.self?.obols ?? 0} ¢ ·{" "}
-        {stock?.self?.resources ?? 0} ⬢. Whatever you pick first pays until it runs out, then the rest covers it. ‡
+        {stock?.self?.resources ?? 0} ⬢. Whatever you pick first pays until it runs out, then the rest covers it.
       </p>
       <StackPicker rows={rows} picks={picks} onChange={setPicks} />
       <div className="flex justify-end">
