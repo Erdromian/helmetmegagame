@@ -2,6 +2,7 @@
   "image": "docs/assets/map-prototype.png",
   "width": 2144,
   "height": 1792,
+  "note": "Node centres in image pixels. Surface nodes sit on the drawn art; caves and depths are a schematic layer, since the plate no longer draws the tunnels.",
   "nodes": {
     "cathedral": {
       "name": "Cathedral",
@@ -36,8 +37,8 @@
     "customs": {
       "name": "Customs",
       "zone": "caves",
-      "x": 804,
-      "y": 1275
+      "x": 616,
+      "y": 1287
     },
     "depths-chasm": {
       "name": "Chasm",
@@ -168,8 +169,8 @@
     "gatehouse": {
       "name": "Gatehouse",
       "zone": "fortress",
-      "x": 709,
-      "y": 136
+      "x": 740,
+      "y": 145
     },
     "hills-cliffs": {
       "name": "Cliffs",
@@ -241,7 +242,7 @@
       "name": "Manors",
       "zone": "fortress",
       "x": 830,
-      "y": 335
+      "y": 368
     },
     "marshes-duckboards": {
       "name": "Duckboards",
@@ -294,8 +295,8 @@
     "road": {
       "name": "Road",
       "zone": "fortress",
-      "x": 827,
-      "y": 157
+      "x": 800,
+      "y": 275
     },
     "sanctuary": {
       "name": "Sanctuary",
@@ -333,6 +334,5 @@
       "x": 725,
       "y": 691
     }
-  },
-  "note": "Node centres in image pixels. Surface nodes sit on the drawn art; caves and depths are a schematic layer, since the plate no longer draws the tunnels."
+  }
 }
