@@ -8,9 +8,10 @@ import { auth } from "@/lib/auth";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import PlayView from "./PlayView";
-import Loading from "./loading";
+import Loading from "./Skeleton";
 import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
 import { whosHere, hoodToken } from "@lifeweb/db/lib/whosHere";
+import { loadMentionDirectory } from "@/lib/mentionDirectory";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import { carryStatus } from "@lifeweb/db/lib/carry";
@@ -301,6 +302,12 @@ async function FreshPlay({ userId }) {
     avatarPath: person.avatarPath ?? null,
   }));
 
+  // And the wider list a token RESOLVES against, which is not the same
+  // question — see web/lib/mentionDirectory.js. A ping arriving from Discord
+  // can name anybody in the guild, so the roster above could never resolve
+  // half of them and the line printed a raw cuid instead of a person.
+  const mentionDirectory = await loadMentionDirectory();
+
   const chat = {
     initialPlaces: places,
     initialPlace: first.placeKey,
@@ -397,7 +404,7 @@ async function FreshPlay({ userId }) {
     <SnapshotFresh
       scope="play"
       userId={userId}
-      data={{ kind: "chat", chat, providers, roster: mentionRoster }}
+      data={{ kind: "chat", chat, providers, roster: mentionRoster, mentionDirectory }}
     />
   );
 }

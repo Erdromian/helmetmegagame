@@ -1,7 +1,6 @@
 "use client";
 
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
-import FactionLink from "./FactionLink";
 import RichText from "./RichText";
 import { ThisTurn, carryCapTitle } from "./statusBits";
 
@@ -67,15 +66,11 @@ export default function LedgerBand({
               }}
             />
           )}
+          {/* The name, the role and the faction used to be repeated here. They
+              are the page's header now (ledger/layout.js), and saying them
+              twice, 40px apart, only made the band look like a second title.
+              Where you STAND is not up there, so it stays. */}
           <div className="min-w-0">
-            <h1 className="m-0">{character.name}</h1>
-            <p className="m-0 text-sm text-muted">
-              {character.roleTitle ?? "No role"} —{" "}
-              <FactionLink
-                factionId={character.factionId}
-                name={character.faction?.name ?? "No faction"}
-              />
-            </p>
             <p className="m-0 text-sm text-muted">
               {character.zone?.name ?? "Unassigned"} · {character.location?.name ?? "Nowhere"}
               {travellingTo ? (

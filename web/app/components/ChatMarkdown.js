@@ -19,14 +19,20 @@ import { useCharacterMentions } from "./CharacterMentionsProvider";
 // plugin rather than a string pass: a mention inside a spoiler inside a quote
 // has to still be a mention.
 
-// A {char:<id>} in a feed row. The roster comes from
-// CharacterMentionsProvider, mounted on /play with exactly the people standing
-// where the reader stands — so a mention of somebody who has since walked off
-// falls back to literal text rather than naming them to a room they left.
-function CharMention({ payload, raw }) {
+// A {char:<id>} in a feed row. The map comes from CharacterMentionsProvider,
+// which /play now fills from two lists: the people standing here, and the
+// wider directory of everybody whose name is safe to print
+// (web/lib/mentionDirectory.js). It used to be the first list alone, so a ping
+// arriving from Discord — where anybody can mention anybody's name role —
+// resolved to nothing and the line printed the raw `{char:<cuid>}`.
+//
+// A miss now means somebody behind a mask, or a character since gone. Either
+// way it draws a person-shaped blank, because a cuid in braces is not a
+// visible unresolved reference, it is a line that looks broken.
+function CharMention({ payload }) {
   const mentionsById = useCharacterMentions();
   const character = mentionsById.get(payload.trim());
-  if (!character) return raw;
+  if (!character) return <span className="chat-mention chat-mention--unknown">someone</span>;
   return (
     <span className="chat-mention">
       <CharacterAvatar
@@ -46,7 +52,7 @@ function CharMention({ payload, raw }) {
 // unresolved token falls back to its literal text, the contract richTokens.js
 // states for every kind.
 function ChatTokenRenderer({ kind, payload, raw }) {
-  if (kind === "char") return <CharMention payload={payload} raw={raw} />;
+  if (kind === "char") return <CharMention payload={payload} />;
   if (kind === "info") return <InfoIcon text={payload.trim()} />;
   if (kind === "cmd") return <code className="cmd-chip">/{payload.trim()}</code>;
   return raw;

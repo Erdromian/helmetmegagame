@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { getDevTier } from "@/lib/devAccess";
 import { isUnaffiliated } from "@lifeweb/db/lib/factionConstants";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
+import AppHeader from "@/app/components/AppHeader";
 import DevSubNav from "../DevSubNav";
 import FactionsTable from "./FactionsTable";
 
@@ -81,9 +82,9 @@ export default async function DevFactionsPage() {
   }));
 
   return (
-    <PageShell>
-      <PageHeader title={`Factions (${factions.length})`} actions={<DevSubNav current="factions" />} />
-
+    <>
+      <AppHeader title={`Factions (${factions.length})`} actions={<DevSubNav current="factions" />} />
+      <PageShell>
       <FactionsTable
         rows={rows}
         rooms={rooms}
@@ -91,6 +92,7 @@ export default async function DevFactionsPage() {
         applications={applications}
         canDelete={tier === "super"}
       />
-    </PageShell>
+      </PageShell>
+    </>
   );
 }

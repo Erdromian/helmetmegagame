@@ -4,7 +4,8 @@ import { factsLine, rosterLine } from "@lifeweb/db/lib/epilogue";
 import { formatAntagonistLines } from "@lifeweb/db/lib/objectives";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
+import AppHeader from "@/app/components/AppHeader";
 import Pager from "@/app/components/Pager";
 import Select from "@/app/components/Select";
 import ArchiveTranscript from "./ArchiveTranscript";
@@ -123,10 +124,9 @@ export default async function ArchivePage({ searchParams }) {
   const revealHidden = isCurrent && !gm && state?.phase !== "ENDED";
   const epilogue = revealHidden ? null : (game.epilogue ?? null);
   return (
-    <PageShell width="wide">
-      <PageHeader
-        title={`Archive · Game ${game.number}`}
-      />
+    <>
+      <AppHeader title={`Archive · Game ${game.number}`} />
+      <PageShell width="wide">
 
       {epilogue ? (
         <section className="panel flex flex-col gap-3 p-4">
@@ -224,6 +224,7 @@ export default async function ArchivePage({ searchParams }) {
         prevHref={pageHref(page - 1)}
         nextHref={pageHref(page + 1)}
       />
-    </PageShell>
+      </PageShell>
+    </>
   );
 }

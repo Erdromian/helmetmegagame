@@ -79,7 +79,7 @@ import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import CharacterView from "./CharacterView";
-import Loading from "./loading";
+import Loading from "./Skeleton";
 
 // Everything the creation wizard needs, shaped as the Zone -> Faction -> Role
 // tree it renders. Seat counts are computed here, not the client, so the
@@ -301,6 +301,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
           intro: r.intro,
           factionName: r.factionName,
           grantsLeader: r.grantsLeader,
+          requiresWhitelist: r.requiresWhitelist,
           whitelistBlocked: r.whitelistBlocked,
         })),
       }));

@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { getDevTier } from "@/lib/devAccess";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
+import AppHeader from "@/app/components/AppHeader";
 import DevSubNav from "../DevSubNav";
 import CharactersTable from "./CharactersTable";
 
@@ -30,10 +31,11 @@ export default async function DevCharactersPage() {
   }));
 
   return (
-    <PageShell>
-      <PageHeader title={`Characters (${characters.length})`} actions={<DevSubNav current="characters" />} />
-
+    <>
+      <AppHeader title={`Characters (${characters.length})`} actions={<DevSubNav current="characters" />} />
+      <PageShell>
       <CharactersTable rows={rows} />
-    </PageShell>
+      </PageShell>
+    </>
   );
 }

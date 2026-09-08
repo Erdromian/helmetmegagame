@@ -6,9 +6,9 @@ import { GM_NAV } from "@/lib/navItems";
 
 // The full-viewport route group: pages here own their whole screen, no
 // PageShell/centred max-width, because they're workspaces (DESIGN-SYSTEM.md's
-// sanctioned deviation). They get the nav rail, but no TurnChip — it's fixed
-// bottom-right and would land on the adjudication desk's staging tray; both
-// desks show the turn in their own header instead.
+// sanctioned deviation). They get the nav rail, and each desk draws its own
+// DeskHeader with the turn in it — which is now what every page in the app
+// does (components/AppHeader.js), so this is no longer the exception it was.
 //
 // The URL space is shared with (app): a path lives in one group or the
 // other, never both. Gated GM-only here so pages don't repeat the redirect;

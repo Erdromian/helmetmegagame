@@ -5,43 +5,16 @@ import RequestActionsProvider from "./RequestActionsProvider";
 import TagsPanel from "./TagsPanel";
 import CharacterPoller from "./CharacterPoller";
 import RichText from "./RichText";
-import FactionLink from "./FactionLink";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
 
-// The header's avatar, rendered into PageHeader's `actions` slot. A plain
-// image rather than a button — the portrait maker and avatar upload live in
-// the Bio panel below, not up here.
-function Avatar({ avatarSrc, name }) {
-  return avatarSrc ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={avatarSrc}
-      alt={name}
-      className="h-16 w-16 object-cover"
-      style={{
-        borderRadius: "var(--radius)",
-        border: "1px solid var(--border)",
-      }}
-    />
-  ) : (
-    <div
-      aria-hidden="true"
-      className="h-16 w-16"
-      style={{
-        background: "var(--field-bg)",
-        borderRadius: "var(--radius)",
-        border: "1px solid var(--border)",
-      }}
-    />
-  );
-}
 
 export default function CharacterSheet({
   character,
   mode,
   currentAction,
   openTurn,
-  avatarSrc,
+  // avatarSrc is still in the shared prop bag for CharacterLedger's band; the
+  // sheet's own face moved to the page header (character/layout.js).
   transferParties,
   transferSilo,
   carry = null,
@@ -156,20 +129,10 @@ export default function CharacterSheet({
   const isSelf = mode === "self";
 
   return (
+    // No header here. The name, the role, the faction and the face are the
+    // bar at the top of the page now, drawn by (app)/character/layout.js so
+    // this page starts at the same height as every other one.
     <PageShell width="wide">
-      <PageHeader
-        title={character.name}
-        subtitle={
-          <>
-            {character.roleTitle ?? "No role"} —{" "}
-            <FactionLink
-              factionId={character.factionId}
-              name={character.faction?.name ?? "No faction"}
-            />
-          </>
-        }
-        actions={<Avatar avatarSrc={avatarSrc} name={character.name} />}
-      />
 
       {/* Two real columns, not panels flowed by guessed height. The left
           column is the wide working column — tags/equipment first (what a

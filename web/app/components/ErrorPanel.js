@@ -9,16 +9,19 @@
 // makes the container logs searchable. Hiding it would leave them with
 // nothing to report.
 
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
+import DeskHeader from "@/app/components/DeskHeader";
 
+// DeskHeader rather than AppHeader: AppHeader streams the turn chip in, and a
+// boundary that is already here because a query failed has no business firing
+// another one. Same bar, same height, no fetch.
 export default function ErrorPanel({ error, retry, title = "Something went wrong" }) {
   return (
-    <PageShell width="narrow">
-      <PageHeader
-        title={title}
-        subtitle="That page didn't load."
-      />
+    <>
+      <DeskHeader title={title} />
+      <PageShell width="narrow">
       <div className="panel flex flex-col items-start gap-4 p-4">
+        <p className="text-sm text-muted">That page didn&apos;t load.</p>
         <p className="text-sm text-muted">
           If it keeps happening, tell a GM. Give them the reference below:
         </p>
@@ -31,6 +34,7 @@ export default function ErrorPanel({ error, retry, title = "Something went wrong
           Try again
         </button>
       </div>
-    </PageShell>
+      </PageShell>
+    </>
   );
 }

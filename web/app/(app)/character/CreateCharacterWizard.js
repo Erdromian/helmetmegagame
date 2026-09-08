@@ -15,7 +15,7 @@ import {
   negativeTagCount,
   negativeTagPoints,
 } from "@/lib/characterCreation";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
 import InfoIcon from "@/app/components/InfoIcon";
 import Tooltip from "@/app/components/Tooltip";
 import Select from "@/app/components/Select";
@@ -382,7 +382,7 @@ export default function CreateCharacterWizard({
 
   return (
     <PageShell>
-      <PageHeader title="Create Your Character" />
+      <h2 className="section-title">Create Your Character</h2>
       <StepBar step={step} />
 
       {lockedRole && role && (

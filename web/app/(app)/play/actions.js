@@ -1649,8 +1649,19 @@ export async function shoutHere(text, placeKey = null) {
   //
   // `result.here` rather than a distance-0 entry out of `heard`: a soundproof
   // room empties `heard`, and this post is then the whole of the delivery.
+  // Everything from here down is DELIVERY. The shout itself has already
+  // happened — shout() claimed the cooldown and settled who heard it — so
+  // nothing below may throw its way back to the caller. It used to: only the
+  // postMessage calls were guarded, so a sceneLine that failed on the ninth of
+  // twenty-nine places turned an already-committed shout into a rejected
+  // promise, which the composer read as "it didn't send" and left the words
+  // sitting in the box. One audience short is not a failed shout.
   if (inThread) {
-    await sceneLine(prisma, { placeKey, text: result.here.scene.text, lines: result.here.scene.lines });
+    try {
+      await sceneLine(prisma, { placeKey, text: result.here.scene.text, lines: result.here.scene.lines });
+    } catch (err) {
+      console.error(`Shout row for ${placeKey} failed:`, err?.message ?? err);
+    }
     try {
       const target = await discordTargetForPlaceKey(prisma, placeKey);
       const channelId = target?.threadId ?? target?.channelId ?? null;
@@ -1662,9 +1673,14 @@ export async function shoutHere(text, placeKey = null) {
   }
 
   for (const place of result.heard) {
-    // The row first: it is what Chat shows and what /archive keeps, and
-    // it is the only half a web-only player ever sees.
-    await sceneLine(prisma, { placeKey: place.placeKey, text: place.scene.text, lines: place.scene.lines });
+    try {
+      // The row first: it is what Chat shows and what /archive keeps, and
+      // it is the only half a web-only player ever sees.
+      await sceneLine(prisma, { placeKey: place.placeKey, text: place.scene.text, lines: place.scene.lines });
+    } catch (err) {
+      console.error(`Shout row for ${place.name} failed:`, err?.message ?? err);
+      continue;
+    }
     if (!place.discordChannelId) continue;
     try {
       // parse: [] — no mentions at all. The text is player-typed and this is

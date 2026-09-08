@@ -4,7 +4,6 @@ import { CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRefresh } from "@/app/components/useRefresh";
-import { PageHeader } from "@/app/components/PageShell";
 import FactionLink from "@/app/components/FactionLink";
 import TagPointsValue from "@/app/components/TagPointsValue";
 import Modal from "@/app/components/Modal";

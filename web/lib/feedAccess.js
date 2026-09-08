@@ -1,3 +1,4 @@
+import { cache } from "react";
 import "server-only";
 import { prisma } from "@lifeweb/db";
 import { placesFor as placesForCharacter, findPlace, mayReadPlace, mayWritePlace } from "@lifeweb/db/lib/feedAccess";
@@ -161,7 +162,10 @@ export async function loadFeedCharacter(discordUserId) {
 // alternative is a GM who cannot use their own sheet.
 //
 // `options` is what every db/lib/feedAccess.js call needs: `{ gm, discordUserId }`.
-export async function loadFeedViewer() {
+// cache()d because every page's header asks for it now (AppHeader -> TurnMeta)
+// and /play asks again for its own load. One small indexed lookup either way,
+// but there is no reason for a page to run it twice in a request.
+export const loadFeedViewer = cache(async () => {
   const { session, isGm } = await getGmSession();
   if (!session?.discordUserId) return { discordUserId: null, character: null, gm: false, options: null };
 
@@ -173,4 +177,4 @@ export async function loadFeedViewer() {
     gm,
     options: { gm, discordUserId: session.discordUserId },
   };
-}
+});

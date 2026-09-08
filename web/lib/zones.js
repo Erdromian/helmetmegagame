@@ -70,10 +70,19 @@ export function sortZones(zones) {
 // `visibleZoneNames` null means every zone — see web/lib/gmZoneView.js. Rows
 // carry `factionZoneName` on every desk, which is the SEAT zone (the zone
 // their faction answers to), not where they happen to be standing.
+//
+// A row that knows where it PHYSICALLY happened says so in `zoneName`, and
+// that wins. Only the Caving lens carries one: a roll in the Caves by somebody
+// seated in the Marshes belongs to the Caves GM, and gating it on the seat put
+// it in front of the wrong person and hid it from the right one. A Move row
+// has no `zoneName` and keeps the seat rule untouched.
 export function inVisibleZones(rows, visibleZoneNames) {
   if (!visibleZoneNames) return rows ?? [];
   const allowed = new Set(visibleZoneNames);
-  // A row whose faction has no zone stays visible to everyone. Better seen
-  // twice than by nobody.
-  return (rows ?? []).filter((r) => !r.factionZoneName || allowed.has(r.factionZoneName));
+  // A row with no zone at all stays visible to everyone. Better seen twice
+  // than by nobody.
+  return (rows ?? []).filter((r) => {
+    const zone = r.zoneName || r.factionZoneName;
+    return !zone || allowed.has(zone);
+  });
 }

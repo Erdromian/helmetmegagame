@@ -29,28 +29,11 @@ export default function PageShell({ width = "default", children }) {
   );
 }
 
-// `actions` is the slot several pages were already improvising — a button or
-// link that belongs beside the title rather than floating in the body.
-export function PageHeader({ title, subtitle, actions }) {
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      {/* min-w-0 on both halves: without it an intrinsically-sized control in
-          `actions` (a <select> as wide as its longest option, say) refuses to
-          shrink and pushes the page sideways instead of wrapping. */}
-      <div className="min-w-0">
-        <h1 className="text-2xl font-bold">{title}</h1>
-        {subtitle && (
-          <p className="mt-1 text-sm text-muted">
-            {subtitle}
-          </p>
-        )}
-      </div>
-      {actions && (
-        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">{actions}</div>
-      )}
-    </div>
-  );
-}
+// PageHeader used to live here — a `text-2xl font-bold` heading INSIDE this
+// centred column, which is what made every page start at a different height
+// from the desks and from Chat. It is gone; the one header is
+// components/AppHeader.js, drawn full-bleed ABOVE this shell. If you are
+// looking for where a page's title went, that is where.
 
 // A shaped placeholder bar. Deliberately not text: a skeleton's job is to
 // reserve the space the real content will occupy, so the layout doesn't jump
@@ -64,16 +47,34 @@ export function SkeletonBar({ width = "100%", height = 12 }) {
   );
 }
 
-// The whole of a loading.js. Every skeleton is built from the same PageShell +
-// PageHeader as its page, so the two cannot disagree about width or title —
-// which they did, everywhere: notes/page.js was max-w-3xl while
-// notes/loading.js was max-w-5xl, so every navigation visibly re-flowed.
+// A page-shaped skeleton, built from the same PageShell + PageHeader as the
+// page it stands in for, so the two cannot disagree about width or title.
+//
+// These used to be route-level `loading.js` files, and are not any more.
+// A loading.js wraps its segment in Suspense, which means the router swaps to
+// the skeleton the instant you click and the page you were reading vanishes
+// before the next one exists. Discord does the opposite — it holds the screen
+// you are on until the next one is ready — and that is what this app does now,
+// so there is no route-level loading.js anywhere.
+//
+// What survives is the same component under a different name (Skeleton.js),
+// used as a Suspense fallback INSIDE a page: the snapshot pages render a
+// stored copy first and stream the fresh one in behind it, and this is what
+// they show the very first time, when there is no stored copy yet.
 //
 // Pass the page's real title and roughly the panel shape it lands in.
+// Deliberately draws NO header, and `title` is ignored — kept in the signature
+// only so the dozen call sites still read as "the skeleton for the Notes page".
+//
+// The header is the route's now, drawn by a layout (or by the server page)
+// ABOVE the Suspense boundary this fallback sits inside. It is therefore
+// already on screen while this renders, and a header in here would stack a
+// second bar under the real one for as long as the fallback showed — the same
+// double-header play/Skeleton.js has a comment about avoiding.
 export function SkeletonPage({ width, title, panels = [[70, 100, 45]] }) {
+  void title;
   return (
     <PageShell width={width}>
-      <PageHeader title={title} />
       {panels.map((bars, i) => (
         <div key={i} className="panel animate-pulse p-4">
           <div className="flex flex-col gap-3">

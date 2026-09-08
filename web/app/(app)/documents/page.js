@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import DocumentsView from "./DocumentsView";
-import Loading from "./loading";
+import Loading from "./Skeleton";
 import { auth } from "@/lib/auth";
 import { DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
 import { prisma, startingTagSlugs as parseStartingTagSlugs } from "@lifeweb/db";

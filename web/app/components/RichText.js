@@ -40,13 +40,19 @@ function DocumentToken({ payload, fallback }) {
 }
 
 // Payload is a Character.id. The lookup map comes from
-// CharacterMentionsProvider, mounted only by /notes — its default is an
-// empty Map, so a {char:…} anywhere else in the app just falls back to
-// literal text like any other unresolved reference.
-function CharToken({ payload, fallback }) {
+// CharacterMentionsProvider; its default is an empty Map, so a {char:…} on a
+// page that mounts no provider still has to render as SOMETHING.
+//
+// That something is not the raw token. Every other kind falls back to its own
+// literal text and that reads fine — `{tag:iron-hauberk}` still says what was
+// meant. A character id does not: `{char:cmtt1148600jgql0pyydw04pn}` is not a
+// visible unresolved reference, it is a line that looks broken. So a miss
+// draws a person-shaped blank instead, which is also the right answer for
+// somebody behind a mask, whose name is the one thing we must not print.
+function CharToken({ payload }) {
   const mentionsById = useCharacterMentions();
   const character = mentionsById.get(payload.trim());
-  if (!character) return fallback;
+  if (!character) return <span className="chat-mention chat-mention--unknown">someone</span>;
   return (
     <span className="inline-flex items-center gap-1 align-middle">
       <CharacterAvatar
