@@ -549,7 +549,7 @@ zones:
       servant-wing:
         name: Servant Wing
         description: >-
-          Where the fortress actually runs from: laundries, sculleries, a back stair that reaches every floor without passing a single door the nobility use. The people here know more about the Keep than anyone in it, and are paid partly in the understanding that they will not say so. ‡
+          Steam puffs from the electric heatvents, choking the tight passages. Kitchens and other rooms provide a respite where the servants gather to work. Their quarters are just closets with stacked cots.
         rooms:
           servants-storehouse:
             name: Storehouse
