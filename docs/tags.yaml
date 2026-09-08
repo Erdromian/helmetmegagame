@@ -11388,7 +11388,10 @@ tags:
     equipLayer: 2
     melee: 0.65
     ballistic: 0.75
-    visible: worn
+    # `true`, not `worn`, and the description is the reason: the plain robes
+    # only show when somebody is wearing them, but these glow, so an inspection
+    # finds them in a sack too.
+    visible: true
     removable: false
     purchasable: false
     purchasableAfterStart: false

@@ -1421,7 +1421,7 @@ export default function RequestActionsProvider({
       case "hideout":
         return Boolean(hideoutRoomId);
       case "purchase":
-        return gearLines.length > 0 && gearTotal <= gearPurse;
+        return gearLines.length > 0 && gearTotal <= gearFunds;
       case "arm":
       case "disarm":
         return hasDevice;
