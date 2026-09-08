@@ -15,13 +15,18 @@
 //   weapon         a weapon stack on this floor, picked at random.
 //
 // Per-rite constraints live here too — Conversion skips the Pious and the
-// already converted, Judgement refuses a Pious target or one on hallowed
-// ground — so a rite that cannot work never fires and never eats its floor.
+// already converted, Judgement and Madness refuse a Pious target or one on
+// hallowed ground, Fulfillment wants the leader in the room and only fires
+// once a game, Ascension refuses while the world is already ending — so a rite
+// that cannot work never fires and never eats its floor. That last part is the
+// whole reason they live up here: the sweep consumes the floor BEFORE it runs
+// the handler, so a refusal from inside an effect would already have swallowed
+// the ingredients.
 //
 // Takes `db` as a parameter, the db/lib/dm.js convention.
 const { floorIngredients } = require("./rites");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
-const { THANATI_SLUG } = require("./thanati");
+const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
 
 const BOUND_SLUG = "bound";
 const PIOUS_SLUG = "pious";
@@ -213,6 +218,34 @@ async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
       ? await db.location.findUnique({ where: { id: t.locationId }, select: { slug: true } })
       : null;
     if (slugs.has(PIOUS_SLUG) || onHallowedGround(at)) missing.push("target");
+  }
+
+  // Fulfillment and Ascension have conditions the floor cannot express, and
+  // they are checked HERE rather than in the handler for one reason: the
+  // sweep eats the floor before it runs the handler. A refusal upstairs
+  // rearms the attempt and costs nothing; a refusal downstairs would have
+  // swallowed a sceptre, a mitre and 250 ⬢ for no effect.
+  if (rite.key === "fulfillment" || rite.key === "ascension") {
+    const state = await db.gameState.findUnique({
+      where: { id: 1 },
+      select: { fulfillmentFiredAt: true, ascensionArmedTurn: true, ascensionFiredTurn: true },
+    });
+    if (rite.key === "fulfillment") {
+      // "You may only perform this rite once, and your leader must be
+      // present!" The leader may walk in later, so a missing one is a rearm
+      // and not a failure.
+      if (state?.fulfillmentFiredAt != null) missing.push("already-performed");
+      const leaders = await db.character.count({
+        where: {
+          id: { in: participants.map((p) => p.characterId) },
+          tags: { some: { quantity: { gt: 0 }, tag: { slug: THANATI_LEADER_SLUG } } },
+        },
+      });
+      if (leaders === 0) missing.push("leader");
+    } else if (state?.ascensionArmedTurn != null || state?.ascensionFiredTurn != null) {
+      // The world can only end once, and it is already ending.
+      missing.push("already-running");
+    }
   }
 
   return { ok: missing.length === 0, missing, resolved };

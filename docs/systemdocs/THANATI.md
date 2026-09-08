@@ -200,9 +200,12 @@ is stamped (never cleared), every `#summary` hears the hellfire line, the game
 ends through `endGameInDb`, and `turnBannerPath` pins `hellfire.jpg` on for
 good. A GM can also call it off from `/gm/dev?s=reports`, beside Defuse.
 
-The Rite of Fulfillment is the only handler that asks the sweep to rearm it —
-`{ rearm: ["leader"] }` — which is safe only because it has no floor
-ingredients, since the floor is eaten before the effect runs.
+Fulfillment's "leader must be present" and "once a game", and Ascension's
+"not while one is already running", are checked in `riteIngredients.js` with
+the Pious and hallowed-ground rules — **not** in the handlers. The sweep eats
+the floor before it runs an effect, so a refusal from inside one would have
+swallowed a sceptre, a mitre and 250 ⬢ for nothing. Upstream it is an ordinary
+rearm and costs the circle only its two minutes.
 
 **The consumption line is universal.** A rite whose only thing to say is "the
 floor is gone" says `INGREDIENTS_CONSUMED` — *The ingredients evaporate into

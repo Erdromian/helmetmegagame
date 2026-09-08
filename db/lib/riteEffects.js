@@ -392,20 +392,11 @@ const EFFECTS = {
     return { result: { maddened: target.name, characterId: target.id } };
   },
 
-  // The cult cashes out. Two guards, both before anything is written.
-  async fulfillment({ db, room, participants }) {
-    // The leader must be standing there. A rearm rather than a fire: they may
-    // walk in later, and the circle should not have to start over.
-    const leaders = await db.character.count({
-      where: {
-        id: { in: participants.map((p) => p.characterId) },
-        tags: { some: { quantity: { gt: 0 }, tag: { slug: THANATI_LEADER_SLUG } } },
-      },
-    });
-    if (leaders === 0) return { rearm: ["leader"], result: { rearmed: ["leader"] } };
-
-    // Once per game, claimed the way the bomb claims its detonation: a guarded
-    // write, so two circles chanting in the same minute cannot both collect.
+  // The cult cashes out. The leader-present and once-a-game rules are checked
+  // in riteIngredients.js, upstream of the floor being eaten; the claim here
+  // is the race guard, so two circles chanting in the same minute cannot both
+  // collect. Claimed the way the bomb claims its detonation.
+  async fulfillment({ db, room }) {
     const { count } = await db.gameState.updateMany({
       where: { id: 1, fulfillmentFiredAt: null },
       data: { fulfillmentFiredAt: new Date() },

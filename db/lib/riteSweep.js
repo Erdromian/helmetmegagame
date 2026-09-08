@@ -93,19 +93,6 @@ async function fireAttempt(db, attempt) {
     outcome = { result: { error: err.message ?? String(err) } };
   }
 
-  // A handler may ask for the rearm itself, for a condition the floor cannot
-  // express — the Rite of Fulfillment wants its leader in the room, and the
-  // leader may walk in later. Only safe for a rite with NO floor ingredients,
-  // because by here the floor is already eaten; the one rite that asks has an
-  // empty list, and a rite that grew one would have to claim differently.
-  if (outcome.rearm) {
-    await db.riteAttempt.update({
-      where: { id: attempt.id },
-      data: { status: "OPEN", readyAt: null, firesAt: null, result: { rearmed: outcome.rearm } },
-    });
-    return { fired: false, rearmed: true };
-  }
-
   await db.riteAttempt.update({
     where: { id: attempt.id },
     data: { status: outcome.awaiting ? "AWAITING" : "FIRED", result: outcome.result ?? null },
