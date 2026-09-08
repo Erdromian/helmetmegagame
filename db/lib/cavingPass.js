@@ -29,6 +29,10 @@ function troubleDm(die) {
   return `Caving Die: ${die} — Something is wrong down here. A GM has been notified.`;
 }
 
+function luredDm(die) {
+  return `Caving Die: ${die} — Something big circled you in the dark, caught the lure's stink, and followed it away instead. The lure is spent. ‡`;
+}
+
 function findDm(die, tagName) {
   return `Caving Die: ${die} — You found something: ${tagName}.`;
 }
@@ -52,6 +56,30 @@ async function rollCaving(prisma, character, turn, location) {
   try {
     return await prisma.$transaction(async (tx) => {
       if (kind !== "FIND") {
+        // A held Musk Lure eats the first TROUBLE in the holder's place
+        // (docs/tags.yaml `musk-lure`): the lure is spent, the row lands
+        // QUIET with nothing for the Caving lens to deliberate, and the
+        // CAVE_TROUBLE fear never fires — whatever it was followed the
+        // stink instead. The conditional write is the check, the same
+        // no-free-overdraw rule the craft spend uses.
+        let lured = false;
+        if (kind === "TROUBLE") {
+          const lure = await tx.characterTag.findFirst({
+            where: { characterId: character.id, tag: { slug: "musk-lure" } },
+            select: { id: true, quantity: true },
+          });
+          if (lure) {
+            const spent =
+              lure.quantity > 1
+                ? await tx.characterTag.updateMany({
+                    where: { id: lure.id, quantity: { gte: 1 } },
+                    data: { quantity: { decrement: 1 } },
+                  })
+                : await tx.characterTag.deleteMany({ where: { id: lure.id, quantity: 1 } });
+            lured = spent.count > 0;
+          }
+        }
+        const rowKind = lured ? "QUIET" : kind;
         const row = await tx.cavingRoll.create({
           data: {
             turnId: turn.id,
@@ -60,18 +88,18 @@ async function rollCaving(prisma, character, turn, location) {
             zoneId: zone.id,
             locationId: location.id,
             die,
-            kind,
-            resolvedAt: kind === "QUIET" ? new Date() : null,
+            kind: rowKind,
+            resolvedAt: rowKind === "QUIET" ? new Date() : null,
           },
         });
         // Something is wrong down here — and the caver knows it (FEAR.md).
         // Teratophobia triples this one.
-        if (kind === "TROUBLE") await applyFear(tx, character.id, { kind: "CAVE_TROUBLE" });
+        if (rowKind === "TROUBLE") await applyFear(tx, character.id, { kind: "CAVE_TROUBLE" });
         return {
           roll: row,
           dm: {
             discordUserId: character.discordUserId,
-            content: kind === "TROUBLE" ? troubleDm(die) : quietDm(die),
+            content: lured ? luredDm(die) : kind === "TROUBLE" ? troubleDm(die) : quietDm(die),
           },
         };
       }

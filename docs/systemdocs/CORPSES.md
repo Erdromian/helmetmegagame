@@ -213,6 +213,21 @@ The Bone Mask is the one of these outside brewing and cooking, and the one
 that makes a corpse into something you *wear* — it is a `concealsIdentity`
 piece, so the face it hides you behind is a skull (`PROXYING.md` §5).
 
+**The Death Mask (2026-09-07) is the second corpse craft, and the one recipe
+whose OUTPUT is named by its ingredient.** An `artist` casts it over a held
+corpse (kept, like every group entry) plus a spent `saltpeter`; the craft
+binds a SPECIFIC corpse (the dialog asks "Whose face?" when several are
+held), and the finished item is minted as "Death Mask of {the dead's name}"
+through the custom-craft machinery's literal mode. **A face is taken ONCE per
+body, ever**: the craft appends "The face has been taken." to the corpse
+tag's own description at project START (an abandoned mask still ruined the
+face) under a compare-and-swap, so two artists racing over one body cannot
+both cast — and that sentence IS the one-off record, visible on Examine and
+checked by the next attempt. The audit row carries `details.sourceCorpseTagId`
+for a GM tracing whose face a mask is. All in
+`character/requestActions.js` (`resolveDeathMaskSource`, `takeFace`,
+`mintCustomCraft`'s `literal`).
+
 **SPENT BY DEFAULT, and the default differs by shape.** A slug entry, and an
 `anyOf` pick, costs `quantity` units per craft: three molotovs take three
 Alcohol, the same scaling ⬢ has. A `group:` entry is **kept** — a body has its

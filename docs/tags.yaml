@@ -3232,6 +3232,23 @@ tags:
     purchasableAfterStart: false
     durationTurns: 3
 
+  # What a chrism anoints (Chris 2026-09-07). Two real mechanics, neither
+  # named here so the tag leaks no secrets: db/lib/tagWrites.js refuses to
+  # grant `broken` / `broken-enslaved` to a holder, and db/lib/fear.js halves
+  # every fear gain (MULTIPLIERS). Visible on purpose — a ward someone can
+  # see is a statement, and the Demoness seeing it is the point.
+  blessed:
+    catalog: gm
+    name: Blessed
+    category: status
+    group: status-buffs
+    description: "Anointed. While it holds, what would claim your soul cannot, and fear finds less purchase on you. ‡"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 3
+
   pheromones:
     catalog: secret
     name: Pheromones
@@ -4197,7 +4214,7 @@ tags:
     psychological: true
     category: health
     group: health-mind
-    description: "The trauma from an event is incurable. Loud noises or sudden bangs jolt you back to that time."
+    description: "No medic can treat the trauma from an event. Loud noises or sudden bangs jolt you back to that time. ‡"
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -5219,8 +5236,10 @@ tags:
     removable: false
     sellable: false
 
+  # Public (Chris 2026-09-07): mined, and the whole powder chain is printed
+  # in the public Smithing paper — the skill's own description names it too.
   saltpeter:
-    catalog: gm
+    catalog: all
     name: Saltpeter
     category: items
     group: items-gear
@@ -5263,6 +5282,62 @@ tags:
     sellable: true
     sellablePrice: 6
 
+  # HIDDEN recipe (old-coin is non-public; Chris 2026-09-07): the smith's
+  # secret, struck from coinage older than Ravenheart. Its mechanic lives in
+  # db/lib/lessonPass.js: +1 to the wearer's Learn Skill roll while equipped
+  # — the student-side sibling of Teaching (Drill Instructor). Deliberately a
+  # 3-turn project at a real price: stacked with the teaching tags it makes
+  # learning trivial, so the charm itself must not be.
+  minted-charm:
+    catalog: gm
+    name: Minted Charm
+    category: items
+    group: items-gear
+    description: "A talisman of old metal worn smooth, hung on a cord. Old metal remembers old learning, and some of it rubs off. ‡"
+    pointCost: 3
+    equippable: true
+    visible: worn
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 3
+      resourceCost: 15
+      skills: [smithing]
+      gambit: false
+      items: [old-coin]
+    sellable: true
+    sellablePrice: 23
+
+  # HIDDEN recipe (nekker-pheromones is non-public; Chris 2026-09-07): the
+  # trapper's insurance. Not consumable by hand — db/lib/cavingPass.js spends
+  # it: the first TROUBLE the Caving Die rolls a holder is negated, the lure
+  # eaten in their place. One a turn, bone-mask's exact 0-turn butcher shape.
+  musk-lure:
+    catalog: gm
+    name: Musk Lure
+    category: items
+    group: items-gear
+    description: "A wax plug with a low animal smell that carries further than it should. Things in the dark would rather follow it than you. ‡"
+    pointCost: 2
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 2
+      perTurn: 1
+      skills: [butcher]
+      gambit: false
+      items: [nekker-pheromones]
+
   # --- Three brewing ingredients that used to be prose ---------------------
   #
   # Nightshade's "forest herb", Pure Luck's Aberrant heart and Raven Draught's
@@ -5281,7 +5356,7 @@ tags:
     name: Aberrant Heart
     category: items
     group: items-gear
-    description: "Cut out of a dead Aberrant. The one thing {tag:pure-luck} cannot be brewed without. ‡"
+    description: "Cut out of a dead Aberrant. It beats a while longer in the hand, unhurried, as if it knows something. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -5362,6 +5437,46 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 2
+
+  # Fished up by the labor loot pass. Public on purpose (Chris 2026-09-07):
+  # the heart is a curiosity anyone may catch, but the White Honey link stays
+  # a discovery — never name that recipe here.
+  trout-heart:
+    catalog: all
+    name: Trout Heart
+    category: items
+    group: items-gear
+    description: "The heart of a rainbow trout, hardly bigger than a thumbnail. It stays warm in the hand longer than it has any right to. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 4
+
+  # Fished up by the labor loot pass. The bruise cure is their whole trade
+  # until the medical rework gives them more — enforced on consume by
+  # HIDDEN_CURES in db/lib/hiddenCures.js.
+  leeches:
+    catalog: all
+    name: Leeches
+    category: items
+    group: items-gear
+    description: "A jarful of dark, patient leeches. Set on a bruise, they draw the bad blood out — cures {tag:bruised}. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 2
+    consumable: true
+    consumesInto: []
 
   # The generator's proper fuel. Imported, so the Merchant has to buy it off
   # the station with the profit he makes selling everything else — which is the
@@ -5649,6 +5764,32 @@ tags:
     # Nerfed twice: 20% from 60, then a further 15% from 48. Over its 4 turns
     # that is ~10 ⬢/turn, still the best per-turn rate a craftable pays.
     sellablePrice: 41
+
+  # The quick artist's piece beside the 4-turn Painting (Chris 2026-09-07):
+  # customizable like it, priced to be flavor rather than income — at 2 a
+  # sheet the wage tops out at +2 ⬢/turn, well under the Painting's ~10.
+  sketch:
+    catalog: all
+    name: Sketch
+    category: items
+    group: items-gear
+    description: "A few honest lines on paper — a face, a street, a moment kept. Worth little at the counter and rather more to the right person. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    requirement:
+      turnsCost: 1/2
+      resourceCost: 1
+      skills: [artist]
+      gambit: false
+    sellable: true
+    sellablePrice: 2
 
   # Exists to be made CUSTOM (customizable, CRAFTING.md): +1 ⬢ on the base
   # cost buys the maker's own name and words on the thing — a crew's mark, a
@@ -6657,6 +6798,13 @@ tags:
   # Bows / crossbows keep `crafting` in place of `smithing` at every tier —
   # wood-and-sinew is still wood-and-sinew even at High Quality.
   #
+  # Four small pieces of metalwork — spear, dagger, silver-knife,
+  # phrygian-spear — run under the Simple rung's turn: turnsCost 1/3, three
+  # to a Routine, a spearhead or a knife not being a day at the anvil (Chris
+  # 2026-09-07). They sell at 7, not the tier's 9: the markup formula rounds
+  # to 0 at 1/3 turn, so they keep Dead Simple's flat +1 instead — see
+  # DEPOT.md §4. Everything else (6 ⬢, pt, skill, forge) is the tier's.
+  #
   # ─── Dead Simple ───────────────────────────────────────────────────────────
 
   trench-knife:
@@ -6754,7 +6902,10 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 7
+    # Dead Simple convention (cost + 1), NOT the depot wage floor: at 0 turns
+    # the free ration would mint the margin as a free action (4/turn on top of
+    # an untouched labor day). The depot's 12 stays the impatience premium.
+    sellablePrice: 4
     depotPrice: 12
 
   trapping-gear:
@@ -6962,12 +7113,12 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 7
 
   dagger:
     catalog: all
@@ -6986,12 +7137,12 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 7
 
   silver-knife:
     catalog: all
@@ -7010,12 +7161,12 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 7
 
   gladius:
     catalog: all
@@ -7058,12 +7209,12 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 7
 
   javelin:
     catalog: all
@@ -7184,7 +7335,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 22
+    sellablePrice: 21
 
   # Renamed from Bardiche in the Combat Update, slug and all.
   halberd:
@@ -7209,7 +7360,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 22
+    sellablePrice: 21
 
   broadsword:
     catalog: all
@@ -7233,7 +7384,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 22
+    sellablePrice: 21
 
   war-hammer:
     catalog: all
@@ -7257,7 +7408,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 22
+    sellablePrice: 21
 
   # ─── High Quality ──────────────────────────────────────────────────────────
   bastard-sword:
@@ -7427,6 +7578,34 @@ tags:
       gambit: false
     sellable: true
     sellablePrice: 42
+
+  # HIDDEN recipe (aberrant-heart is non-public; Chris 2026-09-07). Fights as
+  # Exceptional tier — the ladder's own language — and its second mechanic
+  # lives in db/lib/fear.js: while EQUIPPED, every fear gain is ×0. Not for
+  # the counter: no sell price on purpose. The heart drops nowhere until the
+  # loot pass lands; a GM grants it.
+  heartforged-blade:
+    catalog: gm
+    name: Heartforged Blade
+    category: items
+    group: items-weapons
+    description: "A blade that came out of its quenching with a warmth the forge cannot explain, and it has never quite cooled since. Its wielder's hands do not shake. Anyone who examines it knows something terrible was done in the making. ‡"
+    pointCost: 14
+    requiredTag: melee-basic
+    equippable: true
+    tradeable: true
+    weight: 5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 3
+      resourceCost: 34
+      skills: [smithing-skilled]
+      gambit: false
+      items: [aberrant-heart]
 
   crossbow:
     catalog: all
@@ -7739,7 +7918,7 @@ tags:
     name: Lavish Meal
     category: items
     group: items-food
-    description: "A worthy meal! Makes anyone happy, Nobility included, and can be used as a Desire. Takes one imported delicacy on top of the resource cost — {tag:tea}, {tag:sweets} or {tag:honey}, cook's choice. ‡"
+    description: "A worthy meal! Makes anyone happy, Nobility included, and can be used as a Desire. Needs 1 hard-to-get exotic ingredient on top of the resource cost."
     pointCost: 0
     tradeable: true
     weight: 3
@@ -7762,10 +7941,67 @@ tags:
       # says it too.
       skills: [cooking-skilled]
       gambit: false
-      # The one recipe the cook chooses an ingredient for. All three are Depot
-      # imports, so the delicacy is a real errand rather than a foraging trip.
+      # The one recipe the cook chooses an ingredient for. Three are Depot
+      # imports and the roe is fished up by the loot pass, so the delicacy is
+      # a real errand either way. Honey stays out of the description and the
+      # paper on purpose: it is gm-catalog, so the honeyed version is a
+      # DISCOVERY — the Recipes tab's anyOf narrowing shows "Tea, Sweets or
+      # Fish Roe" until the cook holds one.
       items:
-        - anyOf: [tea, sweets, honey]
+        - anyOf: [tea, sweets, honey, fish-roe]
+
+  # Featherweight travel food (Chris 2026-09-07): a Fine Meal weighs 2 lb and
+  # this weighs a quarter of that — the meal you pack ten of for the caves.
+  # Same wage-less posture as the other meals: cooks earn from buyers.
+  trail-ration:
+    catalog: all
+    name: Trail Ration
+    category: items
+    group: items-food
+    description: "Hardtack, dried meat, and whatever else keeps. It weighs next to nothing and tastes like the bottom of a pack, but it is a meal wherever you are standing. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    consumesInto:
+      - ate-meal
+    requirement:
+      turnsCost: 1/4
+      resourceCost: 2
+      skills: [cooking-basic]
+      gambit: false
+
+  # The cook's HIDDEN recipe (Chris 2026-09-07): honey is gm-catalog, so this
+  # appears only for a cook holding a jar — the low-stakes secret beside
+  # White Honey's high-stakes one.
+  honeyed-cakes:
+    catalog: all
+    name: Honeyed Cakes
+    category: items
+    group: items-food
+    description: "Golden, sticky, and gone far too fast. A plate of these makes an occasion out of an ordinary evening. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    consumesInto:
+      - ate-meal
+    requirement:
+      turnsCost: 1/3
+      resourceCost: 3
+      skills: [cooking-skilled]
+      gambit: false
+      items: [honey]
 
   # THE THANATI'S FOOD (docs/systemdocs/THANATI.md). Not a meal — it grants
   # no ate-meal — only Dark Inspiration. Dead Simple, 1 ⬢, three a turn; the
@@ -8436,8 +8672,10 @@ tags:
     consumable: true
     consumesInto: []
 
+  # Public (Chris 2026-09-07): a shelf good, not a secret — was hiding the
+  # Lavish Meal recipe by accident.
   tea:
-    catalog: gm
+    catalog: all
     name: Tea
     category: items
     group: items-drink
@@ -9343,14 +9581,36 @@ tags:
     consumable: true
     consumesInto: []
 
+  # Public (Chris 2026-09-07): same reasoning as tea.
   sweets:
-    catalog: gm
+    catalog: all
     name: Sweets
     category: items
     group: items-food
     description: "What a rarity! There's no sugar in Ravenheart!"
     pointCost: 0
     depotPrice: 4
+    sellable: true
+    sellablePrice: 2
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - ate-meal
+
+  # The delicacy that is caught rather than imported — the labor loot pass
+  # drops it (fishing).
+  fish-roe:
+    catalog: all
+    name: Fish Roe
+    category: items
+    group: items-food
+    description: "A handful of glistening black eggs out of a fish's belly. Salted, they are the rarest taste in Ravenheart. ‡"
+    pointCost: 0
     sellable: true
     sellablePrice: 2
     tradeable: true
@@ -9944,6 +10204,33 @@ tags:
       skills: [blessing]
       gambit: false
 
+  # HIDDEN recipe (honey is non-public; Chris 2026-09-07): the Cathedral's
+  # second craft. Holy water poured on a thing; this is worked into a person.
+  # What Blessed actually does is documented on that tag, not here.
+  chrism:
+    catalog: gm
+    name: Chrism
+    category: items
+    group: items-special
+    description: "Consecrated oil, golden and slow to pour. Anointing someone marks them {tag:blessed} for a time. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    consumesInto:
+      - blessed
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [blessing]
+      gambit: false
+      items: [holy-water, honey]
+
   bliss:
     catalog: all
     name: Bliss
@@ -10252,6 +10539,10 @@ tags:
       turnsCost: 2
       resourceCost: 4
       skills: [brewing-skilled]
+      # The most potent poison in the game brews from poisons (Chris
+      # 2026-09-07): a bottle of Nightshade distilled further, cut with
+      # cave-fungus. Both public, so the recipe stays in the book.
+      items: [nightshade, cave-fungus]
     sellable: true
     sellablePrice: 22
     depotPrice: 36
@@ -10288,7 +10579,7 @@ tags:
     name: Graga Sweat
     category: items
     group: items-drink
-    description: "Made with rendered {tag:graga-sac}. Grants 2 turns of {tag:brutish-strength}."
+    description: "Rank, oily, and warm no matter the room. Grants 2 turns of {tag:brutish-strength}. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10350,15 +10641,16 @@ tags:
     consumable: true
     requirement:
       turnsCost: 1
-      # 2 -> 6 when the trout's heart went. The gate is {tag:honey} now
-      # (Chris 2026-09-05) — a gm-catalog tag on purpose, so this recipe is
-      # one of the hidden ones: off the Recipes tab, and out of the Craft
-      # menu until the brewer actually holds Honey. The ⬢ stays at 6 for
-      # now, ruling deferred.
-      resourceCost: 6
+      # 2 -> 6 when the trout's heart went; 6 -> 3 now the heart is back
+      # (Chris 2026-09-07): {tag:trout-heart} joins {tag:honey} as a second
+      # spent ingredient, and a rare catch plus a 4 ⬢ jar is most of the
+      # price of a cure-all already. Honey is gm-catalog on purpose, so the
+      # recipe stays one of the hidden ones: off the Recipes tab, and out of
+      # the Craft menu until the brewer holds both ingredients.
+      resourceCost: 3
       skills: [brewing-skilled]
       gambit: false
-      items: [honey]
+      items: [honey, trout-heart]
     sellable: true
     sellablePrice: 6
 
@@ -10502,7 +10794,7 @@ tags:
     name: Invisibility Potion
     category: items
     group: items-drink
-    description: "Distilled from a {tag:graga-sac}. Grants {tag:invisible} for 2 turns."
+    description: "It pours like water and lands like a held breath. Grants {tag:invisible} for 2 turns. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10523,8 +10815,12 @@ tags:
     sellable: true
     sellablePrice: 8
 
+  # gm, not secret (2026-09-07): a SECRET row never enters the Recipes tab's
+  # visible set even when held, so a recipe spending this could never unhide
+  # there while the Craft menu and hovercard showed it — three surfaces,
+  # three answers. gm behaves like every other found-in-play ingredient.
   nekker-pheromones:
-    catalog: secret
+    catalog: gm
     name: Nekker Pheromones
     category: items
     group: items-drink
@@ -10566,15 +10862,20 @@ tags:
       resourceCost: 8
       skills: [brewing-skilled]
       gambit: false
+      # A real gate again (Chris 2026-09-07): pheromones are gm-catalog, so
+      # this is a HIDDEN recipe now — a butcher's find teaches it.
+      items: [nekker-pheromones]
     sellable: true
-    sellablePrice: 7
+    # 7 -> 18 with the ingredient: 7 sat below the 8 ⬢ cost alone, and the
+    # pheromones sell for 5 on their own.
+    sellablePrice: 18
 
   raven-draught:
     catalog: all
     name: Raven Draught
     category: items
     group: items-drink
-    description: "Made with a {tag:ravens-eye}. If consumed, you can send a single message to anyone anywhere. DM the GMs the message. ‡"
+    description: "Black to the bottom of the glass. If consumed, you can send a single message to anyone anywhere. DM the GMs the message. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10598,7 +10899,7 @@ tags:
     name: Pure Luck
     category: items
     group: items-drink
-    description: "Made with an {tag:aberrant-heart}. For 3 turns straight, every Gambit you roll is a 6 — {tag:aberrant-luck}. ‡"
+    description: "For 3 turns straight, every Gambit you roll is a 6 — {tag:aberrant-luck}. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10630,7 +10931,7 @@ tags:
     name: Dreamer's Draught
     category: items
     group: items-drink
-    description: "Made with a {tag:skinless-brain}. When you drink it before sleeping, you can ask the universe anything. Let a GM know what you're asking."
+    description: "When you drink it before sleeping, you can ask the universe anything. Let a GM know what you're asking. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10656,7 +10957,7 @@ tags:
     name: Forgiveness
     category: items
     group: items-drink
-    description: "Clear, and colder than the room it sits in. Whoever drinks it forgets the last 3 days. ‡"
+    description: "Clear, and colder than the room it sits in. The drinker forgets the event that broke them — cures {tag:shell-shocked}. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10671,6 +10972,9 @@ tags:
       resourceCost: 8
       skills: [brewing-skilled]
       gambit: false
+      # A real gate (Chris 2026-09-07): the mercy of the poppy is what lets
+      # someone put an event down. Public, so the recipe stays in the book.
+      items: [poppy]
     sellable: true
     sellablePrice: 18
 
@@ -11037,6 +11341,41 @@ tags:
       # own lifecycle, and a group names no single stack to spend.
       items:
         - group: items-corpse
+
+  # The rare artistic recipe (Chris 2026-09-07). gm-catalog like the Bone
+  # Mask: the group ingredient hides nothing on the Recipes tab, so the tag's
+  # own catalog flag is what keeps it out of the book — an artist standing
+  # with a corpse still finds it in the Craft menu. The craft path stamps the
+  # dead character's name onto the finished item ("Death Mask of Ada"),
+  # refuses a corpse whose face was already taken (one mask per body, ever —
+  # the request_craft_tag audit row is the record), and appends the fact to
+  # the corpse's own description. No sell price: the market is Nobles who
+  # commission one and enemies who want it, never the Depot counter.
+  death-mask:
+    catalog: gm
+    name: Death Mask
+    category: items
+    group: items-headgear
+    description: "A likeness taken from the dead in wax and plaster, saltpeter-cured so it keeps. A memorial, an evidence, or a prop — depending entirely on whose face it is and who is holding it. ‡"
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 1
+    visible: true
+    tradeable: true
+    weight: 1
+    stackable: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 4
+      skills: [artist]
+      gambit: false
+      items:
+        - group: items-corpse
+        - saltpeter
 
   balaclava:
     catalog: all
@@ -11430,6 +11769,39 @@ tags:
     sellablePrice: 9
 
   # ─── Moderate (3 pt / 14 ⬢ / 1 turn, skilled smithing) ───
+  # HIDDEN recipe (non-public ingredient, Chris 2026-09-07): the tailor's
+  # secret. Competes with Padded Armor for the layer-1 slot — worse against a
+  # blade (0.2 vs 0.3), better against a bullet (0.1 vs 0.05), 8 lb against
+  # 12, and it reads as a garment rather than armor. Also competes with the
+  # brewers for sacs, deliberately.
+  graga-hide-cloak:
+    catalog: gm
+    name: Graga-Hide Cloak
+    category: items
+    group: items-armor
+    description: "Cut from a graga's thick, rubbery sac and cured whole, this heavy travelling cloak sheds rain like a roof and takes a blow better than any coat has a right to. ‡"
+    pointCost: 3
+    equippable: true
+    equipSlot: BODY
+    equipLayer: 1
+    melee: 0.2
+    ballistic: 0.1
+    visible: true
+    tradeable: true
+    weight: 8
+    stackable: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [crafting]
+      gambit: false
+      items: [graga-sac]
+    sellable: true
+    sellablePrice: 9
+
   mail-shirt:
     catalog: all
     name: Mail Shirt
@@ -11453,7 +11825,7 @@ tags:
       resourceCost: 14
       skills: [smithing-skilled]
     sellable: true
-    sellablePrice: 22
+    sellablePrice: 21
 
   # ─── High Quality (4 pt / 26 ⬢ / 2 turns, skilled smithing) ───
   brigandine:
@@ -11831,8 +12203,10 @@ tags:
   # The marsh production chain: Godflesh comes out of the wet ground, refines
   # into Squeeze on the Factory floor, and gets crated for the Merchant. See
   # docs/systemdocs/FACTORY.md.
+  # Public (Chris 2026-09-07): the marsh is common knowledge — the public
+  # Alcohol & Drugs paper prints the moonshine row outright.
   godflesh:
-    catalog: gm
+    catalog: all
     name: Godflesh
     category: items
     group: items-gear

@@ -116,6 +116,24 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
   const owed = new Map();
   for (const slug of slugs) owed.set(slug, (owed.get(slug) ?? 0) + 1);
 
+  // The chrism's ward: a `blessed` character's soul cannot be claimed while
+  // the anointing holds (docs/tags.yaml `blessed`; the chrism recipe). The
+  // block is absolute on purpose — a GM who really means it strips Blessed
+  // first — and the skipped grant reports itself in the snapshot
+  // (`warded: true, added: 0`) instead of silently vanishing.
+  const SOUL_CLAIM_SLUGS = ["broken", "broken-enslaved"];
+  let blessedHeld = null;
+  const isWarded = async (slug) => {
+    if (!SOUL_CLAIM_SLUGS.includes(slug)) return false;
+    if (blessedHeld == null) {
+      blessedHeld =
+        (await tx.characterTag.count({
+          where: { characterId, tag: { slug: "blessed" } },
+        })) > 0;
+    }
+    return blessedHeld;
+  };
+
   const tags = await tx.tag.findMany({
     where: { slug: { in: [...owed.keys()] } },
     select: { id: true, slug: true, name: true, stackable: true, defaultDurationTurns: true },
@@ -124,6 +142,11 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
 
   const granted = [];
   for (const [slug, count] of owed) {
+    if (await isWarded(slug)) {
+      const tag = tagBySlug.get(slug);
+      granted.push({ tagId: tag?.id ?? null, tagName: tag?.name ?? slug, slug, added: 0, warded: true });
+      continue;
+    }
     // Unknown slugs are rejected at sync time (db/lib/syncTags.js), so this
     // can only be a row predating a catalog edit — skip it rather than fail
     // the whole request.

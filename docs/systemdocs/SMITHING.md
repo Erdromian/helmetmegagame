@@ -39,6 +39,15 @@ other rung actually moved. `pt`, `Turns`, and every gate are untouched.
 Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
 not — its steel prod and lock are `smithing-skilled` work.
 
+**Four small pieces of metalwork run under the Simple rung's Turns column.**
+The Spear, Dagger, Silver Knife and Phrygian Spear are `turnsCost: 1/3` —
+a spearhead or a knife is not a day at the anvil — so three of them fit in
+one Routine ([`CRAFTING.md`](CRAFTING.md) §2a). Everything else about the
+rung (6 ⬢, the pt, the skill gate, the forge) is unchanged, and they sell
+at 7 rather than the tier's 9 ([`DEPOT.md`](DEPOT.md) §4). The Gladius,
+Mace and Battle Axe stay a full turn — a sword blade or a flanged head is
+real forging.
+
 **The two gate columns mean different things and are enforced on different
 surfaces.** The Skill gate is what it takes to *make* the item; the Combat
 gate is what it takes to *use* it. Character creation and `/store` enforce
@@ -103,8 +112,8 @@ replacing the shared Dead Simple pool below as its free allowance (bone-mask
 at 1). Work is never written there: a recipe cheaper than a whole turn
 authors `turnsCost: 1/N`, and `quantity × work` against the Move is the only
 quantity limit a Move-costing recipe has ([`CRAFTING.md`](CRAFTING.md)
-§2–§2a). A plain `turnsCost: 1` rung — every tiered weapon — makes one per
-Routine by that arithmetic.
+§2–§2a). A plain `turnsCost: 1` rung — every tiered weapon but the four
+1/3-turn small pieces in §2 — makes one per Routine by that arithmetic.
 
 **Dead Simple gives you 4 free items per character per turn.** It is the only
 rung that costs 0 turns, so nothing else rations it. The allowance counts
@@ -152,11 +161,11 @@ Life) used to be the example; they're archived in
 | Quarterstaff | Dead Simple | `crafting` |
 | Pitchfork | Dead Simple | `smithing`. Carries the farming `laborBonus`, moved off the Hatchet. |
 | Shortbow | Dead Simple | `crafting` |
-| Spear | Simple | |
-| Dagger | Simple | |
-| Silver Knife | Simple | |
+| Spear | Simple | 1/3 turn — three to a Routine (§2) |
+| Dagger | Simple | 1/3 turn — three to a Routine (§2) |
+| Silver Knife | Simple | 1/3 turn — three to a Routine (§2) |
 | Gladius | Simple | |
-| Phrygian Spear | Simple | |
+| Phrygian Spear | Simple | 1/3 turn — three to a Routine (§2) |
 | Javelin | Simple | `ranged-basic` — it is thrown, not held. |
 | Longbow | Simple | `crafting` |
 | Mace | Simple | |

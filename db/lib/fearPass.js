@@ -87,7 +87,7 @@ async function runFearPass(prisma, turn) {
       hungerStreak: true,
       locationId: true,
       location: { select: { indoors: true, attributes: true, zone: { select: { kind: true } } } },
-      tags: { where: { tag: { slug: { in: watched } } }, select: { tagId: true, source: true, tag: { select: { slug: true } } } },
+      tags: { where: { tag: { slug: { in: watched } } }, select: { tagId: true, source: true, equipped: true, tag: { select: { slug: true } } } },
     },
   });
 
