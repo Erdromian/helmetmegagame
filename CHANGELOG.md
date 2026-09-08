@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · Once you set out for another zone, you are on the road until next turn
+
+− The Turn back button is gone from the Travel button on Discord and from the travel panel on Chat  
+− A paid zone crossing still spends the Move when you confirm it, and you still arrive at the next turn
+
 ## 2026-09-07 · The GM desks paint at once on a return visit
 
 − The player roster, a player's conversation, the turns workspace, the audit log, Crafts, Structures, the tag catalog and the dev panel all keep their last data in your browser and draw it in the first frame; the server's answer replaces it a moment later
