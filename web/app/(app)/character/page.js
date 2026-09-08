@@ -554,7 +554,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       }
     : null;
 
-  // From is you or a room; To is anyone here or a room (TransferDialog.js).
+  // From is you or a room; To is anyone here or a room (actions/MoveThingsDialog.js).
   const transferPartyList = { characters: transferParties, rooms };
   // Your faction's silo, if it has one and you are standing in its zone: a
   // deposit-only destination pinned above the rooms here (FACTIONS.md). The

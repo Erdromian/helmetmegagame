@@ -4,7 +4,7 @@ import { applyTransfer, InsufficientResourcesError } from "@lifeweb/db/lib/resou
 import { getGmSession } from "@/lib/discordGuild";
 import { getOpenTurn } from "@/lib/turn";
 import { UserError } from "@/lib/actionResult";
-import { requireReason } from "@/lib/requests";
+import { MAX_REASON_LENGTH } from "@/lib/constants";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 
@@ -17,7 +17,9 @@ import { afterInventoryChange } from "@/lib/afterInventoryChange";
 export async function gmTransferResources({ fromKey, toKey, amount: rawAmount, reason: rawReason }) {
   const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId || !gm) throw new UserError("Not authorized.");
-  const reason = requireReason(rawReason);
+  // Optional. The Dev Panel stopped asking for one; the audit row is the
+  // record either way, and a caller with something to say may still say it.
+  const reason = rawReason?.toString().trim().slice(0, MAX_REASON_LENGTH) || null;
 
   const amount = Number.parseInt(rawAmount, 10);
   if (!Number.isInteger(amount) || amount < 1) throw new UserError("Amount must be a positive whole number.");

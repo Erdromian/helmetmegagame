@@ -263,9 +263,12 @@ Everything follows from that:
   is a wasted day.
 - **Spend turn** files a stub: a `PASSED` Routine worth nothing, marked
   `gmNotes: "auto:gm_spent_turn"` in the same family as
-  `autoLaborPass.js`'s `auto:labor`. It DMs the player too now, so
-  like Restore and Kill it opens a `RequestDialog` for a reason first — the
-  same reason becomes both the stub's `description` and the DM text.
+  `autoLaborPass.js`'s `auto:labor`. It DMs the player too. Kill, Restore
+  turn and Spend turn are each a one-line `useConfirm` — they used to open a
+  `RequestDialog` for a typed reason first, and nobody ever wrote one that
+  said anything the DM did not. The server actions still take an optional
+  `reason`, which becomes the DM's second line (and the stub's
+  `description` for Spend turn) when a caller passes one.
 
 Editing a Move is **not** duplicated here. `/gm/turns` owns that, with the
 cooperative lock, the dirty guard, Solve/Reject and the dice invariant on a
@@ -291,7 +294,8 @@ adjudication desk's staged transfers use
 superadmin — and writes an `AuditLog` row rather than a `Request`, so there
 is no one-click Undo; the reverse transfer is the reversal.
 
-`gmTransferResources({ fromKey, toKey, amount, reason })` is the same generic
+`gmTransferResources({ fromKey, toKey, amount, reason })` (the reason is
+optional now, and the Dev Panel no longer asks for one) is the same generic
 primitive the adjudication desk's `TransferComposer` stages a transfer
 through, so the Dev Panel's server action (`transferResourcesImpl`) just
 passes `fromKey`/`toKey` straight through. It still preselects this

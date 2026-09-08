@@ -720,7 +720,8 @@ header instead).
      and **Converse**, which is otherwise only reachable from a person's row
      in HERE and so left somebody standing alone with no way to open one.
      The old **Examine** dialog is gone: this is what it said.
-  2. **`HereList.js`** — everyone standing here, hooded or not, off
+  2. **`HereList.js`** (`web/app/components/`, since /ledger draws it too) —
+     everyone standing here, hooded or not, off
      `db/lib/whosHere.js#whosHere` called with `{ withSightings: true }`. A row
      is a 24px avatar, the presented name (their Role for a fellow member of a
      real faction, `you` on your own) and, **once you have heard them speak**,
@@ -729,7 +730,9 @@ header instead).
      Transfer, Loot, Bind, Free, Harm, **Converse** — by mounting
      `RequestActionsProvider` on the page with the people pools and calling
      `open(mode, null, { targetId })`. Nothing is forked: same dialogs, same
-     server actions. A hood gets the same row; its menu is Converse alone.
+     server actions — and Bind, Free and a one-affliction Heal opened this
+     way skip the dialog for their one question (`actions/index.js#FAST_PATHS`).
+     A hood gets the same row; its menu is Converse alone.
 
      **The face and the eye are earned** (`PROXYING.md` §5a). A row you have
      not heard speak this turn shows no eye at all, and a hooded one shows the

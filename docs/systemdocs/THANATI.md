@@ -59,11 +59,18 @@ rather than grey on `isThanati` / `isThanatiLeader` (own-sheet facts).
 `character/page.js` resolves the flags and the dialog data; every action
 re-checks the tag from the session.
 
-- **Recall Comrades** — DMs `formatComrades(listComrades())`: every living
-  cultist as `Name, Role`, leader first and marked `[LEADER]`, joined by ` • `.
-  Free, no Move. Audit `request_recall_comrades`.
-- **Recover Equipment** — grants whichever of `black-robes` / `thanati-mask`
-  the cultist lacks. Spends the Move (`web/lib/moveSpend.js`, lifted out of
+- **Recall Comrades** — an instant verb (no dialog; `components/actions/
+  index.js#INSTANT`). Returns `listComrades()` to the page, and the notice
+  under the button lists every living cultist as `Name · Role`, leader first
+  and marked `[LEADER]`. It used to go out as a DM; the page is private
+  already. Free, no Move. Audit `request_recall_comrades`.
+  `formatComrades` is still in `db/lib/thanati.js` for a Discord caller.
+- **Recover Equipment** — an instant verb with a one-line confirm, since it
+  spends the Move. The button's label is what it would hand back ("Recover
+  Robes & Mask", "Recover Mask"; `actionRegistry.js#labelFor`) and it greys
+  with "You have both." once nothing is missing. Grants whichever of
+  `black-robes` / `thanati-mask` the cultist lacks and says so in the notice.
+  Spends the Move (`web/lib/moveSpend.js`, lifted out of
   `requestActions.js` for this). Cooldown of one turn: refused if an audit
   row `request_recover_equipment` by this player carries this turn's or the
   previous turn's `turnId` — the ration-counts-rows pattern.
@@ -162,6 +169,7 @@ cascade. `GameState.riteWords` and `thanatiHideoutRoomId` go with the row.
 | `web/lib/moveSpend.js` | `requireFreeMove`, `fileAutoRoutine` |
 | `web/lib/grimoire.js` | The Grimoire body |
 | `web/app/(app)/character/thanatiActions.js` | The four actions |
+| `web/app/components/actions/HideoutDialog.js`, `PurchaseDialog.js` | The two that open a dialog |
 | `web/app/(app)/gm/dev/threats/RitesPanel.js` | The GM view |
 
 ## 9. The rite scripts

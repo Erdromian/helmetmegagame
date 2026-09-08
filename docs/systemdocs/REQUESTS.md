@@ -797,7 +797,10 @@ reason field between openings without an effect syncing state.
 
 The Status panel (`StatusPanel.js`) lays Zone / Resources / Gambit / Tag
 Points out on one `<dl>` grid, and **every player action sits beside it as an
-icon grid** (`ActionGrid.js`, hover tooltips via the shared `IconButton.js`).
+icon grid** (`ActionGrid.js`, each button an `ActionButton` whose tooltip is
+the label, the explaining sentence and — when greyed — the reason from
+`actionRegistry.js#gateReason`). `/ledger` draws the same registry as
+labelled tiles, with the HERE list (`HereList.js`) above it.
 
 That grid replaced three separate surfaces: a row of text buttons inside the
 Tags panel, a Transfer Resources button in the Status panel's own footer, and
@@ -819,9 +822,11 @@ in the dialog (§5b).
 own both the buttons and the dialogs, and handed its opener up to `TagsPanel`
 through an `onReady` callback so a chip click could open Consume. The buttons
 now live in `StatusPanel`, a **sibling above** `TagsPanel`, so no component
-contains both. `RequestActionsProvider.js` holds the mode state and every
-dialog, and the two consumers read the opener off context — the same shape
-`ConfirmProvider` uses for the same reason. It is mounted only in `self` mode,
+contains both. `RequestActionsProvider.js` holds the mode state and routes each
+click — an instant verb, a fast path, or one dialog file under
+`components/actions/` (DESIGN-SYSTEM.md §8) — and the consumers read the
+opener off context, the same shape `ConfirmProvider` uses for the same
+reason. Every success is said once, as a notice (`NoticeProvider.js`). It is mounted only in `self` mode,
 which is what keeps another player's chips read-only for free.
 
 **A button greys out only for a fact about your own sheet** — nothing to
@@ -894,10 +899,13 @@ over the URL, so a filtered view stays linkable.
 | Request creation, reason validation, audit helper | `web/lib/requests.js` |
 | `UserError` + `guarded()` result wrapper | `web/lib/actionResult.js` |
 | The player-facing server actions | `web/app/(app)/character/requestActions.js` |
-| Universal popup | `web/app/components/RequestDialog.js` |
+| Universal popup | `web/app/components/RequestDialog.js`, `actions/ActionDialog.js` on top of it |
+| The result notice | `web/app/components/NoticeProvider.js`, `actions/noticeLines.js` |
 | Status panel | `web/app/components/StatusPanel.js` |
-| Every action's dialog + the mode state | `web/app/components/RequestActionsProvider.js` |
-| The Actions icon grid | `web/app/components/ActionGrid.js`, `IconButton.js`, `icons.js` |
+| The mode state, instant verbs, fast paths | `web/app/components/RequestActionsProvider.js`, `actions/index.js` |
+| One dialog per verb | `web/app/components/actions/*Dialog.js`, `CraftAction.js`, `ExamineAction.js` |
+| A dialog's roster, read when it opens | `web/app/components/actions/useRoster.js`, `web/app/(app)/character/rosterActions.js` |
+| The Actions grid | `web/app/components/ActionGrid.js`, `ActionButton.js`, `icons.js` |
 | Which held tags each menu offers | `web/lib/tagRequests.js` |
 | Who is standing in your zone (one roster, five menus) | `web/app/(app)/character/page.js` |
 | Co-presence at Location-grain (web / db) | `web/lib/peopleHere.js`, `db/lib/presence.js` |
@@ -905,7 +913,7 @@ over the URL, so a filtered view stays linkable.
 | Action-grid rows and per-action entries | `web/app/components/actionRegistry.js` |
 | Who counts as helpless, and who can be finished off | `db/lib/incapacitation.js` |
 | Heal gate, tier chain, `healable` filter | `web/lib/healRequests.js` |
-| One end of a resource movement | `web/app/components/PartySelect.js` |
+| One end of a resource movement | `web/app/components/actions/MoveThingsDialog.js` (chips), `PartySelect.js` (Craft's payer) |
 | Reach gate — same zone | `web/lib/transferReach.js` |
 | Tags panel + click-a-chip-to-consume | `web/app/components/TagsPanel.js`, `TagChip.js` |
 | Desires — panel shell, catalog picker, GM surface, gate evaluator | `web/app/components/GoalsPanel.js`, `DesirePanel.js`, `DesireCatalog.js`; `gm/dev/characters/[characterId]/GoalsTab.js`; `db/lib/desireGates.js`. Full file map: `DESIRES.md` §11 |
