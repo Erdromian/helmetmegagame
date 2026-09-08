@@ -6,6 +6,18 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · Chat stays in the room you opened
+
+✎ The open room no longer jumps back to the street when the page refreshes itself, and a bare /play comes back to the room you last had open  
+✎ Chat's live stream reconnects itself after a drop — a phone waking, a blip, a redeploy — and picks up exactly what it missed; it says Reconnecting… when that takes a while, and a signed-out tab says so instead of retrying forever  
+✎ Walking, keys and conversations refresh the right column quietly, with no blank flash, and a reconnect no longer refreshes the whole page  
+✎ What you typed in one room stays in that room: switching rooms starts the box clean and brings the words back when you return  
+✎ Notice cards, faces and the members strip loading no longer shove you off the bottom of the scene  
+✎ The phone's tab strip scrolls to the open tab  
+✎ The column's once-a-minute re-reads pause while the tab is hidden  
+✎ "Add to …" on a person now says why it was refused  
+✎ A mention's browser notification opens the place it happened in, the turn notification opens the Bascinet pane, and tapping one no longer reloads a Chat that is already open
+
 ## 2026-09-08 · The buttons overhaul: every action answers back, and the Dev Panel stops asking why
 
 ✎ Every button on the sheet and on /play now says what it did, in a small notice at the corner of the screen — "Ada is tied up.", "Took 3 Paper from the Cellar.", "Ada has to agree first."  
