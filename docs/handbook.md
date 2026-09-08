@@ -406,15 +406,17 @@ When you 🔍 a character you will see tags marked as visible, such as clearly w
 
 ### Health Tags
 
-Health tags are your wounds, illnesses, and other ailments. Removing them typically requires someone medically skilled, based on how severe the tag is. Removing health tags costs Resources, and anything worse than a Minor tag also requires a turn spent by the person doing the removing.
+Health tags are your wounds, illnesses, and other ailments. A doctor treats them with Heal, based on how severe the tag is and their own Medical skill. First aid — anything minor enough — is a free action, and any doctor can do 8 of them a day before it costs anything at all. Anything past that spends a fraction of their Move for the day, and the most serious injuries take their whole Move and a roll of the dice.
 
-You can see the costs and skills required in the Medical Document: {document:medical}.
+Some items cure a specific ailment outright the moment you Consume them, no doctor needed — a tonic, a dressing, a prosthetic fitted onto a lost limb. A few of those still need someone medically trained to apply, even to their own body.
+
+You can see the costs, Moves, and skills required in the Medical Document: {document:medical}.
 
 **Untreated wounds often get worse.**
 
 When a health tag worsens, the bot will DM you. Find a doctor before the tag shows `· last` if you want to stay alive.
 
-Even if you don't possess the skills needed to heal an injury or ailment, you may always *attempt* something above your tier. That requires a Gambit, and you stand a very real chance of making it worse.
+Even if a doctor doesn't possess the skills needed to heal an injury or ailment, they may always *attempt* something above their tier. That requires a Gambit, and there's a very real chance of making it worse. The most serious surgeries also need a proper surgical setup — Surgical Equipment in reach, or a Surgical Theater — before anyone can attempt them at all. ‡
 
 ## Building
 

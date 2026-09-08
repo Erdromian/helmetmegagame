@@ -52,77 +52,89 @@ documents:
       - Medical (Expert)
     description: |-
       Health and injuries are tags. The price to treat them is measured in
-      Resources, your turns, and a skill.
+      Resources, a fraction of your Move, and a skill.
 
-      **What you can do in a day.** Treating a case within your skill is
-      Routine. You get 2 of them a turn with {tag:medical-basic}, 3 with
-      {tag:medical-skilled}, 4 with {tag:medical-expert}. First aid — anything
-      the table below lists at 0 turns — costs you nothing at all and never
-      counts against that, so bandage as many people as you like.
+      **First aid is free, up to a point.** A cure the table below marks with
+      no Move cost at all is a free action — first aid, bandaging, setting a
+      simple break. Any medic can do 8 of them in one turn before it starts
+      costing anything; past that, each extra one spills into your Move at
+      ⅛ apiece.
+
+      **Everything past first aid spends a fraction of your Move.** A ⅓ cure
+      is a third of your turn's work — three fit in one Routine. A ½ cure is
+      half — two fit. The heaviest tier takes the WHOLE Move, and that tier
+      is also where you roll.
 
       **Reaching past your skill.** You can attempt any cure, including ones
       well above your training. That's a Gambit: it spends your Move for the
       turn, a die is rolled, and you'll both find out at the end of it. A bad
-      roll can leave the patient worse than you found them. The top of the
-      table is a Gambit even for an Esculap.
+      roll can leave the patient worse than you found them. The heaviest tier
+      is a Gambit even for an Esculap. ‡
 
-      **Surgery needs instruments.** Hold {tag:surgical-equipment}, or stand
-      somewhere a set is already laid out — the Sanctuary's operating theatre
-      has one. It adds +1 to every medical Gambit you roll.
+      **Serious surgery needs a site.** Anything past "very minor surgery" in
+      the table needs {tag:surgical-equipment} — held, or already laid out in
+      the room — or a Surgical Theater; the Sanctuary's operating theatre has
+      one. It also adds +1 to the die on a medical Gambit, and a held
+      {tag:portable-surgical-pack} stands in for that +1 once, if nothing
+      else is in reach. ‡
 
       {tag:medical-basic} · {tag:medical-skilled} · {tag:medical-expert}
 
-      | Tier | ⬢ | Turns | Skill |
+      | Tier | ⬢ | Move | Skill |
       |---|---|---|---|
-      | Free | 0 | 0 | Medical (Basic) |
-      | Very minor — first aid | 1 | 0 | Medical (Basic) |
-      | Minor | 2 | 0 | Medical (Basic) |
-      | Moderately severe | 2 | 1 | Medical (Skilled) |
-      | Severe | 4 | 1 | Medical (Skilled) |
-      | Very minor surgery | 6 | 1 | Medical (Skilled) |
-      | Severe surgery | 8 | 1 | Medical (Expert) |
-      | Complex surgery | 8 | 1 | Medical (Expert) + Gambit |
+      | Free | 0 | none — shared pool of 8 a turn | Medical (Basic) |
+      | Very minor — first aid | 1–2 | none — shared pool of 8 a turn | Medical (Basic) |
+      | Minor | 2 | none — shared pool of 8 a turn | Medical (Basic) |
+      | Moderately severe | 2–4 | ⅓ | Medical (Skilled) |
+      | Severe | 2–4 | ⅓ | Medical (Skilled) |
+      | Very minor surgery | 7 | ½ | Medical (Skilled) |
+      | Severe surgery | 9 | ½ | Medical (Expert) |
+      | Complex surgery | 14 | whole, and a Gambit | Medical (Expert) |
 
-      **Free — 0 ⬢, no turn**
+      **Free — 0 ⬢, no Move**
 
       - {tag:minor-bleeding}, {tag:dislocated-shoulder}
 
-      **Very minor — 1 ⬢, no turn**
+      **Very minor — 1–2 ⬢, no Move**
 
-      - {tag:bruised}, {tag:severe-pain}
-
-      **Minor — 2 ⬢, no turn**
-
-      - {tag:minor-wound}, {tag:burned}, {tag:sprained-ankle}, {tag:infected},
+      - {tag:bruised}, {tag:severe-pain}, {tag:hypothermia}, {tag:choking},
         {tag:frostbite}
 
-      **Moderately severe — 2 ⬢, 1 turn**
+      **Minor — 2 ⬢, no Move**
+
+      - {tag:minor-wound}, {tag:burned}, {tag:sprained-ankle}, {tag:infected}
+
+      **Moderately severe — 2–4 ⬢, ⅓ Move**
 
       - {tag:deep-wound}, {tag:broken-bone}, {tag:cracked-ribs},
-        {tag:poisoned}, {tag:heatstroke}, {tag:pain-shock}, {tag:choking},
-        {tag:blunt-force-trauma}
+        {tag:poisoned}, {tag:heatstroke}, {tag:pain-shock},
+        {tag:blunt-force-trauma}, {tag:cave-fever}
 
-      **Severe — 3–4 ⬢, 1 turn**
+      **Severe — 2–4 ⬢, ⅓ Move**
 
       - {tag:severe-bleeding}, {tag:arterial-bleed}, {tag:parasites},
         {tag:severe-burns}, {tag:broken-jaw}, {tag:mangled-hand},
-        {tag:festering}, {tag:rot-lung}, {tag:pox}
+        {tag:festering}, {tag:rot-lung}, {tag:pox}, {tag:lockjaw}
 
-      **Very minor surgery — 6 ⬢, 1 turn**
+      **Very minor surgery — 7 ⬢, ½ Move**
 
-      - {tag:grievous-wound}, {tag:feverish}, {tag:necrosis}
+      - {tag:grievous-wound}, {tag:feverish}, {tag:necrosis}, {tag:stuffed},
+        {tag:crush-injury}
 
-      **Severe surgery — 8 ⬢, 1 turn**
+      **Severe surgery — 9 ⬢, ½ Move**
 
       - {tag:punctured-lung}, {tag:gut-wound}, {tag:appendicitis},
         {tag:envenomated}, {tag:disfigured}
 
-      **Complex surgery — 8 ⬢, 1 turn, Gambit**
+      **Complex surgery — 14 ⬢, whole Move, Gambit**
 
-      - {tag:sepsis}, {tag:dying}, {tag:consumptive}, {tag:blind},
-        {tag:crippled-leg}, {tag:phrygian-toxin}
+      - {tag:sepsis}, {tag:dying}, {tag:consumptive}, {tag:exploded-chest},
+        {tag:blind}, {tag:crippled-leg}, {tag:phrygian-toxin}
 
-      Tonics (see {document:alcoholdrugs}) cure some tags outright.
+      Some tonics and dressings cure specific tags outright, no medic needed
+      — see {document:alcoholdrugs}. Anyone can hand one to a person standing
+      with them, but a few — the prosthetics — need Medical (Expert) to fit,
+      even onto yourself. ‡
   sanctuary:
     name: Sanctuary
     public: true
@@ -553,6 +565,8 @@ documents:
       | {tag:minted-charm} | Smithing | 15, 3-turn project | {tag:old-coin} | caving loot |
       | {tag:musk-lure} | Butcher | 2 | {tag:nekker-pheromones} | butchered from a {tag:nekker-corpse} |
       | {tag:military-autoinjector} | Medical (Expert) | 8, 2 turns | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
+      | {tag:last-breath} | Medical (Expert) | 12, 3-turn project | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
+      | {tag:cybernetic-arm}, {tag:cybernetic-leg} | Medical (Expert) | 16, 3-turn project each | {tag:cybernetic-core} | GM-granted only, nothing drops it yet |
       | {tag:chrism} | Blessing | 2 | {tag:holy-water} and {tag:honey} | the Cathedral's still and the Depot's shelf |
       | {tag:heartforged-blade} | Smithing (Skilled) | 34, 3-turn project | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
       | {tag:death-mask} | Artist | 4, 2-turn project | a corpse (kept) and {tag:saltpeter} | hidden by its own catalog flag, like the {tag:bone-mask}: an artist standing with a body finds it |
