@@ -186,7 +186,7 @@ only code that had ever written a `Character` row:
 Everything Discord-side runs **after** the answer is written, best-effort, via
 `applySpawnSideEffects()`: the personal role (a mentionable name token held by
 nobody — access rides the zone role and the Location overwrite), placement
-through `applyLocationMoveSideEffects`, and the Cursed role dropped. The
+through `applyLocationMoveSideEffects`, and the Ghost role dropped. The
 nickname sync stays on the bot, because `buildNickname` is duplicated per face
 on purpose and a third copy in `db/lib` would be a third thing to keep in step.
 

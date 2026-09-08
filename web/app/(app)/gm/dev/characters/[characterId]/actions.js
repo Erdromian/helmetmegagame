@@ -15,7 +15,7 @@ import {
   revokeAllCharacterAccess,
   deleteCharacterRole,
   updateGuildNickname,
-  removeCursedRole,
+  removeGhostRole,
   killCharacter,
   sendDm,
 } from "@/lib/discordGuild";
@@ -31,12 +31,14 @@ import {
   planDiscordEffects,
 } from "@/lib/characterWrite";
 import { deleteCorpseFor } from "@lifeweb/db/lib/corpseMint";
+import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { applyFear, settleFearTag, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/fear";
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
 import { gmTransferResources } from "@/lib/gmTransfer";
+import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 
 // Dev Panel microactions, gated on GM membership; delete requires superadmin
 // (see requireSuperadminSession).
@@ -316,7 +318,7 @@ async function reviveCharacterImpl({ characterId }) {
 
   after(async () => {
     try {
-      await removeCursedRole(updated.discordUserId);
+      await removeGhostRole(updated.discordUserId);
       await ensureCharacterRole(updated);
       await syncCharacterNickname(updated.discordUserId, formatBareName(updated));
       // fromLocationId null: kill already stripped every grant, so this is a
@@ -337,6 +339,33 @@ async function reviveCharacterImpl({ characterId }) {
 }
 
 // Giving the turn back means deleting the Action row (web/lib/moveEconomy.js).
+// The curse toggle. Replaces the GM adding or removing the Cursed role in
+// Discord by hand, which moving the truth into the database took away — see
+// db/lib/curse.js. Three states, because "off" and "work it out" are different
+// answers: null lets the rule decide, true and false override it.
+//
+// It writes Character.cursedOverride and NOT buriedAt. Stamping that to lift a
+// curse would also take the body out of the world — un-lootable, un-draggable,
+// gone from every target menu (db/lib/presence.js, db/lib/escort.js).
+//
+// The ghost seat is left alone: it is channel access, the channel doctor
+// reconciles it against this answer on its next pass, and a GM overriding the
+// points penalty is not necessarily saying anything about who sees what.
+async function setCurseOverrideImpl({ characterId, override }) {
+  const session = await requireGm();
+  const character = await loadCharacter(characterId);
+  if (override !== null && typeof override !== "boolean") {
+    throw new UserError("Pick cursed, not cursed, or automatic.");
+  }
+
+  await prisma.character.update({ where: { id: characterId }, data: { cursedOverride: override } });
+
+  const cursed = await isPlayerCursed(prisma, character.discordUserId);
+  await audit(session, "gm_curse_override", characterId, { name: character.name, override, cursed });
+  repaint(characterId);
+  return { cursed, override };
+}
+
 async function restoreTurnImpl({ characterId, reason }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
@@ -735,6 +764,9 @@ export async function killCharacterNow(input) {
 }
 export async function reviveCharacter(input) {
   return guarded(() => reviveCharacterImpl(input));
+}
+export async function setCurseOverride(input) {
+  return guarded(() => setCurseOverrideImpl(input));
 }
 export async function restoreTurn(input) {
   return guarded(() => restoreTurnImpl(input));

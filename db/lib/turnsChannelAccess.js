@@ -15,7 +15,7 @@ const {
   deleteChannelOverwrite,
 } = require("./discordRest");
 const { applySpectatorOverwrite, spectatorOverwrite, spectatorsVisibleNow } = require("./spectatorAccess");
-const { applyCursedOverwrite, cursedRoleId, CURSED_ALLOW, CURSED_DENY } = require("./cursedAccess");
+const { applyGhostOverwrite, ghostRoleId, GHOST_ALLOW, GHOST_DENY } = require("./ghostAccess");
 const { SPECTATOR_ROLE_ID, gmRoleIds } = require("./roleIds");
 
 const CHANNEL_TYPE_TEXT = 0;
@@ -47,15 +47,12 @@ function turnsChannelOverwrites({ guildId, zoneRoleIds, spectators = true }) {
   }
   // Phase-gated: view only while the game is on (db/lib/spectatorAccess.js).
   wanted.set(SPECTATOR_ROLE_ID, spectatorOverwrite({ visible: spectators })[0]);
-  const cursed = cursedRoleId();
-  if (cursed) {
-    wanted.set(cursed, {
-      id: cursed,
-      type: 0,
-      allow: CURSED_ALLOW.toString(),
-      deny: CURSED_DENY.toString(),
-    });
-  }
+  wanted.set(ghostRoleId(), {
+    id: ghostRoleId(),
+    type: 0,
+    allow: GHOST_ALLOW.toString(),
+    deny: GHOST_DENY.toString(),
+  });
   for (const roleId of zoneRoleIds) {
     if (!roleId || wanted.has(roleId)) continue;
     wanted.set(roleId, { id: roleId, type: 0, allow: PERM_VIEW_CHANNEL.toString(), deny: "0" });
@@ -94,14 +91,14 @@ async function syncTurnsChannelAccess(prisma, { channelId = null } = {}) {
     await putChannelOverwrite(id, gmRoleId, { allow: GM_ALLOW.toString() });
   }
   await applySpectatorOverwrite(id, { visible: await spectatorsVisibleNow(prisma) });
-  await applyCursedOverwrite(id);
+  await applyGhostOverwrite(id);
 
   const zoneRoleIds = await zoneRoleIdsFor(prisma);
   let roleGrants = 0;
   for (const roleId of zoneRoleIds) {
     // A GM seat already has GM_ALLOW above; re-granting it the plain view bit
     // here would narrow it.
-    if (gmRoleIds().includes(roleId) || roleId === SPECTATOR_ROLE_ID || roleId === cursedRoleId()) continue;
+    if (gmRoleIds().includes(roleId) || roleId === SPECTATOR_ROLE_ID || roleId === ghostRoleId()) continue;
     await putChannelOverwrite(id, roleId, { allow: PERM_VIEW_CHANNEL.toString() });
     roleGrants += 1;
   }

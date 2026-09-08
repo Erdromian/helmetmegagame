@@ -21,7 +21,7 @@ const {
   deleteChannelOverwrite,
 } = require("./discordRest");
 const { applySpectatorOverwrite, spectatorsVisibleNow } = require("./spectatorAccess");
-const { applyCursedOverwrite } = require("./cursedAccess");
+const { applyGhostOverwrite } = require("./ghostAccess");
 const { SPECIAL_CHANNELS } = require("./specialChannels");
 const { gmRoleIds } = require("./roleIds");
 
@@ -123,7 +123,7 @@ async function syncSpecialChannels(prisma) {
       });
     }
     await applySpectatorOverwrite(channelId, { visible: spectatorsVisible });
-    if (entry.ghostsMaySee) await applyCursedOverwrite(channelId);
+    if (entry.ghostsMaySee) await applyGhostOverwrite(channelId);
 
     // The static zone-role floor: every listed zone's role hears the channel.
     const wantedZones = new Set(entry.roleViewZones ?? []);

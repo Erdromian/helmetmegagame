@@ -4,7 +4,7 @@ What a body is once nobody is using it. This doc owns `db/lib/corpses.js`,
 `db/lib/corpseMint.js`, `db/lib/corpseFollow.js`, `db/lib/corpseRotPass.js`,
 `db/lib/headstone.js`, `bot/src/lib/deathSmell.js`, the Butcher/Bury/Engrave
 actions, and `Tag.requirementItems`. Related: `CHARACTERS.md` (death and the
-Cursed role), `CARRY.md` (room stashes and the reach rule), `REQUESTS.md`
+the curse), `CARRY.md` (room stashes and the reach rule), `REQUESTS.md`
 (the three request types), `BREWING.md` (the two enforced ingredients).
 
 ## 1. The one idea
@@ -165,7 +165,7 @@ callers use it.
 **Bury needs the actual body.** It used to match a typed first name against the
 dead in your zone; now you pick a corpse you hold or can reach, which is
 strictly tighter (Location-grain, and you have to have it). It consumes the
-corpse tag, stamps `buriedAt`, and lifts the Cursed role as before. A monster
+corpse tag and stamps `buriedAt`, which is what lifts the curse (`db/lib/curse.js`). A monster
 corpse is refused — "There's no soul in that one."
 
 **Engrave is the answer to a body nobody can find**, so it is the one action

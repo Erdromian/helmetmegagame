@@ -410,7 +410,7 @@ export default function CreateCharacterWizard({
 
       {cursed && (
         <p className="panel p-3 text-sm text-accent">
-          You&apos;re <strong>Cursed</strong>! Until someone buries your body or immortalizes your name, you can only be a Bum or a Migrant. You suffer -3 to starting points.
+          You&apos;re <strong>Cursed</strong>! Until someone buries your body or immortalizes your name, you can only be a Bum or a Migrant. You suffer -6 to starting points.
         </p>
       )}
 

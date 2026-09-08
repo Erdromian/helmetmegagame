@@ -30,6 +30,7 @@ const { resolveSeatConflicts } = require("./seatConflicts");
 const { listObjectives, fulfillObjectives } = require("./objectives");
 const { settleFearTag } = require("./fear");
 const { normalizeChant, containsPhrase } = require("./rites");
+const { GHOST_ROLE_ID } = require("./roleIds");
 const { BOUND_SLUG, onHallowedGround } = require("./riteIngredients");
 const { broadcastToZones } = require("./worldBroadcast");
 const {
@@ -118,9 +119,7 @@ async function killByRite(db, character, { turn = null } = {}) {
   await revokeAllCharacterAccess(db, character).catch(log(`revoke for ${character.name}`));
   if (roleId) await deleteGuildRole(roleId).catch(log(`role delete for ${character.name}`));
   if (member) {
-    if (process.env.DISCORD_CURSED_ROLE_ID) {
-      await addMemberRole(character.discordUserId, process.env.DISCORD_CURSED_ROLE_ID).catch(log(`Cursed for ${character.name}`));
-    }
+    await addMemberRole(character.discordUserId, GHOST_ROLE_ID).catch(log(`Ghost seat for ${character.name}`));
     await setGuildNickname(character.discordUserId, null).catch(log(`nickname for ${character.name}`));
     await sendDm(db, character.discordUserId, "You have died.", { source: "rite" }).catch(log(`death DM for ${character.name}`));
   }
@@ -148,9 +147,7 @@ async function reviveByRite(db, dead, { location, turnNumber }) {
   } catch (err) {
     log(`role for ${dead.name}`)(err);
   }
-  if (process.env.DISCORD_CURSED_ROLE_ID) {
-    await removeMemberRole(dead.discordUserId, process.env.DISCORD_CURSED_ROLE_ID).catch(() => {});
-  }
+  await removeMemberRole(dead.discordUserId, GHOST_ROLE_ID).catch(() => {});
   // No nickname write here: the bot's nickname sync owns that, and it knows
   // the web-only and sync-disabled rules a raw setGuildNickname would bypass.
   await applyLocationMoveSideEffects(db, { characterId: dead.id, fromLocationId: null, toLocationId: location.id }).catch(

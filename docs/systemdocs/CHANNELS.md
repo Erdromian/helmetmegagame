@@ -172,7 +172,7 @@ The overwrites every target carries (`baseOverwrites`):
   every phase transition runs `syncSpectatorAccess`, which PUTs only where
   the live bits differ; and the doctor's **cheap** scope carries a
   `spectator-visibility` check as the backstop.
-- **The ghost seat** (`db/lib/cursedAccess.js`) — see §5.
+- **The ghost seat** (`db/lib/ghostAccess.js`) — see §5.
 
 On top of that: the zone role gets `ViewChannel` + `SendMessages` +
 `AddReactions` on `#summary`. Each character standing in a Location gets
@@ -589,7 +589,7 @@ ordinary unknown thread is (§8). The web `/map` panel is gone too (`MAP.md`).
 
 ## 5. The ghost seat
 
-The Cursed role — a dead player, not yet buried or engraved — gets
+The Ghost role — a dead player, not yet buried or engraved — gets
 `ViewChannel` plus `AddReactions` and a deny on everything else, including
 `ManageThreads`. Reactions are allowed where the spectator seat denies them,
 so a ghost can still ⭐ a message onto their own `/notes` page. That grant

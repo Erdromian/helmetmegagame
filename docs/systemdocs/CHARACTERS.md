@@ -600,40 +600,72 @@ Cost renders `+N` in `var(--accent)` (red, it costs you) and `-N` in
 
 ## 4. Cursed
 
-`Cursed` is a live Discord role (`DISCORD_CURSED_ROLE_ID`), not a DB field —
-it's on the Discord account rather than the `Character` row, so it outlives
-the character that earned it. `web/lib/discordGuild.js#isCursed(member)`
-reads it off a guild member's current roles, fed by `getGuildMember`
-(`isGm`'s exact pattern, just a different role id).
+`Cursed` is a **database fact**, worked out by `db/lib/curse.js`:
 
-It's granted automatically by `killCharacter` when a character dies, and
-removed automatically by `createCharacter` the moment the cursed player
-successfully rolls a new one — the curse doesn't outlast the Bum/Migrant it
-forced. A GM can also curse someone by hand (narrative punishment) simply by
-adding the role in Discord — there's no code path needed for that.
+> A player is cursed when their **most recent body** is still lying in the
+> world, and they have no living character.
+
+Both halves are already columns, so there is no `cursed` field to keep in step
+with anything. `Character.buriedAt` is stamped by `BURY_CHARACTER` and by
+`ENGRAVE_HEADSTONE` and cleared on a revive; having an ALIVE character ends the
+curse, because it is not meant to outlast the Bum or Migrant it forced.
+
+**Most recent**, not "any". A player who leaves several bodies behind answers
+for the last one only. Counting every body would mean that somebody whose
+corpse was destroyed — butchered, or exploded by a Rite of Sacrifice — could be
+locked to Bum or Migrant at −6 for the rest of the game.
+
+`isPlayerCursed(prisma, discordUserId)` is the single answer and
+`cursedUserIds(rows)` the bulk one; the bulk form is **pure over rows already
+loaded**, because the two GM roster desks and the channel doctor all hold the
+whole `Character` table already. `CURSE_SELECT` is exported for callers that
+narrow their `select` — omit `buriedAt` and the rule reads `undefined`.
+
+**It used to be a live Discord role, and that was the bug.** `isCursed(member)`
+read the role off a guild member, so *any* failed role write handed out a free
+full-points unrestricted re-roll: a 429 during the grant, a GM clearing it by
+hand, or a player leaving and rejoining the guild, which strips every role. It
+happened in a playtest — `DISCORD_CURSED_ROLE_ID` was set on the Railway web
+service and not on the bot, so every rite kill and every turn-clock death
+skipped it in silence while web-side kills worked fine, and a sacrificed player
+re-rolled ninety seconds later into an unrestricted seat at full points.
+
+The role still exists, renamed **Ghost**, and now does one job: read-only
+channel access for the dead (`CHANNELS.md` §5, `db/lib/ghostAccess.js`). Its id
+is hardcoded in `db/lib/roleIds.js`. **Nothing reads it to decide anything.**
+The channel doctor reconciles it one-directionally, database → role, so a
+disagreement costs a dead player some channels until the next pass rather than
+costing them points.
 
 While cursed, a player may still roll a new character — but only as a
 **Migrant** or a **Bum**, and with **6 fewer points**
 (`web/lib/characterCreation.js`'s `CURSED_ROLE_SLUGS`/`CURSED_POINT_PENALTY`,
-enforced by `isRoleSelectable`/`computeBudget`, unchanged by this — only
-where the `cursed` boolean they're fed comes from changed).
+enforced by `isRoleSelectable`/`computeBudget`).
 
 **Players lift it themselves, by burying the body — or, failing that, by
-carving a stone.** Two requests now do it (`REQUESTS.md` §5d,
+carving a stone.** Two requests do it (`REQUESTS.md` §5d,
 [`CORPSES.md`](CORPSES.md)). `BURY_CHARACTER` needs the dead character's actual
 **corpse tag**, held or lying in a room the filer can reach, and spends their
 Move; `ENGRAVE_HEADSTONE` is the answer to a body nobody can find, costing 4 ⬢
-and a Move and matching a **typed** first name game-wide. Either one removes the
-role from the dead player's Discord account after its transaction commits. That
-is the fiction the setting has always carried — `docs/documents.yaml`'s
-Respawning entry says to wait until your body is buried, and the Mortus role
-exists to do the burying — finally wired to something.
+and a Move and matching a **typed** first name game-wide. Either one stamps
+`buriedAt`, which is the whole of it — no Discord round trip is involved in
+lifting a curse any more. That is the fiction the setting has always carried —
+`docs/documents.yaml`'s Respawning entry says to wait until your body is
+buried, and the Mortus role exists to do the burying.
 
 **Butchering a corpse does not lift the curse.** Destroying a body is not
 burying it, and that is exactly why Engrave exists: somebody whose corpse was
-cut up and scattered has no body left to bury, and a stone is the only way out. A GM can still do it by hand from
-Discord's member panel; `/gm/dev/characters/[characterId]` shows a read-only
-Cursed status line, with no checkbox to toggle it from the app.
+cut up and scattered has no body left to bury, and a stone is the only way out.
+This now falls out of the rule rather than needing code — butchering never
+stamps `buriedAt`.
+
+**A GM overrides it from the character dev panel.** `Character.cursedOverride`
+is a three-state column: `null` means "work it out", `true` and `false` force
+the answer and nothing recomputes over the top. It replaces the old
+narrative-punishment move of adding or removing the role by hand in Discord,
+which the database taking over the truth took away. It deliberately does **not**
+write `buriedAt` — stamping that to lift a curse would also take the body out of
+the world, un-lootable and gone from every target menu.
 
 (`CharacterStatus.CURSED` still exists in the enum and is unrelated — it's an
 unused leftover, kept only because dropping a Postgres enum value is a risky
@@ -696,7 +728,7 @@ Discord role afterward. `web/lib/discordGuild.js#killCharacter`, called from
 4. Clears the Discord nickname. Unconditional — note the asymmetry:
    *setting* a nickname is gated behind `GameConfig.nicknameSyncEnabled`
    (off by default), but clearing a dead character's is not.
-5. Grants the Cursed role (§4).
+5. Grants the Ghost role — the seat, not the curse (§4).
 6. Writes a `DEATH` row to the transcript (`ARCHIVE.md`).
 7. Clears `CharacterTag.equipped` on every held tag. A corpse doesn't wield
    things, and a Revive later shouldn't walk back in with gear locked to
@@ -761,7 +793,7 @@ both directions are **microactions with a confirm**, not a `status` dropdown.
 That is deliberate. Death has side effects — the whole §5 list — and a staged
 form field would have to replay them at save time, which is how the old editor
 ended up able to set a corpse back to `ALIVE` while leaving it with no personal
-role, no channel access, and the Cursed role still on the account. Removing
+role, no channel access, and the Ghost role still on the account. Removing
 `status` from the form means the panel's Apply never has to reason about a
 status transition at all: it reads the live value from the database.
 

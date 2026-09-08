@@ -23,6 +23,7 @@ const { readGameState, effectivePlayerCount } = require("./gameState");
 const { formatCharacterName, formatBareName } = require("./characterName");
 const { expiryForGrant } = require("./grantExpiry");
 const { createGuildRole, removeMemberRole } = require("./discordRest");
+const { GHOST_ROLE_ID } = require("./roleIds");
 const { characterRoleAppearance } = require("./characterRoleAppearance");
 const { applyLocationMoveSideEffects } = require("./locationMove");
 const {
@@ -292,11 +293,10 @@ async function applySpawnSideEffects(prisma, sideEffects) {
     }).catch((err) => console.error("Spawn placement failed:", err));
   }
 
-  // A spawned threat is alive again, so the ghost seat comes off.
-  const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
-  if (cursedRoleId) {
-    await removeMemberRole(discordUserId, cursedRoleId).catch(() => {});
-  }
+  // A spawned threat is alive again, so the ghost seat comes off. The curse
+  // itself needs no write — db/lib/curse.js derives it, and this character
+  // being ALIVE is already the answer.
+  await removeMemberRole(discordUserId, GHOST_ROLE_ID).catch(() => {});
 
   // The Tribunal arrives by shuttle, and everybody sees it. Every Location on
   // the map, not a range from an origin — the sky is not a noise. Last, and

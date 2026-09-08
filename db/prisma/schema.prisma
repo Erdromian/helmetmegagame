@@ -1661,6 +1661,22 @@ model Character {
   // GM-revived character is never a live person marked buried.
   buriedAt DateTime?
 
+  // A GM's override of the curse, from the character dev panel. NULL means
+  // "work it out" — the normal case, answered by db/lib/curse.js from this
+  // character's buriedAt. True or false forces it either way and nothing
+  // recomputes over the top.
+  //
+  // It exists because the curse used to be a Discord role a GM could add or
+  // remove by hand in the member list, and moving the truth into the database
+  // took that away with nothing to replace it. A player wrongly cursed would
+  // otherwise have no remedy but to ask another player to spend 4 ⬢ and a Move
+  // engraving them a headstone.
+  //
+  // Deliberately NOT buriedAt: stamping that to lift a curse would also take
+  // the body out of the world, so it could not be looted, dragged or bound
+  // (db/lib/presence.js, db/lib/escort.js).
+  cursedOverride Boolean?
+
   // The in-game DAY a FAST_TRAVEL was last claimed on — despite the name,
   // NOT a turn id. A day is TWO turns (Dawn/Dusk), so this stores
   // The load at the last db/lib/carry.js settle — the watermark that tells an

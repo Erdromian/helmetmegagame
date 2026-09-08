@@ -113,7 +113,7 @@ import {
   syncCharacterNarrowcastAccess,
   syncCharacterNickname,
   ensureCharacterRole,
-  removeCursedRole,
+  removeGhostRole,
   sendDm,
   killCharacter,
 } from "@/lib/discordGuild";
@@ -4305,7 +4305,7 @@ async function buryCharacterRequestImpl({
     });
   });
 
-  await removeCursedRole(target.discordUserId).catch((err) =>
+  await removeGhostRole(target.discordUserId).catch((err) =>
     console.error(
       `Bury: failed to lift the curse from ${target.discordUserId}:`,
       err,
@@ -4400,7 +4400,7 @@ async function engraveHeadstoneRequestImpl({
     return { headstone };
   });
 
-  await removeCursedRole(target.discordUserId).catch((err) =>
+  await removeGhostRole(target.discordUserId).catch((err) =>
     console.error(
       `Engrave: failed to lift the curse from ${target.discordUserId}:`,
       err,

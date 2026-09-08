@@ -1,8 +1,9 @@
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
+import { cursedUserIds } from "@lifeweb/db/lib/curse";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { getOpenTurn } from "@/lib/turn";
-import { dmNoiseSql, genuineConversationSql, dmPreview } from "@/lib/dmThread";
+import { railKindSql, dmPreview } from "@/lib/dmThread";
 import PlayerRail from "./PlayerRail";
 import DeskHeader from "@/app/components/DeskHeader";
 import InboxPoller from "./InboxPoller";
@@ -123,10 +124,10 @@ export default async function PlayerDeskLayout({ children }) {
   const globalNameById = new Map(guildMembers.map((mem) => [mem.id, mem.globalName]));
 
   // Cursed is a live Discord role, not a DB field.
-  const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
-  const cursedUserIds = new Set(
-    cursedRoleId ? guildMembers.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [],
-  );
+  // Who is cursed is a database question now (db/lib/curse.js), not a Discord
+  // role — and the rows it reads are the ones already loaded above, so this
+  // costs no extra query.
+  const cursed = cursedUserIds(characters);
 
   // Name/role/faction/zone resolve together under one ALIVE-wins rule.
   const characterByUser = new Map();
@@ -179,12 +180,11 @@ export default async function PlayerDeskLayout({ children }) {
       zoneName: c?.zone?.name ?? "",
       status: c?.status ?? null,
       resources: c?.resources ?? 0,
-      cursed: cursedUserIds.has(discordUserId),
+      cursed: cursed.has(discordUserId),
       catatonic: c ? catatonicCharacterIds.has(c.id) : false,
       username,
       globalName: globalNameById.get(discordUserId) ?? "",
       preview,
-      previewIsSystem,
       lastAtMs: last ? last.createdAt.getTime() : 0,
       lastDirection: last?.direction ?? null,
       // Whether a thread exists, not how long — avoids a per-user COUNT scan.

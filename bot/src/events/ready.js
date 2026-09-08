@@ -31,7 +31,6 @@ const REQUIRED_ENV = [
   ["DISCORD_GUILD_ID", "every REST call"],
   ["DISCORD_CLIENT_ID", "the doctor's check that no zone role outranks the bot"],
   ["DISCORD_GM_ROLE_ID", "the standing GM seat — the gate narrows to Trial GMs"],
-  ["DISCORD_CURSED_ROLE_ID", "the Cursed role on a rite or turn-clock death, and the ghost seat"],
   ["DISCORD_TURN_PING_ROLE_ID", "the turn ping"],
   ["WEB_BASE_URL", "every link the bot writes into a DM"],
   ["AUTH_SECRET", "the hood tokens behind Who's here?"],

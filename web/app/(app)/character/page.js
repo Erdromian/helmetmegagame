@@ -19,6 +19,7 @@ import {
   guestRoomIds as roomGuestIds,
 } from "@lifeweb/db/lib/roomAccess";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
+import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import {
   THANATI_SLUG,
   THANATI_LEADER_SLUG,
@@ -58,7 +59,6 @@ import { craftFreeUnits } from "@/lib/requests";
 import { summarizeCraftBudget } from "@/lib/craftBudget";
 import {
   getGuildMember,
-  isCursed,
   isGm,
   isLeaderWhitelisted,
   onRoster,
@@ -117,7 +117,7 @@ async function loadCreationData(discordUserId) {
   );
   const takenByRole = await takenCounts(prisma, roleRows, discordUserId);
 
-  const cursed = isCursed(member);
+  const cursed = await isPlayerCursed(prisma, discordUserId);
   // Presentation only; the server action re-checks regardless. Creation is
   // open while the game runs (Ended locks only the clock — LOBBY.md §1), and
   // to a GM during the lobby, which is the Skip button.

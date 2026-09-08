@@ -243,7 +243,7 @@ export default function ActionBar({
                   {
                     title: `Revive ${character.name}?`,
                     message:
-                      "Restores their personal Discord role, nickname and channel access, and removes the Cursed role.",
+                      "Restores their personal Discord role, nickname and channel access, and takes back the ghost seat.",
                     confirmLabel: "Revive",
                   },
                   () => reviveCharacter({ characterId: character.id }),

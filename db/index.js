@@ -33,6 +33,7 @@ const { runDawnAfflictionPass } = require("./lib/dawnAfflictionPass");
 const { runDepotPass } = require("./lib/depotPass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
 const { getGameState, readGameState } = require("./lib/gameState");
+const { GHOST_ROLE_ID } = require("./lib/roleIds");
 const { announceTurretBurst } = require("./lib/turretBurst");
 const { ambientLine } = require("./lib/ambientLine");
 const { deliverCarryDrop } = require("./lib/carry");
@@ -1520,17 +1521,12 @@ async function advanceTurn() {
       }
 
       if (member) {
-        if (process.env.DISCORD_CURSED_ROLE_ID) {
-          await addMemberRole(
-            death.discordUserId,
-            process.env.DISCORD_CURSED_ROLE_ID,
-          ).catch((err) =>
-            console.error(
-              `Failed to grant Cursed to ${death.discordUserId}:`,
-              err.message,
-            ),
-          );
-        }
+        await addMemberRole(death.discordUserId, GHOST_ROLE_ID).catch((err) =>
+          console.error(
+            `Failed to grant the ghost seat to ${death.discordUserId}:`,
+            err.message,
+          ),
+        );
         await setGuildNickname(death.discordUserId, null).catch((err) =>
           console.error(
             `Failed to clear ${death.name}'s nickname:`,

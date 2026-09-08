@@ -4,8 +4,9 @@ import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import RosterView from "./RosterView";
-import Loading from "./loading";
+import Loading from "./Skeleton";
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
+import { cursedUserIds } from "@lifeweb/db/lib/curse";
 import { listGuildMembers } from "@/lib/discordGuild";
 import { getVisibleZones } from "@/lib/gmZoneView";
 import { getOpenTurn } from "@/lib/turn";
@@ -100,10 +101,10 @@ async function FreshPlayerRoster({ searchParams, userId }) {
   const catatonicCharacterIds = new Set(
     heldTags.filter((ct) => ct.tagId === catatonicTagId).map((ct) => ct.characterId),
   );
-  const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
-  const cursedUserIds = new Set(
-    cursedRoleId ? members.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [],
-  );
+  // Who is cursed is a database question now (db/lib/curse.js), not a Discord
+  // role — and the rows it reads are the ones already loaded above, so this
+  // costs no extra query.
+  const cursed = cursedUserIds(characters);
   // Same map PlayerRail already builds for the rail's fuzzy search — the
   // roster table gets it too, so it can find someone by Discord handle
   // without a second query.
@@ -129,7 +130,7 @@ async function FreshPlayerRoster({ searchParams, userId }) {
           username: memberById.get(c.discordUserId)?.username ?? "",
           globalName: memberById.get(c.discordUserId)?.globalName ?? "",
           resources: c.resources,
-          cursed: cursedUserIds.has(c.discordUserId),
+          cursed: cursed.has(c.discordUserId),
           catatonic: catatonicCharacterIds.has(c.id),
           tagCount: (tagNamesByCharacter.get(c.id) ?? []).length,
           tag: (tagNamesByCharacter.get(c.id) ?? []).join(" "),
