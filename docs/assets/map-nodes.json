@@ -244,32 +244,20 @@
       "x": 830,
       "y": 368
     },
-    "marshes-duckboards": {
-      "name": "Duckboards",
-      "zone": "marshes",
-      "x": 1374,
-      "y": 1188
-    },
-    "marshes-hardground": {
-      "name": "Hardground",
-      "zone": "marshes",
-      "x": 1692,
-      "y": 986
-    },
-    "marshes-pasture": {
-      "name": "Drowned Pasture",
+    "marshes-drowned": {
+      "name": "Drowned Marshes",
       "zone": "marshes",
       "x": 1826,
       "y": 1258
     },
-    "marshes-reedcut": {
-      "name": "Reedcut",
+    "marshes-north": {
+      "name": "North Marshes",
       "zone": "marshes",
-      "x": 1471,
-      "y": 979
+      "x": 1692,
+      "y": 986
     },
-    "marshes-sink": {
-      "name": "The Sink",
+    "marshes-south": {
+      "name": "South Marshes",
       "zone": "marshes",
       "x": 1676,
       "y": 1533
@@ -279,6 +267,18 @@
       "zone": "marshes",
       "x": 1651,
       "y": 1211
+    },
+    "marshes-west": {
+      "name": "West Marshes",
+      "zone": "marshes",
+      "x": 1471,
+      "y": 979
+    },
+    "marshes-woods": {
+      "name": "Woods",
+      "zone": "marshes",
+      "x": 1374,
+      "y": 1188
     },
     "north-gate": {
       "name": "North Gate",

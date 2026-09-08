@@ -1211,13 +1211,13 @@ zones:
           wilderness: true
         map_node: 36
         description: >-
-          The river meets and starts to grow, forming a canyon between the Black Hills and a large promontory to the south. You can't go directly down the river, so you'll have to climb up the hills to the north.
+          The river forces its way through a steep canyon where dead trees cling to the slopes above black water. Ruined masonry, rusted weapons, and pieces of worked metal frequently wash from upstream and lodge between the rocks.
         yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
         rooms:
           east-river-bridge:
             name: Bridge
             description: >-
-              An old wooden bridge.
+              A weathered wooden bridge spans the canyon where the banks briefly draw close, its supports wedged between old stone foundations much older than the timber above them.
           east-river-washup:
             name: Rockside Washup
             description: >-
@@ -1639,57 +1639,130 @@ zones:
                 paper: 9
                 bannerets-wax-stamp: 1
                 cigarette: 1
-      marshes-hardground:
-        name: Hardground
+      marshes-north:
+        name: North Marshes
         map_node: 31
         description: >-
-          Firm ground, barely — a tongue of gravel reaching into the wet, which is why every road in the marsh eventually comes here. Cart ruts fill with brown water and hold their shape for weeks. ‡
+          The land flattens into water, reeds, and the cloudy sky. Warm shallows stretch between muddy hummocks beneath clouds of mosquitos, while low yellow fog rolls through wherever the water turns stagnant. Wind rustles through the reeds in great bands, carrying the smell of rot and distant splashing much farther than expected.
         yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
           wilderness: true
           godflesh: true
-        rooms: {}
-      marshes-reedcut:
-        name: Reedcut
+        rooms:
+          north-marshes-cages:
+            name: Cages
+            description: >-
+              Iron cages stand on isolated hummocks along the decrepit, ramshackle path. Most rusted open and empty. A few remain locked, their lower halves submerged into parts of the marsh, with scratches covering the bars from the inside.
+          north-marshes-reeds:
+            name: Reeds
+            description: >-
+              Shoulder-high reeds spread in every direction, swallowing trails only a few yards after they are made.
+          north-marshes-longwater:
+            name: Longwater
+            description: >-
+              One of the few dependable channels through the marsh. The dark water runs slow but deep enough for a skiff. Long wakes disturb the surface where nothing can be seen beneath, while mosquitos gather thickly over the warmer banks.
+      marshes-west:
+        name: West Marshes
         map_node: 32
         description: >-
-          Reed beds over your head, cut through by a channel somebody dug straight. Straight is not natural here. Follow it and you are following somebody's intention. ‡
+          Broad old trees gather along slow, dark channels, their limbs stretching low enough to almost brush the water. Grass grows thick on the higher banks, while lilies and floating weeds collect in the quieter bends below. The woods feel open at first glance, dappled with warm light and broad patches of green, but the ground is divided by creeks, flooded hollows, and soft banks that give way underfoot. Frogs call from the water and insects hang in the still air beneath the canopy.
         yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
           wilderness: true
           godflesh: true
-        rooms: {}
-      marshes-duckboards:
-        name: Duckboards
+        rooms:
+          west-marshes-backwater:
+            name: Backwater
+            description: >-
+              A horseshoe bend cut off from the main current, thick with lilies, duckweed, and insects. Fish disturb the otherwise glassy surface, and fallen branches gather in heaps wherever the water narrows. The frogs can be heard loudly.
+          west-marshes-fallen-crossing:
+            name: Fallen Crossing
+            description: >-
+              A storm-toppled oak bridges one of the deepest channels from bank to bank. Its upper branches have been cut away over the years, leaving a broad, weather-smoothed road.
+          west-marshes-frog-hollow:
+            name: Frog Hollow
+            description: >-
+              Behind a curtain of reeds, a narrow side-channel opens into a sheltered pool almost completely enclosed by roots and low branches. Hundreds of frogs gather along the muddy banks, on half-sunken logs, and across broad lily pads, filling the hollow with a constant chorus of croaks.
+            access: [forester, animal-friend]
+            stash:
+              items:
+                old-coin: 9
+      marshes-woods:
+        name: Woods
         map_node: 33
         description: >-
-          Where the ground gives up pretending. Duckboards run from hummock to hummock, and under them the water is black and warm and moves against the current. ‡
+          Trees knot together above narrow ridges of mud and thickets wide enough to force travelers into whatever passages remain open. The air hangs hot and wet beneath the canopy, heavy with mosquitos and the sweet-sour smell of flooded vegetation. Pale fog settles into the lowest hollows and turns trunks into indistinct shapes.
         yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
           wilderness: true
           godflesh: true
-        rooms: {}
-      marshes-pasture:
-        name: Drowned Pasture
+        rooms:
+          woods-hanging-trees:
+            name: Hanging Trees
+            description: >-
+              A cluster of trees that bear hundreds of ribbons, bells, bones, and scraps of clothing tied high among the branches, some old enough to have been swallowed halfway into the bark.
+          woods-deadfall:
+            name: Deadfall
+            description: >-
+              An entire patch of forest was flattened during some long-past storm. Uprooted trees have left pits full of rainwater beside great walls of exposed roots, while new saplings grow through the bleached remains of the old forest.
+          woods-mirebed:
+            name: Mirebed
+            description: >-
+              Beneath interlocking roots, an area opens into a dry island of peat and old bone. Curled at its center lies something enormous beneath a blanket of moss: a lion-like body the size of a cottage, one horned head tucked beneath a folded wing, while a second shape—another neck—disappears beneath its mane. Each breath slow, and mushrooms have begun growing from the mud accumulated along its back. It sleeps no matter what you do.
+            access: [forester, tracking]
+            stash:
+              items:
+                coal: 2
+      marshes-drowned:
+        name: Drowned Marshes
         map_node: 34
         description: >-
-          Drowned pasture. Fence posts stand in three feet of water in lines that go on past where you can see, and the animals they were built for have been gone a long time. ‡
+          This place is open. The drowned basin spreads beneath an open sky, its surface broken by the occasional raft of floating vegetation. In still weather, the surface becomes perfectly reflective, doubling the trees and clouds until the horizon seems uncertain. There is little shelter and less solid ground, only water stretching between scattered remnants of what once grew there.
         yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
           wilderness: true
           godflesh: true
-        rooms: {}
-      marshes-sink:
-        name: The Sink
+        rooms:
+          drowned-marshes-stillwater:
+            name: Stillwater
+            description: >-
+              The basin’s center is deep, exposed, and almost entirely free of vegetation. On calm days the water becomes mirror-flat, making distant trees and clouds difficult to distinguish from their reflections.
+          drowned-marshes-crypt:
+            name: Crypt
+            description: >-
+              A drowned burial chamber rests beneath the tower, its niches filled with black water and pale silt. Several sarcophagi have split open under the pressure. A narrow opening beneath the eaves leads into an air pocket trapped against the ceiling. Rusted hooks and a heavy iron bell remain inside, along with whatever was abandoned when the water rose.
+            access: [strong-swimmer]
+            stash:
+              items:
+                obol: 4
+                cross: 1
+                vestments: 1
+      marshes-south:
+        name: South Marshes
         map_node: 35
         description: >-
-          The southern sink, where everything the marsh carries finally stops. There is a smell. There is also a stairwell, going down, with water lapping at the fourth step. ‡
+          Wet grass and pale limestone share the ground in uneasy patches, cut through by clear streams that vanish abruptly into cracks in the earth. Shallow hollows gather rainwater between shelves of exposed stone, while larger depressions fall away into shadow beneath hanging roots and scrub.
         yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
           wilderness: true
           godflesh: true
-        rooms: {}
-
+        rooms:
+          south-marshes-pocked-grounds:
+            name: Pocked Grounds
+            description: >-
+              Shallow hollows interrupt an otherwise open stretch of wet grass. Most are harmless bowls of mud and rainwater, though several conceal narrow openings between limestone shelves.
+          south-marshes-great-sink:
+            name: Great Sink
+            description: >-
+              A huge depression has collapsed into the limestone, leaving a steep bowl lined with scrub, loose rock, and exposed roots. At its lowest point, several cave mouths disappear beneath an overhang where daylight barely reaches.
+          south-marshes-rootmouth:
+            name: Rootmouth
+            description: >-
+              A seemingly ordinary hollow beneath an old tree conceals a crack large enough to squeeze through. Its roots hang into a narrow limestone chamber below, twisted around fallen stones like ropes. A ledge follows the wall above a subterranean stream before disappearing deeper beneath the fen.
+            access: [caving]
+            stash:
+              items:
+                graga-corpse: 1
   # --- Underground (group) ---
   # Category + GM seat only, NOT a standable place: no #summary, no "Zone:
   # Underground" access role, and it never appears in connections. Its
@@ -2169,13 +2242,13 @@ connections:
   - [hills/hills-grand-ravine, hills/hills-cliffs]
 
   # --- Marshes ----------------------------------------------------------
-  - [marshes/marshes-hardground, marshes/marshes-reedcut]
-  - [marshes/marshes-hardground, marshes/marshes-village]
-  - [marshes/marshes-reedcut, marshes/marshes-duckboards]
-  - [marshes/marshes-duckboards, marshes/factory]
-  - [marshes/marshes-pasture, marshes/marshes-village]
-  - [marshes/marshes-pasture, marshes/marshes-sink]
-  - [marshes/marshes-sink, marshes/factory]
+  - [marshes/marshes-north, marshes/marshes-west]
+  - [marshes/marshes-north, marshes/marshes-village]
+  - [marshes/marshes-west, marshes/marshes-woods]
+  - [marshes/marshes-woods, marshes/factory]
+  - [marshes/marshes-drowned, marshes/marshes-village]
+  - [marshes/marshes-drowned, marshes/marshes-south]
+  - [marshes/marshes-south, marshes/factory]
   - [marshes/marshes-village, marshes/factory]
 
   # --- Caves ------------------------------------------------------------
@@ -2215,9 +2288,9 @@ connections:
   - [caves/caves-abandoned-camp, depths/depths-last-chance]
   - [caves/caves-abandoned-camp, depths/depths-fork]
   - [depths/depths-chasm, hills/hills-cliffs]
-  - [hills/hills-waterway, marshes/marshes-hardground]
-  - [hills/hills-waterway, marshes/marshes-reedcut]
-  - [hills/hills-cliffs, marshes/marshes-hardground]
+  - [hills/hills-waterway, marshes/marshes-north]
+  - [hills/hills-waterway, marshes/marshes-west]
+  - [hills/hills-cliffs, marshes/marshes-north]
 
   # The town's two gates. Neither is manned, so both record what a passer-by
   # would have seen rather than who it actually was.
@@ -2263,10 +2336,10 @@ connections:
   - pair: [forest/forest-sparse-field, caves/caves-walkways]
     hidden: caving
     on_foot: true
-  - pair: [caves/caves-walkways, marshes/marshes-duckboards]
+  - pair: [caves/caves-walkways, marshes/marshes-woods]
     hidden: caving
     on_foot: true
-  - pair: [depths/depths-grand-chamber, marshes/marshes-sink]
+  - pair: [depths/depths-grand-chamber, marshes/marshes-south]
     hidden: caving
     on_foot: true
 
