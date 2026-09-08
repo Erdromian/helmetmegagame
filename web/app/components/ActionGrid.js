@@ -1,132 +1,73 @@
 "use client";
 
-import IconButton from "./IconButton";
-import Tooltip from "./Tooltip";
+import ActionButton from "./ActionButton";
 import { useRequestActions } from "./RequestActionsProvider";
-import { ACTION_SECTIONS, ACTION_HELP } from "./actionRegistry";
+import { ACTION_SECTIONS, ACTION_HELP, labelFor, reasonFor } from "./actionRegistry";
 
-// Everything a player can do to a sheet, as captioned rows of icons on the
-// right of the Status panel. The list itself lives in actionRegistry.js;
-// this only lays it out.
+// Everything a player can do to a sheet, as captioned rows of buttons. The
+// list itself lives in actionRegistry.js; this only lays it out, and
+// ActionButton.js draws each one.
 //
 // Rows, not a fixed grid. The old four-across grid left one icon stranded
 // on its own row whenever the count wasn't a multiple of four, and the
 // count is about to keep growing. Each section is a `flex-wrap` row under a
 // small caption, so any number of icons fills left to right and wraps
 // wherever the width says; a section with nothing to show (no bird, no
-// literacy) is left out entirely. Below `sm` the whole block drops under
-// the <dl> beside it, same as before.
-
-// The tooltip is the label plus, where there is one, the sentence explaining
-// what the action actually does — IconButton already renders `label` through
-// Tooltip, so hovering tells you what a glyph means without a second control.
+// literacy) is left out entirely.
 //
-// A `reason` is appended when the button is greyed out and the pool could say
-// why. Tooltip wraps the button rather than sitting on it, so unlike a native
-// title= it still fires on a disabled element — which is exactly the case that
-// most needs an explanation.
-function tooltipFor({ label, mode }, reason = null) {
-  const help = ACTION_HELP[mode];
-  if (!help && !reason) return label;
-  return (
-    <>
-      <p>
-        <strong>{label}</strong>
-      </p>
-      {typeof help === "string" ? <p>{help}</p> : help}
-      {reason ? <p>{reason}</p> : null}
-    </>
-  );
-}
-
-// The wide form of one action: the glyph AND its name, as a full-width row.
-// The rack above is glyph-only because it lives in a 12rem column on
-// /character; /ledger has a whole screen, and a labelled verb is one fewer
-// thing to hover to understand. Same Tooltip wrapper either way, so the
-// explaining sentence — and a disabled button's reason — still arrive.
-function ActionTile({ icon: Icon, label, tooltip, onClick, disabled }) {
-  return (
-    <Tooltip text={tooltip} pinnable={false}>
-      <button
-        type="button"
-        className="action-tile"
-        aria-label={label}
-        onClick={onClick}
-        disabled={disabled}
-      >
-        <Icon width="18" height="18" />
-        <span>{label}</span>
-      </button>
-    </Tooltip>
-  );
-}
-
-// `variant` picks the frame, not the contents. "rack" is the original: a
-// captioned row of icons, capped narrow, which is what /character's column
-// fits. "columns" is /ledger's: one column per section with a rule between
-// them, each holding labelled tiles.
+// `variant` picks the frame, not the contents. "rack" is a captioned row of
+// framed glyphs, capped narrow, which is what /character's column fits.
+// "columns" is /ledger's: one column per section with a rule between them,
+// each holding the glyph AND its name as a full-width row — /ledger has a
+// whole screen, and a labelled verb is one fewer thing to hover to understand.
 export default function ActionGrid({ variant = "rack" }) {
   const actions = useRequestActions();
   if (!actions) return null;
-  const { open, pools } = actions;
+  const { open, pools, busy } = actions;
+  const columns = variant === "columns";
 
-  if (variant === "columns") {
+  const sections = ACTION_SECTIONS.map((section) => ({
+    ...section,
+    visible: section.actions.filter((a) => (a.show ? pools[a.show] : true)),
+  })).filter((s) => s.visible.length > 0);
+
+  const button = (a) => (
+    <ActionButton
+      key={a.mode}
+      variant={columns ? "tile" : "icon"}
+      icon={a.icon}
+      label={labelFor(a, pools)}
+      help={ACTION_HELP[a.mode] ?? null}
+      reason={reasonFor(a, pools)}
+      disabled={a.gate ? !pools[a.gate] : false}
+      busy={busy === a.mode}
+      onClick={() => open(a.mode)}
+    />
+  );
+
+  if (columns) {
     return (
       <div className="action-columns">
-        {ACTION_SECTIONS.map((section) => {
-          const visible = section.actions.filter((a) => (a.show ? pools[a.show] : true));
-          if (visible.length === 0) return null;
-          return (
-            <div key={section.key} className="action-column">
-              <p className="field-label mb-2">{section.label}</p>
-              <div className="flex flex-col gap-1">
-                {visible.map((a) => {
-                  const disabled = a.gate ? !pools[a.gate] : false;
-                  return (
-                    <ActionTile
-                      key={a.mode}
-                      icon={a.icon}
-                      label={a.label}
-                      tooltip={tooltipFor(a, disabled ? (pools.gateReason?.[a.mode] ?? null) : null)}
-                      onClick={() => open(a.mode)}
-                      disabled={disabled}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+        {sections.map((section) => (
+          <div key={section.key} className="action-column">
+            <p className="field-label mb-2">{section.label}</p>
+            <div className="flex flex-col gap-1">{section.visible.map(button)}</div>
+          </div>
+        ))}
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-2">
-      {ACTION_SECTIONS.map((section) => {
-        const visible = section.actions.filter((a) => (a.show ? pools[a.show] : true));
-        if (visible.length === 0) return null;
-        return (
-          <div key={section.key}>
-            <p className="field-label mb-1">{section.label}</p>
-            <div className="flex flex-wrap gap-1" style={{ maxWidth: "12rem" }}>
-              {visible.map((a) => {
-                const disabled = a.gate ? !pools[a.gate] : false;
-                return (
-                  <IconButton
-                    key={a.mode}
-                    icon={a.icon}
-                    label={a.label}
-                    tooltip={tooltipFor(a, disabled ? (pools.gateReason?.[a.mode] ?? null) : null)}
-                    onClick={() => open(a.mode)}
-                    disabled={disabled}
-                  />
-                );
-              })}
-            </div>
+      {sections.map((section) => (
+        <div key={section.key}>
+          <p className="field-label mb-1">{section.label}</p>
+          <div className="flex flex-wrap gap-1" style={{ maxWidth: "12rem" }}>
+            {section.visible.map(button)}
           </div>
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 }

@@ -84,11 +84,16 @@ import {
   butcherCorpseRequest,
   engraveHeadstoneRequest,
   birdMessageRequest,
-  extractGodfleshRequest,
   packageItemsRequest,
 } from "../(app)/character/requestActions";
-import { readPointer, armNuke, disarmNuke } from "@/app/(app)/character/nukeActions";
-import { recallComrades, recoverEquipment, setHideout, purchaseGear } from "@/app/(app)/character/thanatiActions";
+import { setHideout, purchaseGear } from "@/app/(app)/character/thanatiActions";
+import { useNotice } from "./NoticeProvider";
+import { INSTANT } from "./actions";
+import { noticeLine } from "./actions/noticeLines";
+// Prisma-free on purpose (it takes `db` as a parameter), so importing it here
+// does not drag the @lifeweb/db barrel into the browser bundle — the same
+// footing as mutilate.js below.
+import { RECOVERABLE_SLUGS } from "@lifeweb/db/lib/thanati";
 // Writing and sealing file no Request, so they live apart from the rest —
 // see web/app/(app)/character/paperActions.js.
 import {
@@ -600,6 +605,9 @@ export default function RequestActionsProvider({
     (hideoutStock?.self?.obols ?? 0);
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
+  const notice = useNotice();
+  // Which instant verb is in flight, so its button can say so.
+  const [busy, setBusy] = useState(null);
   const [refresh] = useRefresh();
   // When the last open() asked for one. A ref, not the provider's `refreshing`
   // flag: reading that would move `open`'s identity twice per refresh and
@@ -770,6 +778,13 @@ export default function RequestActionsProvider({
   );
 
   const heldSlugs = useMemo(() => heldSlugsOf(characterTags), [characterTags]);
+  // Which of the robes and the mask are NOT on this sheet — what Recover
+  // Equipment would hand back, and the label the button wears
+  // (actionRegistry.js#labelFor). Your own pockets, so the button may grey.
+  const recoverMissing = useMemo(
+    () => RECOVERABLE_SLUGS.filter((slug) => !heldSlugs.has(slug)),
+    [heldSlugs],
+  );
 
   // Bird recipients filtered by typed text — dead stay in it; current pick kept.
   const birdChoices = useMemo(() => {
@@ -985,8 +1000,46 @@ export default function RequestActionsProvider({
   // the sheet's. Only `targetId` / `patientId` / `toKey` / `fromKey` /
   // `picks` are seedable — everything else in a dialog is a decision, not a
   // context.
+  // An instant verb: no dialog. Ask the one-line question if the verb has
+  // one — OUTSIDE the transition, or the confirm never renders (DESIGN-SYSTEM.md
+  // §8) — then run it and say what happened as a notice. Recall's roster
+  // rides along as rows under the line.
+  const runInstant = useCallback(
+    async (next) => {
+      const verb = INSTANT[next];
+      if (!verb) return;
+      const ask = verb.confirm({ recoverMissing });
+      if (ask && !(await confirm(ask))) return;
+      setBusy(next);
+      startTransition(async () => {
+        try {
+          const res = await verb.run();
+          if (!res?.ok) {
+            notice({ text: res?.error ?? "Something went wrong.", tone: "bad" });
+            return;
+          }
+          notice({
+            text: noticeLine(next, res),
+            rows: Array.isArray(res.roster)
+              ? res.roster.map((r) => ({ name: r.name, note: r.role, mark: r.leader ? "[LEADER]" : null }))
+              : null,
+          });
+        } catch {
+          notice({ text: "Could not reach the server. Nothing was changed. ‡", tone: "bad" });
+        } finally {
+          setBusy(null);
+        }
+      });
+    },
+    [confirm, notice, recoverMissing],
+  );
+
   const open = useCallback(
     (next, presetTagId = null, presets = null) => {
+      if (INSTANT[next]) {
+        runInstant(next);
+        return;
+      }
       setMode(next);
       // Every roster in here — who is standing at your Location, who is Bound,
       // what is lying in the rooms — was only true when the page rendered.
@@ -1058,7 +1111,7 @@ export default function RequestActionsProvider({
       if (presets?.fromKey) setFromKey(presets.fromKey);
       if (presets?.picks) setPicks(presets.picks);
     },
-    [selfId, refresh],
+    [selfId, refresh, runInstant],
   );
 
   // Picking a sheet in the Write dialog fetches what is already on it, so the
@@ -1250,8 +1303,6 @@ export default function RequestActionsProvider({
         return confessRequest({ chaplainId: targetId, tagId });
       case "consume":
         return consumeTagRequest({ tagId });
-      case "extract":
-        return extractGodfleshRequest();
       case "package":
         return packageItemsRequest({
           lines: Object.entries(packed).map(([id, q]) => ({
@@ -1349,12 +1400,6 @@ export default function RequestActionsProvider({
         return engraveHeadstoneRequest({ firstName: engraveName });
       case "disguise":
         return disguiseSelfRequest({ name: disguiseName });
-      case "pointer":
-        return readPointer();
-      case "recall":
-        return recallComrades();
-      case "recover":
-        return recoverEquipment();
       case "hideout":
         return setHideout({ roomId: hideoutRoomId });
       case "purchase":
@@ -1363,10 +1408,6 @@ export default function RequestActionsProvider({
           currency: gearCurrency,
           purse: gearPurse,
         });
-      case "arm":
-        return armNuke();
-      case "disarm":
-        return disarmNuke();
       // Neither files a Request — see web/app/(app)/character/paperActions.js
       // for why. Both still come back as { ok, error } like everything else.
       case "write":
@@ -1420,20 +1461,10 @@ export default function RequestActionsProvider({
         return Boolean(engraveName.trim());
       case "disguise":
         return Boolean(disguiseName.trim());
-      // The pointer asks nothing and costs nothing, so there is nothing to
-      // fill in before pressing it.
-      case "pointer":
-        return true;
-      case "recall":
-      case "recover":
-        return true;
       case "hideout":
         return Boolean(hideoutRoomId);
       case "purchase":
         return gearLines.length > 0 && gearTotal <= gearFunds;
-      case "arm":
-      case "disarm":
-        return hasDevice;
       case "craft": {
         if (siteId) {
           const site = buildSites.find((s) => s.id === siteId);
@@ -1469,8 +1500,6 @@ export default function RequestActionsProvider({
       case "teach":
       case "confess":
         return Boolean(targetId && tagId);
-      case "extract":
-        return canExtract;
       case "package":
         return (
           Object.keys(packed).length > 0 &&
@@ -1524,8 +1553,11 @@ export default function RequestActionsProvider({
       isThanati,
       isThanatiLeader,
       atHideout,
+      canRecover: recoverMissing.length > 0,
+      recoverMissing,
     }),
     [
+      recoverMissing,
       craftable,
       craftProjects,
       buildSites,
@@ -1563,8 +1595,8 @@ export default function RequestActionsProvider({
   // the Transfer presets take without being handed the id a second way. The
   // Chat's room panel is the one that needs it (Drop and Take name both ends).
   const value = useMemo(
-    () => (enabled ? { open, pools, selfId } : null),
-    [enabled, open, pools, selfId],
+    () => (enabled ? { open, pools, selfId, busy } : null),
+    [enabled, open, pools, selfId, busy],
   );
 
   const title = titleFor(mode);
@@ -2054,19 +2086,6 @@ export default function RequestActionsProvider({
               </>
             )}
 
-            {mode === "extract" && (
-              <>
-                <p className="text-sm">You wade out and cut. A day of it.</p>
-                {extractBlocked ? (
-                  <p className="text-sm text-accent">{extractBlocked}</p>
-                ) : (
-                  <p className="text-xs text-muted">
-                    Rolls 1d6, and you&apos;ll be told what it came up. A 6 pays extra. A 1 means it grabbed hold of you first; Armored Gloves protect your hands.
-                  </p>
-                )}
-              </>
-            )}
-
             {mode === "package" && (
               <>
                 {packable.length === 0 ? (
@@ -2212,16 +2231,10 @@ export default function RequestActionsProvider({
               </>
             )}
 
-            {mode === "pointer" && (
-              <p className="text-xs text-muted">
-                The card wakes and swings. Press to read it&mdash;the answer
-                comes to you privately, and nobody here is told you looked.
-              </p>
-            )}
-
             {/* THE THANATI (docs/systemdocs/THANATI.md). Recall and Recover
-                ask nothing — the dialog is the confirm — and by Bascinet's
-                ruling none of the four carries a line of explanation. */}
+                run on the click (components/actions/index.js#INSTANT); by
+                Bascinet's ruling none of the four carries a line of
+                explanation. */}
             {mode === "hideout" && (
               <label className="field">
                 <span className="field-label">Room</span>
@@ -2300,29 +2313,6 @@ export default function RequestActionsProvider({
                     {gearTotal} / {gearFunds}
                   </span>
                 </div>
-              </>
-            )}
-
-            {(mode === "arm" || mode === "disarm") && (
-              <>
-                {!hasDevice ? (
-                  <NobodyHere>
-                    You have the card, but not the device. You can only work it
-                    with the thing in your hands.
-                  </NobodyHere>
-                ) : mode === "arm" ? (
-                  <p className="text-xs text-muted">
-                    The card goes in and the count begins. It detonates at the
-                    close of the turn after next, and everyone who is not
-                    underground when it does will die&mdash;you included, unless
-                    you are. You can still take the card out before then.
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted">
-                    The card comes out and the count stops. You can put it back
-                    whenever you like.
-                  </p>
-                )}
               </>
             )}
 

@@ -35,6 +35,10 @@ function RequestDialogBody({
   error = null,
   canSubmit = true,
   reasonRequired = false,
+  // Replaces the Cancel/Confirm row entirely. ActionDialog passes a lone
+  // Close when a dialog's roster came back empty — a disabled Confirm under
+  // "Nobody here is bound." was a dead button under an answer.
+  footer = null,
   onCancel,
   onConfirm,
   children,
@@ -80,14 +84,16 @@ function RequestDialogBody({
 
         <FormError>{error}</FormError>
 
-        <div className="modal-actions">
-          <button type="button" className="btn-quiet" onClick={() => onCancel?.()} disabled={busy}>
-            Cancel
-          </button>
-          <button type="submit" className="btn" disabled={!ready}>
-            {busy ? "Working…" : submitLabel}
-          </button>
-        </div>
+        {footer ?? (
+          <div className="modal-actions">
+            <button type="button" className="btn-quiet" onClick={() => onCancel?.()} disabled={busy}>
+              Cancel
+            </button>
+            <button type="submit" className="btn" disabled={!ready}>
+              {busy ? "Working…" : submitLabel}
+            </button>
+          </div>
+        )}
       </form>
     </Modal>
   );

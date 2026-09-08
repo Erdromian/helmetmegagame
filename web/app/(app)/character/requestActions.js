@@ -4520,10 +4520,15 @@ async function extractGodfleshRequestImpl() {
   );
 
   revalidateAll();
+  // The DM above carries the same facts with Discord's formatting; this is
+  // the one-line version the page's notice shows.
+  const got = result.quantity > 0 ? `${result.quantity} Godflesh` : "nothing";
+  const hurt = injury ? ` It got hold of you first — ${injury.name}.` : "";
   return {
     die: result.die,
     quantity: result.quantity,
     injury: injury?.name ?? null,
+    line: `You went out into the marsh and cut. The die came up ${result.die}: ${got}.${hurt} ‡`,
   };
 }
 

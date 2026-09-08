@@ -102,7 +102,10 @@ async function armNukeImpl() {
   });
 
   revalidatePath("/character");
-  return { firesOn };
+  return {
+    firesOn,
+    line: `The card is in and the count has begun. It goes off at the close of turn ${firesOn}. ‡`,
+  };
 }
 
 async function disarmNukeImpl() {
@@ -131,7 +134,7 @@ async function disarmNukeImpl() {
   });
 
   revalidatePath("/character");
-  return { disarmed: true };
+  return { disarmed: true, line: "The card is out. The count is stopped. ‡" };
 }
 
 // NOT named usePointer: ESLint's rules-of-hooks reads any exported

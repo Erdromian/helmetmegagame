@@ -1768,6 +1768,159 @@ input[type="radio"]:disabled {
 .modal-panel[data-width="wide"] { max-width: 40rem; }
 .modal-panel[data-width="widest"] { max-width: 46rem; }
 
+/* Under 640px a dialog is a bottom sheet: full width, up from the bottom,
+   with the Cancel/Confirm row pinned to the foot so it stays reachable under
+   a long body — the panel is its own scroll container (overflow-y above), so
+   a sticky footer works the way the sticky .modal-header already does.
+   Modeless dialogs are desktop-only and never reach this width. */
+@media (max-width: 640px) {
+  .modal-overlay:not([data-modeless="true"]) {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-overlay:not([data-modeless="true"]) .modal-panel {
+    max-width: none;
+    width: 100%;
+    max-height: 92dvh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border-bottom: 0;
+    padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+    animation: sheet-up 180ms ease-out;
+  }
+
+  .modal-overlay:not([data-modeless="true"]) .modal-panel .modal-actions {
+    position: sticky;
+    bottom: calc((var(--sp-4) + env(safe-area-inset-bottom, 0px)) * -1);
+    z-index: 2;
+    margin: var(--sp-4) calc(var(--sp-4) * -1) calc((var(--sp-4) + env(safe-area-inset-bottom, 0px)) * -1);
+    padding: var(--sp-3) var(--sp-4) calc(var(--sp-3) + env(safe-area-inset-bottom, 0px));
+    background: var(--surface-raised);
+    border-top: 1px solid var(--border);
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(12%);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* The result notice (NoticeProvider.js): one line saying what a button just
+   did, bottom-right, over everything but a tooltip. Deliberately NOT a
+   .modal-overlay — Modal.js#dialogHoldsKeyboard counts those. z-index sits
+   between .modal-overlay (100) and .tag-tooltip (120). */
+.notice-stack {
+  position: fixed;
+  right: var(--sp-4);
+  bottom: var(--sp-4);
+  z-index: 110;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-width: 24rem;
+  pointer-events: none;
+}
+
+.notice-card {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent-text);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3);
+  box-shadow: var(--e-3);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  animation: notice-in 160ms ease-out;
+}
+
+.notice-card[data-tone="bad"] {
+  border-left-color: var(--danger);
+  color: var(--danger);
+}
+
+.notice-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.notice-text {
+  margin: 0;
+}
+
+.notice-rows {
+  list-style: none;
+  margin: var(--sp-1) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--fs-xs);
+}
+
+.notice-mark {
+  color: var(--accent-text);
+}
+
+.notice-close {
+  all: unset;
+  cursor: pointer;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: 1;
+}
+
+.notice-close:hover,
+.notice-close:focus-visible {
+  color: var(--accent-text);
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+@keyframes notice-in {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* On a phone the stack sits above the bottom nav rail, full width. */
+@media (max-width: 720px) {
+  .notice-stack {
+    left: var(--sp-3);
+    right: var(--sp-3);
+    bottom: calc(var(--rail-h) + env(safe-area-inset-bottom, 0px) + var(--sp-2));
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-panel,
+  .notice-card {
+    animation: none;
+  }
+}
+
 /* A modeless dialog (Modal.js `modeless`, desktop only). The dim is gone and
    the overlay stops catching pointer events, so the GM desks' right-hand
    inspector stays browsable while a composer is open. Only the panel itself
@@ -2229,6 +2382,14 @@ input[type="radio"]:disabled {
 .action-tile:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+/* An instant verb in flight (ActionButton.js `busy`): quieter, not greyed —
+   nothing is wrong, it is just working. */
+.action-tile[data-busy],
+.icon-btn[data-busy] {
+  opacity: 0.6;
+  cursor: progress;
 }
 
 .action-tile:focus-visible {
@@ -3425,6 +3586,59 @@ label.chip {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-1);
+}
+
+/* A chip's aside — a corpse's yield, "✓ current", a price — in the muted
+   face beside the label (ChipPicker.js). */
+.chip .chip-note {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  margin-left: 4px;
+}
+
+/* A stack you are choosing some of (StackRow.js): name · − n + · All. One
+   row does what a checkbox and a "How many?" box used to do between them. */
+.stack-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.stack-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-1) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm);
+}
+
+.stack-row:last-child {
+  border-bottom: 0;
+}
+
+.stack-row[data-picked] .stack-row-name {
+  color: var(--accent-text);
+}
+
+.stack-row-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.stack-row-note {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.stack-row-all {
+  font-size: var(--fs-xs);
+  min-width: 2.6rem;
+  text-align: right;
 }
 
 .audit-pair {

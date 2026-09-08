@@ -10,7 +10,6 @@ import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { requireFreeMove, fileAutoRoutine } from "@/lib/moveSpend";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
-import { sendDm } from "@/lib/discordGuild";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { grantTagSlugs, addToRoomStack, dropRoomTag } from "@lifeweb/db/lib/tagWrites";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
@@ -21,7 +20,6 @@ import {
   THANATI_WARES,
   OBOL_SLUG,
   listComrades,
-  formatComrades,
   hideoutRoom,
 } from "@lifeweb/db/lib/thanati";
 
@@ -59,25 +57,24 @@ function revalidate() {
 }
 
 // ---- Recall Comrades -------------------------------------------------------
-// The roster arrives as a DM, so a cultist reading it in a crowded room gives
-// nothing away. Costs nothing and spends no Move.
+// The roster comes back to the page that asked, as a notice under the
+// cultist's own cursor — private already, so it no longer goes out as a DM
+// too. Costs nothing and spends no Move.
 async function recallComradesImpl() {
   const { session, me } = await cultist();
   const rows = await listComrades(prisma);
-  const line = formatComrades(rows);
   await logAudit(prisma, {
     actorDiscordUserId: session.discordUserId,
     actionType: "request_recall_comrades",
     targetCharacterId: me.id,
     details: { comrades: rows.map((r) => r.name) },
   });
-  after(() =>
-    sendDm(me.discordUserId, line, { source: "player_event" }).catch((err) =>
-      console.error(`Recall Comrades DM to ${me.name} failed:`, err),
-    ),
-  );
   revalidate();
-  return { ok: true };
+  return {
+    ok: true,
+    roster: rows.map((r) => ({ name: r.name, role: r.role, leader: r.leader })),
+    line: rows.length ? "Your comrades. ‡" : "You are the last of them. ‡",
+  };
 }
 
 // ---- Recover Equipment -----------------------------------------------------
@@ -122,7 +119,12 @@ async function recoverEquipmentImpl() {
   });
   await afterInventoryChange([me.id]);
   revalidate();
-  return { ok: true, granted: granted.map((r) => r.tagName) };
+  const names = granted.map((r) => r.tagName);
+  return {
+    ok: true,
+    granted: names,
+    line: `${names.join(" and ")} back in your hands — and that's your Move for the turn. ‡`,
+  };
 }
 
 // ---- Set Hideout -----------------------------------------------------------
