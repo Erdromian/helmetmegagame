@@ -495,3 +495,93 @@ documents:
     roles: [tribune, baron]
     description: |-
       The Undercroft has an elevator which connects it to the nearby Cliffside Road.
+
+  # THE THANATI (docs/systemdocs/THANATI.md). Bascinet's text, verbatim; the
+  # only edits are the {tag:…} tokens, which the source wrote as {Name}.
+  cultist:
+    name: Cultist
+    public: false
+    tags:
+      - Thanati
+    description: |-
+      This reality is flawed to its core! Lord Tzchernobog will deliver a new, perfect reality once this one has come to an end, when the last human observer has passed into nothingness.
+
+      You and your fellow cultists must obey the instructions of your leader and ultimately, Tzchernobog. You can see who your fellow cultists are in the faction tab.
+
+      Secrecy is your greatest strength. Ever since the arrival of the Inquisitor, the cults position has been tenuous. The capture of one of you will result in your exposure, death is preferable to what the sadistic inquisition will do to you.
+
+      You may retrieve your {tag:black-robes} and {tag:thanati-mask} at any time while in Ravenheart, by spending an action. You must wear them to perform rites, and use cursed items. Be careful, they give away your position as a heretic when worn.
+
+      You can see your fellow members by using the **Recall Comrades** button.
+
+      You can craft Flesh of Tzchernobog using 1 resource. Consume it in order to conduct rites.
+
+      You can craft the {tag:grimoire} using 1 {tag:blank-book}. It will detail the available rites and their words of corruption.
+
+      Seek to meet up with your cult leader and commence the initial rite. It will let you hear the bidding of Lord Tzchernobog.
+
+      Your cult has a hideout somewhere in Ravenheart, here you can stockpile resources and items. You may also purchase illicit goods here, see the Thanati Network document for more information.
+
+      Victory is to complete all, or as many objectives as possible. From there, you will be rewarded, even if you die.
+  rites:
+    name: Rites
+    public: false
+    tags:
+      - Thanati
+    description: |-
+      The list of rites and their words can be obtained by crafting a {tag:grimoire}, which takes 1 {tag:blank-book}. To fulfill a rite, consume a {tag:flesh-of-tzchernobog} to gain {tag:dark-inspiration} and then prepare the ingredients—hold them or set them on the ground where you plan to commence the rite. You must then chant the Word of the Circle in a conversation or in the room. To account for time zones, you have twelve hours to meet the requirements after beginning. Once completed, you have an extra minute for any other cultists who wish to join in the chanting.
+  cult-leader:
+    name: Cult Leader
+    public: false
+    tags:
+      - Thanati Leader
+    description: |-
+      You have emerged as the leader of Ravenheart’s cell of Thanati. They will follow your every order, and you must lead them to accomplish the Dark Lords instructions.
+
+      You are the brains behind all the cults schemes. If you are captured, the entire cult will be in jeopardy. Have your underlings perform the riskiest of tasks instead.
+
+      You oversee management of the cults resources and stockpile. Equip your cultists however you see fit.
+
+      Your presence is required for the most important rites. Good luck.
+  # Readable by the cult and by the two religious factions — the Church and
+  # the Order — through `roles:`, the same way elevatorkey reaches the Baron.
+  thanati:
+    name: Thanati
+    public: false
+    tags:
+      - Thanati
+    roles: [bishop, chaplain, scholastic, inquisitor, practicus, preacher]
+    description: |-
+      The Thanati are a violent death cult, seeking to bring an end to this reality. In their eyes it is flawed and broken, and must be torn down so that their lord, Tzchernobog can rebuild it anew. Only when the last human observer ceases to exist can this reality end.
+
+      In recent times, the local Thanati cell was expanding throughout Ravenheart, threatening to upend the entire region. As such, the inquisition was dispatched to purge Ravenheart of the sin that had come to fester beneath the surface.
+
+      Thanati cultists can be identified by their dark robes, heretical chants and burning hatred for the Post-Christian church. Due to the presence of the inquisition, the members have gone into hiding, however they are far from idle. The cult will conduct secretive sigils in the dark corners of the fortress, communing with their dark lord.
+
+      **Common Thanati Chants:**
+
+      “Crudux Cruo!”
+
+      “Geroxe bibox malax!”
+
+      “Geroxe Cruo!”
+
+      “Maranax infirmux!”
+
+      These chants allegedly commune with Tzchernobog, granting his servants strength as they conduct his bidding.
+  thanati-network:
+    name: Underground Thanati Network
+    public: false
+    tags:
+      - Thanati
+    description: |-
+      The Thanati have cells established all over the planet, and maintain close logistical connections. Cultists may access the network while in their hideout, exchanging resources for equipment. Generally, only the cult leader is permitted to handle the ordering of equipment.
+  # The Grimoire's body is GENERATED, never authored here: /documents expands
+  # the {grimoire} marker from db/lib/rites.js and this game's rolled Words of
+  # the Circle (web/lib/grimoire.js). Unlocked by holding the Grimoire tag.
+  grimoire:
+    name: Grimoire
+    public: false
+    tags:
+      - Grimoire
+    description: "{grimoire}"

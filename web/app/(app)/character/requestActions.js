@@ -2393,7 +2393,8 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     if (!intersects && !held.tag.administerable) {
       throw new UserError(`${found.name} isn't holding anything ${held.tag.name} treats. ‡`);
     }
-    target = found;  }
+    target = found;
+  }
 
   const openTurn = await getOpenTurn();
 

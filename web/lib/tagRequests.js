@@ -230,8 +230,12 @@ export function transferableTags(characterTags = []) {
 // packageItemsRequest refuses it server-side too.
 // A runtime crate, from either maker — a Depot shipment or somebody's Package.
 // One predicate, because the two places that ask were drifting already.
+// `crateContents` is the manifest and it is stripped before a tag crosses to
+// the client (character/page.js and play/page.js), so a client-side row proves
+// itself a crate with the plain `crate` flag those strips leave behind. Server
+// rows still carry the manifest and answer on that.
 export function isCrate(tag) {
-  return Boolean(tag?.custom && tag?.crateContents);
+  return Boolean(tag?.custom && (tag?.crateContents || tag?.crate));
 }
 
 export function packableTags(characterTags = []) {

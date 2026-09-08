@@ -415,6 +415,10 @@ export async function myThings() {
         tag: {
           select: {
             id: true,
+            // canDetectPoison reads slugs (thingRows.js), so the drawer's own
+            // re-read has to carry them or a detector's marker survives the
+            // first paint and vanishes on the next refresh.
+            slug: true,
             name: true,
             category: true,
             equippable: true,

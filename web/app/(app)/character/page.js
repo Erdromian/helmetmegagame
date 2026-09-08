@@ -907,7 +907,10 @@ async function FreshCharacter({ userId, searchParams }) {
       const { crateContents, ...ctTagRest } = ctRest.tag ?? {};
       const stripped = {
         ...ctRest,
-        tag: ctRest.tag ? ctTagRest : ctRest.tag,
+        // The manifest goes, but WHETHER this is a crate has to survive it: the
+        // Consume dialog suppresses its "Becomes:" line for a crate, and Package
+        // refuses to pack one, and both ask on the client.
+        tag: ctRest.tag ? { ...ctTagRest, crate: Boolean(crateContents) } : ctRest.tag,
         poisonMarker: canSmellPoison && (poisonedCount ?? 0) > 0,
       };
       if (!isPaper(ct.tag)) return stripped;

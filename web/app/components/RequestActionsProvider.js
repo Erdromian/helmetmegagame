@@ -29,6 +29,7 @@ import {
   addRequirementSatisfied,
   placementOfferedHere,
   craftFamily,
+  isCrate,
 } from "@/lib/tagRequests";
 // The craft Move budget. Pure arithmetic, no prisma — the same module the
 // server enforces with, so the dialog's numbers and the server's refusals
@@ -1934,7 +1935,7 @@ export default function RequestActionsProvider({
                     rather than the catalog slugs `becomes` reads — so the
                     fallback line below would claim it leaves nothing behind,
                     which is the one thing that is never true of a crate. */}
-                {chosen && !chosen.crateContents && (
+                {chosen && !isCrate(chosen) && (
                   <p className="text-xs text-muted">
                     {becomes.length
                       ? `Becomes: ${becomes.join(", ")}.`
