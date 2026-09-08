@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · Stealth reaches the gates, and a forger can copy any stamp
+
+✚ Stealth is a real skill now: cross an unwatched gate and it announces nothing at all, cross a guarded one and it records only what a passer-by saw, not your name  
+✚ A forger can craft every wax stamp in the game, the Baron's and the Bishop's included — so the only two routes to a Baron's mark are taking it off the Baron or forging one  
+✚ A gibbed death leaves no corpse behind at all, just a Gibbed mark where the tags were  
+− The Inscrutable tag, and with it the rule that shut your Desire to every reader  
+✎ Ambush Predator costs less, and it, Forger and Mountaineering all say what they actually do
+
 ## 2026-09-08 · The travel lines say you'll arrive next turn
 
 ✎ "You arrive next turn" now reads "you'll arrive next turn" everywhere it appears, the two departure lines included, so they all match
