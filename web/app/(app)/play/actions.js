@@ -508,6 +508,12 @@ export async function loadTravel() {
       // A way too narrow to ride or push through — crossing it dismounts
       // instead of refusing (db/lib/indoors.js#dismountForNarrowWay).
       dismounts: Boolean(row.dismounts),
+      // Which of this character's own tags opens the way, when one does — the
+      // node draws it as that tag's chip, so a climb you paid Mountaineering
+      // for says so instead of looking like every other road. Only ever a tag
+      // they hold (locationGraph.js#crossingCheck), so there is nothing here to
+      // leak.
+      openedBy: row.openedBy ?? null,
       // crossingCheck's field is `refusal`, not `reason` — this was silently
       // dropping the actual message (e.g. the locked/shut wording) and
       // falling back to the node's generic "no way".

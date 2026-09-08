@@ -5528,6 +5528,26 @@ label.chip {
   text-overflow: ellipsis;
 }
 
+/* The trait that opens a way, drawn as that tag's own chip (ChipLabel, so the
+   group colour comes with it). A node is narrow, so the chip may wrap its name
+   over two lines rather than push the card wider — and it sits above the foot
+   so the cost line stays the last thing read. */
+.chat-node .chip,
+.map-exit .chip {
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+/* Everywhere else a .chip is something you tap, so it carries a touch floor.
+   This one is a label printed on a button that is already the tap target, and
+   the floor would only make the node taller. */
+@media (pointer: coarse) {
+  .chat-node .chip,
+  .map-exit .chip {
+    min-height: 0;
+  }
+}
+
 /* The confirm is a strip under the grid, not a modal: you have already
    pointed at where you are going, and a dialog would only cover it up. */
 .chat-travel-confirm {
@@ -6365,6 +6385,13 @@ label.chip {
   stroke: var(--muted);
 }
 
+/* A road only your own trait opens. Solid and accented, never dashed — dashed
+   already means "you can see this and cannot use it", and this is the opposite
+   of that. */
+.map-edge[data-opened] {
+  stroke: var(--accent);
+}
+
 /* ----------------------------------------------------------- /map · nodes */
 
 .map-node {
@@ -6543,6 +6570,15 @@ label.chip {
 .map-exit .mono {
   color: var(--muted);
   font-size: var(--fs-xs);
+}
+
+/* Between the name and the cost on a way out. margin-right:auto keeps the cost
+   pinned to the right edge where the row's space-between put it, instead of the
+   chip pushing it into the middle. */
+.map-via {
+  display: inline-flex;
+  min-width: 0;
+  margin-right: auto;
 }
 
 .map-return {

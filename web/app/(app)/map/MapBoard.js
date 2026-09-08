@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import useActionRunner from "@/app/components/useActionRunner";
-import { travelFoot } from "@/lib/travelCost";
+import ChipLabel from "@/app/components/ChipLabel";
+import { useTags } from "@/app/components/TagsProvider";
+import { travelFoot, openedByLabel } from "@/lib/travelCost";
 import { loadMap } from "./actions";
 import { travelTo } from "../play/actions";
 
@@ -359,6 +361,7 @@ export default function MapBoard({ onClose = null }) {
                     key={`${e.a}-${e.b}`}
                     className="map-edge"
                     data-gate={e.gate ?? undefined}
+                    data-opened={e.openedBy ? "true" : undefined}
                     x1={a.x}
                     y1={a.y}
                     x2={b.x}
@@ -492,6 +495,9 @@ export default function MapBoard({ onClose = null }) {
             {exits.map((n) => (
               <button key={n.id} type="button" className="map-exit" onClick={() => setSel(n.id)}>
                 <span>{n.name}</span>
+                {/* The tag of theirs that opens it, where one does — the same
+                    chip the Travel panel and the card below draw. */}
+                <ViaChip slug={n.openedBy} />
                 <span className="mono">{travelFoot(n, travel?.freeLeft ?? 0, travel?.mounted)}</span>
               </button>
             ))}
@@ -541,6 +547,23 @@ function Inside({ inside }) {
   );
 }
 
+// The trait chip, resolved from a slug. Both places on this page that draw one
+// want the identical thing, and neither has anywhere to put the sentence, so
+// the name is on the chip and the sentence is on its title. `tagsBySlug` is the
+// root layout's streamed catalog plus everything this character holds — and
+// openedBy is only ever a tag they hold, so the lookup cannot come up empty.
+// ChipLabel, not TagChip: both call sites are inside a <button>.
+function ViaChip({ slug }) {
+  const { tagsBySlug } = useTags();
+  const tag = slug ? (tagsBySlug.get(slug) ?? null) : null;
+  if (!tag) return null;
+  return (
+    <span className="map-via" title={openedByLabel(tag.name)}>
+      <ChipLabel tag={tag} />
+    </span>
+  );
+}
+
 function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
   const isHere = here && node.id === here.id;
   const reachable = node.adjacent && node.passable;
@@ -549,9 +572,15 @@ function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
   return (
     <div className="map-card-body">
       <p className="map-card-name">{node.name}</p>
-      <span className="chip zone-chip" data-zone={node.zoneKey}>
-        {node.zoneName}
-      </span>
+      <div className="chip-row">
+        <span className="chip zone-chip" data-zone={node.zoneKey}>
+          {node.zoneName}
+        </span>
+        {/* Beside the zone rather than under it: both answer "what is this
+            place to me", and the shared .chip-row is what a line of chips is
+            already spelled as everywhere else. */}
+        <ViaChip slug={node.openedBy} />
+      </div>
 
       {node.description && <p className="text-sm">{node.description}</p>}
 
