@@ -1598,7 +1598,23 @@ export async function shoutHere(text, placeKey = null) {
   const me = await actor({ id: true, name: true, locationId: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };
 
-  const result = await shout(prisma, { ...me.character, discordUserId: me.discordUserId }, text);
+  // The write check comes BEFORE shout(), which is a change: shout() claims the
+  // five-minute cooldown, so asking afterwards meant a thread the player may
+  // not write to cost them five minutes of throat for zero posts. That was
+  // always wrong and is now unmissable — from inside a soundproof room the
+  // thread is the ONLY audience, so failing this check would burn the cooldown
+  // on a shout literally nobody heard.
+  const here = parsePlaceKey(placeKey);
+  const inThread = Boolean(here && (here.kind === "room" || here.kind === "conv"));
+  if (inThread) {
+    const mine = await mayWritePlace(prisma, me.character, placeKey, {
+      gm: false,
+      discordUserId: me.discordUserId,
+    });
+    if (!mine) return { ok: false, error: "You can't speak in here. ‡" };
+  }
+
+  const result = await shout(prisma, { ...me.character, discordUserId: me.discordUserId }, text, { placeKey });
   if (!result.ok) {
     return { ok: false, error: result.error, retryAfter: result.retryAfter ?? null };
   }
@@ -1607,23 +1623,18 @@ export async function shoutHere(text, placeKey = null) {
   // Location places only — a Room thread is behind a door, and a shout does
   // not go through every door in the street — but the one door you are inside
   // of would otherwise be the only place that did not hear you.
-  const here = parsePlaceKey(placeKey);
-  if (here && (here.kind === "room" || here.kind === "conv")) {
-    const mine = await mayWritePlace(prisma, me.character, placeKey, {
-      gm: false,
-      discordUserId: me.discordUserId,
-    });
-    const near = result.heard.find((entry) => entry.distance === 0);
-    if (mine && near) {
-      await sceneLine(prisma, { placeKey, text: near.scene.text, lines: near.scene.lines });
-      try {
-        const target = await discordTargetForPlaceKey(prisma, placeKey);
-        const channelId = target?.threadId ?? target?.channelId ?? null;
-        if (channelId) await postMessage(channelId, near.line, undefined, { parse: [] });
-      } catch {
-        // The archive row stands. A thread that refused the post is one
-        // audience short, not a failed shout.
-      }
+  //
+  // `result.here` rather than a distance-0 entry out of `heard`: a soundproof
+  // room empties `heard`, and this post is then the whole of the delivery.
+  if (inThread) {
+    await sceneLine(prisma, { placeKey, text: result.here.scene.text, lines: result.here.scene.lines });
+    try {
+      const target = await discordTargetForPlaceKey(prisma, placeKey);
+      const channelId = target?.threadId ?? target?.channelId ?? null;
+      if (channelId) await postMessage(channelId, result.here.line, undefined, { parse: [] });
+    } catch {
+      // The archive row stands. A thread that refused the post is one
+      // audience short, not a failed shout.
     }
   }
 

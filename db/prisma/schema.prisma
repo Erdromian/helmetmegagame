@@ -1246,6 +1246,18 @@ model Room {
   // so a GM can still Undo. See docs/systemdocs/CARRY.md.
   destroysContents Boolean @default(false)
 
+  // A room the walls hold the sound in. Set from `soundproof: true` in
+  // docs/zones.yaml — the Vault, the Oubliette, the Order Chambers, the
+  // cellars. A /shout made from inside one is posted into the room's own
+  // thread and nowhere else: the parent Location channel and every Location
+  // in earshot get nothing, and the shouter is told it was muffled. It still
+  // costs the five-minute cooldown, because it still happened.
+  //
+  // This is a SHOUT boundary, not a sound boundary — the whisper poll still
+  // leaks Conversation fragments into the parent Room. See db/lib/shout.js
+  // and docs/systemdocs/COMMANDS.md §2d.
+  soundproof Boolean @default(false)
+
   // A key from the registry in db/lib/roomLive.js, set from `live:` in
   // docs/zones.yaml. The room's starter message carries one extra line read
   // off live state, re-rendered whenever that state moves — the Landing Pad

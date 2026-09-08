@@ -492,6 +492,7 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
         kind: access.length > 0 ? "PRIVATE" : "PUBLIC",
         accessTagSlugs: access,
         destroysContents: room.destroys === true,
+      soundproof: room.soundproof === true,
         live: collectLive(room.live, `room "${room.id}"`, problems),
         stash: parseStash(room.stash, room.id, problems),
         locationSlug: location.id,
@@ -1124,6 +1125,7 @@ async function syncZonesFromYaml(prisma) {
       kind: entry.kind,
       accessTagSlugs: entry.accessTagSlugs,
       destroysContents: entry.destroysContents,
+    soundproof: entry.soundproof,
       live: entry.live,
       locationId: location.id,
     };

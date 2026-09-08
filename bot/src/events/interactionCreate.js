@@ -36,7 +36,6 @@ const {
   endpoints,
   linksFor,
   isHeldOpen,
-  soundRange,
   KEYED_OPEN_MS,
 } = require("@lifeweb/db/lib/locationGraph");
 const { reconcileNarrowcastAccess } = require("@lifeweb/db/lib/locationMove");
@@ -120,7 +119,7 @@ const {
   gatehouseTurretArmed,
 } = require("@lifeweb/db/lib/gatehouseTurret");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
-const { shoutLine } = require("@lifeweb/db/lib/shout");
+const { shout } = require("@lifeweb/db/lib/shout");
 const { clockFrozen } = require("@lifeweb/db/lib/gameState");
 const { LOBBY_DECLINE_PREFIX } = require("@lifeweb/db/lib/lobby");
 const { handleLobbyDecline } = require("../lib/lobby");
@@ -1897,13 +1896,24 @@ async function handlePlayCommand(interaction) {
 // it in. Written against handlePlayCommand above, which is the closest
 // existing shape: a player command that makes the world speak, gated, cooled
 // down, and anchored to where the character actually stands.
-//
-// Nobody is ever named. Not at four hops, not in your own street. That is what
-// makes it usable while concealed, and it is also just true — you hear a shout
-// before you find out whose it was.
-const SHOUT_COOLDOWN_MS = 5 * 60_000;
-const lastShouted = new Map();
+// db/lib/shout.js signs its own sentences, because the web prints them as-is.
+// Discord wraps them in italics instead, and a ‡ inside the asterisks reads as
+// part of the sentence rather than as the mark — so it comes out and goes back
+// on the end, which is the shape every other line in this file already has.
+function italicize(sentence) {
+  const bare = String(sentence ?? "").replace(/\s*‡$/, "");
+  return bare === sentence ? `» *${bare}*` : `» *${bare}* ‡`;
+}
 
+//
+// Named only in your own street, and only ever by the name the room already
+// sees — a hood shouts as "a young man". From one hop out nobody is named at
+// all, which is the half of the old rule that was doing the work.
+//
+// The gates, the cooldown and the identity all live in db/lib/shout.js now,
+// which is where the web gets them too. This used to be a second copy of them
+// with its own in-memory Map for the cooldown; a restart emptied that Map and
+// the web could never see it.
 async function handleShoutCommand(interaction) {
   await ack(interaction);
 
@@ -1915,7 +1925,7 @@ async function handleShoutCommand(interaction) {
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: interaction.user.id, status: "ALIVE" },
-    select: { id: true, locationId: true },
+    select: { id: true, locationId: true, discordUserId: true },
   });
   if (!character) {
     await respond(interaction, "» *You don't have a living character.* ‡");
@@ -1925,41 +1935,38 @@ async function handleShoutCommand(interaction) {
   // Where the CHARACTER stands, not what channel the command was typed in —
   // the two can disagree, and only one of them is a place a voice comes from.
   // The channel still has to be somewhere you can speak, so /shout can't be
-  // fired out of a zone #summary or a DM.
+  // fired out of a zone #summary or a DM. A Room or a Conversation is a THREAD
+  // under its Location's channel, so resolveChannelContext resolving to a
+  // location covers the open street and every thread hanging off it at once.
   const context = interaction.channel ? resolveChannelContext(interaction.channel) : null;
   if (context?.channelKind !== "location") {
     await respond(interaction, "» *There's nobody here to hear it.* ‡");
     return;
   }
-  if (!character.locationId) {
-    await respond(interaction, "» *You're nowhere.*");
+
+  // WHICH thread, though — that is what tells a vault from the street outside
+  // it, and the context above deliberately cannot say.
+  const placeKey = await placeKeyForChannel(prisma, {
+    channelId: interaction.channel.id,
+    parentId: interaction.channel.parent?.id,
+  });
+
+  const result = await shout(prisma, character, text, { placeKey });
+  if (!result.ok) {
+    await respond(interaction, italicize(result.error));
     return;
   }
 
-  // SHOUT, not ACT and not SPEAK — and those distinctions are the whole point
-  // of this gate. {tag:bound} blocks acting but never the voice, so a hostage
-  // can still yell for help, which is the one thing being tied up ought to
-  // leave you; {tag:mute} is the mirror of that, talking normally and refused
-  // only here. Checked BEFORE the cooldown is claimed below: a refused shout
-  // must not burn the throat timer.
-  const voice = await loadVoiceState(character.id);
-  if (voice.shoutBlock) {
-    await respond(interaction, `» *You can't get the words out — you're ${voice.shoutBlock.name}.* ‡`);
-    return;
+  // Shouting from inside a Room or a Conversation: the thread is where you are
+  // STANDING, and the people beside you must hear it before the street does.
+  // The loop below writes to Location channels only, so without this the one
+  // room that certainly heard you would be the only room that didn't — and
+  // from inside a soundproof room it is the whole of the delivery.
+  if (interaction.channel.isThread()) {
+    await interaction.channel
+      .send({ content: result.here.line, allowedMentions: { parse: [] } })
+      .catch((err) => console.error("Shout into the room failed:", err));
   }
-
-  const since = Date.now() - (lastShouted.get(character.id) ?? 0);
-  if (since < SHOUT_COOLDOWN_MS) {
-    const minutes = Math.max(1, Math.ceil((SHOUT_COOLDOWN_MS - since) / 60_000));
-    await respond(interaction, `» *Your throat needs about ${minutes} more minute${minutes === 1 ? "" : "s"}.* ‡`);
-    return;
-  }
-  // Claimed BEFORE the posting loop, not after: the loop is a couple of dozen
-  // REST calls and takes real seconds, which is exactly long enough for a
-  // second /shout to slip past a cooldown claimed at the end.
-  lastShouted.set(character.id, Date.now());
-
-  const heard = await soundRange(prisma, character.locationId);
 
   // Sequential, no Promise.all: a fan-out across every Location in earshot
   // would burst Discord's rate-limit buckets, and this is never urgent. Same
@@ -1967,29 +1974,17 @@ async function handleShoutCommand(interaction) {
   // caught, so one dead channel can't swallow the rest of the shout.
   //
   // Location CHANNELS only, never the Room threads under them: somebody in a
-  // private back room is behind a door.
+  // private back room is behind a door. Empty when the room is soundproof.
   let posted = 0;
-
-  // Shouting from inside a Room or a Conversation: the thread is where you are
-  // STANDING, and the people beside you must hear it before the street does.
-  // The loop below writes to Location channels only, so without this the one
-  // room that certainly heard you would be the only room that didn't.
-  if (interaction.channel.isThread()) {
-    await interaction.channel
-      .send({ content: shoutLine(text, 0, null), allowedMentions: { parse: [] } })
-      .catch((err) => console.error("Shout into the room failed:", err));
-  }
-
-  for (const place of heard) {
+  for (const place of result.heard) {
     if (!place.discordChannelId) continue;
     try {
       // parse: [] — no mentions at all. The text is player-typed and this is
       // the widest broadcast in the game; an "@everyone" in a shout would ping
-      // twenty-nine channels at once. A shout is a noise, not an address, and
-      // it names nobody by design anyway.
+      // twenty-nine channels at once. A shout is a noise, not an address.
       await postMessage(
         place.discordChannelId,
-        shoutLine(text, place.distance, place.viaName),
+        place.line,
         undefined,
         { parse: [] },
       );
@@ -1999,11 +1994,13 @@ async function handleShoutCommand(interaction) {
     }
   }
 
-  if (posted === 0) {
+  // A muffled shout posts nowhere but the thread, so an empty loop is the
+  // expected outcome rather than a failure.
+  if (posted === 0 && !result.muffled) {
     await respond(interaction, "» *Couldn't shout here.*");
     return;
   }
-  await respond(interaction, "» *You shout.*");
+  await respond(interaction, italicize(result.line));
 }
 
 module.exports = {
