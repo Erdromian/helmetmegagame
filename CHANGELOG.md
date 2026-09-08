@@ -6,6 +6,21 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · The buttons overhaul: every action answers back, and the Dev Panel stops asking why
+
+✎ Every button on the sheet and on /play now says what it did, in a small notice at the corner of the screen — "Ada is tied up.", "Took 3 Paper from the Cellar.", "Ada has to agree first."  
+✎ Recall Comrades, Recover Equipment, Use Pointer, Arm/Disarm and Extract run on the click, with no dialog; a one-line confirm where the Move is spent  
+✎ Recall Comrades shows the roster on the page instead of DMing it; Recover's button says what it will hand back and greys with "You have both."  
+✎ Every greyed-out action explains itself in its tooltip  
+✎ Transfer, Loot, Take, Drop and Give are one dialog: two chip rows for the direction, then a count per stack. Destroy, Package and Purchase Gear pick the same way  
+✎ Opened from a person's own row, Bind, Free, Torture, Crucify and a one-affliction Heal ask their one question and run  
+✎ Small pickers are chips, not dropdowns: who you're treating, whose body, which room, which skill  
+✚ The HERE list on /ledger, above the Actions rack, with the same per-person menu /play has  
+✎ An empty dialog shows the sentence and Close, not a dead Confirm  
+✎ Opening a dialog no longer re-renders the whole sheet; it reads its own roster  
+✎ On a phone every dialog is a bottom sheet with the buttons pinned in reach  
+✎ On the Dev Panel, Kill, Restore turn and Spend turn are one confirm each, and Transfer ⬢ no longer demands a typed reason
+
 ## 2026-09-08 · The GM inbox stops shouting, and the loading flashes are gone for real
 
 ✎ Every DM now says how much of the GM inbox it deserves, so system notices stop crowding real conversations off the players desk — a forgotten one is quiet now rather than loud  
