@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · The travel lines say you'll arrive next turn
+
+✎ "You arrive next turn" now reads "you'll arrive next turn" everywhere it appears, the two departure lines included, so they all match
+
 ## 2026-09-08 · A traveller can walk their own zone while they wait on the road
 
 ✎ Spending your Move to cross into another zone no longer pins you in place for the rest of the day — you can still walk the zone you set out from and talk to whoever is in it  
