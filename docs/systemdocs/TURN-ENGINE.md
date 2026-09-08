@@ -187,6 +187,12 @@ each arrived at by getting them wrong first.
    about writing to them. The `failureNotifiedAt` stamp it writes IS its claim,
    so a resumed close cannot tell the same sender twice; own `resolvedPasses`
    marker for the same reason. DMs ride back on `notices` for the thunk.
+7d. **Horse upkeep pass** (`db/lib/horseUpkeepPass.js`, `"horseUpkeep"` in
+   `TURN_PASSES`) — the horse's feed, 1 ⬢ off everyone holding one. Slotted
+   **immediately before Hunger**, and the order is the rule: auto-labor has
+   already paid the day's income (§2 step 2), and the animal eats before the
+   rider does, so a character down to their last ⬢ feeds the horse and goes
+   Hungry. See §5b.
 8. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep, never
    before. Last turn's Hunger carries `expiresTurn` equal to the closing turn's
    number, so the sweep clears it a moment before a fresh one may be granted.
@@ -454,6 +460,30 @@ player-facing tracker: the sheet's old Dinner row went with the track
 (Bascinet's call, 2026-09-07). A noble learns they skipped dinner the way
 everyone learns about fear — the band tag, and its one-line DM.
 
+### 5b. The horse's feed
+
+A Horse costs **1 ⬢ every turn it is in your inventory**
+(`db/lib/horseUpkeepPass.js`). Two things about it are the opposite of how the
+rest of the horse works, and both are deliberate:
+
+- **Held, not equipped.** Everything else a horse does is gated on
+  `CharacterTag.equipped` (`db/lib/mounts.js`), and an indoors Location parks
+  the animal at the door. The feed ignores all of it. A horse in your pocket
+  still eats, so stowing it is not a way to skip the bill.
+- **Short of the cost, nothing happens.** A character at 0 ⬢ is charged nothing
+  and keeps the horse — no starving marker, no runaway, no streak. Same shape
+  as the Hunger table's "short of the cost" row, which is why the whole charge
+  fits in one `updateMany` whose `resources: { gte: 1 }` guard matches its own
+  decrement.
+
+Nobody is DM'd about it. A "your horse ate" line every turn would sit on top of
+the hunger notice one pass later, and the tag description says where the ⬢
+went. The pass writes one `horse_upkeep` audit row per close instead, so a GM
+can see the charge on `/gm/audit`.
+
+The Motorcycle (the other member of `FAST_TRAVEL_SLUGS`) is **not** charged —
+it is a machine, and nothing burns fuel for it.
+
 ## 6. Auto-labor
 
 There is no Default Move any more. `DefaultEffort` and its `/character` panel
@@ -622,6 +652,7 @@ that row as its raw slug until somebody writes the sentence.
 | `db/lib/stagedPush.js` | The staged push pass (`ADJUDICATION.md`) |
 | `db/lib/autoLaborPass.js` | The auto-labor pass |
 | `db/lib/laborYield.js` | Location yield drift, and the quality words |
+| `db/lib/horseUpkeepPass.js` | The horse's feed (§5b) |
 | `db/lib/hungerPass.js` | The Hunger pass |
 | `db/lib/catatonicPass.js` | The Catatonic (AFK) flagging pass |
 | `db/lib/catatonicDeathPass.js` | The Catatonic death pass (§2 7b) |

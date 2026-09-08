@@ -4662,7 +4662,7 @@ tags:
     name: Horse
     category: assets
     group: assets-companions
-    description: "A horse. While it's equipped, you get 1 extra free zone move each turn, but you'll be easily visible."
+    description: "A horse. While it's equipped, you get 1 extra free zone move each turn, but you'll be easily visible. Consumes 1 ⬢ per turn while in your inventory."
     pointCost: 9
     tradeable: true
     equippable: true

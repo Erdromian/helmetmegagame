@@ -45,6 +45,7 @@ const { endGameInDb, postGameEnded } = require("./lib/gameEnd");
 const { syncSpectatorAccess } = require("./lib/spectatorAccess");
 const { broadcastToZones } = require("./lib/worldBroadcast");
 const { runBirdPass } = require("./lib/birdPass");
+const { runHorseUpkeepPass } = require("./lib/horseUpkeepPass");
 // By path, not the barrel — see the note at the top of db/lib/accessSweep.js.
 const { revokeAllCharacterAccess } = require("./lib/accessSweep");
 const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("./lib/constants");
@@ -199,6 +200,11 @@ const TURN_PASSES = [
   "catatonic",
   "catatonicDeath",
   "bird",
+  // The horse's feed. Immediately BEFORE hunger, and the order is
+  // load-bearing: auto-labor has already paid the day's income, and the animal
+  // eats before the rider does — a character down to their last ⬢ feeds the
+  // horse and goes Hungry. See db/lib/horseUpkeepPass.js.
+  "horseUpkeep",
   "hunger",
   // Guilt Ridden and Insomniac's nightly chance of waking Exhausted. After
   // hunger so it sees the final sheet. See db/lib/dawnAfflictionPass.js.
@@ -689,6 +695,28 @@ async function resolveNeeds(turn, config) {
         },
       })
       .catch((err) => console.error("Catatonic death audit log failed:", err));
+  }
+
+  // The horse eats first (db/lib/horseUpkeepPass.js). Held, not equipped, and
+  // a character who cannot afford the 1 ⬢ pays nothing and keeps the animal.
+  let horseUpkeep = null;
+  if (!done.has("horseUpkeep")) {
+    horseUpkeep = await runHorseUpkeepPass(prisma, turn).catch(async (err) => {
+      await passFailed("Horse upkeep", err);
+      return null;
+    });
+    if (horseUpkeep) await markDone("horseUpkeep");
+  }
+  if (horseUpkeep) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "horse_upkeep",
+          details: horseUpkeep,
+        },
+      })
+      .catch((err) => console.error("Horse upkeep audit log failed:", err));
   }
 
   // Hunger upkeep runs after the sweep, so a Hunger granted last close is

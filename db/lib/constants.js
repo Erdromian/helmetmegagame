@@ -67,6 +67,13 @@ const MUTILATE_GATE_SLUGS = Object.freeze(["cruel", "torturer", "thanati"]);
 // sounding it is heard across the Location graph (db/lib/trumpet.js). Held,
 // not equipped: you pick a trumpet up to blow it.
 const TRUMPET_SLUG = "trumpet";
+
+// The horse eats: 1 ⬢ every turn it is in your inventory, charged by
+// db/lib/horseUpkeepPass.js. HELD, not equipped — deliberately unlike
+// everything else the horse does (db/lib/mounts.js gates the free move on
+// `equipped`), so stowing it indoors is not a way to skip the bill.
+const HORSE_SLUG = "horse";
+const HORSE_UPKEEP_COST = 1;
 const HUMAN_FLESH_SLUG = "human-flesh";
 const ENGRAVE_RESOURCE_COST = 4;
 // How many turns a person's corpse stays fresh before it turns. Monster
@@ -170,6 +177,8 @@ module.exports = {
   TORTURER_SLUG,
   MUTILATE_GATE_SLUGS,
   TRUMPET_SLUG,
+  HORSE_SLUG,
+  HORSE_UPKEEP_COST,
   HUMAN_FLESH_SLUG,
   ENGRAVE_RESOURCE_COST,
   CORPSE_ROT_TURNS,
