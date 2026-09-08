@@ -6171,12 +6171,21 @@ label.chip {
   font-size: var(--fs-sm);
 }
 
-/* The route wraps the board in a .panel, which has no height of its own. The
-   overlay gets its height from .map-panel instead. */
-.map-page {
-  height: min(74vh, 52rem);
-  padding: var(--sp-2);
+/* The route owns the whole screen, the same contract .chat-shell has: a
+   100dvh column that never scrolls the document. A map is the window you look
+   through, so putting one in a centred card was drawing a picture of a map. */
+.map-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
   overflow: hidden;
+  background: var(--bg);
+}
+
+.map-shell .map-board {
+  flex: 1;
+  min-height: 0;
+  padding: var(--sp-2);
 }
 
 .map-stage {
@@ -6349,6 +6358,12 @@ label.chip {
   flex-direction: column;
   gap: var(--sp-3);
   padding: var(--sp-3);
+  /* Room at the foot for the (app) layout's floating turn chip, which is
+     fixed to the bottom-right corner and would otherwise sit on top of
+     Return to game. Chat solves the same collision by hiding the chip and
+     drawing its own; the map has no header of its own to draw one in, so it
+     gets out of the way instead. */
+  padding-bottom: calc(var(--sp-3) + 2.5rem);
   overflow-y: auto;
 }
 
@@ -6362,6 +6377,28 @@ label.chip {
 .map-card-name {
   font-size: var(--fs-lg);
   letter-spacing: var(--ls-tight);
+}
+
+/* What is inside a place you have been: its rooms, and your conversations
+   there. Three short lists, not a table — the card is a caption, and the
+   moment this needs columns it wants to be somewhere else. */
+.map-inside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  width: 100%;
+}
+
+.map-inside-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.map-inside-list li {
+  padding: 1px 0;
 }
 
 .map-confirm {
@@ -6408,14 +6445,17 @@ label.chip {
   margin-top: auto;
 }
 
-/* The overlay on /play. .modal-panel tops out at 46rem, which is a dialog
-   width and not a map; this replaces the box entirely and lets the board own
-   its own padding. */
+/* The overlay on /play. .modal-panel is a dialog box -- 46rem wide, rounded,
+   floating on a dim -- and a map in one read as a bubble with a map in it.
+   This takes the screen instead: the whole viewport, no radius, no border.
+   Escape and the backdrop still close it, because it is still a Modal. */
 .map-panel {
   max-width: none;
-  width: min(96vw, 84rem);
-  height: min(90vh, 56rem);
-  max-height: 90vh;
+  max-height: none;
+  width: 100vw;
+  height: 100dvh;
+  border: 0;
+  border-radius: 0;
   padding: var(--sp-3);
   overflow: hidden;
   display: flex;
@@ -6439,8 +6479,13 @@ label.chip {
     width: auto;
     max-height: 40%;
   }
+}
 
-  .map-page {
-    height: min(80vh, 44rem);
+@media (max-width: 720px) {
+  /* The bar's height comes off, the same reason .chat-shell takes it off:
+     .app-main carries the fixed bottom bar's clearance, and a full 100dvh
+     would put the card's Ways out list underneath it. */
+  .map-shell {
+    height: calc(100dvh - var(--rail-h) - env(safe-area-inset-bottom, 0px));
   }
 }

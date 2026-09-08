@@ -49,6 +49,10 @@ export default function MapBoard({ onClose = null }) {
 
   const svgRef = useRef(null);
   const rootRef = useRef(null);
+  // The plate's dimensions, read by applyView's clamp. A ref rather than a
+  // dependency so applyView keeps a stable identity — it is in the deps of the
+  // window pointer listeners, and re-subscribing those mid-drag drops the pan.
+  const plateRef = useRef(null);
   // The pan/zoom transform lives in a ref and is written straight onto the
   // <g>, never through state: a pointermove that re-rendered fifty nodes and
   // eighty lines would drop frames on a phone, and nothing else on the page
@@ -60,7 +64,26 @@ export default function MapBoard({ onClose = null }) {
   // would always see null and treat the end of a pan as a selection.
   const panned = useRef(false);
 
+  // Everything that moves the view goes through here, which is why the clamp
+  // lives here and not in the three callers: pan, zoom and fit cannot drift
+  // apart about where the edge of the world is.
+  //
+  // The plate occupies [x, x + W*k] in viewBox units. Zoomed IN it must always
+  // cover the box, so x is pinned between W - W*k and 0; zoomed OUT it is
+  // smaller than the box and must stay inside it, so the interval is the same
+  // two numbers the other way round. Taking the min and the max of the pair
+  // handles both without a branch. Without this you could drag the whole map
+  // off the edge and be left looking at an empty field with no way back but
+  // Reset.
   const applyView = useCallback(() => {
+    const plate = plateRef.current;
+    if (plate?.width) {
+      const { k } = view.current;
+      const spanX = plate.width - plate.width * k;
+      const spanY = plate.height - plate.height * k;
+      view.current.x = Math.min(Math.max(view.current.x, Math.min(0, spanX)), Math.max(0, spanX));
+      view.current.y = Math.min(Math.max(view.current.y, Math.min(0, spanY)), Math.max(0, spanY));
+    }
     const { x, y, k } = view.current;
     rootRef.current?.setAttribute("transform", `translate(${x} ${y}) scale(${k})`);
   }, []);
@@ -78,6 +101,13 @@ export default function MapBoard({ onClose = null }) {
       cancelled = true;
     };
   }, [nonce]);
+
+  // Before the framing effect below, which calls fit() -> applyView() and needs
+  // the clamp to already know how big the world is. Effects run in declaration
+  // order, so this is load-bearing placement rather than tidiness.
+  useEffect(() => {
+    plateRef.current = data?.plate ?? null;
+  }, [data]);
 
   // Open on whichever layer the character is standing on — walking into the
   // caves switches you down, which is the only "navigation" this thing has.
@@ -442,6 +472,31 @@ function onLayer(node, layer) {
   return node.both || node.layer === layer;
 }
 
+function Inside({ inside }) {
+  const groups = [
+    { key: "public", label: "Rooms", items: inside.public },
+    { key: "private", label: "Private rooms", items: inside.private },
+    { key: "conversations", label: "Conversations", items: inside.conversations },
+  ].filter((group) => group.items?.length > 0);
+
+  if (groups.length === 0) return null;
+
+  return (
+    <div className="map-inside">
+      {groups.map((group) => (
+        <div key={group.key}>
+          <p className="chat-section-title">{group.label}</p>
+          <ul className="map-inside-list">
+            {group.items.map((name) => (
+              <li key={name}>{name}</li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
   const isHere = here && node.id === here.id;
   const reachable = node.adjacent && node.passable;
@@ -460,6 +515,14 @@ function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
       {!isHere && node.state === "seen" && (
         <p className="chat-quiet-line">You have not been here. ‡</p>
       )}
+
+      {/* What is inside, for a place they have actually stood in. Three lists
+          rather than one: a public room is somewhere anyone may walk, a
+          private one is a door they hold the key to, and a conversation is
+          people rather than architecture. The server sends only the private
+          rooms this character may enter, so there is nothing to filter here —
+          and nothing to leak by forgetting to. */}
+      {node.inside && <Inside inside={node.inside} />}
 
       {travel?.heading ? (
         <p className="text-sm">Leaving for {travel.heading} at the turn. ‡</p>

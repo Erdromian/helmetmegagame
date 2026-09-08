@@ -5,6 +5,8 @@ import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { crossingCheck, travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { recordArrival, knownLocations } from "@lifeweb/db/lib/locationVisits";
+import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
+import { conversationsFor } from "@lifeweb/db/lib/conversations";
 import { blocksOnFoot, equippedSlugs } from "@lifeweb/db/lib/mounts";
 import {
   ESCORT_SELECT as MOVER_SELECT,
@@ -103,6 +105,12 @@ async function buildMap({ character, unfogged }) {
 
   const party = character ? await partyOf(prisma, character.id) : [];
 
+  // What is INSIDE the places they have been. Only those: a room is a door in
+  // a wall you have to have stood in front of, and listing the Cathedral's
+  // private rooms to somebody who has only glimpsed it from the Square would
+  // be telling them about a door they have never seen.
+  const inside = await roomsInside(prisma, character, unfogged, known.stood);
+
   const tagSlugs = new Set((character?.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
   const onFootBlocked = blocksOnFoot(equippedSlugs(character?.tags ?? []));
   // One clock for the whole graph, so a propped-open way cannot lapse halfway
@@ -135,9 +143,18 @@ async function buildMap({ character, unfogged }) {
       both: BOTH_LAYERS.has(location.slug),
       state: here ? "here" : stood ? "stood" : "seen",
       // A place seen once from next door is a name and a colour. The
-      // description is what standing there buys you — or what the way out is
-      // already telling you, for somewhere adjacent right now.
-      description: stood || near ? location.description || null : null,
+      // description is what standing there buys you — or what an open way out
+      // is already telling you about where it leads.
+      //
+      // `near.passable`, NOT `near`: a locked door and a shut gate are ways
+      // you can SEE and cannot use, and reading the room on the other side of
+      // one is exactly the thing being locked out of it is supposed to
+      // prevent. You get the name, the colour and the reason, and nothing
+      // else until you get through.
+      description: stood || near?.passable ? location.description || null : null,
+      // Rooms and conversations only where they have actually stood — see
+      // roomsInside(). Absent, not empty, everywhere else.
+      inside: inside.get(location.id) ?? null,
       indoors: Boolean(location.indoors),
       adjacent: Boolean(near),
       passable: Boolean(near?.passable),
@@ -194,6 +211,53 @@ async function buildMap({ character, unfogged }) {
     known: nodes.length,
     total: locations.length,
   };
+}
+
+// What is inside each place the character has stood in: its public rooms, the
+// private ones they may actually enter, and their own conversations there.
+//
+// Three separate lists rather than one, because they are three different kinds
+// of thing — a public room is a place anyone can walk into, a private one is a
+// door you hold the key to, and a conversation is people, not architecture.
+//
+// The private filter is accessibleRooms(), the SAME predicate the channel
+// doctor, the Secret rooms? button and the Transfer dialog use, and it needs
+// the guest ids as well as the tags or somebody let in by hand is shown no
+// door at all. There is no second copy of that rule here.
+async function roomsInside(prisma, character, unfogged, stoodIds) {
+  const ids = unfogged ? undefined : [...stoodIds];
+  if (!unfogged && ids.length === 0) return new Map();
+
+  const [rooms, keys, conversations] = await Promise.all([
+    prisma.room.findMany({
+      where: ids ? { locationId: { in: ids } } : {},
+      select: { id: true, name: true, kind: true, locationId: true, accessTagSlugs: true, sortOrder: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    }),
+    character ? roomAccessKeys(prisma, character.id) : null,
+    character ? conversationsFor(prisma, character.id) : [],
+  ]);
+
+  const allowed = unfogged
+    ? rooms
+    : accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds);
+
+  const out = new Map();
+  const at = (id) => {
+    if (!out.has(id)) out.set(id, { public: [], private: [], conversations: [] });
+    return out.get(id);
+  };
+  for (const id of ids ?? rooms.map((r) => r.locationId)) at(id);
+  for (const room of allowed) {
+    const bucket = at(room.locationId);
+    (room.kind === "PRIVATE" ? bucket.private : bucket.public).push(room.name);
+  }
+  for (const thread of conversations) {
+    if (!thread.locationId) continue;
+    if (!unfogged && !stoodIds.has(thread.locationId)) continue;
+    at(thread.locationId).conversations.push(thread.name || "A conversation");
+  }
+  return out;
 }
 
 // What to draw the line as. Only the two states a player can DO something
