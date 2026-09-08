@@ -1668,6 +1668,12 @@ input[type="radio"]:disabled {
   margin-top: 6px;
   padding-top: 6px;
   border-top: 1px solid var(--border);
+  /* Pinned rather than inherited. PointBuy's catalog row is a <button> at body
+     size whose every other line — the description included — is .text-sm, so an
+     unstyled block came out BIGGER than the tag it belongs to. This is
+     supporting metadata, so it sits a step under the description everywhere,
+     and the 280px tooltip (already --fs-xs) is unchanged by it. */
+  font-size: var(--fs-xs);
 }
 
 .desire-unlocks-head {
