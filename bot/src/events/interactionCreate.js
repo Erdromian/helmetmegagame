@@ -432,7 +432,7 @@ async function notifyLetIn(interaction, target, threadName, placeName, threadId)
   const user = await interaction.client.users.fetch(target.discordUserId).catch(() => null);
   if (!user) return;
   const link = `https://discord.com/channels/${interaction.guildId}/${threadId}`;
-  await sendDm(user, `» *You were let into ${where}.* ‡\n${link}`, { source: "system_notice" }).catch(() => {});
+  await sendDm(user, `» *You were let into ${where}.*\n${link}`, { source: "system_notice" }).catch(() => {});
 }
 
 // The Room half of /add and /remove.

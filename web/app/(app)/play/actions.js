@@ -1889,9 +1889,13 @@ export async function addMember(placeKey, characterId) {
       await addThreadMember(conversation.threadId, target.discordUserId).catch(() => {});
     }
 
+    // system_notice, like the bot's twin in interactionCreate.js#notifyLetIn:
+    // this is door plumbing, not somebody talking, and without the tag it read
+    // as a genuine message on the GM desk.
     await sendDm(
       target.discordUserId,
-      `*You were let into ${conversation.location?.name ?? "somewhere"} · ${conversation.name}.* ‡`,
+      `*You were let into ${conversation.location?.name ?? "somewhere"} · ${conversation.name}.*`,
+      { source: "system_notice" },
     ).catch(() => {});
 
     return {
@@ -1919,7 +1923,8 @@ export async function addMember(placeKey, characterId) {
   await notifyPresence(prisma, result.target.id).catch(() => {});
   await sendDm(
     result.notify.discordUserId,
-    `*You were let into ${result.notify.placeName ?? "somewhere"} · ${result.notify.threadName}.* ‡`,
+    `*You were let into ${result.notify.placeName ?? "somewhere"} · ${result.notify.threadName}.*`,
+    { source: "system_notice" },
   ).catch(() => {});
 
   return { ok: true, line: result.line };

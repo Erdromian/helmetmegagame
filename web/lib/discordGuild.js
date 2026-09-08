@@ -556,7 +556,15 @@ export async function sendDm(discordUserId, content, opts = {}) {
         direction: "OUTBOUND",
         content: formatted,
         authorDiscordUserId: opts.authorDiscordUserId ?? null,
-        source: opts.source ?? null,
+        // Defaulted the way db/lib/dm.js#sendDm defaults it, and for the same
+        // reason: an untagged row reads as GM<->player conversation on
+        // /gm/messages, so every automated notice that forgot a `source` was
+        // spam on the desk. A DM with a human author IS conversation and keeps
+        // null; one with nobody behind it is the bot talking. Every GM-typed
+        // call site passes its own source anyway, so this only ever catches
+        // the ones that forgot. A notice that should be hidden outright rather
+        // than merely un-genuine still has to say `source: "system_notice"`.
+        source: opts.source ?? (opts.authorDiscordUserId ? null : "bot_auto"),
         discordMessageId: message?.id ?? null,
         meta: opts.meta ?? undefined,
       },

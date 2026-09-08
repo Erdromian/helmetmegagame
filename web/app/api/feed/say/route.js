@@ -7,6 +7,7 @@ import { addThreadMember } from "@lifeweb/db/lib/discordRest";
 import { auth } from "@/lib/auth";
 import { loadFeedCharacter } from "@/lib/feedAccess";
 import { sendDm } from "@/lib/discordGuild";
+import { MENTION_SOURCE } from "@/lib/dmSources";
 
 // POST /api/feed/say — the web half of the send. Every gate, transform and
 // identity decision lives in db/lib/say.js, the one write path the Discord
@@ -122,6 +123,11 @@ async function pullIntoConversation(character, placeKey, content) {
     }
     // The web's sendDm (REST, and it logs the row) — CLAUDE.md's three
     // sendDm signatures, one per calling context.
-    await sendDm(target.discordUserId, `*You were named in ${where} · ${conversation.name}.* ‡`).catch(() => {});
+    // MENTION_SOURCE, the same tag bot/src/lib/mentions.js puts on its relay:
+    // the GM desk drops it (a ping is not conversation) while the player's own
+    // Chat pane keeps it. Untagged it was neither, and landed on the desk.
+    await sendDm(target.discordUserId, `*You were named in ${where} · ${conversation.name}.* ‡`, {
+      source: MENTION_SOURCE,
+    }).catch(() => {});
   }
 }

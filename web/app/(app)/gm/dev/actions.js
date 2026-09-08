@@ -1051,7 +1051,9 @@ export async function nudgeInactivePlayers(input) {
   const failures = [];
   for (const c of targets) {
     try {
-      await sendDm(c.discordUserId, text);
+      // Attributed: this is a GM's own words, not the bot's, so it keeps the
+      // null source that means "conversation" and shows on the desk as one.
+      await sendDm(c.discordUserId, text, { authorDiscordUserId: session.discordUserId });
       sent.push(c.id);
     } catch (err) {
       failures.push({ step: "dm", target: c.name, message: err.message });
