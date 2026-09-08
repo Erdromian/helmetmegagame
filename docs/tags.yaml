@@ -5395,6 +5395,29 @@ tags:
     sellable: true
     sellablePrice: 4
 
+  # {tag:autoinjector}'s third ingredient (M6c). catalog: gm, same shape as
+  # {tag:aberrant-heart}/{tag:cybernetic-core}: a GM can look it up granting
+  # one, but it never shows in the public Tag Catalog, which is what keeps
+  # its actual use a discovery — the flavor text is written the way a hunter
+  # or a farmhand would actually describe it, not the way a brewer would.
+  # NOTHING DROPS THIS YET. The laboring loot-table pass (hunting/fishing/
+  # farming yields) wires acquisition; a GM grants it meanwhile.
+  brackenmoss:
+    catalog: gm
+    name: Brackenmoss
+    category: items
+    group: items-gear
+    description: "A dense, springy moss that grows thick on the shaded side of a fallen log. Trappers and farmhands pinch off a handful without thinking twice — it's good for packing a gap or cushioning a load in a pack. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.3
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 3
+
   # Fished up by the labor loot pass. The bruise cure is now the `cures:`
   # field below rather than the old HIDDEN_CURES entry in
   # db/lib/hiddenCures.js, which the medical pass migrated it off of.
@@ -5908,16 +5931,57 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
-  # HIDDEN recipe (graga-sac is non-public; medical pass, 2026-09-08) —
-  # picker-gated by the existing machinery, not secret: a medical-expert
-  # holding a Graga Sac sees the recipe in their Craft menu, same as
-  # {tag:white-honey}.
+  # SECRET, cave-drop only (M6c, Chris 2026-09-07): no recipe any more — it
+  # used to be a graga-sac craft, medical-expert, but that door is
+  # {tag:autoinjector}'s now. This is the rarer, no-questions-asked version:
+  # found, not made, already in db/lib/cavingLoot.js's "extremely-rare" tier
+  # (no wiring needed, it was already there). catalog: secret rather than gm,
+  # because a cave drop is exactly what TAGS.md §5d scopes that band to.
   military-autoinjector:
-    catalog: gm
+    catalog: secret
     name: Military Autoinjector
     category: items
     group: items-gear
     description: "A field trauma kit, self-triggering. One jab clears the small stuff at once — bruises, sprains, a shallow cut, a cracked rib, even a broken bone. Nothing past that; a punctured lung wants a real surgeon. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    cures:
+      [
+        bruised,
+        sprained-ankle,
+        burned,
+        minor-bleeding,
+        minor-wound,
+        dislocated-shoulder,
+        deep-wound,
+        broken-bone,
+        cracked-ribs,
+        blunt-force-trauma,
+        frostbite,
+      ]
+    sellable: true
+    sellablePrice: 38
+
+  # The craftable civilian door onto the same idea (M6c): medical-expert can
+  # brew one instead of finding one. Lighter than the military version —
+  # cracked ribs and a beating, not a set bone or a wound down to bone —
+  # because those two heavier rung-3 wounds stay the military kit's own
+  # edge. HIDDEN recipe: {tag:brackenmoss} is non-public (catalog: gm), so
+  # this only shows in a medical-expert's Craft menu while they hold one,
+  # same door as {tag:white-honey} — see docs/documents.yaml's
+  # withheldrecipes.
+  autoinjector:
+    catalog: all
+    name: Autoinjector
+    category: items
+    group: items-gear
+    description: "A compact medical injector, quick to make from ordinary stock. One jab handles the small stuff — bruises, burns, a sprain, a bad beating — though it can't set a break or close a wound down to the bone. ‡"
     pointCost: 0
     tradeable: true
     weight: 2
@@ -5935,20 +5999,18 @@ tags:
         minor-bleeding,
         minor-wound,
         dislocated-shoulder,
-        deep-wound,
-        broken-bone,
         cracked-ribs,
         blunt-force-trauma,
         frostbite,
       ]
     requirement:
-      turnsCost: 2
-      resourceCost: 8
+      turnsCost: 1
+      resourceCost: 3
       skills: [medical-expert]
       gambit: false
-      items: [graga-sac]
+      items: [antidote, fever-draught, brackenmoss]
     sellable: true
-    sellablePrice: 38
+    sellablePrice: 28
 
   # A creation-only bundle rather than a thing you carry: it sits on the sheet
   # until the player unpacks it from their own character sheet (see consumable
