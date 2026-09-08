@@ -782,12 +782,24 @@ export default async function CharacterPage({ searchParams }) {
     ...character,
     tags: character.tags.map((ct) => {
       const { poisonedCount, poisonPayload, ...ctRest } = ct;
+      // Crate-manifest leak (fix round M4b, fix 1): `ct.tag.crateContents`
+      // carries the SAME two secret columns per line item, for a crate a
+      // player packed themselves (packageItemsRequestImpl) — the outer
+      // strip above only ever touched the CharacterTag row, never the
+      // nested Tag one, so a non-detector holding a crate could read its
+      // own crate's exact poison state straight out of this page's RSC
+      // payload. Stripped whole, not just its poisoned half: the rest of a
+      // crate's manifest (names/quantities of what's inside) is
+      // server-only bookkeeping too — nothing on this page renders it, and
+      // the crate's own printed description already says what it contains.
+      const { crateContents, ...ctTagRest } = ctRest.tag ?? {};
       const stripped = {
         ...ctRest,
+        tag: ctRest.tag ? ctTagRest : ctRest.tag,
         poisonMarker: canSmellPoison && (poisonedCount ?? 0) > 0,
       };
       if (!isPaper(ct.tag)) return stripped;
-      const { paperText, ...tag } = ct.tag;
+      const { paperText, ...tag } = stripped.tag;
       return {
         ...stripped,
         tag: { ...tag, description: paperDescription(ct.tag, viewer) },

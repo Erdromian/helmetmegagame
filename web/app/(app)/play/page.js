@@ -168,7 +168,17 @@ export default async function PlayPage() {
           ...sheet,
           tags: (sheet?.tags ?? []).map((ct) => {
             const { poisonedCount, poisonPayload, ...ctRest } = ct;
-            const stripped = { ...ctRest, poisonMarker: canSmellPoison && (poisonedCount ?? 0) > 0 };
+            // Crate-manifest leak (fix round M4b, fix 1): same nested-Tag
+            // gap as character/page.js's own strip — `ct.tag.crateContents`
+            // carries per-line poisonedCount/poisonPayload for a
+            // player-packed crate, and `tag: true` above hands back the
+            // whole row with nothing stripped yet.
+            const { crateContents, ...tagRest } = ctRest.tag ?? {};
+            const stripped = {
+              ...ctRest,
+              tag: ctRest.tag ? tagRest : ctRest.tag,
+              poisonMarker: canSmellPoison && (poisonedCount ?? 0) > 0,
+            };
             if (stripped.tag?.paperText == null) return stripped;
             const { paperText, ...tag } = stripped.tag;
             return { ...stripped, tag };
