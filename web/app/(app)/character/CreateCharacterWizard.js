@@ -125,10 +125,12 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
   // because a disabled button swallows pointer events for its descendants and
   // a tooltip inside it would never fire. `block` is load-bearing: HoverCard's
   // trigger is an inline span, and an inline grid child would collapse the
-  // card's width.
+  // card's width. `hover-bare` is the other half: .tag-hover paints chip
+  // typography, and without it the whole card inherited monospace and stopped
+  // matching the cards next to it.
   if (role.whitelistBlocked) {
     return (
-      <Tooltip text="Whitelist only" className="block">
+      <Tooltip text="Whitelist only" className="block hover-bare">
         {card}
       </Tooltip>
     );

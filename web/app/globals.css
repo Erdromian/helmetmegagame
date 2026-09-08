@@ -1564,6 +1564,21 @@ input[type="radio"]:disabled {
   color: var(--text);
 }
 
+/* The typography above is here because .tag-hover almost always wraps a tag
+   CHIP. Wrap it round arbitrary content instead — a role card, which has its
+   own name, intro and chips — and every one of those declarations is inherited
+   straight through, because none of that content sets a font-family of its own
+   (.chip sets only font-size and letter-spacing). The card comes out in
+   monospace and stops matching the cards beside it.
+   This keeps the positioning and the hover, and drops the paint. */
+.tag-hover.hover-bare {
+  font-family: inherit;
+  font-weight: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
 /* Fixed, not absolute, and portaled to document.body by HoverCard.js — an
    in-tree tooltip was clipped by every scrolling ancestor (.doc-sheet,
    .table-scroll, .modal-panel, .app-rail). Top/left are set inline from a
