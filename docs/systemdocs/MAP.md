@@ -512,11 +512,17 @@ the Commoner kit crates so a farmer and a hunter wake up knowing different
 roads. `createCharacter` calls `seedMemories()` once, after the transaction
 commits — after, because `travelOptions` reads the tags it just granted.
 
-Two slugs are in nobody's list on purpose: `caves-brooding-grounds`, the far end
-of the smugglers' crawl, and `hills-mountain`, which has no edge to the rest of
-the Black Hills at all. Handing either one out would give away a way in. Every
-other guard here still applies, because `seedMemories` writes through
-`recordArrival` rather than around it.
+**Leaving a slug out of that table is not a guarantee it stays dark**, and it is
+worth being clear about why. `recordArrival` paints every *listed* neighbour of
+a seeded Location, and a locked way is listed — so `hills-mountain` reaches all
+thirteen Fortress seats through the locked `servant-wing` climb whether the
+table names it or not, which is correct: you can see a mountain from the road.
+What leaving a slug out really protects is a **hidden** way, since
+`travelOptions` drops those before the sighting write ever runs. The table is
+therefore written to the standard of "would this seat's life have taught them
+this", not "is this a secret" — the cargo-bay seats stop at `caves-approach`
+rather than the Migrants' camp, because the camp is one open road from the
+brooding grounds and two from the mouth of the Depths.
 
 ### 6b. What the fog must never leak
 

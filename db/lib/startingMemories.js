@@ -12,13 +12,22 @@
 // thing that makes finding a place feel like anything.
 //
 // A slug here is a Location slug — globally unique (schema.prisma), so no
-// zone/location parsing. These are `stood` memories, so each also paints its
-// visible neighbours as bare sightings via recordArrival.
+// zone/location parsing. These are `stood` memories.
 //
-// TWO SLUGS ARE DELIBERATELY IN NOBODY'S LIST. `caves-brooding-grounds` is the
-// far end of the smugglers' crawl, and `hills-mountain` has no edge to the rest
-// of the Black Hills at all — only the two mountaineering climbs. Handing
-// either one out for free would give away a way in.
+// A TABLE ENTRY CANNOT WITHHOLD A PLACE, only decline to hand it over directly.
+// `recordArrival` paints every *listed* neighbour of a seeded Location as a
+// sighting, and locked ways are listed — that is the game's own rule (you can
+// see a mountain from the road and understand perfectly well you cannot climb
+// it). So leaving a slug out of the lists below is not a guarantee it stays
+// dark: `hills-mountain` reaches all thirteen Fortress seats through the locked
+// `servant-wing` climb, and does so correctly.
+//
+// The one thing leaving a slug out really does protect is a HIDDEN way, because
+// `travelOptions` drops those before the sighting write ever sees them. So the
+// smugglers' crawl `customs -> caves-brooding-grounds` cannot leak here no
+// matter what this table says — but `caves-abandoned-camp` is a plain open road
+// away from the same place, which is why the three seats that only work the
+// cargo bay do not get it.
 //
 // Data-as-code rather than a `starting_memories:` key in docs/roles.yaml: the
 // YAML would need a Role column, a migration and a db:sync-roles run, and the
@@ -71,20 +80,16 @@ const HILLS_ALL = [
   "hills-cliffs",
 ];
 
-const CAVE_MOUTH = ["customs", "caves-approach", "caves-abandoned-camp"];
+// The cargo bay and the road up to the gate — as much of the caves as somebody
+// who works customs has reason to know. NOT the abandoned camp: that is one
+// open road from the brooding grounds and two from the mouth of the Depths, and
+// handing a Merchant all three on his first morning is a bigger reveal than a
+// trade seat has earned. The Migrant, who actually lives in the camp, gets it
+// below.
+const CAVE_MOUTH = ["customs", "caves-approach"];
 
-// The two ways down off the mountain, as the people who walk them know them.
+// The way down off the mountain, as the people who walk it know it.
 const FORTRESS_TO_TOWN = ["forest-northern-road", "north-gate"];
-const MARSHES_TO_TOWN = [
-  "hills-waterway",
-  "hills-west",
-  "hills-underlocks",
-  "hills-shadowed-grove",
-  "forest-embankment",
-  "forest-northern-road",
-  "north-gate",
-];
-
 const ROLE_MEMORIES = {
   // --- Fortress ---------------------------------------------------------
   baron: FORTRESS_INNER,
@@ -137,7 +142,7 @@ const ROLE_MEMORIES = {
   merchant: [...CAVE_MOUTH, "forest-south", "south-gate", "square"],
   mercenary: [...CAVE_MOUTH, "forest-south"],
   docker: CAVE_MOUTH,
-  migrant: CAVE_MOUTH,
+  migrant: [...CAVE_MOUTH, "caves-abandoned-camp"],
 
   // --- Marshes ----------------------------------------------------------
   fisherman: MARSHES_ALL,
@@ -145,7 +150,17 @@ const ROLE_MEMORIES = {
   refugee: ["factory", "marshes-village", "marshes-south", "marshes-woods"],
   // The longest list in the table, and it earns it: he is the seat that rides
   // the Squeeze up to town, so he knows every step of that road.
-  banneret: [...MARSHES_ALL, ...MARSHES_TO_TOWN, "square"],
+  banneret: [
+    ...MARSHES_ALL,
+    "hills-waterway",
+    "hills-west",
+    "hills-underlocks",
+    "hills-shadowed-grove",
+    "forest-embankment",
+    "forest-northern-road",
+    "north-gate",
+    "square",
+  ],
 
   // --- Black Hills ------------------------------------------------------
   "tribunal-ordinator": HILLS_ALL,
@@ -163,9 +178,8 @@ const KIT_MEMORIES = {
   "commoner-hunter": ["forest-northern-road", "forest-embankment", "hills-shadowed-grove"],
 };
 
-// The union of a seat's memories and any kit route its tags name. Deduped, and
-// empty for a role nobody wrote a line for — which is a blank map, exactly what
-// the old behaviour was, not an error.
+// Empty for a role nobody wrote a line for — a blank map, exactly what the old
+// behaviour was, not an error.
 function startingMemorySlugs(roleSlug, tagSlugs = []) {
   const out = new Set(ROLE_MEMORIES[roleSlug] ?? []);
   for (const slug of tagSlugs) {
@@ -174,4 +188,4 @@ function startingMemorySlugs(roleSlug, tagSlugs = []) {
   return [...out];
 }
 
-module.exports = { startingMemorySlugs, ROLE_MEMORIES, KIT_MEMORIES };
+module.exports = { startingMemorySlugs };

@@ -55,14 +55,11 @@ async function recordArrival(prisma, character, locationId) {
 // The map a character wakes up with (db/lib/startingMemories.js). Called once,
 // from createCharacter, after the tags are committed — travelOptions reads
 // them, so a fisherman's boat-gated water ways are visible by the time this
-// runs.
+// runs. Pass `character.tags` loaded, or every location below re-queries them.
 //
-// recordArrival per location rather than one bulk write, on purpose: it already
-// routes its neighbour pass through travelOptions, so a crawl this character
-// cannot see is never recorded and can never surface on /map later. A bulk
-// createMany would have to re-derive that rule, which is the second copy this
-// module exists to prevent. A slug naming a Location that no longer exists is
-// simply absent from the lookup and skipped.
+// recordArrival per location rather than one bulk write, so the hidden-way rule
+// above is obeyed rather than re-derived. A slug naming a Location that no
+// longer exists is absent from the lookup and skipped.
 async function seedMemories(prisma, character, locationSlugs) {
   if (!character?.id || !locationSlugs?.length) return;
 
@@ -72,6 +69,8 @@ async function seedMemories(prisma, character, locationSlugs) {
   });
 
   for (const location of locations) {
+    // Placement already recorded where they stand, neighbours and all.
+    if (location.id === character.locationId) continue;
     await recordArrival(prisma, character, location.id);
   }
 }

@@ -6,8 +6,8 @@
 // barrel so this can be bundled for the browser.
 import { roleCapacity, SPAWN_ONLY_ROLE_SLUGS, isSpawnOnly } from "@lifeweb/db/lib/roleCapacity";
 
-// Points forfeited by a cursed player's next character (see isCursed in
-// web/lib/discordGuild.js).
+// Points forfeited by a cursed player's next character (see isPlayerCursed
+// in db/lib/curse.js).
 export const CURSED_POINT_PENALTY = 6;
 
 // Defaults for the two drawback ceilings, used only when GameConfig has no
@@ -193,13 +193,21 @@ export function roleExcluded(tag, roleSlug) {
 // --- Commoner kits ------------------------------------------------------
 // The three trades a Commoner picks between (docs/tags.yaml), each an
 // onlyRoles-gated consumable crate that unpacks into a laboring specialisation
-// and its tools. Named here rather than inline because two callers care: the
-// picker, and createCharacter, which hands out the Farmer to anybody who
-// reached the end of the wizard without choosing one. The Farmer is the
-// default because it costs 0 points, so granting it can never overrun a
-// budget that was already spent.
+// and its tools. createCharacter hands the Farmer to any Commoner who reached
+// the end of the wizard without a trade — free, because it costs 0 points, so
+// granting it can never overrun a budget already spent.
 export const COMMONER_KIT_SLUGS = ["commoner-farmer", "commoner-fisherman", "commoner-hunter"];
 export const DEFAULT_COMMONER_KIT_SLUG = "commoner-farmer";
+
+// "Without a trade" has to mean the specialisations too, not just the crates.
+// Buying `laboring-fishing` outright is the expensive way to the same place (7
+// points against the kit's 1), and somebody who did that does not also want a
+// Farmer crate unpacking a second specialisation for free.
+export const LABORING_SPECIALISATION_SLUGS = [
+  "laboring-farming",
+  "laboring-hunting",
+  "laboring-fishing",
+];
 
 // Tags a character may actually see and buy. Menus must derive category
 // tabs from THIS, or an all-locked category advertises its own secret.
