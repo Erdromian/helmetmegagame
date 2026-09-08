@@ -59,6 +59,29 @@ each arrived at by getting them wrong first.
    with a DM to the initiator. Its slot is load-bearing: **after** the
    auto-labor pass, and **before** the staged push, so the push's silent-close and
    payout logic sees the lesson's Action already resolved. See `LESSONS.md`.
+2c. **Research pass** (`db/lib/researchPass.js`, `"research"` in
+   `TURN_PASSES`) — the Scholastic's own code-adjudicated Gambit, same shape
+   as Lessons and slotted right after it. For every Action this turn whose
+   `gmNotes` carries `auto:research:<ingredient-slug>` it totals the die
+   already rolled at submit against the secret recipes that ingredient
+   unlocks — a craftable whose *product* is `catalog: gm`, never `catalog:
+   secret` — minus whichever ones this character has already been dealt
+   (ledgered per-character in `AuditLog`, `research_revealed`, so a binned
+   paper can't be farmed for a second try at the same recipe). Every earlier
+   filing on the same ingredient (`research_filed` rows since that
+   ingredient's last reveal) adds +1 — the first try needs a 6, the sixth
+   cannot miss, and the die line says so the way a Lesson shows a charm's
+   bonus. A total of 6
+   or more with at least one recipe left mints the researcher a paper of
+   notes on one, chosen at random, through `db/lib/paperMint.js#mintLetterFor`
+   (`PAPERWORK.md`); 4 or more with nothing left to find says so; anything
+   else turns up nothing. One DM at close carries the die and the outcome —
+   so, like Lessons, step 3 below skips its own 🎲 DM for `auto:research`.
+   Its slot is load-bearing the same way Lessons' is: **after** the
+   auto-labor pass and **before** the staged push, and it sits **before**
+   Confessions too, since neither pass's PENDING-offer expiry has anything to
+   do with a Gambit that was already CONFIRMED at submit. See `REQUESTS.md`
+   and `ADJUDICATION.md`.
 3. **Staged push pass** (`db/lib/stagedPush.js`) — applies every `StagedEffect`
    the GMs queued this turn, then every confirmed Move's own declared numbers
    (nothing pays at confirm any more — a Routine, a Labor payout and a

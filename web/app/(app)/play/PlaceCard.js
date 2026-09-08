@@ -45,6 +45,14 @@ export default function PlaceCard({
   // godflesh; the dialog itself says what is missing when there is no tool in
   // hand, and extractGodfleshRequest re-checks both.
   onFactory = null,
+  // The Cathedral's Research button (CRAFTING.md §2b).
+  // Drawn only for a Research holder standing in the Cathedral — the same
+  // "fact about the ground" gate onFactory uses — and disabled with the
+  // reason (Move spent, nothing worth studying) rather than hidden, since
+  // the ground fact alone is never private but the OTHER two gates are
+  // facts about this character's own turn.
+  onResearch = null,
+  researchHint = null,
   pending = false,
 }) {
   const [side, setSide] = useState("place");
@@ -83,7 +91,7 @@ export default function PlaceCard({
         )}
       </div>
 
-      {(fixtures.length > 0 || onConverse || depotHref || onFactory) && (
+      {(fixtures.length > 0 || onConverse || depotHref || onFactory || onResearch || researchHint) && (
         <div className="chat-buttons">
           {fixtures.map((entry) => (
             <button
@@ -104,6 +112,22 @@ export default function PlaceCard({
           {onFactory && (
             <button type="button" className="btn-secondary" disabled={pending} onClick={onFactory}>
               Factory
+            </button>
+          )}
+          {/* Drawn once a Research holder is standing in the Cathedral —
+              `onResearch`/`researchHint` arrive null together off anything
+              else. Disabled with the reason rather than hidden when the Move
+              is spent or nothing here is worth studying, private to this
+              viewer (never rendered by the Discord anchor). */}
+          {(onResearch || researchHint) && (
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={pending || !onResearch}
+              title={researchHint ?? undefined}
+              onClick={onResearch ?? undefined}
+            >
+              Research an ingredient
             </button>
           )}
           {/* Starting a conversation is otherwise only reachable from a

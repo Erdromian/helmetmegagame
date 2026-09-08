@@ -46,6 +46,13 @@ export default function TagChip({
   quantity = 1,
   onConsume = null,
   consumeHint = null,
+  // Research's chip verb (TagsPanel.js), set only on your own Research tag.
+  // Unlike Consume's pair — a button that's always live plus an always-shown
+  // preview — these two are mutually exclusive: a button when the turn's
+  // three gates are all open, the reason why not otherwise. There is nothing
+  // to preview; the outcome is a roll, not a fixed recipe.
+  onResearch = null,
+  researchHint = null,
   expiresTurn = null,
   currentTurn = null,
   // The Nuclear Device only: the turn it fires on, from GameState.nukeArmedTurn
@@ -114,6 +121,13 @@ export default function TagChip({
         <button type="button" className="btn-quiet" onClick={onConsume}>
           Consume
         </button>
+      )}
+      {typeof onResearch === "function" ? (
+        <button type="button" className="btn-quiet" onClick={onResearch}>
+          Research
+        </button>
+      ) : (
+        researchHint && <p className="text-accent">{researchHint}</p>
       )}
       <dl className="tag-meta">
         {duration && <Meta label={duration.armed ? "Armed" : "Expires"}>{duration.label}</Meta>}

@@ -46,6 +46,7 @@ import CheckField from "./CheckField";
 import PartySelect from "./PartySelect";
 import TransferDialog from "./TransferDialog";
 import CraftDialog from "./CraftDialog";
+import ResearchDialog from "./ResearchDialog";
 import { titleFor } from "./actionRegistry";
 import Select from "./Select";
 import ChipText from "./ChipText";
@@ -71,6 +72,7 @@ import {
   transferRequest,
   consumeTagRequest,
   healCharacterRequest,
+  researchRequest,
   lootCharacterRequest,
   bindCharacterRequest,
   freeCharacterRequest,
@@ -446,6 +448,16 @@ export default function RequestActionsProvider({
   mySins = [],
   // Whether a Move is already filed this turn — a craft with turns needs one.
   hasMoved = false,
+  // Research (the Scholastic skill): whether you hold it at all, held
+  // ingredients that are in ANY recipe (db/lib/research.js#researchableHeld,
+  // computed server-side so the picker and researchRequest's own re-check
+  // agree), and whether you're standing in the Cathedral. All three gate
+  // `canResearch` below; `atCathedral` and `holdsResearch` are also read
+  // straight by PlaceCard's Cathedral button (ChatAside.js), which draws
+  // itself off a fact about the ground rather than the dialog's own pool.
+  holdsResearch = false,
+  atCathedral = false,
+  researchOptions = [],
   // Built once in character/page.js so the four target menus can't disagree.
   lootTargets = [],
   bindTargets = [],
@@ -553,6 +565,8 @@ export default function RequestActionsProvider({
   // Butcher and Bury both act on one corpse, identified by BOTH its tag and
   // where it is standing — the same body can be in two places for two people.
   const [corpseKey, setCorpseKey] = useState("");
+  // Research: the held ingredient chosen in ResearchDialog's one <Select>.
+  const [researchIngredient, setResearchIngredient] = useState("");
   // Mutilate: the prefixed subject key (person:<id> / corpse:<tagId>|<sourceKey>)
   // and which part is coming off. It keeps its own key rather than sharing
   // corpseKey, because the same control also offers living people.
@@ -820,6 +834,33 @@ export default function RequestActionsProvider({
       ? ingredientPick.options[0].slug
       : "");
 
+  // --- Research ------------------------------------------------------------
+  //
+  // Everything here is a READOUT, the same posture as Craft's Move budget
+  // below — the server (requestActions.js#researchRequestImpl) re-checks all
+  // three gates under its own read. Unlike Craft's ingredient anyOf picker,
+  // which only pre-fills when there is exactly one option, the dialog opens
+  // with the FIRST option already chosen — a shortlist of "things worth
+  // studying" has no meaningfully "empty" default the way an unpicked recipe
+  // ingredient does.
+  const researchIngredientValue = researchIngredient || (researchOptions[0]?.slug ?? "");
+  const canResearch =
+    holdsResearch && atCathedral && !hasMoved && researchOptions.length > 0;
+  // The first failing precondition, in the order a player would fix them:
+  // get to the Cathedral, then free up the Move, then find something worth
+  // studying. Null once every gate is open, same shape as Craft's
+  // recipeBlocked reasons.
+  const researchHint = !holdsResearch
+    ? null // Never shown — see canResearch's callers; nobody without the tag
+    // ever asks why the button is missing, because it never renders at all.
+    : !atCathedral
+      ? "Go to the Cathedral."
+      : hasMoved
+        ? "Your Move is already used."
+        : researchOptions.length === 0
+          ? "You're carrying nothing worth studying."
+          : null;
+
   // --- Craft's Move budget ------------------------------------------------
   //
   // Everything here is a READOUT. The numbers come off the two server-computed
@@ -1019,6 +1060,7 @@ export default function RequestActionsProvider({
       setEngraveName("");
       setDisguiseName("");
       setCorpseKey("");
+      setResearchIngredient("");
       setMutilateKey("");
       setMutilatePart(MUTILATE_PARTS[0].key);
       setBirdBody("");
@@ -1193,6 +1235,14 @@ export default function RequestActionsProvider({
       });
       if (!ok) return;
     }
+    if (mode === "research") {
+      const ok = await confirm({
+        title: "Spend your Move?",
+        message: "This spends your Move as a Gambit. A failed roll will increase your familiarity with the subject, making future research on this item easier.",
+        confirmLabel: "Research",
+      });
+      if (!ok) return;
+    }
 
     setError(null);
     startTransition(async () => {
@@ -1257,6 +1307,8 @@ export default function RequestActionsProvider({
           tagId,
           payerKey,
         });
+      case "research":
+        return researchRequest({ ingredientSlug: researchIngredientValue });
       case "transfer":
         return transferRequest({
           fromKey,
@@ -1393,6 +1445,8 @@ export default function RequestActionsProvider({
         return Boolean(fromKey && toKey && !sameParty && takingSomething);
       case "heal":
         return Boolean(patientId && payerKey && affliction);
+      case "research":
+        return Boolean(researchIngredientValue);
       case "loot":
         return Boolean(targetId && takingSomething);
       case "bind":
@@ -1483,6 +1537,13 @@ export default function RequestActionsProvider({
       canDestroy: removable.length > 0,
       canConsume: consumable.length > 0,
       canHeal,
+      // The Research tag's chip verb (TagsPanel.js) and the Cathedral place
+      // card button (play/PlaceCard.js) both read these two straight off the
+      // pool, the same way canHeal/canButcher etc. do — canResearch is
+      // already the composed "every gate is open" verdict, researchHint the
+      // reason when it isn't.
+      canResearch,
+      researchHint,
       canExamine: !examineBlocked,
       // The sentence ActionGrid appends to a greyed button's tooltip, so a
       // player reads why instead of DMing to ask.
@@ -1523,6 +1584,8 @@ export default function RequestActionsProvider({
       removable,
       consumable,
       canHeal,
+      canResearch,
+      researchHint,
       examineBlocked,
       extractBlocked,
       teachers,
@@ -1558,7 +1621,10 @@ export default function RequestActionsProvider({
     [enabled, open, pools, selfId],
   );
 
-  const title = titleFor(mode);
+  // Research draws no Action Grid row, so it has no entry in
+  // actionRegistry.js for titleFor to find — named here instead, the one
+  // place a mode's dialog title is decided when it isn't a grid button.
+  const title = mode === "research" ? "Research" : titleFor(mode);
   const dialogWidth =
     mode === "craft" ||
     mode === "harm" ||
@@ -1661,6 +1727,14 @@ export default function RequestActionsProvider({
                 parties={healParties}
                 selfId={selfId}
                 hasMoved={hasMoved}
+              />
+            )}
+
+            {mode === "research" && (
+              <ResearchDialog
+                options={researchOptions}
+                ingredientSlug={researchIngredientValue}
+                onIngredientSlug={setResearchIngredient}
               />
             )}
 

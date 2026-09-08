@@ -74,6 +74,12 @@ import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { canBuildHere, structuresAt } from "@lifeweb/db/lib/structures";
+import {
+  RESEARCH_TAG_SLUG,
+  CATHEDRAL_LOCATION_SLUG,
+  loadResearchCatalog,
+  researchableHeld,
+} from "@lifeweb/db/lib/research";
 import { parseSelection } from "@/lib/portrait/catalog";
 import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
@@ -330,6 +336,11 @@ async function FreshCharacter({ userId, searchParams }) {
     // The bomb's clock, for the Nuclear Device chip (TagChip.js). World
     // state, so every sheet shows it, not just the holder's.
     nukeState,
+    // The Research picker's held-ingredients shortlist (CRAFTING.md
+    // §2b) — a dedicated read rather than filtered off
+    // `tagCatalog` above, since that select doesn't carry `catalogVisibility`
+    // on the tag itself, which loadResearchCatalog's secret-recipe rule needs.
+    researchCatalog,
   ] = await Promise.all([
     getOpenTurn(),
     // getVisibleTags doesn't select purchasable/craftable, so this comes
@@ -418,7 +429,18 @@ async function FreshCharacter({ userId, searchParams }) {
     findOpenTurnAction(prisma, character.id),
     clockFrozen(prisma),
     readGameState(prisma, { nukeArmedTurn: true }),
+    loadResearchCatalog(prisma),
   ]);
+
+  // Research (CRAFTING.md §2b): held ingredients that are in ANY recipe,
+  // server-computed so the menu and researchRequestImpl's
+  // own re-check can't drift.
+  const holdsResearch = character.tags.some((ct) => ct.tag?.slug === RESEARCH_TAG_SLUG);
+  const atCathedral = character.location?.slug === CATHEDRAL_LOCATION_SLUG;
+  const researchOptions = researchableHeld(character.tags, researchCatalog).map((ct) => ({
+    slug: ct.tag.slug,
+    name: ct.tag.name,
+  }));
 
   // Desires: the slots, and the evaluated catalog behind the picker. Both
   // are built in web/lib/selfPools.js, which Chat's YOU column reads too,
@@ -1069,6 +1091,9 @@ async function FreshCharacter({ userId, searchParams }) {
       canHeal: canHeal,
       healsLeft: healsLeft,
       hasMoved: Boolean(currentAction),
+      holdsResearch: holdsResearch,
+      atCathedral: atCathedral,
+      researchOptions: researchOptions,
       canTeach: canTeach,
       knownRecipeIds: knownRecipeIds,
       deathMaskCorpses: deathMaskCorpses,

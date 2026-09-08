@@ -9,6 +9,10 @@ import Modal from "./Modal";
 import StorePanel from "./StorePanel";
 import { useTags } from "./TagsProvider";
 import { heldSlugsOf } from "@/lib/consumeGrants";
+// A leaf CommonJS constant, no prisma requires — safe in a "use client"
+// bundle for the same reason db/lib/mutilate.js's MUTILATE_PARTS is (see the
+// note at the top of that file).
+import { RESEARCH_TAG_SLUG } from "@lifeweb/db/lib/research";
 
 // The Tags section of a character sheet. It's a client component for one
 // reason: clicking a consumable chip opens the Consume dialog already pointed
@@ -74,7 +78,14 @@ export default function TagsPanel({
 }) {
   // Null on someone else's sheet, where no provider is mounted — which is
   // also exactly when the chips must stay read-only.
-  const openDialog = useRequestActions()?.open ?? null;
+  const requestActions = useRequestActions();
+  const openDialog = requestActions?.open ?? null;
+  // Research's two gates: whether the verb can fire at all right now
+  // (holds it, in the Cathedral, Move free, something to study), and the
+  // sentence naming the first one that's missing — RequestActionsProvider
+  // computes both once, off the same three facts the server re-checks.
+  const canResearch = requestActions?.pools?.canResearch ?? false;
+  const researchHint = requestActions?.pools?.researchHint ?? null;
   const [storeOpen, setStoreOpen] = useState(false);
 
   const { tagsBySlug } = useTags();
@@ -160,6 +171,14 @@ export default function TagsPanel({
                   // Only your own consumables are clickable — someone else's
                   // sheet stays a read-only hover tooltip.
                   const clickable = isSelf && ct.tag.consumable && openDialog;
+                  // The Research tag itself is the second entry point
+                  // (CRAFTING.md §2b) — clicking it
+                  // opens the same dialog the Cathedral place-card button
+                  // does. Eligibility is a fact about the WHOLE turn (are
+                  // you in the Cathedral, is your Move free), not this chip,
+                  // so it stays reachable — but disabled with the hint —
+                  // even when a gate is closed.
+                  const researchable = isSelf && ct.tag.slug === RESEARCH_TAG_SLUG && openDialog;
                   return (
                     <li key={ct.tag.id}>
                       <TagChip
@@ -167,6 +186,10 @@ export default function TagsPanel({
                         quantity={ct.quantity}
                         onConsume={clickable ? () => openDialog("consume", ct.tag.id) : null}
                         consumeHint={clickable ? consumeHintFor(ct.tag) : null}
+                        onResearch={
+                          researchable && canResearch ? () => openDialog("research") : null
+                        }
+                        researchHint={researchable && !canResearch ? researchHint : null}
                         expiresTurn={ct.expiresTurn}
                         currentTurn={currentTurn}
                         armedTurn={ct.tag.slug === "nuclear-device" ? nukeArmedTurn : null}

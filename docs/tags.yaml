@@ -2264,6 +2264,21 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # The Scholastic's own craft, granted only through `scholastic.starting_tags`
+  # (docs/roles.yaml) — 0-point, unpurchasable, like every other role grant
+  # (TAGS.md §4a). Not teachable: it is the role's own work, not a lesson,
+  # the same exception the Teaching tree carries on `teachable` (TAGS.md
+  # "teachable" note, `teaching-drill-instructor` above).
+  research:
+    catalog: gm
+    name: Research
+    category: skills
+    teachable: false
+    description: "The Cathedral's archives hold many secrets. Use them to research forgotten uses for ingredients, revealing secret recipes."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+
   caving:
     catalog: all
     name: Caving

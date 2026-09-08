@@ -908,8 +908,11 @@ them).
 - `teachable` — whether this tag is a skill Learn Skill / Teach Skill will
   offer. Set `true` on every entry in the `skills` category except the
   Teaching tree itself (Teaching, Lecturing, Drill Instructor are `false` —
-  you can't be taught to teach), not derived from the category; the one rule
-  is `db/lib/lessons.js#teachableSkills` (`LESSONS.md` §2).
+  you can't be taught to teach) and Research (also `false` — it arrives only
+  through the Scholastic's `starting_tags`, and studying it yourself in the
+  Cathedral is the whole point, not something a lesson can hand you), not
+  derived from the category; the one rule is
+  `db/lib/lessons.js#teachableSkills` (`LESSONS.md` §2).
 - `consumable` / `consumesInto` — whether a player can use this tag up, and
   what it becomes. Live; see §5b.
 - `expiresInto` — what this tag becomes when its `durationTurns` runs out,

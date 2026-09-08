@@ -222,4 +222,4 @@ async function runLessonPass(prisma, turn) {
   return { turnNumber: turn.number, resolved, learned, expired, failed, dms };
 }
 
-module.exports = { runLessonPass };
+module.exports = { runLessonPass, rollLine };
