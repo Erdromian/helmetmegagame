@@ -121,6 +121,21 @@ Cathedral. A silo must be **in the faction's own zone** — deposits are
 zone-scoped, so one anywhere else could never be used; both pickers filter to
 that zone and `setSiloRoom` re-checks.
 
+**The picker only offers rooms the officer has stood in and can open**
+(`db/lib/locationVisits.js#knownRooms`, the map's own rule: `stood`, not
+`seen`, and `accessibleRooms` for the door). It used to be a plain `findMany`
+over the zone, which read out the name and address of every secret room in the
+district — the Inn's Cellar, the Order Chambers, the Depot's Cargo Bay — to
+anyone who opened the dropdown. `setSiloRoom` re-checks with the same call, so
+the list and the gate cannot drift apart.
+
+The faction's **current** silo is pinned onto that list whether or not the
+filter keeps it. An officer who never had the key still has to see where their
+faction banks — and the dialog seeds its `<select>` from `Faction.siloRoomId`,
+so an option that is not there renders blank and "Set silo" would post `null`
+and quietly un-silo the faction. Re-posting the current silo is allowed for the
+same reason. This is the same pinning §4a describes for the Transfer dialog.
+
 Two of the ten authored silos — the Storehouse and the Mess Hall — are
 **public rooms**, and that is deliberate. Anyone standing there can walk off
 with the faction's treasury. A faction that wants a door has to move its silo
@@ -156,6 +171,13 @@ everybody but the key-holder, and a Cerberus handing in loot should not need
 the Censor present. Both surfaces say it out loud rather than letting a
 player post goods into a hole — the Silo tab's banner, and the Transfer
 dialog's footnote when the silo is the destination.
+
+One thing a keyless officer can no longer do is **re-point** the silo at a
+locked room: the picker and `setSiloRoom` both ask whether the door opens for
+them (§4). You have to be able to open your own treasury. Nothing else here
+changes — the eight private silos above are authored in `docs/zones.yaml` and
+never go through that picker, a keyless *member* still deposits from across the
+zone, and the balance and contents stay withheld exactly as below.
 
 Two consequences worth stating, because both were bugs once:
 

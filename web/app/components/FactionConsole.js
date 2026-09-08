@@ -257,9 +257,19 @@ function SiloTab({ faction, silo, isOfficer, rooms, run, pending }) {
             ))}
           </Select>
         </label>
-        <p className="text-sm text-muted mt-2">
-          A locked silo still takes deposits from anyone in the faction. Only people holding its key can open it again.
-        </p>
+        {/* The list is the rooms this officer has stood in and can open, so an
+            officer who has not walked their own zone yet gets nothing but "No
+            silo" — which reads like a broken dropdown unless it says otherwise. */}
+        {rooms.length === 0 ? (
+          <p className="text-sm text-muted mt-2">
+            Nowhere to bank yet. A room only turns up here once you have stood at its door and can open it. ‡
+          </p>
+        ) : (
+          <p className="text-sm text-muted mt-2">
+            A locked silo still takes deposits from anyone in the faction. Only people holding its key can open it
+            again.
+          </p>
+        )}
       </Modal>
     );
   }

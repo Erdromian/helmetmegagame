@@ -13,6 +13,7 @@
 //
 // Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { travelOptions } = require("./locationGraph");
+const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 
 // Called on arrival — from applyLocationMoveSideEffects, which is the one
 // function every writer of Character.locationId runs (MAP.md §4). Hooking
@@ -96,4 +97,44 @@ async function knownLocations(prisma, characterId) {
   return { stood, seen };
 }
 
-module.exports = { recordArrival, seedMemories, knownLocations };
+// The rooms this character could legitimately NAME: inside a Location they have
+// STOOD in, and behind a door that opens for them. Both halves matter and both
+// already exist — this is the pair web/app/(app)/map/actions.js#roomsInside
+// composes, lifted out because a picker and the server action that re-checks it
+// must not be able to drift apart.
+//
+// `stood`, not `seen`: a room is a door in a wall you have to have stood in
+// front of, and listing the Cathedral's private rooms to somebody who has only
+// glimpsed it from the Square would be telling them about a door they have
+// never seen. `accessibleRooms` is the door itself, and it is the same
+// predicate the channel doctor, the Secret rooms? button and the Transfer
+// dialog use, so all of them agree.
+//
+// `where` narrows the query further (the silo picker passes the faction's own
+// zone). Lives here rather than in roomAccess.js because locationGraph already
+// requires that module, so the arrow has to point this way.
+async function knownRooms(prisma, characterId, where = {}) {
+  if (!characterId) return [];
+
+  const [{ stood }, keys] = await Promise.all([
+    knownLocations(prisma, characterId),
+    roomAccessKeys(prisma, characterId),
+  ]);
+  if (stood.size === 0) return [];
+
+  const rooms = await prisma.room.findMany({
+    where: { ...where, locationId: { in: [...stood] } },
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      kind: true,
+      accessTagSlugs: true,
+      location: { select: { name: true, zoneId: true, zone: { select: { name: true } } } },
+    },
+  });
+
+  return accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds);
+}
+
+module.exports = { recordArrival, seedMemories, knownLocations, knownRooms };
