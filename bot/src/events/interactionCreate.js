@@ -1936,14 +1936,15 @@ async function handleShoutCommand(interaction) {
     return;
   }
 
-  // SPEAK, not ACT — and that distinction is the whole point of this gate.
-  // {tag:bound} blocks acting but never speech, so a hostage can still yell
-  // for help, which is the one thing being tied up ought to leave you.
-  // Checked BEFORE the cooldown is claimed below: a refused shout must not
-  // burn the throat timer.
+  // SHOUT, not ACT and not SPEAK — and those distinctions are the whole point
+  // of this gate. {tag:bound} blocks acting but never the voice, so a hostage
+  // can still yell for help, which is the one thing being tied up ought to
+  // leave you; {tag:mute} is the mirror of that, talking normally and refused
+  // only here. Checked BEFORE the cooldown is claimed below: a refused shout
+  // must not burn the throat timer.
   const voice = await loadVoiceState(character.id);
-  if (voice.block) {
-    await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.* ‡`);
+  if (voice.shoutBlock) {
+    await respond(interaction, `» *You can't get the words out — you're ${voice.shoutBlock.name}.* ‡`);
     return;
   }
 

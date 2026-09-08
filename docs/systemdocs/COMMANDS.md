@@ -187,10 +187,11 @@ not care, because none of those are about sound. A portcullis you
 cannot open is still a portcullis you can yell through. It is deliberately the
 one traversal in the game that never calls `crossingCheck`.
 
-**Who may shout.** The SPEAK capability (`TAGS.md` §5f) — so Mute, Paralyzed,
-Unconscious and mid-Seizure refuse, and **Bound deliberately does not**. Being
-tied up takes your hands, not your voice, and a hostage nobody can hear is a
-hostage nobody can rescue. The check runs *before* the cooldown is claimed, so
+**Who may shout.** The SHOUT capability (`TAGS.md` §5f) — so Paralyzed,
+Unconscious and mid-Seizure refuse, **Mute refuses here and nowhere else**, and
+**Bound deliberately does not refuse at all**. Being tied up takes your hands,
+not your voice, and a hostage nobody can hear is a hostage nobody can rescue.
+Mute is the mirror of that: an ordinary talker whose voice will not carry. The check runs *before* the cooldown is claimed, so
 a refused shout does not burn the throat timer.
 
 **What they hear**, from `db/lib/shout.js`:

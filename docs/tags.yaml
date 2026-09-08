@@ -4353,10 +4353,10 @@ tags:
     name: Mute
     category: health
     group: health-mind
-    description: "You can't speak."
+    description: "Your voice won't carry. You can talk, but you can't shout. ‡"
     pointCost: -7
     visible: true
-    purchasable: true
+    purchasable: false
     purchasableAfterStart: false
     conflictsWith: [stutter, mimes-vow]
 

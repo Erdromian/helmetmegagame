@@ -11,14 +11,19 @@
 // everything else is derived from it, which is the point: the old set and a
 // speech gate maintained separately would have drifted within a month.
 //
-// Two capabilities, because two is what the game actually distinguishes:
+// Three capabilities, because three is what the game actually distinguishes:
 //
 //   ACT    the physical half — equip, craft, destroy, labor, butcher, trade,
 //          extract, teach, confess. "Can't act" must stay literally true of
 //          every slug that blocks it, because db/lib/autoLaborPass.js skips
 //          filing an auto-Labor for them.
 //   SPEAK  the voice half — the proxy (ordinary chat, whispers, the Speak
-//          modal), /shout, the Council Room intercom, a Bird reply.
+//          modal), the Council Room intercom, a Bird reply.
+//   SHOUT  the loud half — /shout and nothing else. Split off SPEAK because
+//          {tag:mute} is the one state that takes the carrying voice without
+//          taking the ordinary one. SPEAK IMPLIES SHOUT: a slug that removes
+//          your voice removes your yell too, so no entry ever lists both, and
+//          expandCaps() below is what keeps the two from drifting apart.
 //
 // Deliberately NOT capabilities: seeing and hearing. Vision already has two
 // homes that predate this file (db/lib/examineVision.js,
@@ -29,6 +34,14 @@
 // is roleplay, as it always has been.
 const ACT = "ACT";
 const SPEAK = "SPEAK";
+const SHOUT = "SHOUT";
+
+// SPEAK implies SHOUT, and nothing else implies anything. Written once here
+// rather than by listing SHOUT beside every SPEAK in the table, because the
+// second half of such a pair is exactly the thing somebody forgets.
+function expandCaps(caps) {
+  return caps.includes(SPEAK) ? [...caps, SHOUT] : caps;
+}
 
 // The table. A slug absent from here takes nothing away.
 //
@@ -50,7 +63,14 @@ const SPEAK = "SPEAK";
 //   crucified    can't act, CAN speak — nailed up in the Square is the one
 //                place last words are the whole show. Put on by the Crucify
 //                button; becomes Dying after a turn (docs/tags.yaml).
-//   mute         speech only. Acts normally — a mute smith is still a smith.
+//   mute         shouting only. Acts normally — a mute smith is still a smith —
+//                and talks normally too: it went from blocking every word a
+//                character said to blocking only the ones they have to bellow.
+//                Bought speechlessness turned out to be a tag that removed the
+//                player from the game rather than the character from a
+//                conversation, so it is no longer purchasable either
+//                (docs/tags.yaml); the tongue rung of the Mutilate ladder
+//                (db/lib/mutilate.js) is what puts it on somebody now.
 const RESTRICTIONS = {
   dying: [ACT],
   "catatonic-afk": [ACT],
@@ -59,7 +79,7 @@ const RESTRICTIONS = {
   seizure: [ACT, SPEAK],
   paralyzed: [ACT, SPEAK],
   unconscious: [ACT, SPEAK],
-  mute: [SPEAK],
+  mute: [SHOUT],
 };
 
 // A living character who can't defend themselves or walk away — the target
@@ -116,7 +136,7 @@ function slugSet(characterTags) {
 function blockerFor(characterTags, capability) {
   const held = slugSet(characterTags);
   for (const [slug, caps] of Object.entries(RESTRICTIONS)) {
-    if (!caps.includes(capability) || !held.has(slug)) continue;
+    if (!expandCaps(caps).includes(capability) || !held.has(slug)) continue;
     const match = (characterTags ?? []).find((ct) => (ct?.tag?.slug ?? ct?.slug) === slug);
     return { slug, name: match?.tag?.name ?? match?.name ?? slug };
   }
@@ -128,13 +148,14 @@ function blockerFor(characterTags, capability) {
 // all on the hottest path in the game.
 function slugsBlocking(capability) {
   return Object.entries(RESTRICTIONS)
-    .filter(([, caps]) => caps.includes(capability))
+    .filter(([, caps]) => expandCaps(caps).includes(capability))
     .map(([slug]) => slug);
 }
 
 module.exports = {
   ACT,
   SPEAK,
+  SHOUT,
   RESTRICTIONS,
   INCAPACITATING_SLUGS,
   FINISHABLE_SLUGS,

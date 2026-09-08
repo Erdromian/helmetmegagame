@@ -1971,21 +1971,34 @@ character could shout across a Location and a Mute one could talk all day —
 
 It is now a table. Each slug names the capabilities it removes:
 
-| Tag | ACT | SPEAK | |
-|---|---|---|---|
-| `unconscious` | ✗ | ✗ | the top of the drinking ladder (`BREWING.md` §5a) |
-| `paralyzed` | ✗ | ✗ | its description has promised this since the day it was written |
-| `seizure` | ✗ | ✗ | you are on the floor (`FACTORY.md`) |
-| `bound` | ✗ | **✓** | **a hostage can yell for help** |
-| `dying` | ✗ | ✓ | last words are the tradition |
-| `crucified` | ✗ | ✓ | the Crucify button's tag (`REQUESTS.md`); becomes Dying after a turn, and a public death with no last words would be half a spectacle |
-| `catatonic-afk` | ✗ | ✓ | see the trap below |
-| `mute` | ✓ | ✗ | a mute smith is still a smith |
+| Tag | ACT | SPEAK | SHOUT | |
+|---|---|---|---|---|
+| `unconscious` | ✗ | ✗ | ✗ | the top of the drinking ladder (`BREWING.md` §5a) |
+| `paralyzed` | ✗ | ✗ | ✗ | its description has promised this since the day it was written |
+| `seizure` | ✗ | ✗ | ✗ | you are on the floor (`FACTORY.md`) |
+| `bound` | ✗ | **✓** | **✓** | **a hostage can yell for help** |
+| `dying` | ✗ | ✓ | ✓ | last words are the tradition |
+| `crucified` | ✗ | ✓ | ✓ | the Crucify button's tag (`REQUESTS.md`); becomes Dying after a turn, and a public death with no last words would be half a spectacle |
+| `catatonic-afk` | ✗ | ✓ | ✓ | see the trap below |
+| `mute` | ✓ | **✓** | ✗ | a mute smith is still a smith — and now still a talker |
 
 **ACT** is the physical half — equip, craft, destroy, labor, butcher, package,
 transfer, extract, travel, teach, confess, the Depot, writing on paper.
 **SPEAK** is the voice — the proxy (ordinary chat, whispers, the Speak modal),
-`/shout`, and the Council Room intercom.
+and the Council Room intercom. **SHOUT** is `/shout` and nothing else.
+
+**SPEAK implies SHOUT**, written once in `expandCaps()` rather than by listing
+both beside every entry, because the second half of such a pair is exactly what
+somebody forgets. So no row above sets SPEAK ✗ and SHOUT ✓, and only `mute`
+sets them the other way round.
+
+**Why `mute` moved.** It used to take SPEAK, which meant a player who bought it
+— or lost a tongue to Mutilate — could not say a word on either face for the
+rest of the game. That removed the *player* from the game rather than the
+character from a conversation, which is not a −7 drawback, it is a quit button.
+It now takes SHOUT alone: the voice is there, it just will not carry. It is
+also **no longer purchasable** (`docs/tags.yaml`); the tongue rung of the
+Mutilate ladder (`TORTURE.md`) is the only thing that puts it on somebody now.
 
 `INCAPACITATING_SLUGS` still exists and still means what it always did —
 "helpless, therefore lootable, draggable and bindable" — but it is now
@@ -2000,12 +2013,12 @@ activity clock. Gate catatonic speech and the tag becomes self-sealing: the
 player can never do the one thing that lifts it, and
 `db/lib/catatonicDeathPass.js` then kills them for it. **Catatonic must never
 block SPEAK.** For the same reason, a refused message still writes the
-speaker's activity (`bot/src/lib/proxy.js`) — being Mute must not march
+speaker's activity (`bot/src/lib/proxy.js`) — being silenced must not march
 somebody toward an auto-kill for trying to talk.
 
 **Composing with Stupid.** `stupid` is not in the table — it garbles speech
 (`db/lib/babble.js`) rather than removing it. The gate runs first: a Stupid
-Mute is silent, not babbling.
+Paralytic is silent, not babbling.
 
 **The seam.** `blockerFor(characterTags, capability)` returns the offending
 `{ slug, name }` rather than a boolean, so every refusal can name the tag —
