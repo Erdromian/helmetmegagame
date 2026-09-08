@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · The silo picker stops naming rooms you have never seen
+
+✚ "Where does the faction bank?" now only offers rooms the officer has stood in and can open — it used to read out the name and address of every secret room in the district, the Inn's Cellar and the Order Chambers included  
+✎ The faction's current silo is always on the list, even for an officer who has no key, so re-pointing it can never blank out  
+✎ An officer with no key can no longer move the silo behind a door they cannot open — depositing into a locked silo is unchanged
+
 ## 2026-09-08 · Stealth reaches the gates, and a forger can copy any stamp
 
 ✚ Stealth is a real skill now: cross an unwatched gate and it announces nothing at all, cross a guarded one and it records only what a passer-by saw, not your name  
