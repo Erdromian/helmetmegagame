@@ -82,11 +82,22 @@ async function fireAttempt(db, attempt) {
   if (!claimed) return { fired: false };
 
   const openTurn = await db.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+  // The number a TIMED tag grant needs, which is not always openTurn.number.
+  // A rite fires off a minute cron, so it lands inside a turn advance — and
+  // advanceTurn leaves nothing OPEN between flipping the old turn RESOLVED and
+  // creating the next, for as long as that takes, or for hours if it wedges
+  // (db/lib/grantExpiry.js). grantTagSlugs THROWS on a timed tag with no turn
+  // number rather than landing it permanent, and by here the floor is already
+  // eaten — so the throw would cost the circle its ingredients for nothing.
+  // The turn a grant belongs to in that window is the one about to open.
+  const grantTurnNumber =
+    openTurn?.number ??
+    ((await db.turn.findFirst({ orderBy: { number: "desc" }, select: { number: true } }))?.number ?? 0) + 1;
   const effect = EFFECTS[rite.key];
   let outcome;
   try {
     outcome = effect
-      ? await effect({ db, rite, attempt, room, location: room.location, participants, resolved: ingredients.resolved, openTurn })
+      ? await effect({ db, rite, attempt, room, location: room.location, participants, resolved: ingredients.resolved, openTurn, grantTurnNumber })
       : { result: { unscripted: true } };
   } catch (err) {
     console.error(`Rite ${rite.key} in ${room.name} effect failed:`, err.message ?? err);

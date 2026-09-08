@@ -242,9 +242,19 @@ async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
         },
       });
       if (leaders === 0) missing.push("leader");
-    } else if (state?.ascensionArmedTurn != null || state?.ascensionFiredTurn != null) {
-      // The world can only end once, and it is already ending.
-      missing.push("already-running");
+    } else {
+      // The world can only end once, and it may already be ending.
+      if (state?.ascensionArmedTurn != null || state?.ascensionFiredTurn != null) {
+        missing.push("already-running");
+      }
+      // And there has to be a leader to lose. Without one the rite would arm a
+      // countdown whose only cancel condition is already true, so it would eat
+      // a sceptre, a mitre and 250 ⬢, warn the whole map, and then call itself
+      // off two turns later with nothing said to anybody.
+      const leaders = await db.character.count({
+        where: { status: "ALIVE", tags: { some: { quantity: { gt: 0 }, tag: { slug: THANATI_LEADER_SLUG } } } },
+      });
+      if (leaders === 0) missing.push("leader");
     }
   }
 
