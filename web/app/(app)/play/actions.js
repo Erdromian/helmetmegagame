@@ -16,7 +16,6 @@ import { whosHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import {
   performLocationMove,
-  turnBack,
   dragCandidates,
   freeMovesLeft,
   freeZoneMovesReason,
@@ -559,13 +558,6 @@ export async function travelTo({ locationId, draggedIds = [] } = {}) {
   }
   if (brought.length > 0) parts.push(`Bringing ${brought.join(", ")}.`);
   return { ok: true, line: `${parts.join(" ")} ‡` };
-}
-
-export async function turnBackTravel() {
-  const me = await actor(MOVER_SELECT);
-  if (me.error) return { ok: false, error: me.error };
-  const result = await turnBack(prisma, me.character);
-  return result.ok ? { ok: true, line: result.line } : { ok: false, error: result.error };
 }
 
 // ------------------------------------------------------------------- gates

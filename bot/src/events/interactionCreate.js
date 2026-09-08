@@ -17,13 +17,11 @@ const {
   DRAG_PREFIX,
   CONFIRM_PREFIX,
   CANCEL_ID,
-  TURN_BACK_ID,
   loadMover,
   listNames,
   buildLocationSelectRow,
   buildDragRow,
   buildConfirmRow,
-  buildTurnBackRow,
   rememberDrag,
   takeDrag,
   forgetDrag,
@@ -785,19 +783,16 @@ async function handleTravelOpen(interaction) {
   }
 
   // On the road already. A paid crossing takes the whole day (MAP.md §3), so
-  // there is no picker to offer — only the choice to turn around. The Move
-  // stays spent either way; walking back is not a refund.
+  // there is no picker to offer and no way off the road: the arrival pass
+  // walks them over at the next advance.
   if (character.travelToLocationId) {
     const heading = await prisma.location.findUnique({
       where: { id: character.travelToLocationId },
       select: { name: true },
     });
     await respond(interaction, {
-      content: [
-        `» You're on the road to **${heading?.name ?? "somewhere"}**. You arrive next turn. ‡`,
-        "-# Turn back and you stay where you are — your Move is spent regardless. ‡",
-      ].join("\n"),
-      components: [buildTurnBackRow()],
+      content: `» You're on the road to **${heading?.name ?? "somewhere"}**. You arrive next turn. ‡`,
+      components: [],
     });
     return;
   }
@@ -1058,27 +1053,6 @@ async function handleTravelConfirm(interaction, locationId) {
   if (brought.length > 0) parts.push(`Bringing ${listNames(brought)}.`);
 
   await respond(interaction, { content: `${parts.join(" ")} ‡`, components: [] });
-}
-
-// loc:turnback — abandon a journey in progress. Clears the destination and
-// nothing else: the Action is already filed and the Move already spent, so a
-// player who changes their mind has burned their day either way.
-async function handleTravelTurnBack(interaction) {
-  await interaction.deferUpdate();
-
-  const character = await loadMover(interaction.user.id);
-  if (!character?.travelToLocationId) {
-    await respond(interaction, { content: "» *You're not going anywhere.*", components: [] });
-    return;
-  }
-  await prisma.character.update({
-    where: { id: character.id },
-    data: { travelToLocationId: null, travelTurnId: null },
-  });
-  await respond(interaction, {
-    content: "» You turn back. Your Move is still spent. ‡",
-    components: [],
-  });
 }
 
 async function handleTravelCancel(interaction) {
@@ -2030,7 +2004,6 @@ module.exports = {
       } else if (interaction.isButton()) {
         if (interaction.customId === "loc:open") return void (await handleTravelOpen(interaction));
         if (interaction.customId === CANCEL_ID) return void (await handleTravelCancel(interaction));
-        if (interaction.customId === TURN_BACK_ID) return void (await handleTravelTurnBack(interaction));
         if (interaction.customId.startsWith(CONFIRM_PREFIX)) {
           return void (await handleTravelConfirm(interaction, interaction.customId.slice(CONFIRM_PREFIX.length)));
         }

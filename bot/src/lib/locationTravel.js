@@ -32,7 +32,6 @@ const PICK_ID = "loc:pick";
 const DRAG_PREFIX = "loc:drag:";
 const CONFIRM_PREFIX = "loc:confirm:";
 const CANCEL_ID = "loc:cancel";
-const TURN_BACK_ID = "loc:turnback";
 
 // discordUserId -> { locationId, draggedIds, at }. The drag multi-select and
 // the Confirm button are two separate interactions on one ephemeral message,
@@ -128,14 +127,6 @@ function buildDragRow(locationId, candidates) {
       })),
     );
   return new ActionRowBuilder().addComponents(menu);
-}
-
-// The only control a character already on the road is offered: they are a
-// day's walk from somewhere and the Move is spent either way (MAP.md §3).
-function buildTurnBackRow() {
-  return new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(TURN_BACK_ID).setLabel("Turn back").setStyle(ButtonStyle.Secondary),
-  );
 }
 
 function buildConfirmRow(locationId) {
@@ -263,13 +254,11 @@ module.exports = {
   DRAG_PREFIX,
   CONFIRM_PREFIX,
   CANCEL_ID,
-  TURN_BACK_ID,
   loadMover,
   listNames,
   buildLocationSelectRow,
   buildDragRow,
   buildConfirmRow,
-  buildTurnBackRow,
   rememberDrag,
   takeDrag,
   forgetDrag,

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
 import EmptyState from "@/app/components/EmptyState";
 import useActionRunner from "@/app/components/useActionRunner";
-import { loadTravel, travelTo, turnBackTravel } from "./actions";
+import { loadTravel, travelTo } from "./actions";
 
 // TRAVEL: every way out of here as a node you can see, instead of a dropdown
 // inside a modal.
@@ -106,32 +106,13 @@ export default function TravelNodes({ onDone, pick = null }) {
     );
   }
 
-  // Already walking: a paid crossing is a day on the road, and the only thing
-  // on offer is turning round.
+  // Already walking: a paid crossing is a day on the road, and there is no
+  // way off it — the arrival pass walks them over at the next advance.
   if (data.heading) {
     return (
       <div className="chat-travel">
         <p className="chat-section-title">Travel</p>
         <p className="text-sm">Leaving for {data.heading} at the turn. ‡</p>
-        <FormError>{error}</FormError>
-        <div className="chat-buttons">
-          <button
-            type="button"
-            className="btn-secondary"
-            disabled={pending}
-            onClick={() =>
-              run(turnBackTravel, undefined, {
-                onOk: (res) => {
-                  onDone?.(res);
-                  reload();
-                  router.refresh();
-                },
-              })
-            }
-          >
-            Turn back
-          </button>
-        </div>
       </div>
     );
   }

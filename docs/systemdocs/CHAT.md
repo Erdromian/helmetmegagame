@@ -728,7 +728,7 @@ header instead).
      node opens an inline confirm strip under the grid — the sentence, the
      drag-along chips, `Go` and `Cancel` — not a modal. While
      `travelToLocationId` is set the grid is replaced by "Leaving for X at the
-     turn" and **Turn back**.
+     turn" and nothing else — there is no turning back (MAP.md §3).
   5. **`YouPanel.js`** — below.
 - **`PlacePanel.js`** is no longer a panel. It is `usePlaceActions()` plus the
   dialogs the sections open: Noticeboard, Converse, Bell, Turret, Intercom.
@@ -827,8 +827,8 @@ header instead).
   a second copy of "who is helpless" would have been a second answer.
 - **The right column refreshes on a MOVE, not on a timer.** Everything in it
   — the place card, the Examine lines, who is here, the rooms a Transfer can
-  reach — is a server prop off `page.js`, so `TravelNodes`' Go and Turn back
-  and the stream's own `places` event all call `router.refresh()`. That event
+  reach — is a server prop off `page.js`, so `TravelNodes`' Go and the
+  stream's own `places` event both call `router.refresh()`. That event
   fires only when the viewer's own presence changed, and the feed store is
   client state, so a refresh costs nothing that was on screen. ‡
 - **One aside is ever mounted.** The right column and the phone's ⋯ sheet are
@@ -1149,7 +1149,7 @@ is the model.
 3. ~~**The right column**~~ — done (§5). The people standing here come from
    `db/lib/whosHere.js` and open the sheet's own people dialogs; the place
    panel is rendered from `db/lib/placeAffordances.js`, the one registry both
-   faces read (§5c); Travel with drag-along and Turn back, Examine, Storage,
+   faces read (§5c); Travel with drag-along, Examine, Storage,
    Noticeboard, Converse, Bell, Intercom, Turret, gates and keyed doors are
    all dialogs now. The console affordances came with it — Move
    (`db/lib/moves.js#fileMove`), the turn line, the Sheet link, "Report to

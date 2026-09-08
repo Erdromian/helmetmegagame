@@ -219,7 +219,7 @@ export default function StatusPanel({
               stays put until the next turn opens (MAP.md §3). */}
           {travellingTo && (
             <Row label="On the road">
-              <span title="You arrive when the turn turns. Turn back from the Travel button on #turns.">
+              <span title="You arrive when the turn turns. ‡">
                 walking to {travellingTo}
               </span>
             </Row>

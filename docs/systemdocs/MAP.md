@@ -282,10 +282,9 @@ crossing and a same-zone hop are untouched and still instant.
 
 While a journey is pending the character is **frozen where they stood**:
 `performLocationMove` refuses every move with "You're on the road to X", and
-the Travel button offers one **Turn back** control (`loc:turnback`) instead of
-a picker. Turning back clears the destination and nothing else — the `Action`
-is filed and the Move is gone either way, so it is a change of mind, not a
-refund. Nothing is announced at departure; the ordinary arrival lines fire next
+the Travel button offers nothing at all until the arrival pass walks them
+over — there is no turning back (the Turn back control was removed on
+2026-09-07). Nothing is announced at departure; the ordinary arrival lines fire next
 turn, plus a "You arrive at X" DM. Every raw relocation (a GM teleport, Bulk
 Move, the staged "Relocate to", `MOVE_CHARACTER`) clears the pending
 destination too, or the pass would undo the teleport at Dawn, and so does

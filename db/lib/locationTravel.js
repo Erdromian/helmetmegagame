@@ -194,8 +194,8 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
   if (stuck) return { ok: false, reason: `You can't go anywhere — you're ${stuck.name}. ‡` };
 
   // Already walking. A paid crossing is a day on the road (below), and the
-  // character is frozen where they stood until they get there — the Travel
-  // button offers Turn back instead of a picker.
+  // character is frozen where they stood until they get there — there is no
+  // way off the road (MAP.md §3).
   if (character.travelToLocationId) {
     const heading = await prisma.location.findUnique({
       where: { id: character.travelToLocationId },
@@ -204,8 +204,8 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
     return {
       ok: false,
       reason: heading
-        ? `You're on the road to ${heading.name}. Turn back first, or wait until you arrive. ‡`
-        : "You're on the road. Turn back first, or wait until you arrive. ‡",
+        ? `You're on the road to ${heading.name}. You arrive next turn. ‡`
+        : "You're on the road. You arrive next turn. ‡",
     };
   }
 
@@ -505,21 +505,8 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
   };
 }
 
-// Calling off a paid crossing already under way. The Move it cost stays
-// spent — a day on the road you turned round halfway through is still a day.
-// Lived in the bot's Travel button until phase 3; both faces call it now.
-async function turnBack(prisma, character) {
-  if (!character?.travelToLocationId) return { ok: false, error: "You're not going anywhere." };
-  await prisma.character.update({
-    where: { id: character.id },
-    data: { travelToLocationId: null, travelTurnId: null },
-  });
-  return { ok: true, line: "You turn back. Your Move is still spent. ‡" };
-}
-
 module.exports = {
   performLocationMove,
-  turnBack,
   dragCandidates,
   canDrag,
   freeZoneMoves,
