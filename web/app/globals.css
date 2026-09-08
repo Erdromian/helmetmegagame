@@ -6808,6 +6808,15 @@ label.chip {
   overflow-y: auto;
 }
 
+/* .chat-section-title carries its own horizontal padding, because in the chat
+   column the rows under it are inset by the same amount. Nothing in this card
+   is: the card's own padding is the left edge, and every name, list item and
+   way out sits on it. Without this the two headings stood 12px in from their
+   own contents. */
+.map-card .chat-section-title {
+  padding-inline: 0;
+}
+
 .map-card-body {
   display: flex;
   flex-direction: column;
@@ -6863,6 +6872,10 @@ label.chip {
   justify-content: space-between;
   gap: var(--sp-2);
   padding: 4px var(--sp-2);
+  /* Pulled back out again, so the NAME lands on the card's left edge with the
+     rooms and the headings, while the hover band still has room to breathe
+     around it. */
+  margin-inline: calc(var(--sp-2) * -1);
   border-radius: var(--r-sm);
   font-size: var(--fs-sm);
   color: var(--text);

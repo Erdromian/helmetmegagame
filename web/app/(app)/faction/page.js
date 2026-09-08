@@ -309,7 +309,7 @@ export default async function FactionPage({ searchParams }) {
         <PageShell width="default">
           {props.faction ? null : (
             <p className="text-sm text-muted">
-              You answer to nobody. Ask to join somebody, or start something. ‡
+              You answer to nobody. Ask somebody to take you in. ‡
             </p>
           )}
           <FactionConsole {...props} />

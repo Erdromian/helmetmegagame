@@ -263,23 +263,6 @@ async function promoteSuccessor(tx, factionId) {
   return heir.id;
 }
 
-// Slug from a player-typed name, uniquified. The slug is permanent and the
-// name is not, so this runs once, at founding, and never again on a rename.
-async function freeSlug(name) {
-  const base =
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 48) || "faction";
-  for (let n = 0; n < 50; n += 1) {
-    const candidate = n === 0 ? base : `${base}-${n + 1}`;
-    const taken = await prisma.faction.findUnique({ where: { slug: candidate }, select: { id: true } });
-    if (!taken) return candidate;
-  }
-  throw new UserError("Too many factions are called that. Pick another name.");
-}
-
 function cleanName(raw) {
   const name = (raw ?? "").toString().trim().replace(/\s+/g, " ");
   if (name.length < 2) throw new UserError("A faction needs a name.");
@@ -625,46 +608,6 @@ async function secedeFactionImpl() {
   return { parentName: parent?.name ?? null };
 }
 
-// Founding is free and instant on purpose: the whole point is that a player
-// who walks out has somewhere to walk to. The new faction inherits nothing —
-// no parent, no silo, no zone — and the old one is not touched at all.
-async function foundFactionImpl({ name }) {
-  const { session, character } = await requireActor();
-  const clean = cleanName(name);
-  await requireFreeName(clean);
-  const was = character.faction;
-
-  const slug = await freeSlug(clean);
-  const unaffiliated = await unaffiliatedFaction();
-  const faction = await prisma.$transaction(async (tx) => {
-    if (character.factionId && character.factionId !== unaffiliated.id) {
-      await detachMember(tx, character, unaffiliated.id);
-    }
-    const created = await tx.faction.create({
-      data: { slug, name: clean, zoneId: character.zoneId ?? null, foundedById: character.id },
-      select: { id: true, name: true },
-    });
-    await tx.character.update({
-      where: { id: character.id },
-      data: { factionId: created.id, isLeader: true, isTreasurer: false },
-    });
-    await tx.factionApplication.updateMany({
-      where: { characterId: character.id, status: "PENDING" },
-      data: { status: "WITHDRAWN" },
-    });
-    return created;
-  });
-  await audit(session, "faction_founded", character.id, { factionId: faction.id, name: clean });
-
-  if (was && !isUnaffiliated(was)) {
-    for (const officer of await officersOf(was.id)) {
-      notifyCharacter(officer, `${character.name} has left ${was.name} to found ${clean}.`);
-    }
-  }
-  revalidateFaction();
-  return { name: clean };
-}
-
 // Re-pointing the silo moves NOTHING. The old room keeps whatever is in it —
 // which is why the confirm on the other end says so out loud.
 async function setSiloRoomImpl({ roomId }) {
@@ -767,9 +710,6 @@ export async function renameFaction(input) {
 }
 export async function secedeFaction() {
   return guarded(() => secedeFactionImpl());
-}
-export async function foundFaction(input) {
-  return guarded(() => foundFactionImpl(input));
 }
 export async function setSiloRoom(input) {
   return guarded(() => setSiloRoomImpl(input));
