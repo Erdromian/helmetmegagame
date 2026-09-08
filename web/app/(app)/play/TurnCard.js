@@ -20,10 +20,10 @@ import { moveKindLabel } from "./MoveDialog";
 function untilLabel(closesAt, now) {
   if (!closesAt) return null;
   const ms = new Date(closesAt).getTime() - now;
-  if (ms <= 0) return "locked ‡";
+  if (ms <= 0) return "locked";
   const hours = Math.floor(ms / 3_600_000);
-  if (hours >= 1) return `closes in ${hours} h ‡`;
-  return `closes in ${Math.max(1, Math.round(ms / 60_000))} m ‡`;
+  if (hours >= 1) return `closes in ${hours} h`;
+  return `closes in ${Math.max(1, Math.round(ms / 60_000))} m`;
 }
 
 export default function TurnCard({ turn, move, onFile, onEdit }) {
@@ -35,14 +35,14 @@ export default function TurnCard({ turn, move, onFile, onEdit }) {
     return () => clearInterval(timer);
   }, []);
 
-  if (!turn) return <p className="hall-quiet-line">No turn is open. ‡</p>;
+  if (!turn) return <p className="chat-quiet-line">No turn is open.</p>;
 
   const { label } = describeTurn({ number: turn.number, phase: turn.phase });
-  const countdown = turn.locked ? "locked ‡" : untilLabel(turn.closesAt, now);
+  const countdown = turn.locked ? "locked" : untilLabel(turn.closesAt, now);
 
   return (
-    <div className="hall-move">
-      <div className="hall-chips">
+    <div className="chat-move">
+      <div className="chat-chips">
         <span className="chip chip-mono">{label}</span>
         {countdown && (
           // The server's minute and the browser's are not the same minute.
@@ -57,25 +57,25 @@ export default function TurnCard({ turn, move, onFile, onEdit }) {
       </div>
 
       {move ? (
-        <div className="hall-move-filed">
-          <div className="hall-chips">
+        <div className="chat-move-filed">
+          <div className="chat-chips">
             <span className="chip">{moveKindLabel(move.kind)}</span>
             {move.editable ? (
               <button type="button" className="btn-quiet" onClick={onEdit}>
                 <EditIcon />
-                Edit ‡
+                Edit
               </button>
             ) : (
               // Bound, Dying, out cold: the server refuses the edit, so say so
               // here rather than drawing a button that can only fail.
-              move.blockedReason && <span className="hall-quiet-line">{move.blockedReason}</span>
+              move.blockedReason && <span className="chat-quiet-line">{move.blockedReason}</span>
             )}
           </div>
           {/* Three lines, then it opens: a Move can be a paragraph, and the
               column is not the place to read the whole of one by default. */}
           <button
             type="button"
-            className="hall-move-text"
+            className="chat-move-text"
             data-open={open ? "true" : undefined}
             onClick={() => setOpen((was) => !was)}
           >
@@ -83,9 +83,9 @@ export default function TurnCard({ turn, move, onFile, onEdit }) {
           </button>
         </div>
       ) : (
-        <div className="hall-buttons">
+        <div className="chat-buttons">
           <button type="button" className="btn" disabled={turn.locked} onClick={onFile}>
-            Move… ‡
+            Move…
           </button>
         </div>
       )}

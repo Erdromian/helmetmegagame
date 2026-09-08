@@ -1,8 +1,7 @@
 // The database half of ANY player-driven location change — the #turns Travel
 // button and /location (bot) both come through here; the web app's writers
-// (creation, GM teleport, Bulk Move, MOVE_CHARACTER) are raw relocations and
-// do not. It validates the hop, enforces the same-zone cooldown or files the
-// Move a zone crossing costs, moves anyone dragged along, and performs **no
+// (creation, GM teleport, Bulk Move) are raw relocations and do not. It validates the hop, enforces the same-zone cooldown or files the
+// Move a zone crossing costs, walks the mover's escort party along, and performs **no
 // Discord side effects**: the caller runs
 // db/lib/locationMove.js#applyLocationMoveSideEffects over `moved`.
 //
@@ -13,13 +12,14 @@
 //
 // Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { recordArchiveEvent } = require("./archive");
-const { isUnaffiliated } = require("./factionConstants");
 const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival } = require("./cavingPass");
 const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
 const { OVERBURDENED_SLUG } = require("./constants");
-const { isMounted, isBoated, blocksOnFoot, boatCrossing, equippedSlugs } = require("./mounts");
+const { isMounted, isBoated, blocksOnFoot, boatCrossing, equippedSlugs, fastTravelCapacity, STOWABLE_SLUGS } = require("./mounts");
+const { partyOf, escortAuthority, ESCORT_SELECT } = require("./escort");
 const { linkBetween, crossingCheck } = require("./locationGraph");
+const { dismountForNarrowWay } = require("./indoors");
 const { MOTION_SICKNESS_SLUG, VOMITING_SLUG } = require("./constants");
 const { expiryForGrant } = require("./grantExpiry");
 const { addToStack } = require("./tagWrites");
@@ -59,8 +59,8 @@ const CHARACTER_SELECT = {
 // unless a horse is doing the walking.
 // How many are LEFT right now, for the surfaces that have to say so before a
 // player commits: the Travel confirm and the character sheet.
-function freeMovesLeft(character, config, openTurn) {
-  const allowance = freeZoneMoves(character, config);
+function freeMovesLeft(character, config, openTurn, partySize = 0) {
+  const allowance = freeZoneMoves(character, config, null, partySize);
   if (!openTurn) return allowance;
   const spent = character?.zoneMovesTurnId === openTurn.id ? (character.zoneMovesUsed ?? 0) : 0;
   return Math.max(0, allowance - spent);
@@ -95,14 +95,24 @@ async function vomitOnTheRide(prisma, row, openTurn) {
 // where this character is actually going. Only the boat needs it — its extra
 // move is earned per crossing rather than banked per turn — so every caller
 // that is merely displaying an allowance passes nothing and is unaffected.
-function freeZoneMoves(character, config, crossing = null) {
+function freeZoneMoves(character, config, crossing = null, partySize = 0) {
   const held = character.tags ?? [];
   if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) return 0;
   const base = config?.freeZoneMovesPerTurn ?? 1;
   const active = equippedSlugs(held);
   // A horse carries you whatever your legs are, so it is checked FIRST and
   // cancels lameness outright rather than adding one to a zero.
-  if (isMounted(active)) return base + 1;
+  //
+  // But only while the party FITS it. fastTravelCapacity counts the rider, so
+  // a horse seats the rider and one more, and a cart upgrades that pair to
+  // six (db/lib/mounts.js). There is no cap on how many people you take —
+  // going over simply costs you the mount's extra crossing, and that is the
+  // whole price of overloading. On foot the capacity is 0 and there is no
+  // bonus to lose, so walking any number of people is free; an overloaded
+  // horse is therefore never WORSE than legs, only no better.
+  if (isMounted(active)) {
+    return fitsMount(active, partySize) ? base + 1 : base;
+  }
   // A boat does the same, but only where the water goes. It does NOT cancel
   // lameness: you still have to get down to the bank.
   const onWater = isBoated(active) && boatCrossing(crossing?.fromZoneSlug, crossing?.toZoneSlug);
@@ -110,17 +120,35 @@ function freeZoneMoves(character, config, crossing = null) {
   return onWater ? base + 1 : base;
 }
 
+// Whether the mover and their party fit the seats their mount actually has.
+// Split out because three surfaces ask it: the allowance above, the hover
+// below, and the panel that draws the dashed cards. A capacity of 0 is
+// somebody on foot, who has no seats to overfill.
+function fitsMount(activeSlugs, partySize = 0) {
+  const seats = fastTravelCapacity(activeSlugs);
+  if (seats <= 0) return true;
+  return partySize + 1 <= seats;
+}
+
 // One sentence explaining the sheet's crossing count, for its hover. Usually
 // that means why the number is 0 — a bare 0 leaves a lamed or overloaded player
 // with nothing to act on. It also covers the opposite case: a boat's extra
 // crossing is earned per crossing, not banked, so the number UNDERSTATES what a
 // boatman gets on the water and has to say so.
-function freeZoneMovesReason(character) {
+function freeZoneMovesReason(character, partySize = 0) {
   const held = character.tags ?? [];
   if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) {
     return "Overburdened: put something down and your free crossing comes back. ‡";
   }
-  if (isMounted(equippedSlugs(held))) return null;
+  const active = equippedSlugs(held);
+  if (isMounted(active)) {
+    // The one case where the number is lower than a player expects for a
+    // reason they cannot read off their own sheet.
+    if (!fitsMount(active, partySize)) {
+      return `You're taking more people than your ${fastTravelCapacity(active)} seats, so you lose the extra crossing your mount buys. Leave somebody behind and it comes back. ‡`;
+    }
+    return null;
+  }
   const lamed = held.find((ct) => LAMED_SLUGS.has(ct.tag?.slug));
   if (lamed) return `${lamed.tag.name}: you cannot walk a zone for free. Ride, and you can. ‡`;
   // Not a refusal — the number above is right for most crossings, and the
@@ -131,40 +159,10 @@ function freeZoneMovesReason(character) {
   return null;
 }
 
-// Who `mover` may bring along: anyone in the same ZONE who is a corpse, is
-// helpless (INCAPACITATING_SLUGS), or is in the mover's faction if the mover
-// leads it — the MOVE_CHARACTER authority. Pure, so the picker and the
-// server-side re-check share it.
-function canDrag(mover, target) {
-  if (!target || target.id === mover.id) return false;
-  if (target.buriedAt) return false;
-  if (target.zoneId !== mover.zoneId) return false;
-  if (target.status === "DEAD") return true;
-  if (target.status !== "ALIVE") return false;
-  if (target.tags?.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))) return true;
-  // Unaffiliated is not a faction (FACTIONS.md §1a), so a Leader of it — which
-  // no role grants, but a GM could create — must not be able to drag every
-  // unaffiliated character in the zone around.
-  if (isUnaffiliated(mover.faction)) return false;
-  return Boolean(mover.isLeader && target.factionId && target.factionId === mover.factionId);
-}
-
-function dragReason(target) {
-  if (target.status === "DEAD") return "corpse";
-  if (target.tags?.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))) return "can't stop you";
-  return "your faction";
-}
-
-// Everyone the mover could drag right now.
-async function dragCandidates(prisma, mover) {
-  if (!mover.zoneId) return [];
-  const others = await prisma.character.findMany({
-    where: { id: { not: mover.id }, zoneId: mover.zoneId, buriedAt: null, status: { in: ["ALIVE", "DEAD"] } },
-    select: CHARACTER_SELECT,
-    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
-  });
-  return others.filter((t) => canDrag(mover, t)).map((t) => ({ ...t, reason: dragReason(t) }));
-}
+// WHO FOLLOWS YOU is no longer decided here. db/lib/escort.js owns it — one
+// authority for a party you attach once, instead of the two predicates that
+// used to say the same thing (canDrag, and the MOVE_CHARACTER request's own
+// inline copy). This module only walks whoever is already attached.
 
 class MoveRefused extends Error {
   constructor(reason, extra = {}) {
@@ -176,14 +174,18 @@ class MoveRefused extends Error {
 
 // `character` is the mover as loaded by the caller (needs id, name,
 // locationId, zoneId, factionId, isLeader, discordUserId, tags);
-// `targetLocation` must include its zone. `dragged` is a list of character
-// ids, re-authorized here — a picker is a hint, not a lock.
-async function performLocationMove(prisma, character, targetLocation, { dragged = [] } = {}) {
+// `targetLocation` must include its zone.
+//
+// WHO COMES ALONG is not a parameter any more. The party is read off
+// Character.escortedById inside this function's own transaction, so a client
+// cannot post a list of ids at all — which deletes the whole class of
+// re-authorising a picker's output that the old `dragged` argument needed.
+async function performLocationMove(prisma, character, targetLocation) {
   if (!targetLocation?.zone) throw new Error("performLocationMove needs targetLocation.zone");
 
-  // The MOVER's own state, which nothing checked before this: canDrag and
-  // dragReason below both ask whether the TARGET is helpless, and the answer
-  // to "can this character walk at all" was simply never asked. A bound,
+  // The MOVER's own state. Escorting asks whether the TARGET is helpless;
+  // the answer to "can this character walk at all" was simply never asked
+  // before this gate existed, so a bound,
   // paralyzed or unconscious character could stroll out of the room they were
   // being held in.
   //
@@ -194,8 +196,8 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
   if (stuck) return { ok: false, reason: `You can't go anywhere — you're ${stuck.name}. ‡` };
 
   // Already walking. A paid crossing is a day on the road (below), and the
-  // character is frozen where they stood until they get there — the Travel
-  // button offers Turn back instead of a picker.
+  // character is frozen where they stood until they get there — there is no
+  // way off the road (MAP.md §3).
   if (character.travelToLocationId) {
     const heading = await prisma.location.findUnique({
       where: { id: character.travelToLocationId },
@@ -204,12 +206,13 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
     return {
       ok: false,
       reason: heading
-        ? `You're on the road to ${heading.name}. Turn back first, or wait until you arrive. ‡`
-        : "You're on the road. Turn back first, or wait until you arrive. ‡",
+        ? `You're on the road to ${heading.name}. You arrive next turn. ‡`
+        : "You're on the road. You arrive next turn. ‡",
     };
   }
 
   let currentLocation = null;
+  let crossingLink = null;
   if (character.locationId) {
     if (character.locationId === targetLocation.id) {
       return { ok: false, reason: "You're already there." };
@@ -226,8 +229,8 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
     // one they hold no key to, a locked one and a shut modular gate all
     // refuse here — the picker filters the same verdict, but a client can
     // post any location id it likes, so this is the check that counts.
-    const link = await linkBetween(prisma, currentLocation.id, targetLocation.id);
-    const gate = crossingCheck(link, {
+    crossingLink = await linkBetween(prisma, currentLocation.id, targetLocation.id);
+    const gate = crossingCheck(crossingLink, {
       tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
       // Equipped, not merely held — CHARACTER_SELECT already loads `equipped`
       // for exactly this kind of question.
@@ -241,7 +244,6 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
   // whose edge crosses into another zone files the Move.
   const first = !currentLocation;
   const crossedZone = !first && currentLocation.zoneId !== targetLocation.zoneId;
-  const dragIds = [...new Set(dragged.filter(Boolean))];
 
   let openTurn = null;
   if (crossedZone) {
@@ -259,26 +261,89 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
   const cooldownMs = Math.max(0, config?.locationMoveCooldownSeconds ?? 60) * 1000;
 
   const now = new Date();
-  const outcome = { spentTurn: false, usedFreeMove: false, freeMovesLeft: null, draggedRows: [] };
+  const outcome = {
+    spentTurn: false,
+    usedFreeMove: false,
+    freeMovesLeft: null,
+    partyRows: [],
+    // Followers the edge would not take. They are detached and left standing
+    // rather than failing the whole move (MAP.md §3a); the caller DMs them
+    // and their leader off this list.
+    leftBehind: [],
+    // Mounts a too-narrow way made them leave behind — see the dismount step
+    // at the top of the transaction below.
+    dismounted: [],
+  };
+
+  // The party, read BEFORE the transaction so the free-move arithmetic below
+  // knows how many seats are in use. Re-read inside it, where it counts.
+  const partyPreview = await partyOf(prisma, character.id);
+
+  // The edge everybody is crossing, read once out here rather than per
+  // follower inside the transaction. Null on a first placement, which has no
+  // edge to check.
+  const followerLink = currentLocation ? await linkBetween(prisma, currentLocation.id, targetLocation.id) : null;
 
   try {
     await prisma.$transaction(async (tx) => {
-      // Dragged characters are re-loaded and re-authorized INSIDE the
-      // transaction. One who wandered off fails the whole move rather than
-      // being silently dropped — the same posture the old FAST_TRAVEL
-      // request took with its passengers.
-      if (dragIds.length > 0) {
-        const mover = await tx.character.findUnique({ where: { id: character.id }, select: CHARACTER_SELECT });
-        const targets = await tx.character.findMany({ where: { id: { in: dragIds } }, select: CHARACTER_SELECT });
-        for (const id of dragIds) {
-          const target = targets.find((t) => t.id === id);
-          if (!canDrag(mover, target)) {
-            throw new MoveRefused(
-              target ? `You can't bring ${target.name} along.` : "Someone you picked isn't here any more.",
-            );
+      // A way too narrow for what they had out dismounts them instead of
+      // refusing outright (db/lib/indoors.js#dismountForNarrowWay) — but it
+      // has to happen HERE, first, inside this same transaction, rather than
+      // as a post-commit side effect the way arriving indoors is. Arriving
+      // indoors only affects the NEXT crossing; this one affects the free-move
+      // accounting for THIS one. A mount buys an extra free zone crossing
+      // (freeZoneMoves below), so dismounting after the fact would let a rider
+      // bank that bonus on a ride that never survives the threshold — exactly
+      // the exploit refusing at the threshold used to exist to close
+      // (docs/systemdocs/MAP.md §2c). Mutating `character.tags` in memory is
+      // what makes freeZoneMoves see the dismount too, with no extra query.
+      outcome.dismounted = await dismountForNarrowWay(tx, character.id, crossingLink);
+      if (outcome.dismounted.length > 0) {
+        character.tags = (character.tags ?? []).map((ct) =>
+          STOWABLE_SLUGS.has(ct.tag?.slug) ? { ...ct, equipped: false } : ct,
+        );
+      }
+
+      // The party is re-loaded and re-authorized INSIDE the transaction, and
+      // this copy is the one that counts — everything above it is a preview.
+      //
+      // Two things drop a follower here, and NEITHER refuses the move. That
+      // is the change from dragging, where one bad passenger threw the whole
+      // hop away: somebody who wandered off, or somebody the edge itself will
+      // not take. They are let go and left standing, and the caller tells
+      // them both.
+      const party = await partyOf(prisma, character.id, { tx });
+      if (party.length > 0) {
+        const mover = await tx.character.findUnique({ where: { id: character.id }, select: ESCORT_SELECT });
+        const coming = [];
+        for (const row of party) {
+          if (!escortAuthority(mover, row)) {
+            outcome.leftBehind.push({ row, reason: "gone" });
+            continue;
           }
+          // The edge, judged against the FOLLOWER's own tags and their own
+          // mount — not the leader's. A crawl the leader has the Caving for
+          // is still a crawl their unskilled companion cannot follow them
+          // down, and a rider cannot be led through an onFoot gap.
+          if (currentLocation) {
+            const gate = crossingCheck(followerLink, {
+              tagSlugs: (row.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
+              onFootBlocked: blocksOnFoot(equippedSlugs(row.tags ?? [])),
+            });
+            if (!gate.passable) {
+              outcome.leftBehind.push({ row, reason: "edge" });
+              continue;
+            }
+          }
+          coming.push(row);
         }
-        outcome.draggedRows = targets;
+        if (outcome.leftBehind.length > 0) {
+          await tx.character.updateMany({
+            where: { id: { in: outcome.leftBehind.map((e) => e.row.id) } },
+            data: { escortedById: null },
+          });
+        }
+        outcome.partyRows = coming;
       }
 
       if (crossedZone) {
@@ -291,10 +356,15 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
         // the check, so two tabs cannot both spend the last one. A turn id
         // that differs from the stored one resets the counter in the same
         // statement, which is why nothing ever has to sweep this field.
-        const allowance = freeZoneMoves(character, config, {
-          fromZoneSlug: currentLocation.zone?.slug,
-          toZoneSlug: targetLocation.zone?.slug,
-        });
+        // partyPreview, not the re-authorized list: the seats are spent on
+        // who you SET OUT with. Somebody the gate drops at the threshold has
+        // already taken up a saddle for this crossing.
+        const allowance = freeZoneMoves(
+          character,
+          config,
+          { fromZoneSlug: currentLocation.zone?.slug, toZoneSlug: targetLocation.zone?.slug },
+          partyPreview.length,
+        );
         const spentFree = character.zoneMovesTurnId === openTurn.id ? (character.zoneMovesUsed ?? 0) : 0;
 
         if (spentFree < allowance) {
@@ -356,12 +426,19 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
           // deliberately NOT stamped — nobody has been anywhere yet.
           await tx.character.update({
             where: { id: character.id },
-            data: { travelToLocationId: targetLocation.id, travelTurnId: openTurn.id },
+            data: { travelToLocationId: targetLocation.id, travelTurnId: openTurn.id, escortedById: null },
           });
         } else {
           await tx.character.update({
             where: { id: character.id },
-            data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId, lastLocationMoveAt: now },
+            data: {
+              locationId: targetLocation.id,
+              zoneId: targetLocation.zoneId,
+              lastLocationMoveAt: now,
+              // Walking under your own power is how a willing follower leaves
+              // (MAP.md §3a). A helpless one never reaches this line.
+              escortedById: null,
+            },
           });
         }
       } else {
@@ -374,7 +451,12 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
             id: character.id,
             OR: [{ lastLocationMoveAt: null }, { lastLocationMoveAt: { lte: cutoff } }],
           },
-          data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId, lastLocationMoveAt: now },
+          data: {
+            locationId: targetLocation.id,
+            zoneId: targetLocation.zoneId,
+            lastLocationMoveAt: now,
+            escortedById: null,
+          },
         });
         if (claimed.count === 0) {
           const row = await tx.character.findUnique({
@@ -387,11 +469,11 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
         }
       }
 
-      if (outcome.draggedRows.length > 0) {
+      if (outcome.partyRows.length > 0 || outcome.leftBehind.length > 0) {
         // Passengers on a paid crossing walk the same day the mover does, so
         // they get the same pending destination rather than the arrival.
         await tx.character.updateMany({
-          where: { id: { in: outcome.draggedRows.map((t) => t.id) } },
+          where: { id: { in: outcome.partyRows.map((t) => t.id) } },
           data: outcome.spentTurn
             ? { travelToLocationId: targetLocation.id, travelTurnId: openTurn.id }
             : { locationId: targetLocation.id, zoneId: targetLocation.zoneId, lastLocationMoveAt: now },
@@ -399,14 +481,15 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
         await tx.auditLog.create({
           data: {
             actorDiscordUserId: character.discordUserId ?? null,
-            actionType: "characters_dragged",
+            actionType: "characters_escorted",
             targetCharacterId: character.id,
             details: {
               mover: character.name,
               to: targetLocation.name,
               zone: targetLocation.zone.name,
               setOut: outcome.spentTurn,
-              dragged: outcome.draggedRows.map((t) => ({ id: t.id, name: t.name })),
+              party: outcome.partyRows.map((t) => ({ id: t.id, name: t.name })),
+              leftBehind: outcome.leftBehind.map((e) => ({ id: e.row.id, name: e.row.name, why: e.reason })),
             },
           },
         });
@@ -436,9 +519,20 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
       spentTurn: true,
       usedFreeMove: false,
       freeMovesLeft: outcome.freeMovesLeft,
+      // Already applied above, whether or not arrival is a turn away — the
+      // threshold was crossed now, not at the advance.
+      dismounted: outcome.dismounted,
       moved: [],
-      travelers: [character, ...outcome.draggedRows].map((row) => ({
+      travelers: [character, ...outcome.partyRows].map((row) => ({
         character: { id: row.id, name: row.name, discordUserId: row.discordUserId, status: row.status },
+      })),
+      // Followers the way would not take. Detached and still standing where
+      // they were; the caller owes them and their leader a line. The reason
+      // is deliberately NOT the edge's own refusal — "the way is locked" on a
+      // hidden crawl would announce that the crawl is there (MAP.md §2a).
+      leftBehind: outcome.leftBehind.map((e) => ({
+        character: { id: e.row.id, name: e.row.name, discordUserId: e.row.discordUserId, status: e.row.status },
+        reason: e.reason,
       })),
     };
   }
@@ -464,7 +558,7 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
     (isMounted(equippedSlugs(character.tags ?? [])) || isBoated(equippedSlugs(character.tags ?? [])));
 
   const moved = [];
-  for (const row of [character, ...outcome.draggedRows]) {
+  for (const row of [character, ...outcome.partyRows]) {
     const fromLocationId = row.id === character.id ? currentLocation?.id ?? null : row.locationId;
     const fromZoneId = row.id === character.id ? currentLocation?.zoneId ?? null : row.zoneId;
     // The Caving Die, which is now the only thing arrival does. Null on a
@@ -499,31 +593,26 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
     deferred: false,
     spentTurn: false,
     usedFreeMove: outcome.usedFreeMove,
+    dismounted: outcome.dismounted,
     travelers: [],
+      // Followers the way would not take. Detached and still standing where
+      // they were; the caller owes them and their leader a line. The reason
+      // is deliberately NOT the edge's own refusal — "the way is locked" on a
+      // hidden crawl would announce that the crawl is there (MAP.md §2a).
+      leftBehind: outcome.leftBehind.map((e) => ({
+        character: { id: e.row.id, name: e.row.name, discordUserId: e.row.discordUserId, status: e.row.status },
+        reason: e.reason,
+      })),
     freeMovesLeft: outcome.freeMovesLeft,
     moved,
   };
 }
 
-// Calling off a paid crossing already under way. The Move it cost stays
-// spent — a day on the road you turned round halfway through is still a day.
-// Lived in the bot's Travel button until phase 3; both faces call it now.
-async function turnBack(prisma, character) {
-  if (!character?.travelToLocationId) return { ok: false, error: "You're not going anywhere. ‡" };
-  await prisma.character.update({
-    where: { id: character.id },
-    data: { travelToLocationId: null, travelTurnId: null },
-  });
-  return { ok: true, line: "You turn back. Your Move is still spent. ‡" };
-}
-
 module.exports = {
   performLocationMove,
-  turnBack,
-  dragCandidates,
-  canDrag,
   freeZoneMoves,
   freeMovesLeft,
   freeZoneMovesReason,
+  fitsMount,
   CHARACTER_SELECT,
 };

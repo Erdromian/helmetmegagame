@@ -8,12 +8,12 @@ import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
 import Modal from "@/app/components/Modal";
-import { CameraIcon, EditIcon, EyeIcon, HoodIcon, MoreIcon, QuillIcon, SearchIcon, TrashIcon } from "@/app/components/icons";
+import { CameraIcon, EditIcon, EyeIcon, HoodIcon, MoreIcon, NotesIcon, QuillIcon, SearchIcon, TrashIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { Readout } from "@/app/components/ExamineDialog";
 import useActionRunner from "@/app/components/useActionRunner";
-import { photographRow, lookAt, loadTravel, placeMembers, toggleConceal } from "./actions";
+import { photographRow, starRow, lookAt, loadTravel, placeMembers, toggleConceal } from "./actions";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import {
   useFeed,
@@ -85,7 +85,7 @@ function timeLabel(iso) {
 // renders the `-#` these lines go out as (db/lib/ambientLine.js).
 const SystemRow = memo(function SystemRow({ row }) {
   return (
-    <li className="hall-subtext" data-seq={row.seq ?? undefined}>
+    <li className="chat-subtext" data-seq={row.seq ?? undefined}>
       <ChatMarkdown content={row.content} />
     </li>
   );
@@ -96,8 +96,8 @@ const SystemRow = memo(function SystemRow({ row }) {
 // there while you read — it is a bookmark, not a cursor.
 function NewLine() {
   return (
-    <li className="hall-new-line" aria-hidden="true">
-      <span>NEW ‡</span>
+    <li className="chat-new-line" aria-hidden="true">
+      <span>NEW</span>
     </li>
   );
 }
@@ -107,15 +107,15 @@ function NewLine() {
 // the rows land and nothing has to say "Nothing has been said here yet. ‡"
 // first and then take it back. Tokens only, and aria-hidden: there is nothing
 // here for a screen reader to read.
-function FeedSkeleton() {
+export function FeedSkeleton() {
   return (
     <ul className="list-none p-0" aria-hidden="true">
       {[0, 1, 2].map((i) => (
-        <li key={i} className="hall-skeleton">
-          <span className="hall-skeleton-face" />
-          <span className="hall-skeleton-lines">
-            <span className="hall-skeleton-bar" data-w="short" />
-            <span className="hall-skeleton-bar" />
+        <li key={i} className="chat-skeleton">
+          <span className="chat-skeleton-face" />
+          <span className="chat-skeleton-lines">
+            <span className="chat-skeleton-bar" data-w="short" />
+            <span className="chat-skeleton-bar" />
           </span>
         </li>
       ))}
@@ -146,6 +146,7 @@ const FeedRow = memo(function FeedRow({
   onDelete,
   onLookAt,
   onPhotograph,
+  onStar,
   onRemove,
 }) {
   const [hover, setHover] = useState(false);
@@ -153,22 +154,22 @@ const FeedRow = memo(function FeedRow({
 
   // Always reachable on a touch screen, where there is no hover to reveal
   // them; out of the way of a mouse until it is over the row.
-  const anyAction = mine || canLook || canPhoto || canRemove;
+  // ⭐ is offered on every line that HAS a seq — your own included, exactly as
+  // the reaction is in Discord — which is what widened the bar past the rows
+  // somebody can act against. A system line with no seq still has nothing.
+  const anyAction = mine || canLook || canPhoto || canRemove || row.seq != null;
   const showActions = anyAction && !editing && !row.pending && (coarse || hover);
 
   return (
     <li
-      className="hall-row"
+      className="chat-row"
       data-seq={row.seq ?? undefined}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{
-        marginTop: startsRun ? "var(--sp-3)" : "var(--sp-1)",
-        // No hex anywhere — a pending row is the same row, quieter.
-        opacity: row.pending ? 0.6 : 1,
-      }}
+      data-run={startsRun ? "start" : undefined}
+      data-pending={row.pending ? "true" : undefined}
     >
-      <div style={{ width: 32, flexShrink: 0 }}>
+      <div className="chat-row-face">
         {startsRun && (
           <CharacterAvatar characterId={row.characterId} name={row.name ?? ""} version={row.avatarVersion} size={32} />
         )}
@@ -177,14 +178,8 @@ const FeedRow = memo(function FeedRow({
         {startsRun && (
           <div className="flex items-baseline gap-2">
             <span className="font-semibold">{row.name}</span>
-            <span className="mono text-xs" style={{ color: "var(--muted)" }}>
-              {timeLabel(row.sentAt)}
-            </span>
-            {row.editedAt && (
-              <span className="text-xs" style={{ color: "var(--muted)" }}>
-                (edited) ‡
-              </span>
-            )}
+            <span className="mono text-xs text-muted">{timeLabel(row.sentAt)}</span>
+            {row.editedAt && <span className="text-xs text-muted">(edited)</span>}
           </div>
         )}
 
@@ -208,10 +203,10 @@ const FeedRow = memo(function FeedRow({
             />
             <div className="flex gap-2">
               <button type="button" className="btn-quiet" onClick={() => onSaveEdit(row.seq, draft)}>
-                Save ‡
+                Save
               </button>
               <button type="button" className="btn-quiet" onClick={onCancelEdit}>
-                Cancel ‡
+                Cancel
               </button>
             </div>
           </div>
@@ -219,34 +214,37 @@ const FeedRow = memo(function FeedRow({
           <ChatMarkdown content={row.content} />
         )}
 
-        {/* The bar FLOATS over the row's top-right corner (.hall-row-actions),
+        {/* The bar FLOATS over the row's top-right corner (.chat-row-actions),
             so it never pushes the sentence around when a mouse crosses the
             line. Everything it offers is re-decided by the server when it is
             pressed: the five-minute window, the camera in your hands, whether
             that person is still standing beside you. */}
         {showActions && (
-          <div className="hall-row-actions">
+          <div className="chat-row-actions">
             {mine && (
               <>
-                <IconButton icon={EditIcon} label="Change ‡" onClick={() => onEdit(row.seq, row.sentAt)} />
-                <IconButton icon={TrashIcon} label="Take back ‡" onClick={() => onDelete(row.seq, row.sentAt)} />
+                <IconButton icon={EditIcon} label="Change" onClick={() => onEdit(row.seq, row.sentAt)} />
+                <IconButton icon={TrashIcon} label="Take back" onClick={() => onDelete(row.seq, row.sentAt)} />
               </>
             )}
             {canLook && (
-              <IconButton icon={EyeIcon} label="Look at ‡" onClick={() => onLookAt(row.characterId)} />
+              <IconButton icon={EyeIcon} label="Look at" onClick={() => onLookAt(row.characterId)} />
             )}
             {canPhoto && (
-              <IconButton icon={CameraIcon} label="Photograph ‡" onClick={() => onPhotograph(row.seq)} />
+              <IconButton icon={CameraIcon} label="Photograph" onClick={() => onPhotograph(row.seq)} />
+            )}
+            {row.seq != null && (
+              <IconButton icon={NotesIcon} label="Save to Notes" onClick={() => onStar(row.seq)} />
             )}
             {canRemove && (
-              <IconButton icon={TrashIcon} label="Remove ‡" onClick={() => onRemove(row.seq)} />
+              <IconButton icon={TrashIcon} label="Remove" onClick={() => onRemove(row.seq)} />
             )}
           </div>
         )}
 
         {row.failed && (
           <button type="button" className="btn-quiet" onClick={() => onRetry(row.clientId)}>
-            Try again ‡
+            Try again
           </button>
         )}
       </div>
@@ -267,9 +265,9 @@ function PhotoReadout({ state, onClose }) {
   const readout = state?.readout ?? null;
 
   return (
-    <Modal open title={readout?.name ?? "Photograph ‡"} onClose={onClose} width="default">
+    <Modal open title={readout?.name ?? "Photograph"} onClose={onClose} width="default">
       <div className="flex flex-col gap-2">
-        {state?.loading && <p className="text-sm text-muted">Winding the film… ‡</p>}
+        {state?.loading && <p className="text-sm text-muted">Winding the film…</p>}
         {state?.error && <FormError>{state.error}</FormError>}
         {state?.line && <p className="text-sm">{state.line}</p>}
         {/* The SAME block the sheet's Look at draws
@@ -281,9 +279,7 @@ function PhotoReadout({ state, onClose }) {
         {/* The only thing that is the PHOTOGRAPH's rather than the subject's:
             what the print in your hands is called. */}
         {state?.photoName && (
-          <p className="text-xs" style={{ color: "var(--muted)" }}>
-            {state.photoName}
-          </p>
+          <p className="text-xs text-muted">{state.photoName}</p>
         )}
       </div>
     </Modal>
@@ -355,7 +351,7 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
 
   if (arg.kind === "moveKind") {
     return (
-      <div className="chip-row" role="radiogroup" aria-label="What kind of Move ‡">
+      <div className="chip-row" role="radiogroup" aria-label="What kind of Move">
         {MOVE_KINDS.map((kind) => (
           <button
             key={kind.value}
@@ -377,10 +373,10 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
   }
 
   if (arg.kind === "destination") {
-    if (!destinations) return <p className="text-sm text-muted">Reading the road… ‡</p>;
+    if (!destinations) return <p className="text-sm text-muted">Reading the road…</p>;
     if (destinations.length === 0) return <p className="text-sm text-muted">No way out of here. ‡</p>;
     return (
-      <div className="chip-row" aria-label="Where to ‡">
+      <div className="chip-row" aria-label="Where to">
         {destinations.map((option) => (
           <button
             key={option.id}
@@ -405,7 +401,7 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
       ? members
       : [...(people?.named ?? []), ...(arg.hoods ? (people?.concealed ?? []) : [])];
 
-  if (roster.length === 0) return <p className="text-sm text-muted">Nobody to pick. ‡</p>;
+  if (roster.length === 0) return <p className="text-sm text-muted">Nobody to pick.</p>;
 
   // What is in the box FILTERS the row. A command that asks for a person has
   // no text argument, so the textarea is doing nothing else — and a Location
@@ -418,12 +414,12 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
   if (shown.length === 0) return <p className="text-sm text-muted">Nobody here by that name. ‡</p>;
 
   return (
-    <div className="chip-row" aria-label="Who ‡">
+    <div className="chip-row" aria-label="Who">
       {shown.map((person, index) => {
         // A hood has no characterId — the token is the whole handle, and it
         // is what the server resolves back against the people standing here.
         const value = person.characterId ?? person.token ?? null;
-        const label = person.name ?? person.alias ?? "somebody ‡";
+        const label = person.name ?? person.alias ?? "somebody";
         return (
           <button
             key={value ?? `hooded-${index}`}
@@ -437,7 +433,7 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
           </button>
         );
       })}
-      {more > 0 && <span className="text-sm text-muted">…and {more} more ‡</span>}
+      {more > 0 && <span className="text-sm text-muted">…and {more} more</span>}
     </div>
   );
 }
@@ -448,9 +444,9 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
 function LookReadout({ state, onClose }) {
   const readout = state?.readout ?? null;
   return (
-    <Modal open title={readout?.name ?? "Look at ‡"} onClose={onClose} width="default">
+    <Modal open title={readout?.name ?? "Look at"} onClose={onClose} width="default">
       <div className="flex flex-col gap-2">
-        {state?.loading && <p className="text-sm text-muted">Looking… ‡</p>}
+        {state?.loading && <p className="text-sm text-muted">Looking…</p>}
         {state?.error && <FormError>{state.error}</FormError>}
         {readout && <Readout readout={readout} />}
       </div>
@@ -480,14 +476,14 @@ export default function Feed({
   // 📸 reaction; the server re-checks the camera either way.
   hasCamera = false,
   // The GM desk's Scene tab (PLAYER-DESK.md): the same scene with no composer
-  // and no sheet. A GM speaks nowhere (HALL.md §5a), so this only removes chrome
+  // and no sheet. A GM speaks nowhere (CHAT.md §5a), so this only removes chrome
   // that would have refused anyway.
   readOnly = false,
   // The Location's noticeboard, as cards pinned above the scene. A node
-  // rather than data: Hall.js owns the board's state, because the Noticeboard
+  // rather than data: Chat.js owns the board's state, because the Noticeboard
   // dialog in the right column pins to the same board this draws.
   notices = null,
-  // A search hit somebody clicked: Hall.js selects the place and loads the
+  // A search hit somebody clicked: Chat.js selects the place and loads the
   // window around the seq, and hands the seq back here to scroll to.
   // { seq, at } — `at` is a timestamp, so clicking the same hit twice scrolls
   // twice.
@@ -498,7 +494,7 @@ export default function Feed({
   // empty by construction — without this the SERVER paint of a busy street
   // was a skeleton, and the scene only appeared once the browser had
   // hydrated. Used only while the store has nothing for that place, which
-  // after hydration is never (Hall.js seeds it in a state initializer).
+  // after hydration is never (Chat.js seeds it in a state initializer).
   fallbackPlace = null,
   fallbackRows = null,
   // whosHere() whole — named AND hoods. `roster` above is the @ list and has
@@ -506,15 +502,15 @@ export default function Feed({
   // Look at is the one thing you may do to somebody you cannot name.
   people = null,
   // What the composer's commands can do that a server action cannot: pick a
-  // node in the Travel grid, open the Converse dialog. Hall.js owns both,
+  // node in the Travel grid, open the Converse dialog. Chat.js owns both,
   // because both live in the right column.
   onTravelPick = null,
   onConverse = null,
-  // Bumped by Hall.js on the stream's `places` event, so a key turning or
+  // Bumped by Chat.js on the stream's `places` event, so a key turning or
   // somebody else's /add re-reads the members strip.
   placesVersion = 0,
   // Paperwork, beside the composer rather than on the sheet
-  // (docs/systemdocs/PAPERWORK.md): { canWrite, canSeal, canBindBook, hasBird,
+  // (docs/systemdocs/PAPERWORK.md): { canWrite, canSeal, hasBird,
   // birdSentToday }, all resolved server-side in web/lib/selfPools.js. Each
   // entry opens the SHEET's own dialog; the four actions re-check every gate.
   letters = null,
@@ -538,7 +534,7 @@ export default function Feed({
   // A COMMAND-ONLY composer. The street takes no speech (CHANNELS.md §2) and
   // used to take no box either — which quietly meant /shout, the one command
   // whose whole point is being heard outdoors, had nowhere to be typed
-  // (HALL.md §5). So the box is drawn, and it accepts a `/` and nothing else:
+  // (CHAT.md §5). So the box is drawn, and it accepts a `/` and nothing else:
   // plain text answers with the same sentence that used to sit here instead.
   const commandOnly = Boolean(place) && !place.canSpeak && place.kind === "loc";
   // The server rows stand in only until this place's history is actually
@@ -582,13 +578,12 @@ export default function Feed({
   const lettersMenu = useMemo(() => {
     if (!letters || !openAction) return [];
     const rows = [];
-    if (letters.canWrite) rows.push({ mode: "write", label: "Write ‡" });
-    if (letters.canSeal) rows.push({ mode: "seal", label: "Seal ‡" });
-    if (letters.canBindBook) rows.push({ mode: "bindbook", label: "Bind a book ‡" });
+    if (letters.canWrite) rows.push({ mode: "write", label: "Write" });
+    if (letters.canSeal) rows.push({ mode: "seal", label: "Seal" });
     if (letters.hasBird) {
       rows.push({
         mode: "bird",
-        label: letters.birdSentToday ? "Sent today ‡" : "Send by bird ‡",
+        label: letters.birdSentToday ? "Sent today" : "Send by bird",
         disabled: Boolean(letters.birdSentToday),
       });
     }
@@ -729,7 +724,7 @@ export default function Feed({
             current.placeKey === placeKey ? { ...current, hold: Date.now() + wait } : current,
           );
           if (attempt >= MAX_SLOWMODE_RETRIES) {
-            setError(data?.error ?? "That didn't send. ‡");
+            setError(data?.error ?? "That didn't send.");
             markPendingFailed(placeKey, clientId);
             return;
           }
@@ -746,14 +741,14 @@ export default function Feed({
         }
 
         if (!res.ok) {
-          setError(data?.error ?? "That didn't send. ‡");
+          setError(data?.error ?? "That didn't send.");
           markPendingFailed(placeKey, clientId);
           return;
         }
         setError(null);
         if (data?.row) applyRow(placeKey, data.row);
       } catch {
-        setError("That didn't send. ‡");
+        setError("That didn't send.");
         markPendingFailed(placeKey, clientId);
       }
     },
@@ -831,7 +826,7 @@ export default function Feed({
   }, [hasMembers, placeKey, membersNonce, placesVersion]);
 
   // And once a minute regardless. The strip learns about a change from the
-  // stream's `places` frame and from a message in this place (Hall.js), but
+  // stream's `places` frame and from a message in this place (Chat.js), but
   // neither fires for a key GRANTED to somebody else while nobody is talking —
   // there is no frame for that at all — so the list could sit wrong for as
   // long as the room stayed quiet. A minute is slow enough to cost nothing and
@@ -952,12 +947,12 @@ export default function Feed({
     lookAt(ref)
       .then((res) => {
         if (res?.ok) setLook({ readout: res.readout });
-        else setLook({ error: res?.error ?? "You can't see them. ‡" });
+        else setLook({ error: res?.error ?? "You can't see them." });
       })
-      .catch(() => setLook({ error: "You can't see them. ‡" }));
+      .catch(() => setLook({ error: "You can't see them." }));
   }, []);
 
-  // What a command can reach that a server action cannot. Hall.js owns the
+  // What a command can reach that a server action cannot. Chat.js owns the
   // travel grid and the Converse dialog, so both arrive as callbacks.
   const commandCtx = useMemo(
     () => ({
@@ -978,7 +973,7 @@ export default function Feed({
     const textArg = textArgOf(entry);
     const body = draft.trim();
     if (textArg && !body) {
-      setCmdError("Write something first. ‡");
+      setCmdError("Write something first.");
       return;
     }
     if (textArg?.maxLength && body.length > textArg.maxLength) {
@@ -987,7 +982,7 @@ export default function Feed({
     }
     const missing = pendingArg(entry, values);
     if (missing) {
-      setCmdError("Pick one first. ‡");
+      setCmdError("Pick one first.");
       return;
     }
     const filled = textArg ? { ...values, [textArg.name]: body } : values;
@@ -1019,7 +1014,7 @@ export default function Feed({
     // Inside the hold. The draft is kept — it is theirs, and they will send
     // it in a second — and the chip is what says so.
     if (deadline > Date.now()) {
-      setError(`Slowmode. Wait ${Math.max(1, Math.ceil((deadline - Date.now()) / 1000))} s. ‡`);
+      setError(`Slowmode. Wait ${Math.max(1, Math.ceil((deadline - Date.now()) / 1000))} s.`);
       setNudge(true);
       if (nudgeTimer.current) clearTimeout(nudgeTimer.current);
       nudgeTimer.current = setTimeout(() => setNudge(false), 500);
@@ -1089,12 +1084,12 @@ export default function Feed({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error ?? "That didn't change. ‡");
+        setError(data?.error ?? "That didn't change.");
         return;
       }
       setError(null);
     } catch {
-      setError("That didn't change. ‡");
+      setError("That didn't change.");
     }
   }, []);
 
@@ -1104,7 +1099,7 @@ export default function Feed({
         setError(TOO_LATE);
         return;
       }
-      if (!(await confirm({ title: "Take that back? ‡", message: "It goes from here and from Discord. ‡", confirmLabel: "Take it back ‡" }))) {
+      if (!(await confirm({ title: "Take that back?", message: "It goes from here and from Discord. ‡", confirmLabel: "Take it back" }))) {
         return;
       }
       try {
@@ -1115,12 +1110,12 @@ export default function Feed({
         });
         const data = await res.json().catch(() => null);
         if (!res.ok) {
-          setError(data?.error ?? "That didn't go. ‡");
+          setError(data?.error ?? "That didn't go.");
           return;
         }
         setError(null);
       } catch {
-        setError("That didn't go. ‡");
+        setError("That didn't go.");
       }
     },
     [confirm],
@@ -1152,10 +1147,25 @@ export default function Feed({
     photographRow(seq)
       .then((res) => {
         if (res?.ok) setPhoto({ readout: res.readout, photoName: res.photoName, line: res.line });
-        else setPhoto({ error: res?.error ?? "The camera caught nothing. ‡" });
+        else setPhoto({ error: res?.error ?? "The camera caught nothing." });
       })
-      .catch(() => setPhoto({ error: "The camera caught nothing. ‡" }));
+      .catch(() => setPhoto({ error: "The camera caught nothing." }));
   }, []);
+
+  // ⭐ — the web twin of the reaction in Discord. It writes the same `Note`
+  // row, and the server upsert makes a second press on the same line a no-op
+  // rather than a second note, so this needs no pressed state of its own.
+  // The answer goes on the composer's quiet line, where every other one-shot
+  // command answer already lands.
+  const onStar = useCallback((seq) => {
+    setCmdError(null);
+    starRow(seq)
+      .then((res) => {
+        if (res?.ok) setCmdLine(res.line ?? "Saved to your Notes.");
+        else setCmdError(res?.error ?? "That line is gone.");
+      })
+      .catch(() => setCmdError("Could not reach the server. Nothing was changed. ‡"));
+  }, [setCmdError]);
 
   // A GM taking a line down. Same route as Take back, with no character on
   // the session — db/lib/say.js#deleteSpeech skips the owner and the window
@@ -1164,9 +1174,9 @@ export default function Feed({
     async (seq) => {
       if (
         !(await confirm({
-          title: "Remove this line? ‡",
+          title: "Remove this line?",
           message: "It goes from here and from Discord. ‡",
-          confirmLabel: "Remove it ‡",
+          confirmLabel: "Remove it",
         }))
       ) {
         return;
@@ -1179,12 +1189,12 @@ export default function Feed({
         });
         const data = await res.json().catch(() => null);
         if (!res.ok) {
-          setError(data?.error ?? "That didn't go. ‡");
+          setError(data?.error ?? "That didn't go.");
           return;
         }
         setError(null);
       } catch {
-        setError("That didn't go. ‡");
+        setError("That didn't go.");
       }
     },
     [confirm],
@@ -1227,7 +1237,7 @@ export default function Feed({
   }, [placeKey]);
 
   // A search hit. The row is already in the store by the time this runs —
-  // Hall.js loads the window around the seq before it hands the jump down —
+  // Chat.js loads the window around the seq before it hands the jump down —
   // so this is only the scroll and the flash. DOM calls, no state: the
   // highlight is an attribute the CSS animates and then nobody looks at
   // again.
@@ -1355,15 +1365,15 @@ export default function Feed({
 
   if (!place) {
     return (
-      <div className="hall-main">
-        <div className="hall-feed">
-          <EmptyState>Nowhere is open. ‡</EmptyState>
+      <div className="chat-main">
+        <div className="chat-feed">
+          <EmptyState>Nowhere is open.</EmptyState>
         </div>
       </div>
     );
   }
 
-  // A search hit that went nowhere. Hall.js loads the window around the seq
+  // A search hit that went nowhere. Chat.js loads the window around the seq
   // and then opens the place, so by the time this place's history is LOADED
   // the line should be among its rows — and if it is not (a line deleted
   // between the search and the click, a window request that failed), the box
@@ -1385,15 +1395,15 @@ export default function Feed({
   // The head is the place's name and nothing else. The description used to
   // sit here with a "more" button on it, capped halfway down a fixed-height
   // strip; it belongs beside the scene rather than over it, and the turn is
-  // already on the crumb above the whole Hall (layout.js).
+  // already on the crumb above the whole Chat (layout.js).
   return (
-    <div className="hall-main">
-      <div className="hall-head">
+    <div className="chat-main">
+      <div className="chat-head">
         <h1 className="section-title">{place.name}</h1>
         {onJump && (
           <IconButton
             icon={SearchIcon}
-            label="Search what was said ‡"
+            label="Search what was said"
             aria-expanded={showSearch}
             onClick={() => (showSearch ? closeSearch() : setSearchOpen(true))}
           />
@@ -1410,7 +1420,7 @@ export default function Feed({
       {showSearch && (
         <FeedSearch
           place={place}
-          notice={jumpMissed ? "Couldn't find that line. ‡" : null}
+          notice={jumpMissed ? "Couldn't find that line." : null}
           onClose={closeSearch}
           onPick={(hitPlace, seq) => {
             // Not dismissed: if this hit turns out to be gone too, the box has
@@ -1421,7 +1431,7 @@ export default function Feed({
         />
       )}
 
-      <div ref={scrollerRef} onScroll={onScroll} className="hall-feed">
+      <div ref={scrollerRef} onScroll={onScroll} className="chat-feed">
         {/* The board is nailed to the top of the street, not filed into it in
             the order it went up: a notice is a thing standing there, and it
             has to still be readable after fifty lines of scene. */}
@@ -1469,6 +1479,7 @@ export default function Feed({
                     onDelete={onDelete}
                     onLookAt={onLookAt}
                     onPhotograph={onPhotograph}
+                    onStar={onStar}
                     onRemove={onRemove}
                   />
                 </Fragment>
@@ -1481,43 +1492,43 @@ export default function Feed({
       {!atBottom && (
         <button
           type="button"
-          className="btn-quiet hall-pill"
+          className="btn-quiet chat-pill"
           onClick={() => {
             atBottomRef.current = true;
             setAtBottom(true);
             scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: "smooth" });
           }}
         >
-          New messages ‡
+          New messages
         </button>
       )}
 
       {/* Who is writing something, above the composer and below the scene.
           Holds its line's height whether or not anybody is, so the feed does
           not jump every time somebody starts and stops. */}
-      <p className="hall-typing" aria-live="polite">
+      <p className="chat-typing" aria-live="polite">
         {typing}
       </p>
 
       {!readOnly && (
-        <div className="hall-composer">
+        <div className="chat-composer">
           {place.canSpeak || commandOnly ? (
             <>
-              <div className="field hall-composer-box">
+              <div className="field chat-composer-box">
                 {command && (
-                  <span className="hall-cmd-chip mono" data-cmd={command.entry.name}>
+                  <span className="chat-cmd-chip mono" data-cmd={command.entry.name}>
                     /{command.entry.name}
                   </span>
                 )}
                 <textarea
-                  id="hall-composer"
+                  id="chat-composer"
                   ref={textareaRef}
                   aria-label={
                     commandOnly
                       ? `Run a command in ${place.name} ‡`
                       : concealed && alias
-                        ? `Say something as ${alias} ‡`
-                        : `Say something in ${place.name} ‡`
+                        ? `Say something as ${alias}`
+                        : `Say something in ${place.name}`
                   }
                   rows={2}
                   value={draft}
@@ -1525,10 +1536,10 @@ export default function Feed({
                     command
                       ? (textArgOf(command.entry)?.placeholder ?? "Press Enter to run it ‡")
                       : commandOnly
-                        ? "Type / for a command… ‡"
+                        ? "Type / for a command…"
                         : concealed && alias
-                          ? `Say something as ${alias}… ‡`
-                          : `Say something in ${place.name}… ‡`
+                          ? `Say something as ${alias}…`
+                          : `Say something in ${place.name}…`
                   }
                   onChange={onDraftChange}
                   onKeyDown={(e) => {
@@ -1629,8 +1640,8 @@ export default function Feed({
               {waitSeconds > 0 && (
                 // Slowmode, said as a clock rather than as a refusal. The
                 // zone summary is the only place that has one.
-                <span className="hall-countdown mono" data-nudge={nudge ? "true" : undefined} aria-live="polite">
-                  {waitSeconds} s ‡
+                <span className="chat-countdown mono" data-nudge={nudge ? "true" : undefined} aria-live="polite">
+                  {waitSeconds} s
                 </span>
               )}
               {coarse && (
@@ -1649,7 +1660,7 @@ export default function Feed({
                         !draft.trim() || (!commandOnly && waitSeconds > 0)
                   }
                 >
-                  {command ? "Run ‡" : "Send ‡"}
+                  {command ? "Run" : "Send"}
                 </button>
               )}
             </>
@@ -1658,25 +1669,25 @@ export default function Feed({
             // summary they are only listed in, somewhere a GM is watching.
             // The street is not here any more: it has the command-only box
             // above, and says STREET_LINE when somebody types prose into it.
-            <p className="hall-quiet">You can only watch here. ‡</p>
+            <p className="chat-quiet">You can only watch here. ‡</p>
           )}
           {/* Paperwork and the hood, beside the send. Neither is a place's
               affordance — they are things you do with your own hands wherever
               you are standing — so they sit on the composer rather than in the
               right column. */}
           {(lettersMenu.length > 0 || canConceal) && (
-            <span className="hall-composer-tools">
+            <span className="chat-composer-tools">
               {lettersMenu.length > 0 && (
-                <span className="hall-tool-wrap">
+                <span className="chat-tool-wrap">
                   <IconButton
                     icon={QuillIcon}
-                    label="Letters ‡"
+                    label="Letters"
                     aria-haspopup="menu"
                     aria-expanded={lettersOpen}
                     onClick={() => setLettersOpen((was) => !was)}
                   />
                   {lettersOpen && (
-                    <div className="hall-menu" role="menu" aria-label="Letters ‡">
+                    <div className="chat-menu" role="menu" aria-label="Letters">
                       {lettersMenu.map((entry) => (
                         <button
                           key={entry.mode}
@@ -1699,7 +1710,7 @@ export default function Feed({
               {canConceal && (
                 <IconButton
                   icon={HoodIcon}
-                  label={concealed ? "Take the hood off ‡" : "Put the hood up ‡"}
+                  label={concealed ? "Take the hood off" : "Put the hood up"}
                   aria-pressed={concealed}
                   disabled={concealPending}
                   onClick={() => {
@@ -1711,7 +1722,7 @@ export default function Feed({
                         // is a server prop, so the page is what has to
                         // re-read it.
                         if (res?.ok) router.refresh();
-                        else setConcealError(res?.error ?? "Something went wrong. ‡");
+                        else setConcealError(res?.error ?? "Something went wrong.");
                       } catch {
                         setConcealError("Could not reach the server. Nothing was changed. ‡");
                       }
@@ -1725,8 +1736,8 @@ export default function Feed({
               and the You strip, as a sheet over the scene. Hidden on a
               desktop by the same media query that hides the column, since
               there it would only open what is already on screen. */}
-          <span className="hall-sheet-trigger">
-            <IconButton icon={MoreIcon} label="Here ‡" disabled={!onOpenSheet} onClick={onOpenSheet ?? undefined} />
+          <span className="chat-sheet-trigger">
+            <IconButton icon={MoreIcon} label="Here" disabled={!onOpenSheet} onClick={onOpenSheet ?? undefined} />
           </span>
         </div>
       )}
@@ -1735,7 +1746,7 @@ export default function Feed({
           rendered rather than printed — several of them carry a `**` because
           the same sentence goes out to Discord too. */}
       {cmdLine && (
-        <div className="hall-quiet-line">
+        <div className="chat-quiet-line">
           <ChatMarkdown content={cmdLine} />
         </div>
       )}

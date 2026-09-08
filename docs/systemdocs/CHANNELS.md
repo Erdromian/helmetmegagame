@@ -52,7 +52,7 @@ build from them, so the two can never disagree.
 
 | Channel | Type | Purpose | Notes |
 |---|---|---|---|
-| `#summary` | text | Abstracted, big-picture play. Adjudication results and staged public declarations land here. | 300s (5 min) slowmode — the slowmode is what stops it becoming a second moment-to-moment channel. Wiped at Dawn. |
+| `#summary` | text | Abstracted, big-picture play. Adjudication results and staged public declarations land here. | 300s (5 min) slowmode — the slowmode is what stops it becoming a second moment-to-moment channel. Wiped at Dawn, and it is the one thing the wipe does not take every turn (§8). |
 
 The `CAVE_GROUP` row (Underground) owns the shared category and nothing else —
 no `#summary`, no role. Each `CAVE_LEVEL` (Caves, Depths) has no channels of
@@ -78,7 +78,7 @@ role (§3).
 > `bot/src/lib/channels.js#isDesignatedTupperChannel` stops treating a
 > top-level Location channel as a tupper channel (so a GM typing there is left
 > alone rather than reposted under a mask), and `/play` draws no composer on a
-> Location (`HALL.md` §5b).
+> Location (`CHAT.md` §5b).
 
 **Room threads carry no slowmode.** The 5-minute one is `#summary`'s alone; a
 Room is moment-to-moment talk. `db:sync-zones` still asserts `rate_limit_per_user:
@@ -280,7 +280,7 @@ reporter or a GM, so there is no further gate. Both are audited
 `/gm/audit`).
 
 Report threads are **not** `PlayerThread` rows, and that is what keeps them
-alive: `dawnWipe`, `fullWipe` and the channel doctor all walk zone/Location
+alive: `messageWipe`, `fullWipe` and the channel doctor all walk zone/Location
 channels, `SPECIAL_CHANNELS` or `PlayerThread`, so a thread under a channel
 none of them know about is never touched.
 
@@ -303,7 +303,7 @@ Every call inside it is individually catch-logged, never thrown — the channel
 doctor is the safety net for whatever one call misses.
 
 It's pure REST, so the Travel button on `#turns`, `/location`, the web's
-writers (creation, GM raw edit, GM Bulk Move, `MOVE_CHARACTER`) and the staged
+writers (creation, GM raw edit, GM Bulk Move) and the staged
 "Relocate to" applied at the turn push all call it after their own DB write
 has committed. Grant-before-revoke throughout, deliberately: an interrupted
 swap leaves the player seeing two Locations for a moment (harmless,
@@ -341,7 +341,7 @@ departed player still reading rooms.
 ### A web-only character holds no Discord access at all
 
 `Character.webOnly` — the **Play from the web** switch on the Bio card
-(`HALL.md` §6) — is the one state in which a living character standing in a
+(`CHAT.md` §6) — is the one state in which a living character standing in a
 Location has none of the grants this section describes. No member overwrite on
 the Location channel, no zone role (so no `#summary` and no `#turns`, whose
 view grants ride the zone roles), no narrowcast overwrite, and no membership in
@@ -353,7 +353,7 @@ The fiction does not change: they still stand where they stand, they still show
 in Who's here?, they still hold their keys and their guest rows, and they are
 still a member of every Conversation they were in — the `PlayerThreadMember`
 row is the truth and Discord's thread list is only its projection (`§4`,
-`HALL.md` §2a). What changes is that the projection is empty.
+`CHAT.md` §2a). What changes is that the projection is empty.
 
 **Every re-materialiser checks the flag, or the next pass puts them back.**
 That is the whole maintenance burden of the feature, and it is not optional:
@@ -437,13 +437,13 @@ back at the next `db:sync-zones`, not seven days of dead air.
 Each Room's first message is its body (name + description) plus a button,
 **Storage** (`db/lib/roomStarterRow.js`, `room:storage:{id}`), which prints
 what is lying in the room's stash — every Room holds unlimited ⬢ and tags,
-moved through the web's Transfer and surviving the Dawn wipe since they live
+moved through the web's Transfer and surviving the wipe since they live
 in the database (`CARRY.md` §5). The message is reconciled by content hash on
 `Room.postHash` (body + button row); a changed body is rewritten **in place**
 (clear every reply but the starter, edit it, re-post overflow). Because a
 thread's starter has its own message id, distinct from the thread id itself —
 unlike a forum post, where they're the same — `Room.starterMessageId` is
-tracked separately, and it's what the Dawn wipe clears down to (§8) rather
+tracked separately, and it's what the wipe clears down to (§8) rather
 than the thread id.
 
 **Private-room membership is pull-based, not pushed from a tag writer.**
@@ -512,11 +512,11 @@ projection.** `PlayerThreadMember (playerThreadId, characterId)` is written
 first by all four writers — Converse (the creator), `/add`, a mention into the
 conversation, and the invite replay — and `/remove` deletes it; the Discord
 add follows. All four go through `db/lib/conversations.js`, so there is one
-answer to "who is in this". The reason is `HALL.md` §2a: the web feed could
+answer to "who is in this". The reason is `CHAT.md` §2a: the web feed could
 not read a Discord member list without a REST call per conversation, and a
 player whose account is out of the channels entirely (the coming "web only"
 switch) could not be in a thread at all. The row cascades with its
-`PlayerThread`, so the Dawn wipe needs no new step.
+`PlayerThread`, so the wipe needs no new step.
 
 `/add` and `/remove` work here too, and the
 handler tells the two apart by the channel: a `PlayerThread` row means a
@@ -531,14 +531,48 @@ able to.
 Leaving a Location does **not** drop you from a Conversation you're already in
 — you stay a member, exactly as before. There is no more per-message
 `/conceal` prefix, no `persistent` flag, no forum tags, and no inactivity
-expiry on a Conversation: every one of them is wiped clean at the next Dawn
-(§8), so nothing needs to age out on its own.
+expiry on a Conversation: every one of them is wiped clean at the end of the
+turn (§8), so nothing needs to age out on its own.
 
 **The whisper poll.** Every 15 minutes, each Conversation linked to a Room
-posts one line into that Room naming who's been talking in it — "A young man
-and an old woman are whispering…" — built from `ArchiveEntry` rows in the last
+posts one line into that Room naming who's been talking in it — "You hear a young man
+and an old woman whispering." — built from `ArchiveEntry` rows in the last
 15 minutes (up to 5 named, then "and others"), aliased the same way a
 concealed message is, so the Room never learns who's actually inside.
+
+Under that line the Room also hears **fragments of what was said**, on one
+`»` line: a few contiguous runs of 4–10 words pulled out of the window at
+random and muffled at 65% by the same `db/lib/muffle.js` the shout uses (heavier
+than any shout now — the shout's last ring with words loses 40%), joined
+by an ellipsis. Punctuation is ignored on purpose — a fragment that starts and
+ends mid-thought reads as something overheard, where a whole sentence would
+read as something quoted.
+
+Three caps keep that honest, and none of them is cosmetic. A fragment is bounded
+in **characters** as well as words, because a pasted URL or blob contains no
+whitespace, counts as one word, and would otherwise come back whole — and at a
+few thousand characters Discord refuses the message outright, which would cost
+the room the name line too (`postMessage` does not chunk). A message that is a
+single long token gets a **character window** instead of a word window, so
+Chinese, Japanese and Thai — none of which space their words — are sampled like
+everything else rather than leaked entire. And no one message counts for more
+than `MESSAGE_WEIGHT_CAP` words when the pool is weighed, so pasting a wall of
+text is not a way to drown your own conversation or to inflate the ladder. How many fragments scales on the words said in the
+window: 1 below 80, then 2, 3, 4, 5 and 6 at 80, 200, 450, 900 and 1800. The
+thresholds are stretched because a busy Conversation clears a few hundred words
+in fifteen minutes, so the top of the ladder has to be hard to reach.
+
+**Subtle** (`db/lib/whisperLeak.js`, `bot/src/lib/whisperPoll.js`) keeps a
+character out of the name line *and* out of the fragment pool — both halves, or
+the tag would only half work. An all-Subtle Conversation still posts nothing at
+all. A speaker whose `Character` row does not load is treated as Subtle rather
+than as audible: a privacy feature fails **shut**, and a missing name line is
+the cheaper mistake. The post also passes `allowedMentions: { parse: [] }`,
+because the line now carries player text and "@everyone" is a plain word no
+mention-stripper catches. The leak is rolled once per tick and handed to both the Discord post and
+Chat's scene row, unlike the shout, which re-rolls its static per call:
+re-rolling here would pick different fragments for each face, which is two
+leaks rather than one thing heard twice.
 
 **Who's here?** names the characters standing in the Location: the concealed
 ones only as what a stranger could tell at a glance, and anyone wearing a
@@ -550,7 +584,7 @@ Role.
 Persistence, the three forum tags, `/persistent`, quest posts
 (`bot/src/lib/questPost.js`) and inactivity expiry (`threadExpiryPass.js`) are
 all retired — a Conversation has no long-lived form any more, and a
-GM-made off-catalog thread is simply adopted by the Dawn wipe the same way an
+GM-made off-catalog thread is simply adopted by the wipe the same way an
 ordinary unknown thread is (§8). The web `/map` panel is gone too (`MAP.md`).
 
 ## 5. The ghost seat
@@ -617,7 +651,7 @@ Two scopes:
   `db/lib/turnsChannelAccess.js` (§3a).
 
 Where it runs: **cheap + apply on every bot ready** (`bot/src/events/ready.js`),
-after every turn advance when `GameConfig.autoReconcileEnabled` is on, as the
+after every turn advance, as the
 final step of Restart Game, from the Dev Panel's System Reports buttons (full
 scope, dry or repair), and from a terminal with `npm run db:doctor`
 (`-- --full`, `-- --apply`).
@@ -667,8 +701,8 @@ zone's own `#summary` instead of into a channel of its own (§7a). That removed
 the channel, the registry entry, the `roleViewZones` grant, the per-member
 speak overwrite and the **Intercom tag**, which is deleted from
 `docs/tags.yaml` and off the Baron's starting list.
-`GameConfig.intercomChannelId` stays as an orphan column, the way
-`mindlinkChannelId` did.
+`GameConfig.intercomChannelId` stayed as an orphan column for a while, the way
+`mindlinkChannelId` did; the 2026-09-07 config trim dropped it.
 
 The reason is not tidiness. A PA you travel to is not a PA — the announcement
 landed somewhere nobody was standing, and hearing it meant being in a channel
@@ -750,32 +784,51 @@ Both build the context with `buildNarrowcastContext` and run
 
 | Pass | When | What it does |
 |---|---|---|
-| **Dawn wipe** (`db/lib/dawnWipe.js`) | every turn that opens with `phase === "DAWN"`, if `GameConfig.messageWipeEnabled` | clears roleplay content per the table below |
+| **Message wipe** (`db/lib/messageWipe.js`) | **every** turn, while `GameConfig.messageWipeEnabled` | clears roleplay content per the table below — on two different cadences |
 | **Full wipe** (`db/lib/fullWipe.js`) | Restart Game only | spares nothing (`LAUNCH.md`) |
-| **`#turns` sweep** (`db/lib/turnAnnouncement.js#postTurnsConsole`, via `dawnWipe.js#clearMessagesExcept`) | every turn, Dawn or Dusk | deletes everything in `#turns` except the console message just posted — a stray GM post, an orphaned console from before a config reset |
+| **`#turns` sweep** (`db/lib/turnAnnouncement.js#postTurnsConsole`, via `discordRest.js#clearMessagesExcept`) | every turn, Dawn or Dusk | deletes everything in `#turns` except the console message just posted — a stray GM post, an orphaned console from before a config reset |
 
-`#turns` is **not** in `SPECIAL_CHANNELS` and the Dawn wipe never reaches it —
-it is one rolling message (the turn announcement, turn banner, and player
+**Two cadences, and the split is the point.** A turn is one real day, but Dawn
+and Dusk alternate, so anything gated on Dawn only comes round every 48 hours.
+Roleplay should not outlive the day it happened in, so the wipe runs every
+turn — with one exception:
+
+- **every turn** — Location channels, Rooms, Conversations, and every special
+  channel the registry marks `wipe: "clear"` (`#cerberon`).
+- **Dawn only** — a zone's `#summary`. It is the abstracted, slowmoded channel
+  the adjudication results land in, so it gets the longer life the rest no
+  longer does.
+
+It was Dawn-only for everything until 2026-09-07, back when a turn was half a
+day and a Dawn came round every 24 hours anyway.
+
+`GameConfig.messageWipeEnabled` is **not a GM knob** — there is no form control
+for it. The wipe is how the game works. The column survives as a
+hand-flippable escape hatch for the day Discord starts rate-limiting the sweep.
+
+`#turns` is **not** in `SPECIAL_CHANNELS` and the message wipe never reaches it
+— it is one rolling message (the turn announcement, turn banner, and player
 console) that gets deleted and reposted every turn regardless of
-`messageWipeEnabled`, so its sweep runs on that same cadence rather than the
-Dawn-only one above. It is best-effort: a sweep failure is logged but never
+`messageWipeEnabled`. It is best-effort: a sweep failure is logged but never
 costs the turn announcement that already went out. Its *access* is managed
 though — see §3a.
 
-The Dawn wipe is wired into `db/index.js#advanceTurn()`'s side-effect thunk,
-so it fires identically whether Dawn came from the bot's nightly cron or a
-GM's "End Turn" button.
+The wipe is wired into `db/index.js#advanceTurn()`'s side-effect thunk, so it
+fires identically whether the turn came from the bot's nightly cron or a GM's
+"End Turn" button.
 
-**The web has a watermark instead of a delete.** The same pass sets
-`GameConfig.feedWipeSeq` to the newest `ArchiveEntry.seq` as it BEGINS
-(`db/lib/feedWipe.js#markFeedWiped`, called from the Dawn branch in
-`db/index.js` immediately before `runDawnWipe`), and every feed query on
-`/play` reads `seq > feedWipeSeq`. The instant is deliberately the same one
-`cutoffMs` names below, so a message posted while the wipe is walking survives
-on both faces or neither. See `HALL.md` §7 — the unread dots reset with it for
-free.
+**The web has a watermark instead of a delete — two of them.** The same pass
+sets `GameConfig.feedWipeSeq` to the newest `ArchiveEntry.seq` as it BEGINS,
+and `feedWipeSummarySeq` alongside it on a Dawn
+(`db/lib/feedWipe.js#markFeedWiped`, called from `db/index.js` immediately
+before `runMessageWipe`). Every feed query on `/play` then reads `seq >` the
+floor for **that place's own cadence**: a `zone:` key against the summary
+watermark, everything else against the turn one. The instant is deliberately
+the same one `cutoffMs` names below, so a message posted while the wipe is
+walking survives on both faces or neither. See `CHAT.md` §7 — the unread dots
+reset with it for free.
 
-**The Dawn wipe only deletes.** The transcript is recorded at *send* time
+**The message wipe only deletes.** The transcript is recorded at *send* time
 (`db/lib/archive.js`, read at `/archive` — `ARCHIVE.md`), so nothing here reads
 message content and there is no `#archive` channel. Deleting is the cheap half:
 `bulkDeleteMessages` moves 100 messages per request, and it splits by age
@@ -801,25 +854,27 @@ is that a player posting *during* the wipe keeps their message. The wipe is
 long and walks zones in order, so without a cutoff whether your post survived
 depended on where you were standing.
 
-Per target, for every zone including cave levels, and per Location in it:
+Per target, for every zone including cave levels, and per Location in it. The
+zone loop runs every turn either way — it has to, for the Locations under it:
 
-| Target | Dawn wipe behaviour |
-|---|---|
-| a zone's `#summary` | every message deleted |
-| a Location channel | every top-level message deleted **except the pinned anchor** |
-| a Room | every message deleted **except the starter** (`Room.starterMessageId`); unarchived if it had idled into the archive |
-| a Conversation | deleted outright — thread, `PlayerThread` row and its invites. There is no persistence any more |
-| a thread newer than the cutoff | left entirely — a Conversation someone opened while this very wipe was running isn't destroyed mid-use; it comes under the ordinary rules next Dawn |
-| an untracked thread (no `PlayerThread` row, not a Room) | **adopted**: a `PlayerThread` row is written rather than the thread destroyed, so a GM's hand-made thread gets one full turn and a visible record instead of vanishing |
-| every registry entry with `wipe: "clear"` (`#cerberon`) | every message deleted |
+| Target | When | Behaviour |
+|---|---|---|
+| a zone's `#summary` | **Dawn only** | every message deleted |
+| a Location channel | every turn | every top-level message deleted **except the pinned anchor** |
+| a Room | every turn | every message deleted **except the starter** (`Room.starterMessageId`); unarchived if it had idled into the archive |
+| a Conversation | every turn | deleted outright — thread, `PlayerThread` row and its invites. There is no persistence any more |
+| a thread newer than the cutoff | every turn | left entirely — a Conversation someone opened while this very wipe was running isn't destroyed mid-use; it comes under the ordinary rules next turn |
+| an untracked thread (no `PlayerThread` row, not a Room) | every turn | **adopted**: a `PlayerThread` row is written rather than the thread destroyed, so a GM's hand-made thread gets one full turn and a visible record instead of vanishing |
+| every registry entry with `wipe: "clear"` (`#cerberon`) | every turn | every message deleted — a radio net is not a summary, and two days of standing traffic read wrong |
 
 **Each Location is wiped inside its own `try`**, so one stale channel id costs
 one Location rather than every Location after it plus the special channels.
 Fetching a channel allows a 404 — one a GM deleted by hand is an ordinary
 state for a blind sweep, not a reason to stop. The whole run is entirely
 sequential (no `Promise.all` fan-out) to avoid bursting Discord's rate-limit
-buckets, and lands on a `SystemReport` row (`kind: DAWN_WIPE`) the Dev Panel
-shows.
+buckets, and lands on a `SystemReport` row (`kind: DAWN_WIPE` — the enum value
+predates the rename and this schema drops none) the Dev Panel shows. Its
+`summary.summaries` flag says which of the two cadences the run was.
 
 That report now carries a **per-step breakdown** — elapsed ms, Discord request
 count, and time spent asleep on a rate limit, one row per zone's `#summary`,

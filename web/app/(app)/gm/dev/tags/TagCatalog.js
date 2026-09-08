@@ -89,10 +89,7 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
           </button>
         </FilterBar>
         <p className="text-xs text-muted">
-          {customCount} GM-created, {allTags.length - customCount} from docs/tags.yaml. GM-created tags
-          exist only in the database, so <code>npm run db:sync-tags</code> and{" "}
-          <code>npm run db:prune-tags</code> leave them alone. Tags from the YAML are read-only here;
-          edit them in the file, since the next sync overwrites any change made here.
+          {customCount} GM-created, {allTags.length - customCount} from docs/tags.yaml.
         </p>
         <FormError>{error}</FormError>
       </section>
@@ -239,10 +236,7 @@ function TagDialog({ tag, tags, groups, categories, pending, error, onCancel, on
           selfId={tag.id}
         />
 
-        <p className="mono text-xs text-muted">
-          {tag.slug} — the slug cannot be changed after creation, because other tags refer to it
-          by this exact text.
-        </p>
+        <p className="mono text-xs text-muted">{tag.slug}</p>
 
         <FormError>{error}</FormError>
 

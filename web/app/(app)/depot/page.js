@@ -1,4 +1,9 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import SnapshotPage from "@/lib/snapshot/SnapshotPage";
+import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
+import DepotView from "./DepotView";
+import Loading from "../loading";
 import {
   prisma,
   MERCHANT_LICENSE_SLUG,
@@ -12,7 +17,9 @@ import {
   depotPowered,
   fuelTurnsLeft,
   creditAvailableObols,
-  canOpenCrate,
+  RESOURCE_IMPORT_PRICE,
+  RESOURCE_EXPORT_PRICE,
+  RESOURCE_WARE_ID,
   CONCEALMENT_TAG_FIELDS,
   concealmentFrom,
   presentedIdentity,
@@ -21,8 +28,6 @@ import {
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
-import DepotConsole from "@/app/components/DepotConsole";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
 
 // The Merchant's station. See docs/systemdocs/DEPOT.md.
 //
@@ -53,7 +58,6 @@ const DEPOT_LEDGER_KINDS = {
   request_depot_shuttle_call: { key: "DEPOT_SHIP", label: "Shuttle" },
   request_depot_shuttle_send: { key: "DEPOT_SHIP", label: "Shuttle" },
   request_depot_atm: { key: "DEPOT_ATM", label: "Cash" },
-  request_depot_exchange: { key: "DEPOT_EXCHANGE", label: "Exchange" },
   request_depot_credit: { key: "DEPOT_CREDIT", label: "Credit line" },
   request_depot_crate_open: { key: "DEPOT_CRATE_OPEN", label: "Crate" },
   request_depot_refuel: { key: "DEPOT_REFUEL", label: "Refuel" },
@@ -75,11 +79,6 @@ function ledgerRow(entry, who) {
       return { detail: e.direction === "WITHDRAW" ? "Withdrawn as coin" : "Deposited", delta: e.direction === "WITHDRAW" ? -(e.amount ?? 0) : (e.amount ?? 0) };
     case "DEPOT_CREDIT":
       return { detail: e.direction === "DRAW" ? "Drawn on the line" : "Repaid the line", delta: e.direction === "DRAW" ? (e.amount ?? 0) : -(e.amount ?? 0) };
-    case "DEPOT_EXCHANGE":
-      return {
-        detail: e.direction === "BUY_RESOURCES" ? `Bought ${e.resources ?? 0} ⬢` : `Sold ${e.resources ?? 0} ⬢`,
-        delta: e.direction === "BUY_RESOURCES" ? -(e.obols ?? 0) : (e.obols ?? 0),
-      };
     case "DEPOT_CRATE_OPEN":
       return { detail: `${e.crateName ?? "A crate"} — ${(e.granted ?? []).map((g) => `${g.name} ×${g.quantity}`).join(", ") || "empty"}`, delta: 0 };
     case "DEPOT_REFUEL":
@@ -89,7 +88,22 @@ function ledgerRow(entry, who) {
   }
 }
 
+// Snapshotted (web/lib/snapshot, CHAT.md §5c): the page reads the session,
+// mounts the shell, and streams FreshDepot in behind it. A browser that has
+// been here before paints its last data in the first frame.
 export default async function DepotPage() {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+  return (
+    <SnapshotPage scope="depot" userId={session.discordUserId} render={DepotView} fallback={<Loading />}>
+      <Suspense fallback={null}>
+        <FreshDepot />
+      </Suspense>
+    </SnapshotPage>
+  );
+}
+
+async function FreshDepot() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
@@ -194,31 +208,33 @@ export default async function DepotPage() {
     tag,
   });
 
-  const wares = wareTags.map(shape);
-  const priceList = pricedTags.map((tag) => ({
-    ...shape(tag),
-    side: tag.depotPrice != null && tag.sellablePrice != null ? "Both" : tag.depotPrice != null ? "Sells to you" : "Buys from you",
-  }));
+  // ⬢ are a ware on the shuttle now, and they are not a Tag — so the row is
+  // built by hand and carries a sentinel id the order action splits back out.
+  // `synthetic` is what tells the two tables to print a name instead of a
+  // TagChip, since there is no Tag row to hover.
+  const resourceWare = {
+    id: RESOURCE_WARE_ID,
+    name: "Resources",
+    description: "",
+    groupName: "",
+    price: RESOURCE_IMPORT_PRICE,
+    sellPrice: RESOURCE_EXPORT_PRICE,
+    margin: RESOURCE_EXPORT_PRICE - RESOURCE_IMPORT_PRICE,
+    held: character?.resources ?? 0,
+    stackable: true,
+    sealed: false,
+    synthetic: true,
+    tag: null,
+  };
 
-  // Crates the reader is carrying, with their manifest already printed on the
-  // description. `canOpen` is advisory — the action re-checks the keycard.
-  const crates = (character?.tags ?? []).length
-    ? (
-        await prisma.tag.findMany({
-          where: {
-            custom: true,
-            crateContents: { not: null },
-            id: { in: [...heldByTagId.keys()] },
-          },
-        })
-      ).map((tag) => ({
-        id: tag.id,
-        name: tag.name,
-        description: tag.description ?? "",
-        sealed: tag.sealedShipping,
-        canOpen: canOpenCrate(tag, heldSlugs),
-      }))
-    : [];
+  const wares = [resourceWare, ...wareTags.map(shape)];
+  const priceList = [
+    { ...resourceWare, side: "Both" },
+    ...pricedTags.map((tag) => ({
+      ...shape(tag),
+      side: tag.depotPrice != null && tag.sellablePrice != null ? "Both" : tag.depotPrice != null ? "Sells to you" : "Buys from you",
+    })),
+  ];
 
   const fuelSources = [
     { slug: COAL_SLUG, name: "Coal", perUnit: depot.coalFuel },
@@ -244,13 +260,11 @@ export default async function DepotPage() {
   const hand = licensed || keycard;
 
   return (
-    <PageShell width="wide">
-      <PageHeader
-        title="The Depot"
-        subtitle="A hangar door in the roof of the caves and an automated shuttle that comes through it. Everything imported into Ravenheart lands here, and leaves here as somebody's problem. ‡"
-      />
-      <DepotConsole
-        depot={{
+    <SnapshotFresh
+      scope="depot"
+      userId={session.discordUserId}
+      data={{
+        depot: {
           accountObols: depot.accountObols,
           debtObols: depot.debtObols,
           creditCapObols: depot.creditCapObols,
@@ -263,14 +277,14 @@ export default async function DepotPage() {
           shuttleState: depot.shuttleState,
           shuttleTurn: depot.shuttleTurn,
           shuttleMaxTurns: depot.shuttleMaxTurns,
-        }}
-        greetingName={greeting}
-        turnNumber={openTurn?.number ?? null}
-        fuelTurnsLeft={fuelTurnsLeft(depot)}
-        readOnly={readOnly}
-        hand={hand}
-        atDepot={Boolean(atDepot)}
-        powered={powered}
+        },
+        greetingName: greeting,
+        turnNumber: openTurn?.number ?? null,
+        fuelTurnsLeft: fuelTurnsLeft(depot),
+        readOnly: readOnly,
+        hand: hand,
+        atDepot: Boolean(atDepot),
+        powered: powered,
         // Four flags, because there are two levels of authority and two of
         // them have to survive the lights going out.
         //
@@ -282,14 +296,14 @@ export default async function DepotPage() {
         //                       from the UI: the Feed button was greyed out
         //                       by the very outage it existed to fix.
         //   poweredDisabled     shutting it down — licence only, in the dark
-        disabled={readOnly || !atDepot || !powered}
-        handDisabled={!hand || !atDepot || !powered}
-        handPoweredDisabled={!hand || !atDepot}
-        poweredDisabled={readOnly || !atDepot}
-        wares={wares}
-        priceList={priceList}
-        manifest={Array.isArray(depot.manifest) ? depot.manifest : []}
-        pad={{
+        disabled: readOnly || !atDepot || !powered,
+        handDisabled: !hand || !atDepot || !powered,
+        handPoweredDisabled: !hand || !atDepot,
+        poweredDisabled: readOnly || !atDepot,
+        wares: wares,
+        priceList: priceList,
+        manifest: Array.isArray(depot.manifest) ? depot.manifest : [],
+        pad: {
           resources: pad?.resources ?? 0,
           rows: (pad?.tags ?? []).map((rt) => ({
             id: rt.id,
@@ -297,16 +311,15 @@ export default async function DepotPage() {
             sellPrice: rt.tag.sellablePrice,
             tag: rt.tag,
           })),
-        }}
-        crates={crates}
-        heldObols={obolTag ? (heldByTagId.get(obolTag.id) ?? 0) : 0}
-        resources={character?.resources ?? 0}
-        creditAvailable={creditAvailableObols(depot)}
-        fuel={{
+        },
+        heldObols: obolTag ? (heldByTagId.get(obolTag.id) ?? 0) : 0,
+        resourceExportPrice: RESOURCE_EXPORT_PRICE,
+        creditAvailable: creditAvailableObols(depot),
+        fuel: {
           turnsLeft: fuelTurnsLeft(depot),
           sources: fuelSources.map((s) => ({ ...s, held: bySlug.get(s.slug) ?? 0 })),
-        }}
-        ledger={ledgerRows.map((r) => {
+        },
+        ledger: ledgerRows.map((r) => {
           const who = r.targetCharacter?.name ?? "—";
           const { detail, delta } = ledgerRow(r, who);
           return {
@@ -318,8 +331,8 @@ export default async function DepotPage() {
             turn: ledgerTurnNumbers.get(r.turnId) ?? null,
             at: r.createdAt.getTime(),
           };
-        })}
-      />
-    </PageShell>
+        }),
+      }}
+    />
   );
 }

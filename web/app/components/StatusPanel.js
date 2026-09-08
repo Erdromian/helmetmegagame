@@ -219,7 +219,7 @@ export default function StatusPanel({
               stays put until the next turn opens (MAP.md §3). */}
           {travellingTo && (
             <Row label="On the road">
-              <span title="You arrive when the turn turns. Turn back from the Travel button on #turns.">
+              <span title="You arrive when the turn turns. ‡">
                 walking to {travellingTo}
               </span>
             </Row>
@@ -286,7 +286,7 @@ export default function StatusPanel({
           </Row>
 
           {hasWorkInProgress && (
-            <Row label="In progress ‡">
+            <Row label="In progress">
               <div className="flex flex-wrap gap-2">
                 {craftProjects.map((p) => (
                   <span key={`project-${p.id}`} className="chip">
@@ -295,7 +295,7 @@ export default function StatusPanel({
                     <span className="mono">
                       {p.turnsDone}/{p.turnsNeeded}
                     </span>{" "}
-                    turns ‡
+                    turns
                   </span>
                 ))}
                 {sitesInProgress.map((s) => (
@@ -304,7 +304,7 @@ export default function StatusPanel({
                     <span className="mono">
                       {s.turnsDone}/{s.turnsNeeded}
                     </span>{" "}
-                    turns ‡
+                    turns
                   </span>
                 ))}
               </div>

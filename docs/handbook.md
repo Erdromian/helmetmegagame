@@ -6,7 +6,7 @@
     - [Turn Overview](#turn-overview)  
     - [Quick Reference](#quick-reference)  
 3. [The Game Clock](#the-game-clock)  
-    - [The Dawn Wipe](#the-dawn-wipe)  
+    - [The Wipe](#the-wipe)  
 4. [Character Creation](#character-creation)  
 5. [Playing A Turn](#playing-a-turn)  
     - [Don't Ignore The Previous Turn's Results](#dont-ignore-the-previous-turns-results)  
@@ -107,15 +107,17 @@ You can find information on the current turn in the `#turns` channel, in additio
 - **Move** is used to submit your character's Move for the turn.  
 - **Speak** allows you to post as your character without typing into a channel, helping to obscure your identity.
 
-### The Dawn Wipe
+### The Wipe
 
-At the start of every Dawn turn all roleplay channels are cleared and their contents are sent to the Archive, which is unlocked for players to read after the game ends. This helps to keep scenes and threads focused on the day at hand, rather than long-running conversations. Since Dawn comes around every other turn, a scene has two days to run before the wipe reaches it.
+At the start of every turn all roleplay channels are cleared and their contents are sent to the Archive, which is unlocked for players to read after the game ends. This keeps scenes focused on the day at hand, rather than becoming long-running conversations. A scene lives for one turn. ‡
+
+The one exception is your Zone's Summary channel, which is only cleared at Dawn — so what is posted there has two days to be read. ‡
 
 What survives:
-- Every Room keeps its thread and its description; the messages in it are archived.
-- Conversations do not survive. Open a new one after the wipe.
+- Every Room keeps its thread and its description; the messages in it are archived. ‡
+- Conversations do not survive. Open a new one after the wipe. ‡
 
-If you want to remember something, use the ⭐ reaction on the message before Dawn to save it to your [Notes](https://ravenheart.quest/notes) page.
+If you want to remember something, use the ⭐ reaction on the message before the turn ends to save it to your [Notes](https://ravenheart.quest/notes) page. ‡
 
 ## Character Creation
 The first thing you will do is open the **Character** page on the website, from the button at the top of the sidebar.
@@ -188,7 +190,7 @@ Out in the wild, a Location carries its Zone in its name — the Ravine in the B
 
 Not every way is simply open. A **gate** announces you in the Zone's Summary when you cross it — a manned one names you outright, an unmanned one only reports what a passer-by would have seen. A **locked** way appears in your Travel list but refuses you until you carry the right thing. Some ways can be **opened and closed** by the people who hold them, with a button on the Location's pinned message; while shut, nobody passes. And some ways you will not see listed at all.
 
-Some ways are too tight, too steep or too enclosed for a horse or a cart — a crawl, a cliff path, a lift, a culvert. You'll be turned back at those while you're mounted. Unequip the animal and you can go through on your own two feet.
+Some ways are too tight, too steep or too enclosed for a horse or a cart — a crawl, a cliff path, a lift, a culvert. Cross one of those mounted and you leave the animal behind and go through on your own two feet, same as arriving somewhere indoors does — you can take it up again once you're through. ‡
 
 If you have the key to one of those, you may be asked in a DM whether to leave it open for the next 24 hours. Say yes and anyone can see it and use it until the day is out — which is how somebody without a key follows you through. Say no and it falls shut behind you.
 
@@ -222,7 +224,7 @@ To hold a private conversation with one or more other characters at your Locatio
 3. Use `/add` in the thread and choose who you want to invite.
 4. Use `/remove` if someone should leave the conversation.
 
-A Conversation isn't silent. Every fifteen minutes, the Room it's linked to hears who has been whispering — never names, only descriptions: *A young man and an old woman are whispering…* Conversations are cleared every Dawn.
+A Conversation isn't silent. Every fifteen minutes, the Room it's linked to hears who has been whispering — never names, only descriptions: *You hear a young man and an old woman whispering.* Conversations are cleared at the end of every turn. ‡
 
 ### Character Mentions
 
@@ -265,7 +267,7 @@ Resources in Bascinet are shown with the ⬢ symbol. They represent your access 
 
 ### Transferring & Storage
 
-**Transfer** on your [Character](https://ravenheart.quest/character) page moves ⬢ and items in one go: from you or a **room** stash you're standing in, to a person standing with you or to a room stash. Every room is a stash. Put things down, come back for them later — and know that anyone else who can get into that room can take them. The room's thread hears about it, without names.
+**Transfer** on your [Character](https://ravenheart.quest/character) page moves ⬢ and items in one go: from you or a **room** stash you're standing in, to a person standing with you or to a room stash. Every room is a stash. Put things down, come back for them later. The room's thread hears about it, without names.
 
 Transfer is give-only, both ways — you can never take ⬢ or an item from another character with it. The only way to take something from someone is **Loot**, and only if they're dead or helpless; a mugging plays out that way, not through Transfer.
 
@@ -329,7 +331,7 @@ The choice between Routine or Gambit is left to you because you know what your c
 
 Labor is how you produce ⬢, and **you need a skill to do it at all**. Without one of the Laboring tags below, a day of work produces nothing.
 
-Laboring is hard work: it leaves you with the {tag:exhausted} tag, and you can't Labor again until it wears off the following turn — one Labor per day.
+Laboring is hard work: your first day leaves you {tag:tired}. A second day running leaves you {tag:exhausted} — you can't Labor again until you rest, and you're worse in a fight too. One turn of rest eases it back to Tired; a second clears it completely.
 
 | Tag | ⬢ Yield | Where |
 |---|---|---|

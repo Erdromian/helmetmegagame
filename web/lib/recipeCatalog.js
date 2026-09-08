@@ -23,6 +23,15 @@
 // `catalog: secret` — a rule that counted groups would erase a public brew
 // from everyone, GMs included, over a line that gives away nothing.
 
+// A withheld SKILL is the harder version of the same leak, and it loses the
+// whole recipe rather than one line. The six courtier wax seals are public
+// objects — a courtier buys their own mark openly — but the only way to MAKE
+// one is Forger, a Brigand-only `catalog: gm` skill. Printing "Forger · 1 turn
+// · 2 ⬢" under a seal tells the whole game that seals get forged, which is the
+// one thing the forger is buying. So a craftable whose gating skill this
+// reader was not sent keeps its name, its description and its point cost, and
+// simply stops being craftable as far as the page is concerned.
+
 import { DEAD_SIMPLE_PER_TURN, isDeadSimple } from "./tagRequests";
 import { formatMoveFraction } from "./craftBudget";
 
@@ -51,6 +60,26 @@ function joinWithOr(names) {
 export function redactWithheldRecipes(tags, { visibleSlugs = null } = {}) {
   const visible = visibleSlugs ?? new Set(tags.map((t) => t.slug));
   return tags.map((tag) => {
+    // The skill gate first, and it answers for the whole recipe: a reader who
+    // cannot see the trade has no business reading the method either. Every
+    // requirement column goes, so formatTagRequirement renders nothing at all
+    // rather than a recipe with a hole in it.
+    const skills = tag.requirementSkills ?? [];
+    if (tag.craftable && skills.some((s) => s.slug && !visible.has(s.slug))) {
+      return {
+        ...tag,
+        // `craftable` goes too, or TagDetailSheet's flag row still whispers
+        // "somebody can make this" over an item whose only maker is a forger.
+        craftable: false,
+        requirementSkills: [],
+        requirementItems: null,
+        requirementTurns: null,
+        requirementResources: null,
+        requirementPerTurn: null,
+        requirementGambit: false,
+        recipeWithheld: true,
+      };
+    }
     const items = Array.isArray(tag.requirementItems) ? tag.requirementItems : null;
     if (!items) return tag;
     let withheld = false;
@@ -157,7 +186,9 @@ export function workBand(turns) {
 // uses to route them to its own build flow.
 export function recipeRows(tags) {
   return tags
-    .filter((tag) => tag.craftable && !tag.ingredientsWithheld && !tag.placement)
+    .filter(
+      (tag) => tag.craftable && !tag.ingredientsWithheld && !tag.recipeWithheld && !tag.placement,
+    )
     .map((tag) => {
       const { turns, ration, shared } = recipeWork(tag);
       const work = workLabel(tag);
@@ -167,9 +198,10 @@ export function recipeRows(tags) {
       // kept are different bargains (CORPSES.md §8): most ingredients go into
       // the thing made, a `keep` entry only has to be to hand, and the row
       // says which.
-      const ingredients = (tag.requirementItems ?? []).map((item) =>
-        item.keep ? `${item.label} (kept, not used up)` : item.label,
-      );
+      const ingredients = (tag.requirementItems ?? []).map((item) => {
+        if (item.keep) return `${item.label} (kept, not used up)`;
+        return (item.count ?? 1) > 1 ? `${item.label} ×${item.count}` : item.label;
+      });
       return {
         id: tag.id,
         slug: tag.slug,

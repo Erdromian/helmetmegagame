@@ -11,8 +11,7 @@ import { desireFamilies, desireFamilyGroups } from "@lifeweb/db/lib/desireFamili
 import { canRead } from "@lifeweb/db/lib/reading";
 import {
   PAPER_SLUG,
-  BOOK_SHEETS,
-  isBook,
+  BLANK_BOOK_SLUG,
   isSeal,
   sealLabel,
 } from "@lifeweb/db/lib/paper";
@@ -34,21 +33,21 @@ import {
 // Everything a surface needs to draw a character's OWN state, the way
 // web/lib/peoplePools.js does for the people standing near them. It lived
 // inside web/app/(app)/character/page.js while the sheet was the only place
-// that drew it; the Hall's YOU column is the second.
+// that drew it; Chat's YOU column is the second.
 //
 // Every gate is evaluated HERE, server-side. The client never runs the gate
 // logic and never receives a hidden template.
 //
 // `character` needs { id, tags: [{ tagId, tag }], role: { slug } }.
 //
-// `withCatalog: false` is the Hall's ask: the picker is closed on almost
+// `withCatalog: false` is Chat's ask: the picker is closed on almost
 // every page load, and the evaluated catalog is ~271 templates. The slot half
 // — which slots are open, what was last claimed in each — costs one query, so
-// that is what the first paint carries. The Hall fetches the other half
+// that is what the first paint carries. Chat fetches the other half
 // through a server action the first time somebody opens the picker.
 export async function loadDesireView(character, { openTurn, gameConfig, withCatalog = true } = {}) {
   const desireSlots = gameConfig?.desireSlots ?? 2;
-  const desireSlotLockTurns = gameConfig?.desireSlotLockTurns ?? 2;
+  const desireSlotLockTurns = gameConfig?.desireSlotLockTurns ?? 1;
   const heldTags = (character.tags ?? []).map((ct) => ct.tag);
   const heldDesireTagIds = new Set((character.tags ?? []).map((ct) => ct.tagId));
   const openTurnNumber = openTurn?.number ?? 0;
@@ -70,7 +69,6 @@ export async function loadDesireView(character, { openTurn, gameConfig, withCata
   });
 
   const view = {
-    desiresEnabled: gameConfig?.desiresEnabled ?? true,
     desireSlots,
     desireSlotLockTurns,
     slotStates: slotStates({
@@ -152,7 +150,7 @@ export async function loadDesireView(character, { openTurn, gameConfig, withCata
 // Everything the paperwork dialogs need (docs/systemdocs/PAPERWORK.md, §Bird),
 // as the exact props RequestActionsProvider takes. It was written inline in
 // web/app/(app)/character/page.js while the sheet was the only surface that
-// opened those dialogs; the Hall's composer is the second, and a second copy
+// opened those dialogs; Chat's composer is the second, and a second copy
 // of these gates would be a second answer to "can this character write".
 //
 // `character` needs { id, tags: [{ tagId, quantity, tag }], location:
@@ -172,10 +170,14 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
     phase: openTurn?.phase ?? null,
     indoors: character.location?.indoors ?? true,
   });
-  // Something to write ON: a blank sheet, or a note already started. A sealed
-  // letter does not count — you would have to break the seal first.
+  // Something to write ON: a blank sheet, a blank book, or a note already
+  // started. A sealed letter does not count — you would have to break the seal
+  // first, and a written book is finished for good.
   const writables = tags.filter(
-    (ct) => ct.tag.slug === PAPER_SLUG || ct.tag.paperKind === "PAPER",
+    (ct) =>
+      ct.tag.slug === PAPER_SLUG ||
+      ct.tag.slug === BLANK_BOOK_SLUG ||
+      ct.tag.paperKind === "PAPER",
   );
   const canWrite = canReadNow && writables.length > 0;
   // Wax stamps in hand, and letters worth closing.
@@ -186,22 +188,13 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
   );
   const canSeal = hasSeal && sealables.length > 0;
 
-  // Binding needs letters as well, because you write the whole thing in one
-  // pass.
-  const blankStock = tags.find((ct) => ct.tag.slug === PAPER_SLUG);
-  const sheetsHeld = blankStock?.quantity ?? 0;
-  const canBindBook = canReadNow && sheetsHeld >= BOOK_SHEETS;
-  // Why the button is dead, so a player reads it off the tooltip instead of
-  // writing a whole book into the box and finding out at the submit.
-  const bindBlocked = canBindBook
-    ? null
-    : `You have ${sheetsHeld} of the ${BOOK_SHEETS} blank sheets a book takes. ‡`;
-  const books = tags.filter((ct) => isBook(ct.tag));
-
   const paperOptions = writables.map((ct) => ({
     tagId: ct.tagId,
     name: ct.tag.name,
     blank: ct.tag.slug === PAPER_SLUG,
+    // A blank book wants a title as well as a body, and takes six times the
+    // text. The dialog reads this off the chosen option.
+    book: ct.tag.slug === BLANK_BOOK_SLUG,
     quantity: ct.quantity,
     // Enough to tell two notes apart in a dropdown, and only for a reader.
     excerpt:
@@ -222,9 +215,6 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
           ? (ct.tag.paperText ?? "").trim().slice(0, 60)
           : null,
     }));
-  // Books in hand, for the Tear Up picker. No excerpt: a book's NAME is its
-  // title and already says which one it is, unlike a note's waybill code.
-  const bookOptions = books.map((ct) => ({ tagId: ct.tagId, name: ct.tag.name }));
   const sealOptions = {
     stamps: seals.map((ct) => ({
       tagId: ct.tagId,
@@ -271,16 +261,13 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
     paperOptions,
     letterOptions,
     sealOptions,
-    canBindBook,
-    bindBlocked,
-    bookOptions,
     birdSentToday,
     birdTargets,
     birdZones,
   };
 }
 
-// ---- The faction, for the Hall's Faction panel ------------------------------
+// ---- The faction, for Chat's Faction panel ------------------------------
 //
 // The same loaders /faction runs — web/lib/factionView.js#loadFaction and the
 // Leader/Treasurer test in db/lib/factionPermissions.js — so the two surfaces
@@ -316,10 +303,10 @@ export async function loadFactionView(session, character) {
   // What the viewer's own seat is, under the name. One line, because the
   // column is narrow and the /faction page is one click away for the rest.
   const roleLine = isLeader
-    ? "You lead it. ‡"
+    ? "You lead it."
     : isTreasurer
-      ? "You keep its purse. ‡"
-      : "You are a member. ‡";
+      ? "You keep its purse."
+      : "You are a member.";
 
   return {
     id: faction.id,

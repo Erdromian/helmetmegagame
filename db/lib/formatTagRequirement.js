@@ -86,7 +86,12 @@ function formatTagRequirement(tag) {
   // Cave Fungus" means the stack goes down; "needs a corpse to hand" means it
   // does not. Two clauses rather than one, so a recipe with both still reads.
   if (tag.requirementItems?.length) {
-    const spent = tag.requirementItems.filter((i) => !i.keep).map((i) => i.label);
+    // A count above 1 rides on the label — "uses Paper ×10" — because the
+    // number is the whole bargain for a recipe like the blank book, and a chip
+    // reading "uses Paper" would be off by nine.
+    const spent = tag.requirementItems
+      .filter((i) => !i.keep)
+      .map((i) => ((i.count ?? 1) > 1 ? `${i.label} ×${i.count}` : i.label));
     const kept = tag.requirementItems.filter((i) => i.keep).map((i) => i.label);
     if (spent.length) parts.push(`uses ${spent.join(" and ")}`);
     if (kept.length) parts.push(`needs ${kept.join(" and ")} to hand`);

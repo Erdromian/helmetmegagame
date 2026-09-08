@@ -2,10 +2,18 @@ const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } 
 const { prisma } = require("@lifeweb/db");
 const {
   performLocationMove,
-  dragCandidates,
   freeMovesLeft,
-  CHARACTER_SELECT,
+  freeZoneMovesReason,
 } = require("@lifeweb/db/lib/locationTravel");
+const {
+  ESCORT_SELECT,
+  escortCandidates,
+  escortAuthority,
+  attach,
+  detach,
+  partyOf,
+  createEscortOffer,
+} = require("@lifeweb/db/lib/escort");
 const { stowedMounts } = require("@lifeweb/db/lib/mounts");
 const { applyLocationMoveSideEffects } = require("@lifeweb/db/lib/locationMove");
 const { putChannelOverwrite } = require("@lifeweb/db/lib/discordRest");
@@ -14,12 +22,12 @@ const { sendDm } = require("@lifeweb/db/lib/dm");
 
 // The gateway half of the Travel flow. Every rule and every database write
 // lives in db/lib/locationTravel.js so the web app runs the identical ones;
-// this file is the Discord vocabulary around it — the pickers, the pending
-// drag list, and the REST side effects db/lib/locationMove.js owns.
+// this file is the Discord vocabulary around it — the pickers and the REST
+// side effects db/lib/locationMove.js owns.
 //
 // Custom ids, all "loc:"-namespaced (COMMANDS.md): loc:open (the #turns
 // console button, unchanged since the zone rework and baked into consoles
-// already posted), loc:pick, loc:drag:{locationId}, loc:confirm:{locationId},
+// already posted), loc:pick, loc:bring, loc:confirm:{locationId},
 // loc:cancel. The anchor buttons loc:who / loc:secret / loc:converse, and
 // loc:gate:{linkId} for a modular gate — which rides on the watchtower's
 // starter post rather than an anchor — are defined in
@@ -29,54 +37,26 @@ const { sendDm } = require("@lifeweb/db/lib/dm");
 const MENU_OPTION_LIMIT = 25;
 
 const PICK_ID = "loc:pick";
-const DRAG_PREFIX = "loc:drag:";
+const BRING_ID = "loc:bring";
 const CONFIRM_PREFIX = "loc:confirm:";
 const CANCEL_ID = "loc:cancel";
-const TURN_BACK_ID = "loc:turnback";
 
-// discordUserId -> { locationId, draggedIds, at }. The drag multi-select and
-// the Confirm button are two separate interactions on one ephemeral message,
-// and Discord hands the second one no memory of the first — so the picked
-// list is parked here between them. Same posture as recentProxies in
-// bot/src/lib/proxy.js: in-memory, bounded by a TTL, and never a gate. A
-// missing entry means "nobody picked", not "refuse the move", so a restart
-// between the two clicks costs a player their passengers and nothing else.
-const DRAG_TTL_MS = 10 * 60_000;
-const pendingDrags = new Map();
+// NOTHING is parked between clicks any more. The drag multi-select used to
+// hold its picks in an in-memory Map for ten minutes, because Discord hands
+// the Confirm button no memory of the select before it — a restart between
+// the two clicks silently cost a player their passengers. An escort is a row
+// on the follower now (Character.escortedById), so the select writes it
+// immediately and Confirm reads it back from the database. The Map, its TTL
+// and its three helpers are gone.
 
-function pruneDrags(now) {
-  for (const [userId, entry] of pendingDrags) {
-    if (now - entry.at > DRAG_TTL_MS) pendingDrags.delete(userId);
-  }
-}
-
-function rememberDrag(discordUserId, locationId, draggedIds) {
-  const now = Date.now();
-  pruneDrags(now);
-  pendingDrags.set(discordUserId, { locationId, draggedIds: [...draggedIds], at: now });
-}
-
-// Reads and clears in one step: a confirmed move must not leave a list behind
-// for the next one to inherit.
-function takeDrag(discordUserId, locationId) {
-  const entry = pendingDrags.get(discordUserId);
-  pendingDrags.delete(discordUserId);
-  if (!entry) return [];
-  if (entry.locationId !== locationId) return [];
-  if (Date.now() - entry.at > DRAG_TTL_MS) return [];
-  return entry.draggedIds;
-}
-
-function forgetDrag(discordUserId) {
-  pendingDrags.delete(discordUserId);
-}
-
-// The mover, loaded with exactly the shape performLocationMove and canDrag
-// need — a partial row here would silently mis-authorize a drag.
+// The mover, loaded with exactly the shape performLocationMove and
+// escortAuthority need — a partial row here would silently mis-authorize an
+// escort. ESCORT_SELECT is the wider of the two shapes (it carries the
+// faction relation the authority reads), so it is the one to load.
 async function loadMover(discordUserId) {
   return prisma.character.findFirst({
     where: { discordUserId, status: "ALIVE" },
-    select: CHARACTER_SELECT,
+    select: ESCORT_SELECT,
   });
 }
 
@@ -94,14 +74,14 @@ function buildLocationSelectRow(locations, from) {
   const shown = locations.slice(0, MENU_OPTION_LIMIT);
   const menu = new StringSelectMenuBuilder()
     .setCustomId(PICK_ID)
-    .setPlaceholder("Choose where to go… ‡")
+    .setPlaceholder("Choose where to go…")
     .addOptions(
       shown.map((location) => ({
         label: location.name.slice(0, 100),
         value: location.id,
         description: (from
           ? location.zoneId === from.zoneId
-            ? "Same zone ‡"
+            ? "Same zone"
             : `Into ${location.zone?.name ?? "another zone"} — free, or your Move and a day's walk ‡`
           : `${location.zone?.name ?? "Somewhere"} ‡`
         ).slice(0, 100),
@@ -110,32 +90,72 @@ function buildLocationSelectRow(locations, from) {
   return new ActionRowBuilder().addComponents(menu);
 }
 
-// Null when nobody can be brought — an empty select menu is rejected by
+// Who you are taking with you — the Discord twin of the party rack on /play.
+// Null when nobody here can be brought: an empty select menu is rejected by
 // Discord, and a disabled one just asks a question with no answer.
-function buildDragRow(locationId, candidates) {
+//
+// Unlike the drag select this replaces, it is NOT bound to a destination and
+// it does not have to be re-answered before every hop. It sets the party, and
+// the party persists. It is pre-ticked with whoever is already following, so
+// deselecting somebody is how you put them down.
+function buildBringRow(candidates) {
   const shown = candidates.slice(0, MENU_OPTION_LIMIT);
   if (shown.length === 0) return null;
   const menu = new StringSelectMenuBuilder()
-    .setCustomId(`${DRAG_PREFIX}${locationId}`)
-    .setPlaceholder("Bring anyone along? ‡")
+    .setCustomId(BRING_ID)
+    .setPlaceholder("Who comes with you?")
     .setMinValues(0)
     .setMaxValues(shown.length)
     .addOptions(
       shown.map((candidate) => ({
         label: candidate.name.slice(0, 100),
         value: candidate.id,
-        description: `${candidate.reason} ‡`.slice(0, 100),
+        default: candidate.attached,
+        description: (candidate.verdict === "ASK"
+          ? "You'd have to ask them ‡"
+          : `${candidate.reason ?? "comes with you"} ‡`
+        ).slice(0, 100),
       })),
     );
   return new ActionRowBuilder().addComponents(menu);
 }
 
-// The only control a character already on the road is offered: they are a
-// day's walk from somewhere and the Move is spent either way (MAP.md §3).
-function buildTurnBackRow() {
-  return new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(TURN_BACK_ID).setLabel("Turn back").setStyle(ButtonStyle.Secondary),
-  );
+// Applies a Bring select. Anyone ticked who needs consent gets an Offer DM
+// instead of being attached; everybody else attaches on the spot, and
+// everybody untricked is put down. Returns { attached, asked, dropped, dms }
+// so the caller can say what happened in one line.
+async function applyBring(mover, pickedIds, turn) {
+  const picked = new Set(pickedIds);
+  const candidates = await escortCandidates(prisma, mover, turn?.number ?? null);
+  const byId = new Map(candidates.map((c) => [c.id, c]));
+  const out = { attached: [], asked: [], dropped: [], dms: [] };
+
+  for (const row of await partyOf(prisma, mover.id)) {
+    if (!picked.has(row.id)) {
+      await detach(prisma, row.id);
+      out.dropped.push(row.name);
+    }
+  }
+
+  for (const id of picked) {
+    const candidate = byId.get(id);
+    // A picker is a hint; this is the lock. Somebody who walked off between
+    // the menu being drawn and it being answered simply isn't taken.
+    if (!candidate || candidate.attached) continue;
+    if (candidate.verdict === "ASK") {
+      if (!turn) continue;
+      const target = await prisma.character.findUnique({ where: { id }, select: ESCORT_SELECT });
+      if (!target || !escortAuthority(mover, target, turn.number)) continue;
+      const offer = await createEscortOffer(prisma, { actor: mover, target, turn });
+      if (offer.ok) {
+        out.asked.push(target.name);
+        out.dms.push(offer.dm);
+      }
+      continue;
+    }
+    if (await attach(prisma, mover.id, id)) out.attached.push(candidate.name);
+  }
+  return out;
 }
 
 function buildConfirmRow(locationId) {
@@ -153,9 +173,34 @@ function buildConfirmRow(locationId) {
 // caller, run per moved character and never allowed to throw — a failed role
 // swap must not make a committed move look refused. The channel doctor
 // reconciles whatever a miss here leaves.
-async function performMove(character, targetLocation, dragged = []) {
-  const result = await performLocationMove(prisma, character, targetLocation, { dragged });
+async function performMove(character, targetLocation) {
+  const result = await performLocationMove(prisma, character, targetLocation);
   if (!result.ok) return result;
+
+  // Followers the way would not take. They have already been detached and are
+  // still standing where they were; both sides are owed a word, and the
+  // leader's must not say WHY — naming a hidden crawl's refusal would
+  // announce that the crawl is there (MAP.md §2a).
+  for (const entry of result.leftBehind ?? []) {
+    if (character.discordUserId) {
+      await sendDm(
+        prisma,
+        character.discordUserId,
+        entry.reason === "edge"
+          ? `*You can't move ${entry.character.name} through here. They stay behind.* ‡`
+          : `*${entry.character.name} isn't with you any more.* ‡`,
+        { source: "system_notice" },
+      ).catch(() => {});
+    }
+    if (entry.character.status === "ALIVE" && entry.character.discordUserId) {
+      await sendDm(
+        prisma,
+        entry.character.discordUserId,
+        `*${character.name} went on without you.* ‡`,
+        { source: "system_notice" },
+      ).catch(() => {});
+    }
+  }
 
   // A paid crossing is a day on the road: nobody has moved yet, so there are
   // no roles to swap and no Caving Die to roll — db/lib/travelArrivalPass.js
@@ -185,6 +230,10 @@ async function performMove(character, targetLocation, dragged = []) {
       characterId: entry.character.id,
       fromLocationId: entry.fromLocationId,
       toLocationId: entry.toLocationId,
+      // Only ever computed for the mover themselves — performLocationMove
+      // checks the mover's own equipped mount against the edge, never a
+      // dragged passenger's.
+      dismounted: entry.character.id === character.id ? result.dismounted : undefined,
     }).catch((err) =>
       console.error(`Move side effects failed for ${entry.character.name}:`, err.message ?? err),
     );
@@ -227,7 +276,7 @@ async function performMove(character, targetLocation, dragged = []) {
 // rather than a member edit.
 async function restoreStandingRoles(member, character) {
   // A "web only" character holds no Discord access on purpose, so a rejoin
-  // restores nothing (docs/systemdocs/HALL.md §6). Their sight of the game is
+  // restores nothing (docs/systemdocs/CHAT.md §6). Their sight of the game is
   // /play, which never went away.
   if (character.webOnly) return;
 
@@ -260,21 +309,18 @@ async function restoreStandingRoles(member, character) {
 module.exports = {
   MENU_OPTION_LIMIT,
   PICK_ID,
-  DRAG_PREFIX,
+  BRING_ID,
   CONFIRM_PREFIX,
   CANCEL_ID,
-  TURN_BACK_ID,
   loadMover,
   listNames,
   buildLocationSelectRow,
-  buildDragRow,
+  buildBringRow,
+  applyBring,
   buildConfirmRow,
-  buildTurnBackRow,
-  rememberDrag,
-  takeDrag,
-  forgetDrag,
   performMove,
   restoreStandingRoles,
   freeMovesLeft,
+  freeZoneMovesReason,
   stowedMounts,
 };

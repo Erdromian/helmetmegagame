@@ -14,6 +14,7 @@ const { refreshLocationChannels } = require("../lib/channels");
 const { startFeedOutbox } = require("../lib/feedOutbox");
 const { runWhisperPoll } = require("../lib/whisperPoll");
 const { runLobbySweep } = require("@lifeweb/db/lib/lobbySweep");
+const { runRiteSweep } = require("@lifeweb/db/lib/riteSweep");
 const { getGameState } = require("@lifeweb/db/lib/gameState");
 const { startDeathSmell } = require("../lib/deathSmell");
 const { registerCommands } = require("../lib/commands");
@@ -175,7 +176,7 @@ module.exports = {
     };
     // Midnight Chicago time, once a day — one turn per real day. The
     // staged-arbitration push rides the turn advance, and midnight is the hour
-    // fewest players are mid-scene when the Dawn wipe runs. There used to be a
+    // fewest players are mid-scene when the message wipe runs. There used to be a
     // second job at noon; a turn was half a day then. db/lib/turnClock.js
     // derives every deadline from this same boundary, so the two must agree.
     cron.schedule("0 0 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
@@ -188,6 +189,26 @@ module.exports = {
     // timer rather than a cron — the unpredictability is the feature. Self-
     // rescheduling; see bot/src/lib/deathSmell.js.
     startDeathSmell(prisma);
+
+    // The Thanati's rites fire two minutes after their last requirement lands
+    // and expire twelve hours after their first chant (db/lib/riteSweep.js).
+    // Every minute, so "two minutes" means two or three rather than up to
+    // seventeen.
+    // One sweep in flight at a time: a slow one (Summoning walks every
+    // cultist through Discord) must not overlap the next tick.
+    let riteSweepRunning = false;
+    cron.schedule("* * * * *", () => {
+      if (riteSweepRunning) return;
+      riteSweepRunning = true;
+      runRiteSweep(prisma)
+        .then(({ expired, fired }) => {
+          if (expired || fired) console.log(`Rite sweep: ${fired} fired, ${expired} expired.`);
+        })
+        .catch((err) => console.error("Rite sweep failed:", err))
+        .finally(() => {
+          riteSweepRunning = false;
+        });
+    });
 
     cron.schedule("*/15 * * * *", () => {
       runWhisperPoll(prisma)

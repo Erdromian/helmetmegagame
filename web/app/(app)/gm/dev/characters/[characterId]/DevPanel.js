@@ -56,11 +56,9 @@ export default function DevPanel({
   tags,
   held,
   feed,
-  cursed,
   equipSlots,
   maxDrawbackTags,
   maxDrawbackPoints,
-  startingTagPoints,
   openTurn,
   gambitModifier,
   stagedForPush,
@@ -250,11 +248,7 @@ export default function DevPanel({
         tags={tags}
         held={held}
         feed={feed}
-        cursed={cursed}
-        pendingCount={pendingCount}
-        startingTagPoints={startingTagPoints}
         onApplyTags={applyTagOps}
-        onStageField={setField}
         refresh={refresh}
         onDeleted={onDeleted}
       />
@@ -378,11 +372,6 @@ export default function DevPanel({
     <>
       <PageHeader
         title={titleWithAvatar}
-        subtitle={
-          <>
-            All of the character&apos;s values can be edited.
-          </>
-        }
         actions={
           <Link href="/gm/players" className="btn-quiet">
             &larr; Players

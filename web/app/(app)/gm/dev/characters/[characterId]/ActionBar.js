@@ -22,11 +22,9 @@ import {
   WoundIcon,
   BandageIcon,
   MealIcon,
-  PointsIcon,
   MapIcon,
   ResourcesIcon,
 } from "@/app/components/icons";
-import { computeBudget } from "@/lib/characterCreation";
 import {
   killCharacterNow,
   reviveCharacter,
@@ -69,11 +67,7 @@ export default function ActionBar({
   tags,
   held,
   feed,
-  cursed,
-  pendingCount,
-  startingTagPoints,
   onApplyTags,
-  onStageField,
   refresh,
   onDeleted,
 }) {
@@ -88,15 +82,25 @@ export default function ActionBar({
   // something out of view reads as a dead button, which is exactly how it was
   // first reported — so each one says so in a line beneath the row.
   const [done, setDone] = useState(null);
-  const [staged, setStaged] = useState(null);
   const [dialog, setDialog] = useState(null); // "kill" | "restore" | "spend" | "message" | "delete" | "wound" | "transfer"
   const [draft, setDraft] = useState("");
   const [transferFromKey, setTransferFromKey] = useState("");
   const [transferToKey, setTransferToKey] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
+  const [teleportQuery, setTeleportQuery] = useState("");
 
   const alive = character.status === "ALIVE";
   const heldIds = new Set(held.map((h) => h.tagId));
+
+  // Name or zone, case-insensitive — there are 50+ Locations and no grouping
+  // in this list, so typing "town" or "gate" is the only fast way to one.
+  const teleportMatches = useMemo(() => {
+    const q = teleportQuery.trim().toLowerCase();
+    if (!q) return locations ?? [];
+    return (locations ?? []).filter(
+      (l) => l.name.toLowerCase().includes(q) || (l.zoneName ?? "").toLowerCase().includes(q),
+    );
+  }, [locations, teleportQuery]);
 
   // The Transfer dialog's party picker: this character plus every other
   // ALIVE character. This panel just preselects the "To" side as this
@@ -192,7 +196,6 @@ export default function ActionBar({
       return;
     }
     setError(null);
-    setStaged(null);
     // One gesture, one call, one audit row, one DM — applyTagOpsInTx applies
     // the whole batch in order, so a ward's worth of removals is still one
     // thing that happened to the player rather than a burst of them.
@@ -214,22 +217,7 @@ export default function ActionBar({
       return;
     }
     setError(null);
-    setStaged(null);
     runTags(ops, "Fed them");
-  }
-
-  // Recompute what they should have left: the creation budget, minus what
-  // their held tags cost. A repair for a sheet whose points drifted, not a
-  // rule — which is why it stages into the editable field rather than writing.
-  function refundPoints() {
-    const budget = computeBudget({ startingTagPoints, role: null, cursed });
-    const spent = tags
-      .filter((t) => heldIds.has(t.id))
-      .reduce((sum, t) => sum + (t.pointCost ?? 0), 0);
-    onStageField("tagPoints", budget - spent);
-    setError(null);
-    setDone(null);
-    setStaged(`tag points at ${budget - spent}`);
   }
 
   const wounds = tags.filter((t) => t.healable);
@@ -286,7 +274,10 @@ export default function ActionBar({
             icon={MapIcon}
             label={alive ? `Teleport ${character.name}` : "A corpse can't be moved"}
             disabled={pending || !alive}
-            onClick={() => setDialog("teleport")}
+            onClick={() => {
+              setTeleportQuery("");
+              setDialog("teleport");
+            }}
           />
           <IconButton
             icon={ResourcesIcon}
@@ -298,10 +289,7 @@ export default function ActionBar({
 
         <span className="dev-bar-sep" aria-hidden="true" />
 
-        {/* Three tag verbs that fire, and one staging button that doesn't.
-            Refund points writes the tagPoints COLUMN, which is still staged,
-            so it keeps the caption — an unlabelled icon that silently stages
-            reads as a dead button, which is how it was first reported. */}
+        {/* Three tag verbs, all of which fire. */}
         <div className="flex items-center gap-2">
           <IconButton
             icon={WoundIcon}
@@ -321,20 +309,6 @@ export default function ActionBar({
             disabled={pending}
             onClick={feedThem}
           />
-        </div>
-
-        <span className="dev-bar-sep" aria-hidden="true" />
-
-        <div className="dev-bar-group">
-          <span className="dev-bar-caption">stages</span>
-          <div className="flex items-center gap-2">
-            <IconButton
-              icon={PointsIcon}
-              label="Recompute their unspent Tag Points"
-              disabled={pending}
-              onClick={refundPoints}
-            />
-          </div>
         </div>
 
         <span className="dev-bar-sep" aria-hidden="true" />
@@ -361,11 +335,6 @@ export default function ActionBar({
 
         <FormError>{error}</FormError>
         {!error && done && <p className="w-full text-sm text-accent">{done}.</p>}
-        {!error && !done && staged && pendingCount > 0 && (
-          <p className="w-full text-sm text-accent">
-            Staged {staged} — press <strong>Apply</strong> below to commit it.
-          </p>
-        )}
       </section>
 
       {/* Restoring a turn DMs the player, so it asks for a reason to send
@@ -380,9 +349,6 @@ export default function ActionBar({
         onCancel={() => setDialog(null)}
         onConfirm={(reason) => run(() => restoreTurn({ characterId: character.id, reason }))}
       >
-        <p className="text-sm text-muted">
-          Deletes their Move and undoes any rewards. They&apos;ll be DM&apos;d with your reason.
-        </p>
       </RequestDialog>
 
       {/* Kill and Spend-turn DM the player too now, so both ask for a reason
@@ -397,11 +363,6 @@ export default function ActionBar({
         onCancel={() => setDialog(null)}
         onConfirm={(reason) => run(() => killCharacterNow({ characterId: character.id, reason }))}
       >
-        <p className="text-sm text-muted">
-          Revokes every channel overwrite, deletes their personal Discord role, clears their
-          nickname, grants Cursed, and writes a death into the archive. They&apos;ll be DM&apos;d
-          with your reason.
-        </p>
       </RequestDialog>
 
       <RequestDialog
@@ -416,10 +377,6 @@ export default function ActionBar({
           run(() => spendTurn({ characterId: character.id, description: reason }))
         }
       >
-        <p className="text-sm text-muted">
-          {character.name} won&apos;t be able to act again until the turn advances. They&apos;ll
-          be DM&apos;d with your reason.
-        </p>
       </RequestDialog>
 
       {dialog === "message" && (
@@ -461,11 +418,18 @@ export default function ActionBar({
       {dialog === "teleport" && (
         <Modal modeless title={`Teleport ${character.name}`} onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-muted">
-              Moves them there instantly. They&apos;ll be DM&apos;d that they were moved.
-            </p>
+            <label className="field">
+              <span className="field-label">Search</span>
+              <input
+                autoFocus
+                value={teleportQuery}
+                onChange={(e) => setTeleportQuery(e.target.value)}
+                placeholder="Location or zone…"
+              />
+            </label>
+            {teleportMatches.length === 0 && <p className="text-muted text-sm">Nothing matches that.</p>}
             <ul className="flex flex-col gap-2">
-              {(locations ?? []).map((l) => (
+              {teleportMatches.map((l) => (
                 <li key={l.id}>
                   <button
                     type="button"
@@ -558,9 +522,6 @@ export default function ActionBar({
       {dialog === "wound" && (
         <Modal modeless title="Inflict a wound" onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-muted">
-              Afflictions can be cured.
-            </p>
             <ul className="flex flex-col gap-2">
               {wounds.map((t) => (
                 <li key={t.id}>
@@ -569,7 +530,6 @@ export default function ActionBar({
                     className="btn-quiet w-full text-left"
                     disabled={heldIds.has(t.id)}
                     onClick={() => {
-                      setStaged(null);
                       setDialog(null);
                       runTags([{ tagId: t.id, op: "add", quantity: 1 }], `Inflicted ${t.name}`);
                     }}
@@ -594,9 +554,7 @@ export default function ActionBar({
       {dialog === "delete" && (
         <Modal title={`Delete ${character.name}`} onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-muted">
-              Removes the character and their Moves, Requests, Desires, and tags. This also cleans up their Discord permissions. Their notes and archive posts stay. This is permanent.
-            </p>
+            <p className="text-sm text-muted">This is permanent.</p>
             {/* Not .field-label: that class is uppercase, and the name below
                 must be typed verbatim — an uppercased label made a correctly
                 typed name look wrong forever. */}

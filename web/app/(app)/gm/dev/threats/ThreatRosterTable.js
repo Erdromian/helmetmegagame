@@ -49,7 +49,7 @@ export default function ThreatRosterTable({ rows, pending, threats }) {
         query={query}
         setQuery={setQuery}
         searchLabel="Search"
-        searchPlaceholder="Threat, character, or player… ‡"
+        searchPlaceholder="Threat, character, or player…"
       />
 
       <TableScroll minWidth="980px">
@@ -112,9 +112,6 @@ function PendingOffers({ rows }) {
   return (
     <section className="desk-card flex flex-col gap-3">
       <h3 className="section-title">Offers waiting</h3>
-      <p className="ops-lede">
-        Sent, not yet answered. Cancelling kills the buttons on their end. ‡
-      </p>
       <ul className="flex flex-col gap-2">
         {rows.map((r) => (
           <PendingRow key={r.id} row={r} />
@@ -140,7 +137,7 @@ function PendingRow({ row }) {
       });
       if (!ok) return;
       const res = await cancelThreatSpawn({ spawnId: row.id });
-      if (!res?.ok) setError(res?.error ?? "Something went wrong. ‡");
+      if (!res?.ok) setError(res?.error ?? "Something went wrong.");
     });
   }
 

@@ -437,7 +437,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
                     <span className="desk-queue-time mono">{relativeTime(row.lastAtMs, now)}</span>
                   )}
                   {row.lastDirection === "INBOUND" && row.unreadCount === 0 && !handled && (
-                    <span className="chip text-xs text-muted">awaiting</span>
+                    <span className="chip chip-quiet">awaiting</span>
                   )}
                 </div>
                 <div className="desk-queue-preview">
@@ -479,12 +479,6 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
         {visible.length === 0 && <p className="text-sm text-muted p-4">Nobody matches.</p>}
       </div>
 
-      <div className="desk-rail-hint">
-        <span className="text-xs text-muted">
-          Everyone you have a thread with. Search finds any character, including ones you&apos;ve
-          never messaged.
-        </span>
-      </div>
     </div>
   );
 }

@@ -338,7 +338,7 @@ tags:
     catalog: secret
     name: Thanati Leader
     category: general
-    description: "The others look to you. ‡"
+    description: "The most senior and wicked member of the cult. You have spent many years nurturing it, now the time to strike approaches… View the Cult Leader document for more information."
     pointCost: 0
     purchasable: false
 
@@ -353,7 +353,7 @@ tags:
     psychological: true
     category: general
     group: general-personality
-    description: "You are a person of noble breeding, accustomed to comfort in all aspects. You'll get stressed if you don't regularly eat good meals. You can't take 1 point Desires, or any Desire related to something below your station. ‡"
+    description: "You are a person of noble breeding, accustomed to comfort in all aspects. You'll get stressed if you don't regularly eat good meals. You can't take 1 point Desires, or any Desire related to something below your station."
     pointCost: -2
     requiredTag: courtier
     purchasable: false
@@ -662,7 +662,7 @@ tags:
     name: Torturer
     category: general
     group: general-personality
-    description: "You can torture people. ‡"
+    description: "You can torture people."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -705,6 +705,49 @@ tags:
     description: "You cannot be forcibly converted."
     pointCost: 0
     purchasable: false
+
+  # THE RITE OF REANIMATION'S RISEN (docs/systemdocs/THANATI.md §4). A Ghoul
+  # growls instead of speaking (db/lib/babble.js); the Servant mark is the
+  # cult's claim on them and carries Hungerless with it. Bascinet's wording.
+  ghoul:
+    catalog: secret
+    name: Ghoul
+    category: general
+    group: general-traits
+    description: "A pallid corpse, stumbling over its own broken body."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  servant-of-tzchernobog:
+    catalog: secret
+    name: Servant of Tzchernobog
+    category: general
+    group: general-traits
+    description: "You serve the Dark Lord now; you are unable to attack his servants or perform anything other than violence."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  # The Rite of Rage. Permanent; fear never touches a Raging character
+  # (db/lib/fear.js MULTIPLIERS) and every Desire but cruelty is locked to
+  # them. Bascinet's wording.
+  rage:
+    catalog: secret
+    name: Rage
+    category: general
+    group: general-traits
+    description: "Inhumanly strong, fast, tough, and intelligent, but completely consumed by bloodlust. You are impatient and are uninterested in anything but killing people."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    desires:
+      locks:
+        - all: true
+          exceptFamilies: [cruelty]
 
   insightful:
     catalog: all
@@ -766,7 +809,9 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     carryBonus: -0.5
-    conflictsWith: [pack-mule]
+    # Same fiction as Giant's comment above, from the other end: a scrawny
+    # under-carrier can't also be the big body that hauls.
+    conflictsWith: [pack-mule, strong, giant]
 
   old:
     catalog: all
@@ -1108,7 +1153,7 @@ tags:
     name: Strong
     category: general
     group: general-traits
-    description: "Functional strength. {carry:strong} ‡"
+    description: "Functional strength. {carry:strong}"
     pointCost: 5
     # A body, not a vehicle, so it needs no equipping — unlike Cart and Horse
     # below (docs/systemdocs/CARRY.md §1).
@@ -1684,7 +1729,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # Scripted: can't equip a horse, steam automobile or fishing boat; dragged
+  # Scripted: can't equip a horse, motorcycle or fishing boat; dragged
   # across a zone by a mounted mover you end up {tag:vomiting}.
   # web/app/(app)/character/equipActions.js, db/lib/locationTravel.js.
   motion-sickness:
@@ -1837,7 +1882,7 @@ tags:
     name: Dense
     category: general
     group: general-traits
-    description: "You are somewhat stupid. ‡"
+    description: "You are somewhat stupid."
     pointCost: -3
     visible: false
     purchasable: true
@@ -2029,12 +2074,20 @@ tags:
     name: Thanati
     category: general
     group: general-beliefs
-    description: "This reality is cursed. Everyone must die before Tzchernobog can reset it."
+    description: "Crudux Cruo! You must serve your master Tzchernobog to be rewarded with a better life after this one! View the Thanati document for further information and instructions. Good luck."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
     exclusive: true
     conflictsWith: [pacifist, charitable, saint, pilgrim]
+    # A cultist wants what the cult wants, and past that only the ugly things.
+    # The blood families stay open because hurting people is most of what a
+    # Thanati actually does; everything else — dinner, romance, a promotion —
+    # stops being a thing they can be rewarded for. Shaped like {tag:rage}'s.
+    desires:
+      locks:
+        - all: true
+          exceptFamilies: [thanati, cruelty, violence, feud, betrayal]
 
   # --- The Cerberon ---------------------------------------------------------
   cerberon:
@@ -2882,7 +2935,7 @@ tags:
     name: Dined
     category: status
     group: status-food
-    description: "You've eaten properly today. ‡"
+    description: "You've eaten properly today."
     pointCost: 0
     visible: false
     purchasable: false
@@ -3049,6 +3102,21 @@ tags:
     purchasableAfterStart: false
     durationTurns: 2
 
+  # Eating Flesh of Tzchernobog. Two turns of being able to chant a rite that
+  # counts (db/lib/riteChant.js#chanterReady) — the other half of that gate is
+  # wearing black-robes. Bascinet's wording.
+  dark-inspiration:
+    catalog: gm
+    name: Dark Inspiration
+    category: status
+    group: status-buffs
+    description: "Crudox Cruo! You can cast rites."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+
   # The Fertilizer's effect half. `equipped: false` because there is nothing to
   # wear — the same shape as the Plow's bonus, minus the horse. db/lib/
   # tagShapes.js refuses an `equipped: true` bonus on a non-equippable tag.
@@ -3057,7 +3125,7 @@ tags:
     name: Fertilized Fields
     category: status
     group: status-buffs
-    description: "Your fields are richly fed. Farming produces +4 ⬢. ‡"
+    description: "Your fields are richly fed. Farming produces +4 ⬢."
     pointCost: 0
     laborBonus: { kind: farming, amount: 4, equipped: false }
     visible: false
@@ -3369,19 +3437,37 @@ tags:
     purchasable: false
     durationTurns: 3
 
-  # Granted automatically by a Labor payout (db/lib/moveEffects.js), and read
-  # back by the Labor gate (db/lib/laborAccess.js) — one Labor per day, i.e.
-  # every other turn. durationTurns: 1 is what makes the clock work: granted
-  # while turn T closes, it blocks turn T+1 and is swept when T+1 closes.
+  # The precursor to Exhausted (db/lib/laborFatigue.js). Granted by a day's
+  # Labor, or by a bad night's sleep (Guilt Ridden, Insomniac). Doesn't block
+  # anything by itself — Labor, or a second bad night, escalates it straight
+  # to Exhausted instead of refreshing this. Left alone, it clears on its
+  # own — durationTurns: 1 the same way Exhausted's does, so it only survives
+  # into the very next turn.
+  tired:
+    catalog: gm
+    name: Tired
+    category: status
+    group: status-debuffs
+    description: "You worked hard, or slept badly. Push yourself again and you'll wear yourself out."
+    pointCost: 0
+    purchasable: false
+    durationTurns: 1
+
+  # The escalated half of the same ladder (db/lib/laborFatigue.js). Reached by
+  # Laboring, or a bad night's sleep, while already Tired — two days running,
+  # or two bad nights running. durationTurns: 1 is what makes the clock work:
+  # granted while turn T closes, it blocks turn T+1 and degrades back into
+  # Tired when T+1 closes.
   exhausted:
     catalog: gm
     name: Exhausted
     category: status
     group: status-debuffs
-    description: "You are tired. You can't Labor again."
+    description: "You've pushed too far. You can't Labor again until you rest, and you won't fight well like this."
     pointCost: 0
     purchasable: false
     durationTurns: 1
+    expiresInto: [tired]
 
   # Over a carry cap. Granted and cleared by db/lib/carry.js#settleCarry —
   # never by a player, never on a clock — and read by the zone-crossing gate
@@ -4186,6 +4272,22 @@ tags:
     purchasableAfterStart: false
     durationTurns: 2
 
+  # The Rite of Madness's yield (docs/systemdocs/THANATI.md §9). Nothing in
+  # code enforces the attacking — the rule lives in the words and a GM holds
+  # the player to it, the way {tag:rage} and Servant of Tzchernobog already do.
+  # Bascinet's wording.
+  madness:
+    catalog: secret
+    name: Madness
+    category: health
+    group: health-mind
+    description: "You no longer feel in control of your body! You must submit a gambit to attack those standing nearby, or if alone, yourself! You may not explicitly warn those around you, outside of acting very strange."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+
   blind:
     catalog: all
     name: Blind
@@ -4356,6 +4458,45 @@ tags:
     pointCost: -2
     visible: true
     purchasable: true
+    purchasableAfterStart: false
+
+  # The three below are what the Mutilate button leaves behind
+  # (docs/systemdocs/TORTURE.md §6). None is purchasable and none is healable:
+  # a cut-off leg does not grow back, and a GM takes one off from /gm/dev if
+  # they need to. Bascinet's descriptions, verbatim.
+  cripple:
+    catalog: all
+    name: Cripple
+    category: health
+    group: health-maiming
+    description: "The legs were cruelly removed."
+    pointCost: 0
+    conflictsWith: [quick-footed, peg-leg]
+    carryBonus: -0.2
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  missing-stomach:
+    catalog: all
+    name: Missing Stomach
+    category: health
+    group: health-maiming
+    description: "The stomach was cruelly ripped out."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  missing-heart:
+    catalog: all
+    name: Missing Heart
+    category: health
+    group: health-maiming
+    description: "The heart was cruelly ripped out."
+    pointCost: 0
+    visible: true
+    purchasable: false
     purchasableAfterStart: false
 
   missing-eye:
@@ -4636,7 +4777,7 @@ tags:
     name: Horse
     category: assets
     group: assets-companions
-    description: "You have a horse and you know how to ride it. While it's equipped, you get 1 extra free zone move each turn, but you'll be easily visible. Do not use through caves. Can carry 2 people. It waits outside indoors. ‡"
+    description: "A horse. While it's equipped, you get 1 extra free zone move each turn, but you'll be easily visible. Consumes 1 ⬢ per turn while in your inventory."
     pointCost: 9
     tradeable: true
     equippable: true
@@ -4645,7 +4786,6 @@ tags:
     purchasableAfterStart: false
     # The Merchant is the only mid-game source, so the price is meant to hurt:
     # a free zone move every turn is the strongest thing on the assets shelf.
-    # Under the Steam Automobile, which does the same job and never spooks.
     depotPrice: 90
     sellable: true
     sellablePrice: 54
@@ -6447,7 +6587,7 @@ tags:
     name: Elevator Key
     category: items
     group: items-keys
-    description: "Works the lift in the Undercroft, which comes out somewhere in the forest below the cliffs. The Baron would rather this were not common knowledge. ‡"
+    description: "A key to the elevator."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -6458,7 +6598,7 @@ tags:
     name: "Baron's Key"
     category: items
     group: items-keys
-    description: "The ring the Baron carries. It opens the Charon, his study and chambers, every office off the Library, and the Servant's Quarters. ‡"
+    description: "The Baron's key."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -6762,7 +6902,7 @@ tags:
     name: Neoclassic R&W10
     category: items
     group: items-weapons
-    description: "A classic revolver with six chambers. Hunting produces +2 ⬢ when equipped. ‡"
+    description: "A classic revolver with six chambers. Hunting produces +2 ⬢ when equipped."
     laborBonus: { kind: hunting, amount: 2 }
     pointCost: 14
     equippable: true
@@ -6801,7 +6941,7 @@ tags:
     name: Neoclassic Duelista
     category: items
     group: items-weapons
-    description: "A one-shot revolver. Kicks like a horse. Hunting produces +2 ⬢ when equipped. ‡"
+    description: "A one-shot revolver. Kicks like a horse. Hunting produces +2 ⬢ when equipped."
     laborBonus: { kind: hunting, amount: 2 }
     pointCost: 0
     equippable: true
@@ -6886,7 +7026,7 @@ tags:
     name: Hatchet
     category: items
     group: items-weapons
-    description: "For cutting wood. ‡"
+    description: "For cutting wood."
     pointCost: 2
     equippable: true
     tradeable: true
@@ -6912,7 +7052,7 @@ tags:
     name: Fishing Rod
     category: items
     group: items-gear
-    description: "A rod, a line, and patience. Fishing produces +1 ⬢ when equipped. ‡"
+    description: "A rod, a line, and patience. Fishing produces +1 ⬢ when equipped."
     pointCost: 2
     laborBonus: { kind: fishing, amount: 1 }
     equippable: true
@@ -6940,7 +7080,7 @@ tags:
     name: Trapping Gear
     category: items
     group: items-gear
-    description: "A set of gear to trap small animals with. Hunting produces +1 ⬢ when equipped. ‡"
+    description: "A set of gear to trap small animals with. Hunting produces +1 ⬢ when equipped."
     pointCost: 5
     laborBonus: { kind: hunting, amount: 1 }
     equippable: true
@@ -6969,7 +7109,7 @@ tags:
     name: Plow
     category: assets
     group: assets-property
-    description: "It breaks the earth, but something has to pull it. If you also have a {tag:horse}, Farming produces +3 ⬢. ‡"
+    description: "If you also have a {tag:horse}, Farming produces +3 ⬢."
     pointCost: 5
     laborBonus: { kind: farming, amount: 3, equipped: false, requiresTag: horse }
     tradeable: true
@@ -6991,7 +7131,7 @@ tags:
     name: Sling
     category: items
     group: items-weapons
-    description: "It can kill people and animals. Hunting produces +1 ⬢ when equipped. ‡"
+    description: "It can kill people and animals. Hunting produces +1 ⬢ when equipped."
     laborBonus: { kind: hunting, amount: 1 }
     pointCost: 2
     equippable: true
@@ -7079,7 +7219,7 @@ tags:
     name: Pitchfork
     category: items
     group: items-weapons
-    description: "The traditional instrument of the discontented. Farming produces +1 ⬢ when equipped. ‡"
+    description: "The traditional instrument of the discontented. Farming produces +1 ⬢ when equipped."
     laborBonus: { kind: farming, amount: 1 }
     pointCost: 2
     equippable: true
@@ -7103,7 +7243,7 @@ tags:
     name: Shortbow
     category: items
     group: items-weapons
-    description: "A small, quiet bow. It's fast to draw, but it won't do much against someone wearing armor. Hunting produces +1 ⬢ when equipped. ‡"
+    description: "A small, quiet bow. It's fast to draw, but it won't do much against someone wearing armor. Hunting produces +1 ⬢ when equipped."
     laborBonus: { kind: hunting, amount: 1 }
     pointCost: 2
     equippable: true
@@ -7243,12 +7383,36 @@ tags:
     sellable: true
     sellablePrice: 7
 
+  javelin:
+    catalog: all
+    name: Javelin
+    category: items
+    group: items-weapons
+    description: "A powerful throwing weapon."
+    pointCost: 5
+    requiredTag: ranged-basic
+    equippable: true
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [smithing]
+      gambit: false
+    sellable: true
+    sellablePrice: 9
+
   longbow:
     catalog: all
     name: Longbow
     category: items
     group: items-weapons
-    description: "A bow as tall as the person drawing it. It takes a strong archer to use well, but at full draw it can crack armor. Hunting produces +1 ⬢ when equipped. ‡"
+    description: "A bow as tall as the person drawing it. It takes a strong archer to use well, but at full draw it can crack armor. Hunting produces +1 ⬢ when equipped."
     laborBonus: { kind: hunting, amount: 1 }
     pointCost: 5
     requiredTag: ranged-basic
@@ -7615,7 +7779,7 @@ tags:
     name: Crossbow
     category: items
     group: items-weapons
-    description: "Bruises plate, punctures almost everything else. It's easy to point — while using it, your ranged skill counts as 1 tier higher. Hunting produces +1 ⬢ when equipped. ‡"
+    description: "Bruises plate, punctures almost everything else. It's easy to point — while using it, your ranged skill counts as 1 tier higher. Hunting produces +1 ⬢ when equipped."
     laborBonus: { kind: hunting, amount: 1 }
     pointCost: 9
     requiredTag: ranged-basic
@@ -7641,7 +7805,7 @@ tags:
     name: Musketoon
     category: items
     group: items-weapons
-    description: "A short gun with a wide bore. It fires a heavy shot, but you only get one before you have to reload. Hunting produces +2 ⬢ when equipped. ‡"
+    description: "A short gun with a wide bore. It fires a heavy shot, but you only get one before you have to reload. Hunting produces +2 ⬢ when equipped."
     laborBonus: { kind: hunting, amount: 2 }
     pointCost: 18
     requiredTag: ranged-basic
@@ -7666,7 +7830,7 @@ tags:
     name: Bore Pistol
     category: items
     group: items-weapons
-    description: "A single-shot pistol. Slow to reload, but the shot hits like a bull. Hunting produces +2 ⬢ when equipped. ‡"
+    description: "A single-shot pistol. Slow to reload, but the shot hits like a bull. Hunting produces +2 ⬢ when equipped."
     laborBonus: { kind: hunting, amount: 2 }
     pointCost: 14
     requiredTag: ranged-basic
@@ -7788,6 +7952,126 @@ tags:
       - ate-meal
     sellable: false
 
+  # --- Remains -----------------------------------------------------------
+  # What the Mutilate button takes off a bound person or a corpse, one piece
+  # at a time (docs/systemdocs/TORTURE.md §6). Shaped exactly like Human
+  # Flesh above and unpriced for the same reason: mutilating is free and every
+  # death mints a body, so a part the Depot bought would be a code-enforced ⬢
+  # faucet hanging off a free action. They stay `tradeable`, so players can
+  # still sell them to each other for whatever they can get.
+  #
+  # The Merchant's station DOES buy them now, which is the ⬢ faucet the note
+  # above worried about — deliberately, and priced so that butchering a body
+  # comes to roughly ONE good day's labour rather than three. Mutilate is a
+  # free action and every death mints a body, so the arithmetic that matters is
+  # the whole ladder at once: db/lib/mutilate.js takes nine pieces off one
+  # subject (two eyes, two hands, two feet, tongue, stomach, heart), which at
+  # these numbers is 49 ⬢ against 30-42 ⬢ for a specialised labour day. At the
+  # first pass it was 94 ⬢ and this comment claimed otherwise.
+  #
+  # The eye and the heart are dearer than the rest because the rites eat those
+  # two (db/lib/rites.js).
+  #
+  # `keepSlug` on the eye: it is called an Eyeball on the sheet now, and the
+  # Rite of Judgement's ingredient list names the slug `eye`.
+
+  eye:
+    catalog: gm
+    name: Eyeball
+    keepSlug: true
+    category: items
+    group: items-remains
+    description: "A human eyeball, it looks back at you."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 8
+
+  tongue:
+    catalog: gm
+    name: Tongue
+    category: items
+    group: items-remains
+    description: "Someone let their tongue slip!"
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 3
+
+  hand:
+    catalog: gm
+    name: Hand
+    category: items
+    group: items-remains
+    description: "A human hand."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 5
+
+  foot:
+    catalog: gm
+    name: Foot
+    category: items
+    group: items-remains
+    description: "A human foot."
+    pointCost: 0
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 4
+
+  stomach:
+    catalog: gm
+    name: Stomach
+    category: items
+    group: items-remains
+    description: "A human stomach."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 4
+
+  heart:
+    catalog: gm
+    name: Heart
+    category: items
+    group: items-remains
+    description: "Someone’s once beating heart, now in the palm of your hand."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 8
+
   fine-meal:
     catalog: all
     name: Fine Meal
@@ -7905,6 +8189,33 @@ tags:
       gambit: false
       items: [honey]
 
+  # THE THANATI'S FOOD (docs/systemdocs/THANATI.md). Not a meal — it grants
+  # no ate-meal — only Dark Inspiration. Dead Simple, 1 ⬢, three a turn; the
+  # gate is the thanati Belief itself, which requireRecipeSkills reads as a
+  # plain "must hold". Bascinet's wording.
+  flesh-of-tzchernobog:
+    catalog: secret
+    name: Flesh of Tzchernobog
+    category: items
+    group: items-food
+    description: "Corrupted edible food. It is a sloppy, withered shadow of what it used to be."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    consumesInto: [dark-inspiration]
+    requirement:
+      turnsCost: 0
+      perTurn: 3
+      resourceCost: 1
+      skills: [thanati]
+      gambit: false
+
   # --- The three kits -----------------------------------------------------
   # None is gear you wear; all are gear you have to GET TO. Each is
   # satisfied by holding it OR by one sitting in a room you can reach at your
@@ -7916,8 +8227,7 @@ tags:
     name: Workshop Equipment
     category: items
     group: items-gear
-    description: |-
-      An anvil, a bellows, a vice and a rack of tools. Smithing and building need it: hold it, or stand somewhere it's already set up. Ordinary crafting needs nothing but your hands. It weighs what you'd expect. ‡
+    description: "Allows you to build and smith."
     pointCost: 9
     visible: true
     tradeable: true
@@ -8136,8 +8446,8 @@ tags:
     purchasableAfterStart: false
     removable: false
 
-  # A mount, not loot: it sits in FAST_TRAVEL_SLUGS beside the Horse and the
-  # Steam Automobile (db/lib/mounts.js), so equipping it buys the extra
+  # A mount, not loot: it sits in FAST_TRAVEL_SLUGS beside the Horse
+  # (db/lib/mounts.js), so equipping it buys the extra
   # crossing, parks it at any indoors door, refuses to share a hand with the
   # boat, and turns a Motion Sick rider's stomach — all of that falls out of
   # the one set membership. It seats 2 like a horse and is checked BEFORE the
@@ -8182,7 +8492,7 @@ tags:
     name: Motorcycle
     category: items
     group: items-special
-    description: "Good luck hauling this one out of the Caves. While it's equipped you get 1 extra free zone move each turn, and you'll be heard coming. Carries 2 people. It waits outside indoors. ‡"
+    description: "A motorcycle."
     pointCost: 0
     equippable: true
     tradeable: true
@@ -8201,7 +8511,7 @@ tags:
     name: Sawn-Off Double Barrel
     category: items
     group: items-special
-    description: "Two big bangs, then a big long reload. Try not to miss. (Unlike a normal shotgun, you can hide this under a coat.)"
+    description: "Two big bangs, then a big long reload. Try not to miss. Unlike a normal shotgun, you can hide this under a coat."
     pointCost: 0
     equippable: true
     tradeable: true
@@ -8628,7 +8938,7 @@ tags:
     name: Paper
     category: items
     group: items-paper
-    description: "*Blank paper.* ‡"
+    description: "*Blank paper.*"
     pointCost: 0
     depotPrice: 1
     tradeable: true
@@ -8637,6 +8947,197 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+
+  # Ten sheets bound between boards, with nothing written in them yet. An
+  # ORDINARY craft recipe — it used to be a Bind a Book button of its own, and
+  # the reason it could not be a recipe was that `items:` had no way to say
+  # "ten". It does now (`count:`), so it does not need a button.
+  #
+  # No skill and no ⬢: bookbinding is the sort of thing anyone with paper and
+  # an evening can manage, which is what the old free button said too.
+  # `perTurn` rather than the shared Dead Simple pool, so binding four books
+  # does not eat somebody's knife-making for the day.
+  #
+  # NO literacy gate, unlike the old button — Craft has no notion of letters,
+  # and it turns out that is right: sewing pages together is not writing. The
+  # gate moved to where the writing is, which is where writePaperImpl's
+  # readBlock check has always been.
+  blank-book:
+    catalog: all
+    name: Blank Book
+    category: items
+    group: items-paper
+    description: "A book of blank pages, ready to be written in."
+    pointCost: 0
+    tradeable: true
+    weight: 1.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      perTurn: 4
+      resourceCost: 0
+      items:
+        - tag: paper
+          count: 10
+      gambit: false
+
+  # THE GRIMOIRE (docs/systemdocs/THANATI.md). Not paper: its text is the
+  # Grimoire DOCUMENT, generated from this game's rolled Words of the Circle
+  # and unlocked by holding this tag (docs/documents.yaml gates on the name).
+  # Bound from one blank book by anyone holding the thanati Belief. The
+  # description is Bascinet's own sentence from the Cultist document.
+  grimoire:
+    catalog: secret
+    name: Grimoire
+    category: items
+    group: items-gear
+    description: "It will detail the available rites and their words of corruption."
+    pointCost: 0
+    tradeable: true
+    weight: 1.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      perTurn: 1
+      resourceCost: 0
+      skills: [thanati]
+      items:
+        - tag: blank-book
+          count: 1
+      gambit: false
+
+  # The Rite of Scrying's yield (docs/systemdocs/THANATI.md §4). Equipped, and
+  # only while the holder has the web-only switch on, it opens every room and
+  # conversation at their Location to them on /play, read-only
+  # (db/lib/feedAccess.js). Bascinet's wording.
+  scrying-eye:
+    catalog: secret
+    name: Scrying Eye
+    category: items
+    group: items-gear
+    description: "Its pupil darts around frantically, overwhelmed by vision through the veil. Holding it in your hand while wearing your robes lets you see through walls."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    equippable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  # THE REST OF THE THANATI SHELF (docs/systemdocs/THANATI.md). Everything
+  # below is bought from the cult's own depot rather than the Merchant's —
+  # db/lib/thanati.js#THANATI_WARES holds the prices, because that shelf is
+  # code and not a `depotPrice`. None of it is purchasable with points, and
+  # none of it is in the catalog a player browses. Bascinet's descriptions.
+
+  sacrificial-knife:
+    catalog: secret
+    name: Sacrificial Knife
+    category: items
+    group: items-weapons
+    description: "A curved blade etched with all manner of heretical markings."
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: worn
+    purchasable: false
+    purchasableAfterStart: false
+
+  # Swallowed whole: the installed half is a trait, not an item, so it cannot
+  # be handed over or dropped. Biting down is a GM-adjudicated act, not a
+  # button — the tooth says what it does and the arbitration does it.
+  poison-tooth:
+    catalog: secret
+    name: Poison Tooth
+    category: items
+    group: items-gear
+    description: "A poisoned tooth. Once installed, it may be bitten down on, releasing a deadly nerve agent into the room you are in."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [installed-poison-tooth]
+
+  installed-poison-tooth:
+    catalog: secret
+    name: Installed Poison Tooth
+    category: general
+    group: general-traits
+    description: "You have had a poisoned tooth installed. You can bite down on it at any time to release a deadly nerve agent into the room you are in, inflicting {tag:phrygian-toxin}. You will not survive."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  adders-bite:
+    catalog: secret
+    name: Adder’s Bite
+    category: items
+    group: items-drink
+    description: "A small phial of black liquid. It can kill in seconds."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [phrygian-toxin]
+
+  # Five sticks make a bundle, and the bundle is an ordinary Craft recipe with
+  # an enforced ingredient — the `items:`/`count:` shape blank-book uses. No
+  # skill: taping dynamite together is not a trade.
+  dynamite-stick:
+    catalog: secret
+    name: Dynamite Stick
+    category: items
+    group: items-special
+    description: "A singular stick of dynamite, can be combined with four others to make a bundle."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  dynamite-bundle:
+    catalog: secret
+    name: Dynamite Bundle
+    category: items
+    group: items-special
+    description: "A bundle of dynamite, could easily devastate a crowd or building."
+    pointCost: 0
+    tradeable: true
+    weight: 5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      perTurn: 1
+      resourceCost: 0
+      items:
+        - tag: dynamite-stick
+          count: 5
+      gambit: false
 
   # The Keep's shelves. A book is declared BY its text: `bookText` goes on
   # Tag.paperText with paperKind BOOK, never on `description`, because the
@@ -9224,7 +9725,7 @@ tags:
     category: items
     group: items-paper
     sealOffice: Baron
-    sealMark: "A raven clutching a banner. Huge and magnificent."
+    sealMark: "A raven clutching a banner."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -9651,7 +10152,7 @@ tags:
     name: Light Infantry Armour
     category: items
     group: items-armor
-    description: "A bulletproof vest and pad combination. Nothing forged in Ravenheart comes close, and nothing forged in Ravenheart stops a bullet."
+    description: "A bulletproof vest and pad combination. It's not as good as plate armor in stopping melee, but it's one of the few things capable of stopping bullets."
     pointCost: 0
     depotPrice: 34
     sealedShipping: true
@@ -9779,7 +10280,7 @@ tags:
     name: Silencer
     category: items
     group: items-gear
-    description: "Equip to muffle your shots. ‡"
+    description: "Equip to muffle your shots."
     pointCost: 0
     depotPrice: 74
     sellable: true
@@ -9813,31 +10314,12 @@ tags:
     consumesInto: []
 
   # Hardware. The wall. A gun costs more than a house and that is the point.
-  # The Steam Automobile carries the Horse's fast-travel behaviour and its
-  # caveats — web/lib/tagRequests.js#FAST_TRAVEL_SLUGS is what implements it,
-  # and this description is what that implements.
-  steam-automobile:
-    catalog: gm
-    name: Steam Automobile
-    category: assets
-    group: assets-property
-    description: "Fill it with water, warm it up, and move along a straight path without any obstacles. While it's equipped, you get 1 extra free zone move each turn, but you will be easily visible. Do not use through caves. It waits outside indoors. ‡"
-    pointCost: 0
-    equippable: true
-    depotPrice: 134
-    sellable: true
-    sellablePrice: 80
-    tradeable: true
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-
   ml-23:
     catalog: gm
     name: ML-23
     category: items
     group: items-weapons
-    description: "A 9mm pistol. Hunting produces +2 ⬢ when equipped. ‡"
+    description: "A 9mm pistol. Hunting produces +2 ⬢ when equipped."
     laborBonus: { kind: hunting, amount: 2 }
     pointCost: 0
     depotPrice: 149
@@ -10345,7 +10827,7 @@ tags:
     category: items
     group: items-drink
     poison: true
-    description: "The perfect silent killer. 2 turns of careful work to make. Inflicts {tag:phrygian-toxin}. ‡"
+    description: "The perfect silent killer. 2 turns of careful work to make. Inflicts {tag:phrygian-toxin}."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10610,7 +11092,7 @@ tags:
       resourceCost: 8
       skills: [brewing-skilled]
       gambit: false
-    depotPrice: 14
+    depotPrice: 15
     sellable: true
     sellablePrice: 10
     requiredTag: brigand
@@ -11356,8 +11838,8 @@ tags:
     equippable: true
     equipSlot: HEAD
     equipLayer: 3
-    melee: 0.35
-    ballistic: 0.1
+    melee: 0.4
+    ballistic: 0.28
     concealsIdentity: true
     concealSprite: fighterhelmet
     visible: true
@@ -11457,16 +11939,71 @@ tags:
     consumable: true
     consumesInto: [ate-meal]
 
+  # THE CULTIST ROBES (docs/systemdocs/THANATI.md). Wearing these is half of
+  # what makes a chant count (the other half is Dark Inspiration), and every
+  # rite needs them on. The combat line is prose for a GM to apply, like
+  # Tipsy's; "Thanati equipment" means whatever Purchase Gear sells
+  # (db/lib/thanati.js#THANATI_WARES). Bascinet's wording.
+  black-robes:
+    catalog: secret
+    name: Black Robes
+    category: items
+    group: items-armor
+    description: "Dark brown robes drape the wearer. Gives bonuses to the servants of Tzchernobog in combat, and allows the use of Thanati enchanted items."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    equippable: true
+    equipSlot: BODY
+    equipLayer: 2
+    visible: worn
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 1
+      skills: [thanati]
+      gambit: false
+
+  # The Rite of Reflection's yield (docs/systemdocs/THANATI.md §4): Black Robes
+  # imbued. Counts as robes for chanting. Slightly under plate against a blade
+  # (0.7), as good as light infantry armour against a bullet (0.75). Not
+  # destroyable. Bascinet's wording.
+  shimmering-robes:
+    catalog: secret
+    name: Shimmering Robes
+    category: items
+    group: items-armor
+    description: "These robes glow with dark power! Their fabric is as hard as mail, and will deflect significant amounts of damage. They still function as normal robes. Their luminescence means they are visible upon inspection, even when not worn."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    equippable: true
+    equipSlot: BODY
+    equipLayer: 2
+    melee: 0.65
+    ballistic: 0.75
+    # `true`, not `worn`, and the description is the reason: the plain robes
+    # only show when somebody is wearing them, but these glow, so an inspection
+    # finds them in a sack too.
+    visible: true
+    removable: false
+    purchasable: false
+    purchasableAfterStart: false
+
   thanati-mask:
     catalog: gm
     name: Thanati Mask
     category: items
     group: items-headgear
-    description: "A bold declaration of your faith, wrought out of iron. Offers some protection."
+    description: "A horrific mask that conceals the identity of the wearer. Provides minor protection to the face."
     pointCost: 5
     equippable: true
     equipSlot: HEAD
     equipLayer: 2
+    melee: 0.15
+    ballistic: 0.1
     concealsIdentity: true
     forcesConceal: true
     concealSprite: silvermask
@@ -11513,7 +12050,7 @@ tags:
     weight: 1
     purchasable: false
     purchasableAfterStart: false
-    depotPrice: 12
+    depotPrice: 5
     sellable: true
     sellablePrice: 7
 

@@ -38,7 +38,10 @@ import { examineHooded, loadPeopleHere } from "./actions";
 //
 // Look at is NOT on this menu: the eye on the row is the Look at, on every
 // named row and on every hood, and a second copy of it inside the menu was
-// the same dialog one click further away.
+// the same dialog one click further away. Neither is Move Player, which is
+// gone entirely — taking somebody with you is the party rack below this list
+// now, and it is a thing you keep rather than a thing you re-do every hop
+// (docs/systemdocs/MAP.md §3a).
 const PEOPLE_ACTIONS = [
   { mode: "heal", label: "Heal", preset: "patientId" },
   { mode: "transfer", label: "Transfer", preset: "toKey", prefix: "character:" },
@@ -46,7 +49,6 @@ const PEOPLE_ACTIONS = [
   { mode: "bind", label: "Bind", preset: "targetId" },
   { mode: "free", label: "Free", preset: "targetId" },
   { mode: "harm", label: "Harm", preset: "targetId" },
-  { mode: "move", label: "Move Player ‡", preset: "targetId" },
 ];
 
 function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
@@ -64,7 +66,7 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
   );
 
   return (
-    <div className="hall-menu" role="menu" aria-label={person.name}>
+    <div className="chat-menu" role="menu" aria-label={person.name}>
       {PEOPLE_ACTIONS.map((entry) => (
         <button
           key={entry.mode}
@@ -90,7 +92,7 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
             onAddMember(person.characterId);
           }}
         >
-          Add to {addPlace.name} ‡
+          Add to {addPlace.name}
         </button>
       )}
       {onConverse && (
@@ -106,7 +108,7 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
             onConverse({ id: person.characterId, name: person.name });
           }}
         >
-          Converse ‡
+          Converse
         </button>
       )}
     </div>
@@ -121,9 +123,9 @@ function HoodReadout({ state, onClose }) {
   const readout = state?.readout ?? null;
 
   return (
-    <Modal open title={readout?.name ?? "Look at ‡"} onClose={onClose} width="default">
+    <Modal open title={readout?.name ?? "Look at"} onClose={onClose} width="default">
       <div className="flex flex-col gap-2">
-        {state?.loading && <p className="text-sm text-muted">Looking… ‡</p>}
+        {state?.loading && <p className="text-sm text-muted">Looking…</p>}
         {state?.error && <FormError>{state.error}</FormError>}
         {/* The SAME readout the sheet's Look at dialog draws
             (web/app/components/ExamineDialog.js) — the face, the appearance,
@@ -156,7 +158,7 @@ export default function HereList({
   addPlace = null,
   onAddMember = null,
 }) {
-  // Seeded from the server and replaced by the poll. HallAside keys this
+  // Seeded from the server and replaced by the poll. ChatAside keys this
   // component on the server list, so a move remounts it with the new street's
   // people rather than leaving a stale poll answer in place.
   const [live, setLive] = useState(people);
@@ -203,9 +205,9 @@ export default function HereList({
       examineHooded(token)
         .then((res) => {
           if (res?.ok) setHood({ readout: res.readout });
-          else setHood({ error: res?.error ?? "You can't see them. ‡" });
+          else setHood({ error: res?.error ?? "You can't see them." });
         })
-        .catch(() => setHood({ error: "You can't see them. ‡" }));
+        .catch(() => setHood({ error: "You can't see them." }));
     },
     [close],
   );
@@ -214,21 +216,21 @@ export default function HereList({
 
   return (
     <div
-      className={strip ? "hall-strip" : "hall-here"}
+      className={strip ? "chat-strip" : "chat-here"}
       ref={wrapRef}
       onBlur={(event) => {
         if (!wrapRef.current?.contains(event.relatedTarget)) close();
       }}
     >
-      {!strip && <p className="hall-section-title">Here · {total} ‡</p>}
-      {total === 0 && !strip && <EmptyState>Nobody is here. ‡</EmptyState>}
+      {!strip && <p className="chat-section-title">Here · {total}</p>}
+      {total === 0 && !strip && <EmptyState>Nobody is here.</EmptyState>}
 
       {named.map((person) => (
-        <div key={person.characterId} className="hall-person-wrap">
-          <div className={strip ? undefined : "hall-person-row"}>
+        <div key={person.characterId} className="chat-person-wrap">
+          <div className={strip ? undefined : "chat-person-row"}>
             <button
               type="button"
-              className="hall-person"
+              className="chat-person"
               aria-haspopup="menu"
               aria-expanded={openId === person.characterId}
               onClick={() => setOpenId(openId === person.characterId ? null : person.characterId)}
@@ -240,16 +242,16 @@ export default function HereList({
                 size={24}
               />
               {!strip && (
-                <span className="hall-person-name">
+                <span className="chat-person-name">
                   {person.name}
                   {person.roleTitle ? <span className="text-muted"> · {person.roleTitle}</span> : null}
-                  {person.characterId === selfId ? <span className="text-muted"> · you ‡</span> : null}
+                  {person.characterId === selfId ? <span className="text-muted"> · you</span> : null}
                 </span>
               )}
             </button>
             {!strip && person.characterId !== selfId && (
-              <span className="hall-person-eye">
-                <IconButton icon={EyeIcon} label="Look at ‡" onClick={() => lookAt(person.characterId)} />
+              <span className="chat-person-eye">
+                <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAt(person.characterId)} />
               </span>
             )}
           </div>
@@ -271,26 +273,26 @@ export default function HereList({
           draws — looking through a null token gets the refusal the server
           already answers a bad one with. */}
       {concealed.map((person, index) => (
-        <div key={`hooded-${index}`} className="hall-person-wrap">
-          <div className={strip ? undefined : "hall-person-row"}>
+        <div key={`hooded-${index}`} className="chat-person-wrap">
+          <div className={strip ? undefined : "chat-person-row"}>
             <button
               type="button"
-              className="hall-person"
+              className="chat-person"
               aria-haspopup="menu"
               aria-expanded={openId === `hooded-${index}`}
               onClick={() => setOpenId(openId === `hooded-${index}` ? null : `hooded-${index}`)}
             >
               <CharacterAvatar characterId={null} name={person.alias} size={24} />
-              {!strip && <span className="hall-person-name text-muted">{person.alias}</span>}
+              {!strip && <span className="chat-person-name text-muted">{person.alias}</span>}
             </button>
             {!strip && (
-              <span className="hall-person-eye">
-                <IconButton icon={EyeIcon} label="Look at ‡" onClick={() => lookAtHood(person.token)} />
+              <span className="chat-person-eye">
+                <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAtHood(person.token)} />
               </span>
             )}
           </div>
           {openId === `hooded-${index}` && onConverse && (
-            <div className="hall-menu" role="menu" aria-label={person.alias}>
+            <div className="chat-menu" role="menu" aria-label={person.alias}>
               <button
                 type="button"
                 role="menuitem"
@@ -302,7 +304,7 @@ export default function HereList({
                   onConverse();
                 }}
               >
-                Converse ‡
+                Converse
               </button>
             </div>
           )}

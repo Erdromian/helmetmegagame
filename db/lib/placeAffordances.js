@@ -1,7 +1,7 @@
 // The place-bound affordances, declared once for both faces.
 //
 // A Location channel's pinned anchor and a Room thread's starter post carry
-// buttons; the Hall's place panel carries the same list as web dialogs. Until
+// buttons; Chat's place panel carries the same list as web dialogs. Until
 // phase 3 those were two hand-kept lists in two files, and adding a button to
 // one was no reminder at all to add it to the other.
 //
@@ -70,8 +70,8 @@ const DANGER = "danger";
 // about where you already are, and this one is how you leave.
 const LOCATION_AFFORDANCES = [
   { id: "travel", label: "Travel", tone: GO, customId: () => TRAVEL_CUSTOM_ID },
-  { id: "whosHere", label: "Who's here? ‡", tone: PLAIN, prefix: WHOS_HERE_PREFIX },
-  { id: "secretRooms", label: "Secret rooms? ‡", tone: PLAIN, prefix: SECRET_ROOMS_PREFIX },
+  { id: "whosHere", label: "Who's here?", tone: PLAIN, prefix: WHOS_HERE_PREFIX },
+  { id: "secretRooms", label: "Secret rooms?", tone: PLAIN, prefix: SECRET_ROOMS_PREFIX },
   { id: "examine", label: "Examine", tone: PLAIN, prefix: EXAMINE_PREFIX },
   { id: "converse", label: "Converse", tone: PLAIN, prefix: CONVERSE_PREFIX },
   // Only where docs/zones.yaml declared one (db/lib/noticeboard.js).
@@ -94,14 +94,14 @@ const ROOM_AFFORDANCES = [
   // anyone is, so it should not look like the others.
   {
     id: "turret",
-    label: "Toggle Turret ‡",
+    label: "Toggle Turret",
     tone: DANGER,
     prefix: ROOM_TURRET_PREFIX,
     when: (room) => room?.slug === CENSOR_OFFICE_ROOM_SLUG,
   },
   {
     id: "bell",
-    label: "Sound Bell ‡",
+    label: "Sound Bell",
     tone: PLAIN,
     prefix: ROOM_BELL_PREFIX,
     when: (room) => room?.slug === BELL_ROOM_SLUG,
@@ -145,7 +145,7 @@ function gateLabel({ isOpen, farName }) {
 }
 
 // EVERYTHING this character can do where they are standing, as one ordered
-// list. The Hall's place panel is a render of this and nothing else.
+// list. Chat's place panel is a render of this and nothing else.
 //
 // Each entry is { id, label, tone, kind, roomId?, linkId?, roomName? }.
 // `kind` is the group it draws under: "place" for the Location's own, "room"

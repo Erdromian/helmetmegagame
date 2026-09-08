@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
 import EmptyState from "@/app/components/EmptyState";
 import useActionRunner from "@/app/components/useActionRunner";
-import { loadTravel, travelTo, turnBackTravel } from "./actions";
+import { loadTravel, travelTo } from "./actions";
 
 // TRAVEL: every way out of here as a node you can see, instead of a dropdown
 // inside a modal.
@@ -13,24 +13,46 @@ import { loadTravel, travelTo, turnBackTravel } from "./actions";
 // The list is loaded when the column mounts and again after a move, never
 // with the page: an exit's state moves under a player standing still, and a
 // stale list would offer a shut gate. The cost line under each name is the
-// same rule the old dialog computed — a local hop is free, a zone crossing is
-// free while you have one left and costs your Move and a day on the road when
-// you do not (MAP.md §3).
+// same rule the old dialog computed — a local hop is free full stop, a zone
+// crossing spends one of the header's count while you have one left ("1
+// travel") and costs your Move and a day on the road when you do not (MAP.md
+// §3). A trailing "· on foot" or "· indoors" says the crossing (or arrival)
+// will dismount whatever you're currently riding or pushing — see footFor().
 //
 // Nothing that refuses is hidden. A shut gate and a locked door are drawn
 // dimmed with the reason on the foot, because knowing the way is there and
-// shut is what tells you to go find the winch.
+// shut is what tells you to go find the winch. A way too narrow for a mount
+// no longer refuses at all — see db/lib/indoors.js#dismountForNarrowWay.
 
 // Short enough to sit in a square. The full sentence is on the node's title.
-function footFor(option, freeLeft) {
+//
+// A local hop is free full stop — it never touches the header's count. A
+// zone crossing while one is still available spends it, which used to read
+// as the identical word "free" and told a player nothing about the
+// difference. "1 travel" is what it actually costs: one of the number shown
+// up top, singular because a single crossing is always exactly one no matter
+// how many you have left.
+function footFor(option, freeLeft, mounted) {
   if (!option.passable) {
     const reason = option.reason ?? "";
-    if (/locked/i.test(reason)) return "locked ‡";
-    if (/shut/i.test(reason)) return "shut ‡";
-    return reason || "no way ‡";
+    if (/locked/i.test(reason)) return "locked";
+    if (/shut/i.test(reason)) return "shut";
+    return reason || "no way";
   }
-  if (!option.crossesZone) return "free ‡";
-  return freeLeft > 0 ? "free ‡" : "the turn ‡";
+  const cost = !option.crossesZone ? "free" : freeLeft > 0 ? "1 travel" : "the turn";
+  // Only worth saying when there's something to lose — dismounts wins over
+  // indoors when a way is both, since either one ends the same way and
+  // saying it twice would be noise.
+  if (option.dismounts) return `${cost} · on foot`;
+  if (mounted && option.indoors) return `${cost} · indoors`;
+  return cost;
+}
+
+// The whole of it, for the hover — the node itself clamps both the name and
+// the description, and a refusal replaces the description entirely.
+function titleFor(option) {
+  if (!option.passable) return option.reason ?? option.name;
+  return option.description ? `${option.name} — ${option.description}` : option.name;
 }
 
 // `pick` is `/travel` reaching in from the composer: { locationId, at }, where
@@ -47,7 +69,6 @@ export default function TravelNodes({ onDone, pick = null }) {
   const [data, setData] = useState(null);
   const [nonce, setNonce] = useState(0);
   const [target, setTarget] = useState(null);
-  const [dragged, setDragged] = useState([]);
   // Following a prop by setting state DURING a render, which is the pattern
   // React documents for exactly this and the one
   // react-hooks/set-state-in-effect leaves open. Keyed on `at` rather than on
@@ -57,7 +78,6 @@ export default function TravelNodes({ onDone, pick = null }) {
   if (pick?.at && pick.at !== tookPick) {
     setTookPick(pick.at);
     setTarget(pick.locationId ?? null);
-    setDragged([]);
   }
   const { run, pending, error } = useActionRunner();
 
@@ -68,7 +88,7 @@ export default function TravelNodes({ onDone, pick = null }) {
         if (!cancelled) setData(res);
       })
       .catch(() => {
-        if (!cancelled) setData({ ok: false, error: "Couldn't read the road. ‡" });
+        if (!cancelled) setData({ ok: false, error: "Couldn't read the road." });
       });
     return () => {
       cancelled = true;
@@ -77,54 +97,30 @@ export default function TravelNodes({ onDone, pick = null }) {
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
-  const toggleDrag = useCallback(
-    (id) => setDragged((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])),
-    [],
-  );
-
   if (!data) {
     return (
-      <div className="hall-travel">
-        <p className="hall-section-title">Travel ‡</p>
-        <p className="hall-quiet-line">Reading the road… ‡</p>
+      <div className="chat-travel">
+        <p className="chat-section-title">Travel</p>
+        <p className="chat-quiet-line">Reading the road…</p>
       </div>
     );
   }
   if (!data.ok) {
     return (
-      <div className="hall-travel">
-        <p className="hall-section-title">Travel ‡</p>
+      <div className="chat-travel">
+        <p className="chat-section-title">Travel</p>
         <FormError>{data.error}</FormError>
       </div>
     );
   }
 
-  // Already walking: a paid crossing is a day on the road, and the only thing
-  // on offer is turning round.
+  // Already walking: a paid crossing is a day on the road, and there is no
+  // way off it — the arrival pass walks them over at the next advance.
   if (data.heading) {
     return (
-      <div className="hall-travel">
-        <p className="hall-section-title">Travel ‡</p>
+      <div className="chat-travel">
+        <p className="chat-section-title">Travel</p>
         <p className="text-sm">Leaving for {data.heading} at the turn. ‡</p>
-        <FormError>{error}</FormError>
-        <div className="hall-buttons">
-          <button
-            type="button"
-            className="btn-secondary"
-            disabled={pending}
-            onClick={() =>
-              run(turnBackTravel, undefined, {
-                onOk: (res) => {
-                  onDone?.(res);
-                  reload();
-                  router.refresh();
-                },
-              })
-            }
-          >
-            Turn back ‡
-          </button>
-        </div>
       </div>
     );
   }
@@ -133,77 +129,68 @@ export default function TravelNodes({ onDone, pick = null }) {
   const nextTurn = Boolean(chosen?.crossesZone && data.freeLeft <= 0);
 
   return (
-    <div className="hall-travel">
-      <p className="hall-section-title" title={data.freeReason ?? undefined}>
-        Travel · {data.freeLeft} free ‡
+    <div className="chat-travel">
+      <p className="chat-section-title" title={data.freeReason ?? undefined}>
+        Travel · {data.freeLeft} available
       </p>
 
       {data.options.length === 0 ? (
         <EmptyState>There is no way out of here. ‡</EmptyState>
       ) : (
-        <div className="hall-nodes">
+        <div className="chat-nodes">
           {data.options.map((option) => (
             <button
               key={option.id}
               type="button"
-              className="hall-node"
+              className="chat-node"
               data-crossing={option.crossesZone ? "true" : undefined}
               data-dim={option.passable ? undefined : "true"}
               data-active={target === option.id ? "true" : undefined}
-              title={option.passable ? option.name : (option.reason ?? option.name)}
+              title={titleFor(option)}
               disabled={!option.passable || pending}
-              onClick={() => {
-                setTarget(target === option.id ? null : option.id);
-                setDragged([]);
-              }}
+              onClick={() => setTarget(target === option.id ? null : option.id)}
             >
-              <span className="hall-node-name">{option.name}</span>
-              <span className="hall-node-zone">{option.zoneName}</span>
-              <span className="hall-node-foot mono">{footFor(option, data.freeLeft)}</span>
+              <span className="chat-node-name">{option.name}</span>
+              <span className="chat-node-zone">{option.zoneName}</span>
+              {/* What the place IS, so a way out is more than a name. Clamped
+                  in CSS rather than truncated here: the whole line is on the
+                  node's title either way, and cutting the string would cut it
+                  at a character count instead of at the box. */}
+              {option.description && (
+                <span className="chat-node-desc">{option.description}</span>
+              )}
+              <span className="chat-node-foot mono">{footFor(option, data.freeLeft, data.mounted)}</span>
             </button>
           ))}
         </div>
       )}
 
       {chosen && (
-        <div className="hall-travel-confirm">
+        <div className="chat-travel-confirm">
           <p className="text-sm">
-            {nextTurn ? `To ${chosen.name}, next turn. ‡` : `To ${chosen.name}. ‡`}
+            {nextTurn ? `To ${chosen.name}, next turn.` : `To ${chosen.name}.`}
           </p>
 
-          {data.drag.length > 0 && (
-            <div className="chip-row" role="group" aria-label="Bring somebody ‡">
-              {data.drag.map((person) => (
-                <button
-                  key={person.id}
-                  type="button"
-                  className="chip"
-                  // `reason` is why they CAN be brought along — a corpse, a
-                  // body that can't stop you, your own faction — not a
-                  // refusal (db/lib/locationTravel.js#dragReason). Every
-                  // candidate on this list is already draggable.
-                  title={person.reason ?? undefined}
-                  data-active={dragged.includes(person.id) ? "true" : undefined}
-                  aria-pressed={dragged.includes(person.id)}
-                  onClick={() => toggleDrag(person.id)}
-                >
-                  {person.name}
-                </button>
-              ))}
-            </div>
+          {/* Who comes along is the party rack's business now, not this
+              strip's — an escort is attached once and persists, so re-ticking
+              the same three chips before every hop is gone. All that is owed
+              here is the count. */}
+          {data.partySize > 0 && (
+            <p className="chat-quiet-line">
+              {data.partySize === 1 ? "One person" : `${data.partySize} people`} with you. ‡
+            </p>
           )}
 
           <FormError>{error}</FormError>
-          <div className="hall-buttons">
+          <div className="chat-buttons">
             <button
               type="button"
               className="btn"
               disabled={pending}
               onClick={() =>
-                run(travelTo, { locationId: chosen.id, draggedIds: dragged }, {
+                run(travelTo, { locationId: chosen.id }, {
                   onOk: (res) => {
                     setTarget(null);
-                    setDragged([]);
                     onDone?.(res);
                     reload();
                     router.refresh();
@@ -211,10 +198,10 @@ export default function TravelNodes({ onDone, pick = null }) {
                 })
               }
             >
-              Go ‡
+              Go
             </button>
             <button type="button" className="btn-quiet" disabled={pending} onClick={() => setTarget(null)}>
-              Cancel ‡
+              Cancel
             </button>
           </div>
         </div>

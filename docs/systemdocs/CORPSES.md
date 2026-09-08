@@ -53,7 +53,7 @@ as "move them to null", which would unplace every buried character on the next
 pass. The update is also filtered to `status: DEAD, buriedAt: null`, so a
 revived character never gets teleported by their own old body.
 
-**`MOVE_CHARACTER` still drags corpses, and the tag is authoritative.** The
+**Escorting still carries corpses, and the tag is authoritative.** The
 reconcile is strictly one-directional — tag position decides sheet position,
 never the reverse. Do not add a reverse sync; two movers that can disagree is
 how this gets confusing.
@@ -106,7 +106,7 @@ cadence would make the smell a clock players could read, when what it is for is
 nagging unpredictably until somebody buries the body. Each firing schedules the
 next, so nothing may throw out of the tick or the chain dies silently.
 
-**It needs no cleanup code.** The Dawn wipe already deletes every top-level
+**It needs no cleanup code.** The message wipe already deletes every top-level
 message in a Location channel except the pinned anchor (`CHANNELS.md`). So the
 obligations here are negative, and they matter: never pin the line, and never
 record its id as an anchor. Do neither and it clears itself every Dawn.
@@ -141,6 +141,10 @@ the turn's hunger — and is deliberately **not sellable**. Butchering is free a
 every death mints a corpse, so a priced Human Flesh would be a code-enforced ⬢
 faucet hanging off a free action. It stays `tradeable`, so players can still
 sell it to each other for whatever they can get, which is the right market.
+
+**Butcher is not the only body verb.** Mutilate takes one piece at a time and
+leaves the body where it is (`TORTURE.md` §6); butchering is the whole corpse
+at once and consumes it.
 
 **Butchering does not free the soul.** Cutting someone up destroys the body
 without burying it, so their player stays Cursed. That is a decision, not an

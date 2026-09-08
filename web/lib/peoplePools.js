@@ -5,6 +5,7 @@ import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapaci
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { peopleHere } from "@/lib/peopleHere";
+import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { isTradeable } from "@/lib/tagRequests";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { craftMoveCost } from "@/lib/craftBudget";
@@ -31,7 +32,7 @@ import {
 //
 // It lived inside web/app/(app)/character/page.js until phase 3, which was
 // fine while the sheet was the only place you could act on somebody standing
-// near you. The Hall's people column is the second, and a second copy of
+// near you. Chat's people column is the second, and a second copy of
 // "who is helpless" would have been a second answer.
 //
 // The metagaming rule the sheet's grid follows applies to what a CALLER does
@@ -45,7 +46,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // and the server re-checks the same predicate. `here` carries what Heal and
   // Learn need; `zoneRoster` is the roster for the actions that also work on
   // a corpse.
-  const [here, zoneRoster, tierRows] = await Promise.all([
+  const [here, zoneRoster, tierRows, roomNow] = await Promise.all([
     peopleHere(character, {
       select: {
         id: true,
@@ -98,10 +99,31 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
       },
     }),
     prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } }),
+    // The hoods, for TRANSFER'S recipient list and nothing else. A hood hides
+    // WHO somebody is, not THAT they are standing there, and handing a coin to
+    // a stranger is a thing you can plainly do to a person whose name you do
+    // not know. They arrive as { alias, token } — an HMAC handle, so the
+    // browser is never told the character id behind the mask, and
+    // resolveHoodToken re-checks co-presence when one is posted back.
+    whosHere(prisma, character, { includeSelf: false }),
   ]);
 
   const selfEntry = { id: character.id, name: character.name };
   const peopleParties = [selfEntry, ...here.map(({ id, name }) => ({ id, name }))];
+  // TRANSFER'S list, and only Transfer's. `peopleParties` above is also the
+  // Heal payer list and Craft's, and transferRequestImpl is the one action that
+  // knows how to resolve a hood token — offering one anywhere else would be a
+  // row you can pick and cannot use.
+  //
+  // `kind: "hood"` makes PartySelect write "hood:<token>" instead of
+  // "character:<id>". A token is null when AUTH_SECRET is unset, and an
+  // untokened hood is not offerable.
+  const transferParties = [
+    ...peopleParties,
+    ...roomNow.concealed
+      .filter((c) => c.token)
+      .map((c) => ({ id: c.token, name: c.alias, kind: "hood" })),
+  ];
 
   // Whether their eyes are good enough to look anybody over — Nearsighted
   // without spectacles on, Sun Sensitivity in daylight. Resolved server-side
@@ -260,28 +282,20 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
       })),
   }));
 
-  // Everyone here, not just who you may move: the server's own gate says who
-  // follows, and a menu that narrowed to the bound would announce them.
-  const moveTargets = zoneRoster.map(({ id, name, status }) => ({ id, name, status }));
+  // The two pools that fed the Move Player dialog are gone with it. Taking
+  // somebody along is the party rack on /play now, and it reads its own
+  // candidates off db/lib/escort.js#escortCandidates — a Location roster
+  // rather than a zone one, with a verdict per row (docs/systemdocs/MAP.md
+  // §3a).
 
-  // Where you may walk someone: the neighbours of YOUR OWN location, the same
-  // edge an ordinary walk uses, gated the same way. travelOptions drops the
-  // hidden ways this character holds no key to, and `passable` drops the
-  // locked and the shut — a walk-someone dialog has no room to explain a
-  // refusal, so it only ever offers a hop that will actually work. Each
-  // option carries its zone so the dialog can warn that the hop crosses one.
-  const moveLocations = character.locationId
-    ? (await travelOptions(prisma, character, character.locationId))
-        .filter((row) => row.passable)
-        .map((row) => ({
-          id: row.location.id,
-          name: row.location.name,
-          zoneName: row.location.zone?.name ?? null,
-          // The UI says "crosses into Fortress" only for an edge that leaves
-          // the zone you're standing in.
-          crossesZone: row.crossesZone,
-        }))
-    : [];
+  // Consume's optional administer target (medical pass, TAGS.md §5c): who a
+  // cure or an administerable item may be given to. Its own pool rather than
+  // a share of a neighbour's — it used to ride on the Move Player dialog's
+  // roster, which went away with that dialog, and the two questions were
+  // never the same one.
+  const consumeTargets = zoneRoster
+    .filter((c) => c.status === "ALIVE")
+    .map((c) => ({ id: c.id, name: c.name }));
 
   // Bind and Free split this one list on `bound`; Crucify on `crucified`.
   const bindTargets = zoneRoster
@@ -335,6 +349,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     here,
     zoneRoster,
     peopleParties,
+    transferParties,
     examineBlocked,
     satisfied,
     canHeal,
@@ -343,8 +358,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     hasSurgicalSite,
     surgicalSitePenalty,
     lootTargets,
-    moveTargets,
-    moveLocations,
+    consumeTargets,
     bindTargets,
     harmTargets,
     harmTags,
@@ -358,7 +372,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
 // The same shape web/app/(app)/character/page.js builds for the sheet's own
 // Transfer dialog, including the Assets-weigh-nothing rule (CARRY.md §1) the
 // projection under the dialog reads. It lives here rather than being a second
-// query in the Hall's page: two answers to "which doors are open to you" is
+// query in Chat's page: two answers to "which doors are open to you" is
 // exactly what web/lib/peoplePools.js exists to stop.
 export async function loadStashRooms(character) {
   if (!character?.locationId) return [];

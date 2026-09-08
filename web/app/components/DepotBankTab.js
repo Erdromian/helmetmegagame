@@ -2,9 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRefresh } from "./useRefresh";
-import { depotAtm, depotCredit, depotExchange } from "@/app/(app)/depot/actions";
+import { depotAtm, depotCredit } from "@/app/(app)/depot/actions";
 import RequestDialog from "./RequestDialog";
-import Tooltip from "./Tooltip";
 
 // The ATM and the Company's line.
 //
@@ -13,7 +12,7 @@ import Tooltip from "./Tooltip";
 // them, and it is the ONLY door — every coin in Ravenheart came out of this
 // button, which is why lending is a thing he can actually do and nobody else
 // can.
-export default function DepotBankTab({ depot, heldObols, creditAvailable, resources, disabled }) {
+export default function DepotBankTab({ depot, heldObols, creditAvailable, disabled }) {
   const [refresh] = useRefresh();
   const [pending, startTransition] = useTransition();
   const [dialog, setDialog] = useState(null); // { kind, direction }
@@ -29,14 +28,11 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
   function submit(reason) {
     const n = Math.max(1, Math.min(Number(amount) || 0, dialog.max));
     startTransition(async () => {
-      const result =
-        dialog.kind === "exchange"
-          ? await depotExchange({ direction: dialog.direction, obols: n, reason })
-          : await (dialog.kind === "atm" ? depotAtm : depotCredit)({
-              direction: dialog.direction,
-              amount: n,
-              reason,
-            });
+      const result = await (dialog.kind === "atm" ? depotAtm : depotCredit)({
+        direction: dialog.direction,
+        amount: n,
+        reason,
+      });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -54,9 +50,6 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
     <div className="depot-split">
       <section className="panel p-5">
         <h2 className="panel-header">The ATM</h2>
-        <p className="mt-1 text-sm text-muted">
-          Take obols out of your account, or put them back in.
-        </p>
 
         <dl className="depot-totals">
           <div>
@@ -70,76 +63,27 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
         </dl>
 
         <div className="mt-4 flex gap-2">
-          <Tooltip text="Takes obols out of the account as coins you can carry.">
-            <button
-              type="button"
-              className="btn"
-              disabled={disabled || pending || !depot.accountObols}
-              onClick={() => ask("atm", "WITHDRAW", depot.accountObols)}
-            >
-              Withdraw
-            </button>
-          </Tooltip>
-          <Tooltip text="Puts coins you are carrying back into the account.">
-            <button
-              type="button"
-              className="btn-quiet"
-              disabled={disabled || pending || !heldObols}
-              onClick={() => ask("atm", "DEPOSIT", heldObols)}
-            >
-              Deposit
-            </button>
-          </Tooltip>
+          <button
+            type="button"
+            className="btn"
+            disabled={disabled || pending || !depot.accountObols}
+            onClick={() => ask("atm", "WITHDRAW", depot.accountObols)}
+          >
+            Withdraw
+          </button>
+          <button
+            type="button"
+            className="btn-quiet"
+            disabled={disabled || pending || !heldObols}
+            onClick={() => ask("atm", "DEPOSIT", heldObols)}
+          >
+            Deposit
+          </button>
         </div>
       </section>
 
       <section className="panel p-5">
-        <h2 className="panel-header">The ⬢ Counter</h2>
-        <p className="mt-1 text-sm text-muted">
-          The Company&apos;s exchange, tied to your License. It trades Resources for obols, or obols for Resources, one for one.
-        </p>
-
-        <dl className="depot-totals">
-          <div>
-            <dt>Account</dt>
-            <dd className="mono">{depot.accountObols} ¢</dd>
-          </div>
-          <div>
-            <dt>Your Resources</dt>
-            <dd className="mono">{resources} ⬢</dd>
-          </div>
-        </dl>
-
-        <div className="mt-4 flex gap-2">
-          <Tooltip text="Turns obols in the account into Resources on your sheet, one for one.">
-            <button
-              type="button"
-              className="btn"
-              disabled={disabled || pending || !depot.accountObols}
-              onClick={() => ask("exchange", "BUY_RESOURCES", depot.accountObols)}
-            >
-              Buy ⬢
-            </button>
-          </Tooltip>
-          <Tooltip text="Turns Resources on your sheet into obols in the account, one for one.">
-            <button
-              type="button"
-              className="btn-quiet"
-              disabled={disabled || pending || resources < 1}
-              onClick={() => ask("exchange", "SELL_RESOURCES", resources)}
-            >
-              Sell ⬢
-            </button>
-          </Tooltip>
-        </div>
-      </section>
-
-      <section className="panel p-5">
-        <h2 className="panel-header">The Company&apos;s Line</h2>
-        <p className="mt-1 text-sm text-muted">
-          Credit advanced against the business, in obols. Nothing in the code punishes a standing
-          balance — the Company is not code.
-        </p>
+        <h2 className="panel-header">Credit</h2>
 
         <div className="depot-meter" role="img" aria-label={`${debt} of ${cap} obols drawn`}>
           <span className="depot-meter-fill" style={{ width: `${pct}%` }} />
@@ -150,10 +94,6 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
             <dd className="mono">
               {debt} / {cap} ¢
             </dd>
-          </div>
-          <div>
-            <dt>Still available</dt>
-            <dd className="mono">{creditAvailable} ¢</dd>
           </div>
         </dl>
 
@@ -182,11 +122,7 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
         <RequestDialog
           open
           title={
-            dialog.kind === "exchange"
-              ? dialog.direction === "BUY_RESOURCES"
-                ? "Buy Resources"
-                : "Sell Resources"
-              : dialog.kind === "atm"
+            dialog.kind === "atm"
               ? dialog.direction === "WITHDRAW"
                 ? "Withdraw obols"
                 : "Deposit obols"
@@ -210,10 +146,6 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
               onChange={(e) => setAmount(e.target.value)}
             />
           </label>
-          <p className="mt-2 text-xs text-muted">
-            At most {dialog.max} ¢
-            {dialog.kind === "exchange" ? ", and an obol is one ⬢ either way" : ""}.
-          </p>
         </RequestDialog>
       )}
     </div>

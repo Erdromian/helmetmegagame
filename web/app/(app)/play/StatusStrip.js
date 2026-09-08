@@ -17,11 +17,11 @@ export default function StatusStrip({ resources = 0, carry = null, tags = [] }) 
   const worn = tags.filter((ct) => SHOWN_CATEGORIES.has(ct.tag?.category));
 
   return (
-    <div className="hall-chips">
+    <div className="chat-chips">
       <span className="chip chip-mono">{resources} ⬢</span>
       {carry && (
         <span className="chip chip-mono" data-tone={carry.over ? "danger" : undefined}>
-          {Math.round(carry.weightUsed)}/{carry.weightCap} lb ‡
+          {Math.round(carry.weightUsed)}/{carry.weightCap} lb
         </span>
       )}
       {worn.map((ct) => (

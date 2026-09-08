@@ -166,6 +166,7 @@ Life) used to be the example; they're archived in
 | Silver Knife | Simple | 1/3 turn — three to a Routine (§2) |
 | Gladius | Simple | |
 | Phrygian Spear | Simple | 1/3 turn — three to a Routine (§2) |
+| Javelin | Simple | `ranged-basic` — it is thrown, not held. |
 | Longbow | Simple | `crafting` |
 | Mace | Simple | |
 | Battle Axe | Simple | |

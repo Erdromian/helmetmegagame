@@ -14,6 +14,7 @@ const {
 } = require("@lifeweb/db/lib/threatSpawn");
 const { recordArchiveEvent } = require("@lifeweb/db/lib/archive");
 const { syncMemberNickname } = require("./nickname");
+const { sendDm } = require("./dm");
 
 // Strips the buttons and writes the outcome under the original text. The
 // original content already carries sendDm's `»`; the outcome gets its own.
@@ -31,6 +32,16 @@ async function handleThreatSpawnAccept(interaction, spawnId) {
   // Answer first, then do the slow Discord work — the player is watching, and
   // none of what follows may cost a character that already exists.
   await settle(interaction, result.line);
+
+  // A seat with a `brief` (the Thanati — db/lib/threats.js) says what it is
+  // only NOW, to somebody who has accepted. The offer carried the cover role's
+  // charter alone, so a decline never reads the cult's doctrine. Bascinet's
+  // words; one » at the top, as web's sendDm would put it.
+  if (result.threat.brief?.length) {
+    await sendDm(interaction.user, `» ${result.threat.brief.join("\n")}`).catch((err) =>
+      console.error("Threat spawn brief DM failed:", err),
+    );
+  }
 
   await applySpawnSideEffects(prisma, result.sideEffects).catch((err) =>
     console.error("Threat spawn side effects failed:", err),

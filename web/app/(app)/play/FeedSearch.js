@@ -76,13 +76,13 @@ export default function FeedSearch({ place, onPick, onClose, notice = null }) {
         .then(({ ok, data }) => {
           if (cancelled) return;
           if (!ok) {
-            setState({ error: data?.error ?? "That search went nowhere. ‡" });
+            setState({ error: data?.error ?? "That search went nowhere." });
             return;
           }
           setState({ rows: data?.rows ?? [], query: q });
         })
         .catch(() => {
-          if (!cancelled) setState({ error: "That search went nowhere. ‡" });
+          if (!cancelled) setState({ error: "That search went nowhere." });
         });
     }, DEBOUNCE_MS);
     return () => {
@@ -110,23 +110,23 @@ export default function FeedSearch({ place, onPick, onClose, notice = null }) {
   const short = query.trim().length > 0 && !long;
 
   return (
-    <div className="hall-search" onKeyDown={onKeyDown}>
+    <div className="chat-search" onKeyDown={onKeyDown}>
       <div className="field">
-        <label className="sr-only" htmlFor="hall-search-input">
-          Search what was said ‡
+        <label className="sr-only" htmlFor="chat-search-input">
+          Search what was said
         </label>
         <input
-          id="hall-search-input"
+          id="chat-search-input"
           ref={inputRef}
           value={query}
           maxLength={80}
-          placeholder="Search what was said… ‡"
+          placeholder="Search what was said…"
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
 
       {placeKey && (
-        <div className="chip-row" role="group" aria-label="How wide to look ‡">
+        <div className="chip-row" role="group" aria-label="How wide to look">
           <button
             type="button"
             className="chip"
@@ -134,7 +134,7 @@ export default function FeedSearch({ place, onPick, onClose, notice = null }) {
             aria-pressed={!hereOnly}
             onClick={() => setHereOnly(false)}
           >
-            Everywhere ‡
+            Everywhere
           </button>
           <button
             type="button"
@@ -143,29 +143,29 @@ export default function FeedSearch({ place, onPick, onClose, notice = null }) {
             aria-pressed={hereOnly}
             onClick={() => setHereOnly(true)}
           >
-            {place?.name ?? "Here ‡"}
+            {place?.name ?? "Here"}
           </button>
         </div>
       )}
 
       {notice && <FormError>{notice}</FormError>}
-      {short && <p className="hall-quiet-line">Three letters at least. ‡</p>}
+      {short && <p className="chat-quiet-line">Three letters at least.</p>}
       {state?.error && <FormError>{state.error}</FormError>}
-      {long && state?.rows && rows.length === 0 && <p className="hall-quiet-line">Nobody said that. ‡</p>}
+      {long && state?.rows && rows.length === 0 && <p className="chat-quiet-line">Nobody said that.</p>}
 
       {rows.length > 0 && (
-        <ul className="hall-search-results list-none p-0">
+        <ul className="chat-search-results list-none p-0">
           {rows.map((row) => (
             <li key={row.seq}>
               <button
                 type="button"
-                className="hall-search-row"
+                className="chat-search-row"
                 onClick={() => onPick(row.placeKey, row.seq)}
               >
-                <span className="hall-search-who">{row.name ?? "Somebody ‡"}</span>
-                <span className="hall-search-where">{row.placeName ?? ""}</span>
-                <span className="mono hall-search-when">{timeLabel(row.sentAt)}</span>
-                <span className="hall-search-snip">{snippet(row.content, state.query)}</span>
+                <span className="chat-search-who">{row.name ?? "Somebody"}</span>
+                <span className="chat-search-where">{row.placeName ?? ""}</span>
+                <span className="mono chat-search-when">{timeLabel(row.sentAt)}</span>
+                <span className="chat-search-snip">{snippet(row.content, state.query)}</span>
               </button>
             </li>
           ))}

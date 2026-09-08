@@ -25,13 +25,6 @@ function catatonicDm(turns, deathTurns) {
 async function runCatatonicPass(prisma, turn) {
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
 
-  // Off is a real, supported state — return an object, not null. null means
-  // "did not run, retry it forever," and would wedge the turn permanently on
-  // a game that has this switched off on purpose.
-  if (!config?.catatonicEnabled) {
-    return { turnNumber: turn.number, enabled: false, flagged: 0, cleared: 0, dms: [], roleUpdates: [] };
-  }
-
   const catatonicTag = await prisma.tag.findUnique({
     where: { slug: CATATONIC_SLUG },
     select: { id: true },
@@ -135,7 +128,6 @@ async function runCatatonicPass(prisma, turn) {
 
   return {
     turnNumber: turn.number,
-    enabled: true,
     flagged: flagged.count,
     cleared: toClear.length,
     dms: toFlag

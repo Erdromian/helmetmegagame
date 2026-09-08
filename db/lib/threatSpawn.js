@@ -49,14 +49,15 @@ function spawnOfferComponents(spawnId) {
   ];
 }
 
-// A seat's tag list is written as SLUGS with an optional count — "obol x4".
-// parseStartingTag splits the count off; a role's own startingTagSlugs are
-// display NAMES despite the column's name, so the two are looked up
-// differently and merged after.
+// A tag list written as SLUGS with an optional count — "obol x4".
+// parseStartingTag splits the count off. Both sources speak slug now: a seat's
+// list in db/lib/threats.js always did, and a role's startingTagSlugs does
+// since db:sync-roles resolves the authored names, so there is one lookup here
+// where there used to be two and a merge.
 function parseSlugEntries(entries = []) {
   const wanted = new Map();
   for (const entry of entries) {
-    const { name: slug, quantity } = parseStartingTag(entry);
+    const { slug, quantity } = parseStartingTag(entry);
     wanted.set(slug, (wanted.get(slug) ?? 0) + quantity);
   }
   return wanted;
@@ -67,35 +68,31 @@ function parseSlugEntries(entries = []) {
 // it lands in grants anyone. Resolved in one pass so a missing slug is a clean
 // refusal rather than a half-granted character.
 async function resolveSpawnTags(db, threat, role) {
-  const bySlug = parseSlugEntries([
+  // The seat's own two lists and the role's, all slugs, all one map. Largest
+  // count wins where a tag arrives from two directions at once, which is what
+  // parseSlugEntries' summing would otherwise get wrong — so the role's
+  // entries are folded in with a max rather than added.
+  const seatSlugs = parseSlugEntries([
     ...(threat.assign?.tagSlugs ?? []),
     ...(threat.spawn?.tagSlugs ?? []),
   ]);
-  const byName = new Map();
-  for (const entry of role?.startingTagSlugs ?? []) {
-    const { name, quantity } = parseStartingTag(entry);
-    byName.set(name, (byName.get(name) ?? 0) + quantity);
+  const bySlug = new Map(seatSlugs);
+  for (const [slug, quantity] of parseSlugEntries(role?.startingTagSlugs ?? [])) {
+    bySlug.set(slug, Math.max(quantity, bySlug.get(slug) ?? 0));
   }
+  if (!bySlug.size) return { tags: [] };
 
-  const [slugTags, nameTags] = await Promise.all([
-    bySlug.size ? db.tag.findMany({ where: { slug: { in: [...bySlug.keys()] } } }) : [],
-    byName.size ? db.tag.findMany({ where: { name: { in: [...byName.keys()] } } }) : [],
-  ]);
+  const tags = await db.tag.findMany({ where: { slug: { in: [...bySlug.keys()] } } });
 
-  const missing = [...bySlug.keys()].filter((s) => !slugTags.some((t) => t.slug === s));
+  // Only the SEAT's own slugs are a hard error. A role's list has already been
+  // validated by db:sync-roles, and a tag pruned out from under it should not
+  // make the seat unspawnable.
+  const missing = [...seatSlugs.keys()].filter((s) => !tags.some((t) => t.slug === s));
   if (missing.length) {
     return { error: `The ${threat.name} seat names tags that aren't in the catalog: ${missing.join(", ")}.` };
   }
 
-  // Union, largest count wins where a tag arrives from two directions at once.
-  const merged = new Map();
-  for (const tag of slugTags) merged.set(tag.id, { tag, quantity: bySlug.get(tag.slug) ?? 1 });
-  for (const tag of nameTags) {
-    const want = byName.get(tag.name) ?? 1;
-    const held = merged.get(tag.id);
-    merged.set(tag.id, { tag, quantity: Math.max(want, held?.quantity ?? 0) });
-  }
-  return { tags: [...merged.values()] };
+  return { tags: tags.map((tag) => ({ tag, quantity: bySlug.get(tag.slug) ?? 1 })) };
 }
 
 // The tags an ASSIGN hands to an existing character — the seat's grant only,
@@ -122,7 +119,7 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
       location: { include: { zone: true } },
     },
   });
-  if (!spawn) return { ok: false, reason: "That offer's gone. ‡" };
+  if (!spawn) return { ok: false, reason: "That offer's gone." };
   if (spawn.discordUserId !== discordUserId) return { ok: false, reason: "That's not yours to answer. ‡" };
   if (spawn.status !== "PENDING") return { ok: false, reason: "That offer has already been answered. ‡" };
 
@@ -253,7 +250,7 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
 
 async function declineThreatSpawn(prisma, spawnId, discordUserId) {
   const spawn = await prisma.threatSpawn.findUnique({ where: { id: spawnId } });
-  if (!spawn) return { ok: false, reason: "That offer's gone. ‡" };
+  if (!spawn) return { ok: false, reason: "That offer's gone." };
   if (spawn.discordUserId !== discordUserId) return { ok: false, reason: "That's not yours to answer. ‡" };
   if (spawn.status !== "PENDING") return { ok: false, reason: "That offer has already been answered. ‡" };
 

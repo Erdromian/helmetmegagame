@@ -48,6 +48,11 @@ function RichTokenRenderer({ kind, payload, raw }) {
   // {cmd:play} — a slash command as literal text to type. See RichText.js.
   if (kind === "cmd") return <code className="cmd-chip">/{payload.trim()}</code>;
 
+  // {word:crudux cruo} — a phrase worn as a chip. The Grimoire's Words of the
+  // Circle (web/lib/grimoire.js): the payload IS the text, like {info:}, so it
+  // never fails to resolve and nothing is looked up.
+  if (kind === "word") return <span className="chip word-chip">{payload.trim()}</span>;
+
   return raw;
 }
 

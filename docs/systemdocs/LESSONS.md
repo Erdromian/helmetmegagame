@@ -49,7 +49,7 @@ off (`db/lib/tagWrites.js#replaceLowerTiers`), same as buying the upgrade.
 ## 3. The Offer
 
 ```
-Offer { kind LESSON|BIND, status PENDING|ACCEPTED|DECLINED|CANCELLED|EXPIRED|RESOLVED,
+Offer { kind LESSON|BIND|CONFESSION|ESCORT, status PENDING|ACCEPTED|DECLINED|CANCELLED|EXPIRED|RESOLVED,
         turnId, initiatorId, responderId,
         teacherId?, learnerId?, tagId?, threshold?, learnerActionId?, teacherActionId?,
         outcome?, reason? }
@@ -58,7 +58,16 @@ Offer { kind LESSON|BIND, status PENDING|ACCEPTED|DECLINED|CANCELLED|EXPIRED|RES
 A handshake between two characters, alive for one turn. The **initiator**
 pressed the button on the web; the **responder** gets a DM with two buttons
 (`db/lib/offerRow.js`: `offer:accept:<id>` / `offer:decline:<id>`), answered
-by `bot/src/lib/offers.js`. The click's acknowledgement is
+by `bot/src/lib/offers.js`.
+
+**A new kind needs no new plumbing** — that is the point of the shared
+prefixes. `ESCORT` (`db/lib/escort.js`, `MAP.md` §3a) is the newest, and all
+it added was a branch in `handleOfferAccept`'s kind switch and its own
+wording in `declineOffer`. Its buttons are green and grey rather than the
+blurple `offerButtonRow`, through `escortButtonRow` — same two custom ids, so
+the router never had to learn about it. `ESCORT` is also the one kind whose
+accept leaves a mark that OUTLIVES the offer: it stamps a two-turn consent
+window on the responder, so being picked up again inside it does not re-ask. The click's acknowledgement is
 `interaction.update()`: the buttons come off the message and the outcome is
 written under it, so nothing can be clicked twice and no message id has to be
 stored. A stale button just says the offer's gone.

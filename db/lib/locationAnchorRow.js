@@ -16,7 +16,7 @@
 // change it there.
 
 // The LABELS and the predicates live in db/lib/placeAffordances.js, so the
-// anchor and the Hall's place panel cannot drift about what a place offers.
+// anchor and Chat's place panel cannot drift about what a place offers.
 // What is left here is Discord's shape: rows, styles and the 5-per-row cap.
 const {
   GO,
@@ -127,13 +127,13 @@ function keyedPromptRow(linkId) {
           type: BUTTON,
           style: SUCCESS,
           custom_id: `${KEYED_PREFIX}${linkId}:yes`,
-          label: "Leave it open ‡",
+          label: "Leave it open",
         },
         {
           type: BUTTON,
           style: SECONDARY,
           custom_id: `${KEYED_PREFIX}${linkId}:no`,
-          label: "Let it shut ‡",
+          label: "Let it shut",
         },
       ],
     },

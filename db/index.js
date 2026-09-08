@@ -21,7 +21,7 @@ const { reconcileCorpses } = require("./lib/corpseFollow");
 const { runTravelArrivalPass } = require("./lib/travelArrivalPass");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 // By path, not the barrel — same reason as db/lib/dm.js below.
-const { runDawnWipe } = require("./lib/dawnWipe");
+const { runMessageWipe } = require("./lib/messageWipe");
 const {
   runHungerPass,
   hungerDm,
@@ -41,10 +41,12 @@ const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
 const { runVisionDecayPass } = require("./lib/visionDecayPass");
 const { runDyingDeathPass } = require("./lib/dyingDeathPass");
 const { runNukeExplosionPass } = require("./lib/nukeExplosionPass");
+const { runAscensionPass } = require("./lib/ascensionPass");
 const { endGameInDb, postGameEnded } = require("./lib/gameEnd");
 const { syncSpectatorAccess } = require("./lib/spectatorAccess");
 const { broadcastToZones } = require("./lib/worldBroadcast");
 const { runBirdPass } = require("./lib/birdPass");
+const { runHorseUpkeepPass } = require("./lib/horseUpkeepPass");
 // By path, not the barrel — see the note at the top of db/lib/accessSweep.js.
 const { revokeAllCharacterAccess } = require("./lib/accessSweep");
 const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("./lib/constants");
@@ -213,6 +215,13 @@ const TURN_PASSES = [
   // the rows it deletes are its own. See db/lib/visionDecayPass.js.
   "visionDecay",
   "dyingDeath",
+  // ASCENSION BEFORE THE BOMB, deliberately. Both can come due on one close,
+  // and the rite is called off by its leader dying — so with the bomb first
+  // the blast killed that leader and the cult silently lost a game it had won.
+  // Ascension still sits after the staged push and dyingDeath, so a leader
+  // killed by another character this turn does stop it; only the blast, which
+  // is simultaneous rather than earlier, no longer does.
+  "ascension",
   "nukeExplosion",
   // Corpses turn before the sweep, and the order is load-bearing: the sweep
   // is a blind deleteMany over expiresTurn, so a body that reached its clock
@@ -225,6 +234,11 @@ const TURN_PASSES = [
   "catatonic",
   "catatonicDeath",
   "bird",
+  // The horse's feed. Immediately BEFORE hunger, and the order is
+  // load-bearing: auto-labor has already paid the day's income, and the animal
+  // eats before the rider does — a character down to their last ⬢ feeds the
+  // horse and goes Hungry. See db/lib/horseUpkeepPass.js.
+  "horseUpkeep",
   "hunger",
   // Guilt Ridden and Insomniac's nightly chance of waking Exhausted. After
   // hunger so it sees the final sheet. See db/lib/dawnAfflictionPass.js.
@@ -500,6 +514,52 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Dying death audit log failed:", err));
   }
 
+  // The Rite of Ascension. After the staged push and dyingDeath, so a leader
+  // killed by another character this turn calls it off — and BEFORE the bomb,
+  // which is the tiebreak when both doomsdays come due on one close. With the
+  // bomb first, its blast killed the cult's leader and the rite cancelled
+  // itself, so the cult always lost a race it had already won.
+  // See db/lib/ascensionPass.js.
+  let ascension = null;
+  if (!done.has("ascension")) {
+    ascension = await runAscensionPass(prisma, turn).catch(async (err) => {
+      await passFailed("Ascension", err);
+      return null;
+    });
+    if (ascension) await markDone("ascension");
+  }
+  const { broadcast: ascensionBroadcast = null, ...ascensionSummary } = ascension ?? {};
+  // Declared here, with the first of the two endings, and shared with the
+  // bomb below: whichever fires first writes the epilogue, and endGameInDb is
+  // a no-op on a state that is already ENDED.
+  let gameEndedPost = null;
+  if (ascension?.fired || ascension?.cancelled) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: ascension.fired ? "ascension_fired" : "ascension_cancelled",
+          details: ascensionSummary,
+        },
+      })
+      .catch((err) => console.error("Ascension audit log failed:", err));
+  }
+  // The second way a game ends. Unlike the bomb it kills nobody — there is
+  // simply nothing left to play in, so the clock stops and the archive opens.
+  // Running before the bomb means that when both land together the epilogue
+  // is the cult's; the blast still kills everyone above ground either way.
+  if (ascension?.fired) {
+    try {
+      const ended = await endGameInDb(prisma, {
+        closingNote: `The cult finished its work at the close of turn ${turn.number}. Ravenheart burned. ‡`,
+        reason: "ascension",
+      });
+      if (ended.ended) gameEndedPost = ended.post;
+    } catch (err) {
+      console.error("Ending the game after the ascension failed:", err);
+    }
+  }
+
   // The bomb. Sits here for the reason dyingDeath sits here: after the staged
   // push and tagExpiry, so a Disarm filed this turn (or a GM defusing it from
   // /gm/dev) beats the clock, and before the sweep, with its siblings.
@@ -522,7 +582,6 @@ async function resolveNeeds(turn, config) {
   // fireball into #turns. The new turn still opens below so the banner has
   // somewhere to hang. Ended locks only the clock — the survivors in the
   // caves keep playing until the wipe.
-  let gameEndedPost = null;
   if (nukeExplosion?.detonated) {
     await prisma.auditLog
       .create({
@@ -715,6 +774,28 @@ async function resolveNeeds(turn, config) {
         },
       })
       .catch((err) => console.error("Catatonic death audit log failed:", err));
+  }
+
+  // The horse eats first (db/lib/horseUpkeepPass.js). Held, not equipped, and
+  // a character who cannot afford the 1 ⬢ pays nothing and keeps the animal.
+  let horseUpkeep = null;
+  if (!done.has("horseUpkeep")) {
+    horseUpkeep = await runHorseUpkeepPass(prisma, turn).catch(async (err) => {
+      await passFailed("Horse upkeep", err);
+      return null;
+    });
+    if (horseUpkeep) await markDone("horseUpkeep");
+  }
+  if (horseUpkeep) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "horse_upkeep",
+          details: horseUpkeep,
+        },
+      })
+      .catch((err) => console.error("Horse upkeep audit log failed:", err));
   }
 
   // Hunger upkeep runs after the sweep, so a Hunger granted last close is
@@ -1016,6 +1097,7 @@ async function resolveNeeds(turn, config) {
     dyingDeathWarnings,
     nukeDeaths,
     nukeBroadcast,
+    ascensionBroadcast,
     gameEndedPost,
     birdNotices,
     carryDrops,
@@ -1047,7 +1129,7 @@ async function getConfig() {
 // Resolves the OPEN turn and opens the next, alternating DAWN/DUSK. Shared
 // by the bot's cron advance and the GM "End Turn" action. Discord side
 // effects are returned as a `runSideEffects()` thunk rather than run here —
-// the Dawn wipe can take minutes, so a caller awaits it only where safe
+// the message wipe can take minutes, so a caller awaits it only where safe
 // (the bot's cron inline; the web action via next/server's after()).
 //
 // Returns { advanced, previousTurn, newTurn, note, runSideEffects }.
@@ -1090,6 +1172,7 @@ async function advanceTurn() {
   let dyingDeaths = [];
   let nukeDeaths = [];
   let nukeBroadcast = null;
+  let ascensionBroadcast = null;
   let gameEndedPost = null;
   let dyingDeathWarnings = [];
   let birdNotices = [];
@@ -1134,6 +1217,7 @@ async function advanceTurn() {
       dyingDeathWarnings,
       nukeDeaths,
       nukeBroadcast,
+      ascensionBroadcast,
       gameEndedPost,
       birdNotices,
       carryDrops,
@@ -1222,6 +1306,7 @@ async function advanceTurn() {
         dyingDeathWarnings,
         nukeDeaths,
         nukeBroadcast,
+        ascensionBroadcast,
         gameEndedPost,
         birdNotices,
         carryDrops,
@@ -1301,8 +1386,8 @@ async function advanceTurn() {
   // that talks to Discord; every resolveNeeds() pass hands back posts/DMs
   // instead of sending them.
   const runSideEffects = async () => {
-    // Cutoff for the Dawn wipe below, taken before the first Discord call so
-    // nothing posted by this thunk gets swept. See db/lib/dawnWipe.js.
+    // Cutoff for the message wipe below, taken before the first Discord call so
+    // nothing posted by this thunk gets swept. See db/lib/messageWipe.js.
     const sideEffectsStartedAt = Date.now();
 
     for (const dm of autoLaborDms) {
@@ -1633,6 +1718,16 @@ async function advanceTurn() {
       console.log(`Nuke broadcast: ${sent} zones, ${failed.length} failed.`);
     }
 
+    // The hellfire, same fan-out, no @everyone: the town was warned two turns
+    // ago and that was the message worth waking somebody for.
+    if (ascensionBroadcast) {
+      const { sent, failed } = await broadcastToZones(prisma, ascensionBroadcast.content).catch((err) => {
+        console.error("Ascension broadcast failed:", err);
+        return { sent: 0, failed: [] };
+      });
+      console.log(`Ascension broadcast: ${sent} zones, ${failed.length} failed.`);
+    }
+
     // The reveal, after the sky and before anything else — the game is over.
     if (gameEndedPost) {
       await postGameEnded(prisma, gameEndedPost).catch((err) => console.error("Game Ended post failed:", err));
@@ -1727,7 +1822,13 @@ async function advanceTurn() {
       console.error("Failed to post turn announcement:", err),
     );
 
-    if (newTurn.phase === "DAWN" && config.messageWipeEnabled) {
+    // The wipe runs on EVERY turn now. A turn is one real day, and Dawn/Dusk
+    // alternate, so the old Dawn gate meant a Room scene ran for 48 hours.
+    // Only the zone summaries keep that slower life — CHANNELS.md §8.
+    // `messageWipeEnabled` is no longer a GM knob; the column stays as a
+    // hand-flippable escape hatch if Discord starts rate-limiting.
+    if (config.messageWipeEnabled) {
+      const wipeSummaries = newTurn.phase === "DAWN";
       // The web's half of the same wipe, and it goes FIRST: the watermark is
       // the newest row as the pass begins, which is the same instant
       // `cutoffMs` names on the Discord side. Taking it afterwards would put
@@ -1735,18 +1836,20 @@ async function advanceTurn() {
       // Discord's view and hidden from the Hall's, for no reason but that the
       // sweep was slow. See db/lib/feedWipe.js and HALL.md §7.
       const { markFeedWiped } = require("./lib/feedWipe");
-      await markFeedWiped(prisma);
-      await runDawnWipe(prisma, { cutoffMs: sideEffectsStartedAt }).catch(
-        (err) => console.error("Dawn message wipe failed:", err),
+      await markFeedWiped(prisma, { summaries: wipeSummaries });
+      await runMessageWipe(prisma, { cutoffMs: sideEffectsStartedAt, wipeSummaries }).catch(
+        (err) => console.error("Message wipe failed:", err),
       );
     }
 
-    if (config.autoReconcileEnabled) {
-      const { runChannelDoctor } = require("./lib/channelDoctor");
-      await runChannelDoctor(prisma, { apply: true, scope: "cheap" }).catch(
-        (err) => console.error("Post-turn channel doctor failed:", err),
-      );
-    }
+    // The channel doctor's cheap reconcile — roles and membership only, a
+    // handful of requests. It used to sit behind autoReconcileEnabled, a
+    // switch nobody ever turned on; keeping Discord in step with the database
+    // after a turn moves people around is not a thing to opt into.
+    const { runChannelDoctor } = require("./lib/channelDoctor");
+    await runChannelDoctor(prisma, { apply: true, scope: "cheap" }).catch(
+      (err) => console.error("Post-turn channel doctor failed:", err),
+    );
   };
 
   return {

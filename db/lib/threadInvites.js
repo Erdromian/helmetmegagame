@@ -29,7 +29,7 @@ async function applyPendingInvites(prisma, character) {
     select: { id: true, threadId: true },
   });
 
-  // The "web only" switch (docs/systemdocs/HALL.md §6) keeps this account out
+  // The "web only" switch (docs/systemdocs/CHAT.md §6) keeps this account out
   // of every channel, so the Discord add below is skipped — but the membership
   // row is still written and the INVITE ROW IS LEFT WHERE IT IS, because the
   // invite is what replays the add on the day they come back off the switch.
@@ -47,7 +47,7 @@ async function applyPendingInvites(prisma, character) {
   let applied = 0;
   for (const { id, threadId } of threads) {
     // The ROW first, then the account. Membership is a database fact since
-    // phase 2 of the Hall and Discord's thread-member list is its projection
+    // phase 2 of Chat and Discord's thread-member list is its projection
     // (db/lib/conversations.js), so a Discord call that fails must not be
     // what decides whether the web feed shows the conversation.
     await addConversationMember(prisma, { playerThreadId: id, characterId: character.id });

@@ -32,8 +32,8 @@ const KIND_LABELS = {
   page: "Page",
   // A player's own two: everywhere they can hear, and everyone standing
   // beside them. Both land on /play with the place in the hash.
-  place: "Place ‡",
-  person: "Here ‡",
+  place: "Place",
+  person: "Here",
 };
 
 // Beyond this the list stops being scannable and starts being a database
@@ -106,9 +106,9 @@ export default function CommandPalette() {
       if (!entry) return;
       close();
       // A place or a person lands on /play with the place in the HASH, and
-      // the Hall reads that hash through a hashchange listener (HALL.md §5).
+      // Chat reads that hash through a hashchange listener (CHAT.md §5).
       // router.push uses history.pushState, which does not fire one — so
-      // from the Hall itself, jumping to another place has to move the hash
+      // from Chat itself, jumping to another place has to move the hash
       // directly or nothing happens at all.
       const [path, hash] = entry.href.split("#");
       if (hash && typeof window !== "undefined" && window.location.pathname === path) {

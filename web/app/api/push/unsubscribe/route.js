@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request) {
   const session = await auth();
-  if (!session?.discordUserId) return Response.json({ error: "Sign in first. ‡" }, { status: 401 });
+  if (!session?.discordUserId) return Response.json({ error: "Sign in first." }, { status: 401 });
 
   let body;
   try {
@@ -20,7 +20,7 @@ export async function POST(request) {
   }
 
   const endpoint = typeof body?.endpoint === "string" ? body.endpoint : "";
-  if (!endpoint) return Response.json({ error: "Which browser? ‡" }, { status: 400 });
+  if (!endpoint) return Response.json({ error: "Which browser?" }, { status: 400 });
 
   await prisma.pushSubscription.deleteMany({
     where: { endpoint, discordUserId: session.discordUserId },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import ChatMarkdown from "@/app/components/ChatMarkdown";
+import PaperSheet from "@/app/components/PaperSheet";
 import FormError from "@/app/components/FormError";
 import Modal from "@/app/components/Modal";
 import useActionRunner from "@/app/components/useActionRunner";
@@ -27,14 +27,18 @@ import { readBoard, readNotice, tearNotice } from "./actions";
 //             paper is sealed. `text` is the refusal, and it is the SAME
 //             refusal in every one of those cases, so nobody watching learns
 //             which it was. Rendered as flat text.
-//   otherwise the words on the paper, through ChatMarkdown like every other
-//             string in this page that a person wrote.
+//   otherwise the words on the paper, drawn as a sheet.
+//
+// Both go through PaperSheet, which is the one renderer for paper on the web;
+// `reading.paper` is the server's shape and the flat `text`/`plain` pair is
+// only a fallback for a stale tab that fetched before the shape existed.
 export function NoticeText({ reading, showName = true }) {
   if (!reading?.ok) return null;
+  const paper = reading.paper ?? { kind: null, text: reading.text, plain: Boolean(reading.plain) };
   return (
     <div className="field">
       {showName && <span className="field-label">{reading.name}</span>}
-      {reading.plain ? <p className="text-sm">{reading.text}</p> : <ChatMarkdown content={reading.text} />}
+      <PaperSheet paper={paper} />
     </div>
   );
 }
@@ -62,18 +66,18 @@ export default function NoticeCards({ version = 0, onChanged }) {
   if (notices.length === 0) return null;
 
   return (
-    <div className="hall-notices">
+    <div className="chat-notices">
       {notices.map((notice) => (
-        <div key={notice.id} className="hall-notice-card">
-          <p className="hall-notice-card-title">{notice.name}</p>
-          <div className="hall-buttons">
+        <div key={notice.id} className="chat-notice-card">
+          <p className="chat-notice-card-title">{notice.name}</p>
+          <div className="chat-buttons">
             <button
               type="button"
               className="btn-quiet"
               disabled={pending}
               onClick={() => run(readNotice, notice.id, { onOk: setReading })}
             >
-              Read ‡
+              Read
             </button>
             <button
               type="button"
@@ -82,9 +86,9 @@ export default function NoticeCards({ version = 0, onChanged }) {
               onClick={async () => {
                 if (
                   !(await confirm({
-                    title: "Take it down? ‡",
+                    title: "Take it down?",
                     message: `${notice.name} comes off the board and into your hands. ‡`,
-                    confirmLabel: "Tear it down ‡",
+                    confirmLabel: "Tear it down",
                   }))
                 ) {
                   return;
@@ -96,7 +100,7 @@ export default function NoticeCards({ version = 0, onChanged }) {
                 });
               }}
             >
-              Tear ‡
+              Tear
             </button>
           </div>
         </div>

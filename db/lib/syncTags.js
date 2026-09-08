@@ -187,7 +187,7 @@ function sealDescription(entry) {
   const office = entry.sealOffice?.trim();
   if (!mark && !office) return null;
   const opening = office ? `The ${office}'s wax stamp.` : "A wax stamp for sealing letters.";
-  return mark ? `${opening} ${mark} ‡` : `${opening} Nobody has pressed it yet. ‡`;
+  return mark ? `${opening} ${mark}` : `${opening} Nobody has pressed it yet.`;
 }
 
 function requireDocsPath(...segments) {

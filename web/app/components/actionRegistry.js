@@ -24,6 +24,7 @@
 import {
   HammerIcon,
   TortureIcon,
+  ShearsIcon,
   TrashIcon,
   HandOffIcon,
   MealIcon,
@@ -44,15 +45,11 @@ import {
   CrateIcon,
   QuillIcon,
   SealIcon,
-  BookIcon,
   CharacterIcon,
   SkullIcon,
 } from "./icons";
 
 export const ACTION_HELP = {
-  craft:
-    "Make something from a recipe you know. The ⬢ are charged now, your Move is filed for you, and a long job comes back here to continue.",
-  destroy: "Throw away something you're holding.",
   examine:
     "Look at someone.",
   heal: "Heal yourself or someone nearby. Gated by your Medical skill.",
@@ -60,41 +57,23 @@ export const ACTION_HELP = {
     "Use something up. You can also just click on the tag on your sheet.",
   poison:
     "Lace a meal or drink you're holding, dose someone helpless standing here, or drink it yourself. You can also just click on the poison on your sheet. ‡",
-  transfer: (
-    <>
-      <p>
-        Hand over things and ⬢, or stash them in a room and pick them up later.
-      </p>
-      <p>
-        <strong>To a person</strong> They have to be standing where you are. You
-        can&apos;t take from a person &mdash; that&apos;s Loot.
-      </p>
-      <p>
-        <strong>To or from a room</strong> Be standing in it. Anyone who can get
-        in can take what&apos;s there.
-      </p>
-    </>
-  ),
   learn:
-    "Ask someone here who can teach to show you a skill. If they accept, it's your Gambit for the turn — a 5 or 6 and it's yours.",
+    "Learning a skill is a Gambit. It succeeds on a 5 or a 6. It also takes the teacher's turn.",
   teach:
-    "Offer to teach someone here a skill you have. It's your Routine for the turn once they accept.",
+    "Offer to teach a skill. The learner succeeds on a 5 or a 6. It takes your turn too.",
   confess:
-    "Unburden yourself to a chaplain standing here. They only see that you asked, never what about. If they accept, it's your Gambit for the turn — a 5 or 6 and it's off you.",
-  loot: "Search someone, or the room you're standing in. A person has to be a body, or Bound, Dying, Paralyzed or Catatonic; a room only needs you to be able to get in.",
-  move: "Forcibly move someone with the Bound tag, from where you stand to somewhere next door. Use this before moving yourself. If you're a Leader, you can also move people within your own faction. It does not spend their turn. Bodies can be dragged by anyone.",
-  bind: "Tie someone up. They have to agree — unless they're already helpless. Once they're Bound you can loot them or march them somewhere.",
-  free: "Cut someone loose.",
+    "Confessing a tag is a Gambit. It succeeds on a 5 or a 6. It also takes the confessor's turn.",
+  move: "Forcibly move an incapacitated or Bound person. If you're a Leader, you can also move people within your own faction.",
+  bind: "Tie someone up. Bound people can be looted or forcefully moved.",
   crucify:
     "Put someone standing here on the cross. It needs a Cross built where you stand, and it doesn't spend your Move. They hang there unable to act, and in a turn they are Dying.",
   harm: "Further injure someone who is bound or incapacitated.",
   torture:
     "You can torture people, revealing all their tags on a 4 or higher. Brave or Craven characters will break on different timelines. ‡",
-  butcher:
-    "Cut up the body of someone you're carrying, or one lying in a room you can get into from here. Costs nothing, takes no time, and the body is gone afterwards. It does not free their soul.",
-  bury: "Put a body in the ground. You have to be holding their corpse, or be somewhere you can reach it. Takes your turn. Allows their soul to respawn.",
-  engrave:
-    "Memorialize someone's name, in case you can't find their body. Frees their soul to respawn.",
+  mutilate:
+    "Cut a piece off somebody tied up here, or off a body you can reach. One piece each time, and it costs you nothing. The piece is yours to keep. ‡",
+  bury: "Bury someone. Removes the player's Cursed status.",
+  engrave: "Memorialize someone's name. Removes the player's Cursed status.",
   disguise:
     "Put on a false name and face for 3 turns. Nobody sees who you are — not your name, not your portrait — and you cannot conceal yourself on top of it. The kit is not used up.",
   pointer:
@@ -108,13 +87,12 @@ export const ACTION_HELP = {
   package:
     "Pack up to 150 lb of what you're carrying into one crate. The crate weighs half what went into it, and you write the line on the side yourself. Anyone holding it can open it again.",
   bird: "Send a letter you're holding to someone, by bird. You have to guess their zone — guess wrong and the bird comes back with it still on.",
-  write:
-    "Put words on a sheet of paper. More can be added later, but nothing can be taken away.",
-  seal: "Close a letter with your wax seal. The stamp isn't used up.",
-  bindbook:
-    "Bind ten blank sheets into a book and write it in one pass. A bound book can never be added to.",
-  tearbook:
-    "Pull a book apart for its paper. You get ten blank sheets back and the words are gone.",
+  seal: "Close a letter with your wax seal.",
+  // The Thanati's three, Bascinet's words verbatim (docs/systemdocs/THANATI.md).
+  // Purchase Gear carries none on purpose.
+  recall: "Remember the other Thanati cultists in Ravenheart.",
+  recover: "Recover your mask and robes from where you left them.",
+  hideout: "Set your hideout room, determining where you can purchase things from.",
 };
 
 export const ACTION_SECTIONS = [
@@ -220,9 +198,30 @@ export const ACTION_SECTIONS = [
       },
     ],
   },
+  // THE THANATI (docs/systemdocs/THANATI.md). Every row HIDES rather than
+  // greys — whether you are a cultist, or its leader, is your own sheet's
+  // fact, and a dead row on everybody else's would only teach them the cult
+  // exists. Purchase Gear then GREYS on whether you are standing at the
+  // hideout's Location, which is your own ground.
+  {
+    key: "thanati",
+    label: "THANATI",
+    actions: [
+      { mode: "recall", icon: SpeakerIcon, label: "Recall Comrades", show: "isThanati" },
+      { mode: "recover", icon: CharacterIcon, label: "Recover Equipment", show: "isThanati" },
+      { mode: "hideout", icon: KeyIcon, label: "Set Hideout", show: "isThanatiLeader" },
+      {
+        mode: "purchase",
+        icon: CrateIcon,
+        label: "Purchase Gear",
+        show: "isThanati",
+        gate: "atHideout",
+      },
+    ],
+  },
   {
     key: "others",
-    label: "People here",
+    label: "Others",
     actions: [
       // The gate is on your EYES, never on who is standing near you — the
       // rule at the top of this file forbids the second and says nothing
@@ -246,20 +245,25 @@ export const ACTION_SECTIONS = [
       // HIDDEN on the same rule: whether YOU are a Torturer is your own fact.
       // Who here is tied up is the dialog's answer, never the button's.
       { mode: "torture", icon: TortureIcon, label: "Torture", show: "canTorture" },
+      // HIDDEN on the same rule again, and on three tags rather than one:
+      // Cruel, Torturer or Thanati. Which of them you hold is your own fact.
+      // Who here is tied up, and whose body is lying about, is the dialog's
+      // answer — never the button's.
+      {
+        mode: "mutilate",
+        icon: ShearsIcon,
+        label: "Mutilate",
+        show: "canMutilate",
+      },
       { mode: "harm", icon: WoundIcon, label: "Harm" },
-      { mode: "move", icon: MapIcon, label: "Move Player" },
-    ],
-  },
-  {
-    // The three body actions, together and out of "People here": a corpse is
-    // an object lying in a room, not a person standing next to you, and
-    // Butcher works on a Nekker as readily as on somebody's uncle.
-    key: "dead",
-    label: "The dead",
-    actions: [
-      // Greys only on whether YOU hold the Butcher tag — a fact about your own
-      // sheet, which the metagaming rule above allows. Never on whether
-      // there's a body nearby; you find that out by opening the dialog.
+      // The three body actions used to sit in a section of their own, on the
+      // argument that a corpse is an object rather than somebody standing
+      // next to you. Two headings for one column of icons was the worse half
+      // of that trade, so they live here now.
+      //
+      // Butcher greys only on whether YOU hold the Butcher tag — a fact about
+      // your own sheet, which the metagaming rule above allows. Never on
+      // whether there's a body nearby; you find that out by opening it.
       {
         mode: "butcher",
         icon: CleaverIcon,
@@ -275,7 +279,7 @@ export const ACTION_SECTIONS = [
   },
   {
     key: "letters",
-    label: "Letters",
+    label: "Paper",
     actions: [
       // Both HIDE on literacy rather than greying, the same reasoning the
       // Factory verbs give: an eternally dead Write button would teach a
@@ -298,22 +302,6 @@ export const ACTION_SECTIONS = [
         show: "hasSeal",
         gate: "canSeal",
       },
-      // Binding hides on literacy like Write, for the same reason. Tearing one
-      // up does not: it needs no letters, and the button only appears at all
-      // once you are holding a book.
-      {
-        mode: "bindbook",
-        icon: BookIcon,
-        label: "Bind a Book",
-        show: "canRead",
-        gate: "canBindBook",
-      },
-      {
-        mode: "tearbook",
-        icon: TrashIcon,
-        label: "Tear Up a Book",
-        show: "hasBook",
-      },
       {
         mode: "bird",
         icon: BirdIcon,
@@ -334,6 +322,3 @@ export function titleFor(mode) {
   return BY_MODE.get(mode)?.label ?? "Request";
 }
 
-export function helpFor(mode) {
-  return ACTION_HELP[mode] ?? null;
-}

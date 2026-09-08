@@ -1,7 +1,8 @@
 # Torture
 
-The Torture button, the die behind it, what a broken person gives up, and the
-Torturing Equipment kit. Read this before touching `db/lib/torture.js`, the
+The Torture button, the die behind it, what a broken person gives up, the
+Torturing Equipment kit, and the Mutilate button beside it. Read this before
+touching `db/lib/torture.js`, `db/lib/mutilate.js`, the
 `torturer` tag, the `TORTURED` fear event, or anything that decides who breaks
 under questioning.
 
@@ -137,7 +138,127 @@ no forge, and no ladder tier. `craftFamily()` reads it as `torturer` work.
 `cathedral-order-chambers`, a stash floor). Anyone with an Order Key stands
 within reach of it; anyone can carry it off.
 
-## 6. Where the code lives
+## 6. Mutilate
+
+The other thing you can do to somebody tied up, shipped 2026-09-07. Torture
+takes what they know; **Mutilate** takes a piece of them.
+
+**The gate is three tags, any one of them**: `cruel`, `torturer` or `thanati`
+(`MUTILATE_GATE_SLUGS`). There is no single "would cut pieces off a person"
+tag — Cruel is the personality, Torturer is the trade, and the Thanati are the
+ones who want the pieces — and demanding all three would have made it a button
+almost nobody could press. **Hidden, not greyed**, the same rule Torture and
+Crucify follow: which of the three you hold is your own sheet.
+
+**It is free.** No ⬢, no Move, no turn — the one action here that costs
+nothing at all, and it has to be, because one press takes exactly one piece.
+Want the other eye, press it again.
+
+**Two subjects, one button.** A living person has to be **Bound** and standing
+here, exactly as Torture requires; a corpse has to be one you hold or can reach
+into a Room for, exactly as Butcher requires. Both branches come out as one
+`Character` row to injure — a corpse is a handle to a dead sheet
+(`CORPSES.md` §1), so a body's tags work like a living person's.
+**Monster corpses are refused**: there is no sheet behind one.
+
+**It does not consume the body.** Butcher does, and that is the difference
+between the two verbs — butchering is the whole corpse at once, mutilating is
+picking at one. A GM repairing a mistake still has a body to look at.
+
+### The ladder
+
+`db/lib/mutilate.js` — pure, prisma-free, off the barrel, and the same table
+the dialog and the server action both read, so the menu and the gate can never
+disagree. Each part is a ladder of at most two rungs, and the second press
+**replaces** the first rung rather than stacking on it.
+
+| Part | 1st press | 2nd press | 3rd |
+|---|---|---|---|
+| Eye | `missing-eye` | `blind` | refused |
+| Tongue | `mute` | — | refused |
+| Hand | `missing-fingers` | `missing-arm` | refused |
+| Foot | `missing-leg` | `cripple` | refused |
+| Stomach | `missing-stomach`, **kills** | — | refused |
+| Heart | `missing-heart`, **kills** | — | refused |
+
+`resolveMutilation` walks the ladder from the **top down**, not the bottom up.
+A sheet can carry both rungs — Blind bought at creation on top of a Missing Eye
+a GM granted — and counting upward would read that as the first rung and take a
+third eye. Tested in `db/test/mutilate.test.js`.
+
+Nine of those slugs already existed; `cripple`, `missing-stomach` and
+`missing-heart` are new, permanent (`purchasable: false`, no `healable` block)
+and come off only from `/gm/dev`.
+
+**The two organs kill only somebody still using them.** A corpse takes the tag
+and stays dead — no second death, no second death DM. A living victim goes
+through `killCharacter`, the one death path, so nothing sends two.
+
+### What the actor gets
+
+Every press, whatever rung it landed on, drops one item on the actor's sheet:
+Eyeball, Tongue, Hand, Foot, Stomach, Heart — six tags in the
+**`items-remains`** group.
+
+**The station buys them, and the prices are small on purpose.** They started
+unpriced, on the argument that mutilating is free and every death mints a body,
+so a part the Depot bought would be a ⬢ faucet hanging off a free action. That
+argument was right about the shape and the answer is the number rather than a
+refusal: what matters is the LADDER, not one press. `MUTILATE_PARTS` takes nine
+pieces off one subject — two eyes, two hands, two feet, tongue, stomach, heart —
+so a whole body is 49 ⬢ at 8/8/5/4/4/3, against 30–42 ⬢ for a specialised day's
+labour. Butchering a prisoner is worth about a day of honest work, which is the
+line it should sit on. The first pass priced it at 94 ⬢, nearly three days, and
+that is the mistake to avoid if these are ever retuned: price the ladder, never
+the piece. They stay `tradeable` too, so the market between players is still the
+livelier one.
+
+The group is deliberately **not `items-corpse`**. That slug is
+`CORPSE_GROUP_SLUG`, what `db/lib/corpses.js#isCorpseTag` matches on, so an eye
+filed there would answer a `group: items-corpse` recipe ingredient and turn up
+in the Butcher and Bury pickers.
+
+The rites eat them now (`THANATI.md` §9): Reanimation and Panic take a heart,
+Judgement takes a heart and two eyes. That is why the eye and the heart are the
+two dear ones — a cultist and the Merchant want the same organs.
+
+### What it does to the victim
+
+**Fear +50**, kind `MUTILATED`, on a living subject only — a corpse feels
+nothing, and `applyFear` on a dead row would move a dial nobody reads. There
+are no ×0 rows for it: `pain-immunity` and `opium-high` zero `TORTURED` on
+purpose, and losing a hand is not a question of pain tolerance.
+
+**The DM** is unattributed like every other request that acts on someone else —
+*"Somebody cut off your hand."*, or *"Somebody has been cutting pieces off your
+body."* to a dead player whose corpse someone is picking at. A body taken from
+a Room stash also posts a line in the room, said vaguely: the room learns a
+body was cut, not what came off it.
+
+### The dialog
+
+Two dropdowns, no helper text, no yield preview. **The part list is
+unfiltered** — narrowing it to the rungs a subject has left would answer "what
+are they already missing?" to anybody who opened the dialog. You find out by
+trying, and the server refuses with `There's no eye left to take.`
+
+The subject dropdown holds two id spaces in one control (`person:` /
+`corpse:`), the way the Craft dialog splits `project:` from `site:`.
+
+### Where the code lives
+
+- `db/lib/mutilate.js` — `MUTILATE_PARTS`, `partFor`, `resolveMutilation`.
+- `db/lib/constants.js` — `MUTILATE_GATE_SLUGS`.
+- `db/lib/fear.js` — `EVENTS.MUTILATED`.
+- `web/app/(app)/character/requestActions.js#mutilateRequestImpl`.
+- `web/app/components/actionRegistry.js` (mode `mutilate`),
+  `RequestActionsProvider.js`, `character/page.js` (`canMutilate`),
+  `icons.js#ShearsIcon`.
+- `docs/tags.yaml` (the six part items, three new injuries), `docs/taggroups.yaml`
+  (`items-remains`).
+- `db/test/mutilate.test.js`.
+
+## 7. Where the code lives
 
 - `db/lib/torture.js` — thresholds, bonuses, `resolveTorture`, `revealedTags`,
   `formatTortureRoll`, `buildTortureEmbed`. Off the barrel; require by path.

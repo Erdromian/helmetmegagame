@@ -11,7 +11,7 @@ const { buildTurnAnnouncement } = require("../turnCalendar");
 const { clockFrozen, readGameState } = require("./gameState");
 const { TURNS_CONSOLE_ROW, CONSOLE_TEXT } = require("./turnsConsoleRow");
 const { docsPath } = require("./repoPaths");
-const { clearMessagesExcept } = require("./dawnWipe");
+const { clearMessagesExcept } = require("./discordRest");
 const { isTurnsChannel } = require("./turnsChannelAccess");
 const { TURN_BANNER_DIR, turnBannerPath } = require("./turnBanner");
 const { pushToUser, vapidPublicKey } = require("./webPush");
@@ -45,7 +45,7 @@ async function postTurnsAnnouncement(prisma, newTurn, note) {
 
   const [config, state] = await Promise.all([
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
-    readGameState(prisma, { nukeDetonatedTurn: true }),
+    readGameState(prisma, { nukeDetonatedTurn: true, ascensionFiredTurn: true }),
   ]);
   const sent = await postTurnsConsole(prisma, turnsChannel.id, text, newTurn, config, state);
   if (!sent) console.error("Turn announcement: nothing could be posted to #turns");
@@ -82,7 +82,7 @@ async function pushTurnOpen(prisma, text) {
   for (const player of players) {
     if (!player.discordUserId) continue;
     await pushToUser(prisma, player.discordUserId, {
-      title: "The turn has opened ‡",
+      title: "The turn has opened",
       body: firstLine,
       url: "/play",
     }).catch(() => {});
@@ -132,7 +132,7 @@ async function postTurnsConsole(prisma, channelId, text, turn, config, state = n
     });
     // Sweep anything else that landed in #turns since the last turn — a
     // stray GM message, an orphaned console from before a config reset.
-    // #turns is not in SPECIAL_CHANNELS, so the Dawn wipe never reaches it;
+    // #turns is not in SPECIAL_CHANNELS, so the message wipe never reaches it;
     // this is that channel's only cleanup, and it runs every turn, not just
     // at Dawn. Best-effort: a sweep failure must not cost the turn
     // announcement that already went out.

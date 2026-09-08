@@ -14,6 +14,15 @@ const nextConfig = {
   // permanent: false (307) on purpose: a 308 is cached by the browser more or
   // less forever, and this is an internal tool with no SEO to protect and a
   // real chance of another reshuffle.
+  // The frozen page snapshots under public/ux (scripts/dev/snapshot-site.mjs)
+  // are plain files, so /ux/<dir>/ normalizes to /ux/<dir> and then 404s —
+  // there is no such file. Design tools get handed the bare directory, so
+  // serve its index. The snapshot's own <base> tag keeps the sibling links
+  // resolving from either form of the URL.
+  async rewrites() {
+    return [{ source: "/ux/:dir", destination: "/ux/:dir/index.html" }];
+  },
+
   async redirects() {
     return [
       { source: "/gm/messages", destination: "/gm/players", permanent: false },

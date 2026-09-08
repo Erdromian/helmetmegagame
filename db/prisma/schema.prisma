@@ -228,27 +228,28 @@ model GameConfig {
   // dial. Live on /gm/dev.
   fearIntensity Float @default(1)
 
-  // Gates the whole Dawn message-wipe system (db/lib/dawnWipe.js) — off by
-  // default so nothing gets swept until a GM explicitly opts in from the
-  // Dev Panel.
-  messageWipeEnabled Boolean @default(false)
+  // The message wipe (db/lib/messageWipe.js). NOT a GM knob any more — the
+  // wipe is how the game works, so it is on and it stays on. The column
+  // survives as a hand-flippable escape hatch: set it false straight in the
+  // database if Discord ever starts rate-limiting the sweep.
+  messageWipeEnabled Boolean @default(true)
 
   // The web half of the same wipe (docs/systemdocs/HALL.md §7). Discord loses
   // its messages; the Hall keeps its rows and reads past them instead — every
-  // feed query filters `seq > feedWipeSeq` while messageWipeEnabled is on.
-  // Set by db/lib/feedWipe.js#markFeedWiped as the Dawn pass begins.
-  feedWipeSeq BigInt @default(0)
+  // feed query filters `seq > <floor>` while messageWipeEnabled is on.
+  //
+  // TWO watermarks, because the wipe has two cadences. `feedWipeSeq` moves on
+  // every turn and floors loc:/room:/conv: places; `feedWipeSummarySeq` moves
+  // only on a Dawn and floors zone: places, matching what the Discord sweep
+  // actually clears. Both set by db/lib/feedWipe.js#markFeedWiped as the pass
+  // begins.
+  feedWipeSeq        BigInt @default(0)
+  feedWipeSummarySeq BigInt @default(0)
 
   // How long a character waits between two walks from one Location to
   // another inside the same zone (db/lib/locationTravel.js). Edited on
   // /gm/dev. Crossing into another zone is gated by the Move, not by this.
   locationMoveCooldownSeconds Int @default(60)
-
-  // How long a character waits between two flips of the "web only" switch
-  // (db/lib/webOnly.js). Each flip is a burst of Discord writes — every
-  // overwrite, every role, every thread — so the cooldown is hours, not
-  // seconds. Two by default.
-  webOnlyCooldownSeconds Int @default(7200)
 
   // Capitalizes the first letter of each sentence in Tupper-proxied messages
   // before they're reposted (bot/src/lib/textCorrection.js) — on by default,
@@ -265,6 +266,12 @@ model GameConfig {
   // what drowns the transcript at 100+ players (two rows per character per
   // turn before anyone says a word).
   archiveTravelEvents Boolean @default(false)
+
+  // The Hall (docs/systemdocs/HALL.md §5). Off, /play bounces to /character,
+  // the rail drops Play, ⌘K stops offering places and people, and the "Play
+  // from the web" switch is neither drawn nor honoured. The feed API stays up
+  // either way: the GM desk's Scene tab streams from it.
+  playPanelEnabled Boolean @default(true)
 
   // The anchor message in #turns carrying the Travel / Move / Speak buttons
   // (see bot/src/lib/turnsConsole.js) — same tracked-message pattern as
@@ -352,7 +359,7 @@ model GameConfig {
   // arrives anyway — everyone falls through to their letter plaque (see
   // "Character proxying" in CLAUDE.md). Existing Character.avatarData is
   // untouched either way; this only gates new uploads. Deliberately off by
-  // default, same posture as messageWipeEnabled.
+  // default.
   avatarUploadsEnabled Boolean @default(false)
 
   // Master switch for the in-app portrait maker (docs/systemdocs/PORTRAITS.md).
@@ -427,7 +434,7 @@ model GameConfig {
   // Whole turns a Desire slot stays shut after a Desire is claimed into it.
   // A claim on turn N leaves the slot shut on N and open again on
   // N + desireSlotLockTurns + 1 (db/lib/desireGates.js#slotStates).
-  desireSlotLockTurns Int @default(2)
+  desireSlotLockTurns Int @default(1)
 
   // Expected total number of players, the denominator for every role's seat
   // cap: a role with `weight: 6` in docs/roles.yaml gets
@@ -439,21 +446,21 @@ model GameConfig {
   // makes a role in the YAML unpickable.
   playerCount Int @default(80)
 
-  // The narrowcast channels (#cerberon, #intercom) live under a
-  // shared Discord "radio" category — see db/lib/specialChannels.js.
-  // Provisioned once by npm run db:sync-narrowcast-channels; never touched
-  // again after that.
+  // The narrowcast channel (#cerberon) lives under a shared Discord "radio"
+  // category — see db/lib/specialChannels.js. Provisioned once by
+  // npm run db:sync-narrowcast-channels; never touched again after that.
+  // #intercom used to be the second one; it is a button on the Council Room
+  // table now, so its column is gone with it.
   radioCategoryId   String?
   cerberonChannelId String?
-  intercomChannelId String?
 
   // The Catatonic (AFK) pass (db/lib/catatonicPass.js): any ALIVE character
   // with no player-filed Action and no in-character speech for
   // catatonicTurns turns straight is flagged; the flag lifts the moment they
   // act or speak again. On by default — this doesn't delete anything, it
-  // just marks the sheet for a GM to see.
-  catatonicEnabled Boolean @default(true)
-  catatonicTurns   Int     @default(4)
+  // just marks the sheet for a GM to see, and it always runs — the turn
+  // count below is the dial, not an on/off switch.
+  catatonicTurns Int @default(4)
 
   // Consecutive turns holding `catatonic-afk` before
   // db/lib/catatonicDeathPass.js kills the character outright at turn close. This is the ONE thing in the
@@ -468,19 +475,6 @@ model GameConfig {
   // See docs/systemdocs/PAPERWORK.md.
   noticeExpiryTurns Int @default(10)
 
-  // Whether the bot runs the channel doctor's cheap reconciliation pass
-  // (db/lib/channelDoctor.js) automatically after every turn advance, on top
-  // of its pass at ready. Off by default.
-  autoReconcileEnabled Boolean @default(false)
-
-  // Master switch for players setting a NEW Desire on /character
-  // (docs/systemdocs/REQUESTS.md §5). Off greys the panel and shows
-  // "Temporarily disabled." in place of every slot, and blocks claimDesire
-  // server-side. GMs are unaffected: awardDesireGm/revokeDesireGm on the Dev
-  // Panel are host access, same split as the rest of the Discord permission
-  // model. On by default, since Desires are the only way Tag Points are
-  // earned in play.
-  desiresEnabled Boolean @default(true)
 }
 
 /// Where a game is in its life. The turn cron and the force-advance button
@@ -597,6 +591,46 @@ model GameState {
   // object, and two people taking turns on it would be the same noise either
   // way. Null means it has never been rung.
   bellRungAt DateTime?
+
+  // THE THANATI (docs/systemdocs/THANATI.md). Both per-game, both wiped for
+  // free because Restart Game recreates this row.
+  //
+  // `riteWords` is this game's Word of the Circle per rite — { [riteKey]:
+  // "word word" } — rolled lazily by db/lib/riteWords.js the first time
+  // anything asks (a chant, the Grimoire document, the GM panel). Null means
+  // not rolled yet. Hidden game state: only a Grimoire holder and the GM
+  // panel ever read it back.
+  riteWords Json?
+
+  // The cult's hideout: the Room the Thanati Leader chose with Set Hideout,
+  // where Purchase Gear spends from and drops to. A snapshot id rather than
+  // an FK — Rooms are recreated by db:sync-zones and a dangling pointer just
+  // reads as "no hideout" (db/lib/thanati.js#hideoutRoom).
+  thanatiHideoutRoomId String?
+
+  // THE RITE OF ASCENSION, which is the second way a game can end and the
+  // bomb's shape exactly (see nukeArmedTurn above for the reasoning — a
+  // countdown on a tag dies with its holder, and this one must not).
+  //
+  // `ascensionArmedTurn` is the absolute turn Ravenheart burns on, stamped by
+  // the rite as `openTurn + 2`. Null means nothing is coming.
+  ascensionArmedTurn Int?
+
+  // Set once, when it happens, and never cleared: what stops a resumed advance
+  // burning the world twice, and what pins the hellfire banner on for good
+  // (db/lib/turnBanner.js).
+  ascensionFiredTurn Int?
+
+  // The leader whose death is the only thing that calls it off. A snapshot id,
+  // no FK, the log-table convention — the row it points at may be deleted by a
+  // Restart, and a dangling pointer reads as "the leader is gone", which
+  // cancels, which is the safe direction.
+  ascensionLeaderCharacterId String?
+
+  // The Rite of Fulfillment pays out once per game. Claimed with a guarded
+  // write on this column, so two circles chanting at the same minute cannot
+  // both collect (db/lib/riteEffects.js).
+  fulfillmentFiredAt DateTime?
 }
 
 /// Where the shuttle is. AWAY is the resting state — it lives at the orbital
@@ -1134,7 +1168,7 @@ enum LinkAnnounce {
 }
 
 /// A thread under a Location's channel, sync-owned: the starter message is the
-/// room's description, the Dawn wipe empties the thread down to that starter,
+/// room's description, the message wipe empties the thread down to that starter,
 /// and nothing player-facing can create, delete or unwipe one. PUBLIC rooms
 /// are public threads; PRIVATE rooms are private threads whose membership is
 /// exactly "holds one of accessTagSlugs", reconciled by db/lib/roomAccess.js
@@ -1393,7 +1427,7 @@ model RoomGuest {
 }
 
 /// The outcome of a long-running operational pass that runs in after() or a
-/// side-effect thunk — Restart Game, the channel doctor, the Dawn wipe, a GM
+/// side-effect thunk — Restart Game, the channel doctor, the message wipe, a GM
 /// bulk move — where the UI has already returned "ok" long before the work
 /// finishes. The Dev Panel shows the latest report per kind instead of
 /// claiming a success it cannot know about. A row with finishedAt null is
@@ -1455,7 +1489,7 @@ model Character {
   // Denormalized mirror of formatCharacterName(...) above, same posture as
   // zoneId below. It exists because ~60 readers want a single string —
   // orderBy, `select: { name: true }`, the /gm/audit `contains` search, the
-  // proxy webhook username and the dawnWipe map key — and Prisma cannot
+  // proxy webhook username and the messageWipe map key — and Prisma cannot
   // concatenate columns in orderBy or contains, so dropping it would force
   // search and sort into OR-over-three-columns for correctness nobody sees.
   //
@@ -1521,6 +1555,28 @@ model Character {
   travelToLocationId String?
   travelTo           Location? @relation("CharacterTravelDestination", fields: [travelToLocationId], references: [id])
   travelTurnId       String?
+
+  // ESCORTING (docs/systemdocs/MAP.md §3a). Who this character is currently
+  // following: their party leader walks, and they walk too. One leader, so a
+  // column rather than a join table — the column IS the "you can only follow
+  // one person" rule, and nothing has to enforce it separately.
+  //
+  // The whole authority lives in db/lib/escort.js. A stale row is inert
+  // rather than dangerous: escortAuthority() returns null the moment the two
+  // are not standing in the same Location, so a GM teleport that leaves this
+  // set costs one poll of a wrong-looking panel and nothing else.
+  escortedById String?
+  escortedBy   Character?  @relation("Escort", fields: [escortedById], references: [id])
+  escorting    Character[] @relation("Escort")
+
+  // A standing agreement to be escorted, so a consented follower need not be
+  // asked again every time they are picked up. Stamped by acceptEscort on the
+  // RESPONDER's own row: who they said yes to, and the last turn NUMBER (not
+  // a turn id — the window is two turns of arithmetic) that yes still covers.
+  // One agreement at a time, which is the right rule: you cannot promise your
+  // feet to two people at once.
+  escortConsentToId      String?
+  escortConsentUntilTurn Int?
 
   // The conceal toggle (/conceal, or the switch on /character). While on,
   // every message proxies under the concealedAlias with the unknown avatar,
@@ -1683,7 +1739,8 @@ model Character {
   // the next pass would quietly put them back. The fiction is untouched: they
   // still stand there and still appear in Who's here.
   webOnly          Boolean   @default(false)
-  // Stamped on every flip, and the GameConfig.webOnlyCooldownSeconds clock.
+  // Stamped on every flip, and the WEB_ONLY_COOLDOWN_SECONDS clock in
+  // db/lib/webOnly.js.
   webOnlyChangedAt DateTime?
 
   // 18-90, or null until the player first sets one. Free to edit while null;
@@ -1731,7 +1788,6 @@ model Character {
   stagedMessageRecipients StagedMessageRecipient[]
   stagedEffects           StagedEffect[]
   cavingRolls             CavingRoll[]
-  gmNotes                 GmCharacterNote[]
   craftProjects           CraftProject[]
   roomGuestOf             RoomGuest[]
   noticePosts             NoticePost[]             @relation("NoticePostAuthor")
@@ -1745,6 +1801,8 @@ model Character {
   @@index([discordUserId])
   @@index([status])
   @@index([status, lastActivityTurn])
+  // The one query an escort party ever runs: everyone following this leader.
+  @@index([escortedById])
 }
 
 // Fresh or rotten. A player's corpse is written FRESH and turns ROTTEN three
@@ -1777,8 +1835,17 @@ enum PaperKind {
 // Location/docs/locations.yaml: removing a tag from the YAML never deletes
 // its row here.
 model Tag {
-  id          String  @id @default(cuid())
-  name        String  @unique
+  id String @id @default(cuid())
+
+  // NOT unique, deliberately. It was, and that is the only reason a written
+  // sheet used to be titled "A Note (XY-1234)": every new one needed a name no
+  // other tag had, so the code went in the title. Identity is `slug`, which is
+  // unique and always was, and every lookup in the game matches on it —
+  // Role.startingTagSlugs included, since db:sync-roles resolves the display
+  // names docs/roles.yaml authors. /gm/dev/tags still refuses a duplicate name
+  // when a GM types one, because two identically named HOMEBREW tags is a
+  // confusion worth stopping; two notes both called "A Note" is the point.
+  name        String
   slug        String  @unique
   description String?
   category    String
@@ -1827,6 +1894,13 @@ model Tag {
   // the wipe at all. A GM deleting one character gets the same for free.
   corpseOfCharacterId String?    @unique
   corpseOf            Character? @relation("CharacterCorpseTag", fields: [corpseOfCharacterId], references: [id], onDelete: Cascade)
+
+  // A photograph's subject (db/lib/photoMint.js): the character the camera
+  // was pointed at, so a rite that needs "a photograph of the target" can
+  // resolve one without parsing the name off the print. A snapshot id, no
+  // FK — the print outlives the person. Null on prints from before this
+  // column existed, which fall back to the name.
+  photoOfCharacterId String?
 
   // Whether other players who 🔍-react to this character's proxied messages
   // see this tag, alongside Character.appearance (see
@@ -3057,6 +3131,10 @@ enum DmDirection {
   OUTBOUND
 }
 
+// Every insert here fires a Postgres trigger, `DirectMessage_notify`, that
+// raises NOTIFY bascinet_dm (db/lib/dmNotify.js) — it lives only in migration
+// SQL (20260913060000_dm_notify), like the trgm indexes, and `prisma migrate
+// diff` never sees it. The Hall's Bascinet conversation listens (HALL.md §2b).
 model DirectMessage {
   id            String      @id @default(cuid())
   discordUserId String
@@ -3177,6 +3255,7 @@ enum OfferKind {
   LESSON
   BIND
   CONFESSION
+  ESCORT
 }
 
 enum OfferStatus {
@@ -3261,7 +3340,7 @@ model CraftProject {
   // record of the spend, what a GM repairing by hand reads. Null on a recipe
   // with no spent ingredient, and on every project filed before this column
   // existed.
-  consumed      Json?
+  consumed Json?
 
   // Pending custom-item fields (`{ name?, description? }`) for a customizable
   // recipe's multi-turn project — held here until the finishing turn, when
@@ -3671,7 +3750,7 @@ model Desire {
 // The game's transcript, and the backing store for /archive.
 //
 // Written at SEND time (db/lib/archive.js, called from the two proxy paths),
-// not reconstructed at Dawn. The old dawnWipe.js archived by reading messages
+// not reconstructed at the wipe. The old messageWipe.js archived by reading messages
 // back out of Discord and re-posting them into one #archive channel — ~850
 // sequential posts down a single ~1 msg/sec lane on a busy turn, which was the
 // most expensive thing the bot did and grew with player count. It also had to
@@ -3799,17 +3878,6 @@ model ArchiveEntry {
 // AuditLog) that store snapshot columns on purpose: a note is live data ABOUT
 // a character rather than a record of something that happened, and it has no
 // meaning once the character is gone.
-model GmCharacterNote {
-  id                  String    @id @default(cuid())
-  characterId         String
-  character           Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  authorDiscordUserId String
-  content             String
-  createdAt           DateTime  @default(now())
-
-  @@index([characterId, createdAt])
-}
-
 // A threat seat offered to somebody who has no character yet: the GM presses
 // SPAWN on /gm/dev?s=assignments, this row is written, and the target gets a
 // DM carrying Accept / Decline. Accepting creates the character
@@ -3862,6 +3930,115 @@ enum ThreatSpawnStatus {
   ACCEPTED
   DECLINED
   CANCELLED
+}
+
+// An antagonist party's win condition (docs/systemdocs/THREATS.md §6a). Set
+// by a superadmin on /gm/dev?s=antagonists, scored by db/lib/objectives.js,
+// printed in the end-of-game reveal. Restart Game deletes the table; the
+// reveal is snapshotted onto Game.epilogue first.
+model Objective {
+  id String @id @default(cuid())
+
+  // A party key from db/lib/threats.js — "thanati", "tribunal", or a solo
+  // seat's own slug. Code, not a table, same posture as ThreatSpawn.threatSlug.
+  partyKey String
+
+  // A key in db/lib/objectiveKinds.js.
+  kind String
+
+  weight ObjectiveWeight?
+
+  // Snapshot ids and names, not relations — the ArchiveEntry.characterId
+  // posture. The name is what the reveal reads; a relation would have meant
+  // editing Character and Location for nothing, since this table is wiped
+  // outright.
+  targetCharacterId  String?
+  targetName         String?
+  targetLocationId   String?
+  targetLocationName String?
+
+  // The number for "cause N deaths in a single day"; the text for a defaced
+  // icon, a stolen item or a custom objective.
+  value Int?
+  text  String?
+
+  // The GM's answer. A scripted kind: null lets the game decide. A manual
+  // kind: never null, the pin is its only answer.
+  pinned Boolean?
+
+  // The superadmin who added it. A Discord user id, as AuditLog.actorDiscordUserId.
+  createdBy String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ObjectiveWeight {
+  MINOR
+  MAJOR
+}
+
+/// A rite in progress: one per (rite, room) while cultists are chanting
+/// (docs/systemdocs/THANATI.md). Opened by the first counted chant
+/// (db/lib/riteChant.js), advanced to READY the moment the last requirement
+/// lands, fired by the bot's minute sweep (db/lib/riteSweep.js) once the
+/// grace window has run, expired when twelve hours pass without it. Rooms
+/// and characters are snapshot ids, not FKs — the table is wiped outright by
+/// Restart Game, and a room recreated by the zone sync must not cascade it.
+model RiteAttempt {
+  id String @id @default(cuid())
+
+  // A key in db/lib/rites.js.
+  riteKey String
+
+  roomId   String
+  roomName String
+
+  status RiteAttemptStatus @default(OPEN)
+
+  openedAt DateTime  @default(now())
+  readyAt  DateTime?
+  firesAt  DateTime?
+  firedAt  DateTime?
+
+  // Who was counted when it fired: [{ characterId, name }].
+  participants Json?
+  // What the effect did, for the GM panel and the audit trail.
+  result Json?
+
+  chants RiteChant[]
+
+  @@index([status])
+  @@index([riteKey, roomId, status])
+}
+
+enum RiteAttemptStatus {
+  OPEN
+  READY
+  // Fired, but waiting on a word from a participant — the Rite of Panic asks
+  // the room to name a zone (db/lib/riteEffects.js).
+  AWAITING
+  FIRED
+  EXPIRED
+  CANCELLED
+}
+
+/// One counted chant: a robed, Inspired speaker said the Word of the Circle
+/// in the attempt's room (or a Conversation linked to it). Several rows per
+/// chanter are normal; the sweep counts distinct characterIds.
+model RiteChant {
+  id String @id @default(cuid())
+
+  attemptId String
+  attempt   RiteAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  characterId   String
+  characterName String
+  // The ArchiveEntry.seq of the message, so a GM can find the line.
+  archiveSeq BigInt?
+  saidAt     DateTime @default(now())
+
+  @@index([attemptId])
 }
 
 // One browser that has agreed to be notified. Web Push is per-BROWSER, not

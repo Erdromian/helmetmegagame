@@ -105,7 +105,7 @@ async function addRoomGuest(prisma, { actor = null, roomId, characterId, gm = fa
 
   // The guest ROW above is the grant; thread membership is only Discord's copy
   // of it, and a "web only" character has no Discord copy of anything
-  // (HALL.md §6). Their record is left saying "not in the thread", which is
+  // (CHAT.md §6). Their record is left saying "not in the thread", which is
   // true, and the web feed shows them the room off the guest row regardless.
   if (!target.webOnly && target.discordUserId && room.discordThreadId) {
     try {
@@ -162,7 +162,7 @@ async function removeRoomGuest(prisma, { actor = null, roomId, characterId, gm =
     }
   }
 
-  return { ok: true, room, target, line: `${target.name} was shown out. ‡` };
+  return { ok: true, room, target, line: `${target.name} was shown out.` };
 }
 
 // Who is in a private room on a guest row. Key-holders are NOT in this list —

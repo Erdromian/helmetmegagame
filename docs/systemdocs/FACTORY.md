@@ -102,8 +102,8 @@ Room is the NORMAL case whenever the stash runs thin — the auto-labor pass
 resolves everyone against a single bulk snapshot, so all three pass the gate and
 only the first `dropRoomTag` wins. `applyRefinery` returns `{ empty: true }`
 rather than null for exactly this, so the other two get "nothing to refine — no
-Godflesh here" on their sheet and a `-#` line telling them why, instead of an
-Exhausted tag and silence.
+Godflesh here" on their sheet and a `-#` line telling them why, instead of a
+Tired or Exhausted tag (`LABORING.md` §4) and silence.
 
 **Why it lives in `MOVE_EFFECTS` and not in the pass.** `read` can only see the
 Action row, and whether a Labor was a *refining* one depends on where the
@@ -134,12 +134,16 @@ Up to **150 lb** of held goods, plus a line the packer types, become one runtime
 
 **The crate weighs half what went in**, rounded up, floor of 1. Depot shipments
 now use the same arithmetic — `CRATE_WEIGHT_LBS = 15` is gone, and a crate of
-obols no longer outweighs the obols.
+obols no longer outweighs the obols. `PACKAGE_MAX_LBS` is shared with them too:
+a Depot shipment packs itself to the same 150 lb ceiling this button enforces
+(`DEPOT.md` §0e), so the two kinds of crate agree on the cap as well as on the
+halving.
 
 **Unpacking needed no new code.** The crate is an ordinary `consumable` whose
 `consumesInto` lists its contents, repeated per unit, so the Consume button
-already on the sheet opens it. That matters: the Depot's own `openCrate` lives
-on `/depot`, which a Banneret in the Marshes cannot reach.
+already on the sheet opens it. A Depot crate is opened the same way now
+(`DEPOT.md` §0e), though it takes its own road out of the consume path, since
+what falls out of one is a list of runtime tag IDs rather than catalog slugs.
 
 A crate cannot go inside a crate. Halving twice is a free carry exploit, and it
 would nest a `consumesInto` chain arbitrarily deep. Refused on both faces.

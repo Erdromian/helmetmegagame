@@ -123,11 +123,10 @@ const R = {
     ...(d.totalPoints ? [t(`for ${d.totalPoints} point${d.totalPoints === 1 ? "" : "s"}`)] : []),
   ],
   request_heal_character: (d) => [actor(), t("healed"), target(), ...effectTail(d)],
-  request_move_character: (d, e) => [
-    actor(),
-    t("moved to"),
-    zone(d.toLocationName) ?? zone(name(e, d.toZoneId)),
-  ],
+  // The old request_move_character line is gone with MOVE_CHARACTER itself.
+  // Rows already in the log still render through the fallback, which is why
+  // nothing needs backfilling.
+  escort_consented: (d) => [actor(), t("agreed to follow"), target(), t(`until turn ${d.untilTurn}`)],
   request_change_name: (d) => [actor(), t("renamed from"), em(d.previousName), t("to"), em(d.name)],
   request_loot_character: (d) => [actor(), t("looted"), target(), ...effectTail(d)],
   request_crucify_character: (d) => [actor(), t("crucified"), target(), ...(d?.locationName ? [t("at"), em(d.locationName)] : [])],

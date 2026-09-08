@@ -114,7 +114,7 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
       startSaving(async () => {
         try {
           const res = await savePreferences(payload);
-          if (!res?.ok) setError(res?.error ?? "Couldn't save. ‡");
+          if (!res?.ok) setError(res?.error ?? "Couldn't save.");
           else {
             setError(null);
             if (revision.current !== sent) return;

@@ -14,24 +14,20 @@ const {
 const {
   MENU_OPTION_LIMIT,
   PICK_ID,
-  DRAG_PREFIX,
+  BRING_ID,
   CONFIRM_PREFIX,
   CANCEL_ID,
-  TURN_BACK_ID,
   loadMover,
   listNames,
   buildLocationSelectRow,
-  buildDragRow,
+  buildBringRow,
+  applyBring,
+  freeZoneMovesReason,
   buildConfirmRow,
-  buildTurnBackRow,
-  rememberDrag,
-  takeDrag,
-  forgetDrag,
   freeMovesLeft,
   stowedMounts,
   performMove,
 } = require("../lib/locationTravel");
-const { dragCandidates } = require("@lifeweb/db/lib/locationTravel");
 const { applyFear } = require("@lifeweb/db/lib/fear");
 const {
   travelOptions,
@@ -57,6 +53,7 @@ const {
 } = require("@lifeweb/db/lib/conversations");
 const { settleCarry, deliverCarryDrop } = require("@lifeweb/db/lib/carry");
 const { sendDm } = require("../lib/dm");
+const { escortCandidates, partyOf } = require("@lifeweb/db/lib/escort");
 const { buildMoveModal } = require("../lib/moveModal");
 const { confirmMove } = require("../lib/moveConfirm");
 const { buildSpeakModal, buildSpeakPicker } = require("../lib/speakModal");
@@ -83,7 +80,7 @@ const {
 } = require("@lifeweb/db/lib/locationAnchorRow");
 const { refreshLocationAnchor, refreshGateRooms } = require("@lifeweb/db/lib/syncZones");
 // Phase 3 moved the game logic these four handlers used to hold down into
-// db/lib, so the Hall's dialogs and these buttons run one implementation.
+// db/lib, so Chat's dialogs and these buttons run one implementation.
 // What is left up here is Discord: acknowledge, call, say the sentence back,
 // and — for a gate — redraw the anchor and the watchtower, which is a
 // Discord-only follow-up nothing in db/ could do.
@@ -254,7 +251,7 @@ async function handleZoneViewPick(interaction) {
     orderBy: { sortOrder: "asc" },
     select: { name: true },
   });
-  await respond(interaction, `» You can see ${zones.map((z) => z.name).join(", ")}. ‡`);
+  await respond(interaction, `» You can see ${zones.map((z) => z.name).join(", ")}.`);
 }
 
 async function handleGmCommand(interaction) {
@@ -389,7 +386,7 @@ async function handleThreadMemberCommand(interaction, action) {
       await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.* ‡");
       return;
     }
-    await respond(interaction, `» *${target.name} was removed.* ‡`, { fleeting: true });
+    await respond(interaction, `» *${target.name} was removed.*`, { fleeting: true });
     return;
   }
 
@@ -406,7 +403,7 @@ async function handleThreadMemberCommand(interaction, action) {
     })
     .catch((err) => console.error("Failed to record thread invite:", err));
 
-  // A "web only" target is out of every channel on purpose (HALL.md §6), so
+  // A "web only" target is out of every channel on purpose (CHAT.md §6), so
   // the row above is the whole of the add: they see the conversation on /play
   // and the invite row replays the Discord half if they ever come back off it.
   if (target.locationId === row.locationId && !target.webOnly) {
@@ -416,7 +413,7 @@ async function handleThreadMemberCommand(interaction, action) {
       console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err);
     }
     await notifyLetIn(interaction, target, row.name, row.location?.name, channel.id);
-    await respond(interaction, `» *${target.name} was added.* ‡`, { fleeting: true });
+    await respond(interaction, `» *${target.name} was added.*`, { fleeting: true });
     return;
   }
   await respond(
@@ -496,7 +493,7 @@ async function handleRoomGuestCommand(interaction, action, room) {
     // Calling with an undefined id fails, and the catch below would report it
     // as a missing bot permission — a wrong answer to a question nobody asked.
     if (!target.discordUserId) {
-      await respond(interaction, `» *${target.name} was shown out.* ‡`, { fleeting: true });
+      await respond(interaction, `» *${target.name} was shown out.*`, { fleeting: true });
       return;
     }
     try {
@@ -509,7 +506,7 @@ async function handleRoomGuestCommand(interaction, action, room) {
       await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.* ‡");
       return;
     }
-    await respond(interaction, `» *${target.name} was shown out.* ‡`, { fleeting: true });
+    await respond(interaction, `» *${target.name} was shown out.*`, { fleeting: true });
     return;
   }
 
@@ -524,7 +521,7 @@ async function handleRoomGuestCommand(interaction, action, room) {
 
   // The guest ROW above is the grant; thread membership is only Discord's copy
   // of it, and a "web only" character has no Discord copy of anything
-  // (HALL.md §6). Their record is left saying "not in the thread", which is
+  // (CHAT.md §6). Their record is left saying "not in the thread", which is
   // true, and the web feed shows them the room off the guest row regardless.
   if (!target.webOnly) {
     try {
@@ -561,7 +558,7 @@ async function handleIntercomOpen(interaction, roomId) {
 async function handleTurretOpen(interaction, roomId) {
   const room = await prisma.room.findUnique({ where: { id: roomId }, select: { slug: true } });
   if (room?.slug !== CENSOR_OFFICE_ROOM_SLUG) {
-    await interaction.reply({ content: "» *There's no button here.* ‡", ephemeral: true });
+    await interaction.reply({ content: "» *There's no button here.*", ephemeral: true });
     return;
   }
   await interaction.showModal(buildTurretModal(roomId, await gatehouseTurretArmed(prisma)));
@@ -573,7 +570,7 @@ async function handleTurretOpen(interaction, roomId) {
 async function handleBellOpen(interaction, roomId) {
   const room = await prisma.room.findUnique({ where: { id: roomId }, select: { slug: true } });
   if (room?.slug !== BELL_ROOM_SLUG) {
-    await interaction.reply({ content: "» *There's no bell here.* ‡", ephemeral: true });
+    await interaction.reply({ content: "» *There's no bell here.*", ephemeral: true });
     return;
   }
   await interaction.showModal(buildBellModal(roomId));
@@ -592,7 +589,7 @@ async function handleBellSubmit(interaction, roomId) {
     select: { id: true, name: true, slug: true, locationId: true },
   });
   if (!room || room.slug !== BELL_ROOM_SLUG) {
-    await respond(interaction, "» *There's no bell here.* ‡");
+    await respond(interaction, "» *There's no bell here.*");
     return;
   }
   // Decided at submit, never at open: the modal outlives somebody walking back
@@ -657,7 +654,7 @@ async function handleTurretSubmit(interaction, roomId) {
     select: { id: true, name: true, slug: true, locationId: true },
   });
   if (!room || room.slug !== CENSOR_OFFICE_ROOM_SLUG) {
-    await respond(interaction, "» *There's no button here.* ‡");
+    await respond(interaction, "» *There's no button here.*");
     return;
   }
   // Decided at submit, never at open: the modal outlives somebody walking out
@@ -722,7 +719,7 @@ async function handleIntercomSubmit(interaction, roomId) {
     select: { id: true, name: true, slug: true, locationId: true },
   });
   if (!room || room.slug !== INTERCOM_ROOM_SLUG) {
-    await respond(interaction, "» *There's no intercom here.* ‡");
+    await respond(interaction, "» *There's no intercom here.*");
     return;
   }
   if (character.locationId !== room.locationId) {
@@ -732,7 +729,7 @@ async function handleIntercomSubmit(interaction, roomId) {
 
   const body = interaction.fields.getTextInputValue("intercom:body").trim();
   if (!body) {
-    await respond(interaction, "» *Say something first.* ‡");
+    await respond(interaction, "» *Say something first.*");
     return;
   }
 
@@ -746,7 +743,7 @@ async function handleIntercomSubmit(interaction, roomId) {
   // The transcript is broadcastIntercom's own job since phase 4: it writes one
   // SYSTEM row per zone it reached, so the announcement lands in each zone's
   // feed on /play as well as in /archive. The single row that used to be
-  // written here had no place key and so was invisible in the Hall.
+  // written here had no place key and so was invisible in Chat.
 
   await prisma.auditLog
     .create({
@@ -785,19 +782,16 @@ async function handleTravelOpen(interaction) {
   }
 
   // On the road already. A paid crossing takes the whole day (MAP.md §3), so
-  // there is no picker to offer — only the choice to turn around. The Move
-  // stays spent either way; walking back is not a refund.
+  // there is no picker to offer and no way off the road: the arrival pass
+  // walks them over at the next advance.
   if (character.travelToLocationId) {
     const heading = await prisma.location.findUnique({
       where: { id: character.travelToLocationId },
       select: { name: true },
     });
     await respond(interaction, {
-      content: [
-        `» You're on the road to **${heading?.name ?? "somewhere"}**. You arrive next turn. ‡`,
-        "-# Turn back and you stay where you are — your Move is spent regardless. ‡",
-      ].join("\n"),
-      components: [buildTurnBackRow()],
+      content: `» You're on the road to **${heading?.name ?? "somewhere"}**. You arrive next turn. ‡`,
+      components: [],
     });
     return;
   }
@@ -934,7 +928,6 @@ async function handleTravelPick(interaction) {
   await ack(interaction, { update: true });
 
   const locationId = interaction.values[0];
-  forgetDrag(interaction.user.id);
 
   const [character, target] = await Promise.all([
     loadMover(interaction.user.id),
@@ -949,10 +942,6 @@ async function handleTravelPick(interaction) {
     return;
   }
 
-  const candidates = await dragCandidates(prisma, character);
-  const dragRow = buildDragRow(locationId, candidates);
-  const overflow = candidates.length - Math.min(candidates.length, MENU_OPTION_LIMIT);
-
   // The cost model in one line, and — when they are about to walk a day's road
   // with a horse still in their pocket — a warning before the Confirm rather
   // than a regret after it (docs/systemdocs/CARRY.md §2).
@@ -961,11 +950,20 @@ async function handleTravelPick(interaction) {
     where: { id: 1 },
     select: { freeZoneMovesPerTurn: true },
   });
-  const openTurn = crossing ? await prisma.turn.findFirst({ where: { status: "OPEN" } }) : null;
-  const left = crossing ? freeMovesLeft(character, config, openTurn) : null;
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+
+  const candidates = await escortCandidates(prisma, character, openTurn?.number ?? null);
+  const bringRow = buildBringRow(candidates);
+  const overflow = candidates.length - Math.min(candidates.length, MENU_OPTION_LIMIT);
+
+  // The party is what decides whether the mount's extra crossing survives, so
+  // the number quoted below has to count it (MAP.md §3a).
+  const party = await partyOf(prisma, character.id);
+  const left = crossing ? freeMovesLeft(character, config, openTurn, party.length) : null;
+  const seatWarning = crossing ? freeZoneMovesReason(character, party.length) : null;
 
   const cost = !character.locationId
-    ? "-# Arriving costs you nothing. ‡"
+    ? "-# Arriving costs you nothing."
     : !crossing
       ? "-# A step inside the zone is free. ‡"
       : left > 0
@@ -984,37 +982,51 @@ async function handleTravelPick(interaction) {
       content: [
         `Move to **${target.name}**?`,
         cost,
+        seatWarning ? `-# ${seatWarning}` : null,
         stowedLine,
         overflow > 0 ? `-# ${overflow} more not shown — Discord caps this list at 25. ‡` : null,
       ]
         .filter(Boolean)
         .join("\n"),
-      components: [dragRow, buildConfirmRow(locationId)].filter(Boolean),
+      components: [bringRow, buildConfirmRow(locationId)].filter(Boolean),
     },
     { fleeting: false },
   );
 }
 
-// The picked passengers, parked until Confirm. deferUpdate rather than an
-// `update` payload because the names have to be read first, and the list is
-// re-authorized server-side at Confirm anyway — this is a hint, not a lock.
-async function handleTravelDrag(interaction, locationId) {
+// The Bring select WRITES the party — an escort is a row, not a ten-minute
+// memory of a click (bot/src/lib/locationTravel.js). Anyone ticked who could
+// say no gets the Accept DM instead of being attached, and anyone unticked is
+// put down. deferUpdate rather than an `update` payload because the work has
+// to happen before there is anything to say about it.
+async function handleTravelBring(interaction) {
   await interaction.deferUpdate();
 
-  const ids = interaction.values ?? [];
-  rememberDrag(interaction.user.id, locationId, ids);
+  const character = await loadMover(interaction.user.id);
+  if (!character) return;
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+  const outcome = await applyBring(character, interaction.values ?? [], openTurn);
 
-  const chosen =
-    ids.length > 0
-      ? await prisma.character.findMany({ where: { id: { in: ids } }, select: { name: true } })
-      : [];
+  for (const dm of outcome.dms) {
+    const user = await interaction.client.users.fetch(dm.discordUserId).catch(() => null);
+    if (!user) continue;
+    await sendDm(user, { content: `» ${dm.content}`, components: dm.components }).catch((err) =>
+      console.error("Escort ask DM failed:", err.message ?? err),
+    );
+  }
+
+  const notes = [];
+  if (outcome.attached.length > 0) notes.push(`Bringing: ${outcome.attached.join(", ")}`);
+  if (outcome.asked.length > 0) notes.push(`Asked: ${outcome.asked.join(", ")}`);
+  if (outcome.dropped.length > 0) notes.push(`Left: ${outcome.dropped.join(", ")}`);
+
   const lines = interaction.message.content
     .split("\n")
-    .filter((line) => !line.startsWith("-# Bringing:"));
-  if (chosen.length > 0) lines.push(`-# Bringing: ${chosen.map((c) => c.name).join(", ")} ‡`);
+    .filter((line) => !line.startsWith("-# Bringing:") && !line.startsWith("-# Asked:") && !line.startsWith("-# Left:"));
+  for (const note of notes) lines.push(`-# ${note}`);
 
   await interaction.editReply({ content: lines.join("\n") }).catch((err) =>
-    console.error("Failed to show the drag list:", err),
+    console.error("Failed to show the party:", err),
   );
 }
 
@@ -1025,8 +1037,6 @@ async function handleTravelConfirm(interaction, locationId) {
     loadMover(interaction.user.id),
     prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } }),
   ]);
-  const dragged = takeDrag(interaction.user.id, locationId);
-
   if (!character) {
     await respond(interaction, { content: "» *You don't have a living character.* ‡", components: [] });
     return;
@@ -1036,7 +1046,7 @@ async function handleTravelConfirm(interaction, locationId) {
     return;
   }
 
-  const result = await performMove(character, target, dragged);
+  const result = await performMove(character, target);
   if (!result.ok) {
     await respond(interaction, { content: `» *${result.reason}*`, components: [] });
     return;
@@ -1056,34 +1066,22 @@ async function handleTravelConfirm(interaction, locationId) {
     );
   }
   if (brought.length > 0) parts.push(`Bringing ${listNames(brought)}.`);
+  const stranded = (result.leftBehind ?? []).map((entry) => entry.character.name);
+  if (stranded.length > 0) parts.push(`${listNames(stranded)} couldn't follow.`);
+  // The way was too narrow for what they had out — dismounted rather than
+  // refused (db/lib/indoors.js#dismountForNarrowWay), already applied by
+  // performLocationMove by the time this reads it.
+  if (result.dismounted?.length > 0) {
+    parts.push(
+      `Too narrow for your ${listNames(result.dismounted)} — you leave ${result.dismounted.length === 1 ? "it" : "them"} and go on foot.`,
+    );
+  }
 
   await respond(interaction, { content: `${parts.join(" ")} ‡`, components: [] });
 }
 
-// loc:turnback — abandon a journey in progress. Clears the destination and
-// nothing else: the Action is already filed and the Move already spent, so a
-// player who changes their mind has burned their day either way.
-async function handleTravelTurnBack(interaction) {
-  await interaction.deferUpdate();
-
-  const character = await loadMover(interaction.user.id);
-  if (!character?.travelToLocationId) {
-    await respond(interaction, { content: "» *You're not going anywhere.* ‡", components: [] });
-    return;
-  }
-  await prisma.character.update({
-    where: { id: character.id },
-    data: { travelToLocationId: null, travelTurnId: null },
-  });
-  await respond(interaction, {
-    content: "» You turn back. Your Move is still spent. ‡",
-    components: [],
-  });
-}
-
 async function handleTravelCancel(interaction) {
-  forgetDrag(interaction.user.id);
-  await interaction.update({ content: "» *Canceled.* ‡", components: [] });
+  await interaction.update({ content: "» *Canceled.*", components: [] });
   scheduleDismiss(interaction);
 }
 
@@ -1105,7 +1103,7 @@ async function handleWhosHere(interaction, locationId) {
   const rows = await whosHere(prisma, viewer, { locationId });
   const lines = whosHereLines(rows);
   if (lines.length === 0) {
-    await respond(interaction, "» *Nobody is here.* ‡");
+    await respond(interaction, "» *Nobody is here.*");
     return;
   }
   await respond(interaction, `${lines.join("\n")} ‡`);
@@ -1141,7 +1139,7 @@ async function handleExamine(interaction, locationId) {
     },
   });
   if (!location) {
-    await respond(interaction, "» *That place is gone.* ‡");
+    await respond(interaction, "» *That place is gone.*");
     return;
   }
 
@@ -1280,7 +1278,7 @@ async function handleConverseOpen(interaction, locationId) {
 
   const menu = new StringSelectMenuBuilder()
     .setCustomId(`${CONVERSE_ROOM_PREFIX}${locationId}`)
-    .setPlaceholder("Which room is this linked to? ‡")
+    .setPlaceholder("Where?")
     .addOptions(
       options.map((room) => ({
         label: room.name.slice(0, 100),
@@ -1290,7 +1288,7 @@ async function handleConverseOpen(interaction, locationId) {
     );
 
   await respond(interaction, {
-    content: "Which room is this linked to? ‡\n-# That room hears that someone is whispering, never who. ‡",
+    content: "Where?\n-# Speak privately with someone.",
     components: [new ActionRowBuilder().addComponents(menu)],
   });
 }
@@ -1329,7 +1327,7 @@ async function handleConverseCreate(interaction, roomId) {
 
   const name = interaction.fields.getTextInputValue(CONVERSE_NAME_FIELD).trim().slice(0, 90);
   if (!name) {
-    await respond(interaction, "» *Give it a name.* ‡");
+    await respond(interaction, "» *Give it a name.*");
     return;
   }
 
@@ -1340,7 +1338,7 @@ async function handleConverseCreate(interaction, roomId) {
   try {
     thread = await startPrivateThread(room.location.discordChannelId, name);
     // A "web only" creator stays out of their own thread's member list
-    // (HALL.md §6); the PlayerThreadMember row below is their membership.
+    // (CHAT.md §6); the PlayerThreadMember row below is their membership.
     if (!character.webOnly) await addThreadMember(thread.id, interaction.user.id);
   } catch (err) {
     console.error(`Failed to open a conversation in ${room.location.name}:`, err);
@@ -1374,7 +1372,7 @@ async function handleConverseCreate(interaction, roomId) {
     })
     .catch((err) => console.error("Conversation audit log failed:", err));
 
-  await respond(interaction, `» *Opened.* ‡\n<#${thread.id}>`, { fleeting: true });
+  await respond(interaction, `» *Opened.*\n<#${thread.id}>`, { fleeting: true });
 }
 
 // /conceal: a standing state, not a per-message prefix. While it is on, every
@@ -1870,7 +1868,7 @@ async function handlePlayCommand(interaction) {
   // performance.
   const posted = await channel.send(`${line} ‡`).catch(() => null);
   if (!posted) {
-    await respond(interaction, "» *Couldn't play here.* ‡");
+    await respond(interaction, "» *Couldn't play here.*");
     return;
   }
   lastPlayed.set(character.id, Date.now());
@@ -1892,7 +1890,7 @@ async function handlePlayCommand(interaction) {
     await channel.parent.send(ambientLine(line)).catch(() => null);
   }
 
-  await respond(interaction, "» *You play.* ‡");
+  await respond(interaction, "» *You play.*");
 }
 
 // /shout — the one thing a character can say that leaves the room they said
@@ -1911,7 +1909,7 @@ async function handleShoutCommand(interaction) {
 
   const text = interaction.options.getString("message")?.trim();
   if (!text) {
-    await respond(interaction, "» *Say something.* ‡");
+    await respond(interaction, "» *Say something.*");
     return;
   }
 
@@ -1934,7 +1932,7 @@ async function handleShoutCommand(interaction) {
     return;
   }
   if (!character.locationId) {
-    await respond(interaction, "» *You're nowhere.* ‡");
+    await respond(interaction, "» *You're nowhere.*");
     return;
   }
 
@@ -2001,10 +1999,10 @@ async function handleShoutCommand(interaction) {
   }
 
   if (posted === 0) {
-    await respond(interaction, "» *Couldn't shout here.* ‡");
+    await respond(interaction, "» *Couldn't shout here.*");
     return;
   }
-  await respond(interaction, "» *You shout.* ‡");
+  await respond(interaction, "» *You shout.*");
 }
 
 module.exports = {
@@ -2030,7 +2028,6 @@ module.exports = {
       } else if (interaction.isButton()) {
         if (interaction.customId === "loc:open") return void (await handleTravelOpen(interaction));
         if (interaction.customId === CANCEL_ID) return void (await handleTravelCancel(interaction));
-        if (interaction.customId === TURN_BACK_ID) return void (await handleTravelTurnBack(interaction));
         if (interaction.customId.startsWith(CONFIRM_PREFIX)) {
           return void (await handleTravelConfirm(interaction, interaction.customId.slice(CONFIRM_PREFIX.length)));
         }
@@ -2114,8 +2111,8 @@ module.exports = {
       } else if (interaction.isStringSelectMenu()) {
         if (interaction.customId === ZONE_VIEW_ID) return void (await handleZoneViewPick(interaction));
         if (interaction.customId === PICK_ID) return void (await handleTravelPick(interaction));
-        if (interaction.customId.startsWith(DRAG_PREFIX)) {
-          return void (await handleTravelDrag(interaction, interaction.customId.slice(DRAG_PREFIX.length)));
+        if (interaction.customId === BRING_ID) {
+          return void (await handleTravelBring(interaction));
         }
         // Must NOT be acked first: it opens a modal.
         if (interaction.customId.startsWith(CONVERSE_ROOM_PREFIX)) {

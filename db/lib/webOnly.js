@@ -1,8 +1,8 @@
 // "Play from the web" — the switch on the Bio card that takes a player's
 // DISCORD ACCOUNT out of the game entirely while leaving the character exactly
-// where they stand. See docs/systemdocs/HALL.md §6.
+// where they stand. See docs/systemdocs/CHAT.md §6.
 //
-// The problem it solves is in HALL.md §1: a Discord channel lists every
+// The problem it solves is in CHAT.md §1: a Discord channel lists every
 // account that can see it, and a Location channel is opened with a per-member
 // overwrite, so standing in the Keep tells everybody else in the Keep which
 // Discord account you are. Nothing short of not being there fixes it.
@@ -32,7 +32,11 @@ const { conversationsFor } = require("./conversations");
 const { removeThreadMember } = require("./discordRest");
 const { notifyPresence } = require("./presenceNotify");
 
-const DEFAULT_COOLDOWN_SECONDS = 7200;
+// How long a character waits between two flips of the "web only" switch.
+// Each flip is a burst of Discord writes — every overwrite, every role, every
+// thread — so the cooldown is hours, not seconds. Two of them. This used to be
+// a GameConfig column nothing ever wrote; the constant IS the setting.
+const WEB_ONLY_COOLDOWN_SECONDS = 7200;
 
 // Every thread this account is in as a player: the private Rooms their keys
 // opened (recorded in Character.roomThreadRoomIds) and the Conversations they
@@ -79,13 +83,10 @@ async function shedThreads(prisma, character) {
 // `readyAt` is a Date, so the caller words the refusal in the reader's own
 // clock rather than this one's.
 async function setWebOnly(prisma, character, on) {
-  if (!character?.id) return { ok: false, error: "No character. ‡", readyAt: null };
+  if (!character?.id) return { ok: false, error: "No character.", readyAt: null };
   const want = Boolean(on);
 
-  const config = await prisma.gameConfig
-    .findUnique({ where: { id: 1 }, select: { webOnlyCooldownSeconds: true } })
-    .catch(() => null);
-  const cooldownMs = Math.max(0, config?.webOnlyCooldownSeconds ?? DEFAULT_COOLDOWN_SECONDS) * 1000;
+  const cooldownMs = WEB_ONLY_COOLDOWN_SECONDS * 1000;
 
   const now = new Date();
   const cutoff = new Date(now.getTime() - cooldownMs);

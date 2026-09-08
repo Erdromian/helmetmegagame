@@ -6,16 +6,15 @@ import { auth } from "@/lib/auth";
 import { guarded, UserError } from "@/lib/actionResult";
 import { concealedAlias, withArticle } from "@lifeweb/db/lib/concealedIdentity";
 import { EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire } from "@lifeweb/db/lib/examine";
+import { THANATI_SLUG } from "@lifeweb/db/lib/thanati";
 import { buildSkillAncestry, satisfiedSkillIds } from "@lifeweb/db/lib/medicalVision";
 import { getMyFactionRole } from "@lifeweb/db/lib/factionPermissions";
 import { forcedNameFrom } from "@lifeweb/db/lib/presentedIdentity";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
 
-// Examine — looking at somebody standing where you stand. The second control
-// on the Actions grid that files no Request (see ReadDialog.js for the first):
-// it moves nothing, costs nothing, spends no Move and can be done as often as
-// you like, because reading a room is not an act. Nothing is undoable because
-// nothing was done.
+// Examine — looking at somebody standing where you stand. It moves nothing,
+// costs nothing, spends no Move and can be done as often as you like, because
+// reading a room is not an act, so it writes no audit row at all.
 //
 // It exists because 🔍 hangs off a proxied message, so until now you could
 // only look at someone who had SPOKEN. That was never a hiding rule, just a
@@ -177,6 +176,7 @@ export async function examineCharacter(targetId) {
         lastDesire,
         viewerFactionId: me.factionId,
         viewerIsOfficer: officer,
+        viewerIsThanati: me.tags.some((ct) => ct.tag?.slug === THANATI_SLUG),
       }),
     };
   });

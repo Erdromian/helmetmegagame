@@ -25,7 +25,7 @@ function jsonResponse(body, status = 200) {
 
 export async function POST(request) {
   const session = await auth();
-  if (!session?.discordUserId) return jsonResponse({ error: "Sign in first. ‡" }, 401);
+  if (!session?.discordUserId) return jsonResponse({ error: "Sign in first." }, 401);
 
   const character = await loadFeedCharacter(session.discordUserId);
   // The GM check is only paid for when there is no character to be — it is a
@@ -44,7 +44,7 @@ export async function POST(request) {
   const seq = typeof body?.seq === "string" || typeof body?.seq === "number" ? String(body.seq) : null;
 
   const result = await deleteSpeech(prisma, { characterId: character?.id ?? null, seq, gm });
-  if (!result?.ok) return jsonResponse({ error: result?.refusal ?? "That didn't go. ‡" }, 403);
+  if (!result?.ok) return jsonResponse({ error: result?.refusal ?? "That didn't go." }, 403);
 
   if (gm) {
     // Best-effort, and after the removal: a failed log must never leave the

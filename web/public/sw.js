@@ -15,7 +15,7 @@ self.addEventListener("push", (event) => {
     // push is worse than a vague one.
     data = {};
   }
-  const title = data.title || "Bascinet ‡";
+  const title = data.title || "Bascinet";
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",

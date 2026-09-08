@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
-import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
 import useActionRunner from "@/app/components/useActionRunner";
 import MoveDialog from "./MoveDialog";
@@ -11,57 +10,16 @@ import TurnCard from "./TurnCard";
 import StatusStrip from "./StatusStrip";
 import Things from "./ThingsDrawer";
 import DesiresBlock from "./DesiresBlock";
-import Yesterday from "./Yesterday";
-import { reportToGms, waitingOnYou, answerWaiting, myMove } from "./actions";
+import { waitingOnYou, answerWaiting, myMove } from "./actions";
 
 // YOU: everything about this character that is not about where they are
 // standing, in the order a player asks it — what day is it and have I moved,
-// what state is this body in, what am I owed a Desire for, my sheet, what is
-// waiting on me, what happened yesterday, and (last, and quiet) the door to
-// the GMs.
+// what state is this body in, what am I owed a Desire for, my sheet, and what
+// is waiting on me. What happened yesterday is in the Bascinet conversation
+// in the places column now (./DmPane.js), with every other day.
 //
-// The Move dialog, the sheet link and the report are the three things the
-// #turns console carries that a web-only player would otherwise lose with it
-// (HALL.md §6, decision 2).
-
-// The OOC ticket. It writes an INBOUND DirectMessage and sends nothing to
-// Discord, so it lands in the GM's conversation with this player beside
-// everything else they have said (see ./actions.js#reportToGms).
-function ReportDialog({ onClose, onDone }) {
-  const [body, setBody] = useState("");
-  const { run, pending, error } = useActionRunner();
-  return (
-    <Modal open title="Report to the GMs ‡" onClose={onClose}>
-      <p className="text-sm text-muted">
-        Out of character. It goes to the GMs&apos; desk, and they answer you in your DMs. ‡
-      </p>
-      <div className="field">
-        <label className="field-label" htmlFor="hall-report">
-          What has happened? ‡
-        </label>
-        <textarea id="hall-report" rows={5} value={body} maxLength={1800} onChange={(e) => setBody(e.target.value)} />
-      </div>
-      <FormError>{error}</FormError>
-      <div className="modal-actions">
-        <button
-          type="button"
-          className="btn"
-          disabled={!body.trim() || pending}
-          onClick={() =>
-            run(reportToGms, body, {
-              onOk: (res) => {
-                onDone(res);
-                onClose();
-              },
-            })
-          }
-        >
-          Send it ‡
-        </button>
-      </div>
-    </Modal>
-  );
-}
+// The Move dialog and the sheet link are what the #turns console carries that
+// a web-only player would otherwise lose with it (CHAT.md §6, decision 2).
 
 // Waiting on you: pending offers, a threat seat, a letter the bird has not
 // left with, a lobby assignment. Accept and Decline call the SAME db/lib
@@ -72,12 +30,12 @@ function WaitingList({ rows, onAnswered }) {
   const { run, pending, error } = useActionRunner();
   if (rows.length === 0) return null;
   return (
-    <div className="hall-waiting">
-      <p className="hall-section-title">Waiting on you · {rows.length} ‡</p>
+    <div className="chat-waiting">
+      <p className="chat-section-title">Waiting on you · {rows.length}</p>
       {rows.map((row) => (
-        <div key={row.key} className="hall-waiting-row">
-          <span className="hall-person-name">{row.label}</span>
-          <span className="hall-waiting-actions">
+        <div key={row.key} className="chat-waiting-row">
+          <span className="chat-person-name">{row.label}</span>
+          <span className="chat-waiting-actions">
             {row.accept !== false && (
               <button
                 type="button"
@@ -85,7 +43,7 @@ function WaitingList({ rows, onAnswered }) {
                 disabled={pending}
                 onClick={() => run(answerWaiting, { kind: row.kind, id: row.id, accept: true }, { onOk: onAnswered })}
               >
-                Accept ‡
+                Accept
               </button>
             )}
             {row.decline !== false && (
@@ -95,12 +53,12 @@ function WaitingList({ rows, onAnswered }) {
                 disabled={pending}
                 onClick={() => run(answerWaiting, { kind: row.kind, id: row.id, accept: false }, { onOk: onAnswered })}
               >
-                Decline ‡
+                Decline
               </button>
             )}
             {row.href && (
               <Link className="menu-item" href={row.href}>
-                Open ‡
+                Open
               </Link>
             )}
           </span>
@@ -160,8 +118,8 @@ export default function YouPanel({
   );
 
   return (
-    <div className="hall-you">
-      <p className="hall-section-title">You ‡</p>
+    <div className="chat-you">
+      <p className="chat-section-title">You</p>
 
       <TurnCard
         turn={moveState.turn}
@@ -173,28 +131,18 @@ export default function YouPanel({
       <Things groups={things} />
       <DesiresBlock view={desires} />
 
-      <div className="hall-buttons">
+      <div className="chat-buttons">
         <Link className="btn-secondary" href="/character">
           Sheet ›
         </Link>
       </div>
       {notice && (
-        <div className="hall-quiet-line">
+        <div className="chat-quiet-line">
           <ChatMarkdown content={notice} />
         </div>
       )}
 
       <WaitingList rows={waiting} onAnswered={say} />
-
-      <Yesterday />
-
-      {/* Last, and quiet: it is the out-of-character door, not one of the
-          day's moves. */}
-      <div className="hall-buttons mt-3">
-        <button type="button" className="btn-quiet" onClick={() => setDialog("report")}>
-          Report to the GMs ‡
-        </button>
-      </div>
 
       {dialog === "move" && <MoveDialog onClose={() => setDialog(null)} onDone={say} />}
       {dialog === "edit" && moveState.move && (
@@ -209,7 +157,6 @@ export default function YouPanel({
           onDone={say}
         />
       )}
-      {dialog === "report" && <ReportDialog onClose={() => setDialog(null)} onDone={say} />}
     </div>
   );
 }

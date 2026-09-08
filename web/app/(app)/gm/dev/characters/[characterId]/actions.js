@@ -505,12 +505,15 @@ async function teleportCharacterImpl({ characterId, locationId }) {
   const updated = await prisma.character.update({
     where: { id: characterId },
     // travelTo* cleared alongside: a teleport ends any walk in progress, or
-    // db/lib/travelArrivalPass.js would undo it at the next advance.
+    // db/lib/travelArrivalPass.js would undo it at the next advance. And
+    // escortedById with them — being picked up and set down somewhere ends
+    // any escort this character was part of (docs/systemdocs/MAP.md §3a).
     data: {
       locationId: locationId || null,
       zoneId: location?.zoneId ?? null,
       travelToLocationId: null,
       travelTurnId: null,
+      escortedById: null,
     },
   });
 

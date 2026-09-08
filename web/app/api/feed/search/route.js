@@ -1,6 +1,6 @@
 import { prisma, Prisma } from "@lifeweb/db";
 import { withAvatarVersions } from "@lifeweb/db/lib/archive";
-import { feedWipeFloor } from "@lifeweb/db/lib/feedWipe";
+import { feedWipeFloors } from "@lifeweb/db/lib/feedWipe";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 
 // GET /api/feed/search?q=&place= — what was said, anywhere this viewer can
@@ -20,8 +20,8 @@ import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 // (web/app/(desk)/gm/players/actions.js), parameterised, never concatenated.
 //
 // THE GATE IS THE PLACE LIST. `placesFor` is the one answer to "where may you
-// read" (HALL.md §5a), and this searches inside it and nowhere else — so a
-// zone summary a character cannot hear is not searchable from the Hall, and a
+// read" (CHAT.md §5a), and this searches inside it and nowhere else — so a
+// zone summary a character cannot hear is not searchable from Chat, and a
 // GM's search is bounded by their GmZoneView the same way their feed is.
 export const dynamic = "force-dynamic";
 
@@ -31,7 +31,7 @@ const MAX_QUERY = 80;
 
 export async function GET(request) {
   const viewer = await loadFeedViewer();
-  if (!viewer.discordUserId) return Response.json({ error: "Sign in first. ‡" }, { status: 401 });
+  if (!viewer.discordUserId) return Response.json({ error: "Sign in first." }, { status: 401 });
   if (!viewer.character && !viewer.gm) {
     return Response.json({ error: "You have no living character. ‡" }, { status: 403 });
   }
@@ -39,7 +39,7 @@ export async function GET(request) {
   const params = new URL(request.url).searchParams;
   const q = String(params.get("q") ?? "").trim();
   if (q.length < MIN_QUERY || q.length > MAX_QUERY) {
-    return Response.json({ error: "Three letters at least. ‡" }, { status: 400 });
+    return Response.json({ error: "Three letters at least." }, { status: 400 });
   }
 
   const places = await placesFor(prisma, viewer.character, viewer.options);
@@ -48,13 +48,15 @@ export async function GET(request) {
   // a refusal rather than a silent widening.
   const scope = wanted ? places.filter((entry) => entry.placeKey === wanted) : places;
   if (wanted && scope.length === 0) {
-    return Response.json({ error: "You aren't there. ‡" }, { status: 403 });
+    return Response.json({ error: "You aren't there." }, { status: 403 });
   }
   if (scope.length === 0) return Response.json({ rows: [] });
 
-  // Nothing from before the last Dawn wipe, the same floor the feed, the
-  // history route and the place watermarks all read (db/lib/feedWipe.js).
-  const floor = await feedWipeFloor(prisma);
+  // Nothing from before the last wipe, the same floors the feed, the history
+  // route and the place watermarks all read (db/lib/feedWipe.js). A search
+  // spans every place the viewer can see, and a zone summary clears on the
+  // slower Dawn schedule, so the floor is picked per row below.
+  const floors = await feedWipeFloors(prisma);
 
   // LIKE metacharacters escaped, so a query holding % or _ searches for those
   // characters instead of turning into a wildcard. Backslash is Postgres's
@@ -76,7 +78,7 @@ export async function GET(request) {
     FROM "ArchiveEntry" ae
     WHERE ae."placeKey" IN (${keys})
       AND ae."deletedAt" IS NULL
-      AND ae."seq" > ${floor}
+      AND ae."seq" > (CASE WHEN ae."placeKey" LIKE 'zone:%' THEN ${floors.summary} ELSE ${floors.turn} END)
       AND ae."content" ILIKE ${pattern}
     ORDER BY ae."seq" DESC
     LIMIT ${RESULT_ROWS}

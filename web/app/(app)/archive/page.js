@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { factsLine, rosterLine } from "@lifeweb/db/lib/epilogue";
+import { formatAntagonistLines } from "@lifeweb/db/lib/objectives";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
@@ -20,7 +21,7 @@ export default async function ArchivePage({ searchParams }) {
 
   const [{ isGm: gm }, state, games] = await Promise.all([
     getGmSession(),
-    prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true, gameId: true } }),
+    prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true, gameId: true, phase: true } }),
     prisma.game.findMany({
       orderBy: { number: "desc" },
       select: { id: true, number: true, startedAt: true, endedAt: true, epilogue: true },
@@ -57,7 +58,7 @@ export default async function ArchivePage({ searchParams }) {
 
   const where = {
     gameId: game.id,
-    // Delete is soft since phase 1 of the Hall, so a browser holding a row can
+    // Delete is soft since phase 1 of Chat, so a browser holding a row can
     // reconcile. The transcript still honours the retraction: a taken-back
     // message is not in it.
     deletedAt: null,
@@ -115,30 +116,35 @@ export default async function ArchivePage({ searchParams }) {
     return `/archive?${next.toString()}`;
   }
 
-  const epilogue = game.epilogue ?? null;
-  const span = [game.startedAt, game.endedAt]
-    .map((d) => (d ? new Date(d).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" }) : null));
-
+  // End Game then Resume leaves the epilogue on the Game row and the archive
+  // open (LOBBY.md §7). The transcript may stay readable, but the reveal — who
+  // the antagonists are and whom they were told to kill — must not, while the
+  // game is running again. GMs see it regardless.
+  const revealHidden = isCurrent && !gm && state?.phase !== "ENDED";
+  const epilogue = revealHidden ? null : (game.epilogue ?? null);
   return (
     <PageShell width="wide">
       <PageHeader
         title={`Archive · Game ${game.number}`}
-        subtitle={
-          isCurrent
-            ? gm && !state?.archiveVisible
-              ? "The current game. Hidden from players until it ends. ‡"
-              : "The current game. ‡"
-            : `${span[0] ?? "?"} – ${span[1] ?? "?"} ‡`
-        }
       />
 
       {epilogue ? (
         <section className="panel flex flex-col gap-3 p-4">
-          <h2 className="panel-header">How it ended ‡</h2>
+          <h2 className="panel-header">How it ended</h2>
           {epilogue.closingNote ? <p className="text-sm">» {epilogue.closingNote}</p> : null}
           <p className="text-sm text-muted">{factsLine(epilogue.facts)}</p>
+          {epilogue.antagonists?.length ? (
+            <details className="archive-fold" open>
+              <summary>The antagonists</summary>
+              <ul>
+                {formatAntagonistLines(epilogue.antagonists).map((line, i) => (
+                  <li key={`${epilogue.antagonists[i].partyKey}`}>{line.replaceAll("**", "")}</li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
           <details className="archive-fold">
-            <summary>Who was who ‡</summary>
+            <summary>Who was who</summary>
             <ul>
               {epilogue.roster.map((r) => (
                 <li key={`${r.handle}-${r.name}`}>{rosterLine(r)}</li>

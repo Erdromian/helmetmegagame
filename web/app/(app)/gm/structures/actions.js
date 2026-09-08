@@ -25,7 +25,7 @@ import {
 
 async function requireGm() {
   const { session, isGm } = await getGmSession();
-  if (!session?.discordUserId || !isGm) throw new UserError("GMs only. ‡");
+  if (!session?.discordUserId || !isGm) throw new UserError("GMs only.");
   return session;
 }
 

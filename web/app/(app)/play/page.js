@@ -1,9 +1,14 @@
 import { redirect } from "next/navigation";
 import { prisma, FEED_ROW_SELECT } from "@lifeweb/db";
 import { withAvatarVersions } from "@lifeweb/db/lib/archive";
-import { feedWipeFloor, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
+import { feedWipeFloors, floorForPlace, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
-import EmptyState from "@/app/components/EmptyState";
+import { Suspense } from "react";
+import { auth } from "@/lib/auth";
+import SnapshotPage from "@/lib/snapshot/SnapshotPage";
+import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
+import PlayView from "./PlayView";
+import Loading from "./loading";
 import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
@@ -12,53 +17,72 @@ import { carryStatus } from "@lifeweb/db/lib/carry";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
-import RequestActionsProvider from "@/app/components/RequestActionsProvider";
-import CharacterMentionsProvider from "@/app/components/CharacterMentionsProvider";
-import Hall from "./Hall";
 import { waitingOnYou, myMove } from "./actions";
 import { loadDesireView, loadLettersView, loadFactionView } from "@/lib/selfPools";
+import { withoutDmNoise } from "@/lib/dmThread";
 import { thingGroups } from "./thingRows";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { MERCHANT_LICENSE_SLUG, DEPOT_LOCATION_SLUG, DEPOT_KEYCARD_SLUG } from "@lifeweb/db";
 
-// /play — the Hall. Three columns on a desktop, one on a phone: everywhere
+// /play — Chat. Three columns on a desktop, one on a phone: everywhere
 // this character can hear on the left, the open scene in the middle, and (in
 // phase 3) the people standing there on the right.
 //
 // The first place's rows are rendered on the server so the page has something
 // to show before any JavaScript runs; every other place is fetched when the
 // reader opens it, and everything after that arrives on the one SSE stream
-// Hall.js holds.
+// Chat.js holds.
+//
+// Snapshotted (web/lib/snapshot, CHAT.md §5c): the page itself only reads the
+// session, mounts the shell, and streams FreshPlay in behind it. A browser
+// that has been here before paints its last Chat in the first frame and the
+// stream catches it up from the stored seq; the fresh props then re-seed it.
 export const dynamic = "force-dynamic";
 
 const HISTORY_ROWS = 100;
 
 export default async function PlayPage() {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+  return (
+    <SnapshotPage
+      scope="play"
+      userId={session.discordUserId}
+      render={PlayView}
+      fallback={<Loading />}
+      remountOnFresh={false}
+    >
+      <Suspense fallback={null}>
+        <FreshPlay userId={session.discordUserId} />
+      </Suspense>
+    </SnapshotPage>
+  );
+}
+
+// The whole load, ending in one serialisable object for PlayView. Every
+// prop below used to be a JSX attribute on <Chat> or <RequestActionsProvider>
+// right here; the names are unchanged.
+async function FreshPlay({ userId }) {
   const viewer = await loadFeedViewer();
   if (!viewer.discordUserId) redirect("/");
 
+  // Chat switch on /gm/dev (GameConfig.playPanelEnabled). GMs bounce too:
+  // a GM watching a scene has the desk's Scene tab, and off means off. The
+  // whole row is read once here; the composer and the aside take theirs off
+  // it below.
+  const gameConfig = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  if (gameConfig && !gameConfig.playPanelEnabled) redirect("/character");
+
   if (!viewer.character && !viewer.gm) {
-    return (
-      <div className="hall-body hall-body--empty">
-        <div className="panel">
-          <EmptyState>You have no living character. ‡</EmptyState>
-        </div>
-      </div>
-    );
+    return <SnapshotFresh scope="play" userId={userId} data={{ kind: "empty" }} />;
   }
 
   const places = await placesFor(prisma, viewer.character, viewer.options);
   const first = places[0] ?? null;
 
   if (!first) {
-    return (
-      <div className="hall-body hall-body--empty">
-        <div className="panel">
-          <EmptyState>You are nowhere yet. ‡</EmptyState>
-        </div>
-      </div>
-    );
+    return <SnapshotFresh scope="play" userId={userId} data={{ kind: "nowhere" }} />;
   }
 
   // The cursor the stream opens with is the newest seq in the GAME at render
@@ -66,14 +90,13 @@ export default async function PlayPage() {
   // happened while the page was loading, across every place at once — asking
   // from this place's own newest would have replayed every other place's whole
   // backlog down the stream.
-  // The Dawn watermark, read before the rows so the first paint and the
+  // The wipe watermarks, read before the rows so the first paint and the
   // stream's catch-up agree about where the day starts (db/lib/feedWipe.js).
-  const floor = await feedWipeFloor(prisma);
+  // Two of them: a zone summary clears at Dawn, everywhere else every turn.
+  const floors = await feedWipeFloors(prisma);
+  const floor = floorForPlace(floors, first.placeKey);
 
-  // GameConfig is read out here rather than inside the aside below, because
-  // the composer needs one field off it (tupperAutocorrectEnabled) and a GM
-  // watching a zone has no aside to have loaded it.
-  const [rows, watermark, forcedName, concealment, gameConfig] = await Promise.all([
+  const [rows, watermark, forcedName, concealment] = await Promise.all([
     prisma.archiveEntry.findMany({
       where: { placeKey: first.placeKey, deletedAt: null, seq: seqFilterAbove(floor) },
       orderBy: { seq: "desc" },
@@ -83,7 +106,6 @@ export default async function PlayPage() {
     prisma.archiveEntry.aggregate({ _max: { seq: true } }),
     viewer.character ? loadForcedName(prisma, viewer.character.id) : null,
     viewer.character ? loadConcealment(prisma, viewer.character.id) : null,
-    prisma.gameConfig.findUnique({ where: { id: 1 } }),
   ]);
 
   // The first paint's rows, with ONE `?v=` per character rather than the
@@ -280,6 +302,21 @@ export default async function PlayPage() {
     ? await loadFactionView({ discordUserId: viewer.discordUserId }, viewer.character)
     : null;
 
+  // The newest thing Bascinet said to this player, for the Messages row's
+  // unread dot before the pane has ever been opened (./DmPane.js, CHAT.md
+  // §2b). Through the player chair's noise filter, so a mention relay lights
+  // the dot the way any other word from Bascinet does.
+  const newestDm = viewer.character
+    ? await prisma.directMessage.findFirst({
+        where: withoutDmNoise(
+          { discordUserId: viewer.discordUserId, direction: "OUTBOUND" },
+          { perspective: "player" },
+        ),
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      })
+    : null;
+
   // Is there an instant camera in this character's hands? One slug off the
   // sheet already loaded above (db/lib/photoMint.js#CAMERA_SLUG), so the row
   // action bar can decide whether to draw the 📷 without a second query.
@@ -298,94 +335,92 @@ export default async function PlayPage() {
     updatedAt: person.avatarVersion,
   }));
 
-  const hall = (
-    <Hall
-      initialPlaces={places}
-      initialPlace={first.placeKey}
-      initialRows={initialRows}
-      initialSeq={watermark._max.seq === null ? "0" : String(watermark._max.seq)}
-      self={{
-        characterId: viewer.character?.id ?? null,
-        name: identity.name,
-        avatarVersion: viewer.character?.updatedAt?.getTime?.() ?? null,
-      }}
-      aside={aside}
-      // What the server will do to the words on their way in, so the row the
-      // composer draws in the same frame says what the confirmed one will say
-      // (db/lib/say.js#transformSpeech).
-      autocorrect={Boolean(gameConfig?.tupperAutocorrectEnabled)}
-      webOnly={Boolean(viewer.character?.webOnly)}
-      roster={mentionRoster}
-      // A GM with no living character reads every zone they may see and may
-      // take a line down (web/app/api/feed/delete/route.js).
-      gm={Boolean(viewer.gm)}
-      // The 📷 on somebody else's line, only for a character actually
-      // carrying one. photographRow() re-checks the sheet, so this is the
-      // hint and never the lock.
-      hasCamera={hasCamera}
-      // The ✉ beside the composer, and the hood next to it. `canConceal` is
-      // db/lib/conceal.js's own three refusals asked in advance: a forced name
-      // has nothing to hide, a bare face has nothing to toggle, and something
-      // that FORCES a hood does not come off by asking. toggleConceal re-asks
-      // all three.
-      letters={
-        aside?.letters
-          ? {
-              canWrite: aside.letters.canWrite,
-              canSeal: aside.letters.canSeal,
-              canBindBook: aside.letters.canBindBook,
-              hasBird: aside.letters.hasBird,
-              birdSentToday: aside.letters.birdSentToday,
-            }
-          : null
-      }
-      faction={factionView}
-      conceal={{
-        canConceal: Boolean(concealment) && !concealment.forced && !forcedName,
-        concealed: Boolean(identity.concealed),
-        alias: identity.alias ?? null,
-      }}
-    />
-  );
+  const chat = {
+    initialPlaces: places,
+    initialPlace: first.placeKey,
+    initialRows,
+    initialSeq: watermark._max.seq === null ? "0" : String(watermark._max.seq),
+    self: {
+      characterId: viewer.character?.id ?? null,
+      name: identity.name,
+      avatarVersion: viewer.character?.updatedAt?.getTime?.() ?? null,
+    },
+    aside,
+    // What the server will do to the words on their way in, so the row the
+    // composer draws in the same frame says what the confirmed one will say
+    // (db/lib/say.js#transformSpeech).
+    autocorrect: Boolean(gameConfig?.tupperAutocorrectEnabled),
+    webOnly: Boolean(viewer.character?.webOnly),
+    roster: mentionRoster,
+    // A GM with no living character reads every zone they may see and may
+    // take a line down (web/app/api/feed/delete/route.js).
+    gm: Boolean(viewer.gm),
+    // The 📷 on somebody else's line, only for a character actually
+    // carrying one. photographRow() re-checks the sheet, so this is the
+    // hint and never the lock.
+    hasCamera,
+    // The ✉ beside the composer, and the hood next to it. `canConceal` is
+    // db/lib/conceal.js's own three refusals asked in advance: a forced name
+    // has nothing to hide, a bare face has nothing to toggle, and something
+    // that FORCES a hood does not come off by asking. toggleConceal re-asks
+    // all three.
+    letters: aside?.letters
+      ? {
+          canWrite: aside.letters.canWrite,
+          canSeal: aside.letters.canSeal,
+          hasBird: aside.letters.hasBird,
+          birdSentToday: aside.letters.birdSentToday,
+        }
+      : null,
+    faction: factionView,
+    dmNewestMs: newestDm?.createdAt?.getTime?.() ?? null,
+    conceal: {
+      canConceal: Boolean(concealment) && !concealment.forced && !forcedName,
+      concealed: Boolean(identity.concealed),
+      alias: identity.alias ?? null,
+    },
+  };
 
   // Look at, Heal, Transfer, Loot, Bind, Free, Harm and Move Player are the
-  // SHEET's dialogs, mounted here over the same pools rather than rebuilt.
-  // Only the people half is handed down: the rest of the sheet's pools —
-  // craft, paper, the bird, the Factory — belong to the sheet, and ActionGrid
-  // is not mounted here at all.
-  if (!aside) return hall;
-  return (
-    <CharacterMentionsProvider characters={mentionRoster}>
-      <RequestActionsProvider
-        selfId={viewer.character.id}
-        selfName={viewer.character.name}
-        characterTags={aside.sheet?.tags ?? []}
-        resources={aside.sheet?.resources ?? 0}
-        carry={aside.carry}
-        examineBlocked={aside.pools.examineBlocked}
-        canHeal={aside.pools.canHeal}
-        healsLeft={aside.pools.healsLeft}
-        hasSurgicalSite={aside.pools.hasSurgicalSite}
-        surgicalSitePenalty={aside.pools.surgicalSitePenalty}
-        healTargets={aside.pools.healTargets}
-        healParties={{ characters: aside.pools.peopleParties, rooms: [] }}
-        transferParties={{ characters: aside.pools.peopleParties, rooms: aside.stashRooms }}
-        lootTargets={aside.pools.lootTargets}
-        moveTargets={aside.pools.moveTargets}
-        moveLocations={aside.pools.moveLocations}
-        bindTargets={aside.pools.bindTargets}
-        harmTargets={aside.pools.harmTargets}
-        harmTags={aside.pools.harmTags}
+  // SHEET's dialogs, mounted over the same pools rather than rebuilt (in
+  // PlayView). Only the people half is handed down: the rest of the sheet's
+  // pools — craft, paper, the bird, the Factory — belong to the sheet, and
+  // ActionGrid is not mounted here at all.
+  const providers = aside
+    ? {
+        selfId: viewer.character.id,
+        selfName: viewer.character.name,
+        characterTags: aside.sheet?.tags ?? [],
+        resources: aside.sheet?.resources ?? 0,
+        carry: aside.carry,
+        examineBlocked: aside.pools.examineBlocked,
+        canHeal: aside.pools.canHeal,
+        healsLeft: aside.pools.healsLeft,
+        hasSurgicalSite: aside.pools.hasSurgicalSite,
+        surgicalSitePenalty: aside.pools.surgicalSitePenalty,
+        healTargets: aside.pools.healTargets,
+        healParties: { characters: aside.pools.peopleParties, rooms: [] },
+        transferParties: { characters: aside.pools.transferParties, rooms: aside.stashRooms },
+        lootTargets: aside.pools.lootTargets,
+        consumeTargets: aside.pools.consumeTargets,
+        bindTargets: aside.pools.bindTargets,
+        harmTargets: aside.pools.harmTargets,
+        harmTags: aside.pools.harmTags,
         // The four paperwork dialogs the ✉ opens, named exactly as
         // web/lib/selfPools.js returns them.
-        {...aside.letters}
+        ...aside.letters,
         // Extract, from the place card's Factory button.
-        canSeeExtract={aside.canSeeExtract}
-        canExtract={aside.canExtract}
-        extractBlocked={aside.extractBlocked}
-      >
-        {hall}
-      </RequestActionsProvider>
-    </CharacterMentionsProvider>
+        canSeeExtract: aside.canSeeExtract,
+        canExtract: aside.canExtract,
+        extractBlocked: aside.extractBlocked,
+      }
+    : null;
+
+  return (
+    <SnapshotFresh
+      scope="play"
+      userId={userId}
+      data={{ kind: "chat", chat, providers, roster: mentionRoster }}
+    />
   );
 }

@@ -9,9 +9,9 @@ import Pager from "@/app/components/Pager";
 // column above all).
 
 const STATUS_LABELS = {
-  ACTIVE: "In progress ‡",
-  DONE: "Finished ‡",
-  CANCELLED: "Given up ‡",
+  ACTIVE: "In progress",
+  DONE: "Finished",
+  CANCELLED: "Given up",
 };
 
 const FILTER_DEFS = [
@@ -41,7 +41,7 @@ export default function CraftsTable({ projects }) {
         query={table.query}
         setQuery={table.setQuery}
         searchLabel="Search"
-        searchPlaceholder="Character, recipe, custom name… ‡"
+        searchPlaceholder="Character, recipe, custom name…"
       />
       <TableScroll minWidth="64rem">
         <thead>

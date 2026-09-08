@@ -20,7 +20,7 @@
 // rest of them untouched.
 
 // The LABELS and the predicates live in db/lib/placeAffordances.js, so a
-// room's starter post and the Hall's place panel cannot drift about what a
+// room's starter post and Chat's place panel cannot drift about what a
 // room offers. What is left here is Discord's shape: one row, and a style
 // per tone.
 const {

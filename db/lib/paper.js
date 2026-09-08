@@ -25,6 +25,10 @@ const { readBlock } = require("./reading");
 // paperKind at all, which is what tells it apart from a sheet somebody wrote
 // on and then rubbed out (there is no such thing — writing is append-only).
 const PAPER_SLUG = "paper";
+// The craftable blank book (docs/tags.yaml): ten sheets bound with nothing in
+// them yet. Writing on one is what mints a BOOK row, the way writing on a
+// sheet mints a PAPER row.
+const BLANK_BOOK_SLUG = "blank-book";
 
 // Where every paper row lives, catalog and runtime alike. Same idiom as
 // CORPSE_GROUP_SLUG: a written note is per-character and never in
@@ -32,9 +36,6 @@ const PAPER_SLUG = "paper";
 // match on, rather than any catalog flag.
 const PAPER_GROUP_SLUG = "items-paper";
 
-// How many blank sheets go into a book, and come back out of one. One number,
-// both directions, so binding and tearing up can never disagree.
-const BOOK_SHEETS = 10;
 
 // What the text boxes will take. Here rather than beside the server actions
 // because BOTH faces need them — the counter under the box has to promise
@@ -48,7 +49,7 @@ const WRITE_MAX = 2000;
 const BOOK_MAX = 12000;
 const TITLE_MAX = 60;
 
-const BLANK_LINE = "*Blank paper.* ‡";
+const BLANK_LINE = "*Blank paper.*";
 
 // What a book says when you are not holding it. Every other catalog tag's
 // description is the same sentence for everybody, but a book's is its whole
@@ -73,10 +74,18 @@ function isBook(tag) {
   return tag?.paperKind === "BOOK";
 }
 
-// Is this row a wax stamp? Carrying a mark is what makes one — there is no
-// second flag to fall out of step with.
+// Is this row a wax stamp?
+//
+// Carrying a mark is most of it, but not all: a spent envelope keeps the mark
+// it was broken from (paperMint.js#breakSeal sets sealMark on the BROKEN_SEAL
+// row so the wax can still be described), so the mark alone said yes to one.
+// That put broken seals in the Seal picker and let a letter be closed with a
+// seal somebody had already opened.
+//
+// A stamp is stock, a document is not — so the second half is having no
+// paperKind at all, the same test isPaper()/isBook() read from the other side.
 function isSeal(tag) {
-  return Boolean(tag?.sealMark);
+  return Boolean(tag?.sealMark) && !tag?.paperKind;
 }
 
 // What a wax stamp presses into the wax. Falls back rather than printing
@@ -124,6 +133,33 @@ function paperDescription(tag, viewer = null) {
   return blocked ?? text;
 }
 
+// The same decision as paperDescription, as a shape the web can draw instead
+// of one flat sentence. `text` is what the reader gets; `plain` says whether
+// it is the paper's own words (markdown, drawn on a sheet) or a line ABOUT the
+// paper — a refusal, a seal, a closed book — which is drawn as flat text so a
+// player cannot dress a refusal up as a letter. Same viewer rules, same
+// sentences, one branch each; PaperSheet.js is the one renderer.
+//
+// Returns null for anything that is not a document, so callers can attach it
+// to every tag and let the client branch on its presence.
+function paperView(tag, viewer = null) {
+  if (!isPaper(tag)) return null;
+  const kind = tag.paperKind;
+  if (kind === "SEALED") return { kind, text: `${SEALED_LINE} ${markOf(tag)} ‡`, plain: true };
+  if (kind === "BROKEN_SEAL") return { kind, text: `${BROKEN_LINE} ${markOf(tag)} ‡`, plain: true };
+
+  const text = (tag.paperText ?? "").trim();
+  if (isBook(tag) && viewer?.holdsIt === false) return { kind, text: CLOSED_BOOK_LINE, plain: true };
+  if (!text) return { kind, text: BLANK_LINE, plain: false };
+
+  const blocked = readBlock(viewer?.tags ?? [], {
+    phase: viewer?.phase ?? null,
+    indoors: viewer?.indoors ?? true,
+  });
+  if (blocked) return { kind, text: blocked, plain: true };
+  return { kind, text, plain: false };
+}
+
 // The title a freshly written sheet wears.
 //
 // DELIBERATELY ANONYMOUS. Tag.name travels everywhere a tag does — the Transfer
@@ -135,17 +171,25 @@ function paperDescription(tag, viewer = null) {
 //
 // So the name says nothing and the DESCRIPTION says everything, because the
 // description is the one field composed per viewer (paperDescription above).
-// Tag.name is @unique, so it still needs to differ per sheet; the code is a
-// meaningless waybill in the Depot's own house style, chosen precisely because
-// it sorts and identifies without describing. Ada knows which of her two notes
-// is which by reading them.
-function paperName(code) {
-  return `A Note (${code})`;
+//
+// It used to say "A Note (XY-1234)" — a waybill code, and the only reason for
+// it was that Tag.name was @unique, so every sheet needed a title no other tag
+// had. That made the object's own name into its database key, which is what a
+// slug is for and what `slug` on this row already is. The constraint is gone
+// and so is the code. Ada tells her two notes apart by reading them, which is
+// the only way anybody was ever meant to.
+function paperName() {
+  return "A Note";
 }
 
 // Two letters, four digits — the same shape as a Depot shipment id, and for
 // the same reason: it has to read like something stamped on the object rather
-// than like a database key. Collisions are handled by the minter's retry.
+// than like a database key.
+//
+// No longer used for paper, which is just "A Note" now. It still breaks a name
+// collision for the two kinds of row that DO want to be told apart on sight —
+// a disguise (db/lib/disguiseMint.js) and a photograph (photoMint.js), where
+// two identically named ones in a list are genuinely confusing.
 const NOTE_LETTERS = "ABCDEFGHJKLMNPRSTUVWXYZ";
 
 function noteCode(rng = Math.random) {
@@ -201,6 +245,7 @@ function appendText(existing, addition) {
 
 module.exports = {
   PAPER_SLUG,
+  BLANK_BOOK_SLUG,
   PAPER_GROUP_SLUG,
   WRITE_MAX,
   BOOK_MAX,
@@ -214,8 +259,8 @@ module.exports = {
   markOf,
   sealLabel,
   bookName,
-  BOOK_SHEETS,
   paperDescription,
+  paperView,
   paperName,
   noteCode,
   sealedName,

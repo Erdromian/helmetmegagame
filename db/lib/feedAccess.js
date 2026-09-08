@@ -24,6 +24,30 @@ const {
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { conversationsFor } = require("./conversations");
 const { visibleZoneIds } = require("./gmZoneView");
+const { SCRYING_EYE_SLUG, ROBE_SLUGS } = require("./thanati");
+
+// Equipped Scrying Eye, ROBES ON, AND the web-only switch on. The web-only
+// half is technical: Discord's channel permissions could never show a
+// character the rooms the eye opens, so it works only for someone who has left
+// Discord. The robes are Bascinet's rule — "holding it in your hand while
+// wearing your robes lets you see through walls" — which also means a
+// stolen eye is worth nothing to a thief who is not in the cult's dress.
+// (docs/systemdocs/THANATI.md §4.)
+async function hasScryingEye(prisma, characterId) {
+  const row = await prisma.character.findUnique({
+    where: { id: characterId },
+    select: {
+      webOnly: true,
+      tags: {
+        where: { equipped: true, quantity: { gt: 0 }, tag: { slug: { in: [SCRYING_EYE_SLUG, ...ROBE_SLUGS] } } },
+        select: { tag: { select: { slug: true } } },
+      },
+    },
+  });
+  if (!row?.webOnly) return false;
+  const slugs = new Set(row.tags.map((ct) => ct.tag.slug));
+  return slugs.has(SCRYING_EYE_SLUG) && ROBE_SLUGS.some((slug) => slugs.has(slug));
+}
 
 // How long a character waits between two sends in one place, in ms. The zone
 // summary is a slower surface on purpose: it is a whole zone reading.
@@ -76,7 +100,7 @@ async function placesFor(prisma, character, { gm = false, discordUserId = null }
   });
   if (!location) return [];
 
-  const [rooms, keys, conversations] = await Promise.all([
+  const [rooms, keys, conversations, scrying] = await Promise.all([
     prisma.room.findMany({
       where: { locationId: location.id },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -84,17 +108,33 @@ async function placesFor(prisma, character, { gm = false, discordUserId = null }
     }),
     roomAccessKeys(prisma, character.id),
     conversationsFor(prisma, character.id, { locationId: location.id }),
+    hasScryingEye(prisma, character.id),
   ]);
 
   // The same accessibleRooms() every other door in the game reads, guests
   // included — a guest who is shown the thread on Discord and refused the
   // feed on the web would be two answers to one question.
   const reachable = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds);
+  // THE SCRYING EYE (docs/systemdocs/THANATI.md §4): equipped, and only with
+  // the web-only switch on, every room and every conversation at this Location
+  // is readable. What the eye adds arrives with canSpeak false, so
+  // mayWritePlace still refuses it; what the character could already enter
+  // keeps its voice.
+  const reachableIds = new Set(reachable.map((room) => room.id));
+  const seen = scrying ? rooms : reachable;
+  const memberConversationIds = conversations.map((c) => c.id);
+  const overheard = scrying
+    ? await prisma.playerThread.findMany({
+        where: { locationId: location.id, id: { notIn: memberConversationIds } },
+        orderBy: { lastActivityAt: "desc" },
+        select: { id: true, name: true },
+      })
+    : [];
   // Public first, then the private ones a key or a guest row opens: the
   // column draws them as two sections and the order is what separates them.
   const ordered = [
-    ...reachable.filter((room) => room.kind !== "PRIVATE"),
-    ...reachable.filter((room) => room.kind === "PRIVATE"),
+    ...seen.filter((room) => room.kind !== "PRIVATE"),
+    ...seen.filter((room) => room.kind === "PRIVATE"),
   ];
 
   const list = [
@@ -112,7 +152,7 @@ async function placesFor(prisma, character, { gm = false, discordUserId = null }
         name: room.name,
         description: room.description,
         roomKind: room.kind,
-        canSpeak: true,
+        canSpeak: reachableIds.has(room.id),
       }),
     ),
     ...conversations.map((conversation) =>
@@ -121,6 +161,14 @@ async function placesFor(prisma, character, { gm = false, discordUserId = null }
         kind: "conv",
         name: conversation.name,
         canSpeak: true,
+      }),
+    ),
+    ...overheard.map((conversation) =>
+      place({
+        placeKey: placeKeyForConversation(conversation.id),
+        kind: "conv",
+        name: conversation.name,
+        canSpeak: false,
       }),
     ),
   ];

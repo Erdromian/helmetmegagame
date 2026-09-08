@@ -18,6 +18,7 @@ import {
   threatBySlug,
   optInName,
   optInWhitelisted,
+  PARTIES,
 } from "@/lib/threats";
 import { PLAYER_ROLE_ID, LEADER_WHITELIST_ROLE_ID } from "@lifeweb/db/lib/roleIds";
 import { roleCapacity, seatHolderStatuses } from "@lifeweb/db/lib/roleCapacity";
@@ -29,13 +30,19 @@ import {
   updateWorldState,
   runDoctorAction,
   defuseNukeAction,
+  cancelAscensionAction,
   bulkMoveCharacters,
 } from "@/app/(app)/gm/dev/actions";
 import EndTurnButton from "@/app/(app)/gm/dev/EndTurnButton";
 import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
 import ThreatAssignmentsTable from "@/app/(app)/gm/dev/threats/ThreatAssignmentsTable";
 import ThreatRosterTable from "@/app/(app)/gm/dev/threats/ThreatRosterTable";
-import { DEPOT_HELP } from "@/app/(app)/gm/dev/devHelp";
+import ObjectivesPanel from "@/app/(app)/gm/dev/threats/ObjectivesPanel";
+import RitesPanel from "@/app/(app)/gm/dev/threats/RitesPanel";
+import { RITES, riteByKey } from "@lifeweb/db/lib/rites";
+import { ensureRiteWords } from "@lifeweb/db/lib/riteWords";
+import { listObjectives, locationEligible, membersByParty } from "@lifeweb/db/lib/objectives";
+import { kindsForParty, OBJECTIVE_WEIGHTS, PARTY_DEFAULTS, INQUISITOR_OR_BARON_ROLE_SLUGS } from "@lifeweb/db/lib/objectiveKinds";
 import { effectivePlayerCount, GAME_STATE_CREATE } from "@lifeweb/db/lib/gameState";
 import GameControls from "./GameControls";
 import ConfigForm from "./ConfigForm";
@@ -46,24 +53,18 @@ import DeskHeader from "@/app/components/DeskHeader";
 import OpsNav from "./OpsNav";
 import SendLetterForm from "./SendLetterForm";
 import Switch from "@/app/components/Switch";
-import InfoIcon from "@/app/components/InfoIcon";
 import Select from "@/app/components/Select";
 import StatusPill from "@/app/components/StatusPill";
 import EmptyState from "@/app/components/EmptyState";
 
 // Eight numeric Depot knobs share one shape, so they share one component
 // rather than eight copies of the same six lines.
-function DepotField({ name, label, value, help }) {
+function DepotField({ name, label, value }) {
   return (
-    <div className="field">
-      <span className="flex items-center gap-2">
-        <label htmlFor={`depot-${name}`} className="field-label">
-          {label}
-        </label>
-        <InfoIcon text={help} />
-      </span>
+    <label className="field">
+      <span className="field-label">{label}</span>
       <input type="number" id={`depot-${name}`} name={name} min="0" defaultValue={value} />
-    </div>
+    </label>
   );
 }
 
@@ -124,7 +125,7 @@ const SECTIONS = new Set([
 
 // A report's per-step breakdown is the useful half but far too long to dump
 // inline, so the JSON line drops it and the five slowest steps get their own
-// rows. That is how the Dawn wipe says which zone ate the hour.
+// rows. That is how the message wipe says which zone ate the hour.
 function summaryHead(summary) {
   const { steps, ...rest } = summary ?? {};
   return rest;
@@ -199,7 +200,7 @@ export default async function DevPanelPage({ searchParams }) {
   const currentPhase = openTurnRecord?.phase ?? (lastTurn?.phase === "DAWN" ? "DUSK" : "DAWN");
 
   // Mirrors advanceTurn()'s own phase alternation, so the confirm dialog can
-  // warn about the Dawn wipe only when the next turn actually triggers one.
+  // warn about the summaries half of the wipe only when the next turn is a Dawn.
   const lastForPhase = openTurnRecord ?? lastTurn;
   const nextPhase = !lastForPhase || lastForPhase.phase === "DUSK" ? "DAWN" : "DUSK";
 
@@ -213,6 +214,12 @@ export default async function DevPanelPage({ searchParams }) {
   let spawnLocations = [];
   let seatRows = [];
   let pendingSpawns = [];
+  let riteWordRows = [];
+  let riteAttemptRows = [];
+  // The Objectives cards under the roster (THREATS.md §6a).
+  let objectiveParties = [];
+  let objectiveCharacters = [];
+  let objectiveLocations = [];
   let lobbyRows = [];
   let draftRows = [];
   let pickableRoles = [];
@@ -394,7 +401,7 @@ export default async function DevPanelPage({ searchParams }) {
       break;
     }
     case "antagonists": {
-      const [heldSeats, offers, members] = await Promise.all([
+      const [heldSeats, offers, members, objectives, pickableCharacters, allLocations] = await Promise.all([
         // Who holds a seat, read off the seat tag itself. No column to keep in
         // sync, and it stays right however the tag was granted.
         prisma.characterTag.findMany({
@@ -429,6 +436,18 @@ export default async function DevPanelPage({ searchParams }) {
           },
         }),
         listGuildMembers(),
+        listObjectives(prisma, { state }),
+        // The Add row's pickers: living characters, with what the leader and
+        // Inquisitor-or-Baron kinds filter on.
+        prisma.character.findMany({
+          where: { status: "ALIVE" },
+          orderBy: { name: "asc" },
+          select: { id: true, name: true, roleTitle: true, role: { select: { slug: true, requiresWhitelist: true } } },
+        }),
+        prisma.location.findMany({
+          orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+          select: { id: true, name: true, attributes: true, zone: { select: { name: true, kind: true } } },
+        }),
       ]);
 
       const handleFor = new Map(members.map((m) => [m.id, m.globalName || m.username]));
@@ -460,6 +479,85 @@ export default async function DevPanelPage({ searchParams }) {
         locationName: o.location?.name ?? null,
         createdAt: o.createdAt.toISOString().slice(0, 16).replace("T", " "),
       }));
+
+      // One card per party, seated or not. Members come from the same
+      // derivation the reveal uses (db/lib/objectives.js#membersByParty), fed
+      // the seat rows reshaped into characters-with-tags, so the card and the
+      // Game Ended post can never disagree about who is in a party. Everything
+      // is serialised flat — the panel is a client component.
+      const seatHolders = new Map();
+      for (const row of heldSeats) {
+        if (!row.character) continue;
+        const holder = seatHolders.get(row.character.id) ?? { id: row.character.id, name: row.character.name, tags: [] };
+        holder.tags.push({ tag: { slug: row.tag.slug } });
+        seatHolders.set(row.character.id, holder);
+      }
+      // The Thanati's rites, read-only (RitesPanel.js): this game's words —
+      // rolled here if nothing has asked for them yet — and the attempts in
+      // flight or lately finished, with who chanted.
+      const [riteWords, attempts] = await Promise.all([
+        ensureRiteWords(prisma),
+        prisma.riteAttempt.findMany({
+          where: { OR: [{ status: { in: ["OPEN", "READY"] } }, { firedAt: { not: null } }] },
+          orderBy: { openedAt: "desc" },
+          take: 40,
+          include: { chants: { select: { characterId: true, characterName: true } } },
+        }),
+      ]);
+      riteWordRows = RITES.map((r) => ({ key: r.key, name: r.name, minChanters: r.minChanters, phrase: riteWords[r.key] ?? "" }));
+      const stamp = (d) => (d ? d.toISOString().slice(0, 16).replace("T", " ") : null);
+      riteAttemptRows = attempts.map((a) => ({
+        id: a.id,
+        riteName: riteByKey(a.riteKey)?.name ?? a.riteKey,
+        roomName: a.roomName,
+        status: a.status,
+        chanters: [...new Map(a.chants.map((c) => [c.characterId, c.characterName])).values()],
+        // An effect that threw, or what a re-armed attempt was missing.
+        note: a.result?.error ? String(a.result.error) : Array.isArray(a.result?.rearmed) ? a.result.rearmed.join(", ") : null,
+        openedAt: stamp(a.openedAt),
+        firesAt: stamp(a.firesAt),
+        firedAt: stamp(a.firedAt),
+      }));
+
+      const partyMembers = membersByParty([...seatHolders.values()]);
+      objectiveParties = PARTIES.map((party) => {
+        return {
+          key: party.key,
+          name: party.name,
+          members: (partyMembers.get(party.key) ?? []).map(({ name, seat }) => ({ name, seat })),
+          objectives: objectives
+            .filter((o) => o.partyKey === party.key)
+            .map((o) => ({
+              id: o.id,
+              description: o.description,
+              weight: o.weight,
+              done: o.done,
+              source: o.source,
+              scripted: o.scripted,
+              placeholder: o.placeholder,
+            })),
+          kinds: kindsForParty(party.key).map((k) => ({
+            key: k.key,
+            pick: k.pick,
+            target: k.target,
+            defaultValue: k.defaultValue ?? null,
+          })),
+          hasStandardSet: Boolean(PARTY_DEFAULTS[party.key]?.length),
+        };
+      });
+      objectiveCharacters = pickableCharacters.map((c) => ({
+        id: c.id,
+        name: c.name,
+        roleTitle: c.roleTitle,
+        leader: Boolean(c.role?.requiresWhitelist),
+        inquisitorOrBaron: INQUISITOR_OR_BARON_ROLE_SLUGS.has(c.role?.slug),
+      }));
+      // Grouped here with the same helper Bulk move uses, so the client only
+      // renders optgroups.
+      objectiveLocations = groupLocationsByZone(allLocations.filter(locationEligible)).map((g) => ({
+        zoneName: g.zoneName ?? "",
+        locations: g.locations.map((l) => ({ id: l.id, name: l.name })),
+      }));
       break;
     }
     default:
@@ -475,7 +573,6 @@ export default async function DevPanelPage({ searchParams }) {
             {openTurnRecord ? `${describeTurn(openTurnRecord).label} — OPEN` : "No open turn"}
           </span>
         }
-        actions={<span className="text-xs text-muted">Superadmin — edits here bypass every game rule</span>}
       />
       <div className="desk-body desk-body--ops">
         <OpsNav section={section} />
@@ -511,7 +608,6 @@ export default async function DevPanelPage({ searchParams }) {
                 <section className="ops-section ops-section--wide">
                   <div className="ops-section-head">
                     <h2 className="section-title">Preview</h2>
-                    <p className="ops-lede">The roll Start will commit. Hand-set a row to override it; re-roll for a fresh seed. Close the lobby first and nobody can change it under you. ‡</p>
                   </div>
                   <AssignmentPreview draft={state.assignmentDraft} rows={draftRows} roles={pickableRoles} />
                 </section>
@@ -520,24 +616,19 @@ export default async function DevPanelPage({ searchParams }) {
               <section className="ops-section ops-section--wide">
                 <div className="ops-section-head">
                   <h2 className="section-title">Lobby</h2>
-                  <p className="ops-lede">Who readied up and what they asked for. Priorities are the player&apos;s; the roll is on Preview. ‡</p>
                 </div>
                 <LobbyRoster rows={lobbyRows} started={state.phase === "RUNNING" || state.phase === "ENDED"} />
               </section>
 
               <section className="ops-section">
                 <div className="ops-section-head">
-                  <h2 className="section-title">The world ‡</h2>
-                  <p className="ops-lede">Per-game state. A restart resets all of it; the Configuration section does not. ‡</p>
+                  <h2 className="section-title">The world</h2>
                 </div>
                 <form action={updateWorldState} className="flex flex-wrap items-end gap-3">
                   <div className="field">
-                    <span className="flex items-center gap-2">
-                      <label htmlFor="world-lifewebBlood" className="field-label">
-                        Lifeweb Blood
-                      </label>
-                      <InfoIcon text="0-100, raw override." />
-                    </span>
+                    <label htmlFor="world-lifewebBlood" className="field-label">
+                      Lifeweb Blood
+                    </label>
                     <input
                       type="number"
                       id="world-lifewebBlood"
@@ -582,16 +673,12 @@ export default async function DevPanelPage({ searchParams }) {
                 {state.phase === "RUNNING" ? (
                   <EndTurnButton
                     turnLabel={openTurnRecord ? describeTurn(openTurnRecord).label : null}
-                    wipesMessages={nextPhase === "DAWN" && config.messageWipeEnabled}
+                    wipesSummaries={nextPhase === "DAWN"}
                   />
                 ) : (
-                  <p className="ops-lede">Turns only advance while the game is running. ‡</p>
+                  null
                 )}
 
-                <p className="ops-lede">
-                  Save overrides the current turn&apos;s day and phase directly. Changing the
-                  phase also picks a new banner for it. ‡
-                </p>
               </section>
 
               <section className="ops-section">
@@ -610,9 +697,6 @@ export default async function DevPanelPage({ searchParams }) {
                     <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
                   </div>
                 </form>
-                <p className="ops-lede">
-                  Applies on next turn (via End turn above or the bot&apos;s nightly cron).
-                </p>
               </section>
             </div>
           ) : null}
@@ -621,9 +705,6 @@ export default async function DevPanelPage({ searchParams }) {
             <section className="ops-section">
               <div className="ops-section-head">
                 <h2 className="section-title">Configuration</h2>
-                <p className="ops-lede">
-                  Durable knobs. These survive a restart — what a game does to the world lives on the Game section instead. ‡
-                </p>
               </div>
               <ConfigForm config={config} />
             </section>
@@ -634,38 +715,27 @@ export default async function DevPanelPage({ searchParams }) {
               <div className="ops-section-head">
                 <h2 className="section-title">The Depot</h2>
               </div>
-              <p className="ops-lede">
-                The Merchant&apos;s station. The top half is live state you can override; the bottom
-                half is the tuning the game runs on. The turret&apos;s severity table is edited as JSON
-                — every column has to sum to 1 or the save is refused. ‡
-              </p>
               <form action={updateDepot} className="flex flex-col gap-4">
                 <div className="ops-grid">
                   <DepotField
                     name="accountObols"
                     label="Account (¢)"
                     value={depot.accountObols}
-                    help={DEPOT_HELP.accountObols}
                   />
                   <DepotField
                     name="debtObols"
                     label="Drawn on the line (¢)"
                     value={depot.debtObols}
-                    help={DEPOT_HELP.debtObols}
                   />
                   <DepotField
                     name="generatorFuel"
                     label="Fuel in the tank"
                     value={depot.generatorFuel}
-                    help={DEPOT_HELP.generatorFuel}
                   />
                   <div className="field">
-                    <span className="flex items-center gap-2">
-                      <label htmlFor="depot-merchantFace" className="field-label">
-                        Face the turret spares
-                      </label>
-                      <InfoIcon text={DEPOT_HELP.merchantFace} />
-                    </span>
+                    <label htmlFor="depot-merchantFace" className="field-label">
+                      Face the turret spares
+                    </label>
                     <input
                       type="text"
                       id="depot-merchantFace"
@@ -681,58 +751,48 @@ export default async function DevPanelPage({ searchParams }) {
                     <Switch name="generatorOn" defaultChecked={depot.generatorOn}>
                       Generator running
                     </Switch>
-                    <InfoIcon text={DEPOT_HELP.generatorOn} />
                   </div>
                   <div className="ops-toggle">
                     <Switch name="turretArmed" defaultChecked={depot.turretArmed}>
                       Turret armed
                     </Switch>
-                    <InfoIcon text={DEPOT_HELP.turretArmed} />
                   </div>
                 </div>
 
                 <div className="ops-grid">
-                  <DepotField name="fuelMax" label="Tank size" value={depot.fuelMax} help={DEPOT_HELP.fuelMax} />
+                  <DepotField name="fuelMax" label="Tank size" value={depot.fuelMax} />
                   <DepotField
                     name="fuelBurnPerTurn"
                     label="Fuel burned per turn"
                     value={depot.fuelBurnPerTurn}
-                    help={DEPOT_HELP.fuelBurnPerTurn}
                   />
-                  <DepotField name="coalFuel" label="Fuel per Coal" value={depot.coalFuel} help={DEPOT_HELP.coalFuel} />
+                  <DepotField name="coalFuel" label="Fuel per Coal" value={depot.coalFuel} />
                   <DepotField
                     name="saltpeterFuel"
                     label="Fuel per Saltpeter"
                     value={depot.saltpeterFuel}
-                    help={DEPOT_HELP.saltpeterFuel}
                   />
                   <DepotField
                     name="shuttleMaxTurns"
                     label="Shuttle stays (turns)"
                     value={depot.shuttleMaxTurns}
-                    help={DEPOT_HELP.shuttleMaxTurns}
                   />
                   <DepotField
                     name="shuttleCooldown"
                     label="Shuttle cooldown (turns)"
                     value={depot.shuttleCooldown}
-                    help={DEPOT_HELP.shuttleCooldown}
                   />
                   <DepotField
                     name="creditCapObols"
                     label="Credit cap (¢)"
                     value={depot.creditCapObols}
-                    help={DEPOT_HELP.creditCapObols}
                   />
                 </div>
 
                 <div className="field">
-                  <span className="flex items-center gap-2">
-                    <label htmlFor="depot-turretTable" className="field-label">
-                      Turret severity table
-                    </label>
-                    <InfoIcon text={DEPOT_HELP.turretTable} />
-                  </span>
+                  <label htmlFor="depot-turretTable" className="field-label">
+                    Turret severity table
+                  </label>
                   <textarea
                     id="depot-turretTable"
                     name="turretTable"
@@ -753,10 +813,6 @@ export default async function DevPanelPage({ searchParams }) {
             <section className="ops-section">
               <div className="ops-section-head">
                 <h2 className="section-title">Bulk Move</h2>
-                <p className="ops-lede">
-                  Relocate several characters to one location at once. A raw move — no Move
-                  cost, no adjacency check, no walk cooldown. ‡
-                </p>
               </div>
               <form action={bulkMoveCharacters} className="flex flex-wrap items-end gap-3">
                 <label className="field">
@@ -784,10 +840,6 @@ export default async function DevPanelPage({ searchParams }) {
                 </label>
                 <SubmitButton pendingLabel="Moving…">Move them</SubmitButton>
               </form>
-              <p className="ops-lede">
-                Their location and zone roles resync in the background; the report lands under
-                System Reports. ‡
-              </p>
             </section>
           ) : null}
 
@@ -795,17 +847,8 @@ export default async function DevPanelPage({ searchParams }) {
             <section className="ops-section">
               <div className="ops-section-head">
                 <h2 className="section-title">Send a Letter</h2>
-                <p className="ops-lede">
-                  A bird arrives carrying a letter from whoever you say it is from. The paper
-                  lands on their sheet like any other, and they can answer it until the end of
-                  next turn — the answer comes back in their conversation on the Players desk. ‡
-                </p>
               </div>
               <SendLetterForm characters={livingCharacters} />
-              <p className="ops-lede">
-                A sealed letter reads as a seal and nothing else until somebody breaks it. An
-                illiterate recipient still gets the paper; they just get no Reply button. ‡
-              </p>
             </section>
           ) : null}
 
@@ -816,19 +859,16 @@ export default async function DevPanelPage({ searchParams }) {
                   of the game. */}
               {(state.nukeArmedTurn != null || state.nukeDetonatedTurn != null) && (
                 <div className="ops-section-head">
-                  <h2 className="section-title">The device ‡</h2>
+                  <h2 className="section-title">The device</h2>
                   {state.nukeDetonatedTurn != null ? (
                     <p className="ops-lede">
-                      It went off at the close of turn {state.nukeDetonatedTurn}. Everyone who
-                      was not underground died. Nothing here can undo that. ‡
+                      It went off at the close of turn {state.nukeDetonatedTurn}. ‡
                     </p>
                   ) : (
                     <>
                       <p className="ops-lede">
                         <strong>Armed.</strong> It detonates at the close of turn{" "}
-                        {state.nukeArmedTurn}, and will kill every living character who is not
-                        in the Caves or the Depths. This is the only thing that can stop it
-                        without the datacard. ‡
+                        {state.nukeArmedTurn}. ‡
                       </p>
                       <form action={defuseNukeAction}>
                         <SubmitButton className="btn-secondary" pendingLabel="Defusing…">
@@ -840,13 +880,33 @@ export default async function DevPanelPage({ searchParams }) {
                 </div>
               )}
 
+              {/* Same rule as the device: on screen only while there is
+                  something to say about it. */}
+              {(state.ascensionArmedTurn != null || state.ascensionFiredTurn != null) && (
+                <div className="ops-section-head">
+                  <h2 className="section-title">The cult&rsquo;s countdown</h2>
+                  {state.ascensionFiredTurn != null ? (
+                    <p className="ops-lede">
+                      Ravenheart burned at the close of turn {state.ascensionFiredTurn}. ‡
+                    </p>
+                  ) : (
+                    <>
+                      <p className="ops-lede">
+                        <strong>Running.</strong> Ravenheart burns at the close of turn{" "}
+                        {state.ascensionArmedTurn}, unless the cult leader is killed first. ‡
+                      </p>
+                      <form action={cancelAscensionAction}>
+                        <SubmitButton className="btn-secondary" pendingLabel="Calling it off…">
+                          Call it off
+                        </SubmitButton>
+                      </form>
+                    </>
+                  )}
+                </div>
+              )}
+
               <div className="ops-section-head">
                 <h2 className="section-title">System Reports</h2>
-                <p className="ops-lede">
-                  The last run of each operational pass. A report without a finish time means the container
-                  died mid-pass — re-run the pass or the doctor. Failures listed here are live problems,
-                  not history.
-                </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <form action={runDoctorAction}>
@@ -905,12 +965,6 @@ export default async function DevPanelPage({ searchParams }) {
             <section className="ops-section ops-section--wide">
               <div className="ops-section-head">
                 <h2 className="section-title">Gamemasters</h2>
-                <p className="ops-lede">
-                  Everyone holding a GM seat, read-only. Who runs which zones is nobody&apos;s to
-                  assign any more — each GM picks that for themselves, from the Zones control at the
-                  bottom of the inspector on the players and adjudication desks, or with{" "}
-                  <code>/zone</code> in Discord.
-                </p>
               </div>
               <table className="data-table">
                 <thead>
@@ -967,11 +1021,6 @@ export default async function DevPanelPage({ searchParams }) {
             <section className="ops-section ops-section--wide">
               <div className="ops-section-head">
                 <h2 className="section-title">Assignments</h2>
-                <p className="ops-lede">
-                  Every player on the roster, in the game or not. Assign hands a seat to a character
-                  who already exists; Spawn offers a whole new one over DM. Most opt-ins are decoys,
-                  so what somebody ticked is context, not a gate. ‡
-                </p>
               </div>
               <ThreatAssignmentsTable
                 rows={assignmentRows}
@@ -986,16 +1035,20 @@ export default async function DevPanelPage({ searchParams }) {
             <section className="ops-section ops-section--wide">
               <div className="ops-section-head">
                 <h2 className="section-title">Antagonists</h2>
-                <p className="ops-lede">
-                  Who holds a seat right now, read off the seat tag itself — so a tag granted by hand
-                  from a character panel shows up here too. ‡
-                </p>
               </div>
               <ThreatRosterTable
                 rows={seatRows}
                 pending={pendingSpawns}
                 threats={ASSIGNABLE_SUMMARY}
               />
+              <ObjectivesPanel
+                parties={objectiveParties}
+                characters={objectiveCharacters}
+                locations={objectiveLocations}
+                weights={OBJECTIVE_WEIGHTS}
+                ended={state.phase === "ENDED"}
+              />
+              <RitesPanel words={riteWordRows} attempts={riteAttemptRows} />
             </section>
           ) : null}
 

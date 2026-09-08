@@ -50,6 +50,12 @@ async function flattenTagTokens(lines) {
 // description lines, Bascinet's words — never a second copy written here.
 // Assign hands a seat to a character who already has a role, so it carries no
 // charter at all. One ‡ for the whole message, at the very end.
+//
+// A seat with a `brief` (only the Thanati, who have no Role of their own —
+// db/lib/threats.js) reads it instead of the generic Assign opener, since its
+// first line already says what they are. The Spawn OFFER never carries it: a
+// player who declines must not have read the cult's doctrine, so the bot sends
+// the brief only once Accept has landed (bot/src/lib/threatSpawn.js).
 async function seatMessage(threat, { role = null, spawned = false } = {}) {
   const opening = spawned
     ? `You have been offered a seat: the ${threat.name}.`
@@ -57,9 +63,10 @@ async function seatMessage(threat, { role = null, spawned = false } = {}) {
   const tail = spawned
     ? "Accept and you arrive immediately. Decline and nothing happens. ‡"
     : "Check your tags and documents. ‡";
+  const brief = !spawned && threat.brief?.length ? threat.brief : [opening];
   const intro = role?.intro?.trim();
   const charter = await flattenTagTokens([...(intro ? [intro] : []), ...(role?.description ?? [])]);
-  return [opening, ...charter, tail].join("\n");
+  return [...brief, ...charter, tail].join("\n");
 }
 
 // Hands an existing character a seat. Any threat, opted in or not — consent is

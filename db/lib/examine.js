@@ -19,6 +19,7 @@
 // come in as arguments; see EXAMINE_SUBJECT_SELECT for the rest.
 const { concealedLine } = require("./concealedIdentity");
 const { inRealFaction } = require("./factionConstants");
+const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
 const { formatTagRequirement } = require("./formatTagRequirement");
 const { formatTagArmor } = require("./formatTagArmor");
 const { ARMOR_TAG_FIELDS } = require("./armorValue");
@@ -58,6 +59,10 @@ const EXAMINE_SUBJECT_SELECT = {
       tag: {
         select: {
           name: true,
+          // The client resolves this against the catalog TagsProvider already
+          // ships, so the Examine readout can draw a hoverable TagChip without
+          // this select having to carry a whole tag row per line.
+          slug: true,
           category: true,
           inspectVisibility: true,
           forcedName: true,
@@ -98,9 +103,20 @@ function describeTag({ characterTag: ct, viaSkill }, openTurnNumber) {
   ].filter(Boolean);
   return {
     name: ct.tag.name,
+    slug: ct.tag.slug ?? null,
     detail: bits.length > 0 ? bits.join(" · ") : null,
     viaSkill: Boolean(viaSkill),
   };
+}
+
+// The cult's own sight: a fellow Thanati reads the seat off the subject's
+// sheet as one extra line — the leader's mark when they carry it, the Belief
+// otherwise. Same row shape as describeTag so the dialog renders it unchanged.
+function thanatiLines(subjectTags = []) {
+  const slugs = new Set(subjectTags.map((ct) => ct.tag?.slug));
+  if (!slugs.has(THANATI_SLUG)) return [];
+  const seat = subjectTags.find((ct) => ct.tag?.slug === (slugs.has(THANATI_LEADER_SLUG) ? THANATI_LEADER_SLUG : THANATI_SLUG));
+  return [{ name: seat.tag.name, slug: seat.tag.slug, detail: null, viaSkill: false }];
 }
 
 // The concealed read: deliberately impoverished, and built BEFORE any of the
@@ -143,6 +159,10 @@ function examineReadout({
   viewerFactionId = null,
   viewerIsOfficer = false,
   wasConcealedAs = null,
+  // A Thanati examining anybody sees whether they are one too, and whether
+  // they lead (docs/systemdocs/THANATI.md). Nobody else ever does: the
+  // Belief stays HIDDEN to a bystander, robes or no robes.
+  viewerIsThanati = false,
 }) {
   const identity = presentedIdentity(subject, {
     forcedName: forcedNameFrom(subject.tags),
@@ -182,9 +202,10 @@ function examineReadout({
     // are the sheet (character/page.js) and /play's own (thingRows.js) —
     // both read the CHARACTER'S OWN held tags directly, which is the design
     // (own-sheet detection, not examining someone else's pockets).
-    tags: medicallyVisibleTags(subject.tags, satisfied).map((entry) =>
-      describeTag(entry, openTurnNumber),
-    ),
+    tags: [
+      ...medicallyVisibleTags(subject.tags, satisfied).map((entry) => describeTag(entry, openTurnNumber)),
+      ...(viewerIsThanati ? thanatiLines(subject.tags) : []),
+    ],
     // An unseen field is ABSENT, never a "hidden" placeholder — and nothing
     // tells the subject they were read. Once the viewer holds the sight, an
     // empty result reads exactly as Inscrutable's block does, so a reader

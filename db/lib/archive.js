@@ -1,7 +1,7 @@
 // Writes the game transcript (ArchiveEntry), the store behind /archive.
 //
 // Rows are recorded at SEND time rather than reconstructed at Dawn. The old
-// db/lib/dawnWipe.js archived by reading every message back out of Discord and
+// db/lib/messageWipe.js archived by reading every message back out of Discord and
 // re-posting it into a single #archive channel — hundreds of sequential posts
 // down one ~1 msg/sec lane, the most expensive thing the bot did, and it grew
 // with player count. It also had to guess at two fields it can now be told
@@ -231,7 +231,7 @@ async function archiveRowForMessage(prisma, discordMessageId) {
 async function updateArchiveMessage(prisma, discordMessageId, content, options = {}) {
   return safely("message edit", async () => {
     const row = await archiveRowForMessage(prisma, discordMessageId);
-    if (!row) return { ok: false, refusal: "That message is gone. ‡" };
+    if (!row) return { ok: false, refusal: "That message is gone." };
     const { editSpeech } = require("./say");
     return editSpeech(prisma, { characterId: row.characterId, seq: row.seq, content, ...options });
   });
@@ -243,7 +243,7 @@ async function updateArchiveMessage(prisma, discordMessageId, content, options =
 async function deleteArchiveMessage(prisma, discordMessageId, options = {}) {
   return safely("message delete", async () => {
     const row = await archiveRowForMessage(prisma, discordMessageId);
-    if (!row) return { ok: false, refusal: "That message is gone. ‡" };
+    if (!row) return { ok: false, refusal: "That message is gone." };
     const { deleteSpeech } = require("./say");
     return deleteSpeech(prisma, { characterId: row.characterId, seq: row.seq, ...options });
   });

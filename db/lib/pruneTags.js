@@ -8,7 +8,7 @@
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
-const { startingTagNames } = require("./startingTags");
+const { startingTagSlugs } = require("./startingTags");
 const { entriesOf } = require("./yamlEntries");
 
 // Fatal if docs/ can't be found — a missing master would read as "everything
@@ -33,8 +33,8 @@ function yamlGroupSlugs() {
 
 // Every reason a Tag row must survive, gathered in one pass.
 //
-// Role.startingTagSlugs is misnamed and actually stores names (see
-// `startingTagNames` in syncRoles.js), and an entry may carry a count
+// Role.startingTagSlugs stores slugs (db:sync-roles resolves the authored
+// names as it validates them), and an entry may carry a count
 // ("Obol x5"), so it goes through the shared parser rather than being read
 // raw — otherwise a tag only ever granted with a count reads as unreferenced
 // and gets pruned. Document.tagSlugs stores real slugs.
@@ -150,7 +150,7 @@ async function collectReferences(prisma, liveGroupSlugs) {
     requiredBy: required.map((t) => ({ sourceId: t.id, target: t.requiredTagId })),
     gates: new Set(groupGates.map((g) => g.requiredTagId)),
     skillOf: skills.flatMap((t) => from(t.id, t.requirementSkills.map((s) => s.id))),
-    roleStartingNames: new Set(roles.flatMap((r) => startingTagNames(r.startingTagSlugs))),
+    roleStartingSlugs: new Set(roles.flatMap((r) => startingTagSlugs(r.startingTagSlugs))),
     documentSlugs: new Set(documents.flatMap((d) => d.tagSlugs)),
     conflictIds: conflicts.flatMap((t) =>
       from(t.id, [...t.conflictsWith.map((c) => c.id), ...t.conflictedBy.map((c) => c.id)]),
@@ -207,7 +207,7 @@ function blockersFor(tag, refs, survivorIds) {
   if (refs.gates.has(tag.id)) blockers.push("it gates a TagGroup (hidden category)");
   if (live(refs.skillOf, tag.id)) blockers.push("a tag's cure/craft requirement names it as a skill");
   if (live(refs.consumeTargets, tag.slug)) blockers.push("another tag names it by slug");
-  if (refs.roleStartingNames.has(tag.name)) blockers.push("a Role grants it at creation");
+  if (refs.roleStartingSlugs.has(tag.slug)) blockers.push("a Role grants it at creation");
   if (refs.documentSlugs.has(tag.slug)) blockers.push("a Document is assigned by it");
   if (live(refs.conflictIds, tag.id)) blockers.push("another tag conflicts with it (conflictsWith)");
   if (refs.desireTagIds.has(tag.id)) blockers.push("a DesireTemplate gates on it (requiresAnyTags/requiresNotTags)");

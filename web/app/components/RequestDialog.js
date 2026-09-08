@@ -55,7 +55,7 @@ function RequestDialogBody({
       >
         {reasonRequired && (
           <label className="field">
-            <span className="field-label">What&apos;s your reason? ‡</span>
+            <span className="field-label">What&apos;s your reason?</span>
             <textarea
               name="reason"
               rows={3}

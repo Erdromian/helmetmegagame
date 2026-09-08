@@ -36,17 +36,39 @@ export async function loadRoleBySlugForTemplates(prisma, templates) {
   return new Map(roleRows.map((r) => [r.slug, r]));
 }
 
-// Tag ids gating a hidden category the character does NOT hold (Demoness,
-// etc — see TagGroup.requiredTagId). Shared by every caller that
-// evaluates the Desire catalog for a specific character; getting this wrong
-// leaks a hidden roster straight into the catalog payload. devPanelData.js
-// deliberately does NOT call this — it passes an empty Set instead, because
-// that page is superadmin-only and nothing should be withheld from a GM's
-// own view.
+// Tag ids a desire may be gated on WITHOUT the gate being named back to the
+// player. db/lib/desireGates.js states the rule: a locked reason must never
+// name a hidden tag. Two sources, and the second is why this is not just the
+// group query it used to be:
+//
+//   1. A group's key tag (Demoness, Cerberon — TagGroup.requiredTagId). The
+//      whole category is meant to be invisible to outsiders.
+//   2. Any SECRET tag. The Thanati Belief is the case that found this: it sits
+//      in `general-beliefs` beside the public faiths, which carries no
+//      requiredTag, so eleven cult Desires rendered to every player in the
+//      game as "Locked by Thanati" — the exact leak the rule forbids.
+//
+// Moving the Belief into a gated group of its own was the obvious fix and the
+// wrong one: db/lib/seatConflicts.js scopes exclusivity BY GROUP, so a Thanati
+// out of `general-beliefs` could hold a second faith and the Rite of
+// Conversion would stop stripping a convert's old one.
+//
+// Shared by every caller that evaluates the Desire catalog for a specific
+// character; getting this wrong leaks a hidden roster straight into the
+// catalog payload. devPanelData.js deliberately does NOT call this — it passes
+// an empty Set instead, because that page is superadmin-only and nothing
+// should be withheld from a GM's own view.
 export async function computeHiddenDesireTagIds(prisma, heldTagIds) {
-  const gates = await prisma.tagGroup.findMany({
-    where: { requiredTagId: { not: null } },
-    select: { requiredTagId: true },
-  });
-  return new Set(gates.map((g) => g.requiredTagId).filter((id) => id && !heldTagIds.has(id)));
+  const [gates, secrets] = await Promise.all([
+    prisma.tagGroup.findMany({
+      where: { requiredTagId: { not: null } },
+      select: { requiredTagId: true },
+    }),
+    prisma.tag.findMany({
+      where: { catalogVisibility: "SECRET" },
+      select: { id: true },
+    }),
+  ]);
+  const ids = [...gates.map((g) => g.requiredTagId), ...secrets.map((t) => t.id)];
+  return new Set(ids.filter((id) => id && !heldTagIds.has(id)));
 }

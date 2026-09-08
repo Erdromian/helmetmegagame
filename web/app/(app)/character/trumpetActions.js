@@ -50,7 +50,7 @@ export async function soundTrumpet() {
     return { ok: false, error: "You aren't carrying a trumpet. ‡" };
   }
   if (!character.locationId) {
-    return { ok: false, error: "You're nowhere. ‡" };
+    return { ok: false, error: "You're nowhere." };
   }
 
   // ACT, not SPEAK: a trumpet takes breath AND hands, so being Bound stops you

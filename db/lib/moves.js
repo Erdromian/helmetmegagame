@@ -2,7 +2,7 @@
 // front of it: the open turn, the move window, the one-Move-a-turn rule, the
 // incapacitation block and Labor's rate. It came out of the bot's Move modal
 // submit handler, which was the only place in the game that knew how to file
-// one — so the Hall's Move dialog could only ever have been a second copy.
+// one — so Chat's Move dialog could only ever have been a second copy.
 //
 // It writes no Discord and composes no confirmation: the bot's `confirmMove`
 // still writes the DM's lines, and the web renders its own. What comes back
@@ -28,7 +28,7 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
   if (!MOVE_KINDS.has(moveKind)) return { ok: false, error: "Pick a kind of Move first. ‡" };
 
   const raw = String(description ?? "").trim();
-  if (!raw) return { ok: false, error: "Write something first. ‡" };
+  if (!raw) return { ok: false, error: "Write something first." };
   if (raw.length > DESCRIPTION_MAX) return { ok: false, error: "That's too long to file. ‡" };
 
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
@@ -165,7 +165,7 @@ async function editMove(prisma, { character, actorDiscordUserId, actionId, moveK
   if (!MOVE_KINDS.has(moveKind)) return { ok: false, error: "Pick a kind of Move first. ‡" };
 
   const raw = String(description ?? "").trim();
-  if (!raw) return { ok: false, error: "Write something first. ‡" };
+  if (!raw) return { ok: false, error: "Write something first." };
   if (raw.length > DESCRIPTION_MAX) return { ok: false, error: "That's too long to file. ‡" };
 
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });

@@ -3,7 +3,7 @@
 // 1747-1752 at 2f4f79ca). The bot still runs its own copy, which posts
 // `» *A die is cast* — **N**` into the channel and records nothing; it should
 // call castDie() with the channel's place key instead, so a die rolled on
-// Discord is a die the Hall and /archive can both see.
+// Discord is a die Chat and /archive can both see.
 
 // The one die a player rolls for themselves.
 //
@@ -48,7 +48,7 @@ async function castDie(prisma, character, placeKey) {
   // `signed: false` is what stops the archive row carrying two marks.
   const text = `${who} casts a die — **${value}**. ‡`;
 
-  // The archive row first: it is what the Hall shows, and it is the half that
+  // The archive row first: it is what Chat shows, and it is the half that
   // cannot fail silently for a web-only player.
   await sceneLine(prisma, { placeKey, text, signed: false });
 
@@ -63,7 +63,7 @@ async function castDie(prisma, character, placeKey) {
     console.error("Roll post failed:", err.message ?? err);
   }
 
-  return { ok: true, value, line: `You rolled a ${value}. ‡` };
+  return { ok: true, value, line: `You rolled a ${value}.` };
 }
 
 module.exports = { castDie };

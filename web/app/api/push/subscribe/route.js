@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request) {
   const session = await auth();
-  if (!session?.discordUserId) return Response.json({ error: "Sign in first. ‡" }, { status: 401 });
+  if (!session?.discordUserId) return Response.json({ error: "Sign in first." }, { status: 401 });
 
   let body;
   try {
@@ -25,7 +25,7 @@ export async function POST(request) {
   const p256dh = typeof sub?.keys?.p256dh === "string" ? sub.keys.p256dh : "";
   const authKey = typeof sub?.keys?.auth === "string" ? sub.keys.auth : "";
   if (!endpoint || !p256dh || !authKey) {
-    return Response.json({ error: "That subscription is incomplete. ‡" }, { status: 400 });
+    return Response.json({ error: "That subscription is incomplete." }, { status: 400 });
   }
 
   // Trimmed hard: it is only ever read by a person looking at the table to

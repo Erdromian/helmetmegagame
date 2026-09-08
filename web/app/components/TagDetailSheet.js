@@ -9,6 +9,7 @@ import { formatCost, costColor } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { formatTagArmor } from "@/lib/formatTagArmor";
 import { formatTagWeight } from "@/lib/formatTagWeight";
+import PaperSheet from "./PaperSheet";
 
 // The read-only detail sheet behind a row click on the Tag Catalog: the full
 // description plus everything the table can't fit — the tier chain, the
@@ -206,7 +207,9 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
           </div>
         )}
 
-        {tag.description ? (
+        {tag.paper ? (
+          <PaperSheet paper={tag.paper} />
+        ) : tag.description ? (
           <ChipText text={tag.description} className="text-sm" />
         ) : (
           <p className="text-sm text-muted">No description yet — a stub awaiting prose.</p>

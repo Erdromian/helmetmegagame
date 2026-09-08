@@ -181,7 +181,7 @@ the only speech in the game that crosses the Location graph.
 **Who hears it.** `db/lib/locationGraph.js#soundRange` BFSes out from wherever
 the character *stands* — not from whatever channel the command was typed in;
 those can disagree and only one of them is a place a voice comes from — and
-returns every Location within four hops, each with the distance and the
+returns every Location within three hops, each with the distance and the
 direction. **Every edge counts.** Locked, hidden, shut, on-foot — sound does
 not care, because none of those are about sound. A portcullis you
 cannot open is still a portcullis you can yell through. It is deliberately the
@@ -200,8 +200,11 @@ a refused shout does not burn the throat timer.
 | 0 — your own Location | Full size: "You hear someone shout:" and the words |
 | 1 | `-#` subtext: "…from the direction of *X*", words clear |
 | 2 | the same, 40% of the letters replaced with `░ ▒ ▓` |
-| 3 | the same, 70% replaced |
-| 4 | "…from the direction of *X*, but you can't make out what they say." |
+| 3 | "…from the direction of *X*." — no words at all |
+
+It used to run one hop further, with a 70%-static ring before the wordless
+one; Bascinet cut it on 2026-09-07 because at that much static the text said
+nothing and only looked like it did.
 
 Distance takes the **words** away before it takes the **direction** away. You
 always learn which way to run; you stop learning what was said.
@@ -334,7 +337,7 @@ parsed by literal `startsWith` + `slice`.
 |---|---|---|
 | `loc:open` | Button | Offer the connected Locations |
 | `loc:pick` | Select | Pick a destination Location |
-| `loc:drag:{locationId}` | Select | Pick who to bring along (min 0) |
+| `loc:bring` | Select | Set your escort party — who comes with you (min 0) |
 | `loc:confirm:{locationId}` | Button | Execute the travel |
 | `loc:cancel` | Button | Dismiss |
 | `loc:who:{locationId}` | Button | Reply privately with who's standing here (§ below) |
@@ -384,21 +387,26 @@ description and a `-#` line rather than asking the server anything: "Same
 zone" (free, on a cooldown), "Crosses into {Zone} — costs your Move", or
 "Arriving costs you nothing" on a first placement.
 
-**Every hop always offers dragging**, on the same message as the Confirm/
-Cancel row: `loc:drag:{locationId}` lists zone-mates (not just Location-mates)
-who are a corpse, hold an incapacitating tag, or are in the mover's faction
-if the mover leads it — `db/lib/locationTravel.js#dragCandidates`. The select
-is `minValues: 0`, and `buildDragRow` returns `null` (dropping the row
-entirely) when there is nobody to bring, since Discord rejects an empty
-select. The picked list is **not** carried on the component — Discord hands
-the Confirm click no memory of what the drag select last held — so
-`handleTravelDrag` parks it in an in-memory `Map` keyed on Discord user id,
-`DRAG_TTL_MS` = 10 minutes, same posture as `recentProxies`
-(`bot/src/lib/proxy.js`): a missing entry means "nobody picked", never a
-gate. `handleTravelConfirm` re-resolves and re-authorizes everyone server-side
-inside `performLocationMove`'s own transaction (`canDrag`) — a candidate who
-wandered off between the picker and the confirm fails the whole move rather
-than being silently dropped. See `MAP.md` §3.
+**Every hop offers the party**, on the same message as the Confirm/Cancel
+row: `loc:bring` lists everyone standing **here** with a verdict from
+`db/lib/escort.js#escortCandidates` — a corpse, anyone helpless, a member of
+the faction you lead, or somebody you'd have to ask. The select is
+`minValues: 0`, is pre-ticked with whoever is already following you, and
+`buildBringRow` returns `null` (dropping the row entirely) when there is
+nobody to bring, since Discord rejects an empty select.
+
+**Nothing is parked between the two clicks any more.** The drag select this
+replaced could not carry its picks on the component — Discord hands the
+Confirm click no memory of what a select last held — so it kept them in an
+in-memory `Map` with a ten-minute TTL, and a bot restart between the two
+clicks silently cost a player their passengers. An escort is a row on the
+follower now (`Character.escortedById`), so `handleTravelBring` writes it
+straight away and `handleTravelConfirm` reads it back out of the database.
+The `Map`, its TTL and its three helpers are gone. Anyone ticked who could say
+no gets the Accept DM instead of being attached; anyone unticked is put down.
+The party is re-authorized inside `performLocationMove`'s own transaction, and
+a follower the way refuses is dropped there rather than failing the hop. See
+`MAP.md` §3a.
 
 **The three anchor buttons ride on the Location anchors**
 (`db/lib/locationAnchorRow.js` — plain component JSON, because the sync
@@ -408,7 +416,7 @@ so the handlers need no channel→Location lookup; change a prefix in that
 file and you must change it in `interactionCreate.js` too.
 
 - **Who's here?** (`handleWhosHere`) lists everyone `ALIVE` and standing in
-  this Location. Since phase 3 of the Hall the rule itself is
+  this Location. Since phase 3 of Chat the rule itself is
   **`db/lib/whosHere.js#whosHere`**, and the handler only speaks the answer —
   `/play`'s people column reads the same function, so the street and the page
   cannot disagree about who a stranger is. Named characters first (with their `roleTitle` shown to a
@@ -635,7 +643,7 @@ could ever name.
 `handleGateToggle`, `handleKeyedPrompt`, `handleMoveSubmit` and
 `handleWhosHere` hold no game logic any more. Each acknowledges, calls one
 `db/lib` function (`gates.js`, `gates.js`, `moves.js`, `whosHere.js`) and
-says the sentence that comes back — the Hall's dialogs call the same
+says the sentence that comes back — Chat's dialogs call the same
 functions, so a rule can no longer be true on one face and not the other.
 The one thing that stays bot-side is the **anchor redraw** after a gate
 flips: `refreshLocationAnchor` and `refreshGateRooms` edit Discord messages
@@ -647,14 +655,14 @@ long-lived listener for one message. ‡
 
 ## 6a. The web twins
 
-Every **player** command in §2 now has a web twin in the Hall's composer
-(`HALL.md` §5). Typing `/` at the start of the box opens the same list; the
+Every **player** command in §2 now has a web twin in Chat's composer
+(`CHAT.md` §5). Typing `/` at the start of the box opens the same list; the
 registry is `web/app/(app)/play/commands.js`, and each entry lands on a server
 action in `web/app/(app)/play/actions.js`.
 
 That matters for three of them in particular. `/conceal`, `/shout` and `/roll`
 were **guild-only and Discord-only**, which meant a character on the "web only"
-switch (`HALL.md` §6a) had no way to hide their face, yell, or roll a die at
+switch (`CHAT.md` §6a) had no way to hide their face, yell, or roll a die at
 all. The web is not a second implementation of any of them: the rule was pulled
 out of the handler into `db/lib` and both faces call it.
 
@@ -665,7 +673,7 @@ out of the handler into `db/lib` and both faces call it.
 | `/roll` | `db/lib/roll.js#castDie` | `rollHere(placeKey)` |
 | `/add`, `/remove` (room half) | `db/lib/roomGuests.js` | `addMember` / `removeMember` |
 | `/add`, `/remove` (conversation half) | `db/lib/conversations.js` | the same two |
-| `/move` `/travel` `/converse` `/report` | already shared | `submitMove`, `TravelNodes`, `ConverseDialog`, `reportToGms` |
+| `/move` `/travel` `/converse` | already shared | `submitMove`, `TravelNodes`, `ConverseDialog` |
 
 **The bot has not been rewired yet.** Each of those new `db/lib` modules opens
 with a `TODO(rewire)` comment naming the handler and the lines it duplicates,
@@ -678,13 +686,13 @@ two things run in parallel and are worth knowing about:
   batch that added this carried no migration. A player who shouts on Discord
   and then on the web can beat the timer once, until the rewiring.
 - **`/roll` records nothing on the bot's side.** `castDie` writes a `SYSTEM`
-  archive row so the Hall and `/archive` both see the die; the bot's handler
+  archive row so Chat and `/archive` both see the die; the bot's handler
   still posts a plain message that no row remembers.
 
 **Where each of the three may be typed on the web.** `/shout` runs in a
 Location, a Room and a conversation — the street included, which is the whole
 point of it, and which is why the street has a command-only composer at all
-(`HALL.md` §5). `/roll` runs in a Room and a conversation. Neither runs in the
+(`CHAT.md` §5). `/roll` runs in a Room and a conversation. Neither runs in the
 zone summary: that is a broadcast rather than a place anybody stands in, and a
 die cast into one has no audience to see it thrown.
 
@@ -719,7 +727,7 @@ Two smaller rules on the same pair:
 | `bot/src/lib/locationTravel.js` | The Location picker/drag/confirm rows, the pending-drag map, `performMove` |
 | `db/lib/locationTravel.js` | `performLocationMove` — validation, the cooldown or the Move, dragging (`MAP.md` §3) |
 | `db/lib/locationMove.js` | `applyLocationMoveSideEffects` — the Discord half of a move, shared by bot and web (`MAP.md` §4) |
-| `db/lib/placeAffordances.js` | **The affordance catalog** — the label and the predicate for every place-bound button, plus `affordancesFor(prisma, character)` for the Hall's place panel. Both row builders below read it, so a new button is one entry |
+| `db/lib/placeAffordances.js` | **The affordance catalog** — the label and the predicate for every place-bound button, plus `affordancesFor(prisma, character)` for Chat's place panel. Both row builders below read it, so a new button is one entry |
 | `db/lib/locationAnchorRow.js` | The anchor buttons as Discord component JSON, styled off the catalog's tones |
 | `db/lib/roomStarterRow.js` | A Room starter's buttons, the same way |
 | `db/lib/gates.js` | `toggleGate` / `holdKeyedOpen` — the transactional flip and the 24-hour hold, shared with `/play` |
@@ -731,7 +739,7 @@ Two smaller rules on the same pair:
 | `db/lib/conceal.js` | `toggleConceal` — `/conceal`'s rule, both faces (§6a) |
 | `db/lib/shout.js` | `shoutLine` / `shoutParts` / `shout` — what a shout sounds like at N hops, and who hears it (§6a) |
 | `db/lib/roll.js` | `castDie` — one d6 as a `SYSTEM` archive row beside its Discord post (§6a) |
-| `web/app/(app)/play/commands.js` | The web twin registry the Hall's composer reads (§6a) |
+| `web/app/(app)/play/commands.js` | The web twin registry Chat's composer reads (§6a) |
 | `bot/src/lib/converseModal.js` | The Converse modal |
 | `bot/src/lib/whisperPoll.js` | The 15-minute Room whisper cron |
 | `bot/src/lib/moveConfirm.js` | Resolving a Move |

@@ -72,7 +72,7 @@ Three doors, deliberately different:
 
 | Holder | Can |
 |---|---|
-| **Merchant's Licence** | Everything below, plus the money and the gun: order, the ATM, the credit line, the ⬢ counter, arming and disarming the turret, and shutting the generator down. |
+| **Merchant's Licence** | Everything below, plus the money and the gun: order, the ATM, the credit line, arming and disarming the turret, and shutting the generator down. |
 | **Depot Keycard** | Enter the landing pad. Open crates, including sealed ones. Call the shuttle down, load it and send it back up. Feed the generator and fire it up. Spends nothing. |
 | **Superadmin** | Read the console. |
 | Anyone else | Bounced off `/depot`. |
@@ -150,11 +150,11 @@ The cycle:
    and the shuttle is `DOCKED`. An empty manifest still brings it — he needs it
    down to load anything going up.
 3. **Load and send it back.** The goods on the pad go up and come back as
-   obols at their `sellablePrice`, converted once and floored. An **unopened
-   crate is worth what is inside it**, priced off the live catalog — otherwise
-   returning a shipment would silently annihilate it. Loose ⬢ in the stash
-   stay where they are: the ⬢ Counter (§0g) is marginless and always open, and
-   two rates for the same thing was a bug waiting to happen.
+   obols at their `sellablePrice`. An **unopened crate is worth what is inside
+   it**, priced off the live catalog — otherwise returning a shipment would
+   silently annihilate it. **Loose ⬢ in the stash go up too**, at 1 ¢ each
+   (`RESOURCE_EXPORT_PRICE`). That is the only door out of ⬢ and into coin, and
+   it costs half their face value to walk through.
 4. Or **it leaves on its own** after `shuttleMaxTurns` (6). A timed departure
    takes nothing with it — the crates stay on the pad. Selling is a deliberate
    act and an unattended shuttle should not empty the room.
@@ -171,15 +171,56 @@ departure never fired, and re-calling was refused because the state was not
 
 ## 0e. Crates
 
-A shipment does not arrive as a tidy pile of tags. It arrives packed, in a
-random number of crates, and somebody has to open them. That makes unloading a
-job worth paying a Docker for, puts a delay between buying a pistol and holding
-one, and means a crate left on the pad can be stolen.
+A shipment does not arrive as a tidy pile of tags. It arrives packed, in
+crates, and somebody has to open them. That makes unloading a job worth paying
+a Docker for, puts a delay between buying a pistol and holding one, and means a
+crate left on the pad can be stolen.
+
+**A crate is packed by weight.** It fills to `PACKAGE_MAX_LBS` — 150 lb of
+contents — and then a new one opens. That is the same constant the player-facing
+Package button enforces (`FACTORY.md` §5), so a Depot shipment and a
+hand-packed crate now agree on the ceiling as well as on the halving. What
+comes out is a box with a volume rather than a counter: 99 tea in one crate, an
+anvil most of the way through another.
+
+Crates used to hold **3-8 units of anything**, which made a crate of tea and a
+crate of anvils the same size and burst an order of ⬢ into eleven boxes. That
+band is gone. What survives from it is the shuffle — units are mixed before
+they are packed, so a crate holds a random handful rather than one tidy line
+item — and `MAX_CRATES` (12), past which a huge order simply means fuller
+crates rather than a landing pad buried in tag rows.
+
+There is a second cap, on **count** rather than weight: `PACKAGE_MAX_UNITS`
+(200). The weight cap does not bound the weightless, and eight Depot wares
+weigh 0 lb — `paper`, `cigarette`, `jewelry`, `spectacles` and the four animals
+— so without it a paper order packs into one crate however large it is.
 
 **A crate is a `Tag` row created at runtime** with `custom: true`, so
 `db:prune-tags` skips it (`db/lib/pruneTags.js`). Being a tag means crates get
 carry weight (half what went in, §5 of `FACTORY.md`), transfers, room stashes and theft for free. The row is
 deleted once nothing references it.
+
+**A crate is opened by consuming it**, from `/character` or the Things drawer,
+wherever the crate happens to be — not from a button on `/depot`. It used to
+have its own control on the Hold tab, which was the wrong place the moment a
+crate walked off the landing pad in somebody's arms. `crateTagData` sets
+`consumable: true`, and `consumeTagRequestImpl` takes a third road out to
+`openCrateRequestImpl` — beside the two that already existed for a sealed
+letter and the Instant Camera, and for the same reason: what falls out of a
+crate is a list of runtime tag IDs, which no catalog slug in `consumesInto`
+can name. The keycard gate (`canOpenCrate`) is re-checked in there.
+
+**A crate can hold ⬢.** They ride the manifest as a line with no `tagId` and
+land on the crate row as `consumesIntoResources` — the field the ordinary
+consume path already grants — so the Resources half of a shipment needs no
+special case at all past the packing.
+
+**A crated ⬢ weighs a pound** (`RESOURCE_UNIT_LBS`). That is the whole reason
+⬢ need no cap of their own: they pack against the same 150 lb rule as
+everything else and ride in a crate alongside other goods, so 150 ⬢ fill one
+crate and it weighs 75 lb. A **loose** ⬢ still weighs nothing and counts
+against `carryResourceCap` instead (`CARRY.md` §1) — this is freight, and the
+two axes never count the same ⬢ twice.
 
 The manifest is printed on the crate, in exactly this format:
 
@@ -207,7 +248,7 @@ A ware ships sealed by setting `sealedShipping: true` in `docs/tags.yaml`. The
 sync refuses it on a tag with no `depotPrice`, since the station cannot ship
 what it does not stock. Currently sealed: the two firearms, the flamethrower,
 Light Infantry Armour, Soporific, Phrygian Tears, the Amoeba Vial, the
-Homunculus and the Illusion Crystal.
+Homunculus.
 
 ## 0f. The turret
 
@@ -391,12 +432,11 @@ The Merchant is the only faucet of currency in the game.
   is drawn and repaid in obols. Drawing puts money in the account. The cap is
   **refused** rather than clamped, so he is told he hit the ceiling. Nothing in
   code punishes a standing balance — the Company is not code.
-- **The ⬢ Counter** moves his own Resources to obols and back, one for one and
-  **with no spread**. He does not charge himself a margin to use his own till.
-  What it really changes is the *form* of a value rather than the amount: a
-  number on his sheet becomes coins, and back again. This replaced an earlier
-  rule that ⬢ could only become obols by riding the shuttle up — one counter,
-  one place.
+**There is no ⬢ counter any more.** There was one, briefly: a marginless till
+that turned his Resources into obols and back, one for one. It made ⬢ and
+obols the same thing wearing two hats, and it meant importing food was free
+money. ⬢ are a **ware on the shuttle** instead (§3, §4) — the only place they
+change form, and never for nothing.
 
 Starting obols are granted through `docs/roles.yaml` using a `Name xN` suffix
 (`Obol x25`), parsed by `db/lib/startingTags.js`. Baron 25, Merchant 20, Hand
@@ -422,6 +462,11 @@ notices are a standing invitation to a GM or another player, not a clock.
 generator gauge, shuttle state, turret lamp — over six tabs: **Order**,
 **Price List**, **Hold**, **Bank**, **Station**, **Ledger**.
 
+The **Bank** is the ATM and Credit, and nothing else. The **Hold** is the
+landing pad, and nothing else. Both used to carry a paragraph of explanation
+under every header and a tooltip on every button; all of it is gone. A control
+whose name does not say what it does is the bug, not the missing tooltip.
+
 There is no ⬢/¢ toggle any more, and no need for one: an obol is one ⬢, so
 every price column reads the same number in either unit. Prices print in ¢
 throughout, whole, with no decimals anywhere — the row figure, the cart total,
@@ -435,6 +480,10 @@ obols of coal onto a dead one.
 The **Ledger** reads existing `Request` rows of the eight `DEPOT_*` types
 rather than a ledger table of its own — those rows already snapshot what moved,
 already appear on the GM desk, and already undo.
+
+`DEPOT_CRATE_OPEN` is still the ledger kind, but the row is filed from
+`/character` now that opening a crate is a Consume (§0e). The Ledger reads it
+the same way.
 
 `DEPOT_SHIP` and `DEPOT_CRATE_OPEN` have **no undo handler**, deliberately.
 A shuttle that went up cannot be recalled and its cargo no longer exists; an
@@ -483,6 +532,17 @@ licence server-side, so the view grants nothing.
 What the station charges him, per unit. Almost every ware is
 `purchasable: false` — **for those, the Merchant is the only source in the
 game**, which is the whole point of the seat.
+
+**⬢ themselves are a ware, at 2 ⬢ each in and 1 ⬢ each out.** They are the
+one line on either table that is not a tag — `RESOURCE_WARE_ID` stands in for a
+catalog row that does not exist, and `depotOrderImpl` splits it out before
+anything reaches a `Tag` lookup. The 2:1 spread is doing real work. It means
+importing food is a losing trade, which is the whole reason it exists: the
+Merchant should be shipping things Ravenheart cannot make, not undercutting its
+farmers with cheaper grain. And because the buy price is strictly above the
+sell price, no amount of round-tripping prints an obol — the same invariant
+`db/lib/syncTags.js` enforces for every priced tag, just held by hand here
+since there is no row to check.
 
 **Paper undercuts everything at 1 ⬢**, on purpose. It has to be something a
 scribe buys by the ream without thinking about it, or nobody writes and the
@@ -533,13 +593,13 @@ buying one mid-game is still a real decision.
 | `sky-lantern` | 4 | 2 | |
 | `sweets` | 4 | 2 | Consumes into `ate-meal` |
 | `alcohol` | 5 | 4 | He stocks the local brew too |
+| `rat-mask` | 5 | 3 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source. Cut from 12 ⬢: at that price it was competing with real gear, and a paper-thin disguise is not real gear. |
 | `cigarette` | 5 | 3 | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. ‡ |
 | `boombox` | 11 | 7 | |
 | `distilled-coca` | 11 | 10 | Also a Skilled brew, at 4 ⬢ — see §4 |
 | `sake` | 11 | 7 | Consumes into `tipsy`. Under `ravenheart-red`'s 14 — its only price, since it has no `depotPrice` of its own |
 | `whip` | 11 | 7 | Equippable |
 | `censer` | 12 | 7 | |
-| `rat-mask` | 12 | 7 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source. |
 | `jewelry` | 13 | 8 | Also a 2-pt creation pick |
 | `black-body-bag` | 22 | 13 | |
 | `monkey` | 22 | 13 | |
@@ -553,7 +613,6 @@ buying one mid-game is still a real decision.
 | `hound` | 38 | 23 | |
 | `soporific` | 45 | 27 | Inflicts `asleep` (1t) |
 | `amoeba-vial` | 52 | 31 | |
-| `illusion-crystal` | 60 | 36 | |
 | `bb-pistol` | 61 | 37 | Equippable |
 | `silencer` | 74 | 44 | Equippable. The Merchant starts holding one |
 | `homunculus` | 75 | 45 | |
@@ -562,7 +621,6 @@ buying one mid-game is still a real decision.
 | `silver-sword` | 123 | 74 | |
 | `chainsaw` | 126 | 76 | Cuts two Godflesh per Extract, and farms at +2 ⬢ — `FACTORY.md` |
 | `neoclassic-rw10` | 134 | 80 | Neoclassic R&W10. Also a 14-pt creation pick. |
-| `steam-automobile` | 134 | 80 | Fast-travels like a Horse — see below |
 | `energy-shield` | 145 | 87 | **The dearest thing on the shelf that is not a gun.** Stops bullets outright and softens a melee blow — the best odds against the Fortress turret in the game, though a minor wound is still very possible. Caving loot he also imports, and GM-granted until now. ‡ |
 | `ml-23` | 149 | 89 | A 9mm pistol |
 | `motorcycle` | 171 | 103 | Caving loot he also imports |
@@ -573,15 +631,11 @@ buying one mid-game is still a real decision.
 
 Three of these need code, not just catalog data:
 
-- **`steam-automobile`** and **`horse`** are `FAST_TRAVEL_SLUGS`
-  (`db/lib/mounts.js`). Same request and the
-  same once-a-day limit, which `fastTravelRequestImpl` really does enforce
-  along with adjacency. "Easily visible" and "not through the caves" are
-  **adjudicated, not enforced** — exactly as they already are for the two
-  horse, whose catalog text says the same thing. Worth knowing, since he buys
-  the thing standing in the Caves. The Horse is priced under the Automobile on
-  purpose: they buy the same free zone move, and the machine is the one that
-  never spooks, never eats and never has to wait outside.
+- **`horse`** and **`motorcycle`** are `FAST_TRAVEL_SLUGS`
+  (`db/lib/mounts.js`), so each buys the same extra zone crossing every turn
+  while equipped. "Not through the caves" is **adjudicated, not enforced** —
+  as the horse's own catalog text already says. Worth knowing, since he buys
+  the thing standing in the Caves.
 - **`coffee`** consumes into `caffeinated`, a status tag that exists only for
   it. **`soporific`** does *not* consume into `asleep`, and that is on purpose:
   you administer it to somebody else, so a self-targeting grant would put the
@@ -615,6 +669,11 @@ players make things, he buys them for whatever he can talk them down to, and
 the difference between that and the column below is his margin. Nothing in code
 sets what he pays a player; that is his negotiation.
 
+**⬢ sell back at 1 ¢ each**, off the pad's stash rather than off anybody's
+sheet — put them in the landing pad and send the shuttle up. This is the only
+way Resources become money, and it costs half their face value, since the
+station charges 2 ⬢ for the same ⬢ coming down (§3).
+
 Four bands, about 106 tags in total:
 
 | Band | Priced at | Examples |
@@ -624,6 +683,21 @@ Four bands, about 106 tags in total:
 | Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
 | Factory goods | a day's output at ~2.2× a good farming day | `squeeze` 4 a cube — 8 cubes is a shift (`FACTORY.md` §6). Buy-only in the other direction: the station sells nobody a cube |
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **41** |
+| Body parts | low, on purpose | `eye` 8, `heart` 8, `hand` 5, `foot` 4, `stomach` 4, `tongue` 3 |
+
+**The station buys body parts now** (`CORPSES.md`, `TORTURE.md` §6). It is a ⬢
+faucet hanging off a free action — Mutilate costs nothing and every death mints
+a body — so the number that matters is the whole LADDER, not one part:
+`db/lib/mutilate.js` takes nine pieces off one subject, which at these prices is
+**49 ⬢ a body**, against 30–42 ⬢ for a specialised day's labour. Price the
+ladder, never the piece; the first pass priced the piece and a corpse came to
+94 ⬢. The eye and the heart are dearer than the rest because the rites eat those
+two (`THANATI.md` §9), so a cultist and the Merchant now want the same organs.
+
+**The Thanati's own shelf is not this depot** (`THANATI.md` §3). It is a code
+list, `THANATI_WARES`, with one price per ware, spent out of the hideout room's
+floor and the buyer's pockets — ⬢ and obols together, since an obol is one ⬢.
+No `depotPrice` on any of it, and nothing there ever reaches the station.
 
 **Three numbers moved in the Butchering change** (`CORPSES.md`), and they are
 off the bands above on purpose. `skinless-brain` went 10 → 40 then **40 → 25**

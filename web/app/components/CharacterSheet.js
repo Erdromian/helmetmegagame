@@ -53,13 +53,18 @@ export default function CharacterSheet({
   // buttons on. They were passed here and dropped for a while, which is why
   // the Nuclear Datacard never showed its buttons: the provider's default
   // `false` won, silently.
-  canBindBook = false,
-  bindBlocked = null,
-  bookOptions = [],
   canCrucify = false,
   canDisguise = false,
   hasDatacard = false,
   hasDevice = false,
+  // The THANATI section (docs/systemdocs/THANATI.md), resolved in
+  // character/page.js and handed straight through to the dialogs.
+  isThanati = false,
+  isThanatiLeader = false,
+  atHideout = false,
+  hideoutRooms = [],
+  hideoutStock = null,
+  thanatiWares = [],
   // Same fate: BioForm's conceal toggle reads it, and it never arrived.
   concealGear = null,
   // World state the sheet shows: the bomb's countdown on its chip, and the
@@ -69,14 +74,13 @@ export default function CharacterSheet({
   hasWorkshop = false,
   tagCatalog,
   desireSlots = 2,
-  desireSlotLockTurns = 2,
+  desireSlotLockTurns = 1,
   desireSlotStates = [],
   desireCatalog = [],
   desireFamilies = [],
   desireFamilyGroups = [],
   desireLockNotes = [],
   desireAddiction = null,
-  desiresEnabled = true,
   canHeal = false,
   healsLeft = null,
   hasSurgicalSite = false,
@@ -124,14 +128,14 @@ export default function CharacterSheet({
   extractBlocked = null,
   canSeePackage = false,
   lootTargets = [],
-  moveTargets = [],
-  moveLocations = [],
+  consumeTargets = [],
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
   doseTargets = [],
   equipSlots = 6,
   avatarUploadsEnabled = false,
+  playPanelEnabled = true,
   portraitMakerEnabled = false,
   portraitFantasyPartsEnabled = false,
   portraitSelection = null,
@@ -231,20 +235,22 @@ export default function CharacterSheet({
             extractBlocked={extractBlocked}
             canSeePackage={canSeePackage}
             lootTargets={lootTargets}
-            moveTargets={moveTargets}
-            moveLocations={moveLocations}
+            consumeTargets={consumeTargets}
             bindTargets={bindTargets}
             harmTargets={harmTargets}
             harmTags={harmTags}
             doseTargets={doseTargets}
             examineBlocked={examineBlocked}
-            canBindBook={canBindBook}
-            bindBlocked={bindBlocked}
-            bookOptions={bookOptions}
             canCrucify={canCrucify}
             canDisguise={canDisguise}
             hasDatacard={hasDatacard}
             hasDevice={hasDevice}
+            isThanati={isThanati}
+            isThanatiLeader={isThanatiLeader}
+            atHideout={atHideout}
+            hideoutRooms={hideoutRooms}
+            hideoutStock={hideoutStock}
+            thanatiWares={thanatiWares}
           >
             <div className="flex flex-col gap-6">
               <StatusPanel
@@ -286,7 +292,6 @@ export default function CharacterSheet({
               lockNotes={desireLockNotes}
               addiction={desireAddiction}
               openTurnNumber={openTurn?.number ?? null}
-              desiresEnabled={desiresEnabled}
             />
           )}
         </div>
@@ -300,6 +305,7 @@ export default function CharacterSheet({
                 lastNameLocked={lastNameLocked}
                 hasMulligan={hasMulligan}
                 avatarUploadsEnabled={avatarUploadsEnabled}
+                playPanelEnabled={playPanelEnabled}
                 portraitMakerEnabled={portraitMakerEnabled}
                 portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
                 portraitSelection={portraitSelection}

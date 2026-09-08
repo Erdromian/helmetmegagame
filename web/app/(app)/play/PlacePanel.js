@@ -49,7 +49,7 @@ import {
 // room's should never be able to look different.
 export const TONE_CLASS = { go: "btn", danger: "btn-danger", plain: "btn-secondary" };
 
-// ONE instance of this, in HallAside.js. The affordance list, the notice and
+// ONE instance of this, in ChatAside.js. The affordance list, the notice and
 // the open dialog are shared by every section of the column, so a gate opened
 // from the place card relabels itself and a room's Intercom and the card's
 // noticeboard cannot both be open at once.
@@ -89,8 +89,8 @@ export function usePlaceActions(initialAffordances, onChanged) {
       setNotice(null);
       if (entry.kind === "gate") {
         const ask = entry.isOpen
-          ? { title: "Shut the way? ‡", message: `The way to ${entry.farName} closes. ‡`, confirmLabel: "Shut it ‡" }
-          : { title: "Open the way? ‡", message: `The way to ${entry.farName} opens. ‡`, confirmLabel: "Open it ‡" };
+          ? { title: "Shut the way?", message: `The way to ${entry.farName} closes. ‡`, confirmLabel: "Shut it" }
+          : { title: "Open the way?", message: `The way to ${entry.farName} opens. ‡`, confirmLabel: "Open it" };
         // Confirm first, transition second — never inside startTransition
         // (DESIGN-SYSTEM.md §8).
         if (!(await confirm(ask))) return;
@@ -160,7 +160,7 @@ function NoticeboardDialog({ onClose, onDone }) {
   const load = useCallback(() => {
     readBoard()
       .then(setBoard)
-      .catch(() => setBoard({ ok: false, error: "Couldn't read the board. ‡" }));
+      .catch(() => setBoard({ ok: false, error: "Couldn't read the board." }));
   }, []);
 
   useEffect(() => {
@@ -170,7 +170,7 @@ function NoticeboardDialog({ onClose, onDone }) {
   if (!board) {
     return (
       <Modal open title="Noticeboard" onClose={onClose}>
-        <p className="text-sm text-muted">Reading the board… ‡</p>
+        <p className="text-sm text-muted">Reading the board…</p>
       </Modal>
     );
   }
@@ -186,17 +186,17 @@ function NoticeboardDialog({ onClose, onDone }) {
     <Modal open title="Noticeboard" onClose={onClose}>
       <p className="text-sm text-muted">{board.heading}</p>
 
-      {board.notices.length === 0 && <EmptyState>Nothing is up. ‡</EmptyState>}
+      {board.notices.length === 0 && <EmptyState>Nothing is up.</EmptyState>}
       {board.notices.map((notice) => (
-        <div key={notice.id} className="hall-notice-row">
-          <span className="hall-person-name">{notice.name}</span>
+        <div key={notice.id} className="chat-notice-row">
+          <span className="chat-person-name">{notice.name}</span>
           <button
             type="button"
             className="menu-item"
             disabled={pending}
             onClick={() => run(readNotice, notice.id, { onOk: setReading })}
           >
-            Read ‡
+            Read
           </button>
           <button
             type="button"
@@ -211,7 +211,7 @@ function NoticeboardDialog({ onClose, onDone }) {
               })
             }
           >
-            Tear down ‡
+            Tear down
           </button>
         </div>
       ))}
@@ -225,11 +225,11 @@ function NoticeboardDialog({ onClose, onDone }) {
 
       {board.holding.length > 0 && (
         <div className="field">
-          <label className="field-label" htmlFor="hall-pin">
-            Pin a paper ‡
+          <label className="field-label" htmlFor="chat-pin">
+            Pin a paper
           </label>
-          <Select id="hall-pin" value={pinId} onChange={(e) => setPinId(e.target.value)}>
-            <option value="">Pick one… ‡</option>
+          <Select id="chat-pin" value={pinId} onChange={(e) => setPinId(e.target.value)}>
+            <option value="">Pick one…</option>
             {board.holding.map((paper) => (
               <option key={paper.tagId} value={paper.tagId}>
                 {paper.name}
@@ -257,7 +257,7 @@ function NoticeboardDialog({ onClose, onDone }) {
               })
             }
           >
-            Pin it ‡
+            Pin it
           </button>
         </div>
       )}
@@ -267,9 +267,9 @@ function NoticeboardDialog({ onClose, onDone }) {
 
 // ---------------------------------------------------------------- converse
 
-// Exported for Hall.js: the `/converse` command opens this same dialog from
+// Exported for Chat.js: the `/converse` command opens this same dialog from
 // the composer, and on a phone the right column that owns it is not even
-// mounted (Hall.js). One dialog either way — a second copy of the room picker
+// mounted (Chat.js). One dialog either way — a second copy of the room picker
 // and the invite list would be two answers to one question.
 export function ConverseDialog({ person = null, onClose, onDone }) {
   const [rooms, setRooms] = useState(null);
@@ -288,7 +288,7 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
         if (!cancelled) setRooms(res);
       })
       .catch(() => {
-        if (!cancelled) setRooms({ ok: false, error: "Couldn't find a room. ‡" });
+        if (!cancelled) setRooms({ ok: false, error: "Couldn't find a room." });
       });
     return () => {
       cancelled = true;
@@ -297,8 +297,8 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
 
   return (
     <Modal open title="Converse" onClose={onClose}>
-      <p className="text-sm text-muted">That room hears that someone is whispering, never who. ‡</p>
-      {!rooms && <p className="text-sm text-muted">Looking for a corner… ‡</p>}
+      <p className="text-sm text-muted">Speak privately with someone.</p>
+      {!rooms && <p className="text-sm text-muted">Looking for a corner…</p>}
       {rooms && !rooms.ok && <FormError>{rooms.error}</FormError>}
       {rooms?.ok && rooms.rooms.length === 0 && (
         <EmptyState>There&apos;s no room here to hold a conversation in. ‡</EmptyState>
@@ -306,11 +306,11 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
       {rooms?.ok && rooms.rooms.length > 0 && (
         <>
           <div className="field">
-            <label className="field-label" htmlFor="hall-converse-room">
-              Which room is this linked to? ‡
+            <label className="field-label" htmlFor="chat-converse-room">
+              Where?
             </label>
-            <Select id="hall-converse-room" value={roomId} onChange={(e) => setRoomId(e.target.value)}>
-              <option value="">Pick a room… ‡</option>
+            <Select id="chat-converse-room" value={roomId} onChange={(e) => setRoomId(e.target.value)}>
+              <option value="">Pick a room…</option>
               {rooms.rooms.map((room) => (
                 <option key={room.id} value={room.id}>
                   {room.name}
@@ -320,7 +320,7 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
             </Select>
           </div>
           {person?.id && (
-            <div className="chip-row" role="group" aria-label="Who comes with you ‡">
+            <div className="chip-row" role="group" aria-label="Who comes with you">
               <button
                 type="button"
                 className="chip"
@@ -333,11 +333,11 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
             </div>
           )}
           <div className="field">
-            <label className="field-label" htmlFor="hall-converse-name">
-              Call it what? ‡
+            <label className="field-label" htmlFor="chat-converse-name">
+              Call it what?
             </label>
             <input
-              id="hall-converse-name"
+              id="chat-converse-name"
               value={name}
               maxLength={90}
               onChange={(e) => setName(e.target.value)}
@@ -358,7 +358,7 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
                 })
               }
             >
-              Open it ‡
+              Open it
             </button>
           </div>
         </>
@@ -379,10 +379,10 @@ function WordDialog({ title, word, help, danger, onClose, onSubmit, pending, err
     <Modal open title={title} onClose={onClose}>
       <p className="text-sm text-muted">{help}</p>
       <div className="field">
-        <label className="field-label" htmlFor="hall-word">
-          Type {word} to confirm ‡
+        <label className="field-label" htmlFor="chat-word">
+          Type {word} to confirm
         </label>
-        <input id="hall-word" value={typed} maxLength={16} onChange={(e) => setTyped(e.target.value)} />
+        <input id="chat-word" value={typed} maxLength={16} onChange={(e) => setTyped(e.target.value)} />
       </div>
       <FormError>{error}</FormError>
       <div className="modal-actions">
@@ -403,7 +403,7 @@ function BellDialog({ entry, onClose, onDone }) {
   const { run, pending, error } = useActionRunner();
   return (
     <WordDialog
-      title="Sound the bell ‡"
+      title="Sound the bell"
       word="RING"
       help="Heard for a long way around, loudest near the Cathedral. Nobody is pinged. ‡"
       onClose={onClose}
@@ -435,7 +435,7 @@ function TurretDialog({ entry, onClose, onDone }) {
         if (!cancelled) setState(res);
       })
       .catch(() => {
-        if (!cancelled) setState({ ok: false, error: "The panel is dead. ‡" });
+        if (!cancelled) setState({ ok: false, error: "The panel is dead." });
       });
     return () => {
       cancelled = true;
@@ -444,14 +444,14 @@ function TurretDialog({ entry, onClose, onDone }) {
 
   if (!state) {
     return (
-      <Modal open title="The turret ‡" onClose={onClose}>
-        <p className="text-sm text-muted">Reading the panel… ‡</p>
+      <Modal open title="The turret" onClose={onClose}>
+        <p className="text-sm text-muted">Reading the panel…</p>
       </Modal>
     );
   }
   if (!state.ok) {
     return (
-      <Modal open title="The turret ‡" onClose={onClose}>
+      <Modal open title="The turret" onClose={onClose}>
         <FormError>{state.error}</FormError>
       </Modal>
     );
@@ -459,7 +459,7 @@ function TurretDialog({ entry, onClose, onDone }) {
 
   return (
     <WordDialog
-      title={state.armed ? "Disarm the turret ‡" : "Arm the turret ‡"}
+      title={state.armed ? "Disarm the turret" : "Arm the turret"}
       word={state.word}
       danger={!state.armed}
       help={
@@ -491,10 +491,10 @@ function IntercomDialog({ entry, onClose, onDone }) {
         Heard in every zone that has a speaker, and everyone is pinged. Nobody is told who spoke. ‡
       </p>
       <div className="field">
-        <label className="field-label" htmlFor="hall-pa">
-          What goes out ‡
+        <label className="field-label" htmlFor="chat-pa">
+          What goes out
         </label>
-        <textarea id="hall-pa" rows={3} value={body} maxLength={1000} onChange={(e) => setBody(e.target.value)} />
+        <textarea id="chat-pa" rows={3} value={body} maxLength={1000} onChange={(e) => setBody(e.target.value)} />
       </div>
       <FormError>{error}</FormError>
       <div className="modal-actions">
@@ -511,7 +511,7 @@ function IntercomDialog({ entry, onClose, onDone }) {
             })
           }
         >
-          Speak ‡
+          Speak
         </button>
       </div>
     </Modal>

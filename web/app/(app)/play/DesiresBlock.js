@@ -9,6 +9,7 @@ import RequestDialog from "@/app/components/RequestDialog";
 import DesireCatalog, { cooldownLabel } from "@/app/components/DesireCatalog";
 import { claimDesire } from "@/app/(app)/character/requestActions";
 import { desireCatalogView } from "./actions";
+import { lockedSlotLabel } from "@/lib/desireLabels";
 
 // The sheet's Desire slots, in the column. Same shape as
 // web/app/components/DesirePanel.js and the same claim: a Desire is claimed
@@ -30,7 +31,6 @@ export default function DesiresBlock({ view }) {
   const [claiming, setClaiming] = useState(null);
 
   const {
-    desiresEnabled = true,
     desireSlots = 2,
     slotStates = [],
     addiction = null,
@@ -62,7 +62,7 @@ export default function DesiresBlock({ view }) {
     setError(null);
     startTransition(async () => {
       const res = await claimDesire({ slotIndex: claiming.slotIndex, slug: claiming.entry.slug, reason });
-      if (!res?.ok) return setError(res?.error ?? "Something went wrong. ‡");
+      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       setClaiming(null);
       // The slots came down with the page and the catalog's cooldowns just
       // moved, so both are re-read rather than patched.
@@ -72,40 +72,36 @@ export default function DesiresBlock({ view }) {
   }
 
   return (
-    <div className="hall-desires">
-      <p className="hall-section-title">Desires ‡</p>
-      {!desiresEnabled ? (
-        <p className="text-sm text-muted">Temporarily disabled. ‡</p>
-      ) : (
-        Array.from({ length: desireSlots }, (_, slotIndex) => {
-          const slot = bySlot.get(slotIndex) ?? { slotIndex, lockedUntilTurn: null, lastEnded: null };
-          const bound = slotIndex === bottomIndex && addiction;
-          return (
-            <div key={slotIndex} className="hall-desire-slot">
-              {slot.lastEnded && (
-                <p className="hall-quiet-line">
-                  Last: <RichText text={slot.lastEnded.text} /> — {slot.lastEnded.points} Tag Point
-                  {slot.lastEnded.points === 1 ? "" : "s"}
-                  {cooldownLabel(slot.lastEnded.template) ? ` · ${cooldownLabel(slot.lastEnded.template)}` : ""} ‡
-                </p>
-              )}
-              {slot.lockedUntilTurn != null ? (
-                <EmptyState>{`Opens on turn ${slot.lockedUntilTurn} ‡`}</EmptyState>
-              ) : (
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={loading || pending}
-                  onClick={() => openPicker(slotIndex)}
-                >
-                  Claim ‡
-                </button>
-              )}
-              {bound && <p className="hall-quiet-line">Addiction: {addiction.name} ‡</p>}
-            </div>
-          );
-        })
-      )}
+    <div className="chat-desires">
+      <p className="chat-section-title">Desires</p>
+      {Array.from({ length: desireSlots }, (_, slotIndex) => {
+        const slot = bySlot.get(slotIndex) ?? { slotIndex, lockedUntilTurn: null, lastEnded: null };
+        const bound = slotIndex === bottomIndex && addiction;
+        return (
+          <div key={slotIndex} className="chat-desire-slot">
+            {slot.lastEnded && (
+              <p className="chat-quiet-line">
+                <strong>Last:</strong> <RichText text={slot.lastEnded.text} /> — {slot.lastEnded.points} Tag Point
+                {slot.lastEnded.points === 1 ? "" : "s"}
+                {cooldownLabel(slot.lastEnded.template) ? ` · ${cooldownLabel(slot.lastEnded.template)}` : ""} ‡
+              </p>
+            )}
+            {slot.lockedUntilTurn != null ? (
+              <EmptyState>{lockedSlotLabel(slot)}</EmptyState>
+            ) : (
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={loading || pending}
+                onClick={() => openPicker(slotIndex)}
+              >
+                Claim
+              </button>
+            )}
+            {bound && <p className="chat-quiet-line">Addiction: {addiction.name}</p>}
+          </div>
+        );
+      })}
 
       <FormError>{error}</FormError>
 
@@ -133,8 +129,8 @@ export default function DesiresBlock({ view }) {
 
       <RequestDialog
         open={Boolean(claiming)}
-        title="Claim Desire ‡"
-        submitLabel="Claim ‡"
+        title="Claim Desire"
+        submitLabel="Claim"
         busy={pending}
         onCancel={() => !pending && setClaiming(null)}
         onConfirm={submitClaim}

@@ -157,7 +157,7 @@ async function handleDossierReaction(reaction, proxy, user) {
         .join(" · "),
     });
   if (identity.forced) {
-    embed.addFields({ name: "Presents as ‡", value: identity.name, inline: true });
+    embed.addFields({ name: "Presents as ", value: identity.name, inline: true });
   }
 
   // Mind Discord's 1024-char embed field cap — a long-lived character can
@@ -180,15 +180,15 @@ async function handleDossierReaction(reaction, proxy, user) {
     name: "This turn",
     value: action
       ? [
-          action.moveKind ? (action.moveKind === "GAMBIT" ? "Gambit" : "Routine") : "Move",
-          action.moveReviewStatus,
-          action.diceRoll != null
-            ? `🎲 ${action.diceRoll}${action.diceModifier ? ` (${action.diceModifier > 0 ? "+" : ""}${action.diceModifier})` : ""}`
-            : null,
-          action.resourceDelta != null ? `${action.resourceDelta > 0 ? "+" : ""}${action.resourceDelta} ⬢` : null,
-        ]
-          .filter(Boolean)
-          .join(" · ")
+        action.moveKind ? (action.moveKind === "GAMBIT" ? "Gambit" : "Routine") : "Move",
+        action.moveReviewStatus,
+        action.diceRoll != null
+          ? `🎲 ${action.diceRoll}${action.diceModifier ? ` (${action.diceModifier > 0 ? "+" : ""}${action.diceModifier})` : ""}`
+          : null,
+        action.resourceDelta != null ? `${action.resourceDelta > 0 ? "+" : ""}${action.resourceDelta} ⬢` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
       : "Has not acted.",
   });
 
@@ -258,10 +258,10 @@ async function readoutForReaction(proxy, user, { bystander = false } = {}) {
   const lastDesire =
     !hooded && canSeeDesire(sightTags)
       ? await prisma.desire.findFirst({
-          where: { characterId: subject.id, status: "FULFILLED" },
-          orderBy: [{ endedTurnNumber: "desc" }, { id: "desc" }],
-          select: { text: true, points: true },
-        })
+        where: { characterId: subject.id, status: "FULFILLED" },
+        orderBy: [{ endedTurnNumber: "desc" }, { id: "desc" }],
+        select: { text: true, points: true },
+      })
       : null;
 
   const readout = examineReadout({
@@ -272,9 +272,9 @@ async function readoutForReaction(proxy, user, { bystander = false } = {}) {
     satisfied: bystander
       ? new Set()
       : satisfiedSkillIds(
-          (viewer?.tags ?? []).map((ct) => ct.tagId),
-          buildSkillAncestry(skillCatalog),
-        ),
+        (viewer?.tags ?? []).map((ct) => ct.tagId),
+        buildSkillAncestry(skillCatalog),
+      ),
     openTurnNumber: openTurn?.number,
     lastDesire,
     viewerFactionId: viewer?.factionId ?? null,
@@ -353,7 +353,7 @@ async function handleCameraReaction(reaction, proxy, user) {
     select: { characterId: true },
   });
   if (!held) {
-    await sendDm(user, "» *You have no camera.* ‡", { source: "system_notice" }).catch((err) =>
+    await sendDm(user, "» *You have no camera.*", { source: "system_notice" }).catch((err) =>
       console.error(`Couldn't tell ${user.id} they have no camera:`, err),
     );
     return;
@@ -361,7 +361,7 @@ async function handleCameraReaction(reaction, proxy, user) {
 
   const key = photographKey(reaction.message.id, held.characterId);
   if (photographed.has(key)) {
-    await sendDm(user, "» *You already have that shot.* ‡", { source: "system_notice" }).catch((err) =>
+    await sendDm(user, "» *You already have that shot.*", { source: "system_notice" }).catch((err) =>
       console.error(`Couldn't tell ${user.id} they already shot that:`, err),
     );
     return;
@@ -370,7 +370,7 @@ async function handleCameraReaction(reaction, proxy, user) {
   const result = await readoutForReaction(proxy, user, { bystander: true });
   if (!result) return;
   if (result.blind) {
-    await sendDm(user, "» *You can't see.* ‡", { source: "system_notice" }).catch((err) =>
+    await sendDm(user, "» *You can't see.*", { source: "system_notice" }).catch((err) =>
       console.error(`Couldn't tell ${user.id} they're blind:`, err),
     );
     return;
@@ -386,6 +386,7 @@ async function handleCameraReaction(reaction, proxy, user) {
   const photo = await mintPhoto(prisma, held.characterId, {
     subject: readout.name,
     caption: photoCaption(readout),
+    subjectCharacterId: proxy.characterId ?? null,
   });
   // Claimed only once the print exists, so a failed mint leaves the shot
   // available to try again rather than burning it.
@@ -418,8 +419,8 @@ async function handleFogReaction(reaction, user) {
     files: [...message.attachments.values()].map((a) => a.url),
   };
 
-  await message.delete().catch(() => {});
-  await message.channel.send(payload).catch(() => {});
+  await message.delete().catch(() => { });
+  await message.channel.send(payload).catch(() => { });
 }
 
 module.exports = {
@@ -444,7 +445,7 @@ module.exports = {
     if (!reaction.message.guild) return;
 
     if (reaction.emoji.name === FOG_EMOJI) {
-      await handleFogReaction(reaction, user).catch(() => {});
+      await handleFogReaction(reaction, user).catch(() => { });
       return;
     }
 
@@ -462,7 +463,7 @@ module.exports = {
     // bail every other reaction needs.
     if (emoji === STAR_EMOJI) {
       if (proxy || reaction.message.author?.id === reaction.client.user.id || reaction.message.webhookId) {
-        await handleStarReaction(reaction, proxy, user).catch(() => {});
+        await handleStarReaction(reaction, proxy, user).catch(() => { });
         await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
       }
       return;
@@ -527,7 +528,7 @@ module.exports = {
         const result = await readoutForReaction(proxy, user);
         if (!result) return;
         if (result.blind) {
-          await sendDm(user, "» *You can't see.* ‡", { source: "system_notice" }).catch((err) =>
+          await sendDm(user, "» *You can't see.*", { source: "system_notice" }).catch((err) =>
             console.error(`Couldn't tell ${user.id} they're blind:`, err),
           );
           return;

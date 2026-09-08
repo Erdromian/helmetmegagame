@@ -41,7 +41,7 @@ async function syncMemberNickname(member) {
     where: { discordUserId: member.id, status: "ALIVE", firstName: { not: "" } },
   });
   if (!character) return "skipped";
-  // "Play from the web" (docs/systemdocs/HALL.md §6): the whole point is that
+  // "Play from the web" (docs/systemdocs/CHAT.md §6): the whole point is that
   // this account is not identifiable as this character, and a nickname reading
   // "someone | Cersei" would hand that back in the member list.
   if (character.webOnly) return "skipped";

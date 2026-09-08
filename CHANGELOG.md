@@ -6,6 +6,150 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · A horse eats a resource a turn
+
+✎ Holding a Horse now costs 1 ⬢ at the close of every turn, whether it is out or stowed in your pack  
+✎ The horse is fed before you are, so a rider down to their last ⬢ keeps the animal and goes Hungry  
+✎ Nobody short of the ⬢ is charged, and nobody loses their horse over it
+
+## 2026-09-08 · Once you set out for another zone, you are on the road until next turn
+
+− The Turn back button is gone from the Travel button on Discord and from the travel panel on Chat  
+− A paid zone crossing still spends the Move when you confirm it, and you still arrive at the next turn
+
+## 2026-09-07 · The GM desks paint at once on a return visit
+
+− The player roster, a player's conversation, the turns workspace, the audit log, Crafts, Structures, the tag catalog and the dev panel all keep their last data in your browser and draw it in the first frame; the server's answer replaces it a moment later
+
+## 2026-09-07 · Documents, the Depot and Notes paint at once on a return visit
+
+− Three more pages keep their last data in your browser and draw it in the first frame; the server's answer replaces it a moment later
+
+## 2026-09-07 · The character sheet paints at once on a return visit
+
+− Your sheet keeps its last data in your browser and draws it in the first frame the next time you open it; the server's answer replaces it a moment later  
+− Signing out clears every stored page
+
+## 2026-09-07 · Chat paints at once on a return visit
+
+− Chat keeps its last data in your browser and draws it in the first frame the next time you open it; the server's answer replaces it a moment later, and the live stream fills the gap  
+− The stored copy is per account and is cleared when you sign out
+
+## 2026-09-07 · Shouts carry one hop less, and the far ring says only that someone shouted
+
+− A shout reaches three Locations out instead of four  
+− At the last ring you hear that someone shouted and which way, with no garbled words: at that much static the text said nothing anyway
+
+## 2026-09-07 · The Hall is called Chat now
+
+− The Play page's header, every line that named the Hall, and the doc that describes it (CHAT.md) all say Chat  
+− Under the hood the same rename: the components, the styles, the hook names. The keys that remember what you have seen and whether the bell is muted keep their old names, so nothing is forgotten
+
+## 2026-09-07 · Chat fits the screen it is on
+
+− Rooms in the left column show their description when you rest the pointer on them  
+− Three widths above the phone now: the side columns shrink at 1200px and the right one folds into the ⋯ sheet at 900px, so a mid-sized window keeps a readable scene  
+− The ⋯ that opens the sheet on a phone finally shows, and the floating turn chip no longer sits on top of it  
+− The place card in the right column flows instead of scrolling inside a 12rem box  
+− Clicking an icon button no longer pins its own label open with a ×
+
+## 2026-09-07 · Travel cards stop cutting their descriptions off
+
+− A location card on Travel is as tall as its three-line description needs, ends on a real ellipsis, and keeps the cost on one line under a hairline instead of squeezing the text above it
+
+## 2026-09-07 · Paper reads like paper
+
+− A letter, a notice, a book you hold and the text already on a sheet in the Write dialog all draw as one serif sheet now, with the writer's markdown rendered: bold, lists, quotes  
+− The refusal a blind or illiterate reader gets stays flat text, so it cannot be dressed up as a letter
+
+## 2026-09-07 · A ping reaches you in Chat too
+
+✎ Being mentioned now shows up in your Bascinet thread on the web with an Open link to the place, the same as the DM you get on Discord  
+✎ The GM desk still hides those relay lines; they are for the player
+
+## 2026-09-07 · Bascinet logs every DM it receives
+
+✎ A message typed to Bascinet in Discord is written to the DM record with a log line either way, so a lost one can be traced instead of vanishing  
+✎ Restart Game wipes the DM thread; the Chat doc said otherwise
+
+## 2026-09-07 · A locked Desire slot says how long it stays locked
+
+✎ A slot on cooldown now reads Locked (1t) — turns left — instead of Opens on turn 3, on the sheet, in Chat, in the picker and on the GM's Goals tab
+
+## 2026-09-07 · Overheard whispers give up a little more
+
+✎ A room overhearing a Conversation now catches about 35% of the letters instead of 30% — the static is a notch lighter
+
+## 2026-09-07 · The Bascinet conversation, tightened after review
+
+✎ Paging back through a long conversation no longer skips messages that landed in the same instant, which a turn push does.  
+✎ If the conversation fails to load it says so and offers a retry, instead of grey bars forever.  
+✎ A player whose character died with the page open can still read Bascinet and write back.  
+✎ A tab parked on Bascinet no longer swallows the dot and the chime while nobody is looking at it.  
+✚ Writing to Bascinet is capped at twelve messages a minute, and stops when the Play page is switched off.
+
+## 2026-09-07 · You can cut pieces off people
+
+✚ A Mutilate button, for anyone Cruel, a Torturer, or one of the Thanati. Take one piece off somebody tied up here, or off a body you can reach — an eye, a tongue, a hand, a foot, a stomach, a heart  
+✚ The piece is yours to keep, and it stays where you can trade it. Nothing eats one yet  
+✎ Taking an eye leaves them Missing an Eye; taking the second leaves them Blind. A foot, then the other, leaves them a Cripple. A hand goes to Missing Fingers, then Missing Arm. The tongue leaves them Mute  
+✎ The stomach and the heart kill somebody still using them. A corpse just keeps the mark  
+✎ It costs nothing at all — no Resources, no Move, no turn. Press it again for the next piece, and it leaves the body where it lies  
+✎ Losing a piece is worth 50 on the fear dial. A corpse feels nothing
+
+## 2026-09-07 · Bascinet writes to you on the Play page now
+
+✚ A Messages row at the top of the Play page's places column: Bascinet, the whole DM conversation — turn results, the Bird, GM replies — live, with a box to write back. What a player types there lands on the players desk like any DM, marked as sent from the web.  
+− Yesterday under YOU. The same lines are in the Bascinet conversation, every day rather than only the last close.  
+✎ A player never sees which GM answered: every reply reads as Bascinet.
+
+## 2026-09-07 · Put back the desk and Hall pass that got reverted
+
+✎ The desks and the Play page wear one header again, with same-sized bubbles  
+✎ Each desk's loading screen draws the frame it is about to become, so the page stops jumping when it lands  
+✎ The Search box on the players desk sits clear of the header again  
+− The entry count on the audit log, the tracked-player count on the players desk, the Report to the GMs button and the Dev Panel's Recompute unspent Tag Points button  
+✎ Room storage is clickable again, the room buttons read Drop, Take and Transfer, and a way out says where it goes  
+✎ The unread dot only lights for something meant for you, not for scenery  
+✚ Naming somebody on the Play page now adds them to the conversation, the way naming them in Discord already did  
+✎ A broken wax seal is not a wax stamp, a letter is called A Note, and the Desire slot lock is one turn — all three were true in the database and had been undone in the code
+
+## 2026-09-07 · The Play page has an off switch
+
+✚ A Play page switch in the Dev panel's Features group, on by default. Off, Play leaves the rail, /play sends people to their sheet, and ⌘K stops offering places and people.  
+✎ While it is off, Play from the web is shown only to a player already playing that way, so they can come back. Nobody is switched back automatically — check the players desk for web-only characters before turning it off.
+
+## 2026-09-07 · The buttons stop explaining themselves, and books are crafted now
+
+− Craft, Destroy, Transfer, Write, Butcher, Free and Search lose their tooltips, and eleven explanatory paragraphs come out of the dialogs. The empty states and the refusals stay.  
+✚ Learn, Teach, Confess, Seal, Bury, Engrave, Bind and Move Player say one short true thing each instead
+✎ The Dead folds into People Here, which is now Others. Letters is now Paper  
+✚ Transfer reaches a concealed person, listed by their alias under an opaque handle, so a hood never has to say who it is to be handed a coin  
+✚ Transfer also takes from someone bound or dead, which is Loot — same rules, same fear, same notice, one implementation  
+✚ A blank book is an ordinary craft recipe: ten paper, no skill. Write fills one, with a title  
+− Bind a Book and Tear Up a Book. A book is permanent now  
+✚ A recipe can ask for ten of an ingredient (`count:`), and every surface that prints a recipe says the number
+
+## 2026-09-07 · The Play page forgets the last game, and the dev panel stops explaining itself
+
+✎ The Hall no longer shows the last game: /play is empty after a Restart instead of full of dead characters still talking  
+− Every tooltip, section blurb and how-it-works paragraph on the GM desks  
+✎ A shout arrives on one line now, instead of breaking the words onto a second  
+− The double dagger on any string of four words or fewer, since there is nothing to rewrite in "Save"
+
+## 2026-09-07 · Roleplay channels wipe every turn now, Summaries still at Dawn
+
+✎ Location channels, Rooms and Conversations are cleared at the end of every turn instead of every other one — a scene lives for one day, not two  
+✎ A Zone's Summary channel still only clears at Dawn, so what is posted there has two days to be read  
+− Five Dev Panel settings nobody had ever moved: the message-wipe switch, the Desire and Catatonic master switches, auto-reconcile after a turn, and the web-only cooldown  
+✎ The channel doctor's cheap reconcile now always runs after a turn advance, rather than waiting on a switch that was off
+
+## 2026-09-07 · The Steam Automobile is gone, and a Javelin arrives
+
+− The Steam Automobile, and the banneret desire to buy one. Nobody owned one, and the Merchant no longer stocks it  
+✚ A Javelin — a Simple throwing weapon, 6 ⬢ and a turn at a forge, and it needs Ranged (Basic) to throw  
+✎ The biggest ride in the game is now a horse and cart, seating six
+
 ## 2026-09-07 · Destroy is for things you own
 
 ✚ You can now throw away a letter, a book, a wax seal, a helmet or a suit of armour — 119 things that were stuck to you before  

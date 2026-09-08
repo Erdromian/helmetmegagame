@@ -1,13 +1,13 @@
 import { prisma, FEED_ROW_SELECT } from "@lifeweb/db";
 import { withAvatarVersions } from "@lifeweb/db/lib/archive";
-import { feedWipeFloor, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
+import { feedWipeFloors, floorForPlace, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
 import { loadFeedViewer, findPlace } from "@/lib/feedAccess";
 
 // GET /api/feed/history?place=<key> — the last hundred things said in one
 // place.
 //
 // The stream carries what happens NEXT; this is what happened before. They are
-// separate on purpose: a Hall has half a dozen places and a GM has hundreds,
+// separate on purpose: a Chat has half a dozen places and a GM has hundreds,
 // and pushing every one of their backlogs down one stream would spend a
 // player's first second of the page on rooms they never opened. So the page
 // server-renders the place it opens on, and this fills in the rest as they are
@@ -23,7 +23,7 @@ const MAX_SEQ = 9223372036854775807n;
 
 export async function GET(request) {
   const viewer = await loadFeedViewer();
-  if (!viewer.discordUserId) return Response.json({ error: "Sign in first. ‡" }, { status: 401 });
+  if (!viewer.discordUserId) return Response.json({ error: "Sign in first." }, { status: 401 });
   if (!viewer.character && !viewer.gm) {
     return Response.json({ error: "You have no living character. ‡" }, { status: 403 });
   }
@@ -32,12 +32,13 @@ export async function GET(request) {
   const place = params.get("place");
   // The same gate the stream uses, derived from the same place list.
   const found = await findPlace(prisma, viewer.character, place, viewer.options);
-  if (!found) return Response.json({ error: "You aren't there. ‡" }, { status: 403 });
+  if (!found) return Response.json({ error: "You aren't there." }, { status: 403 });
 
-  // Nothing from before the last Dawn wipe (db/lib/feedWipe.js). Discord's
-  // half of that pass deleted its messages outright; the Hall keeps the rows
-  // for /archive and reads past them.
-  const floor = await feedWipeFloor(prisma);
+  // Nothing from before the last wipe of THIS place (db/lib/feedWipe.js).
+  // Discord's half of that pass deleted its messages outright; Chat keeps
+  // the rows for /archive and reads past them. One place, so one floor: a
+  // zone summary reads the Dawn watermark, everywhere else the turn one.
+  const floor = floorForPlace(await feedWipeFloors(prisma), place);
 
   // ?around=<seq> — the window either side of one line, which is what a
   // search hit needs: the newest hundred would usually not hold something
@@ -52,13 +53,13 @@ export async function GET(request) {
       // BigInt() throws a SyntaxError on anything that is not a whole number,
       // and the query string is whatever somebody typed. Answered rather than
       // thrown: an unparseable anchor is a bad request, not a 500.
-      return Response.json({ error: "That isn't a line. ‡" }, { status: 400 });
+      return Response.json({ error: "That isn't a line." }, { status: 400 });
     }
     // …and a number that PARSES can still be out of range. `seq` is a bigint
     // column, so anything past its bounds is not a line either, and handing it
     // to Prisma is an error from inside the driver instead of an answer.
     if (anchor < 0n || anchor > MAX_SEQ) {
-      return Response.json({ error: "That isn't a line. ‡" }, { status: 400 });
+      return Response.json({ error: "That isn't a line." }, { status: 400 });
     }
     const base = { placeKey: place, deletedAt: null };
     const [below, above] = await Promise.all([

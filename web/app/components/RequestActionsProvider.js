@@ -50,7 +50,7 @@ import { titleFor } from "./actionRegistry";
 import Select from "./Select";
 import ChipText from "./ChipText";
 import ExamineDialog from "./ExamineDialog";
-import QuantityField from "./QuantityField";
+import QuantityField, { parseQuantity } from "./QuantityField";
 import { ENGRAVE_RESOURCE_COST } from "@/lib/constants";
 import { useConfirm } from "./ConfirmProvider";
 import { useTags } from "./TagsProvider";
@@ -74,11 +74,11 @@ import {
   poisonCharacterRequest,
   healCharacterRequest,
   lootCharacterRequest,
-  moveCharacterRequest,
   bindCharacterRequest,
   freeCharacterRequest,
   crucifyCharacterRequest,
   tortureCharacterRequest,
+  mutilateRequest,
   disguiseSelfRequest,
   harmCharacterRequest,
   buryCharacterRequest,
@@ -89,13 +89,12 @@ import {
   packageItemsRequest,
 } from "../(app)/character/requestActions";
 import { readPointer, armNuke, disarmNuke } from "@/app/(app)/character/nukeActions";
+import { recallComrades, recoverEquipment, setHideout, purchaseGear } from "@/app/(app)/character/thanatiActions";
 // Writing and sealing file no Request, so they live apart from the rest —
 // see web/app/(app)/character/paperActions.js.
 import {
   writePaper,
   sealLetter,
-  bindABook,
-  tearUpABook,
   readMyPaper,
 } from "../(app)/character/paperActions";
 // Safe from a client component: db/lib/constants.js is a leaf of bare strings
@@ -106,6 +105,10 @@ import { PACKAGE_MAX_LBS, PACKAGE_LABEL_MAX } from "@lifeweb/db/lib/constants";
 // requires only ./reading -> ./examineVision, and neither touches prisma. One
 // definition, so the counter under the box and the server's own cap agree.
 import { WRITE_MAX, BOOK_MAX, TITLE_MAX } from "@lifeweb/db/lib/paper";
+// Prisma-free on purpose, so importing it here does not drag the @lifeweb/db
+// barrel into the browser bundle. See the note at the top of db/lib/mutilate.js.
+import { MUTILATE_PARTS } from "@lifeweb/db/lib/mutilate";
+import PaperSheet from "./PaperSheet";
 
 // Every player action on the character sheet: mode state, the menus each
 // mode draws from, and one RequestDialog per mode. Renders no chrome of its
@@ -285,7 +288,9 @@ function TagPicker({
                         : []),
                       ...(() => {
                         const items = tag.requirementItems ?? [];
-                        const spends = items.filter((i) => !i.keep).map((i) => i.label);
+                        const spends = items
+                          .filter((i) => !i.keep)
+                          .map((i) => ((i.count ?? 1) > 1 ? `${i.label} ×${i.count}` : i.label));
                         const keeps = items.filter((i) => i.keep).map((i) => i.label);
                         return [
                           ...(spends.length ? [`uses ${spends.join(" + ")}`] : []),
@@ -372,6 +377,13 @@ function payerLabel(parties, key) {
 // real fields, so they still use the shared dialog.
 const NO_REQUEST_MODES = new Set(["examine"]);
 
+// Mutilate's subject dropdown holds two id spaces in one control — the bound
+// people standing here and the corpses in reach — so the value carries its own
+// prefix, the way the Craft dialog's project/site picker does.
+function mutilateKeyFor(kind, id) {
+  return `${kind}:${id}`;
+}
+
 // Why a person is lootable: living cases come from INCAPACITATING_SLUGS
 // (db/lib/incapacitation.js); a corpse says so plainly.
 function targetNote(t) {
@@ -447,8 +459,9 @@ export default function RequestActionsProvider({
   hasMoved = false,
   // Built once in character/page.js so the four target menus can't disagree.
   lootTargets = [],
-  moveTargets = [],
-  moveLocations = [],
+  // Consume's optional administer target: everyone alive on this roster, a
+  // corpse being nobody to hand a cure to. Empty selection means self.
+  consumeTargets = [],
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
@@ -484,9 +497,6 @@ export default function RequestActionsProvider({
   sealOptions = { stamps: [], letters: [] },
   // Books (docs/systemdocs/PAPERWORK.md). No excerpts here — a book's name IS
   // its title, unlike a note's deliberately anonymous waybill code.
-  canBindBook = false,
-  bindBlocked = null,
-  bookOptions = [],
   // The Godard Factory (docs/systemdocs/FACTORY.md). All three are facts about
   // where this character is standing and what is in their hands, resolved
   // server-side in character/page.js — the actions re-check every one.
@@ -504,9 +514,20 @@ export default function RequestActionsProvider({
   // Torture: you hold `torturer`. Your own sheet; the action re-checks it and
   // that the target is Bound.
   canTorture = false,
+  canMutilate = false,
   // The datacard, and the device itself. Both facts about your own sheet.
   hasDatacard = false,
   hasDevice = false,
+  // THE THANATI (docs/systemdocs/THANATI.md). Whether you are one and whether
+  // you lead are your own sheet; the hideout is one you set. `hideoutRooms`
+  // is Set Hideout's picker, `thanatiWares` / `hideoutStock` are Purchase
+  // Gear's shelf and the purse on the hideout's floor.
+  isThanati = false,
+  isThanatiLeader = false,
+  atHideout = false,
+  hideoutRooms = [],
+  hideoutStock = null,
+  thanatiWares = [],
 }) {
   const [mode, setMode] = useState(null);
   const [tagId, setTagId] = useState(null);
@@ -556,6 +577,11 @@ export default function RequestActionsProvider({
   // Butcher and Bury both act on one corpse, identified by BOTH its tag and
   // where it is standing — the same body can be in two places for two people.
   const [corpseKey, setCorpseKey] = useState("");
+  // Mutilate: the prefixed subject key (person:<id> / corpse:<tagId>|<sourceKey>)
+  // and which part is coming off. It keeps its own key rather than sharing
+  // corpseKey, because the same control also offers living people.
+  const [mutilateKey, setMutilateKey] = useState("");
+  const [mutilatePart, setMutilatePart] = useState(MUTILATE_PARTS[0].key);
   // Package: what goes in the crate, and the line printed on its side.
   // tagId -> quantity, replaced wholesale like `picks` above.
   const [packed, setPacked] = useState({});
@@ -565,7 +591,8 @@ export default function RequestActionsProvider({
   // Which letter the bird carries. The Bird no longer holds text of its own —
   // it delivers a paper you are holding (docs/systemdocs/PAPERWORK.md).
   const [birdTagId, setBirdTagId] = useState("");
-  // Write: which sheet, and what is being added to it. `paperExisting` is what
+  // Write: which sheet, and what is being added to it. `paperExisting` is the
+  // PaperSheet shape ({ kind, text, plain }) of what
   // is already on it, fetched when the sheet is chosen so it can be shown
   // read-only above the box — writing only ever appends.
   const [paperId, setPaperId] = useState("");
@@ -576,8 +603,24 @@ export default function RequestActionsProvider({
   // Bind a Book: the title on the spine and everything inside it, written in
   // one pass because a bound book can never be added to.
   const [bookTitle, setBookTitle] = useState("");
-  const [bookBody, setBookBody] = useState("");
   const [error, setError] = useState(null);
+  // Set Hideout's room and Purchase Gear's cart (tagId -> quantity draft) and
+  // which of the hideout floor's two purses pays.
+  const [hideoutRoomId, setHideoutRoomId] = useState("");
+  const [gearCart, setGearCart] = useState({});
+  // Both PREFERENCES, not restrictions: which pool the shelf drains first.
+  // Everything the first one cannot cover comes out of the rest.
+  const [gearCurrency, setGearCurrency] = useState("obols");
+  const [gearPurse, setGearPurse] = useState("room");
+  const gearLines = thanatiWares
+    .map((w) => ({ ...w, quantity: parseQuantity(gearCart[w.tagId], { min: 0, max: 99 }) ?? 0 }))
+    .filter((w) => w.quantity > 0);
+  const gearTotal = gearLines.reduce((sum, w) => sum + w.price * w.quantity, 0);
+  const gearFunds =
+    (hideoutStock?.room?.resources ?? 0) +
+    (hideoutStock?.room?.obols ?? 0) +
+    (hideoutStock?.self?.resources ?? 0) +
+    (hideoutStock?.self?.obols ?? 0);
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
 
@@ -671,13 +714,6 @@ export default function RequestActionsProvider({
     () => (affliction ? consumable.filter((t) => (t.cures ?? []).includes(affliction.slug)) : []),
     [affliction, consumable],
   );
-  // Consume's optional target — everyone alive at this Location, same roster
-  // Move Player draws from (moveTargets), filtered to the living: a corpse
-  // cannot be administered to. Empty selection means self, the default.
-  const consumeTargets = useMemo(
-    () => moveTargets.filter((t) => t.status === "ALIVE"),
-    [moveTargets],
-  );
   // The room stashes here, in lootTargets' shape, keyed "room:<id>" so the
   // one picker can hold both and the submit can tell them apart. Same list
   // Transfer's From uses (accessibleRooms — locked rooms you can't open never
@@ -719,6 +755,24 @@ export default function RequestActionsProvider({
       ),
     [bindTargets, mode],
   );
+
+  // Mutilate's two rosters, in one list. The tied-up living come from the same
+  // bindTargets pool Bind and Torture use; the bodies from the same corpses
+  // list Butcher and Bury use. Monster corpses are left out rather than
+  // offered and refused — the same posture Bury takes.
+  const mutilateSubjects = useMemo(() => {
+    const people = bindTargets
+      .filter((t) => t.bound)
+      .map((t) => ({ key: mutilateKeyFor("person", t.id), label: t.name, kind: "person" }));
+    const bodies = corpses
+      .filter((c) => c.human)
+      .map((c) => ({
+        key: mutilateKeyFor("corpse", corpseIdOf(c)),
+        label: `${c.tagName} — ${c.source.name}`,
+        kind: "corpse",
+      }));
+    return { people, bodies };
+  }, [bindTargets, corpses]);
 
   const chosen = useMemo(() => {
     // heal/harm/learn/teach's tagId isn't a tag this character holds, so
@@ -883,8 +937,8 @@ export default function RequestActionsProvider({
         if (item.keep || item.kind === "group") continue;
         const held =
           item.kind === "anyOf"
-            ? (item.options ?? []).some((o) => (heldBySlug.get(o.slug) ?? 0) > 0)
-            : (heldBySlug.get(item.slug) ?? 0) > 0;
+            ? (item.options ?? []).some((o) => (heldBySlug.get(o.slug) ?? 0) >= (item.count ?? 1))
+            : (heldBySlug.get(item.slug) ?? 0) >= (item.count ?? 1);
         if (!held)
           return `You don't have the ${item.label || "ingredients"} it uses.`;
       }
@@ -911,7 +965,7 @@ export default function RequestActionsProvider({
       if (item.keep || item.kind === "group") continue;
       const slug = item.kind === "anyOf" ? ingredientChoiceValue : item.slug;
       if (!slug) continue;
-      max = Math.min(max, heldBySlug.get(slug) ?? 0);
+      max = Math.min(max, Math.floor((heldBySlug.get(slug) ?? 0) / (item.count ?? 1)));
     }
     const per = craftAllowances[chosen.id]?.per ?? null;
     const left = craftAllowances[chosen.id]?.left ?? 0;
@@ -982,11 +1036,12 @@ export default function RequestActionsProvider({
   }
 
   // `presetTagId` lets a sheet-chip click open this dialog pre-selected.
-  // `presets` seeds the one field a caller already knows: the Hall's people
+  // `presets` seeds the one field a caller already knows: Chat's people
   // column opens Heal or Loot from a person's own row, and asking them to
   // pick that person again out of a dropdown would be a worse dialog than
-  // the sheet's. Only `targetId` / `patientId` / `toKey` are seedable —
-  // everything else in a dialog is a decision, not a context.
+  // the sheet's. Only `targetId` / `patientId` / `toKey` / `fromKey` /
+  // `picks` are seedable — everything else in a dialog is a decision, not a
+  // context.
   const open = useCallback(
     (next, presetTagId = null, presets = null) => {
       setMode(next);
@@ -1013,6 +1068,8 @@ export default function RequestActionsProvider({
       setEngraveName("");
       setDisguiseName("");
       setCorpseKey("");
+      setMutilateKey("");
+      setMutilatePart(MUTILATE_PARTS[0].key);
       setBirdBody("");
       setBirdQuery("");
       setBirdTagId("");
@@ -1022,15 +1079,24 @@ export default function RequestActionsProvider({
       setCustomName("");
       setCustomDescription("");
       setInscription("");
-      setBookBody("");
       setPaperExisting(null);
       setStampId("");
+      setHideoutRoomId("");
+      setGearCart({});
+      setGearCurrency("obols");
+      setGearPurse("room");
       setError(null);
       // After the resets above, never before — a preset is the exception to
       // the blank slate, not part of it.
       if (presets?.patientId) setPatientId(presets.patientId);
       if (presets?.targetId) setTargetId(presets.targetId);
       if (presets?.toKey) setToKey(presets.toKey);
+      // Transfer's two ends and a first pick. Chat's room panel opens this
+      // dialog three ways — Drop, Take, and a click straight on a stack lying
+      // in the room — and each of those is context the player has already
+      // given by choosing the button, not a decision to ask for again.
+      if (presets?.fromKey) setFromKey(presets.fromKey);
+      if (presets?.picks) setPicks(presets.picks);
     },
     [selfId],
   );
@@ -1040,17 +1106,23 @@ export default function RequestActionsProvider({
   // shipped with the page: an unreadable sheet must never have its text
   // sitting in the page source where a blind or illiterate holder could read
   // it straight out of DevTools. The server re-checks the same gate.
+  // Which of the two things you can start from scratch: a sheet, or a blank
+  // book. A book takes a title and six times the text, and is finished for
+  // good the moment it is written (db/lib/paperMint.js#bindBook).
+  const writingBook = Boolean(paperOptions.find((o) => o.tagId === paperId)?.book);
+  const writeMax = writingBook ? BOOK_MAX : WRITE_MAX;
+
   const choosePaper = useCallback(
     (nextId) => {
       setPaperId(nextId);
       setPaperExisting(null);
       const chosenPaper = paperOptions.find((o) => o.tagId === nextId);
-      if (!nextId || chosenPaper?.blank) return;
+      if (!nextId || chosenPaper?.blank || chosenPaper?.book) return;
       startTransition(async () => {
         const res = await readMyPaper(nextId);
         // A refusal shows in the box like anything else — the sentence is the
         // same "You can't read this" the chip gives, so nothing is disclosed.
-        setPaperExisting(res?.ok ? res.text : null);
+        setPaperExisting(res?.ok ? (res.paper ?? { kind: res.kind ?? null, text: res.text, plain: false }) : null);
       });
     },
     [paperOptions],
@@ -1292,11 +1364,6 @@ export default function RequestActionsProvider({
           })),
           amount,
         });
-      case "move":
-        return moveCharacterRequest({
-          targetCharacterId: targetId,
-          targetLocationId: locationId,
-        });
       case "bind":
         return bindCharacterRequest({ targetCharacterId: targetId });
       case "free":
@@ -1325,12 +1392,43 @@ export default function RequestActionsProvider({
           sourceKey: corpse?.sourceKey,
         });
       }
+      case "mutilate": {
+        // One dropdown, two id spaces — the prefix says which, the way the
+        // Craft dialog splits project: from site:.
+        const cut = mutilateKey.indexOf(":");
+        const kind = mutilateKey.slice(0, cut);
+        const rest = mutilateKey.slice(cut + 1);
+        if (kind === "corpse") {
+          const corpse = corpses.find((c) => corpseIdOf(c) === rest);
+          return mutilateRequest({
+            tagId: corpse?.tagId,
+            sourceKey: corpse?.sourceKey,
+            part: mutilatePart,
+          });
+        }
+        return mutilateRequest({
+          targetCharacterId: rest,
+          part: mutilatePart,
+        });
+      }
       case "engrave":
         return engraveHeadstoneRequest({ firstName: engraveName });
       case "disguise":
         return disguiseSelfRequest({ name: disguiseName });
       case "pointer":
         return readPointer();
+      case "recall":
+        return recallComrades();
+      case "recover":
+        return recoverEquipment();
+      case "hideout":
+        return setHideout({ roomId: hideoutRoomId });
+      case "purchase":
+        return purchaseGear({
+          items: gearLines.map((w) => ({ tagId: w.tagId, quantity: w.quantity })),
+          currency: gearCurrency,
+          purse: gearPurse,
+        });
       case "arm":
         return armNuke();
       case "disarm":
@@ -1338,13 +1436,9 @@ export default function RequestActionsProvider({
       // Neither files a Request — see web/app/(app)/character/paperActions.js
       // for why. Both still come back as { ok, error } like everything else.
       case "write":
-        return writePaper({ tagId: paperId, text: paperBody });
+        return writePaper({ tagId: paperId, text: paperBody, title: bookTitle });
       case "seal":
         return sealLetter({ tagId: tagId, stampTagId: stampId });
-      case "bindbook":
-        return bindABook({ title: bookTitle, text: bookBody });
-      case "tearbook":
-        return tearUpABook({ tagId });
       case "bird":
         // No reason: the letter is the record. See RequestDialog.js.
         return birdMessageRequest({
@@ -1363,13 +1457,11 @@ export default function RequestActionsProvider({
   const canSubmit = (() => {
     switch (mode) {
       case "write":
-        return Boolean(paperId && paperBody.trim().length > 0);
+        return Boolean(
+          paperId && paperBody.trim().length > 0 && (!writingBook || bookTitle.trim()),
+        );
       case "seal":
         return Boolean(tagId && stampId);
-      case "bindbook":
-        return Boolean(bookTitle.trim() && bookBody.trim());
-      case "tearbook":
-        return Boolean(tagId);
       case "bird":
         return Boolean(targetId && zoneId && birdTagId);
       case "poison":
@@ -1381,8 +1473,6 @@ export default function RequestActionsProvider({
         return Boolean(patientId && payerKey && affliction);
       case "loot":
         return Boolean(targetId && takingSomething);
-      case "move":
-        return Boolean(targetId && locationId);
       case "bind":
       case "free":
       case "crucify":
@@ -1393,6 +1483,8 @@ export default function RequestActionsProvider({
       case "bury":
       case "butcher":
         return Boolean(corpseKey);
+      case "mutilate":
+        return Boolean(mutilateKey && mutilatePart);
       case "engrave":
         return Boolean(engraveName.trim());
       case "disguise":
@@ -1401,6 +1493,13 @@ export default function RequestActionsProvider({
       // fill in before pressing it.
       case "pointer":
         return true;
+      case "recall":
+      case "recover":
+        return true;
+      case "hideout":
+        return Boolean(hideoutRoomId);
+      case "purchase":
+        return gearLines.length > 0 && gearTotal <= gearFunds;
       case "arm":
       case "disarm":
         return hasDevice;
@@ -1466,7 +1565,7 @@ export default function RequestActionsProvider({
       canExamine: !examineBlocked,
       // The sentence ActionGrid appends to a greyed button's tooltip, so a
       // player reads why instead of DMing to ask.
-      gateReason: { examine: examineBlocked, extract: extractBlocked, bindbook: bindBlocked },
+      gateReason: { examine: examineBlocked, extract: extractBlocked },
       canLearn: teachers.length > 0,
       canTeach,
       // Your own sheet only. Greying this on whether a chaplain happens to be
@@ -1480,9 +1579,7 @@ export default function RequestActionsProvider({
       canWrite,
       hasSeal,
       canSeal,
-      canBindBook,
       // Holding a book IS having one to tear up — no second prop for it.
-      hasBook: bookOptions.length > 0,
       canSendBirdToday: !birdSentToday,
       canButcher,
       canSeeExtract,
@@ -1491,8 +1588,12 @@ export default function RequestActionsProvider({
       canCrucify,
       canDisguise,
       canTorture,
+      canMutilate,
       hasDatacard,
       hasDevice,
+      isThanati,
+      isThanatiLeader,
+      atHideout,
     }),
     [
       craftable,
@@ -1504,7 +1605,6 @@ export default function RequestActionsProvider({
       canHeal,
       examineBlocked,
       extractBlocked,
-      bindBlocked,
       teachers,
       canTeach,
       mySins,
@@ -1513,8 +1613,6 @@ export default function RequestActionsProvider({
       canWrite,
       hasSeal,
       canSeal,
-      canBindBook,
-      bookOptions,
       birdSentToday,
       canButcher,
       canSeeExtract,
@@ -1523,14 +1621,21 @@ export default function RequestActionsProvider({
       canCrucify,
       canDisguise,
       canTorture,
+      canMutilate,
       hasDatacard,
       hasDevice,
+      isThanati,
+      isThanatiLeader,
+      atHideout,
     ],
   );
 
+  // `selfId` rides along so a caller can build the `character:<id>` party key
+  // the Transfer presets take without being handed the id a second way. The
+  // Chat's room panel is the one that needs it (Drop and Take name both ends).
   const value = useMemo(
-    () => (enabled ? { open, pools } : null),
-    [enabled, open, pools],
+    () => (enabled ? { open, pools, selfId } : null),
+    [enabled, open, pools, selfId],
   );
 
   const title = titleFor(mode);
@@ -1538,7 +1643,8 @@ export default function RequestActionsProvider({
     mode === "craft" ||
     mode === "harm" ||
     mode === "loot" ||
-    mode === "transfer"
+    mode === "transfer" ||
+    mode === "purchase"
       ? "wide"
       : undefined;
 
@@ -1552,7 +1658,7 @@ export default function RequestActionsProvider({
           plain modal rather than being forced through the Requests popup. It
           does call the server, but only to read (examineActions.js). */}
           {/* `targetId` is seeded by open("examine", null, { targetId }) —
-              the Hall's HERE rows and its feed rows both name the person
+              Chat's HERE rows and its feed rows both name the person
               before the dialog opens, so the picker is skipped. Read only
               while Look at is the open mode: the same state backs every other
               dialog's target. */}
@@ -1668,9 +1774,6 @@ export default function RequestActionsProvider({
                     label={`How many? (you have ${heldCount})`}
                   />
                 )}
-                <p className="text-xs text-muted">
-                  Items are destroyed and nothing is refunded. A wound can&apos;t be destroyed, only healed.
-                </p>
               </>
             )}
 
@@ -1699,7 +1802,7 @@ export default function RequestActionsProvider({
                         required
                       >
                         <option value="" disabled>
-                          Choose someone here…
+                          Choose…
                         </option>
                         {lessonPeople.map((p) => (
                           <option key={p.id} value={p.id}>
@@ -1729,14 +1832,11 @@ export default function RequestActionsProvider({
                     )}
                   </>
                 )}
-                <p className="text-xs text-muted">
-                  {mode === "learn"
-                    ? "They get a DM and have to accept. Once they do, learning is your Gambit for the turn. A 5 or 6 learns the skill."
-                    : "They get a DM and have to accept. Once they do, teaching is your Routine for the turn. With Lecturing you can take up to three students at once."}
-                  {hasMoved && !canTeach
-                    ? " You've already used your Move this turn."
-                    : ""}
-                </p>
+                {hasMoved && !canTeach && (
+                  <p className="text-xs text-muted">
+                    You&apos;ve already used your Move this turn.
+                  </p>
+                )}
               </>
             )}
 
@@ -1756,7 +1856,7 @@ export default function RequestActionsProvider({
                         required
                       >
                         <option value="" disabled>
-                          Choose someone here…
+                          Choose…
                         </option>
                         {confessors.map((p) => (
                           <option key={p.id} value={p.id}>
@@ -1786,15 +1886,11 @@ export default function RequestActionsProvider({
                     </label>
                   </>
                 )}
-                <p className="text-xs text-muted">
-                  They get a DM asking whether they&apos;ll hear you, and it
-                  does not say what about &mdash; only you and the GMs ever see
-                  that. Once they accept, confessing is your Gambit for the
-                  turn: a 5 or 6 and it comes off you when the turn ends.
-                  {hasMoved
-                    ? " You've already used your Move this turn."
-                    : ""}
-                </p>
+                {hasMoved && (
+                  <p className="text-xs text-muted">
+                    You&apos;ve already used your Move this turn.
+                  </p>
+                )}
               </>
             )}
 
@@ -1833,7 +1929,12 @@ export default function RequestActionsProvider({
                     </Select>
                   </label>
                 )}
-                {chosen && (
+                {/* A Depot crate says nothing here: what falls out of it is
+                    printed on the crate itself, and it grants runtime rows
+                    rather than the catalog slugs `becomes` reads — so the
+                    fallback line below would claim it leaves nothing behind,
+                    which is the one thing that is never true of a crate. */}
+                {chosen && !chosen.crateContents && (
                   <p className="text-xs text-muted">
                     {becomes.length
                       ? `Becomes: ${becomes.join(", ")}.`
@@ -2005,7 +2106,7 @@ export default function RequestActionsProvider({
                     required
                   >
                     <option value="" disabled>
-                      Choose someone here…
+                      Choose…
                     </option>
                     {healTargets.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -2135,6 +2236,7 @@ export default function RequestActionsProvider({
               <TransferDialog
                 selfId={selfId}
                 parties={transferParties}
+                lootable={lootTargets}
                 silo={transferSilo}
                 transferable={transferable}
                 carry={carry}
@@ -2163,7 +2265,7 @@ export default function RequestActionsProvider({
                   <>
                     <label className="field">
                       <span className="field-label">
-                        Who are you searching?
+                        What are you searching?
                       </span>
                       <Select
                         value={targetId}
@@ -2175,7 +2277,7 @@ export default function RequestActionsProvider({
                         required
                       >
                         <option value="" disabled>
-                          Choose someone here…
+                          Choose…
                         </option>
                         {lootRooms.length > 0 && (
                           <optgroup label="Rooms here">
@@ -2256,58 +2358,6 @@ export default function RequestActionsProvider({
                         </label>
                       </>
                     )}
-                  </>
-                )}
-              </>
-            )}
-
-            {mode === "move" && (
-              <>
-                {moveTargets.length === 0 ? (
-                  <NobodyHere>There&apos;s nobody here to move.</NobodyHere>
-                ) : (
-                  <>
-                    <label className="field">
-                      <span className="field-label">Who are you moving?</span>
-                      <Select
-                        value={targetId}
-                        onChange={(e) => setTargetId(e.target.value)}
-                        required
-                      >
-                        <option value="" disabled>
-                          Choose someone here…
-                        </option>
-                        {moveTargets.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}
-                            {t.status === "DEAD" ? " — body" : ""}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-                    <label className="field">
-                      <span className="field-label">Where to?</span>
-                      <Select
-                        value={locationId}
-                        onChange={(e) => setLocationId(e.target.value)}
-                        required
-                      >
-                        <option value="" disabled>
-                          Choose somewhere next door…
-                        </option>
-                        {moveLocations.map((l) => (
-                          <option key={l.id} value={l.id}>
-                            {l.name}
-                            {l.crossesZone && l.zoneName
-                              ? ` — crosses into ${l.zoneName}`
-                              : ""}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-                    <p className="text-xs text-muted">
-                      You can move someone you lead, someone you&apos;ve bound, or a body. It doesn&apos;t spend their Move, and it doesn&apos;t move you.
-                    </p>
                   </>
                 )}
               </>
@@ -2439,13 +2489,6 @@ export default function RequestActionsProvider({
                       {mode === "butcher" && chosen ? (
                         <p className="text-xs text-muted">
                           Cutting this one up gives you {yieldLabel(chosen)}.
-                          The body is gone afterwards, and their soul stays
-                          where it is.
-                        </p>
-                      ) : null}
-                      {mode === "bury" ? (
-                        <p className="text-xs text-muted">
-                          This takes your turn, and it frees them to respawn.
                         </p>
                       ) : null}
                     </>
@@ -2473,9 +2516,7 @@ export default function RequestActionsProvider({
                 one searches every zone rather than just this room. You type a
                 name and find out whether you were right. */}
                 <p className="text-xs text-muted">
-                  Write the person&apos;s name letter by letter&mdash;be
-                  precise!&mdash;or the wrong soul goes free. This costs{" "}
-                  {ENGRAVE_RESOURCE_COST} ⬢ and your turn.
+                  Costs {ENGRAVE_RESOURCE_COST} ⬢ and your turn.
                 </p>
               </>
             )}
@@ -2485,6 +2526,90 @@ export default function RequestActionsProvider({
                 The card wakes and swings. Press to read it&mdash;the answer
                 comes to you privately, and nobody here is told you looked.
               </p>
+            )}
+
+            {/* THE THANATI (docs/systemdocs/THANATI.md). Recall and Recover
+                ask nothing — the dialog is the confirm — and by Bascinet's
+                ruling none of the four carries a line of explanation. */}
+            {mode === "hideout" && (
+              <label className="field">
+                <span className="field-label">Room</span>
+                <Select
+                  value={hideoutRoomId}
+                  onChange={(e) => setHideoutRoomId(e.target.value)}
+                  required
+                >
+                  <option value="" disabled>
+                    Choose a room…
+                  </option>
+                  {hideoutRooms.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                      {r.current ? " ✓" : ""}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            )}
+
+            {mode === "purchase" && (
+              <>
+                <div className="flex flex-wrap items-end gap-3">
+                  <label className="field" style={{ width: "9rem" }}>
+                    <span className="field-label">Spend first</span>
+                    <Select value={gearCurrency} onChange={(e) => setGearCurrency(e.target.value)}>
+                      <option value="obols">Obols</option>
+                      <option value="resources">⬢</option>
+                    </Select>
+                  </label>
+                  <label className="field" style={{ width: "9rem" }}>
+                    <span className="field-label">Take from</span>
+                    <Select value={gearPurse} onChange={(e) => setGearPurse(e.target.value)}>
+                      <option value="room">The floor</option>
+                      <option value="self">Your pockets</option>
+                    </Select>
+                  </label>
+                </div>
+                <p className="text-xs text-muted">
+                  Floor: {hideoutStock?.room?.obols ?? 0} ¢ · {hideoutStock?.room?.resources ?? 0} ⬢.
+                  You: {hideoutStock?.self?.obols ?? 0} ¢ · {hideoutStock?.self?.resources ?? 0} ⬢.
+                  Whatever you pick first pays until it runs out, then the rest covers it. ‡
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Ware</th>
+                        <th>Price</th>
+                        <th>Qty</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {thanatiWares.map((w) => (
+                        <tr key={w.tagId}>
+                          <td>{w.name}</td>
+                          <td className="mono">{w.price}</td>
+                          <td>
+                            <QuantityField
+                              inline
+                              min={0}
+                              max={99}
+                              ariaLabel={w.name}
+                              value={gearCart[w.tagId] ?? "0"}
+                              onChange={(v) => setGearCart((prev) => ({ ...prev, [w.tagId]: v }))}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex justify-end">
+                  <span className={`mono text-sm ${gearTotal > gearFunds ? "text-danger" : ""}`}>
+                    {gearTotal} / {gearFunds}
+                  </span>
+                </div>
+              </>
             )}
 
             {(mode === "arm" || mode === "disarm") && (
@@ -2567,7 +2692,7 @@ export default function RequestActionsProvider({
                       required
                     >
                       <option value="" disabled>
-                        Choose someone here…
+                        Choose…
                       </option>
                       {bindable.map((t) => (
                         <option key={t.id} value={t.id}>
@@ -2577,15 +2702,78 @@ export default function RequestActionsProvider({
                     </Select>
                   </label>
                 )}
-                <p className="text-xs text-muted">
-                  {mode === "bind"
-                    ? "Once they're Bound you can search them or march them somewhere. Say why."
-                    : mode === "free"
-                      ? "Anyone standing here can do this, including someone who came to rescue them."
-                      : mode === "torture"
-                        ? "It takes your Move. One die, resolved now: what they gave up arrives by DM."
-                        : "They go up on the cross now. They can still speak, but nothing else — and in a turn they are Dying. It doesn't spend your Move. Say why."}
-                </p>
+                {(mode === "torture" || mode === "crucify") && (
+                  <p className="text-xs text-muted">
+                    {mode === "torture"
+                      ? "It takes your Move. One die, resolved now: what they gave up arrives by DM."
+                      : "They go up on the cross now. They can still speak, but nothing else — and in a turn they are Dying. It doesn't spend your Move. Say why."}
+                  </p>
+                )}
+              </>
+            )}
+
+            {/* Two dropdowns and nothing else. No helper line, no yield
+            preview, no per-part explanation — unlike Butcher's "cutting this
+            one up gives you…". The part list is also DELIBERATELY UNFILTERED:
+            narrowing it to the rungs a subject has left would answer "what are
+            they already missing?" to anybody who opened the dialog, which is
+            the same leak the metagaming rule in actionRegistry.js is about.
+            You find out by trying, and the server refuses. */}
+            {mode === "mutilate" && (
+              <>
+                {mutilateSubjects.people.length === 0 &&
+                mutilateSubjects.bodies.length === 0 ? (
+                  <NobodyHere>
+                    There’s nobody here you could do that to. ‡
+                  </NobodyHere>
+                ) : (
+                  <>
+                    <label className="field">
+                      <span className="field-label">Who?</span>
+                      <Select
+                        value={mutilateKey}
+                        onChange={(e) => setMutilateKey(e.target.value)}
+                        required
+                      >
+                        <option value="" disabled>
+                          Choose…
+                        </option>
+                        {mutilateSubjects.people.length > 0 && (
+                          <optgroup label="Here">
+                            {mutilateSubjects.people.map((o) => (
+                              <option key={o.key} value={o.key}>
+                                {o.label}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {mutilateSubjects.bodies.length > 0 && (
+                          <optgroup label="Bodies">
+                            {mutilateSubjects.bodies.map((o) => (
+                              <option key={o.key} value={o.key}>
+                                {o.label}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </Select>
+                    </label>
+                    <label className="field">
+                      <span className="field-label">What?</span>
+                      <Select
+                        value={mutilatePart}
+                        onChange={(e) => setMutilatePart(e.target.value)}
+                        required
+                      >
+                        {MUTILATE_PARTS.map((p) => (
+                          <option key={p.key} value={p.key}>
+                            {p.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                  </>
+                )}
               </>
             )}
 
@@ -2608,7 +2796,7 @@ export default function RequestActionsProvider({
                         required
                       >
                         <option value="" disabled>
-                          Choose someone here…
+                          Choose…
                         </option>
                         {harmTargets.map((t) => (
                           <option key={t.id} value={t.id}>
@@ -2667,7 +2855,7 @@ export default function RequestActionsProvider({
                         </option>
                         {paperOptions.map((o) => (
                           <option key={o.tagId} value={o.tagId}>
-                            {o.blank
+                            {o.blank || o.book
                               ? `${o.name}${o.quantity > 1 ? ` ×${o.quantity}` : ""} — blank`
                               : `${o.name}${o.excerpt ? ` — ${o.excerpt}` : ""}`}
                           </option>
@@ -2680,10 +2868,23 @@ export default function RequestActionsProvider({
                     {paperExisting && (
                       <div className="field">
                         <span className="field-label">Already on it</span>
-                        <pre className="panel whitespace-pre-wrap text-sm">
-                          {paperExisting}
-                        </pre>
+                        <PaperSheet paper={paperExisting} />
                       </div>
+                    )}
+
+                    {/* A book's Tag.name is its title, read off a shelf. A
+                    sheet's is an anonymous waybill code, so only a book asks. */}
+                    {writingBook && (
+                      <label className="field">
+                        <span className="field-label">What is it called?</span>
+                        <input
+                          type="text"
+                          value={bookTitle}
+                          onChange={(e) => setBookTitle(e.target.value)}
+                          maxLength={TITLE_MAX}
+                          required
+                        />
+                      </label>
                     )}
 
                     <label className="field">
@@ -2693,16 +2894,21 @@ export default function RequestActionsProvider({
                           : "What does it say?"}
                       </span>
                       <textarea
-                        rows={6}
-                        maxLength={WRITE_MAX}
+                        rows={writingBook ? 12 : 6}
+                        maxLength={writeMax}
                         value={paperBody}
                         onChange={(e) => setPaperBody(e.target.value)}
-                        placeholder="Anyone who can read it will read this."
+                        placeholder="Write here."
                       />
                       <span className="text-xs text-muted mono">
-                        {paperBody.length} / {WRITE_MAX}
+                        {paperBody.length} / {writeMax}
                       </span>
                     </label>
+                    {writingBook && (
+                      <p className="text-xs text-muted">
+                        A book is written in one pass. Nothing can be added later.
+                      </p>
+                    )}
                   </>
                 )}
               </>
@@ -2751,74 +2957,8 @@ export default function RequestActionsProvider({
                           </option>
                         ))}
                       </Select>
-                      <p className="text-xs text-muted">
-                        Nobody can read it without breaking the seal, and everybody can see whose wax it was. The stamp isn&apos;t used up.
-                      </p>
                     </label>
                   </>
-                )}
-              </>
-            )}
-
-            {mode === "bindbook" && (
-              <>
-                <label className="field">
-                  <span className="field-label">What is it called?</span>
-                  <input
-                    type="text"
-                    maxLength={TITLE_MAX}
-                    value={bookTitle}
-                    onChange={(e) => setBookTitle(e.target.value)}
-                    placeholder="On the Draining of Blood"
-                  />
-                </label>
-
-                <label className="field">
-                  <span className="field-label">What does it say?</span>
-                  <textarea
-                    rows={12}
-                    maxLength={BOOK_MAX}
-                    value={bookBody}
-                    onChange={(e) => setBookBody(e.target.value)}
-                    placeholder="Write the whole thing here."
-                  />
-                  <span className="text-xs text-muted mono">
-                    {bookBody.length} / {BOOK_MAX}
-                  </span>
-                </label>
-
-                <p className="text-xs text-muted">
-                  Ten blank sheets go into it, and it is finished the moment you bind it. Nothing can be added after binding. Tear it up and you get the ten sheets back.
-                </p>
-              </>
-            )}
-
-            {mode === "tearbook" && (
-              <>
-                {bookOptions.length === 0 ? (
-                  <NobodyHere>You aren&apos;t carrying a book.</NobodyHere>
-                ) : (
-                  <label className="field">
-                    <span className="field-label">Which one?</span>
-                    <Select
-                      value={tagId ?? ""}
-                      onChange={(e) => setTagId(e.target.value)}
-                      required
-                    >
-                      <option value="" disabled>
-                        Pick a book
-                      </option>
-                      {bookOptions.map((o) => (
-                        <option key={o.tagId} value={o.tagId}>
-                          {o.name}
-                        </option>
-                      ))}
-                    </Select>
-                    <p className="text-xs text-muted">
-                      You get ten blank sheets back. What was written in it is
-                      gone.
-                    </p>
-                  </label>
                 )}
               </>
             )}

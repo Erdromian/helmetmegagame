@@ -10,7 +10,7 @@
 // character has ACTIVE, not merely the ones they hold — `equippedSlugs` below
 // is what builds that set, and callers must not hand these functions a bare
 // held-slug set by mistake.
-const FAST_TRAVEL_SLUGS = new Set(["horse", "steam-automobile", "motorcycle"]);
+const FAST_TRAVEL_SLUGS = new Set(["horse", "motorcycle"]);
 
 // The boat is deliberately NOT a fast-travel mount. It buys the same extra
 // crossing, but only between the three zones the water actually connects, and
@@ -46,8 +46,8 @@ function equippedSlugs(characterTags = []) {
   return active;
 }
 
-// Seats a mount carries, rider included. Steam Automobile is a fixed 6 and
-// doesn't stack with Cart. A horse alone seats 2; Cart upgrades to 6.
+// Seats a mount carries, rider included. A horse alone seats 2; Cart upgrades
+// that pair to 6, and that is the biggest ride there is.
 //
 // The Motorcycle seats 2 and is checked BEFORE the horse, so the Cart upgrade
 // below can never reach it: a hand-cart towed behind a motorcycle is not a
@@ -55,7 +55,6 @@ function equippedSlugs(characterTags = []) {
 // Somebody holding both a bike and a horse gets the horse's arithmetic, which
 // is the only case where the order matters and is the generous reading.
 function fastTravelCapacity(activeSlugs) {
-  if (activeSlugs.has("steam-automobile")) return 6;
   if (activeSlugs.has("horse")) return activeSlugs.has("cart") ? 6 : 2;
   if (activeSlugs.has("motorcycle")) return 2;
   return 0;
@@ -96,7 +95,7 @@ function boatCrossing(fromZoneSlug, toZoneSlug) {
 // before someone walks a day's road with a horse in their pocket.
 //
 // Returns display NAMES, not slugs — this goes straight into a sentence a
-// player reads, and "you're carrying a steam-automobile" is not a sentence.
+// player reads, and "you're carrying a fishing-boat" is not a sentence.
 // Falls back to the slug only if a caller passed rows without one.
 function stowedMounts(characterTags = []) {
   return (characterTags ?? [])

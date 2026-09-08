@@ -1724,8 +1724,8 @@ handed renders inert rather than either vanishing or leaking.
 by automatic game logic rather than by a player, a GM, or a starting package —
 `db/lib/hungerPass.js` is their only writer, and `db/lib/gambitModifier.js`
 their only reader. `db/lib/constants.js` holds the slugs so neither file
-hardcodes a string. `catatonic-afk` is a third: `db/lib/catatonicPass.js` (gated on
-`GameConfig.catatonicEnabled`/`catatonicTurns`) and
+hardcodes a string. `catatonic-afk` is a third: `db/lib/catatonicPass.js` (after
+`GameConfig.catatonicTurns` idle turns) and
 `db/lib/playerDeparture.js` (a guild leave, ungated — departure is a fact,
 not a dial) are its two writers, it now carries a consequence — held for
 `GameConfig.catatonicDeathTurns` turns straight, the character dies at close
@@ -1758,8 +1758,10 @@ drawbacks, each with its own writer:
   each multiply one kind of fear gain rather than sustaining a mood of their
   own — `db/lib/fear.js` (the multiplier table) and `db/lib/fearPass.js` (the
   nightly turn pass). See `FEAR.md`.
-- **Guilt Ridden and Insomniac** each carry a nightly chance of waking
-  Exhausted — `db/lib/dawnAfflictionPass.js`, run right after the hunger pass.
+- **Guilt Ridden and Insomniac** each carry a nightly chance of a bad night's
+  sleep, stepped through the same Tired -> Exhausted ladder a day's Labor uses
+  (`LABORING.md` §4) — `db/lib/dawnAfflictionPass.js`, run right after the
+  hunger pass.
 - **Lazy** takes a quarter off a labor roll's yield, after the roll —
   `lazyYield()` in `db/lib/laborAccess.js`, called from both
   `db/lib/autoLaborPass.js` and `bot/src/lib/moveConfirm.js`.
@@ -1767,7 +1769,7 @@ drawbacks, each with its own writer:
   `db/lib/confession.js#confessableTags`/`validateConfession` (`CONFESSION.md`).
 - **Lightweight and Iron Liver** reshape the drinking ladder —
   `web/lib/consumeGrants.js` (`BREWING.md` §5a).
-- **Motion Sickness** refuses mounting a horse, steam automobile or fishing
+- **Motion Sickness** refuses mounting a horse, motorcycle or fishing
   boat (`web/app/(app)/character/equipActions.js`), and grants Vomiting to a
   Motion Sick passenger dragged along a mounted or boated zone crossing
   (`db/lib/locationTravel.js#vomitOnTheRide`).

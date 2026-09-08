@@ -1,4 +1,4 @@
-import { signInWithDiscord, signInLocally } from "../actions";
+import { signInWithDiscord, signInLocally, startAsLocalPlayer } from "../actions";
 import { isLocalMode } from "@lifeweb/db/lib/localMode";
 
 export default function HomeScreen({ turnLabel }) {
@@ -23,6 +23,18 @@ export default function HomeScreen({ turnLabel }) {
           {local ? "Sign in (LOCAL_MODE, no Discord)" : "Sign in with Discord"}
         </button>
       </form>
+
+      {/* A second door, only under LOCAL_MODE: the button above always signs
+          in as the superadmin id with no character, which is the wrong shape
+          for testing anything a player sees. This one rolls a fresh identity
+          and a stock Commoner to go with it. */}
+      {local && (
+        <form action={startAsLocalPlayer}>
+          <button type="submit" className="btn-secondary">
+            Start as a player (LOCAL_MODE)
+          </button>
+        </form>
+      )}
     </main>
   );
 }

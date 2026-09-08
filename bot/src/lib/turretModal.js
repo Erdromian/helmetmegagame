@@ -21,7 +21,7 @@ const {
 // the Garrison, so permission is decided at submit, never at open.
 
 // The two words and the matcher live in db/lib/gatehouseTurret.js, so the
-// Hall's confirm asks for the same one.
+// Chat's confirm asks for the same one.
 const { ARM_WORD, DISARM_WORD, turretWordMatches } = require("@lifeweb/db/lib/gatehouseTurret");
 
 const TURRET_MODAL_PREFIX = "turret:toggle:";

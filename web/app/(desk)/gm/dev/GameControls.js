@@ -22,8 +22,8 @@ export default function GameControls({ phase, readyCount, hasDraft }) {
       title: "Start the game?",
       message:
         readyCount > 0
-          ? `${readyCount} readied player${readyCount === 1 ? "" : "s"} will be assigned and DMed. Turn 1 opens now and the clock starts ticking at the next midnight. ‡`
-          : "Nobody has readied up. Turn 1 opens now for late join, and the clock starts ticking at the next midnight. ‡",
+          ? `${readyCount} readied player${readyCount === 1 ? "" : "s"} will be assigned and DMed. ‡`
+          : "Nobody has readied up.",
       confirmLabel: "Start game",
       cancelLabel: "Not yet",
     });
@@ -36,7 +36,7 @@ export default function GameControls({ phase, readyCount, hasDraft }) {
     const ok = await confirm({
       title: "End the game?",
       message:
-        "The clock stops, late join closes, the archive opens to every player, and the reveal roster goes up. You can resume if this was a mistake. ‡",
+        "The clock stops and the archive opens to every player. ‡",
       confirmLabel: "End game",
       cancelLabel: "Keep playing",
     });
@@ -51,14 +51,9 @@ export default function GameControls({ phase, readyCount, hasDraft }) {
             {pending ? "Opening…" : "Open lobby"}
           </button>
           {readyCount > 0 ? (
-            <>
-              <button type="button" className="btn" onClick={onStart} disabled={pending || !hasDraft}>
-                {pending ? "Starting…" : "Start game"}
-              </button>
-              <span className="text-xs text-muted">
-                {hasDraft ? "The lobby is frozen; Start commits the preview below. ‡" : "The lobby is frozen. Preview below, then Start. ‡"}
-              </span>
-            </>
+            <button type="button" className="btn" onClick={onStart} disabled={pending || !hasDraft}>
+              {pending ? "Starting…" : "Start game"}
+            </button>
           ) : null}
         </div>
       ) : null}
@@ -71,11 +66,6 @@ export default function GameControls({ phase, readyCount, hasDraft }) {
           <button type="button" className="btn" onClick={onStart} disabled={pending || (readyCount > 0 && !hasDraft)}>
             {pending ? "Starting…" : "Start game"}
           </button>
-          <span className="text-xs text-muted">
-            {readyCount > 0 && !hasDraft
-              ? "Preview the assignment before starting. ‡"
-              : "Close the lobby first if you want it frozen while you check the preview. ‡"}
-          </span>
         </div>
       ) : null}
 
@@ -87,7 +77,6 @@ export default function GameControls({ phase, readyCount, hasDraft }) {
               name="closingNote"
               rows={3}
               maxLength={4000}
-              placeholder="A few lines for the top of the reveal. ‡"
             />
           </label>
           <div className="ops-actions">

@@ -4,8 +4,8 @@
 //
 // Every surface that offers a destination and every check that authorises a
 // crossing comes through here: db/lib/locationTravel.js#performLocationMove,
-// the bot's Travel picker, the web's MOVE_CHARACTER re-validation, and the
-// modular gate button. That matters because the gating rules are not
+// the bot's Travel picker, the per-follower check an escort party is run
+// through at a crossing (MAP.md §3a), and the modular gate button. That matters because the gating rules are not
 // cosmetic — a hidden edge must be genuinely absent from a list, and a
 // locked one must refuse server-side even when a client sends its id
 // directly.
@@ -116,18 +116,15 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
       refusal: "The way is shut. Somebody in the watchtower would have to work the winch. ‡",
     };
   }
-  // Last, because it is the one refusal the traveller can fix on the spot: a
-  // way too tight for a horse is listed, and unequipping the horse is the way
-  // through. Location.indoors would only have parked the mount on arrival,
-  // which is after the free crossing was already spent.
+  // Used to refuse outright and send the traveller to find their own Equip
+  // button first. Now it dismounts them instead — db/lib/indoors.js's
+  // dismountForNarrowWay, called from applyLocationMoveSideEffects the same
+  // way arriving indoors already parks a mount at the door. `dismounts` is
+  // surfaced here so the picker can say so before anyone commits to it.
   if (link.onFoot && onFootBlocked) {
-    return {
-      listed: true,
-      passable: false,
-      refusal: "No horse or cart fits through there. Unequip it and go on foot. ‡",
-    };
+    return { listed: true, passable: true, refusal: null, dismounts: true };
   }
-  return { listed: true, passable: true, refusal: null };
+  return { listed: true, passable: true, refusal: null, dismounts: false };
 }
 
 // Does this edge have a gate to work at all? Only a modular edge does. The
@@ -205,7 +202,9 @@ async function travelOptions(prisma, character, locationId, opts) {
 }
 
 // How far a shout carries, in hops. Everything past this hears nothing at all.
-const SOUND_HOPS = 4;
+// Four until 2026-09-07; three now (Bascinet's call — the far ring carried
+// too much and said too little).
+const SOUND_HOPS = 3;
 
 // Who can hear a noise made at `originLocationId`, and which way it came from.
 //

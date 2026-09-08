@@ -138,6 +138,23 @@ each arrived at by getting them wrong first.
    thunk to follow the fireball (`LOBBY.md` §7). The new turn still opens so
    the banner has somewhere to hang; the next advance is refused.
 
+4d. **Ascension pass** (`db/lib/ascensionPass.js`) — the cult's doomsday, and
+   the second way a game ends (`THANATI.md` §9). It runs **before 4c**, not
+   after, though it is numbered here with its sibling. The ONLY thing that
+   calls it off is the cult leader dying, so it must sit after the staged push
+   and 4b — a killing adjudicated this close beats the clock — and *before* the
+   bomb, because the blast kills that same leader. With the bomb first, two
+   doomsdays landing on one close meant the fireball cancelled the rite and the
+   cult silently lost a race it had already won. Now the cult's ending is the
+   one written, and the blast still kills everyone above ground.
+   **Nobody dies here** — the bomb leaves survivors underground with a game to
+   play, this leaves nothing — so the pass writes one stamp and hands back one
+   line. `GameState.ascensionArmedTurn` due plus the snapshot leader still
+   ALIVE fires it: `ascensionFiredTurn` is claimed first, every `#summary`
+   hears the hellfire (no `@everyone`; the warning two turns ago was the one
+   worth waking anybody for), and `endGameInDb` runs exactly as at 4c. A dead
+   or missing leader clears the countdown and says nothing at all.
+
 5. **Expiry sweep** — delete non-stackable `CharacterTag`s whose `expiresTurn`
    has come due.
 6. **Stackable sweep** (`sweepExpiredStacks`) — a stack is one row carrying a
@@ -187,14 +204,21 @@ each arrived at by getting them wrong first.
    about writing to them. The `failureNotifiedAt` stamp it writes IS its claim,
    so a resumed close cannot tell the same sender twice; own `resolvedPasses`
    marker for the same reason. DMs ride back on `notices` for the thunk.
+7d. **Horse upkeep pass** (`db/lib/horseUpkeepPass.js`, `"horseUpkeep"` in
+   `TURN_PASSES`) — the horse's feed, 1 ⬢ off everyone holding one. Slotted
+   **immediately before Hunger**, and the order is the rule: auto-labor has
+   already paid the day's income (§2 step 2), and the animal eats before the
+   rider does, so a character down to their last ⬢ feeds the horse and goes
+   Hungry. See §5b.
 8. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep, never
    before. Last turn's Hunger carries `expiresTurn` equal to the closing turn's
    number, so the sweep clears it a moment before a fresh one may be granted.
    The other order collides with `@@unique([characterId, tagId])` and silently
    drops the re-grant, leaving a tag that expires immediately.
 8a. **Dawn afflictions pass** (`db/lib/dawnAfflictionPass.js`) — right after
-   hunger. Guilt Ridden and Insomniac each roll a nightly chance of waking
-   Exhausted (`TAGS.md`). Audit action `dawn_afflictions_resolved`.
+   hunger. Guilt Ridden and Insomniac each roll a nightly chance of a bad
+   night's sleep, stepping the Tired -> Exhausted ladder (`TAGS.md`,
+   `LABORING.md` §4). Audit action `dawn_afflictions_resolved`.
 8b. **Carry pass** (`db/lib/carryPass.js`) — **after** hunger, so it sees the
    final sheet: Labor payouts, staged pushes, the sweep and the ⬢ upkeep all
    happen earlier in the close and none of them may settle in place.
@@ -256,7 +280,7 @@ Two things follow from that, and both are load-bearing:
 `{ advanced, previousTurn, newTurn, note, runSideEffects }`, and the caller
 decides when the thunk runs.
 
-That split is load-bearing. The Dawn wipe walks every zone's channels
+That split is load-bearing. The message wipe walks every zone's channels
 sequentially; awaiting it inside a server action holds the action open, and a
 pending server action blocks client-side navigation — which froze the entire
 web app until a hard refresh.
@@ -288,21 +312,22 @@ The thunk performs, in narrative order:
    crash mid-way leaves the remainder visibly unsent — the workspace's
    missed-push banner — rather than falsely delivered.
 6. The `#turns` announcement (`db/lib/turnAnnouncement.js`).
-7. The Dawn wipe, if the new phase is `DAWN` and `GameConfig.messageWipeEnabled`
-   is on (`db/lib/dawnWipe.js`; see `CHANNELS.md` §8). It is handed a
+7. The message wipe, on **every** turn while `GameConfig.messageWipeEnabled` is
+   on (`db/lib/messageWipe.js`; see `CHANNELS.md` §8). Location channels, Rooms
+   and Conversations clear every turn; a zone's `#summary` only when the new
+   phase is `DAWN`, which the thunk passes as `wipeSummaries`. It is handed a
    **cutoff** — a timestamp the thunk takes as its very first statement, before
    any Discord call — and deletes nothing created at or after it. That is what
    lets the slow wipe stay last in the order without eating the summaries step
    5 just posted. Move the cutoff and you reintroduce that bug.
-8. The thread expiry pass, on **every** Dawn, unconditionally. After the wipe
-   on purpose, so a thread the wipe just deleted isn't also "expired"
-   (`db/lib/threadExpiryPass.js`; `CHANNELS.md` §4).
-9. The channel doctor's **cheap** reconcile, if `GameConfig.autoReconcileEnabled`
-   is on — roles and membership only, a handful of requests
-   (`db/lib/channelDoctor.js`; `CHANNELS.md` §6).
+8. The channel doctor's **cheap** reconcile — roles and membership only, a
+   handful of requests (`db/lib/channelDoctor.js`; `CHANNELS.md` §6). It used
+   to sit behind a `GameConfig.autoReconcileEnabled` switch nobody ever turned
+   on; keeping Discord in step with the database after a turn moves people
+   around is not a thing to opt into.
 
 Everything is sequential and individually `.catch()`'d, so a Discord failure
-never blocks the turn. The Dawn wipe additionally guards **per zone**, so
+never blocks the turn. The message wipe additionally guards **per zone**, so
 one channel a GM deleted by hand costs that room rather than every room after
 it plus `#cerberon`. **Never `Promise.all` a fan-out here** — sequential
 awaiting is what keeps the bot from emitting the burst of 429s that earns an
@@ -346,7 +371,8 @@ path that forgot — is not "no picture": the resolver picks one on the spot, so
 Turn 1 never posts bare.
 
 **After the bomb there is no morning, only the sky.** `GameState.nukeDetonatedTurn`
-pins `nuke.jpg` for the rest of the game, ahead of the ordinary plate.
+pins `nuke.jpg` for the rest of the game, ahead of the ordinary plate, and
+`ascensionFiredTurn` pins `hellfire.jpg` the same way.
 
 How it is posted (`db/lib/turnAnnouncement.js`): **`#turns` is ONE rolling
 message**, replaced each turn, carrying the announcement, the banner and the
@@ -453,6 +479,30 @@ player-facing tracker: the sheet's old Dinner row went with the track
 (Bascinet's call, 2026-09-07). A noble learns they skipped dinner the way
 everyone learns about fear — the band tag, and its one-line DM.
 
+### 5b. The horse's feed
+
+A Horse costs **1 ⬢ every turn it is in your inventory**
+(`db/lib/horseUpkeepPass.js`). Two things about it are the opposite of how the
+rest of the horse works, and both are deliberate:
+
+- **Held, not equipped.** Everything else a horse does is gated on
+  `CharacterTag.equipped` (`db/lib/mounts.js`), and an indoors Location parks
+  the animal at the door. The feed ignores all of it. A horse in your pocket
+  still eats, so stowing it is not a way to skip the bill.
+- **Short of the cost, nothing happens.** A character at 0 ⬢ is charged nothing
+  and keeps the horse — no starving marker, no runaway, no streak. Same shape
+  as the Hunger table's "short of the cost" row, which is why the whole charge
+  fits in one `updateMany` whose `resources: { gte: 1 }` guard matches its own
+  decrement.
+
+Nobody is DM'd about it. A "your horse ate" line every turn would sit on top of
+the hunger notice one pass later, and the tag description says where the ⬢
+went. The pass writes one `horse_upkeep` audit row per close instead, so a GM
+can see the charge on `/gm/audit`.
+
+The Motorcycle (the other member of `FAST_TRAVEL_SLUGS`) is **not** charged —
+it is a machine, and nothing burns fuel for it.
+
 ## 6. Auto-labor
 
 There is no Default Move any more. `DefaultEffort` and its `/character` panel
@@ -477,7 +527,9 @@ Action, no Resources, no DM:
   themselves (`REQUESTS.md` §5b).
 - **No Laboring tag at all.** Labor is a skill now, not a floor — a character
   without one who does nothing has simply done nothing.
-- **Exhausted.** They worked last turn; one labor per turn, which is one a day.
+- **Exhausted.** They've worked two turns running (or a bad night's sleep
+  pushed them there) and need to rest — `tired`, the rung below it, does not
+  block Labor (`LABORING.md` §4).
 - **Standing where none of their skills reach** — no `LocationYield` row of any
   kind they hold. Filing an empty Move to say so would only clutter the desk.
 
@@ -541,7 +593,7 @@ Surfaced to players on the `#turns` announcement (`Moves must be sent by
 <t:C:t>`, added by `buildTurnAnnouncement` when `hasLock`), in `/character`'s
 "This turn" row, and in the handbook.
 
-The Hall's turn card counts to the **cutoff**, not to the turn's end: `myMove`
+Chat's turn card counts to the **cutoff**, not to the turn's end: `myMove`
 sends `moveWindow(...).cutoffAt` as `closesAt`, and `TurnCard.js` renders
 `closes in N h` from it, or `locked` once the window has shut. Counting to
 `endsAt` told a player they had three hours they did not have.
@@ -604,7 +656,7 @@ text and leaving it `PENDING_TYPE` would still have cost the player the turn
 silently.
 
 The Discord `#turns` console has no Edit twin yet. A player who filed in the
-Hall can still edit in the Hall; a player who filed in Discord can also edit on
+Chat can still edit in Chat; a player who filed in Discord can also edit on
 the web, but not the other way round. ‡
 
 `web/lib/auditNarrative.js` has no `move_edited` entry, so `/gm/audit` renders
@@ -621,18 +673,20 @@ that row as its raw slug until somebody writes the sentence.
 | `db/lib/stagedPush.js` | The staged push pass (`ADJUDICATION.md`) |
 | `db/lib/autoLaborPass.js` | The auto-labor pass |
 | `db/lib/laborYield.js` | Location yield drift, and the quality words |
+| `db/lib/horseUpkeepPass.js` | The horse's feed (§5b) |
 | `db/lib/hungerPass.js` | The Hunger pass |
 | `db/lib/catatonicPass.js` | The Catatonic (AFK) flagging pass |
 | `db/lib/catatonicDeathPass.js` | The Catatonic death pass (§2 7b) |
 | `db/lib/dyingDeathPass.js` | The Dying death pass (§2 4b) |
 | `db/lib/nukeExplosionPass.js` | The nuke explosion pass (§2 4c) |
+| `db/lib/ascensionPass.js` | The Rite of Ascension's pass (§2 4d) |
 | `db/lib/nuke.js` | Where the device is, and what the datacard's pointer says |
 | `db/lib/worldBroadcast.js` | The two whole-map fan-outs (every `#summary`, every Location) |
 | `db/lib/characterDeath.js` | The shared DB half of death (`applyDeathToRow`) |
 | `db/lib/playerDeparture.js` | Guild-leave marking, shared by the live handler and the startup reconcile |
 | `db/lib/tagExpiryPass.js` | The tag progression pass (`Tag.expiresInto`) |
 | `db/lib/turnAnnouncement.js` | The rolling `#turns` announcement |
-| `db/lib/dawnWipe.js` | The Dawn wipe (`CHANNELS.md` §8) |
+| `db/lib/messageWipe.js` | The message wipe (`CHANNELS.md` §8) |
 | `db/lib/threadExpiryPass.js` | Inactivity expiry for player threads (`CHANNELS.md` §4) |
 | `db/lib/channelDoctor.js` | The optional post-turn reconcile (`CHANNELS.md` §6) |
 | `bot/src/lib/turnEngine.js` | The cron caller |

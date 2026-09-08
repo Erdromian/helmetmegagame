@@ -6,7 +6,7 @@ called from `bot/src/lib/proxy.js#sendAsCharacter` (gateway) and from
 `advanceTurn`'s `runSideEffects` for staged public posts (REST) — and read
 back on the web at `/archive`.
 
-This replaced archiving at *wipe* time, which `db/lib/dawnWipe.js` used to do
+This replaced archiving at *wipe* time, which `db/lib/messageWipe.js` used to do
 by reading every message out of Discord and re-posting it into a single
 `#archive` channel. That was the most expensive thing the bot did: one channel
 is one ~1 msg/sec rate-limit lane, so a busy turn meant hundreds of sequential
@@ -22,7 +22,7 @@ interleave chronologically and the transcript reads as a diary rather than a
 chat log with no context: `TURN_START` (the chapter divider, written in
 `advanceTurn` where the turn is created rather than in `runSideEffects`, so a
 failed announcement can't leave two days with no boundary — **one row per zone**
-since phase 4 of the Hall, each with `placeKey: zone:<id>`, so every zone's feed
+since phase 4 of Chat, each with `placeKey: zone:<id>`, so every zone's feed
 on `/play` carries the day line; the transcript still draws one divider, since
 it keys on the day and never renders a `TURN_START` as a row), `CHARACTER_CREATED`,
 `DEATH`, `DESIRE_FULFILLED`, `LIFEWEB`, and `TRAVEL`
@@ -57,9 +57,9 @@ Five things about it are load-bearing:
   intercom, a staged public declaration. Those are `MESSAGE` rows with no
   character and `channelKind: "scene"`, written by
   `db/lib/scene.js#sceneLine` **beside** the Discord post rather than instead
-  of it (HALL.md §2). They carry the plain sentence with no `-#` prefix: that
+  of it (CHAT.md §2). They carry the plain sentence with no `-#` prefix: that
   is Discord's rendering of subtext, and `/play` draws a SYSTEM row as
-  `.hall-subtext` on its own. The outbox never posts one — it handles `WEB`
+  `.chat-subtext` on its own. The outbox never posts one — it handles `WEB`
   rows only — so a scene line can never be echoed back into the channel it
   came from.
 - **Restart Game keeps the table.** Every game is a `Game` row (`number`,
@@ -68,7 +68,7 @@ Five things about it are load-bearing:
   rows of the old game stay under its id and read on `/archive?game=N`. (For
   a while the wipe deleted the table, after a restart once left the previous
   game readable as if it were the current one; the game picker is the
-  deliberate version of that.) The Dawn wipe deletes Discord messages and
+  deliberate version of that.) The message wipe deletes Discord messages and
   never the transcript, which is the entire point of recording at send time.
 - **Every write is best-effort and swallows its own failure**, logged not
   thrown. `recordArchiveMessage` runs inline with the proxy send; a transcript
@@ -90,7 +90,7 @@ Five things about it are load-bearing:
   THREAD's own id when it was said inside a thread, since that's what a jump
   link's channel slot needs — written by the bot's `resolveChannelContext`
   alongside `channelKind`/`threadName`. It has two jobs, and only one of them
-  stays useful: the Dawn wipe deletes every Discord message every turn, so a
+  stays useful: the message wipe deletes every Discord message every turn, so a
   jump link built from this id is only live for the turn it was posted in
   (Room threads survive, emptied to their starter). The whisper poll
   (`bot/src/lib/whisperPoll.js`) is its other reader: "who spoke in this
@@ -128,7 +128,7 @@ filter is Speech (the default: `MESSAGE` rows that are not `SYSTEM`, plus the
 day dividers) or Everything. SYSTEM scene lines are out of the default view on
 purpose — the arrivals, deaths and moves they narrate are already in the fold,
 and showing both would print each one twice.
-No avatars, no jump links: the Dawn wipe would have killed the links anyway.
+No avatars, no jump links: the message wipe would have killed the links anyway.
 
 **The gate.** A past game is any signed-in user's to read. The current game is
 `GameState.archiveVisible` — GMs always, players only when it's on, enforced

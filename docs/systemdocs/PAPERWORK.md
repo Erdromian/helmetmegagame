@@ -66,6 +66,22 @@ single predicate exists to prevent.
 sees. **A `SEALED` letter's text is never composed, literate viewer or not.**
 That is what the seal is.
 
+**On the web, a paper is drawn as a sheet, and its words are markdown.**
+`paperView(tag, viewer)` beside `paperDescription` makes the same decision as
+a shape, `{ kind, text, plain }`, and `web/app/components/PaperSheet.js` is
+the one renderer: a serif block on its own ground (`.paper-sheet`), the
+writer's bold, italics, lists and quotes rendered through `ChatMarkdown` like
+any other thing a person wrote. `plain` means the text is *about* the paper —
+the refusal, a seal, a closed book — and is drawn flat and italic, never as
+markdown, so a refusal cannot be dressed up as a letter and blind still looks
+like illiterate. Every surface that opens a paper goes through it: the tag
+chip's hover panel and the tag detail sheet (`tag.paper`, attached by
+`getVisibleTags` and the sheet's `sheetCharacter`), a notice read off a board
+(`readNotice` returns `paper`), and the "already on it" text in the Write
+dialog (`readMyPaper`). `description` stays the flat sentence for lists. On
+Discord the bot posts the text as it is and Discord renders the markdown
+itself.
+
 Three surfaces strip `paperText` before anything crosses to the browser:
 `getVisibleTags`, the sheet's own `sheetCharacter` in
 `web/app/(app)/character/page.js`, and the Write dialog, which fetches the
@@ -95,20 +111,27 @@ finished — **Write refuses a `BOOK`**. That single rule is the whole differenc
 between a book and a sheet, and it is what makes a book worth stealing rather
 than editing.
 
-- **Bind a Book** and **Tear Up a Book** on the Actions grid, both in
-  `paperActions.js` beside Write and both filing no `Request`, for the same
-  reasons Write files none. `db/lib/paperMint.js#bindBook` spends
-  `BOOK_SHEETS` (10) off the blank stack and mints the row;
-  `#tearUpBook` takes the book and hands the ten sheets back.
-- Binding needs letters, because you write the whole thing at once. **Tearing
-  one up needs none** — an illiterate thief pulping the Library is a thing the
-  game should let happen.
-- Deliberately **not** a Craft/Destroy recipe. A recipe's `items:` are *held,
-  not consumed*, and `removesInto` is a bare slug list with no quantities, so
-  neither direction can express "ten sheets".
-- **A book wears its title**, unlike a note's anonymous waybill code
-  (below). A title is what the binder chose to advertise, and a shelf of books
-  all called `A Note (TG-4596)` would be useless. The contents still sit
+**Two steps now, and neither is a button of its own.** `blank-book` is an
+ordinary craft recipe (`docs/tags.yaml`): ten Paper, no skill, no ⬢,
+`perTurn: 4`. Then **Write** takes a blank book like it takes a blank sheet —
+the option appears in "What are you writing on?", and choosing it grows a Title
+field and raises the box from `WRITE_MAX` to `BOOK_MAX`.
+`db/lib/paperMint.js#bindBook` still mints the row; it now spends **one blank
+book** rather than ten sheets, because the sheets were spent at the craft.
+
+- **Bind a Book and Tear Up a Book are gone.** Binding is the recipe plus
+  Write; tearing up has no replacement, so a book is permanent and the ten
+  sheets are not coming back.
+- The reason binding could not be a recipe was that `items:` had no way to say
+  "ten". It does now — `count:` on a spent ingredient
+  (`db/lib/tagShapes.js#normalizeRequirementItems`, `CRAFTING.md` §2), which
+  any recipe can use.
+- **Binding needs no letters any more.** Craft has no notion of literacy, and
+  that turned out to be right: sewing pages together is not writing. The gate
+  is where the writing is — `writePaperImpl`'s `readBlock` check.
+- **A book wears its title**, unlike a note's anonymous name (below). A title
+  is what the binder chose to advertise, and a shelf of books all called
+  `A Note` would be useless. The contents still sit
   behind the literacy gate. Same reason its `inspectVisibility` is `ALWAYS`
   where a note's is `HIDDEN`: carrying a book is visible, reading it is not.
 - **Authored books** — the Keep's Library, the Meister's Office — are declared
@@ -122,15 +145,35 @@ than editing.
   **holding** it (`viewer.holdsIt`, passed by `web/lib/referenceData.js`);
   everyone else reads `CLOSED_BOOK_LINE` and has to go and find it. Without
   that, one literate character would publish the whole Library.
-- Tearing up an **authored** book deletes no catalog row — it only leaves your
-  hands. `tearUpBook` deletes the `Tag` only when it is `custom`.
 
-**A note's name is deliberately anonymous** — `A Note (TG-4596)`, a meaningless
-waybill in the Depot's own house style. `Tag.name` travels everywhere a tag
-does (Transfer, Loot, a room's Storage readout, the bot's inspect embed) and
-none of those surfaces knows anything about literacy, so a title reading "hand
-of Ada" would hand every one of them the one fact this system protects. The
-writer is kept on `Tag.paperAuthor` for the GM and nothing else.
+**A note's name is deliberately anonymous** — every written sheet in the game
+is called `A Note`, and nothing else. `Tag.name` travels everywhere a tag does
+(Transfer, Loot, a room's Storage readout, the bot's inspect embed) and none of
+those surfaces knows anything about literacy, so a title reading "hand of Ada"
+would hand every one of them the one fact this system protects. The writer is
+kept on `Tag.paperAuthor` for the GM and nothing else.
+
+It used to read `A Note (TG-4596)` — a waybill code in the Depot's house
+style — and that was never a design choice, only a constraint showing through:
+`Tag.name` was `@unique`, so every new sheet needed a title no other tag had.
+Naming an object after its own database key is what `slug` is for, and
+`Tag.slug` (`custom-paper-<who>-<stamp>-<rand>`) was already doing it. The
+`@unique` on `name` was **dropped** (`20260913010000_paper_name_not_unique`)
+and the code went with it.
+
+Two consequences worth knowing. Nothing in the game may look a `Tag` up by
+name any more — `Role.startingTagSlugs` was the last reader that did, and
+`db:sync-roles` now resolves the display names `docs/roles.yaml` authors into
+slugs as it validates them (`db/lib/startingTags.js`), so the column is finally
+honest about what it holds. And where two rows of one kind genuinely *should*
+be told apart on sight — a corpse, a disguise, a photograph — the `(2)` suffix
+their minters add is now a readability choice rather than a constraint, and is
+kept on purpose. Two notes both reading `A Note` is the point; two bodies both
+reading `Ada's Corpse` is not.
+
+Telling your own two notes apart is the excerpt every picker already shows
+(`character/page.js`), which is literacy-gated — so the one person who can tell
+them apart is the one who can read them.
 
 ## 5. Wax
 

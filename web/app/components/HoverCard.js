@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-
-const GAP = 6;
-const MARGIN = 8;
+import { placePanel } from "./portalPlacement";
 
 // A hover/focus panel that renders into document.body instead of next to its
-// trigger. This is the codebase's only portal, and it exists for one reason:
+// trigger. Was once the codebase's only portal; ThingsDrawer.js's action menu
+// is the second, sharing this file's viewport-placement math via
+// portalPlacement.js. It exists for one reason:
 // an in-tree tooltip is clipped by every scrolling ancestor it happens to sit
 // under — .doc-sheet, .table-scroll, .list-scroll, .message-list, .modal-panel,
 // .app-rail. A tag chip near the top of an open document threw its tooltip
@@ -21,7 +21,13 @@ const MARGIN = 8;
 // visible after the pointer leaves, so the reader can reach into it (e.g. to
 // click a nested chip or the Consume button). Any onClick/onKeyDown a caller
 // passes still runs; HoverCard just also toggles the pin.
-export default function HoverCard({ children, panel, className = "", ...triggerProps }) {
+//
+// `pinnable={false}` is for wrapping something that is ALREADY a control — a
+// room row in the Chat places column. There the wrapper takes no tab stop
+// (the child button has one, and focus bubbles), a click is the child's
+// click and nothing else, and Enter/Space are left alone so they still
+// activate the child. Hover and focus still open the panel; nothing pins it.
+export default function HoverCard({ children, panel, className = "", pinnable = true, ...triggerProps }) {
   const triggerRef = useRef(null);
   const panelRef = useRef(null);
   const [hovering, setHovering] = useState(false);
@@ -37,53 +43,27 @@ export default function HoverCard({ children, panel, className = "", ...triggerP
   const togglePin = useCallback(
     (e) => {
       triggerOnClick?.(e);
-      setPinned((p) => !p);
+      if (pinnable) setPinned((p) => !p);
     },
-    [triggerOnClick],
+    [triggerOnClick, pinnable],
   );
 
   const handleTriggerKeyDown = useCallback(
     (e) => {
       triggerOnKeyDown?.(e);
-      if (e.key === "Enter" || e.key === " ") {
+      if (pinnable && (e.key === "Enter" || e.key === " ")) {
         e.preventDefault();
         setPinned((p) => !p);
       }
     },
-    [triggerOnKeyDown],
+    [triggerOnKeyDown, pinnable],
   );
 
   const place = useCallback(() => {
     const trigger = triggerRef.current;
     const el = panelRef.current;
     if (!trigger || !el) return;
-
-    const t = trigger.getBoundingClientRect();
-    const { width, height } = el.getBoundingClientRect();
-    const vw = document.documentElement.clientWidth;
-    const vh = document.documentElement.clientHeight;
-
-    // Prefer above (where it has always opened); flip below when the space
-    // isn't there.
-    const roomAbove = t.top - GAP - MARGIN;
-    const roomBelow = vh - t.bottom - GAP - MARGIN;
-    const below = height > roomAbove && roomBelow > roomAbove;
-    const preferred = below ? t.bottom + GAP : t.top - GAP - height;
-
-    // Then clamp the whole panel into the viewport rather than squeezing it
-    // into whichever side it was placed on. Squeezing produced a truncated
-    // panel with an internal scrollbar the reader cannot use — the panel is
-    // pointer-events:none, and reaching for it would close it anyway. Better
-    // to slide it and overlap the chip a little than to hide half the text.
-    const top = Math.min(Math.max(MARGIN, preferred), Math.max(MARGIN, vh - height - MARGIN));
-
-    // Left-align with the trigger, then clamp so a chip at the right edge
-    // doesn't push the panel off-screen.
-    const left = Math.min(Math.max(MARGIN, t.left), Math.max(MARGIN, vw - width - MARGIN));
-
-    // Only cap when the panel is genuinely taller than the viewport, which is
-    // the one case sliding cannot solve.
-    setPos({ top, left, maxHeight: vh - MARGIN * 2 });
+    setPos(placePanel(trigger, el));
   }, []);
 
   // Layout effect so the first paint is already in the right place — with a
@@ -137,7 +117,7 @@ export default function HoverCard({ children, panel, className = "", ...triggerP
         {...restTriggerProps}
         ref={triggerRef}
         className={`tag-hover ${className}`.trim()}
-        tabIndex={0}
+        tabIndex={pinnable ? 0 : undefined}
         aria-describedby={open ? id : undefined}
         onPointerEnter={() => setHovering(true)}
         onPointerLeave={() => setHovering(false)}

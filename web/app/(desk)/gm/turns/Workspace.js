@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSessionState from "@/app/components/useSessionState";
 import { DeskStaleRefreshGate, DeskStaleChip } from "@/app/components/useDeskVersion";
 import useGatedRefreshPoll from "@/app/components/useGatedRefreshPoll";
-import useReloadTelemetry from "@/app/components/useReloadTelemetry";
 import QueueRail, { RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT } from "./QueueRail";
 import MoveDesk from "./MoveDesk";
 import MoveHistoryDesk from "./MoveHistoryDesk";
@@ -531,8 +530,6 @@ export default function Workspace({
   // below instead.
   const lastRefreshedAt = useGatedRefreshPoll(REFRESH_MS, deployVersion);
 
-  useReloadTelemetry("turns", deployVersion);
-
   // Countdown to the nightly CT push, ticking every 30s. The move cutoff rides
   // the same tick.
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -554,7 +551,7 @@ export default function Workspace({
             <span className="chip">
               {openTurn ? `Turn ${openTurn.number} · ${openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}` : "No turn open"}
             </span>
-            <span className="chip text-xs text-muted">{solvedCount}/{moves.length} solved</span>
+            <span className="chip chip-quiet">{solvedCount}/{moves.length} solved</span>
             <span className="text-xs text-muted" title="Push fires at midnight CT">
               {formatCountdown(pushMinutes)}
               {moveLock ? ` · ${formatMoveLock(moveLock.cutoffAtMs, nowMs)}` : ""}
@@ -673,11 +670,7 @@ export default function Workspace({
                   another GM Rejected the Move. Pick another from the rail.
                 </p>
               ) : (
-                <p className="text-sm text-muted">
-                  Pick a Move or a Caving roll from the queue. Everything you stage —
-                  messages, effects, public declarations — goes out together when the turn ends.
-                  The History lens reads back a turn that has already been pushed.
-                </p>
+                <p className="text-sm text-muted">Pick a Move or a Caving roll from the queue.</p>
               )}
             </div>
           )}

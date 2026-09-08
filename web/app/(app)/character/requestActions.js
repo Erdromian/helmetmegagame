@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { TURNS_PATH } from "@/lib/routes";
 import { redirect } from "next/navigation";
-import { prisma, isDynastyHead, isDynastyMember } from "@lifeweb/db";
+import { prisma, isDynastyHead, isDynastyMember, canOpenCrate } from "@lifeweb/db";
 import { resolveParty as dbResolveParty } from "@lifeweb/db/lib/parties";
 import { linkBetween, crossingCheck } from "@lifeweb/db/lib/locationGraph";
 import { blocksOnFoot, equippedSlugs } from "@lifeweb/db/lib/mounts";
@@ -47,6 +47,7 @@ import { describeTurn } from "@/lib/turnFormat";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
+import { requireFreeMove, fileAutoRoutine } from "@/lib/moveSpend";
 import {
   DISGUISE_KIT_SLUG,
   DISGUISE_TURNS,
@@ -95,6 +96,7 @@ import {
   isOwnFactionSilo,
 } from "@/lib/transferReach";
 import { isHere, notHereMessage } from "@/lib/peopleHere";
+import { resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import {
   applyBind,
   createBindOffer,
@@ -122,6 +124,7 @@ import { breakSeal } from "@lifeweb/db/lib/paperMint";
 import { CAMERA_SLUG, attachPhoto, createBlankPhotoRow } from "@lifeweb/db/lib/photoMint";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
+import { partFor, resolveMutilation } from "@lifeweb/db/lib/mutilate";
 import { mintHeadstone } from "@lifeweb/db/lib/headstone";
 import { dropRoomTag, lockRoom } from "@lifeweb/db/lib/tagWrites";
 import {
@@ -132,6 +135,7 @@ import {
   PORTABLE_SURGICAL_PACK_SLUG,
   TORTURING_EQUIPMENT_SLUG,
   TORTURER_SLUG,
+  MUTILATE_GATE_SLUGS,
   PACKAGING_EQUIPMENT_SLUG,
   PACKAGE_MAX_LBS,
   PACKAGE_MAX_UNITS,
@@ -367,7 +371,9 @@ async function requireWorkshop(character, tag) {
 // it is told before a single ⬢ moves.
 //
 // Most ingredients are SPENT, `quantity` units per craft — three molotovs take
-// three Alcohol, the same way they take three lots of ⬢. An entry marked
+// three Alcohol, the same way they take three lots of ⬢. An entry may also
+// carry its own `count`, which multiplies: a blank book takes ten sheets, and
+// three of them take thirty. An entry marked
 // `keep` is the old hold-check instead: a body has its own lifecycle, so
 // bottling a second Miasma over the same corpse is still allowed. A `group`
 // entry is always kept, and is the only thing that can name a corpse written
@@ -410,14 +416,15 @@ function resolveRecipeItems(character, tag, quantity, ingredientChoice) {
       plan.hold.push({ kind: "tag", slug, label: item.label });
       continue;
     }
-    if (!ct || ct.quantity < quantity) {
+    const needed = quantity * (item.count ?? 1);
+    if (!ct || ct.quantity < needed) {
       throw new UserError(
-        quantity > 1
-          ? `Making ${quantity} of those takes ${quantity} × ${name}, and you have ${ct?.quantity ?? 0}.`
+        needed > 1
+          ? `Making ${quantity > 1 ? `${quantity} of those` : "that"} takes ${needed} × ${name}, and you have ${ct?.quantity ?? 0}.`
           : `Making that needs ${name}.`,
       );
     }
-    plan.spend.push({ tagId: ct.tagId, tagName: name, quantity });
+    plan.spend.push({ tagId: ct.tagId, tagName: name, quantity: needed });
   }
   return plan;
 }
@@ -578,65 +585,9 @@ async function resolveCraftPayer(character, payerKey, cost) {
   return payer;
 }
 
-// A whole Move, and nothing filed yet (ADJUDICATION.md §2): one Action per
-// character per turn, filed by the same rules the modal uses. Bury, Engrave,
-// Extract, a build site and a Gambit heal all want the turn to themselves and
-// use this. Crafting takes `resolveCraftMove` below instead, because a craft
-// may cost a FRACTION of the Move and share the rest with another craft.
-async function requireFreeMove(character, openTurn) {
-  if (!openTurn) throw new UserError("No turn is open.");
-  const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
-  if (locked) throw new UserError("Moves are locked for this turn.");
-  const acted = await prisma.action.findFirst({
-    where: { characterId: character.id, turnId: openTurn.id },
-    select: { id: true },
-  });
-  if (acted) throw new UserError("You've already used your Move this turn.");
-}
-
-// A Move the player never wrote: filed for them, already PASSED, so a GM sees
-// what happened without having to adjudicate it. Three callers now — Craft,
-// Bury and Engrave — which is why `gmNotes` is a parameter rather than the
-// hardcoded "auto:craft" this had while crafting was the only one.
-//
-// requireFreeMove() has usually run first, but the P2002 catch is what
-// actually holds: @@unique([characterId, turnId]) is the real gate, and two
-// tabs submitting at once get past a check that read the table a moment ago.
-async function fileAutoRoutine(
-  tx,
-  character,
-  openTurn,
-  description,
-  gmNotes,
-  // The craft ledger, on the one caller that keeps one. Omitted rather than
-  // written as null: a Prisma Json column wants `Prisma.JsonNull` for an
-  // explicit null, and "no ledger" is exactly what the column default says.
-  craftBudget = null,
-) {
-  try {
-    return await tx.action.create({
-      data: {
-        ...(craftBudget ? { craftBudget } : {}),
-        characterId: character.id,
-        turnId: openTurn.id,
-        type: "MOVE",
-        status: "CONFIRMED",
-        confirmedAt: new Date(),
-        moveKind: "ROUTINE",
-        moveReviewStatus: "PASSED",
-        description,
-        appliedEffects: {},
-        zoneId: character.zoneId ?? null,
-        locationId: character.locationId ?? null,
-        gmNotes,
-      },
-    });
-  } catch (err) {
-    if (err?.code === "P2002")
-      throw new UserError("You've already used your Move this turn.");
-    throw err;
-  }
-}
+// requireFreeMove and fileAutoRoutine moved to web/lib/moveSpend.js so the
+// Thanati's Recover Equipment (thanatiActions.js) spends a Move by the same
+// two rules as Bury, Engrave and Extract.
 
 function craftLabel(tag, quantity) {
   return quantity > 1 ? `${quantity}× ${tag.name}` : tag.name;
@@ -2253,26 +2204,40 @@ async function photographNothingImpl({ session, character, held }) {
   return { ok: true, name: photo.name };
 }
 
-// Opening a player-packed crate (LAUNDERING CLASS, fix round M4). A crate is
-// an ordinary CONSUMABLE (packageItemsRequestImpl's own comment explains
-// why), but its real contents live in `crateContents`, not `consumesInto` —
-// the ordinary consume path resolves a grant through resolveConsumeGrants
-// and grantTagSlugs, and grantTagSlugs knows nothing whatsoever about
-// poison. A poisoned line item packed into this crate needs to land back on
-// the sheet poisoned, or packing it was a free bleach: same reasoning,
-// same road as breakSeal/photographNothing above, and the same shape
-// depot/actions.js#openCrateImpl already uses for a Depot shipment — one
-// manifest, unpacked identically wherever it's opened, since a player-packed
-// crate can be carried to the Depot and cracked there instead.
-async function openHeldCrateImpl({ session, character, held }) {
-  const contents = Array.isArray(held.tag.crateContents) ? held.tag.crateContents : [];
+// Cracking a crate — a Depot shipment, or one a player packed themselves
+// (packageItemsRequestImpl). It used to be a button on /depot; it is a
+// Consume now, which is both one verb fewer to learn and the only thing that
+// made sense once a crate walked out of the landing pad and got carried
+// somewhere else entirely. See docs/systemdocs/DEPOT.md §0e.
+//
+// A SEALED crate still wants the keycard, checked here rather than trusted
+// from whatever surface offered the button.
+//
+// A crate's real contents live in `crateContents`, not `consumesInto`: the
+// ordinary consume path resolves a grant through resolveConsumeGrants and
+// grantTagSlugs, and grantTagSlugs knows nothing whatsoever about poison. A
+// poisoned line item packed into a crate has to come back out poisoned
+// (LAUNDERING CLASS, fix round M4), or packing it was a free bleach.
+async function openCrateRequestImpl({ session, character, held }) {
+  const crate = held.tag;
+  const contents = Array.isArray(crate.crateContents) ? crate.crateContents : null;
+  if (!contents) throw new UserError("That isn't a crate.");
+
+  if (!canOpenCrate(crate, heldSlugsOf(character.tags))) {
+    throw new UserError("It's sealed, and the lock wants a Depot Keycard.");
+  }
+
   const openTurn = await getOpenTurn();
-  const inner = await prisma.tag.findMany({
-    where: { id: { in: contents.map((c) => c.tagId) } },
-  });
+  const inner = await prisma.tag.findMany({ where: { id: { in: contents.map((c) => c.tagId) } } });
   const byId = new Map(inner.map((t) => [t.id, t]));
 
+  // ⬢ ride the crate in the field the ordinary consume path already grants,
+  // so nothing here has to know how the shipment was packed.
+  const resourcesGranted = crate.consumesIntoResources ?? 0;
+
   const granted = [];
+  // Contents that could not land — a non-stackable ware already held. Recorded
+  // on the effect so the Ledger and a GM can see what the crate really gave.
   const skipped = [];
   await prisma.$transaction(async (tx) => {
     await lockCharacter(tx, character.id);
@@ -2289,9 +2254,14 @@ async function openHeldCrateImpl({ session, character, held }) {
     }
     for (const line of contents) {
       const tag = byId.get(line.tagId);
-      // A ware pruned out of the catalog since packing is gone. Skip it
-      // rather than fail the whole crate.
+      // A ware pruned out of the catalog between landing and opening is gone.
+      // Skipping it beats throwing: the rest of the crate should still open.
       if (!tag) continue;
+      // addToStack returns the existing row untouched for a non-stackable tag
+      // already held, so what the Ledger records has to be what actually
+      // landed — not what the crate said it held. Otherwise a Merchant who
+      // already owns an ML-23 opens a crate, receives nothing, and is told he
+      // received a pistol.
       const before = await tx.characterTag.findUnique({
         where: { characterId_tagId: { characterId: character.id, tagId: tag.id } },
       });
@@ -2300,7 +2270,7 @@ async function openHeldCrateImpl({ session, character, held }) {
         stackable: tag.stackable,
         expiresTurn: await expiryForGrant(tx, tag, openTurn, {
           characterId: character.id,
-          where: "openHeldCrate",
+          where: "openCrate",
         }),
         // The laundering fix itself: what packageItemsRequestImpl's own
         // manifest stored for this line, carried straight onto the landing
@@ -2314,30 +2284,43 @@ async function openHeldCrateImpl({ session, character, held }) {
       else skipped.push({ tagId: tag.id, name: tag.name, reason: "already held, and only one can be carried" });
     }
 
-    await dropCharacterTag(tx, character.id, held.tagId, 1);
+    if (resourcesGranted > 0) {
+      await creditResources(
+        tx,
+        { kind: "character", id: character.id, name: character.name },
+        resourcesGranted,
+      );
+    }
 
-    const effect = { crateTagId: held.tagId, crateName: held.tag.name, granted, skipped };
+    await dropCharacterTag(tx, character.id, crate.id, null);
+
+    const effect = {
+      crateTagId: crate.id,
+      crateName: crate.name,
+      sealed: crate.sealedShipping,
+      granted,
+      skipped,
+      resourcesGranted,
+    };
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
-      actionType: "request_consume_tag",
+      actionType: "request_depot_crate_open",
       targetCharacterId: character.id,
       turnId: openTurn?.id ?? null,
       details: effect,
     });
 
-    // The crate is a one-off catalog row (packageItemsRequestImpl mints one
-    // per packing) and this was the last of it — same cleanup
-    // depot/actions.js#openCrateImpl does for a shipment crate.
-    const stillHeld = await tx.characterTag.count({ where: { tagId: held.tagId } });
-    const stillStashed = await tx.roomTag.count({ where: { tagId: held.tagId } });
+    // The crate is a one-off catalog row and this was the last of it.
+    const stillHeld = await tx.characterTag.count({ where: { tagId: crate.id } });
+    const stillStashed = await tx.roomTag.count({ where: { tagId: crate.id } });
     if (stillHeld === 0 && stillStashed === 0) {
-      await tx.tag.delete({ where: { id: held.tagId } }).catch(() => {});
+      await tx.tag.delete({ where: { id: crate.id } }).catch(() => {});
     }
   });
 
   await afterInventoryChange([character.id]);
   revalidateAll();
-  return {};
+  return { granted, skipped, resourcesGranted };
 }
 
 async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
@@ -2361,13 +2344,15 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     return photographNothingImpl({ session, character, held });
   }
 
-  // A crate's own road (M4 fix round, see openHeldCrateImpl above) — only
-  // for opening it yourself. Administering a crate to someone else is not a
+  // And a crate, for the same reason again: what falls out of one is a list
+  // of tag IDs printed on the crate at packing or landing, not catalog slugs,
+  // and it also has a lock the ordinary path knows nothing about. Only for
+  // opening it yourself — administering a crate to someone else is not a
   // thing (it has no `cures` and isn't `administerable`), so that case falls
   // through to the ordinary path below, which already refuses it with the
   // same message any other non-curative item gets.
   if (isCrate(held.tag) && (!targetCharacterId || targetCharacterId === character.id)) {
-    return openHeldCrateImpl({ session, character, held });
+    return openCrateRequestImpl({ session, character, held });
   }
 
   // Administerable: the item's `cures` intersects what a target holds, or
@@ -2408,8 +2393,7 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     if (!intersects && !held.tag.administerable) {
       throw new UserError(`${found.name} isn't holding anything ${held.tag.name} treats. ‡`);
     }
-    target = found;
-  }
+    target = found;  }
 
   const openTurn = await getOpenTurn();
 
@@ -2974,10 +2958,22 @@ async function poisonCharacterRequestImpl({ poisonTagId, targetCharacterId }) {
 // and one TRANSFER_RESOURCES for the ⬢, all in one transaction, so a GM can
 // still undo any single piece from /gm/turns.
 //
-// Things and ⬢ leave YOU or a room, never another person — you can't reach
-// into someone's pockets from here, and listing what's in them would show
-// their hidden tags. Loot is how you take from a person, and only a helpless
-// one (REQUESTS.md §5b).
+// Things and ⬢ leave YOU, a room, or a HELPLESS person — bound, dying,
+// paralyzed, catatonic, or a body (REQUESTS.md §5b). That last case is Loot
+// wearing Transfer's clothes, and it is handed to lootCharacterRequestImpl
+// rather than reimplemented here. An upright person is still refused: listing
+// what is in their pockets would show their hidden tags.
+
+// "hood:<token>" -> "character:<id>", or the key untouched. Null when the
+// token names nobody standing here, which resolveParty then refuses as an
+// unknown party — the same answer a made-up id gets.
+async function hoodedKey(character, key) {
+  const raw = String(key ?? "");
+  if (!raw.startsWith("hood:")) return raw;
+  const id = await resolveHoodToken(prisma, character, raw.slice("hood:".length));
+  return id ? `character:${id}` : "";
+}
+
 async function transferRequestImpl({
   fromKey,
   toKey,
@@ -3005,20 +3001,44 @@ async function transferRequestImpl({
   if (amount === 0 && lines.length === 0)
     throw new UserError("Nothing to move.");
 
+  // A "hood:<token>" key names a concealed person by an opaque handle rather
+  // than an id, so the browser is never told who is under the mask
+  // (db/lib/whosHere.js). resolveHoodToken re-checks co-presence itself and
+  // answers null for a token minted in a room this character has since left.
+  const [fromResolved, toResolved] = await Promise.all([
+    hoodedKey(character, fromKey),
+    hoodedKey(character, toKey),
+  ]);
+  // `allowDead` on the SOURCE only: taking things off a corpse is the whole
+  // point of a loot-shaped transfer, while handing something TO a body is not
+  // a thing. Loot resolves its target the same way.
   const [from, to] = await Promise.all([
-    resolveParty(fromKey),
-    resolveParty(toKey),
+    resolveParty(fromResolved, { allowDead: true }),
+    resolveParty(toResolved),
   ]);
   if (!from) throw new UserError("Unknown source.");
   if (!to) throw new UserError("Unknown recipient.");
   if (from.kind === to.kind && from.id === to.id)
     throw new UserError("Source and recipient are the same.");
 
-  // The source is you or a room. Everything else is Loot's business.
+  // Taking from another person IS Loot, and it stays Loot: this hands the
+  // whole job to lootCharacterRequestImpl rather than growing a second
+  // implementation beside it. That is what keeps the helpless gate
+  // (INCAPACITATING_SLUGS — Bound, Dying, Paralyzed, Catatonic, or a body),
+  // the ROBBED fear hit and the "your body was searched" notification from
+  // depending on which button was pressed.
+  //
+  // It has to land in YOUR hands, the same rule Loot has always had — there is
+  // no verb for going through somebody's pockets straight into a cupboard.
   if (from.kind === "character" && from.id !== character.id) {
-    throw new UserError(
-      "You can only hand over your own things. Loot is how you take from a person.",
-    );
+    if (!(to.kind === "character" && to.id === character.id)) {
+      throw new UserError("Taking from a person puts it in your own hands.");
+    }
+    return lootCharacterRequestImpl({
+      targetCharacterId: from.id,
+      tagPicks: lines.map((l) => ({ tagId: l.tagId, quantity: l.quantity })),
+      amount,
+    });
   }
   // Both ends have to be where you stand — re-checked here on the posted
   // key, the same predicate that built the menu (web/lib/peopleHere.js). A
@@ -3032,7 +3052,7 @@ async function transferRequestImpl({
     ["from", from],
     ["to", to],
   ]) {
-    if (!(await canReachParty(character, party, { heldSlugs, direction }))) {
+    if (!(await canReachParty(character, party, { heldSlugs, direction, allowConcealed: true }))) {
       // Only to pick which of the two out-of-reach sentences to write —
       // the same predicate the gate itself used, not a second one.
       const isSilo =
@@ -3812,115 +3832,14 @@ async function lootCharacterRequestImpl({
   return {};
 }
 
-// --- Moving another character -------------------------------------------
-
-// A character who follows the filer: a faction member the filer leads, or
-// anyone helpless (bound, dying, paralyzed, catatonic, or dead). Who you may
-// take is judged by co-presence (web/lib/peopleHere.js — standing here, not
-// concealed, or a body), while where you may take them is judged by the
-// Location graph, the same edge an ordinary walk uses. This does NOT spend a Move or file an Action, and no
-// network call may run inside a $transaction (ARCHITECTURE.md §5), so the
-// Discord fan-out runs after commit.
-async function moveCharacterRequestImpl({
-  targetCharacterId,
-  targetLocationId,
-}) {
-  const { session, character } = await requireCharacter({ needs: ACT });
-
-  if (!character.locationId) {
-    throw new UserError("You aren't anywhere you could do that.");
-  }
-
-  const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: { in: ["ALIVE", "DEAD"] } },
-    include: { tags: { select: { tag: { select: { slug: true } } } } },
-  });
-  if (target?.buriedAt) throw new UserError("They're already in the ground.");
-  if (!target || !isHere(character, target, { allowDead: true }))
-    throw new UserError(notHereMessage(target));
-
-  // Dragging a corpse needs no authority over it. Same for anyone helpless,
-  // using the same INCAPACITATING_SLUGS set LOOT_CHARACTER and
-  // HARM_CHARACTER use.
-  const isCorpse = target.status === "DEAD";
-  const isHelpless = target.tags.some((ct) =>
-    INCAPACITATING_SLUGS.has(ct.tag.slug),
-  );
-  const commandsThem =
-    character.isLeader &&
-    target.factionId != null &&
-    target.factionId === character.factionId;
-  if (!isCorpse && !isHelpless && !commandsThem) {
-    throw new UserError(
-      "You can only move someone you lead, or someone who can't stop you.",
-    );
-  }
-
-  const targetLocation = await prisma.location.findUnique({
-    where: { id: targetLocationId ?? "" },
-    include: { zone: true },
-  });
-  if (!targetLocation) throw new UserError("Unknown destination.");
-  if (targetLocation.id === target.locationId)
-    throw new UserError("They're already there.");
-
-  // The edge is read off the FILER's location, not the target's — you walk
-  // them out of your own doorway — and gated against the FILER's tags, since
-  // they are the one opening the way. This is a server action, so it is a
-  // public endpoint: the picker already dropped everything impassable, and
-  // this is the check that actually holds when a client posts its own id.
-  const link = await linkBetween(
-    prisma,
-    character.locationId,
-    targetLocation.id,
-  );
-  const gate = crossingCheck(link, {
-    tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
-    // The FILER's mount or cart, since they are the one leading the way through.
-    onFootBlocked: blocksOnFoot(equippedSlugs(character.tags ?? [])),
-  });
-  if (!gate.passable) throw new UserError(gate.refusal);
-
-  const openTurn = await getOpenTurn();
-  const fromLocationId = target.locationId;
-  const fromZoneId = target.zoneId;
-
-  await prisma.$transaction(async (tx) => {
-    // The denormalization contract: locationId and zoneId written together.
-    await tx.character.update({
-      where: { id: target.id },
-      // travelTo* cleared alongside: being moved by somebody else ends any
-      // walk in progress (db/lib/travelArrivalPass.js).
-      data: {
-        locationId: targetLocation.id,
-        zoneId: targetLocation.zoneId,
-        travelToLocationId: null,
-        travelTurnId: null,
-      },
-    });
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_move_character",
-      targetCharacterId: target.id,
-      details: {
-        fromLocationId,
-        toLocationId: targetLocation.id,
-        toLocationName: targetLocation.name,
-      },
-    });
-  });
-
-  if (!isCorpse) {
-    await applyLocationMoveSideEffects(prisma, {
-      characterId: target.id,
-      fromLocationId,
-      toLocationId: targetLocation.id,
-    }).catch(() => {});
-  }
-  notifyCharacter(target, `You were moved to ${targetLocation.name}.`);
-  revalidateAll();
-  return {};
-}
+// --- Moving another character: GONE ------------------------------------
+//
+// MOVE_CHARACTER shoved one person one hop for free, with no consent and no
+// record beyond an audit row, and it duplicated the drag picker's predicate
+// word for word. Both are replaced by escorting: you attach somebody once and
+// they follow you, the helpless without asking and everyone else through an
+// Offer. db/lib/escort.js is the one authority now, and the party rack on
+// /play is the surface. See docs/systemdocs/MAP.md §3a.
 
 // --- Binding and freeing -------------------------------------------------
 
@@ -4528,16 +4447,12 @@ async function claimDesireImpl({
   const config = await prisma.gameConfig.findUnique({
     where: { id: 1 },
     select: {
-      desiresEnabled: true,
       desireSlots: true,
       desireSlotLockTurns: true,
     },
   });
-  if (config?.desiresEnabled === false) {
-    throw new UserError("Temporarily disabled.");
-  }
   const desireSlots = config?.desireSlots ?? 2;
-  const lockTurns = config?.desireSlotLockTurns ?? 2;
+  const lockTurns = config?.desireSlotLockTurns ?? 1;
 
   const slotIndex = parseCount(rawSlotIndex, { min: 0, max: desireSlots - 1 });
   if (slotIndex == null) throw new UserError("That Desire slot doesn't exist.");
@@ -4597,7 +4512,7 @@ async function claimDesireImpl({
     const slot = slots[slotIndex];
     if (slot?.lockedUntilTurn != null) {
       throw new UserError(
-        `That slot is on cooldown — it opens up again on turn ${slot.lockedUntilTurn}.`,
+        `That slot is locked for ${slot.lockedTurnsLeft} more turn${slot.lockedTurnsLeft === 1 ? "" : "s"}. ‡`,
       );
     }
   }
@@ -4901,6 +4816,156 @@ async function butcherCorpseRequestImpl({
   return { made: yieldTag.name };
 }
 
+// Mutilating. One piece off a bound person or a corpse, and it is FREE — no ⬢,
+// no Move, no turn. Press it again for the next piece; the ladder in
+// db/lib/mutilate.js is what stops a third eye.
+//
+// It deliberately does NOT consume the body the way Butcher does. Butchering
+// is the whole corpse at once; this is picking at one, and you should be able
+// to come back for the other eye.
+//
+// The part menu is UNFILTERED on the client on purpose (see the dialog): which
+// rungs a subject has left is a fact about their sheet, and offering only the
+// ones they still have would answer "what are they already missing?" to anyone
+// who opened it. The refusal here is where they find out.
+async function mutilateRequestImpl({
+  targetCharacterId,
+  tagId,
+  sourceKey,
+  part,
+}) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  if (!character.locationId)
+    throw new UserError("You aren't anywhere you could do that.");
+  // Re-checked here and not merely in the UI: the hidden button is a hint.
+  const actorSlugs = character.tags.map((ct) => ct.tag.slug);
+  if (!actorSlugs.some((slug) => MUTILATE_GATE_SLUGS.includes(slug)))
+    throw new UserError("You couldn't bring yourself to. ‡");
+
+  const named = partFor(part);
+  if (!named) throw new UserError("That isn't something you could take. ‡");
+
+  // Two subjects, one action. A corpse resolves through the reach rule Butcher
+  // and Bury already share; a living person through the Bound-and-here check
+  // Torture already makes. Either way what comes out is ONE Character row to
+  // injure, so everything below this is common.
+  let corpse = null;
+  let subject = null;
+  if (tagId) {
+    corpse = await resolveCorpseSource(character, { tagId, sourceKey });
+    // A Nekker has no sheet to injure and nothing recognisable to take.
+    if (!corpse.human || !corpse.deadCharacterId)
+      throw new UserError("There's nothing in that one you'd want. ‡");
+    subject = await prisma.character.findUnique({
+      where: { id: corpse.deadCharacterId },
+      include: { tags: { include: { tag: { select: { slug: true } } } } },
+    });
+    if (!subject) throw new UserError("That body isn't there any more.");
+  } else {
+    if (targetCharacterId === character.id)
+      throw new UserError("You can't do that to yourself.");
+    // The WHOLE row, not a select: a lethal part hands this straight to
+    // killCharacter, which reads discordRoleId and everything
+    // revokeAllCharacterAccess needs. The Harm path loads it the same way and
+    // for the same reason — a partial row there orphans a Discord role.
+    subject = await prisma.character.findFirst({
+      where: { id: targetCharacterId ?? "", status: "ALIVE" },
+      include: { tags: { include: { tag: { select: { slug: true } } } } },
+    });
+    if (!subject || !isHere(character, subject))
+      throw new UserError(notHereMessage(subject));
+    if (!isBoundTarget(subject))
+      throw new UserError(`${subject.name} isn't tied up.`);
+  }
+
+  const step = resolveMutilation(
+    part,
+    subject.tags.map((ct) => ct.tag.slug),
+  );
+  if (!step)
+    throw new UserError(`There's no ${named.label.toLowerCase()} left to take. ‡`);
+
+  const [grantTag, itemTag] = await Promise.all([
+    prisma.tag.findUnique({ where: { slug: step.grantSlug } }),
+    prisma.tag.findUnique({ where: { slug: step.itemSlug } }),
+  ]);
+  // A catalog out of step with the code. Refusing is right: granting nothing
+  // silently would read to the player as the button being broken.
+  if (!grantTag || !itemTag)
+    throw new UserError("Nothing comes of that one. Tell a GM.");
+  const dropTag = step.dropSlug
+    ? await prisma.tag.findUnique({ where: { slug: step.dropSlug } })
+    : null;
+
+  const openTurn = await getOpenTurn();
+  const expiresTurn = await expiryForGrant(prisma, itemTag, openTurn, {
+    characterId: character.id,
+    where: "mutilate",
+  });
+  // The organs kill, but only somebody who is still using them.
+  const kills = step.lethal && subject.status === "ALIVE";
+
+  await prisma.$transaction(async (tx) => {
+    if (dropTag) await dropCharacterTag(tx, subject.id, dropTag.id);
+    await addToStack(tx, subject.id, grantTag.id, 1, {
+      source: "EVENT",
+      stackable: grantTag.stackable,
+    });
+    await addToStack(tx, character.id, itemTag.id, 1, {
+      source: "EVENT",
+      expiresTurn,
+      stackable: itemTag.stackable,
+    });
+    // A corpse feels nothing. applyFear on a dead row would move a dial
+    // nobody reads and show up in the fear log as a live event.
+    if (subject.status === "ALIVE")
+      await applyFear(tx, subject.id, { kind: "MUTILATED" });
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_mutilate",
+      targetCharacterId: subject.id,
+      turnId: openTurn?.id ?? null,
+      details: {
+        subjectName: subject.name,
+        part: step.part,
+        granted: grantTag.name,
+        dropped: dropTag?.name ?? null,
+        item: itemTag.name,
+        lethal: kills,
+        source: corpse ? corpse.source.kind : "person",
+        ...(corpse ? { corpse: corpse.tagName } : {}),
+      },
+    });
+  });
+
+  await afterInventoryChange([character.id, subject.id]);
+
+  // Unattributed, like every other request that acts on somebody else. The
+  // death DM rides on killCharacter so nothing ever sends two.
+  if (kills) {
+    await killCharacter(subject, `Your ${named.label.toLowerCase()} was cut out. ‡`).catch(
+      (err) =>
+        console.error(`Failed to kill mutilated character ${subject.id}:`, err),
+    );
+  } else if (corpse) {
+    notifyCharacter(subject, "Somebody has been cutting pieces off your body. ‡");
+  } else {
+    notifyCharacter(subject, `Somebody cut off your ${named.label.toLowerCase()}. ‡`);
+  }
+
+  // A public room's contents changing is public by nature (CARRY.md §6). Said
+  // vaguely on purpose — the room learns a body was cut, not what came off it.
+  if (corpse && corpse.source.kind === "room") {
+    after(() =>
+      announceInRoom(corpse.source, character, "cuts something off a body here. ‡"),
+    );
+  }
+
+  revalidateAll();
+  return { part: named.label, name: subject.name };
+}
+
 // Burying. Takes the body — you have to actually have it, or be able to reach
 // it — and spends your Move.
 //
@@ -5173,8 +5238,9 @@ async function extractGodfleshRequestImpl() {
 // for a Depot shipment — `custom: true` and a `custom-` slug, so db:prune-tags
 // leaves it alone and no docs/tags.yaml sync can upsert over it. It is an
 // ordinary CONSUMABLE, which is what makes unpacking free: the Consume button
-// already on the sheet opens it, and the Depot's own openCrate (which lives on
-// /depot, out of reach of a Banneret in the Marshes) is not needed.
+// already on the sheet opens it. A Depot crate now uses the same button, via
+// openCrateRequestImpl above — it just needs its own road, because its
+// contents are runtime tag IDs rather than catalog slugs.
 async function packageItemsRequestImpl({
   lines: rawLines,
   label: rawLabel,
@@ -5265,10 +5331,10 @@ async function packageItemsRequestImpl({
     // left as poisoned — dropCharacterTag's own return, previously discarded
     // here, which is exactly how packing a poisoned item into a crate used
     // to launder it clean. Per-entry, carried on the manifest below, so
-    // BOTH ways this crate can later be opened (the ordinary Consume branch
-    // just below, and the Depot Hold tab's openCrate — a player-packed crate
-    // can be carried to either) re-apply it rather than silently dropping it
-    // a second time on the unpack side.
+    // openCrateRequestImpl re-applies it on the unpack side rather than
+    // silently dropping it a second time. One road now: the Depot's own
+    // opener is gone and a crate is cracked through Consume wherever it is
+    // carried.
     const poisonedContents = [];
     for (const c of contents) {
       const { poisonedTaken, poisonPayload } = await dropCharacterTag(
@@ -5431,10 +5497,6 @@ export async function lootCharacterRequest(input) {
   return guarded(() => lootCharacterRequestImpl(input));
 }
 
-export async function moveCharacterRequest(input) {
-  return guarded(() => moveCharacterRequestImpl(input));
-}
-
 export async function bindCharacterRequest(input) {
   return guarded(() => bindCharacterRequestImpl(input));
 }
@@ -5460,6 +5522,10 @@ export async function buryCharacterRequest(input) {
 
 export async function butcherCorpseRequest(input) {
   return guarded(() => butcherCorpseRequestImpl(input));
+}
+
+export async function mutilateRequest(input) {
+  return guarded(() => mutilateRequestImpl(input));
 }
 
 export async function engraveHeadstoneRequest(input) {

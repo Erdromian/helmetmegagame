@@ -1,16 +1,34 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import SnapshotPage from "@/lib/snapshot/SnapshotPage";
+import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
+import NotesView from "./NotesView";
+import Loading from "./loading";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
-import NotesBoard from "./NotesBoard";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
 
 // Notes are personal — a player's own Journal and their own list of messages
 // they've starred, never a shared/GM view. Each signed-in user only ever
 // sees rows keyed to their own discordUserId. See docs/systemdocs/
 // PROXYING.md §7 for the Starred half's full history, and this file's own
 // comments below for the two disclosure rules the Journal half has to obey.
+// Snapshotted (web/lib/snapshot, CHAT.md §5c): the page reads the session,
+// mounts the shell, and streams FreshNotes in behind it. A browser that has
+// been here before paints its last data in the first frame.
 export default async function NotesPage() {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+  return (
+    <SnapshotPage scope="notes" userId={session.discordUserId} render={NotesView} fallback={<Loading />}>
+      <Suspense fallback={null}>
+        <FreshNotes />
+      </Suspense>
+    </SnapshotPage>
+  );
+}
+
+async function FreshNotes() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
@@ -76,17 +94,15 @@ export default async function NotesPage() {
   const mentionRoster = roster.map((c) => ({ id: c.id, name: c.name, updatedAt: c.updatedAt.getTime() }));
 
   return (
-    <PageShell width="narrow">
-      <PageHeader
-        title="Notes"
-        subtitle="Your private Journal, and the messages you've reacted ⭐ to in a location channel."
-      />
-      <NotesBoard
-        starred={starred}
-        journal={journal}
-        roster={mentionRoster}
-        currentTurnNumber={openTurn?.number ?? null}
-      />
-    </PageShell>
+    <SnapshotFresh
+      scope="notes"
+      userId={session.discordUserId}
+      data={{
+        starred: starred,
+        journal: journal,
+        roster: mentionRoster,
+        currentTurnNumber: openTurn?.number ?? null,
+      }}
+    />
   );
 }

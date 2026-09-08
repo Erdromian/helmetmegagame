@@ -20,8 +20,8 @@ import { TONE_CLASS } from "./PlacePanel";
 // room's fixtures are RoomPanel's, and travel is TravelNodes'.
 
 const SIDES = [
-  { value: "place", label: "Place ‡" },
-  { value: "zone", label: "Zone ‡" },
+  { value: "place", label: "Place" },
+  { value: "zone", label: "Zone" },
 ];
 
 // The Examine lines carry Discord's bold markers, because the same strings
@@ -55,11 +55,11 @@ export default function PlaceCard({
       : [place?.description, ...lines].filter(Boolean);
 
   return (
-    <div className="hall-card">
-      <p className="hall-section-title">{place?.name ?? "Here ‡"}</p>
-      {zone?.name && <p className="hall-quiet-line">{zone.name}</p>}
+    <div className="chat-card">
+      <p className="chat-section-title">{place?.name ?? "Here"}</p>
+      {zone?.name && <p className="chat-quiet-line">{zone.name}</p>}
 
-      <div className="chip-row" role="radiogroup" aria-label="What you are reading ‡">
+      <div className="chip-row" role="radiogroup" aria-label="What you are reading">
         {SIDES.map((entry) => (
           <button
             key={entry.value}
@@ -75,16 +75,16 @@ export default function PlaceCard({
         ))}
       </div>
 
-      <div className="hall-card-text">
+      <div className="chat-card-text">
         {body.length === 0 ? (
-          <p className="text-sm text-muted">Nothing to see. ‡</p>
+          <p className="text-sm text-muted">Nothing to see.</p>
         ) : (
           body.map((paragraph, index) => <ChatMarkdown key={index} content={paragraph} />)
         )}
       </div>
 
       {(fixtures.length > 0 || onConverse || depotHref || onFactory) && (
-        <div className="hall-buttons">
+        <div className="chat-buttons">
           {fixtures.map((entry) => (
             <button
               key={`${entry.id}:${entry.linkId ?? "place"}`}
@@ -98,12 +98,12 @@ export default function PlaceCard({
           ))}
           {depotHref && (
             <Link className="btn-secondary" href={depotHref}>
-              Depot › ‡
+              Depot ›
             </Link>
           )}
           {onFactory && (
             <button type="button" className="btn-secondary" disabled={pending} onClick={onFactory}>
-              Factory ‡
+              Factory
             </button>
           )}
           {/* Starting a conversation is otherwise only reachable from a
@@ -112,7 +112,7 @@ export default function PlaceCard({
               dialog either way — it asks who to talk to itself. */}
           {onConverse && (
             <button type="button" className="btn-secondary" disabled={pending} onClick={() => onConverse()}>
-              Converse ‡
+              Converse
             </button>
           )}
         </div>

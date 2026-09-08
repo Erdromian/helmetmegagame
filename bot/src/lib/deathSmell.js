@@ -11,7 +11,7 @@
 // So each firing picks its own next delay.
 //
 // WHY IT NEEDS NO CLEANUP. The message goes to Location.discordChannelId, and
-// the Dawn wipe already deletes every top-level message in a Location channel
+// the message wipe already deletes every top-level message in a Location channel
 // except the pinned anchor (CHANNELS.md). So the only obligations here are
 // negative ones, and they matter: never pin this, and never write its id
 // anywhere the wipe treats as an anchor. Do neither and it clears itself.
@@ -74,7 +74,7 @@ async function runDeathSmell(prisma) {
     } catch (err) {
       console.error(`Death smell failed for ${loc.name}:`, err.message ?? err);
     }
-    // Beside the post: the Hall shows the same smell as subtext.
+    // Beside the post: Chat shows the same smell as subtext.
     await sceneLineAt(prisma, { locationId: loc.id, text: SMELL });
   }
   return posted;

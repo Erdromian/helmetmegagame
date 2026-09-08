@@ -1,6 +1,6 @@
 // The Examine readout: what can be worked here, what the place IS, and what
 // the ways out are doing. One composer, so the anchor's Examine button and
-// the Hall's Examine dialog answer the same three questions in the same order.
+// Chat's Examine dialog answer the same three questions in the same order.
 //
 // Information only — it files nothing, costs nothing, and is deliberately
 // readable by anyone standing here whether or not they hold a Laboring tag.
@@ -32,7 +32,7 @@ async function examineLines(prisma, locationId) {
       yields: { select: { kind: true, current: true } },
     },
   });
-  if (!location) return { ok: false, error: "That place is gone. ‡" };
+  if (!location) return { ok: false, error: "That place is gone." };
 
   // The gate state is read through the graph rather than off any button,
   // because a GM can flip an edge without anyone refreshing a message and

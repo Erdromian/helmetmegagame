@@ -1,6 +1,6 @@
 import { prisma, PRODUCTION_RATES, computeRate, formatRate } from "@lifeweb/db";
 import { carryCaps, carryBonusLine, MULT_SCALE } from "@lifeweb/db/lib/carry";
-import { isPaper, paperDescription } from "@lifeweb/db/lib/paper";
+import { isPaper, paperDescription, paperView } from "@lifeweb/db/lib/paper";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -249,7 +249,10 @@ function composePaper(viewer, held) {
       return { ...rest, sealMark };
     }
     const { paperText, ...rest } = tag;
-    return { ...rest, description: paperDescription(tag, { ...viewer, holdsIt: held.has(tag.id) }) };
+    const reader = { ...viewer, holdsIt: held.has(tag.id) };
+    // `description` stays the flat sentence for lists; `paper` is the shape
+    // PaperSheet.js draws wherever the tag itself is opened.
+    return { ...rest, description: paperDescription(tag, reader), paper: paperView(tag, reader) };
   };
 }
 

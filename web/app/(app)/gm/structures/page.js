@@ -1,9 +1,13 @@
 import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { Suspense } from "react";
+import SnapshotPage from "@/lib/snapshot/SnapshotPage";
+import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
+import StructuresView from "./StructuresView";
+import Loading from "../../loading";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { statusWord } from "@lifeweb/db/lib/structures";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
-import StructuresTable from "./StructuresTable";
 
 // Every structure in the world, with the GM's Damage/Repair/Destroy/Clear
 // verbs (docs/systemdocs/ADJUDICATION.md carries the conventions — the
@@ -12,7 +16,22 @@ import StructuresTable from "./StructuresTable";
 // tool four of five GMs can't reach is a rule only one of them remembers.
 // No rail item — reachable through ⌘K, like the rest of the GM pages
 // without one.
+// Snapshotted (web/lib/snapshot, CHAT.md §5c): the page reads the session,
+// mounts the shell, and streams FreshStructures in behind it. A browser that has
+// been here before paints its last data in the first frame.
 export default async function StructuresPage() {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+  return (
+    <SnapshotPage scope="gm-structures" userId={session.discordUserId} render={StructuresView} fallback={<Loading />}>
+      <Suspense fallback={null}>
+        <FreshStructures userId={session.discordUserId} />
+      </Suspense>
+    </SnapshotPage>
+  );
+}
+
+async function FreshStructures({ userId }) {
   const { session, isGm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   if (!isGm) redirect("/character");
@@ -54,12 +73,12 @@ export default async function StructuresPage() {
   }));
 
   return (
-    <PageShell>
-      <PageHeader
-        title="Structures"
-        subtitle="Everything built, rising or wrecked, and the rulings on it. Damage stops a structure serving — its bonus, its kit — until Repair; Destroy makes a ruin; Clear sweeps a wreck off the map. ‡"
-      />
-      <StructuresTable structures={structures} />
-    </PageShell>
+    <SnapshotFresh
+      scope="gm-structures"
+      userId={userId}
+      data={{
+        structures: structures,
+      }}
+    />
   );
 }

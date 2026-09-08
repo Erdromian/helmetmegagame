@@ -45,13 +45,13 @@ async function boardContext(interaction, locationId) {
     }),
     prisma.turn.findFirst({ where: { status: "OPEN" }, orderBy: { number: "desc" } }),
   ]);
-  if (!location) return { error: "That place is gone. ‡" };
-  if (!hasNoticeboard(location)) return { error: "There's no board here. ‡" };
+  if (!location) return { error: "That place is gone." };
+  if (!hasNoticeboard(location)) return { error: "There's no board here." };
 
   // Standing here is the whole permission model. You cannot read a board from
   // three zones away, and you cannot pin to one either.
   if (!character || character.locationId !== location.id) {
-    return { error: "You're not here. ‡" };
+    return { error: "You're not here." };
   }
 
   const posts = await prisma.noticePost.findMany({
@@ -93,11 +93,11 @@ async function handleNoticeboardOpen(interaction, locationId) {
 
   const noticeOptions = posts.map((p) => ({ label: p.tag.name.slice(0, 100), value: p.id }));
   const rows = [
-    selectRow(`${READ_PREFIX}${location.id}`, "Read a notice… ‡", noticeOptions),
-    selectRow(`${TEAR_PREFIX}${location.id}`, "Tear one down… ‡", noticeOptions),
+    selectRow(`${READ_PREFIX}${location.id}`, "Read a notice…", noticeOptions),
+    selectRow(`${TEAR_PREFIX}${location.id}`, "Tear one down…", noticeOptions),
     selectRow(
       `${PIN_PREFIX}${location.id}`,
-      "Pin a paper… ‡",
+      "Pin a paper…",
       holding.map((ct) => ({
         label: ct.tag.name.slice(0, 100),
         value: ct.tagId,
@@ -119,7 +119,7 @@ async function handleNoticeRead(interaction, locationId) {
   if (ctx.error) return respond(interaction, { content: ctx.error, ephemeral: true });
 
   const post = ctx.posts.find((p) => p.id === interaction.values?.[0]);
-  if (!post) return respond(interaction, { content: "It's gone. ‡", ephemeral: true });
+  if (!post) return respond(interaction, { content: "It's gone.", ephemeral: true });
 
   // The same predicate the tag chip uses, and the same sentence — a blind
   // reader and an illiterate one get identical refusals, so neither the reader
@@ -140,13 +140,13 @@ async function handleNoticeTear(interaction, locationId) {
   if (ctx.error) return respond(interaction, { content: ctx.error, ephemeral: true });
 
   const post = ctx.posts.find((p) => p.id === interaction.values?.[0]);
-  if (!post) return respond(interaction, { content: "It's gone. ‡", ephemeral: true });
+  if (!post) return respond(interaction, { content: "It's gone.", ephemeral: true });
 
   // The delete IS the claim, so two people tearing at the same paper cannot
   // both walk away with it — the same shape every other race here uses.
   const claimed = await prisma.noticePost.deleteMany({ where: { id: post.id } });
   if (claimed.count === 0) {
-    return respond(interaction, { content: "Somebody got there first. ‡", ephemeral: true });
+    return respond(interaction, { content: "Somebody got there first.", ephemeral: true });
   }
   await addToStack(prisma, ctx.character.id, post.tagId, 1, {});
 
@@ -155,16 +155,16 @@ async function handleNoticeTear(interaction, locationId) {
     // already committed (ARCHITECTURE.md §5).
     await postMessage(ctx.location.discordChannelId, ambientLine(tornLine(post.tag.name))).catch(() => {});
   }
-  // Beside the post, so the Hall sees the board change too.
+  // Beside the post, so Chat sees the board change too.
   await sceneLineAt(prisma, { locationId: ctx.location.id, text: tornLine(post.tag.name) });
-  return respond(interaction, { content: `You take ${post.tag.name} down. ‡`, ephemeral: true });
+  return respond(interaction, { content: `You take ${post.tag.name} down.`, ephemeral: true });
 }
 
 async function handleNoticePin(interaction, locationId) {
   await ack(interaction, { ephemeral: true });
   const ctx = await boardContext(interaction, locationId);
   if (ctx.error) return respond(interaction, { content: ctx.error, ephemeral: true });
-  if (!ctx.openTurn) return respond(interaction, { content: "Nothing is happening yet. ‡", ephemeral: true });
+  if (!ctx.openTurn) return respond(interaction, { content: "Nothing is happening yet.", ephemeral: true });
 
   const tagId = interaction.values?.[0];
   const held = ctx.character.tags.find((ct) => ct.tagId === tagId);
@@ -172,7 +172,7 @@ async function handleNoticePin(interaction, locationId) {
   // check: a spent envelope and a bound book both have one, and neither goes
   // up on a wall.
   if (!held || (held.tag.paperKind !== "PAPER" && held.tag.paperKind !== "SEALED")) {
-    return respond(interaction, { content: "You aren't holding that. ‡", ephemeral: true });
+    return respond(interaction, { content: "You aren't holding that.", ephemeral: true });
   }
 
   const config = await prisma.gameConfig.findUnique({

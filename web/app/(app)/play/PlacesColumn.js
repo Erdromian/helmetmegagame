@@ -2,13 +2,15 @@
 
 import { memo } from "react";
 import IconButton from "@/app/components/IconButton";
+import HoverCard from "@/app/components/HoverCard";
 import { BellIcon, BellOffIcon, BellRingIcon, SendIcon } from "@/app/components/icons";
 import { isUnread } from "./seenStore";
 
-// The left column of the Hall: everywhere this character may read, grouped the
+// The left column of Chat: everywhere this character may read, grouped the
 // way a person would think of them.
 //
-//   SUMMARY        the zone's own channel — the widest room, so it sits on top
+//   MESSAGES       Bascinet — the DM conversation, a pseudo-place (./DmPane.js)
+//   SUMMARY        the zone's own channel — the widest room
 //   HERE           the Location you are standing in — scenery, not speech
 //   ROOMS          the public rooms off it, then the private ones you can open
 //   CONVERSATIONS  the private threads you are in
@@ -27,31 +29,57 @@ function glyph(place) {
   // The faction is a pseudo-place: a banner, not a door. It has no channel —
   // the panel it opens is a roster (./FactionPanel.js).
   if (place.kind === "faction") return "⚑";
+  // Bascinet is a pseudo-place too: the DM conversation, drawn by ./DmPane.js.
+  if (place.kind === "dm") return "✉";
   return place.roomKind === "PRIVATE" ? "▪" : "";
 }
 
+// A row with a description shows it on hover or focus. Through HoverCard
+// because the column scrolls, and a tooltip drawn in-tree would be clipped by
+// it; `pinnable={false}` because the row is a button already — one tab stop,
+// Enter still selects the place, nothing sticks open. A row with nothing to
+// say (a Conversation, Bascinet, the faction) is a bare button, so thirty
+// rows do not each mount a portal. Phones get no hover and none of this: the
+// column is not rendered under 720px, and the place you are standing in has
+// its description at the top of the ⋯ sheet.
 const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
-  return (
+  const button = (
     <button
       type="button"
-      className="hall-place"
+      className="chat-place"
       data-active={active ? "true" : "false"}
       onClick={() => onSelect(place.placeKey)}
     >
-      <span className="hall-glyph" aria-hidden="true">
+      <span className="chat-glyph" aria-hidden="true">
         {glyph(place)}
       </span>
-      <span className="hall-place-name">{place.name}</span>
-      {unread && <span className="hall-dot" aria-label="Unread ‡" />}
+      <span className="chat-place-name">{place.name}</span>
+      {unread && <span className="chat-dot" aria-label="Unread" />}
     </button>
+  );
+  const description = place.description?.trim();
+  if (!description) return button;
+  return (
+    <HoverCard
+      pinnable={false}
+      className="chat-place-hover"
+      panel={
+        <>
+          <span className="chat-tip-name">{place.name}</span>
+          <span className="chat-tip-desc">{description}</span>
+        </>
+      }
+    >
+      {button}
+    </HoverCard>
   );
 });
 
 function Section({ title, places, selected, seen, newest, onSelect }) {
   if (places.length === 0) return null;
   return (
-    <div className="hall-section">
-      <p className="hall-section-title">{title}</p>
+    <div className="chat-section">
+      <p className="chat-section-title">{title}</p>
       {places.map((place) => (
         <PlaceRow
           key={place.placeKey}
@@ -75,7 +103,7 @@ export default function PlacesColumn({
   chimeMuted = false,
   onToggleChime = null,
   // The push toggle beside the bell. Null on a browser with no PushManager,
-  // and on a deployment with no VAPID keys set (HALL.md §5a).
+  // and on a deployment with no VAPID keys set (CHAT.md §5a).
   push = null,
 }) {
   const here = places.filter((p) => p.kind === "loc");
@@ -83,14 +111,19 @@ export default function PlacesColumn({
   const conversations = places.filter((p) => p.kind === "conv");
   const summary = places.filter((p) => p.kind === "zone");
   const faction = places.filter((p) => p.kind === "faction");
+  const messages = places.filter((p) => p.kind === "dm");
 
   return (
-    <nav className="hall-places" aria-label="Places ‡">
-      <Section title="Summary ‡" places={summary} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
-      <Section title="Here ‡" places={here} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
-      <Section title="Rooms ‡" places={rooms} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+    <nav className="chat-places" aria-label="Places">
+      {/* First, above the street: what the game has said to YOU. It is about
+          the player rather than the place, and it is where a turn result
+          lands, so it sits where a glance finds it (CHAT.md §2b). */}
+      <Section title="Messages" places={messages} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      <Section title="Summary" places={summary} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      <Section title="Here" places={here} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      <Section title="Rooms" places={rooms} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section
-        title="Conversations ‡"
+        title="Conversations"
         places={conversations}
         selected={selected}
         seen={seen}
@@ -100,19 +133,19 @@ export default function PlacesColumn({
       {/* Last, under the places a voice can reach: the people you are in it
           with, wherever they are standing. One row, and it opens a panel
           rather than a feed. */}
-      <Section title="Faction ‡" places={faction} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      <Section title="Faction" places={faction} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       {/* The foot: the one preference this column carries — whether being
           named in a scene makes a sound, per browser rather than per
-          character (useHallChimeMuted.js) — and the quiet reminder that this
+          character (useChatChimeMuted.js) — and the quiet reminder that this
           character's Discord account is out of every channel, so this page is
-          the whole of the game for them (HALL.md §6). An icon and a chip
+          the whole of the game for them (CHAT.md §6). An icon and a chip
           rather than two sentences: the column is 15rem wide and the places
           are what it is for. */}
-      <div className="hall-places-foot">
+      <div className="chat-places-foot">
         {onToggleChime && (
           <IconButton
             icon={chimeMuted ? BellOffIcon : BellIcon}
-            label={chimeMuted ? "Mentions are silent ‡" : "Mentions chime ‡"}
+            label={chimeMuted ? "Mentions are silent" : "Mentions chime"}
             aria-pressed={!chimeMuted}
             onClick={() => onToggleChime(!chimeMuted)}
           />
@@ -120,13 +153,13 @@ export default function PlacesColumn({
         {push && (
           <IconButton
             icon={push.on ? BellRingIcon : SendIcon}
-            label={push.on ? "Notifications on ‡" : "Notify me ‡"}
+            label={push.on ? "Notifications on" : "Notify me"}
             aria-pressed={push.on}
             disabled={push.busy}
             onClick={push.onToggle}
           />
         )}
-        {webOnly && <span className="chip hall-webonly">Playing from the web ‡</span>}
+        {webOnly && <span className="chip chat-webonly">Playing from the web</span>}
       </div>
     </nav>
   );
@@ -137,7 +170,7 @@ export default function PlacesColumn({
 // keyed on data-active, which is exactly what this is.
 export function PlacesTabs({ places, selected, seen, newest, onSelect }) {
   return (
-    <div className="tab-bar hall-tabs" role="tablist" aria-label="Places ‡">
+    <div className="tab-bar chat-tabs" role="tablist" aria-label="Places">
       {places.map((place) => (
         <button
           key={place.placeKey}
@@ -150,7 +183,7 @@ export function PlacesTabs({ places, selected, seen, newest, onSelect }) {
         >
           {place.name}
           {place.placeKey !== selected && isUnread(seen, place.placeKey, newest(place)) && (
-            <span className="hall-dot" aria-label="Unread ‡" />
+            <span className="chat-dot" aria-label="Unread" />
           )}
         </button>
       ))}

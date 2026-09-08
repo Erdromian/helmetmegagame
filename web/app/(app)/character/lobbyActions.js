@@ -15,7 +15,7 @@ import { isSpawnOnly } from "@/lib/characterCreation";
 
 async function lobbyGate() {
   const session = await auth();
-  if (!session?.discordUserId) return { error: "Sign in first. ‡" };
+  if (!session?.discordUserId) return { error: "Sign in first." };
   const discordUserId = session.discordUserId;
 
   const [state, config, member, alive] = await Promise.all([
@@ -26,7 +26,7 @@ async function lobbyGate() {
     prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" }, select: { id: true } }),
   ]);
   const superadmin = isSuperadmin(discordUserId);
-  if (state?.phase !== "LOBBY") return { error: "The lobby isn't open. ‡" };
+  if (state?.phase !== "LOBBY") return { error: "The lobby isn't open." };
   if (!superadmin && !isApprovedPlayer(member) && !isPlaytester(member)) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong. ‡" };
   }

@@ -8,9 +8,9 @@ import { noteTyping } from "@/app/(app)/play/typingStore";
 import { getCharacterScene } from "./actions";
 
 // The Scene tab: what is being said where this character is standing, live, in
-// the inspector column (docs/systemdocs/HALL.md §8).
+// the inspector column (docs/systemdocs/CHAT.md §8).
 //
-// It is the Hall's own `Feed` — not a GM-flavoured copy of it. The runs, the
+// It is Chat's own `Feed` — not a GM-flavoured copy of it. The runs, the
 // faces, the subtext lines, the `-#`, the tinted speech and the typing line all
 // come out identically, which is the whole point: a GM reading a scene should
 // be reading the same page the players are, not a transcript of it.
@@ -44,7 +44,7 @@ export default function SceneTab({ characterId }) {
       const res = await getCharacterScene({ characterId });
       if (cancelled) return;
       if (!res?.ok) {
-        setState({ status: "error", places: [], locationName: null, error: res?.error ?? "Couldn't load that. ‡" });
+        setState({ status: "error", places: [], locationName: null, error: res?.error ?? "Couldn't load that." });
         return;
       }
       setState({ status: "ready", places: res.places, locationName: res.locationName, error: null });
@@ -56,7 +56,7 @@ export default function SceneTab({ characterId }) {
   }, [characterId]);
 
   // What was said before now, then the stream for what happens next — the same
-  // two halves the Hall uses, and in the same order.
+  // two halves Chat uses, and in the same order.
   useEffect(() => {
     if (!selected) return undefined;
     let cancelled = false;
@@ -103,7 +103,7 @@ export default function SceneTab({ characterId }) {
     };
   }, [selected]);
 
-  if (state.status === "loading") return <p className="p-3 text-sm text-muted">Loading… ‡</p>;
+  if (state.status === "loading") return <p className="p-3 text-sm text-muted">Loading…</p>;
   if (state.status === "error") return <p className="p-3 text-sm form-error">{state.error}</p>;
   if (state.places.length === 0) {
     return (
@@ -117,7 +117,7 @@ export default function SceneTab({ characterId }) {
 
   return (
     <div className="p-2">
-      <div className="tab-bar" role="tablist" aria-label="Places ‡">
+      <div className="tab-bar" role="tablist" aria-label="Places">
         {state.places.map((entry) => (
           <button
             key={entry.placeKey}
@@ -132,7 +132,7 @@ export default function SceneTab({ characterId }) {
           </button>
         ))}
       </div>
-      <div className="hall-embed">
+      <div className="chat-embed">
         <Feed place={place} self={SELF} readOnly />
       </div>
     </div>

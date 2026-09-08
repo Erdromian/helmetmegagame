@@ -76,6 +76,7 @@ const EVENTS = Object.freeze({
   BOUND_HELD: 10,
   CRUCIFIED: 80,
   TORTURED: 40,
+  MUTILATED: 50,
   DEATH_SEEN: 15,
   CORPSE: 5,
   TURRET: 25,
@@ -133,6 +134,9 @@ const MULTIPLIERS = Object.freeze([
   // torturer who waits a day gets the full +40 (db/lib/torture.js).
   { slug: "pain-immunity", kinds: ["TORTURED"], factor: 0 },
   { slug: "opium-high", kinds: ["TORTURED"], factor: 0 },
+  // The Rite of Rage (docs/systemdocs/THANATI.md §4): "Rage people do not
+  // become afraid." Every kind, permanently.
+  { slug: "rage", kinds: "*", factor: 0 },
   // A chrism's anointing steadies the whole dial for its three turns —
   // half of Brave's own rule, on a status instead of a build.
   { slug: "blessed", kinds: "*", factor: 0.5 },
@@ -243,8 +247,8 @@ function resolveDelta({ kind, base, heldSlugs, intensity = 1, ctx = {}, equipped
 // Plain, as asked: the band's name and nothing about the number.
 function fearBandDm(previousBand, band) {
   if ((previousBand?.slug ?? null) === (band?.slug ?? null)) return null;
-  if (!band) return "You've calmed down. ‡";
-  return `You are now ${band.label}. ‡`;
+  if (!band) return "You've calmed down.";
+  return `You are now ${band.label}.`;
 }
 
 // --- the Prisma half ------------------------------------------------------

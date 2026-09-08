@@ -14,7 +14,7 @@ import { memo } from "react";
 const CommandMenu = memo(function CommandMenu({ matches, active, onPick }) {
   if (matches.length === 0) return null;
   return (
-    <div className="hall-mentions" role="listbox" aria-label="Commands ‡">
+    <div className="chat-mentions" role="listbox" aria-label="Commands">
       {matches.map((entry, i) => (
         <button
           key={entry.name}
@@ -22,7 +22,7 @@ const CommandMenu = memo(function CommandMenu({ matches, active, onPick }) {
           role="option"
           aria-selected={i === active}
           data-active={i === active ? "true" : "false"}
-          className="menu-item hall-cmd-item"
+          className="menu-item chat-cmd-item"
           // Mousedown rather than click, MentionMenu's reason: the textarea
           // must not lose focus before the pick lands.
           onMouseDown={(e) => {
@@ -30,7 +30,7 @@ const CommandMenu = memo(function CommandMenu({ matches, active, onPick }) {
             onPick(entry);
           }}
         >
-          <span className="mono hall-cmd-name">/{entry.name}</span>
+          <span className="mono chat-cmd-name">/{entry.name}</span>
           <span className="truncate text-muted">{entry.description}</span>
         </button>
       ))}

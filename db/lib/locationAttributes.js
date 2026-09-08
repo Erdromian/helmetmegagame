@@ -84,7 +84,7 @@ const ATTRIBUTES = {
   // A place that settles a person more than any roof does: the Inn, the Keep,
   // the Sanctuary. The best turn-end relief the dial has.
   haven: {
-    describe: () => "**Haven**: a night here settles the nerves like nowhere else. ‡",
+    describe: () => "**Haven**: ending your turn here calms your nerves. ‡",
   },
 
   // A public board somebody can pin a paper to. What the Noticeboard button on
@@ -117,7 +117,7 @@ function authoredLines(location, ctx = {}) {
 // stated in the place it bites, which is the worst moment to learn it.
 function placementLine(location) {
   return location?.indoors
-    ? "**Indoors**: your cart or horse has to stay at the door. ‡"
+    ? "**Indoors**: you can't equip a cart or horse here. ‡"
     : "**Outdoors**: you can use your horse or cart here. ‡";
 }
 
@@ -154,12 +154,12 @@ function depotLines(ctx = {}) {
   if (!depot.powered) {
     lines.push("**Generator**: it's off, so nothing in here works. ‡");
   } else if (depot.fuelTurnsLeft == null) {
-    lines.push("**Generator**: it's running. ‡");
+    lines.push("**Generator**: it's running.");
   } else {
     const days = depot.fuelTurnsLeft;
     lines.push(`**Generator**: ${days} day${days === 1 ? "" : "s"} of coal left. ‡`);
   }
-  lines.push(depot.shuttleDocked ? "**Shuttle**: it's here. ‡" : "**Shuttle**: it's not here. ‡");
+  lines.push(depot.shuttleDocked ? "**Shuttle**: it's here." : "**Shuttle**: it's not here.");
   // Only worth a line when it is a danger. A disarmed turret is a fixture, and
   // saying so every time would train people to stop reading the line that
   // matters.
@@ -192,7 +192,7 @@ function structureLines(ctx = {}) {
     // the note mid-line, and Examine puts each one after a **topic** of its
     // own. They pick the ‡ up on the way out.
     const note = structure.placement?.defenseNote;
-    const noteLines = note ? [`**Defense**: ${note} ‡`] : [];
+    const noteLines = note ? [`**Defense**: ${note}`] : [];
     // The builder's inscription replaces the stock examine fragment — and
     // prints WITHOUT the ‡, because these are a player's words, not drafted
     // copy (sanitized on the way in by web/lib/customCraft.js). » is the
@@ -209,9 +209,9 @@ function structureLines(ctx = {}) {
           ...noteLines,
         ];
       case "DAMAGED":
-        return [`**${typeName}**: it's damaged. ‡`, ...noteLines];
+        return [`**${typeName}**: it's damaged.`, ...noteLines];
       case "RUINED":
-        return [`**${typeName}**: a ruin. ‡`];
+        return [`**${typeName}**: a ruin.`];
       case "ABANDONED":
         return [`**${typeName}**: abandoned groundwork, gone nowhere. ‡`];
       default:

@@ -10,7 +10,7 @@ import { findAndReplace } from "mdast-util-find-and-replace";
 //   -# like this    Discord's subtext, the quiet line under a scene
 //   "like this"     quoted speech, tinted with --speech
 //
-// Why speech is worth tinting at all: a Hall row is a paragraph of mixed
+// Why speech is worth tinting at all: a Chat row is a paragraph of mixed
 // narration and dialogue, and in a wall of them the words somebody actually
 // SAID are the ones a reader is scanning for. Discord solves this by giving
 // everybody a coloured name and nothing else; the tint does it inside the
@@ -74,7 +74,7 @@ export default function remarkChat() {
       node.data = {
         ...(node.data ?? {}),
         hName: "div",
-        hProperties: { className: "hall-subtext" },
+        hProperties: { className: "chat-subtext" },
       };
     });
 

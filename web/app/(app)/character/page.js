@@ -10,7 +10,7 @@ import {
   roleCapacity,
   isDynastyMember,
   presentedIdentity,
-  startingTagNames,
+  startingTagSlugs,
   normalizeAntagonistSlugs,
 } from "@lifeweb/db";
 import {
@@ -19,7 +19,15 @@ import {
 } from "@lifeweb/db/lib/roomAccess";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import {
+  THANATI_SLUG,
+  THANATI_LEADER_SLUG,
+  THANATI_WARES,
+  OBOL_SLUG,
+  hideoutRoom,
+} from "@lifeweb/db/lib/thanati";
+import {
   BUTCHER_SLUG,
+  MUTILATE_GATE_SLUGS,
   WORKSHOP_EQUIPMENT_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
   GUILT_RIDDEN_SLUG,
@@ -31,7 +39,7 @@ import {
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryStatus } from "@lifeweb/db/lib/carry";
-import { isPaper, paperDescription } from "@lifeweb/db/lib/paper";
+import { isPaper, paperDescription, paperView } from "@lifeweb/db/lib/paper";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import {
   freeMovesLeft,
@@ -69,10 +77,11 @@ import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { computeKnownRecipeIds } from "@/lib/tagRequests";
 import { canBuildHere, structuresAt } from "@lifeweb/db/lib/structures";
 import { parseSelection } from "@/lib/portrait/catalog";
-import CharacterSheet from "../../components/CharacterSheet";
-import CreateCharacterWizard from "./CreateCharacterWizard";
-import CreationClosed from "./CreationClosed";
-import Lobby from "./lobby/Lobby";
+import { Suspense } from "react";
+import SnapshotPage from "@/lib/snapshot/SnapshotPage";
+import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
+import CharacterView from "./CharacterView";
+import Loading from "./loading";
 
 // Everything the creation wizard needs, shaped as the Zone -> Faction -> Role
 // tree it renders. Seat counts are computed here, not the client, so the
@@ -178,9 +187,9 @@ async function loadCreationData(discordUserId) {
             startingZoneName: role.startingLocation?.zone?.name ?? null,
             startingResources: role.startingResources,
             extraStartingPoints: role.extraStartingPoints,
-            // Parsed, because the wizard matches these against catalog tag names
-            // and an entry may carry a count ("Obol x5").
-            startingTagNames: startingTagNames(role.startingTagSlugs),
+            // Parsed, because the wizard matches these against catalog tag
+            // slugs and an entry may carry a count ("obol x5").
+            startingTagSlugs: startingTagSlugs(role.startingTagSlugs),
             grantsLeader: role.grantsLeader,
             // Drives the "Whitelist only" hover on a greyed card. Separate
             // from grantsLeader, which now only means faction Leader.
@@ -200,9 +209,28 @@ async function loadCreationData(discordUserId) {
   };
 }
 
+// Snapshotted (web/lib/snapshot, CHAT.md §5c): the page reads the session,
+// mounts the shell, and streams FreshCharacter in behind it. A browser that
+// has been here before paints its last sheet in the first frame.
 export default async function CharacterPage({ searchParams }) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
+  return (
+    <SnapshotPage scope="character" userId={session.discordUserId} render={CharacterView} fallback={<Loading />}>
+      <Suspense fallback={null}>
+        <FreshCharacter userId={session.discordUserId} searchParams={searchParams} />
+      </Suspense>
+    </SnapshotPage>
+  );
+}
+
+// The whole load. Four outcomes — a closed door, the lobby, the wizard, the
+// sheet — each a `kind` in the one object CharacterView draws. Every prop of
+// the sheet below used to be a JSX attribute on <CharacterSheet> right here;
+// the names are unchanged.
+async function FreshCharacter({ userId, searchParams }) {
+  const session = { discordUserId: userId };
+  const fresh = (data) => <SnapshotFresh scope="character" userId={userId} data={data} />;
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
@@ -241,7 +269,7 @@ export default async function CharacterPage({ searchParams }) {
     const { create } = (await searchParams) ?? {};
     const skipping = create === "1" && (gate.gm || gate.superadmin);
     if (gate.phase === "LOBBY" && !skipping) {
-      if (!gate.approved) return <CreationClosed open />;
+      if (!gate.approved) return fresh({ kind: "closed", open: true });
       const [preference, entry, readyCount] = await Promise.all([
         prisma.playerPreference.findUnique({ where: { discordUserId: session.discordUserId } }),
         prisma.lobbyEntry.findUnique({ where: { discordUserId: session.discordUserId } }),
@@ -263,22 +291,23 @@ export default async function CharacterPage({ searchParams }) {
           whitelistBlocked: r.whitelistBlocked,
         })),
       }));
-      return (
-        <Lobby
-          groups={lobbyGroups}
-          initial={{
+      return fresh({
+        kind: "lobby",
+        lobby: {
+          groups: lobbyGroups,
+          initial: {
             rolePriorities: preference?.rolePriorities ?? {},
             antagonistOptIns: creation.initialAntagonists,
             joblessRole: preference?.joblessRole ?? "COMMONER",
-          }}
-          entry={entry?.status === "READY" ? { readyAt: entry.readyAt.toISOString() } : null}
-          readyCount={readyCount}
-          whitelisted={creation.whitelisted}
-          canSkip={gate.gm || gate.superadmin}
-        />
-      );
+          },
+          entry: entry?.status === "READY" ? { readyAt: entry.readyAt.toISOString() } : null,
+          readyCount,
+          whitelisted: creation.whitelisted,
+          canSkip: gate.gm || gate.superadmin,
+        },
+      });
     }
-    if (!gate.open || !gate.approved) return <CreationClosed open={gate.open} />;
+    if (!gate.open || !gate.approved) return fresh({ kind: "closed", open: gate.open });
     // A seat from the roll, still inside its window: the wizard opens on the
     // Tags step with the role fixed. createCharacter enforces the same lock.
     const assigned = await prisma.lobbyEntry.findFirst({
@@ -290,7 +319,7 @@ export default async function CharacterPage({ searchParams }) {
       creation.groups.some((g) => g.roles.some((r) => r.id === assigned.assignedRoleId))
         ? { id: assigned.assignedRoleId, expiresAt: assigned.expiresAt.toISOString() }
         : null;
-    return <CreateCharacterWizard {...creation} lockedRole={lockedRole} />;
+    return fresh({ kind: "wizard", wizard: { ...creation, lockedRole } });
   }
 
   const [
@@ -356,7 +385,9 @@ export default async function CharacterPage({ searchParams }) {
         },
         // Craft enforces recipe skills (CRAFTING.md); `knownRecipeIds`
         // below is the server's verdict per recipe.
-        requirementSkills: { select: { id: true, name: true, slug: true } },
+        // `catalogVisibility` is read and dropped before this list reaches the
+        // browser — see clientTagCatalog below.
+        requirementSkills: { select: { id: true, name: true, slug: true, catalogVisibility: true } },
         requirementTurns: true,
         requirementResources: true,
         requirementPerTurn: true,
@@ -382,9 +413,9 @@ export default async function CharacterPage({ searchParams }) {
       select: {
         equipSlots: true,
         avatarUploadsEnabled: true,
+        playPanelEnabled: true,
         portraitMakerEnabled: true,
         portraitFantasyPartsEnabled: true,
-        desiresEnabled: true,
         desireSlots: true,
         desireSlotLockTurns: true,
         maxDrawbackTags: true,
@@ -397,7 +428,7 @@ export default async function CharacterPage({ searchParams }) {
   ]);
 
   // Desires: the slots, and the evaluated catalog behind the picker. Both
-  // are built in web/lib/selfPools.js, which the Hall's YOU column reads too,
+  // are built in web/lib/selfPools.js, which Chat's YOU column reads too,
   // so the two surfaces cannot disagree about what is claimable.
   const {
     desireSlots,
@@ -408,7 +439,6 @@ export default async function CharacterPage({ searchParams }) {
     familyGroups: desireFamilyGroupList,
     lockNotes: desireLockNotes,
     addiction: desireAddiction,
-    desiresEnabled,
   } = await loadDesireView(character, { openTurn, gameConfig });
 
   // Held ids widen the store catalog so unpurchasable held tags (a
@@ -421,12 +451,13 @@ export default async function CharacterPage({ searchParams }) {
     .map((t) => ({ id: t.id, name: t.name }));
   // Every people pool the sheet's dialogs act on — the roster standing here,
   // the medical gate, and the Loot / Move / Bind / Harm lists — built once in
-  // web/lib/peoplePools.js so the Hall's people column (/play) and this sheet
+  // web/lib/peoplePools.js so Chat's people column (/play) and this sheet
   // cannot disagree about who is standing near you.
   const {
     here,
     zoneRoster,
     peopleParties,
+    transferParties,
     examineBlocked,
     satisfied,
     canHeal,
@@ -435,8 +466,7 @@ export default async function CharacterPage({ searchParams }) {
     hasSurgicalSite,
     surgicalSitePenalty,
     lootTargets,
-    moveTargets,
-    moveLocations,
+    consumeTargets,
     bindTargets,
     harmTargets,
     harmTags,
@@ -504,7 +534,7 @@ export default async function CharacterPage({ searchParams }) {
   const hasMulligan = character.tags.some((ct) => ct.tag.slug === "mulligan-potion");
 
   // From is you or a room; To is anyone here or a room (TransferDialog.js).
-  const transferParties = { characters: peopleParties, rooms };
+  const transferPartyList = { characters: transferParties, rooms };
   // Your faction's silo, if it has one and you are standing in its zone: a
   // deposit-only destination pinned above the rooms here (FACTIONS.md). The
   // `here` flag says whether it is already in `rooms` above, so the dialog
@@ -655,6 +685,36 @@ export default async function CharacterPage({ searchParams }) {
     visibilityBySlug,
     nonAllGroupSlugs,
   });
+
+  // What the Add-tag and Craft menus may PRINT, as opposed to what the server
+  // reasons with. A recipe gated on a trade the catalog hides is stripped for
+  // anyone who doesn't hold that trade: the six courtier wax seals are made by
+  // a Forger — Brigands only, `catalog: gm` — and a "Recipe: Forger · 1 turn ·
+  // 2 ⬢" line on a seal chip would tell the whole game that seals get forged,
+  // which is the one thing a forger is paying for. The tag itself stays, with
+  // its name, its description and its honest point price. Same rule as
+  // web/lib/recipeCatalog.js, applied to this page's own query.
+  const clientTagCatalog = tagCatalog.map((t) => {
+    const skills = t.requirementSkills ?? [];
+    const hidden = skills.some(
+      (skill) => skill.catalogVisibility !== "ALL" && !satisfied.has(skill.id),
+    );
+    const requirementSkills = hidden
+      ? []
+      : skills.map(({ id, name, slug }) => ({ id, name, slug }));
+    return hidden
+      ? {
+          ...t,
+          craftable: false,
+          requirementSkills,
+          requirementItems: null,
+          requirementTurns: null,
+          requirementResources: null,
+          requirementPerTurn: null,
+          requirementGambit: false,
+        }
+      : { ...t, requirementSkills };
+  });
   const craftProjects = (
     await prisma.craftProject.findMany({
       where: { characterId: character.id, status: "ACTIVE" },
@@ -736,6 +796,57 @@ export default async function CharacterPage({ searchParams }) {
   // Torture shows for a Torturer and nobody else — again your own sheet.
   // tortureCharacterRequest re-checks the tag and that the target is Bound.
   const canTorture = heldSlugs.has("torturer");
+  // Mutilate shows for any one of Cruel, Torturer or Thanati — three own-sheet
+  // facts, so it leaks nothing about who is standing here or what state they
+  // are in. mutilateRequest re-checks the gate and the subject.
+  const canMutilate = MUTILATE_GATE_SLUGS.some((slug) => heldSlugs.has(slug));
+  // THE THANATI (docs/systemdocs/THANATI.md). Whether you are one, and whether
+  // you lead, are your own sheet's facts; where the hideout is, you set
+  // yourself. thanatiActions.js re-checks every one of these.
+  const isThanati = heldSlugs.has(THANATI_SLUG);
+  const isThanatiLeader = heldSlugs.has(THANATI_LEADER_SLUG);
+  const hideout = isThanati ? await hideoutRoom(prisma) : null;
+  const atHideout = Boolean(hideout && hideout.locationId === character.locationId);
+  // Set Hideout's picker: the rooms at this Location the leader can get into.
+  const hideoutRooms = isThanatiLeader
+    ? accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds).map((r) => ({
+        id: r.id,
+        name: r.name,
+        current: r.id === hideout?.id,
+      }))
+    : [];
+  // Purchase Gear's shelf and the four purses it can draw on: the hideout
+  // floor's ⬢ and obols, and the buyer's own of each. One price per ware —
+  // an obol is one ⬢ (DEPOT.md) and the shelf spends both together.
+  const [thanatiWares, hideoutObols, myObols] = atHideout
+    ? await Promise.all([
+        prisma.tag
+          .findMany({
+            where: { slug: { in: THANATI_WARES.map((w) => w.slug) } },
+            select: { id: true, slug: true, name: true },
+          })
+          .then((tags) =>
+            THANATI_WARES.map((w) => {
+              const tag = tags.find((t) => t.slug === w.slug);
+              return tag ? { tagId: tag.id, name: tag.name, price: w.price } : null;
+            }).filter(Boolean),
+          ),
+        prisma.roomTag.findFirst({
+          where: { roomId: hideout.id, tag: { slug: OBOL_SLUG } },
+          select: { quantity: true },
+        }),
+        prisma.characterTag.findFirst({
+          where: { characterId: character.id, tag: { slug: OBOL_SLUG } },
+          select: { quantity: true },
+        }),
+      ])
+    : [[], null, null];
+  const hideoutStock = atHideout
+    ? {
+        room: { resources: hideout.resources, obols: hideoutObols?.quantity ?? 0 },
+        self: { resources: character.resources ?? 0, obols: myObols?.quantity ?? 0 },
+      }
+    : null;
   // The bomb's two halves. Both read off your own sheet and nothing else, so
   // neither leaks anything about the room; nukeActions.js re-checks both,
   // since a hidden button is a hint and not a lock.
@@ -743,13 +854,13 @@ export default async function CharacterPage({ searchParams }) {
   const hasDevice = heldSlugs.has("nuclear-device");
   // Paperwork, seals, books and the Bird (docs/systemdocs/PAPERWORK.md). Every
   // gate and every option list is built in web/lib/selfPools.js, because the
-  // Hall's composer opens the same four dialogs and two copies of these rules
+  // Chat's composer opens the same four dialogs and two copies of these rules
   // would be two answers to "can this character write".
   // Spread into CharacterSheet below: hasBird, canRead, canWrite, hasSeal,
-  // canSeal, paperOptions, letterOptions, sealOptions, canBindBook,
-  // bindBlocked, bookOptions, birdSentToday, birdTargets, birdZones — the
-  // loader names them as the props RequestActionsProvider takes, so the sheet
-  // and the Hall hand the dialogs one list.
+  // canSeal, paperOptions, letterOptions, sealOptions, birdSentToday,
+  // birdTargets, birdZones — the loader names them as the props
+  // RequestActionsProvider takes, so the sheet and Chat hand the dialogs
+  // one list.
   const letters = await loadLettersView(character, { openTurn });
 
   // The sheet itself goes to a client component, so the raw text of every
@@ -803,7 +914,7 @@ export default async function CharacterPage({ searchParams }) {
       const { paperText, ...tag } = stripped.tag;
       return {
         ...stripped,
-        tag: { ...tag, description: paperDescription(ct.tag, viewer) },
+        tag: { ...tag, description: paperDescription(ct.tag, viewer), paper: paperView(ct.tag, viewer) },
       };
     }),
   };
@@ -919,18 +1030,16 @@ export default async function CharacterPage({ searchParams }) {
     ? { name: forcedTag.forcedName, tagName: forcedTag.name }
     : null;
   // And what is over their face, which decides whether the conceal switch is
-  // usable at all (PROXYING.md §5). Named here rather than in AvatarField so
-  // the refusal can say WHICH thing is doing it.
+  // usable at all (PROXYING.md §5). Only `forced` is read now — the label used
+  // to name WHICH thing was doing it, and says the rule once in a tooltip
+  // instead, so the tag's own name has no reader left.
   const concealingTag =
     character.tags
       .filter((ct) => ct.equipped && ct.tag.concealsIdentity)
       .sort((a, b) => (b.tag.equipLayer ?? 0) - (a.tag.equipLayer ?? 0))[0]
       ?.tag ?? null;
   const concealGear = concealingTag
-    ? {
-        tagName: concealingTag.name,
-        forced: Boolean(concealingTag.forcesConceal),
-      }
+    ? { forced: Boolean(concealingTag.forcesConceal) }
     : null;
   const avatarSrc = forcedIdentity
     ? presentedIdentity(character, { forcedName: forcedIdentity.name })
@@ -951,90 +1060,95 @@ export default async function CharacterPage({ searchParams }) {
     ? { ...currentAction, diceRoll: null, diceModifier: null }
     : currentAction;
 
-  return (
-    <CharacterSheet
-      character={sheetCharacter}
-      mode="self"
-      openTurn={openTurnWithWindow}
-      currentAction={sheetAction}
-      avatarSrc={avatarSrc}
-      forcedIdentity={forcedIdentity}
-      concealGear={concealGear}
-      transferParties={transferParties}
-      transferSilo={transferSilo}
-      carry={carry}
-      zoneMoves={zoneMoves}
-      zoneMovesReason={zoneMovesReason}
-      travellingTo={character.travelTo?.name ?? null}
-      examineBlocked={examineBlocked}
-      hasWorkshop={hasWorkshop}
-      tagCatalog={tagCatalog}
-      desireSlots={desireSlots}
-      desireSlotLockTurns={desireSlotLockTurns}
-      desireAddiction={desireAddiction}
-      desireSlotStates={desireSlotStates}
-      desireCatalog={desireCatalog}
-      desireFamilies={desireFamilyList}
-      desireFamilyGroups={desireFamilyGroupList}
-      desireLockNotes={desireLockNotes}
-      desiresEnabled={desiresEnabled}
-      canHeal={canHeal}
-      healsLeft={healsLeft}
-      hasSurgicalSite={hasSurgicalSite}
-      surgicalSitePenalty={surgicalSitePenalty}
-      hasMoved={Boolean(currentAction)}
-      canTeach={canTeach}
-      knownRecipeIds={knownRecipeIds}
-      deathMaskCorpses={deathMaskCorpses}
-      craftProjects={craftProjects}
-      craftBudget={craftBudget}
-      craftAllowances={craftAllowances}
-      sitesHere={sitesHere}
-      buildable={buildable}
-      teachers={teachers}
-      learners={learners}
-      confessors={confessors}
-      mySins={mySins}
-      pendingOffers={pendingOffers}
-      {...letters}
-      equipSlots={gameConfig?.equipSlots ?? 10}
-      avatarUploadsEnabled={gameConfig?.avatarUploadsEnabled ?? false}
-      portraitMakerEnabled={gameConfig?.portraitMakerEnabled ?? false}
-      portraitFantasyPartsEnabled={
-        gameConfig?.portraitFantasyPartsEnabled ?? false
-      }
+  return fresh({
+    kind: "sheet",
+    sheet: {
+      character: sheetCharacter,
+      mode: "self",
+      openTurn: openTurnWithWindow,
+      currentAction: sheetAction,
+      avatarSrc: avatarSrc,
+      forcedIdentity: forcedIdentity,
+      concealGear: concealGear,
+      transferParties: transferPartyList,
+      transferSilo: transferSilo,
+      carry: carry,
+      zoneMoves: zoneMoves,
+      zoneMovesReason: zoneMovesReason,
+      travellingTo: character.travelTo?.name ?? null,
+      examineBlocked: examineBlocked,
+      hasWorkshop: hasWorkshop,
+      tagCatalog: clientTagCatalog,
+      desireSlots: desireSlots,
+      desireSlotLockTurns: desireSlotLockTurns,
+      desireAddiction: desireAddiction,
+      desireSlotStates: desireSlotStates,
+      desireCatalog: desireCatalog,
+      desireFamilies: desireFamilyList,
+      desireFamilyGroups: desireFamilyGroupList,
+      desireLockNotes: desireLockNotes,
+      canHeal: canHeal,
+      healsLeft: healsLeft,
+      hasSurgicalSite: hasSurgicalSite,
+      surgicalSitePenalty: surgicalSitePenalty,
+      hasMoved: Boolean(currentAction),
+      canTeach: canTeach,
+      knownRecipeIds: knownRecipeIds,
+      deathMaskCorpses: deathMaskCorpses,
+      craftProjects: craftProjects,
+      craftBudget: craftBudget,
+      craftAllowances: craftAllowances,
+      sitesHere: sitesHere,
+      buildable: buildable,
+      teachers: teachers,
+      learners: learners,
+      confessors: confessors,
+      mySins: mySins,
+      pendingOffers: pendingOffers,
+      ...letters,
+      equipSlots: gameConfig?.equipSlots ?? 10,
+      avatarUploadsEnabled: gameConfig?.avatarUploadsEnabled ?? false,
+      playPanelEnabled: gameConfig?.playPanelEnabled ?? true,
+      portraitMakerEnabled: gameConfig?.portraitMakerEnabled ?? false,
+      portraitFantasyPartsEnabled: gameConfig?.portraitFantasyPartsEnabled ?? false,
       // Re-validated here: a stored index can outlive a catalog change.
-      portraitSelection={parseSelection(character.portrait, {
-        allowFantasy: gameConfig?.portraitFantasyPartsEnabled ?? false,
-      })}
-      hasCustomAvatar={Boolean(character.avatarMimeType)}
-      healTargets={healTargets}
-      healParties={healParties}
-      corpses={corpses}
-      canButcher={canButcher}
-      hasMulligan={hasMulligan}
-      canSeeExtract={canSeeExtract}
-      canExtract={canExtract}
-      extractBlocked={extractBlocked}
-      canSeePackage={canSeePackage}
-      lootTargets={lootTargets}
-      moveTargets={moveTargets}
-      moveLocations={moveLocations}
-      bindTargets={bindTargets}
-      canCrucify={canCrucify}
-      canDisguise={canDisguise}
-      canTorture={canTorture}
-      hasDatacard={hasDatacard}
-      hasDevice={hasDevice}
-      nukeArmedTurn={nukeState?.nukeArmedTurn ?? null}
-      deployVersion={deployVersion()}
-      harmTargets={harmTargets}
-      harmTags={harmTags}
-      doseTargets={doseTargets}
-      lastNameLocked={isDynastyMember(character.role?.slug)}
-      storeTags={storeTags}
-      storeHeldTags={storeHeldTags}
-      storeRoleSlug={character.role?.slug ?? null}
-    />
-  );
+      portraitSelection: parseSelection(character.portrait, {
+      allowFantasy: gameConfig?.portraitFantasyPartsEnabled ?? false,
+      }),
+      hasCustomAvatar: Boolean(character.avatarMimeType),
+      healTargets: healTargets,
+      healParties: healParties,
+      corpses: corpses,
+      canButcher: canButcher,
+      hasMulligan: hasMulligan,
+      canSeeExtract: canSeeExtract,
+      canExtract: canExtract,
+      extractBlocked: extractBlocked,
+      canSeePackage: canSeePackage,
+      lootTargets: lootTargets,
+      consumeTargets: consumeTargets,
+      bindTargets: bindTargets,
+      canCrucify: canCrucify,
+      canDisguise: canDisguise,
+      canTorture: canTorture,
+      canMutilate: canMutilate,
+      isThanati: isThanati,
+      isThanatiLeader: isThanatiLeader,
+      atHideout: atHideout,
+      hideoutRooms: hideoutRooms,
+      hideoutStock: hideoutStock,
+      thanatiWares: thanatiWares,
+      hasDatacard: hasDatacard,
+      hasDevice: hasDevice,
+      nukeArmedTurn: nukeState?.nukeArmedTurn ?? null,
+      deployVersion: deployVersion(),
+      harmTargets: harmTargets,
+      harmTags: harmTags,
+      doseTargets: doseTargets,
+      lastNameLocked: isDynastyMember(character.role?.slug),
+      storeTags: storeTags,
+      storeHeldTags: storeHeldTags,
+      storeRoleSlug: character.role?.slug ?? null,
+    },
+  });
 }

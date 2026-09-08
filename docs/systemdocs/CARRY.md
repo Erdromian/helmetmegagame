@@ -17,6 +17,12 @@ A character carries two loads against two caps, both live on `/gm/dev`:
 | Weight | `Tag.weightLbs` × quantity, over every `tradeable` tag. Three things weigh nothing: **Assets** (a horse carries itself, a house does not move), **untradeable** items (the Quickened Nerve Braid grafted into your neck), and everything that was never cargo — skills, injuries, statuses, beliefs. | `GameConfig.carryWeightLbs`, default 71 |
 | ⬢ | `Character.resources` | `GameConfig.carryResourceCap`, default 25 |
 
+**⬢ have one weight, and it is inside a crate.** Loose on a sheet a ⬢ weighs
+nothing and counts on the row above instead; packed into a Depot crate it
+weighs a pound (`RESOURCE_UNIT_LBS`, `DEPOT.md` §0e) so that it packs against
+the crate's weight cap like any other freight. The two axes never count the
+same ⬢ twice — once it is in the crate it is not on anybody's sheet.
+
 Both caps are moved by the **sum** of every **active** `Tag.carryBonus`, which
 is a signed distance from ×1: Cart `+4`, Giant `+0.75`, Pack Mule `+0.5`, Strong
 `+0.1`, Frail `−0.1`. The cap is `base × (1 + sum)`, floored. Nothing carrying a
@@ -158,8 +164,8 @@ different ways:
 Being over the cap **zeroes your free zone moves** (§2a). It is no longer a
 refusal: an overloaded character can still cross into another zone, they just
 pay their Move to do it, and cannot then act. Only the mover is affected — the
-dragged are corpses and the helpless — and `MOVE_CHARACTER` is not gated at
-all.
+dragged are corpses and the helpless. Escorting is not gated at all: a party
+crosses on the leader's allowance.
 
 The tag itself (`docs/tags.yaml`, `OVERBURDENED_SLUG` in
 `db/lib/constants.js`) is granted the moment you are over either cap and
@@ -172,7 +178,10 @@ crossing per *day*. Now:
 
 - Everyone gets `GameConfig.freeZoneMovesPerTurn` crossings a turn, default 1.
 - An **equipped** mount adds one, and it refreshes every turn — a horse carries
-  you at Dawn and again at Dusk.
+  you at Dawn and again at Dusk. **Only while your escort party fits its
+  seats**: go over `fastTravelCapacity` and the mount buys nothing this
+  crossing (`MAP.md` §3a). On foot there are no seats and nothing to lose, so
+  walking any number of people is free.
 - Overburdened sets the allowance to **0**.
 - Past the allowance, a crossing files the `MOVE` Action as it always did.
   Once you have acted, you cannot cross.
@@ -193,17 +202,19 @@ it.
 
 ## 3. Mounts, carts, and indoors
 
-`horse`, `steam-automobile`, `motorcycle` and `cart` are **equippable**, and
+`horse`, `motorcycle` and `cart` are **equippable**, and
 give nothing while stowed — no carry multiplier, no extra zone move, no
 passenger seats. They compete for the same six `GameConfig.equipSlots` as
 armour and weapons, which is the point: a cart should cost you something to
 keep out.
 
-**Seats, from `fastTravelCapacity()`:** the Steam Automobile is a flat 6 and
-does not stack with anything. A Horse alone is 2, and a Cart upgrades that
-pair to 6. The **Motorcycle is 2 and cannot be upgraded** — it is tested
-before the horse for exactly that reason, so the Cart's clause can never reach
-it. A hand-cart towed behind a motorcycle is not a thing, and letting it fall
+**Seats, from `fastTravelCapacity()`:** a Horse alone is 2, and a Cart upgrades
+that pair to 6 — the biggest ride there is. They count the **rider**, so a
+horse seats you and one other. Overfilling them is not refused; it costs the
+mount's extra crossing and nothing else (`MAP.md` §3a). This function had no
+live caller at all until escorting gave it one. The **Motorcycle is 2 and cannot be
+upgraded** — it is tested before the horse for exactly that reason, so the
+Cart's clause can never reach it. A hand-cart towed behind a motorcycle is not a thing, and letting it fall
 through would have quietly turned one seat into six.
 
 The motorcycle was inert loot until 2026-09-06 — 100 lb of flavour with no
@@ -219,9 +230,13 @@ boated crossing doesn't get a say: `db/lib/locationTravel.js#vomitOnTheRide`
 grants them Vomiting (and DMs them) the moment a mounted or boated mover
 crosses a zone with them in tow.
 
-A **connection** can keep a mount out too — `on_foot: true`, which refuses a
-mounted character rather than parking them on arrival (`MAP.md` §2c). The two
-are complements: `indoors` covers a place, `on_foot` covers a way in.
+A **connection** can keep a mount out too — `on_foot: true`, which dismounts a
+mounted character crossing it rather than parking them on arrival (`MAP.md`
+§2c). The two are complements: `indoors` covers a place, `on_foot` covers a
+way in — and the timing has to differ: `on_foot` dismounts *inside* the
+crossing's own transaction, before the free-move accounting reads it, or a
+rider could bank the mount's bonus crossing on a ride that never survives the
+threshold (`MAP.md` §2c).
 
 A Location marked `indoors: true` in `docs/zones.yaml` — the Cathedral, the
 Sanctuary, the Inn, the Keep, the Undercroft, the Factory — is a place you walk
@@ -377,7 +392,7 @@ the point of a floor, and it is also a trace: the goods often say who passed
 through. Private rooms leak nothing to anyone their key — or their host — hasn't
 admitted.
 
-The stash survives the Dawn wipe (it lives in the database, not the thread),
+The stash survives the message wipe (it lives in the database, not the thread),
 is cleared by a Restart Game wipe (`wipeGameData` deletes `RoomTag` and zeroes
 `Room.resources`), and cascades away with its Room when `db:sync-zones` prunes
 one. Deleting a Tag from the catalog cascades its **room** stacks

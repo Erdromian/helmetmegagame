@@ -11,14 +11,14 @@ import { damageStructure, repairStructure, destroyStructure, clearStructure } fr
 // the moment of clicking — pillar 4, printed where the ruling happens.
 
 const DESTROY_CONFIRM = {
-  title: "Destroy this structure? ‡",
+  title: "Destroy this structure?",
   message:
     "It becomes a ruin on Examine. A ruin cannot be repaired from this page — only cleared. If this resolves a player assault, remember the two-turn rule: the attack was declared publicly LAST turn — a siege never resolves the turn it is declared. ‡",
   confirmLabel: "Destroy",
 };
 
 const CLEAR_CONFIRM = {
-  title: "Clear this wreck? ‡",
+  title: "Clear this wreck?",
   message: "The row is deleted — Examine forgets it entirely. There is no undo. ‡",
   confirmLabel: "Clear",
 };
@@ -29,7 +29,7 @@ const VERBS = {
       label: "Damage",
       action: damageStructure,
       confirm: {
-        title: "Damage this structure? ‡",
+        title: "Damage this structure?",
         message:
           "It reads as damaged on Examine and the Move card, and its labor bonus or kit stops serving until repaired. ‡",
         confirmLabel: "Damage",
@@ -42,7 +42,7 @@ const VERBS = {
       label: "Repair",
       action: repairStructure,
       confirm: {
-        title: "Repair this structure? ‡",
+        title: "Repair this structure?",
         message: "It stands whole again, and its effects come back. ‡",
         confirmLabel: "Repair",
       },
@@ -55,7 +55,7 @@ const VERBS = {
       action: destroyStructure,
       danger: true,
       confirm: {
-        title: "Destroy this build site? ‡",
+        title: "Destroy this build site?",
         message:
           "Sabotage destroys the work done, never silently: the site becomes a ruin on Examine and its crew are told. ‡",
         confirmLabel: "Destroy",
@@ -69,7 +69,7 @@ const VERBS = {
       action: clearStructure,
       danger: true,
       confirm: {
-        title: "Clear this abandoned groundwork? ‡",
+        title: "Clear this abandoned groundwork?",
         message: "The row is deleted — Examine forgets it entirely. There is no undo. ‡",
         confirmLabel: "Clear",
       },
@@ -121,7 +121,7 @@ export default function StructuresTable({ structures }) {
         query={table.query}
         setQuery={table.setQuery}
         searchLabel="Search"
-        searchPlaceholder="Type, place, builder… ‡"
+        searchPlaceholder="Type, place, builder…"
       />
       {error && <p className="text-sm text-accent">{error}</p>}
       <TableScroll minWidth="64rem">

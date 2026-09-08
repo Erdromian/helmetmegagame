@@ -7,6 +7,7 @@ import { parseConfigForm } from "@lifeweb/db/lib/gameConfigFields";
 import { getGameConfig, getGameState, GAME_STATE_CREATE } from "@lifeweb/db/lib/gameState";
 import { buildEpilogue } from "@lifeweb/db/lib/epilogue";
 import { forgetGameId } from "@lifeweb/db/lib/archive";
+import { forgetGameFloor } from "@lifeweb/db/lib/feedWipe";
 import {
   prisma,
   advanceTurn as advanceTurnInDb,
@@ -91,6 +92,7 @@ export async function updateGameConfig(formData) {
   revalidatePath("/lifeweb");
   revalidatePath("/character");
   revalidatePath("/store");
+  revalidatePath("/play");
 }
 
 // The Depot's live state and its tuning, in one flat clamped allowlist —
@@ -217,7 +219,7 @@ export async function updateWorldState(formData) {
 }
 
 // advanceTurnInDb() hands back its Discord side effects as a thunk. That
-// thunk goes to after(), not the request, since the Dawn wipe can take
+// thunk goes to after(), not the request, since the message wipe can take
 // minutes and a pending server action blocks client-side navigation.
 export async function forceAdvanceTurn() {
   const session = await requireSuperadmin();
@@ -356,6 +358,11 @@ export async function wipeGameData(formData) {
       prisma.factionApplication.deleteMany({}),
       prisma.faction.updateMany({ data: { siloRoomId: null } }),
       prisma.auditLog.deleteMany({}),
+      // Antagonist objectives are per-game state. The epilogue snapshot above
+      // ran before this transaction opened, so it has already read them.
+      prisma.objective.deleteMany({}),
+      // Rites in progress die with the game; the chants cascade off them.
+      prisma.riteAttempt.deleteMany({}),
       prisma.character.deleteMany({}),
       prisma.playerThread.deleteMany({}),
       prisma.playerThreadInvite.deleteMany({}),
@@ -373,6 +380,9 @@ export async function wipeGameData(formData) {
       prisma.gameState.create({ data: { id: 1, gameId: nextGame.id } }),
     ]);
     forgetGameId();
+    // Chat reads past a finished game by seq (db/lib/feedWipe.js); drop
+    // the memo so it empties now rather than in half a minute.
+    forgetGameFloor();
 
     // After the character sweep above, so the FK from Character.factionId is
     // already gone and the delete cannot be blocked by a member.
@@ -667,6 +677,38 @@ export async function defuseNukeAction() {
   return { ok: true, wasFiringOn };
 }
 
+// The same hand on the cult's countdown. The Rite of Ascension calls itself
+// off when the cult leader dies, and this is the other way out of it —
+// worth having for the same reason the Defuse button is: an eight-cultist
+// chant that lands by accident, or in a playtest, should not have to burn
+// the world to be undone.
+export async function cancelAscensionAction() {
+  const session = await requireSuperadmin();
+
+  const state = await getGameState(prisma);
+  if (state.ascensionFiredTurn != null) {
+    return { ok: false, error: "It already happened." };
+  }
+  if (state.ascensionArmedTurn == null) {
+    return { ok: false, error: "Nothing is coming." };
+  }
+
+  const wasFiringOn = state.ascensionArmedTurn;
+  await prisma.gameState.update({ where: { id: 1 }, data: { ascensionArmedTurn: null } });
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "ascension_cancelled",
+        details: { wasFiringOn, by: "gm" },
+      },
+    })
+    .catch((err) => console.error("Ascension cancel audit log failed:", err));
+
+  revalidatePath("/gm/dev");
+  return { ok: true, wasFiringOn };
+}
+
 // --- Channel doctor + system reports ----------------------------------
 
 // Runs in after() and lands on a SystemReport row; /gm/dev polls the
@@ -717,7 +759,15 @@ export async function bulkMoveCharacters(formData) {
     where: { id: { in: characters.map((c) => c.id) } },
     // travelTo* cleared alongside: being put somewhere by a GM ends any walk
     // in progress, or db/lib/travelArrivalPass.js would undo this at Dawn.
-    data: { locationId: location.id, zoneId: location.zoneId, travelToLocationId: null, travelTurnId: null },
+    // escortedById with them: being picked up and put somewhere ends any
+    // escort, the same way travelTo* is cleared (docs/systemdocs/MAP.md §3a).
+    data: {
+      locationId: location.id,
+      zoneId: location.zoneId,
+      travelToLocationId: null,
+      travelTurnId: null,
+      escortedById: null,
+    },
   });
 
   const report = await prisma.systemReport.create({

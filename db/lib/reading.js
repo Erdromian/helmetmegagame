@@ -21,7 +21,7 @@ const { examineBlock } = require("./examineVision");
 const LITERATE_SLUG = "literate";
 
 // What every blocked reader sees, whatever blocked them.
-const CANNOT_READ = "You can't read this. ‡";
+const CANNOT_READ = "You can't read this.";
 
 // Accepts the CharacterTag[] shape used everywhere else (`{ tag: { slug } }`),
 // and tolerates a bare Tag[] as well. Same as examineVision.js#slugSet.

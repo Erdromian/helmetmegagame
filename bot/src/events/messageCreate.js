@@ -11,6 +11,7 @@ const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/cha
 const { sendDm } = require("../lib/dm");
 const { REPORT_CHANNEL_ID } = require("@lifeweb/db/lib/reportChannelAccess");
 const { addConversationMember } = require("@lifeweb/db/lib/conversations");
+const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const {
   canHearPing,
   messageLink,
@@ -80,6 +81,11 @@ module.exports = {
       // button and a modal (bot/src/lib/editModal.js), so nothing a player
       // types for a mechanic travels as a DM message; web/lib/dmThread.js
       // still filters "prompt_reply" rows out of the read side.
+      //
+      // Loud on purpose. This insert used to fail into an empty catch, and the
+      // first sign anything was wrong was a player saying their message to
+      // Bascinet never reached the web (CHAT.md §2b). One line per DM is cheap.
+      console.log(`[dm] inbound from ${message.author.id} (${content.length} chars)`);
       await prisma.directMessage
         .create({
           data: {
@@ -91,7 +97,7 @@ module.exports = {
             meta: attachmentNames ? { attachments: attachmentNames } : undefined,
           },
         })
-        .catch(() => {});
+        .catch((err) => console.error(`[dm] inbound log failed for ${message.author.id}:`, err.message));
       return;
     }
 
@@ -101,7 +107,7 @@ module.exports = {
     // surface (bot/src/lib/reportChannel.js's Open Ticket button).
     const channelName = message.channel.name?.toLowerCase();
     if (channelName === "turns" || message.channel.id === REPORT_CHANNEL_ID) {
-      await message.delete().catch(() => {});
+      await message.delete().catch(() => { });
       return;
     }
 
@@ -113,7 +119,7 @@ module.exports = {
     if (!isDesignatedTupperChannel(message.channel)) return;
 
     // Activity clock for Conversations. Informational since Bascinet 2
-    // retired inactivity expiry — the Dawn wipe takes them instead — and
+    // retired inactivity expiry — the message wipe takes them instead — and
     // debounced to one write per thread per turn; runs before the character
     // gate on purpose, so a GM talking in a scene counts too.
     if (message.channel.isThread?.()) {
@@ -210,7 +216,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
   // One line per ping makes it diagnosable from the Railway logs.
   console.log(
     `[mentions] roles=${mentionedRoleIds.join(",")} resolved=${mentioned.length} ` +
-      `location=${context.locationId ?? "none"} kind=${context.channelKind ?? "none"}`,
+    `location=${context.locationId ?? "none"} kind=${context.channelKind ?? "none"}`,
   );
   if (mentioned.length === 0) return;
 
@@ -226,12 +232,14 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
     await sendDm(
       message.author,
       `» *That pinged ${mentioned.length} people at once, so only the first ${MAX_MENTION_RELAYS} were told. ` +
-        `Not notified: ${dropped.map((t) => t.name).join(", ")}.* ‡`,
+      `Not notified: ${dropped.map((t) => t.name).join(", ")}.*`,
       { source: "system_notice" },
-    ).catch(() => {});
+    ).catch(() => { });
   }
 
   const link = messageLink(message.guildId, channel.id, proxied.id);
+  // Memoised in placeKey.js; the proxy already warmed this channel.
+  const placeKey = await placeKeyForChannel(prisma, { channelId: channel.id, parentId: channel.parent?.id }).catch(() => null);
   // A mention only becomes an invite inside a Conversation. A private Room is
   // a private thread too, but it is gated on a key tag
   // (db/lib/roomAccess.js) — letting a ping hand out a seat there would
@@ -262,13 +270,13 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
           create: { threadId: channel.id, characterId: target.id },
         })
         .catch((err) => console.error("Failed to record thread invite:", err));
-      // A "web only" target has no Discord presence to add (HALL.md §6) — the
+      // A "web only" target has no Discord presence to add (CHAT.md §6) — the
       // membership row above is the invite, and they read it on /play.
       if (target.locationId === conversation.locationId && !target.webOnly) {
         await channel.members.add(target.discordUserId).catch((err) =>
           console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err),
         );
-        await notifyMentioned(message.client, target, context, link);
+        await notifyMentioned(message.client, target, context, link, { placeKey });
       } else {
         console.log(`[mentions] ${target.name}: not in ${context.locationName ?? "this location"}, invite recorded`);
         notHere.push(target.name);
@@ -279,7 +287,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
     const heard = await canHearPing(target, context);
     console.log(`[mentions] ${target.name}: ${heard ? "notified" : "out of earshot, no DM"}`);
     if (heard) {
-      await notifyMentioned(message.client, target, context, link);
+      await notifyMentioned(message.client, target, context, link, { placeKey });
     }
   }
 
@@ -288,9 +296,9 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
     await sendDm(
       message.author,
       notHere.length === 1
-        ? `» *${notHere[0]} isn't in ${where} — they're invited, and they'll see this conversation when they arrive.* ‡`
-        : `» *${notHere.join(", ")} aren't in ${where} — they're invited, and they'll see this conversation when they arrive.* ‡`,
+        ? `» *${notHere[0]} isn't in ${where}. They'll see this conversation when they arrive.*`
+        : `» *${notHere.join(", ")} aren't in ${where}. They'll see this conversation when they arrive.*`,
       { source: "system_notice" },
-    ).catch(() => {});
+    ).catch(() => { });
   }
 }

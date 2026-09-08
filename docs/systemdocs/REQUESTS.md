@@ -114,7 +114,6 @@ reason.
 | `CHANGE_NAME` | Takes a new honorific/first/last name | — | Restores the previous name |
 | `CAVING_LOOT` | Nothing — the turn engine files it when a Caving Die rolls a 6 (`CAVING.md`) | — | Drops the find |
 | `LOOT_CHARACTER` | Searches a body, **or** anyone Bound/Dying/Paralyzed/Catatonic in their zone, taking Items, Assets and ⬢ in one act | — | Returns every tag with its original expiry, and the ⬢ |
-| `MOVE_CHARACTER` | Marches a faction member they lead, anyone helpless (Bound/Dying/Paralyzed/Catatonic), or a body, into a neighbouring zone. Does **not** spend the target's turn | — | Restores the previous zone in the DB only |
 | `BIND_CHARACTER` | Ties up anyone at their Location who isn't concealed. A conscious, unhelpless target must accept an Offer first (`LESSONS.md` §3b); a target who is dead or already holds an incapacitating tag is bound on the spot | — | Cuts them loose |
 | `FREE_CHARACTER` | Cuts someone in their zone loose | — | Puts Bound back with its original expiry |
 | `CRUCIFY_CHARACTER` | Puts the `crucified` status on anyone standing at their Location. Needs the `fundamentalist` tag and a `COMPLETE` `crucifix` Structure standing there. **No consent and no Move** — the cross is the gate. Crucified blocks ACT and not SPEAK (`TAGS.md` §5f), becomes Dying at the close of the turn, and the Dying pass kills at the next | — | Drops `crucified`. After the close only Dying is left, and Undo leaves it — heal that |
@@ -200,7 +199,7 @@ Three notes on deliberate choices:
   initiator. See `CHARACTERS.md` §5.
 - **Every request whose subject is a different character notifies that
   character.** `TRANSFER_TAG`, `TRANSFER_RESOURCES`, `HEAL_CHARACTER`,
-  `LOOT_CHARACTER`, `MOVE_CHARACTER`, `BIND_CHARACTER`, `FREE_CHARACTER`,
+  `LOOT_CHARACTER`, `BIND_CHARACTER`, `FREE_CHARACTER`,
   `CRUCIFY_CHARACTER`, `HARM_CHARACTER`, `BURY_CHARACTER`, `DONATE_BLOOD` and
   `FEED_PERSON` all DM
   their target through `web/lib/notifyCharacter.js` — one line, fired after
@@ -383,7 +382,7 @@ clears. A quiet −1 ⬢ sends nothing.
 streak changed from eating, carrying `discordUserId`, a `kind` (`starved` /
 `recovering` / `recovered`), the already-clamped `streak`, and `justDied` —
 and the sending happens in `advanceTurn()`'s `runSideEffects()` thunk,
-alongside the turn announcement and the Dawn wipe. The pass is therefore two
+alongside the turn announcement and the message wipe. The pass is therefore two
 reads and several bulk writes with no network call in it at all — which
 matters because at 100+ players the DMs are
 sequential Discord round-trips *per starving character*, and awaiting that
@@ -465,11 +464,10 @@ is their problem, not a GM's. The same "even into negative" posture applies
 by adjudication, not code, to curing an Addiction or Restriction tag —
 `DESIRES.md` §7's clawback rule.
 
-`GameConfig.desiresEnabled` is the Dev Panel switch that closes the faucet
-without freezing what's already in flight: off blocks `setDesire` (checked
-server-side in `setDesireImpl`, not just hidden in the UI) so nobody can
-start a **new** Desire, but an already-`ACTIVE` one in any slot can still be
-fulfilled or cancelled — the system drains out rather than stopping
+`GameConfig.desiresEnabled` used to be a Dev Panel switch that closed the
+faucet without freezing what was already in flight. It was deleted in the
+2026-09-07 config trim, unused — Desires are the only way Tag Points are
+earned in play, so closing them stops
 mid-goal. `/character` greys the "set a new Desire" form and shows
 "Temporarily disabled." in its place. Unaffected: `setDesireGm`/`endDesireGm`
 on the Dev Panel (host access, not game permission — same split
@@ -539,7 +537,8 @@ place in the Requests system where that second gate is worth the friction.
 Four requests that act on somebody else, and one tag holding them together.
 
 `bound` is the hinge. `LOOT_CHARACTER`, `HARM_CHARACTER` and the "or
-helpless" branch of `MOVE_CHARACTER` all read `db/lib/incapacitation.js`'s
+helpless" branch of escorting (`db/lib/escort.js`) all read
+`db/lib/incapacitation.js`'s
 `INCAPACITATING_SLUGS` — `dying / catatonic / paralyzed / bound` — and for a
 long time nothing in the game **granted** Bound. A GM had to place it by hand,
 which is the day of real time §1 exists to save, so `BIND_CHARACTER` and its
@@ -753,30 +752,30 @@ in the fiction (`docs/roles.yaml`) is not a permission in the code.
 sheet.** `removeCursedRole` runs *after* the transaction commits — no network
 call may run inside one (`ARCHITECTURE.md` §5) — which is also why **Undo does
 not re-curse**. It raises the body and says so in its note; putting the role
-back is a GM's manual edit, the same posture `MOVE_CHARACTER` and `CHANGE_NAME`
+back is a GM's manual edit, the same posture escorting and `CHANGE_NAME`
 already take with their Discord halves.
 
 **A buried body is out of the world.** `Character.buriedAt` is both the flag and
 the record of when. Five places treat a corpse as a target and all five now
 refuse a buried one — the `LOOT` direction of `TRANSFER_RESOURCES` and
-`TRANSFER_TAG`, `LOOT_CHARACTER`, `MOVE_CHARACTER`, and the zone roster in
+`TRANSFER_TAG`, `LOOT_CHARACTER`, and the zone roster in
 `character/page.js` that feeds all five target menus. A GM Revive clears it, so
 a revived character is never a live person marked buried.
 
 **Fast Travel is retired as a Request, and its mechanic has moved.** There is
 no `fastTravelRequestImpl` any more, no `FAST_TRAVEL` row is ever written, and
 `Character.fastTravelTurnId` is gone from the schema. What the `horse` and
-`steam-automobile` tags promise is now part of ordinary travel: an **equipped**
+`motorcycle` tags promise is now part of ordinary travel: an **equipped**
 mount adds one to the free-zone-move allowance every character gets each turn,
 and it refreshes each turn rather than once a day. See [`CARRY.md`](CARRY.md)
 §2a for the allowance and [`MAP.md`](MAP.md) for the crossing itself.
 
-`db/lib/mounts.js#fastTravelCapacity` survives with **no live caller** — it
-was the retired request's seat count, and ordinary travel gates dragging on
-`canDrag` (corpse, helpless, or your own faction) rather than on seats. It is
-kept because the catalog text still promises a horse carries two and a cart
-six, and whatever enforces that later should use this rather than re-derive it.
-It now reads the mount only while equipped.
+`db/lib/mounts.js#fastTravelCapacity` **has a live caller now.** It sat unused
+from the day the `FAST_TRAVEL` request was retired until escorting arrived, and
+this is what it was kept for: the catalog text promises a horse carries two and
+a cart six, and escorting is what finally enforces it. Overfilling the seats is
+not refused — it costs the mount's extra crossing (`MAP.md` §3a). It reads the
+mount only while equipped.
 
 Old `FAST_TRAVEL` rows stay undoable; nothing files a new one.
 
@@ -844,7 +843,7 @@ to show three rows of a hundred-tag catalog.
 
 ### 6a. The same dialogs on `/play`
 
-Since phase 3 of the Hall (`HALL.md` §5) the **people** dialogs have a second
+Since phase 3 of Chat (`CHAT.md` §5) the **people** dialogs have a second
 home. `/play`'s HERE column mounts the same `RequestActionsProvider` with the
 same pools and calls `open(mode, null, { targetId })` from a person's own row,
 so clicking somebody standing in the Keep opens the very dialog the sheet
@@ -865,17 +864,15 @@ Two things carry that:
   everything else in a dialog is a decision, not a context. ‡
 
 The sheet keeps everything else. Craft, the paperwork verbs, the Bird and the
-Factory are not mounted in the Hall, and `ActionGrid` is not either — the
+Factory are not mounted in Chat, and `ActionGrid` is not either — the
 column is a list of people, not a second grid.
 
-`/play` also carries three player actions that were Discord-only, all of them
-in `play/actions.js` and all of them re-checking every gate the panel drew:
+`/play` also carries two player actions that were Discord-only, both of them
+in `play/actions.js` and both re-checking every gate the panel drew:
 **Move** (`db/lib/moves.js#fileMove`, the same call the `#turns` Move modal
-makes), **Report to the GMs** (an INBOUND `DirectMessage` prefixed `[Play] `,
-sent nowhere near Discord, so it lands in `/gm/players`), and **Waiting on
-you** — the Accept/Decline for a pending offer, a threat spawn or a lobby
-seat, calling the same `db/lib` functions the DM's buttons call. None of the
-three files an `Action` twice: `fileMove` is guarded by
+makes) and **Waiting on you** — the Accept/Decline for a pending offer, a
+threat spawn or a lobby seat, calling the same `db/lib` functions the DM's
+buttons call. Neither files an `Action` twice: `fileMove` is guarded by
 `@@unique([characterId, turnId])`, and the rest write no Move at all. ‡
 
 One consequence worth knowing: `CharacterSheet#groupTagsByCategory` now groups
@@ -929,7 +926,7 @@ All obol-denominated, all moving `Depot.accountObols` rather than anyone's
 `Character.resources`. They are audit `actionType`s now
 (`request_depot_order`, `request_depot_atm`, `request_depot_credit`,
 `request_depot_crate_open`, `request_depot_refuel`,
-`request_depot_shuttle_call` / `_send`, `request_depot_exchange`), and the
+`request_depot_shuttle_call` / `_send`), and the
 Depot's own visible Ledger on `/depot` is built by reading exactly that set
 back out of `AuditLog` — `DEPOT_LEDGER_KINDS` in `web/app/(app)/depot/page.js`
 is the one list, so a new depot verb has to be added there or it moves obols

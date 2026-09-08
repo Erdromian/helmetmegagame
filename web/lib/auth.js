@@ -63,17 +63,27 @@ const nextAuth = NextAuth({
     // "local" provider for signIn("local") to find at all outside dev — the
     // real guard is that this array simply doesn't contain it, same as every
     // other LOCAL_MODE branch answering instead of a real Discord call.
-    // Signs in as the first superadmin id (web/lib/superadmin.js), which
-    // LOCAL_MODE's own member-lookup stub already treats as holding every
-    // local role — one click reaches everything a GM page needs.
+    // Signs in as the first superadmin id (web/lib/superadmin.js) by default,
+    // which LOCAL_MODE's own member-lookup stub already treats as holding
+    // every local role — one click reaches everything a GM page needs.
+    //
+    // `playerId` is the other door in (web/app/actions.js#startAsLocalPlayer):
+    // a freshly rolled discordUserId for a throwaway character it has already
+    // created, so the session comes up already owning a sheet instead of the
+    // superadmin id's usual "every GM tool, no character of your own."
+    // LOCAL_MODE's role stub still hands every id the same GM-shaped roles —
+    // there is no way to be a "real" non-GM locally — but every page that
+    // decides player-vs-GM by "does this discordUserId own a living
+    // character" (loadFeedViewer chief among them) reads as a player once one
+    // exists.
     ...(isLocalMode()
       ? [
           Credentials({
             id: "local",
             name: "Local (dev only)",
-            credentials: {},
-            async authorize() {
-              return { id: SUPERADMIN_DISCORD_IDS[0] };
+            credentials: { playerId: { type: "text" } },
+            async authorize(credentials) {
+              return { id: credentials?.playerId || SUPERADMIN_DISCORD_IDS[0] };
             },
           }),
         ]

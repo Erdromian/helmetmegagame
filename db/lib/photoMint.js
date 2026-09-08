@@ -58,7 +58,7 @@ async function photoGroupId(tx) {
 }
 
 // createWithRetry comes from db/lib/paperMint.js rather than being retyped —
-// it is the same loop over the same @unique on Tag.name.
+// it is the same loop over the same @unique on Tag.slug.
 //
 // ** Everything below hands it the TOP-LEVEL client, never a transaction. **
 // Postgres aborts a whole transaction the moment one statement in it fails, so
@@ -85,7 +85,7 @@ function disambiguated(subject, attempt) {
 // it is `ephemeral`, so a Restart Game sweeps it, and
 // web/lib/referenceData.js only ships an ephemeral row to whoever HOLDS it, so
 // a photo in nobody's hands reaches no browser at all.
-async function createPhotoRow(db, ownerId, { name, caption, inspectVisibility }) {
+async function createPhotoRow(db, ownerId, { name, caption, inspectVisibility, subjectCharacterId = null }) {
   const groupId = await photoGroupId(db);
 
   const tag = await createWithRetry(db, (attempt) => ({
@@ -93,6 +93,10 @@ async function createPhotoRow(db, ownerId, { name, caption, inspectVisibility })
     groupId,
     slug: photoSlug(ownerId, attempt),
     name: name(attempt),
+    // Whose picture it is, for a rite that needs "a photograph of the target"
+    // (db/lib/riteIngredients.js). A snapshot id; the name stays the only
+    // thing a reader sees.
+    photoOfCharacterId: subjectCharacterId ?? null,
     // Unlike paper, the description IS the content and it is stored plainly —
     // safe for the referenceData reason above. There is no literacy gate on a
     // picture, which is the whole point of one.
@@ -116,10 +120,11 @@ async function attachPhoto(tx, ownerId, tag) {
 //
 // `subject` is the PRESENTED name (db/lib/photo.js#photoSubject) and `caption`
 // the frozen readout (#photoCaption).
-async function mintPhoto(db, ownerId, { subject, caption }) {
+async function mintPhoto(db, ownerId, { subject, caption, subjectCharacterId = null }) {
   const tag = await createPhotoRow(db, ownerId, {
     name: (attempt) => disambiguated(subject, attempt),
     caption,
+    subjectCharacterId,
   });
   return attachPhoto(db, ownerId, tag);
 }

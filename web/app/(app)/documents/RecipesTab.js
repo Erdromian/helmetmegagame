@@ -97,8 +97,8 @@ export default function RecipesTab({ tags, mySkillIds = null }) {
           options={table.options}
           query={table.query}
           setQuery={table.setQuery}
-          searchLabel="Search recipes ‡"
-          searchPlaceholder="Name, skill, or ingredient… ‡"
+          searchLabel="Search recipes"
+          searchPlaceholder="Name, skill, or ingredient…"
         />
         {skillSet && (
           <label className="flex w-fit items-center gap-2 text-sm">
@@ -130,7 +130,7 @@ export default function RecipesTab({ tags, mySkillIds = null }) {
         </thead>
         <tbody>
           {table.visible.length === 0 && (
-            <EmptyRow cols={COLUMNS}>No recipe matches that. ‡</EmptyRow>
+            <EmptyRow cols={COLUMNS}>No recipe matches that.</EmptyRow>
           )}
           {table.visible.map((row) => (
             <RecipeRow key={row.id} row={row} byId={byId} bySlug={bySlug} onView={setViewing} />
@@ -139,7 +139,7 @@ export default function RecipesTab({ tags, mySkillIds = null }) {
       </TableScroll>
 
       <p className="text-sm text-muted">
-        {table.total} of {allRows.length} recipes ‡
+        {table.total} of {allRows.length} recipes
       </p>
 
       {viewing && (
@@ -196,7 +196,13 @@ function IngredientEntry({ item, bySlug }) {
     );
   }
   const tag = bySlug.get(item.slug);
-  return tag ? <TagChip tag={tag} /> : <span>{item.label}</span>;
+  const many = (item.count ?? 1) > 1 ? <span className="mono text-xs">×{item.count}</span> : null;
+  return (
+    <span className="inline-flex items-center gap-1">
+      {tag ? <TagChip tag={tag} /> : <span>{item.label}</span>}
+      {many}
+    </span>
+  );
 }
 
 function RecipeRow({ row, byId, bySlug, onView }) {
@@ -210,7 +216,7 @@ function RecipeRow({ row, byId, bySlug, onView }) {
         <div className="flex items-center gap-2">
           <TagChip tag={row.tag} />
           <button type="button" className="btn-quiet text-xs" onClick={() => onView(row.tag)}>
-            Details ‡
+            Details
           </button>
         </div>
       </td>
@@ -221,7 +227,7 @@ function RecipeRow({ row, byId, bySlug, onView }) {
             of the rest of the recipe matters — same predicate the Craft dialog
             and the server share (SMITHING.md §2a). */}
         {needsWorkshop(row.tag) && (
-          <span className="block text-xs text-muted">Needs Workshop Equipment ‡</span>
+          <span className="block text-xs text-muted">Needs Workshop Equipment</span>
         )}
       </td>
       <td className="text-sm">
@@ -248,7 +254,7 @@ function RecipeRow({ row, byId, bySlug, onView }) {
                 {i > 0 && <span className="text-muted">·</span>}
                 <IngredientEntry item={item} bySlug={bySlug} />
                 {item?.keep && (
-                  <span className="text-xs text-muted">(kept, not used up) ‡</span>
+                  <span className="text-xs text-muted">(kept, not used up)</span>
                 )}
               </Fragment>
             ))}

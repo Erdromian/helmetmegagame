@@ -25,32 +25,17 @@ const { ambientLine } = require("./ambientLine");
 const { soundRange } = require("./locationGraph");
 const { loadVoiceState } = require("./say");
 const { placeKeyForLocation } = require("./placeKey");
-
-// Light, medium, heavy — picked at random per character so a muffled line
-// looks like static rather than like a censor bar.
-const BLOCKS = ["░", "▒", "▓"];
-
-// Replaces `fraction` of the NON-WHITESPACE characters with a block. Spaces
-// survive on purpose: the word shapes are what tells a listener how much they
-// missed, and a solid bar of noise reads as no message at all rather than as a
-// message they failed to catch.
-function muffle(text, fraction) {
-  if (fraction <= 0) return text;
-  return String(text)
-    .split("")
-    .map((ch) => {
-      if (/\s/.test(ch)) return ch;
-      if (Math.random() >= fraction) return ch;
-      return BLOCKS[Math.floor(Math.random() * BLOCKS.length)];
-    })
-    .join("");
-}
+const { muffle } = require("./muffle");
 
 // How much is lost at each remove. Index IS the hop count, so the table reads
 // off the distance directly; index 0 is never reached, because your own
 // Location returns above before it gets here. Past the end of the table the
 // words are gone entirely and only the direction survives.
-const MUFFLE_BY_DISTANCE = [0, 0, 0.4, 0.7];
+//
+// The 0.7 ring is gone (2026-09-07): at that much static the line was a
+// message you failed to catch dressed up as one you half caught, so the last
+// audible ring now says only that someone shouted, and which way.
+const MUFFLE_BY_DISTANCE = [0, 0, 0.4];
 
 // The line one Location gets. `viaName` is the hearer's own neighbour toward
 // the noise, and is null only at distance 0 (where you are standing in it).
@@ -59,7 +44,7 @@ const MUFFLE_BY_DISTANCE = [0, 0, 0.4, 0.7];
 // split /play already makes, where the room hears the performance and the
 // street outside only notices it. A shout in your own street is not scenery.
 function shoutLine(text, distance, viaName) {
-  if (distance === 0) return `You hear someone shout: ‡\n» ${text}`;
+  if (distance === 0) return `You hear someone shout: » ${text}`;
   const parts = shoutParts(text, distance, viaName);
   return ambientLine(parts.text, parts.lines);
 }
@@ -77,15 +62,15 @@ function shoutLine(text, distance, viaName) {
 // deliberate: both are "you missed most of it", and neither is the canonical
 // one to diff the other against.
 function shoutParts(text, distance, viaName) {
-  if (distance === 0) return { text: "You hear someone shout:", lines: [text] };
+  if (distance === 0) return { text: `You hear someone shout: » ${text}`, lines: [] };
 
   const where = viaName ? ` from the direction of ${viaName}` : " somewhere nearby";
 
   const fraction = MUFFLE_BY_DISTANCE[distance];
   if (fraction == null) {
-    return { text: `You hear someone shout${where}, but you can't make out what they say.`, lines: [] };
+    return { text: `You hear someone shout${where}.`, lines: [] };
   }
-  return { text: `You hear someone shout${where}:`, lines: [muffle(text, fraction)] };
+  return { text: `You hear someone shout${where}: » ${muffle(text, fraction)}`, lines: [] };
 }
 
 // ---------------------------------------------------------------- the shout
@@ -115,14 +100,14 @@ const SHOUT_ACTION = "shout";
 // scene row per place AND posts, because the outbox never carries a SYSTEM row.
 async function shout(prisma, character, text) {
   const body = String(text ?? "").trim();
-  if (!body) return { ok: false, error: "Say something. ‡" };
+  if (!body) return { ok: false, error: "Say something." };
   // 300, the option's own maximum. This goes into a couple of dozen channels
   // and half of them get it with most of the letters knocked out; a paragraph
   // of blocks is not a message anybody reads.
   if (body.length > 300) return { ok: false, error: "A shout is 300 characters at the most. ‡" };
 
   if (!character?.id) return { ok: false, error: "You don't have a living character. ‡" };
-  if (!character.locationId) return { ok: false, error: "You're nowhere. ‡" };
+  if (!character.locationId) return { ok: false, error: "You're nowhere." };
 
   // SPEAK, not ACT — and that distinction is the whole point of this gate.
   // {tag:bound} blocks acting but never speech, so a hostage can still yell
@@ -195,7 +180,7 @@ async function shout(prisma, character, text) {
     })
     .catch((err) => console.error("Shout audit log failed:", err.message ?? err));
 
-  return { ok: true, heard, line: "You shout. ‡" };
+  return { ok: true, heard, line: "You shout." };
 }
 
 module.exports = { shoutLine, shoutParts, shout, SHOUT_COOLDOWN_MS };

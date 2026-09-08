@@ -192,16 +192,20 @@ is the only writer.
 
 ## 7. Ending, the reveal, and games that outlive the wipe
 
-**`db/lib/gameEnd.js#endGameInDb`** is the one way a game ends: the End Game
-button, and the bomb from inside `advanceTurn` (the reveal is queued after
-the fireball broadcast). It writes GameState to ENDED with `archiveVisible`
+**`db/lib/gameEnd.js#endGameInDb`** is the one way a game ends, reached three
+ways: the End Game button, the bomb, and the Rite of Ascension — the last two
+from inside `advanceTurn`, with the reveal queued after their broadcast.
+Whichever lands first keeps the ending; `endGameInDb` is a no-op on a state
+that is already ENDED. It writes GameState to ENDED with `archiveVisible`
 on, and onto the current **`Game`** row its end, closing note and
 **epilogue** — `db/lib/epilogue.js#buildEpilogue`: the note, a facts line
-(days, turns, characters, deaths, letters, archive rows), and who was who: every
-character the game had, Discord handle as name and role, antagonist seats
-named from the seat tag, the dead marked with their turn. `formatEpilogue` is
-the `**Game Ended**` post to `#turns`; `/archive` renders the same object.
-Resume undoes the phase and leaves the archive open.
+(days, turns, characters, deaths, letters, archive rows), **the antagonists**
+— each party that had a seat holder, its members and its objectives scored
+Success or Failed (`THREATS.md` §6a) — and who was who: every character the
+game had, Discord handle as name and role, antagonist seats named from the
+seat tag, the dead marked with their turn. `formatEpilogue` is the `**Game
+Ended**` post to `#turns`; `/archive` renders the same object. Resume undoes
+the phase and leaves the archive open.
 
 `Game` is one row per game (`number`, dates, note, epilogue). `GameState.gameId`
 points at the current one; every `ArchiveEntry` carries `gameId` as a snapshot,
@@ -215,6 +219,10 @@ a game (`ARCHIVE.md`).
 Keeps: `GameConfig` (every knob), `PlayerPreference`, `Game`, `ArchiveEntry`.
 Wipes: `LobbyEntry`, and recreates `GameState` (phase CLOSED, new `gameId`).
 Everything else as before (`LAUNCH.md` §2, §4).
+
+`ArchiveEntry` is kept for `/archive` and shown nowhere else: Chat floors
+its feed at the highest seq belonging to a previous game, so `/play` is empty
+after a restart rather than full of the last game (`CHAT.md` §7).
 
 ## 9. Where the code lives
 

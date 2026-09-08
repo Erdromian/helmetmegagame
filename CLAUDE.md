@@ -34,6 +34,13 @@ way `docs/handbook.md` already does. It sits *after* the other glyph
 conventions rather than displacing them: a line ending in `3 ⬢` becomes
 `3 ⬢ ‡`, and a `»` quote line keeps its prefix.
 
+**Four words or fewer get no mark.** The ‡ says "nobody has signed off on this
+wording yet", and "Save", "Try again" or "You have no camera" have no wording to
+sign off on — there is one way to write them. Marking them buried the lines that
+really are drafted prose under a thousand button labels. Count the words of the
+string itself: four or fewer, no ‡. `scripts/copy/strip-short-daggers.py` is the
+sweep that took the existing ones off, and `--list` shows what it would judge.
+
 **Editing counts as writing.** Rework a line that has no ‡ and it gets one — the
 line is partly yours now. And never strip a ‡ that is already there: removing it
 is Bascinet's signal, not yours.
@@ -220,6 +227,7 @@ you pick the right doc — they are never enough to change code with.
 | [`COMMANDS.md`](docs/systemdocs/COMMANDS.md) | You're adding or changing a slash command, button, modal or reaction |
 | [`TURN-ENGINE.md`](docs/systemdocs/TURN-ENGINE.md) | You're touching how a turn advances — hunger, auto-labor, turn banners, the side-effect thunk |
 | [`LAUNCH.md`](docs/systemdocs/LAUNCH.md) | You're opening a game or running a Restart Game wipe — the order that keeps players from being locked out |
+| [`BACKUPS.md`](docs/systemdocs/BACKUPS.md) | You're touching backups or restoring one — point-in-time recovery, the nightly dump service in `ops/backup/`, or **anything that has just gone badly wrong with the database** |
 | [`LOCAL-DEV.md`](docs/systemdocs/LOCAL-DEV.md) | You're setting up a local Postgres, testing a GM-gated page with no real Discord credentials, or about to run anything against the live database |
 | [`SYNC.md`](docs/systemdocs/SYNC.md) | You're editing a YAML master or a sync script, or wondering what a sync deletes |
 | [`CHANNELS.md`](docs/systemdocs/CHANNELS.md) | You're changing Discord channel layout, visibility, or the Dawn wipe |
@@ -247,12 +255,13 @@ you pick the right doc — they are never enough to change code with.
 | [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
 | [`CORPSES.md`](docs/systemdocs/CORPSES.md) | You're touching what a body is — the corpse tag, butchering, Bury or Engrave, the rot clock, the death smell, or an **enforced recipe ingredient** (`requirement.items`) |
 | [`FEAR.md`](docs/systemdocs/FEAR.md) | You're touching the fear dial — the five band tags, what frightens or calms a character, the phobias, Brave / Rough Camper / Outsider / Spelunker, `fearIntensity`, or the nightly fear pass |
-| [`TORTURE.md`](docs/systemdocs/TORTURE.md) | You're touching the Torture button, the torture die and its thresholds, what a broken character reveals, the `TORTURED` fear hit, or the Torturing Equipment kit |
+| [`TORTURE.md`](docs/systemdocs/TORTURE.md) | You're touching the Torture button, the torture die and its thresholds, what a broken character reveals, the `TORTURED` fear hit, the Torturing Equipment kit, or the **Mutilate** button and the body parts it takes |
+| [`THANATI.md`](docs/systemdocs/THANATI.md) | You're touching the cult — the THANATI buttons, Recall Comrades, the hideout and Purchase Gear, Flesh / Dark Inspiration / Black Robes / the Grimoire, or the **rites** (no button: robed, Inspired, ingredients on the floor, say the word), the word roll, the chant hook in `say.js` or the minute sweep. Placeholder until a human doc replaces it |
 | [`LESSONS.md`](docs/systemdocs/LESSONS.md) | You're touching Learn Skill / Teach Skill, the Teaching tags, the Offer handshake (Bind's consent too), or the lesson turn pass |
 | [`CONFESSION.md`](docs/systemdocs/CONFESSION.md) | You're touching Confess, the `psychological` tag flag, who may hear a confession, or the rule that a chaplain is never shown the sin |
 | [`CRAFTING.md`](docs/systemdocs/CRAFTING.md) | You're touching Craft, Destroy, the four tag capability flags (`craftable` / `removable` / `healable` / `teachable`), multi-turn projects, or who pays for a recipe |
 | [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript or `/archive` |
-| [`HALL.md`](docs/systemdocs/HALL.md) | You're touching `/play`, the live feed (`/api/feed`, the SSE hub, the bot's outbox), `ArchiveEntry.seq` / `placeKey`, or the coming "web only" switch |
+| [`CHAT.md`](docs/systemdocs/CHAT.md) | You're touching `/play`, the live feed (`/api/feed`, the SSE hub, the bot's outbox), `ArchiveEntry.seq` / `placeKey`, or the coming "web only" switch |
 | [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents`, `docs/documents.yaml`, `/handbook`, or `docs/handbook.md` |
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
 | [`PORTRAITS.md`](docs/systemdocs/PORTRAITS.md) | You're touching the portrait maker, avatar art, or `Character.avatarData` |
@@ -321,8 +330,12 @@ npm run db:migrate                   # prisma migrate dev. LOCAL POSTGRES ONLY.
 npm run db:migrate:deploy            # prisma migrate deploy (production).
                                      #   ./migrate.sh wraps it with a Railway
                                      #   backup first.
-npm run db:backup                    # Railway volume backup, now. Needs
-                                     #   RAILWAY_API_TOKEN in .env.
+npm run db:backup                    # one pg_dump into the backup bucket, now.
+                                     #   ./migrate.sh runs it before migrating.
+npm run db:backups                   # what is in the bucket. EXITS 1 if the
+                                     #   newest dump is over 36h old, which is
+                                     #   how a dead backup system announces
+                                     #   itself. See BACKUPS.md.
 
 # YAML masters -> DB. `db:sync` runs all six in the working order; the
 # individual scripts exist for one master at a time. See SYNC.md.
@@ -749,6 +762,23 @@ make that the place syncs, wipes and migrations get tried first.
 
 ## Git workflow
 
+**This file describes two different workflows, and which one applies depends
+on whose checkout this is.** Detect it before touching git — don't guess from
+a commit author or a display name, check the remotes:
+
+```
+git remote -v
+```
+
+- `origin` resolves to `peace-lock/helmetmegagame` → this is **Bascinet's own
+  checkout**. Follow "Bascinet: master-only" below.
+- `origin` resolves to somewhere else — a fork, e.g. a contributor's own
+  GitHub account — typically alongside an `upstream` remote pointing at
+  `peace-lock/helmetmegagame` → this is a **contributor's checkout**. Follow
+  "Contributors: fork's master, then a PR into upstream" instead.
+
+### Bascinet: master-only
+
 **Bascinet is master-only. There are no branches and no pull requests.** All
 work is committed straight to `master` and pushed as soon as it's finished,
 so it can be pulled locally the moment it's done. That immediacy is the point
@@ -773,10 +803,50 @@ container clones once at session start and then goes stale. Without the
 fetch, a session can spend an hour editing files that `master` moved past
 hours ago.
 
-**Pushing to `master` is a deploy.** Read the next section before pushing
-anything that carries a schema change.
+**Pushing to `master` is a deploy.** Read the Deploy workflow section before
+pushing anything that carries a schema change.
+
+### Contributors: fork's master, then a PR into upstream
+
+A contributor's checkout mirrors Bascinet's master-only habit, just one repo
+over: commit straight to **your own fork's `master`** (no feature branch),
+push it to `origin`, then open a pull request from your fork's `master` into
+`upstream`'s `master`. This is the established pattern — see e.g. "Merge pull
+request #24 from Erdromian/master" in the git log — not a new convention.
+
+```
+# ...commit straight onto master, same as Bascinet's own flow...
+git push origin master                                       # push to YOUR fork's master
+gh pr create --repo peace-lock/helmetmegagame --base master \
+  --head <your-github-username>:master                       # fork:master -> upstream:master
+```
+
+- **Never push to `upstream`.** You don't have write access to it, and even
+  if you did, the master-only flow above is Bascinet's, not a contributor's —
+  `origin` (your fork) is the only remote a contributor ever pushes to.
+- **A branch works too, if you'd rather.** Nothing here forbids the ordinary
+  `git checkout -b my-change` + PR-from-a-branch shape; it is just not the
+  pattern this repo has actually used. Either way, the PR's base is always
+  `upstream`'s `master`, never `origin`'s.
+- **`.claude/hooks/session-start.sh` is safe to leave alone.** It only ever
+  fast-forwards or moves the checkout onto `master` when doing so loses
+  nothing — it never discards a commit `origin/master` (your fork's master)
+  doesn't already have. Committing straight to your fork's `master`, the way
+  this section describes, is exactly what it expects.
+- **`npm run push`, `npm run changelog` and `npm run deploy` are Bascinet-only
+  conveniences** — they push straight to `master`, post to the live Discord
+  server, and (deploy) touch the production Railway services and database.
+  Don't run them from a contributor checkout; plain `git`/`gh` is the whole
+  job.
+- **The changelog and Discord announcement for a merged contribution are
+  Bascinet's to write when accepting the PR**, not something a contributor
+  adds to `CHANGELOG.md` themselves. Describe what changed and why in the PR
+  body instead.
 
 ### The changelog
+
+**Bascinet-only** — see "Contributors: fork's master, then a PR into upstream" above for what a
+contribution's changelog entry should look like instead.
 
 **Every push writes an entry in `CHANGELOG.md` and posts the same entry to
 Discord.** `npm run push` does both for you — the entry is written *before* the
@@ -840,6 +910,12 @@ The channel id is hardcoded in `scripts/changelog/log.js` for the reason
 a missing env var would have failed silently.
 
 ## Deploy workflow
+
+**Bascinet's checkout only** — see "Git workflow" above for how to tell.
+`npm run deploy` pushes straight to `master` and touches the live Railway
+services and database; a contributor's checkout has no business running it
+and almost certainly lacks the `RAILWAY_TOKEN` to anyway. A contribution
+gets deployed when Bascinet merges and pushes it, not by the contributor.
 
 Unless the user says otherwise, after finishing a set of changes, run
 `npm run deploy` from the repo root.
@@ -969,7 +1045,10 @@ global CLIs. To make one able to build, run, and deploy:
   two live applications to one faction. `ThreatSpawn_pending_unique` is the
   third of these, and the same answer: without it a player could hold two live
   spawn offers (`THREATS.md` §4). `AuditLog_details_trgm_idx` is the fourth,
-  and the reason `/gm/audit`'s text search is not a full-table scan.
+  and the reason `/gm/audit`'s text search is not a full-table scan. The
+  `DirectMessage_notify` trigger (`CHAT.md` §2b) is the fifth — Prisma does
+  not model triggers, so `migrate diff` never mentions it either way, but a
+  hand-written "fix drift" migration must not drop it.
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
   carries `restInvalidCount` / `restInvalidWindowStart` /
   `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the

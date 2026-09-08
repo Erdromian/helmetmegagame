@@ -20,7 +20,7 @@
 
 const { recordArchiveMessage } = require("./archive");
 const { notifyFeed } = require("./feedNotify");
-const { babble, STUPID_SLUG } = require("./babble");
+const { babble, growl, STUPID_SLUG, GHOUL_SLUG } = require("./babble");
 const { blockerFor, slugsBlocking, SPEAK } = require("./incapacitation");
 const { capitalizeSentences, fixContractions } = require("./textCorrection");
 const {
@@ -30,6 +30,7 @@ const {
 } = require("./presentedIdentity");
 const { mayWritePlace, slowmodeMsFor } = require("./feedAccess");
 const { rolesToTokens } = require("./characterMentions");
+const { noteChant } = require("./riteChant");
 
 // Discord's own ceiling for a message. Kept on the web side too, because the
 // outbox has to be able to repost whatever lands in a row.
@@ -48,7 +49,7 @@ const EDIT_WINDOW_MS = 5 * 60_000;
 // not even select `slug`, and the Speak modal's findAliveCharacter loads no
 // tags at all — so a gate that trusted the caller's include read undefined
 // and passed everybody.
-const VOICE_SLUGS = [...slugsBlocking(SPEAK), STUPID_SLUG];
+const VOICE_SLUGS = [...slugsBlocking(SPEAK), STUPID_SLUG, GHOUL_SLUG];
 
 async function loadVoiceState(prisma, characterId) {
   if (!characterId) return { block: null, babbling: false };
@@ -60,6 +61,9 @@ async function loadVoiceState(prisma, characterId) {
     // Blocked beats garbled: a Stupid Mute is silent, not babbling.
     block: blockerFor(rows, SPEAK),
     babbling: rows.some((ct) => ct.tag.slug === STUPID_SLUG),
+    // A Ghoul growls (docs/systemdocs/THANATI.md §4). Growl beats babble: a
+    // risen Stupid is a Ghoul first.
+    growling: rows.some((ct) => ct.tag.slug === GHOUL_SLUG),
   };
 }
 
@@ -79,8 +83,9 @@ function lengthRefusal(length) {
 // The two transforms a proxied message has always had. Stupid reads off the
 // SPEAKER rather than off GameConfig and it wins over the autocorrect below —
 // there is nothing left to capitalise once it has been through babble.
-function transformSpeech(text, { babbling, autocorrect }) {
+function transformSpeech(text, { babbling, growling = false, autocorrect }) {
   const content = text ?? "";
+  if (growling) return growl(content);
   if (babbling) return babble(content);
   return autocorrect ? capitalizeSentences(fixContractions(content)) : content;
 }
@@ -126,7 +131,7 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
   // channel is scenery rather than speech (CHANNELS.md §2), which is why this
   // refusal now has a second wording behind it.
   if (web && !(await mayWritePlace(prisma, character, placeKey))) {
-    return { ok: false, refusal: "You can't speak there. ‡" };
+    return { ok: false, refusal: "You can't speak there." };
   }
 
   const voice = await loadVoiceState(prisma, character.id);
@@ -149,6 +154,7 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
   });
   const text = transformSpeech(raw, {
     babbling: voice.babbling,
+    growling: voice.growling,
     autocorrect: Boolean(config?.tupperAutocorrectEnabled),
   });
 
@@ -183,7 +189,7 @@ async function recordSpeech(
   { discordMessageId = null, discordChannelId = null, zoneId = null, zoneName = null, channelKind = null, threadName = null, content = null, clientId = null } = {},
 ) {
   if (!prepared?.ok) return null;
-  return recordArchiveMessage(prisma, {
+  const row = await recordArchiveMessage(prisma, {
     // The web composer's token for the copy it has already drawn. Null on the
     // Discord path, which has no optimistic row to reconcile.
     clientId,
@@ -202,6 +208,11 @@ async function recordSpeech(
     channelKind,
     threadName,
   });
+  // The Thanati listen to every room (db/lib/riteChant.js). Not awaited: a
+  // chant that counts writes a row or two of its own, and none of that may
+  // slow or fail the message it rode in on.
+  if (row) void noteChant(prisma, { row, character: prepared.character });
+  return row;
 }
 
 // The web's order: decide, then write, and let the outbox put it on Discord.
@@ -246,7 +257,7 @@ function pastWindow(row) {
 }
 
 const WINDOW_REFUSAL = "That was said more than five minutes ago and stands. ‡";
-const GONE_REFUSAL = "That message is gone. ‡";
+const GONE_REFUSAL = "That message is gone.";
 const NOT_YOURS_REFUSAL = "That isn't yours to change. ‡";
 
 // Shared by both verbs: find the row, and answer whether this caller may

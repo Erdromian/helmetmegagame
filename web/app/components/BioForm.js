@@ -26,6 +26,7 @@ export default function BioForm({
   lastNameLocked,
   hasMulligan = false,
   avatarUploadsEnabled,
+  playPanelEnabled = true,
   portraitMakerEnabled,
   portraitFantasyPartsEnabled,
   portraitSelection,
@@ -36,11 +37,12 @@ export default function BioForm({
   const [state, formAction, pending] = useActionState(updateCharacterProfile, null);
 
   return (
-    <form action={formAction} encType="multipart/form-data" className="flex flex-col gap-3">
+    <form action={formAction} className="flex flex-col gap-3">
       <BioNameFields character={character} lastNameLocked={lastNameLocked} hasMulligan={hasMulligan} />
       <AvatarField
         defaultTurnPingOptIn={character.turnPingOptIn}
         defaultWebOnly={character.webOnly}
+        playPanelEnabled={playPanelEnabled}
         defaultConcealed={character.concealed}
         uploadsEnabled={avatarUploadsEnabled}
         portraitMakerEnabled={portraitMakerEnabled}

@@ -10,6 +10,8 @@ const COURTIER_SLUG = "courtier";
 const ATE_MEAL_SLUG = "ate-meal";
 const MORTUS_SLUG = "mortus";
 const DRAINED_SLUG = "drained";
+// The two-stage labor-fatigue ladder — see db/lib/laborFatigue.js.
+const TIRED_SLUG = "tired";
 const EXHAUSTED_SLUG = "exhausted";
 const LABORING_BASIC_SLUG = "laboring-basic";
 const LABORING_SKILLED_SLUG = "laboring-skilled";
@@ -62,10 +64,23 @@ const PORTABLE_SURGICAL_PACK_SLUG = "portable-surgical-pack";
 const TORTURING_EQUIPMENT_SLUG = "torturing-equipment";
 const TORTURER_SLUG = "torturer";
 
+// Mutilate's gate: any ONE of the three shows the button (docs/systemdocs/
+// TORTURE.md §6). Three rather than one because there is no single "would cut
+// pieces off somebody" tag — Cruel is the personality, Torturer is the trade,
+// and the Thanati are the ones who want the pieces.
+const MUTILATE_GATE_SLUGS = Object.freeze(["cruel", "torturer", "thanati"]);
+
 // Holding one puts a Sound Trumpet button on your own Character page, and
 // sounding it is heard across the Location graph (db/lib/trumpet.js). Held,
 // not equipped: you pick a trumpet up to blow it.
 const TRUMPET_SLUG = "trumpet";
+
+// The horse eats: 1 ⬢ every turn it is in your inventory, charged by
+// db/lib/horseUpkeepPass.js. HELD, not equipped — deliberately unlike
+// everything else the horse does (db/lib/mounts.js gates the free move on
+// `equipped`), so stowing it indoors is not a way to skip the bill.
+const HORSE_SLUG = "horse";
+const HORSE_UPKEEP_COST = 1;
 const HUMAN_FLESH_SLUG = "human-flesh";
 const ENGRAVE_RESOURCE_COST = 4;
 // How many turns a person's corpse stays fresh before it turns. Monster
@@ -149,6 +164,7 @@ module.exports = {
   ATE_MEAL_SLUG,
   MORTUS_SLUG,
   DRAINED_SLUG,
+  TIRED_SLUG,
   EXHAUSTED_SLUG,
   LABORING_BASIC_SLUG,
   LABORING_SKILLED_SLUG,
@@ -168,7 +184,10 @@ module.exports = {
   PORTABLE_SURGICAL_PACK_SLUG,
   TORTURING_EQUIPMENT_SLUG,
   TORTURER_SLUG,
+  MUTILATE_GATE_SLUGS,
   TRUMPET_SLUG,
+  HORSE_SLUG,
+  HORSE_UPKEEP_COST,
   HUMAN_FLESH_SLUG,
   ENGRAVE_RESOURCE_COST,
   CORPSE_ROT_TURNS,

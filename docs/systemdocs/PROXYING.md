@@ -39,7 +39,7 @@ runs the one write path (`db/lib/say.js` — `prepareSpeech`, post, `recordSpeec
 reposting through a per-channel webhook under the character's name and avatar,
 then deletes the original. The gates, the babble and autocorrect passes and the
 identity all live in `say.js` now, so a message typed into `/play` is decided
-by exactly the same code (`HALL.md` §2).
+by exactly the same code (`CHAT.md` §2).
 
 **No bracket or trigger syntax.** Each player has exactly one living character
 at a time, so there is nothing to disambiguate.
@@ -99,7 +99,7 @@ already speak in posts straight there; that does not hide the typing
 indicator, since you are already in the channel, but it does stop the message
 existing in plain sight before the proxy removes it.
 
-**`recentProxies` is gone** (phase 1 of `HALL.md`). It was an in-memory map
+**`recentProxies` is gone** (phase 1 of `CHAT.md`). It was an in-memory map
 tying a proxied message back to its player and character — last 20,000, single
 bot process, wiped on restart — so every deploy quietly made the last hour of
 scene inert to ✏️ ❌ 🔍 📸. `ArchiveEntry.discordMessageId` is unique, so the
@@ -468,7 +468,7 @@ and is silently ignored.
 
 ### The row spells it differently, on purpose
 
-Since the Hall's phase 6, `<@&roleId>` is **Discord's** spelling and the
+Since Chat's phase 6, `<@&roleId>` is **Discord's** spelling and the
 archive row stores a face-neutral **`{char:<id>}`** instead — the same inline
 token syntax the web renders everywhere else
 (`web/app/components/richTokens.js`). `db/lib/characterMentions.js` is the pair
@@ -494,7 +494,7 @@ untouched, exactly as it always has.
 
 The composer on `/play` writes tokens directly, over an `@` autocomplete of
 `whosHere().named`: you can only name somebody you can see, and a row only
-renders a name its reader could have seen too (HALL.md §5).
+renders a name its reader could have seen too (CHAT.md §5).
 
 **Mentions must be read before the message is proxied** — `sendAsCharacter`
 deletes the original, taking `message.mentions` with it — but the jump link
@@ -548,7 +548,10 @@ option** rather than a user option on purpose: the picker then names
 characters, never Discord accounts, so inviting someone can't reveal who plays
 them. Anyone already in the thread may add or remove, plus GMs.
 
-**A mention is an invite, on the same contract as `/add`** (`COMMANDS.md` §2b):
+**A mention is an invite, on the same contract as `/add`** (`COMMANDS.md` §2b),
+and it reads the same typed into `/play` as typed into Discord — the web half
+lives in `bot/src/lib/feedOutbox.js#relayWebMentions`, which used to send the
+notification and stop there:
 a `PlayerThreadInvite` row is recorded, the Discord add is attempted now, and
 if the target is standing somewhere else `applyPendingInvites` replays it the
 moment they arrive in that Location. Discord still requires a thread member to
@@ -569,6 +572,13 @@ silently timing out.
 **Journal** — a player's own written entries, unrelated to proxying and
 covered here only because it shares the page. Neither tab is ever
 GM-visible or shared between players; see below.
+
+There are two ways in now: the reaction in Discord, and the ★ on a row's
+action bar on `/play` (`web/app/(app)/play/actions.js#starRow`, `CHAT.md` §5).
+Both write the same row. A line with no Discord message behind it — a web-only
+player's, or one the outbox has not pushed yet — is filed under `seq:<seq>`
+instead of a message id, so the `(discordMessageId, discordUserId)` unique
+still holds and a ⭐ in Discord and a ★ on the web make one note, not two.
 
 Reacting ⭐ to any guild message saves it as a personal `Note` for whoever
 reacted — not just a proxied one. `handleStarReaction` upserts a row keyed on

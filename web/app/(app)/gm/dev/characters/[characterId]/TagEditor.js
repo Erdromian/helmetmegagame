@@ -70,7 +70,7 @@ export default function TagEditor({
       setBusyTagId(tagId);
       try {
         const res = await onApplyOps(ops);
-        if (!res?.ok) setError(res?.error ?? "Something went wrong. ‡");
+        if (!res?.ok) setError(res?.error ?? "Something went wrong.");
         return res;
       } finally {
         setBusyTagId(null);
@@ -97,10 +97,10 @@ export default function TagEditor({
     if (leaves.length) {
       const list = leaves.length === 1 ? leaves[0] : `one of ${leaves.join(" or ")}`;
       const ok = await confirm({
-        title: `Remove ${holding.name}? ‡`,
+        title: `Remove ${holding.name}?`,
         message: `Removing it leaves ${list} behind, and putting it back will not clear that. ‡`,
-        confirmLabel: "Remove it ‡",
-        cancelLabel: "Keep it ‡",
+        confirmLabel: "Remove it",
+        cancelLabel: "Keep it",
       });
       if (!ok) return;
     }
@@ -121,7 +121,7 @@ export default function TagEditor({
       const holding = heldByTagId.get(tag.id);
       return (
         <span className="text-xs text-muted">
-          held{holding?.quantity > 1 ? ` ×${holding.quantity}` : ""} — edit in Holds ‡
+          held{holding?.quantity > 1 ? ` ×${holding.quantity}` : ""}
         </span>
       );
     }
@@ -134,7 +134,7 @@ export default function TagEditor({
         {tag.stackable && (
           <QuantityField
             inline
-            ariaLabel="How many to grant ‡"
+            ariaLabel="How many to grant"
             value={catalogQtyDrafts.get(tag.id) ?? "1"}
             onChange={(v) => setCatalogQtyDrafts((prev) => new Map(prev).set(tag.id, v))}
           />
@@ -168,7 +168,7 @@ export default function TagEditor({
     <>
       <section className="panel flex flex-col gap-1 p-3">
         <h3 className="field-label">Holds ({heldSorted.length})</h3>
-        {heldSorted.length === 0 && <p className="text-sm text-muted">Holds nothing yet. ‡</p>}
+        {heldSorted.length === 0 && <p className="text-sm text-muted">Holds nothing yet.</p>}
         <ul className="flex flex-col">
           {heldSorted.map((holding) => (
             <HeldRow
@@ -197,8 +197,7 @@ export default function TagEditor({
           </span>
         )}
         <span className="text-xs text-muted">
-          Equipment {equippedCount} / {equipSlots}. Changes here save straight away. GM grants
-          ignore every requirement gate. ‡
+          Equipment {equippedCount} / {equipSlots}
         </span>
       </section>
 
