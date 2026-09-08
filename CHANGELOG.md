@@ -6,6 +6,23 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · The cargo bay stops at the gate, and a trade is a trade
+
+✎ The Merchant, the Docker and the Mercenary no longer start knowing the Migrants' camp, which was handing them the brooding grounds and both mouths of the Depths on their first morning. The Migrant, who lives there, still does  
+✎ A Commoner who bought a laboring specialisation outright no longer gets a free Farmer crate on top of it  
+✎ Seeding a character's memories no longer re-queries their tags once per remembered place
+
+## 2026-09-08 · The sheet's auto-refresh stops doing work nobody can see
+
+✎ Follow-up to this morning's Bind fix. The page was quietly re-loading itself whenever anyone at your Location was tied up or walked past — none of which changes anything on screen until you open a dialog, and dialogs now re-read the room themselves. In a crowded Town that was thirty people all reloading at once every time a turn moved them.  
+✎ The one thing kept: 'Waiting for so-and-so to agree to be bound' now clears itself when they answer in Discord, because that line really is on the page.
+
+## 2026-09-08 · Bind, Free and Loot stop needing a page refresh
+
+✎ Somebody accepting your Bind in Discord now shows up on your sheet on its own. It always worked in the game — your page just never heard about it, so Free offered nobody and Loot refused, until you reloaded.  
+✎ The same blind spot hid somebody walking in, somebody dying, and a hood going up or coming down. All three now reach the page.  
+✎ Every action dialog re-reads the room as it opens, so bind, wait for the yes, then loot works with nothing in between.
+
 ## 2026-09-08 · Nobody wakes up blind, and no commoner wakes up without a trade
 
 ✚ Every seat now starts remembering the places its life would have taught it: the home cluster, plus the road that trade actually walks. A Headman opens the map already seeing the Farms he taxes; a Banneret sees every step of the run up to town  
