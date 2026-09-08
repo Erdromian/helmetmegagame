@@ -19,34 +19,31 @@ const { getGameState } = require("@lifeweb/db/lib/gameState");
 const { startDeathSmell } = require("../lib/deathSmell");
 const { registerCommands } = require("../lib/commands");
 
-// What this process needs from the environment, and what quietly stops working
-// without it. Every one of these is read behind an `if (process.env.X)` or an
-// optional chain somewhere, so a missing one is not an error — it is a feature
-// that is simply off, with nothing in the logs to say so.
+// Vars this process reads behind a truthiness guard — `if (process.env.X)`,
+// `?? null`, `.filter(Boolean)`. A missing one is not an error, it is a
+// feature that is off with nothing in the log to say so, which is how
+// DISCORD_CURSED_ROLE_ID sat unset on the bot (and set on web) through a whole
+// playtest while every rite and turn-clock death skipped the Cursed role.
 //
-// This check exists because DISCORD_CURSED_ROLE_ID was set on the web service
-// and not on the bot for the whole of a playtest. Deaths on the web side
-// cursed the player; deaths on THIS side — every rite kill, the Catatonic
-// clock, the Dying clock, the nuke pass — silently did not, and the ghost
-// seat's channel overwrites were never written either. Nobody could have known
-// from a log line, because there wasn't one.
-//
-// Printed, not thrown. A bot that refuses to start over a missing turn-ping
-// role is worse than one that runs with the turn ping off.
+// DATABASE_URL and DISCORD_TOKEN are deliberately absent: without either, this
+// line is never reached at all.
 const REQUIRED_ENV = [
-  ["DATABASE_URL", "everything"],
-  ["DISCORD_TOKEN", "login"],
   ["DISCORD_GUILD_ID", "every REST call"],
-  ["DISCORD_GM_ROLE_ID", "the GM gate on /gm and /message"],
+  ["DISCORD_CLIENT_ID", "the doctor's check that no zone role outranks the bot"],
+  ["DISCORD_GM_ROLE_ID", "the standing GM seat — the gate narrows to Trial GMs"],
   ["DISCORD_CURSED_ROLE_ID", "the Cursed role on a rite or turn-clock death, and the ghost seat"],
   ["DISCORD_TURN_PING_ROLE_ID", "the turn ping"],
   ["WEB_BASE_URL", "every link the bot writes into a DM"],
+  ["AUTH_SECRET", "the hood tokens behind Who's here?"],
+  ["VAPID_PUBLIC_KEY", "web push from the bot"],
+  ["VAPID_PRIVATE_KEY", "web push from the bot"],
+  ["VAPID_SUBJECT", "web push from the bot"],
 ];
 
+// Printed, never thrown: guard() in bot/src/index.js would abort the whole
+// ready chain — doctor, nickname sync, cron registration — over a missing
+// turn-ping role.
 function reportMissingEnv() {
-  // LOCAL_MODE answers every Discord call locally, so it runs legitimately
-  // without most of the above (docs/systemdocs/LOCAL-DEV.md).
-  if (process.env.LOCAL_MODE === "true") return;
   const missing = REQUIRED_ENV.filter(([name]) => !process.env[name]);
   if (missing.length === 0) return;
   console.error(
