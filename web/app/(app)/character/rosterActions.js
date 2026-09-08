@@ -7,8 +7,7 @@ import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { carryStatus } from "@lifeweb/db/lib/carry";
-import { whosHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
-import { examineCharacter } from "./examineActions";
+import { whosHere } from "@lifeweb/db/lib/whosHere";
 
 // "What can I see from here" — the reads a player-action dialog makes the
 // moment it opens (web/app/components/actions/useRoster.js), so the roster it
@@ -96,24 +95,12 @@ export async function loadActionRoster({ need = [] } = {}) {
 // Who is standing where you are, as db/lib/whosHere.js answers it — the same
 // rows the "Who's here?" button on the Discord anchor gives. Was in
 // play/actions.js; it lives here now because the HERE list is drawn on /ledger
-// as well as /play.
+// as well as /play. withSightings is what gives a row its face and its eye
+// (db/lib/sightings.js); the Discord button asks without it, because a list
+// of names has no faces to withhold.
 export async function loadPeopleHere() {
   const who = await me();
   if (who.error) return { ok: false, error: who.error };
-  const rows = await whosHere(prisma, who.character);
+  const rows = await whosHere(prisma, who.character, { withSightings: true });
   return { ok: true, ...rows };
-}
-
-// Looking at somebody whose face you cannot see. The token is what
-// db/lib/whosHere.js handed the page for a hood — an HMAC of the character id,
-// so the browser is never told who is under it — and it is resolved here
-// against the people actually standing at the looker's own Location. The
-// readout itself is the sheet's own examineCharacter(), which re-resolves the
-// looker from the session and re-checks co-presence a second time.
-export async function examineHooded(token) {
-  const who = await me();
-  if (who.error) return { ok: false, error: who.error };
-  const targetId = await resolveHoodToken(prisma, who.character, token);
-  if (!targetId) return { ok: false, error: "They aren't here any more. ‡" };
-  return examineCharacter(targetId);
 }

@@ -4,12 +4,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import EmptyState from "@/app/components/EmptyState";
 import IconButton from "@/app/components/IconButton";
+import ActionButton from "@/app/components/ActionButton";
 import LookReadout from "@/app/components/LookReadout";
 import { EyeIcon } from "@/app/components/icons";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
-import { lookAtRow, loadPeopleHere } from "./actions";
+import { ACTION_HELP } from "@/app/components/actionRegistry";
+import { lookAtRow } from "@/app/(app)/play/actions";
+import { loadPeopleHere } from "@/app/(app)/character/rosterActions";
 
-// HERE: who is standing where you are, and what you can do to them.
+// HERE: who is standing where you are, and what you can do to them. Drawn in
+// /play's right-hand column and on /ledger's Actions panel — the same rows,
+// the same menu — which is why it lives here rather than under play/.
 //
 // The rows come from db/lib/whosHere.js — the same function the "Who's here?"
 // button on the Discord anchor answers with — so the street and the page can
@@ -75,38 +80,32 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
   return (
     <div className="chat-menu" role="menu" aria-label={person.name}>
       {PEOPLE_ACTIONS.map((entry) => (
-        <button
+        <ActionButton
           key={entry.mode}
-          type="button"
-          role="menuitem"
-          className="menu-item"
+          variant="menu"
+          label={entry.label}
+          help={ACTION_HELP[entry.mode] ?? null}
           onClick={() => pick(entry)}
-        >
-          {entry.label}
-        </button>
+        />
       ))}
       {/* Letting somebody into the conversation or the private room that is
           OPEN in the feed. Only offered where there is a door to open — a
           Location, the zone summary and a public room have none — and the
           server re-checks that this character may work it. */}
       {addPlace && onAddMember && (
-        <button
-          type="button"
-          role="menuitem"
-          className="menu-item"
+        <ActionButton
+          variant="menu"
+          label={`Add to ${addPlace.name}`}
           onClick={() => {
             onClose();
             onAddMember(person.characterId);
           }}
-        >
-          Add to {addPlace.name}
-        </button>
+        />
       )}
       {onConverse && (
-        <button
-          type="button"
-          role="menuitem"
-          className="menu-item"
+        <ActionButton
+          variant="menu"
+          label="Converse"
           onClick={() => {
             onClose();
             // Opened ON this person, so the dialog has them ticked already —
@@ -114,9 +113,7 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
             // again was the same answer typed twice.
             onConverse({ id: person.characterId, name: person.name });
           }}
-        >
-          Converse
-        </button>
+        />
       )}
     </div>
   );
@@ -125,6 +122,8 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
 const HERE_POLL_MS = 60_000;
 
 export default function HereList({
+  // The server's list, or null to read it on mount — /ledger passes null,
+  // because navigating there is the click that asks who is standing here.
   people,
   selfId,
   strip = false,
@@ -145,17 +144,24 @@ export default function HereList({
 
   useEffect(() => {
     if (!poll) return undefined;
-    const timer = setInterval(() => {
+    let cancelled = false;
+    const read = () => {
       loadPeopleHere()
         .then((res) => {
-          if (res?.ok) setLive({ named: res.named, concealed: res.concealed });
+          if (!cancelled && res?.ok) setLive({ named: res.named, concealed: res.concealed });
         })
         .catch(() => {
           // A missed read costs one stale minute. The next one fixes it.
         });
-    }, HERE_POLL_MS);
-    return () => clearInterval(timer);
-  }, [poll]);
+    };
+    // No seed means nobody has asked yet; ask now, then on the minute.
+    if (people == null) read();
+    const timer = setInterval(read, HERE_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [poll, people]);
   const [hood, setHood] = useState(null);
   const actions = useRequestActions();
   // The one place a click outside has to close something. Kept on the

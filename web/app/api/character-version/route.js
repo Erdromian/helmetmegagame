@@ -21,9 +21,9 @@ import { deployVersion } from "@/lib/deployVersion";
 // rather than an oversight. Everything the sheet knows about your neighbours
 // feeds a dialog and nothing else (web/lib/peoplePools.js: "every people pool
 // the sheet's dialogs act on"), so a neighbour being bound, arriving or
-// leaving changes not one pixel until you open something — and opening
-// something re-reads the world on its own now, in
-// RequestActionsProvider.js#open. Watching them here would mean a full render
+// leaving changes not one pixel until you open something — and a dialog
+// reads its own roster the moment it opens (components/actions/useRoster.js).
+// Watching them here would mean a full render
 // of this page, on a timer, for a change nobody can see, and thirty people at
 // one Location all firing it the moment a turn moves them.
 //

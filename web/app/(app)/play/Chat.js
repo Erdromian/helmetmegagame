@@ -6,7 +6,7 @@ import EmptyState from "@/app/components/EmptyState";
 import Modal from "@/app/components/Modal";
 import ChatAside from "./ChatAside";
 import MapBoard from "../map/MapBoard";
-import HereList from "./HereList";
+import HereList from "@/app/components/HereList";
 import PlacesColumn, { PlacesTabs } from "./PlacesColumn";
 import useAsideFolded from "./useAsideFolded";
 import Feed from "./Feed";

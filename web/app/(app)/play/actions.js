@@ -153,16 +153,6 @@ export async function loadAffordances() {
   return { ok: true, affordances: await affordancesFor(prisma, me.character) };
 }
 
-export async function loadPeopleHere() {
-  const me = await actor({ id: true, factionId: true, locationId: true, discordUserId: true });
-  if (me.error) return { ok: false, error: me.error };
-  // withSightings is what gives a row its face and its eye — see
-  // db/lib/sightings.js. The Discord button asks without it, because a list of
-  // names has no faces to withhold.
-  const rows = await whosHere(prisma, me.character, { withSightings: true });
-  return { ok: true, ...rows };
-}
-
 // Looking at whoever said one line — the web twin of the 🔍 reaction, and the
 // only look the page has now. Both eyes point here: the one on a row in the
 // feed, and the one on a row in HERE, which aims at the last line it watched
