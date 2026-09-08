@@ -55,11 +55,19 @@ async function fireAttempt(db, attempt) {
   // clock cleared, and the next chant re-judges it.
   const ingredients = await resolveIngredients(db, rite, room, { participants });
   if (!ingredients.ok || participants.length < rite.minChanters) {
-    await db.riteAttempt.update({
-      where: { id: attempt.id },
+    // GUARDED on READY, like the claim below. Without the predicate a second
+    // sweep — a rolling deploy runs two bot containers, and ready.js's
+    // re-entrancy flag is per-process — could resolve this attempt while the
+    // first sweep was firing it, find the floor "missing" because the first
+    // sweep had just eaten it, and stomp a FIRED row back to OPEN. That loses
+    // the result, strands an AWAITING Panic where nothing can answer it, and
+    // leaves the original chants in place so the next chant re-arms and fires
+    // the same rite a second time.
+    const { count } = await db.riteAttempt.updateMany({
+      where: { id: attempt.id, status: "READY" },
       data: { status: "OPEN", readyAt: null, firesAt: null, result: { rearmed: ingredients.missing } },
     });
-    return { fired: false, rearmed: true };
+    return { fired: false, rearmed: count > 0 };
   }
 
   // Claim it and eat the floor together: a second sweep racing this one finds
@@ -104,8 +112,10 @@ async function fireAttempt(db, attempt) {
     outcome = { result: { error: err.message ?? String(err) } };
   }
 
-  await db.riteAttempt.update({
-    where: { id: attempt.id },
+  // Also guarded: this sweep claimed the row as FIRED above, so only it may
+  // move the row on to AWAITING or write the result.
+  await db.riteAttempt.updateMany({
+    where: { id: attempt.id, status: "FIRED" },
     data: { status: outcome.awaiting ? "AWAITING" : "FIRED", result: outcome.result ?? null },
   });
   await db.auditLog

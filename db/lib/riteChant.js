@@ -99,9 +99,13 @@ async function attemptFor(db, rite, room) {
   // above and both create. There is no unique index to refuse the second, so
   // the loser folds into the oldest live attempt and its own row goes — a
   // split would leave two half-counted attempts that never fire.
+  // `id` breaks a timestamp tie. openedAt defaults to now() and two rows
+  // created in the same tick compare equal, so with openedAt alone each racer
+  // could read itself as the oldest — neither deletes, and the room ends with
+  // two half-counted attempts that each need the full minChanters again.
   const oldest = await db.riteAttempt.findFirst({
     where: { riteKey: rite.key, roomId: room.id, status: { in: ["OPEN", "READY"] }, openedAt: { gte: since } },
-    orderBy: { openedAt: "asc" },
+    orderBy: [{ openedAt: "asc" }, { id: "asc" }],
   });
   if (oldest && oldest.id !== created.id) {
     await db.riteAttempt.delete({ where: { id: created.id } }).catch(() => {});
