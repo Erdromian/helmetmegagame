@@ -1400,6 +1400,34 @@ async function syncZonesFromYaml(prisma) {
 
   const staleZones = await prisma.zone.findMany({ where: { slug: { notIn: [...zonesBySlug.keys()] } } });
   for (const zone of staleZones) {
+    // Location.zoneId is onDelete: Cascade, so deleting the zone row below
+    // takes its Locations (and their Rooms) with it in one statement —
+    // silently, and WITHOUT passing through the location prune above, which
+    // only sees slugs the YAML dropped. A zone the YAML dropped while its
+    // Locations kept their slugs therefore left a full set of live Discord
+    // channels behind that no row pointed at any more, and the next sync,
+    // finding no discordChannelId, made a second set beside them. That is how
+    // the Underground ended up with two of every cave channel on 2026-09-08.
+    // Take the channels and threads down here, before the cascade eats the
+    // rows that name them.
+    const doomedLocations = await prisma.location.findMany({
+      where: { zoneId: zone.id },
+      select: { discordChannelId: true, rooms: { select: { discordThreadId: true } } },
+    });
+    for (const location of doomedLocations) {
+      // The threads go first: deleting a channel takes its threads anyway,
+      // but a room whose thread lives elsewhere is not the channel's to lose.
+      for (const room of location.rooms) {
+        if (room.discordThreadId) await deleteThread(room.discordThreadId);
+      }
+      if (location.discordChannelId) await deleteChannel(location.discordChannelId);
+    }
+    if (doomedLocations.length > 0) {
+      report.warnings.push(
+        `pruning zone "${zone.name}" also took ${doomedLocations.length} Location row(s) with it (FK cascade)`,
+      );
+    }
+
     for (const id of [zone.discordSummaryChannelId, zone.discordCategoryId].filter(Boolean)) {
       await deleteChannel(id);
     }

@@ -21,7 +21,7 @@
 const { recordArchiveMessage } = require("./archive");
 const { notifyFeed } = require("./feedNotify");
 const { babble, growl, STUPID_SLUG, GHOUL_SLUG } = require("./babble");
-const { blockerFor, slugsBlocking, SPEAK } = require("./incapacitation");
+const { blockerFor, slugsBlocking, SPEAK, SHOUT } = require("./incapacitation");
 const { capitalizeSentences, fixContractions } = require("./textCorrection");
 const {
   loadForcedName,
@@ -49,17 +49,23 @@ const EDIT_WINDOW_MS = 5 * 60_000;
 // not even select `slug`, and the Speak modal's findAliveCharacter loads no
 // tags at all — so a gate that trusted the caller's include read undefined
 // and passed everybody.
-const VOICE_SLUGS = [...slugsBlocking(SPEAK), STUPID_SLUG, GHOUL_SLUG];
+// SHOUT is the superset — everything that takes the ordinary voice takes the
+// yell too (db/lib/incapacitation.js), plus {tag:mute}, which takes only the
+// yell. One query still answers both questions.
+const VOICE_SLUGS = [...slugsBlocking(SHOUT), STUPID_SLUG, GHOUL_SLUG];
 
 async function loadVoiceState(prisma, characterId) {
-  if (!characterId) return { block: null, babbling: false };
+  if (!characterId) return { block: null, shoutBlock: null, babbling: false };
   const rows = await prisma.characterTag.findMany({
     where: { characterId, quantity: { gt: 0 }, tag: { slug: { in: VOICE_SLUGS } } },
     select: { tag: { select: { slug: true, name: true } } },
   });
   return {
-    // Blocked beats garbled: a Stupid Mute is silent, not babbling.
+    // Blocked beats garbled: a Stupid Paralytic is silent, not babbling.
     block: blockerFor(rows, SPEAK),
+    // Only /shout reads this one (db/lib/shout.js). It is `block` plus
+    // {tag:mute}, whose owner talks fine and simply cannot make a voice carry.
+    shoutBlock: blockerFor(rows, SHOUT),
     babbling: rows.some((ct) => ct.tag.slug === STUPID_SLUG),
     // A Ghoul growls (docs/systemdocs/THANATI.md §4). Growl beats babble: a
     // risen Stupid is a Ghoul first.
@@ -199,6 +205,12 @@ async function recordSpeech(
     content: content ?? prepared.rowContent ?? prepared.content,
     character: prepared.character,
     concealedAlias: prepared.identity?.alias ?? null,
+    // The face that went with the name, frozen for the same reason: a live
+    // lookup would unmask every old line the moment the mask came off. Gated
+    // on `alias` rather than written unconditionally, because the own-face
+    // path carries a ?v=<updatedAt> cache-buster and freezing one would pin a
+    // stale portrait forever. Null is how "their own face" is recorded.
+    presentedAvatarPath: prepared.identity?.alias ? (prepared.identity.avatarPath ?? null) : null,
     placeKey: prepared.placeKey,
     source: prepared.source,
     discordMessageId,
@@ -243,6 +255,7 @@ const EDITABLE_SELECT = {
   characterId: true,
   characterName: true,
   concealedAlias: true,
+  presentedAvatarPath: true,
   content: true,
   sentAt: true,
   source: true,

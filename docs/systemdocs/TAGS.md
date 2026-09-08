@@ -1078,10 +1078,9 @@ Five rules carry it:
   `Tag.consumesInto` still stores every target slug in order; the conditions
   live beside it in `Tag.consumesIntoUnless` (`Json`, null for the many tags
   that have none), and `syncTags.js` validates both halves against this file.
-  `resolveConsumeGrants()` in `web/lib/consumeGrants.js` applies them, and is
-  deliberately pure so the server action and the client "Becomes:" preview
-  share it — a preview that promised something the grant then withheld would
-  be worse than no preview. **No tag uses this today.** Fine Meal was the only
+  `resolveConsumeGrants()` in `web/lib/consumeGrants.js` applies them. It is
+  server-side only: consuming a tag prints nothing about what it grants, so
+  there is no preview left to keep honest. **No tag uses this today.** Fine Meal was the only
   one, granting `happy` unless `nobility`, and its condition went with the Mood
   system; the mechanism is kept because it is general.
 - **A grant may override the target's expiry.** The same object form takes an
@@ -1145,10 +1144,9 @@ Purse/Supply Kit/Skinned Cave Rat tags that use them):
   same length and order, for an even random pick between alternatives —
   `{ oneOf: [...] }` in `docs/tags.yaml`, the same shape `expiresInto` (§5c)
   already uses. `Skinned Cave Rat` is the first user: 50/50 `ate-meal` or
-  `vomiting`. `resolveConsumeGrants()` rolls the real pick for the server
-  action; the client "Becomes:" preview does **not** call it for a `oneOf`
-  position, since that would re-roll (and lie about) an outcome on every
-  render — it renders "A or B" straight off the sidecar instead.
+  `vomiting`. `resolveConsumeGrants()` rolls the real pick in the server
+  action, and nothing rolls anywhere else — the player is told neither the
+  alternatives nor which one they got.
 
 ## 5c. Health, the cure ladder, and `expiresInto`
 
@@ -1930,8 +1928,8 @@ GM's custom-tag form has no editor for it, the same posture as `desireLocks`;
 
 `EquipmentPanel.js` on `/character` is **click-to-toggle**, not drag-and-drop —
 drag would need a touch fallback that is exactly this anyway — and is its own
-surface rather than an affordance on `TagChip`, whose click already opens the
-Consume dialog.
+surface rather than an affordance on `TagChip`, whose tooltip already carries
+the Consume button.
 
 Equipping is **instant and writes neither a `Request` nor an `AuditLog` row**,
 unlike everything in `REQUESTS.md`. It costs nothing, the player undoes it in
@@ -1997,21 +1995,34 @@ character could shout across a Location and a Mute one could talk all day —
 
 It is now a table. Each slug names the capabilities it removes:
 
-| Tag | ACT | SPEAK | |
-|---|---|---|---|
-| `unconscious` | ✗ | ✗ | the top of the drinking ladder (`BREWING.md` §5a) |
-| `paralyzed` | ✗ | ✗ | its description has promised this since the day it was written |
-| `seizure` | ✗ | ✗ | you are on the floor (`FACTORY.md`) |
-| `bound` | ✗ | **✓** | **a hostage can yell for help** |
-| `dying` | ✗ | ✓ | last words are the tradition |
-| `crucified` | ✗ | ✓ | the Crucify button's tag (`REQUESTS.md`); becomes Dying after a turn, and a public death with no last words would be half a spectacle |
-| `catatonic-afk` | ✗ | ✓ | see the trap below |
-| `mute` | ✓ | ✗ | a mute smith is still a smith |
+| Tag | ACT | SPEAK | SHOUT | |
+|---|---|---|---|---|
+| `unconscious` | ✗ | ✗ | ✗ | the top of the drinking ladder (`BREWING.md` §5a) |
+| `paralyzed` | ✗ | ✗ | ✗ | its description has promised this since the day it was written |
+| `seizure` | ✗ | ✗ | ✗ | you are on the floor (`FACTORY.md`) |
+| `bound` | ✗ | **✓** | **✓** | **a hostage can yell for help** |
+| `dying` | ✗ | ✓ | ✓ | last words are the tradition |
+| `crucified` | ✗ | ✓ | ✓ | the Crucify button's tag (`REQUESTS.md`); becomes Dying after a turn, and a public death with no last words would be half a spectacle |
+| `catatonic-afk` | ✗ | ✓ | ✓ | see the trap below |
+| `mute` | ✓ | **✓** | ✗ | a mute smith is still a smith — and now still a talker |
 
 **ACT** is the physical half — equip, craft, destroy, labor, butcher, package,
 transfer, extract, travel, teach, confess, the Depot, writing on paper.
 **SPEAK** is the voice — the proxy (ordinary chat, whispers, the Speak modal),
-`/shout`, and the Council Room intercom.
+and the Council Room intercom. **SHOUT** is `/shout` and nothing else.
+
+**SPEAK implies SHOUT**, written once in `expandCaps()` rather than by listing
+both beside every entry, because the second half of such a pair is exactly what
+somebody forgets. So no row above sets SPEAK ✗ and SHOUT ✓, and only `mute`
+sets them the other way round.
+
+**Why `mute` moved.** It used to take SPEAK, which meant a player who bought it
+— or lost a tongue to Mutilate — could not say a word on either face for the
+rest of the game. That removed the *player* from the game rather than the
+character from a conversation, which is not a −7 drawback, it is a quit button.
+It now takes SHOUT alone: the voice is there, it just will not carry. It is
+also **no longer purchasable** (`docs/tags.yaml`); the tongue rung of the
+Mutilate ladder (`TORTURE.md`) is the only thing that puts it on somebody now.
 
 `INCAPACITATING_SLUGS` still exists and still means what it always did —
 "helpless, therefore lootable, draggable and bindable" — but it is now
@@ -2026,12 +2037,12 @@ activity clock. Gate catatonic speech and the tag becomes self-sealing: the
 player can never do the one thing that lifts it, and
 `db/lib/catatonicDeathPass.js` then kills them for it. **Catatonic must never
 block SPEAK.** For the same reason, a refused message still writes the
-speaker's activity (`bot/src/lib/proxy.js`) — being Mute must not march
+speaker's activity (`bot/src/lib/proxy.js`) — being silenced must not march
 somebody toward an auto-kill for trying to talk.
 
 **Composing with Stupid.** `stupid` is not in the table — it garbles speech
 (`db/lib/babble.js`) rather than removing it. The gate runs first: a Stupid
-Mute is silent, not babbling.
+Paralytic is silent, not babbling.
 
 **The seam.** `blockerFor(characterTags, capability)` returns the offending
 `{ slug, name }` rather than a boolean, so every refusal can name the tag —

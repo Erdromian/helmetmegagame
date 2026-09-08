@@ -10,6 +10,7 @@ import {
   roleCapacity,
   isDynastyMember,
   presentedIdentity,
+  concealmentFrom,
   startingTagSlugs,
   normalizeAntagonistSlugs,
 } from "@lifeweb/db";
@@ -57,11 +58,10 @@ import { craftFreeUnits } from "@/lib/requests";
 import { summarizeCraftBudget } from "@/lib/craftBudget";
 import {
   getGuildMember,
-  isApprovedPlayer,
   isCursed,
   isGm,
-  isPlaytester,
   isLeaderWhitelisted,
+  onRoster,
 } from "@/lib/discordGuild";
 import {
   isSpawnOnly,
@@ -123,15 +123,25 @@ async function loadCreationData(discordUserId) {
   // to a GM during the lobby, which is the Skip button.
   const superadmin = isSuperadmin(discordUserId);
   const phase = state?.phase ?? "CLOSED";
-  // A GM or a playtester may skip the lobby in any phase, and a playtester is
-  // on the roster without the Player role (db/lib/roleIds.js).
-  const skipper = isGm(member) || isPlaytester(member);
+  // Only a GM skips the lobby now: a playtester's bypass is the roster check,
+  // not the phase one, so they rehearse the lobby like everybody else
+  // (db/lib/roleIds.js).
+  const skipper = isGm(member);
+  // Playtest mode narrows the roster to the people building the game
+  // (docs/systemdocs/LOBBY.md §2). Server-side gates re-check it regardless.
+  const playtestMode = config?.playtestModeEnabled === true;
+  const approved = superadmin || onRoster(member, { playtestMode });
   const gate = {
     phase,
     open: superadmin || phase === "RUNNING" || phase === "ENDED" || skipper,
-    approved: superadmin || isApprovedPlayer(member) || isPlaytester(member),
+    approved,
     superadmin,
     gm: skipper,
+    // Turned away by playtest mode rather than by a missing Player role. The
+    // closed page shows its "not open yet" face for this instead of "not on
+    // the roster": there is nothing to apply for, and a closed rehearsal has
+    // no reason to announce itself.
+    masked: playtestMode && !approved,
   };
   // `=== false`, not falsy: no config row means the gate stays enforced.
   const leaderWhitelisted =
@@ -226,9 +236,14 @@ export default async function CharacterPage({ searchParams }) {
 // sheet — each a `kind` in the one object CharacterView draws. Every prop of
 // the sheet below used to be a JSX attribute on <CharacterSheet> right here;
 // the names are unchanged.
-async function FreshCharacter({ userId, searchParams }) {
+//
+// `scope` is the snapshot bucket the result is written into. /ledger renders
+// the same four outcomes in its own layout (web/app/components/CharacterLedger.js)
+// and imports this body whole, so the load lives in one place; it passes its
+// own scope so the two pages never paint each other's stored copy.
+export async function FreshCharacter({ userId, searchParams, scope = "character" }) {
   const session = { discordUserId: userId };
-  const fresh = (data) => <SnapshotFresh scope="character" userId={userId} data={data} />;
+  const fresh = (data) => <SnapshotFresh scope={scope} userId={userId} data={data} />;
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
@@ -267,7 +282,7 @@ async function FreshCharacter({ userId, searchParams }) {
     const { create } = (await searchParams) ?? {};
     const skipping = create === "1" && (gate.gm || gate.superadmin);
     if (gate.phase === "LOBBY" && !skipping) {
-      if (!gate.approved) return fresh({ kind: "closed", open: true });
+      if (!gate.approved) return fresh({ kind: "closed", open: !gate.masked });
       const [preference, entry, readyCount] = await Promise.all([
         prisma.playerPreference.findUnique({ where: { discordUserId: session.discordUserId } }),
         prisma.lobbyEntry.findUnique({ where: { discordUserId: session.discordUserId } }),
@@ -305,7 +320,8 @@ async function FreshCharacter({ userId, searchParams }) {
         },
       });
     }
-    if (!gate.open || !gate.approved) return fresh({ kind: "closed", open: gate.open });
+    if (!gate.open || !gate.approved)
+      return fresh({ kind: "closed", open: gate.masked ? false : gate.open });
     // A seat from the roll, still inside its window: the wizard opens on the
     // Tags step with the role fixed. createCharacter enforces the same lock.
     const assigned = await prisma.lobbyEntry.findFirst({
@@ -518,9 +534,24 @@ async function FreshCharacter({ userId, searchParams }) {
   // A fact about your own sheet, so the button may grey on it. Resolved here
   // rather than in the client so no slug matching reaches the browser.
   const canButcher = character.tags.some((ct) => ct.tag.slug === BUTCHER_SLUG);
-  // A fact about your own sheet, so the Change name button may grey on it.
-  // changeNameRequestImpl re-checks it under the same predicate.
-  const hasMulligan = character.tags.some((ct) => ct.tag.slug === "mulligan-potion");
+  // The Mulligan Potion, if they hold one. Drinking it is the one player-facing
+  // rename, so the tag's own tooltip opens the identity dialog instead of
+  // consuming it — TagsPanel needs the id to tell that bottle from every other
+  // consumable, and the name parts to seed the fields. Resolved here rather
+  // than in the client so no slug matching reaches the browser;
+  // changeNameRequestImpl re-checks the potion under the same predicate.
+  const mulligan = character.tags.find((ct) => ct.tag.slug === "mulligan-potion");
+  const identity = mulligan
+    ? {
+        tagId: mulligan.tag.id,
+        honorific: character.honorific,
+        firstName: character.firstName,
+        title: character.title,
+        lastName: character.lastName,
+        lastNameLocked: isDynastyMember(character.role?.slug),
+        gender: character.gender,
+      }
+    : null;
 
   // From is you or a room; To is anyone here or a room (TransferDialog.js).
   const transferPartyList = { characters: transferParties, rooms };
@@ -1012,18 +1043,15 @@ async function FreshCharacter({ userId, searchParams }) {
   // usable at all (PROXYING.md §5). Only `forced` is read now — the label used
   // to name WHICH thing was doing it, and says the rule once in a tooltip
   // instead, so the tag's own name has no reader left.
-  const concealingTag =
-    character.tags
-      .filter((ct) => ct.equipped && ct.tag.concealsIdentity)
-      .sort((a, b) => (b.tag.equipLayer ?? 0) - (a.tag.equipLayer ?? 0))[0]
-      ?.tag ?? null;
-  const concealGear = concealingTag
-    ? { forced: Boolean(concealingTag.forcesConceal) }
-    : null;
-  const avatarSrc = forcedIdentity
-    ? presentedIdentity(character, { forcedName: forcedIdentity.name })
-        .avatarPath
-    : `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
+  const concealment = concealmentFrom(character.tags);
+  const concealGear = concealment ? { forced: concealment.forced } : null;
+  // The face the room sees, which is the face the sheet shows: the mask, the
+  // forced name's plaque, or their own. One resolver decides it for every
+  // surface, so a player is never the last to know what they look like.
+  const avatarSrc = presentedIdentity(character, {
+    forcedName: forcedIdentity?.name ?? null,
+    concealment,
+  }).avatarPath;
 
   // The Move cutoff for StatusPanel's "This turn" row.
   const openTurnWithWindow = openTurn
@@ -1097,7 +1125,7 @@ async function FreshCharacter({ userId, searchParams }) {
       healParties: healParties,
       corpses: corpses,
       canButcher: canButcher,
-      hasMulligan: hasMulligan,
+      identity: identity,
       canSeeExtract: canSeeExtract,
       canExtract: canExtract,
       extractBlocked: extractBlocked,
@@ -1120,7 +1148,6 @@ async function FreshCharacter({ userId, searchParams }) {
       deployVersion: deployVersion(),
       harmTargets: harmTargets,
       harmTags: harmTags,
-      lastNameLocked: isDynastyMember(character.role?.slug),
       storeTags: storeTags,
       storeHeldTags: storeHeldTags,
       storeRoleSlug: character.role?.slug ?? null,

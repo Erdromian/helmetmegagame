@@ -45,6 +45,10 @@ export default function PlaceCard({
   // godflesh; the dialog itself says what is missing when there is no tool in
   // hand, and extractGodfleshRequest re-checks both.
   onFactory = null,
+  // The map (docs/systemdocs/MAP.md §6). Always offered — it is the one
+  // fixture here that belongs to the world rather than to this Location, and
+  // a character with nowhere on it yet is told so by the board itself.
+  onOpenMap = null,
   pending = false,
 }) {
   const [side, setSide] = useState("place");
@@ -83,7 +87,7 @@ export default function PlaceCard({
         )}
       </div>
 
-      {(fixtures.length > 0 || onConverse || depotHref || onFactory) && (
+      {(fixtures.length > 0 || onConverse || depotHref || onFactory || onOpenMap) && (
         <div className="chat-buttons">
           {fixtures.map((entry) => (
             <button
@@ -113,6 +117,11 @@ export default function PlaceCard({
           {onConverse && (
             <button type="button" className="btn-secondary" disabled={pending} onClick={() => onConverse()}>
               Converse
+            </button>
+          )}
+          {onOpenMap && (
+            <button type="button" className="btn-secondary" onClick={onOpenMap}>
+              Open map
             </button>
           )}
         </div>

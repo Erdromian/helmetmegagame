@@ -536,9 +536,22 @@ export async function loadParty() {
     // web-only player, so the rack answers them too.
     prisma.offer.findMany({
       where: { kind: "ESCORT", status: "PENDING", responderId: character.id },
-      select: { id: true, initiator: { select: { name: true } } },
+      select: { id: true, initiatorId: true },
     }),
   ]);
+
+  // Offer.initiatorId is a bare column, not a relation — every other reader
+  // resolves the name with its own lookup (db/lib/escort.js, lessons.js,
+  // confession.js). Selecting `initiator` here threw a validation error on
+  // every poll instead, which took the whole party rack down with it.
+  const askerNames = new Map();
+  if (incoming.length) {
+    const askers = await prisma.character.findMany({
+      where: { id: { in: [...new Set(incoming.map((o) => o.initiatorId))] } },
+      select: { id: true, name: true },
+    });
+    for (const asker of askers) askerNames.set(asker.id, asker.name);
+  }
 
   return {
     ok: true,
@@ -554,7 +567,7 @@ export async function loadParty() {
       status: row.status,
       reason: escortReason(row, escortAuthority(character, row, openTurn?.number ?? null)),
     })),
-    incoming: incoming.map((offer) => ({ id: offer.id, from: offer.initiator?.name ?? "Somebody" })),
+    incoming: incoming.map((offer) => ({ id: offer.id, from: askerNames.get(offer.initiatorId) ?? "Somebody" })),
   };
 }
 
@@ -1768,6 +1781,7 @@ export async function placeMembers(placeKey) {
       characterId: person.characterId,
       name: person.name,
       avatarVersion: person.avatarVersion,
+      avatarPath: person.avatarPath ?? null,
     }));
 
   // A key-holder is already in, by their key, and roomGuests() deliberately

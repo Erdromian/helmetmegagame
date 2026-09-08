@@ -53,7 +53,7 @@ import ExamineDialog from "./ExamineDialog";
 import QuantityField, { parseQuantity } from "./QuantityField";
 import { ENGRAVE_RESOURCE_COST } from "@/lib/constants";
 import { useConfirm } from "./ConfirmProvider";
-import { useTags } from "./TagsProvider";
+import { useRefresh } from "./useRefresh";
 import { heldSlugsOf } from "@/lib/consumeGrants";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import { CUSTOM_SURCHARGE, customCraftFields } from "@/lib/customCraft";
@@ -599,6 +599,7 @@ export default function RequestActionsProvider({
     (hideoutStock?.self?.obols ?? 0);
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
+  const [refresh] = useRefresh();
 
   const heldIds = useMemo(
     () => characterTags.map((ct) => ct.tagId),
@@ -763,10 +764,6 @@ export default function RequestActionsProvider({
     [lessonPeople, targetId],
   );
 
-  // Slug -> name for "Becomes:". A consumesIntoOneOf position isn't resolved
-  // via resolveConsumeGrants here (that rolls a real pick); rendered as
-  // "A or B" off the raw sidecar instead, so the preview stays honest.
-  const { tagsBySlug } = useTags();
   const heldSlugs = useMemo(() => heldSlugsOf(characterTags), [characterTags]);
 
   // Bird recipients filtered by typed text — dead stay in it; current pick kept.
@@ -777,17 +774,6 @@ export default function RequestActionsProvider({
       (t) => t.id === targetId || scoreMatch(q, { name: t.name }),
     );
   }, [birdTargets, birdQuery, targetId]);
-  const nameOf = (slug) => tagsBySlug.get(slug)?.name ?? slug;
-  const becomes = (chosen?.consumesInto ?? [])
-    .map((slug, i) => {
-      const blockers = chosen?.consumesIntoUnless?.[slug] ?? null;
-      if (blockers?.some((b) => heldSlugs.has(b))) return null;
-      const alternatives = chosen?.consumesIntoOneOf?.[i];
-      return Array.isArray(alternatives)
-        ? alternatives.map(nameOf).join(" or ")
-        : nameOf(slug);
-    })
-    .filter(Boolean);
 
   // An `anyOf` ingredient (Tag.requirementItems) is the one part of a recipe
   // the catalog cannot decide for the player: which delicacy goes into the
@@ -997,6 +983,15 @@ export default function RequestActionsProvider({
   const open = useCallback(
     (next, presetTagId = null, presets = null) => {
       setMode(next);
+      // Every roster in here — who is standing at your Location, who is Bound,
+      // what is lying in the rooms — was true when the page rendered, and
+      // CharacterPoller stands down while a dialog is open. So the world is
+      // re-read at the moment you ask to act on it, before you have picked
+      // anything: bind someone, wait for them to accept in Discord, open Loot,
+      // and they are there, with no reload in the middle. It costs one server
+      // render per dialog you open, which is what one poll tick costs, and it
+      // is a click you made rather than a timer.
+      refresh();
       setTagId(presetTagId);
       setQuantity("1");
       setProjectId("");
@@ -1049,7 +1044,7 @@ export default function RequestActionsProvider({
       if (presets?.fromKey) setFromKey(presets.fromKey);
       if (presets?.picks) setPicks(presets.picks);
     },
-    [selfId],
+    [selfId, refresh],
   );
 
   // Picking a sheet in the Write dialog fetches what is already on it, so the
@@ -1834,19 +1829,13 @@ export default function RequestActionsProvider({
                     ))}
                   </Select>
                 </label>
-                {/* A Depot crate says nothing here: what falls out of it is
-                    printed on the crate itself, and it grants runtime rows
-                    rather than the catalog slugs `becomes` reads — so the
-                    fallback line below would claim it leaves nothing behind,
-                    which is the one thing that is never true of a crate. */}
-                {chosen && !chosen.crateContents && (
+                {/* Nothing about what it leaves behind — that is the tag's
+                    own business, and the tooltip's Consume button is the
+                    one-click way in anyway. Only the count, which is a fact
+                    about the player's own pocket. */}
+                {chosen && chosen.quantity > 1 && (
                   <p className="text-xs text-muted">
-                    {becomes.length
-                      ? `Becomes: ${becomes.join(", ")}.`
-                      : "Gets used up — it doesn't leave anything behind."}
-                    {chosen.quantity > 1
-                      ? ` Takes one of your ${chosen.quantity}.`
-                      : ""}
+                    Takes one of your {chosen.quantity}.
                   </p>
                 )}
               </>

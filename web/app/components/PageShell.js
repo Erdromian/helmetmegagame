@@ -14,6 +14,11 @@ const WIDTHS = {
   narrow: "max-w-3xl", // forms and reading-width pages
   default: "max-w-5xl",
   wide: "max-w-6xl", // long GM tables
+  // No centring at all — for a page whose own layout is the width, the way
+  // /ledger's three columns are. The desk group owns its screen by skipping
+  // PageShell entirely; this is the same idea for a page that still wants
+  // the shell's padding and gap.
+  full: "max-w-none",
 };
 
 export default function PageShell({ width = "default", children }) {

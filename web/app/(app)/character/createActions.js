@@ -19,6 +19,8 @@ import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
 import { setMerchantSeal } from "@lifeweb/db/lib/merchantSeal";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
+import { seedMemories } from "@lifeweb/db/lib/locationVisits";
+import { startingMemorySlugs } from "@lifeweb/db/lib/startingMemories";
 import {
   isWanted,
   postWantedPosters,
@@ -34,10 +36,9 @@ import {
   syncCharacterNarrowcastAccess,
   getGuildMember,
   isCursed,
-  isApprovedPlayer,
   isLeaderWhitelisted,
   isGm,
-  isPlaytester,
+  onRoster,
   removeCursedRole,
 } from "@/lib/discordGuild";
 import {
@@ -57,6 +58,8 @@ import {
   conflictingTag,
   roleExcluded,
   CURSED_ROLE_SLUGS,
+  COMMONER_KIT_SLUGS,
+  DEFAULT_COMMONER_KIT_SLUG,
 } from "@/lib/characterCreation";
 
 import { reserveRole, releaseRole } from "@lifeweb/db/lib/roleReservation";
@@ -74,17 +77,16 @@ import {
 } from "@/lib/characterName";
 
 // When somebody may make a character at all (docs/systemdocs/LOBBY.md §1):
-// while the game runs or has ended, or — for a GM or a playtester — in any
-// phase, which is the lobby's Skip button.
+// while the game runs or has ended, or — for a GM — in any phase, which is the
+// lobby's Skip button.
+//
+// A playtester does NOT skip ahead here. The seat used to open the doors in any
+// phase the way a GM's does, which meant the one group most likely to be
+// testing the lobby never saw it. Their bypass is the roster check below, not
+// this one.
 function creationOpen(phase, member) {
   if (phase === "RUNNING" || phase === "ENDED") return true;
-  return isGm(member) || isPlaytester(member);
-}
-
-// On the list: the Player role, or the Playtest seat, which exists so a
-// contributor can test without being seated as a player or a GM.
-function onRoster(member) {
-  return isApprovedPlayer(member) || isPlaytester(member);
+  return isGm(member);
 }
 
 // Creates a character from the wizard's Confirm step. Everything posted is
@@ -168,7 +170,7 @@ export async function createCharacter(formData) {
   if (!bypass && !creationOpen(state?.phase, member)) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
-  if (!bypass && !onRoster(member)) {
+  if (!bypass && !onRoster(member, { playtestMode: config?.playtestModeEnabled === true })) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
 
@@ -334,6 +336,25 @@ export async function createCharacter(formData) {
     return { error: `That costs ${spent} points and you have ${budget}.` };
   }
 
+  // A Commoner who reached the end of the wizard without picking a trade
+  // starts a farmer. Left alone they would hold Laboring (Skilled) and no
+  // specialisation at all — able to labor, but at no location's coefficient,
+  // which is the one build in the game that cannot feed itself.
+  //
+  // It lands in startingTags rather than selected on purpose: everything above
+  // this line has already validated the cart, and the GM_GRANT loop below
+  // stamps the expiry and carries the slug into heldSlugs for the memories.
+  // The kit is 0 points, so the budget checked above is untouched either way,
+  // and the crate arrives unopened — the player still presses Consume, same as
+  // one they chose.
+  if (role.slug === "commoner") {
+    const kitHeld = [...selected, ...startingTags].some((t) => COMMONER_KIT_SLUGS.includes(t.slug));
+    if (!kitHeld) {
+      const kit = await prisma.tag.findUnique({ where: { slug: DEFAULT_COMMONER_KIT_SLUG } });
+      if (kit) startingTags.push(kit);
+    }
+  }
+
   // Union bought + granted tags, refunding nothing (already budget-checked).
   // A tag with a catalog duration must arrive already stamped — nothing
   // else backfills expiresTurn later.
@@ -463,6 +484,11 @@ export async function createCharacter(formData) {
       toLocationId: created.locationId,
     }).catch(() => {});
   }
+  // The map this seat wakes up with (db/lib/startingMemories.js). After the
+  // transaction, so travelOptions can read the tags it just granted, and after
+  // placement for no reason but reading order — both writes are upserts and
+  // neither can downgrade the other.
+  await seedMemories(prisma, created, startingMemorySlugs(role.slug, heldSlugs)).catch(() => {});
   await syncCharacterNickname(discordUserId, formatBareName({ firstName, lastName })).catch(() => {});
 
   // Somebody who arrives already Wanted has three posters go up in the same
@@ -562,7 +588,7 @@ export async function reserveRoleAction(roleId) {
   if (!bypass && !creationOpen(state?.phase, member)) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
-  if (!bypass && !onRoster(member)) {
+  if (!bypass && !onRoster(member, { playtestMode: config?.playtestModeEnabled === true })) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
   // Never pickable, config switch or not — a server action is a public

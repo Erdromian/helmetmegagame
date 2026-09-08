@@ -1,6 +1,8 @@
 // A character's displayed name is built from four parts rather than one
-// string: an honorific they earned, a required first name, a GM-granted title
-// that renders in quotes, and an optional last name.
+// string: an honorific, a required first name, a title that renders in
+// quotes, and an optional last name. The honorific is earned at creation and
+// the title is a GM's to grant — except through a Mulligan Potion, which
+// buys a player all four (docs/systemdocs/CHARACTERS.md §1b).
 //
 //   Sir Jorren "the Blind" Vask
 //

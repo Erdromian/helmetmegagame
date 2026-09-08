@@ -363,6 +363,14 @@ export async function wipeGameData(formData) {
       prisma.objective.deleteMany({}),
       // Rites in progress die with the game; the chants cascade off them.
       prisma.riteAttempt.deleteMany({}),
+      // The handshakes (LESSONS.md): Learn/Teach, Bind, Confession, Escort.
+      // Explicit, and it has to be — Offer names its two sides by plain id
+      // rather than by relation, so nothing cascades into it when the
+      // characters go, while Offer.turnId IS a required FK and defaults to
+      // Restrict. Miss it and turn.deleteMany below dies on the constraint,
+      // taking the whole transaction with it: the wipe reports failure and
+      // wipes nothing at all.
+      prisma.offer.deleteMany({}),
       prisma.character.deleteMany({}),
       prisma.playerThread.deleteMany({}),
       prisma.playerThreadInvite.deleteMany({}),

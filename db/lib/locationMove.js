@@ -27,6 +27,7 @@ const { sceneLineAt } = require("./scene");
 const { settleCarry, deliverCarryDrop } = require("./carry");
 const { parkMountsIndoors, parkedMessage, dismountForNarrowWay, dismountedMessage } = require("./indoors");
 const { applyArrivalFear } = require("./fear");
+const { recordArrival } = require("./locationVisits");
 const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW } = require("./zoneChannelSpec");
 const { linkBetween, endpoints, shouldPromptKeyed } = require("./locationGraph");
@@ -249,6 +250,21 @@ async function offerToHoldKeyed(prisma, character, fromLocationId, toLocation) {
 async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationId, toLocationId, dismounted }) {
   if (!characterId || !toLocationId) return;
   if (fromLocationId === toLocationId) return;
+
+  // The map remembers. This is here rather than in performLocationMove because
+  // this function is the one every writer of Character.locationId runs (§4
+  // below) — a GM teleport, a first placement, a rite and the turn's arrival
+  // pass all land here, and hooking the mover instead would leave each of them
+  // a hole in somebody's map. Before the Discord guard for the same reason
+  // parking a mount is: knowing where you have been is a database fact and
+  // must not depend on there being a token to talk to Discord with.
+  //
+  // Wrapped, because losing a node off a map must never wedge a move — and
+  // /map's own loader re-records the character's current location on every
+  // open, so a drop here heals itself the next time they look.
+  await recordArrival(prisma, { id: characterId }, toLocationId).catch((err) => {
+    console.error(`Move: recording the visit failed for ${characterId}:`, err.message ?? err);
+  });
 
   // Before the Discord guard below, because this one is a DB change and has to
   // happen whether or not there is a token to talk to Discord with. Also

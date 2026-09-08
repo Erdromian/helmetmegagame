@@ -111,9 +111,11 @@ the character's player off it, and a database row does not forget. ‡
 `postAsCharacterTo` is the only funnel a character's words reach a channel
 through — ordinary chat, whispers and the Speak modal all end up there — so the
 SPEAK gate (`TAGS.md` §5f) sits in it as the backstop, with the Speak modal
-also refusing early as a courtesy. Mute, Paralyzed, Unconscious and mid-Seizure
-are silent; **Bound is not**, because being tied up takes your hands and not
-your voice.
+also refusing early as a courtesy. Paralyzed, Unconscious and mid-Seizure are
+silent; **Bound is not**, because being tied up takes your hands and not your
+voice — and **Mute is not either**, for the mirror of that reason: it takes the
+carrying voice and leaves the ordinary one, so `/shout` is the only thing that
+refuses it (`TAGS.md` §5f).
 
 A silenced player is handled exactly like any other refusal: the original is
 deleted and `handBack` DMs them their words. That is the right answer here and
@@ -121,7 +123,7 @@ not merely a convenient one — the mask still has to hold for somebody who
 cannot talk, and they should not lose what they typed to find that out.
 
 **A refused message still writes the speaker's activity.** They were here; they
-tried. Without that, being Mute would quietly march somebody toward the
+tried. Without that, being silenced would quietly march somebody toward the
 auto-kill in `db/lib/catatonicDeathPass.js` for the crime of attempting to
 speak.
 
@@ -136,7 +138,7 @@ That mismatch was a live bug, not a hypothetical. `speaksBabble` reads
 returned false every time: **{tag:stupid} had never garbled ordinary channel
 chat**, only the Speak modal, which happened to take the old fallback query.
 The same round trip now answers both questions. Blocked beats garbled — a
-Stupid Mute is silent, not babbling.
+Stupid Paralytic is silent, not babbling.
 
 ### The one message replaced by the *bot* rather than a character
 

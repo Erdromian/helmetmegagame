@@ -13,7 +13,7 @@
 // with NO role — a Role is as identifying as a name — and never in the
 // concealed list, even if Character.concealed is still on underneath.
 const crypto = require("node:crypto");
-const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom } = require("./presentedIdentity");
+const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom, presentedIdentity } = require("./presentedIdentity");
 const { concealedAlias, withArticle } = require("./concealedIdentity");
 const { isUnaffiliated } = require("./factionConstants");
 
@@ -94,13 +94,24 @@ async function whosHere(prisma, viewer, { locationId, includeSelf = true } = {})
         // No title under a forced name, for the reason at the top.
         roleTitle: c.forced ? null : sameFaction ? c.roleTitle : null,
         avatarVersion: c.updatedAt?.getTime?.() ?? null,
+        // A forced name wears its letter plaque, never the face behind it —
+        // a Beast listed beside their own portrait would give the whole thing
+        // away. Null for everyone else, who look like themselves.
+        avatarPath: c.forced ? presentedIdentity(c, { forcedName: c.forced }).avatarPath : null,
         self: c.id === viewer?.id,
       };
     });
 
   const concealed = rows
     .filter((c) => c.hidden && !c.forced)
-    .map((c) => ({ alias: withArticle(concealedAlias(c).toLowerCase()), token: hoodToken(c.id) }));
+    .map((c) => ({
+      alias: withArticle(concealedAlias(c).toLowerCase()),
+      token: hoodToken(c.id),
+      // What is over the face, so the room sees the helm rather than a letter
+      // box. Identical for every wearer of the item, which is the point —
+      // the sprite says WHAT, never who (PROXYING.md §5).
+      avatarPath: presentedIdentity(c, { concealment: concealmentFrom(c.tags) }).avatarPath,
+    }));
 
   return { named, concealed };
 }

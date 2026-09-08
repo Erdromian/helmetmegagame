@@ -298,6 +298,7 @@ async function FreshPlay({ userId }) {
     id: person.characterId,
     name: person.name,
     updatedAt: person.avatarVersion,
+    avatarPath: person.avatarPath ?? null,
   }));
 
   const chat = {
@@ -309,6 +310,10 @@ async function FreshPlay({ userId }) {
       characterId: viewer.character?.id ?? null,
       name: identity.name,
       avatarVersion: viewer.character?.updatedAt?.getTime?.() ?? null,
+      // And the face, on the same gate db/lib/say.js#recordSpeech uses — a
+      // path only when the room is not seeing their own — so an optimistic row
+      // never wears a face the confirmed one will not.
+      avatarPath: identity.alias ? identity.avatarPath : null,
     },
     aside,
     // What the server will do to the words on their way in, so the row the

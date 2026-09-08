@@ -319,10 +319,9 @@ Both documented in full in `schema.prisma`'s `Tag` model comments and read by
   and order, for an even random pick between alternatives —
   `{ oneOf: [...] }` in `docs/tags.yaml`, the same shape `expiresInto`
   already used. `Skinned Cave Rat` is the first user: 50/50 Ate Meal or
-  Vomiting. The "Becomes:" previews on `/character` render an unresolved
-  `oneOf` position as "A or B" rather than rolling a real pick on every
-  render or hover — `resolveConsumeGrants` still exists for the server
-  action, which does commit to one.
+  Vomiting. Nothing is previewed on `/character` — a player clicks Consume in
+  the tag's tooltip and finds out — so `resolveConsumeGrants`, which commits
+  to one, runs only in the server action.
 
 ## 8. The Radio rename
 

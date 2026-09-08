@@ -337,6 +337,15 @@ model GameConfig {
   // (docs/systemdocs/LOBBY.md).
   leaderWhitelistEnabled Boolean @default(true)
 
+  // Closed-rehearsal switch (docs/systemdocs/LOBBY.md §2). The game runs its
+  // whole normal shape - phases, lobby, the roll, creation, turns - but the
+  // roster narrows from "holds the Player role" to the people building it: a
+  // GM, a playtester, or a Contributor. Needed because the bot hands the
+  // Player role to everyone who joins the guild, so that role cannot say who a
+  // playtest is for. Gates JOINING only: an existing character keeps playing.
+  // Read through web/lib/discordGuild.js#onRoster and nowhere else.
+  playtestModeEnabled Boolean @default(false)
+
   // How long an assigned seat stays locked to its player after Start Game
   // before the lobby sweep releases it (docs/systemdocs/LOBBY.md §4). The
   // assignment DM carries the deadline as a Discord timestamp; the reminder
@@ -1081,8 +1090,44 @@ model Location {
   actions      Action[]
   threatSpawns ThreatSpawn[]
   cavingRolls  CavingRoll[]
+  visits       LocationVisit[]
 
   @@index([zoneId])
+}
+
+/// What one character knows of the map — the fog behind /map.
+///
+/// There was no record of this anywhere before: AuditLog has no locationId,
+/// ArchiveEntry is keyed to a zone rather than a Location, and a free in-zone
+/// hop files no Action at all. So "where have I been" had to become a table.
+///
+/// Two grades, and the difference is the whole UI. `stood` means the character
+/// has actually been here. A row with `stood` false means they have only ever
+/// seen the place from next door — it draws hollow, and carries a name and a
+/// colour but no description.
+///
+/// NEITHER IS EVER UNLEARNED. Seen once, drawn forever: the map only grows, so
+/// walking away never takes a place back off it. db/lib/locationVisits.js is
+/// the only module that writes here, and its neighbour write is a createMany
+/// with skipDuplicates precisely so it cannot downgrade an existing stood row.
+///
+/// Per CHARACTER, not per player. A re-roll starts with a blank map rather
+/// than inheriting the dead character's.
+model LocationVisit {
+  id String @id @default(cuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  stood Boolean @default(false)
+
+  firstSeenAt DateTime @default(now())
+
+  @@unique([characterId, locationId])
+  @@index([characterId])
 }
 
 /// One edge of the travel graph, mastered by docs/zones.yaml's `connections:`.
@@ -1455,11 +1500,13 @@ model Character {
 
   // A displayed name is four parts, joined by
   // db/lib/characterName.js#formatCharacterName as
-  // `Sir Jorren "the Blind" Vask`. `honorific` is EARNED, not picked: a tag
-  // the character holds or the role they took grants the word, and `gender`
-  // below decides which form of it they wear (db/lib/titles.js). `title` is
-  // GM-only and renders in quotes — no player-facing form ever reads it,
-  // which is the whole lock. Most characters carry neither.
+  // `Sir Jorren "the Blind" Vask`. `honorific` is EARNED at
+  // creation: a tag the character holds or the role they took grants the
+  // word, and `gender` below decides which form of it they wear
+  // (db/lib/titles.js). `title` renders in quotes and is a GM's to grant.
+  // Most characters carry neither. The one exception to both is the Mulligan
+  // Potion, which lets a player type all four parts, prefix and quoted title
+  // included — one bottle, one name (docs/systemdocs/CHARACTERS.md §1b).
   honorific String?
   firstName String
   title     String?
@@ -1487,21 +1534,22 @@ model Character {
   // concatenate columns in orderBy or contains, so dropping it would force
   // search and sort into OR-over-three-columns for correctness nobody sees.
   //
-  // Exactly three writers keep it in sync, and every one of them goes
+  // Exactly four writers keep it in sync, and every one of them goes
   // through formatCharacterName:
   //   web/app/(app)/character/createActions.js      (creation)
   //   web/lib/characterWrite.js                     (GM raw edit, dev panel)
   //   web/lib/dynasty.js                            (the Baron renames his house)
-  // A fourth writer must do the same; `npm run db:backfill-name-parts` is the
+  //   web/app/(app)/character/requestActions.js     (a Mulligan Potion, drunk)
+  // A fifth writer must do the same; `npm run db:backfill-name-parts` is the
   // drift check that catches one that doesn't.
   //
-  // There is deliberately NO player-facing writer. A name is set once, in the
-  // creation wizard, and is immutable afterwards —
-  // web/app/(app)/character/actions.js used to be the fourth writer and now
-  // ignores the name keys entirely. The only sanctioned change is the Mulligan
-  // Potion (docs/tags.yaml), which a GM honours through the dev panel, i.e.
-  // through characterWrite.js — the one path that also plans the Discord
-  // fan-out (role title, role colour, nickname, dynasty propagation).
+  // The Bio form is NOT one of them. A name is set once in the creation
+  // wizard and is immutable afterwards — web/app/(app)/character/actions.js
+  // used to be a writer and now ignores the name keys entirely, which is the
+  // lock. The only player-facing change is the Mulligan Potion
+  // (docs/tags.yaml), drunk from the tag's own tooltip; that path plans the
+  // same Discord fan-out the others do (role title, nickname, dynasty
+  // propagation).
   name String
 
   // Display-only snapshot of the role's name at creation. `roleId` is the
@@ -1785,6 +1833,8 @@ model Character {
   craftProjects           CraftProject[]
   roomGuestOf             RoomGuest[]
   noticePosts             NoticePost[]             @relation("NoticePostAuthor")
+  // Every Location this character has stood in or seen from next door.
+  locationVisits          LocationVisit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3729,6 +3779,20 @@ model ArchiveEntry {
   // the panel renders "Young Man (Sir Alder)", so the alias is what was seen
   // and characterName is who it actually was.
   concealedAlias String?
+
+  // The FACE the room saw, frozen beside the name it heard. Only ever one of
+  // the static files under web/public/: a concealing item's own
+  // /assets/helms/<sprite>.webp, or a forced name's /assets/letters/<L>.webp.
+  //
+  // NULL means the character's own face, resolved live from /api/avatar/<id>.
+  // Never store that own-face URL here: it carries a ?v=<updatedAt>
+  // cache-buster, and freezing one would pin a portrait to whatever it was the
+  // day they spoke. Written only when presentedIdentity gave an alias
+  // (db/lib/say.js#recordSpeech).
+  //
+  // Frozen for the same reason concealedAlias is: a live lookup would unmask
+  // every line said behind a mask the moment it came off.
+  presentedAvatarPath String?
 
   content String
 

@@ -935,11 +935,15 @@ zones:
               You're a commoner. Make a living during the day, live your life at night.
             description:
               - >-
-                Commonry — the unlimitedness of knowing you are not being watched, because you are one of Many. You are free, in a way. You must feed yourself and pay your taxes, but what else? It is time to choose a path. Fulfill your Desires or become honest and authentic — choose a life, build it, and protect it.
+                There are many commoners, but each have their own lives, trades, and secrets.
               - >-
-                Naturally, you must work during the Dawn, but you are encouraged to experiment with what you do at Dusk.
+                Choose a Commoner Kit. You can be a farmer, a fisherman, a hunter, or ply your own trade. Fishermen start with a boat and hunters with bows, but farmers make by far the most production.
               - >-
-                You start skilled at Labor and nothing else, but buy the proper kit and you are a fisherman, a farmer or a hunter by Dawn. Press Examine in a Location to see what it yields before you spend the day there. Or find your own entirely unique trade to pioneer.
+                Different locations have different yields. The only place to farm in Ravenheart is in the Farms, a small location south of the town. To hunt, consider going to the Black Hills; to fish, go to the rivers around town or to the Marshes.
+              - >-
+                As a commoner, you have to pay taxes to the headman. Typically, the taxation rate leaves the farmers with almost no surplus.
+              - >-
+                If you fail to pay your taxes, you will likely face a brutal death. Even massed together, commoners are incapable of revolting against the Fortress. In any case, taxation is not the greatest threat: it is the evil that hides in the shadows of Ravenheart. Proper laboring supplies the Cerberon with the necessary resources to protect the lands.
             difficulty: easy
             multiple: true
             weight: unlimited

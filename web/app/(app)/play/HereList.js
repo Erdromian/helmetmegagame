@@ -239,6 +239,7 @@ export default function HereList({
                 characterId={person.characterId}
                 name={person.name}
                 version={person.avatarVersion}
+                src={person.avatarPath ?? undefined}
                 size={24}
               />
               {!strip && (
@@ -282,7 +283,7 @@ export default function HereList({
               aria-expanded={openId === `hooded-${index}`}
               onClick={() => setOpenId(openId === `hooded-${index}` ? null : `hooded-${index}`)}
             >
-              <CharacterAvatar characterId={null} name={person.alias} size={24} />
+              <CharacterAvatar characterId={null} name={person.alias} src={person.avatarPath ?? undefined} size={24} />
               {!strip && <span className="chat-person-name text-muted">{person.alias}</span>}
             </button>
             {!strip && (

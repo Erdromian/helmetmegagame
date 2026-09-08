@@ -49,12 +49,15 @@ export default function CharacterSheet({
   zoneMovesReason = null,
   travellingTo = null,
   examineBlocked = null,
-  // Six flags the page computes off your own sheet and the provider gates
+  // Eight flags the page computes off your own sheet and the provider gates
   // buttons on. They were passed here and dropped for a while, which is why
   // the Nuclear Datacard never showed its buttons: the provider's default
-  // `false` won, silently.
+  // `false` won, silently. Torture and Mutilate were dropped the same way,
+  // and had never once rendered until they were added to this list.
   canCrucify = false,
   canDisguise = false,
+  canTorture = false,
+  canMutilate = false,
   hasDatacard = false,
   hasDevice = false,
   // The THANATI section (docs/systemdocs/THANATI.md), resolved in
@@ -120,7 +123,10 @@ export default function CharacterSheet({
   // is standing here. Empty on someone else's sheet.
   corpses = [],
   canButcher = false,
-  hasMulligan = false,
+  // The Mulligan Potion this character is holding, if any, plus the name
+  // parts that seed its dialog — resolved in character/page.js so no slug
+  // matching reaches the browser. Null with no bottle held.
+  identity = null,
   canSeeExtract = false,
   canExtract = false,
   extractBlocked = null,
@@ -139,7 +145,6 @@ export default function CharacterSheet({
   // { name, tagName } while a held tag fixes the character's presented name
   // and face (Tag.forcedName); null otherwise. Self sheet only.
   forcedIdentity = null,
-  lastNameLocked = false,
   // The mid-game Store, folded into the Tags panel as a modal (see
   // TagsPanel.js / StorePanel.js). Absent on someone else's sheet.
   storeTags = null,
@@ -235,6 +240,8 @@ export default function CharacterSheet({
             examineBlocked={examineBlocked}
             canCrucify={canCrucify}
             canDisguise={canDisguise}
+            canTorture={canTorture}
+            canMutilate={canMutilate}
             hasDatacard={hasDatacard}
             hasDevice={hasDevice}
             isThanati={isThanati}
@@ -262,6 +269,7 @@ export default function CharacterSheet({
               <TagsPanel
                 characterTags={character.tags}
                 isSelf={isSelf}
+                identity={identity}
                 tagPoints={character.tagPoints}
                 currentTurn={openTurn?.number ?? null}
                 equipSlots={equipSlots}
@@ -294,8 +302,6 @@ export default function CharacterSheet({
               <h2 className="panel-header">Bio</h2>
               <BioForm
                 character={character}
-                lastNameLocked={lastNameLocked}
-                hasMulligan={hasMulligan}
                 avatarUploadsEnabled={avatarUploadsEnabled}
                 playPanelEnabled={playPanelEnabled}
                 portraitMakerEnabled={portraitMakerEnabled}

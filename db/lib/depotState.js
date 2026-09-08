@@ -25,10 +25,15 @@ const SALTPETER_SLUG = "saltpeter";
 // The currency.
 const OBOL_SLUG = "obol";
 
-// The room the shuttle lands in. A PRIVATE thread gated on the keycard, so
-// membership is handled entirely by db/lib/roomAccess.js and the channel
-// doctor — there is no bespoke access code anywhere in this feature.
-const LANDING_PAD_SLUG = "landing-pad";
+// The room the shuttle lands in. Room access is handled entirely by
+// Room.accessTagSlugs and the channel doctor — there is no bespoke access code
+// anywhere in this feature, and the pad currently carries no access list at
+// all. The `customs-` stem is not decoration: when Customs and the Depot
+// merged into one Location every room took the Location's short name as a
+// prefix, and this constant kept the old bare slug for a while, which made
+// every shuttle action report a missing room as "a GM needs to run the zone
+// sync".
+const LANDING_PAD_SLUG = "customs-landing-pad";
 
 // Nothing at the Depot works with the generator off: no ordering, no shuttle,
 // no ATM, no turret. One predicate so the web actions, the turn passes and the

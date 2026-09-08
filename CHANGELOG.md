@@ -6,6 +6,73 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · Nobody wakes up blind, and no commoner wakes up without a trade
+
+✚ Every seat now starts remembering the places its life would have taught it: the home cluster, plus the road that trade actually walks. A Headman opens the map already seeing the Farms he taxes; a Banneret sees every step of the run up to town  
+✚ A Commoner who picks no kit now starts a farmer, instead of being able to labor but at nothing in particular  
+✎ The Commoner's description is rewritten: the kits, where each trade actually pays, and what the Headman takes
+
+## 2026-09-08 · Mute stops you shouting, not talking
+
+
+## 2026-09-08 · Pruning a zone takes its channels down with it
+
+− A retired zone no longer leaves its location channels standing in Discord
+
+## 2026-09-08 · The shuttle stops asking for a zone sync
+
+− The landing pad is found again, so calling and sending the shuttle works
+
+## 2026-09-08 · A mask hides your face on the web, not just your name
+
+✎ Wearing something over your face now changes the portrait beside your words on the web, the way it already did on Discord — a hood, a helm or a mask shows itself instead of you  
+✎ Everyone in the same mask looks identical, on purpose: the picture says what is over the face, never who is behind it  
+✎ A character under a forced name wears that name's plaque instead of their own face too  
+✎ The face is recorded with each line as it is said, so taking a mask off never uncovers what you said while wearing it
+
+## 2026-09-08 · Give the character sheet its Torture and Mutilate buttons back
+
+✎ Torture and Mutilate never appeared on anyone's sheet. Both pages worked out who was allowed to press them and then threw the answer away before the buttons could read it, so they were always hidden — on the Ledger too.
+
+## 2026-09-08 · The Assign button on the Antagonists desk actually assigns
+
+✎ Pressing Assign on a threat seat did nothing at all — no confirm, no error, and the button then sat dead until the page was reloaded. No seat has ever been handed out that way. It asks and assigns now.  
+✎ The party rack on the play page loads again for anyone with a pending "come along with me" ask, instead of failing outright
+
+## 2026-09-08 · Give the Ledger's actions their names back
+
+✎ On the Ledger, every action is a labelled button now — the glyph and the word, big enough to read without hovering  
+✎ Its sections stand side by side in columns with a rule between them instead of stacking, which is what all that width is for  
+✎ The narrow rack on the Character page is untouched
+
+## 2026-09-08 · Open the Ledger to everyone, and let it fill the screen
+
+✚ The Ledger is on every player's rail now, not just a superadmin's — it is there to be looked at  
+✎ It takes the whole width instead of sitting in a narrow centred column  
+✎ The Conceal switch lost its full stop, and the crafting panel says "Nothing in progress" when there is none
+
+## 2026-09-08 · A second character sheet on /ledger, for superadmins only
+
+✚ A new Ledger page: the same character, laid out as a banner of numbers over three columns — bio, everything you do, and your tags spread down a rail  
+✚ Free moves, Resources, Carrying and the Gambit die now read as four tiles at the top of it, over the Move you filed this turn  
+✎ Tag cards no longer split "Items" from "items" — one card per category, however the catalog spells it
+
+## 2026-09-08 · Fix Restart Game failing on the lesson handshakes
+
+− - it cascades from Character, which goes first.
+
+## 2026-09-08 · Add a playtest-only switch for who may join
+
+
+## 2026-09-08 · Stock the caves with thirteen more things to find
+
+✚ Five new items: Rock, Rope, Purring Maggot, Maggot Milk and the Mining Helmet  
+✚ Thirteen more entries on the caving loot table, from a rock at ultracommon to a Fragmentation Grenade and a Neoclassic Duelista at the top  
+✚ Rocks are simply lying around in thirteen rooms across the Caves, the Depths, the Black Hills, the Mountain and the Headwaters, so the ground is a source and the die is a bonus  
+✚ A Purring Maggot poisons you raw, but anyone with Brewing can squeeze one into a cup of Maggot Milk for 1 resource: it steadies the nerves exactly as much as tea does, and counts as a proper meal  
+✚ The Merchant now sells the Mining Helmet at 14 resources and buys a Fragmentation Grenade off you for 24  
+✚ Rope is craftable with no forge, for 4 resources
+
 ## 2026-09-08 · Put three rooms on the mountain pass
 
 ✚ The Mountain has a Hanging Steps, a Summit worth searching, and a warm Garden under the ice that only a caver finds  

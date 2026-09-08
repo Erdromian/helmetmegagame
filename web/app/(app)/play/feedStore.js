@@ -138,6 +138,12 @@ export function applyRow(place, row) {
     // the face's URL, and the copy that arrives is not always carrying the
     // same one as the copy already on screen (see feedHub.js#avatarVersionFor
     // for why) — a row already drawn keeps the URL it was drawn with.
+    //
+    // avatarPath deliberately is NOT. It is not a cache-buster but the face
+    // itself, frozen on the row by the server, and the spread below lets the
+    // confirmed value (null included) replace whatever the optimistic row
+    // guessed. The two agree in every ordinary case, and where they don't the
+    // server is right.
     const carried = twin ?? existing ?? null;
     const clientId = row.clientId ?? carried?.clientId ?? null;
     const stored = {

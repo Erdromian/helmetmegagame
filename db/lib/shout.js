@@ -109,14 +109,15 @@ async function shout(prisma, character, text) {
   if (!character?.id) return { ok: false, error: "You don't have a living character. ‡" };
   if (!character.locationId) return { ok: false, error: "You're nowhere." };
 
-  // SPEAK, not ACT — and that distinction is the whole point of this gate.
-  // {tag:bound} blocks acting but never speech, so a hostage can still yell
-  // for help, which is the one thing being tied up ought to leave you.
-  // Checked BEFORE the cooldown is claimed below: a refused shout must not
-  // burn the throat timer.
+  // SHOUT, not ACT and not SPEAK — and those distinctions are the whole point
+  // of this gate. {tag:bound} blocks acting but never the voice, so a hostage
+  // can still yell for help, which is the one thing being tied up ought to
+  // leave you; {tag:mute} is the mirror of that, talking normally and refused
+  // only here. Checked BEFORE the cooldown is claimed below: a refused shout
+  // must not burn the throat timer.
   const voice = await loadVoiceState(prisma, character.id);
-  if (voice.block) {
-    return { ok: false, error: `You can't get the words out — you're ${voice.block.name}. ‡` };
+  if (voice.shoutBlock) {
+    return { ok: false, error: `You can't get the words out — you're ${voice.shoutBlock.name}. ‡` };
   }
 
   const last = await prisma.auditLog

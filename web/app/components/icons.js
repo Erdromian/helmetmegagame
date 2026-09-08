@@ -19,6 +19,7 @@ import {
   Scale,
   MessageSquare,
   CodeXml,
+  BookUser,
   FileText,
   CircleHelp,
   Star,
@@ -84,6 +85,7 @@ export const FactionIcon = lucide(ShieldCheck, "FactionIcon");
 export const ScaleIcon = lucide(Scale, "ScaleIcon");
 export const MessageIcon = lucide(MessageSquare, "MessageIcon");
 export const DevIcon = lucide(CodeXml, "DevIcon");
+export const LedgerIcon = lucide(BookUser, "LedgerIcon");
 export const DocumentsIcon = lucide(FileText, "DocumentsIcon");
 // The Handbook rail tab.
 export const HelpIcon = lucide(CircleHelp, "HelpIcon");

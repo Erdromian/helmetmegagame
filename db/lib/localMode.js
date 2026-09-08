@@ -35,6 +35,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const {
   PLAYER_ROLE_ID,
+  CONTRIBUTOR_ROLE_ID,
   LEADER_WHITELIST_ROLE_ID,
   PLAYTEST_ROLE_ID,
   TRIAL_GM_ROLE_ID,
@@ -50,7 +51,7 @@ function isLocalMode() {
 // env var needed — it's a hardcoded id, not the env-configured one. Cursed and
 // Spectator are deliberately absent: those are personas, not access, and
 // nothing about "developing locally" should imply either one.
-const LOCAL_ROLES = [TRIAL_GM_ROLE_ID, PLAYTEST_ROLE_ID, PLAYER_ROLE_ID, LEADER_WHITELIST_ROLE_ID];
+const LOCAL_ROLES = [TRIAL_GM_ROLE_ID, PLAYTEST_ROLE_ID, CONTRIBUTOR_ROLE_ID, PLAYER_ROLE_ID, LEADER_WHITELIST_ROLE_ID];
 
 // Only a recognized superadmin id fakes the full GM/Playtest/Leader-Whitelist
 // bundle. Anything else — a seeded character's discordUserId, a "Start as a

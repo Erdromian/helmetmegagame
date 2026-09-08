@@ -1,208 +1,72 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { earnedTitles, NAME_LIMITS, AGE_MIN, AGE_MAX, GENDER_LABELS } from "@/lib/characterName";
-import { randomCharacterName } from "@/lib/nameCorpus";
+import { AGE_MIN, AGE_MAX, GENDER_LABELS } from "@/lib/characterName";
 import InfoIcon from "./InfoIcon";
-import RequestDialog from "./RequestDialog";
-import Select from "./Select";
-import { changeNameRequest } from "../(app)/character/requestActions";
 
 // The name half of the Bio form on /character. The four fields here are
 // READ-ONLY server-rendered inputs — a name is set in the creation wizard
 // and `updateCharacterProfile` ignores the name keys outright regardless of
 // what this form posts, which (not the greying) is the actual lock. See
 // docs/systemdocs/CHARACTERS.md §1b. The one way a name changes after that is
-// the "Change name" button below, which drinks a Mulligan Potion. The greying
-// here is a hint; changeNameRequestImpl re-checks the potion server-side. No per-field InfoIcon: CharacterSheet.js already puts one
+// drinking a Mulligan Potion, and that is clicked on the bottle itself over in
+// TagsPanel — this card only ever shows the result. No per-field InfoIcon: CharacterSheet.js already puts one
 // summary tooltip on the "Bio" heading; `title` keeps its own since it explains
 // a different thing (how to get one, not why it's locked).
 
-export default function BioNameFields({ character, lastNameLocked = false, hasMulligan = false }) {
-  const [open, setOpen] = useState(false);
-  const [honorific, setHonorific] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [error, setError] = useState(null);
-  const [pending, startTransition] = useTransition();
-
-  // The titles this character has earned, from what they hold and the role
-  // they took. changeNameRequest re-checks exactly this server-side, so the
-  // list and the gate cannot disagree.
-  //
-  // A title they wear but no longer qualify for is deliberately NOT re-added:
-  // losing the tag leaves the word on the sheet, but claiming it again is not
-  // on offer, so a name change is a one-way door out of a title you can no
-  // longer justify. A GM can put it back from the dev panel.
-  const earned = useMemo(
-    () =>
-      earnedTitles({
-        tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
-        roleSlug: character.role?.slug ?? null,
-        // Fixed at creation, so this never moves under the player — it just
-        // decides whether they are offered Lord, Lady or Noble.
-        gender: character.gender,
-      }),
-    [character.tags, character.role, character.gender],
-  );
-
-  function openDialog() {
-    // Seeded blank when the worn title is no longer earned — it isn't in the
-    // list, so leaving it selected would show an empty control with a value
-    // behind it that the server would reject anyway.
-    setHonorific(earned.includes(character.honorific) ? character.honorific : "");
-    setFirstName(character.firstName ?? "");
-    setLastName(character.lastName ?? "");
-    setError(null);
-    setOpen(true);
-  }
-
-  // Same rule as the creation wizard: the character's own gender picks the
-  // name pool, and a dynasty surname is left alone rather than rolled and
-  // discarded.
-  function rollName() {
-    const rolled = randomCharacterName({ gender: character.gender, lastNameLocked });
-    setFirstName(rolled.firstName);
-    if (!lastNameLocked) setLastName(rolled.lastName ?? "");
-  }
-
-  function submit() {
-    setError(null);
-    startTransition(async () => {
-      const res = await changeNameRequest({ honorific, firstName, lastName });
-      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
-      setOpen(false);
-    });
-  }
-
+export default function BioNameFields({ character }) {
   return (
-    <>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="field">
-          <span className="field-label">Prefix</span>
-          <input defaultValue={character.honorific ?? ""} placeholder="(none)" disabled />
-        </label>
-        <label className="field">
-          <span className="field-label">First name</span>
-          <input defaultValue={character.firstName ?? ""} disabled />
-        </label>
-        <label className="field">
-          <span className="field-label">Last name</span>
-          <input
-            defaultValue={character.lastName ?? ""}
-            placeholder="No last name"
-            disabled
-          />
-        </label>
-        {/* Chosen at creation and fixed for good — unlike age there is no
-            unset state, so updateCharacterProfile simply never reads the
-            key. Shown so a player can confirm what they picked; it is not
-            published anywhere else, and never appears on 🔍 examine. */}
-        <label className="field">
-          <span className="field-label">Gender</span>
-          <input defaultValue={GENDER_LABELS[character.gender] ?? ""} disabled />
-        </label>
-        {/* Free to set once, then fixed — same treatment as the
-            GM-granted title below. The disabled input submits nothing,
-            and updateCharacterProfile refuses to overwrite a non-null
-            age regardless, which is the actual lock. */}
-        <label className="field">
-          <span className="field-label">Age</span>
-          <input
-            type="number"
-            name="age"
-            min={AGE_MIN}
-            max={AGE_MAX}
-            defaultValue={character.age ?? ""}
-            placeholder={`${AGE_MIN}–${AGE_MAX}`}
-            disabled={character.age !== null}
-          />
-        </label>
-        {/* Granted by a GM, so it is shown but not editable. Being
-            `disabled` it submits nothing, and updateCharacterProfile
-            never reads it — that, not the greying, is the lock. */}
-        <label className="field">
-          <span className="field-label flex items-center gap-1.5">
-            Title
-            <InfoIcon text="Rendered in quotes between your first and last name." />
-          </span>
-          <input defaultValue={character.title ?? ""} placeholder="None granted" disabled />
-        </label>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-1.5">
-        <button
-          type="button"
-          className="btn-quiet"
-          onClick={openDialog}
-          disabled={!hasMulligan}
-        >
-          Change name
-        </button>
-        {/* Nothing is said when there is no potion — the button is already
-            greyed, and the sentence explaining how to get one was noise on a
-            card nobody comes to for shopping. */}
-        {hasMulligan && <span className="text-xs text-muted">Drinks a Mulligan Potion.</span>}
-      </div>
-
-      <RequestDialog
-        open={open}
-        title="Change Name"
-        submitLabel="Change name"
-        busy={pending}
-        error={error}
-        canSubmit={Boolean(firstName.trim())}
-        onCancel={() => !pending && setOpen(false)}
-        onConfirm={submit}
-      >
-        <label className="field">
-          <span className="field-label flex items-center gap-1.5">
-            Prefix
-            <InfoIcon text="Titles are earned. Your role and the tags you hold decide which ones you may be styled by." />
-          </span>
-          <Select
-            value={honorific}
-            onChange={(e) => setHonorific(e.target.value)}
-            disabled={earned.length === 0}
-          >
-            <option value="">(none)</option>
-            {earned.map((h) => (
-              <option key={h} value={h}>
-                {h}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="field">
-          <span className="field-label">First name</span>
-          <input
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-            maxLength={NAME_LIMITS.firstName}
-            required
-          />
-        </label>
-        <label className="field">
-          <span className="field-label flex items-center gap-1.5">
-            {lastNameLocked ? "Last name" : "Last name (optional)"}
-            {lastNameLocked && (
-              <InfoIcon text="Your dynasty's name, chosen by the Baron. It updates on its own when he takes or changes it." />
-            )}
-          </span>
-          <input
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-            maxLength={NAME_LIMITS.lastName}
-            placeholder={lastNameLocked ? "No dynasty name yet" : undefined}
-            disabled={lastNameLocked}
-          />
-        </label>
-        <div className="flex items-center justify-end gap-3">
-          <button type="button" className="btn-secondary" onClick={rollName}>
-            Randomize name
-          </button>
-        </div>
-      </RequestDialog>
-    </>
+    <div className="grid gap-3 sm:grid-cols-2">
+      <label className="field">
+        <span className="field-label">Prefix</span>
+        <input defaultValue={character.honorific ?? ""} placeholder="(none)" disabled />
+      </label>
+      <label className="field">
+        <span className="field-label">First name</span>
+        <input defaultValue={character.firstName ?? ""} disabled />
+      </label>
+      <label className="field">
+        <span className="field-label">Last name</span>
+        <input
+          defaultValue={character.lastName ?? ""}
+          placeholder="No last name"
+          disabled
+        />
+      </label>
+      {/* Chosen at creation and fixed for good — unlike age there is no
+          unset state, so updateCharacterProfile simply never reads the
+          key. Shown so a player can confirm what they picked; it is not
+          published anywhere else, and never appears on 🔍 examine. */}
+      <label className="field">
+        <span className="field-label">Gender</span>
+        <input defaultValue={GENDER_LABELS[character.gender] ?? ""} disabled />
+      </label>
+      {/* Free to set once, then fixed — unlike the title below, which a
+          Mulligan Potion rewrites. The disabled input submits nothing,
+          and updateCharacterProfile refuses to overwrite a non-null
+          age regardless, which is the actual lock. */}
+      <label className="field">
+        <span className="field-label">Age</span>
+        <input
+          type="number"
+          name="age"
+          min={AGE_MIN}
+          max={AGE_MAX}
+          defaultValue={character.age ?? ""}
+          placeholder={`${AGE_MIN}–${AGE_MAX}`}
+          disabled={character.age !== null}
+        />
+      </label>
+      {/* Granted by a GM or written by the player with a Mulligan Potion,
+          neither of which is this form. Being `disabled` it submits nothing,
+          and updateCharacterProfile never reads it — that, not the greying,
+          is the lock. */}
+      <label className="field">
+        <span className="field-label flex items-center gap-1.5">
+          Title
+          <InfoIcon text="Rendered in quotes between your first and last name." />
+        </span>
+        <input defaultValue={character.title ?? ""} placeholder="None granted" disabled />
+      </label>
+    </div>
   );
 }

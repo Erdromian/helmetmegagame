@@ -34,7 +34,13 @@ const MentionMenu = memo(function MentionMenu({ matches, active, onPick }) {
             onPick(person);
           }}
         >
-          <CharacterAvatar characterId={person.id} name={person.name} version={person.updatedAt} size={16} />
+          <CharacterAvatar
+          characterId={person.id}
+          name={person.name}
+          version={person.updatedAt}
+          src={person.avatarPath ?? undefined}
+          size={16}
+        />
           <span className="truncate">{person.name}</span>
         </button>
       ))}

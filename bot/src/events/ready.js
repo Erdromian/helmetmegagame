@@ -19,6 +19,39 @@ const { getGameState } = require("@lifeweb/db/lib/gameState");
 const { startDeathSmell } = require("../lib/deathSmell");
 const { registerCommands } = require("../lib/commands");
 
+// Vars this process reads behind a truthiness guard — `if (process.env.X)`,
+// `?? null`, `.filter(Boolean)`. A missing one is not an error, it is a
+// feature that is off with nothing in the log to say so, which is how
+// DISCORD_CURSED_ROLE_ID sat unset on the bot (and set on web) through a whole
+// playtest while every rite and turn-clock death skipped the Cursed role.
+//
+// DATABASE_URL and DISCORD_TOKEN are deliberately absent: without either, this
+// line is never reached at all.
+const REQUIRED_ENV = [
+  ["DISCORD_GUILD_ID", "every REST call"],
+  ["DISCORD_CLIENT_ID", "the doctor's check that no zone role outranks the bot"],
+  ["DISCORD_GM_ROLE_ID", "the standing GM seat — the gate narrows to Trial GMs"],
+  ["DISCORD_CURSED_ROLE_ID", "the Cursed role on a rite or turn-clock death, and the ghost seat"],
+  ["DISCORD_TURN_PING_ROLE_ID", "the turn ping"],
+  ["WEB_BASE_URL", "every link the bot writes into a DM"],
+  ["AUTH_SECRET", "the hood tokens behind Who's here?"],
+  ["VAPID_PUBLIC_KEY", "web push from the bot"],
+  ["VAPID_PRIVATE_KEY", "web push from the bot"],
+  ["VAPID_SUBJECT", "web push from the bot"],
+];
+
+// Printed, never thrown: guard() in bot/src/index.js would abort the whole
+// ready chain — doctor, nickname sync, cron registration — over a missing
+// turn-ping role.
+function reportMissingEnv() {
+  const missing = REQUIRED_ENV.filter(([name]) => !process.env[name]);
+  if (missing.length === 0) return;
+  console.error(
+    `Missing env on the bot — these are silently OFF:\n` +
+      missing.map(([name, what]) => `  ${name} — ${what}`).join("\n"),
+  );
+}
+
 module.exports = {
   name: "ready",
   once: true,
@@ -31,6 +64,8 @@ module.exports = {
     // The whole point of the health line below is to report what the LAST
     // process left behind.
     await loadBreakerState();
+
+    reportMissingEnv();
 
     // discord.js runs its own REST manager, so everything the gateway client
     // does — the ~130 nickname syncs below, every channel permission edit,

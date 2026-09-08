@@ -70,6 +70,7 @@ export async function GET(request) {
            ae."characterId",
            ae."characterName",
            ae."concealedAlias",
+           ae."presentedAvatarPath",
            ae."content",
            ae."sentAt",
            ae."source",

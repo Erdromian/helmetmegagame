@@ -156,23 +156,38 @@ function Row({ row, threats, onSpawn, onMessage }) {
 
   const assignable = threats.filter((t) => t.assignable);
 
-  function assign() {
+  // The confirm is awaited OUTSIDE the transition, which is not a style
+  // preference. Inside one, the state update that opens the dialog is itself
+  // transition-scoped, and React holds the transition open until the async
+  // action returns — so the dialog never rendered, the promise it resolves on
+  // never settled, and the button sat disabled forever. Pressing Assign did
+  // nothing at all, silently, and no seat was ever handed out this way. Every
+  // other useConfirm caller in the app already asks first and then transitions.
+  async function assign() {
     const threat = assignable.find((t) => t.slug === slug);
     if (!threat) return;
+    const ok = await confirm({
+      title: `Make ${row.characterName} the ${threat.name}?`,
+      message: `They get the seat's tags and ${threat.tagPoints} tag points, and a DM telling them so. ‡`,
+      confirmLabel: "Assign",
+    });
+    if (!ok) return;
+
     setError(null);
     startTransition(async () => {
-      const ok = await confirm({
-        title: `Make ${row.characterName} the ${threat.name}?`,
-        message: `They get the seat's tags and ${threat.tagPoints} tag points, and a DM telling them so. ‡`,
-        confirmLabel: "Assign",
-      });
-      if (!ok) return;
-      const res = await assignThreat({ characterId: row.characterId, threatSlug: slug });
-      if (!res?.ok) {
-        setError(res?.error ?? "Something went wrong.");
-        return;
+      // A rejected action has no error.js to land on here either, so a
+      // transport failure would go the same silent way — same guard
+      // EndTurnButton keeps for the same reason.
+      try {
+        const res = await assignThreat({ characterId: row.characterId, threatSlug: slug });
+        if (!res?.ok) {
+          setError(res?.error ?? "Something went wrong.");
+          return;
+        }
+        setSlug("");
+      } catch {
+        setError("Could not reach the server. Nothing was changed. ‡");
       }
-      setSlug("");
     });
   }
 

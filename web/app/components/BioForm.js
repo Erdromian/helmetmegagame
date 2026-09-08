@@ -23,8 +23,6 @@ import { updateCharacterProfile } from "../(app)/character/actions";
 
 export default function BioForm({
   character,
-  lastNameLocked,
-  hasMulligan = false,
   avatarUploadsEnabled,
   playPanelEnabled = true,
   portraitMakerEnabled,
@@ -38,7 +36,7 @@ export default function BioForm({
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
-      <BioNameFields character={character} lastNameLocked={lastNameLocked} hasMulligan={hasMulligan} />
+      <BioNameFields character={character} />
       <AvatarField
         defaultTurnPingOptIn={character.turnPingOptIn}
         defaultWebOnly={character.webOnly}
