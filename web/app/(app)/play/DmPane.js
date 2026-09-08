@@ -29,7 +29,9 @@ const MATCH_WINDOW_MS = 30_000;
 
 let optimisticSeq = 0;
 
-export const DM_PLACE_KEY = "gm";
+// Re-exported so every existing `from "./DmPane"` importer is unchanged.
+import { DM_PLACE_KEY } from "@/lib/dmSources";
+export { DM_PLACE_KEY };
 
 export default function DmPane({ self }) {
   const dm = useDmState();

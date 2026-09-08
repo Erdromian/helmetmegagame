@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · A dead character keeps Bascinet's messages, and the desk stops throwing
+
+✚ A player whose character has died can still read and answer Bascinet on /play. The messages column used to vanish with the body, which left a web-only player no way to read a DM at all  
+✎ The GM players desk was failing on every load — two things it used were never imported  
+− Spawning a threat no longer offers roles that are seats of their own as a cover role  
+✎ Assign now says so when it works, and says so when the seat lands but the DM does not  
+✎ A push refuses to ship code importing a file git does not have, which is what left the site on a stale build for 25 minutes today
+
 ## 2026-09-08 · Tying someone up takes the carry out of their voice
 
 ✚ A bound character's shout no longer carries. The people standing with them still hear it — someone who can see you tied up can obviously hear you — but it stops there, and every copy of it says ", but it's muffled."  

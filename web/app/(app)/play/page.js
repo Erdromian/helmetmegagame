@@ -20,6 +20,7 @@ import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import { waitingOnYou, myMove } from "./actions";
 import { loadDesireView, loadLettersView, loadFactionView } from "@/lib/selfPools";
 import { withoutDmNoise } from "@/lib/dmThread";
+import { DM_PLACE_KEY } from "@/lib/dmSources";
 import { thingGroups } from "./thingRows";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
@@ -74,8 +75,29 @@ async function FreshPlay({ userId }) {
   const gameConfig = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   if (gameConfig && !gameConfig.playPanelEnabled) redirect("/character");
 
+  // No living character, and not a GM: they still get Bascinet's column. The
+  // DM thread is the account's, not the body's (./actions.js#gmThread), and
+  // for a web-only player it is the ONLY place a seat offer or any other bot
+  // message can be read at all — Discord is not an option they have. This used
+  // to return `empty` and draw a dead page.
   if (!viewer.character && !viewer.gm) {
-    return <SnapshotFresh scope="play" userId={userId} data={{ kind: "empty" }} />;
+    return (
+      <SnapshotFresh
+        scope="play"
+        userId={userId}
+        data={{
+          kind: "dm",
+          chat: {
+            initialPlaces: [],
+            initialPlace: DM_PLACE_KEY,
+            initialRows: [],
+            initialSeq: "0",
+            self: { characterId: null, discordUserId: viewer.discordUserId, name: null, speakerKey: null },
+            aside: null,
+          },
+        }}
+      />
+    );
   }
 
   const places = await placesFor(prisma, viewer.character, viewer.options);
@@ -315,6 +337,9 @@ async function FreshPlay({ userId }) {
     initialSeq: watermark._max.seq === null ? "0" : String(watermark._max.seq),
     self: {
       characterId: viewer.character?.id ?? null,
+      // What the Bascinet row in the places column is gated on — the account,
+      // not the character (./Chat.js).
+      discordUserId: viewer.discordUserId,
       name: identity.name,
       avatarVersion: viewer.character?.updatedAt?.getTime?.() ?? null,
       // And the face, on the same gate db/lib/say.js#recordSpeech uses — a

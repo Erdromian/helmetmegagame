@@ -128,7 +128,12 @@ export default function Chat({
   // §2b). Its "newest seq" is epoch ms — seenStore compares BigInt strings,
   // and epoch ms is one — so the dot works without seenStore knowing.
   const dmState = useDmState();
-  const dmKey = self?.characterId ? DM_PLACE_KEY : null;
+  // Gated on the ACCOUNT, not on a living character. The DM thread belongs to
+  // the person, not the body — ./actions.js#gmThread says so and checks the
+  // session alone — and a player whose character has died is exactly who most
+  // needs to read what Bascinet said. This used to read self.characterId, so a
+  // web-only player lost the whole conversation the moment they died.
+  const dmKey = self?.discordUserId ? DM_PLACE_KEY : null;
   const dmNewest = dmState.newestOutboundMs === null ? null : String(dmState.newestOutboundMs);
   const navPlaces = useMemo(() => {
     const out = [];
@@ -566,7 +571,9 @@ export default function Chat({
       ? { placeKey: selected.placeKey, name: selected.name }
       : null;
 
-  if (places.length === 0) {
+  // Nowhere to stand is only a dead end if there is also nothing to read. A
+  // dead character still has Bascinet's column.
+  if (places.length === 0 && !dmKey) {
     return (
       <div className="chat-body chat-body--empty">
         <div className="panel">

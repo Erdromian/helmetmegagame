@@ -460,6 +460,12 @@ export default async function DevPanelPage({ searchParams }) {
         by: ["roleId", "status"],
         _count: { _all: true },
       });
+      // Spawn-only roles stay IN this list but are flagged rather than
+      // dropped: a seat that pins its own role (the Tribunal's two) looks
+      // itself up here by slug, so filtering them out would leave the dialog
+      // unable to name the role it is pinned to. The dialog hides the flagged
+      // ones from the cover-role dropdown instead — a Thanati handed the
+      // Tribunal Ordinator as cover was DMed its nuclear briefing.
       spawnRoles = roles.map((role) => {
         const holders = seatHolderStatuses(role);
         const used = taken
@@ -470,6 +476,7 @@ export default async function DevPanelPage({ searchParams }) {
           id: role.id,
           slug: role.slug,
           name: role.name,
+          spawnOnly: isSpawnOnly(role),
           startingLocationId: role.startingLocationId,
           seatsLeft: cap === Infinity ? "\u221e" : Math.max(0, cap - used),
         };
