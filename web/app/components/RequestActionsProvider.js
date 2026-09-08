@@ -53,6 +53,7 @@ import ExamineDialog from "./ExamineDialog";
 import QuantityField, { parseQuantity } from "./QuantityField";
 import { ENGRAVE_RESOURCE_COST } from "@/lib/constants";
 import { useConfirm } from "./ConfirmProvider";
+import { useRefresh } from "./useRefresh";
 import { heldSlugsOf } from "@/lib/consumeGrants";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import { CUSTOM_SURCHARGE, customCraftFields } from "@/lib/customCraft";
@@ -598,6 +599,7 @@ export default function RequestActionsProvider({
     (hideoutStock?.self?.obols ?? 0);
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
+  const [refresh] = useRefresh();
 
   const heldIds = useMemo(
     () => characterTags.map((ct) => ct.tagId),
@@ -981,6 +983,15 @@ export default function RequestActionsProvider({
   const open = useCallback(
     (next, presetTagId = null, presets = null) => {
       setMode(next);
+      // Every roster in here — who is standing at your Location, who is Bound,
+      // what is lying in the rooms — was true when the page rendered, and
+      // CharacterPoller stands down while a dialog is open. So the world is
+      // re-read at the moment you ask to act on it, before you have picked
+      // anything: bind someone, wait for them to accept in Discord, open Loot,
+      // and they are there, with no reload in the middle. It costs one server
+      // render per dialog you open, which is what one poll tick costs, and it
+      // is a click you made rather than a timer.
+      refresh();
       setTagId(presetTagId);
       setQuantity("1");
       setProjectId("");
@@ -1033,7 +1044,7 @@ export default function RequestActionsProvider({
       if (presets?.fromKey) setFromKey(presets.fromKey);
       if (presets?.picks) setPicks(presets.picks);
     },
-    [selfId],
+    [selfId, refresh],
   );
 
   // Picking a sheet in the Write dialog fetches what is already on it, so the
