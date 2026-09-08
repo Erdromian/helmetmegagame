@@ -29,17 +29,21 @@ export default function InactivePanel({ rows, turn }) {
     setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
-  function send() {
+  // Confirm first, transition second (DESIGN-SYSTEM.md §8). Awaiting the
+  // dialog inside the transition deadlocks: the prompt needs an immediate
+  // render, the transition cannot commit until the promise settles, and the
+  // promise cannot settle until somebody clicks a dialog that never mounted.
+  async function send() {
     setError(null);
     setNote(null);
+    const ok = await confirm({
+      title: `Message ${picked.length} player${picked.length === 1 ? "" : "s"}?`,
+      message: "It arrives as a DM and lands in their conversation on the player desk. ‡",
+      confirmLabel: "Send it",
+      cancelLabel: "Not yet",
+    });
+    if (!ok) return;
     startTransition(async () => {
-      const ok = await confirm({
-        title: `Message ${picked.length} player${picked.length === 1 ? "" : "s"}?`,
-        message: "It arrives as a DM and lands in their conversation on the player desk. ‡",
-        confirmLabel: "Send it",
-        cancelLabel: "Not yet",
-      });
-      if (!ok) return;
       const res = await nudgeInactivePlayers({ characterIds: picked, text });
       if (!res?.ok) {
         setError(res?.error ?? "Something went wrong.");

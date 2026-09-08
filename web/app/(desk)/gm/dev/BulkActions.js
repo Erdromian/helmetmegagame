@@ -105,17 +105,21 @@ export default function BulkActions({ characters, locations, tags }) {
       (verb === "resources" && Number.isInteger(Number(amount)) && amount !== "") ||
       (verb === "tag" && tagSlug));
 
-  function apply() {
+  // Confirm first, transition second (DESIGN-SYSTEM.md §8). Awaiting the
+  // dialog inside the transition deadlocks: the prompt needs an immediate
+  // render, the transition cannot commit until the promise settles, and the
+  // promise cannot settle until somebody clicks a dialog that never mounted.
+  async function apply() {
     setError(null);
     setNote(null);
+    const ok = await confirm({
+      title: "Apply to everyone picked?",
+      message: `${sentence} There is no Undo — the audit log is the only record. ‡`,
+      confirmLabel: "Apply",
+      cancelLabel: "Not yet",
+    });
+    if (!ok) return;
     startTransition(async () => {
-      const ok = await confirm({
-        title: "Apply to everyone picked?",
-        message: `${sentence} There is no Undo — the audit log is the only record. ‡`,
-        confirmLabel: "Apply",
-        cancelLabel: "Not yet",
-      });
-      if (!ok) return;
       const res = await applyBulkAction({
         kind: verb,
         characterIds: picked,

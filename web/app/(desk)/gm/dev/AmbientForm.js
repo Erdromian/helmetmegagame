@@ -44,17 +44,21 @@ export default function AmbientForm({ zones, locations, rooms }) {
     [text],
   );
 
-  function send() {
+  // Confirm first, transition second (DESIGN-SYSTEM.md §8). Awaiting the
+  // dialog inside the transition deadlocks: the prompt needs an immediate
+  // render, the transition cannot commit until the promise settles, and the
+  // promise cannot settle until somebody clicks a dialog that never mounted.
+  async function send() {
     setError(null);
     setNote(null);
+    const ok = await confirm({
+      title: `Say this in ${targetName}?`,
+      message: "Everyone standing there reads it the moment it lands. ‡",
+      confirmLabel: "Say it",
+      cancelLabel: "Not yet",
+    });
+    if (!ok) return;
     startTransition(async () => {
-      const ok = await confirm({
-        title: `Say this in ${targetName}?`,
-        message: "Everyone standing there reads it the moment it lands. ‡",
-        confirmLabel: "Say it",
-        cancelLabel: "Not yet",
-      });
-      if (!ok) return;
       const res = await sendAmbientLine({ kind, targetId, text });
       if (!res?.ok) {
         setError(res?.error ?? "Something went wrong.");
