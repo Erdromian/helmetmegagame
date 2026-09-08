@@ -6012,3 +6012,113 @@ label.chip {
   padding-left: var(--sp-3);
   padding-right: var(--sp-3);
 }
+
+/* ── /ledger ─────────────────────────────────────────────────────────────────
+   The second character sheet: a banner of numbers over three columns — the
+   bio form, the working column, and a rail of tag cards. Same grid idea as
+   .desk-body and .chat-body above, but inside a PageShell rather than a
+   full-viewport desk, so the columns scroll with the page instead of each on
+   their own. Numbers are laid out here rather than with utility classes
+   because the tile row and the band share one measure. */
+.ledger-body {
+  display: grid;
+  grid-template-columns: 18rem minmax(0, 1fr) 20rem;
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.ledger-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+/* The banner: portrait and name on the left, the tiles on the right, wrapping
+   under it when the page gets narrow. */
+.ledger-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.ledger-tiles {
+  display: grid;
+  /* auto-fit rather than a fixed four, so the row folds to two before any
+     tile is narrow enough to wrap "30.5 / 71 lb" onto a second line. */
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--sp-2);
+  flex: 1 1 26rem;
+}
+
+.ledger-tile {
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  min-width: 0;
+}
+
+.ledger-tile-value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  line-height: 1.2;
+  display: block;
+  margin-top: var(--sp-1);
+}
+
+.ledger-tile-value[data-over="true"] {
+  color: var(--accent-text);
+}
+
+.ledger-tile .depot-meter {
+  margin-top: var(--sp-2);
+}
+
+/* The turn strip under the tiles: the Move as filed, on the recessed surface
+   the tiles use so the whole banner reads as one instrument panel. */
+.ledger-turn {
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+}
+
+@media (max-width: 1180px) {
+  /* The rail goes under the working column first — it is a reference list,
+     and the bio form is the narrow thing that keeps its width best. */
+  .ledger-body {
+    grid-template-columns: 18rem minmax(0, 1fr);
+  }
+
+  .ledger-rail {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    align-items: start;
+  }
+
+  /* The Tags header is a strip, not a card of chips — it reads as a stray
+     tile if it is left sharing a row with a tall category. */
+  .ledger-rail > section:first-child {
+    grid-column: 1 / -1;
+  }
+
+  /* Two by two beside the name once the band has wrapped — three across and
+     one orphan underneath reads as a mistake. */
+  .ledger-tiles {
+    grid-template-columns: repeat(2, minmax(9rem, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .ledger-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
