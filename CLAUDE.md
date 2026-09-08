@@ -227,6 +227,7 @@ you pick the right doc — they are never enough to change code with.
 | [`COMMANDS.md`](docs/systemdocs/COMMANDS.md) | You're adding or changing a slash command, button, modal or reaction |
 | [`TURN-ENGINE.md`](docs/systemdocs/TURN-ENGINE.md) | You're touching how a turn advances — hunger, auto-labor, turn banners, the side-effect thunk |
 | [`LAUNCH.md`](docs/systemdocs/LAUNCH.md) | You're opening a game or running a Restart Game wipe — the order that keeps players from being locked out |
+| [`BACKUPS.md`](docs/systemdocs/BACKUPS.md) | You're touching backups or restoring one — point-in-time recovery, the nightly dump service in `ops/backup/`, or **anything that has just gone badly wrong with the database** |
 | [`LOCAL-DEV.md`](docs/systemdocs/LOCAL-DEV.md) | You're setting up a local Postgres, testing a GM-gated page with no real Discord credentials, or about to run anything against the live database |
 | [`SYNC.md`](docs/systemdocs/SYNC.md) | You're editing a YAML master or a sync script, or wondering what a sync deletes |
 | [`CHANNELS.md`](docs/systemdocs/CHANNELS.md) | You're changing Discord channel layout, visibility, or the Dawn wipe |
@@ -328,8 +329,12 @@ npm run db:migrate                   # prisma migrate dev. LOCAL POSTGRES ONLY.
 npm run db:migrate:deploy            # prisma migrate deploy (production).
                                      #   ./migrate.sh wraps it with a Railway
                                      #   backup first.
-npm run db:backup                    # Railway volume backup, now. Needs
-                                     #   RAILWAY_API_TOKEN in .env.
+npm run db:backup                    # one pg_dump into the backup bucket, now.
+                                     #   ./migrate.sh runs it before migrating.
+npm run db:backups                   # what is in the bucket. EXITS 1 if the
+                                     #   newest dump is over 36h old, which is
+                                     #   how a dead backup system announces
+                                     #   itself. See BACKUPS.md.
 
 # YAML masters -> DB. `db:sync` runs all six in the working order; the
 # individual scripts exist for one master at a time. See SYNC.md.
