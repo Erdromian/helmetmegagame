@@ -6676,11 +6676,15 @@ label.chip {
   cursor: pointer;
 }
 
-/* The rim is the white band the core sits inside. --on-accent rather than a
-   literal white: it is the "light mark on a coloured ground" token, and it is
-   near-white in all three themes without being hardcoded anywhere. */
+/* The rim is a thin ring standing off the core, not a band the core sits in.
+   Filled, it read as one fat blob at any zoom and swallowed the zone colour;
+   hollow, the plate shows through the gap and the core keeps its colour.
+   --on-accent rather than a literal white: it is the "light mark on a coloured
+   ground" token, near-white in all three themes and hardcoded nowhere. */
 .map-node-rim {
-  fill: var(--on-accent);
+  fill: none;
+  stroke: var(--on-accent);
+  stroke-width: 1.5;
 }
 
 .map-node-core {
@@ -6695,9 +6699,10 @@ label.chip {
 .map-node[data-zone="caves"] .map-node-core { fill: var(--zone-caves); }
 .map-node[data-zone="depths"] .map-node-core { fill: var(--zone-depths); }
 
-/* Somewhere you have only ever seen from next door. The core drops out and
-   the rim stays, so it reads as an outline — a place on the map you have not
-   filled in yet. */
+/* Somewhere you have only ever seen from next door. The core fades and the
+   ring stays, so it reads as an outline — a place on the map you have not
+   filled in yet. Since every node is now one size, this fill is the only thing
+   that says so. */
 .map-node[data-state="seen"] .map-node-core {
   fill-opacity: 0.3;
 }
@@ -6711,13 +6716,13 @@ label.chip {
    findable at a glance on a board of fifty. */
 .map-node[data-state="here"] .map-node-rim {
   stroke: var(--accent);
-  stroke-width: 5;
+  stroke-width: 2.5;
 }
 
 .map-node[data-reach]:hover .map-node-rim,
 .map-node[data-picked] .map-node-rim {
   stroke: var(--accent-text);
-  stroke-width: 5;
+  stroke-width: 2.5;
 }
 
 .map-node-label {

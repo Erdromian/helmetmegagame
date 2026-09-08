@@ -44,7 +44,7 @@ const BOTH_LAYERS = new Set(["customs"]);
 
 export async function loadMap() {
   const session = await auth();
-  if (!session?.discordUserId) return { ok: false, error: "You are not signed in. ‡" };
+  if (!session?.discordUserId) return { ok: false, error: "You are not signed in." };
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
@@ -57,7 +57,7 @@ export async function loadMap() {
   // /map sits in the player half of the rail, not the job half.
   if (!character) {
     const { isGm } = await getGmSession();
-    if (!isGm) return { ok: false, error: "You have no living character. ‡" };
+    if (!isGm) return { ok: false, error: "You have no living character." };
     return buildMap({ character: null, unfogged: true });
   }
 
