@@ -5,6 +5,7 @@ import CharacterAvatar from "@/app/components/CharacterAvatar";
 import FormError from "@/app/components/FormError";
 import useActionRunner from "@/app/components/useActionRunner";
 import { loadParty, bringAlong, putDown, answerEscort } from "./actions";
+import useVisiblePoll from "./useVisiblePoll";
 
 // BRINGING: the people attached to you, drawn as the seats they take up.
 //
@@ -59,10 +60,7 @@ export default function PartyRack() {
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
-  useEffect(() => {
-    const timer = setInterval(reload, PARTY_POLL_MS);
-    return () => clearInterval(timer);
-  }, [reload]);
+  useVisiblePoll(reload, PARTY_POLL_MS);
 
   if (!data?.ok) {
     // Silent while it loads, and silent on failure: this panel is an

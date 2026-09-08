@@ -180,8 +180,11 @@ one `sendDm` away — and NOTIFY is transactional, delivered at COMMIT, so the
 `feedHub.js` holds the LISTEN on its one client, re-reads the row through the
 noise filter, and fans the player's shape to `subscribeToDm(discordUserId)`;
 the stream writes it as `event: dm`. **No cursor and no catch-up**: the pane
-fetches its page on open and again when the tab's `EventSource` fires `open`
-a second time (`dmStore.js#noteDmReconnect`), and the store dedupes by id.
+fetches its page on open and again on every reconnect — the tab's own
+reconnects included, since `Chat.js` reopens the stream itself (§3) — through
+`dmStore.js#noteDmReconnect`, and the store dedupes by id. A `router.refresh()`
+no longer reopens the stream at all; when it did, the reopen never counted as
+a reconnect and a DM landing in that window was lost to an open pane.
 
 **Writing back is one row and no Discord send.** `sendToGms` inserts an
 INBOUND row, `source: "player"`, `meta: { via: "play" }` — exactly what the
@@ -238,22 +241,62 @@ Four event names now, plus `dm` (§2b), which is not about a place at all.
 `message` carries a whole row (a new one, or an edited
 one the client replaces by seq); `delete` carries a seq and its place and
 nothing else — the words somebody took back never come back down the wire; and
-`places` carries the whole place list. Only a new row moves the high-water
-mark, since an edit and a delete both name a seq the stream has already sent.
-The browser's `EventSource` reconnects on its own, and the client's cursor
-makes the reconnect repeat nothing.
+`places` carries the whole place list and a `reason` — `"open"` for the
+announce every connection starts with, `"presence"` for one the character's
+own movement raised. Only a new row moves the high-water mark, since an edit
+and a delete both name a seq the stream has already sent.
+
+**The tab owns the reconnect, not the browser.** `Chat.js` opens ONE stream
+per mount and keeps it across every `router.refresh()`; it tracks the newest
+seq the stream has *delivered* — not the page-load seq, and not the store's
+newest, which a history fetch can push past another place's unread rows — and
+on `error` it closes the `EventSource` and opens a new one from that cursor,
+backing off from a second to half a minute with a little jitter. The
+browser's own retry is deliberately not used: it replays the URL the stream
+was opened with, which after a long session is a cursor the capped catch-up
+can never reach the gap from. A tab coming back to the front (`visibilitychange`),
+the network coming back (`online`) or a page restored from the back-forward
+cache (`pageshow`) reopens at once. A drop says nothing about why — an
+`EventSource` reports no status — so from the second failure in a row the tab
+asks `GET /api/feed/places?probe=1` once, which answers off the session alone:
+a 401 there is a session that has expired, and the tab stops and says so
+(`streamStore.js`, a quiet line under the tab strip: the first drop says
+nothing, the second says *Reconnecting…*); anything else is the server or the
+network, and worth waiting for.
+
+**The catch-up is capped, and the cap is honest.** Two full pages of
+`CATCH_UP_LIMIT` rows is the most a reconnect replays. If the second page is
+full as well, the gap was too long to fill row by row, so the stream moves its
+cursor past it and writes `event: gap`; the tab answers by marking every
+place's history idle (`feedStore.js#resetHistory`) and bumping a counter the
+selection effect and the prefetch hang off, so both re-read each place from
+the history route — which is also the only path that repairs a line deleted
+or changed while the tab was away.
 
 **Presence.** `db/lib/presenceNotify.js#notifyPresence(prisma, characterId)`
 carries a character id and nothing else, because "which places may they see
 now" is a query the listener has to run again anyway — and running it on the
-reader's side is what keeps a notification from being an authorisation. Three
+reader's side is what keeps a notification from being an authorisation. Five
 things fire it: the feet (`applyLocationMoveSideEffects`), a key
-(`syncCharacterRoomAccess`, only when the entitled set actually changes), and
-being let into or out of a conversation (`db/lib/conversations.js`). The
-stream recomputes its place list, moves its subscriptions, sends `places`, and
-catches the newly visible places up from its own high-water mark rather than
-from zero — so walking into a room does not replay a day of it. The page asks
-for that with `GET /api/feed/history?place=` when the reader actually opens it.
+(`syncCharacterRoomAccess`, only when the entitled set actually changes),
+being let into or out of a conversation (`db/lib/conversations.js`), a room
+guest being added or shown out (`play/actions.js`), and the "web only" switch
+(`db/lib/webOnly.js` — the place list is unchanged, the chip in the column is
+not). The stream re-reads the character (its Location moved, and the viewer it
+opened with is stale), recomputes the place list, moves its subscriptions,
+sends `places` with `reason: "presence"`, and catches the newly visible places
+up from its own high-water mark rather than from zero — so walking into a room
+does not replay a day of it. The page asks for that with
+`GET /api/feed/history?place=` when the reader actually opens it.
+
+The tab refreshes its right column (the shared transition refresh,
+`useRefresh.js`) on a `places` frame whose reason is `presence`, or on a
+reconnect whose list came back a different shape from the one it holds
+(`feedStore.js#setPlaces` says) — and never on a reconnect that re-announced
+the same list. It used to refresh on every frame after the first, which on a
+reconnect was a full page refetch outside a transition, a loading-skeleton
+flash, and the stream torn down and reopened; and the router's own URL
+rewrite on that refresh is what dropped the open place (§5, `openPlace.js`).
 
 **Prefetch, capped at twelve, and never for a GM.** After the first paint
 `Chat.js` warms the backlogs of the other places one at a time so opening a
@@ -452,11 +495,25 @@ header instead).
 
 ### The parts
 
-- **`Chat.js`** holds the one `EventSource`, the place list, and which place is
-  open. The open place lives in the **URL hash**, so a reload keeps it and Back
-  leaves the room the way it came; it is read through `useSyncExternalStore`
-  over `hashchange`, never an effect. A hash naming somewhere you have left
-  falls back to the first place.
+- **`Chat.js`** holds the one `EventSource` (opened once per mount — two
+  effects, one that re-seeds the store from fresh props and one that owns the
+  stream, §3), the place list, and which place is open.
+- **`openPlace.js`** is where the open place lives: a module store read through
+  `useSyncExternalStore`, never an effect. The URL hash *follows* it and is
+  read only as input — on the first render (a `/play#…` link, a notification)
+  and on `hashchange` — and a place this browser last had open is remembered
+  in `localStorage`, so a bare `/play` (the rail, a reload, a notification)
+  comes back to it. The hash used to be the truth, and the app router wrote
+  over it: it never learns about a `window.location.hash =` write, and on its
+  next state change (any refresh) it put its own URL back with
+  `history.replaceState`, the hash was gone, and Chat fell back to the street.
+  `setOpenPlace()` writes the URL through `history.pushState`, which Next
+  patches to keep its copy in step, so the address bar stays right and Back
+  still leaves the room the way it came. A remembered place you have since
+  left falls back to the first place.
+- **`streamStore.js`** says whether the stream is up, and Chat draws the one
+  line for when it is not, under the tab strip — the row that is on screen
+  whichever pane is open and on a phone, which is where a stream drops most.
 - **`PlacesColumn.js`** draws **Here** (the Location), **Rooms** (public, then
   the private ones a key or a guest row opens, marked `▪`), **Conversations**,
   **Summary**, and exports `PlacesTabs` — the same list as the phone's
@@ -871,9 +928,11 @@ header instead).
 - **The right column refreshes on a MOVE, not on a timer.** Everything in it
   — the place card, the Examine lines, who is here, the rooms a Transfer can
   reach — is a server prop off `page.js`, so `TravelNodes`' Go and the
-  stream's own `places` event both call `router.refresh()`. That event
-  fires only when the viewer's own presence changed, and the feed store is
-  client state, so a refresh costs nothing that was on screen. ‡
+  stream's own `places` event both refresh through `useRefresh()` — the
+  shared transition, never a bare `router.refresh()`, which drops the route
+  to its loading skeleton for the length of the refetch. The event refreshes
+  only when the server says the viewer's own presence changed (§3), and the
+  feed store is client state, so a refresh costs nothing that was on screen. ‡
 - **One aside is ever mounted.** The right column and the phone's ⋯ sheet are
   the same `ChatAside`, and CSS hiding the column under 900px still left both
   live — two travel loads, two stash reads, two affordance states.
@@ -969,11 +1028,12 @@ header instead).
   it is from the composer's `@` list. Both are the same functions Chat
   itself uses, so the palette can never offer a place they may not read.
 
-  The href is `/play#<encoded placeKey>`, because the open place lives in the
-  URL hash and a link into one needs no client plumbing at all. One catch the
-  palette had to learn: `router.push` uses `history.pushState`, which does
-  **not** fire a `hashchange` — so from Chat itself, a jump to another
-  place sets `window.location.hash` directly instead. The GM branches are
+  The href is `/play#<encoded placeKey>`, because a hash is what
+  `openPlace.js` reads on the way in, so a link into a place needs no client
+  plumbing at all. One catch the palette had to learn: `router.push` uses
+  `history.pushState`, which does **not** fire a `hashchange` — so from Chat
+  itself, a jump to another place sets `window.location.hash` directly, and
+  the store's `hashchange` listener takes it from there. The GM branches are
   untouched, and the empty-query default still shows pages only.
 - **`feedStore.js`** is a module-level store read through
   `useSyncExternalStore`, modelled on the GM inbox's `liveInbox.js`. Confirmed
@@ -1151,9 +1211,12 @@ when it lands. `web/lib/snapshot/`:
   what it painted first and `"fresh"` from the first server answer on — exactly
   one flip per mount, so a `router.refresh()` after an action is a props
   update like it always was and an open dialog survives it. `Chat.js` opts
-  out (`remountOnFresh={false}`): its seed effect already re-runs on changed
-  props and reopens the stream from the new seq, which is also why a stale
-  snapshot of `/play` is safe — the stream's `since` catch-up fills the gap.
+  out (`remountOnFresh={false}`): its seed effect re-seeds the store from the
+  changed props, and the stream is *not* reopened — it was opened once, from
+  the seq the mount painted with. A stale snapshot of `/play` is still safe,
+  for a better reason than the reopen ever was: the stored seq is the *lower*
+  cursor and therefore the more inclusive one, and the per-place history
+  prefetch covers whatever the capped catch-up does not.
 
 **What it is not.** Not a cache the server honours and not a source of truth.
 Every server action re-validates from the database (CLAUDE.md), so acting on
@@ -1311,6 +1374,11 @@ That number must be the **lower** of the two floors, never the turn floor — a
 zone-summary row sitting between the two is legitimately older, because its
 channel is wiped on the slower schedule, and clamping to the turn floor would
 silently swallow it.
+
+The floors are read once per connection, and a connection now lives across
+every refresh — hours, not minutes. A scene wiped mid-connection stays on that
+tab's screen until it reloads, on purpose: it is the same thing that happens
+to a Discord client that had the channel open.
 
 There is a **second floor underneath that one, and it is never off**: every
 row belonging to a previous game. Restart Game keeps `ArchiveEntry` on purpose

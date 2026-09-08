@@ -83,7 +83,7 @@ async function notifyMentioned(client, character, context, link, { placeKey = nu
   await pushToUser(prisma, character.discordUserId, {
     title: `${character.name} was named`,
     body: `in ${where}`,
-    url: "/play",
+    url: placeKey ? `/play#${encodeURIComponent(placeKey)}` : "/play",
   }).catch(() => {});
 }
 

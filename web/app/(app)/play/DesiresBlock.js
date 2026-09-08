@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/app/components/useRefresh";
 import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import RichText from "@/app/components/RichText";
@@ -21,7 +21,7 @@ import { lockedSlotLabel } from "@/lib/desireLabels";
 // carries the slots only and the picker fetches the rest of the view the
 // first time it is opened (./actions.js#desireCatalogView).
 export default function DesiresBlock({ view }) {
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
   const [loading, setLoading] = useState(false);
@@ -67,7 +67,7 @@ export default function DesiresBlock({ view }) {
       // The slots came down with the page and the catalog's cooldowns just
       // moved, so both are re-read rather than patched.
       setFull(null);
-      router.refresh();
+      refresh();
     });
   }
 

@@ -66,19 +66,6 @@ function rebuild(place) {
   state.views.set(place, Object.freeze([...confirmed, ...pending]));
 }
 
-// The newest confirmed seq for a place — the cursor the EventSource asks
-// with, so a reconnect repeats nothing.
-export function lastSeq(place) {
-  const rows = state.confirmed.get(place);
-  if (!rows || rows.size === 0) return "0";
-  let best = 0n;
-  for (const key of rows.keys()) {
-    const seq = BigInt(key);
-    if (seq > best) best = seq;
-  }
-  return String(best);
-}
-
 // Seeds the store from the server-rendered rows. Idempotent: a second call
 // with the same rows changes nothing a reader can see.
 export function seedRows(place, rows) {
@@ -222,13 +209,46 @@ export function dropPending(place, clientId) {
   emit();
 }
 
+// What the column and the composer are drawn from, per place. The two seq
+// watermarks are deliberately NOT in it: they move whenever anybody speaks,
+// and a list that "changed" every time somebody said something would make
+// every reconnect look like a walk.
+function placeShape(place) {
+  return [
+    place.placeKey,
+    place.kind,
+    place.name,
+    place.description ?? "",
+    place.roomKind ?? "",
+    place.canSpeak ? 1 : 0,
+    place.slowmodeSeconds ?? 0,
+  ].join(" ");
+}
+
+function sameShape(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (placeShape(a[i]) !== placeShape(b[i])) return false;
+  }
+  return true;
+}
+
 // The place list, pushed by the stream's `event: places` and seeded by the
 // server render. Replaced whole rather than merged: it IS the answer to
 // "where may you be", and half of an old one is a place you have left.
+//
+// Returns whether the list's SHAPE changed — the doors, their names, who may
+// speak where — which is what Chat.js asks when a reconnect re-announces the
+// list: a walk that happened while the tab was away shows up here, and a
+// reconnect that found nothing different does not. The comparison lives in
+// the store rather than in Chat.js because the stream handler that asks is
+// per mount, and a closure over the render's list would be stale for good.
 export function setPlaces(places) {
-  if (!Array.isArray(places)) return;
+  if (!Array.isArray(places)) return false;
+  const changed = !sameShape(state.places, places);
   state.places = Object.freeze(places);
   emit();
+  return changed;
 }
 
 function getPlaces() {
@@ -268,6 +288,18 @@ export function markHistoryLoading(place) {
 
 export function markHistoryLoaded(place) {
   setHistoryState(place, "loaded");
+}
+
+// Every place back to "idle", so the next selection and the prefetch ask the
+// history route again. The stream's `gap` event is what calls this: the
+// reconnect's catch-up was too long to replay row by row, so the backlog is
+// re-read place by place instead — which is also the only path that repairs
+// a line deleted or changed while the tab was away. The rows already held
+// stay; seedRows merges by seq.
+export function resetHistory() {
+  if (state.history.size === 0) return;
+  state.history = new Map();
+  emit();
 }
 
 // "Has this tab already asked?" — the guard that keeps the empty state from

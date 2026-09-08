@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/app/components/useRefresh";
 import FormError from "@/app/components/FormError";
 import EmptyState from "@/app/components/EmptyState";
 import useActionRunner from "@/app/components/useActionRunner";
@@ -43,7 +43,7 @@ export default function TravelNodes({ onDone, pick = null }) {
   // is here, the Examine lines, the rooms a Transfer can reach. All of those
   // are server props off page.js, so a move that only reloaded this list left
   // the column describing the street it just left.
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const [data, setData] = useState(null);
   const [nonce, setNonce] = useState(0);
   const [target, setTarget] = useState(null);
@@ -171,7 +171,7 @@ export default function TravelNodes({ onDone, pick = null }) {
                     setTarget(null);
                     onDone?.(res);
                     reload();
-                    router.refresh();
+                    refresh();
                   },
                 })
               }

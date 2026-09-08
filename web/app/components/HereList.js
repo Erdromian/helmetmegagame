@@ -5,12 +5,14 @@ import CharacterAvatar from "@/app/components/CharacterAvatar";
 import EmptyState from "@/app/components/EmptyState";
 import IconButton from "@/app/components/IconButton";
 import ActionButton from "@/app/components/ActionButton";
+import FormError from "@/app/components/FormError";
 import LookReadout from "@/app/components/LookReadout";
 import { EyeIcon } from "@/app/components/icons";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { ACTION_HELP } from "@/app/components/actionRegistry";
 import { lookAtRow } from "@/app/(app)/play/actions";
 import { loadPeopleHere } from "@/app/(app)/character/rosterActions";
+import useVisiblePoll from "@/app/(app)/play/useVisiblePoll";
 
 // HERE: who is standing where you are, and what you can do to them. Drawn in
 // /play's right-hand column and on /ledger's Actions panel — the same rows,
@@ -142,27 +144,38 @@ export default function HereList({
   const concealed = live?.concealed ?? [];
   const [openId, setOpenId] = useState(null);
 
+  const pollPeople = useCallback(() => {
+    loadPeopleHere()
+      .then((res) => {
+        if (res?.ok) setLive({ named: res.named, concealed: res.concealed });
+      })
+      .catch(() => {
+        // A missed read costs one stale minute. The next one fixes it.
+      });
+  }, []);
+  // No seed means nobody has asked yet; ask now, then on the minute — and
+  // only while the tab is in front of somebody (play/useVisiblePoll.js).
   useEffect(() => {
-    if (!poll) return undefined;
-    let cancelled = false;
-    const read = () => {
-      loadPeopleHere()
-        .then((res) => {
-          if (!cancelled && res?.ok) setLive({ named: res.named, concealed: res.concealed });
-        })
-        .catch(() => {
-          // A missed read costs one stale minute. The next one fixes it.
-        });
-    };
-    // No seed means nobody has asked yet; ask now, then on the minute.
-    if (people == null) read();
-    const timer = setInterval(read, HERE_POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [poll, people]);
+    if (poll && people == null) pollPeople();
+  }, [poll, people, pollPeople]);
+  useVisiblePoll(pollPeople, HERE_POLL_MS, { enabled: poll });
   const [hood, setHood] = useState(null);
+  // "Add to …" refused, or never reached the server. Chat.js answers with
+  // the action's { ok, error }; this is where the sentence is shown, under
+  // the list the row was on.
+  const [addError, setAddError] = useState(null);
+  const addAndReport = useCallback(
+    (characterId) => {
+      if (!onAddMember) return;
+      setAddError(null);
+      Promise.resolve(onAddMember(characterId))
+        .then((res) => {
+          if (res && !res.ok) setAddError(res.error ?? "Something went wrong.");
+        })
+        .catch(() => setAddError("Could not reach the server. Nothing was changed. ‡"));
+    },
+    [onAddMember],
+  );
   const actions = useRequestActions();
   // The one place a click outside has to close something. Kept on the
   // wrapper rather than on the document: the menu is inside the column, and
@@ -246,7 +259,7 @@ export default function HereList({
               onClose={close}
               onConverse={onConverse}
               addPlace={addPlace}
-              onAddMember={onAddMember}
+              onAddMember={onAddMember ? addAndReport : null}
             />
           )}
         </div>
@@ -302,6 +315,8 @@ export default function HereList({
           )}
         </div>
       ))}
+
+      <FormError>{addError}</FormError>
 
       {hood && <LookReadout state={hood} onClose={() => setHood(null)} />}
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/app/components/useRefresh";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import EmptyState from "@/app/components/EmptyState";
@@ -15,6 +15,7 @@ import { Readout } from "@/app/components/ExamineDialog";
 import LookReadout from "@/app/components/LookReadout";
 import useActionRunner from "@/app/components/useActionRunner";
 import { photographRow, starRow, lookAt, lookAtRow, loadTravel, placeMembers, toggleConceal } from "./actions";
+import useVisiblePoll from "./useVisiblePoll";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import {
   useFeed,
@@ -29,6 +30,7 @@ import {
 import FeedSearch from "./FeedSearch";
 import { useTyping, typingLine } from "./typingStore";
 import { peekSeen } from "./seenStore";
+import { readDraft, writeDraft } from "./draftStore";
 // By PATH, never through the @lifeweb/db barrel: the barrel pulls Prisma and
 // node:fs into whatever imports it, and this is a "use client" file. That
 // module is pure string work with no requires of its own, so it is safe here
@@ -322,6 +324,9 @@ const MEMBERS_REFRESH_MS = 60_000;
 // through below says it where there is no composer at all.
 const STREET_LINE = "This is the open street. Step into a room to speak. ‡";
 
+// What `/travel`'s picker says when the reachable places could not be read.
+const ROAD_ERROR = "Couldn't read the road. Try again. ‡";
+
 // The chips a command still wants: a person, a Move kind, or a destination.
 //
 // One row at a time — the FIRST unfilled argument is the question being
@@ -348,12 +353,15 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
   useEffect(() => {
     if (arg?.kind !== "destination") return undefined;
     let cancelled = false;
+    // A refusal or a dropped request is kept apart from an empty list: "no
+    // way out" is a fact about the place, and it must not be what a network
+    // blip reads as.
     loadTravel()
       .then((res) => {
-        if (!cancelled) setDestinations(res?.ok ? res.options : []);
+        if (!cancelled) setDestinations(res?.ok ? res.options : { error: res?.error ?? ROAD_ERROR });
       })
       .catch(() => {
-        if (!cancelled) setDestinations([]);
+        if (!cancelled) setDestinations({ error: ROAD_ERROR });
       });
     return () => {
       cancelled = true;
@@ -387,6 +395,7 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
 
   if (arg.kind === "destination") {
     if (!destinations) return <p className="text-sm text-muted">Reading the road…</p>;
+    if (destinations.error) return <p className="text-sm text-muted">{destinations.error}</p>;
     if (destinations.length === 0) return <p className="text-sm text-muted">No way out of here. ‡</p>;
     return (
       <div className="chip-row" aria-label="Where to">
@@ -556,7 +565,13 @@ export default function Feed({
   const typing = typingLine(useTyping(placeKey));
   const coarse = useIsCoarsePointer();
   const confirm = useConfirm();
-  const [draft, setDraft] = useState("");
+  // The box's text. Seeded from what this tab last left unsent in THIS place
+  // (./draftStore.js): Chat.js keys this component on the open place, so a
+  // switch remounts it with a clean slate for everything but the words.
+  const [draft, setDraft] = useState(() => readDraft(placeKey));
+  useEffect(() => {
+    writeDraft(placeKey, draft);
+  }, [placeKey, draft]);
   const [error, setError] = useState(null);
   const [atBottom, setAtBottom] = useState(true);
   const [editingSeq, setEditingSeq] = useState(null);
@@ -607,6 +622,9 @@ export default function Feed({
   const hold = opened.placeKey === placeKey ? opened.hold : 0;
 
   const scrollerRef = useRef(null);
+  // What the scroller holds, so its height can be watched (see the
+  // ResizeObserver below).
+  const innerRef = useRef(null);
   const textareaRef = useRef(null);
   // { at, query, active } — where the live `@word` starts, what has been typed
   // of it, and which row of the popover is highlighted. One piece of state, so
@@ -637,7 +655,7 @@ export default function Feed({
   const [lettersOpen, setLettersOpen] = useState(false);
   const [concealPending, startConceal] = useTransition();
   const [concealError, setConcealError] = useState(null);
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const {
     run: runCommand,
     pending: cmdPending,
@@ -830,13 +848,8 @@ export default function Feed({
   // there is no frame for that at all — so the list could sit wrong for as
   // long as the room stayed quiet. A minute is slow enough to cost nothing and
   // quick enough that nobody notices they waited.
-  useEffect(() => {
-    if (!hasMembers || !placeKey) return undefined;
-    const timer = setInterval(() => setMembersNonce((n) => n + 1), MEMBERS_REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [hasMembers, placeKey]);
-
   const reloadMembers = useCallback(() => setMembersNonce((n) => n + 1), []);
+  useVisiblePoll(reloadMembers, MEMBERS_REFRESH_MS, { enabled: Boolean(hasMembers && placeKey) });
   const membersData = members?.placeKey === placeKey ? members.res : null;
 
   // The `@word` under the caret, recomputed on every edit. In the handler, not
@@ -1246,10 +1259,27 @@ export default function Feed({
   // Scrolls the LIST, not the document: scrollIntoView walks every scrollable
   // ancestor, so on a phone it dragged the whole page down under the header
   // every time a row landed.
+  //
+  // On the CONTENT's size, not on the row list. A new row is one thing that
+  // makes the scene taller; the notice cards landing at the top of the
+  // street, a face loading into a run, the members strip above the box
+  // changing height and shrinking the box — each of those used to shove the
+  // reader off the bottom with nothing to put them back. A ResizeObserver on
+  // the scroller and on what it holds catches all of them, after layout.
   useEffect(() => {
     const el = scrollerRef.current;
-    if (el && atBottomRef.current) el.scrollTop = el.scrollHeight;
-  }, [rows]);
+    const inner = innerRef.current;
+    if (!el || !inner || typeof ResizeObserver === "undefined") return undefined;
+    const stick = () => {
+      if (atBottomRef.current) el.scrollTop = el.scrollHeight;
+    };
+    const observer = new ResizeObserver(stick);
+    observer.observe(el);
+    observer.observe(inner);
+    return () => observer.disconnect();
+    // On the place rather than once: a mount that began with no place had no
+    // scroller to watch, and the one that appears with the place needs one.
+  }, [placeKey]);
 
   // Changing place lands the reader at the newest line of the new place, the
   // way opening a channel does. The ref rather than state, so this makes no
@@ -1464,6 +1494,7 @@ export default function Feed({
       )}
 
       <div ref={scrollerRef} onScroll={onScroll} className="chat-feed">
+       <div ref={innerRef}>
         {/* The board is nailed to the top of the street, not filed into it in
             the order it went up: a notice is a thing standing there, and it
             has to still be readable after fifty lines of scene. */}
@@ -1519,6 +1550,7 @@ export default function Feed({
             })}
           </ul>
         )}
+       </div>
       </div>
 
       {!atBottom && (
@@ -1753,7 +1785,7 @@ export default function Feed({
                         // The name every row this composer writes will wear
                         // is a server prop, so the page is what has to
                         // re-read it.
-                        if (res?.ok) router.refresh();
+                        if (res?.ok) refresh();
                         else setConcealError(res?.error ?? "Something went wrong.");
                       } catch {
                         setConcealError("Could not reach the server. Nothing was changed. ‡");

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useEffect, useRef } from "react";
 import IconButton from "@/app/components/IconButton";
 import HoverCard from "@/app/components/HoverCard";
 import { BellIcon, BellOffIcon, BellRingIcon, SendIcon } from "@/app/components/icons";
@@ -169,8 +169,23 @@ export default function PlacesColumn({
 // tab strip (DESIGN-SYSTEM.md §5) — a strip that navigates between panels,
 // keyed on data-active, which is exactly what this is.
 export function PlacesTabs({ places, selected, seen, newest, onSelect }) {
+  const stripRef = useRef(null);
+  // The open tab is brought into the strip's view whenever it changes — a
+  // search hit, `/travel`, a link into a room can all open a place whose tab
+  // is off the edge of the phone. By moving the strip's own scrollLeft, never
+  // scrollIntoView: that walks every scrollable ancestor and would drag the
+  // whole screen with it.
+  useEffect(() => {
+    const strip = stripRef.current;
+    const tab = strip?.querySelector('[data-active="true"]');
+    if (!strip || !tab) return;
+    const left = tab.offsetLeft;
+    const right = left + tab.offsetWidth;
+    if (left < strip.scrollLeft) strip.scrollLeft = left;
+    else if (right > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = right - strip.clientWidth;
+  }, [selected]);
   return (
-    <div className="tab-bar chat-tabs" role="tablist" aria-label="Places">
+    <div ref={stripRef} className="tab-bar chat-tabs" role="tablist" aria-label="Places">
       {places.map((place) => (
         <button
           key={place.placeKey}

@@ -8,6 +8,7 @@ import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { placePanel } from "@/app/components/portalPlacement";
 import { toggleEquip } from "@/app/(app)/character/equipActions";
 import { myThings } from "./actions";
+import useVisiblePoll from "./useVisiblePoll";
 
 // THINGS: what is in your pockets, in the column, so the four things a player
 // does to an item all day are not a trip to the sheet and back.
@@ -223,11 +224,7 @@ export default function Things({ groups: initialGroups = [] }) {
 
   // The same minute the rest of the column runs on, and only while the drawer
   // is open — a closed one is not worth a query a minute.
-  useEffect(() => {
-    if (!open) return undefined;
-    const timer = setInterval(refresh, POLL_MS);
-    return () => clearInterval(timer);
-  }, [open, refresh]);
+  useVisiblePoll(refresh, POLL_MS, { enabled: open });
 
   // Equipping is instant and answers { equipped } or { error } rather than the
   // { ok } shape useActionRunner reads, so it is run here.
