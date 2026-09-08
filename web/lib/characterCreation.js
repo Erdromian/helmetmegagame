@@ -190,6 +190,17 @@ export function roleExcluded(tag, roleSlug) {
   return (tag.excludedRoleSlugs ?? []).includes(roleSlug);
 }
 
+// --- Commoner kits ------------------------------------------------------
+// The three trades a Commoner picks between (docs/tags.yaml), each an
+// onlyRoles-gated consumable crate that unpacks into a laboring specialisation
+// and its tools. Named here rather than inline because two callers care: the
+// picker, and createCharacter, which hands out the Farmer to anybody who
+// reached the end of the wizard without choosing one. The Farmer is the
+// default because it costs 0 points, so granting it can never overrun a
+// budget that was already spent.
+export const COMMONER_KIT_SLUGS = ["commoner-farmer", "commoner-fisherman", "commoner-hunter"];
+export const DEFAULT_COMMONER_KIT_SLUG = "commoner-farmer";
+
 // Tags a character may actually see and buy. Menus must derive category
 // tabs from THIS, or an all-locked category advertises its own secret.
 export function unlockedTags(tags, tagsById, heldOrSelectedIds, keepIds = []) {

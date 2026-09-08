@@ -19,6 +19,8 @@ import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
 import { setMerchantSeal } from "@lifeweb/db/lib/merchantSeal";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
+import { seedMemories } from "@lifeweb/db/lib/locationVisits";
+import { startingMemorySlugs } from "@lifeweb/db/lib/startingMemories";
 import {
   isWanted,
   postWantedPosters,
@@ -56,6 +58,8 @@ import {
   conflictingTag,
   roleExcluded,
   CURSED_ROLE_SLUGS,
+  COMMONER_KIT_SLUGS,
+  DEFAULT_COMMONER_KIT_SLUG,
 } from "@/lib/characterCreation";
 
 import { reserveRole, releaseRole } from "@lifeweb/db/lib/roleReservation";
@@ -332,6 +336,25 @@ export async function createCharacter(formData) {
     return { error: `That costs ${spent} points and you have ${budget}.` };
   }
 
+  // A Commoner who reached the end of the wizard without picking a trade
+  // starts a farmer. Left alone they would hold Laboring (Skilled) and no
+  // specialisation at all — able to labor, but at no location's coefficient,
+  // which is the one build in the game that cannot feed itself.
+  //
+  // It lands in startingTags rather than selected on purpose: everything above
+  // this line has already validated the cart, and the GM_GRANT loop below
+  // stamps the expiry and carries the slug into heldSlugs for the memories.
+  // The kit is 0 points, so the budget checked above is untouched either way,
+  // and the crate arrives unopened — the player still presses Consume, same as
+  // one they chose.
+  if (role.slug === "commoner") {
+    const kitHeld = [...selected, ...startingTags].some((t) => COMMONER_KIT_SLUGS.includes(t.slug));
+    if (!kitHeld) {
+      const kit = await prisma.tag.findUnique({ where: { slug: DEFAULT_COMMONER_KIT_SLUG } });
+      if (kit) startingTags.push(kit);
+    }
+  }
+
   // Union bought + granted tags, refunding nothing (already budget-checked).
   // A tag with a catalog duration must arrive already stamped — nothing
   // else backfills expiresTurn later.
@@ -461,6 +484,11 @@ export async function createCharacter(formData) {
       toLocationId: created.locationId,
     }).catch(() => {});
   }
+  // The map this seat wakes up with (db/lib/startingMemories.js). After the
+  // transaction, so travelOptions can read the tags it just granted, and after
+  // placement for no reason but reading order — both writes are upserts and
+  // neither can downgrade the other.
+  await seedMemories(prisma, created, startingMemorySlugs(role.slug, heldSlugs)).catch(() => {});
   await syncCharacterNickname(discordUserId, formatBareName({ firstName, lastName })).catch(() => {});
 
   // Somebody who arrives already Wanted has three posters go up in the same

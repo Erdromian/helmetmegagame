@@ -503,6 +503,21 @@ Three things about it are easy to get wrong:
 `loadMap()` re-records the character's current Location on every open, so a
 sighting the post-commit hook dropped heals itself the next time they look.
 
+**The fog does not start fully closed.** A character is made knowing the places
+their life would have taught them — the home cluster, plus the road their trade
+actually walks. A Headman opens the board already seeing the Farms he has taxed
+for years; a Banneret sees every step of the run up to town. The table is
+`db/lib/startingMemories.js`, keyed by role slug, with a second half keyed by
+the Commoner kit crates so a farmer and a hunter wake up knowing different
+roads. `createCharacter` calls `seedMemories()` once, after the transaction
+commits — after, because `travelOptions` reads the tags it just granted.
+
+Two slugs are in nobody's list on purpose: `caves-brooding-grounds`, the far end
+of the smugglers' crawl, and `hills-mountain`, which has no edge to the rest of
+the Black Hills at all. Handing either one out would give away a way in. Every
+other guard here still applies, because `seedMemories` writes through
+`recordArrival` rather than around it.
+
 ### 6b. What the fog must never leak
 
 **The fog is server-side, not CSS.** An unknown Location is absent from
@@ -564,6 +579,7 @@ null: they described the retired panel's four rhombi, and nothing reads them.
 | `db/lib/locationGraph.js` | `LocationLink` reads and the gating verdict — the only module that touches the edge model |
 | `db/lib/locationAttributes.js` | The attribute registry, its sync-time validation, and the prose Examine prints |
 | `db/lib/locationVisits.js` | The fog: what one character knows of the map. The ONLY module that reads or writes `LocationVisit` |
+| `db/lib/startingMemories.js` | The map a character is made knowing — role slug and Commoner kit to Location slugs — §6a |
 | `web/app/(app)/map/` | `loadMap()`, the board, and the route — §6 |
 | `web/lib/travelCost.js` | `travelFoot` — what a hop costs, in the words both travel surfaces print |
 | `docs/zones.yaml` | The master: zones, Locations (with their seeded `structures:`), Rooms, and `connections:` with its edge types |
