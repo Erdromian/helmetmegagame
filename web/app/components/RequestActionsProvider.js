@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useEffect,
   useRef,
   useState,
   useTransition,
@@ -24,8 +25,6 @@ import {
 import {
   craftableTags,
   destroyableTags,
-  transferableTags,
-  packableTags,
   consumableTags,
   addRequirementSatisfied,
   placementOfferedHere,
@@ -45,16 +44,14 @@ import {
 import RequestDialog from "./RequestDialog";
 import CheckField from "./CheckField";
 import PartySelect from "./PartySelect";
-import TransferDialog from "./TransferDialog";
 import CraftDialog from "./CraftDialog";
+import TagPicker from "./actions/TagPicker";
 import { titleFor } from "./actionRegistry";
 import Select from "./Select";
 import ChipText from "./ChipText";
 import ExamineDialog from "./ExamineDialog";
-import QuantityField, { parseQuantity } from "./QuantityField";
-import { ENGRAVE_RESOURCE_COST } from "@/lib/constants";
+import QuantityField from "./QuantityField";
 import { useConfirm } from "./ConfirmProvider";
-import { useRefresh } from "./useRefresh";
 import { heldSlugsOf } from "@/lib/consumeGrants";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import { CUSTOM_SURCHARGE, customCraftFields } from "@/lib/customCraft";
@@ -65,30 +62,15 @@ import {
   cancelCraft,
   joinBuildSite,
   cancelBuildSite,
-  destroyTagRequest,
   learnRequest,
   teachRequest,
   confessRequest,
-  transferRequest,
-  consumeTagRequest,
   healCharacterRequest,
-  lootCharacterRequest,
-  bindCharacterRequest,
-  freeCharacterRequest,
-  crucifyCharacterRequest,
-  tortureCharacterRequest,
-  mutilateRequest,
-  disguiseSelfRequest,
-  harmCharacterRequest,
-  buryCharacterRequest,
-  butcherCorpseRequest,
-  engraveHeadstoneRequest,
   birdMessageRequest,
-  packageItemsRequest,
 } from "../(app)/character/requestActions";
-import { setHideout, purchaseGear } from "@/app/(app)/character/thanatiActions";
 import { useNotice } from "./NoticeProvider";
-import { INSTANT } from "./actions";
+import { INSTANT, DIALOGS, FAST_PATHS } from "./actions";
+import { ActionPoolsContext } from "./actions/poolsContext";
 import { noticeLine } from "./actions/noticeLines";
 // Prisma-free on purpose (it takes `db` as a parameter), so importing it here
 // does not drag the @lifeweb/db barrel into the browser bundle — the same
@@ -101,17 +83,10 @@ import {
   sealLetter,
   readMyPaper,
 } from "../(app)/character/paperActions";
-// Safe from a client component: db/lib/constants.js is a leaf of bare strings
-// and numbers with no requires at all, so importing it drags no part of the
-// @lifeweb/db barrel into the bundle.
-import { PACKAGE_MAX_LBS, PACKAGE_LABEL_MAX } from "@lifeweb/db/lib/constants";
 // Safe in a "use client" bundle for the same reason constants.js is: paper.js
 // requires only ./reading -> ./examineVision, and neither touches prisma. One
 // definition, so the counter under the box and the server's own cap agree.
 import { WRITE_MAX, BOOK_MAX, TITLE_MAX } from "@lifeweb/db/lib/paper";
-// Prisma-free on purpose, so importing it here does not drag the @lifeweb/db
-// barrel into the browser bundle. See the note at the top of db/lib/mutilate.js.
-import { MUTILATE_PARTS } from "@lifeweb/db/lib/mutilate";
 import PaperSheet from "./PaperSheet";
 
 // Every player action on the character sheet: mode state, the menus each
@@ -125,243 +100,8 @@ export function useRequestActions() {
   return useContext(RequestActionsContext);
 }
 
-// The tag menu. Craft reuses PointBuy's category-tab layout without
-// PointBuy's budget/tier-chain math. `byId`/`heldIds` (Craft menu only) gate
-// prerequisites; the other menus just list what's already held.
-function TagPicker({
-  tags,
-  selectedId,
-  onSelect,
-  byId = null,
-  heldIds = null,
-  emptyLabel = "Nothing available.",
-  // (tag) => why this row can't be picked right now, or null. Craft's Move
-  // budget uses it; the row stays listed and says why rather than vanishing,
-  // because "where did my recipe go" is a worse question than a greyed row.
-  blockedReason = null,
-}) {
-  const [query, setQuery] = useState("");
-
-  // The Craft menu (byId set) sorts chain-aware so tier rungs read in order;
-  // held-tag menus keep flat cost-then-name sort.
-  const offered = useMemo(
-    () => (byId ? sortForMode(tags, "group", byId) : sortTagsForMenu(tags)),
-    [tags, byId],
-  );
-  // Gate first, derive tabs from what survives — a hidden category gets no
-  // tab at all. Craft-gate only (recipe skills were already checked server-
-  // side — the page hands down `knownRecipeIds`); not requirementSatisfied().
-  const unlocked = useMemo(
-    () =>
-      byId
-        ? offered.filter((t) => addRequirementSatisfied(t, byId, heldIds ?? []))
-        : offered,
-    [offered, byId, heldIds],
-  );
-  // "Unlocked by your tags": everything shown already passed the gates.
-  const [requiresOnly, setRequiresOnly] = useState(false);
-  const gated = useMemo(
-    () => (byId && requiresOnly ? unlocked.filter(hasPrerequisite) : unlocked),
-    [unlocked, byId, requiresOnly],
-  );
-  const pool = useMemo(() => filterTagsByQuery(gated, query), [gated, query]);
-  const categories = useMemo(() => menuCategories(pool), [pool]);
-  const [category, setCategory] = useState(null);
-  const active = categories.includes(category) ? category : categories[0];
-  const visible = pool.filter((t) => t.category === active);
-
-  if (!unlocked.length)
-    return <p className="text-sm text-muted">{emptyLabel}</p>;
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="field min-w-40 flex-1">
-          <span className="field-label">Search</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Name, description, or group"
-          />
-        </label>
-        {byId && (
-          <CheckField
-            checked={requiresOnly}
-            onChange={(e) => setRequiresOnly(e.target.checked)}
-            className="pb-2"
-          >
-            Unlocked by your tags
-          </CheckField>
-        )}
-      </div>
-
-      {categories.length > 1 && (
-        <div className="tab-bar">
-          {categories.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className="tab-item"
-              data-active={c === active}
-              onClick={() => setCategory(c)}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* The pane scrolls itself rather than growing the dialog, so the
-          reason field and the Confirm button stay reachable however long
-          Items gets — the same treatment PointBuy.js gives its own catalog. */}
-      <div
-        className="flex flex-col gap-2 overflow-y-auto pr-1"
-        style={{ maxHeight: "60vh" }}
-      >
-        {visible.map((tag) => {
-          const isSelected = tag.id === selectedId;
-          const blocked = blockedReason?.(tag) ?? null;
-          return (
-            <button
-              key={tag.id}
-              type="button"
-              aria-pressed={isSelected}
-              disabled={Boolean(blocked)}
-              onClick={() => onSelect(isSelected ? null : tag.id)}
-              className="select-card panel flex w-full items-start gap-3 p-3 text-left"
-              style={{
-                borderLeftColor: tag.group?.color ?? undefined,
-                borderLeftWidth: tag.group?.color ? 3 : undefined,
-              }}
-            >
-              <span aria-hidden="true">{isSelected ? "◆" : "◇"}</span>
-              <span className="min-w-0">
-                <span className="flex flex-wrap items-baseline gap-2">
-                  <span className="font-bold">{tag.name}</span>
-                  {tag.pointCost ? (
-                    <span
-                      className="text-xs"
-                      style={{ color: costColor(tag.pointCost) }}
-                    >
-                      {formatCost(tag.pointCost)} pts
-                    </span>
-                  ) : null}
-                  {tag.group?.name ? (
-                    <span className="text-xs text-muted">{tag.group.name}</span>
-                  ) : null}
-                </span>
-                {/* ChipText rather than RichText — the row is a <button>, so a
-                    hoverable chip inside it would nest one button in another. */}
-                {tag.description && (
-                  <ChipText
-                    text={tag.description}
-                    as="span"
-                    className="mt-1 block text-xs text-muted"
-                  />
-                )}
-                {/* The gate that unlocked this row — role/faction kit would
-                    otherwise be indistinguishable from the open catalog.
-                    Only qualifying viewers ever see the row. */}
-                {prerequisiteNames(tag).length > 0 && (
-                  <span
-                    className="mt-1 block text-xs"
-                    style={{ color: "var(--accent-text)" }}
-                  >
-                    Requires: {prerequisiteNames(tag).join(", ")}
-                  </span>
-                )}
-                {/* The recipe: what it costs and what it needs — work, ⬢,
-                    skills, INGREDIENTS — all of it the price tag, not a
-                    warning. Everything listed already passed the skill check
-                    server-side. workLabel is the same words the Recipes tab
-                    prints, so the two surfaces cannot disagree. Craft menu
-                    only. */}
-                {byId && tag.craftable && (
-                  <span
-                    className="mt-1 block text-xs"
-                    style={{ color: "var(--accent-text)" }}
-                  >
-                    {[
-                      // Null for a 0-turn recipe — no Move requirement, so
-                      // none is listed.
-                      ...(workLabel(tag) ? [workLabel(tag)] : []),
-                      `${tag.requirementResources ?? 0} ⬢`,
-                      ...((tag.requirementSkills ?? []).length
-                        ? [tag.requirementSkills.map((s) => s.name).join(", ")]
-                        : []),
-                      ...(() => {
-                        const items = tag.requirementItems ?? [];
-                        const spends = items
-                          .filter((i) => !i.keep)
-                          .map((i) => ((i.count ?? 1) > 1 ? `${i.label} ×${i.count}` : i.label));
-                        const keeps = items.filter((i) => i.keep).map((i) => i.label);
-                        return [
-                          ...(spends.length ? [`uses ${spends.join(" + ")}`] : []),
-                          ...(keeps.length ? [`needs ${keeps.join(" + ")} to hand`] : []),
-                        ];
-                      })(),
-                    ].join(" · ")}{" "}
-                  </span>
-                )}
-                {/* A placement is raised on the ground rather than handed
-                    over, so the row says where it ends up before the recipe
-                    line's turns and ⬢ are read as a pocketable thing. */}
-                {byId && tag.placement && (
-                  <span className="mt-1 block text-xs text-muted">
-                    Built where you stand
-                  </span>
-                )}
-                {blocked && (
-                  <span
-                    className="mt-1 block text-xs"
-                    style={{ color: "var(--accent-text)" }}
-                  >
-                    {blocked}
-                  </span>
-                )}
-              </span>
-            </button>
-          );
-        })}
-        {visible.length === 0 && (
-          <p className="text-sm text-muted">
-            {query
-              ? "Nothing matches that."
-              : "Nothing available in this category."}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // "Nobody qualifies" line — never used to hide the action itself; see
 // ActionGrid.js on why a greyed button would be its own leak.
-// A corpse is identified by its tag AND where it stands: the same Nekker
-// Corpse row can be lying in two different rooms, and picking "that one" has
-// to mean one of them.
-function corpseIdOf(corpse) {
-  return `${corpse.tagId}@${corpse.sourceKey}`;
-}
-
-// What butchering this one gives you, previewed before you commit. Client-side
-// off the shared MONSTER_YIELDS map, which is why db/lib/corpses.js keeps its
-// pure exports free of prisma — importing anything prisma-shaped into a
-// "use client" module drags the barrel into the browser bundle.
-function yieldLabel(corpse) {
-  return CORPSE_YIELD_NAMES[corpse.yieldSlug] ?? "something";
-}
-
-// Display names for the four yields, kept here rather than fetched: the
-// dialog needs a word, not a catalog row.
-const CORPSE_YIELD_NAMES = {
-  "nekker-pheromones": "Nekker Pheromones",
-  "graga-sac": "a Graga Sac",
-  "skinless-brain": "a Skinless Brain",
-  "human-flesh": "Human Flesh",
-};
-
 function NobodyHere({ children }) {
   return <p className="text-sm text-muted">{children}</p>;
 }
@@ -380,20 +120,6 @@ function payerLabel(parties, key) {
 // file no Request either, but they DO belong in the shared dialog: they have
 // real fields, so they still use the shared dialog.
 const NO_REQUEST_MODES = new Set(["examine"]);
-
-// Mutilate's subject dropdown holds two id spaces in one control — the bound
-// people standing here and the corpses in reach — so the value carries its own
-// prefix, the way the Craft dialog's project/site picker does.
-function mutilateKeyFor(kind, id) {
-  return `${kind}:${id}`;
-}
-
-// Why a person is lootable: living cases come from INCAPACITATING_SLUGS
-// (db/lib/incapacitation.js); a corpse says so plainly.
-function targetNote(t) {
-  if (t.status === "DEAD") return "Dead";
-  return t.condition ?? "Helpless";
-}
 
 export default function RequestActionsProvider({
   children,
@@ -538,36 +264,10 @@ export default function RequestActionsProvider({
   const [patientId, setPatientId] = useState("");
   const [payerKey, setPayerKey] = useState("");
   const [targetId, setTargetId] = useState("");
-  const [fromKey, setFromKey] = useState("");
-  const [toKey, setToKey] = useState("");
-  const [amount, setAmount] = useState("1");
-  // tagId -> quantity, for Loot. Always replaced wholesale, never mutated
-  // (react-hooks/immutability is an error here).
-  const [picks, setPicks] = useState({});
   // The Bird's guessed zone.
   const [zoneId, setZoneId] = useState("");
   // Move Player's destination.
   const [locationId, setLocationId] = useState("");
-  const [lethal, setLethal] = useState(false);
-  // Engrave types its target instead of picking it — a dropdown would be a
-  // list of the dead, and this one searches every zone (REQUESTS.md §5d).
-  // This input used to belong to Bury, which now picks a corpse instead.
-  const [engraveName, setEngraveName] = useState("");
-  // The false name typed into the Disguise dialog. Separate from engraveName
-  // so switching modes never carries one name into the other dialog.
-  const [disguiseName, setDisguiseName] = useState("");
-  // Butcher and Bury both act on one corpse, identified by BOTH its tag and
-  // where it is standing — the same body can be in two places for two people.
-  const [corpseKey, setCorpseKey] = useState("");
-  // Mutilate: the prefixed subject key (person:<id> / corpse:<tagId>|<sourceKey>)
-  // and which part is coming off. It keeps its own key rather than sharing
-  // corpseKey, because the same control also offers living people.
-  const [mutilateKey, setMutilateKey] = useState("");
-  const [mutilatePart, setMutilatePart] = useState(MUTILATE_PARTS[0].key);
-  // Package: what goes in the crate, and the line printed on its side.
-  // tagId -> quantity, replaced wholesale like `picks` above.
-  const [packed, setPacked] = useState({});
-  const [crateLabel, setCrateLabel] = useState("");
   const [birdBody, setBirdBody] = useState("");
   const [birdQuery, setBirdQuery] = useState("");
   // Which letter the bird carries. The Bird no longer holds text of its own —
@@ -586,33 +286,15 @@ export default function RequestActionsProvider({
   // one pass because a bound book can never be added to.
   const [bookTitle, setBookTitle] = useState("");
   const [error, setError] = useState(null);
-  // Set Hideout's room and Purchase Gear's cart (tagId -> quantity draft) and
-  // which of the hideout floor's two purses pays.
-  const [hideoutRoomId, setHideoutRoomId] = useState("");
-  const [gearCart, setGearCart] = useState({});
-  // Both PREFERENCES, not restrictions: which pool the shelf drains first.
-  // Everything the first one cannot cover comes out of the rest.
-  const [gearCurrency, setGearCurrency] = useState("obols");
-  const [gearPurse, setGearPurse] = useState("room");
-  const gearLines = thanatiWares
-    .map((w) => ({ ...w, quantity: parseQuantity(gearCart[w.tagId], { min: 0, max: 99 }) ?? 0 }))
-    .filter((w) => w.quantity > 0);
-  const gearTotal = gearLines.reduce((sum, w) => sum + w.price * w.quantity, 0);
-  const gearFunds =
-    (hideoutStock?.room?.resources ?? 0) +
-    (hideoutStock?.room?.obols ?? 0) +
-    (hideoutStock?.self?.resources ?? 0) +
-    (hideoutStock?.self?.obols ?? 0);
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
   const notice = useNotice();
   // Which instant verb is in flight, so its button can say so.
   const [busy, setBusy] = useState(null);
-  const [refresh] = useRefresh();
-  // When the last open() asked for one. A ref, not the provider's `refreshing`
-  // flag: reading that would move `open`'s identity twice per refresh and
-  // re-render every consumer of this context for nothing.
-  const lastRefresh = useRef(0);
+  // What a caller already knew when it opened the dialog — the person whose
+  // row was clicked, the stack, the two ends of a move — handed to the dialog
+  // component for the mode (components/actions/*).
+  const [presets, setPresets] = useState(null);
 
   const heldIds = useMemo(
     () => characterTags.map((ct) => ct.tagId),
@@ -651,29 +333,10 @@ export default function RequestActionsProvider({
     () => destroyableTags(characterTags),
     [characterTags],
   );
-  const transferable = useMemo(
-    () => transferableTags(characterTags),
-    [characterTags],
-  );
   const consumable = useMemo(
     () => consumableTags(characterTags),
     [characterTags],
   );
-  const packable = useMemo(() => packableTags(characterTags), [characterTags]);
-  // What the current selection weighs, against the 150 lb a crate holds. The
-  // server recomputes it — this is the readout that stops somebody filling a
-  // form they can't submit.
-  const packedLbs = useMemo(
-    () =>
-      Object.entries(packed).reduce((sum, [id, q]) => {
-        const row = packable.find((t) => t.id === id);
-        // QuantityField keeps its value as a STRING, and a half-typed box is
-        // "" — Number("") is 0, which is the right answer for a blank one.
-        return sum + (row?.weightLbs ?? 0) * (Number(q) || 0);
-      }, 0),
-    [packed, packable],
-  );
-
   // Heal's menus are per-patient, not per-tag, so they sit outside `chosen`
   // — an affliction row is server-built, not a catalog Tag.
   const patient = useMemo(
@@ -684,91 +347,16 @@ export default function RequestActionsProvider({
     () => patient?.healable.find((h) => h.tagId === tagId) ?? null,
     [patient, tagId],
   );
-  // The room stashes here, in lootTargets' shape, keyed "room:<id>" so the
-  // one picker can hold both and the submit can tell them apart. Same list
-  // Transfer's From uses (accessibleRooms — locked rooms you can't open never
-  // arrive), so looting a room is Transfer's room → you path under Loot's
-  // button, which is where a player looks for it.
-  const lootRooms = useMemo(
-    () =>
-      (transferParties?.rooms ?? []).map((r) => ({
-        id: `room:${r.id}`,
-        name: r.name,
-        room: true,
-        resources: r.resources ?? 0,
-        tags: (r.tags ?? []).map((t) => ({
-          tagId: t.tagId,
-          tagName: t.name,
-          stackable: t.stackable,
-          quantity: t.quantity ?? 1,
-        })),
-      })),
-    [transferParties],
-  );
-  const lootTarget = useMemo(
-    () =>
-      lootTargets.find((t) => t.id === targetId) ??
-      lootRooms.find((r) => r.id === targetId) ??
-      null,
-    [lootTargets, lootRooms, targetId],
-  );
-  // Bind, Free, Torture and Crucify share one roster: Bind wants the untied,
-  // Free and Torture the tied, Crucify anyone not already on the cross.
-  const bindable = useMemo(
-    () =>
-      bindTargets.filter((t) =>
-        mode === "bind"
-          ? !t.bound
-          : mode === "free" || mode === "torture"
-            ? t.bound
-            : !t.crucified,
-      ),
-    [bindTargets, mode],
-  );
-
-  // Mutilate's two rosters, in one list. The tied-up living come from the same
-  // bindTargets pool Bind and Torture use; the bodies from the same corpses
-  // list Butcher and Bury use. Monster corpses are left out rather than
-  // offered and refused — the same posture Bury takes.
-  const mutilateSubjects = useMemo(() => {
-    const people = bindTargets
-      .filter((t) => t.bound)
-      .map((t) => ({ key: mutilateKeyFor("person", t.id), label: t.name, kind: "person" }));
-    const bodies = corpses
-      .filter((c) => c.human)
-      .map((c) => ({
-        key: mutilateKeyFor("corpse", corpseIdOf(c)),
-        label: `${c.tagName} — ${c.source.name}`,
-        kind: "corpse",
-      }));
-    return { people, bodies };
-  }, [bindTargets, corpses]);
-
   const chosen = useMemo(() => {
     // heal/harm/learn/teach's tagId isn't a tag this character holds, so
     // they opt out.
-    const pool =
-      mode === "craft"
-        ? craftable
-        : mode === "destroy"
-          ? removable
-          : mode === "consume"
-            ? consumable
-            : mode === "heal" ||
-                mode === "harm" ||
-                mode === "learn" ||
-                mode === "teach" ||
-                mode === "confess"
-              ? []
-              : transferable;
+    const pool = mode === "craft" ? craftable : [];
     return pool.find((t) => t.id === tagId) ?? null;
-  }, [mode, tagId, craftable, removable, transferable, consumable]);
+  }, [mode, tagId, craftable]);
   // Consume always takes one, so it opts out of the quantity field. So does a
   // placement: a structure is a place, not a stack, and openBuildSiteImpl
   // ignores the count anyway.
-  const stacking =
-    Boolean(chosen?.stackable) && mode !== "consume" && !chosen?.placement;
-  const heldCount = mode === "craft" ? undefined : (chosen?.quantity ?? 1);
+  const stacking = Boolean(chosen?.stackable) && !chosen?.placement;
 
   // Lessons: the counterpart picked, and the skills on offer with them.
   const lessonPeople = mode === "teach" ? learners : teachers;
@@ -968,31 +556,6 @@ export default function RequestActionsProvider({
     setInscription("");
   }
 
-  // Loot takes a mix, so its picks are a checkbox set rather than one choice.
-  function togglePick(id, held) {
-    setPicks((prev) => {
-      const next = { ...prev };
-      if (id in next) delete next[id];
-      else next[id] = String(Math.min(1, held) || 1);
-      return next;
-    });
-  }
-  function setPickQuantity(id, value) {
-    setPicks((prev) => ({ ...prev, [id]: value }));
-  }
-  // Package's selection, same shape as `picks` above and for the same reason.
-  function togglePacked(id, held) {
-    setPacked((prev) => {
-      const next = { ...prev };
-      if (id in next) delete next[id];
-      else next[id] = String(Math.min(1, held) || 1);
-      return next;
-    });
-  }
-  function setPackedQuantity(id, value) {
-    setPacked((prev) => ({ ...prev, [id]: value }));
-  }
-
   // `presetTagId` lets a sheet-chip click open this dialog pre-selected.
   // `presets` seeds the one field a caller already knows: Chat's people
   // column opens Heal or Loot from a person's own row, and asking them to
@@ -1004,22 +567,62 @@ export default function RequestActionsProvider({
   // one — OUTSIDE the transition, or the confirm never renders (DESIGN-SYSTEM.md
   // §8) — then run it and say what happened as a notice. Recall's roster
   // rides along as rows under the line.
-  const runInstant = useCallback(
-    async (next) => {
-      const verb = INSTANT[next];
-      if (!verb) return;
-      const ask = verb.confirm({ recoverMissing });
+  // Everything the migrated dialogs read (components/actions/poolsContext.js):
+  // the page's rosters as seeds, and the own-sheet facts. A plain object, so
+  // a dialog always sees this render's props.
+  const bag = {
+    selfId,
+    selfName,
+    characterTags,
+    resources,
+    carry,
+    transferParties,
+    transferSilo,
+    lootTargets,
+    bindTargets,
+    harmTargets,
+    harmTags,
+    corpses,
+    healTargets,
+    healParties,
+    healsLeft,
+    hasMoved,
+    canTeach,
+    teachers,
+    learners,
+    confessors,
+    mySins,
+    paperOptions,
+    letterOptions,
+    sealOptions,
+    birdTargets,
+    birdZones,
+    hideoutRooms,
+    hideoutStock,
+    thanatiWares,
+    atHideout,
+  };
+  // Read through a ref by `open`, which is memoized and would otherwise hold
+  // the first render's rosters forever — the pattern Modal.js uses for
+  // onClose. Written in an effect, never during render.
+  const bagRef = useRef(bag);
+  useEffect(() => {
+    bagRef.current = bag;
+  });
+
+  const runNow = useCallback(
+    async (next, { ask = null, run, ctx = null }) => {
       if (ask && !(await confirm(ask))) return;
       setBusy(next);
       startTransition(async () => {
         try {
-          const res = await verb.run();
+          const res = await run();
           if (!res?.ok) {
             notice({ text: res?.error ?? "Something went wrong.", tone: "bad" });
             return;
           }
           notice({
-            text: noticeLine(next, res),
+            text: noticeLine(next, res, ctx),
             rows: Array.isArray(res.roster)
               ? res.roster.map((r) => ({ name: r.name, note: r.role, mark: r.leader ? "[LEADER]" : null }))
               : null,
@@ -1031,34 +634,40 @@ export default function RequestActionsProvider({
         }
       });
     },
-    [confirm, notice, recoverMissing],
+    [confirm, notice],
+  );
+
+  const runInstant = useCallback(
+    (next) => {
+      const verb = INSTANT[next];
+      if (!verb) return;
+      runNow(next, { ask: verb.confirm({ recoverMissing }), run: verb.run });
+    },
+    [runNow, recoverMissing],
   );
 
   const open = useCallback(
     (next, presetTagId = null, presets = null) => {
+      // The world is NOT re-read here any more. It used to be — a whole server
+      // render of the sheet page on every open, to keep "who is standing here"
+      // honest. Each dialog now reads its own slice the moment it mounts
+      // (components/actions/useRoster.js), which is cheaper, and paints the
+      // page's copy until the answer lands.
+      const seed = { ...(presets ?? {}), ...(presetTagId ? { tagId: presetTagId } : {}) };
       if (INSTANT[next]) {
         runInstant(next);
         return;
       }
-      setMode(next);
-      // Every roster in here — who is standing at your Location, who is Bound,
-      // what is lying in the rooms — was only true when the page rendered.
-      // Nothing keeps it fresher: CharacterPoller deliberately ignores your
-      // neighbours and stands down while a dialog is open anyway, and /play
-      // mounts this provider with no poller at all. So the world is re-read at
-      // the moment you ask to act on it, before you have picked anything —
-      // bind someone, wait for them to accept in Discord, open Loot, and they
-      // are there, with no reload in between.
-      //
-      // This is a whole server render of a heavy page, so it is worth being
-      // honest about the cost: far dearer than a poll tick, and far rarer,
-      // because it happens when a person clicks rather than on a timer. The
-      // one thing worth guarding is the click-spam case — opening and closing
-      // three dialogs should not queue three renders.
-      if (Date.now() - lastRefresh.current > 1000) {
-        lastRefresh.current = Date.now();
-        refresh();
+      // Opened from a person's own row with everything already decided —
+      // Bind from Ada's menu — the picker is skipped and the one question
+      // asked straight away.
+      const shortcut = FAST_PATHS[next]?.(seed, bagRef.current);
+      if (shortcut) {
+        runNow(next, shortcut);
+        return;
       }
+      setPresets(seed);
+      setMode(next);
       setTagId(presetTagId);
       setQuantity("1");
       setProjectId("");
@@ -1068,21 +677,8 @@ export default function RequestActionsProvider({
       setPatientId("");
       setPayerKey(selfId ? `character:${selfId}` : "");
       setTargetId("");
-      setFromKey(selfId ? `character:${selfId}` : "");
-      setToKey("");
-      // Transfer's ⬢ is optional, so it starts at nothing rather than one.
-      setAmount(next === "transfer" ? "0" : "1");
-      setPicks({});
-      setPacked({});
-      setCrateLabel("");
       setZoneId("");
       setLocationId("");
-      setLethal(false);
-      setEngraveName("");
-      setDisguiseName("");
-      setCorpseKey("");
-      setMutilateKey("");
-      setMutilatePart(MUTILATE_PARTS[0].key);
       setBirdBody("");
       setBirdQuery("");
       setBirdTagId("");
@@ -1094,24 +690,13 @@ export default function RequestActionsProvider({
       setInscription("");
       setPaperExisting(null);
       setStampId("");
-      setHideoutRoomId("");
-      setGearCart({});
-      setGearCurrency("obols");
-      setGearPurse("room");
       setError(null);
       // After the resets above, never before — a preset is the exception to
       // the blank slate, not part of it.
       if (presets?.patientId) setPatientId(presets.patientId);
       if (presets?.targetId) setTargetId(presets.targetId);
-      if (presets?.toKey) setToKey(presets.toKey);
-      // Transfer's two ends and a first pick. Chat's room panel opens this
-      // dialog three ways — Drop, Take, and a click straight on a stack lying
-      // in the room — and each of those is context the player has already
-      // given by choosing the button, not a decision to ask for again.
-      if (presets?.fromKey) setFromKey(presets.fromKey);
-      if (presets?.picks) setPicks(presets.picks);
     },
-    [selfId, refresh, runInstant],
+    [selfId, runInstant, runNow],
   );
 
   // Picking a sheet in the Write dialog fetches what is already on it, so the
@@ -1229,29 +814,12 @@ export default function RequestActionsProvider({
       });
       if (!ok) return;
     }
-    if (mode === "destroy" && chosen) {
-      const ok = await confirm({
-        title: "Destroy it?",
-        message: `${chosen.name} is gone for good. Nothing comes back.`,
-        confirmLabel: "Destroy",
-      });
-      if (!ok) return;
-    }
     if (mode === "heal" && payerKey !== `character:${selfId}`) {
       const payerName = payerLabel(healParties, payerKey);
       const ok = await confirm({
         title: "Bill someone else?",
         message: `${payerName} will be charged ${affliction?.cost ?? 0} ⬢ for this treatment.`,
         confirmLabel: "Charge them",
-      });
-      if (!ok) return;
-    }
-    if (mode === "harm" && lethal) {
-      const name = harmTargets.find((t) => t.id === targetId)?.name ?? "them";
-      const ok = await confirm({
-        title: "Finish them off?",
-        message: `This kills ${name}, now and for good.`,
-        confirmLabel: "Kill them",
       });
       if (!ok) return;
     }
@@ -1293,120 +861,17 @@ export default function RequestActionsProvider({
           // stale tab gets a retry instead of a silent Move charge.
           billedSeen: String(craftCost?.billedQty ?? 0),
         });
-      case "destroy":
-        return destroyTagRequest({ tagId, quantity });
       case "learn":
         return learnRequest({ teacherId: targetId, tagId });
       case "teach":
         return teachRequest({ learnerId: targetId, tagId });
       case "confess":
         return confessRequest({ chaplainId: targetId, tagId });
-      case "consume":
-        return consumeTagRequest({ tagId });
-      case "package":
-        return packageItemsRequest({
-          lines: Object.entries(packed).map(([id, q]) => ({
-            tagId: id,
-            quantity: q,
-          })),
-          label: crateLabel,
-        });
       case "heal":
         return healCharacterRequest({
           targetCharacterId: patientId,
           tagId,
           payerKey,
-        });
-      case "transfer":
-        return transferRequest({
-          fromKey,
-          toKey,
-          tags: Object.entries(picks).map(([id, q]) => ({
-            tagId: id,
-            quantity: q,
-          })),
-          amount,
-        });
-      case "loot":
-        // A room is Transfer's room → you, so reach, holdings, the audit rows
-        // and the room thread's alias line all come from the one path.
-        if (targetId.startsWith("room:")) {
-          return transferRequest({
-            fromKey: targetId,
-            toKey: `character:${selfId}`,
-            tags: Object.entries(picks).map(([id, q]) => ({
-              tagId: id,
-              quantity: q,
-            })),
-            amount,
-          });
-        }
-        return lootCharacterRequest({
-          targetCharacterId: targetId,
-          tagPicks: Object.entries(picks).map(([id, q]) => ({
-            tagId: id,
-            quantity: q,
-          })),
-          amount,
-        });
-      case "bind":
-        return bindCharacterRequest({ targetCharacterId: targetId });
-      case "free":
-        return freeCharacterRequest({ targetCharacterId: targetId });
-      case "crucify":
-        return crucifyCharacterRequest({ targetCharacterId: targetId });
-      case "torture":
-        return tortureCharacterRequest({ targetCharacterId: targetId });
-      case "harm":
-        return harmCharacterRequest({
-          targetCharacterId: targetId,
-          tagId,
-          lethal,
-        });
-      case "bury": {
-        const corpse = corpses.find((c) => corpseIdOf(c) === corpseKey);
-        return buryCharacterRequest({
-          tagId: corpse?.tagId,
-          sourceKey: corpse?.sourceKey,
-        });
-      }
-      case "butcher": {
-        const corpse = corpses.find((c) => corpseIdOf(c) === corpseKey);
-        return butcherCorpseRequest({
-          tagId: corpse?.tagId,
-          sourceKey: corpse?.sourceKey,
-        });
-      }
-      case "mutilate": {
-        // One dropdown, two id spaces — the prefix says which, the way the
-        // Craft dialog splits project: from site:.
-        const cut = mutilateKey.indexOf(":");
-        const kind = mutilateKey.slice(0, cut);
-        const rest = mutilateKey.slice(cut + 1);
-        if (kind === "corpse") {
-          const corpse = corpses.find((c) => corpseIdOf(c) === rest);
-          return mutilateRequest({
-            tagId: corpse?.tagId,
-            sourceKey: corpse?.sourceKey,
-            part: mutilatePart,
-          });
-        }
-        return mutilateRequest({
-          targetCharacterId: rest,
-          part: mutilatePart,
-        });
-      }
-      case "engrave":
-        return engraveHeadstoneRequest({ firstName: engraveName });
-      case "disguise":
-        return disguiseSelfRequest({ name: disguiseName });
-      case "hideout":
-        return setHideout({ roomId: hideoutRoomId });
-      case "purchase":
-        return purchaseGear({
-          items: gearLines.map((w) => ({ tagId: w.tagId, quantity: w.quantity })),
-          currency: gearCurrency,
-          purse: gearPurse,
         });
       // Neither files a Request — see web/app/(app)/character/paperActions.js
       // for why. Both still come back as { ok, error } like everything else.
@@ -1426,9 +891,6 @@ export default function RequestActionsProvider({
     }
   }
 
-  const sameParty = fromKey && fromKey === toKey;
-  const takingSomething = Object.keys(picks).length > 0 || Number(amount) > 0;
-
   const canSubmit = (() => {
     switch (mode) {
       case "write":
@@ -1439,32 +901,8 @@ export default function RequestActionsProvider({
         return Boolean(tagId && stampId);
       case "bird":
         return Boolean(targetId && zoneId && birdTagId);
-      case "transfer":
-        return Boolean(fromKey && toKey && !sameParty && takingSomething);
       case "heal":
         return Boolean(patientId && payerKey && affliction);
-      case "loot":
-        return Boolean(targetId && takingSomething);
-      case "bind":
-      case "free":
-      case "crucify":
-      case "torture":
-        return Boolean(targetId);
-      case "harm":
-        return Boolean(targetId && (tagId || lethal));
-      case "bury":
-      case "butcher":
-        return Boolean(corpseKey);
-      case "mutilate":
-        return Boolean(mutilateKey && mutilatePart);
-      case "engrave":
-        return Boolean(engraveName.trim());
-      case "disguise":
-        return Boolean(disguiseName.trim());
-      case "hideout":
-        return Boolean(hideoutRoomId);
-      case "purchase":
-        return gearLines.length > 0 && gearTotal <= gearFunds;
       case "craft": {
         if (siteId) {
           const site = buildSites.find((s) => s.id === siteId);
@@ -1500,12 +938,6 @@ export default function RequestActionsProvider({
       case "teach":
       case "confess":
         return Boolean(targetId && tagId);
-      case "package":
-        return (
-          Object.keys(packed).length > 0 &&
-          crateLabel.trim().length > 0 &&
-          packedLbs <= PACKAGE_MAX_LBS
-        );
       default:
         return Boolean(tagId);
     }
@@ -1599,15 +1031,21 @@ export default function RequestActionsProvider({
     [enabled, open, pools, selfId, busy],
   );
 
+  // The dialog for the open mode, once it has moved out of this file. A mode
+  // with no entry is still drawn by the inline block below — that is what
+  // lets the dialogs migrate one at a time.
+  const Dialog = mode ? (DIALOGS[mode] ?? null) : null;
+  // Closes the dialog and says what it did, if it did anything.
+  const done = useCallback(
+    (line) => {
+      setMode(null);
+      if (line) notice(line);
+    },
+    [notice],
+  );
+
   const title = titleFor(mode);
-  const dialogWidth =
-    mode === "craft" ||
-    mode === "harm" ||
-    mode === "loot" ||
-    mode === "transfer" ||
-    mode === "purchase"
-      ? "wide"
-      : undefined;
+  const dialogWidth = mode === "craft" ? "wide" : undefined;
 
   return (
     <RequestActionsContext.Provider value={value}>
@@ -1629,8 +1067,14 @@ export default function RequestActionsProvider({
             onClose={() => setMode(null)}
           />
 
+          {Dialog && (
+            <ActionPoolsContext.Provider value={bag}>
+              <Dialog mode={mode} presets={presets ?? {}} onDone={done} onClose={() => setMode(null)} />
+            </ActionPoolsContext.Provider>
+          )}
+
           <RequestDialog
-            open={mode !== null && !NO_REQUEST_MODES.has(mode)}
+            open={mode !== null && !Dialog && !NO_REQUEST_MODES.has(mode)}
             title={title}
             submitLabel={
               mode === "craft" && (projectId || siteId)
@@ -1703,39 +1147,6 @@ export default function RequestActionsProvider({
                 selfId={selfId}
                 hasMoved={hasMoved}
               />
-            )}
-
-            {mode === "destroy" && (
-              <>
-                <label className="field">
-                  <span className="field-label">
-                    What are you destroying?
-                  </span>
-                  <Select
-                    value={tagId ?? ""}
-                    onChange={(e) => pick(e.target.value || null)}
-                    required
-                  >
-                    <option value="" disabled>
-                      Choose a tag…
-                    </option>
-                    {removable.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                        {t.quantity > 1 ? ` ×${t.quantity}` : ""}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-                {stacking && (
-                  <QuantityField
-                    value={quantity}
-                    onChange={setQuantity}
-                    max={heldCount}
-                    label={`How many? (you have ${heldCount})`}
-                  />
-                )}
-              </>
             )}
 
             {(mode === "learn" || mode === "teach") && (
@@ -1855,38 +1266,6 @@ export default function RequestActionsProvider({
               </>
             )}
 
-            {mode === "consume" && (
-              <>
-                <label className="field">
-                  <span className="field-label">What are you using up?</span>
-                  <Select
-                    value={tagId ?? ""}
-                    onChange={(e) => pick(e.target.value || null)}
-                    required
-                  >
-                    <option value="" disabled>
-                      Choose a tag…
-                    </option>
-                    {consumable.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                        {t.quantity > 1 ? ` ×${t.quantity}` : ""}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-                {/* Nothing about what it leaves behind — that is the tag's
-                    own business, and the tooltip's Consume button is the
-                    one-click way in anyway. Only the count, which is a fact
-                    about the player's own pocket. */}
-                {chosen && chosen.quantity > 1 && (
-                  <p className="text-xs text-muted">
-                    Takes one of your {chosen.quantity}.
-                  </p>
-                )}
-              </>
-            )}
-
             {mode === "heal" && (
               <>
                 <label className="field">
@@ -1949,565 +1328,6 @@ export default function RequestActionsProvider({
                         : affliction.counts
                           ? ` One of the ${healsLeft ?? "few"} cases you can work this turn.`
                           : " First aid doesn't cost a Move."}
-                    </p>
-                  </>
-                )}
-              </>
-            )}
-
-            {mode === "transfer" && (
-              <TransferDialog
-                selfId={selfId}
-                parties={transferParties}
-                lootable={lootTargets}
-                silo={transferSilo}
-                transferable={transferable}
-                carry={carry}
-                fromKey={fromKey}
-                toKey={toKey}
-                onFrom={(key) => {
-                  setFromKey(key);
-                  setPicks({});
-                }}
-                onTo={setToKey}
-                picks={picks}
-                onTogglePick={togglePick}
-                onPickQuantity={setPickQuantity}
-                amount={amount}
-                onAmount={setAmount}
-              />
-            )}
-
-            {mode === "loot" && (
-              <>
-                {lootTargets.length === 0 && lootRooms.length === 0 ? (
-                  <NobodyHere>
-                    Nothing here to search.
-                  </NobodyHere>
-                ) : (
-                  <>
-                    <label className="field">
-                      <span className="field-label">
-                        What are you searching?
-                      </span>
-                      <Select
-                        value={targetId}
-                        onChange={(e) => {
-                          setTargetId(e.target.value);
-                          setPicks({});
-                          setAmount("0");
-                        }}
-                        required
-                      >
-                        <option value="" disabled>
-                          Choose…
-                        </option>
-                        {lootRooms.length > 0 && (
-                          <optgroup label="Rooms here">
-                            {lootRooms.map((r) => (
-                              <option key={r.id} value={r.id}>
-                                {r.name}
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                        {lootTargets.length > 0 && (
-                          <optgroup label="People here">
-                            {lootTargets.map((t) => (
-                              <option key={t.id} value={t.id}>
-                                {t.name} — {targetNote(t)}
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                      </Select>
-                    </label>
-
-                    {lootTarget && (
-                      <>
-                        {lootTarget.tags.length === 0 ? (
-                          <p className="text-xs text-muted">
-                            {lootTarget.room
-                              ? "Nothing is stored here."
-                              : "They\u2019re carrying nothing worth taking."}
-                          </p>
-                        ) : (
-                          <div className="flex flex-col gap-2">
-                            <span className="field-label">Take</span>
-                            {lootTarget.tags.map((t) => {
-                              const checked = t.tagId in picks;
-                              return (
-                                <div
-                                  key={t.tagId}
-                                  className="flex flex-wrap items-center gap-3"
-                                >
-                                  <CheckField
-                                    checked={checked}
-                                    onChange={() =>
-                                      togglePick(t.tagId, t.quantity)
-                                    }
-                                  >
-                                    {t.tagName}
-                                    {t.quantity > 1 ? ` ×${t.quantity}` : ""}
-                                  </CheckField>
-                                  {checked && t.stackable && t.quantity > 1 && (
-                                    <QuantityField
-                                      label="How many?"
-                                      max={t.quantity}
-                                      value={picks[t.tagId]}
-                                      onChange={(v) =>
-                                        setPickQuantity(t.tagId, v)
-                                      }
-                                    />
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                        <label className="field" style={{ width: "10rem" }}>
-                          <span className="field-label">
-                            {lootTarget.room
-                              ? `Resources (${lootTarget.resources} here)`
-                              : `Resources (they have ${lootTarget.resources})`}
-                          </span>
-                          <input
-                            type="number"
-                            min="0"
-                            max={lootTarget.resources}
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                          />
-                        </label>
-                      </>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-
-            {mode === "package" && (
-              <>
-                {packable.length === 0 ? (
-                  <NobodyHere>
-                    You aren&apos;t carrying anything that could go in a crate.
-                  </NobodyHere>
-                ) : (
-                  <>
-                    <div className="flex flex-col gap-2">
-                      <span className="field-label">What goes in?</span>
-                      {sortTagsForMenu(packable).map((tag) => {
-                        const checked = tag.id in packed;
-                        return (
-                          <div
-                            key={tag.id}
-                            className="flex flex-wrap items-center gap-3"
-                          >
-                            <CheckField
-                              checked={checked}
-                              onChange={() =>
-                                togglePacked(tag.id, tag.quantity)
-                              }
-                            >
-                              {tag.name}
-                              {tag.quantity > 1 ? ` ×${tag.quantity}` : ""}
-                              <span className="mono ml-2 text-xs text-muted">{`${tag.weightLbs ?? 0} lb`}</span>
-                            </CheckField>
-                            {checked && tag.stackable && tag.quantity > 1 && (
-                              <QuantityField
-                                label="How many?"
-                                max={tag.quantity}
-                                value={packed[tag.id]}
-                                onChange={(v) => setPackedQuantity(tag.id, v)}
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <label className="field">
-                      <span className="field-label">
-                        What does the crate say?
-                      </span>
-                      <input
-                        type="text"
-                        value={crateLabel}
-                        onChange={(e) => setCrateLabel(e.target.value)}
-                        placeholder="Squeeze, 7 cubes"
-                        autoComplete="off"
-                        maxLength={PACKAGE_LABEL_MAX}
-                        required
-                      />
-                    </label>
-
-                    <p
-                      className={
-                        packedLbs > PACKAGE_MAX_LBS
-                          ? "text-sm text-accent"
-                          : "text-xs text-muted"
-                      }
-                    >
-                      {`${packedLbs} / ${PACKAGE_MAX_LBS} lb packed. The crate will weigh ${Math.max(
-                        1,
-                        Math.ceil(packedLbs / 2),
-                      )} lb. `}
-                      {packedLbs > PACKAGE_MAX_LBS
-                        ? "That won't go in one crate."
-                        : "Nobody checks the line on the side against what's actually in there."}
-                    </p>
-                  </>
-                )}
-              </>
-            )}
-
-            {(mode === "bury" || mode === "butcher") && (
-              <>
-                {/* Butcher takes anything; Bury needs a person. A Nekker has
-                no soul to free, so it isn't offered here rather than being
-                offered and refused. */}
-                {(() => {
-                  const list =
-                    mode === "bury" ? corpses.filter((c) => c.human) : corpses;
-                  if (list.length === 0) {
-                    return (
-                      <NobodyHere>
-                        {mode === "bury"
-                          ? "You aren’t holding a body, and there’s none lying anywhere you can reach."
-                          : "There’s nothing here to cut up."}
-                      </NobodyHere>
-                    );
-                  }
-                  const chosen = list.find((c) => corpseIdOf(c) === corpseKey);
-                  return (
-                    <>
-                      <label className="field">
-                        <span className="field-label">Whose body?</span>
-                        <Select
-                          value={corpseKey}
-                          onChange={(e) => setCorpseKey(e.target.value)}
-                          required
-                        >
-                          <option value="">Pick a body…</option>
-                          {list.map((c) => (
-                            <option key={corpseIdOf(c)} value={corpseIdOf(c)}>
-                              {`${c.tagName} — ${c.source.name}`}
-                            </option>
-                          ))}
-                        </Select>
-                      </label>
-                      {mode === "butcher" && chosen ? (
-                        <p className="text-xs text-muted">
-                          Cutting this one up gives you {yieldLabel(chosen)}.
-                        </p>
-                      ) : null}
-                    </>
-                  );
-                })()}
-              </>
-            )}
-
-            {mode === "engrave" && (
-              <>
-                <label className="field">
-                  <span className="field-label">Whose name?</span>
-                  <input
-                    type="text"
-                    value={engraveName}
-                    onChange={(e) => setEngraveName(e.target.value)}
-                    placeholder="First name"
-                    autoComplete="off"
-                    maxLength={24}
-                    required
-                  />
-                </label>
-                {/* No target list, and no "nobody here" line either — both would
-                answer "who is dead?" without anyone choosing to ask, and this
-                one searches every zone rather than just this room. You type a
-                name and find out whether you were right. */}
-                <p className="text-xs text-muted">
-                  Costs {ENGRAVE_RESOURCE_COST} ⬢ and your turn.
-                </p>
-              </>
-            )}
-
-            {/* THE THANATI (docs/systemdocs/THANATI.md). Recall and Recover
-                run on the click (components/actions/index.js#INSTANT); by
-                Bascinet's ruling none of the four carries a line of
-                explanation. */}
-            {mode === "hideout" && (
-              <label className="field">
-                <span className="field-label">Room</span>
-                <Select
-                  value={hideoutRoomId}
-                  onChange={(e) => setHideoutRoomId(e.target.value)}
-                  required
-                >
-                  <option value="" disabled>
-                    Choose a room…
-                  </option>
-                  {hideoutRooms.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                      {r.current ? " ✓" : ""}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-            )}
-
-            {mode === "purchase" && (
-              <>
-                <div className="flex flex-wrap items-end gap-3">
-                  <label className="field" style={{ width: "9rem" }}>
-                    <span className="field-label">Spend first</span>
-                    <Select value={gearCurrency} onChange={(e) => setGearCurrency(e.target.value)}>
-                      <option value="obols">Obols</option>
-                      <option value="resources">⬢</option>
-                    </Select>
-                  </label>
-                  <label className="field" style={{ width: "9rem" }}>
-                    <span className="field-label">Take from</span>
-                    <Select value={gearPurse} onChange={(e) => setGearPurse(e.target.value)}>
-                      <option value="room">The floor</option>
-                      <option value="self">Your pockets</option>
-                    </Select>
-                  </label>
-                </div>
-                <p className="text-xs text-muted">
-                  Floor: {hideoutStock?.room?.obols ?? 0} ¢ · {hideoutStock?.room?.resources ?? 0} ⬢.
-                  You: {hideoutStock?.self?.obols ?? 0} ¢ · {hideoutStock?.self?.resources ?? 0} ⬢.
-                  Whatever you pick first pays until it runs out, then the rest covers it. ‡
-                </p>
-                <div className="overflow-x-auto">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Ware</th>
-                        <th>Price</th>
-                        <th>Qty</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {thanatiWares.map((w) => (
-                        <tr key={w.tagId}>
-                          <td>{w.name}</td>
-                          <td className="mono">{w.price}</td>
-                          <td>
-                            <QuantityField
-                              inline
-                              min={0}
-                              max={99}
-                              ariaLabel={w.name}
-                              value={gearCart[w.tagId] ?? "0"}
-                              onChange={(v) => setGearCart((prev) => ({ ...prev, [w.tagId]: v }))}
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="flex justify-end">
-                  <span className={`mono text-sm ${gearTotal > gearFunds ? "text-danger" : ""}`}>
-                    {gearTotal} / {gearFunds}
-                  </span>
-                </div>
-              </>
-            )}
-
-            {mode === "disguise" && (
-              <>
-                <label className="field">
-                  <span className="field-label">Go by what name?</span>
-                  <input
-                    type="text"
-                    value={disguiseName}
-                    onChange={(e) => setDisguiseName(e.target.value)}
-                    placeholder="A name"
-                    autoComplete="off"
-                    maxLength={24}
-                    required
-                  />
-                </label>
-                {/* No people-picker: you are disguising yourself, not choosing
-                a target, and the name is free text on purpose — impersonating
-                somebody real is a thing you do by typing their name, and
-                whether you get away with it is a GM's question, not a
-                dropdown's. */}
-                <p className="text-xs text-muted">
-                  For 3 turns nobody sees your name or your face&mdash;you speak
-                  as this instead. You cannot conceal yourself on top of a
-                  disguise, and it wears off on its own. The kit is not used
-                  up.
-                </p>
-              </>
-            )}
-
-            {(mode === "bind" || mode === "free" || mode === "crucify" || mode === "torture") && (
-              <>
-                {bindable.length === 0 ? (
-                  <NobodyHere>
-                    {mode === "bind"
-                      ? "There’s nobody here left to tie up."
-                      : mode === "free"
-                        ? "Nobody here is bound."
-                        : mode === "torture"
-                          ? "Nobody here is tied up."
-                          : "There’s nobody here to put on the cross."}
-                  </NobodyHere>
-                ) : (
-                  <label className="field">
-                    <span className="field-label">
-                      {mode === "bind"
-                        ? "Who are you tying up?"
-                        : mode === "free"
-                          ? "Who are you cutting loose?"
-                          : mode === "torture"
-                            ? "Who are you torturing?"
-                            : "Who are you crucifying?"}
-                    </span>
-                    <Select
-                      value={targetId}
-                      onChange={(e) => setTargetId(e.target.value)}
-                      required
-                    >
-                      <option value="" disabled>
-                        Choose…
-                      </option>
-                      {bindable.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-                )}
-                {(mode === "torture" || mode === "crucify") && (
-                  <p className="text-xs text-muted">
-                    {mode === "torture"
-                      ? "It takes your Move. One die, resolved now: what they gave up arrives by DM."
-                      : "They go up on the cross now. They can still speak, but nothing else — and in a turn they are Dying. It doesn't spend your Move. Say why."}
-                  </p>
-                )}
-              </>
-            )}
-
-            {/* Two dropdowns and nothing else. No helper line, no yield
-            preview, no per-part explanation — unlike Butcher's "cutting this
-            one up gives you…". The part list is also DELIBERATELY UNFILTERED:
-            narrowing it to the rungs a subject has left would answer "what are
-            they already missing?" to anybody who opened the dialog, which is
-            the same leak the metagaming rule in actionRegistry.js is about.
-            You find out by trying, and the server refuses. */}
-            {mode === "mutilate" && (
-              <>
-                {mutilateSubjects.people.length === 0 &&
-                mutilateSubjects.bodies.length === 0 ? (
-                  <NobodyHere>
-                    There’s nobody here you could do that to. ‡
-                  </NobodyHere>
-                ) : (
-                  <>
-                    <label className="field">
-                      <span className="field-label">Who?</span>
-                      <Select
-                        value={mutilateKey}
-                        onChange={(e) => setMutilateKey(e.target.value)}
-                        required
-                      >
-                        <option value="" disabled>
-                          Choose…
-                        </option>
-                        {mutilateSubjects.people.length > 0 && (
-                          <optgroup label="Here">
-                            {mutilateSubjects.people.map((o) => (
-                              <option key={o.key} value={o.key}>
-                                {o.label}
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                        {mutilateSubjects.bodies.length > 0 && (
-                          <optgroup label="Bodies">
-                            {mutilateSubjects.bodies.map((o) => (
-                              <option key={o.key} value={o.key}>
-                                {o.label}
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                      </Select>
-                    </label>
-                    <label className="field">
-                      <span className="field-label">What?</span>
-                      <Select
-                        value={mutilatePart}
-                        onChange={(e) => setMutilatePart(e.target.value)}
-                        required
-                      >
-                        {MUTILATE_PARTS.map((p) => (
-                          <option key={p.key} value={p.key}>
-                            {p.label}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-                  </>
-                )}
-              </>
-            )}
-
-            {mode === "harm" && (
-              <>
-                {harmTargets.length === 0 ? (
-                  <NobodyHere>
-                    Nobody here is helpless enough for that.
-                  </NobodyHere>
-                ) : (
-                  <>
-                    <label className="field">
-                      <span className="field-label">Who are you hurting?</span>
-                      <Select
-                        value={targetId}
-                        onChange={(e) => {
-                          setTargetId(e.target.value);
-                          setLethal(false);
-                        }}
-                        required
-                      >
-                        <option value="" disabled>
-                          Choose…
-                        </option>
-                        {harmTargets.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name} — {t.condition ?? "Helpless"}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-
-                    <span className="field-label">What injury? (optional)</span>
-                    <TagPicker
-                      tags={harmTags}
-                      selectedId={tagId}
-                      onSelect={setTagId}
-                      emptyLabel="No injuries in the catalog."
-                    />
-
-                    <CheckField
-                      checked={lethal}
-                      onChange={(e) => setLethal(e.target.checked)}
-                      disabled={
-                        !harmTargets.find((t) => t.id === targetId)?.finishable
-                      }
-                    >
-                      Finish them off
-                    </CheckField>
-                    <p className="text-xs text-muted">
-                      Only someone Dying or Bound can be finished off, and doing
-                      it <strong>kills them</strong> — there is no taking it
-                      back. Pick an injury, tick the box, or both.
                     </p>
                   </>
                 )}

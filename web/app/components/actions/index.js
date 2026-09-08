@@ -4,7 +4,19 @@
 
 import { recallComrades, recoverEquipment } from "@/app/(app)/character/thanatiActions";
 import { readPointer, armNuke, disarmNuke } from "@/app/(app)/character/nukeActions";
-import { extractGodfleshRequest } from "@/app/(app)/character/requestActions";
+import { extractGodfleshRequest, healCharacterRequest } from "@/app/(app)/character/requestActions";
+import BindDialog, { BIND_VERBS } from "./BindDialog";
+import HarmDialog from "./HarmDialog";
+import MutilateDialog from "./MutilateDialog";
+import BodyDialog from "./BodyDialog";
+import EngraveDialog from "./EngraveDialog";
+import DisguiseDialog from "./DisguiseDialog";
+import ConsumeDialog from "./ConsumeDialog";
+import HideoutDialog from "./HideoutDialog";
+import MoveThingsDialog from "./MoveThingsDialog";
+import DestroyDialog from "./DestroyDialog";
+import PackageDialog from "./PackageDialog";
+import PurchaseDialog from "./PurchaseDialog";
 
 // Instant verbs. Each is `{ run, confirm }`: `run()` is the server action,
 // `confirm(pools)` is the one-line question to ask first, or null for none.
@@ -52,4 +64,74 @@ export const INSTANT = {
 
 // Mode → dialog component. Filled in as the dialogs move out of the provider;
 // a mode not listed here is still drawn by the provider's own inline block.
-export const DIALOGS = {};
+export const DIALOGS = {
+  bind: BindDialog,
+  free: BindDialog,
+  crucify: BindDialog,
+  torture: BindDialog,
+  harm: HarmDialog,
+  mutilate: MutilateDialog,
+  bury: BodyDialog,
+  butcher: BodyDialog,
+  engrave: EngraveDialog,
+  disguise: DisguiseDialog,
+  consume: ConsumeDialog,
+  hideout: HideoutDialog,
+  transfer: MoveThingsDialog,
+  loot: MoveThingsDialog,
+  destroy: DestroyDialog,
+  package: PackageDialog,
+  purchase: PurchaseDialog,
+};
+
+// The shortcut past the picker. When a dialog is opened with the one thing it
+// would have asked for already decided — Bind from Ada's own row in the HERE
+// list — there is nothing left to pick, so the one question is asked straight
+// away and the verb runs. Each returns `{ ask, run, ctx }` or null to fall
+// through to the dialog. The name comes off the page's own roster; a preset
+// for someone not on it (a stale page) falls through rather than guessing.
+function bindShortcut(mode) {
+  return (seed, bag) => {
+    if (!seed?.targetId) return null;
+    const target = (bag?.bindTargets ?? []).find((t) => t.id === seed.targetId);
+    if (!target || !BIND_VERBS[mode].fit(target)) return null;
+    const verb = BIND_VERBS[mode];
+    return { ask: verb.confirm(target.name), run: () => verb.run(target.id), ctx: { name: target.name } };
+  };
+}
+
+export const FAST_PATHS = {
+  bind: bindShortcut("bind"),
+  free: bindShortcut("free"),
+  torture: bindShortcut("torture"),
+  crucify: bindShortcut("crucify"),
+  // Heal, when the patient has exactly one thing wrong and you are paying:
+  // the dialog would have had one chip lit and one payer, which is no dialog.
+  heal: (seed, bag) => {
+    if (!seed?.patientId || !bag?.selfId) return null;
+    const patient = (bag.healTargets ?? []).find((t) => t.id === seed.patientId);
+    if (!patient || (patient.healable ?? []).length !== 1) return null;
+    const affliction = patient.healable[0];
+    const self = patient.id === bag.selfId;
+    return {
+      ask: {
+        title: self ? `Treat your ${affliction.tagName}?` : `Treat ${patient.name}'s ${affliction.tagName}?`,
+        message: `Costs ${affliction.cost ?? 0} ⬢, paid by you.${
+          affliction.gambit
+            ? " This is beyond routine, so it counts as a Gambit: it uses your Move, a die is rolled, and a poor result can leave them worse off."
+            : affliction.counts
+              ? ` One of the ${bag.healsLeft ?? "few"} cases you can work this turn.`
+              : " First aid doesn't cost a Move."
+        } ‡`,
+        confirmLabel: "Treat",
+      },
+      run: () =>
+        healCharacterRequest({
+          targetCharacterId: patient.id,
+          tagId: affliction.tagId,
+          payerKey: `character:${bag.selfId}`,
+        }),
+      ctx: { name: self ? "You" : patient.name, self },
+    };
+  },
+};
