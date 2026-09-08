@@ -49,12 +49,15 @@ export default function CharacterSheet({
   zoneMovesReason = null,
   travellingTo = null,
   examineBlocked = null,
-  // Six flags the page computes off your own sheet and the provider gates
+  // Eight flags the page computes off your own sheet and the provider gates
   // buttons on. They were passed here and dropped for a while, which is why
   // the Nuclear Datacard never showed its buttons: the provider's default
-  // `false` won, silently.
+  // `false` won, silently. Torture and Mutilate were dropped the same way,
+  // and had never once rendered until they were added to this list.
   canCrucify = false,
   canDisguise = false,
+  canTorture = false,
+  canMutilate = false,
   hasDatacard = false,
   hasDevice = false,
   // The THANATI section (docs/systemdocs/THANATI.md), resolved in
@@ -235,6 +238,8 @@ export default function CharacterSheet({
             examineBlocked={examineBlocked}
             canCrucify={canCrucify}
             canDisguise={canDisguise}
+            canTorture={canTorture}
+            canMutilate={canMutilate}
             hasDatacard={hasDatacard}
             hasDevice={hasDevice}
             isThanati={isThanati}
