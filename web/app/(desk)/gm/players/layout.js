@@ -179,7 +179,7 @@ export default async function PlayerDeskLayout({ children }) {
     const c = characterByUser.get(discordUserId) ?? null;
     const last = latestByUser.get(discordUserId) ?? null;
     const username = usernameById.get(discordUserId) ?? "";
-    const { preview } = dmPreview(last, session.discordUserId);
+    const preview = dmPreview(last, session.discordUserId);
     return {
       discordUserId,
       characterId: c?.id ?? null,

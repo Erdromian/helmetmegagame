@@ -173,7 +173,10 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
       discordUserId: r.discordUserId,
       lastAtMs,
       lastDirection: r.lastDirection,
-      ...dmPreview(
+      // dmPreview returns the line itself, not { preview } — spreading it put
+      // its characters on the patch and left `preview` unset, so every row a
+      // GM message touched fell back to the role title ("Baroness").
+      preview: dmPreview(
         { direction: r.lastDirection, content: r.lastContent, authorDiscordUserId: r.lastAuthor },
         gmDiscordUserId,
       ),
