@@ -12,7 +12,7 @@ import PageShell, { PageHeader } from "@/app/components/PageShell";
 export default function LedgerView({ kind, sheet }) {
   if (kind === "sheet") return <CharacterLedger {...sheet} />;
   return (
-    <PageShell width="wide">
+    <PageShell width="full">
       <PageHeader title="Ledger" />
       <EmptyState>
         This account has no living character to draw yet. Make one on{" "}

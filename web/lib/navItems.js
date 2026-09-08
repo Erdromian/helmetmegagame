@@ -44,11 +44,11 @@ export const GM_NAV = [
 // superadmin. Gamemasters still has no rail item at all: it is one more
 // superadmin table hanging off the Dev panel's sub-nav.
 const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev", section: "gm" };
-// The second character sheet, superadmin-only while its layout is being
-// worked on (web/app/(app)/ledger/page.js). It sits directly under Dev
-// because it is the same kind of thing: a surface that is not finished
-// enough to hand anybody else.
-const LEDGER_NAV_ITEM = { href: "/ledger", label: "Ledger", icon: "ledger", section: "gm" };
+// The second character sheet (web/app/(app)/ledger/page.js). Everyone gets
+// it for now — a layout nobody but its author can open is a layout nobody
+// judges — and it is appended last, under Dev on a superadmin's rail, so the
+// order says what it is: a page still being decided on.
+const LEDGER_NAV_ITEM = { href: "/ledger", label: "Ledger", icon: "ledger", section: "player" };
 const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb", section: "player" };
 const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive", section: "player" };
 // Conditional on the licence tag, exactly like Lifeweb's Mortus check below —
@@ -125,5 +125,6 @@ export async function loadNavItems(discordUserId) {
   // after the player group. That is one more divider than the two groups
   // suggest, which is correct: Dev is not the same job as Players/Adjudicate
   // and reads better as its own mark at the bottom.
-  return superadmin ? [...withDepot, DEV_NAV_ITEM, LEDGER_NAV_ITEM] : withDepot;
+  const withDev = superadmin ? [...withDepot, DEV_NAV_ITEM] : withDepot;
+  return [...withDev, LEDGER_NAV_ITEM];
 }

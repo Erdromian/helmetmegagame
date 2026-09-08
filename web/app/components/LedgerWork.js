@@ -14,9 +14,9 @@ export default function LedgerWork({ craftProjects = [], sitesHere = [] }) {
 
   return (
     <section className="panel p-4">
-      <h2 className="panel-header">In progress</h2>
+      <h2 className="panel-header">Crafting & building</h2>
       {nothing ? (
-        <p className="text-sm text-muted">Nothing on the bench right now. ‡</p>
+        <p className="text-sm text-muted">Nothing in progress.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {craftProjects.map((p) => (

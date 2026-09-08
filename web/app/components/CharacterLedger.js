@@ -15,9 +15,8 @@ import SoundTrumpetButton from "./SoundTrumpetButton";
 import StandingHerePanel from "./StandingHerePanel";
 import TagsPanel from "./TagsPanel";
 
-// The second character sheet, at /ledger — superadmin-only while it is being
-// worked on, so it can be iterated in production without a player meeting a
-// half-finished page (web/app/(app)/ledger/page.js holds that gate).
+// The second character sheet, at /ledger — open to every player while it is
+// being judged against /character, which is still the real one.
 //
 // It takes the SAME prop bag CharacterSheet.js takes, built once in
 // character/page.js and handed to whichever layout is drawing. That is the
@@ -146,7 +145,7 @@ export default function CharacterLedger({
   const hasTrumpet = character.tags?.some((ct) => (ct?.tag?.slug ?? ct?.slug) === TRUMPET_SLUG);
 
   return (
-    <PageShell width="wide">
+    <PageShell width="full">
       {isSelf && <CharacterPoller deployVersion={deployVersion} />}
 
       <div className="flex flex-col gap-4">

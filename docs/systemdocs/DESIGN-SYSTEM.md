@@ -220,9 +220,13 @@ top-level page is:
 </PageShell>
 ```
 
-`width` is `narrow` / `default` / `wide`, and that's the whole menu — it
-replaced five ad-hoc `max-w-*` values chosen per page. `PageHeader`'s `actions`
-slot takes anything belonging beside the title: a sub-nav, a faction switcher.
+`width` is `narrow` / `default` / `wide` / `full`, and that's the whole menu —
+it replaced five ad-hoc `max-w-*` values chosen per page. `full` drops the
+centring for a page whose own grid is the width (`/ledger`); it still keeps the
+shell's padding, which is what separates it from the desk exception below.
+
+`PageHeader`'s `actions` slot takes anything belonging beside the title: a
+sub-nav, a faction switcher.
 
 **Don't hand-roll `mx-auto flex max-w-… p-6 sm:p-8` or a bare `<h1>`.** That
 was a documented convention for months and drifted anyway, which is why it is
