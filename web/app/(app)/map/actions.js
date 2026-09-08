@@ -96,11 +96,11 @@ async function buildMap({ character, unfogged }) {
     : { stood: new Set(), seen: new Set() };
 
   // Where they can go from here, already gated and costed — the same call the
-  // Travel panel makes, so the two can never disagree about a hop.
-  const neighbours =
-    character?.locationId && !character.travelToLocationId
-      ? await travelOptions(prisma, character, character.locationId)
-      : [];
+  // Travel panel makes, so the two can never disagree about a hop. Somebody on
+  // the road is asked too: travelOptions shuts their zone crossings and leaves
+  // the local ways open, so the board keeps working for the day they have left
+  // in the zone instead of going blank (MAP.md §3).
+  const neighbours = character?.locationId ? await travelOptions(prisma, character, character.locationId) : [];
   const adjacent = new Map(neighbours.map((row) => [row.location.id, row]));
 
   const party = character ? await partyOf(prisma, character.id) : [];

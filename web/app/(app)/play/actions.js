@@ -489,8 +489,10 @@ export async function loadTravel() {
 
   return {
     ok: true,
-    // Already walking? A paid crossing is a day on the road, and the only
-    // thing on offer is turning round.
+    // Already walking? A paid crossing is a day on the road: there is no
+    // turning back, but the ways inside this zone stay open until the arrival
+    // pass lands them. travelOptions has shut the crossings and named the
+    // destination in each refusal, so `options` below needs nothing here.
     heading: heading?.name ?? null,
     // Both count the party: over the mount's seats, the extra crossing it
     // buys is gone, and the number here has to already say so (MAP.md §3a).

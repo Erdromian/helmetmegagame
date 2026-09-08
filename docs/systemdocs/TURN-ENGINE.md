@@ -229,7 +229,7 @@ each arrived at by getting them wrong first.
    nightly settle for the hidden fear dial (`FEAR.md`). Slotted after hunger,
    so it sees the final Hunger streak, and after carry, so it sees the final
    sheet; before travel arrival, so a traveller pays the night for the
-   Location they set out from rather than the one they haven't reached yet.
+   Location they ended the day in rather than the one they haven't reached yet.
    It applies the turn's flat gains and reliefs to `Character.fear`, settles
    the one status tag the band produces (`db/lib/fear.js#settleFearTag`,
    `source: TagSource.CONDITION`, same convention the old phobia system used),
@@ -240,8 +240,13 @@ each arrived at by getting them wrong first.
    in `TURN_PASSES`) — everyone who spent their Move crossing a zone last turn
    finally lands (`MAP.md` §3). **Last of the passes**, and the slot is
    load-bearing: every pass above settles the turn that just ended, and the
-   traveller spent that turn walking — auto-labor pays them where they set out
-   from, and neither turret shoots somebody still on the road. It does no
+   traveller spent that turn walking — auto-labor pays them at the Location
+   they ended it in, and neither turret shoots somebody who has already left
+   the map. A pending journey shuts the ways out of the zone but not the ways
+   inside it (`MAP.md` §3), so "where they ended the day" and "where they set
+   out from" need not be the same Location any more; every pass above reads the
+   live one, which is the right answer — a traveller who spends their last
+   afternoon under a turret is standing under it. It does no
    Discord work; the arrivals ride back on `travelArrivals` and go out through
    the same thunk loop a GM's staged "Relocate to" uses. Audit action
    `travellers_arrived`.

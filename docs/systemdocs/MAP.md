@@ -287,11 +287,22 @@ keeps the destination's channels shut for the rest of the turn they left in,
 instead of opening under them the second they press Confirm. A **free**
 crossing and a same-zone hop are untouched and still instant.
 
-While a journey is pending the character is **frozen where they stood**:
-`performLocationMove` refuses every move with "You're on the road to X", and
-the Travel button offers nothing at all until the arrival pass walks them
-over — there is no turning back (the Turn back control was removed on
-2026-09-07). Nothing is announced at departure; the ordinary arrival lines fire next
+While a journey is pending the character **cannot leave the zone they set out
+from, and can still walk around inside it**. Only a crossing is refused —
+`performLocationMove` answers "You're on the road to X" for one, and
+`travelOptions` marks every `crossesZone` row unpassable with the same line, so
+the map, the `/play` panel and the bot's picker all draw the roads out shut and
+the local ways open without a copy of the rule in each. Hops inside the zone
+stay free on the ordinary cooldown, they do **not** clear
+`travelToLocationId`, and the arrival pass lands the traveller at the
+destination they paid for whichever Location they ended the day in — the edge
+was checked and the Move spent at declaration, so wandering buys nothing but
+company. There is still no turning back (the Turn back control was removed on
+2026-09-07). The freeze used to cover every move, including the free ones: that
+guard sat above the point where `performLocationMove` works out whether a hop
+crosses a zone at all, so it caught walks it was never aimed at, and a player
+who spent their Move on the road spent the day standing in one room.
+Nothing is announced at departure; the ordinary arrival lines fire next
 turn, plus a "You arrive at X" DM. Every raw relocation (a GM teleport, Bulk
 Move, the staged "Relocate to") clears the pending destination too, or the
 pass would undo the teleport at Dawn, and so does death. Each of them clears

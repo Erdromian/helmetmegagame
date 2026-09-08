@@ -786,20 +786,16 @@ async function handleTravelOpen(interaction) {
     return;
   }
 
-  // On the road already. A paid crossing takes the whole day (MAP.md §3), so
-  // there is no picker to offer and no way off the road: the arrival pass
-  // walks them over at the next advance.
-  if (character.travelToLocationId) {
-    const heading = await prisma.location.findUnique({
-      where: { id: character.travelToLocationId },
-      select: { name: true },
-    });
-    await respond(interaction, {
-      content: `» You're on the road to **${heading?.name ?? "somewhere"}**. You arrive next turn. ‡`,
-      components: [],
-    });
-    return;
-  }
+  // On the road already. A paid crossing takes the whole day and there is still
+  // no way off it (MAP.md §3) — but only the ways OUT OF THE ZONE are shut, so
+  // the picker is still worth drawing. travelOptions has already marked those
+  // rows unpassable, which drops them into `shut` below with no work here.
+  const heading = character.travelToLocationId
+    ? await prisma.location.findUnique({
+        where: { id: character.travelToLocationId },
+        select: { name: true },
+      })
+    : null;
 
   let current = null;
   let destinations;
@@ -839,6 +835,9 @@ async function handleTravelOpen(interaction) {
       : null;
   await respond(interaction, {
     content: [
+      heading
+        ? `» You're on the road to **${heading.name}**. You arrive next turn — until then this zone is still yours to walk. ‡`
+        : null,
       destinations.length > 0 ? "Where would you like to go? ‡" : "» *Every way out of here is closed to you.* ‡",
       shutLine,
       truncated > 0 ? `-# ${truncated} more not shown — Discord caps this list at 25. ‡` : null,

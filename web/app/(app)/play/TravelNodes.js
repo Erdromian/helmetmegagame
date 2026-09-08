@@ -102,17 +102,6 @@ export default function TravelNodes({ onDone, pick = null }) {
     );
   }
 
-  // Already walking: a paid crossing is a day on the road, and there is no
-  // way off it — the arrival pass walks them over at the next advance.
-  if (data.heading) {
-    return (
-      <div className="chat-travel">
-        <p className="chat-section-title">Travel</p>
-        <p className="text-sm">Leaving for {data.heading} at the end of the turn. ‡</p>
-      </div>
-    );
-  }
-
   const chosen = target ? (data.options.find((o) => o.id === target) ?? null) : null;
   const nextTurn = Boolean(chosen?.crossesZone && data.freeLeft <= 0);
 
@@ -121,6 +110,16 @@ export default function TravelNodes({ onDone, pick = null }) {
       <p className="chat-section-title" title={data.freeReason ?? undefined}>
         Travel · {data.freeLeft} available
       </p>
+
+      {/* Already walking: a paid crossing is a day on the road and there is no
+          way off it, but only the ways OUT OF THE ZONE are shut. The list stays
+          up so the last day can be spent somewhere with people in it — the
+          crossings draw dim, with the road named in their refusal. */}
+      {data.heading ? (
+        <p className="text-sm">
+          Leaving for {data.heading} at the end of the turn — until then this zone is still yours to walk. ‡
+        </p>
+      ) : null}
 
       {data.options.length === 0 ? (
         <EmptyState>There is no way out of here. ‡</EmptyState>
