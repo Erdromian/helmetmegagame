@@ -109,8 +109,8 @@
     "forest-deep-forest": {
       "name": "Deep Forest",
       "zone": "forest",
-      "x": 294,
-      "y": 797
+      "x": 136,
+      "y": 816
     },
     "forest-east-river": {
       "name": "East River",
@@ -157,8 +157,8 @@
     "forest-west-riverbank": {
       "name": "West Riverbank",
       "zone": "forest",
-      "x": 136,
-      "y": 816
+      "x": 294,
+      "y": 797
     },
     "garrison": {
       "name": "Garrison",
