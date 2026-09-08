@@ -22,7 +22,7 @@ export default function GameControls({ phase, readyCount, hasDraft }) {
       title: "Start the game?",
       message:
         readyCount > 0
-          ? `${readyCount} readied player${readyCount === 1 ? "" : "s"} will be assigned and DMed. ‡`
+          ? `${readyCount} readied player${readyCount === 1 ? "" : "s"} will be assigned and DMed.`
           : "Nobody has readied up.",
       confirmLabel: "Start game",
       cancelLabel: "Not yet",

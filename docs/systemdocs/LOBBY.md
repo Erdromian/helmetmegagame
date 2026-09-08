@@ -203,6 +203,15 @@ one-line DM pointing at late join.
 
 `creationWindowHours` is a `GameConfig` knob (default 24).
 
+**Who is mid-window is visible to every GM**, on the Dev Panel's Assignments
+section as **Seats out** (`DEV-PANEL.md` §11b): the ASSIGNED entries with no
+character yet, what is left on each window, and whether the reminder has gone.
+The full lobby roster on the Game section says the same thing, but that section
+is superadmin-only because it also holds Start and Restart Game — so before
+this, nobody but the master could see who had been handed a seat and not taken
+it. The three DMs above are all notices (`db/lib/dmKinds.js`), so they
+deliberately do not appear in the GM inbox.
+
 ## 5. Late join
 
 Everyone else — never readied, Return to lobby, declined, expired, a Cursed

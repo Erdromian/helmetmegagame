@@ -3671,6 +3671,23 @@ tags:
       skills: [medical-expert]
       gambit: true
 
+  # The end of the line. Not a wound and not curable — a marker on a sheet
+  # whose owner was vaporised outright by one of the Thanati rites or by the
+  # bomb (db/lib/characterDeath.js, the `gib` option). Every other tag the
+  # character held is deleted when this one lands, and no corpse is minted, so
+  # there is nothing left to loot, carry, butcher or bury.
+  gibbed:
+    catalog: all
+    name: Gibbed
+    category: health
+    group: health-infection
+    description: "Vaporized."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    healable: false
+
   # --- Wounds ------------------------------------------------------------
   bruised:
     catalog: all

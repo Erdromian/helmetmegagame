@@ -5,7 +5,13 @@ import MarkdownContent from "./MarkdownContent";
 import GmAvatar from "./GmAvatar";
 import CharacterAvatar from "./CharacterAvatar";
 import useNowTick from "./useNowTick";
-import { AUTOMATED_EFFECT_SOURCES, MENTION_SOURCE } from "@/lib/dmSources";
+import {
+  DM_KIND,
+  MENTION_SOURCE,
+  GM_LETTER_SOURCE,
+  GM_LETTER_REPLY_SOURCE,
+  BIRD_SOURCE,
+} from "@lifeweb/db/lib/dmKinds";
 import { dayKey, dayLabel, clockLabel, formatDmTime, fullTimestamp } from "@/lib/dmTime";
 
 // The one shared thread — the player desk's conversation pane and the
@@ -24,12 +30,11 @@ const SOURCE_LABELS = {
   gm_letter: "by bird",
 };
 
-// The two GM-letter sources (db/lib/bird.js). Repeated as LITERALS on purpose:
-// this is a client component, and importing them from @lifeweb/db would drag
-// PrismaClient into the browser bundle and kill the route with a node:fs error
-// carrying no digest. Keep them in step with the constants by hand.
-const LETTER_SOURCE = "gm_letter";
-const LETTER_REPLY_SOURCE = "gm_letter_reply";
+// The three letter sources now come from @lifeweb/db/lib/dmKinds rather than
+// being copied here as literals. That import is safe by the same rule that
+// lets StatusPanel.js import @lifeweb/db/lib/constants — the module requires
+// nothing, so it cannot drag PrismaClient into the browser bundle. Importing
+// from the @lifeweb/db BARREL still would.
 
 const RUN_GAP_MS = 7 * 60_000;
 const AT_BOTTOM_PX = 80;
@@ -50,15 +55,33 @@ function isEmbed(m) {
 // ("A bird finds you..."), so the letter's own words ride in meta and are what
 // gets drawn. The inbound row's content IS the reply, so it falls back to that.
 function isLetter(m) {
-  return m.source === LETTER_SOURCE || m.source === LETTER_REPLY_SOURCE;
+  return m.source === GM_LETTER_SOURCE || m.source === GM_LETTER_REPLY_SOURCE || m.source === BIRD_SOURCE;
 }
 
-// Bot/effect notifications — resource grants, dev-panel summaries, Move
-// unlocks. They render as centred system lines, and runs of three or more
-// collapse. Pure UI plumbing (source: "system_notice", "prompt_reply") never
-// reaches this component: @/lib/dmThread#withoutDmNoise excludes it at the query.
+// A notice — the game telling this player something, rather than a person
+// writing to them. Resource grants, hunger, a seat assignment, a travel
+// outcome. They render as centred system lines, and runs of three or more
+// collapse. Pure plumbing (kind QUIET) never reaches this component:
+// @/lib/dmThread excludes it at the query.
+//
+// The three exceptions are notices that have a body of their own to draw — a
+// letter, a mention relay, an embed. They are quiet in the inbox like any
+// other notice, but collapsing one into "3 automated messages" would throw
+// away the only thing worth looking at. Note isMention is NOT gated on the
+// perspective here: the GM chair never receives one (the query drops it), and
+// gating it would let the two chairs disagree about item keys.
 function isEffect(m) {
-  return !isEmbed(m) && m.direction === "OUTBOUND" && AUTOMATED_EFFECT_SOURCES.includes(m.source);
+  return (
+    m.kind === DM_KIND.NOTICE &&
+    // A player's own words can never be background texture. Nothing writes an
+    // INBOUND notice today, but the DB default is NOTICE, so a future inbound
+    // writer that forgets `kind` would otherwise have its message collapsed
+    // into "3 automated messages" instead of merely misfiled.
+    m.direction === "OUTBOUND" &&
+    !isEmbed(m) &&
+    !isLetter(m) &&
+    !isMention(m)
+  );
 }
 
 // A mention relay, read from the player's chair. The row's content is the

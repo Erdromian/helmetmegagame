@@ -30,6 +30,12 @@ const { applyDeathToRow } = require("./characterDeath");
 const DETONATION_LINE =
   "You hear a deafening roar. There's a fireball in the sky. @everyone";
 
+// What each victim is told, and what #leave reads. Until this existed the
+// `deaths` entries below carried no `reason` at all, and db/index.js's shared
+// death-DM loop interpolated it anyway — so everybody killed by the bomb was
+// DM'd the literal string "You have died. undefined".
+const BLAST_DEATH_REASON = "the blast caught them above ground and left nothing behind. ‡";
+
 async function runNukeExplosionPass(prisma, turn) {
   const state = await prisma.gameState.findUnique({ where: { id: 1 } });
 
@@ -71,8 +77,12 @@ async function runNukeExplosionPass(prisma, turn) {
     // Sequential, never Promise.all: each applyDeathToRow mints a corpse,
     // vacates a faction office and writes an archive row, and the conditional
     // claim inside it is what makes a resumed turn unable to kill twice.
+    // Gibbed, not merely killed: nobody above ground leaves a body, so there
+    // are no corpses to loot or bury after the bomb and every tag they carried
+    // goes up with them.
     const { claimed } = await applyDeathToRow(prisma, character, {
       turn,
+      gib: true,
       content: `${character.name} died in the blast.`,
     });
     if (!claimed) continue;
@@ -84,6 +94,7 @@ async function runNukeExplosionPass(prisma, turn) {
       // Discord this role's deletion.
       discordRoleId: character.discordRoleId,
       zoneId: character.zoneId,
+      reason: BLAST_DEATH_REASON,
     });
   }
 

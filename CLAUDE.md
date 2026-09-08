@@ -624,6 +624,39 @@ path.
 
 Inbound DMs are logged directly in `bot/src/events/messageCreate.js`.
 
+### Every DM says what kind of thing it is
+
+`DirectMessage.kind` — `CONVERSATION`, `NOTICE` or `QUIET`, from
+`db/lib/dmKinds.js` — decides how much of the GM inbox a line is entitled to.
+`source` is a separate column and only decides how the line is *drawn*. Keep
+them orthogonal.
+
+- **`CONVERSATION`** — a person composed these words for this reader. It sorts
+  the GM inbox, wins the preview, and counts as unread.
+- **`NOTICE`** — the game said it. Invisible to the rail; a quiet grey line
+  once a GM opens the person.
+- **`QUIET`** — plumbing (an inspect embed, a reaction refusal). Logged, never
+  drawn.
+
+**All three `sendDm` functions default to `NOTICE`, and so does the database
+column.** Conversation is the thing you opt into:
+
+```js
+sendDm(discordUserId, text);                              // a notice
+sendDm(discordUserId, text, { kind: DM_KIND.CONVERSATION }); // a person wrote it
+```
+
+So **a new DM needs no thought to behave** — which is the point. This used to
+be a `source` string whose absence read as "a person wrote this", so every line
+anybody added showed up in the GM inbox as mail until somebody remembered to
+tag it, and "You are the Baroness" sat at the top of the inbox for weeks.
+**Never fix a misbehaving DM by adding its `source` to a filter list** — that
+is the exact pattern this replaced. Set its `kind`.
+
+A raw `prisma.directMessage.create` gets no `sendDm` default, so the four
+inbound writers each set `kind` by hand. The read-side predicates all live in
+`web/lib/dmThread.js`. See `PLAYER-DESK.md` §5.
+
 ## Bot message style ("aura")
 
 Bot-authored Discord text should feel understated, not like a typical bot
@@ -655,12 +688,11 @@ rather than noticed, it belongs on that side of the line too.
 in DM text renders as a live relative time on Discord *and* on the web, in each
 reader's own timezone — so prefer it over a pre-formatted date. The same goes
 for `<@…>`, `<#…>`, `<:name:id>` and `@here`, though the web deliberately
-prints no id: a mention reads `someone`, a channel `somewhere`. Discord's `-#`
-subtext renders everywhere too. The vocabulary is defined once in
-`db/lib/discordMarkup.js` and rendered by `web/app/components/remarkDiscord.js`;
-`db/test/discordMarkup.test.js` fails the build on a token neither has been
-taught. Before this existed, two lobby DMs showed players a literal
-`<t:1788979216:F>`.
+prints no id: a mention reads `someone`, a channel `somewhere`. The vocabulary
+is defined once in `db/lib/discordMarkup.js` and rendered by
+`web/app/components/remarkDiscord.js`; `db/test/discordMarkup.test.js` fails
+the build on a token neither has been taught. Before this existed, two lobby
+DMs showed players a literal `<t:1757700120:F>`.
 
 Lines that quote or restate player/character content get a `»` prefix — e.g.
 `» {move description}`. `web/lib/discordGuild.js#sendDm` adds that prefix

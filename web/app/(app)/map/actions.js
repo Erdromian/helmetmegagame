@@ -161,10 +161,6 @@ async function buildMap({ character, unfogged }) {
       crossesZone: Boolean(near?.crossesZone),
       dismounts: Boolean(near?.dismounts),
       reason: near?.refusal ?? null,
-      // The tag of theirs that opens the way here, if one does. Same field the
-      // Travel panel draws a chip from, and safe for the same reason: it is
-      // only ever set for a tag this character already holds.
-      openedBy: near?.openedBy ?? null,
     });
   }
 
@@ -182,14 +178,7 @@ async function buildMap({ character, unfogged }) {
     // `listed` filter is lifted — the verdict itself still decides how a way
     // is drawn, so a shut gate reads as shut on their board too.
     if (!unfogged && !verdict.listed) continue;
-    edges.push({
-      a: link.aId,
-      b: link.bId,
-      gate: gateOf(link, verdict),
-      // Drawn as a solid accent line rather than a plain grey one: a road only
-      // your own trait opens is worth seeing on the plate, not just in the card.
-      openedBy: verdict.openedBy ?? null,
-    });
+    edges.push({ a: link.aId, b: link.bId, gate: gateOf(link, verdict) });
   }
 
   const layers = ["surface"];

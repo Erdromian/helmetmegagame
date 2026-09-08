@@ -169,7 +169,7 @@ player never learns which GM answered. The renderer is the desk's own
 two things — the NEW line marks the first unread *outbound* row, and the
 reader's own send is an *inbound* one. Every outbound row wears one face,
 **Bascinet** (`BASCINET_PROFILE`), whoever typed it; a `staged_push` row still
-carries the desk's `turn result` chip, and runs of `bot_auto` still collapse.
+carries the desk's `turn result` chip, and runs of notices still collapse.
 
 **Live, off a trigger.** `DirectMessage_notify`, an `AFTER INSERT` trigger in
 `20260913060000_dm_notify`, raises `NOTIFY bascinet_dm` with `{ id,
@@ -206,7 +206,7 @@ frame on. The mention chime rings for an outbound row while the pane is not
 the open place: a DM is always about you.
 
 **What it replaced.** `Yesterday.js` and `yesterday()` are gone — the same
-`staged_push` / `bot_auto` rows are in the thread, every day rather than only
+`staged_push` / notice rows are in the thread, every day rather than only
 the last close. There is no separate "Report to the GMs": writing to Bascinet
 is the report. Restart Game **wipes** `DirectMessage` along with the rest of
 the per-game state (`web/app/(app)/gm/dev/actions.js`, the wipe transaction),
@@ -557,31 +557,41 @@ header instead).
   character takes the player path — the rule `loadFeedViewer` already applies.
 - **The words themselves go through `ChatMarkdown.js`**, not
   `MarkdownContent.js`, which is still the DM renderer. It is `react-markdown`
-  + `remark-gfm` + `remarkTokens` + **`remarkChat.js`**, which adds the two
-  things a chat line does that a document never does:
-  `||spoilers||` (a `.chat-spoiler` button, click to reveal, stays revealed)
-  and **quoted speech** — a `"…"` span becomes
-  `<span class="speech">`, tinted with the `--speech` token declared in every
-  theme block and gated at AA by `npm run audit:contrast`. The tint is there
-  because a Chat row is narration and dialogue mixed, and the words somebody
-  actually said are what a reader scans for. Plugin order is load-bearing:
-  `remarkChat` runs **before** `remarkTokens`, or a mention in the middle of a
-  quote splits the text node and the quote stops matching itself.
-  `remarkDiscord` splits text nodes the same way, so it sits after `remarkChat`
-  for the same reason, and `remarkSubtext` runs before both.
-- **`-#` subtext is `remarkSubtext.js`, and Discord's angle-bracket vocabulary
-  is `remarkDiscord.js`. Every renderer runs both**, with the lists in one file
+  + `remark-gfm` + `remarkTokens` + **`remarkChat.js`**, which adds the three
+  things a chat line does that a document never does: `||spoilers||` (a
+  `.chat-spoiler` button, click to reveal, stays revealed) and **quoted
+  speech** — a `"…"` span becomes `<span class="speech">`, tinted
+  with the `--speech` token declared in every theme block and gated at AA by
+  `npm run audit:contrast`. The tint is there because a Chat row is narration
+  and dialogue mixed, and the words somebody actually said are what a reader
+  scans for.
+- **`-#` subtext is `remarkSubtext.js`, and every renderer runs it.** It used
+  to sit inside `remarkChat`, which meant only `/play` understood it — so the
+  lobby seat DM reached players with a literal `-#` on its last line, beside a
+  literal `<t:…>`. It is Discord's syntax rather than a style we chose, so it
+  belongs wherever Discord-written text is read. It is block-level and must run
+  on RAW text, before any inline pass has cut the paragraph into children,
+  which is why it is first in every list.
+- **What the three renderers now share is `remarkDiscord.js`.** Chat, DMs and
+  documents all run it, and the plugin lists live in one file
   (`markdownPlugins.js`) so they cannot drift again — which they had, and the
-  cost was two lobby DMs showing players a literal `<t:1788979216:F>` and a
-  stray `-#`. Neither is a style we chose; both are Discord's syntax, so they
-  belong wherever Discord-written text is read. The vocabulary is defined once
-  in `db/lib/discordMarkup.js` — a zero-requires leaf, the `dmKinds.js` rule —
-  and `db/test/discordMarkup.test.js` scans the source with the same patterns,
-  so a token the renderer has not been taught fails the run rather than
-  reaching a player. **No id is ever printed**: a mention resolves to a neutral
-  `someone`, a channel to `somewhere`, an emoji to its `:name:`.
+  cost was two lobby DMs showing players a literal `<t:1757700120:F>` where a
+  time belonged. It renders Discord's angle-bracket vocabulary: the seven
+  `<t:…>` timestamp styles, `<@…>` / `<@&…>` / `<#…>`, `<:name:id>` custom
+  emoji and `@here`. The vocabulary itself is defined once in
+  `db/lib/discordMarkup.js` — a zero-requires leaf, the `dmKinds.js` rule — and
+  `db/test/discordMarkup.test.js` scans the source with the same patterns, so a
+  syntax the renderer has not been taught fails the run rather than reaching a
+  player. **No id is ever printed**: a mention resolves to a neutral `someone`,
+  a channel to `somewhere`, an emoji to its `:name:`.
+- Plugin order is load-bearing: `remarkChat` runs **before** the token passes,
+  or a mention in the middle of a quote splits the text node and the quote
+  stops matching itself. `remarkDiscord` splits text nodes the same way, so it
+  sits after `remarkChat` for the same reason.
 - **DMs still get no `remarkChat`.** No speech tint, no spoilers — a DM is a GM
-  and a player talking, not a scene.
+  and a player talking, not a scene. Discord's raw syntax is a different thing:
+  it is not styling we chose, it is characters that leaked in, and it belongs
+  everywhere the text is read.
 - **Mentions are `{char:<id>}` in the row, on both faces.** The composer's `@`
   autocomplete (`MentionMenu.js`) runs over `whosHere().named` — the people
   standing here, concealed ones deliberately absent — and inserts the token;
@@ -1069,7 +1079,7 @@ and rate-limited by `chimedRecently()` so a busy room is not a bell tower.
 Discord-origin mention, `bot/src/lib/feedOutbox.js#relayWebMentions` for a web
 one). It carries where and a link and never the text, and since 2026-09-07 it
 also shows in the player's Bascinet thread on `/play` (§2b) — before that the
-`system_notice` source hid it there, which read as "pinging from the web does
+plumbing classification hid it there, which read as "pinging from the web does
 nothing".
 
 **Web Push** is for a tab that is closed, and it is the new half. A browser

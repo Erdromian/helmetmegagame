@@ -222,7 +222,7 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
   // of blocks is not a message anybody reads.
   if (body.length > 300) return { ok: false, error: "A shout is 300 characters at the most. ‡" };
 
-  if (!character?.id) return { ok: false, error: "You don't have a living character. ‡" };
+  if (!character?.id) return { ok: false, error: "You don't have a living character." };
   if (!character.locationId) return { ok: false, error: "You're nowhere." };
 
   // SHOUT, not ACT and not SPEAK — and those distinctions are the whole point

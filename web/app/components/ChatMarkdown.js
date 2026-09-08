@@ -12,11 +12,11 @@ import { useCharacterMentions } from "./CharacterMentionsProvider";
 // there.
 //
 // What this adds over plain Markdown: the {kind:payload} tokens (remarkTokens),
-// chat's own two (remarkChat) — ||spoilers|| and quoted speech — and the two
-// Discord passes every renderer runs, remarkSubtext (`-#`) and remarkDiscord
-// (`<t:…>`, mentions, emoji). Every plugin feeds ONE tree, which is the reason
-// these are remark plugins rather than string passes: a mention inside a
-// spoiler inside a quote has to still be a mention.
+// chat's own three (remarkChat) — ||spoilers||, `-#` subtext and quoted speech —
+// and Discord's angle-bracket vocabulary (remarkDiscord), which reaches a scene
+// line whenever somebody types one into Discord. Every plugin feeds ONE tree,
+// which is the reason these are remark plugins rather than string passes: a
+// mention inside a spoiler inside a quote has to still be a mention.
 
 // A {char:<id>} in a feed row. The map comes from CharacterMentionsProvider,
 // which /play now fills from two lists: the people standing here, and the

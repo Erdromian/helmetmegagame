@@ -201,13 +201,17 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
 
   const visible = useMemo(() => {
     const q = query.trim();
-    // With no query, the rail is the inbox: only players with a conversation.
-    // A query widens the net to everyone with a character too — that's the
-    // only way to reach someone who has never written, since their href
-    // already works for an empty thread.
-    let list = q
-      ? inView.filter((r) => r.hasConversation || r.characterId)
-      : inView.filter((r) => r.hasConversation);
+    // With no query, the rail is the inbox: only players with a conversation,
+    // where a conversation means somebody typed something. The game's own
+    // notices don't count — a seat assignment or a hunger line can't put a
+    // player in here (web/lib/dmThread.js#railKindSql).
+    //
+    // A query widens the net to everyone with a character, and past that to
+    // anyone the game has written to at all. That last step is what keeps a
+    // lobby entrant reachable: they have been DM'd their seat and nothing
+    // else, so they have no character and no conversation, and their thread
+    // href works fine the moment somebody navigates to it.
+    let list = q ? inView : inView.filter((r) => r.hasConversation);
 
     // Unlike the zone and needs-reply filters, a query does NOT lift this one
     // on its own — a mute is a standing decision about a person, not a lens
@@ -441,17 +445,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
                   )}
                 </div>
                 <div className="desk-queue-preview">
-                  {/* A conversation whose only traffic is automated — a
-                      turret, a move unlock — has no genuine line to show.
-                      It reads as one muted system line rather than as a row
-                      with a name on it and nothing in it. */}
-                  {row.preview ? (
-                    row.previewIsSystem ? (
-                      <span className="text-muted italic">{row.preview}</span>
-                    ) : (
-                      row.preview
-                    )
-                  ) : (
+                  {row.preview || (
                     <span className="text-muted">{row.roleTitle || "No messages yet"}</span>
                   )}
                 </div>

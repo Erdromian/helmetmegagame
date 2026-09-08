@@ -41,7 +41,6 @@ import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
 import { inactiveCharacters } from "@lifeweb/db/lib/inactivity";
 import { grantTagSlugs, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
-import { validateTurretTable } from "@lifeweb/db/lib/depotTurret";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 import { mintLetterFor, sealWithMark } from "@lifeweb/db/lib/paperMint";
 import {
@@ -98,29 +97,8 @@ export async function updateGameConfig(formData) {
 // the same shape updateGameConfig uses, and for the same reason: a loop over
 // formData keys would let a hand-posted field write a column nobody meant to
 // expose.
-//
-// The turret table is the one field that can be REJECTED rather than clamped.
-// A table that does not sum to 1 is not a preference, it is a broken die, and
-// silently normalising it would hide a GM's typo behind subtly wrong odds for
-// a month. validateTurretTable throws; the action swallows it into a returned
-// error so the form can say so.
 export async function updateDepot(formData) {
   await requireDev();
-
-  let turretTable;
-  const raw = str(formData, "turretTable");
-  if (raw) {
-    try {
-      turretTable = JSON.parse(raw);
-    } catch {
-      return { error: "The turret table is not valid JSON." };
-    }
-    try {
-      validateTurretTable(turretTable);
-    } catch (err) {
-      return { error: err.message };
-    }
-  }
 
   const fuelMax = Math.max(1, intOrZero(formData, "fuelMax"));
 
@@ -148,7 +126,6 @@ export async function updateDepot(formData) {
       shuttleCooldown: Math.max(0, intOrZero(formData, "shuttleCooldown")),
       creditCapObols: Math.max(0, intOrZero(formData, "creditCapObols")),
       // Never zero: the ⬢-to-obol conversion divides by it.
-      ...(turretTable ? { turretTable } : {}),
     },
   });
 

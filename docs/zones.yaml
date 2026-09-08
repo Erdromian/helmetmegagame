@@ -95,12 +95,6 @@
 #   makes the room PRIVATE, admitting anyone holding ANY of the listed tags.
 #   Slugs aren't checked against the tag catalog here (tags sync after
 #   zones); a typo is a room nobody can enter, reported by the channel doctor.
-# - soundproof (rooms only): true if the walls hold sound in. A /shout made
-#   from inside is posted into this room's thread and nowhere else — not the
-#   parent Location channel, not one Location in earshot — and the shouter is
-#   told it was muffled. It still costs the five-minute cooldown. This is what
-#   makes tying somebody up somewhere quiet actually mean something. It is a
-#   shout boundary only: the whisper poll still leaks fragments upward.
 # - live (rooms only): a key from the registry in db/lib/roomLive.js. The
 #   room's starter message gets one more line, read off live state and
 #   re-rendered whenever that state moves — the Landing Pad saying whether the
@@ -272,7 +266,6 @@ zones:
             access: [inn-key]
           inn-cellar:
             name: Cellar
-            soundproof: true
             description: >-
               A low roof; you almost hit your head. Shelves and kegs illuminated by wall candles set in a ram's horn.
             access: [inn-key]
@@ -303,6 +296,10 @@ zones:
         description: >-
           A gatehouse, usually unmanned, protecting the town from invaders. There's a bridge fording the small creek.
         rooms:
+          north-gate-gateway:
+            name: Gateway
+            description: >-
+              Rusted grates surround you.
           # Both town gates, the fortress and Customs all have a room named
           # "Watchtower" in play; the stem is what tells them apart.
           north-gate-watchtower:
@@ -327,7 +324,6 @@ zones:
               Cramped and dark, the confession box was the church's primary source of information until the arrival of the inquisition and their more proactive methods. If the bishop is feeling generous, he may even take your confession free of charge.
           cathedral-order-chambers:
             name: Order Chambers
-            soundproof: true
             description: >-
               The heart of the Order. There's a small room off to the side: tool racks line the walls with cruel and unusual instruments. Cages are positioned in the corners, awaiting occupants. At the center sits a chair with straps. If you tell them what they want to hear, maybe your death will be painless.
             access: [order-key]
@@ -395,7 +391,6 @@ zones:
                 esculaps-wax-stamp: 1
           sanctuary-operating-theater:
             name: Operating Theater
-            soundproof: true
             description: >-
               A small room, windowless. A single surgery bed rests at the centre, surrounded by tables with all manner of instruments neatly arranged. An anaesthetic system is hooked up to the surgery bed, mercifully letting patients sleep through the operation. A freezer box sits in the corner awaiting generous organ donations.
             access: [sanctuary-key]
@@ -446,7 +441,6 @@ zones:
                 feces: 6
           underquarter-basements:
             name: Basements
-            soundproof: true
             description: >-
               Four connected basements, their separating walls knocked down. Originally some sort of hidden den, this now is a perfect place for organizing. It's accessed through the sewers.
             access: [underquarter-basements, thanati, thanati-leader]
@@ -467,7 +461,6 @@ zones:
             access: [pushers-key]
           underquarter-organ-shop:
             name: Organ Shop
-            soundproof: true
             description: >-
               A dark room below street level with a crude operating table. A small window near the roof lets in some of the street's light.
             access: [tunnel-rat]
@@ -480,6 +473,10 @@ zones:
         description: >-
           A gatehouse, usually unmanned, protecting the town from invaders. There's a bridge fording the small creek.
         rooms:
+          south-gate-gateway:
+            name: Gateway
+            description: >-
+              The most traveled gate. Tired horses draw half-full wagons.
           south-gate-watchtower:
             name: Watchtower
             access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key, headmans-key]
@@ -618,7 +615,6 @@ zones:
               The roof vaults over rows of banqueted tables. There's a balcony; the view plunges downwards into the forest. There is a huge painting of Baron Casimir the Great.
           keep-nook:
             name: Nook
-            soundproof: true
             access: [behind-the-painting]
             description: >-
               An empty room. It has unfinished sketches of a nude man in various poses across the walls.
@@ -722,7 +718,6 @@ zones:
               Wet stone, a long way down, and something breathing in the dark that is much larger than you are. ‡
           keep-the-charon:
             name: The Charon
-            soundproof: true
             description: >-
               A sealed gate. The Baron's key opens this.
             access: [barons-key]
@@ -815,13 +810,11 @@ zones:
                 padded-cap: 3
           garrison-dungeons:
             name: Dungeons
-            soundproof: true
             access: [censors-key, incarns-key, cerberus-key]
             description: >-
               Rows of cells behind iron bars, each with a lock only accessible by members of the garrison.
           garrison-oubliette:
             name: Oubliette
-            soundproof: true
             access: [censors-key, incarns-key, cerberus-key]
             description: >-
               If you throw a man in here, they're not getting out.
@@ -875,7 +868,6 @@ zones:
               A cage suspended over the darkness. Use the pressure plate to descend.
           undercroft-vault:
             name: Vault
-            soundproof: true
             access: [barons-key]
             description: >-
               A hydraulically-operated electric vault door seals off a deep room.
@@ -931,7 +923,6 @@ zones:
                 sabre: 1
           manors-cellar:
             name: Cellar
-            soundproof: true
             access: [manor-key]
             description: >-
               Damp and dark.
@@ -1043,7 +1034,6 @@ zones:
                 supply-kit: 2
           creekside-root-cellar:
             name: Root Cellar
-            soundproof: true
             description: >-
               A mat of ivy conceals a low wooden hatch pressed between two roots behind the lodge. Cold stone steps descend to shelves of empty jars and a narrow drainage channel where water quietly disappears beneath the wall.
             access: [forester]
@@ -1418,7 +1408,6 @@ zones:
                 rock: 2
           north-hills-basement:
             name: Basement
-            soundproof: true
             description: >-
               Shrivelled up locks of plants hang from hooks above drawers packed with phials of tinctures and rolls of crusted cloth. Lacking labels, your only hope is that whatever toxins they once contained have had enough time to denature.
             access: [brewing-skilled, caving]
@@ -1583,7 +1572,6 @@ zones:
           # swim — the nearest thing the schema has to a hidden room.
           village-flooded-cellar:
             name: Cellar
-            soundproof: true
             description: >-
               A waterlogged cellar. There's a crate down there — you'd have to be a good swimmer to get it.
             access: [strong-swimmer]
@@ -1747,7 +1735,6 @@ zones:
               The basin’s center is deep, exposed, and almost entirely free of vegetation. On calm days the water becomes mirror-flat, making distant trees and clouds difficult to distinguish from their reflections.
           drowned-marshes-crypt:
             name: Crypt
-            soundproof: true
             description: >-
               A drowned burial chamber rests beneath the tower, its niches filled with black water and pale silt. Several sarcophagi have split open under the pressure. A narrow opening beneath the eaves leads into an air pocket trapped against the ceiling. Rusted hooks and a heavy iron bell remain inside, along with whatever was abandoned when the water rose.
             access: [strong-swimmer]

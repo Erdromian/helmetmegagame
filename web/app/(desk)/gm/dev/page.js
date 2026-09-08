@@ -1,6 +1,6 @@
 import SubmitButton from "@/app/components/SubmitButton";
 import { redirect } from "next/navigation";
-import { prisma, loadDepot, turretTable } from "@lifeweb/db";
+import { prisma, loadDepot } from "@lifeweb/db";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getDevTier, resolveSection } from "@/lib/devAccess";
 import { getOpenTurn } from "@/lib/turn";
@@ -51,6 +51,7 @@ import { effectivePlayerCount, GAME_STATE_CREATE } from "@lifeweb/db/lib/gameSta
 import GameControls from "./GameControls";
 import ConfigForm from "./ConfigForm";
 import LobbyRoster from "./LobbyRoster";
+import SeatsOut from "./SeatsOut";
 import AssignmentPreview from "./AssignmentPreview";
 import { isSpawnOnly } from "@/lib/characterCreation";
 import DeskHeader from "@/app/components/DeskHeader";
@@ -96,8 +97,10 @@ const PHASE_TONE = { CLOSED: "neutral", LOBBY: "warn", RUNNING: "good", ENDED: "
 // One sentence saying where the game is, for the Game section's lede.
 function phaseLede(state, readyCount, livingCount) {
   switch (state.phase) {
+    // CLOSED says nothing: the StatusPill beside this lede already reads
+    // "Closed", and a sentence repeating it was the only thing in the section.
     case "CLOSED":
-      return "Nobody can ready up or join. Open the lobby once the syncs are done. ‡";
+      return "";
     case "LOBBY":
       return `${readyCount} readied, ${livingCount} character${livingCount === 1 ? "" : "s"} already in. Turns are frozen until Start. ‡`;
     case "RUNNING":
@@ -239,6 +242,7 @@ export default async function DevPanelPage({ searchParams }) {
   // Seats handed out that nobody has taken up yet (LOBBY.md). Its own list
   // rather than a slice of lobbyRows, because that one is built only for the
   // superadmin Game section and this has to reach an ordinary GM.
+  let seatsOut = [];
   let draftRows = [];
   let pickableRoles = [];
 
@@ -389,7 +393,7 @@ export default async function DevPanelPage({ searchParams }) {
       // Rows are every APPROVED PLAYER in the guild, not every character:
       // a SPAWN is aimed precisely at the people who are not in the game, so
       // a player with no character is a real row rather than a gap.
-      const [members, characters, roles, locationRows, preferences] = await Promise.all([
+      const [members, characters, roles, locationRows, preferences, openSeats] = await Promise.all([
         listGuildMembers(),
         // ALIVE only: Catatonic is a TAG on a living character, not a status,
         // and a dead one is not somebody you hand a seat to.
@@ -426,6 +430,21 @@ export default async function DevPanelPage({ searchParams }) {
         // Lobby consent for the players who have no character yet: before
         // Start, the preference row is the only place a tick lives.
         prisma.playerPreference.findMany({ select: { discordUserId: true, antagonistOptIns: true } }),
+        // Seats that have been handed out and not taken up. ASSIGNED is the
+        // status between the DM going out and the character existing — CREATED
+        // means they built it, DECLINED and EXPIRED mean the seat is free
+        // again, and READY means they are still in the queue.
+        prisma.lobbyEntry.findMany({
+          where: { status: "ASSIGNED", characterId: null, assignedRoleId: { not: null } },
+          orderBy: { expiresAt: "asc" },
+          select: {
+            discordUserId: true,
+            assignedAt: true,
+            expiresAt: true,
+            reminderSentAt: true,
+            assignedRole: { select: { name: true } },
+          },
+        }),
       ]);
 
       const byUser = new Map(characters.map((c) => [c.discordUserId, c]));
@@ -453,6 +472,26 @@ export default async function DevPanelPage({ searchParams }) {
             seatName: seat?.name ?? null,
           };
         });
+
+      // Who has been handed a seat and not taken it. A GM could not see this
+      // at all before: the lobby roster lives in the Game section, which is
+      // superadmin-only because it also holds Start, End and Restart Game.
+      // Being told "you are the Baroness" is the loudest thing the game says
+      // to anybody, and nobody running the game could see who had been told.
+      {
+        const memberById = new Map(members.map((m) => [m.id, m]));
+        seatsOut = openSeats.map((e) => {
+          const m = memberById.get(e.discordUserId);
+          return {
+            discordUserId: e.discordUserId,
+            handle: m ? m.globalName || m.username : e.discordUserId,
+            roleName: e.assignedRole?.name ?? "—",
+            assignedAt: e.assignedAt ? e.assignedAt.toISOString() : null,
+            expiresAt: e.expiresAt ? e.expiresAt.toISOString() : null,
+            reminded: Boolean(e.reminderSentAt),
+          };
+        });
+      }
 
       // Seats left per role, so the spawn dialog says which are open rather
       // than letting an accept fail on a full one.
@@ -667,7 +706,9 @@ export default async function DevPanelPage({ searchParams }) {
               <section className="ops-section">
                 <div className="ops-section-head">
                   <h2 className="section-title">Game</h2>
-                  <p className="ops-lede">{phaseLede(state, readyCount, livingCount)}</p>
+                  {phaseLede(state, readyCount, livingCount) ? (
+                    <p className="ops-lede">{phaseLede(state, readyCount, livingCount)}</p>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <StatusPill tone={PHASE_TONE[state.phase]}>{PHASE_LABEL[state.phase]}</StatusPill>
@@ -770,7 +811,7 @@ export default async function DevPanelPage({ searchParams }) {
                 <div className="ops-section-head">
                   <h2 className="section-title">Next Turn</h2>
                   <p className="ops-lede">
-                    {state.nextTurnNote ? `Note ready for the next turn: "${state.nextTurnNote}"` : "No note set for the next turn. ‡"}
+                    {state.nextTurnNote ? `Note ready for the next turn: "${state.nextTurnNote}"` : "No note set for the next turn."}
                   </p>
                 </div>
                 <form action={updateNextTurn} className="flex flex-col gap-3">
@@ -871,19 +912,6 @@ export default async function DevPanelPage({ searchParams }) {
                     name="creditCapObols"
                     label="Credit cap (¢)"
                     value={depot.creditCapObols}
-                  />
-                </div>
-
-                <div className="field">
-                  <label htmlFor="depot-turretTable" className="field-label">
-                    Turret severity table
-                  </label>
-                  <textarea
-                    id="depot-turretTable"
-                    name="turretTable"
-                    rows={12}
-                    className="mono"
-                    defaultValue={JSON.stringify(turretTable(depot), null, 2)}
                   />
                 </div>
 
@@ -1116,6 +1144,14 @@ export default async function DevPanelPage({ searchParams }) {
           ) : null}
 
           {section === "assignments" ? (
+            <>
+            <section className="ops-section ops-section--wide">
+              <div className="ops-section-head">
+                <h2 className="section-title">Seats out</h2>
+              </div>
+              <SeatsOut rows={seatsOut} />
+            </section>
+
             <section className="ops-section ops-section--wide">
               <div className="ops-section-head">
                 <h2 className="section-title">Assignments</h2>
@@ -1127,6 +1163,7 @@ export default async function DevPanelPage({ searchParams }) {
                 locations={spawnLocations}
               />
             </section>
+            </>
           ) : null}
 
           {section === "antagonists" ? (

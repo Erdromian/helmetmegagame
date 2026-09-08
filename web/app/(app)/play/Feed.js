@@ -1041,8 +1041,8 @@ export default function Feed({
       clientId,
       seq: null,
       // Shaped the way the server will shape it (db/lib/archive.js#feedRowShape):
-      // an aliased send carries the key and no id, so the optimistic row and
-      // the confirmed one agree about which lines are yours.
+      // a hooded send carries the key and no id, so the optimistic row and the
+      // confirmed one agree about which lines are yours.
       characterId: self.aliased ? null : self.characterId,
       speakerKey: self.aliased ? self.speakerKey : null,
       name: self.name,
@@ -1470,7 +1470,7 @@ export default function Feed({
         {notices}
         {withRuns.length === 0 ? (
           historyState === "loaded" ? (
-            <EmptyState>Nothing has been said here yet. ‡</EmptyState>
+            <EmptyState>Nothing has been said here yet.</EmptyState>
           ) : (
             <FeedSkeleton />
           )
@@ -1701,7 +1701,7 @@ export default function Feed({
             // summary they are only listed in, somewhere a GM is watching.
             // The street is not here any more: it has the command-only box
             // above, and says STREET_LINE when somebody types prose into it.
-            <p className="chat-quiet">You can only watch here. ‡</p>
+            <p className="chat-quiet">You’re a ghost. You can’t speak.</p>
           )}
           {/* Paperwork and the hood, beside the send. Neither is a place's
               affordance — they are things you do with your own hands wherever

@@ -64,7 +64,7 @@ function messageLink(guildId, channelId, messageId) {
 //
 // `placeKey` is the Chat place the message was filed under
 // (db/lib/placeKey.js). It rides in the row's meta so the player's Chat pane
-// can open that place; the desk never shows the row (web/lib/dmSources.js).
+// can open that place; the desk never shows the row (db/lib/dmKinds.js).
 async function notifyMentioned(client, character, context, link, { placeKey = null } = {}) {
   const place = context.locationName ?? context.zoneName ?? null;
   const where = context.threadName

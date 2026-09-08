@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · The GM inbox stops shouting, and the loading flashes are gone for real
+
+✎ Every DM now says how much of the GM inbox it deserves, so system notices stop crowding real conversations off the players desk — a forgotten one is quiet now rather than loud  
+✎ The page skeletons are actually gone this time: an earlier push kept the files by mistake, so pages were still blanking out on the way to the next one  
+✚ A Seats Out table on the Dev desk — who has been offered a seat, not taken it yet, and how long they have left  
+✎ Portraits and avatar uploads are on by default; a game no longer starts with faces switched off and nobody remembering to turn them on  
+− Soundproof rooms
+
 ## 2026-09-08 · A dead character keeps Bascinet's messages, and the desk stops throwing
 
 ✚ A player whose character has died can still read and answer Bascinet on /play. The messages column used to vanish with the body, which left a web-only player no way to read a DM at all  
@@ -13,6 +21,35 @@ Entries below predate this format and list files instead.
 − Spawning a threat no longer offers roles that are seats of their own as a cover role  
 ✎ Assign now says so when it works, and says so when the seat lands but the DM does not  
 ✎ A push refuses to ship code importing a file git does not have, which is what left the site on a stale build for 25 minutes today
+
+## 2026-09-08 · Egomaniac is gone, and the escort note stops stuttering
+
+− The Egomaniac tag is removed from the catalog — it was buyable but gated by nothing, and it was never part of any role's kit  
+− The note telling you somebody is travelling with you no longer opens with a doubled quote mark
+
+## 2026-09-08 · One header on every page, and the click lands before the page does
+
+✎ Every page wears the same header bar now, with the zone, day and phase in it — the turn no longer floats in the corner of the screen  
+✎ Clicking in the sidebar keeps you on the page you are reading until the next one has actually loaded, instead of blanking it to a skeleton  
+✎ A caving roll is filed under the zone the die rolled in, not the roller's faction seat — a Factory member down in the Caves was showing up as Marshes, and was invisible to the Caves GM  
+✎ Somebody pinged from Discord shows up as a person in Chat now, even if they are standing somewhere else; it used to print raw text  
+✎ /shout clears the box the moment you send it  
+✎ The Audit desk's header is the same height as every other desk's  
+✎ A whitelisted role wears a dashed border in the lobby too, whether or not you hold the whitelist
+
+## 2026-09-08 · Egomaniac is handed out, not bought
+
+− Egomaniac is off the tag store and out of character creation — a GM grants it
+
+## 2026-09-08 · Walking only frightens you so much, and the times in your messages read as times
+
+✎ A long day's walking can only frighten you so much now. The wild and the caves still cost you for every step you take into them, but what the walking alone adds in one day stops at a point. A Refugee cutting Godflesh out of the marshes was reaching Uncomfortable on the first afternoon just by doing the job the role exists to do.  
+✎ Times in your messages read as times. A seat offer that showed you a raw tag now gives the actual date and a live countdown, in your own timezone, on the website as well as in Discord.  
+✎ The quiet grey aside at the bottom of a message reads as a quiet grey aside, instead of starting with a stray -#.  
+✎ Mentions, channels and emoji pasted into a message no longer show up as a row of numbers on the website.  
+✎ The GM inbox stops treating every automatic message as mail. A seat assignment or a bird letter is a notice now; only something a person actually wrote for you sorts to the top.  
+✚ A GM can lift a wrongly-applied curse from the character dev panel, instead of the player needing someone to engrave them a headstone.  
+✎ A starred line from a masked speaker shows the face the room saw, not the speaker's real one.
 
 ## 2026-09-08 · Tying someone up takes the carry out of their voice
 
@@ -30,12 +67,13 @@ Entries below predate this format and list files instead.
 
 ## 2026-09-08 · Shouts name who shouted, and some rooms swallow them
 
-✎ A shout now says who shouted, in your own place only — one step away it is still just "someone", so a concealed character can yell without unmasking. A hood shouts as "a young man", a Beast as "Beast".  
-✚ Soundproof rooms. A shout from inside one never leaves the room: not the street outside, not one place in earshot, and everyone in the room is told it was muffled. Fifteen of them — the Vault, the Oubliette, the Dungeons, the Order Chambers, the Charon, the Nook, the windowless Operating Theater, the Underquarter Basements and Organ Shop, and the cellars and crypts. Tie somebody up in one and nobody is coming.  
-✎ The Graga Pit is deliberately not one, and neither are the Echoing Halls.  
-✎ A muffled shout still costs the five-minute throat timer. It happened.  
-− The bot's second copy of the shout rules, and its in-memory cooldown, which a restart emptied and the website could never see. One throat now.  
-✎ Fixed: shouting into a room you may not speak in burned five minutes for nothing.
+✎ A long day's walking can only frighten you so much now. The wild and the caves still cost you for every step you take into them, but what the walking alone adds in one day stops at a point. A Refugee cutting Godflesh out of the marshes was reaching Uncomfortable on the first afternoon just by doing the job the role exists to do.  
+✎ Times in your messages read as times. A seat offer that showed you a raw tag now gives the actual date and a live countdown, in your own timezone, on the website as well as in Discord.  
+✎ The quiet grey aside at the bottom of a message reads as a quiet grey aside, instead of starting with a stray -#.  
+✎ Mentions, channels and emoji pasted into a message no longer show up as a row of numbers on the website.  
+✎ The GM inbox stops treating every automatic message as mail. A seat assignment or a bird letter is a notice now; only something a person actually wrote for you sorts to the top.  
+✚ A GM can lift a wrongly-applied curse from the character dev panel, instead of the player needing someone to engrave them a headstone.  
+✎ A starred line from a masked speaker shows the face the room saw, not the speaker's real one.
 
 ## 2026-09-08 · The cargo bay stops at the gate, and a trade is a trade
 

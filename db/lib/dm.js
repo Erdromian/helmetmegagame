@@ -12,6 +12,7 @@
 // @lifeweb/db would be a third same-named export with a third signature and
 // would invite the wrong one being grabbed. Require it by path.
 const { postDmBatched } = require("./discordRest");
+const { DM_KIND } = require("./dmKinds");
 
 // Applies the `»` prefix (see CLAUDE.md "Bot message style") and logs to
 // DirectMessage so /gm/messages keeps a full conversation record. The log is
@@ -35,6 +36,9 @@ async function sendDm(prisma, discordUserId, content, opts = {}) {
         content: formatted,
         authorDiscordUserId: opts.authorDiscordUserId ?? null,
         source: opts.source ?? "bot_auto",
+        // NOTICE unless the caller says otherwise. A DM nobody classified is
+        // the game talking, not a person — see db/lib/dmKinds.js.
+        kind: opts.kind ?? (opts.embeds?.length ? DM_KIND.QUIET : DM_KIND.NOTICE),
         discordMessageId: message?.id ?? null,
         // ?? undefined: a caller's explicit null would be rejected by Prisma
         // for a Json? column, and the .catch below would eat the lost row.

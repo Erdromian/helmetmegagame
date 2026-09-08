@@ -100,15 +100,6 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
 
   const held = tagSlugs instanceof Set ? tagSlugs : new Set(tagSlugs ?? []);
   const hasTag = !link.requiredTagSlug || held.has(link.requiredTagSlug) || isHeldOpen(link, now);
-  // Which of THEIR OWN tags opens this way, for a surface that wants to say so.
-  // Deliberately not `hasTag`: that is also true of a keyed way somebody else
-  // propped open, and walking through a door another player wedged is not your
-  // trait opening it. Only ever a tag they hold, so it leaks nothing — a hidden
-  // crawl names its tag only to the one person who already owns it — and it is
-  // absent from every refusing branch below, so a locked way says no more than
-  // it did.
-  const openedBy =
-    link.requiredTagSlug && held.has(link.requiredTagSlug) ? link.requiredTagSlug : null;
 
   if (link.hidden && !hasTag) {
     // Same wording a nonexistent edge gets, deliberately: a refusal that
@@ -131,9 +122,9 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
   // way arriving indoors already parks a mount at the door. `dismounts` is
   // surfaced here so the picker can say so before anyone commits to it.
   if (link.onFoot && onFootBlocked) {
-    return { listed: true, passable: true, refusal: null, dismounts: true, openedBy };
+    return { listed: true, passable: true, refusal: null, dismounts: true };
   }
-  return { listed: true, passable: true, refusal: null, dismounts: false, openedBy };
+  return { listed: true, passable: true, refusal: null, dismounts: false };
 }
 
 // Does this edge have a gate to work at all? Only a modular edge does. The

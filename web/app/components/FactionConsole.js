@@ -22,6 +22,7 @@ import {
   decideApplication,
   renameFaction,
   secedeFaction,
+  foundFaction,
   setSiloRoom,
   setMemberTreasurer,
 } from "@/app/(app)/faction/actions";
@@ -436,7 +437,9 @@ function ApplicationsTab({ faction, applications, invites, siloKeys, candidates,
 function StandingTab({ faction, isLeader, myApplications, run, pending }) {
   const confirm = useConfirm();
   const [renaming, setRenaming] = useState(false);
+  const [founding, setFounding] = useState(false);
   const [name, setName] = useState(faction.name);
+  const [newName, setNewName] = useState("");
 
   return (
     <div className="flex flex-col gap-4">
@@ -533,6 +536,12 @@ function StandingTab({ faction, isLeader, myApplications, run, pending }) {
             Secede from {faction.parentName}
           </button>
         )}
+        {/* Founding works from inside a faction too — foundFaction detaches
+            you on the way out. Leaving first and then founding was two steps
+            for one decision. */}
+        <button type="button" className="btn-quiet" onClick={() => setFounding(true)}>
+          Found your own
+        </button>
         <button
           type="button"
           className="btn-quiet"
@@ -571,6 +580,37 @@ function StandingTab({ faction, isLeader, myApplications, run, pending }) {
           <input className="field-input" value={name} onChange={(e) => setName(e.target.value)} maxLength={48} />
         </label>
       </RequestDialog>
+
+      <RequestDialog
+        modeless
+        open={founding}
+        title="Found a faction"
+        submitLabel="Found it"
+        busy={pending}
+        reasonRequired={false}
+        canSubmit={newName.trim().length >= 2}
+        onCancel={() => setFounding(false)}
+        onConfirm={async () => {
+          const done = await run(() => foundFaction({ name: newName }));
+          if (done) {
+            setFounding(false);
+            setNewName("");
+          }
+        }}
+      >
+        <label className="field">
+          <span className="field-label">Name</span>
+          <input
+            className="field-input"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            maxLength={48}
+          />
+        </label>
+        <p className="text-sm text-muted mt-2">
+          You leave {faction.name} and become the new faction&apos;s Leader.
+        </p>
+      </RequestDialog>
     </div>
   );
 }
@@ -582,9 +622,11 @@ function StandingTab({ faction, isLeader, myApplications, run, pending }) {
 function Directory({ directory, myApplications, run, pending }) {
   const [applying, setApplying] = useState(null);
   const [applyNote, setApplyNote] = useState("");
+  const [founding, setFounding] = useState(false);
+  const [name, setName] = useState("");
   const pendingIds = new Set(myApplications.map((a) => a.factionId));
-  // Every faction in the game, so this list has no natural ceiling — search
-  // and paging rather than a bare table that grows forever.
+  // Founding is free and unlimited, so this list has no natural ceiling —
+  // search and paging rather than a bare table that grows forever.
   const table = useTableState({
     rows: directory,
     searchFields: DIRECTORY_SEARCH,
@@ -595,7 +637,12 @@ function Directory({ directory, myApplications, run, pending }) {
   return (
     <div className="flex flex-col gap-4">
       <section className="panel overflow-x-auto p-4 flex flex-col gap-3">
-        <h2 className="panel-header">Factions</h2>
+        <div className="flex items-baseline justify-between gap-3 flex-wrap">
+          <h2 className="panel-header">Factions</h2>
+          <button type="button" className="btn-quiet" onClick={() => setFounding(true)}>
+            Found your own
+          </button>
+        </div>
         <FilterBar
           filterDefs={[]}
           filters={table.filters}
@@ -723,6 +770,32 @@ function Directory({ directory, myApplications, run, pending }) {
             placeholder="Why you, why them."
           />
         </label>
+      </RequestDialog>
+
+      <RequestDialog
+        modeless
+        open={founding}
+        title="Found a faction"
+        submitLabel="Found it"
+        busy={pending}
+        reasonRequired={false}
+        canSubmit={name.trim().length >= 2}
+        onCancel={() => setFounding(false)}
+        onConfirm={async () => {
+          const done = await run(() => foundFaction({ name }));
+          if (done) {
+            setFounding(false);
+            setName("");
+          }
+        }}
+      >
+        <label className="field">
+          <span className="field-label">Name</span>
+          <input className="field-input" value={name} onChange={(e) => setName(e.target.value)} maxLength={48} />
+        </label>
+        <p className="text-sm text-muted mt-2">
+          You become its Leader.
+        </p>
       </RequestDialog>
     </div>
   );

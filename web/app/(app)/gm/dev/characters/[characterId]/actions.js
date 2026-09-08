@@ -472,6 +472,7 @@ async function messageCharacterImpl({ characterId, message }) {
   const sent = await sendDm(character.discordUserId, text, {
     authorDiscordUserId: session.discordUserId,
     source: "gm_dev",
+    kind: DM_KIND.CONVERSATION,
   }).catch(() => null);
   await audit(session, sent ? "gm_dm_sent" : "gm_message_delivery_failed", characterId, {
     length: text.length,

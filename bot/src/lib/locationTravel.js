@@ -19,6 +19,7 @@ const { applyLocationMoveSideEffects } = require("@lifeweb/db/lib/locationMove")
 const { putChannelOverwrite } = require("@lifeweb/db/lib/discordRest");
 const { LOCATION_MEMBER_ALLOW } = require("@lifeweb/db/lib/zoneChannelSpec");
 const { sendDm } = require("@lifeweb/db/lib/dm");
+const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 
 // The gateway half of the Travel flow. Every rule and every database write
 // lives in db/lib/locationTravel.js so the web app runs the identical ones;
@@ -189,7 +190,7 @@ async function performMove(character, targetLocation) {
         entry.reason === "edge"
           ? `*You can't move ${entry.character.name} through here. They stay behind.* ‡`
           : `*${entry.character.name} isn't with you any more.* ‡`,
-        { source: "system_notice" },
+        { kind: DM_KIND.QUIET },
       ).catch(() => {});
     }
     if (entry.character.status === "ALIVE" && entry.character.discordUserId) {
@@ -197,7 +198,7 @@ async function performMove(character, targetLocation) {
         prisma,
         entry.character.discordUserId,
         `*${character.name} went on without you.* ‡`,
-        { source: "system_notice" },
+        { kind: DM_KIND.QUIET },
       ).catch(() => {});
     }
   }
@@ -214,7 +215,7 @@ async function performMove(character, targetLocation) {
         prisma,
         entry.character.discordUserId,
         `*${character.name} is taking you to ${targetLocation.name}. You'll get there next turn.* ‡`,
-        { source: "system_notice" },
+        { kind: DM_KIND.QUIET },
       ).catch((err) =>
         console.error(`Drag DM to ${entry.character.discordUserId} failed:`, err.message ?? err),
       );
@@ -259,7 +260,7 @@ async function performMove(character, targetLocation) {
       prisma,
       entry.character.discordUserId,
       `*${character.name} brought you along to ${targetLocation.name}.* ‡`,
-      { source: "system_notice" },
+      { kind: DM_KIND.QUIET },
     ).catch((err) =>
       console.error(`Drag DM to ${entry.character.discordUserId} failed:`, err.message ?? err),
     );

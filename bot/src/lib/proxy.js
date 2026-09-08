@@ -7,6 +7,7 @@ const { prepareSpeech, recordSpeech, loadVoiceState: loadVoiceStateFor } = requi
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const { resolveChannelContext } = require("./channels");
 const { sendDm } = require("./dm");
+const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 
 const WEBHOOK_NAME = "Bascinet Tupper";
 
@@ -225,10 +226,10 @@ async function deleteOriginal(message) {
 // the commonest refusal is the message being too long for one DM too.
 async function handBack(message, reason, text) {
   try {
-    await sendDm(message.author, `» *${reason}*`, { source: "system_notice" });
+    await sendDm(message.author, `» *${reason}*`, { kind: DM_KIND.QUIET });
     const body = (text ?? "").trim();
     for (let i = 0; i < body.length; i += DM_CHUNK) {
-      await sendDm(message.author, body.slice(i, i + DM_CHUNK), { source: "system_notice" });
+      await sendDm(message.author, body.slice(i, i + DM_CHUNK), { kind: DM_KIND.QUIET });
     }
   } catch (err) {
     console.error(`Couldn't return the unproxied message to ${message.author.id}:`, err);

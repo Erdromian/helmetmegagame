@@ -55,7 +55,8 @@ const TURRET_SEVERITY_TAGS = {
 // in between, and no amount of armour ever landed a typical wearer on a real
 // wound.
 //
-// Sums to 1, and validateTurretTable enforces that on the write path.
+// Sums to 1. It is the only table there is now, so nothing validates it at
+// runtime — a change here is a code change, reviewed like any other.
 const DEFAULT_TURRET_TABLE = {
   graze: 0.1,
   "minor-wound": 0.036,
@@ -103,55 +104,17 @@ function armorOdds(protection) {
   return p / (1 - p);
 }
 
-// A GM's stored weights over the shipped ones, taken WHOLE rather than merged
-// key-by-key: a half-overridden table would silently stop summing to 1.
-function turretTable(depot) {
-  const stored = depot?.turretTable;
-  if (!stored || typeof stored !== "object" || Array.isArray(stored)) return DEFAULT_TURRET_TABLE;
-  // Belt and braces against a table written by something other than the
-  // validated Dev Panel form — a hand-edited row, a restored backup from
-  // before a severity was renamed. A table that cannot be rolled against falls
-  // back to the shipped one rather than quietly skewing every shot.
-  let sum = 0;
-  for (const [key, weight] of Object.entries(stored)) {
-    if (!TURRET_SEVERITIES.includes(key)) return DEFAULT_TURRET_TABLE;
-    if (typeof weight !== "number" || Number.isNaN(weight) || weight < 0) return DEFAULT_TURRET_TABLE;
-    sum += weight;
-  }
-  if (Math.abs(sum - 1) > SUM_EPSILON) return DEFAULT_TURRET_TABLE;
-  return stored;
-}
-
-// Throws on a table that cannot be rolled against.
+// The shipped table, always. What a turret does to a person is a rule of the
+// game like the Caving Die or the torture thresholds, not a preference — it
+// was a GM-editable JSON blob on the Depot, which meant the odds of being
+// killed at the gate could differ between two turrets for no reason a player
+// could ever see. `Depot.turretTable` is an ORPHAN column now (the schema
+// drops nothing); nothing reads it.
 //
-// The write path is where this runs: web/app/(app)/gm/dev/actions.js#updateDepot
-// refuses a save whose weights do not sum to 1, so a mistuned table never
-// reaches the database in the first place. That is deliberately stricter than
-// validating at startup — by then the bad odds are already live, and a GM
-// staring at a rejected form is told exactly what is wrong while they still
-// have it in front of them.
-function validateTurretTable(table = DEFAULT_TURRET_TABLE) {
-  if (!table || typeof table !== "object" || Array.isArray(table)) {
-    throw new Error("Turret table: not a mapping of severity to weight");
-  }
-  for (const key of Object.keys(table)) {
-    if (!TURRET_SEVERITIES.includes(key)) {
-      throw new Error(`Turret table: unknown severity "${key}"`);
-    }
-  }
-  let sum = 0;
-  for (const severity of TURRET_SEVERITIES) {
-    const w = table[severity];
-    if (w === undefined) continue;
-    if (typeof w !== "number" || Number.isNaN(w) || w < 0) {
-      throw new Error(`Turret table: bad weight for "${severity}"`);
-    }
-    sum += w;
-  }
-  if (Math.abs(sum - 1) > SUM_EPSILON) {
-    throw new Error(`Turret table: weights sum to ${sum}, not 1`);
-  }
-  return true;
+// The argument is kept, so every caller and the Gatehouse turret's `null`
+// still work unchanged.
+function turretTable(_depot) {
+  return DEFAULT_TURRET_TABLE;
 }
 
 // One shot. `rng` is injectable so a test can pin the outcome; nothing in
@@ -211,7 +174,6 @@ module.exports = {
   // table and the gain constant are all internals of this file; exporting them
   // put names on the @lifeweb/db barrel that read as API and had no readers.
   turretTable,
-  validateTurretTable,
   rollTurret,
   turretSpares,
 };

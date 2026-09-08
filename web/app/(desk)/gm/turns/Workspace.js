@@ -48,7 +48,9 @@ const DESK_STORAGE_DEFAULT = {
 // authority again.
 function formatCountdown(minutes) {
   if (minutes == null) return "";
-  if (minutes <= 0) return "Push imminent";
+  // Nothing once the clock runs out: the push is a cron, and a chip that
+  // announces it is about to fire tells a GM nothing they can act on.
+  if (minutes <= 0) return "";
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   if (h <= 0) return `Push in ${m}m`;

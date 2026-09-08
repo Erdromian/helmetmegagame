@@ -5978,20 +5978,17 @@ label.chip {
   background: var(--row-hover);
 }
 
-/* "X is typing… ‡" — one line above the composer, six seconds after the last
-   event. Reserves no height when empty: a line that appears and disappears
-   must not shove the scene up and down as people write. */
-.chat-typing {
-  font-size: var(--fs-xs);
+/* A mention that resolved to nobody — somebody behind a mask, or a character
+   gone since the line was written. It reads "someone", muted and italic, and
+   deliberately carries no face: the point is that the reader is not being
+   told who, and a blank avatar next to a word would suggest they nearly were.
+   What it replaced was the literal `{char:<cuid>}`, which is not an unresolved
+   reference a reader can make anything of — it is a line that looks broken. */
+.chat-mention--unknown {
   color: var(--muted);
-  padding: 0 var(--sp-4) var(--sp-1);
-  min-height: 1.2em;
-  flex-shrink: 0;
+  font-style: italic;
 }
 
-/* The composer's @ list. Anchored above the box rather than below it: the box
-   already sits at the bottom of the screen, and a popover under it would open
-   off the page. */
 /* ---- Discord's angle-bracket vocabulary (remarkDiscord.js) ---- */
 
 /* A <t:EPOCH:F> rendered as a real time. Framed like a mention rather than set
@@ -6012,6 +6009,20 @@ label.chip {
   color: var(--muted);
 }
 
+/* "X is typing… ‡" — one line above the composer, six seconds after the last
+   event. Reserves no height when empty: a line that appears and disappears
+   must not shove the scene up and down as people write. */
+.chat-typing {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  padding: 0 var(--sp-4) var(--sp-1);
+  min-height: 1.2em;
+  flex-shrink: 0;
+}
+
+/* The composer's @ list. Anchored above the box rather than below it: the box
+   already sits at the bottom of the screen, and a popover under it would open
+   off the page. */
 .chat-mentions {
   position: absolute;
   bottom: 100%;

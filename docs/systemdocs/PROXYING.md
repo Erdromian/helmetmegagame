@@ -262,7 +262,7 @@ its picker lists who you have heard rather than who is nearby.
 modal cannot open straight off ✏️. The path is: reaction → a DM carrying one
 "Edit text" button → the click is an interaction → modal, prefilled with the
 current text. `edit:open:<messageId>` opens it, `edit:send:<messageId>`
-submits. The prompt DM is a `system_notice`, so no GM surface shows it.
+submits. The prompt DM is `kind: QUIET`, so no GM surface shows it.
 
 `handleEditOpen` must **not** ack first — `showModal` is the acknowledgement.
 The prefill comes from an in-memory stash armed when ✏️ is pressed, not from a
@@ -282,13 +282,14 @@ sitting in the GM inbox reads exactly like mail. A first fix tagged them
 `source: "prompt_reply"` via a `pendingPrompts` map so the desks could skip
 them; the tagging worked, but the rail badge in `web/lib/navItems.js` had no
 noise predicate at all, so the chime still rang on every edit. The map and its
-source are gone now that the flow produces no DM to tag. `prompt_reply` lives
-on only as a read-side filter for the rows already in the table
-(`web/lib/dmThread.js#withoutDmNoise` and its raw-SQL twin `dmNoiseSql`, which
-every GM-facing DM query now shares precisely so they cannot drift apart
-again).
+source are gone now that the flow produces no DM to tag, and `prompt_reply`
+is not read by anything either: the `dm_kind` migration reclassified those
+historical rows as `kind: QUIET`, so they stay off every GM surface without a
+filter naming them. Which rows a GM sees is `DirectMessage.kind` now
+(`db/lib/dmKinds.js`), written by `sendDm` rather than remembered by whoever
+adds the next DM — see `PLAYER-DESK.md` §5.
 
-`/conceal`'s prompt never needed any of this; it is already a `system_notice`
+`/conceal`'s prompt never needed any of this; it is plumbing like the rest,
 and the player retypes in the channel.
 
 The bot needs the `MESSAGE_CONTENT` privileged intent for any of this

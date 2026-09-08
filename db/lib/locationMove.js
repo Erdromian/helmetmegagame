@@ -35,6 +35,7 @@ const { keyedPromptRow } = require("./locationAnchorRow");
 const { aliasSubject } = require("./concealedIdentity");
 const { sendDm } = require("./dm");
 const { rollTurretOnArrival, TURRET_DM } = require("./depotPass");
+const { applyDeathTeardown } = require("./deathTeardown");
 const {
   rollGatehouseTurretOnArrival,
   GATEHOUSE_TURRET_DM,
@@ -331,6 +332,16 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
         console.error(`Move: turret DM failed for ${characterId}:`, err.message ?? err),
       );
     }
+    // A kill on arrival happens outside the turn engine, so the side-effect
+    // thunk that tears every other death down never sees it. Done here
+    // instead, and only here — the turn-end sweep's kills are carried up to
+    // db/index.js as `deaths` rather than torn down inline.
+    if (shot.death) {
+      await applyDeathTeardown(prisma, shot.death).catch((err) =>
+        console.error(`Move: death teardown failed for ${characterId}:`, err.message ?? err),
+      );
+    }
+
     // The noise carries whatever the roll was — a graze is still a machinegun
     // going off, and a zone that only hears the shots that land can never learn
     // to stay out of the yard.

@@ -22,6 +22,11 @@ const GATEHOUSE_LOCATION_SLUG = "gatehouse";
 
 const DEATH_CONTENT = "Cut down by the turret in the fortress yard.";
 
+// The plain fact under the flavour, for the death DM and #leave. Same split as
+// the Depot's: the line above is what the archive records, this is what the
+// person killed is told.
+const DEATH_REASON = "the gun on the rotor in the fortress yard cut them down. \u2021";
+
 // Deliberately not the Depot's wording. That gun identifies you and decides it
 // does not like your face; this one never looks up at all, and the lines say so.
 const GATEHOUSE_TURRET_DM = {
@@ -57,19 +62,25 @@ async function gatehouseTurretArmed(prisma) {
 // pass does — see TURN-ENGINE.md §3.
 async function runGatehouseTurretPass(prisma, turn) {
   if (!(await gatehouseTurretArmed(prisma))) {
-    return { turretShots: 0, turretOutcomes: [], dms: [], burstLocationId: null };
+    return { turretShots: 0, turretOutcomes: [], dms: [], deaths: [], burstLocationId: null };
   }
 
   const { shots, locationId } = await sweepTurretAt(prisma, { locationSlug: GATEHOUSE_LOCATION_SLUG });
 
   const dms = [];
   const outcomes = [];
+  const deaths = [];
   for (const shot of shots) {
-    const outcome = await applyTurretShot(prisma, shot, turn, { deathContent: DEATH_CONTENT });
+    const outcome = await applyTurretShot(prisma, shot, turn, {
+      deathContent: DEATH_CONTENT,
+      deathReason: DEATH_REASON,
+    });
     outcomes.push({ ...outcome, severity: shot.severity, protection: shot.protection });
     if (outcome.discordUserId) {
       dms.push({ discordUserId: outcome.discordUserId, content: turretDmFor(GATEHOUSE_TURRET_DM, outcome) });
     }
+    // The Discord teardown a kill owes, carried up to the side-effect thunk.
+    if (outcome.death) deaths.push(outcome.death);
   }
 
   // One burst for the whole sweep, not one per victim — see
@@ -80,6 +91,7 @@ async function runGatehouseTurretPass(prisma, turn) {
     turretShots: outcomes.length,
     turretOutcomes: outcomes,
     dms,
+    deaths,
     burstLocationId: outcomes.length ? locationId : null,
   };
 }
@@ -95,6 +107,7 @@ function rollGatehouseTurretOnArrival(prisma, { characterId, toLocationId, turn 
     locationSlug: GATEHOUSE_LOCATION_SLUG,
     armed: async () => ({ armed: await gatehouseTurretArmed(prisma) }),
     deathContent: DEATH_CONTENT,
+    deathReason: DEATH_REASON,
   });
 }
 

@@ -5,6 +5,10 @@ const HUNGERLESS_SLUG = "hungerless";
 // are — there is no generic upkeep field on Tag.
 const FAST_METABOLISM_SLUG = "fast-metabolism";
 const DYING_SLUG = "dying";
+// Vaporised outright — the Thanati rites and the bomb (db/lib/characterDeath.js
+// `gib`). Replaces every tag the character owned, and no corpse is minted, so
+// there is nothing left to loot, carry, butcher or bury.
+const GIBBED_SLUG = "gibbed";
 const NOBILITY_SLUG = "nobility";
 const COURTIER_SLUG = "courtier";
 const ATE_MEAL_SLUG = "ate-meal";
@@ -154,6 +158,7 @@ module.exports = {
   HUNGERLESS_SLUG,
   FAST_METABOLISM_SLUG,
   DYING_SLUG,
+  GIBBED_SLUG,
   NOBILITY_SLUG,
   COURTIER_SLUG,
   ATE_MEAL_SLUG,

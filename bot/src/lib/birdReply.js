@@ -1,5 +1,6 @@
 const { prisma } = require("@lifeweb/db");
 const { sendDm } = require("@lifeweb/db/lib/dm");
+const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 const { addToStack, dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
 const {
   BIRD_REPLY_PICK_PREFIX,
@@ -198,6 +199,11 @@ async function handleBirdReplyPick(interaction, birdMessageId) {
             direction: "INBOUND",
             content: (held.tag.paperText ?? "").trim() || "(blank)",
             source: GM_LETTER_REPLY_SOURCE,
+            // The one letter row that is conversation. A GM wrote the letter
+            // and this is the answer to it, addressed to them — grey it and a
+            // GM never learns they were replied to. The outgoing half is a
+            // NOTICE, because they already know they sent it.
+            kind: DM_KIND.CONVERSATION,
             meta: {
               birdMessageId: message.id,
               letterName: held.tag.name,

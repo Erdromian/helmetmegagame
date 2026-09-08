@@ -367,15 +367,17 @@ model GameConfig {
   // updateCharacterProfile ignores a posted `avatar` field even if one
   // arrives anyway — everyone falls through to their letter plaque (see
   // "Character proxying" in CLAUDE.md). Existing Character.avatarData is
-  // untouched either way; this only gates new uploads. Deliberately off by
-  // default.
-  avatarUploadsEnabled Boolean @default(false)
+  // untouched either way; this only gates new uploads. On by default since
+  // 2026-09-08 — a game that starts with faces turned off means somebody has
+  // to remember to turn them on, and nobody did.
+  avatarUploadsEnabled Boolean @default(true)
 
   // Master switch for the in-app portrait maker (docs/systemdocs/PORTRAITS.md).
   // Off means the "Customize Appearance" button doesn't render and
   // setPortraitAvatar refuses whatever the client posts — the same
-  // presentation/lock split as avatarUploadsEnabled above. Off by default.
-  portraitMakerEnabled Boolean @default(false)
+  // presentation/lock split as avatarUploadsEnabled above. On by default for
+  // the same reason.
+  portraitMakerEnabled Boolean @default(true)
 
   // Reveals the portrait parts the catalog marks `fantasy`: pointed ears,
   // horns, antlers, and unnatural hair and eye colours. Ravenheart is low
@@ -1245,18 +1247,6 @@ model Room {
   // Room.resources — the lines are recorded on the request's effect instead,
   // so a GM can still Undo. See docs/systemdocs/CARRY.md.
   destroysContents Boolean @default(false)
-
-  // A room the walls hold the sound in. Set from `soundproof: true` in
-  // docs/zones.yaml — the Vault, the Oubliette, the Order Chambers, the
-  // cellars. A /shout made from inside one is posted into the room's own
-  // thread and nowhere else: the parent Location channel and every Location
-  // in earshot get nothing, and the shouter is told it was muffled. It still
-  // costs the five-minute cooldown, because it still happened.
-  //
-  // This is a SHOUT boundary, not a sound boundary — the whisper poll still
-  // leaks Conversation fragments into the parent Room. See db/lib/shout.js
-  // and docs/systemdocs/COMMANDS.md §2d.
-  soundproof Boolean @default(false)
 
   // A key from the registry in db/lib/roomLive.js, set from `live:` in
   // docs/zones.yaml. The room's starter message carries one extra line read
@@ -3167,10 +3157,25 @@ model DirectMessage {
   // The GM who sent it; null = bot/system or inbound.
   authorDiscordUserId String?
 
-  // gm_reply | gm_broadcast | gm_inspector | gm_dev | gm_slash |
-  // move_unlock | staged_push | bot_auto | player | player_event. Plain
-  // String on purpose — a PG enum would cost a migration per new value.
+  // What PRODUCED the row. Plain String on purpose — a PG enum would cost a
+  // migration per new value, and there are a couple of dozen of these.
+  //
+  // Only five of them are still read by anything: gm_letter, gm_letter_reply
+  // and bird draw as a letter, mention draws as a ping, and staged_push /
+  // gm_broadcast put a chip beside the name (web/app/components/DmThread.js).
+  // The rest are an audit trail. Do NOT add a new one to a filter list to
+  // make it behave — what a row WEIGHS on the GM desk is `kind` below, and
+  // the two are deliberately orthogonal. The accurate roster of historical
+  // values is the CASE in migrations/20260913140000_dm_kind.
   source String?
+
+  // CONVERSATION | NOTICE | QUIET (db/lib/dmKinds.js). How much of the GM
+  // inbox this row is entitled to: a NOTICE is invisible to the rail and grey
+  // in the thread, a QUIET row is never drawn at all. String rather than a PG
+  // enum for the same reason `source` is one, and NOT NULL because a row with
+  // no answer here is exactly the bug this column exists to end. The default
+  // is the quiet one at the database level too, not just in sendDm.
+  kind String @default("NOTICE")
 
   // Discord id of the sent message — the last chunk when postDmBatched had
   // to split it, which is the same message for anything under 2000 chars.
@@ -3182,6 +3187,7 @@ model DirectMessage {
   @@index([discordUserId, createdAt])
   @@index([createdAt])
   @@index([direction, discordUserId, createdAt]) // unread scans
+  @@index([kind, discordUserId, createdAt]) // the rail's DISTINCT ON
 }
 
 // Per-GM read cursor on a player conversation. Unread = INBOUND

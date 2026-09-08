@@ -27,6 +27,7 @@ function fitDescription(value) {
 }
 const { sendDm } = require("../lib/dm");
 const { buildEditPrompt, stashEdit } = require("../lib/editModal");
+const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 
 const DELETE_EMOJI = "❌";
 const EDIT_EMOJIS = ["✏️", "📝"];
@@ -295,7 +296,7 @@ async function handleCameraReaction(reaction, proxy, user) {
     select: { characterId: true },
   });
   if (!held) {
-    await sendDm(user, "» *You have no camera.*", { source: "system_notice" }).catch((err) =>
+    await sendDm(user, "» *You have no camera.*", { kind: DM_KIND.QUIET }).catch((err) =>
       console.error(`Couldn't tell ${user.id} they have no camera:`, err),
     );
     return;
@@ -303,7 +304,7 @@ async function handleCameraReaction(reaction, proxy, user) {
 
   const key = photographKey(reaction.message.id, held.characterId);
   if (photographed.has(key)) {
-    await sendDm(user, "» *You already have that shot.*", { source: "system_notice" }).catch((err) =>
+    await sendDm(user, "» *You already have that shot.*", { kind: DM_KIND.QUIET }).catch((err) =>
       console.error(`Couldn't tell ${user.id} they already shot that:`, err),
     );
     return;
@@ -314,7 +315,7 @@ async function handleCameraReaction(reaction, proxy, user) {
   if (result.blocked) {
     // The refusal names the reason — a blindfold and a bright afternoon are
     // not the same problem (db/lib/examineVision.js).
-    await sendDm(user, `» *${result.blocked}*`, { source: "system_notice" }).catch((err) =>
+    await sendDm(user, `» *${result.blocked}*`, { kind: DM_KIND.QUIET }).catch((err) =>
       console.error(`Couldn't tell ${user.id} why they can't look:`, err),
     );
     return;
@@ -436,7 +437,7 @@ module.exports = {
       // window decided in one place (db/lib/say.js). A GM is not held to it.
       const result = await deleteSpeech(prisma, { characterId: proxy.characterId, seq: proxy.seq, gm });
       if (!result?.ok && result?.refusal) {
-        await sendDm(user, `» *${result.refusal}*`, { source: "system_notice" }).catch((err) =>
+        await sendDm(user, `» *${result.refusal}*`, { kind: DM_KIND.QUIET }).catch((err) =>
           console.error(`Couldn't tell ${user.id} why the delete was refused:`, err),
         );
       }
@@ -449,7 +450,7 @@ module.exports = {
       // Refused here as well as inside editSpeech: the modal is a lot of
       // ceremony to walk somebody through before telling them it was too late.
       if (Date.now() - new Date(proxy.sentAt).getTime() > EDIT_WINDOW_MS) {
-        await sendDm(user, `» *${WINDOW_REFUSAL}*`, { source: "system_notice" }).catch((err) =>
+        await sendDm(user, `» *${WINDOW_REFUSAL}*`, { kind: DM_KIND.QUIET }).catch((err) =>
           console.error(`Couldn't tell ${user.id} the edit window had closed:`, err),
         );
         await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
@@ -458,7 +459,7 @@ module.exports = {
       // A reaction carries no interaction token, so it can only stash the
       // text and DM a button whose click opens the modal (editModal.js).
       stashEdit(reaction.message.id, reaction.message.content);
-      await sendDm(user, buildEditPrompt(reaction.message.id), { source: "system_notice" }).catch((err) =>
+      await sendDm(user, buildEditPrompt(reaction.message.id), { kind: DM_KIND.QUIET }).catch((err) =>
         console.error(`Couldn't send the edit prompt to ${user.id}:`, err),
       );
       await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
@@ -472,7 +473,7 @@ module.exports = {
         const result = await readoutForReaction(proxy, user);
         if (!result) return;
         if (result.blocked) {
-          await sendDm(user, `» *${result.blocked}*`, { source: "system_notice" }).catch((err) =>
+          await sendDm(user, `» *${result.blocked}*`, { kind: DM_KIND.QUIET }).catch((err) =>
             console.error(`Couldn't tell ${user.id} why they can't look:`, err),
           );
           return;

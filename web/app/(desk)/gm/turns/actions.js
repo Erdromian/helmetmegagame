@@ -29,6 +29,7 @@ import {
   cavingRollRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
+import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 
 // Server actions for the adjudication workspace (/gm/turns). Staged rows
 // apply and deliver only at the turn-end push (db/lib/stagedPush.js);
@@ -206,6 +207,8 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
         await sendDm(target.discordUserId, existing.content, {
           authorDiscordUserId: existing.createdByDiscordUserId,
           source: "staged_push",
+          // A turn result is GM-authored prose, just delivered in bulk.
+          kind: DM_KIND.CONVERSATION,
         });
         resent += 1;
       } catch (err) {
@@ -756,7 +759,9 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
     await sendDm(
       action.character.discordUserId,
       `Your Move was returned to you — you can act again this turn.\n${reason}`,
-      { authorDiscordUserId: session.discordUserId, source: "move_unlock" },
+      // The GM's typed reason rides in the body, so this is a person
+      // writing even though the wrapper around it is canned.
+      { authorDiscordUserId: session.discordUserId, source: "move_unlock", kind: DM_KIND.CONVERSATION },
     );
   } catch (err) {
     console.error(`Failed to DM the reject reason to ${action.character.discordUserId}:`, err);
