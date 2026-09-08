@@ -759,7 +759,7 @@ header instead).
      whose category is **Items** or **Assets**, grouped in that order, as one
      chip each (`Paper ×23`, a `·` after anything equipped). A chip opens a
      menu of at most four: **Equip / Unequip** (`equippable`, the sheet's own
-     instant `toggleEquip`), **Use** (`consumable`), **Give** (`tradeable`)
+     instant `equipOne`/`unequipOne`), **Use** (`consumable`), **Give** (`tradeable`)
      and **Destroy** (`removable`) — the last three open the SHEET's dialogs
      through `RequestActionsProvider.open(mode, tagId)`, with the item already
      picked. The flags come off the catalog through `web/lib/tagRequests.js`,

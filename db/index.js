@@ -136,6 +136,12 @@ attachBreakerStore({
 // duration, so a stack sheds one unit at a time rather than all at once.
 // `model` is "characterTag" or "roomTag": a stack lying in a Room sheds
 // exactly the way one in a pocket does (docs/systemdocs/CARRY.md).
+//
+// No tag today is BOTH stackable and equippable and carries a
+// defaultDurationTurns, so this can never yet shed a unit out from under
+// CharacterTag.equippedQuantity — decrementing the row this way, unlike
+// dropCharacterTag / tagWrites.js#clampEquippedQuantity, does not clamp it.
+// The day a tag combines all three, this needs the same clamp those do.
 async function sweepExpiredStacks(turn, model = "characterTag") {
   const expired = await prisma[model].findMany({
     where: { expiresTurn: { lte: turn.number }, tag: { stackable: true } },

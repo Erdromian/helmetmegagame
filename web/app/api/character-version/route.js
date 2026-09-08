@@ -31,7 +31,7 @@ export async function GET() {
   const [tags, roomTags, roomResources, openTurn, state] = await Promise.all([
     prisma.characterTag.findMany({
       where: { characterId: me.id },
-      select: { tagId: true, quantity: true, equipped: true, expiresTurn: true },
+      select: { tagId: true, quantity: true, equipped: true, equippedQuantity: true, expiresTurn: true },
       orderBy: { tagId: "asc" },
     }),
     me.locationId
@@ -54,7 +54,9 @@ export async function GET() {
     me.zoneId ?? "",
     me.resources,
     me.tagPoints,
-    tags.map((t) => `${t.tagId}:${t.quantity}:${t.equipped ? 1 : 0}:${t.expiresTurn ?? ""}`).join(","),
+    tags
+      .map((t) => `${t.tagId}:${t.quantity}:${t.equipped ? 1 : 0}:${t.equippedQuantity}:${t.expiresTurn ?? ""}`)
+      .join(","),
     roomTags?._count?._all ?? 0,
     roomTags?._sum?.quantity ?? 0,
     roomTags?._max?.updatedAt?.getTime() ?? 0,

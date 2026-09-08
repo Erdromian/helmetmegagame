@@ -32,7 +32,10 @@ async function unequipStowables(prisma, characterId) {
 
   await prisma.characterTag.updateMany({
     where: { id: { in: held.map((ct) => ct.id) } },
-    data: { equipped: false },
+    // equippedQuantity too, not just the boolean — left stale it would go on
+    // spending a slot nobody can see is spent. None of STOWABLE_SLUGS is
+    // stackable, so 0 is exactly "not equipped" for these.
+    data: { equipped: false, equippedQuantity: 0 },
   });
   return held.map((ct) => ct.tag.name);
 }

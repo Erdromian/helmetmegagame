@@ -80,7 +80,10 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
   if (claimed.count === 0) return { claimed: false };
 
   await prisma.characterTag
-    .updateMany({ where: { characterId: character.id, equipped: true }, data: { equipped: false } })
+    .updateMany({
+      where: { characterId: character.id, equipped: true },
+      data: { equipped: false, equippedQuantity: 0 },
+    })
     .catch((err) => console.error(`Failed to unequip on death for ${character.id}:`, err));
 
   // A dead leader leads nobody, so everyone following them lets go — and

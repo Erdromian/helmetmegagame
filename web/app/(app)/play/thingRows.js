@@ -34,6 +34,11 @@ export function thingGroups(characterTags = []) {
       category: ct.tag.category,
       quantity: ct.quantity ?? 1,
       equipped: Boolean(ct.equipped),
+      // How many units are still free to equip — a slot holds one physical
+      // item, so a partly-equipped stack can offer BOTH "Equip" (there's
+      // more in reserve) and "Unequip" (some is already out) at once.
+      equippableRemaining: (ct.quantity ?? 1) - (ct.equippedQuantity ?? 0),
+      equippedQuantity: ct.equippedQuantity ?? 0,
       equippable: Boolean(ct.tag.equippable),
       consumable: consumable.has(ct.tagId),
       tradeable: tradeable.has(ct.tagId),

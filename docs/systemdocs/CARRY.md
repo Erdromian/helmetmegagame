@@ -242,7 +242,7 @@ A Location marked `indoors: true` in `docs/zones.yaml` — the Cathedral, the
 Sanctuary, the Inn, the Keep, the Undercroft, the Factory — is a place you walk
 into, and you do not bring a horse into a chapel. On arrival
 `db/lib/indoors.js#parkMountsIndoors` unequips them and DMs the character;
-`toggleEquip` refuses to put them back on while they stand there. The anchor
+`equipOne` refuses to put them back on while they stand there. The anchor
 message says so in its own `-#` line, written by `syncZones` and hashed with
 the rest of the body, so it appears once and never again.
 

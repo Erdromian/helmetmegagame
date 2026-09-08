@@ -409,6 +409,7 @@ export async function myThings() {
         tagId: true,
         quantity: true,
         equipped: true,
+        equippedQuantity: true,
         tag: {
           select: {
             id: true,

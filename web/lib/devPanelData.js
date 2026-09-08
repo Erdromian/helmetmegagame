@@ -331,6 +331,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       name: ct.tag.name,
       quantity: ct.quantity,
       equipped: ct.equipped,
+      equippedQuantity: ct.equippedQuantity,
       expiresTurn: ct.expiresTurn,
       source: ct.source,
       // For the state strip's drawback point total — a negative pointCost is

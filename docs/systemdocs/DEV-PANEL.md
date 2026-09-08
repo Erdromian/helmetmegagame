@@ -118,7 +118,7 @@ One payload, one transaction, one audit row. In order:
    GM writer of that column; there is a fixed set and they all go through the
    formatter.
 5. **In the transaction**: `SELECT … FOR UPDATE` on the Character row (the
-   same lock `equipActions.js#toggleEquip` takes, so an Apply and a player's
+   same lock `equipActions.js#equipOne` takes, so an Apply and a player's
    equip tap serialise), an `expectedUpdatedAt` check, the update, the tag
    ops, the audit row.
 6. **Discord afterwards**, in `after()`, never inside the transaction — a

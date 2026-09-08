@@ -399,7 +399,8 @@ function StateStrip({
   hasActed,
   stagedForPush,
 }) {
-  const equipped = held.filter((h) => h.equipped).length;
+  // Slots spent, not rows worn — a stack equipped 3-of-5 spends 3.
+  const equipped = held.reduce((sum, h) => sum + (h.equippedQuantity ?? 0), 0);
   // Point-bought drawbacks only, matching the ceilings PointBuy enforces — a
   // GM-inflicted wound is not one of the player's tags. Shown as a fact, not
   // a limit: a GM grant deliberately ignores every gate, these included.
