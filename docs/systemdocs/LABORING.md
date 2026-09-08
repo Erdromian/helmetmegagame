@@ -385,7 +385,7 @@ first thing on the line and the eye can skip what it does not need.
 **Noticeboard**: you can pin paper here. ‡
 **Generator**: 5 days of coal left. ‡
 **Shuttle**: it's here. ‡
-**Narrows**: the way stands open. ‡
+**Approach**: the way stands open. ‡
 ```
 
 The second part is `db/lib/locationAttributes.js` reading

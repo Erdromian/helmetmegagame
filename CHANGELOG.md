@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · Put three rooms on the mountain pass
+
+✚ The Mountain has a Hanging Steps, a Summit worth searching, and a warm Garden under the ice that only a caver finds  
+✚ Nightshade herb, poppy pods and coca leaves grow in the Garden — the first place in the game that actually has them
+
 ## 2026-09-08 · A horse eats a resource a turn
 
 ✎ Holding a Horse now costs 1 ⬢ at the close of every turn, whether it is out or stowed in your pack  

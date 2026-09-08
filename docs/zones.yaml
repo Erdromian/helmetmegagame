@@ -74,11 +74,11 @@
 #           obol: 3
 #           cleaning-powder: 1
 #
-#   Written as a FLOOR, never a reset. A stack already at or above the
-#   authored quantity is left alone, and `resources` is written only while the
-#   room still holds none — so re-syncing can neither undo a player carrying
-#   the anvil off nor quietly duplicate it. Tags sync AFTER zones, so an
-#   unknown slug is skipped with a warning rather than throwing.
+#   A SEED, never a reset and never a top-up. An item the room already carries
+#   is left exactly as the players left it, and `resources` is written only
+#   while the room still holds none — so re-syncing can neither undo a player
+#   carrying the anvil off nor quietly duplicate it. Tags sync AFTER zones, so
+#   an unknown slug is skipped with a warning rather than throwing.
 # - structures (locations only): what was simply always STANDING there, like
 #   the Square's cross. A flat list of tag slugs that carry a `placement:`
 #   block in docs/tags.yaml:
@@ -1327,7 +1327,7 @@ zones:
             access: [animal-friend, musician]
             stash:
               items:
-                pet-rat: 8
+                rat: 8
       hills-shadowed-grove:
         name: Shadowed Grove
         attributes:
@@ -1480,7 +1480,7 @@ zones:
             name: Growth
             description: >-
               A strange coagulation of organic matter grows in cracks formed in the walls. It is a deep crimson red and looks wet to the touch. You wonder how deep into the walls this festering growth might reach.
-            access: [esoteric, scholastic, refugee]
+            access: [esoteric, literate]
           # The Brigand camp, moved here from the old node 26 ravine with its
           # stash intact. `ravine-camp` is the knowledge tag, not this room's id.
           grand-ravine-camp:
@@ -1860,7 +1860,7 @@ zones:
                 name: Picnic Table
                 description: >-
                   A simple wooden table set up with log stools arrayed around it. Any food set up has long since been pilfered by local creatures. You can feel an ancient presence watching and patiently observing.
-                access: [esoteric, old-ways-sylvia, mad-doctor, invitation]
+                access: [esoteric, old-ways-sylvia, mad-doctor]
                 stash:
                   items:
                     cave-fungus: 2
@@ -2183,8 +2183,8 @@ connections:
   - [caves/caves-approach, caves/caves-abandoned-camp]
   - [caves/caves-walkways, caves/caves-brooding-grounds]
   - [caves/caves-brooding-grounds, caves/caves-abandoned-camp]
-  # The freight run's own door into the cargo bay, which is how the merchant's
-  # crates get in without passing the sentry at the gate.
+  # The mushroom forest's own way into the cargo bay, which is how the
+  # merchant's crates get in without passing the sentry at the gate.
   - pair: [caves/customs, caves/caves-brooding-grounds]
     hidden: caving
     on_foot: true

@@ -557,19 +557,6 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
-  invitation:
-    catalog: all
-    name: Invitation
-    category: general
-    group: general-location
-    description: "You have been invited to the picnic table in the Brooding Grounds."
-    pointCost: 0
-    tradeable: false
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-
   # Not knowledge of a place so much as arrival at one: the Walkways' pit is
   # a room you can only be in once you have fallen into it, so a GM grants
   # this from /gm/dev and takes it back when the character climbs out.
@@ -1276,26 +1263,6 @@ tags:
     category: general
     group: general-traits
     description: "You know the Undercroft and the Underquarter very well. You're hard to follow there."
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
-  refugee:
-    catalog: all
-    name: Refugee
-    category: general
-    group: general-traits
-    description: "You came here from somewhere else, with nothing."
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
-  scholastic:
-    catalog: all
-    name: Scholastic
-    category: general
-    group: general-traits
-    description: "You were schooled, and you have not stopped reading since."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -5839,20 +5806,6 @@ tags:
     sellable: true
     sellablePrice: 8
     depotPrice: 13
-
-  pet-rat:
-    catalog: gm
-    name: Pet Rat
-    category: items
-    group: items-gear
-    description: "A rat that has decided to stay with you."
-    pointCost: 0
-    tradeable: true
-    weight: 1
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
 
   # What the Painting spends (Chris 2026-09-06). catalog: all on purpose — a
   # gm-catalog ingredient would pull the Painting into the hidden-recipe rule

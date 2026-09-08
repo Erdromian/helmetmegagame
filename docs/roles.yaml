@@ -1342,8 +1342,9 @@ zones:
       # spawn only (db/lib/threats.js), and both are listed in
       # SPAWN_ONLY_ROLE_SLUGS so the creation wizard never offers them. They
       # live under the Black Hills because that is where the shuttle puts them
-      # down — Black Pines, which the map already describes as dense enough
-      # that "sound does not carry, neither do shouts".
+      # down — the Fracturing Waterway, the busiest crossing in the zone. They
+      # arrive in the open, on a bridge, where everybody sees them. That is the
+      # point: the Tribunal does not sneak in.
       #
       # No `silo:` on purpose: a silo is a faction's shared stash in a room
       # somebody holds a key to, and the Tribunal has no room here. They carry
@@ -1445,7 +1446,7 @@ zones:
 
       brigands:
         name: Brigands
-        silo: ravine-camp
+        silo: grand-ravine-camp
         roles:
           brigand-leader:
             name: Brigand Leader
