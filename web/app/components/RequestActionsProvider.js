@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -600,6 +601,10 @@ export default function RequestActionsProvider({
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
   const [refresh] = useRefresh();
+  // When the last open() asked for one. A ref, not the provider's `refreshing`
+  // flag: reading that would move `open`'s identity twice per refresh and
+  // re-render every consumer of this context for nothing.
+  const lastRefresh = useRef(0);
 
   const heldIds = useMemo(
     () => characterTags.map((ct) => ct.tagId),
@@ -984,14 +989,23 @@ export default function RequestActionsProvider({
     (next, presetTagId = null, presets = null) => {
       setMode(next);
       // Every roster in here — who is standing at your Location, who is Bound,
-      // what is lying in the rooms — was true when the page rendered, and
-      // CharacterPoller stands down while a dialog is open. So the world is
-      // re-read at the moment you ask to act on it, before you have picked
-      // anything: bind someone, wait for them to accept in Discord, open Loot,
-      // and they are there, with no reload in the middle. It costs one server
-      // render per dialog you open, which is what one poll tick costs, and it
-      // is a click you made rather than a timer.
-      refresh();
+      // what is lying in the rooms — was only true when the page rendered.
+      // Nothing keeps it fresher: CharacterPoller deliberately ignores your
+      // neighbours and stands down while a dialog is open anyway, and /play
+      // mounts this provider with no poller at all. So the world is re-read at
+      // the moment you ask to act on it, before you have picked anything —
+      // bind someone, wait for them to accept in Discord, open Loot, and they
+      // are there, with no reload in between.
+      //
+      // This is a whole server render of a heavy page, so it is worth being
+      // honest about the cost: far dearer than a poll tick, and far rarer,
+      // because it happens when a person clicks rather than on a timer. The
+      // one thing worth guarding is the click-spam case — opening and closing
+      // three dialogs should not queue three renders.
+      if (Date.now() - lastRefresh.current > 1000) {
+        lastRefresh.current = Date.now();
+        refresh();
+      }
       setTagId(presetTagId);
       setQuantity("1");
       setProjectId("");
