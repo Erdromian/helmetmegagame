@@ -601,6 +601,7 @@ buying one mid-game is still a real decision.
 | `whip` | 11 | 7 | Equippable |
 | `censer` | 12 | 7 | |
 | `jewelry` | 13 | 8 | Also a 2-pt creation pick |
+| `mining-helmet` | 14 | 9 | Caving loot he also imports. A Simple Helm's plates plus a lamp, so it prices level with one — the lamp is station work, not forge work |
 | `black-body-bag` | 22 | 13 | |
 | `monkey` | 22 | 13 | |
 | `poison-snooper` | 22 | 13 | **The exception:** also buyable at creation, 9 pt |

@@ -950,6 +950,9 @@ zones:
             name: Gravel Field
             description: >-
               A broad spill of loose stone slopes beneath the cliffs, every step sending pebbles whispering downhill. Ash blown from distant lands settles on the hardy grass, almost burying the flesh-colored mountain flowers that survive between the rocks.
+            stash:
+              items:
+                rock: 1
           headwaters-basins:
             name: Basins
             description: >-
@@ -1272,6 +1275,9 @@ zones:
             name: Hanging Steps
             description: >-
               Rough stairs have been cut directly into the mountainside where the path becomes too steep to climb naturally. In several places the steps simply stop, replaced by old fixed ropes and iron spikes hammered into the rock above a drop too deep to judge from the ledge.
+            stash:
+              items:
+                rock: 1
           mountain-summit:
             name: Summit
             description: >-
@@ -1339,6 +1345,9 @@ zones:
             name: Rocky Outcrop
             description: >-
               Two stones lean upon each other for support, creating some of the only permanent shelter around. The underside of the rocks forms a grand battlefield, where colonies of moss and lichen compete for domination.
+            stash:
+              items:
+                rock: 2
           shadowed-grove-clearing:
             name: Tranquil Clearing
             description: >-
@@ -1384,6 +1393,9 @@ zones:
             name: Dead-end
             description: >-
               Leading off from the main path, this side path suddenly comes to a stop. Having come this far down this branch of the road you instinctively feel compelled to keep going, path or no path.
+            stash:
+              items:
+                rock: 2
           north-hills-basement:
             name: Basement
             description: >-
@@ -1457,6 +1469,9 @@ zones:
             name: Echoing Halls
             description: >-
               Every sound here deflects off the walls of the ravine, creating a cacophony of sound. The walls of the ravine are host to far more plant life than the surface itself, the rocks seemingly a more hospitable environment.
+            stash:
+              items:
+                rock: 2
           grand-ravine-trickling-water:
             name: Trickling Water
             description: >-
@@ -1779,6 +1794,7 @@ zones:
                   items:
                     black-powder: 1
                     coal: 1
+                    rock: 3
               approach-nekker-den:
                 name: Nekker Den
                 description: >-
@@ -1802,6 +1818,9 @@ zones:
                 name: Central Spire
                 description: >-
                   A spire of stone, to which the walkways connect. Its several meter radius is a great relief after having had to walk so carefully over the narrow walkways. A burnt-out fire pit has been set up in the middle.
+                stash:
+                  items:
+                    rock: 2
               walkways-walkways:
                 name: Walkways
                 description: >-
@@ -1830,6 +1849,9 @@ zones:
                 name: Burrows
                 description: >-
                   Tucked into a long ditch in the Earth amongst the shrooms are rows of small holes into the ground. You can't see any of the burrow's residents, either none are home or they dashed inside long before you emerged into the clearing.
+                stash:
+                  items:
+                    rock: 2
               brooding-dense-mycelium:
                 name: Dense Mycelium
                 description: >-
@@ -1865,6 +1887,7 @@ zones:
                 stash:
                   items:
                     obol: 2
+                    rock: 4
               abandoned-camp-shroom-mound:
                 name: Shroom Mound
                 description: >-
@@ -1901,6 +1924,9 @@ zones:
                 name: Barren Perimeter
                 description: >-
                   The opening around the wall itself is comparatively expansive for the cave. Worn down concrete spikes jut out from the floor, warding those who venture this far away. The walls are softly illuminated by pools of light, seeping from the rocks themselves.
+                stash:
+                  items:
+                    rock: 3
               steel-wall-etchings:
                 name: Cave Wall Etchings
                 description: >-
@@ -1976,6 +2002,9 @@ zones:
                 name: Brittle Cobbles
                 description: >-
                   Something crunches underfoot here with each step. The air is thick is fine particles of dust disturbed by careless feet. Everything is coated with a thick layer of dirty grey dust, catching the light of passing torches.
+                stash:
+                  items:
+                    rock: 3
               fork-sullen-mist:
                 name: Sullen Mist
                 description: >-
@@ -2009,6 +2038,9 @@ zones:
                 name: Slippery Slope
                 description: >-
                   The southern edge of the chamber never seems to end but merely descends deeper. The floor falls into a steeper and steeper slope. Who knows where it leads.
+                stash:
+                  items:
+                    rock: 2
               grand-chamber-deep-sea:
                 name: Deep Sea
                 description: >-
@@ -2056,6 +2088,9 @@ zones:
                 name: Outcrop
                 description: >-
                   A ledge of rock provides a place of respite from the otherwise sheer walls of the chasm. Additionally, it serves as an approximate halfway point when climbing to or from the way out of the chasm and the multitude of side tunnels at the very bottom.
+                stash:
+                  items:
+                    rock: 2
               chasm-ravines-end:
                 name: "Ravine's End"
                 description: >-

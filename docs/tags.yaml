@@ -5666,6 +5666,44 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # Cave loot, ultracommon, and seeded by hand across the caves, the depths and
+  # the Black Hills (docs/zones.yaml) so the ground itself is a source.
+  rock:
+    catalog: all
+    name: Rock
+    category: items
+    group: items-gear
+    description: "A hefty stone. Can be thrown with varying results."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  rope:
+    catalog: all
+    name: Rope
+    category: items
+    group: items-gear
+    description: "A long coil of braided rope, stiff with grime. ‡"
+    pointCost: 2
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 4
+      skills: [crafting]
+      gambit: false
+    sellable: true
+    sellablePrice: 4
+
   bear-trap:
     catalog: all
     name: Bear Trap
@@ -6017,6 +6055,51 @@ tags:
     consumable: true
     consumesInto:
       - oneOf: [ate-meal, vomiting]
+
+  # Cave loot, ultracommon. Raw it is a gut full of regret; squeezed by anyone
+  # with Brewing it is a cup of something almost like milk.
+  purring-maggot:
+    catalog: gm
+    name: Purring Maggot
+    category: items
+    group: items-food
+    description: "A pale maggot, squirming in your hand. You can squish it into a mug for maggot milk."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - poisoned
+
+  # Not on the caving table — the maggot is the loot, this is what you make of
+  # it. Calms like {tag:tea} (db/lib/fear.js CONSUME_RELIEF) and feeds you.
+  maggot-milk:
+    catalog: gm
+    name: Maggot Milk
+    category: items
+    group: items-drink
+    description: "A freshly squeezed cup of milk."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 1
+      skills: [brewing-basic]
+      gambit: false
+      items: [purring-maggot]
+    consumable: true
+    consumesInto:
+      - ate-meal
 
   supply-kit:
     catalog: gm
@@ -8327,6 +8410,8 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 24
 
   c4:
     catalog: gm
@@ -11911,6 +11996,29 @@ tags:
       turnsCost: 1
       resourceCost: 6
       skills: [smithing]
+    sellable: true
+    sellablePrice: 9
+
+  # Priced level with {tag:simple-helm} — same plates, plus a lamp. Bought
+  # rather than forged: the lamp is station work, so it sits on the Depot shelf.
+  mining-helmet:
+    catalog: all
+    name: Mining Helmet
+    category: items
+    group: items-headgear
+    description: "A cushioned helmet with a small light, useful in the caves."
+    pointCost: 5
+    depotPrice: 14
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    melee: 0.35
+    ballistic: 0.1
+    visible: true
+    tradeable: true
+    weight: 4
+    purchasable: true
+    purchasableAfterStart: false
     sellable: true
     sellablePrice: 9
 

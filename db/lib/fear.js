@@ -105,6 +105,7 @@ const CONSUME_RELIEF = Object.freeze({
   euphoric: DRINK_RELIEF,
   "lavish-meal": 30,
   tea: 15,
+  "maggot-milk": 15,
   cigarette: 8,
 });
 

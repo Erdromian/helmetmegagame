@@ -42,8 +42,8 @@ const WEIGHTS_BY_ZONE = {
 // SMITHING.md §3/§4's ladder (Dead Simple/Simple -> Moderate/High Quality ->
 // Exceptional/Gunpowder) rather than every entry in it.
 const LOOT_TABLE = {
-  ultracommon: ["cave-fungus", "saltpeter"],
-  common: ["cudgel", "purse", "cracked-bone-club", "sling", "skinned-cave-rat", "old-coin"],
+  ultracommon: ["cave-fungus", "saltpeter", "purring-maggot", "rock"],
+  common: ["cudgel", "purse", "cracked-bone-club", "sling", "skinned-cave-rat", "old-coin", "coal"],
   uncommon: [
     "alcohol",
     "cleaning-powder",
@@ -54,6 +54,12 @@ const LOOT_TABLE = {
     "padded-armor",
     "mail-coif",
     "prospectors-notes",
+    "buckler",
+    "spear",
+    "rope",
+    "work-knife",
+    "knuckle-duster",
+    "honey",
   ],
   rare: [
     "ravenheart-red",
@@ -67,6 +73,8 @@ const LOOT_TABLE = {
     "broadsword",
     "war-hammer",
     "convoy-directions",
+    "instrument",
+    "mining-helmet",
   ],
   "extremely-rare": [
     "emp-grenade",
@@ -79,6 +87,8 @@ const LOOT_TABLE = {
     "zweihander",
     "crossbow",
     "ancient-keycard",
+    "fragmentation-grenade",
+    "neoclassic-duelista",
   ],
   "nearly-impossible": ["energy-shield", "power-fist", "neoclassic-rw10", "stepstone", "dark-eye-lenses", "motorcycle"],
 };
