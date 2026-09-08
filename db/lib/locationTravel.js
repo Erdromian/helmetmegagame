@@ -244,8 +244,8 @@ async function performLocationMove(prisma, character, targetLocation) {
     return {
       ok: false,
       reason: heading
-        ? `You're on the road to ${heading.name}. You arrive next turn. ‡`
-        : "You're on the road. You arrive next turn. ‡",
+        ? `You're on the road to ${heading.name}. You'll arrive next turn.`
+        : "You're on the road. You'll arrive next turn.",
     };
   }
 

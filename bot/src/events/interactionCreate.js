@@ -836,7 +836,7 @@ async function handleTravelOpen(interaction) {
   await respond(interaction, {
     content: [
       heading
-        ? `» You're on the road to **${heading.name}**. You arrive next turn — until then this zone is still yours to walk. ‡`
+        ? `» You're on the road to **${heading.name}**. You'll arrive next turn — until then this zone is still yours to walk.`
         : null,
       destinations.length > 0 ? "Where would you like to go? ‡" : "» *Every way out of here is closed to you.* ‡",
       shutLine,
@@ -1060,7 +1060,7 @@ async function handleTravelConfirm(interaction, locationId) {
     .filter((entry) => entry.character.id !== character.id)
     .map((entry) => entry.character.name);
   const parts = result.deferred
-    ? [`» You set out for **${target.name}**. You arrive next turn.`, "Your Move is spent."]
+    ? [`» You set out for **${target.name}**. You'll arrive next turn.`, "Your Move is spent."]
     : [`» Moved to **${target.name}**.`];
   if (result.usedFreeMove) {
     parts.push(

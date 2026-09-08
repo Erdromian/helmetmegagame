@@ -216,7 +216,7 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
       // than vanishing and reading like there was never a way there at all.
       if (heading && row.crossesZone) {
         row.passable = false;
-        row.refusal = `You're on the road to ${heading.name}. You arrive next turn. ‡`;
+        row.refusal = `You're on the road to ${heading.name}. You'll arrive next turn.`;
       }
       return row;
     })

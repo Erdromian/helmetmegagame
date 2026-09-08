@@ -117,7 +117,7 @@ export default function TravelNodes({ onDone, pick = null }) {
           crossings draw dim, with the road named in their refusal. */}
       {data.heading ? (
         <p className="text-sm">
-          Leaving for {data.heading} at the end of the turn — until then this zone is still yours to walk. ‡
+          Leaving for {data.heading} at the end of the turn — until then this zone is still yours to walk.
         </p>
       ) : null}
 

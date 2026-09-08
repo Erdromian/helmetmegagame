@@ -680,7 +680,7 @@ export async function travelTo({ locationId } = {}) {
         `*${me.character.name} is taking you to ${target.name}. You'll get there next turn.* ‡`,
       ).catch(() => {});
     }
-    const setOut = [`You set out for ${target.name}. You arrive next turn, and your Move is spent.`];
+    const setOut = [`You set out for ${target.name}. You'll arrive next turn, and your Move is spent.`];
     if (stranded.length > 0) setOut.push(`You can't move ${stranded.join(", ")} through here.`);
     // dismountedMessage already carries its own mark, so only one ‡ ends the
     // block either way.

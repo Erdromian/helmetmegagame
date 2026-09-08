@@ -612,7 +612,7 @@ function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
           their Go button (MAP.md §3). */}
       {travel?.heading ? (
         <p className="text-sm">
-          Leaving for {travel.heading} at the end of the turn — until then this zone is still yours to walk. ‡
+          Leaving for {travel.heading} at the end of the turn — until then this zone is still yours to walk.
         </p>
       ) : null}
 
