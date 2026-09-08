@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · A horse eats a resource a turn
+
+✎ Holding a Horse now costs 1 ⬢ at the close of every turn, whether it is out or stowed in your pack  
+✎ The horse is fed before you are, so a rider down to their last ⬢ keeps the animal and goes Hungry  
+✎ Nobody short of the ⬢ is charged, and nobody loses their horse over it
+
 ## 2026-09-08 · Once you set out for another zone, you are on the road until next turn
 
 − The Turn back button is gone from the Travel button on Discord and from the travel panel on Chat  
