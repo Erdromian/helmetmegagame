@@ -31,7 +31,13 @@ import { travelTo } from "../play/actions";
 // room are the ones you have actually been to.
 const RIM = { here: 27, stood: 21, seen: 16 };
 const CORE = { here: 19, stood: 14, seen: 11 };
-const ZOOM = { min: 0.55, max: 7 };
+// The floor is 1, not something smaller, and that is the whole "no blank
+// space" rule: at k=1 the plate exactly covers the window, so zooming out past
+// it is zooming out past the world. Paired with preserveAspectRatio="slice"
+// below, which CROPS the plate to fill the board rather than letterboxing it
+// inside — "meet" left bars down the sides on any screen whose shape did not
+// happen to match a 2144x1792 drawing.
+const ZOOM = { min: 1, max: 7 };
 const FIT_MAX = 2.1;
 
 export default function MapBoard({ onClose = null }) {
@@ -64,6 +70,17 @@ export default function MapBoard({ onClose = null }) {
   // would always see null and treat the end of a pan as a selection.
   const panned = useRef(false);
 
+  // How much of the plate the board can actually show, in plate pixels. With
+  // "slice" the viewBox is scaled to COVER the element, so the visible window
+  // is smaller than the plate in one axis and centred — which is what both the
+  // pointer maths and the clamp have to agree about.
+  const windowOf = useCallback((rect) => {
+    const plate = plateRef.current;
+    if (!plate?.width || !rect?.width) return null;
+    const s = Math.max(rect.width / plate.width, rect.height / plate.height);
+    return { s, w: rect.width / s, h: rect.height / s, W: plate.width, H: plate.height };
+  }, []);
+
   // Everything that moves the view goes through here, which is why the clamp
   // lives here and not in the three callers: pan, zoom and fit cannot drift
   // apart about where the edge of the world is.
@@ -76,17 +93,23 @@ export default function MapBoard({ onClose = null }) {
   // off the edge and be left looking at an empty field with no way back but
   // Reset.
   const applyView = useCallback(() => {
-    const plate = plateRef.current;
-    if (plate?.width) {
+    const win = windowOf(svgRef.current?.getBoundingClientRect());
+    if (win) {
       const { k } = view.current;
-      const spanX = plate.width - plate.width * k;
-      const spanY = plate.height - plate.height * k;
-      view.current.x = Math.min(Math.max(view.current.x, Math.min(0, spanX)), Math.max(0, spanX));
-      view.current.y = Math.min(Math.max(view.current.y, Math.min(0, spanY)), Math.max(0, spanY));
+      // The plate spans [x, x + W*k]; the window spans [(W-w)/2, (W+w)/2].
+      // Covering it means x is at most the window's left edge and x + W*k at
+      // least its right. At k >= 1 that interval always exists.
+      const clamp = (v, seen, whole) => {
+        const hi = (whole - seen) / 2;
+        const lo = (whole + seen) / 2 - whole * k;
+        return lo > hi ? (lo + hi) / 2 : Math.min(Math.max(v, lo), hi);
+      };
+      view.current.x = clamp(view.current.x, win.w, win.W);
+      view.current.y = clamp(view.current.y, win.h, win.H);
     }
     const { x, y, k } = view.current;
     rootRef.current?.setAttribute("transform", `translate(${x} ${y}) scale(${k})`);
-  }, []);
+  }, [windowOf]);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,7 +153,9 @@ export default function MapBoard({ onClose = null }) {
       const plate = data?.plate;
       if (!svg || !plate?.width) return null;
       const b = svg.getBoundingClientRect();
-      const s = Math.min(b.width / plate.width, b.height / plate.height);
+      // max, not min: "slice" covers the box, so the plate overflows it rather
+      // than sitting inside it, and the two offsets below go negative.
+      const s = Math.max(b.width / plate.width, b.height / plate.height);
       const vx = (ev.clientX - b.left - (b.width - plate.width * s) / 2) / s;
       const vy = (ev.clientY - b.top - (b.height - plate.height * s) / 2) / s;
       const { x, y, k } = view.current;
@@ -166,21 +191,32 @@ export default function MapBoard({ onClose = null }) {
       applyView();
       return;
     }
+    // Padding in plate pixels around the known nodes. Generous, because the
+    // floor is 1:1 now — anything that would have fitted at less than full
+    // size is clamped up to it, and the frame just centres instead.
     const pad = 220;
     const xs = shown.map((n) => n.x);
     const ys = shown.map((n) => n.y);
     const w = Math.max(1, Math.max(...xs) - Math.min(...xs)) + pad * 2;
     const h = Math.max(1, Math.max(...ys) - Math.min(...ys)) + pad * 2;
-    // FIT.max, not ZOOM.max. Early on a character knows two Locations forty
+    // Against the WINDOW, not the plate: with "slice" the board shows less of
+    // the drawing than the drawing has, and fitting to the full plate would
+    // frame a region partly off-screen.
+    //
+    // FIT_MAX, not ZOOM.max. Early on a character knows two Locations forty
     // pixels apart, and framing those alone would blow the plate up to seven
     // times size and put two enormous rhombi on an empty field. The ceiling
     // keeps the first look at the map looking like a map.
-    const k = Math.min(FIT_MAX, Math.max(ZOOM.min, Math.min(plate.width / w, plate.height / h)));
+    const win = windowOf(svgRef.current?.getBoundingClientRect());
+    const k = Math.min(
+      FIT_MAX,
+      Math.max(ZOOM.min, Math.min((win?.w ?? plate.width) / w, (win?.h ?? plate.height) / h)),
+    );
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
     const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
     view.current = { k, x: plate.width / 2 - cx * k, y: plate.height / 2 - cy * k };
     applyView();
-  }, [applyView, data, layer]);
+  }, [applyView, data, layer, windowOf]);
 
   // Re-frame when the layer changes or the map first arrives. Depending on
   // `fit` alone would re-run this on every render that changes `data`.
@@ -236,9 +272,17 @@ export default function MapBoard({ onClose = null }) {
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return undefined;
+    // Proportional to how far the wheel actually turned, not one fixed step per
+    // event: a trackpad fires a stream of small deltas and a notched mouse
+    // fires a few large ones, and a flat 1.15 per event made the first shoot
+    // across the whole zoom range in a single flick. deltaMode is normalised
+    // first (0 = pixels, 1 = lines, 2 = pages) because browsers disagree, and
+    // the per-event factor is capped so one violent scroll cannot teleport.
     const onWheel = (ev) => {
       ev.preventDefault();
-      zoomBy(ev.deltaY < 0 ? 1.15 : 1 / 1.15, toWorld(ev));
+      const unit = ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? 100 : 1;
+      const factor = Math.exp(-ev.deltaY * unit * 0.0012);
+      zoomBy(Math.min(1.2, Math.max(1 / 1.2, factor)), toWorld(ev));
     };
     svg.addEventListener("wheel", onWheel, { passive: false });
     return () => svg.removeEventListener("wheel", onWheel);
@@ -274,7 +318,7 @@ export default function MapBoard({ onClose = null }) {
           className="map-svg"
           data-layer={layer ?? "surface"}
           viewBox={`0 0 ${plate.width} ${plate.height}`}
-          preserveAspectRatio="xMidYMid meet"
+          preserveAspectRatio="xMidYMid slice"
           role="presentation"
           onPointerDown={onPointerDown}
         >
@@ -395,10 +439,10 @@ export default function MapBoard({ onClose = null }) {
         )}
 
         <div className="map-controls">
-          <button type="button" className="btn-quiet" onClick={() => zoomBy(1 / 1.3)} aria-label="Zoom out">
+          <button type="button" className="btn-quiet" onClick={() => zoomBy(1 / 1.25)} aria-label="Zoom out">
             −
           </button>
-          <button type="button" className="btn-quiet" onClick={() => zoomBy(1.3)} aria-label="Zoom in">
+          <button type="button" className="btn-quiet" onClick={() => zoomBy(1.25)} aria-label="Zoom in">
             +
           </button>
           <button type="button" className="btn-quiet" onClick={fit}>
