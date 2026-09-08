@@ -1665,8 +1665,10 @@ drawbacks, each with its own writer:
   each multiply one kind of fear gain rather than sustaining a mood of their
   own — `db/lib/fear.js` (the multiplier table) and `db/lib/fearPass.js` (the
   nightly turn pass). See `FEAR.md`.
-- **Guilt Ridden and Insomniac** each carry a nightly chance of waking
-  Exhausted — `db/lib/dawnAfflictionPass.js`, run right after the hunger pass.
+- **Guilt Ridden and Insomniac** each carry a nightly chance of a bad night's
+  sleep, stepped through the same Tired -> Exhausted ladder a day's Labor uses
+  (`LABORING.md` §4) — `db/lib/dawnAfflictionPass.js`, run right after the
+  hunger pass.
 - **Lazy** takes a quarter off a labor roll's yield, after the roll —
   `lazyYield()` in `db/lib/laborAccess.js`, called from both
   `db/lib/autoLaborPass.js` and `bot/src/lib/moveConfirm.js`.

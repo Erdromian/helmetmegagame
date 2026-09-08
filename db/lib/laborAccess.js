@@ -208,16 +208,17 @@ function structureTools(structures) {
   return [...bestByKind.values()];
 }
 
-// { ok: true } or { ok: false, reason }. One rule left: one Labor per day. The
-// payout grants Exhausted (db/lib/moveEffects.js), which this reads back until
-// the expiry sweep clears it a turn later.
+// { ok: true } or { ok: false, reason }. One rule left: Exhausted refuses —
+// Tired doesn't (db/lib/laborFatigue.js). The payout steps a character up
+// that ladder (db/lib/moveEffects.js), and this reads Exhausted back until
+// the expiry sweep degrades it into Tired a turn later.
 //
 // The old blanket "nothing can be produced in the depths" is gone — hunting
 // underground is now most of the reason to go down there, and a location that
 // genuinely yields nothing simply has no LocationYield rows.
 function computeLaborAccess(ctx) {
   if (ctx.tagSlugs.has(EXHAUSTED_SLUG)) {
-    return { ok: false, reason: "You're still **Exhausted** from your last labor." };
+    return { ok: false, reason: "You're **Exhausted**. Rest before you can Labor again." };
   }
   // Tied up, bleeding out, on the floor or out cold. This is the seam the
   // manual Labor declaration and the Factory's production tiers share, so one

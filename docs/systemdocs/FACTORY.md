@@ -102,8 +102,8 @@ Room is the NORMAL case whenever the stash runs thin — the auto-labor pass
 resolves everyone against a single bulk snapshot, so all three pass the gate and
 only the first `dropRoomTag` wins. `applyRefinery` returns `{ empty: true }`
 rather than null for exactly this, so the other two get "nothing to refine — no
-Godflesh here" on their sheet and a `-#` line telling them why, instead of an
-Exhausted tag and silence.
+Godflesh here" on their sheet and a `-#` line telling them why, instead of a
+Tired or Exhausted tag (`LABORING.md` §4) and silence.
 
 **Why it lives in `MOVE_EFFECTS` and not in the pass.** `read` can only see the
 Action row, and whether a Labor was a *refining* one depends on where the

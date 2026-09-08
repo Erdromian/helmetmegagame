@@ -148,16 +148,15 @@ on a failed parse and does so silently.
 
 It is the only exception to "the row IS the gate", and it is a second gate
 beside the rows rather than a hole in them: everything without the attribute
-still needs its row. It still wants a Laboring tag, and it still grants
-Exhausted. See `FACTORY.md` §4.
+still needs its row. It still wants a Laboring tag, and it still steps the
+character up the fatigue ladder below. See `FACTORY.md` §4.
 
 ## 4. Resolving one labor
 
 `resolveLaborRateFrom` in `db/lib/laborAccess.js`, in order:
 
-1. **Gate.** Holding `exhausted` refuses. That is the whole gate now — one
-   labor per day, granted by the payout itself (`db/lib/moveEffects.js`) and
-   read back until the expiry sweep clears it a turn later.
+1. **Gate.** Holding `exhausted` refuses. Holding `tired` does not — see
+   "Tired and Exhausted" below.
 2. **Build candidates.** The best general tier held (Skilled, else Basic), plus
    one per specialisation held that has a `LocationYield` row here. No general
    tier at all means no candidates and no labor.
@@ -169,6 +168,28 @@ Exhausted. See `FACTORY.md` §4.
 6. **Soft Hands** halves both ends, floor. It lands *after* the tools, so it is
    literally "half of what you make".
 7. **Lifeweb failure** (§6).
+
+### Tired and Exhausted
+
+Two Labors before a rest, not one. `db/lib/laborFatigue.js` holds the whole
+decision — a first Labor grants `tired`, which blocks nothing; a second one
+the following turn, while still `tired`, escalates to `exhausted` instead of
+refreshing it, and that's the tag the gate actually reads. `exhausted`
+degrades back into `tired` a turn later on its own, through the ordinary
+`expiresInto` chain (`TAGS.md` §5c) — no code needed for that half. Rest a
+second turn and `tired` clears on its own too, since nothing renewed it,
+which is what lets a player pick their own pacing: two Labors and one forced
+rest is the minimum cycle, but resting longer is free.
+
+`db/lib/moveEffects.js`'s `exhausted` payout effect is the writer for the
+Labor half of the ladder; a bad night's sleep (Guilt Ridden, Insomniac —
+`db/lib/dawnAfflictionPass.js`) steps the same ladder for the same reason, so
+working two days straight and two bad nights running land in the same place.
+The Discord-visible name for the top rung stayed `Exhausted` on purpose — it
+was already the established status before this ladder existed, and it also
+carries a fight-effectiveness note in its description now, so nightmares
+alone reaching it (`tired` twice, with no Labor involved) reads fine
+narratively.
 
 **Lazy** doesn't touch the roll itself — it takes a quarter off the value
 after the range has already produced a number. `lazyYield()` in
