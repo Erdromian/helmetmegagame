@@ -32,13 +32,13 @@ const { entriesOf } = require("./yamlEntries");
 const { NAME_LIMITS } = require("./characterName");
 
 // `equipSlot:` in docs/tags.yaml -> Tag.equipSlot. Every equippable tag names
-// one; HEAD, BODY and MOUNT take a layer 1-3; the rest refuse one. The set and
+// one; HEAD and BODY take a layer 1-3, MOUNT 1-2; the rest refuse one. The set and
 // the rules are db/lib/equipSlots.js's, so the sheet, the two write paths and
 // this validator cannot disagree about what a slot is.
 const {
   EQUIP_SLOTS: EQUIP_SLOT_LIST,
   LAYERED_SLOTS,
-  MAX_EQUIP_LAYER,
+  LAYER_NAMES,
 } = require("./equipSlots");
 const EQUIP_SLOTS = new Set(EQUIP_SLOT_LIST);
 
@@ -341,9 +341,13 @@ async function syncTagsFromYaml(prisma) {
         );
       }
       if (LAYERED_SLOTS.has(t.equipSlot)) {
-        if (!Number.isInteger(t.equipLayer) || t.equipLayer < 1 || t.equipLayer > MAX_EQUIP_LAYER) {
+        // Each slot has its OWN depth — MOUNT is only ridden and towed — so a
+        // layer past that slot's last cell would validate here and then be
+        // undrawable in the rig.
+        const maxLayer = LAYER_NAMES[t.equipSlot].length;
+        if (!Number.isInteger(t.equipLayer) || t.equipLayer < 1 || t.equipLayer > maxLayer) {
           throw new Error(
-            `docs/tags.yaml: tag "${t.slug}" is equipSlot ${t.equipSlot}, so it needs equipLayer 1-${MAX_EQUIP_LAYER} — 1 against the skin, ${MAX_EQUIP_LAYER} outermost`,
+            `docs/tags.yaml: tag "${t.slug}" is equipSlot ${t.equipSlot}, so it needs equipLayer 1-${maxLayer} — 1 innermost, ${maxLayer} outermost`,
           );
         }
       } else if (t.equipLayer !== undefined) {

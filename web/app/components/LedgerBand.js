@@ -14,10 +14,10 @@ import { carryCapTitle } from "./statusBits";
 // glyph — the house rule for ⬢ (CLAUDE.md), and the reason no tile below
 // writes "Resources" next to a hexagon.
 //
-// A tile with a `detail` is a button: the detail (why the free moves are 0,
-// what holds the carry cap up) reads inline under the tiles when clicked. It
-// used to be a native title=, and this sheet has no tooltips.
-function Tile({ label, value, over = false, detail = null, open = false, onToggle = null, children = null }) {
+// A tile with a detail to give is a button: the detail (why the free moves
+// are 0, what holds the carry cap up) reads inline under the tiles when
+// clicked. It used to be a native title=, and this sheet has no tooltips.
+function Tile({ label, value, over = false, hasDetail = false, open = false, onToggle = null, children = null }) {
   const body = (
     <>
       <span className="field-label">{label}</span>
@@ -27,7 +27,7 @@ function Tile({ label, value, over = false, detail = null, open = false, onToggl
       {children}
     </>
   );
-  if (!detail) return <div className="ledger-tile">{body}</div>;
+  if (!hasDetail) return <div className="ledger-tile">{body}</div>;
   return (
     <button type="button" className="ledger-tile ledger-tile-button" aria-expanded={open} onClick={onToggle}>
       {body}
@@ -117,6 +117,7 @@ export default function LedgerBand({
                     quantity={pickedRow.quantity}
                     expiresTurn={pickedRow.expiresTurn}
                     currentTurn={openTurn?.number ?? null}
+                    inTooltip={false}
                   />
                 </div>
               )}
@@ -129,7 +130,7 @@ export default function LedgerBand({
             label="Free moves"
             value={zoneMoves != null ? zoneMoves : "—"}
             over={zoneMoves === 0}
-            detail={zoneMovesReason}
+            hasDetail={Boolean(zoneMovesReason)}
             open={tileOpen === "moves"}
             onToggle={() => setTileOpen((was) => (was === "moves" ? null : "moves"))}
           />
@@ -142,7 +143,7 @@ export default function LedgerBand({
             label="Carrying"
             value={carrying ? `${carrying} lb` : "—"}
             over={Boolean(carry && carry.weightUsed > carry.weightCap)}
-            detail={carryDetail}
+            hasDetail={Boolean(carryDetail)}
             open={tileOpen === "carry"}
             onToggle={() => setTileOpen((was) => (was === "carry" ? null : "carry"))}
           >
@@ -163,18 +164,15 @@ export default function LedgerBand({
             value={gambit ? `${gambit > 0 ? "+" : ""}${gambit}` : "±0"}
             over={Boolean(gambit)}
           />
-          {tileOpen === "moves" && zoneMovesReason && (
-            <p className="sheet-tile-detail">{zoneMovesReason}</p>
-          )}
-          {tileOpen === "carry" && carryDetail && (
-            <p className="sheet-tile-detail">{carryDetail}</p>
+          {tileOpen && (
+            <p className="sheet-tile-detail">{tileOpen === "moves" ? zoneMovesReason : carryDetail}</p>
           )}
         </div>
       </div>
 
       <div className="sheet-band-row">
         {isSelf && (
-          <div className="ledger-turn sheet-band-turn">
+          <div className="ledger-turn">
             <span className="field-label">This turn</span>
             <SheetTurn moveState={moveState} pendingOffers={pendingOffers} />
           </div>

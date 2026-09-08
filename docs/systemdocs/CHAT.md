@@ -882,7 +882,10 @@ header instead).
      arrives: the page carries the slots only, and the ~271 evaluated
      templates are fetched by `desireCatalogView()` the first time somebody
      opens the picker.
-  5. **`Sheet ›`** — the link to `/character`.
+  5. **`Sheet ›`** — the link to `/character`. The second sheet, `/ledger`,
+     carries the way back: a Back link in its header, and Escape
+     (`SHEET.md` §1). Its band reuses this column's turn card and status
+     strip, so the two never disagree about your Move.
   6. **`WaitingList`** — the pending offers, threat spawns, unanswered bird
      letters and a lobby assignment. Accept and Decline call the **same**
      `db/lib` functions the DM buttons call (`lessons.js`, `bind.js`,

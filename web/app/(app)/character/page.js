@@ -353,6 +353,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     nukeState,
     // The turn card on /ledger (web/app/components/SheetTurn.js): the same
     // server action Chat's YOU column polls, so the two never disagree.
+    // Only /ledger reads it, so /character skips the call entirely.
     mine,
   ] = await Promise.all([
     getOpenTurn(),
@@ -441,7 +442,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     findOpenTurnAction(prisma, character.id),
     clockFrozen(prisma),
     readGameState(prisma, { nukeArmedTurn: true }),
-    myMove(),
+    scope === "ledger" ? myMove() : Promise.resolve({ ok: false }),
   ]);
 
   // Desires: the slots, and the evaluated catalog behind the picker. Both

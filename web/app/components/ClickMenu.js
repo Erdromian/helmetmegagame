@@ -64,7 +64,7 @@ export default function ClickMenu({ triggerRef, onClose, ariaLabel, children }) 
       className="chat-menu chat-menu-portal"
       role="menu"
       aria-label={ariaLabel}
-      style={pos ? { top: pos.top, left: pos.left } : { top: 0, left: 0, visibility: "hidden" }}
+      style={pos ? { top: pos.top, left: pos.left, maxHeight: pos.maxHeight } : { top: 0, left: 0, visibility: "hidden" }}
     >
       {children}
     </div>,

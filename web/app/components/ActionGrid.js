@@ -21,9 +21,11 @@ import { ACTION_SECTIONS, ACTION_HELP, labelFor, reasonFor } from "./actionRegis
 // "columns" is /ledger's: one column per section with a rule between them,
 // each holding the glyph AND its name as a full-width row — /ledger has a
 // whole screen, and a labelled verb is one fewer thing to hover to understand.
-export default function ActionGrid({ variant = "rack" }) {
+// `children` rides at the end of the strip: the Trumpet, which commits on the
+// spot rather than opening a dialog, and so is not in the registry.
+export default function ActionGrid({ variant = "rack", children = null }) {
   const actions = useRequestActions();
-  // Hooks before the early return, so the count never changes between renders.
+  // Before the early return, so the hook count never changes between renders.
   const [why, setWhy] = useState(null);
   if (!actions) return null;
   const { open, pools, busy } = actions;

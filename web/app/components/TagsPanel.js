@@ -187,7 +187,7 @@ export default function TagsPanel({
       </div>
 
       <div className="mb-3 border-b pb-3" style={{ borderColor: "var(--border)" }}>
-        <EquipmentPanel characterTags={characterTags} isSelf={isSelf} embedded />
+        <EquipmentPanel characterTags={characterTags} isSelf={isSelf} />
       </div>
 
       {store}

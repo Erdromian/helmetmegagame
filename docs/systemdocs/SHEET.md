@@ -12,9 +12,12 @@ passes its own snapshot `scope`, and nothing else differs on the way in.
 ## 1. The shell
 
 `web/app/(app)/ledger/layout.js` owns the screen the way `play/layout.js`
-does: a `.sheet-shell` (100dvh, no `PageShell`), the shared `DeskHeader` with
-the title **Sheet**, the same turn chip Chat wears (`play/ChatTurn.js`), and
-one action — **← Back to the game · Esc**, a link to `/play`.
+does: a `.sheet-shell` (100dvh, no `PageShell`) under the shared `AppHeader`
+(`web/app/components/AppHeader.js`). The header is a person rather than a
+page name — titled with the character's name, their role and faction as the
+meta line — and its actions are the avatar plus **← Back to the game · Esc**,
+a link to `/play`. The turn chip is `AppHeader`'s own `TurnMeta`, the same one
+every other page gets.
 
 **Escape goes back to the game.** `ledger/EscapeToPlay.js` listens on
 `window` in the *capture* phase and stands down when a dialog holds the
@@ -34,7 +37,6 @@ columns (`18rem / 1fr / 22rem`) that each scroll on their own under the
 pinned band. Under 1180px the body scrolls as one and the rail folds under
 the working column; under 820px the three columns become three tabs, **You /
 Do / Tags**, a `.tab-bar` keyed on `data-tab` in CSS with no JS media query.
-The (app) layout's floating turn chip is hidden here, as on Chat.
 
 ## 2. The band (`LedgerBand.js`)
 
@@ -112,8 +114,16 @@ empty cell is dashed and named; clicking it is a `ClickMenu` of what you
 carry that fits there, and nothing fitting says so. The header is the
 combined armour as words (`armorValue.js#combineArmor` → `armorWord`).
 
+The rows are only as good as the catalog: slots and layers reach the database
+through `npm run db:sync-tags`, which no deploy step runs, so a push without
+it leaves every weapon, accessory and mount slotless and the board empty
+(`TAGS.md`, "equipSlot / equipLayer / twoHanded").
+
 Every click is `toggleEquip`, so a refusal — a second helm, a fourth hand — is
-the server's sentence in `FormError` under the board. `ClickMenu.js` is the
+the server's sentence in `FormError` under the board. The `Ride` row goes
+further and drops what `equipActions.js` would refuse anyway — a cart indoors,
+a boat against a horse, anything at all with Motion Sickness — with a line in
+the menu saying why. `ClickMenu.js` is the
 portaled click menu that used to live inside `play/ThingsDrawer.js`.
 
 ## 5. What is not here
@@ -122,5 +132,5 @@ portaled click menu that used to live inside `play/ThingsDrawer.js`.
 - No collapsing cards, no Traits/Drawbacks split — both were put to Bascinet
   and skipped.
 - `/character` still draws chips (`TagsPanel.js`) and the old rack
-  (`EquipmentPanel.js`, minus the count it no longer has). It is not touched
-  by this work except where a mechanic changed under it.
+  (`EquipmentPanel.js`, minus the slot denominator it no longer has). It is
+  not touched by this work except where a mechanic changed under it.

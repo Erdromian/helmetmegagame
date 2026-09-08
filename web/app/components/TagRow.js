@@ -19,7 +19,6 @@ export default function TagRow({
   onToggle,
   currentTurn = null,
   armedTurn = null,
-  muted = false,
   worn = false,
 }) {
   const tag = ct.tag;
@@ -27,7 +26,7 @@ export default function TagRow({
   const groupColor = tag.group?.color ?? null;
 
   return (
-    <li className="sheet-row" data-open={open ? "true" : undefined} data-muted={muted ? "true" : undefined}>
+    <li className="sheet-row" data-open={open ? "true" : undefined}>
       <div className="sheet-row-line">
         <button
           type="button"
@@ -59,6 +58,7 @@ export default function TagRow({
             currentTurn={currentTurn}
             armedTurn={armedTurn}
             showName={false}
+            inTooltip={false}
           />
         </div>
       )}

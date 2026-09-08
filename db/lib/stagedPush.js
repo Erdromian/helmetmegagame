@@ -174,7 +174,7 @@ async function applyOneStagedEffect(prisma, row, turn) {
   });
 }
 
-async function runStagedPushPass(prisma, turn, config) {
+async function runStagedPushPass(prisma, turn) {
   const failures = [];
 
   // ── 1. GM-staged effects ─────────────────────────────────────────────────

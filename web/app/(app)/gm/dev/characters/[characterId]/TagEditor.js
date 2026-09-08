@@ -165,7 +165,7 @@ export default function TagEditor({
   const equippedCount = held.filter((h) => h.equipped).length;
   // Hands are the one equipment limit that is a number (db/lib/equipSlots.js);
   // the layered slots say no for themselves when a GM patches a clash in.
-  const hands = handsUsed(held.filter((h) => h.equipped).map((h) => tagsById.get(h.tagId)).filter(Boolean));
+  const hands = handsUsed(held.filter((h) => h.equipped));
 
   return (
     <>

@@ -374,7 +374,7 @@ async function resolveNeeds(turn, config) {
   // hunger (deferred Routine/Labor income must land before upkeep).
   let stagedPush = null;
   if (!done.has("stagedPush")) {
-    stagedPush = await runStagedPushPass(prisma, turn, config).catch(
+    stagedPush = await runStagedPushPass(prisma, turn).catch(
       async (err) => {
         await passFailed("Staged push", err);
         return null;

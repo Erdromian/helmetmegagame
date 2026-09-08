@@ -8,8 +8,15 @@ import {
   handsOf,
   handsUsed,
 } from "@lifeweb/db/lib/equipSlots";
+import {
+  BOAT_CONFLICT_SLUGS,
+  FAST_TRAVEL_SLUGS,
+  STOWABLE_SLUGS,
+  WATER_TRAVEL_SLUGS,
+} from "@lifeweb/db/lib/mounts";
 import { armorWord, combineArmor } from "@lifeweb/db/lib/armorValue";
 import { formatTagWeight } from "@/lib/formatTagWeight";
+import { carryBonusLabel } from "@/lib/sheetCards";
 import { toggleEquip } from "@/app/(app)/character/equipActions";
 import ClickMenu from "./ClickMenu";
 import FormError from "./FormError";
@@ -25,13 +32,13 @@ import FormError from "./FormError";
 // the server's refusal — a second helm, a fourth hand — lands in FormError
 // under the board. No tooltips on this surface.
 
-const ROWS = [
-  { slot: "HEAD", cells: 3 },
-  { slot: "BODY", cells: 3 },
-  { slot: "SHIELD", cells: 1 },
-  { slot: "WEAPON", cells: WEAPON_HANDS },
-  { slot: "MOUNT", cells: 2 },
-];
+// Cell counts come from equipSlots.js rather than being written out again: a
+// layered slot has one cell per layer name, the hands have WEAPON_HANDS of
+// them, and anything else holds exactly one.
+const ROWS = ["HEAD", "BODY", "SHIELD", "WEAPON", "MOUNT"].map((slot) => ({
+  slot,
+  cells: LAYER_NAMES[slot]?.length ?? (slot === "WEAPON" ? WEAPON_HANDS : 1),
+}));
 
 // The one line under a worn thing's name.
 function fact(tag) {
@@ -39,17 +46,55 @@ function fact(tag) {
   const ballistic = tag.ballisticArmor ?? 0;
   if (melee || ballistic) return `${armorWord(melee)} · ${armorWord(ballistic)}`;
   if (tag.concealsIdentity) return "conceals you";
-  if (tag.carryBonus) return `${tag.carryBonus > 0 ? "+" : "−"}${Math.abs(Math.round(tag.carryBonus * 100))}% carry`;
+  const carry = carryBonusLabel(tag.carryBonus);
+  if (carry) return carry;
   return formatTagWeight(tag) ?? null;
 }
 
+// The MOUNT row's menu. equipActions.js refuses more than the slot rule does —
+// a cart or a mount is not set up indoors, a boat and a road kit are never out
+// at once, and Motion Sickness rules out riding at all — so offering those and
+// then failing them is a worse menu than one that leaves them out and says
+// why. Everything else on the board is filtered on the slot alone, because the
+// slot really is the whole rule there.
+function mountMenu(fits, worn, { indoors, motionSick }) {
+  const out = new Set(worn.map((ct) => ct.tag.slug));
+  const boatOut = [...WATER_TRAVEL_SLUGS].some((slug) => out.has(slug));
+  const rideOut = [...BOAT_CONFLICT_SLUGS].some((slug) => out.has(slug));
+  const why = new Set();
+  const options = fits.filter((ct) => {
+    const slug = ct.tag.slug;
+    if (indoors && STOWABLE_SLUGS.has(slug)) {
+      why.add("there is no setting one up indoors");
+      return false;
+    }
+    if (motionSick && (FAST_TRAVEL_SLUGS.has(slug) || WATER_TRAVEL_SLUGS.has(slug))) {
+      why.add("your stomach won't have it");
+      return false;
+    }
+    if ((boatOut && BOAT_CONFLICT_SLUGS.has(slug)) || (rideOut && WATER_TRAVEL_SLUGS.has(slug))) {
+      why.add("you are either riding or poling");
+      return false;
+    }
+    return true;
+  });
+  const note = why.size
+    ? `Some of what you carry isn't offered here: ${[...why].join("; ")}. ‡`
+    : null;
+  return { options, note };
+}
+
 // A dashed, named empty place. Its click menu lists the carried things that
-// fit; nothing fits and it says so.
-function EmptyCell({ label, options, onPick, pending, span = 1 }) {
+// fit; nothing fits and it says so. `note` is the MOUNT row's reason for
+// having left something out — never a silent omission.
+function EmptyCell({ label, options, onPick, pending, span = 1, note = null }) {
   const ref = useRef(null);
   const [open, setOpen] = useState(false);
   return (
-    <div className="equip-cell is-empty" style={span > 1 ? { gridColumn: `span ${span}` } : undefined}>
+    <div
+      className="equip-cell is-empty"
+      style={span > 1 ? { gridColumn: `span ${span}` } : undefined}
+    >
       <button
         ref={ref}
         type="button"
@@ -64,7 +109,7 @@ function EmptyCell({ label, options, onPick, pending, span = 1 }) {
       </button>
       {open && (
         <ClickMenu triggerRef={ref} onClose={() => setOpen(false)} ariaLabel={label}>
-          {options.length === 0 ? (
+          {options.length === 0 && !note ? (
             <span className="chat-quiet-line">Nothing you carry goes here. ‡</span>
           ) : (
             options.map((ct) => (
@@ -83,6 +128,7 @@ function EmptyCell({ label, options, onPick, pending, span = 1 }) {
               </button>
             ))
           )}
+          {note && <span className="chat-quiet-line">{note}</span>}
         </ClickMenu>
       )}
     </div>
@@ -101,7 +147,13 @@ function WornCell({ ct, onUnequip, pending, span = 1, canAct }) {
         {line && <span className="equip-cell-fact text-muted">{line}</span>}
       </div>
       {canAct && (
-        <button type="button" className="equip-cell-off" disabled={pending} onClick={onUnequip} aria-label={`Unequip ${ct.tag.name}`}>
+        <button
+          type="button"
+          className="equip-cell-off"
+          disabled={pending}
+          onClick={onUnequip}
+          aria-label={`Unequip ${ct.tag.name}`}
+        >
           ✕
         </button>
       )}
@@ -109,7 +161,7 @@ function WornCell({ ct, onUnequip, pending, span = 1, canAct }) {
   );
 }
 
-export default function EquipBoard({ characterTags, isSelf }) {
+export default function EquipBoard({ characterTags, isSelf, indoors = false, motionSick = false }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
 
@@ -141,7 +193,9 @@ export default function EquipBoard({ characterTags, isSelf }) {
         <div className="section-title">
           <h2>Equipped</h2>
         </div>
-        <p className="text-sm text-muted">You&apos;re not carrying anything that can be worn or readied. ‡</p>
+        <p className="text-sm text-muted">
+          You&apos;re not carrying anything that can be worn or readied. ‡
+        </p>
       </section>
     );
   }
@@ -166,7 +220,13 @@ export default function EquipBoard({ characterTags, isSelf }) {
             const ct = inSlot.find((row) => row.tag.equipLayer === layer);
             const label = `${LAYER_NAMES[slot][i]}`;
             return ct ? (
-              <WornCell key={ct.id} ct={ct} onUnequip={() => toggle(ct)} pending={pending} canAct={isSelf} />
+              <WornCell
+                key={ct.id}
+                ct={ct}
+                onUnequip={() => toggle(ct)}
+                pending={pending}
+                canAct={isSelf}
+              />
             ) : (
               <EmptyCell
                 key={`${slot}-${layer}`}
@@ -177,9 +237,36 @@ export default function EquipBoard({ characterTags, isSelf }) {
               />
             );
           });
+          // Anything worn at a layer this row has no cell for still gets one,
+          // on the end. The catalog is the only thing that says how deep a
+          // slot goes, and the catalog is synced separately from the code
+          // (TAGS.md) — so between a deploy and its `db:sync-tags` a helm can
+          // be worn at a layer that no longer exists. Drawing only the named
+          // layers would leave it on the character's head with nothing to
+          // take it off with.
+          for (const ct of inSlot) {
+            const layer = ct.tag.equipLayer;
+            if (Number.isInteger(layer) && layer >= 1 && layer <= cells) continue;
+            drawn.push(
+              <WornCell
+                key={ct.id}
+                ct={ct}
+                onUnequip={() => toggle(ct)}
+                pending={pending}
+                canAct={isSelf}
+              />,
+            );
+          }
         } else if (slot === "WEAPON") {
           drawn = inSlot.map((ct) => (
-            <WornCell key={ct.id} ct={ct} span={handsOf(ct.tag)} onUnequip={() => toggle(ct)} pending={pending} canAct={isSelf} />
+            <WornCell
+              key={ct.id}
+              ct={ct}
+              span={handsOf(ct.tag)}
+              onUnequip={() => toggle(ct)}
+              pending={pending}
+              canAct={isSelf}
+            />
           ));
           if (freeHands > 0) {
             drawn.push(
@@ -195,10 +282,27 @@ export default function EquipBoard({ characterTags, isSelf }) {
           }
         } else {
           const ct = inSlot[0];
+          const menu =
+            slot === "MOUNT"
+              ? mountMenu(fits, worn, { indoors, motionSick })
+              : { options: fits, note: null };
           drawn = ct ? (
-            <WornCell key={ct.id} ct={ct} onUnequip={() => toggle(ct)} pending={pending} canAct={isSelf} />
+            <WornCell
+              key={ct.id}
+              ct={ct}
+              onUnequip={() => toggle(ct)}
+              pending={pending}
+              canAct={isSelf}
+            />
           ) : (
-            <EmptyCell key={slot} label={SLOT_TITLES[slot]} options={fits} onPick={toggle} pending={pending} />
+            <EmptyCell
+              key={slot}
+              label={SLOT_TITLES[slot]}
+              options={menu.options}
+              note={menu.note}
+              onPick={toggle}
+              pending={pending}
+            />
           );
         }
         // A ride nobody owns is not worth a row of dashes.
@@ -207,11 +311,34 @@ export default function EquipBoard({ characterTags, isSelf }) {
           <div key={slot} className="equip-row">
             <span className="field-label equip-row-title">
               {SLOT_TITLES[slot]}
-              {slot === "WEAPON" ? <span className="mono"> {hands}/{WEAPON_HANDS}</span> : null}
+              {slot === "WEAPON" ? (
+                <span className="mono" data-over={hands > WEAPON_HANDS ? "true" : undefined}>
+                  {" "}
+                  {hands}/{WEAPON_HANDS}
+                </span>
+              ) : null}
             </span>
-            <div className="equip-cells" style={{ gridTemplateColumns: `repeat(${cells}, minmax(0, 1fr))` }}>
+            {/* The named layers, plus any stray one the loop above had to add
+                on the end — a hand's cell spans two, so only a layered row can
+                ever draw more cells than its own count. */}
+            <div
+              className="equip-cells"
+              style={{
+                gridTemplateColumns: `repeat(${layered ? Math.max(cells, drawn.length) : cells}, minmax(0, 1fr))`,
+              }}
+            >
               {drawn}
             </div>
+            {/* A character who filled their hands before the three-hand rule
+                existed can equip nothing at all until they put something
+                down, and the refusal they would otherwise meet arrives from
+                the server on an unrelated click. Say it here instead. */}
+            {slot === "WEAPON" && hands > WEAPON_HANDS && (
+              <span className="chat-quiet-line">
+                You are holding more than {WEAPON_HANDS} hands&apos; worth — put something away
+                before you ready anything else. ‡
+              </span>
+            )}
           </div>
         );
       })}
@@ -225,7 +352,13 @@ export default function EquipBoard({ characterTags, isSelf }) {
             <span className="field-label equip-row-title">{SLOT_TITLES.ACCESSORY}</span>
             <div className="equip-cells equip-cells-wrap">
               {inSlot.map((ct) => (
-                <WornCell key={ct.id} ct={ct} onUnequip={() => toggle(ct)} pending={pending} canAct={isSelf} />
+                <WornCell
+                  key={ct.id}
+                  ct={ct}
+                  onUnequip={() => toggle(ct)}
+                  pending={pending}
+                  canAct={isSelf}
+                />
               ))}
               {isSelf && fits.length > 0 && (
                 <EmptyCell label="Add" options={fits} onPick={toggle} pending={pending} />
@@ -246,10 +379,21 @@ export default function EquipBoard({ characterTags, isSelf }) {
             <div className="equip-cells equip-cells-wrap">
               {stray.map((ct) =>
                 ct.equipped ? (
-                  <WornCell key={ct.id} ct={ct} onUnequip={() => toggle(ct)} pending={pending} canAct={isSelf} />
+                  <WornCell
+                    key={ct.id}
+                    ct={ct}
+                    onUnequip={() => toggle(ct)}
+                    pending={pending}
+                    canAct={isSelf}
+                  />
                 ) : (
                   <div key={ct.id} className="equip-cell is-empty">
-                    <button type="button" className="equip-cell-face" disabled={pending || !isSelf} onClick={() => toggle(ct)}>
+                    <button
+                      type="button"
+                      className="equip-cell-face"
+                      disabled={pending || !isSelf}
+                      onClick={() => toggle(ct)}
+                    >
                       <span className="equip-cell-name text-muted">{ct.tag.name}</span>
                       <span className="equip-cell-fact text-muted">equip</span>
                     </button>

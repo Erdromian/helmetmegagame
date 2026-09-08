@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { TRUMPET_SLUG } from "@lifeweb/db/lib/constants";
+import { MOTION_SICKNESS_SLUG, TRUMPET_SLUG } from "@lifeweb/db/lib/constants";
 import BioForm from "./BioForm";
 import CharacterPoller from "./CharacterPoller";
 import EquipBoard from "./EquipBoard";
@@ -158,6 +158,13 @@ export default function CharacterLedger({
   const hasTrumpet = character.tags?.some(
     (ct) => (ct?.tag?.slug ?? ct?.slug) === TRUMPET_SLUG,
   );
+  // The two facts the rig needs beyond the slot rule, because equipActions.js
+  // refuses on them too: a cart is not set up indoors, and a queasy stomach
+  // rules out riding anything at all.
+  const indoors = Boolean(character.location?.indoors);
+  const motionSick = Boolean(
+    character.tags?.some((ct) => (ct?.tag?.slug ?? ct?.slug) === MOTION_SICKNESS_SLUG),
+  );
   const [tab, setTab] = useState("you");
 
   return (
@@ -304,7 +311,12 @@ export default function CharacterLedger({
               </section>
             )}
 
-            <EquipBoard characterTags={character.tags} isSelf={isSelf} />
+            <EquipBoard
+              characterTags={character.tags}
+              isSelf={isSelf}
+              indoors={indoors}
+              motionSick={motionSick}
+            />
 
             {isSelf && (
               <GoalsPanel

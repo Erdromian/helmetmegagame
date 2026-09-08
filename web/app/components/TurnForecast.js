@@ -33,10 +33,10 @@ export default function TurnForecast({
       <li key={`tag-${ct.tag.id}`}>
         {becomes ? (
           <>
-            {ct.tag.name} → <ChipText text={becomes} inTooltip /> ‡
+            {ct.tag.name} → <ChipText text={becomes} /> ‡
           </>
         ) : (
-          `${ct.tag.name} ends. ‡`
+          `${ct.tag.name} ends.`
         )}
       </li>,
     );
@@ -46,12 +46,12 @@ export default function TurnForecast({
   // line (db/lib/structures.js counts the same way).
   for (const p of craftProjects) {
     if (p.turnsDone + 1 >= p.turnsNeeded) {
-      lines.push(<li key={`project-${p.id}`}>{`${p.quantity > 1 ? `${p.quantity}× ` : ""}${p.tagName} is finished. ‡`}</li>);
+      lines.push(<li key={`project-${p.id}`}>{`${p.quantity > 1 ? `${p.quantity}× ` : ""}${p.tagName} is finished.`}</li>);
     }
   }
   for (const s of sitesHere) {
     if (s.status === "UNDER_CONSTRUCTION" && s.turnsDone + 1 >= s.turnsNeeded) {
-      lines.push(<li key={`site-${s.id}`}>{`${s.typeName} is finished. ‡`}</li>);
+      lines.push(<li key={`site-${s.id}`}>{`${s.typeName} is finished.`}</li>);
     }
   }
 

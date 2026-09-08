@@ -759,7 +759,7 @@ export default function FactionConsole(props) {
   const [tab, setTab] = useState("roster");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
-  const doRefresh = useRefresh();
+  const [doRefresh] = useRefresh();
 
   // The one submit wrapper. Returns whether it worked, so a dialog knows
   // whether to close itself.

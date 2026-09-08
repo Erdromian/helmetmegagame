@@ -63,7 +63,7 @@ export default function TagRail({
     setError(null);
     startTransition(async () => {
       const res = await consumeTagRequest({ tagId });
-      if (!res?.ok) setError(res?.error ?? "Something went wrong. ‡");
+      if (!res?.ok) setError(res?.error ?? "Something went wrong.");
     });
   }
 
@@ -137,7 +137,7 @@ export default function TagRail({
           <input
             type="search"
             value={query}
-            placeholder="Find a tag… ‡"
+            placeholder="Find a tag…"
             onChange={(e) => setQuery(e.target.value)}
           />
         </label>

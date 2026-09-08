@@ -10,16 +10,16 @@
 
 import { turnsLeft, tagDuration } from "@lifeweb/db/lib/turnFormat";
 import { armorWord } from "@lifeweb/db/lib/armorValue";
-import { formatTagWeight } from "./formatTagWeight";
+import { tagWeightLbs } from "./formatTagWeight";
 
 // Fixed display order rather than alphabetical or catalog order — Health
 // (whatever is currently wrong with you) first, then what you know, what
 // you carry, what stands, who you are.
-export const CARD_ORDER = ["Health", "Skills", "Items", "Assets", "General", "Meta", "Demoness"];
+const CARD_ORDER = ["Health", "Skills", "Items", "Assets", "General", "Meta", "Demoness"];
 
 // Case-folded: the catalog has held both "Items" and "items", and two cards
 // headed the same word is a bug on sight.
-export function canonicalCategory(raw) {
+function canonicalCategory(raw) {
   const trimmed = raw?.trim() || "Other";
   return CARD_ORDER.find((c) => c.toLowerCase() === trimmed.toLowerCase()) ?? trimmed;
 }
@@ -29,10 +29,10 @@ function rank(category) {
   return i === -1 ? CARD_ORDER.length : i;
 }
 
-// The per-unit weight a row sorts on; a stack sorts by its total.
+// What a row weighs, stack included — the number the Items card sorts and
+// totals on, from the same rule the string is built out of.
 function rowWeight(ct) {
-  const each = ct.tag?.tradeable && ct.tag?.category !== "Assets" ? (ct.tag?.weightLbs ?? 0) : 0;
-  return each * Math.max(1, ct.quantity ?? 1);
+  return tagWeightLbs(ct.tag, ct.quantity ?? 1);
 }
 
 // Signed percent for a carry bonus: Cart +4 reads "+400%", Frail −0.1 "−10%".
@@ -43,7 +43,7 @@ export function carryBonusLabel(bonus) {
 }
 
 // What a Laboring tool adds, in the kind's own word (LABORING.md §5).
-export function laborBonusLabel(laborBonus) {
+function laborBonusLabel(laborBonus) {
   if (!laborBonus?.kind || !laborBonus?.amount) return null;
   return `+${laborBonus.amount} ${laborBonus.kind}`;
 }
@@ -56,12 +56,9 @@ export function rowValue(ct, currentTurn = null) {
   const left = turnsLeft(ct.expiresTurn, currentTurn);
   const duration = tagDuration(left, null);
   if (duration) return { text: duration.badge, tone: left === 1 ? "danger" : null };
-  const weight = formatTagWeight(tag, ct.quantity ?? 1);
-  if (weight) {
-    // "1 lb each · 3 lb" is the tooltip's wording; the row wants the total.
-    const total = weight.includes("·") ? weight.split("·").pop().trim() : weight;
-    return { text: total, tone: null };
-  }
+  // "1 lb each · 3 lb" is the tooltip's wording; the row wants the total.
+  const weight = tagWeightLbs(tag, ct.quantity ?? 1);
+  if (weight > 0) return { text: `${weight} lb`, tone: null };
   const armor = tag.ballisticArmor ?? tag.meleeArmor;
   if (armor) return { text: armorWord(Math.max(tag.meleeArmor ?? 0, tag.ballisticArmor ?? 0)), tone: null };
   const carry = carryBonusLabel(tag.carryBonus);

@@ -2624,11 +2624,12 @@ model CharacterTag {
   // EVENT below.
   expiresTurn Int?
 
-  // Whether this held tag is currently equipped, capped across a character by
-  // GameConfig.equipSlots and only ever true for a Tag.equippable one. A
-  // stackable tag takes ONE slot however many units are held — the flag is a
-  // property of holding the tag, not of each unit, which is also why this is
-  // a column here rather than a separate join table.
+  // Whether this held tag is currently equipped. The cap is per slot, not a
+  // flat count across the character: Tag.equipSlot says where a thing goes and
+  // db/lib/equipSlots.js says how many fit there. Only ever true for a
+  // Tag.equippable one. A stackable tag takes ONE slot however many units are
+  // held — the flag is a property of holding the tag, not of each unit, which
+  // is also why this is a column here rather than a separate join table.
   equipped Boolean @default(false)
 
   // How many of this tag the character holds. Always 1 for an ordinary tag;

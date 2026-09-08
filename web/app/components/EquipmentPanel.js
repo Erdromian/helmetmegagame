@@ -15,15 +15,11 @@ import { toggleEquip } from "@/app/(app)/character/equipActions";
 // TagChip's click already opens the Consume dialog (see TagsPanel.js);
 // overloading it would make a consumable-and-equippable tag ambiguous.
 //
-// `embedded` renders this as a sub-section of TagsPanel.js instead of its own
-// `.panel` card — the equipped rack is just a view over the same held-tags
-// data the Tags panel already has, so it earns a heading, not a whole card.
-// The equip/unequip interaction underneath is unchanged either way.
 // There is no count to show any more: the limits are per slot (one thing per
 // layer, one shield, three hands — db/lib/equipSlots.js) and the server says
 // which one refused, so the rack draws what is worn and the refusal lands in
 // FormError below. /ledger draws the full slot board instead (EquipBoard.js).
-export default function EquipmentPanel({ characterTags, isSelf, embedded = false }) {
+export default function EquipmentPanel({ characterTags, isSelf }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
 
@@ -39,29 +35,26 @@ export default function EquipmentPanel({ characterTags, isSelf, embedded = false
     });
   }
 
-  const Wrapper = embedded ? "div" : "section";
-  const wrapperClassName = embedded ? "" : "panel p-4";
-
   // Nothing equippable and nothing equipped — say so once rather than
   // rendering an empty rack of slots at someone with no gear.
   if (equippable.length === 0) {
     return (
-      <Wrapper className={wrapperClassName}>
+      <div>
         <div className="section-title">
           <h2>Equipped</h2>
         </div>
         <p className="text-sm text-muted">You&apos;re not carrying any equippable items.</p>
-      </Wrapper>
+      </div>
     );
   }
 
   return (
-    <Wrapper className={wrapperClassName}>
+    <div>
       {/* .section-title, not .panel-header: the heading is a flex child beside
           the counter, and panel-header's rule would underline just the word. */}
       <div className="section-title">
         <h2>Equipped</h2>
-        <span className="text-sm text-muted mono">{equipped.length}</span>
+        <span className="text-sm text-muted mono">{equipped.length} worn</span>
       </div>
 
       <div className="equip-slots">
@@ -104,6 +97,6 @@ export default function EquipmentPanel({ characterTags, isSelf, embedded = false
       )}
 
       <FormError>{error}</FormError>
-    </Wrapper>
+    </div>
   );
 }

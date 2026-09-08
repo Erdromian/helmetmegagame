@@ -920,11 +920,13 @@ them).
 - `laborBonus` — what this tag adds to one kind of Laboring, e.g.
   `laborBonus: { kind: hunting, amount: 3 }`. `equipped` defaults **true**;
   `requiresTag` gates it on holding something else (the Plow needs a horse).
-  Bonuses sum, and the three hands are the real limit. Normalised and
-  validated in `db/lib/tagShapes.js`, which throws on an unknown `kind`, on a
-  bonus that requires equipping a tag that is not `equippable`, and on a
-  `requiresTag` naming a tag that does not exist — a typo'd `kind` would
-  otherwise make a tool silently worthless. Full rules in `LABORING.md` §5.
+  Bonuses sum. The three hands cap readied WEAPONS only; accessories are
+  uncapped, and the fishing rod and the trapping gear are accessories.
+  Normalised and validated in `db/lib/tagShapes.js`, which throws on an
+  unknown `kind`, on a bonus that requires equipping a tag that is not
+  `equippable`, and on a `requiresTag` naming a tag that does not exist — a
+  typo'd `kind` would otherwise make a tool silently worthless. Full rules in
+  `LABORING.md` §5.
 - `requirementItems` (YAML: `requirement.items`) — the recipe's
   **ingredients**, and the only ones the game has. **Spent by default**:
   `quantity` units come off the crafter's sheet per craft, the same scaling ⬢
@@ -1733,6 +1735,14 @@ retired** (2026-09-13): the column stays in the schema, unread and listed under
 `INTERNAL_KEYS` in `db/lib/gameConfigFields.js`, and the slot is the whole
 rule. Every `equippable` tag names one; sync throws on one that doesn't.
 
+> **Shipping this needs a tag sync.** The migration only adds the enum values
+> and `Tag.twoHanded`. Every slot, every layer and every `twoHanded` flag
+> lives in `docs/tags.yaml` and reaches the database through `npm run
+> db:sync-tags` — and **no deploy step runs that for you**. Push without it
+> and every weapon, accessory and mount is slotless: the rig draws empty rows,
+> and the limit that stops eight swords is not there. The sync is upsert-only,
+> so running it against the live database is safe (`SYNC.md` §2).
+
 | `equipSlot` | limit | holds |
 |---|---|---|
 | `HEAD` | layers 1–3, one thing per layer | 1 liner (coif, cap, mask), 2 helm, 3 over (hat, hood, bag) |
@@ -1747,9 +1757,11 @@ may not share a layer**. So a mail coif (`HEAD` 1) goes under a knight's helm
 (`HEAD` 2), but two helms do not go together; a cart (`MOUNT` 2) is towed
 behind a horse (`MOUNT` 1), but a horse and a boat are one ride too many.
 `SHIELD`, `WEAPON` and `ACCESSORY` carry no layer, and sync throws if one is
-set on them. Sync also throws on a layer outside 1–3, a layer with no slot, a
-layered slot with no layer, a slot on a tag that is not `equippable`, and
-`twoHanded` on anything but a `WEAPON`.
+set on them. Sync also throws on a layer outside **that slot's own range** —
+1–3 on `HEAD` and `BODY`, 1–2 on `MOUNT`, since the rig has no third mount
+cell to draw one in — a layer with no slot, a layered slot with no layer, a
+slot on a tag that is not `equippable`, and `twoHanded` on anything but a
+`WEAPON`.
 
 **Hands** are the one limit that is a number: `WEAPON_HANDS = 3` in
 `db/lib/equipSlots.js`, a constant rather than a knob. A bastard sword on the

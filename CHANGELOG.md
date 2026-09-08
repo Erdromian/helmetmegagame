@@ -23,6 +23,17 @@ Entries below predate this format and list files instead.
 ## 2026-09-08 · The travel lines say you'll arrive next turn
 
 ✎ "You arrive next turn" now reads "you'll arrive next turn" everywhere it appears, the two departure lines included, so they all match
+## 2026-09-08 · The sheet on /ledger is rebuilt, and equipment goes in slots now
+
+✎ Your tags are rows in cards by kind now, not one heap of chips. Wounds sort by how soon they turn and say what they become and what the cure costs; skills group by family and show the next rung; items group by kind with their weight against your cap.  
+✎ Click a tag and it opens where it sits. Items and wounds carry Use, Equip, Give, Destroy and Heal on the row itself.  
+✚ A search box over your tags, for the sheets that have got long  
+✎ The top of the sheet holds still while the columns scroll: your Move is filed and edited from there, your state and carry are on it, and every verb is one row of buttons instead of a panel. A greyed verb says why when you press it.  
+✚ A line saying what the turn will change: what runs out or turns worse, what finishes, where you arrive, and whether dinner is covered  
+✎ Escape takes you back to the game from the sheet.  
+✎ Equipment is places on the body, not a count of six. Three head layers, three body layers, an off hand, three hands, a ride and what it tows, and as many small things as you like. A two-handed weapon takes two hands. So a bastard sword on the back and a pistol on the hip, but not eight swords.  
+✎ The rig draws those places: click an empty one and it lists what you carry that fits. It will not offer a cart indoors or a boat beside a horse without saying why.  
+− The flat equipment-slot number on the Dev Panel
 
 ## 2026-09-08 · A traveller can walk their own zone while they wait on the road
 

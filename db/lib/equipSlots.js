@@ -6,9 +6,9 @@
 // nothing about two helmets, and the two rules disagreed about why an equip
 // was refused.
 //
-//   HEAD, BODY, MOUNT  layered 1-3. Two equipped tags may not share a layer,
-//                      so a coif (1) goes under a helm (2) and a cart (2) is
-//                      towed behind a horse (1), but two helms do not go
+//   HEAD, BODY          layered 1-3, MOUNT 1-2. Two equipped tags may not share
+//                      a layer, so a coif (1) goes under a helm (2) and a cart
+//                      (2) is towed behind a horse (1), but two helms do not go
 //                      together.
 //   SHIELD             exactly one.
 //   WEAPON             three hands. A tag with Tag.twoHanded takes two.
@@ -113,15 +113,31 @@ function describeSlotClash({ a, b }) {
 
 /**
  * Why the readied weapons do not fit in the hands, or null when they do.
+ *
+ * Names only the EXCESS. A character carrying five weapons from before the
+ * rule needs to know which ones to put down, and a refusal that listed the
+ * whole armful — the ones already fitting included — told them nothing they
+ * could act on. Hands are filled in the order the rows came, and anything
+ * that will not go in is what has to go.
  */
 function describeHandsOverflow(tags) {
-  const used = handsUsed(tags);
-  if (used <= WEAPON_HANDS) return null;
-  const weapons = (tags ?? []).map(tagOf).filter((t) => t?.equipSlot === "WEAPON");
-  const two = weapons.filter((t) => t.twoHanded).map((t) => t.name);
-  const named = listWords(weapons.map((t) => t.name));
-  const note = two.length ? ` ${listWords(two)} ${two.length === 1 ? "takes" : "take"} two.` : "";
-  return `Your hands are full: ${named} need more than ${WEAPON_HANDS} hands.${note} ‡`;
+  if (handsUsed(tags) <= WEAPON_HANDS) return null;
+  const excess = [];
+  let held = 0;
+  for (const entry of tags ?? []) {
+    const tag = tagOf(entry);
+    if (tag?.equipSlot !== "WEAPON") continue;
+    const hands = handsOf(tag);
+    if (held + hands <= WEAPON_HANDS) {
+      held += hands;
+      continue;
+    }
+    excess.push(tag);
+  }
+  // A two-hander says so inline, so the sentence stays one sentence and the
+  // player can still see why three things filled three hands.
+  const named = listWords(excess.map((t) => (t.twoHanded ? `${t.name} (two hands)` : t.name)));
+  return `Your hands are full: put away ${named} before you take up anything else. ‡`;
 }
 
 /**
@@ -139,13 +155,9 @@ module.exports = {
   MAX_EQUIP_LAYER,
   LAYERED_SLOTS,
   EQUIP_SLOTS,
-  SLOT_LABELS,
   SLOT_TITLES,
   LAYER_NAMES,
   handsOf,
   handsUsed,
-  findSlotClash,
-  describeSlotClash,
-  describeHandsOverflow,
   findEquipProblem,
 };

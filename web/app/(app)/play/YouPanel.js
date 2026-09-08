@@ -90,8 +90,8 @@ export default function YouPanel({
   const refreshMove = moveState.refresh;
 
   const refresh = useCallback(() => {
-    // One interval, both reads: a Move filed in Discord and an offer answered
-    // in Discord both land here without a reload.
+    // Just the offer list: useMyMove runs the Move's own minute poll, and
+    // polling it from here too asked for the same row twice a minute.
     waitingOnYou()
       .then((res) => {
         if (res?.ok) setWaiting(res.rows);
@@ -100,19 +100,21 @@ export default function YouPanel({
         // The list is a reminder, not the record. A failed refresh loses
         // nothing a reload does not bring back.
       });
-    refreshMove();
-  }, [refreshMove]);
+  }, []);
 
   // A minute is often enough for a notice board of this kind, and it costs
-  // two small queries.
+  // one small query.
   useVisiblePoll(refresh, 60_000);
 
   const say = useCallback(
     (res) => {
       setNotice(res.line ?? null);
       refresh();
+      // A verb can file or change a Move, so pull the card now rather than
+      // leaving it up to a minute stale.
+      refreshMove();
     },
-    [refresh],
+    [refresh, refreshMove],
   );
 
   return (

@@ -7,11 +7,21 @@
 //
 // Lived inside TagChip.js until the sheet's rows and the turn forecast wanted
 // the same string without the chip.
-export function chainTokens(chain) {
+//
+// `bySlug` is an optional map of the tags a surface was actually shipped. Pass
+// one and a slug missing from it emits nothing, so a chain into a withheld tag
+// is not named anyway via the app-wide {tag:…} provider ChipText resolves
+// against. Leave it out and every slug in the chain is emitted.
+export function chainTokens(chain, bySlug = null) {
   const entries = Array.isArray(chain) ? chain : null;
   if (!entries?.length) return null;
   return entries
-    .map((entry) => (entry?.oneOf ?? []).map((slug) => `{tag:${slug}}`).join(" or "))
+    .map((entry) =>
+      (entry?.oneOf ?? [])
+        .filter((slug) => !bySlug || bySlug.has(slug))
+        .map((slug) => `{tag:${slug}}`)
+        .join(" or "),
+    )
     .filter(Boolean)
     .join(" and ");
 }

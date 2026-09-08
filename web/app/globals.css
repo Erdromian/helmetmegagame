@@ -856,8 +856,8 @@ input[type="radio"]:focus-visible,
   border-color: var(--danger);
 }
 
-/* Equipment rack. Slots wrap into as many columns as fit, so six slots read
-   as one row on a laptop and two or three on a phone without a breakpoint —
+/* Equipment rack. Slots wrap into as many columns as fit, so a rack reads as
+   one row on a laptop and two or three on a phone without a breakpoint —
    the tap targets stay full-width-ish rather than shrinking to fit. */
 .equip-slots {
   display: grid;
@@ -895,12 +895,7 @@ input[type="radio"]:focus-visible,
   cursor: default;
 }
 
-.equip-slot.is-empty {
-  border-style: dashed;
-  opacity: 0.5;
-}
-
-.equip-slot:not(.is-empty):hover:not(:disabled) {
+.equip-slot:hover:not(:disabled) {
   border-color: var(--accent-text);
 }
 
@@ -5648,6 +5643,10 @@ label.chip {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--e-3);
+  /* placePanel() hands the portal a maxHeight so a long menu cannot run off
+     the viewport; without a scroller the entries past the fold are simply
+     unreachable. */
+  overflow-y: auto;
 }
 
 /* ThingsDrawer.js's menu, escaped to document.body (portalPlacement.js):
@@ -5850,8 +5849,9 @@ label.chip {
    The cards reuse .equip-slots / .equip-slot rather than a second slot grid,
    because they are the same idea: a fixed number of places, some of them
    full. What is new is the overflow state. A dashed border already means
-   "empty" on the equipment rack, so the overflow card takes the accent as
-   well — dashed AND accented reads as "occupied, and it costs you", which
+   "empty" on the sheet's equipment board (.equip-cell.is-empty), so the
+   overflow card takes the accent as well — dashed AND accented reads as
+   "occupied, and it costs you", which
    is exactly what a passenger past the saddle is (docs/systemdocs/MAP.md
    §3a). It is never drawn on foot, where there are no seats to overfill. */
 .party-slot {
@@ -6790,10 +6790,6 @@ label.chip {
   outline-offset: -2px;
 }
 
-.sheet-row[data-muted="true"] .sheet-row-face {
-  color: var(--muted);
-}
-
 .sheet-row-note {
   font-size: var(--fs-xs);
   color: var(--muted);
@@ -6852,6 +6848,13 @@ label.chip {
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
+}
+
+/* More weapons readied than there are hands — only reachable on a character
+   who filled them before the three-hand rule existed. The count says so, and
+   EquipBoard.js writes the sentence under the row. */
+.equip-row-title [data-over="true"] {
+  color: var(--danger);
 }
 
 .equip-cells {
