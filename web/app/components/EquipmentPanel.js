@@ -79,7 +79,11 @@ export default function EquipmentPanel({ characterTags, slots = 6, isSelf, embed
                 disabled={!isSelf || pending}
                 aria-label={isSelf ? `Unequip ${ct.tag.name}` : ct.tag.name}
               >
-                <ChipLabel tag={ct.tag} quantity={ct.quantity} />
+                {/* No quantity here even for a stackable tag — a slot holds ONE
+                    equipped item, never a stack (docs/systemdocs/TAGS.md
+                    "equippable" section). The full count still shows in
+                    Carrying below, and in the Tags list itself. */}
+                <ChipLabel tag={ct.tag} />
               </button>
             </Tooltip>
           );
