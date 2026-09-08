@@ -5403,7 +5403,7 @@ tags:
     name: Leeches
     category: items
     group: items-gear
-    description: "A jarful of dark, patient leeches. Set on a bruise, they draw the bad blood out — cures {tag:bruised}. ‡"
+    description: "A jarful of dark, patient leeches, set on a bruise to draw the bad blood out. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -7878,7 +7878,7 @@ tags:
     name: Surgical Equipment
     category: items
     description: |-
-      A set of advanced medical equipment. It allows for on-the-go surgery and complex procedures. Hold it, or stand somewhere it's already set up, and every medical Gambit you roll gets +1. ‡
+      A set of advanced medical equipment. Hold it, or stand somewhere it's already set up, and the deepest surgeries are open to you — no penalty, no fumbling for a lesser kit. ‡
     pointCost: 9
     visible: true
     purchasable: true
@@ -9735,7 +9735,7 @@ tags:
     name: Antibiotics
     category: items
     group: items-drink
-    description: "Cures {tag:feverish} and {tag:sepsis} outright. ‡"
+    description: "A course of pills that knocks out an infection from the inside — no wound to dress, no fever left to break. ‡"
     pointCost: 0
     depotPrice: 82
     sellable: true
@@ -10241,9 +10241,10 @@ tags:
   # Smith's work now, not a brew (Chris 2026-09-05): a powder device coming
   # out of a still was always odd, and Smithing (Gunpowder) is where every
   # other powder item lives. The group moved with the skill — items-weapons
-  # is what routes it to the Smithing paper (db/scripts/ops/audit-craft-docs
-  # assigns papers by group). Still spends RAW saltpeter; only the bigger
-  # {tag:bomb} wants the refined {tag:black-powder}.
+  # is the Smithing-family group (the Recipes tab renders by group; the
+  # retired hand-written papers used to route the same way). Still spends
+  # RAW saltpeter; only the bigger {tag:bomb} wants the refined
+  # {tag:black-powder}.
   # Renamed from Gunpowder Grenade (Chris 2026-09-06): it packs raw saltpeter,
   # not powder, so it neither claims the name nor needs the Gunpowder rung.
   # The slug stays — the papers' {tag:...} tokens and any held rows follow the
@@ -10364,7 +10365,7 @@ tags:
     name: Purifier
     category: items
     group: items-drink
-    description: "Brewed from {tag:cave-fungus}. Clears {tag:infected}, {tag:festering} and {tag:feverish} without medical attention. ‡"
+    description: "Brewed from {tag:cave-fungus}. A wash that clears out infection and fever without needing a medic. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10720,7 +10721,7 @@ tags:
     name: Forgiveness
     category: items
     group: items-drink
-    description: "Clear, and colder than the room it sits in. The drinker forgets the event that broke them — cures {tag:shell-shocked}. ‡"
+    description: "Clear, and colder than the room it sits in. The drinker forgets the event that broke them, and walks away steadier for it. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10749,7 +10750,7 @@ tags:
     name: Antidote
     category: items
     group: items-drink
-    description: "A bitter draught that fights a poison already in the blood. Cures {tag:poisoned} and {tag:envenomated}. ‡"
+    description: "A bitter draught that fights a poison already in the blood, however it got there. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10773,7 +10774,7 @@ tags:
     name: Fever Draught
     category: items
     group: items-drink
-    description: "Cool and bitter going down, it breaks a fever inside the hour. Cures {tag:feverish}, {tag:heatstroke} and {tag:cave-fever}. ‡"
+    description: "Cool and bitter going down, it breaks a fever inside the hour — whatever's causing it. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10797,7 +10798,7 @@ tags:
     name: Burn Dressing
     category: items
     group: items-gear
-    description: "A cooling salve pressed on and wrapped tight. Cures {tag:burned} and {tag:severe-burns}. ‡"
+    description: "A cooling salve pressed on and wrapped tight, taking the worst of the sting out of a burn. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10817,17 +10818,17 @@ tags:
     sellablePrice: 10
 
   # No `cures:` — it doesn't treat anything. It substitutes for Surgical
-  # Equipment on a single medical Gambit's +1 die bonus, and only when no
-  # real equipment (held, room-stashed, or a Surgical Theater) is already in
-  # reach — see healCharacterRequestImpl. Deliberately not `consumable`: it
-  # is spent automatically inside that transaction, never through the
-  # ordinary Consume button.
+  # Reworked M6b: no longer a single-use +1 stand-in. It's a standing site
+  # enabler now, same as Surgical Equipment for the site GATE — but a worse
+  # one: when it's the ONLY thing enabling the site (no real equipment or
+  # Theater in reach), the surgery Gambit takes a −1. Never consumed; held
+  # or room-stashed like any other kit. See healCharacterRequestImpl.
   portable-surgical-pack:
     catalog: all
     name: Portable Surgical Pack
     category: items
     group: items-gear
-    description: "A rolled kit of clamps, needles and sutures — not a proper theater, but enough to steady a medic's hand for one attempt. It spends itself the moment it's used: +1 on a single surgical Gambit, and only when no real Surgical Equipment or Surgical Theater is already in reach. ‡"
+    description: "A rolled kit of clamps, needles and sutures — not a proper theater, but enough to open one up all the same. Lighter and easier to carry than a full set of Surgical Equipment, but it shows: working off the pack alone, with nothing better in reach, costs the surgery a −1 on the die. ‡"
     pointCost: 0
     tradeable: true
     weight: 3
@@ -10857,7 +10858,7 @@ tags:
     name: Last Breath
     category: items
     group: items-drink
-    description: "Rendered from an aberrant heart, black and thick. Poured past the lips of the dying, it does what no ordinary medicine can — cures {tag:dying} outright. ‡"
+    description: "Rendered from an aberrant heart, black and thick. Poured past the lips of the dying, it does what no ordinary medicine can. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10923,7 +10924,7 @@ tags:
     name: Wooden Leg
     category: items
     group: items-gear
-    description: "A carved peg fitted below the knee, buckled tight with worn leather straps. Fitted by a steady hand, it cures {tag:missing-leg} outright — you're up and walking again. ‡"
+    description: "A carved peg fitted below the knee, buckled tight with worn leather straps. Fitted by a steady hand, you're up and walking again. ‡"
     pointCost: 0
     tradeable: true
     weight: 3
@@ -10950,7 +10951,7 @@ tags:
     name: Iron Hook
     category: items
     group: items-gear
-    description: "A curved iron hook, fitted where a hand used to be. It won't hold a coin, but it holds plenty else — cures {tag:missing-arm} outright. ‡"
+    description: "A curved iron hook, fitted where a hand used to be. It won't hold a coin, but it holds plenty else. ‡"
     pointCost: 0
     tradeable: true
     weight: 1
@@ -10977,7 +10978,7 @@ tags:
     name: Prosthetic Hand
     category: items
     group: items-gear
-    description: "Carved fingers on a jointed frame, laced into a leather glove. Not as quick as the real thing, but it closes a fist again — cures {tag:missing-fingers} outright. ‡"
+    description: "Carved fingers on a jointed frame, laced into a leather glove. Not as quick as the real thing, but it closes a fist again. ‡"
     pointCost: 0
     tradeable: true
     weight: 1
@@ -11004,7 +11005,7 @@ tags:
     name: Glass Eye
     category: items
     group: items-gear
-    description: "A painted glass sphere, fitted into the socket. It sees nothing, but nobody looking at you would guess — cures {tag:missing-eye} outright. ‡"
+    description: "A painted glass sphere, fitted into the socket. It sees nothing, but nobody looking at you would guess. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.2
@@ -11062,7 +11063,7 @@ tags:
     name: Cybernetic Arm
     category: items
     group: items-gear
-    description: "Cold, quiet machinery, grafted straight to bone and nerve. Whatever was lost, this doesn't just replace it — cures {tag:missing-arm} outright, with nothing left to show for the wound. ‡"
+    description: "Cold, quiet machinery, grafted straight to bone and nerve. Whatever was lost, this doesn't just replace it — there's nothing left to show for the wound. ‡"
     pointCost: 0
     tradeable: true
     weight: 2
@@ -11088,7 +11089,7 @@ tags:
     name: Cybernetic Leg
     category: items
     group: items-gear
-    description: "Cold, quiet machinery, grafted straight to bone and nerve. Whatever was lost, this doesn't just replace it — cures {tag:missing-leg} outright, with nothing left to show for the wound. ‡"
+    description: "Cold, quiet machinery, grafted straight to bone and nerve. Whatever was lost, this doesn't just replace it — there's nothing left to show for the wound. ‡"
     pointCost: 0
     tradeable: true
     weight: 2
