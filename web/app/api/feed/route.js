@@ -1,6 +1,7 @@
 import { prisma, FEED_ROW_SELECT } from "@lifeweb/db";
 import { withAvatarVersions } from "@lifeweb/db/lib/archive";
-import { feedWipeFloors, lowestFloor, placeSeqWhere } from "@lifeweb/db/lib/feedWipe";
+import { feedWipeFloors, floorForPlace, lowestFloor, placeSeqWhere } from "@lifeweb/db/lib/feedWipe";
+import { makeSeenSeqs } from "@lifeweb/db/lib/seenSeqs";
 import { loadFeedViewer, loadFeedCharacter, placesFor } from "@/lib/feedAccess";
 import { subscribeToPlace, subscribeToPresence, subscribeToTyping, subscribeToDm } from "@/lib/feedHub";
 
@@ -52,9 +53,24 @@ export async function GET(request) {
     },
     async start(controller) {
       let closed = false;
-      // The high-water mark: a row the hub hands us at or below this was
-      // already sent by a catch-up, and gets dropped rather than repeated.
+      // Where the NEXT catch-up starts — and nothing more than that.
+      //
+      // It used to double as "everything at or below this has been sent", and
+      // that second job is what lost messages. seq is a Postgres sequence, so
+      // it is allocated in order but neither committed nor delivered in order;
+      // a row that reached the hub a moment late sat below the mark and was
+      // dropped at the gate, excluded from every later catch-up (`gt`), and
+      // skipped by a fresh page load too, which seeds from the global max seq.
+      // Gone from the website for good while Discord still had it.
+      //
+      // What has actually been sent is now `sent` below, which is the honest
+      // version of the question.
       let lastSeq = since;
+      // What this stream has actually written out — db/lib/seenSeqs.js has the
+      // whole argument for why this replaced a high-water mark.
+      const sent = makeSeenSeqs();
+      // One hub resync in flight at a time — see sendRow.
+      let resyncing = false;
       // placeKey -> { rows, typing }, each an unsubscribe. Two channels, one
       // entry: a place is subscribed and dropped as a unit.
       const subscriptions = new Map();
@@ -64,10 +80,15 @@ export async function GET(request) {
       // which is the same thing that happens to a Discord client that had the
       // channel open.
       const floors = await feedWipeFloors(prisma);
-      // The clamp is one number for every place on this stream, so it has to
-      // be the LOWER of the two floors. Clamping to the turn floor would drop
-      // a zone-summary row underneath it as "already sent" — the summary is
-      // wiped on the slower Dawn schedule and its rows are legitimately older.
+      // Where the catch-up starts scanning, and nothing more. One number has
+      // to serve every place on the stream, so it is the LOWER of the two
+      // floors — the summary is wiped on the slower Dawn schedule and its rows
+      // are legitimately older than the turn floor.
+      //
+      // It used to double as a suppression rule, because lastSeq was the gate
+      // as well as the cursor. Whether a row is below the line is now asked per
+      // place, per row, in sendRow, which is both stricter and the reason a
+      // late-arriving row is no longer mistaken for an old one.
       const clamp = lowestFloor(floors);
       if (clamp > lastSeq) lastSeq = clamp;
 
@@ -84,6 +105,20 @@ export async function GET(request) {
       // mark. An edit or a delete names a seq the stream has already sent, so
       // dropping it for being "old" would be exactly wrong.
       const sendRow = (row) => {
+        // The hub's pg client dropped and came back, so rows written in the
+        // gap were fanned out to nobody. The cursor cannot have moved during an
+        // outage — no rows arrived — so everything missed is above it and one
+        // catch-up fills the hole. Guarded so a flapping connection cannot
+        // stack them.
+        if (row?.resync) {
+          if (!resyncing) {
+            resyncing = true;
+            void catchUp([...subscriptions.keys()], lastSeq).finally(() => {
+              resyncing = false;
+            });
+          }
+          return;
+        }
         if (!row?.seq) return;
         const seq = BigInt(row.seq);
         if (row.op === "delete") {
@@ -94,8 +129,18 @@ export async function GET(request) {
           write(`event: message\ndata: ${JSON.stringify(row)}\n\n`);
           return;
         }
-        if (seq <= lastSeq) return;
-        lastSeq = seq;
+        // The wipe floor, per place. This is what the `clamp` above used to do
+        // by folding lowestFloor into lastSeq, and it could only ever be the
+        // LOWER of the two floors because one number had to serve every place
+        // on the stream. Asking per row is both simpler and stricter: a zone
+        // summary keeps its slower Dawn floor, a room keeps the turn floor,
+        // and neither borrows the other's.
+        if (seq <= floorForPlace(floors, row.placeKey)) return;
+        const key = String(row.seq);
+        if (sent.has(key)) return;
+        sent.add(key);
+        // Still the catch-up cursor, so it only ever moves forward.
+        if (seq > lastSeq) lastSeq = seq;
         write(`event: message\ndata: ${JSON.stringify(row)}\n\n`);
       };
 

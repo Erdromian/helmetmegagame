@@ -177,8 +177,14 @@ async function resolveTurn(prisma, turn) {
 // "Young Man (Sir Alder)": the alias is what the room saw, characterName is
 // who it actually was. `presentedAvatarPath` is the face that went with it,
 // frozen the same way and null whenever the room saw their own.
-async function recordArchiveMessage(prisma, entry) {
-  return safely("message write", async () => {
+// `rethrow` is for the one caller that needs to SEE a failure: the proxy
+// claims its row before posting to Discord (bot/src/lib/proxy.js), and the
+// whole point of that claim is the P2002 a redelivered messageCreate raises on
+// `sourceDiscordMessageId`. safely() would swallow it and the second post would
+// go out anyway. Every other caller keeps the swallow — an archive write must
+// never be the thing that breaks a turn pass.
+async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
+  const run = async () => {
     const [turn, gameId] = await Promise.all([resolveTurn(prisma, entry.turn), currentGameId(prisma)]);
     const row = await prisma.archiveEntry.create({
       data: {
@@ -195,6 +201,10 @@ async function recordArchiveMessage(prisma, entry) {
         presentedAvatarPath: entry.presentedAvatarPath ?? null,
         content: entry.content ?? "",
         discordMessageId: entry.discordMessageId ?? null,
+        // The player's original message, when one produced this row. The
+        // unique index on it is what stops a redelivered Discord event
+        // becoming a second post — see the field's note in schema.prisma.
+        sourceDiscordMessageId: entry.sourceDiscordMessageId ?? null,
         channelKind: entry.channelKind ?? null,
         threadName: entry.threadName ?? null,
         discordChannelId: entry.discordChannelId ?? null,
@@ -216,7 +226,8 @@ async function recordArchiveMessage(prisma, entry) {
       await notifyFeed(prisma, { seq: row.seq, placeKey: row.placeKey, clientId: entry.clientId ?? null });
     }
     return row;
-  });
+  };
+  return rethrow ? run() : safely("message write", run);
 }
 
 // A system event — a turn opening, a death, a fulfilled Desire. Same table as
@@ -297,6 +308,28 @@ async function deleteArchiveMessage(prisma, discordMessageId, options = {}) {
   });
 }
 
+// Take a row back that nobody should have seen — the proxy's claim row when
+// the Discord post it was written for then failed.
+//
+// Soft, and it notifies, for the same reason deleteSpeech is: the insert has
+// already woken every stream watching that place, so a hard delete would leave
+// those tabs holding a line Discord never heard. Not deleteSpeech itself, which
+// is the PLAYER's take-back and enforces an edit window and an owner — this is
+// the bot tidying up after itself.
+async function retractArchiveRow(prisma, id) {
+  return safely("row retraction", async () => {
+    const row = await prisma.archiveEntry.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+      select: { seq: true, placeKey: true },
+    });
+    if (row.placeKey) {
+      await notifyFeed(prisma, { seq: row.seq, placeKey: row.placeKey, op: "delete" });
+    }
+    return row;
+  });
+}
+
 module.exports = {
   FEED_ROW_SELECT,
   feedRowShape,
@@ -308,4 +341,5 @@ module.exports = {
   archiveRowForMessage,
   updateArchiveMessage,
   deleteArchiveMessage,
+  retractArchiveRow,
 };

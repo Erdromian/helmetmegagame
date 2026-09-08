@@ -203,7 +203,23 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
 async function recordSpeech(
   prisma,
   prepared,
-  { discordMessageId = null, discordChannelId = null, zoneId = null, zoneName = null, channelKind = null, threadName = null, content = null, clientId = null, sentAt = null } = {},
+  {
+    discordMessageId = null,
+    discordChannelId = null,
+    zoneId = null,
+    zoneName = null,
+    channelKind = null,
+    threadName = null,
+    content = null,
+    clientId = null,
+    sentAt = null,
+    // The proxy's two extras. `sourceDiscordMessageId` is the player's own
+    // message, claimed on a unique index so a redelivered event cannot post
+    // twice; `rethrow` is how the proxy gets to see that collision instead of
+    // having it swallowed. Both null/false everywhere else.
+    sourceDiscordMessageId = null,
+    rethrow = false,
+  } = {},
 ) {
   if (!prepared?.ok) return null;
   const row = await recordArchiveMessage(prisma, {
@@ -231,12 +247,13 @@ async function recordSpeech(
     placeKey: prepared.placeKey,
     source: prepared.source,
     discordMessageId,
+    sourceDiscordMessageId,
     discordChannelId,
     zoneId,
     zoneName,
     channelKind,
     threadName,
-  });
+  }, { rethrow });
   // The Thanati listen to every room (db/lib/riteChant.js). Not awaited: a
   // chant that counts writes a row or two of its own, and none of that may
   // slow or fail the message it rode in on.

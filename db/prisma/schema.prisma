@@ -3847,6 +3847,18 @@ model ArchiveEntry {
   // events, which have no Discord message behind them.
   discordMessageId String? @unique
 
+  // The player's ORIGINAL Discord message, the one the proxy deletes — not the
+  // webhook repost `discordMessageId` holds. It is the idempotency key for the
+  // Discord -> row direction: bot/src/lib/proxy.js writes this row BEFORE
+  // posting, so a second delivery of the same messageCreate loses the race on
+  // this unique index and bails without posting again.
+  //
+  // That distinction is the whole point. `discordMessageId` is minted fresh by
+  // each webhook post, so two runs of one player message never collide on it —
+  // which is exactly how one typed line got posted twice. Null on every web and
+  // system row, and Postgres lets a unique index hold as many NULLs as it likes.
+  sourceDiscordMessageId String? @unique
+
   // summary | public | private | watch | intercom — lets the panel keep a
   // zone's summary channel apart from its forum scenes. ("plain" in rows
   // written before the zone rework.)
