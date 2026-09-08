@@ -45,9 +45,12 @@ function expandCaps(caps) {
 
 // The table. A slug absent from here takes nothing away.
 //
-//   bound        can't act, CAN shout. Being tied up is the one state where
-//                calling for help is the whole point, and a hostage nobody
-//                can hear is a hostage nobody can rescue.
+//   bound        can't act, CAN shout — but the shout no longer carries past
+//                the place you are standing in, and says so ("but it's
+//                muffled"). That MUFFLE lives in db/lib/say.js#loadVoiceState
+//                as shoutMuffled, not in this table, because the table is
+//                about what is refused and a muffle refuses nothing. The
+//                people beside you still hear you; nobody a street away does.
 //   dying        can't act, CAN speak. Last words are the tradition.
 //   catatonic-afk  can't act, CAN speak — and this one is not a taste call.
 //                db/lib/catatonicPass.js DMs the player "it lifts the moment

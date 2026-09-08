@@ -228,9 +228,10 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
   // SHOUT, not ACT and not SPEAK — and those distinctions are the whole point
   // of this gate. {tag:bound} blocks acting but never the voice, so a hostage
   // can still yell for help, which is the one thing being tied up ought to
-  // leave you; {tag:mute} is the mirror of that, talking normally and refused
-  // only here. Checked BEFORE the cooldown is claimed below: a refused shout
-  // must not burn the throat timer.
+  // leave you — it only stops the yell CARRYING, further down, and that is a
+  // muffle rather than a refusal; {tag:mute} is the mirror of it, talking
+  // normally and refused only here. Checked BEFORE the cooldown is claimed
+  // below: a refused shout must not burn the throat timer.
   const voice = await loadVoiceState(prisma, character.id);
   if (voice.shoutBlock) {
     return { ok: false, error: `You can't get the words out — you're ${voice.shoutBlock.name}. ‡` };
@@ -254,10 +255,22 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
     };
   }
 
-  // Not a gate — a fact about the walls. Everything above this point can still
-  // refuse; nothing below it does, because a muffled shout is a shout that
-  // happened and it costs the throat like any other.
-  const muffled = await soundproofAt(prisma, placeKey);
+  // Two different things muffle a shout, and they are not the same distance.
+  //
+  //   sealed — the walls hold it (a soundproof Room). Nothing leaves the
+  //            thread at all, not even into the street the door opens onto.
+  //   gagged — {tag:bound}. The yell happens and the people standing with you
+  //            hear it; it simply does not carry past where you are. Tied up
+  //            still is not a refusal (COMMANDS.md §2d), and somebody who can
+  //            SEE you being bound can obviously hear you — so this takes the
+  //            hops, never the room.
+  //
+  // Neither is a gate. Everything above this point can still refuse; nothing
+  // below it does, because a muffled shout is a shout that happened and it
+  // costs the throat like any other.
+  const sealed = await soundproofAt(prisma, placeKey);
+  const gagged = voice.shoutMuffled === true;
+  const muffled = sealed || gagged;
   const shouterName = await loadShouterName(prisma, character.id);
 
   // The room you are standing in, rendered once. Named, and told about the
@@ -272,8 +285,10 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
   // turned away must not cost the shouter five minutes of throat.
   //
   // Skipped entirely when the room is soundproof: soundRange is a BFS across
-  // the whole Location graph, and there is nowhere for the answer to go.
-  const range = muffled ? [] : await soundRange(prisma, character.locationId);
+  // the whole Location graph, and there is nowhere for the answer to go. A gag
+  // asks the same BFS for nothing but its origin (maxHops 0), rather than
+  // walking three hops out and throwing the rest away.
+  const range = sealed ? [] : await soundRange(prisma, character.locationId, gagged ? 0 : undefined);
   const heard = range.map((place) => ({
     locationId: place.locationId,
     placeKey: placeKeyForLocation(place.locationId),
@@ -281,9 +296,9 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
     discordChannelId: place.discordChannelId,
     distance: place.distance,
     viaName: place.viaName,
-    line: shoutLine(body, place.distance, place.viaName, { shouterName }),
+    line: shoutLine(body, place.distance, place.viaName, { shouterName, muffled }),
     // For db/lib/scene.js, which stores the pieces rather than the rendering.
-    scene: shoutParts(body, place.distance, place.viaName, { shouterName }),
+    scene: shoutParts(body, place.distance, place.viaName, { shouterName, muffled }),
   }));
 
   // Nobody at all is not an error the player can do anything about, but it is
@@ -311,7 +326,7 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
         actionType: SHOUT_ACTION,
         targetCharacterId: character.id,
         turnId: openTurn?.id ?? null,
-        details: { locationId: character.locationId, text: body, placeKey, muffled },
+        details: { locationId: character.locationId, text: body, placeKey, muffled, sealed, gagged },
       },
     })
     .catch((err) => console.error("Shout audit log failed:", err.message ?? err));

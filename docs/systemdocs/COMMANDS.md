@@ -189,8 +189,14 @@ one traversal in the game that never calls `crossingCheck`.
 
 **Who may shout.** The SHOUT capability (`TAGS.md` §5f) — so Paralyzed,
 Unconscious and mid-Seizure refuse, **Mute refuses here and nowhere else**, and
-**Bound deliberately does not refuse at all**. Being tied up takes your hands,
-not your voice, and a hostage nobody can hear is a hostage nobody can rescue.
+**Bound deliberately does not refuse at all** — it *muffles*. Being tied up
+takes your hands, not your voice, so the yell still happens and the people
+standing with you still hear it; it simply does not carry past where you are,
+and the line says so ("but it's muffled"). Somebody who can see you tied up
+can obviously hear you, so a gag takes the **hops**, never the room. That
+lives in `db/lib/say.js#loadVoiceState` as `shoutMuffled` rather than in
+`incapacitation.js`'s table, because the table is about what is *refused* and
+a muffle refuses nothing — the cooldown is still spent, and no error is shown.
 Mute is the mirror of that: an ordinary talker whose voice will not carry. The check runs *before* the cooldown is claimed, so
 a refused shout does not burn the throat timer.
 
@@ -249,6 +255,12 @@ them — somebody in a private back room is behind a door.
 Conversation and the thread gets the full-size line too, before the loop runs.
 Without that one exception the only room that certainly heard you would be the
 only room that didn't.
+
+**Two things muffle, at two different distances.** A soundproof room is
+*sealed*: nothing leaves the thread. A bound character is *gagged*: the shout
+reaches their own Location and stops there. Both append `, but it's muffled.`
+and both still cost the cooldown; bound inside a soundproof room is sealed,
+the stricter of the two. See `db/lib/shout.js`.
 
 **And some rooms keep it.** A Room may be `soundproof: true` in
 `docs/zones.yaml` (`Room.soundproof`). Shout from inside one and the thread is

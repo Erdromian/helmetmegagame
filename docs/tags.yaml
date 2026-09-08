@@ -3008,7 +3008,7 @@ tags:
     name: Bound
     category: status
     group: status-debuffs
-    description: "Restrained — can't act, can be looted or moved by whoever bound them."
+    description: "Restrained — can't act, and their shouts don't carry past where they stand; can be looted or moved by whoever bound them. ‡"
     pointCost: 0
     visible: true
     purchasable: false
