@@ -4029,13 +4029,17 @@ tags:
     name: Hypothermia
     category: health
     group: health-illness
-    description: "You've stopped shivering. It's not unpleasant."
+    description: "You've stopped shivering. It's not unpleasant. Warmth, dry clothes, and someone willing to sit with you bring you back. ‡"
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 2
     expiresInto: [dying]
+    healable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 2
 
   heatstroke:
     catalog: all
@@ -8489,7 +8493,7 @@ tags:
     name: Tea
     category: items
     group: items-drink
-    description: "Its soothing aroma cures minor unpleasant effects — like {tag:afraid} and {tag:panic}. Ravenheart has never grown a leaf of it."
+    description: "Its soothing aroma is meant to ease the nerves, whatever a nervous person tells you about it. Ravenheart has never grown a leaf of it. ‡"
     pointCost: 0
     depotPrice: 2
     sellable: true
