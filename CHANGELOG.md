@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · The GM inbox shows the last message again, not the player's role
+
+− dmPreview hands back the line itself; the rail and the live delta were still reading it as { preview }, so every row a GM message touched showed "Baroness" or "Commoner" in place of the message
+
 ## 2026-09-08 · Chat stays in the room you opened
 
 ✎ The open room no longer jumps back to the street when the page refreshes itself, and a bare /play comes back to the room you last had open  
