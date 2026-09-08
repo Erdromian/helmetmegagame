@@ -34,10 +34,9 @@ import {
   syncCharacterNarrowcastAccess,
   getGuildMember,
   isCursed,
-  isApprovedPlayer,
   isLeaderWhitelisted,
   isGm,
-  isPlaytester,
+  onRoster,
   removeCursedRole,
 } from "@/lib/discordGuild";
 import {
@@ -74,17 +73,16 @@ import {
 } from "@/lib/characterName";
 
 // When somebody may make a character at all (docs/systemdocs/LOBBY.md §1):
-// while the game runs or has ended, or — for a GM or a playtester — in any
-// phase, which is the lobby's Skip button.
+// while the game runs or has ended, or — for a GM — in any phase, which is the
+// lobby's Skip button.
+//
+// A playtester does NOT skip ahead here. The seat used to open the doors in any
+// phase the way a GM's does, which meant the one group most likely to be
+// testing the lobby never saw it. Their bypass is the roster check below, not
+// this one.
 function creationOpen(phase, member) {
   if (phase === "RUNNING" || phase === "ENDED") return true;
-  return isGm(member) || isPlaytester(member);
-}
-
-// On the list: the Player role, or the Playtest seat, which exists so a
-// contributor can test without being seated as a player or a GM.
-function onRoster(member) {
-  return isApprovedPlayer(member) || isPlaytester(member);
+  return isGm(member);
 }
 
 // Creates a character from the wizard's Confirm step. Everything posted is
@@ -168,7 +166,7 @@ export async function createCharacter(formData) {
   if (!bypass && !creationOpen(state?.phase, member)) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
-  if (!bypass && !onRoster(member)) {
+  if (!bypass && !onRoster(member, { playtestMode: config?.playtestModeEnabled === true })) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
 
@@ -562,7 +560,7 @@ export async function reserveRoleAction(roleId) {
   if (!bypass && !creationOpen(state?.phase, member)) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
-  if (!bypass && !onRoster(member)) {
+  if (!bypass && !onRoster(member, { playtestMode: config?.playtestModeEnabled === true })) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
   // Never pickable, config switch or not — a server action is a public

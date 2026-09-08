@@ -5,6 +5,11 @@ import PageShell, { PageHeader } from "@/app/components/PageShell";
 // yet — either the game isn't running (GameState.phase) or they aren't on the
 // roster (PLAYER_ROLE_ID in db/lib/roleIds.js).
 //
+// A third case borrows the first one's face: with GameConfig.playtestModeEnabled
+// on, anyone outside the build crew is turned away as "not open yet" rather
+// than "not on the roster" (page.js's `gate.masked`). There is nothing for them
+// to apply for, and a closed rehearsal should not advertise itself.
+//
 // createCharacter enforces both independently; this exists so the reason is
 // legible up front rather than arriving as an error after four steps of work.
 // Both branches point at /documents, which is readable either way and is the

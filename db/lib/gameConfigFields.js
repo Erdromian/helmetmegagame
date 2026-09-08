@@ -53,6 +53,10 @@ const FIELDS = [
     key: "leaderWhitelistEnabled", type: "bool", group: "creation", default: true,
     label: "Require the whitelist for gated roles",
   },
+  {
+    key: "playtestModeEnabled", type: "bool", group: "creation", default: false,
+    label: "Playtest only: GMs, playtesters and contributors may join ‡",
+  },
 
   // --- Economy ---------------------------------------------------------------
   {
