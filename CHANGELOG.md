@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · Cave characters come back to the GM desks
+
+✎ Characters standing in the Caves or the Depths are on the player desk again, for a GM who has picked their zones  
+✎ Their conversations are back in the inbox, so a DM from someone underground can no longer go unseen  
+✎ Caving rolls reach the Underground GM instead of nobody
+
 ## 2026-09-08 · The silo picker stops naming rooms you have never seen
 
 ✚ "Where does the faction bank?" now only offers rooms the officer has stood in and can open — it used to read out the name and address of every secret room in the district, the Inn's Cellar and the Order Chambers included  

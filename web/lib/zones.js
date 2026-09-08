@@ -48,6 +48,24 @@ export function zoneKey(zoneName) {
   return ZONE_KEYS.includes(key) ? key : null;
 }
 
+// The same name, folded onto the zone that OWNS it — the GM-seat key.
+//
+// Presence is six zones; the GM seats are four, with the whole cave system
+// belonging to one. That is Zone.seatZoneId on the data side
+// (db/lib/seatZone.js), and this is its display-name twin, for the one caller
+// that holds names rather than rows.
+//
+// zoneKey already folds "Underground" onto `caves`, so the only thing left to
+// say is that Depths sits under the same seat. It gets its own chip COLOUR —
+// which is why this is a second function and not a third alias.
+const CAVE_SEAT_KEY = "caves";
+const CAVE_LEVEL_KEYS = ["caves", "depths"];
+
+export function seatKey(zoneName) {
+  const key = zoneKey(zoneName);
+  return CAVE_LEVEL_KEYS.includes(key) ? CAVE_SEAT_KEY : key;
+}
+
 // Sorts a list of {name} zones into the canonical order above, with anything
 // unrecognised falling to the end alphabetically rather than vanishing.
 export function sortZones(zones) {
@@ -76,13 +94,31 @@ export function sortZones(zones) {
 // seated in the Marshes belongs to the Caves GM, and gating it on the seat put
 // it in front of the wrong person and hid it from the right one. A Move row
 // has no `zoneName` and keeps the seat rule untouched.
+//
+// A row names the zone it is IN; a GM ticks a zone that has a SEAT. Those two
+// vocabularies are not the same list, and comparing them by name silently hid
+// the whole cave system: a Zone row reads "Caves" or "Depths", while the only
+// pick behind them is "Underground" (they are CAVE_LEVELs with no gmRoleId, so
+// listSelectableZones cannot offer them — web/lib/gmZoneView.js). Every
+// character standing in a cave, every caving roll, invisible to any GM who had
+// ticked anything at all. db:sync-zones already resolves the Discord half this
+// way ("pick Underground and you get the cave channels AND the cave rows"); the
+// seat match below is the desk half of that same sentence.
+//
+// Additive on purpose: the exact-name match stays, so a zone name this file
+// does not recognise behaves exactly as it does today and nothing visible now
+// can become hidden.
 export function inVisibleZones(rows, visibleZoneNames) {
   if (!visibleZoneNames) return rows ?? [];
-  const allowed = new Set(visibleZoneNames);
+  const allowedNames = new Set(visibleZoneNames);
+  const allowedSeats = new Set(visibleZoneNames.map(seatKey).filter(Boolean));
   // A row with no zone at all stays visible to everyone. Better seen twice
   // than by nobody.
   return (rows ?? []).filter((r) => {
     const zone = r.zoneName || r.factionZoneName;
-    return !zone || allowed.has(zone);
+    if (!zone) return true;
+    if (allowedNames.has(zone)) return true;
+    const seat = seatKey(zone);
+    return Boolean(seat) && allowedSeats.has(seat);
   });
 }
