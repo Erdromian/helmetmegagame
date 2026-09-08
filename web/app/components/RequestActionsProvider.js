@@ -403,11 +403,15 @@ export default function RequestActionsProvider({
   hasWorkshop = false,
   canHeal = false,
   healsLeft = null,
-  // Surgery needs a site (M3, TAGS.md §5c) — whether Surgical Equipment or a
-  // Surgical Theater is in reach right now, resolved server-side
-  // (web/lib/peoplePools.js). A hint for the tier-6/7 rows below; the
-  // server re-checks it under lock either way.
+  // Surgery needs a site (M3, TAGS.md §5c; reworked M6b) — whether Surgical
+  // Equipment, a Surgical Theater, or a Portable Surgical Pack is in reach
+  // right now, resolved server-side (web/lib/peoplePools.js). A hint for the
+  // tier-6/7 rows below; the server re-checks it under lock either way.
   hasSurgicalSite = false,
+  // True only when a Portable Surgical Pack is the ONE thing making
+  // hasSurgicalSite true — the fixed kit or a real Theater in reach cancels
+  // this outright. That's the only case a surgery Gambit takes its −1.
+  surgicalSitePenalty = false,
   healTargets = [],
   // Who can pay for a treatment or a craft: you, anyone here, rooms here.
   healParties = null,
@@ -2050,18 +2054,22 @@ export default function RequestActionsProvider({
                     ))}
                   </p>
                 )}
-                {/* Surgery needs a site (M3, TAGS.md §5c) — tier-6/7 rows
-                    only. Same shape as CraftDialog's Workshop hint: a
-                    warning, never a greyed-out row, since the server always
-                    offers the attempt (or refuses it outright without a
-                    site) rather than hiding it. */}
+                {/* Surgery needs a site (M3, TAGS.md §5c; reworked M6b) —
+                    tier-6/7 rows only. Same shape as CraftDialog's Workshop
+                    hint: a warning, never a greyed-out row, since the server
+                    always offers the attempt (or refuses it outright without
+                    a site) rather than hiding it. Three states now: a real
+                    site (no penalty), the portable pack alone (−1), or
+                    nothing in reach (refused). */}
                 {affliction?.needsSite && (
                   <p
-                    className={`text-xs ${hasSurgicalSite ? "text-muted" : "text-accent"}`}
+                    className={`text-xs ${hasSurgicalSite && !surgicalSitePenalty ? "text-muted" : "text-accent"}`}
                   >
-                    {hasSurgicalSite
-                      ? "Surgery, and the means are in reach — Surgical Equipment to hand, or a Theater standing where you are."
-                      : "Surgery: you need Surgical Equipment, held or set up where you're standing, or a Surgical Theater — a Portable Surgical Pack alone won't do it."}
+                    {!hasSurgicalSite
+                      ? "Surgery: you need Surgical Equipment, a Portable Surgical Pack, or a Surgical Theater in reach — held, or already standing where you are. ‡"
+                      : surgicalSitePenalty
+                        ? "Surgery, with only a Portable Surgical Pack standing in for a proper site — the Gambit takes a −1 for it. ‡"
+                        : "Surgery, and a proper site is in reach — Surgical Equipment to hand, or a Theater standing where you are. No penalty. ‡"}
                   </p>
                 )}
                 {affliction && (

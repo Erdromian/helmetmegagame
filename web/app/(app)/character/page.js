@@ -433,6 +433,7 @@ export default async function CharacterPage({ searchParams }) {
     healTargets,
     healsLeft,
     hasSurgicalSite,
+    surgicalSitePenalty,
     lootTargets,
     moveTargets,
     moveLocations,
@@ -980,6 +981,7 @@ export default async function CharacterPage({ searchParams }) {
       canHeal={canHeal}
       healsLeft={healsLeft}
       hasSurgicalSite={hasSurgicalSite}
+      surgicalSitePenalty={surgicalSitePenalty}
       hasMoved={Boolean(currentAction)}
       canTeach={canTeach}
       knownRecipeIds={knownRecipeIds}

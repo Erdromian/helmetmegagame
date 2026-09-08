@@ -10,7 +10,7 @@ import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { craftMoveCost } from "@/lib/craftBudget";
 import { MEDICAL_SIMPLE_PER_TURN } from "@/lib/requests";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
-import { SURGICAL_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
+import { SURGICAL_EQUIPMENT_SLUG, PORTABLE_SURGICAL_PACK_SLUG } from "@lifeweb/db/lib/constants";
 import {
   HEALABLE_CATEGORY,
   HEAL_SKILL_SLUG,
@@ -122,12 +122,22 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   const healSkillId = tierRows.find((t) => t.slug === HEAL_SKILL_SLUG)?.id;
   const canHeal = Boolean(healSkillId && satisfied.has(healSkillId));
 
-  // Surgery needs a site (M3, TAGS.md §5c): resolved once, server-side, so a
-  // tier-6/7 row can quote it the same way CraftDialog quotes hasWorkshop —
-  // a hint, never the gate; healCharacterRequestImpl re-checks it under lock.
-  const hasSurgicalSite = canHeal
+  // Surgery needs a site (M3, TAGS.md §5c; reworked M6b): resolved once,
+  // server-side, so a tier-6/7 row can quote it the same way CraftDialog
+  // quotes hasWorkshop — a hint, never the gate; healCharacterRequestImpl
+  // re-checks it under lock. A Portable Surgical Pack also counts as a site
+  // now, but a worse one: `surgicalSitePenalty` tells the dialog when the
+  // pack is doing that job alone, which is the only case that costs the
+  // Gambit a −1.
+  const fixedSurgicalSiteReach = canHeal
     ? await hasEquipmentInReach(prisma, character, SURGICAL_EQUIPMENT_SLUG)
     : false;
+  const portableSurgicalPackReach =
+    canHeal && !fixedSurgicalSiteReach
+      ? await hasEquipmentInReach(prisma, character, PORTABLE_SURGICAL_PACK_SLUG)
+      : false;
+  const hasSurgicalSite = fixedSurgicalSiteReach || portableSurgicalPackReach;
+  const surgicalSitePenalty = !fixedSurgicalSiteReach && portableSurgicalPackReach;
 
   // Routine cures left in the medic's shared free pool (M2,
   // web/lib/requests.js MEDICAL_SIMPLE_PER_TURN). The predicate MUST match
@@ -331,6 +341,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     healTargets,
     healsLeft,
     hasSurgicalSite,
+    surgicalSitePenalty,
     lootTargets,
     moveTargets,
     moveLocations,

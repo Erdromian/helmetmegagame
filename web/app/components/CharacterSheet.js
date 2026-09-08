@@ -80,6 +80,7 @@ export default function CharacterSheet({
   canHeal = false,
   healsLeft = null,
   hasSurgicalSite = false,
+  surgicalSitePenalty = false,
   // Lessons and Craft (LESSONS.md, CRAFTING.md), all built in character/page.js.
   hasMoved = false,
   canTeach = false,
@@ -196,6 +197,7 @@ export default function CharacterSheet({
             canHeal={canHeal}
             healsLeft={healsLeft}
             hasSurgicalSite={hasSurgicalSite}
+            surgicalSitePenalty={surgicalSitePenalty}
             hasMoved={hasMoved}
             canTeach={canTeach}
             knownRecipeIds={knownRecipeIds}

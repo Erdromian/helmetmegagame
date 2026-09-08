@@ -144,15 +144,19 @@ pool question at all: it files a `MOVE`/`GAMBIT` Action, and
 `Action @@unique([characterId, turnId])` is what rations it to one a turn,
 the same shape a learner's Lesson Gambit uses.
 
-**Surgery needs a site.** A tier-6 or tier-7 cure (`needsSurgicalSite`, read
-off the cure's *own* required skill — `medical-expert` — not the treating
-medic's, so a Skilled medic reaching above their tier for one still needs it)
-refuses outright without Surgical Equipment in reach (held, or already stood
-up in the room) or a Surgical Theater. The same equipment also adds +1 to a
-medical Gambit's die; a held **Portable Surgical Pack** stands in for that +1
-exactly once, spent inside the transaction under a lock so two tabs firing
-the same Gambit can't both consume it, and never when real equipment already
-covers the bonus (no stacking).
+**Surgery needs a site** (reworked M6b). A tier-6 or tier-7 cure
+(`needsSurgicalSite`, read off the cure's *own* required skill —
+`medical-expert` — not the treating medic's, so a Skilled medic reaching
+above their tier for one still needs it) refuses outright without a site:
+Surgical Equipment in reach (held, or already stood up in the room), a
+Surgical Theater, or a **Portable Surgical Pack**. All three are ordinary
+standing gear now — nothing is consumed. The pack is a worse site, though:
+when it is the ONLY thing enabling the site (no Surgical Equipment and no
+Theater also in reach), the Gambit's die takes a **−1**. Reaching for the
+fixed kit or a Theater always wins outright and cancels the penalty, pack or
+no pack — neither ever adds a bonus of its own. Non-site-gated Gambits
+(reaching above your tier on an ordinary cure) never touch either kit at
+all.
 
 **Re-priced everywhere it's billed.** Every Move cost here is priced twice:
 once outside the transaction for a fast refusal, and again inside it under a

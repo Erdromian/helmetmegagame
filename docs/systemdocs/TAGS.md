@@ -1296,14 +1296,17 @@ The shape is copied from a learner's Lesson Gambit (`db/lib/lessons.js`), and
 turn without a second check.
 
 **Tier 6 and 7 need a surgical site** (M3, the medical mirror of Smithing's
-forge rule): `needsSurgicalSite()` refuses one outright without Surgical
-Equipment in reach — held, or already laid out in the room
-(`db/lib/equipmentReach.js`) — or a Surgical Theater structure. There is a
-set in the Sanctuary's operating theatre, seeded from `docs/zones.yaml`; the
-old "procedures in the Sanctuary automatically qualify" line was prose that
-no code ever read, and it is gone. The same equipment (or Theater) is also
-+1 on a medical Gambit's die, and a held Portable Surgical Pack item stands
-in for that +1 exactly once when nothing else is in reach.
+forge rule; reworked M6b): `needsSurgicalSite()` refuses one outright without
+a site — Surgical Equipment in reach (held, or already laid out in the room,
+`db/lib/equipmentReach.js`), a Surgical Theater structure, or a Portable
+Surgical Pack. There is a Theater in the Sanctuary's operating theatre,
+seeded from `docs/zones.yaml`; the old "procedures in the Sanctuary
+automatically qualify" line was prose that no code ever read, and it is gone.
+None of the three is consumed. The pack is the lesser site of the three: a
+Gambit takes a **−1** exactly when the pack is the only thing enabling the
+site (no Surgical Equipment, no Theater, also in reach) — Surgical Equipment
+or a Theater in reach cancels the penalty outright, and neither ever grants a
+bonus.
 
 So `requirementResources`, `requirementSkills` and `requirementGambit` are all
 enforced now. `requirementTurns` remains reference for the *length* of a

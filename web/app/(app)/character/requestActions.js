@@ -3330,35 +3330,39 @@ async function healCharacterRequestImpl({
   // than a refusal (docs/systemdocs/TAGS.md §5c). Nothing is out of reach any
   // more; what changes is whether you roll for it.
   const gambit = isGambitHeal(held.tag, satisfied);
-  // Surgery needs a site (M3, TAGS.md §5c): a tier-6/7 cure — read off the
-  // cure's own required skill, needsSurgicalSite — refuses outright without
-  // Surgical Equipment in reach or a COMPLETE Surgical Theater. Checked
-  // whenever it matters: the site gate (needsSite) or the die's +1 (any
-  // Gambit) — hasEquipmentInReach already treats a Theater's own
-  // `placement.provides: [surgical-equipment]` as satisfying the same
-  // reach a held or room-stashed kit does (db/lib/equipmentReach.js), the
-  // same way a Forge satisfies Workshop Equipment, so one call covers both
-  // the site and the bonus.
+  // Surgery needs a site (M3, TAGS.md §5c; reworked M6b): a tier-6/7 cure —
+  // read off the cure's own required skill, needsSurgicalSite — refuses
+  // outright without SOMETHING enabling the site. Two things can enable it
+  // now: the fixed Surgical Equipment kit (or a COMPLETE Surgical Theater,
+  // which hasEquipmentInReach already treats as satisfying the same reach —
+  // the same way a Forge satisfies Workshop Equipment), or, failing that, a
+  // Portable Surgical Pack. Neither is consumed; both are ordinary standing
+  // held/room-stashed gear.
+  //
+  // The two are NOT equivalent. A real site (fixed kit or Theater) carries no
+  // penalty at all — it is simply what surgery is supposed to look like. The
+  // portable pack is a worse stand-in: when it's the ONLY thing enabling the
+  // site, the Gambit rolls at −1. Reaching for the fixed kit or a Theater
+  // always wins outright and erases the penalty; the portable never adds a
+  // bonus of its own.
   const needsSite = needsSurgicalSite(held.tag);
-  const equipmentReach =
-    needsSite || gambit
-      ? await hasEquipmentInReach(prisma, character, SURGICAL_EQUIPMENT_SLUG)
+  const fixedSiteReach = needsSite
+    ? await hasEquipmentInReach(prisma, character, SURGICAL_EQUIPMENT_SLUG)
+    : false;
+  const portablePackReach =
+    needsSite && !fixedSiteReach
+      ? await hasEquipmentInReach(prisma, character, PORTABLE_SURGICAL_PACK_SLUG)
       : false;
-  if (needsSite && !equipmentReach) {
+  if (needsSite && !fixedSiteReach && !portablePackReach) {
     throw new UserError(
-      "That's beyond a bedside treatment: hold Surgical Equipment, stand where a set is already put up, or work in a Surgical Theater. ‡",
+      "That's beyond a bedside treatment: hold Surgical Equipment or a Portable Surgical Pack, stand where a set is already put up, or work in a Surgical Theater. ‡",
     );
   }
-  // A held Portable Surgical Pack stands in for the +1 when nothing else is
-  // in reach — the die's bonus only, never the site above. Which pack (if
-  // any) actually gets spent is decided inside the transaction, under a row
-  // lock, so two tabs firing the same Gambit at once can't both spend it.
-  // This outside value is only the initial seed for effect.surgical below —
-  // a Gambit corrects it in place once the pack question is settled (review
-  // fix: the old code let this stale pre-transaction value leak into the
-  // function's own return payload, wrong exactly when a pack got spent; it
-  // is never returned now, only audited).
-  const surgical = gambit ? equipmentReach : false;
+  // The die penalty only ever applies to a surgery Gambit resting on the
+  // portable pack alone — a non-site-gated Gambit (reaching above your tier
+  // on an ordinary cure) never touches either kit, and a fixed site or
+  // Theater in reach cancels the penalty outright, pack or no pack.
+  const surgicalPenalty = gambit && needsSite && !fixedSiteReach && portablePackReach;
 
   const openTurn = await getOpenTurn();
 
@@ -3455,7 +3459,7 @@ async function healCharacterRequestImpl({
     // afterwards is their own edit, with its own audit row and its own undo.
     gambit,
     pending: gambit,
-    surgical,
+    surgicalPenalty,
     // What the catalog charged at the time, so a later review sees the
     // price actually quoted rather than today's tags.yaml.
     requirement: {
@@ -3513,33 +3517,6 @@ async function healCharacterRequestImpl({
     await debitResources(tx, payer, cost);
 
     if (gambit) {
-      // The Portable Surgical Pack (M3): stands in for the +1 only when
-      // nothing else is in reach, spent the instant it's used — win or lose
-      // the roll, and never when equipmentReach already covers the bonus
-      // (no stacking). Locked and re-checked HERE, not before the
-      // transaction: two tabs firing the same Gambit at once must not both
-      // read "one pack held" and both spend it — dropCharacterTag on an
-      // already-gone row is a silent no-op, so an unlocked race would let
-      // the loser look bonused and cost nothing.
-      let dieBonus = equipmentReach ? 1 : 0;
-      if (!equipmentReach) {
-        await lockCharacter(tx, character.id);
-        const pack = await tx.characterTag.findFirst({
-          where: {
-            characterId: character.id,
-            quantity: { gt: 0 },
-            tag: { slug: PORTABLE_SURGICAL_PACK_SLUG },
-          },
-          select: { tagId: true },
-        });
-        if (pack) {
-          await dropCharacterTag(tx, character.id, pack.tagId, 1);
-          dieBonus = 1;
-          effect.surgicalPack = true;
-        }
-      }
-      effect.surgical = dieBonus > 0;
-
       // The Move that carries the roll. Same shape as a learner's Lesson
       // Gambit (db/lib/lessons.js) — filed CONFIRMED with the die already
       // rolled, left OPEN for the GM, revealed to the player at turn close by
@@ -3567,7 +3544,7 @@ async function healCharacterRequestImpl({
             diceModifier:
               gambitModifierTotal(character.tags, {
                 hungerStreak: character.hungerStreak,
-              }) + dieBonus,
+              }) + (surgicalPenalty ? -1 : 0),
             zoneId: character.zoneId ?? null,
             gmNotes: "auto:heal_gambit",
           },

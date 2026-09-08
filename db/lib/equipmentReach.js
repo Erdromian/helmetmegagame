@@ -2,10 +2,13 @@
 // a piece of standing equipment (docs/systemdocs/CRAFTING.md, TAGS.md §5c).
 //
 // Two kits use this. WORKSHOP EQUIPMENT is what lets you smith or build at
-// all; SURGICAL EQUIPMENT is worth +1 on a medical Gambit. Both are heavy
-// Items rather than Assets on purpose: somebody had to haul them there, and a
-// Sanctuary operating theatre or a Factory floor is simply a room where
-// somebody already did.
+// all; SURGICAL EQUIPMENT (and, since M6b, the lesser PORTABLE SURGICAL
+// PACK) is what lets a tier-6/7 cure happen outside a Surgical Theater —
+// see needsSurgicalSite() and healCharacterRequestImpl for the pack's own
+// −1 die penalty when it's the only thing enabling the site. Both kits are
+// heavy Items rather than Assets on purpose: somebody had to haul them
+// there, and a Sanctuary operating theatre or a Factory floor is simply a
+// room where somebody already did.
 //
 // Reach is NOT re-derived here. It is the same predicate the private-room
 // threads are synced with — standing in the room's Location, and admitted to
