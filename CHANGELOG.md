@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · Tying someone up takes the carry out of their voice
+
+✚ A bound character's shout no longer carries. The people standing with them still hear it — someone who can see you tied up can obviously hear you — but it stops there, and every copy of it says ", but it's muffled."  
+✎ Bound still does not refuse a shout, and never will: a hostage who cannot call out is a hostage nobody can play. It costs the five-minute throat timer like any other shout, and shows no error.  
+✎ Two things muffle now, at two distances. A soundproof room is sealed and nothing leaves the thread; being bound is a gag and the shout reaches your own place and stops. Bound inside a sealed room is sealed.  
+✎ The Bound tag now says so on the sheet.
+
 ## 2026-09-08 · Door notices stop reading as GM mail
 
 ✎ "You were let into ..." no longer lands on the GM desk as if somebody had typed it. Same for "You were named in ...", which is a ping, not a message.  
