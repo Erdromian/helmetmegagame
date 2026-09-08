@@ -1,11 +1,11 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>Ravenheart travel map — node mockup</title>
+<title>Ravenheart travel map — node mockup‡</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 :root{
   --bg:#0c1013; --surface:#14191d; --line:#2b3339; --ink:#d7dbd9; --dim:#7d8a90;
-  --hot:#e0c468; --move:#87a9bc;
+  --hot:#e0c468; --move:#87a9bc; --secret:#a98fbe; --gate:#c98d6b;
   --zone-fortress:#9c4132; --zone-town:#998d6b; --zone-forest:#7f8c64;
   --zone-hills:#79899b; --zone-marshes:#8d9384; --zone-caves:#939d9e;
   --zone-depths:#8f7f9c;
@@ -36,6 +36,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
 .exit .d{width:9px;height:9px;flex:none;transform:rotate(45deg)}
 .exit .g{margin-left:auto;font-size:10px;letter-spacing:.06em;text-transform:uppercase;
   color:var(--hot)}
+.exit .g.hidden{color:var(--secret)}
+.exit .g.modular{color:var(--gate)}
 .exit[disabled]{opacity:.45;cursor:default}
 .bar{display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--line)}
 button.t{background:none;border:1px solid var(--line);border-radius:4px;color:var(--dim);
@@ -55,7 +57,9 @@ button.t[aria-pressed=true]{color:var(--bg);background:var(--ink);border-color:v
 .node.here .rh{stroke:var(--hot);stroke-width:8}
 .node.sel .rh{stroke:#fff;stroke-width:6}
 .edge{stroke:#8b9aa2;stroke-width:4;fill:none;opacity:.55}
-.edge.gated{stroke-dasharray:14 11;stroke:var(--hot);opacity:.7}
+.edge.g-hidden{stroke-dasharray:2 16;stroke-linecap:round;stroke:var(--secret);opacity:.85}
+.edge.g-locked{stroke-dasharray:16 12;stroke:var(--hot);opacity:.8}
+.edge.g-modular{stroke-dasharray:26 10 4 10;stroke:var(--gate);opacity:.8}
 .edge.on{stroke:var(--move);opacity:1;stroke-width:6}
 #ring{fill:none;stroke:var(--hot);stroke-width:2;opacity:.8}
 #hint{position:absolute;left:12px;bottom:10px;font-size:11px;color:var(--dim);
@@ -68,7 +72,7 @@ button.t[aria-pressed=true]{color:var(--bg);background:var(--ink);border-color:v
   </div>
   <aside id="side">
     <header>
-      <h1>Ravenheart <small>travel-graph mockup over the prototype plate</small></h1>
+      <h1>Ravenheart <small>travel-graph mockup over the prototype plate‡</small></h1>
     </header>
     <div class="body">
       <div class="sect">
@@ -82,8 +86,18 @@ button.t[aria-pressed=true]{color:var(--bg);background:var(--ink);border-color:v
       </div>
       <div class="sect"><h2>Exits</h2><div id="exits"></div></div>
       <div class="sect"><h2>Legend</h2><div class="legend" id="legend"></div>
+        <div class="legend" style="margin-top:9px">
+          <span><svg width="26" height="8"><line x1="1" y1="4" x2="25" y2="4"
+            stroke="#a98fbe" stroke-width="3" stroke-dasharray="2 8"
+            stroke-linecap="round"/></svg> hidden</span>
+          <span><svg width="26" height="8"><line x1="1" y1="4" x2="25" y2="4"
+            stroke="#e0c468" stroke-width="3" stroke-dasharray="8 6"/></svg> locked</span>
+          <span><svg width="26" height="8"><line x1="1" y1="4" x2="25" y2="4"
+            stroke="#c98d6b" stroke-width="3" stroke-dasharray="13 5 2 5"/></svg> checkpoint</span>
+        </div>
         <div style="margin-top:7px;font-size:11px;color:var(--dim)">
-          A dashed edge is gated — locked, hidden, or a manned checkpoint.‡</div>
+          A hidden way is invisible without its tag, so turning secrets off is
+          roughly what an ordinary character sees.‡</div>
       </div>
       <div class="sect"><h2>Trail</h2><div id="log"></div></div>
     </div>
@@ -92,6 +106,7 @@ button.t[aria-pressed=true]{color:var(--bg);background:var(--ink);border-color:v
       <button class="t" id="bUnder" aria-pressed="false">Underground</button>
       <button class="t" id="bArt" aria-pressed="true">Plate</button>
       <button class="t" id="bLabels" aria-pressed="true">Labels</button>
+      <button class="t" id="bSecret" aria-pressed="true">Secrets</button>
       <button class="t" id="bReset">Reset view</button>
       <button class="t" id="bEdit" aria-pressed="false">Nudge</button>
       <button class="t" id="bCopy">Copy coords</button>
@@ -113,11 +128,15 @@ const adj = {};
 for (const id in N) adj[id] = [];
 for (const e of E) { adj[e.a].push(e); adj[e.b].push(e); }
 const other = (e, id) => e.a === id ? e.b : e.a;
+// A `hidden:` way is not merely shut, it is unknown: with secrets off the mockup
+// hides the line AND the exit, which is what a character without the tag sees.
+const known = e => showSecret || e.gate !== 'hidden';
+const exitsFrom = id => adj[id].filter(known);
 
 let layer = location.hash === '#under' ? 'under' : 'surface';  // which half is drawn
 let here  = 'square';        // where the pretend character stands
 let sel   = null;            // inspected, not travelled to
-let showArt = true, showLabels = true, editing = false;
+let showArt = true, showLabels = true, editing = false, showSecret = true;
 const trail = [];
 let view = {x:0, y:0, k:1};  // pan/zoom of the plate
 
@@ -147,13 +166,13 @@ function draw() {
 
   const gE = el('g'), gN = el('g');
   root.append(gE, gN);
-  const near = new Set(adj[here].map(e => other(e, here)));
+  const near = new Set(exitsFrom(here).map(e => other(e, here)));
 
   for (const e of E) {
-    if (!isVisible(e.a) || !isVisible(e.b)) continue;
+    if (!isVisible(e.a) || !isVisible(e.b) || !known(e)) continue;
     const A = N[e.a], B = N[e.b];
     gE.append(el('line', {x1:A.x, y1:A.y, x2:B.x, y2:B.y,
-      class:'edge' + (e.gate ? ' gated' : '') +
+      class:'edge' + (e.gate ? ' g-' + e.gate : '') +
             ((e.a === here || e.b === here) ? ' on' : '')}));
   }
 
@@ -188,7 +207,7 @@ function paint() {
 
   const box = document.getElementById('exits');
   box.innerHTML = '';
-  for (const e of adj[here].slice().sort((a, b) =>
+  for (const e of exitsFrom(here).sort((a, b) =>
         N[other(a, here)].name.localeCompare(N[other(b, here)].name))) {
     const to = N[other(e, here)];
     const b = document.createElement('button');
@@ -198,7 +217,7 @@ function paint() {
     b.append(d, document.createTextNode(to.name));
     if (e.gate) {
       const g = document.createElement('span');
-      g.className = 'g'; g.textContent = e.label || e.gate;
+      g.className = 'g ' + e.gate; g.textContent = e.label || e.gate;
       b.append(g);
     }
     b.onclick = () => go(to.id);
@@ -215,13 +234,13 @@ function paint() {
   document.getElementById('log').innerHTML =
     trail.slice(-40).reverse().map(t => `<div>${t}</div>`).join('');
   document.getElementById('hint').textContent = editing
-    ? 'Drag a node to move it, then Copy coords.'
-    : 'Click a lit node to travel. Wheel zooms, drag pans.';
+    ? 'Drag a node to move it, then Copy coords.‡'
+    : 'Click a lit node to travel. Wheel zooms, drag pans.‡';
 }
 
 function go(id) {
   if (id === here) { sel = null; draw(); return; }
-  const e = adj[here].find(x => other(x, here) === id);
+  const e = exitsFrom(here).find(x => other(x, here) === id);
   if (!e) { sel = id; draw(); return; }
   trail.push(`${N[here].name} → ${N[id].name}` +
              (e.gate ? `  (${e.label || e.gate})` : ''));
@@ -280,12 +299,14 @@ function syncButtons() {
   set('bUnder',   layer === 'under');
   set('bArt',     showArt);
   set('bLabels',  showLabels);
+  set('bSecret',  showSecret);
   set('bEdit',    editing);
 }
 btn('bSurface', () => { layer = 'surface'; sel = null; syncButtons(); fit(); });
 btn('bUnder',   () => { layer = 'under';   sel = null; syncButtons(); fit(); });
 btn('bArt',     () => { showArt = !showArt; syncButtons(); draw(); });
 btn('bLabels',  () => { showLabels = !showLabels; syncButtons(); draw(); });
+btn('bSecret',  () => { showSecret = !showSecret; syncButtons(); draw(); });
 btn('bEdit',    () => { editing = !editing; syncButtons(); paint(); });
 btn('bReset',   () => { view = {x:0, y:0, k:1}; draw(); });
 btn('bCopy',    () => {
