@@ -4444,7 +4444,7 @@ tags:
     name: Severe Pain
     category: health
     group: health-minor
-    description: "Your mind can't escape the pain. Writhe around or take the {tag:poppy}."
+    description: "Your mind can't escape the pain. Writhe around, or let the {tag:poppy} dull it for a while. ‡"
     pointCost: 0
     visible: true
     purchasable: false
@@ -10389,7 +10389,7 @@ tags:
     name: White Honey
     category: items
     group: items-drink
-    description: "Boiled pale and thick over a long afternoon. Cures a poisoning of any kind. ‡"
+    description: "Boiled pale and thick over a long afternoon. Draws the commoner poisons and venoms back out — not every toxin bends to it. ‡"
     pointCost: 0
     tradeable: true
     weight: 0.5
