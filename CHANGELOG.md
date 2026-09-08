@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · Structures are in the recipe book, and a body weighs what it weighs
+
+✚ Bodies weigh something now. A person is 50 lb — under the 71 lb cap, so you can carry someone and still walk with your kit. Giant makes a heavier body and Dwarf or Frail a lighter one; a frail dwarf is 28 lb.  
+✚ And whatever is still on them comes too, since their gear never leaves their sheet. A body in full plate is 105 lb, which is about the most anyone can shift — strip it first and it drops back to 50. Strong deliberately doesn't make you heavier dead; it isn't a tax on a trait somebody paid for.  
+✎ Structures now appear in the Recipes tab. They were being dropped on the grounds that raising one isn't crafting, but it is the same Craft button and the same recipe, and a player planning a Palisade had nowhere to read that it costs four turns and 40 ⬢.
+
 ## 2026-09-08 · Cave characters come back to the GM desks
 
 ✎ Characters standing in the Caves or the Depths are on the player desk again, for a GM who has picked their zones  
