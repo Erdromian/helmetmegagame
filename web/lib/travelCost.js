@@ -27,3 +27,12 @@ export function travelFoot(option, freeLeft, mounted) {
   if (mounted && option.indoors) return `${cost} · indoors`;
   return cost;
 }
+
+// The sentence behind the trait chip on a way your own tag opens. The chip
+// itself is just the tag's name — there is no room on a node for more — so this
+// is what the hover and the screen reader get. Here rather than in either
+// component for the same reason travelFoot is: /play and /map both say it, and
+// two copies would drift.
+export function openedByLabel(tagName) {
+  return `Opened by your ${tagName}. ‡`;
+}

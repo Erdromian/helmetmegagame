@@ -5,7 +5,9 @@ import { useRefresh } from "@/app/components/useRefresh";
 import FormError from "@/app/components/FormError";
 import EmptyState from "@/app/components/EmptyState";
 import useActionRunner from "@/app/components/useActionRunner";
-import { travelFoot } from "@/lib/travelCost";
+import ChipLabel from "@/app/components/ChipLabel";
+import { useTags } from "@/app/components/TagsProvider";
+import { travelFoot, openedByLabel } from "@/lib/travelCost";
 import { loadTravel, travelTo } from "./actions";
 
 // TRAVEL: every way out of here as a node you can see, instead of a dropdown
@@ -27,10 +29,13 @@ import { loadTravel, travelTo } from "./actions";
 // no longer refuses at all — see db/lib/indoors.js#dismountForNarrowWay.
 
 // The whole of it, for the hover — the node itself clamps both the name and
-// the description, and a refusal replaces the description entirely.
-function titleFor(option) {
+// the description, and a refusal replaces the description entirely. `via` is
+// the tag of theirs that opens the way, when one does: the chip on the node can
+// only carry the name, so the sentence lives here.
+function titleFor(option, via) {
   if (!option.passable) return option.reason ?? option.name;
-  return option.description ? `${option.name} — ${option.description}` : option.name;
+  const head = option.description ? `${option.name} — ${option.description}` : option.name;
+  return via ? `${head}\n${openedByLabel(via.name)}` : head;
 }
 
 // `pick` is `/travel` reaching in from the composer: { locationId, at }, where
@@ -39,6 +44,11 @@ function titleFor(option) {
 // that moves anybody's feet, which is the whole reason the command does not
 // call travelTo itself.
 export default function TravelNodes({ onDone, pick = null }) {
+  // The whole catalog plus everything this character holds, streamed from the
+  // root layout (web/lib/referenceData.js) — so a way's openedBy slug resolves
+  // to a real tag, with its group colour, without a second round trip. It can
+  // never miss: openedBy is only set for a tag they are holding.
+  const { tagsBySlug } = useTags();
   // Moving changes everything the rest of the column is: the place card, who
   // is here, the Examine lines, the rooms a Transfer can reach. All of those
   // are server props off page.js, so a move that only reloaded this list left
@@ -116,7 +126,9 @@ export default function TravelNodes({ onDone, pick = null }) {
         <EmptyState>There is no way out of here. ‡</EmptyState>
       ) : (
         <div className="chat-nodes">
-          {data.options.map((option) => (
+          {data.options.map((option) => {
+            const via = option.openedBy ? (tagsBySlug.get(option.openedBy) ?? null) : null;
+            return (
             <button
               key={option.id}
               type="button"
@@ -124,7 +136,7 @@ export default function TravelNodes({ onDone, pick = null }) {
               data-crossing={option.crossesZone ? "true" : undefined}
               data-dim={option.passable ? undefined : "true"}
               data-active={target === option.id ? "true" : undefined}
-              title={titleFor(option)}
+              title={titleFor(option, via)}
               disabled={!option.passable || pending}
               onClick={() => setTarget(target === option.id ? null : option.id)}
             >
@@ -137,9 +149,16 @@ export default function TravelNodes({ onDone, pick = null }) {
               {option.description && (
                 <span className="chat-node-desc">{option.description}</span>
               )}
+              {/* A way you can only walk because of something you own. The same
+                  ChipLabel the character sheet draws, so it arrives already
+                  wearing the tag's group colour — and the flat one rather than
+                  TagChip, because an interactive chip cannot live inside this
+                  button. */}
+              {via && <ChipLabel tag={via} />}
               <span className="chat-node-foot mono">{travelFoot(option, data.freeLeft, data.mounted)}</span>
             </button>
-          ))}
+            );
+          })}
         </div>
       )}
 
