@@ -102,6 +102,8 @@ export function paidLabel(applied) {
   for (const [key, value] of Object.entries(applied ?? {})) {
     if (!value) continue;
     if (key === "resources") parts.push(`${value > 0 ? "+" : ""}${value} ⬢`);
+    // Legacy rows recorded a bare `1`, always meaning a plain Exhausted grant.
+    else if (key === "exhausted") parts.push(value?.slug === "tired" ? "Tired" : "Exhausted");
     else parts.push(`${key}: ${value}`);
   }
   return parts.join(", ");

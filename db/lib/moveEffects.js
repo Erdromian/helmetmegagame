@@ -48,8 +48,9 @@ async function addResources(tx, characterId, amount) {
   return after - before;
 }
 
-const { EXHAUSTED_SLUG } = require("./constants");
+const { TIRED_SLUG, EXHAUSTED_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
+const { nextLaborFatigueSlug } = require("./laborFatigue");
 
 // One entry per pushable thing. `read` decides what this Move would push right
 // now; `apply` pushes it and returns WHAT ACTUALLY MOVED; `revert` takes back
@@ -61,31 +62,52 @@ const MOVE_EFFECTS = {
     revert: (tx, action, value) => addResources(tx, action.characterId, -value),
   },
 
-  // One Labor per day. A non-null resourceRollExpression means the Labor gate
+  // Two Labors before a rest, tracked by db/lib/laborFatigue.js's Tired ->
+  // Exhausted ladder. A non-null resourceRollExpression means the Labor gate
   // passed and the character labored — even a roll of 0 ⬢ spent the day — so
-  // the payout grants Exhausted, and db/lib/laborAccess.js#computeLaborAccess
-  // refuses the next one until the expiry sweep clears it. Both payout paths
-  // (db/lib/stagedPush.js §2, db/lib/autoLaborPass.js) run while the
-  // action's own turn closes, so `turn.number + durationTurns` blocks exactly
-  // the following turn — the same clock arithmetic as the Hunger grant in
-  // db/lib/hungerPass.js. An Unsolve reverts the exhaustion along with the
-  // payout; if the tag already expired by then, the delete is a no-op.
+  // the payout steps them one rung up the ladder, and
+  // db/lib/laborAccess.js#computeLaborAccess refuses the next Labor only once
+  // they land on Exhausted. Both payout paths (db/lib/stagedPush.js §2,
+  // db/lib/autoLaborPass.js) run while the action's own turn closes, so
+  // `turn.number + durationTurns` blocks exactly the following turn — the
+  // same clock arithmetic as the Hunger grant in db/lib/hungerPass.js.
+  //
+  // The snapshot key stays "exhausted" — not "laborFatigue" — even though it
+  // may record a Tired grant now: it rides on `Action.appliedEffects`, and a
+  // renamed key would silently stop reverting on every Labor pushed before
+  // this changed (revertMoveEffects skips a key it doesn't recognise).
   exhausted: {
     read: (action) => (action.resourceRollExpression ? 1 : 0),
     apply: async (tx, action) => {
+      const heldTired = await tx.characterTag.findFirst({
+        where: { characterId: action.characterId, tag: { slug: TIRED_SLUG } },
+        select: { id: true, expiresTurn: true },
+      });
+      // The Labor gate already refused an Exhausted character, so this is
+      // always Tired or nothing — nextLaborFatigueSlug is called anyway
+      // rather than reimplementing its decision by hand.
+      const targetSlug = nextLaborFatigueSlug(new Set(heldTired ? [TIRED_SLUG] : []));
+      if (!targetSlug) return 0; // defensive: nothing left to escalate to
       const [tag, turn] = await Promise.all([
         tx.tag.findUnique({
-          where: { slug: EXHAUSTED_SLUG },
+          where: { slug: targetSlug },
           select: { id: true, defaultDurationTurns: true },
         }),
         tx.turn.findUnique({ where: { id: action.turnId }, select: { number: true } }),
       ]);
       if (!tag || !turn) {
-        if (!tag) console.error(`Labor payout: no "${EXHAUSTED_SLUG}" tag — run npm run db:sync-tags. Labor won't be limited.`);
+        if (!tag) console.error(`Labor payout: no "${targetSlug}" tag — run npm run db:sync-tags. Labor won't be limited.`);
         return 0;
       }
-      // skipDuplicates: an existing Exhausted keeps its own clock, the same
-      // "already holds it" rule as db/lib/tagExpiryPass.js.
+      // Escalating: the Tired row is consumed by the upgrade, not left to
+      // expire on its own — otherwise the character would end up holding
+      // both, and the sweep would clear Tired out from under an Exhausted
+      // that's supposed to degrade back into it.
+      if (heldTired) await tx.characterTag.delete({ where: { id: heldTired.id } });
+      // skipDuplicates: an existing Tired/Exhausted keeps its own clock, the
+      // same "already holds it" rule as db/lib/tagExpiryPass.js. Reachable
+      // only if something else granted the target tag between the read above
+      // and here.
       await tx.characterTag.createMany({
         data: [{
           characterId: action.characterId,
@@ -95,12 +117,35 @@ const MOVE_EFFECTS = {
         }],
         skipDuplicates: true,
       });
-      return 1;
+      // Snapshotted for revert: which tag this granted, and — only when it
+      // escalated — the exact expiry the consumed Tired row carried, so an
+      // Unsolve can put the character back exactly where they were rather
+      // than just stripping Exhausted and leaving them fatigue-free.
+      return { slug: targetSlug, replacedTired: heldTired ? { expiresTurn: heldTired.expiresTurn } : null };
     },
-    revert: async (tx, action) => {
-      const tag = await tx.tag.findUnique({ where: { slug: EXHAUSTED_SLUG }, select: { id: true } });
-      if (tag) {
-        await tx.characterTag.deleteMany({ where: { characterId: action.characterId, tagId: tag.id } });
+    revert: async (tx, action, snapshot) => {
+      // Legacy shape: rows pushed before this ladder existed recorded a bare
+      // `1` here, always meaning a plain Exhausted grant with nothing to
+      // restore underneath it.
+      const grantedSlug = snapshot && typeof snapshot === "object" ? snapshot.slug : EXHAUSTED_SLUG;
+      const grantedTag = await tx.tag.findUnique({ where: { slug: grantedSlug }, select: { id: true } });
+      if (grantedTag) {
+        await tx.characterTag.deleteMany({ where: { characterId: action.characterId, tagId: grantedTag.id } });
+      }
+      const replacedTired = snapshot && typeof snapshot === "object" ? snapshot.replacedTired : null;
+      if (replacedTired) {
+        const tiredTag = await tx.tag.findUnique({ where: { slug: TIRED_SLUG }, select: { id: true } });
+        if (tiredTag) {
+          await tx.characterTag.createMany({
+            data: [{
+              characterId: action.characterId,
+              tagId: tiredTag.id,
+              source: "EVENT",
+              expiresTurn: replacedTired.expiresTurn,
+            }],
+            skipDuplicates: true,
+          });
+        }
       }
     },
   },
@@ -181,7 +226,8 @@ function describeMoveEffects(applied) {
   for (const [key, value] of Object.entries(applied ?? {})) {
     if (!value) continue;
     if (key === "resources") parts.push(`${value > 0 ? "+" : ""}${value} ⬢`);
-    else if (key === "exhausted") parts.push("Exhausted");
+    // Legacy rows recorded a bare `1`, always meaning a plain Exhausted grant.
+    else if (key === "exhausted") parts.push(value?.slug === TIRED_SLUG ? "Tired" : "Exhausted");
     else if (key === "refined") {
       parts.push(
         value.empty
