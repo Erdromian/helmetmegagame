@@ -333,8 +333,14 @@ log exists for. Peer visibility is now the feature. **Every GM reads the whole
 log**, and the Actor filter's `GMs` toggle makes reviewing each other a
 first-class view rather than something you squint for.
 
-The Dev panel (`/gm/dev`), the GM roster included, stays superadmin — those are
-host access, not game permission.
+The Dev panel (`/gm/dev`) is **two tiers**, not one seat. Wiping the game,
+retuning the economy, forcing a turn and opening the lobby are host access and
+stay with the superadmin; the operations and threats work — bulk actions,
+letters, ambient lines, the inactivity nudge, seats and objectives — is what
+running the game means and is open to every GM, trial GMs included. The GM
+roster itself is GM-readable for the same reason `/gm/audit` is: peer
+visibility is the feature. `web/lib/devAccess.js` holds the one table that
+decides it, and `DEV-PANEL.md` §11a is its doc.
 
 The page is a **desk** (`web/app/(desk)/gm/audit/`), not a table: filter rail,
 feed, inspector, the same frame as `/gm/turns`. Three things about it are worth

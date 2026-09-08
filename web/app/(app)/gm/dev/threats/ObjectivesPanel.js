@@ -31,9 +31,14 @@ export default function ObjectivesPanel({ parties, characters, locations, weight
           The game has ended and the reveal is already written. Changes here reach nobody unless the game is ended again. ‡
         </p>
       ) : null}
-      {parties.map((party) => (
-        <PartyCard key={party.key} party={party} characters={characters} locations={locations} weights={weights} />
-      ))}
+      {/* A filling grid, not a stack. One card per party in a single column
+          left three quarters of a wide desk empty, which is what made the
+          section read as bubbles floating in the middle of the page. */}
+      <div className="grid gap-3 lg:grid-cols-2">
+        {parties.map((party) => (
+          <PartyCard key={party.key} party={party} characters={characters} locations={locations} weights={weights} />
+        ))}
+      </div>
     </section>
   );
 }
@@ -44,9 +49,10 @@ function memberLine(party) {
 }
 
 function PartyCard({ party, characters, locations, weights }) {
+  const [adding, setAdding] = useState(false);
   const complete = party.objectives.filter((o) => o.done).length;
   return (
-    <section className="desk-card flex flex-col gap-3">
+    <section className="desk-card flex h-full flex-col gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h4 className="section-title">
           {party.name} <span className="text-muted">· {memberLine(party)}</span>
@@ -75,7 +81,24 @@ function PartyCard({ party, characters, locations, weights }) {
         </ul>
       )}
 
-      <AddRow party={party} characters={characters} locations={locations} weights={weights} />
+      {/* Folded away by default. Three parties each holding an open form was
+          most of the section's height, and a GM adds an objective far less
+          often than they read the ones already there. */}
+      <div className="mt-auto">
+        {adding ? (
+          <AddRow
+            party={party}
+            characters={characters}
+            locations={locations}
+            weights={weights}
+            onClose={() => setAdding(false)}
+          />
+        ) : (
+          <button type="button" className="btn-quiet" onClick={() => setAdding(true)}>
+            + Add objective
+          </button>
+        )}
+      </div>
     </section>
   );
 }
@@ -166,7 +189,7 @@ function ObjectiveRow({ row }) {
 // Kind first; the second control follows the kind's target and is reset on
 // every kind change, so a value picked for the last kind can never post
 // under this one.
-function AddRow({ party, characters, locations, weights }) {
+function AddRow({ party, characters, locations, weights, onClose }) {
   const [pending, startTransition] = useTransition();
   const [kindKey, setKindKey] = useState(party.kinds[0]?.key ?? "");
   const [characterId, setCharacterId] = useState("");
@@ -300,6 +323,9 @@ function AddRow({ party, characters, locations, weights }) {
 
       <button type="button" className="btn" disabled={pending} onClick={add}>
         Add
+      </button>
+      <button type="button" className="btn-quiet" disabled={pending} onClick={onClose}>
+        Cancel
       </button>
       <FormError>{error}</FormError>
     </div>

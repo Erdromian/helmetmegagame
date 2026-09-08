@@ -16,17 +16,9 @@ import { threatBySlug } from "@lifeweb/db/lib/threats";
 import { resolveAssignTags, spawnOfferComponents } from "@lifeweb/db/lib/threatSpawn";
 import { resolveSeatConflicts, describeSeatConflicts } from "@lifeweb/db/lib/seatConflicts";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
-import { auth } from "@/lib/auth";
-import { isSuperadmin } from "@/lib/superadmin";
+import { requireDev } from "@/lib/devAccess";
 import { sendDm } from "@/lib/discordGuild";
 
-async function requireSuperadmin() {
-  const session = await auth();
-  if (!session?.discordUserId || !isSuperadmin(session.discordUserId)) {
-    throw new Error("Not authorized.");
-  }
-  return session;
-}
 
 function repaint() {
   revalidatePath("/gm/dev");
@@ -75,7 +67,7 @@ async function seatMessage(threat, { role = null, spawned = false } = {}) {
 export async function assignThreat({ characterId, threatSlug }) {
   let session;
   try {
-    session = await requireSuperadmin();
+    session = await requireDev("gm");
   } catch {
     return { error: "Not authorized." };
   }
@@ -183,7 +175,7 @@ export async function assignThreat({ characterId, threatSlug }) {
 export async function offerThreatSpawn({ discordUserId, threatSlug, roleId, locationId }) {
   let session;
   try {
-    session = await requireSuperadmin();
+    session = await requireDev("gm");
   } catch {
     return { error: "Not authorized." };
   }
@@ -270,7 +262,7 @@ export async function offerThreatSpawn({ discordUserId, threatSlug, roleId, loca
 export async function cancelThreatSpawn({ spawnId }) {
   let session;
   try {
-    session = await requireSuperadmin();
+    session = await requireDev("gm");
   } catch {
     return { error: "Not authorized." };
   }

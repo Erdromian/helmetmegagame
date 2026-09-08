@@ -4388,6 +4388,15 @@ label.chip {
   padding: 1rem;
 }
 
+/* In an ops section the surface IS the page, not a reading column. .desk-card's
+   52rem cap and auto-centring are right on the adjudication and player desks,
+   where a card is something you read; here they left every card floating in the
+   middle of a full-width section under a table that stretched. */
+.ops-main .desk-card {
+  max-width: none;
+  margin: 0;
+}
+
 .ops-section {
   max-width: 46rem;
   display: flex;
@@ -4402,6 +4411,22 @@ label.chip {
    this modifier removes. */
 .ops-section--wide {
   max-width: none;
+}
+
+/* The Bulk actions roster: a scrolling box of check rows rather than a native
+   <select multiple>, which offered no search, no place names and no way to see
+   what you had picked without scrolling it. Capped rather than page-length —
+   the panel beside it has to stay on screen while you scroll the list. */
+.bulk-picker {
+  max-height: 22rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--field-bg);
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
 }
 
 .ops-section-head {

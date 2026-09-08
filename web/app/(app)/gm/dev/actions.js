@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { isUnaffiliated, UNAFFILIATED_SLUG } from "@lifeweb/db/lib/factionConstants";
+import { GHOST_ROLE_ID } from "@lifeweb/db/lib/roleIds";
 import { after } from "next/server";
 import { parseConfigForm } from "@lifeweb/db/lib/gameConfigFields";
 import { getGameConfig, getGameState, GAME_STATE_CREATE } from "@lifeweb/db/lib/gameState";
+import { getOpenTurn } from "@/lib/turn";
 import { buildEpilogue } from "@lifeweb/db/lib/epilogue";
 import { forgetGameId } from "@lifeweb/db/lib/archive";
 import { forgetGameFloor } from "@lifeweb/db/lib/feedWipe";
@@ -22,19 +24,23 @@ import {
 import { runChannelDoctor } from "@lifeweb/db/lib/channelDoctor";
 import { postTurnsAnnouncement } from "@lifeweb/db/lib/turnAnnouncement";
 import { pickTurnBanner, nextTurnBanner } from "@lifeweb/db/lib/turnBanner";
-import { auth } from "@/lib/auth";
-import { isSuperadmin } from "@/lib/superadmin";
+import { requireDev } from "@/lib/devAccess";
 import {
   deleteCharacterRole,
   revokeAccessForCharacters,
   updateGuildNickname,
   listGuildMembers,
-  removeCursedRole,
+  removeGhostRole,
   setTurnPingRole,
   sendDm,
 } from "@/lib/discordGuild";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
+import { ambientLine } from "@lifeweb/db/lib/ambientLine";
+import { postMessage } from "@lifeweb/db/lib/discordRest";
+import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
+import { inactiveCharacters } from "@lifeweb/db/lib/inactivity";
+import { grantTagSlugs, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 import { validateTurretTable } from "@lifeweb/db/lib/depotTurret";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 import { mintLetterFor, sealWithMark } from "@lifeweb/db/lib/paperMint";
@@ -52,13 +58,6 @@ import { afterInventoryChange } from "@/lib/afterInventoryChange";
 // a sheet of paper like any other, and a longer one would not fit the object.
 const GM_LETTER_MAX = 2000;
 
-async function requireSuperadmin() {
-  const session = await auth();
-  if (!session?.discordUserId || !isSuperadmin(session.discordUserId)) {
-    throw new Error("Not authorized.");
-  }
-  return session;
-}
 
 function str(formData, key) {
   const v = formData.get(key);
@@ -80,7 +79,7 @@ function intOrZero(formData, key) {
 // (db/lib/gameConfigFields.js) — the same list the form was rendered from, so
 // a hand-posted field the registry does not name is simply never read.
 export async function updateGameConfig(formData) {
-  await requireSuperadmin();
+  await requireDev();
 
   const current = await getGameConfig(prisma);
   await prisma.gameConfig.update({
@@ -106,7 +105,7 @@ export async function updateGameConfig(formData) {
 // a month. validateTurretTable throws; the action swallows it into a returned
 // error so the form can say so.
 export async function updateDepot(formData) {
-  await requireSuperadmin();
+  await requireDev();
 
   let turretTable;
   const raw = str(formData, "turretTable");
@@ -160,7 +159,7 @@ export async function updateDepot(formData) {
 // A raw superadmin correction to the current turn's day/phase, not a
 // normal turn advance.
 export async function updateCurrentTurn(formData) {
-  await requireSuperadmin();
+  await requireDev();
 
   const day = intOrNull(formData, "day");
   const phase = str(formData, "phase") || "DAWN";
@@ -190,7 +189,7 @@ export async function updateCurrentTurn(formData) {
 
 // A pending note for the *next* turn, consumed by advanceTurn().
 export async function updateNextTurn(formData) {
-  await requireSuperadmin();
+  await requireDev();
 
   const note = str(formData, "note").trim() || null;
 
@@ -206,7 +205,7 @@ export async function updateNextTurn(formData) {
 // The Lifeweb's blood, as a raw override. Per-game state, so it lives beside
 // the phase on the Game section rather than among the durable knobs.
 export async function updateWorldState(formData) {
-  await requireSuperadmin();
+  await requireDev();
 
   await prisma.gameState.upsert({
     where: { id: 1 },
@@ -222,7 +221,7 @@ export async function updateWorldState(formData) {
 // thunk goes to after(), not the request, since the message wipe can take
 // minutes and a pending server action blocks client-side navigation.
 export async function forceAdvanceTurn() {
-  const session = await requireSuperadmin();
+  const session = await requireDev();
 
   try {
     const { advanced, refused, previousTurn, newTurn, runSideEffects } = await advanceTurnInDb();
@@ -271,7 +270,7 @@ export async function forceAdvanceTurn() {
 // GM tuned and the priorities a player set are meant to outlive the game
 // (docs/systemdocs/LOBBY.md §6).
 export async function wipeGameData(formData) {
-  const session = await requireSuperadmin();
+  const session = await requireDev();
 
   if (str(formData, "confirm").trim() !== "WIPE") {
     return { ok: false, error: 'Type "WIPE" (all caps) to confirm.' };
@@ -304,8 +303,11 @@ export async function wipeGameData(formData) {
     }
     const lastNumber = (await prisma.game.aggregate({ _max: { number: true } }))._max.number ?? 0;
     const nextGame = await prisma.game.create({ data: { number: lastNumber + 1 } });
-    const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
-    const cursedMemberIds = cursedRoleId ? members.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [];
+    // Whoever is still wearing the ghost seat, so the wipe can take it off
+    // them. Read off the guild rather than the database on purpose: the rows
+    // that would answer it are about to be deleted, and a leftover ghost role
+    // would hand an ex-player read-only vision of every zone in the NEW game.
+    const ghostMemberIds = members.filter((m) => m.roles.includes(GHOST_ROLE_ID)).map((m) => m.id);
 
     // Ordered so dependents (Request, Desire, StagedMessage/Effect — required
     // FKs to Character/Turn) go before character/turn.deleteMany, or a
@@ -404,7 +406,7 @@ export async function wipeGameData(formData) {
       data: {
         actorDiscordUserId: session.discordUserId,
         actionType: "superadmin_game_wipe",
-        details: { characters: characters.length, cursedMembers: cursedMemberIds.length },
+        details: { characters: characters.length, ghostMembers: ghostMemberIds.length },
       },
     });
 
@@ -418,7 +420,7 @@ export async function wipeGameData(formData) {
     revalidatePath("/", "layout");
 
     after(() =>
-      finishGameWipe(session.discordUserId, characters, cursedMemberIds, firstTurn, reportRow.id).catch(
+      finishGameWipe(session.discordUserId, characters, ghostMemberIds, firstTurn, reportRow.id).catch(
         (err) => console.error("Game wipe side effects failed:", err),
       ),
     );
@@ -436,7 +438,7 @@ export async function wipeGameData(formData) {
 // than awaited. A step runner: every step is retried once, every failure is
 // collected, and the run lands on the SystemReport row wipeGameData
 // created, so the Dev Panel never claims success it can't know about.
-async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds, firstTurn, reportId) {
+async function finishGameWipe(actorDiscordUserId, characters, ghostMemberIds, firstTurn, reportId) {
   const steps = [];
   const failures = [];
   async function step(name, fn, { retries = 1 } = {}) {
@@ -475,8 +477,8 @@ async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds, f
     }
   }
 
-  for (const id of cursedMemberIds) {
-    await step(`cursed ${id}`, () => removeCursedRole(id));
+  for (const id of ghostMemberIds) {
+    await step(`ghost ${id}`, () => removeGhostRole(id));
   }
 
   await step("full channel wipe", () => runFullChannelWipe(prisma));
@@ -523,7 +525,7 @@ async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds, f
 }
 
 export async function updateFaction(formData) {
-  await requireSuperadmin();
+  await requireDev("gm");
 
   const factionId = str(formData, "factionId");
   if (!factionId) return;
@@ -565,7 +567,7 @@ export async function updateFaction(formData) {
 
 // Reassigns the faction's members to "Unaffiliated" before deleting the row.
 export async function deleteFaction(formData) {
-  const session = await requireSuperadmin();
+  const session = await requireDev();
 
   const factionId = str(formData, "factionId");
   if (!factionId) return;
@@ -600,7 +602,7 @@ export async function deleteFaction(formData) {
 // Deliberately not built out of the player-facing actions: those all check
 // "is this your faction", which is the check a GM is here to skip.
 export async function assignFactionMember(formData) {
-  const session = await requireSuperadmin();
+  const session = await requireDev("gm");
 
   const characterId = str(formData, "characterId");
   const factionId = str(formData, "factionId");
@@ -659,7 +661,7 @@ export async function assignFactionMember(formData) {
 // Request (there is nobody to review a GM) and it works whoever is holding
 // what, including when the armer is dead or gone.
 export async function defuseNukeAction() {
-  const session = await requireSuperadmin();
+  const session = await requireDev();
 
   const state = await getGameState(prisma);
   if (state.nukeDetonatedTurn != null) {
@@ -691,7 +693,7 @@ export async function defuseNukeAction() {
 // chant that lands by accident, or in a playtest, should not have to burn
 // the world to be undone.
 export async function cancelAscensionAction() {
-  const session = await requireSuperadmin();
+  const session = await requireDev();
 
   const state = await getGameState(prisma);
   if (state.ascensionFiredTurn != null) {
@@ -722,12 +724,15 @@ export async function cancelAscensionAction() {
 // Runs in after() and lands on a SystemReport row; /gm/dev polls the
 // latest report per kind, so the button returns immediately.
 export async function runDoctorAction(formData) {
-  const session = await requireSuperadmin();
-  const apply = str(formData, "mode") === "repair";
+  // The tier the run costs depends on what it does: a dry run only reads
+  // Discord, Repair rewrites the guild. Read the mode BEFORE the guard --
+  // hiding the Repair button from a GM is a hint, not a lock.
+  const repair = str(formData, "mode") === "repair";
+  const session = await requireDev(repair ? "super" : "gm");
   const scope = str(formData, "scope") === "full" ? "full" : "cheap";
 
   after(() =>
-    runChannelDoctor(prisma, { apply, scope, actorDiscordUserId: session.discordUserId }).catch((err) =>
+    runChannelDoctor(prisma, { apply: repair, scope, actorDiscordUserId: session.discordUserId }).catch((err) =>
       console.error("Channel doctor action failed:", err),
     ),
   );
@@ -736,17 +741,76 @@ export async function runDoctorAction(formData) {
   return { ok: true };
 }
 
-// GM bulk move: relocate many characters to one Location at once. A raw
-// relocation, not a travel — no Move cost, no Action, no adjacency check, and
-// no cooldown stamp.
-export async function bulkMoveCharacters(formData) {
-  const session = await requireSuperadmin();
+// --- Bulk actions -----------------------------------------------------
+//
+// One character picker, three verbs. Every one of them is a RAW edit, not the
+// player-facing move it resembles: no Move cost, no Action, no adjacency
+// check, no cooldown stamp, no point spend. A GM reaching for this has already
+// decided the fiction.
+//
+// All three share bulk move's original shape — a SystemReport row created
+// synchronously and finished inside after(), one AuditLog row written before
+// the response, and per-character try/catch so one character's failed Discord
+// sync never stops the rest.
 
-  const locationId = str(formData, "locationId");
-  const characterIds = formData.getAll("characterIds").map(String).filter(Boolean);
-  if (!locationId || characterIds.length === 0) {
-    return { ok: false, error: "Pick a location and at least one character." };
+const BULK_KINDS = new Set(["move", "resources", "tag"]);
+
+export async function applyBulkAction(input) {
+  const session = await requireDev("gm");
+
+  const kind = String(input?.kind ?? "");
+  if (!BULK_KINDS.has(kind)) return { ok: false, error: "Pick something to do." };
+
+  const characterIds = (Array.isArray(input?.characterIds) ? input.characterIds : [])
+    .map(String)
+    .filter(Boolean);
+  if (characterIds.length === 0) return { ok: false, error: "Pick at least one character. ‡" };
+
+  const characters = await prisma.character.findMany({
+    where: { id: { in: characterIds }, status: "ALIVE" },
+    select: {
+      id: true,
+      name: true,
+      discordUserId: true,
+      locationId: true,
+      zoneId: true,
+      resources: true,
+    },
+  });
+  if (characters.length === 0) return { ok: false, error: "No living characters matched." };
+
+  switch (kind) {
+    case "move":
+      return bulkMove(session, characters, input);
+    case "resources":
+      return bulkResources(session, characters, input);
+    case "tag":
+      return bulkTag(session, characters, input);
+    default:
+      return { ok: false, error: "Pick something to do." };
   }
+}
+
+// A SystemReport for every bulk run, not just the move: the Discord half runs
+// after the response, so a failure has nowhere else to be seen.
+async function openBulkReport(session, summary) {
+  return prisma.systemReport.create({
+    data: { kind: "BULK_MOVE", actorDiscordUserId: session.discordUserId, summary },
+  });
+}
+
+async function closeBulkReport(reportId, failures) {
+  await prisma.systemReport
+    .update({
+      where: { id: reportId },
+      data: { finishedAt: new Date(), ok: failures.length === 0, failures },
+    })
+    .catch((err) => console.error("Bulk action report write failed:", err));
+}
+
+async function bulkMove(session, characters, input) {
+  const locationId = String(input?.locationId ?? "");
+  if (!locationId) return { ok: false, error: "Pick a location." };
 
   const location = await prisma.location.findUnique({
     where: { id: locationId },
@@ -755,12 +819,6 @@ export async function bulkMoveCharacters(formData) {
   if (!location) {
     return { ok: false, error: "That isn't a place a character can stand." };
   }
-
-  const characters = await prisma.character.findMany({
-    where: { id: { in: characterIds }, status: "ALIVE" },
-    select: { id: true, name: true, discordUserId: true, locationId: true, zoneId: true },
-  });
-  if (characters.length === 0) return { ok: false, error: "No living characters matched." };
 
   // The denormalization contract: locationId and zoneId are written together.
   await prisma.character.updateMany({
@@ -778,12 +836,11 @@ export async function bulkMoveCharacters(formData) {
     },
   });
 
-  const report = await prisma.systemReport.create({
-    data: {
-      kind: "BULK_MOVE",
-      actorDiscordUserId: session.discordUserId,
-      summary: { location: location.name, zone: location.zone?.name ?? null, characters: characters.length },
-    },
+  const report = await openBulkReport(session, {
+    action: "move",
+    location: location.name,
+    zone: location.zone?.name ?? null,
+    characters: characters.length,
   });
 
   await prisma.auditLog.create({
@@ -828,16 +885,282 @@ export async function bulkMoveCharacters(formData) {
         console.error(`Bulk move: caving arrival DM failed for ${c.name}:`, err);
       }
     }
-    await prisma.systemReport
-      .update({
-        where: { id: report.id },
-        data: { finishedAt: new Date(), ok: failures.length === 0, failures },
-      })
-      .catch((err) => console.error("Bulk move report write failed:", err));
+    await closeBulkReport(report.id, failures);
   });
 
   revalidatePath("/gm/dev");
-  return { ok: true, moved: characters.length };
+  return { ok: true, applied: characters.length };
+}
+
+// Add or set. "Set" writes one number over everybody, "add" moves each
+// character's own total, and neither is allowed to leave anyone below zero —
+// a negative balance is not a state the rest of the game knows how to read.
+async function bulkResources(session, characters, input) {
+  const amount = Number(input?.amount);
+  if (!Number.isInteger(amount)) return { ok: false, error: "Resources must be a whole number. ‡" };
+  const set = input?.mode === "set";
+  if (set && amount < 0) return { ok: false, error: "A total cannot be negative. ‡" };
+
+  const changes = characters.map((c) => ({
+    ...c,
+    to: Math.max(0, set ? amount : c.resources + amount),
+  }));
+
+  await prisma.$transaction(
+    changes.map((c) =>
+      prisma.character.update({ where: { id: c.id }, data: { resources: c.to } }),
+    ),
+  );
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_bulk_resources",
+      details: {
+        mode: set ? "set" : "add",
+        amount,
+        characters: changes.map((c) => ({ id: c.id, from: c.resources, to: c.to })),
+      },
+    },
+  });
+
+  // One line each, and only to the people whose number actually moved — a DM
+  // saying nothing changed is worse than no DM.
+  for (const c of changes) {
+    if (c.to === c.resources) continue;
+    const delta = c.to - c.resources;
+    notifyCharacter(c, `${delta > 0 ? "+" : ""}${delta} ⬢ — you now hold ${c.to} ⬢. ‡`);
+  }
+
+  revalidatePath("/gm/dev");
+  return { ok: true, applied: changes.length };
+}
+
+// Grant or remove one tag across the selection. Deliberately NOT the staged
+// applyTagOpsInTx path the character panel uses: that one carries per-sheet
+// validation and an optimistic-concurrency token this form has neither of.
+// grantTagSlugs still enforces the stacking rules and the Blessed ward.
+async function bulkTag(session, characters, input) {
+  const slug = String(input?.tagSlug ?? "");
+  if (!slug) return { ok: false, error: "Pick a tag." };
+  const remove = input?.mode === "remove";
+
+  const tag = await prisma.tag.findUnique({ where: { slug }, select: { id: true, name: true } });
+  if (!tag) return { ok: false, error: "No such tag." };
+
+  const openTurn = await getOpenTurn();
+  const failures = [];
+  const touched = [];
+
+  for (const c of characters) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        if (remove) {
+          await dropCharacterTag(tx, c.id, tag.id);
+        } else {
+          await grantTagSlugs(tx, c.id, [slug], openTurn?.number ?? null);
+        }
+      });
+      touched.push(c.id);
+    } catch (err) {
+      failures.push({ step: "tag", target: c.name, message: err.message });
+      console.error(`Bulk tag: ${remove ? "remove" : "grant"} failed for ${c.name}:`, err);
+    }
+  }
+
+  const report = await openBulkReport(session, {
+    action: remove ? "tag-remove" : "tag-grant",
+    tag: tag.name,
+    characters: touched.length,
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_bulk_tag",
+      turnId: openTurn?.id ?? null,
+      details: {
+        mode: remove ? "remove" : "grant",
+        tagSlug: slug,
+        tagName: tag.name,
+        characterIds: touched,
+      },
+    },
+  });
+
+  // Not wrapped in after(): the helper defers its own Discord round trips and
+  // is the one sweep every other tag writer runs, so a tag that changes carry
+  // or a room key settles the same way here as anywhere else.
+  try {
+    await afterInventoryChange(touched);
+  } catch (err) {
+    failures.push({ step: "inventory", target: "all", message: err.message });
+    console.error("Bulk tag: inventory sweep failed:", err);
+  }
+  await closeBulkReport(report.id, failures);
+
+  for (const c of characters) {
+    if (!touched.includes(c.id)) continue;
+    notifyCharacter(c, remove ? `You have lost ${tag.name}. ‡` : `You have gained ${tag.name}. ‡`);
+  }
+
+  revalidatePath("/gm/dev");
+  return {
+    ok: failures.length === 0,
+    applied: touched.length,
+    error: failures.length ? `${failures.length} failed — see System reports. ‡` : undefined,
+  };
+}
+
+// --- The inactivity nudge ---------------------------------------------
+//
+// Who counts as inactive is db/lib/inactivity.js's answer, the same one the
+// ops script prints, so the report a GM runs on the command line and the list
+// they message from here cannot drift.
+//
+// The DM goes through web/lib/discordGuild.js#sendDm and no other path: that
+// is the one that writes a DirectMessage row, which is what puts the nudge in
+// the player's conversation on /gm/players instead of only in somebody's
+// client.
+
+const NUDGE_MAX = 1500;
+
+export async function nudgeInactivePlayers(input) {
+  const session = await requireDev("gm");
+
+  const text = String(input?.text ?? "").trim();
+  if (!text) return { ok: false, error: "Write the message first." };
+  if (text.length > NUDGE_MAX) return { ok: false, error: "That is too long for a nudge. ‡" };
+
+  const characterIds = (Array.isArray(input?.characterIds) ? input.characterIds : [])
+    .map(String)
+    .filter(Boolean);
+  if (characterIds.length === 0) return { ok: false, error: "Pick at least one player. ‡" };
+
+  // Re-derived from the module rather than trusted from the form: a server
+  // action is a public endpoint, and this one can DM anybody otherwise.
+  const report = await inactiveCharacters(prisma);
+  const eligible = new Map(
+    [...report.leftGuild, ...report.neverActive, ...report.sinceDayOne].map((c) => [c.id, c]),
+  );
+
+  const targets = characterIds.map((id) => eligible.get(id)).filter((c) => c?.discordUserId);
+  if (targets.length === 0) return { ok: false, error: "None of those are on the inactive list. ‡" };
+
+  const sent = [];
+  const failures = [];
+  for (const c of targets) {
+    try {
+      await sendDm(c.discordUserId, text);
+      sent.push(c.id);
+    } catch (err) {
+      failures.push({ step: "dm", target: c.name, message: err.message });
+      console.error(`Inactivity nudge failed for ${c.name}:`, err);
+    }
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_inactive_nudge",
+      details: { characterIds: sent, failed: failures.length, text },
+    },
+  });
+
+  revalidatePath("/gm/dev");
+  return {
+    ok: failures.length === 0,
+    sent: sent.length,
+    error: failures.length ? `${failures.length} could not be reached. ‡` : undefined,
+  };
+}
+
+// --- Ambient lines ----------------------------------------------------
+//
+// A line the WORLD says, typed from the web instead of by hand in Discord.
+// The formatting is the whole point of the tool: `-#` is PER LINE, so a
+// multi-line block needs the prefix on every one of them, and ambientLine is
+// the one place that rule lives (docs/systemdocs/ARCHITECTURE.md, CLAUDE.md's
+// aura section). Typed by hand, a two-line scene came out half subtext.
+//
+// The intercom is the deliberate exception to all of this and is NOT reachable
+// from here — a PA is a loudspeaker, not scenery (db/lib/intercom.js).
+
+const AMBIENT_MAX = 1500;
+
+// The channel a target speaks into, or a refusal. Every kind resolves through
+// its own row so a target with no Discord footprint yet says so plainly rather
+// than posting into nothing.
+async function ambientTarget(kind, id) {
+  switch (kind) {
+    case "zone": {
+      const zone = await prisma.zone.findUnique({
+        where: { id },
+        select: { id: true, name: true, discordSummaryChannelId: true },
+      });
+      if (!zone) return { error: "No such zone." };
+      if (!zone.discordSummaryChannelId) return { error: "That zone has no #summary channel yet. ‡" };
+      return { channelId: zone.discordSummaryChannelId, name: `${zone.name} — #summary`, zoneId: zone.id };
+    }
+    case "location": {
+      const location = await prisma.location.findUnique({
+        where: { id },
+        select: { id: true, name: true, discordChannelId: true, zoneId: true },
+      });
+      if (!location) return { error: "No such location." };
+      if (!location.discordChannelId) return { error: "That location has no channel yet. ‡" };
+      return { channelId: location.discordChannelId, name: location.name, zoneId: location.zoneId };
+    }
+    case "room": {
+      const room = await prisma.room.findUnique({
+        where: { id },
+        select: { id: true, name: true, discordThreadId: true, location: { select: { zoneId: true } } },
+      });
+      if (!room) return { error: "No such room." };
+      if (!room.discordThreadId) return { error: "That room has no thread yet. ‡" };
+      return { channelId: room.discordThreadId, name: room.name, zoneId: room.location?.zoneId ?? null };
+    }
+    default:
+      return { error: "Pick somewhere to say it. ‡" };
+  }
+}
+
+export async function sendAmbientLine(input) {
+  const session = await requireDev("gm");
+
+  const kind = String(input?.kind ?? "");
+  const targetId = String(input?.targetId ?? "");
+  const text = String(input?.text ?? "").trim();
+  if (!text) return { ok: false, error: "Write the line first." };
+  if (text.length > AMBIENT_MAX) return { ok: false, error: "That is too long for one line of scenery. ‡" };
+
+  const target = await ambientTarget(kind, targetId);
+  if (target.error) return { ok: false, error: target.error };
+
+  // The same GmZoneView scope the desks apply: a GM should not be able to
+  // speak into a zone they cannot see. No rows means every zone.
+  const allowed = await visibleZoneIds(prisma, session.discordUserId);
+  if (allowed && target.zoneId && !allowed.has(target.zoneId)) {
+    return { ok: false, error: "That is not one of the zones you are watching. ‡" };
+  }
+
+  const content = ambientLine(text);
+  try {
+    await postMessage(target.channelId, content);
+  } catch (err) {
+    console.error("Ambient line failed:", err);
+    return { ok: false, error: "Discord refused it. Nothing was said. ‡" };
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_ambient_line",
+      details: { kind, targetId, targetName: target.name, text },
+    },
+  });
+
+  return { ok: true, said: target.name };
 }
 
 // --- GM letters -------------------------------------------------------
@@ -849,7 +1172,7 @@ export async function bulkMoveCharacters(formData) {
 // `prevState` first: the form reads the result through useActionState, since
 // a fire-and-forget <form action={...}> has nowhere to report a refusal to.
 export async function sendGmLetter(_prevState, formData) {
-  const session = await requireSuperadmin();
+  const session = await requireDev("gm");
 
   const senderName = str(formData, "senderName").trim().slice(0, 80);
   const recipientId = str(formData, "recipientId");

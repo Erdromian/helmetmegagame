@@ -172,10 +172,13 @@ A GM-role holder can run the whole game: Moves, Requests, kills, revives,
 tags, DMs, the per-character dev panel, and the bot's `/gm` `/dm` `/heal`
 (from a guild channel — none of them work in the bot's DMs).
 
+A GM-role holder also runs the Dev Panel's Operations and Threats sections —
+bulk actions, letters, ambient lines, the inactivity nudge, threat seats and
+objectives (`DEV-PANEL.md` §11a).
+
 A GM-role holder **cannot**: end a turn early, wipe or restart, edit Game
-Config, set next turn's note, edit factions, run the channel doctor
-or a Bulk Move, delete a character or a custom tag, or open `/gm/audit` and
-`/gm/dev?s=gamemasters`. All of those are superadmin.
+Config, set next turn's note, delete a faction, run the channel doctor's
+Repair, or delete a character or a custom tag. All of those are superadmin.
 
 The practical one is **ending a turn**. `forceAdvanceTurn` checks only
 `isSuperadmin` and never consults the GM role, so if the superadmin is away,

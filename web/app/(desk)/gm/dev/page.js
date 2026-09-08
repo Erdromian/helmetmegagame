@@ -1,11 +1,13 @@
 import SubmitButton from "@/app/components/SubmitButton";
 import { redirect } from "next/navigation";
 import { prisma, loadDepot, turretTable } from "@lifeweb/db";
-import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
+import { getDevTier, resolveSection } from "@/lib/devAccess";
 import { getOpenTurn } from "@/lib/turn";
 import { describeTurn } from "@/lib/turnFormat";
-import { listGuildMembers, listGmMembers } from "@/lib/discordGuild";
+import { listGuildMembers, listGmMembers, getGmSession } from "@/lib/discordGuild";
+import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
+import { inactiveCharacters, inactiveRows } from "@lifeweb/db/lib/inactivity";
 import { TRIAL_GM_ROLE_ID } from "@lifeweb/db/lib/roleIds";
 import DiscordAvatar from "@/app/components/DiscordAvatar";
 import CharacterLink from "@/app/components/CharacterLink";
@@ -31,7 +33,6 @@ import {
   runDoctorAction,
   defuseNukeAction,
   cancelAscensionAction,
-  bulkMoveCharacters,
 } from "@/app/(app)/gm/dev/actions";
 import EndTurnButton from "@/app/(app)/gm/dev/EndTurnButton";
 import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
@@ -39,6 +40,9 @@ import ThreatAssignmentsTable from "@/app/(app)/gm/dev/threats/ThreatAssignments
 import ThreatRosterTable from "@/app/(app)/gm/dev/threats/ThreatRosterTable";
 import ObjectivesPanel from "@/app/(app)/gm/dev/threats/ObjectivesPanel";
 import RitesPanel from "@/app/(app)/gm/dev/threats/RitesPanel";
+import BulkActions from "./BulkActions";
+import AmbientForm from "./AmbientForm";
+import InactivePanel from "./InactivePanel";
 import { RITES, riteByKey } from "@lifeweb/db/lib/rites";
 import { ensureRiteWords } from "@lifeweb/db/lib/riteWords";
 import { listObjectives, locationEligible, membersByParty } from "@lifeweb/db/lib/objectives";
@@ -105,23 +109,23 @@ function phaseLede(state, readyCount, livingCount) {
   }
 }
 
+// The four numbers a GM opens this section to find, off props the page already
+// built. No query of its own — every one of these is a length.
+function antagonistGlance(seats, parties, rites) {
+  const objectives = parties.flatMap((p) => p.objectives);
+  const done = objectives.filter((o) => o.done).length;
+  const live = rites.filter((r) => r.status === "OPEN" || r.status === "READY" || r.status === "AWAITING").length;
+  return [
+    `${seats.length} seat${seats.length === 1 ? "" : "s"} held`,
+    `${parties.length} part${parties.length === 1 ? "y" : "ies"}`,
+    `${done} of ${objectives.length} objectives`,
+    `${live} rite${live === 1 ? "" : "s"} in flight`,
+  ];
+}
+
 function stamp(date) {
   return new Date(date).toISOString().slice(0, 16).replace("T", " ");
 }
-
-const SECTIONS = new Set([
-  "game",
-  "turn",
-  "config",
-  "depot",
-  "move",
-  "letters",
-  "reports",
-  "gamemasters",
-  "assignments",
-  "antagonists",
-  "danger",
-]);
 
 // A report's per-step breakdown is the useful half but far too long to dump
 // inline, so the JSON line drops it and the five slowest steps get their own
@@ -159,12 +163,16 @@ function gmStanding(member) {
 }
 
 export default async function DevPanelPage({ searchParams }) {
-  const session = await auth();
-  if (!session?.discordUserId) redirect("/");
-  if (!isSuperadmin(session.discordUserId)) redirect("/character");
+  const tier = await getDevTier();
+  if (tier === "none") redirect("/character");
+  const { session } = await getGmSession();
 
   const { s } = await searchParams;
-  const section = SECTIONS.has(s) ? s : "game";
+  // Not a redirect on a section this tier cannot open: a GM following an old
+  // ?s=danger link should land on their own home section, not be bounced off
+  // the panel entirely.
+  const section = resolveSection(tier, s);
+  const isMaster = tier === "super";
 
   // Always fetched: the header needs the open turn regardless of section,
   // and the turn section derives day and phase from the same rows.
@@ -206,6 +214,13 @@ export default async function DevPanelPage({ searchParams }) {
 
   let locations = [];
   let livingCharacters = [];
+  let bulkCharacters = [];
+  let bulkTags = [];
+  let ambientZones = [];
+  let ambientLocations = [];
+  let ambientRooms = [];
+  let inactiveList = [];
+  let inactiveTurn = null;
   let latestByKind = new Map();
   // The two threat sections. Each fetches only its own data, same as every
   // other section here.
@@ -221,6 +236,9 @@ export default async function DevPanelPage({ searchParams }) {
   let objectiveCharacters = [];
   let objectiveLocations = [];
   let lobbyRows = [];
+  // Seats handed out that nobody has taken up yet (LOBBY.md). Its own list
+  // rather than a slice of lobbyRows, because that one is built only for the
+  // superadmin Game section and this has to reach an ordinary GM.
   let draftRows = [];
   let pickableRoles = [];
 
@@ -275,8 +293,8 @@ export default async function DevPanelPage({ searchParams }) {
       });
       break;
     }
-    case "move":
-      [locations, livingCharacters] = await Promise.all([
+    case "bulk": {
+      const [allLocations, living, allTags] = await Promise.all([
         prisma.location.findMany({
           orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
           select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
@@ -284,10 +302,65 @@ export default async function DevPanelPage({ searchParams }) {
         prisma.character.findMany({
           where: { status: "ALIVE" },
           orderBy: { name: "asc" },
-          select: { id: true, name: true, location: { select: { name: true } } },
+          select: {
+            id: true,
+            name: true,
+            location: { select: { name: true } },
+            zone: { select: { name: true } },
+          },
+        }),
+        prisma.tag.findMany({ orderBy: { name: "asc" }, select: { slug: true, name: true } }),
+      ]);
+      locations = allLocations;
+      // Flattened here rather than in the client: the picker searches and
+      // filters on the place, so it wants one string, not a nested row.
+      bulkCharacters = living.map((c) => ({
+        id: c.id,
+        name: c.name,
+        zoneName: c.zone?.name ?? "",
+        placeLabel: c.location
+          ? `${c.zone?.name ?? ""} — ${c.location.name}`.replace(/^ — /, "")
+          : "nowhere",
+      }));
+      bulkTags = allTags;
+      break;
+    }
+    case "ambient": {
+      // Scoped to the zones this GM watches (db/lib/gmZoneView.js — no rows
+      // means every zone), the same filter the desks apply. The action
+      // re-checks it: a <select> is a hint, not a lock.
+      const allowed = await visibleZoneIds(prisma, session.discordUserId);
+      const [zoneRows, locationRows, roomRows] = await Promise.all([
+        prisma.zone.findMany({
+          where: { discordSummaryChannelId: { not: null } },
+          orderBy: { sortOrder: "asc" },
+          select: { id: true, name: true },
+        }),
+        prisma.location.findMany({
+          where: { discordChannelId: { not: null } },
+          orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+          select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
+        }),
+        prisma.room.findMany({
+          where: { discordThreadId: { not: null } },
+          orderBy: { name: "asc" },
+          select: {
+            id: true,
+            name: true,
+            location: { select: { name: true, zoneId: true, zone: { select: { name: true } } } },
+          },
         }),
       ]);
+      const inView = (zoneId) => !allowed || (zoneId && allowed.has(zoneId));
+      ambientZones = zoneRows.filter((z) => inView(z.id)).map((z) => ({ id: z.id, label: z.name }));
+      ambientLocations = locationRows
+        .filter((l) => inView(l.zoneId))
+        .map((l) => ({ id: l.id, label: `${l.zone?.name ?? "Unzoned"} — ${l.name}` }));
+      ambientRooms = roomRows
+        .filter((r) => inView(r.location?.zoneId))
+        .map((r) => ({ id: r.id, label: `${r.location?.name ?? "?"} — ${r.name}` }));
       break;
+    }
     case "letters":
       // Living only: the letter mints paper onto a sheet, and a corpse's is
       // not read. (The player Bird lists the dead too, because there the list
@@ -301,10 +374,15 @@ export default async function DevPanelPage({ searchParams }) {
     case "reports": {
       // Latest report per kind — the section renders what actually happened,
       // instead of the fake success the wipe used to claim.
-      const reports = await prisma.systemReport.findMany({ orderBy: { createdAt: "desc" }, take: 30 });
+      const [reports, inactive] = await Promise.all([
+        prisma.systemReport.findMany({ orderBy: { createdAt: "desc" }, take: 30 }),
+        inactiveCharacters(prisma),
+      ]);
       for (const report of reports) {
         if (!latestByKind.has(report.kind)) latestByKind.set(report.kind, report);
       }
+      inactiveTurn = inactive.turn;
+      inactiveList = inactiveRows(inactive);
       break;
     }
     case "assignments": {
@@ -575,7 +653,7 @@ export default async function DevPanelPage({ searchParams }) {
         }
       />
       <div className="desk-body desk-body--ops">
-        <OpsNav section={section} />
+        <OpsNav section={section} tier={tier} />
         <main className="ops-main">
           {section === "game" ? (
             <div className="flex flex-col gap-8">
@@ -809,37 +887,36 @@ export default async function DevPanelPage({ searchParams }) {
             </section>
           ) : null}
 
-          {section === "move" ? (
-            <section className="ops-section">
+          {section === "bulk" ? (
+            <section className="ops-section ops-section--wide">
               <div className="ops-section-head">
-                <h2 className="section-title">Bulk Move</h2>
+                <h2 className="section-title">Bulk actions</h2>
+                <p className="ops-lede">
+                  Raw edits to many sheets at once. Nothing here costs a Move, an Action or a
+                  point, and nothing here can be undone — the audit log is the only record. ‡
+                </p>
               </div>
-              <form action={bulkMoveCharacters} className="flex flex-wrap items-end gap-3">
-                <label className="field">
-                  <span className="field-label">Characters (ctrl/cmd-click for several)</span>
-                  <select name="characterIds" multiple size={8} className="min-w-72">
-                    {livingCharacters.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                        {c.location ? ` — ${c.location.name}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  <span className="field-label">Location</span>
-                  <Select name="locationId">
-                    {groupLocationsByZone(locations).map((group) => (
-                      <optgroup key={group.zoneId ?? "loose"} label={group.zoneName ?? "Unzoned"}>
-                        {group.locations.map((l) => (
-                          <option key={l.id} value={l.id}>{l.name}</option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </Select>
-                </label>
-                <SubmitButton pendingLabel="Moving…">Move them</SubmitButton>
-              </form>
+              <BulkActions
+                characters={bulkCharacters}
+                locations={groupLocationsByZone(locations).map((g) => ({
+                  zoneName: g.zoneName ?? "Unzoned",
+                  locations: g.locations.map((l) => ({ id: l.id, name: l.name })),
+                }))}
+                tags={bulkTags}
+              />
+            </section>
+          ) : null}
+
+          {section === "ambient" ? (
+            <section className="ops-section ops-section--wide">
+              <div className="ops-section-head">
+                <h2 className="section-title">Say something</h2>
+                <p className="ops-lede">
+                  A line the world says — a gate closing, a smell, a noise far back in the dark.
+                  It arrives as subtext, so it sits under the scene rather than interrupting it. ‡
+                </p>
+              </div>
+              <AmbientForm zones={ambientZones} locations={ambientLocations} rooms={ambientRooms} />
             </section>
           ) : null}
 
@@ -906,6 +983,15 @@ export default async function DevPanelPage({ searchParams }) {
               )}
 
               <div className="ops-section-head">
+                <h2 className="section-title">Who has gone quiet</h2>
+                <p className="ops-lede">
+                  Living characters who left the guild, never registered any activity, or have not
+                  been seen since day one. Read-only until you send something. ‡
+                </p>
+              </div>
+              <InactivePanel rows={inactiveList} turn={inactiveTurn} />
+
+              <div className="ops-section-head">
                 <h2 className="section-title">System Reports</h2>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -914,11 +1000,16 @@ export default async function DevPanelPage({ searchParams }) {
                   <input type="hidden" name="scope" value="full" />
                   <SubmitButton className="btn-secondary" pendingLabel="Starting…">Run channel doctor (dry)</SubmitButton>
                 </form>
-                <form action={runDoctorAction}>
-                  <input type="hidden" name="mode" value="repair" />
-                  <input type="hidden" name="scope" value="full" />
-                  <SubmitButton className="btn-secondary" pendingLabel="Starting…">Repair</SubmitButton>
-                </form>
+                {/* Repair rewrites the guild, so it stays with the host. The
+                    action re-checks the posted mode — hiding the button is a
+                    hint, not a lock. */}
+                {isMaster ? (
+                  <form action={runDoctorAction}>
+                    <input type="hidden" name="mode" value="repair" />
+                    <input type="hidden" name="scope" value="full" />
+                    <SubmitButton className="btn-secondary" pendingLabel="Starting…">Repair</SubmitButton>
+                  </form>
+                ) : null}
               </div>
               <div>
                 {[...latestByKind.values()].map((report) => (
@@ -1035,12 +1126,24 @@ export default async function DevPanelPage({ searchParams }) {
             <section className="ops-section ops-section--wide">
               <div className="ops-section-head">
                 <h2 className="section-title">Antagonists</h2>
+                <div className="flex flex-wrap gap-2">
+                  {antagonistGlance(seatRows, objectiveParties, riteAttemptRows).map((line) => (
+                    <span key={line} className="chip mono">
+                      {line}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <ThreatRosterTable
-                rows={seatRows}
-                pending={pendingSpawns}
-                threats={ASSIGNABLE_SUMMARY}
-              />
+
+              <div className="flex flex-col gap-3">
+                <h3 className="section-title">Seats</h3>
+                <ThreatRosterTable
+                  rows={seatRows}
+                  pending={pendingSpawns}
+                  threats={ASSIGNABLE_SUMMARY}
+                />
+              </div>
+
               <ObjectivesPanel
                 parties={objectiveParties}
                 characters={objectiveCharacters}
@@ -1048,6 +1151,7 @@ export default async function DevPanelPage({ searchParams }) {
                 weights={OBJECTIVE_WEIGHTS}
                 ended={state.phase === "ENDED"}
               />
+
               <RitesPanel words={riteWordRows} attempts={riteAttemptRows} />
             </section>
           ) : null}

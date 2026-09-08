@@ -1,15 +1,12 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
-import { auth } from "@/lib/auth";
-import { isSuperadmin } from "@/lib/superadmin";
+import { getDevTier } from "@/lib/devAccess";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import DevSubNav from "../DevSubNav";
 import CharactersTable from "./CharactersTable";
 
 export default async function DevCharactersPage() {
-  const session = await auth();
-  if (!session?.discordUserId) redirect("/");
-  if (!isSuperadmin(session.discordUserId)) redirect("/character");
+  if ((await getDevTier()) === "none") redirect("/character");
 
   const characters = await prisma.character.findMany({
     orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
