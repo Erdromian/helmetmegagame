@@ -85,8 +85,8 @@ documents:
       | Free | 0 | none — shared pool of 8 a turn | Medical (Basic) |
       | Very minor — first aid | 1–2 | none — shared pool of 8 a turn | Medical (Basic) |
       | Minor | 2 | none — shared pool of 8 a turn | Medical (Basic) |
-      | Moderately severe | 2–4 | ⅓ | Medical (Skilled) |
-      | Severe | 2–4 | ⅓ | Medical (Skilled) |
+      | Moderately severe | 2 | ⅓ | Medical (Skilled) |
+      | Severe | 3–4 | ⅓ | Medical (Skilled) |
       | Very minor surgery | 7 | ½ | Medical (Skilled) |
       | Severe surgery | 9 | ½ | Medical (Expert) |
       | Complex surgery | 14 | whole, and a Gambit | Medical (Expert) |
@@ -97,20 +97,21 @@ documents:
 
       **Very minor — 1–2 ⬢, no Move**
 
-      - {tag:bruised}, {tag:severe-pain}, {tag:hypothermia}, {tag:choking},
-        {tag:frostbite}
+      - {tag:bruised}, {tag:severe-pain}, {tag:hypothermia}, {tag:choking}
+      - {tag:frostbite} — cheap and quick, but it takes Medical (Skilled)
+        hands all the same ‡
 
       **Minor — 2 ⬢, no Move**
 
       - {tag:minor-wound}, {tag:burned}, {tag:sprained-ankle}, {tag:infected}
 
-      **Moderately severe — 2–4 ⬢, ⅓ Move**
+      **Moderately severe — 2 ⬢, ⅓ Move**
 
       - {tag:deep-wound}, {tag:broken-bone}, {tag:cracked-ribs},
         {tag:poisoned}, {tag:heatstroke}, {tag:pain-shock},
         {tag:blunt-force-trauma}, {tag:cave-fever}
 
-      **Severe — 2–4 ⬢, ⅓ Move**
+      **Severe — 3–4 ⬢, ⅓ Move**
 
       - {tag:severe-bleeding}, {tag:arterial-bleed}, {tag:parasites},
         {tag:severe-burns}, {tag:broken-jaw}, {tag:mangled-hand},

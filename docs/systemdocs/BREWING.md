@@ -101,10 +101,9 @@ Its ⬢ eased 6 → **3** with the second ingredient (Chris 2026-09-07): the rar
 catch is most of the price of the cure now, and 6 on top of both was a
 triple gate. Its own `cures:` list (the medical pass, TAGS.md §5c) is
 `poisoned`, `envenomated`, `phrygian-toxin` — not literally every poison in
-the catalog (nightshade's choking and soporific's asleep aren't on it), so
-"any poisoning" in its player-facing description overstates it; flagged for
-Bascinet rather than fixed here, since that description is outside this
-milestone's edit list.
+the catalog (nightshade's choking and soporific's asleep aren't on it). Its
+player-facing description says as much ("not every toxin bends to it") since
+the medical pass truthed it.
 `succubus-draught` regained a real gate the same day — it spends
 `nekker-pheromones`, butchered from a Nekker Corpse, which hides the recipe
 the same way (sells 18 with it; 7 sat below the brew's own ⬢ cost).
