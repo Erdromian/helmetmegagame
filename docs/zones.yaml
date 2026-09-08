@@ -439,7 +439,7 @@ zones:
             name: Basements
             description: >-
               Four connected basements, their separating walls knocked down. Originally some sort of hidden den, this now is a perfect place for organizing. It's accessed through the sewers.
-            access: [underquarter-basements]
+            access: [underquarter-basements, thanati, thanati-leader]
             stash:
               resources: 8
               items:
