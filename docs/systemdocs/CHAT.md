@@ -556,17 +556,32 @@ header instead).
   `gm_feed_remove` audit row after the removal, and a GM who DOES have a living
   character takes the player path — the rule `loadFeedViewer` already applies.
 - **The words themselves go through `ChatMarkdown.js`**, not
-  `MarkdownContent.js` — that one stays exactly as it is for DMs. It is
-  `react-markdown` + `remark-gfm` + `remarkTokens` + **`remarkChat.js`**, which
-  adds the three things a chat line does that a document never does:
-  `||spoilers||` (a `.chat-spoiler` button, click to reveal, stays revealed),
-  `-#` subtext lines, and **quoted speech** — a `"…"` span becomes
+  `MarkdownContent.js`, which is still the DM renderer. It is `react-markdown`
+  + `remark-gfm` + `remarkTokens` + **`remarkChat.js`**, which adds the two
+  things a chat line does that a document never does:
+  `||spoilers||` (a `.chat-spoiler` button, click to reveal, stays revealed)
+  and **quoted speech** — a `"…"` span becomes
   `<span class="speech">`, tinted with the `--speech` token declared in every
   theme block and gated at AA by `npm run audit:contrast`. The tint is there
   because a Chat row is narration and dialogue mixed, and the words somebody
   actually said are what a reader scans for. Plugin order is load-bearing:
   `remarkChat` runs **before** `remarkTokens`, or a mention in the middle of a
   quote splits the text node and the quote stops matching itself.
+  `remarkDiscord` splits text nodes the same way, so it sits after `remarkChat`
+  for the same reason, and `remarkSubtext` runs before both.
+- **`-#` subtext is `remarkSubtext.js`, and Discord's angle-bracket vocabulary
+  is `remarkDiscord.js`. Every renderer runs both**, with the lists in one file
+  (`markdownPlugins.js`) so they cannot drift again — which they had, and the
+  cost was two lobby DMs showing players a literal `<t:1788979216:F>` and a
+  stray `-#`. Neither is a style we chose; both are Discord's syntax, so they
+  belong wherever Discord-written text is read. The vocabulary is defined once
+  in `db/lib/discordMarkup.js` — a zero-requires leaf, the `dmKinds.js` rule —
+  and `db/test/discordMarkup.test.js` scans the source with the same patterns,
+  so a token the renderer has not been taught fails the run rather than
+  reaching a player. **No id is ever printed**: a mention resolves to a neutral
+  `someone`, a channel to `somewhere`, an emoji to its `:name:`.
+- **DMs still get no `remarkChat`.** No speech tint, no spoilers — a DM is a GM
+  and a player talking, not a scene.
 - **Mentions are `{char:<id>}` in the row, on both faces.** The composer's `@`
   autocomplete (`MentionMenu.js`) runs over `whosHere().named` — the people
   standing here, concealed ones deliberately absent — and inserts the token;

@@ -66,8 +66,8 @@ multipliers key on.
 
 | Event | kind | Base | Where |
 |---|---|---|---|
-| Arrive at a WILDERNESS Location | WILDERNESS | +2 | `applyArrivalFear`, from `locationMove.js` |
-| Arrive at a CAVE Location | CAVE | +3 | same |
+| Arrive at a WILDERNESS Location | WILDERNESS | +2 | `applyArrivalFear`, from `locationMove.js` — **capped, §3** |
+| Arrive at a CAVE Location | CAVE | +3 | same, and capped with it |
 | End the turn in the WILDERNESS | WILDERNESS | +10 | fear pass |
 | End the turn in a CAVE | CAVE | +14 | fear pass |
 | A new wound tag lands (`health-wounds`, `health-maiming`, `health-infection`) | WOUND | by rung, §4 | `applyWoundFear`, four writers |
@@ -95,10 +95,34 @@ Both attributes live in `db/lib/locationAttributes.js` and print on Examine.
 
 A **first placement** (creation, a spawn, a GM dropping somebody in from
 nowhere) has no `from` Location and charges no arrival fear: nobody walked.
-There is no per-turn ration on arrival fear on purpose — a mount's two
-crossings are two real arrivals, and walking eight cave Locations in a day is
-supposed to cost eight times what camping does, the same rule the Caving Die
-already applies.
+
+Arrival fear **is rationed**: everything a character's own legs add to the dial
+in one open turn, together, stops at `MOVE_FEAR_TURN_CAP` (**15**). This used
+to be uncapped, on the argument that eight cave Locations should cost eight
+times what camping does. What that missed is how cheap a step is next to the
+band table. A Refugee whose entire job is cutting Godflesh out of the Marshes
+walked five `wilderness` Locations — every godflesh site there is one — and hit
+Uncomfortable at exactly 10 on the first afternoon, before a single turn had
+closed and therefore before `NIGHTLY_DECAY` or a roof had ever subtracted
+anything. Pacing two tiles farmed the dial for free.
+
+Three things the ration is careful about:
+
+- It counts the delta that **actually landed**, after the multipliers and after
+  `GameConfig.fearIntensity`. Capping the base instead would hand Brave (factor
+  `0.5`) twice everyone else's allowance.
+- It counts **movement only**. A wound, a death seen, a turret burst and the
+  nightly place term all land in full on top of a capped-out day.
+- It keys off `term.move`, **not** off `kind`. `arrivalTermFor` and
+  `placeTermFor` return the same `WILDERNESS` / `CAVE` kinds, because kind is
+  what the multipliers read — a cave is a cave whether you walked in or slept
+  there. Only the flag separates a step from a night.
+
+The running total lives in `Character.moveFearTurnId` / `moveFearUsed`, the
+same claim-token shape as `zoneMovesTurnId` / `zoneMovesUsed` and written with
+the same guarded `updateMany`, so two arrivals in one tick cannot both spend
+the same remainder. Between turns there is no turn to ration against, so a move
+charges in full.
 
 ## 4. Wounds read the cure ladder
 

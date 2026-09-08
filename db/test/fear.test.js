@@ -10,6 +10,9 @@ const {
   EVENTS,
   bandOf,
   placeClassOf,
+  placeTermFor,
+  arrivalTermFor,
+  MOVE_FEAR_TURN_CAP,
   woundRungOf,
   woundFearFor,
   multiplierFor,
@@ -160,4 +163,71 @@ test("being tortured is +40 unless you cannot feel it", () => {
   assert.equal(hit(["brave", "pain-immunity"]), 0);
   // The zero is scoped: an Opium High does nothing for a wound.
   assert.equal(multiplierFor("WOUND", ["opium-high"]), 1);
+});
+
+// --- the movement ration (MOVE_FEAR_TURN_CAP) -----------------------------
+
+test("only an arrival is movement; a night in the same place is not", () => {
+  // The trap this locks down: arrivalTermFor and placeTermFor return the SAME
+  // `kind` for wilderness and caves, because kind is what the multipliers read.
+  // Only the `move` flag separates a step from a night, and the ration counts
+  // steps. Key the cap off `kind` and a night outdoors gets rationed too.
+  const wild = { attributes: { wilderness: true }, indoors: false, zone: { kind: "SURFACE" } };
+  const cave = { attributes: {}, indoors: false, zone: { kind: "CAVE_LEVEL" } };
+  assert.equal(arrivalTermFor(wild).move, true);
+  assert.equal(arrivalTermFor(cave).move, true);
+  assert.equal(arrivalTermFor(wild).kind, "WILDERNESS");
+  assert.equal(placeTermFor("WILDERNESS").kind, "WILDERNESS");
+  assert.ok(!placeTermFor("WILDERNESS").move);
+  assert.ok(!placeTermFor("CAVE").move);
+  // Indoors and havens cost nothing to walk into at all.
+  assert.equal(arrivalTermFor({ attributes: { haven: true }, indoors: true, zone: { kind: "SURFACE" } }), null);
+});
+
+test("movement fear stops at the cap, and the cap counts what landed", () => {
+  const k = 1;
+  const step = (held) => resolveDelta({ kind: "WILDERNESS", base: EVENTS.WILDERNESS_MOVE, heldSlugs: held, intensity: k });
+  const pooled = (n, held) => {
+    let sum = 0;
+    for (let i = 0; i < n; i += 1) sum += step(held);
+    return Math.min(sum, MOVE_FEAR_TURN_CAP);
+  };
+
+  const plain = new Set();
+  // The Refugee's afternoon: five marsh steps, exactly the Uncomfortable line.
+  assert.equal(pooled(5, plain), 10);
+  assert.equal(bandOf(pooled(5, plain)).slug, "uncomfortable");
+  // Under the cap nothing is clipped; over it, the day stops at 15.
+  assert.equal(pooled(7, plain), 14);
+  assert.equal(pooled(8, plain), 15);
+  assert.equal(pooled(40, plain), 15);
+
+  // Brave halves each step, so the same walk costs half — and the cap counts
+  // the delta that landed, not the base. Capping bases would have let Brave
+  // absorb 30 points of walking for the same 15-point ration.
+  const brave = new Set(["brave"]);
+  assert.equal(step(brave), 1);
+  assert.equal(pooled(8, brave), 8);
+  assert.equal(pooled(20, brave), 15);
+
+  // Outsider zeroes wilderness outright: a Brigand walks all day for nothing.
+  assert.equal(pooled(20, new Set(["outsider"])), 0);
+
+  // A cave is 3 a step, so the cap arrives two steps sooner.
+  const caveStep = resolveDelta({ kind: "CAVE", base: EVENTS.CAVE_MOVE, heldSlugs: plain, intensity: k });
+  assert.equal(caveStep, 3);
+  assert.equal(Math.min(caveStep * 5, MOVE_FEAR_TURN_CAP), 15);
+});
+
+test("the cap does not touch what is not movement", () => {
+  const k = 1;
+  const held = new Set();
+  // A capped day of walking, then a wound and a death in the same turn: both
+  // land in full on top, because only movement is pooled.
+  let fear = MOVE_FEAR_TURN_CAP;
+  fear += resolveDelta({ kind: "DEATH_SEEN", base: EVENTS.DEATH_SEEN, heldSlugs: held, intensity: k });
+  assert.equal(fear, 30);
+  // And the Cathedral's relief still applies while walking is capped out.
+  fear += resolveDelta({ kind: "CATHEDRAL", base: EVENTS.CATHEDRAL, heldSlugs: held, intensity: k });
+  assert.equal(fear, 20);
 });

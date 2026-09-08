@@ -1712,6 +1712,14 @@ model Character {
   zoneMovesTurnId String?
   zoneMovesUsed   Int     @default(0)
 
+  // The movement fear ration (db/lib/fear.js, MOVE_FEAR_TURN_CAP). Same claim-
+  // token shape as zoneMovesTurnId above, and not a foreign key for the same
+  // reason. Float because what it counts is the delta that actually landed,
+  // after the multipliers and after GameConfig.fearIntensity — Brave halves a
+  // step to 1, so the total is not an integer.
+  moveFearTurnId  String?
+  moveFearUsed    Float   @default(0)
+
   // The in-game DAY this character's bird last flew — the same claim token as
   // fastTravelTurnId above, for the same reason and with the same trap. A day
   // is TWO turns, so this stores String(describeTurn(openTurn).day) and NOT a

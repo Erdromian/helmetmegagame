@@ -5992,6 +5992,26 @@ label.chip {
 /* The composer's @ list. Anchored above the box rather than below it: the box
    already sits at the bottom of the screen, and a popover under it would open
    off the page. */
+/* ---- Discord's angle-bracket vocabulary (remarkDiscord.js) ---- */
+
+/* A <t:EPOCH:F> rendered as a real time. Framed like a mention rather than set
+   in mono: it sits mid-sentence in prose, and --font-mono is for a column of
+   data, not for a word inside a paragraph. Tabular figures so a relative label
+   ticking over does not shuffle the line. */
+.discord-time {
+  padding: 0 var(--sp-1);
+  border-radius: var(--radius-sm);
+  background: var(--row-hover);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A custom emoji as its name, and @here. Both muted: the picture one stood for
+   is not here, and the ping notified nobody on this side. */
+.discord-emoji,
+.discord-ping {
+  color: var(--muted);
+}
+
 .chat-mentions {
   position: absolute;
   bottom: 100%;

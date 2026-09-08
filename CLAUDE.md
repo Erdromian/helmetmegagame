@@ -651,6 +651,17 @@ loudest notification Discord has in the quietest text it renders was
 backwards. Full size, no helper. If something else ever needs to be *heard*
 rather than noticed, it belongs on that side of the line too.
 
+**Discord's angle-bracket syntax is safe on both faces now.** A `<t:EPOCH:R>`
+in DM text renders as a live relative time on Discord *and* on the web, in each
+reader's own timezone — so prefer it over a pre-formatted date. The same goes
+for `<@…>`, `<#…>`, `<:name:id>` and `@here`, though the web deliberately
+prints no id: a mention reads `someone`, a channel `somewhere`. Discord's `-#`
+subtext renders everywhere too. The vocabulary is defined once in
+`db/lib/discordMarkup.js` and rendered by `web/app/components/remarkDiscord.js`;
+`db/test/discordMarkup.test.js` fails the build on a token neither has been
+taught. Before this existed, two lobby DMs showed players a literal
+`<t:1788979216:F>`.
+
 Lines that quote or restate player/character content get a `»` prefix — e.g.
 `» {move description}`. `web/lib/discordGuild.js#sendDm` adds that prefix
 **automatically** to every DM a GM sends a player, so those callers pass raw

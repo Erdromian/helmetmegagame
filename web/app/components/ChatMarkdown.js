@@ -2,9 +2,7 @@
 
 import { memo, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkTokens from "./remarkTokens";
-import remarkChat from "./remarkChat";
+import { CHAT_PLUGINS, DISCORD_COMPONENTS } from "./markdownPlugins";
 import InfoIcon from "./InfoIcon";
 import CharacterAvatar from "./CharacterAvatar";
 import { useCharacterMentions } from "./CharacterMentionsProvider";
@@ -76,12 +74,11 @@ function ChatSpoiler({ children }) {
   );
 }
 
-// Order matters. remarkChat goes FIRST so a quoted sentence is wrapped while
-// it is still one run of text; remarkTokens then resolves any {char:…} inside
-// that wrapper. The other way round, a token in the middle of a quote splits
-// the text node in two and the quote no longer matches itself.
-const PLUGINS = [remarkGfm, remarkChat, remarkTokens];
-const COMPONENTS = { richtoken: ChatTokenRenderer, chatspoiler: ChatSpoiler };
+// The plugin list and its ordering rule now live in markdownPlugins.js, so
+// this renderer and the DM one cannot drift apart again — which is how a
+// Discord timestamp ended up as raw text in somebody's thread.
+const PLUGINS = CHAT_PLUGINS;
+const COMPONENTS = { richtoken: ChatTokenRenderer, chatspoiler: ChatSpoiler, ...DISCORD_COMPONENTS };
 
 // memo'd on the text, which is what makes "parsed once per row" true: a row is
 // keyed by seq in feedStore.js and its content only changes on an edit, so a
