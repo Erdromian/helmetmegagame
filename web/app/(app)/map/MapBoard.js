@@ -36,8 +36,8 @@ import { travelTo } from "../play/actions";
 //
 // The ring sits well outside the core rather than hugging it, so the two read
 // as a marker with a halo instead of one fat blob.
-const RIM = 13.5;
-const CORE = 9;
+const RIM = 12.15;
+const CORE = 8.1;
 // The floor is 1, not something smaller, and that is the whole "no blank
 // space" rule: at k=1 the plate exactly covers the window, so zooming out past
 // it is zooming out past the world. Paired with preserveAspectRatio="slice"
