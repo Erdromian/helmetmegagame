@@ -244,8 +244,8 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
     },
     turn: openTurn,
     line: created.locationId
-      ? `You are now the ${threat.name}. You wake as ${name}, in ${location?.name ?? "the dark"}. ‡`
-      : `You are now the ${threat.name}. You wake as ${name}. ‡`,
+      ? `You are now the ${threat.name}. You wake as ${name}, in ${location?.name ?? "the dark"}.`
+      : `You are now the ${threat.name}. You wake as ${name}.`,
   };
 }
 

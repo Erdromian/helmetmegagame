@@ -41,7 +41,7 @@ async function flattenTagTokens(lines) {
 // tail is the Role's own charter from docs/roles.yaml — its intro and its
 // description lines, Bascinet's words — never a second copy written here.
 // Assign hands a seat to a character who already has a role, so it carries no
-// charter at all. One ‡ for the whole message, at the very end.
+// charter at all. No ‡ — Bascinet signed off on these words on 2026-09-08.
 //
 // A seat with a `brief` (only the Thanati, who have no Role of their own —
 // db/lib/threats.js) reads it instead of the generic Assign opener, since its
@@ -53,8 +53,8 @@ async function seatMessage(threat, { role = null, spawned = false } = {}) {
     ? `You have been offered a seat: the ${threat.name}.`
     : `You are now the ${threat.name}!`;
   const tail = spawned
-    ? "Accept and you arrive immediately. Decline and nothing happens. ‡"
-    : "Check your tags and documents. ‡";
+    ? "Accept and you arrive immediately. Decline and nothing happens."
+    : "Check your tags and documents.";
   const brief = !spawned && threat.brief?.length ? threat.brief : [opening];
   const intro = role?.intro?.trim();
   const charter = await flattenTagTokens([...(intro ? [intro] : []), ...(role?.description ?? [])]);
