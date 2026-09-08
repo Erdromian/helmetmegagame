@@ -9,6 +9,7 @@ import { dmNoiseSql } from "@/lib/dmThread";
 export const PLAYER_NAV = [
   { href: "/character", label: "Character", icon: "character" },
   { href: "/play", label: "Play", icon: "play" },
+  { href: "/map", label: "Map", icon: "map" },
   { href: "/faction", label: "Faction", icon: "faction" },
   { href: "/notes", label: "Notes", icon: "notes" },
   { href: "/documents", label: "Documents", icon: "documents" },
@@ -32,6 +33,7 @@ export const GM_NAV = [
   // The GM's own player screens, in PLAYER_NAV's order minus Faction.
   { href: "/character", label: "Character", icon: "character", section: "player" },
   { href: "/play", label: "Play", icon: "play", section: "player" },
+  { href: "/map", label: "Map", icon: "map", section: "player" },
   { href: "/notes", label: "Notes", icon: "notes", section: "player" },
   { href: "/documents", label: "Documents", icon: "documents", section: "player" },
   { href: "/handbook", label: "Handbook", icon: "help", section: "player" },

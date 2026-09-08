@@ -453,16 +453,100 @@ The Lifeweb is the same rule with a fixed address: bleeding or feeding
 someone to the Web needs the Mortus **and** the target standing in the
 Fortress zone, because that is where the tower is (`REQUESTS.md` §5a).
 
-## 6. The web `/map` panel is gone
+## 6. The web `/map` panel
 
-The drawn Ravenheart plate, its pointcrawl overlay and the depth strip
-(`web/app/(app)/map/*`) were retired along with per-zone-only travel — a
-player-facing graph over dozens of Locations spanning multiple zones needs a
-different UI than four rhombus nodes, and nobody's built its replacement
-yet. The dormant `map: { polygon, label }` block is gone from
-`docs/zones.yaml` as well: it described the retired plate's four rhombi, and
-the geography it described no longer exists. The
-`Zone.mapPolygon`/`mapLabelX`/`mapLabelY` columns remain, now always null.
+`/map` is the travel graph drawn over the Ravenheart plate: one rhombus per
+Location, one line per edge the character may see, with the plate itself
+underneath. It replaced the retired four-rhombus zone panel, which went out
+with per-zone-only travel and left this note in its place for a while.
+
+Two hosts, **one component** (`web/app/(app)/map/MapBoard.js`): the `/map`
+route, and an overlay on `/play` opened by the place card's **Open map** and
+closed with Escape, the backdrop or Return to game. On a folded viewport the
+button navigates to the route instead of opening the overlay — a full-bleed
+board inside the phone's "Here" sheet would be a dialog inside a dialog.
+
+### 6a. The fog
+
+**A player sees the country they have walked, not the board.** Two grades:
+
+| Grade | Means | Draws |
+|---|---|---|
+| `stood` | been there | solid core, full label, description |
+| seen | only ever one step away from it | hollow core, muted label, **no** description |
+| — | neither | absent from the payload entirely |
+
+**Seen once, drawn forever.** Walking away never takes a place back off the
+map, so it only ever grows — which is also why the board can count itself
+("12 of 55") and have that mean something.
+
+`LocationVisit` is the record, and `db/lib/locationVisits.js` is the only
+module that touches it. There was nowhere to derive this from: `AuditLog` has
+no `locationId`, `ArchiveEntry` is keyed to a zone rather than a Location, and
+a free in-zone hop files no `Action` at all.
+
+Three things about it are easy to get wrong:
+
+- **The write hangs off `applyLocationMoveSideEffects`**, not
+  `performLocationMove` — §4's rule is that the first is what *every* writer of
+  `Character.locationId` runs, so a GM teleport, a first placement, a rite and
+  the arrival pass all record themselves. Hooking the mover would have left
+  each of those a hole.
+- **The neighbour write is a `createMany` with `skipDuplicates`**, and that is
+  load-bearing rather than an optimisation: it is what makes walking past a
+  door unable to downgrade a place you have actually stood in back to a
+  sighting.
+- **It reads `travelOptions`, never `LocationLink`.** A hidden crawl the
+  character cannot use is therefore never recorded, and can never be revealed
+  by the map later.
+
+`loadMap()` re-records the character's current Location on every open, so a
+sighting the post-commit hook dropped heals itself the next time they look.
+
+### 6b. What the fog must never leak
+
+**The fog is server-side, not CSS.** An unknown Location is absent from
+`loadMap`'s payload; it is not sent and hidden. A server action is a public
+endpoint.
+
+**An edge draws only when both ends are known *and* `crossingCheck` says
+`listed`.** That is the §2a rule applied to a picture: a locked door draws
+dashed and says why, a hidden crawl draws nothing at all and reads exactly like
+two places with no way between them. The three `hidden: caving` crawls are the
+only unknown ways into the Depths, and this is what keeps them that way.
+
+**The Underground switch is hidden until the character knows somewhere
+underground.** Offering it earlier would announce that a second layer exists.
+`customs` draws on both layers — it is the threshold, and hiding it from the
+surface would make the way down start nowhere.
+
+### 6c. Travel
+
+The map is a second **door** onto travel, never a second mover. Picking a
+reachable node opens the same confirm strip the Travel panel uses, reading the
+same numbers through `web/lib/travelCost.js#travelFoot` — extracted from
+`TravelNodes.js` precisely so the two surfaces cannot disagree about what a hop
+costs — and Go calls the same `travelTo`, which re-derives every gate
+server-side regardless.
+
+### 6d. The plate
+
+`docs/assets/map-nodes.json` places every Location on the art in image pixels,
+read at runtime through `web/lib/mapNodes.js` (the `web/lib/handbook.js`
+pattern, `docsPath()` rather than `__dirname`). A Location the table does not
+place is simply not drawn, rather than stacked on the origin. Surface nodes sit
+on the drawing; Caves and Depths are a schematic layer, since the plate draws no
+tunnels.
+
+The art is a raster and never follows the theme — but it was drawn with exactly
+one accent in it, `#57a9bc`, the water, and that blue answered to nothing. So
+the river is cut to an alpha mask (`docs/assets/make-map-river.py` →
+`web/public/assets/map-river.png`) and painted through it with `--map-river`,
+which each theme sets for itself. Everything else drawn on the plate — the
+rims, the cores, the ways — is tokens all the way down.
+
+`Zone.mapPolygon` / `mapLabelX` / `mapLabelY` are still there and still always
+null: they described the retired panel's four rhombi, and nothing reads them.
 
 ## 7. Where the code lives
 
@@ -479,4 +563,7 @@ the geography it described no longer exists. The
 | `db/lib/turnFormat.js` | `turnDay` — the in-game day a mount's second crossing is claimed against |
 | `db/lib/locationGraph.js` | `LocationLink` reads and the gating verdict — the only module that touches the edge model |
 | `db/lib/locationAttributes.js` | The attribute registry, its sync-time validation, and the prose Examine prints |
+| `db/lib/locationVisits.js` | The fog: what one character knows of the map. The ONLY module that reads or writes `LocationVisit` |
+| `web/app/(app)/map/` | `loadMap()`, the board, and the route — §6 |
+| `web/lib/travelCost.js` | `travelFoot` — what a hop costs, in the words both travel surfaces print |
 | `docs/zones.yaml` | The master: zones, Locations (with their seeded `structures:`), Rooms, and `connections:` with its edge types |

@@ -60,6 +60,10 @@ export default function ChatAside({
   // in here too and a flag called `sheet` was silently always truthy, which
   // is what kept HERE off the desktop column.
   inSheet = false,
+  // Chat.js owns the map overlay, not this component: ChatAside renders twice
+  // on a phone (the desktop column and the "Here" sheet), and a Modal mounted
+  // here would be two of them.
+  onOpenMap = null,
 }) {
   const { affordances: live, openFixture, openConverse, say, notice, error, pending, dialogs } =
     usePlaceActions(affordances, onPlaceChanged);
@@ -90,6 +94,7 @@ export default function ChatAside({
         onConverse={openConverse}
         depotHref={depotHref}
         onFactory={canSeeExtract && openAction ? () => openAction("extract") : null}
+        onOpenMap={onOpenMap}
         pending={pending}
       />
       {/* What the action said back. A server string a player reads, so it is

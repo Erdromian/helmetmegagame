@@ -1,0 +1,207 @@
+"use server";
+
+import { prisma } from "@lifeweb/db";
+import { auth } from "@/lib/auth";
+import { getGmSession } from "@/lib/discordGuild";
+import { crossingCheck, travelOptions } from "@lifeweb/db/lib/locationGraph";
+import { recordArrival, knownLocations } from "@lifeweb/db/lib/locationVisits";
+import { blocksOnFoot, equippedSlugs } from "@lifeweb/db/lib/mounts";
+import {
+  ESCORT_SELECT as MOVER_SELECT,
+  partyOf,
+} from "@lifeweb/db/lib/escort";
+import { freeMovesLeft, freeZoneMovesReason } from "@lifeweb/db/lib/locationTravel";
+import { nodeAt, plateSize, PLATE_SRC } from "@/lib/mapNodes";
+import { zoneKey } from "@/lib/zones";
+
+// The map's one loader. Both surfaces call it — the /map route and the overlay
+// on /play — so the fog is computed in exactly one place.
+//
+// THE FOG IS REAL, NOT CSS. A Location this character does not know is absent
+// from the payload entirely rather than sent and hidden: a server action is a
+// public endpoint, and anything shipped to the browser is shipped to the
+// player. The same goes for edges — a hidden crawl somebody lacks the tag for
+// is indistinguishable here from no edge at all, which is the wording rule
+// crossingCheck already enforces on refusals (MAP.md §2a).
+//
+// Travel itself is NOT here. Moving stays with travelTo on /play, so there is
+// one mover and one set of rules; this only says what a hop would cost, using
+// the same numbers the Travel panel does.
+
+// A zone is underground if it is a cave LEVEL. Caves and Depths are the two;
+// their CAVE_GROUP parent ("Underground") is a category and a GM seat, never a
+// place, so it never carries a Location and never appears here.
+function layerOfZone(zone) {
+  return zone?.kind === "CAVE_LEVEL" ? "under" : "surface";
+}
+
+// Customs is a Caves Location whose building is drawn on the surface plate. It
+// is the threshold between the two layers, so it draws on both — otherwise the
+// way underground appears to start nowhere.
+const BOTH_LAYERS = new Set(["customs"]);
+
+export async function loadMap() {
+  const session = await auth();
+  if (!session?.discordUserId) return { ok: false, error: "You are not signed in. ‡" };
+
+  const character = await prisma.character.findFirst({
+    where: { discordUserId: session.discordUserId, status: "ALIVE" },
+    select: MOVER_SELECT,
+  });
+
+  // A GM with no living character reads the whole plate. They are running the
+  // game; a fogged map would be a tool that hides the thing it is for. A GM
+  // who IS playing somebody gets their character's map like anyone else —
+  // /map sits in the player half of the rail, not the job half.
+  if (!character) {
+    const { isGm } = await getGmSession();
+    if (!isGm) return { ok: false, error: "You have no living character. ‡" };
+    return buildMap({ character: null, unfogged: true });
+  }
+
+  // Self-healing. applyLocationMoveSideEffects records every arrival, but it
+  // runs post-commit and every caller swallows its errors, so a dropped write
+  // would leave a permanent hole. Re-recording where they stand on every open
+  // costs one upsert and closes that gap.
+  if (character.locationId) {
+    await recordArrival(prisma, character, character.locationId).catch(() => {});
+  }
+
+  return buildMap({ character, unfogged: false });
+}
+
+async function buildMap({ character, unfogged }) {
+  const { width, height } = plateSize();
+
+  const [locations, links, config, openTurn] = await Promise.all([
+    prisma.location.findMany({
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        indoors: true,
+        zone: { select: { name: true, kind: true } },
+      },
+    }),
+    prisma.locationLink.findMany(),
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    prisma.turn.findFirst({ where: { status: "OPEN" } }),
+  ]);
+
+  const known = character
+    ? await knownLocations(prisma, character.id)
+    : { stood: new Set(), seen: new Set() };
+
+  // Where they can go from here, already gated and costed — the same call the
+  // Travel panel makes, so the two can never disagree about a hop.
+  const neighbours =
+    character?.locationId && !character.travelToLocationId
+      ? await travelOptions(prisma, character, character.locationId)
+      : [];
+  const adjacent = new Map(neighbours.map((row) => [row.location.id, row]));
+
+  const party = character ? await partyOf(prisma, character.id) : [];
+
+  const tagSlugs = new Set((character?.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
+  const onFootBlocked = blocksOnFoot(equippedSlugs(character?.tags ?? []));
+  // One clock for the whole graph, so a propped-open way cannot lapse halfway
+  // through the loop and draw open at one end and shut at the other.
+  const now = new Date();
+
+  const visible = (id) => unfogged || known.seen.has(id) || adjacent.has(id);
+
+  const nodes = [];
+  for (const location of locations) {
+    if (!visible(location.id)) continue;
+    // Placed on the art, or not drawn. A Location added to docs/zones.yaml but
+    // never measured onto the plate would otherwise stack on the origin.
+    const at = nodeAt(location.slug);
+    if (!at) continue;
+
+    const here = Boolean(character?.locationId && location.id === character.locationId);
+    const near = adjacent.get(location.id) ?? null;
+    const stood = unfogged || known.stood.has(location.id);
+
+    nodes.push({
+      id: location.id,
+      slug: location.slug,
+      name: location.name,
+      zoneName: location.zone?.name ?? null,
+      zoneKey: zoneKey(location.zone?.name) ?? "none",
+      x: at.x,
+      y: at.y,
+      layer: layerOfZone(location.zone),
+      both: BOTH_LAYERS.has(location.slug),
+      state: here ? "here" : stood ? "stood" : "seen",
+      // A place seen once from next door is a name and a colour. The
+      // description is what standing there buys you — or what the way out is
+      // already telling you, for somewhere adjacent right now.
+      description: stood || near ? location.description || null : null,
+      indoors: Boolean(location.indoors),
+      adjacent: Boolean(near),
+      passable: Boolean(near?.passable),
+      crossesZone: Boolean(near?.crossesZone),
+      dismounts: Boolean(near?.dismounts),
+      reason: near?.refusal ?? null,
+    });
+  }
+
+  const shown = new Set(nodes.map((n) => n.id));
+
+  // An edge draws only when both ends are known AND the way is LISTED for this
+  // character. `listed` is weaker than `passable` (MAP.md §2a): a locked door
+  // draws dashed and says why, a hidden crawl draws nothing at all and reads
+  // exactly like two places with no way between them.
+  const edges = [];
+  for (const link of links) {
+    if (!shown.has(link.aId) || !shown.has(link.bId)) continue;
+    const verdict = crossingCheck(link, { tagSlugs, onFootBlocked, now });
+    // The GM sees every way, including the ones no character could. Only the
+    // `listed` filter is lifted — the verdict itself still decides how a way
+    // is drawn, so a shut gate reads as shut on their board too.
+    if (!unfogged && !verdict.listed) continue;
+    edges.push({ a: link.aId, b: link.bId, gate: gateOf(link, verdict) });
+  }
+
+  const layers = ["surface"];
+  if (nodes.some((n) => n.layer === "under")) layers.push("under");
+
+  const heading = character?.travelToLocationId
+    ? (locations.find((l) => l.id === character.travelToLocationId)?.name ?? null)
+    : null;
+
+  return {
+    ok: true,
+    plate: { src: PLATE_SRC, width, height },
+    you: {
+      locationId: character?.locationId ?? null,
+      layer: layerOfZone(locations.find((l) => l.id === character?.locationId)?.zone),
+      gm: unfogged,
+    },
+    layers,
+    nodes,
+    edges,
+    travel: character
+      ? {
+          heading,
+          freeLeft: freeMovesLeft(character, config, openTurn, party.length),
+          freeReason: freeZoneMovesReason(character, party.length),
+          mounted: onFootBlocked,
+          partySize: party.length,
+        }
+      : null,
+    known: nodes.length,
+    total: locations.length,
+  };
+}
+
+// What to draw the line as. Only the two states a player can DO something
+// about get a mark — a locked way sends you looking for the key, a shut one
+// sends you to the winch. Everything else is just a road.
+function gateOf(link, verdict) {
+  if (verdict.passable) return null;
+  if (link.modular && !link.isOpen) return "shut";
+  if (link.requiredTagSlug) return "locked";
+  return "closed";
+}

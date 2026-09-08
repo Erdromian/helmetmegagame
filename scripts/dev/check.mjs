@@ -32,6 +32,7 @@ const DEFAULT_ROUTES = [
   // Player surfaces.
   { path: "/character", as: "player" },
   { path: "/play", as: "player" },
+  { path: "/map", as: "player" },
   { path: "/documents", as: "player" },
   { path: "/faction", as: "player" },
   { path: "/notes", as: "player" },
@@ -67,6 +68,7 @@ const DEFAULT_ROUTES = [
   // The gates themselves. A pass here means the door is still shut.
   { path: "/character", as: "anon", expect: "/" },
   { path: "/play", as: "anon", expect: "/" },
+  { path: "/map", as: "anon", expect: "/" },
   { path: "/gm/turns", as: "anon", expect: "/" },
   { path: "/gm/turns", as: "player", expect: "/character" },
   { path: "/gm/players", as: "player", expect: "/character" },
