@@ -17,6 +17,13 @@ import MoveThingsDialog from "./MoveThingsDialog";
 import DestroyDialog from "./DestroyDialog";
 import PackageDialog from "./PackageDialog";
 import PurchaseDialog from "./PurchaseDialog";
+import HealDialog from "./HealDialog";
+import LessonDialog from "./LessonDialog";
+import WriteDialog from "./WriteDialog";
+import SealDialog from "./SealDialog";
+import BirdDialog from "./BirdDialog";
+import ExamineAction from "./ExamineAction";
+import CraftAction from "./CraftAction";
 
 // Instant verbs. Each is `{ run, confirm }`: `run()` is the server action,
 // `confirm(pools)` is the one-line question to ask first, or null for none.
@@ -82,6 +89,15 @@ export const DIALOGS = {
   destroy: DestroyDialog,
   package: PackageDialog,
   purchase: PurchaseDialog,
+  heal: HealDialog,
+  learn: LessonDialog,
+  teach: LessonDialog,
+  confess: LessonDialog,
+  write: WriteDialog,
+  seal: SealDialog,
+  bird: BirdDialog,
+  examine: ExamineAction,
+  craft: CraftAction,
 };
 
 // The shortcut past the picker. When a dialog is opened with the one thing it
