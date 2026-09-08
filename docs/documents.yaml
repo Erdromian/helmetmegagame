@@ -74,9 +74,10 @@ documents:
       **Serious surgery needs a site.** Anything past "very minor surgery" in
       the table needs {tag:surgical-equipment} — held, or already laid out in
       the room — or a Surgical Theater; the Sanctuary's operating theatre has
-      one. It also adds +1 to the die on a medical Gambit, and a held
-      {tag:portable-surgical-pack} stands in for that +1 once, if nothing
-      else is in reach. ‡
+      one. A {tag:portable-surgical-pack} opens the same door when nothing
+      better is around, but it's a lesser site: working off the pack alone
+      costs the Gambit a −1. Bring real equipment, or work somewhere a
+      Theater already stands, and the penalty is gone. ‡
 
       {tag:medical-basic} · {tag:medical-skilled} · {tag:medical-expert}
 
@@ -133,9 +134,25 @@ documents:
         {tag:blind}, {tag:crippled-leg}, {tag:phrygian-toxin}
 
       Some tonics and dressings cure specific tags outright, no medic needed
-      — see {document:alcoholdrugs}. Anyone can hand one to a person standing
-      with them, but a few — the prosthetics — need Medical (Expert) to fit,
-      even onto yourself. ‡
+      — see the Recipes tab on the Documents page for what's brewed or
+      cooked. Anyone can hand one to a person standing with them, but a few —
+      the prosthetics — need Medical (Expert) to fit, even onto yourself. ‡
+
+      **Prosthetics.** Four are public knowledge — fitted, not worn, and only
+      by a hand with Medical (Expert):
+
+      | Prosthetic | Cures | Leaves behind | Made by |
+      |---|---|---|---|
+      | {tag:wooden-leg} | {tag:missing-leg} | {tag:peg-leg} | Smithing |
+      | {tag:iron-hook} | {tag:missing-arm} | {tag:hook-hand} | Smithing |
+      | {tag:prosthetic-hand} | {tag:missing-fingers} | {tag:prosthetic-hand-worn} | Smithing (Skilled) |
+      | {tag:glass-eye} | {tag:missing-eye} | {tag:glass-eye-worn} | Smithing (Skilled) |
+
+      Fitting one is administering it — a ½ Move, the same as any other
+      administered cure. It doesn't erase what was lost so much as answer
+      it: the maiming is cured outright, but the cosmetic aftermath in the
+      table above stays with you. Nobody sells these off a shelf; a smith
+      has to make one first. ‡
   sanctuary:
     name: Sanctuary
     public: true
@@ -271,7 +288,7 @@ documents:
 
       Cerberi also carry a {tag:radio-bracelet-cerberon}, which connects to the Censor's {tag:radio-system-cerberon}.
 
-      **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see {document:smithing} for options).**
+      **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see the Recipes tab on the Documents page for options).**
   postchristianity:
     name: Post-Christianity
     public: true
@@ -283,119 +300,6 @@ documents:
       - Christ never returned. The Earth was ruined, and we were left behind. It is our responsibility to redeem ourselves and await the afterlife.
       - There is a heaven, so we can endure anything that happens here — just remain pure.
       - There is also a hell, so we must protect others from descending into the spiritual darkness that's consumed the rest of the world.
-  smithing:
-    name: Smithing and Crafting
-    public: true
-    tags:
-      - Crafting
-      - Smithing
-      - Smithing (Skilled)
-      - Smithing (Gunpowder)
-    description: |-
-      Like brewing or cooking, smithing costs Resources, turns, and is gated by skills.
-
-      {tag:crafting} — tailoring, woodwork and Dead Simple metalwork.
-      {tag:smithing} — Simple metalwork.
-      {tag:smithing-skilled} — everything from Moderate upward. Requires Smithing.
-      {tag:smithing-gunpowder} — firearms and bombs. Requires Smithing (Skilled).
-
-      | Tier | ⬢ | Turns | Skill |
-      |---|---|---|---|
-      | Dead Simple | 3 | 0 | Crafting, or Smithing at a forge |
-      | Simple | 6 | 1 | Smithing |
-      | Moderate | 14 | 1 | Smithing (Skilled) |
-      | High Quality | 26 | 2 | Smithing (Skilled) |
-      | Exceptional | 34 | 3 | Smithing (Skilled) |
-      | Gunpowder | 31 | 2 | Smithing (Gunpowder) |
-
-      Metalwork needs a forge — Workshop Equipment held, sitting in a room you
-      can get into where you stand, or a {tag:forge} standing at the place. Work
-      you can do with your hands needs nothing.
-
-      **Dead Simple — 3 ⬢, no turn**
-
-      - Crafting, no forge: {tag:sling}, {tag:quarterstaff}, {tag:shortbow},
-        {tag:buckler}, {tag:padded-armor}, {tag:padded-cap}, {tag:hood},
-        {tag:bag}, {tag:fishing-rod}
-      - {tag:barbed-net} needs Crafting and Fundamentalist both — only the Order
-        knows how they are tied.
-      - Smithing, at a forge: {tag:work-knife}, {tag:hatchet}, {tag:pitchfork},
-        {tag:cudgel}, {tag:armored-gloves}
-      - {tag:bone-mask} needs Butcher instead.
-
-      **Simple — 6 ⬢, 1 turn**
-
-      - Weapons: {tag:gladius}, {tag:mace}, {tag:battle-axe}
-      - Small metalwork, a third of a turn's work each — up to three in one
-        Routine: {tag:spear}, {tag:dagger}, {tag:silver-knife},
-        {tag:phrygian-spear} ‡
-      - Armor: {tag:simple-helm}, {tag:mail-coif}
-      - Mail Coif needs Smithing. Crafting instead of Smithing: {tag:longbow},
-        {tag:shield}, {tag:pavise}, {tag:trapping-gear}
-
-      **Moderate — 14 ⬢, 1 turn**
-
-      - Weapons: {tag:halberd}, {tag:broadsword}, {tag:war-hammer}, {tag:knuckle-duster}
-      - Armor: {tag:mail-shirt}, {tag:gladiator-helmet}
-
-      **High Quality — 26 ⬢, 2 turns**
-
-      - Weapons: {tag:bastard-sword}, {tag:rapier}, {tag:sabre}, {tag:katana},
-        {tag:silver-spear}, {tag:lucerne}, {tag:zweihander}, {tag:crossbow}
-      - Armor: {tag:knights-helmet}, {tag:censors-helmet}, {tag:breastplate},
-        {tag:brigandine} (hidden under clothes)
-
-      **Exceptional — 34 ⬢, 3 turns**
-
-      - Armor: {tag:plate-armor}.
-
-      **Gunpowder — 31 ⬢, 2 turns**
-
-      - Weapons: {tag:musketoon}, {tag:bore-pistol}
-      - {tag:bomb} — each one is built around a charge of {tag:black-powder},
-        used up in the making.
-
-      One smaller piece of powder-work, at its own price:
-
-      - {tag:black-powder} — 3 ⬢, 1 turn. Refines one {tag:saltpeter}, used
-        up.
-
-      **Odds and ends.** These sit off the tiers above — their own price, their
-      own skill:
-
-      - {tag:salvage-plate} — 5 ⬢, 1 turn, no skill at all. Scrap lashed
-        together by anyone desperate enough.
-      - {tag:bear-trap} — 5 ⬢, 1 turn, Smithing.
-      - {tag:trench-knife} — 8 ⬢, 1 turn, Smithing.
-      - {tag:gunpowder-grenade} — 6 ⬢, 1 turn, Smithing (Skilled). No
-        powder in it — just one raw {tag:saltpeter}, used up.
-      - {tag:disguise-kit}, {tag:jester-outfit} — 8 ⬢, 1 turn, Crafting.
-      - Any {tag:wax-seal-ox} or other courtier seal — 2 ⬢, 1 turn, Forger.
-        A brigand's trade: the mark is somebody else's, and you can only carry
-        one at a time.
-      - {tag:workshop-equipment} — 26 ⬢, 2 turns, Smithing (Skilled). The one
-        piece of smith's work you can do without a forge, because otherwise
-        nobody could ever make the first one.
-      - {tag:painting} — 4 turns, a set of {tag:art-supplies}, and Artist.
-      - {tag:sketch} — 1 ⬢, half a turn's work, Artist. Two to a Routine. ‡
-      - {tag:badge} — 2 ⬢, 1 turn, Crafting.
-      - {tag:hat} — 3 ⬢, 1 turn, Crafting.
-      - {tag:burn-dressing} — 4 ⬢, half a turn's work, Medical (Skilled). ‡
-      - {tag:portable-surgical-pack} — 8 ⬢, 1 turn, Medical (Expert). Stands
-        in for Surgical Equipment's +1 on a single Gambit, once, and never
-        while real equipment is already in reach. ‡
-      - {tag:wooden-leg}, {tag:iron-hook} — 6 ⬢, 1 turn, Smithing. Fitting
-        one onto somebody (or yourself) needs Medical (Expert) instead —
-        the craft and the fitting are two different jobs. ‡
-      - {tag:prosthetic-hand}, {tag:glass-eye} — 12 ⬢, 1 turn, Smithing
-        (Skilled). Same fitting rule as above. ‡
-
-      **Make it your own.** A few crafts — the {tag:badge}, the {tag:hat},
-      the {tag:painting}, the {tag:sketch}, and a cook's meals — can be made
-      as YOURS: pay 1 ⬢ extra per piece and give it your own name and
-      description. A named piece always shows what it is underneath, so a
-      "Dockers' Mark (Badge)" is still plainly a badge. ‡
-
   caving:
     name: Caving
     public: true
@@ -428,82 +332,6 @@ documents:
     tags: []
     description: |-
       The Charon is a one-way spaceship. It'll take its passengers out into space, where a passenger liner called the Leviathan is allegedly waiting for refugees. The Charon's hatch can be accessed through the Undercroft.
-  meals:
-    name: Meals & Kitchens
-    public: true
-    tags:
-      - Cooking (Basic)
-      - Cooking (Skilled)
-      - Nobility
-    description: |-
-      Fine meals make average people happy, but Nobility have them as a baseline. They need to eat them every once in a while or they'll be unhappy. Lavish meals make everyone happy and are valid objects of a Desire.
-
-      **{tag:fine-meal}:** cost 2 ⬢ per meal. You can make up to 4 Fine meals in one Routine Move.
-      **{tag:trail-ration}:** cost 2 ⬢ per ration. Weighs next to nothing — the meal you pack for a long walk. Up to 4 in one Routine Move. ‡
-      **{tag:lavish-meal}:** cost 3 ⬢ per meal, plus one delicacy per meal — {tag:tea} or {tag:sweets} off the Depot's shelf, or {tag:fish-roe} if you can get it. Your pick, and it is used up. You can make up to 3 Lavish meals in one Routine Move. ‡
-
-      **A dish of your own.** Either meal can be cooked as a signature dish for 1 ⬢ extra per meal: you name it and describe it, and it still plainly shows what it is — "Steak Dinner (Lavish Meal)".
-  alcoholdrugs:
-    name: Alcohol & Drugs
-    public: true
-    tags:
-      - Brewing (Basic)
-      - Brewing (Skilled)
-      - Alcoholic
-    description: |-
-      Like cooking or smithing, brewing costs Resources, turns, and is gated
-      by a skill. Many brews also need special ingredients.
-
-      {tag:brewing-basic} — alcohol and the simple tonics.
-      {tag:brewing-skilled} — wine and everything that needs a hard-to-find
-      ingredient. Requires Brewing (Basic).
-
-      A couple of tonics below are Medical work rather than Brewing —
-      {tag:medical-skilled} instead — but they're brewed the same way and
-      sit on the same shelf. ‡
-
-      Every ingredient below is a real thing you have to be holding, and the
-      brewing uses it up unless the row says otherwise.
-
-      **Brewing (Basic)**
-
-      | Brew | ⬢ | Turns | Needs |
-      |---|---|---|---|
-      | {tag:bliss} | 0 | — (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:cave-fungus} |
-      | {tag:feces} | 0 | — (yields up to 2 per turn) | — |
-      | {tag:alcohol} | 2 | 1 (yields up to 3 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
-      | {tag:miasma} | 2 | 1 | a corpse {info:You must be holding one. It is not used up.} |
-      | {tag:poppy} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:poppy-pods} |
-      | {tag:molotov-cocktail} | 2 | — (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:alcohol} |
-      | {tag:cleaning-powder} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
-      | {tag:cat} | 3 | 1 | {tag:alcohol} |
-      | {tag:nightshade} | 3 | 1 | {tag:nightshade-herb} |
-      | {tag:moonshine} | 0 | 1 | {tag:godflesh} |
-
-      **Brewing (Skilled)**
-
-      | Brew | ⬢ | Turns | Needs |
-      |---|---|---|---|
-      | {tag:deadeye-drops} | 2 | 1 | {tag:cave-fungus} |
-      | {tag:mercy} | 3 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:cave-fungus} |
-      | {tag:mindbreaker-toxin} | 2 | 1 | {tag:cave-fungus} |
-      | {tag:ravenheart-red} | 4 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:alcohol} |
-      | {tag:distilled-coca} | 4 | 1 | {tag:coca-leaves} |
-      | {tag:advanced-poppy} | 4 | 1 | {tag:poppy} |
-      | {tag:phrygian-tears} | 4 | 2 | {tag:nightshade} and {tag:cave-fungus} |
-      | {tag:purifier} | 6 | 1 | {tag:cave-fungus} |
-      | {tag:forgiveness} | 8 | 1 | {tag:poppy} |
-      | {tag:mulligan-potion} | 8 | 2 | — |
-      | {tag:flawless-skin} | 8 | 1 | — |
-
-      **Medical (Skilled)**
-
-      | Tonic | ⬢ | Turns | Needs |
-      |---|---|---|---|
-      | {tag:fever-draught} | 3 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
-      | {tag:antidote} | 4 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
-
-      Rumor has it the skilled brewers of past generations knew recipes beyond these — worked from stranger ingredients than any listed here. If something rare and organic finds its way into your hands, a still is one way to ask it questions. ‡
   # GM-only. The `gamemaster` flag is not a property of any Character — the
   # documents page resolves it against the Discord GM role at request time,
   # the same check that gates /gm. Filtered server-side, so a player's browser

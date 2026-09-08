@@ -196,7 +196,7 @@ consumed like any brew's):
 
 The grenade came over from Brewing (Skilled) on 2026-09-05 — a powder device
 out of a still was always odd — and its group moved to `items-weapons` with
-it, which is what files it under the Smithing paper in `db:audit-craft-docs`.
+it, the Smithing-family group the Recipes tab renders by.
 Renamed **Crude Grenade** and dropped to Smithing (Skilled) on 2026-09-06
 (Chris): it packs raw saltpeter, not powder, so the Gunpowder rung keeps only
 the true powder-work — `black-powder`, the Bomb, the guns. The slug stays

@@ -124,8 +124,8 @@ Both are Bascinet's words verbatim and carry no ‡.
 The fourth standing kit beside Workshop, Surgical and Packaging Equipment
 (`db/lib/equipmentReach.js`): `torturing-equipment`, 20 lb, tradeable,
 `purchasable: false`, `pointCost: 0`. It carries no `group` on purpose, like
-Surgical Equipment, so `db:audit-craft-docs` does not demand a line for it in
-the Smithing paper.
+Surgical Equipment — the Recipes tab renders by group, and neither kit is a
+recipe a player crafts off a shelf.
 
 **Recipe:** 1 turn, 2 ⬢, `skills: [torturer]`, `items: [work-knife, hatchet,
 cudgel]`, all three **spent**. The gate is the Torturer tag itself — a

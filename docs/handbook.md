@@ -30,9 +30,10 @@
     - [Gaining, Using, and Losing Tags](#gaining-using-and-losing-tags)  
     - [Examining Tags](#examining-tags)  
     - [Health Tags](#health-tags)  
-10. [Building](#building)  
-11. [Character Page](#character-page)  
-12. [Death](#death)  
+10. [Crafting](#crafting)  
+11. [Building](#building)  
+12. [Character Page](#character-page)  
+13. [Death](#death)  
 
 
 ## About Bascinet
@@ -416,7 +417,23 @@ You can see the costs, Moves, and skills required in the Medical Document: {docu
 
 When a health tag worsens, the bot will DM you. Find a doctor before the tag shows `· last` if you want to stay alive.
 
-Even if a doctor doesn't possess the skills needed to heal an injury or ailment, they may always *attempt* something above their tier. That requires a Gambit, and there's a very real chance of making it worse. The most serious surgeries also need a proper surgical setup — Surgical Equipment in reach, or a Surgical Theater — before anyone can attempt them at all. ‡
+Even if a doctor doesn't possess the skills needed to heal an injury or ailment, they may always *attempt* something above their tier. That requires a Gambit, and there's a very real chance of making it worse. The most serious surgeries also need a site — Surgical Equipment in reach, a Surgical Theater, or a Portable Surgical Pack — before anyone can attempt them at all. Bring the real kit or work in a Theater and there's no downside; lean on the pack alone and the roll takes a −1 for it. ‡
+
+## Crafting
+
+Press **Craft** on your [Character](https://ravenheart.quest/character) page, pick a recipe you already hold the skills for, and it pays its ⬢ cost right away — from your own purse, a room stash you're in, or someone standing with you who agrees to pay. It files as your Routine for the turn. A **Dead Simple** recipe needs no Move at all, just a cap of 4 a turn; anything past that becomes a real Move, and a long recipe becomes a multi-turn **project** you keep working at from the same button turn after turn — or cancel outright, with no refund for what's already gone in. ‡
+
+**What you can make depends on your skills.** A handful of skill families gate crafting, each opening a different slice of the world's recipes:
+
+- **Crafting** — tailoring, woodwork, and the simplest metalwork (Dead Simple tier), no forge needed.
+- **Smithing**, **Smithing (Skilled)**, and **Smithing (Gunpowder)** — proper metalwork, each rung opening heavier and more expensive gear than the last. Anything past Dead Simple metalwork needs a **forge**: Workshop Equipment held, sitting in a room you can get into where you stand, or a forge standing at the place. Work you can do with your hands alone needs nothing.
+- **Cooking (Basic)** and **Cooking (Skilled)** — meals. Fine and Lavish meals each have their own cap per Routine, and a Lavish meal wants a delicacy off the Depot's shelf besides its ⬢.
+- **Brewing (Basic)** and **Brewing (Skilled)** — alcohol, tonics, and poisons. Nearly every brew spends a real ingredient you have to be holding, used up in the making unless its own recipe says otherwise. A couple of tonics are Medical work rather than Brewing, but they're brewed the same way and sit on the same shelf.
+- **Medical (Skilled)** and **Medical (Expert)** — a few dressings and tonics, plus the prosthetics: fitting one onto a maiming (even your own) is a separate job from making it, and needs Medical (Expert) even if a smith built the thing.
+
+**Make it your own.** A few crafts — a badge, a hat, a painting, a sketch, and a cook's meals — can be made as truly YOURS: pay 1 ⬢ extra and give it your own name and description. A named piece always still plainly shows what it is underneath, so a "Dockers' Mark (Badge)" reads as a badge regardless of what you called it. ‡
+
+**Finding a recipe.** Every recipe the world knows how to make — priced, skill-gated, and always current — lists on the **Recipes tab** of the [Documents](https://ravenheart.quest/documents) page, whether or not you personally hold the skills or ⬢ for it yet. A few recipes are withheld from that list on purpose: they only appear in your own Craft menu once you're already holding the rare ingredient they need. That's deliberate — finding the thing is how you learn the recipe, not the other way around. ‡
 
 ## Building
 
