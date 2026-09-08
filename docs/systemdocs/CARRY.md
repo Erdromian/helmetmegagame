@@ -104,7 +104,7 @@ nothing.
 | Medium | 4–6 | spear, mace, helm, halberd, fishing rod |
 | Heavy | 8–12 | crossbow, rifle, shield, bear trap, padded armor |
 | Very Heavy | 20–30 | mail shirt, breastplate, pavise, Godflesh |
-| Massive | 40–75 | plate armor, flamethrower, a creature's corpse |
+| Massive | 40–75 | plate armor, flamethrower, a corpse (a person's or a creature's) |
 | Immense | 100 | workshop equipment, a nuclear device |
 
 **A thing with an obvious real weight gets that weight**, and the band is for
