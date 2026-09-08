@@ -87,9 +87,20 @@ export default function ActionBar({
   const [transferFromKey, setTransferFromKey] = useState("");
   const [transferToKey, setTransferToKey] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
+  const [teleportQuery, setTeleportQuery] = useState("");
 
   const alive = character.status === "ALIVE";
   const heldIds = new Set(held.map((h) => h.tagId));
+
+  // Name or zone, case-insensitive — there are 50+ Locations and no grouping
+  // in this list, so typing "town" or "gate" is the only fast way to one.
+  const teleportMatches = useMemo(() => {
+    const q = teleportQuery.trim().toLowerCase();
+    if (!q) return locations ?? [];
+    return (locations ?? []).filter(
+      (l) => l.name.toLowerCase().includes(q) || (l.zoneName ?? "").toLowerCase().includes(q),
+    );
+  }, [locations, teleportQuery]);
 
   // The Transfer dialog's party picker: this character plus every other
   // ALIVE character. This panel just preselects the "To" side as this
@@ -263,7 +274,10 @@ export default function ActionBar({
             icon={MapIcon}
             label={alive ? `Teleport ${character.name}` : "A corpse can't be moved"}
             disabled={pending || !alive}
-            onClick={() => setDialog("teleport")}
+            onClick={() => {
+              setTeleportQuery("");
+              setDialog("teleport");
+            }}
           />
           <IconButton
             icon={ResourcesIcon}
@@ -404,8 +418,18 @@ export default function ActionBar({
       {dialog === "teleport" && (
         <Modal modeless title={`Teleport ${character.name}`} onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
+            <label className="field">
+              <span className="field-label">Search</span>
+              <input
+                autoFocus
+                value={teleportQuery}
+                onChange={(e) => setTeleportQuery(e.target.value)}
+                placeholder="Location or zone…"
+              />
+            </label>
+            {teleportMatches.length === 0 && <p className="text-muted text-sm">Nothing matches that.</p>}
             <ul className="flex flex-col gap-2">
-              {(locations ?? []).map((l) => (
+              {teleportMatches.map((l) => (
                 <li key={l.id}>
                   <button
                     type="button"
