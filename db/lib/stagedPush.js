@@ -66,7 +66,7 @@ class StagedZoneError extends Error {}
 // One transaction per row, never one around the batch: one bad row must not
 // roll back a hundred good ones. Returns what the row actually moved, for the
 // appliedEffect snapshot.
-async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
+async function applyOneStagedEffect(prisma, row, turn) {
   return prisma.$transaction(async (tx) => {
     // The claim IS the double-apply guard: a resumed pass re-selects
     // appliedAt: null, so this updateMany comes back 0 for anything the
@@ -137,7 +137,6 @@ async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
         ops,
         tagsById,
         openTurn: { ...turn, number: turn.number + 1 },
-        equipSlots,
       });
     }
 
@@ -176,7 +175,6 @@ async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
 }
 
 async function runStagedPushPass(prisma, turn, config) {
-  const equipSlots = config?.equipSlots ?? 6;
   const failures = [];
 
   // ── 1. GM-staged effects ─────────────────────────────────────────────────
@@ -192,7 +190,7 @@ async function runStagedPushPass(prisma, turn, config) {
   });
   for (const row of stagedEffects) {
     try {
-      const snapshot = await applyOneStagedEffect(prisma, row, turn, equipSlots);
+      const snapshot = await applyOneStagedEffect(prisma, row, turn);
       if (snapshot) {
         effectsApplied += 1;
         if (snapshot.location) {

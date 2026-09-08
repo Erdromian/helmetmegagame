@@ -1,5 +1,6 @@
 "use client";
 
+import { WEAPON_HANDS, handsUsed } from "@lifeweb/db/lib/equipSlots";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { tagsById as buildTagsById } from "@/lib/characterCreation";
 import { tagDuration, turnsLeft } from "@/lib/turnFormat";
@@ -27,7 +28,6 @@ export default function TagEditor({
   tags,
   held,
   openTurn,
-  equipSlots,
   onApplyOps,
   characterId,
   characterName,
@@ -163,6 +163,9 @@ export default function TagEditor({
   }, [held, tagsById]);
 
   const equippedCount = held.filter((h) => h.equipped).length;
+  // Hands are the one equipment limit that is a number (db/lib/equipSlots.js);
+  // the layered slots say no for themselves when a GM patches a clash in.
+  const hands = handsUsed(held.filter((h) => h.equipped).map((h) => tagsById.get(h.tagId)).filter(Boolean));
 
   return (
     <>
@@ -197,7 +200,7 @@ export default function TagEditor({
           </span>
         )}
         <span className="text-xs text-muted">
-          Equipment {equippedCount} / {equipSlots}
+          Equipped {equippedCount} · {hands} / {WEAPON_HANDS} hands
         </span>
       </section>
 

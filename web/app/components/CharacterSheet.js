@@ -108,7 +108,6 @@ export default function CharacterSheet({
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
-  equipSlots = 6,
   avatarUploadsEnabled = false,
   playPanelEnabled = true,
   portraitMakerEnabled = false,
@@ -235,7 +234,6 @@ export default function CharacterSheet({
                 identity={identity}
                 tagPoints={character.tagPoints}
                 currentTurn={openTurn?.number ?? null}
-                equipSlots={equipSlots}
                 storeTags={storeTags}
                 storeHeldTags={storeHeldTags}
                 storeRoleSlug={storeRoleSlug}

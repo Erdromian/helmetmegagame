@@ -204,9 +204,9 @@ it.
 
 `horse`, `motorcycle` and `cart` are **equippable**, and
 give nothing while stowed — no carry multiplier, no extra zone move, no
-passenger seats. They compete for the same six `GameConfig.equipSlots` as
-armour and weapons, which is the point: a cart should cost you something to
-keep out.
+passenger seats. They sit in the `MOUNT` slot (`TAGS.md`, "equipSlot"): a
+horse, a motorcycle or a boat is *ridden* (layer 1) and a cart is *towed*
+(layer 2), so a horse and a cart go together and a horse and a boat do not.
 
 **Seats, from `fastTravelCapacity()`:** a Horse alone is 2, and a Cart upgrades
 that pair to 6 — the biggest ride there is. They count the **rider**, so a

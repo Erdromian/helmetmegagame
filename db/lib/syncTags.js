@@ -31,11 +31,16 @@ const { desireFamilyKeys } = require("./desireFamilies");
 const { entriesOf } = require("./yamlEntries");
 const { NAME_LIMITS } = require("./characterName");
 
-// `equipSlot:` in docs/tags.yaml -> Tag.equipSlot. HEAD and BODY take a layer
-// 1-4; SHIELD refuses one, because there is only ever one shield.
-const EQUIP_SLOTS = new Set(["HEAD", "BODY", "SHIELD"]);
-const LAYERED_SLOTS = new Set(["HEAD", "BODY"]);
-const MAX_EQUIP_LAYER = 4;
+// `equipSlot:` in docs/tags.yaml -> Tag.equipSlot. Every equippable tag names
+// one; HEAD, BODY and MOUNT take a layer 1-3; the rest refuse one. The set and
+// the rules are db/lib/equipSlots.js's, so the sheet, the two write paths and
+// this validator cannot disagree about what a slot is.
+const {
+  EQUIP_SLOTS: EQUIP_SLOT_LIST,
+  LAYERED_SLOTS,
+  MAX_EQUIP_LAYER,
+} = require("./equipSlots");
+const EQUIP_SLOTS = new Set(EQUIP_SLOT_LIST);
 
 // Where generate-helms.js writes the concealed-identity avatars. Null, or a
 // directory that isn't there, means "cannot check" rather than "invalid" —
@@ -348,6 +353,17 @@ async function syncTagsFromYaml(prisma) {
       }
     } else if (t.equipLayer !== undefined) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" sets equipLayer but no equipSlot — a layer of what?`);
+    } else if (t.equippable) {
+      // The slot is the whole limit now (no flat count), so a slotless
+      // equippable would be a thing with no rule at all.
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" is equippable but names no equipSlot — say one of ${EQUIP_SLOT_LIST.join(", ")}`,
+      );
+    }
+    if (t.twoHanded !== undefined && t.equipSlot !== "WEAPON") {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" sets twoHanded but is not equipSlot WEAPON — only a weapon fills hands`,
+      );
     }
     // `catalog` must be explicit on every tag — who may see it in the Tag
     // Catalog is a deliberate call, and a default would let a cave or
@@ -672,6 +688,7 @@ async function syncTagsFromYaml(prisma) {
       concealSprite: entry.concealSprite?.trim() ?? null,
       equipSlot: entry.equipSlot ?? null,
       equipLayer: entry.equipLayer ?? null,
+      twoHanded: entry.twoHanded ?? false,
       forcedName: entry.forcesName?.trim() ?? null,
       stackable: entry.stackable ?? false,
       purchasable: entry.purchasable ?? false,

@@ -809,6 +809,7 @@ async function mintCustomCraft(db, baseTag, { name, description, literal = false
     equippable: baseTag.equippable,
     equipSlot: baseTag.equipSlot,
     equipLayer: baseTag.equipLayer,
+    twoHanded: baseTag.twoHanded,
     removable: baseTag.removable,
     consumable: baseTag.consumable,
     consumesInto: baseTag.consumesInto,

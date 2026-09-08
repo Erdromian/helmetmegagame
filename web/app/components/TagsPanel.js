@@ -68,7 +68,6 @@ export default function TagsPanel({
   isSelf,
   currentTurn = null,
   tagPoints = null,
-  equipSlots = 6,
   // The mid-game store's catalog and this character's standing within it —
   // undefined for a viewer looking at someone else's sheet (mode !== "self"),
   // which is also why the button below only ever renders for isSelf.
@@ -81,12 +80,6 @@ export default function TagsPanel({
   // seed its dialog — resolved in character/page.js so no slug matching
   // reaches the browser. Null with no bottle held.
   identity = null,
-  // "sheet" is /character: one card, every category inside it, the equipped
-  // rack at the top. "rail" is /ledger's right column: one card per category
-  // and no rack, because that sheet mounts the equipment in its middle
-  // column instead. Same chips, same store, same click behaviour either way.
-  variant = "sheet",
-  showEquipment = true,
 }) {
   const [storeOpen, setStoreOpen] = useState(false);
 
@@ -111,9 +104,8 @@ export default function TagsPanel({
     });
   }
 
-  // One category's chips. Shared by both layouts below so a chip behaves the
-  // same wherever it is drawn — the only difference between the two is the
-  // frame around the list.
+  // One category's chips. /ledger draws rows instead (TagRail.js); this is
+  // /character's only shape now.
   function chipList(tags) {
     return (
       <ul className="flex flex-wrap gap-2">
@@ -148,8 +140,7 @@ export default function TagsPanel({
     );
   }
 
-  // The store, mounted once whichever layout is drawing. It is a modal, so it
-  // does not care which frame it hangs off.
+  // The store, a modal hanging off the header beside the points it spends.
   const store = isSelf && storeTags && (
     <Modal
       open={storeOpen}
@@ -186,41 +177,6 @@ export default function TagsPanel({
       </span>
     ));
 
-  // The rail layout (/ledger): one card per category down a narrow column,
-  // instead of one card holding every category. The chips and the store are
-  // the same; only the frame differs.
-  if (variant === "rail") {
-    return (
-      <>
-        {pointsControl && (
-          <section className="panel p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="section-title">Tags</h2>
-              {pointsControl}
-            </div>
-          </section>
-        )}
-        {store}
-        {identityDialog}
-        {tagGroups.length === 0 ? (
-          <section className="panel p-4">
-            <p className="text-sm text-muted">No tags yet.</p>
-          </section>
-        ) : (
-          tagGroups.map(([category, tags]) => (
-            <section key={category} className="panel p-4">
-              <div className="mb-2 flex items-baseline justify-between gap-2">
-                <h2 className="section-title">{category}</h2>
-                <span className="mono text-sm text-muted">{tags.length}</span>
-              </div>
-              {chipList(tags)}
-            </section>
-          ))
-        )}
-      </>
-    );
-  }
-
   return (
     <section className="panel p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -230,16 +186,9 @@ export default function TagsPanel({
         </div>
       </div>
 
-      {showEquipment && (
-        <div className="mb-3 border-b pb-3" style={{ borderColor: "var(--border)" }}>
-          <EquipmentPanel
-            characterTags={characterTags}
-            slots={equipSlots}
-            isSelf={isSelf}
-            embedded
-          />
-        </div>
-      )}
+      <div className="mb-3 border-b pb-3" style={{ borderColor: "var(--border)" }}>
+        <EquipmentPanel characterTags={characterTags} isSelf={isSelf} embedded />
+      </div>
 
       {store}
       {identityDialog}

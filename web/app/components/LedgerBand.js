@@ -1,31 +1,47 @@
 "use client";
 
+import { useState } from "react";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
-import RichText from "./RichText";
-import { ThisTurn, carryCapTitle } from "./statusBits";
+import StatusStrip from "@/app/(app)/play/StatusStrip";
+import ActionGrid from "./ActionGrid";
+import SheetTurn from "./SheetTurn";
+import SoundTrumpetButton from "./SoundTrumpetButton";
+import TagDetails from "./TagDetails";
+import TurnForecast from "./TurnForecast";
+import { carryCapTitle } from "./statusBits";
 
 // One number and its label. The label is the word, the value carries the
 // glyph — the house rule for ⬢ (CLAUDE.md), and the reason no tile below
 // writes "Resources" next to a hexagon.
-function Tile({ label, value, over = false, title = null, children = null }) {
-  return (
-    <div className="ledger-tile" title={title ?? undefined}>
+//
+// A tile with a `detail` is a button: the detail (why the free moves are 0,
+// what holds the carry cap up) reads inline under the tiles when clicked. It
+// used to be a native title=, and this sheet has no tooltips.
+function Tile({ label, value, over = false, detail = null, open = false, onToggle = null, children = null }) {
+  const body = (
+    <>
       <span className="field-label">{label}</span>
       <span className="ledger-tile-value" data-over={over ? "true" : "false"}>
         {value}
       </span>
       {children}
-    </div>
+    </>
+  );
+  if (!detail) return <div className="ledger-tile">{body}</div>;
+  return (
+    <button type="button" className="ledger-tile ledger-tile-button" aria-expanded={open} onClick={onToggle}>
+      {body}
+    </button>
   );
 }
 
-// The banner across the top of /ledger: who this is, where they stand, and
-// the four numbers a player checks before doing anything — then the Move they
-// filed this turn, in the same words /character uses for it (statusBits.js).
+// The band across the top of /ledger, pinned while the columns under it
+// scroll: who this is and where they stand, the four numbers a player checks
+// before doing anything, then the pieces of the Chat's YOU column that belong
+// on a sheet too — the turn card with its Move, the status strip — and under
+// them what the turn will change and every verb in one strip.
 //
-// The numbers are read-only here on purpose. Everything that CHANGES one of
-// them is a button in the working column below, so the banner stays an
-// instrument panel rather than a second place to act.
+// The numbers are read-only on purpose. The strip is where things happen.
 export default function LedgerBand({
   character,
   avatarSrc,
@@ -33,18 +49,29 @@ export default function LedgerBand({
   zoneMoves = null,
   zoneMovesReason = null,
   travellingTo = null,
-  currentAction = null,
   openTurn = null,
+  moveState = null,
   pendingOffers = [],
+  craftProjects = [],
+  sitesHere = [],
+  hasTrumpet = false,
+  isSelf = true,
 }) {
   const gambit = gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak });
   const carrying = carry ? `${carry.weightUsed} / ${carry.weightCap}` : null;
   const loadPct = carry
     ? Math.min(100, Math.round((carry.weightUsed / Math.max(carry.weightCap, 1)) * 100))
     : 0;
+  // The status chip a player clicked open, read inline under the strip — the
+  // sheet has no tooltips, so a chip's wording has to be reachable by a tap.
+  const [picked, setPicked] = useState(null);
+  // Which tile's detail is open: "moves" or "carry".
+  const [tileOpen, setTileOpen] = useState(null);
+  const carryDetail = carry ? carryCapTitle(carry) : null;
+  const pickedRow = picked ? character.tags.find((ct) => (ct.tag.id ?? ct.tagId) === picked) ?? null : null;
 
   return (
-    <section className="panel p-4 flex flex-col gap-4">
+    <section className="sheet-band panel">
       <div className="ledger-band">
         <div className="flex items-start gap-3 min-w-0">
           {avatarSrc ? (
@@ -73,10 +100,27 @@ export default function LedgerBand({
           <div className="min-w-0">
             <p className="m-0 text-sm text-muted">
               {character.zone?.name ?? "Unassigned"} · {character.location?.name ?? "Nowhere"}
-              {travellingTo ? (
-                <span title="You arrive when the turn turns. ‡"> · walking to {travellingTo}</span>
-              ) : null}
+              {travellingTo ? <span> · walking to {travellingTo}</span> : null}
             </p>
+            <div className="mt-2">
+              <StatusStrip
+                resources={carry ? carry.resources : character.resources}
+                carry={carry}
+                tags={character.tags}
+                onPick={(ct) => setPicked((was) => (was === (ct.tag.id ?? ct.tagId) ? null : ct.tag.id ?? ct.tagId))}
+                pickedId={picked}
+              />
+              {pickedRow && (
+                <div className="sheet-picked">
+                  <TagDetails
+                    tag={pickedRow.tag}
+                    quantity={pickedRow.quantity}
+                    expiresTurn={pickedRow.expiresTurn}
+                    currentTurn={openTurn?.number ?? null}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -85,7 +129,9 @@ export default function LedgerBand({
             label="Free moves"
             value={zoneMoves != null ? zoneMoves : "—"}
             over={zoneMoves === 0}
-            title={zoneMovesReason ?? undefined}
+            detail={zoneMovesReason}
+            open={tileOpen === "moves"}
+            onToggle={() => setTileOpen((was) => (was === "moves" ? null : "moves"))}
           />
           <Tile
             label="Resources"
@@ -96,7 +142,9 @@ export default function LedgerBand({
             label="Carrying"
             value={carrying ? `${carrying} lb` : "—"}
             over={Boolean(carry && carry.weightUsed > carry.weightCap)}
-            title={carry ? carryCapTitle(carry) : undefined}
+            detail={carryDetail}
+            open={tileOpen === "carry"}
+            onToggle={() => setTileOpen((was) => (was === "carry" ? null : "carry"))}
           >
             {carry && (
               <div
@@ -115,25 +163,33 @@ export default function LedgerBand({
             value={gambit ? `${gambit > 0 ? "+" : ""}${gambit}` : "±0"}
             over={Boolean(gambit)}
           />
+          {tileOpen === "moves" && zoneMovesReason && (
+            <p className="sheet-tile-detail">{zoneMovesReason}</p>
+          )}
+          {tileOpen === "carry" && carryDetail && (
+            <p className="sheet-tile-detail">{carryDetail}</p>
+          )}
         </div>
       </div>
 
-      {/* What everyone else sees when they look at you. Read-only here — the
-          textarea that writes it is in the Bio panel below, and two editors
-          for one field is how a draft gets lost. */}
-      {character.appearance && (
-        <div className="ledger-turn">
-          <span className="field-label">Appearance</span>
-          <p className="m-0 text-sm">
-            <RichText text={character.appearance} />
-          </p>
-        </div>
-      )}
-
-      <div className="ledger-turn">
-        <span className="field-label">This turn</span>
-        <ThisTurn currentAction={currentAction} openTurn={openTurn} pendingOffers={pendingOffers} />
+      <div className="sheet-band-row">
+        {isSelf && (
+          <div className="ledger-turn sheet-band-turn">
+            <span className="field-label">This turn</span>
+            <SheetTurn moveState={moveState} pendingOffers={pendingOffers} />
+          </div>
+        )}
+        <TurnForecast
+          tags={character.tags}
+          openTurnNumber={openTurn?.number ?? null}
+          craftProjects={craftProjects}
+          sitesHere={sitesHere}
+          travellingTo={travellingTo}
+          resources={character.resources}
+        />
       </div>
+
+      {isSelf && <ActionGrid variant="strip">{hasTrumpet && <SoundTrumpetButton />}</ActionGrid>}
     </section>
   );
 }

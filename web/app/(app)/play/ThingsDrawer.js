@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import ClickMenu from "@/app/components/ClickMenu";
 import FormError from "@/app/components/FormError";
 import { ChevronDownIcon } from "@/app/components/icons";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
-import { placePanel } from "@/app/components/portalPlacement";
 import { toggleEquip } from "@/app/(app)/character/equipActions";
 import { myThings } from "./actions";
 import useVisiblePoll from "./useVisiblePoll";
@@ -56,75 +55,8 @@ function write(open) {
   }
 }
 
-// Escapes the menu to document.body, same reasoning and math as
-// HoverCard.js (portalPlacement.js): an in-tree .chat-menu is positioned
-// relative to its chip, and on a narrow viewport the drawer opens inside
-// Chat.js's "⋯" sheet — a scrolling Modal — which clipped or buried it
-// instead of showing it. Fixed positioning computed from the trigger's own
-// rect, escaped to the body, sidesteps that regardless of which scrolling or
-// stacking ancestor the chip happens to sit under.
-//
-// Not HoverCard itself: the trigger here is already a plain button with its
-// own click handler (toggling which row is open, one at a time), which
-// doesn't fit HoverCard's hover-preview-then-pin model — this only ever
-// opens on click and only ever one at a time, exactly as before.
-function ThingMenuPortal({ triggerRef, onClose, ariaLabel, children }) {
-  const panelRef = useRef(null);
-  const [pos, setPos] = useState(null);
-
-  const place = useCallback(() => {
-    const trigger = triggerRef.current;
-    const panel = panelRef.current;
-    if (!trigger || !panel) return;
-    setPos(placePanel(trigger, panel));
-  }, [triggerRef]);
-
-  useLayoutEffect(() => {
-    place();
-  }, [place]);
-
-  useEffect(() => {
-    const onScrollOrResize = () => place();
-    const onKey = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    // Checked against the portal's own panel, not just the trigger, so a
-    // click on a menu item still fires — a plain onBlur on an ancestor
-    // wrapper (the old approach) closes the menu before that click lands,
-    // since the portaled panel is no longer a DOM descendant of it.
-    const onPointerDown = (e) => {
-      if (triggerRef.current?.contains(e.target)) return;
-      if (panelRef.current?.contains(e.target)) return;
-      onClose();
-    };
-    window.addEventListener("scroll", onScrollOrResize, true);
-    window.addEventListener("resize", onScrollOrResize);
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => {
-      window.removeEventListener("scroll", onScrollOrResize, true);
-      window.removeEventListener("resize", onScrollOrResize);
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("pointerdown", onPointerDown);
-    };
-  }, [place, onClose, triggerRef]);
-
-  return createPortal(
-    <div
-      ref={panelRef}
-      className="chat-menu chat-menu-portal"
-      role="menu"
-      aria-label={ariaLabel}
-      style={pos ? { top: pos.top, left: pos.left } : { top: 0, left: 0, visibility: "hidden" }}
-    >
-      {children}
-    </div>,
-    document.body,
-  );
-}
-
-// Just the buttons now — ThingMenuPortal above owns the .chat-menu box
-// itself, so wrapping them in a second one here would double it up.
+// Just the buttons — ClickMenu owns the .chat-menu box itself, so wrapping
+// them in a second one here would double it up.
 function ThingMenu({ row, onClose, onEquip, pending }) {
   const actions = useRequestActions();
   const open = actions?.open ?? null;
@@ -194,9 +126,9 @@ function ThingChip({ row, isOpen, onToggle, onClose, onEquip, pending }) {
         {row.equipped ? " ·" : ""}
       </button>
       {isOpen && (
-        <ThingMenuPortal triggerRef={triggerRef} onClose={onClose} ariaLabel={row.name}>
+        <ClickMenu triggerRef={triggerRef} onClose={onClose} ariaLabel={row.name}>
           <ThingMenu row={row} onClose={onClose} onEquip={onEquip} pending={pending} />
-        </ThingMenuPortal>
+        </ClickMenu>
       )}
     </span>
   );

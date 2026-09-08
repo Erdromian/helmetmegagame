@@ -243,6 +243,7 @@ you pick the right doc — they are never enough to change code with.
 | [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the arbitration workspace, staging, or the turn-end push |
 | [`PLAYER-DESK.md`](docs/systemdocs/PLAYER-DESK.md) | You're working on `/gm/players` — the merged roster + conversations desk, GM notes, or ⌘K |
 | [`LOBBY.md`](docs/systemdocs/LOBBY.md) | You're touching the game phases (`GameState.phase`), readying up, role priorities, the assignment roll, the creation window, Start Game / End Game, the epilogue, or what Restart Game keeps |
+| [`SHEET.md`](docs/systemdocs/SHEET.md) | You're touching `/ledger` — the band, the verb strip, the tag rail and its rows, the equip board, Escape back to `/play`, or the rule that **nothing on that sheet is a tooltip** |
 | [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, or `/gm/dev/tags` |
 | [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, or the `/map` panel |
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
@@ -390,6 +391,9 @@ npm run db:prune-stale-channels      # deletes categories, channels and zone/
 npm run db:check-config              # the GameConfig field registry vs. the
                                      #   schema (db/lib/gameConfigFields.js).
                                      #   push.sh runs it; exits 1 on drift.
+npm run db:audit-equip               # read-only: living characters wearing a
+                                     #   set the slot rules would now refuse
+                                     #   (TAGS.md "equipSlot"). Never unequips.
 npm test --workspace=db              # node --test over db/test/ (the
                                      #   assignment roll, so far).
 npm run db:report-inactive-characters  # read-only inactivity report

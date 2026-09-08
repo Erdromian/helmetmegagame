@@ -1,29 +1,82 @@
-// Which equipped things cannot be worn together.
+// Which equipped things cannot be worn together, and how many hands there are.
 //
-// GameConfig.equipSlots is a flat COUNT — six things, whatever they are — and
-// it was the only limit for a long time, which meant a character could equip
-// three helmets and two shields as long as they had the slots free. This adds
-// the other half: Tag.equipSlot says where a thing sits, and Tag.equipLayer 1-4
-// says how deep, so a mail coif (1) goes under a knight's helm (3) and two
-// helms do not go together at all.
+// Every equippable tag names a Tag.equipSlot (db/lib/syncTags.js throws on one
+// that doesn't), and the slot is the whole limit. GameConfig.equipSlots, the
+// old flat count, is retired: it let a character ready eight swords and said
+// nothing about two helmets, and the two rules disagreed about why an equip
+// was refused.
 //
-// SHIELD carries no layer, because there is only ever one shield.
+//   HEAD, BODY, MOUNT  layered 1-3. Two equipped tags may not share a layer,
+//                      so a coif (1) goes under a helm (2) and a cart (2) is
+//                      towed behind a horse (1), but two helms do not go
+//                      together.
+//   SHIELD             exactly one.
+//   WEAPON             three hands. A tag with Tag.twoHanded takes two.
+//   ACCESSORY          no limit. A badge, spectacles, a fishing rod.
 //
 // Two independent code paths flip CharacterTag.equipped — the player's own
 // toggle (web/app/(app)/character/equipActions.js) and the GM/staged batch
 // (db/lib/tagOps.js) — so the rule lives here rather than in either of them. It
-// is written as "look at the whole equipped set and find a clash" rather than
+// is written as "look at the whole equipped set and find a problem" rather than
 // "may I add this one?", because the batch path applies its writes first and
 // then checks, and a two-argument form could not express "unequip A, equip B"
 // without rejecting B for a conflict with an A that is already gone.
 //
 // See docs/systemdocs/TAGS.md.
 
-const SLOT_LABELS = { HEAD: "on your head", BODY: "on your body", SHIELD: "in your off hand" };
+const WEAPON_HANDS = 3;
+const MAX_EQUIP_LAYER = 3;
+const LAYERED_SLOTS = new Set(["HEAD", "BODY", "MOUNT"]);
+const EQUIP_SLOTS = ["HEAD", "BODY", "SHIELD", "WEAPON", "ACCESSORY", "MOUNT"];
+
+// The words the sheet and the refusals use for each slot. Player-facing copy,
+// so every phrase of five words or more carries its ‡.
+const SLOT_LABELS = {
+  HEAD: "on your head",
+  BODY: "on your body",
+  SHIELD: "in your off hand",
+  WEAPON: "in your hands",
+  ACCESSORY: "about your person",
+  MOUNT: "under you",
+};
+
+// The rig's row titles and the name of each layer cell, outermost last.
+const SLOT_TITLES = {
+  HEAD: "Head",
+  BODY: "Body",
+  SHIELD: "Off hand",
+  WEAPON: "Hands",
+  ACCESSORY: "Accessories",
+  MOUNT: "Ride",
+};
+const LAYER_NAMES = {
+  HEAD: ["Liner", "Helm", "Over"],
+  BODY: ["Clothes", "Mail", "Outer"],
+  MOUNT: ["Ridden", "Towed"],
+};
 
 // Accepts CharacterTag[] (with .tag) or bare Tag[], like forcedNameFrom.
 function tagOf(entry) {
   return entry?.tag ?? entry;
+}
+
+// "A, B and C".
+function listWords(names) {
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+function handsOf(tag) {
+  return tag?.equipSlot === "WEAPON" ? (tag.twoHanded ? 2 : 1) : 0;
+}
+
+/**
+ * Hands in use across a set of equipped rows.
+ * @param {Array} tags equipped rows — CharacterTag[] (with .tag) or Tag[]
+ */
+function handsUsed(tags) {
+  if (!Array.isArray(tags)) return 0;
+  return tags.reduce((n, entry) => n + handsOf(tagOf(entry)), 0);
 }
 
 /**
@@ -37,6 +90,8 @@ function findSlotClash(tags) {
   for (const entry of tags) {
     const tag = tagOf(entry);
     if (!tag?.equipSlot) continue;
+    // WEAPON is counted in hands and ACCESSORY is never counted at all.
+    if (tag.equipSlot === "WEAPON" || tag.equipSlot === "ACCESSORY") continue;
     // A layered slot keys on slot+layer; SHIELD keys on the slot alone, which
     // is what makes it hold exactly one.
     const key = tag.equipLayer == null ? tag.equipSlot : `${tag.equipSlot}:${tag.equipLayer}`;
@@ -53,7 +108,44 @@ function findSlotClash(tags) {
  */
 function describeSlotClash({ a, b }) {
   const where = SLOT_LABELS[a.equipSlot] ?? "there";
-  return `${a.name} and ${b.name} can't both go ${where}.`;
+  return `${a.name} and ${b.name} can't both go ${where}. ‡`;
 }
 
-module.exports = { findSlotClash, describeSlotClash };
+/**
+ * Why the readied weapons do not fit in the hands, or null when they do.
+ */
+function describeHandsOverflow(tags) {
+  const used = handsUsed(tags);
+  if (used <= WEAPON_HANDS) return null;
+  const weapons = (tags ?? []).map(tagOf).filter((t) => t?.equipSlot === "WEAPON");
+  const two = weapons.filter((t) => t.twoHanded).map((t) => t.name);
+  const named = listWords(weapons.map((t) => t.name));
+  const note = two.length ? ` ${listWords(two)} ${two.length === 1 ? "takes" : "take"} two.` : "";
+  return `Your hands are full: ${named} need more than ${WEAPON_HANDS} hands.${note} ‡`;
+}
+
+/**
+ * The one question both write paths ask after writing: is this set wearable?
+ * @returns {string|null} a player-facing refusal, or null when the set is fine
+ */
+function findEquipProblem(tags) {
+  const clash = findSlotClash(tags);
+  if (clash) return describeSlotClash(clash);
+  return describeHandsOverflow(tags);
+}
+
+module.exports = {
+  WEAPON_HANDS,
+  MAX_EQUIP_LAYER,
+  LAYERED_SLOTS,
+  EQUIP_SLOTS,
+  SLOT_LABELS,
+  SLOT_TITLES,
+  LAYER_NAMES,
+  handsOf,
+  handsUsed,
+  findSlotClash,
+  describeSlotClash,
+  describeHandsOverflow,
+  findEquipProblem,
+};

@@ -310,6 +310,7 @@ const EFFECTS = {
       equippable: source.equippable,
       equipSlot: source.equipSlot,
       equipLayer: source.equipLayer,
+      twoHanded: source.twoHanded,
       requiredTagId: source.requiredTagId,
       laborBonus: source.laborBonus ?? undefined,
       inspectVisibility: source.inspectVisibility,

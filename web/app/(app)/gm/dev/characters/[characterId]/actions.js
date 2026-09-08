@@ -104,9 +104,8 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   const session = await requireGm();
   const existing = await loadCharacter(characterId);
 
-  const [openTurn, config, held] = await Promise.all([
+  const [openTurn, held] = await Promise.all([
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
-    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true } }),
     prisma.characterTag.findMany({
       where: { characterId },
       select: { tagId: true, quantity: true },
@@ -172,7 +171,6 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
         ops,
         tagsById,
         openTurn,
-        equipSlots: config?.equipSlots ?? 10,
       });
     }
 

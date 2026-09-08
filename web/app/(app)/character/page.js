@@ -54,6 +54,7 @@ import { deployVersion } from "@/lib/deployVersion";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
+import { myMove } from "../play/actions";
 import { loadDesireView, loadLettersView } from "@/lib/selfPools";
 import { craftFreeUnits } from "@/lib/requests";
 import { summarizeCraftBudget } from "@/lib/craftBudget";
@@ -350,6 +351,9 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     // The bomb's clock, for the Nuclear Device chip (TagChip.js). World
     // state, so every sheet shows it, not just the holder's.
     nukeState,
+    // The turn card on /ledger (web/app/components/SheetTurn.js): the same
+    // server action Chat's YOU column polls, so the two never disagree.
+    mine,
   ] = await Promise.all([
     getOpenTurn(),
     // getVisibleTags doesn't select purchasable/craftable, so this comes
@@ -424,7 +428,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     prisma.gameConfig.findUnique({
       where: { id: 1 },
       select: {
-        equipSlots: true,
         avatarUploadsEnabled: true,
         playPanelEnabled: true,
         portraitMakerEnabled: true,
@@ -438,6 +441,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     findOpenTurnAction(prisma, character.id),
     clockFrozen(prisma),
     readGameState(prisma, { nukeArmedTurn: true }),
+    myMove(),
   ]);
 
   // Desires: the slots, and the evaluated catalog behind the picker. Both
@@ -1079,6 +1083,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       mode: "self",
       openTurn: openTurnWithWindow,
       currentAction: sheetAction,
+      // The turn card's first paint on /ledger: the same server action the
+      // Chat's YOU column reads (play/actions.js#myMove), so the two cannot
+      // disagree about the Move you filed.
+      moveState: mine.ok ? { turn: mine.turn, move: mine.move } : { turn: null, move: null },
       avatarSrc: avatarSrc,
       forcedIdentity: forcedIdentity,
       concealGear: concealGear,
@@ -1116,7 +1124,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       mySins: mySins,
       pendingOffers: pendingOffers,
       ...letters,
-      equipSlots: gameConfig?.equipSlots ?? 10,
       avatarUploadsEnabled: gameConfig?.avatarUploadsEnabled ?? false,
       playPanelEnabled: gameConfig?.playPanelEnabled ?? true,
       portraitMakerEnabled: gameConfig?.portraitMakerEnabled ?? false,

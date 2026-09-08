@@ -8,7 +8,7 @@
 // a stable address. Op shapes: DEV-PANEL.md §5. Every function takes a
 // transaction client (`tx`), so a caller composes them into its own.
 
-const { describeSlotClash, findSlotClash } = require("./equipSlots");
+const { findEquipProblem } = require("./equipSlots");
 const { addToStack, dropCharacterTag, grantTagSlugs } = require("./tagWrites");
 const { rollTagChain } = require("./tagShapes");
 const { expiryForGrant } = require("./grantExpiry");
@@ -61,9 +61,9 @@ async function expiresTurnFor(tx, op, tag, openTurn, characterId) {
 }
 
 // Applies staged tag changes inside a transaction. Order is load-bearing:
-// removes first, so swapping one tier of a chain for another can't trip the
-// equip cap halfway through.
-async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equipSlots }) {
+// removes first, so swapping one tier of a chain for another can't trip a
+// slot rule halfway through.
+async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn }) {
   const applied = [];
   const removes = ops.filter((o) => o.op === "remove");
   const adds = ops.filter((o) => o.op === "add");
@@ -136,7 +136,7 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equip
     });
   }
 
-  // Equipped last, and counted ONCE for the whole batch rather than per op:
+  // Equipped last, and checked ONCE for the whole batch rather than per op:
   // a GM staging "unequip A, equip B" must not be rejected on B just because
   // A hasn't been written yet.
   const equipOps = ops.filter((o) => o.equipped != null && o.op !== "remove");
@@ -147,19 +147,14 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equip
         data: { equipped: Boolean(op.equipped) },
       });
     }
-    const equipped = await tx.characterTag.count({ where: { characterId, equipped: true } });
-    if (equipped > equipSlots) {
-      throw new TagOpError(`That would fill ${equipped} of ${equipSlots} equipment slots.`);
-    }
-    // And the other half of the limit: a count of six says nothing about six
-    // helmets. Same helper the player's own toggle uses, so a GM cannot stage
-    // a set the sheet would refuse.
+    // Same helper the player's own toggle uses, so a GM cannot stage a set
+    // the sheet would refuse: one thing per layer, one shield, three hands.
     const worn = await tx.characterTag.findMany({
       where: { characterId, equipped: true },
-      select: { tag: { select: { name: true, equipSlot: true, equipLayer: true } } },
+      select: { tag: { select: { name: true, equipSlot: true, equipLayer: true, twoHanded: true } } },
     });
-    const clash = findSlotClash(worn);
-    if (clash) throw new TagOpError(describeSlotClash(clash));
+    const problem = findEquipProblem(worn);
+    if (problem) throw new TagOpError(problem);
   }
 
   return applied;

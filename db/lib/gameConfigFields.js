@@ -69,10 +69,6 @@ const FIELDS = [
     label: "Lifeweb decay / turn",
   },
   {
-    key: "equipSlots", type: "int", group: "economy", default: 10, min: 1, max: 20,
-    label: "Equip slots",
-  },
-  {
     key: "noticeExpiryTurns", type: "int", group: "economy", default: 10, min: 1, max: 100,
     label: "Notice lifespan (turns)",
   },
@@ -178,6 +174,9 @@ const INTERNAL_KEYS = [
   "messageWipeEnabled",
   "radioCategoryId",
   "cerberonChannelId",
+  // Retired 2026-09-13: the per-slot rules in db/lib/equipSlots.js are the
+  // whole equipment limit. The column stays, unread, so nothing drops a value.
+  "equipSlots",
 ];
 
 function fieldsInGroup(groupKey) {

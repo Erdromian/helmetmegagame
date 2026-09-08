@@ -19,14 +19,17 @@ import { toggleEquip } from "@/app/(app)/character/equipActions";
 // `.panel` card — the equipped rack is just a view over the same held-tags
 // data the Tags panel already has, so it earns a heading, not a whole card.
 // The equip/unequip interaction underneath is unchanged either way.
-export default function EquipmentPanel({ characterTags, slots = 6, isSelf, embedded = false }) {
+// There is no count to show any more: the limits are per slot (one thing per
+// layer, one shield, three hands — db/lib/equipSlots.js) and the server says
+// which one refused, so the rack draws what is worn and the refusal lands in
+// FormError below. /ledger draws the full slot board instead (EquipBoard.js).
+export default function EquipmentPanel({ characterTags, isSelf, embedded = false }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
 
   const equippable = characterTags.filter((ct) => ct.tag.equippable);
   const equipped = equippable.filter((ct) => ct.equipped);
   const available = equippable.filter((ct) => !ct.equipped);
-  const full = equipped.length >= slots;
 
   function toggle(characterTagId) {
     setError(null);
@@ -46,7 +49,6 @@ export default function EquipmentPanel({ characterTags, slots = 6, isSelf, embed
       <Wrapper className={wrapperClassName}>
         <div className="section-title">
           <h2>Equipped</h2>
-          <span className="text-sm text-muted mono">0 / {slots}</span>
         </div>
         <p className="text-sm text-muted">You&apos;re not carrying any equippable items.</p>
       </Wrapper>
@@ -59,17 +61,11 @@ export default function EquipmentPanel({ characterTags, slots = 6, isSelf, embed
           the counter, and panel-header's rule would underline just the word. */}
       <div className="section-title">
         <h2>Equipped</h2>
-        <span className="text-sm text-muted mono">
-          {equipped.length} / {slots}
-        </span>
+        <span className="text-sm text-muted mono">{equipped.length}</span>
       </div>
 
       <div className="equip-slots">
-        {Array.from({ length: slots }, (_, i) => {
-          const ct = equipped[i];
-          if (!ct) {
-            return <div key={`empty-${i}`} className="equip-slot is-empty" aria-hidden="true" />;
-          }
+        {equipped.map((ct) => {
           return (
             <Tooltip key={ct.id} text={isSelf ? `Unequip ${ct.tag.name}` : ct.tag.name}>
               <button
@@ -91,17 +87,12 @@ export default function EquipmentPanel({ characterTags, slots = 6, isSelf, embed
           <p className="field-label mt-3">Carrying</p>
           <div className="flex flex-wrap gap-2">
             {available.map((ct) => (
-              /* "No free slots" is the ONLY explanation of why this button is
-                 dead, and a native title= never fires on a disabled element in
-                 several browsers — so the one case that most needed a tooltip
-                 was the one case that never showed one. HoverCard wraps the
-                 button rather than living on it, so it works regardless. */
-              <Tooltip key={ct.id} text={full ? "No free slots" : `Equip ${ct.tag.name}`}>
+              <Tooltip key={ct.id} text={`Equip ${ct.tag.name}`}>
                 <button
                   type="button"
                   className="equip-add"
                   onClick={() => toggle(ct.id)}
-                  disabled={pending || full}
+                  disabled={pending}
                   aria-label={`Equip ${ct.tag.name}`}
                 >
                   <ChipLabel tag={ct.tag} quantity={ct.quantity} />
@@ -109,11 +100,6 @@ export default function EquipmentPanel({ characterTags, slots = 6, isSelf, embed
               </Tooltip>
             ))}
           </div>
-          {full && (
-            <p className="mt-2 text-sm text-muted">
-              All {slots} slots are full — unequip something first.
-            </p>
-          )}
         </>
       )}
 

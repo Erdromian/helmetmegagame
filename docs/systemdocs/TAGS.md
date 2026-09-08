@@ -920,7 +920,7 @@ them).
 - `laborBonus` — what this tag adds to one kind of Laboring, e.g.
   `laborBonus: { kind: hunting, amount: 3 }`. `equipped` defaults **true**;
   `requiresTag` gates it on holding something else (the Plow needs a horse).
-  Bonuses sum, and `GameConfig.equipSlots` is the real limit. Normalised and
+  Bonuses sum, and the three hands are the real limit. Normalised and
   validated in `db/lib/tagShapes.js`, which throws on an unknown `kind`, on a
   bonus that requires equipping a tag that is not `equippable`, and on a
   `requiresTag` naming a tag that does not exist — a typo'd `kind` would
@@ -1693,11 +1693,11 @@ bands it produces, and the full multiplier table.
 ## `equippable` / `concealsIdentity`
 
 `equippable: true` marks a tag as something a character can wear or carry
-readied, and so occupies one of `GameConfig.equipSlots` (default 6). The state
-lives on `CharacterTag.equipped`, not on a join table: equipping is a property
-of holding the tag, so `@@unique([characterId, tagId])` stays and every
-"holds it or doesn't" check in the codebase is unaffected. A `stackable` tag
-takes one slot however many units are held.
+readied, and so occupies its `equipSlot` (next section). The state lives on
+`CharacterTag.equipped`, not on a join table: equipping is a property of
+holding the tag, so `@@unique([characterId, tagId])` stays and every "holds it
+or doesn't" check in the codebase is unaffected. A `stackable` tag takes one
+place however many units are held.
 
 `CharacterTag.equipped` is **cleared on death** — `killCharacter` runs an
 `updateMany` over the corpse's held tags. A corpse doesn't wield things, and
@@ -1724,24 +1724,42 @@ nobody can see is not concealment, it is a missing image. Build the files with
 `npm run assets:helms --workspace=web` after adding a source sprite to
 `web/assets/helms/`.
 
-### `equipSlot` / `equipLayer`
+### `equipSlot` / `equipLayer` / `twoHanded`
 
-`GameConfig.equipSlots` is a flat **count** — six things, whatever they are —
-and for a long time it was the only limit, so a character with free slots could
-wear three helmets and two shields at once.
+There used to be a flat count, `GameConfig.equipSlots` — six things, then ten,
+whatever they were — and for a long time it was the only limit, so a character
+with free slots could ready eight swords, and later three helmets. **It is
+retired** (2026-09-13): the column stays in the schema, unread and listed under
+`INTERNAL_KEYS` in `db/lib/gameConfigFields.js`, and the slot is the whole
+rule. Every `equippable` tag names one; sync throws on one that doesn't.
 
-`equipSlot:` is the other half. `HEAD`, `BODY` and `SHIELD` are the only three,
-because they are the only places where wearing two things at once is nonsense;
-a sword or a lantern has no slot and is limited by the count alone. **Two
-equipped tags may not share a slot.**
+| `equipSlot` | limit | holds |
+|---|---|---|
+| `HEAD` | layers 1–3, one thing per layer | 1 liner (coif, cap, mask), 2 helm, 3 over (hat, hood, bag) |
+| `BODY` | layers 1–3, one thing per layer | 1 clothes (padded armor, robes, garb), 2 mail (mail shirt, brigandine), 3 outer (breastplate, plate, cloak, longcoat) |
+| `SHIELD` | exactly one | buckler, shield, pavise |
+| `WEAPON` | **three hands**; a `twoHanded: true` weapon takes two | every weapon, the banners, the flamethrower, the chainsaw |
+| `ACCESSORY` | none | badges, pins, jewelry, spectacles, lenses, gloves, hand tools |
+| `MOUNT` | layers 1–2 | 1 ridden (horse, motorcycle, boat), 2 towed (cart) |
 
-`equipLayer:` 1–4 subdivides `HEAD` and `BODY`, 1 against the skin and 4
-outermost, and **two equipped tags may not share a layer** either. So a mail
-coif (`HEAD` 1) goes under a knight's helm (`HEAD` 3), but two helms do not go
-together. `SHIELD` carries no layer — there is only ever one shield — and sync
-throws if one is set on it. Sync also throws on a layer outside 1–4, a layer
-with no slot, a `HEAD`/`BODY` slot with no layer, and a slot on a tag that is
-not `equippable`.
+`equipLayer:` 1 is against the skin and 3 outermost, and **two equipped tags
+may not share a layer**. So a mail coif (`HEAD` 1) goes under a knight's helm
+(`HEAD` 2), but two helms do not go together; a cart (`MOUNT` 2) is towed
+behind a horse (`MOUNT` 1), but a horse and a boat are one ride too many.
+`SHIELD`, `WEAPON` and `ACCESSORY` carry no layer, and sync throws if one is
+set on them. Sync also throws on a layer outside 1–3, a layer with no slot, a
+layered slot with no layer, a slot on a tag that is not `equippable`, and
+`twoHanded` on anything but a `WEAPON`.
+
+**Hands** are the one limit that is a number: `WEAPON_HANDS = 3` in
+`db/lib/equipSlots.js`, a constant rather than a knob. A bastard sword on the
+back and a pistol in the holster is exactly three. The two-handers are the
+polearms, the great swords, the bows and the long guns, and the refusal names
+which of them is eating two.
+
+A GM-authored custom tag (`/gm/dev/tags`) that is `equippable` but names no
+slot is limited by nothing at all — the form has no slot picker yet — which is
+the same as it was before, minus the count.
 
 The layer also decides **which face shows**: the outermost equipped concealing
 piece is the one whose `concealSprite` the room sees.

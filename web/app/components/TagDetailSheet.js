@@ -152,7 +152,7 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
     // is the question a GM building kit actually asks.
     tag.concealSprite ? `Conceal sprite: ${tag.concealSprite}` : null,
     tag.equipSlot
-      ? `Worn: ${tag.equipSlot.toLowerCase()}${tag.equipLayer ? ` · layer ${tag.equipLayer}` : ""}`
+      ? `Worn: ${tag.equipSlot.toLowerCase()}${tag.equipLayer ? ` · layer ${tag.equipLayer}` : ""}${tag.twoHanded ? " · two hands" : ""}`
       : null,
     // This sheet is the GM's door onto a tag, so it carries the raw numbers
     // the word scale hides everywhere else — tuning a piece of gear against

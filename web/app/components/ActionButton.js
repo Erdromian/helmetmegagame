@@ -5,9 +5,10 @@ import Tooltip from "./Tooltip";
 
 // The one player-action button, in the three frames the app draws it in:
 //
-//   icon — a framed glyph (IconButton), the /character rack.
-//   tile — glyph and name as a full-width row, the /ledger Actions panel.
-//   menu — a plain verb in a .chat-menu, the /play person and thing menus.
+//   icon  — a framed glyph (IconButton), the /character rack.
+//   tile  — glyph and name as a full-width row, a labelled column of verbs.
+//   menu  — a plain verb in a .chat-menu, the /play person and thing menus.
+//   strip — glyph and name, small, in the /ledger band's one wrapping row.
 //
 // All three share the tooltip: the label, then the sentence explaining what
 // the verb does, then — when the button is greyed — the reason. Tooltip wraps
@@ -17,6 +18,11 @@ import Tooltip from "./Tooltip";
 // at all and their greyed rows explained nothing.
 //
 // `busy` is for an instant verb in flight: the button disables and says so.
+//
+// `strip` is the one variant with NO tooltip, because the sheet it belongs to
+// has none at all (docs/systemdocs/SHEET.md): a greyed verb there is drawn
+// muted but still clickable, and the click hands its reason back to the caller
+// to print on the page. Everything else about it is this same button.
 function tooltipFor(label, help, reason) {
   if (!help && !reason) return label;
   return (
@@ -54,6 +60,23 @@ export default function ActionButton({
         aria-busy={busy || undefined}
         data-busy={busy ? "true" : undefined}
       />
+    );
+  }
+
+  if (variant === "strip") {
+    return (
+      <button
+        type="button"
+        className="action-strip-item"
+        aria-disabled={disabled || undefined}
+        aria-busy={busy || undefined}
+        data-muted={disabled ? "true" : undefined}
+        disabled={busy}
+        onClick={onClick}
+      >
+        {Icon ? <Icon width="15" height="15" /> : null}
+        <span>{busy ? "Working…" : label}</span>
+      </button>
     );
   }
 

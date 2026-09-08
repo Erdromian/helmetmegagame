@@ -10,7 +10,7 @@ import {
   FAST_TRAVEL_SLUGS,
 } from "@lifeweb/db/lib/mounts";
 import { MOTION_SICKNESS_SLUG } from "@lifeweb/db/lib/constants";
-import { describeSlotClash, findSlotClash } from "@lifeweb/db/lib/equipSlots";
+import { findEquipProblem } from "@lifeweb/db/lib/equipSlots";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { auth } from "@/lib/auth";
@@ -104,37 +104,32 @@ export async function toggleEquip(characterTagId) {
     return { equipped: false };
   }
 
-  // Counting inside the transaction is NOT enough on its own: Prisma runs at
+  // Checking inside the transaction is NOT enough on its own: Prisma runs at
   // READ COMMITTED, so two tabs (or one impatient double-tap) both read the
-  // same count, both see a free slot, and both write — which is exactly what
+  // same worn set, both see room, and both write — which is exactly what
   // happens without the lock below. Taking a row lock on the Character first
   // serializes every equip for this one character, so the second attempt reads
-  // the first's committed count. Contention is per-character, i.e. only ever
+  // the first's committed set. Contention is per-character, i.e. only ever
   // between one player's own clients.
   try {
     await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Character" WHERE id = ${character.id} FOR UPDATE`;
-      const config = await tx.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true } });
-      const slots = config?.equipSlots ?? 10;
-      const inUse = await tx.characterTag.count({ where: { characterId: character.id, equipped: true } });
-      if (inUse >= slots) throw new Error("NO_SLOTS");
       await tx.characterTag.update({ where: { id: held.id }, data: { equipped: true } });
 
       // Written first, then checked, so this asks the same question the GM
-      // batch path asks: "is the resulting set wearable?". Inside the same
-      // transaction and behind the same row lock as the slot count, so a
-      // double-tap cannot slip a second helmet past it; the throw rolls the
-      // write back.
+      // batch path asks: "is the resulting set wearable?" — one thing per
+      // layer, one shield, three hands (db/lib/equipSlots.js). Behind the row
+      // lock, so a double-tap cannot slip a second helmet past it; the throw
+      // rolls the write back.
       const worn = await tx.characterTag.findMany({
         where: { characterId: character.id, equipped: true },
-        select: { tag: { select: { name: true, equipSlot: true, equipLayer: true } } },
+        select: { tag: { select: { name: true, equipSlot: true, equipLayer: true, twoHanded: true } } },
       });
-      const clash = findSlotClash(worn);
-      if (clash) throw new Error(`CLASH:${describeSlotClash(clash)}`);
+      const problem = findEquipProblem(worn);
+      if (problem) throw new Error(`REFUSED:${problem}`);
     });
   } catch (err) {
-    if (err.message === "NO_SLOTS") return { error: "You have no free equipment slots." };
-    if (err.message?.startsWith("CLASH:")) return { error: err.message.slice("CLASH:".length) };
+    if (err.message?.startsWith("REFUSED:")) return { error: err.message.slice("REFUSED:".length) };
     throw err;
   }
 
