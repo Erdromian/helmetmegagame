@@ -90,7 +90,7 @@ kind (CRAFTING.md §2).
 | `flawless-skin` | 8 | 1 | — | `otherworldly-beauty` |
 
 Four recipes lost a prose ingredient and pay in ⬢ instead, because the
-ingredient was the whole gate: `white-honey` 2 → **6** (it cures any poisoning),
+ingredient was the whole gate: `white-honey` 2 → **6** (it cures a poisoning),
 `succubus-draught` 2 → **8** (it grants mindreading), and `forgiveness` /
 `flawless-skin` keep their 8, which was already doing the work. White Honey
 has since regained a real gate twice over — it spends a `honey` (a gm-catalog
@@ -98,8 +98,13 @@ Depot import, which also makes it one of the HIDDEN recipes: off the Recipes
 tab, out of the Craft menu until the brewer holds the ingredients) and, since
 the trout's heart came back as a loot-pass fishing find, a `trout-heart` too.
 Its ⬢ eased 6 → **3** with the second ingredient (Chris 2026-09-07): the rare
-catch is most of the price of a cure-all now, and 6 on top of both was a
-triple gate.
+catch is most of the price of the cure now, and 6 on top of both was a
+triple gate. Its own `cures:` list (the medical pass, TAGS.md §5c) is
+`poisoned`, `envenomated`, `phrygian-toxin` — not literally every poison in
+the catalog (nightshade's choking and soporific's asleep aren't on it), so
+"any poisoning" in its player-facing description overstates it; flagged for
+Bascinet rather than fixed here, since that description is outside this
+milestone's edit list.
 `succubus-draught` regained a real gate the same day — it spends
 `nekker-pheromones`, butchered from a Nekker Corpse, which hides the recipe
 the same way (sells 18 with it; 7 sat below the brew's own ⬢ cost).

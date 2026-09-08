@@ -16,6 +16,14 @@ derived from the category (§5).
 | `removable` | Destroy | `destroyTagRequest` (derived, §5) |
 | `healable` | Heal | `healCharacterRequest` via `web/lib/healRequests.js#isHealable` |
 | `teachable` | Learn / Teach | `db/lib/lessons.js#teachableSkills` (LESSONS.md) |
+| `cures` / `administerable` | Consume, with a target | `consumeTagRequestImpl` (`MEDICAL.md` §1) |
+
+The last row is not a fifth menu flag the way the first four are — every
+item already sits in Consume, whatever its `cures` list says. What `cures`/
+`administerable` decide is narrower: whether Consume's target picker may
+post to someone OTHER than the actor at all (an item curing nothing the
+target holds, and not `administerable`, refuses the targeted branch outright,
+same server-side re-check posture as the four flags above).
 
 The 9/2026 sweep set `healable: true` on every health tag with a cure and
 `teachable: true` on every skill. Health is not `removable` — a wound is
@@ -114,6 +122,18 @@ A turn's Routine commits to one family. Half a Routine at the still and half
 at the anvil is not a thing, and that includes the Dead Simple pool: spill a
 work knife (`smithing`) into the Move and a sling (`crafting`) is refused for
 the rest of the turn.
+
+**`medical` is a family too, but it is never derived — it is always passed
+explicitly.** A routine Heal or an `administerSkill`-gated Consume
+(`MEDICAL.md` §2–3) bills through this same arithmetic, but the tag being
+priced is an AFFLICTION or a fitted ITEM, not a recipe with
+`requirementSkills` for `craftFamily()` to read a trade prefix off — a
+skill-less cure like Choking would otherwise fall through to the generic
+`craft` family and share a Routine with actual crafting. Every medical
+caller says `family: "medical"` up front instead of asking `craftFamily` to
+guess, which is also why a Routine already committed to treating somebody
+refuses a Broadsword for the rest of the turn, same as any two families
+would.
 
 **The ledger.** `Action.craftBudget` on the `auto:craft` Action:
 
