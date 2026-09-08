@@ -1099,6 +1099,9 @@ zones:
             description: >-
               Deep between the trees stands a broken sculpture of antlers, weathered until it is difficult to tell whether it was carved from stone or bone. Small offerings lie beneath it in varying states of decay.
             access: [old-ways-sylvia, forester]
+            stash:
+              items:
+                honey: 1
       forest-riverbend:
         name: Riverbend
         attributes:
@@ -1376,6 +1379,7 @@ zones:
                 foot: 2
                 eye: 1
                 bone: 8
+                ravens-eye: 1
       hills-north:
         name: North Hills
         attributes:
@@ -1565,7 +1569,10 @@ zones:
             description: >-
               A waterlogged cellar. There's a crate down there — you'd have to be a good swimmer to get it.
             access: [strong-swimmer]
-            stash: [flooded-crate]
+            stash:
+              items:
+                flooded-crate: 1
+                poppy-pods: 1
           village-old-hut:
             name: Old Hut
             description: >-
@@ -1575,6 +1582,7 @@ zones:
               items:
                 obol: 2
                 rat: 1
+                poppy-pods: 1
       factory:
         name: Godard Factory
         indoors: true
