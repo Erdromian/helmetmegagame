@@ -181,16 +181,17 @@ to carry what all three tiers below the surface used to.
 weapon/armor entries pull representative slugs off `SMITHING.md` §3/§4's
 ladder rather than every entry in it:
 
-- **Ultracommon** — Cave Fungus, Saltpeter.
+- **Ultracommon** — Cave Fungus, Saltpeter, Purring Maggot, Rock.
 - **Common** — Cudgel, Purse, Cracked Bone Club, Sling, Skinned Cave Rat, Old
-  Coin.
-- **Uncommon** — Alcohol, Cleaning Powder, Fine Meal, Bear Trap, plus
-  low-tier weapons and armor.
+  Coin, Coal.
+- **Uncommon** — Alcohol, Cleaning Powder, Fine Meal, Bear Trap, Rope, Honey,
+  Buckler, Spear, Work Knife, Knuckle Duster, plus low-tier weapons and armor.
 - **Rare** — Ravenheart Red, Cat, Salvage Plate, Supply Kit, Jewelry, Bliss,
-  Spyglass, Gas Mask, plus mid-tier weapons and armor.
+  Spyglass, Gas Mask, Instrument, Mining Helmet, plus mid-tier weapons and
+  armor.
 - **Extremely rare** — EMP Grenade, refined gunpowder, Skeleton Wedge,
   Jester Outfit, Starting Wares, Military Autoinjector, Autocannon Shell,
-  plus top-tier weapons and armor.
+  Fragmentation Grenade, Neoclassic Duelista, plus top-tier weapons and armor.
 - **Nearly impossible** — Energy Shield, Power Fist, the Neoclassic
   Revolver, Stepstone, Dark-Eye Lenses, Motorcycle.
 
@@ -288,10 +289,20 @@ gear, bulk goods and salvage. The six originals kept their numbers: Graga Sac
 Autoinjector (10). See [`DEPOT.md`](DEPOT.md) §4, which is now canonical for
 all of it.
 
-Two of the caving artifacts are also on the Depot's *buy* shelf — the
+Three of the caving artifacts are also on the Depot's *buy* shelf — the
 Motorcycle and the Flamethrower, which the station has no trouble sourcing and
-Ravenheart has every trouble hauling out of the Caves. Nothing else on the loot
-table is purchasable at any price.
+Ravenheart has every trouble hauling out of the Caves, and the **Mining
+Helmet** (14 ⬢), which is station work rather than forge work: the plates are
+a Simple Helm's, the lamp is not. Nothing else on the loot table is purchasable
+at any price.
+
+**Two of the new entries are not only loot.** `rock` is seeded by hand into
+thirteen rooms across the Caves, the Depths, the Black Hills, the Mountain and
+the Headwaters (`docs/zones.yaml`), so the ground is a source and the die is a
+bonus. `purring-maggot` is the loot; **`maggot-milk` is not on the table at
+all** — it is what a holder of Brewing (Basic) makes of one maggot for 1 ⬢, and
+it calms exactly as much as tea does (`db/lib/fear.js` `CONSUME_RELIEF`) while
+the raw maggot only poisons.
 
 ## 7. Two catalog fields this update added
 

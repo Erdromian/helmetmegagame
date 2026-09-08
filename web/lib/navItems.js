@@ -9,6 +9,7 @@ import { dmNoiseSql } from "@/lib/dmThread";
 export const PLAYER_NAV = [
   { href: "/character", label: "Character", icon: "character" },
   { href: "/play", label: "Play", icon: "play" },
+  { href: "/map", label: "Map", icon: "map" },
   { href: "/faction", label: "Faction", icon: "faction" },
   { href: "/notes", label: "Notes", icon: "notes" },
   { href: "/documents", label: "Documents", icon: "documents" },
@@ -32,6 +33,7 @@ export const GM_NAV = [
   // The GM's own player screens, in PLAYER_NAV's order minus Faction.
   { href: "/character", label: "Character", icon: "character", section: "player" },
   { href: "/play", label: "Play", icon: "play", section: "player" },
+  { href: "/map", label: "Map", icon: "map", section: "player" },
   { href: "/notes", label: "Notes", icon: "notes", section: "player" },
   { href: "/documents", label: "Documents", icon: "documents", section: "player" },
   { href: "/handbook", label: "Handbook", icon: "help", section: "player" },
@@ -42,6 +44,11 @@ export const GM_NAV = [
 // superadmin. Gamemasters still has no rail item at all: it is one more
 // superadmin table hanging off the Dev panel's sub-nav.
 const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev", section: "gm" };
+// The second character sheet (web/app/(app)/ledger/page.js). Everyone gets
+// it for now — a layout nobody but its author can open is a layout nobody
+// judges — and it is appended last, under Dev on a superadmin's rail, so the
+// order says what it is: a page still being decided on.
+const LEDGER_NAV_ITEM = { href: "/ledger", label: "Ledger", icon: "ledger", section: "player" };
 const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb", section: "player" };
 const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive", section: "player" };
 // Conditional on the licence tag, exactly like Lifeweb's Mortus check below —
@@ -118,5 +125,6 @@ export async function loadNavItems(discordUserId) {
   // after the player group. That is one more divider than the two groups
   // suggest, which is correct: Dev is not the same job as Players/Adjudicate
   // and reads better as its own mark at the bottom.
-  return superadmin ? [...withDepot, DEV_NAV_ITEM] : withDepot;
+  const withDev = superadmin ? [...withDepot, DEV_NAV_ITEM] : withDepot;
+  return [...withDev, LEDGER_NAV_ITEM];
 }

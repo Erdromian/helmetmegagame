@@ -136,6 +136,20 @@
   --zone-marshes: #8d9384;
   --zone-caves: #939d9e;
   --zone-depths: #8f7f9c;
+
+  /* The river on the /map plate. The drawn plate is flat Playscii art with
+     exactly one accent in it -- #57a9bc, the water -- picked in the drawing
+     program, so it followed no theme and sat wrong against the palette in all
+     three. Rather than ship a tinted copy of the art per theme, the water is
+     cut to an alpha mask (docs/assets/make-map-river.py -> map-river.png) and
+     painted through it with this token, so it follows the theme like every
+     other surface and a fourth theme would get a river for free.
+
+     A FILL, not a text colour: nothing is ever set on it, so it is gated like
+     the zone code rather than at AA. Read against the plate's own ground
+     (#0c1013) and land (#c1c4c2), not against --surface -- the art does not
+     change with the theme, only this does. */
+  --map-river: #4f9d94;
 }
 
 /* Dawn — lamps up. Not daylight: a warmer, lifted dark with brighter ember. */
@@ -175,6 +189,10 @@
   --zone-marshes: #8d9384;
   --zone-caves: #939d9e;
   --zone-depths: #8f7f9c;
+
+  /* The /map river -- see the dusk block. Sunrise on the water, warm, since
+     dawn is the one theme whose whole ember runs orange. */
+  --map-river: #c07a3c;
 }
 
 /* Limestone — the light-theme backup, kept for comparison rather than wired
@@ -227,6 +245,11 @@
   --zone-marshes: #7f8677;
   --zone-caves: #838e90;
   --zone-depths: #82728f;
+
+  /* The /map river -- see the dusk block. Limestone was not named when this
+     was chosen; it takes dusk's teal a shade deeper, and is the one of the
+     three to revisit if the water reads wrong in daylight. */
+  --map-river: #3f8b90;
 }
 
 /* Bridge the tokens into Tailwind. Without this the app runs two disconnected
@@ -2109,6 +2132,85 @@ input[type="radio"]:disabled {
 
 /* Square icon button for a table row action (adjudicate, message). Framed by
    default and filled on hover, matching .btn-quiet -> .btn. */
+/* The wide action rack (/ledger, ActionGrid variant="columns"). Sections side
+   by side with a rule between them, each a stack of full-width labelled
+   buttons — the same verbs the narrow .icon-btn rack carries on /character,
+   given the room a full-width page has. */
+.action-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  align-items: flex-start;
+}
+
+.action-column {
+  /* Grows to fill, but only so far: with two sections showing and a 1400px
+     panel, an uncapped column makes a 500px-wide button, which reads as a
+     banner rather than a verb. */
+  flex: 1 1 11rem;
+  max-width: 20rem;
+  min-width: 0;
+  padding-inline: var(--sp-4);
+  border-left: 1px solid var(--border);
+}
+
+.action-column:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+/* Under the ledger's own two-column breakpoint the sections stack, and the
+   rule turns with them — five slivers would be worse than the row it started
+   as. */
+@media (max-width: 900px) {
+  .action-column {
+    flex-basis: 100%;
+    max-width: none;
+    padding-inline: 0;
+    padding-top: var(--sp-3);
+    margin-top: var(--sp-3);
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+
+  .action-column:first-child {
+    padding-top: 0;
+    margin-top: 0;
+    border-top: none;
+  }
+}
+
+.action-tile {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1.2;
+}
+
+.action-tile:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent-text);
+}
+
+.action-tile:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.action-tile:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
 .icon-btn {
   all: unset;
   cursor: pointer;
@@ -6011,4 +6113,458 @@ label.chip {
 .chat-embed .chat-typing {
   padding-left: var(--sp-3);
   padding-right: var(--sp-3);
+}
+
+/* ── /ledger ─────────────────────────────────────────────────────────────────
+   The second character sheet: a banner of numbers over three columns — the
+   bio form, the working column, and a rail of tag cards. Same grid idea as
+   .desk-body and .chat-body above, but inside a PageShell rather than a
+   full-viewport desk, so the columns scroll with the page instead of each on
+   their own. Numbers are laid out here rather than with utility classes
+   because the tile row and the band share one measure. */
+.ledger-body {
+  display: grid;
+  grid-template-columns: 18rem minmax(0, 1fr) 20rem;
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.ledger-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+/* The banner: portrait and name on the left, the tiles on the right, wrapping
+   under it when the page gets narrow. */
+.ledger-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.ledger-tiles {
+  display: grid;
+  /* auto-fit rather than a fixed four, so the row folds to two before any
+     tile is narrow enough to wrap "30.5 / 71 lb" onto a second line. */
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--sp-2);
+  flex: 1 1 26rem;
+}
+
+.ledger-tile {
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  min-width: 0;
+}
+
+.ledger-tile-value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  line-height: 1.2;
+  display: block;
+  margin-top: var(--sp-1);
+}
+
+.ledger-tile-value[data-over="true"] {
+  color: var(--accent-text);
+}
+
+.ledger-tile .depot-meter {
+  margin-top: var(--sp-2);
+}
+
+/* The turn strip under the tiles: the Move as filed, on the recessed surface
+   the tiles use so the whole banner reads as one instrument panel. */
+.ledger-turn {
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+}
+
+@media (max-width: 1180px) {
+  /* The rail goes under the working column first — it is a reference list,
+     and the bio form is the narrow thing that keeps its width best. */
+  .ledger-body {
+    grid-template-columns: 18rem minmax(0, 1fr);
+  }
+
+  .ledger-rail {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    align-items: start;
+  }
+
+  /* The Tags header is a strip, not a card of chips — it reads as a stray
+     tile if it is left sharing a row with a tall category. */
+  .ledger-rail > section:first-child {
+    grid-column: 1 / -1;
+  }
+
+  /* Two by two beside the name once the band has wrapped — three across and
+     one orphan underneath reads as a mistake. */
+  .ledger-tiles {
+    grid-template-columns: repeat(2, minmax(9rem, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .ledger-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ------------------------------------------------------------------ /map
+   The travel graph over the drawn plate (MAP.md §6). One board, two hosts:
+   the /map route and the overlay on /play, which is why nothing here assumes
+   a page or a dialog — .map-board fills whatever box it is handed.
+
+   The plate is a raster and does not change with the theme; only the water
+   does, through --map-river and an alpha mask. Everything drawn ON it is
+   tokens all the way down, so the nodes follow the theme even though the art
+   underneath them never will. */
+
+.map-board {
+  display: flex;
+  gap: var(--sp-3);
+  min-height: 0;
+  height: 100%;
+}
+
+.map-board-quiet {
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+/* The route owns the whole screen, the same contract .chat-shell has: a
+   100dvh column that never scrolls the document. A map is the window you look
+   through, so putting one in a centred card was drawing a picture of a map. */
+.map-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.map-shell .map-board {
+  flex: 1;
+  min-height: 0;
+  padding: var(--sp-2);
+}
+
+.map-stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.map-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* The board pans, so the page must not: a two-finger drag over the map is
+     for the map. */
+  touch-action: none;
+  cursor: grab;
+}
+
+.map-svg:active {
+  cursor: grabbing;
+}
+
+/* Pixel art. Smoothing a 2144px plate scaled past 1:1 turns crisp coastline
+   into mush, which is the whole character of the drawing. */
+.map-plate {
+  image-rendering: pixelated;
+}
+
+.map-river {
+  fill: var(--map-river);
+}
+
+/* Underground, the plate is the WRONG picture: the art draws no tunnels, so
+   the caves and the depths are a schematic layer laid over the same
+   coordinates (docs/assets/map-nodes.json). Dropping the drawing back to a
+   ghost keeps the coastline there for orientation — the cave mouth really is
+   under that hillside — without pretending the trees are down there too. */
+.map-stage[data-layer="under"] {
+  background: var(--bg);
+}
+
+.map-svg[data-layer="under"] .map-plate {
+  opacity: 0.13;
+}
+
+.map-svg[data-layer="under"] .map-river {
+  opacity: 0.2;
+}
+
+/* ------------------------------------------------------------ /map · ways */
+
+.map-edge {
+  stroke: var(--border);
+  stroke-width: 5;
+  stroke-linecap: round;
+  fill: none;
+}
+
+/* A way you can see and cannot use. Dashed rather than hidden on purpose:
+   knowing the door is there and shut is what sends you to find the winch or
+   the key. A way you may NOT see never reaches the browser at all — loadMap
+   drops it server-side (MAP.md §2a). */
+.map-edge[data-gate] {
+  stroke: var(--warning);
+  stroke-dasharray: 14 18;
+}
+
+.map-edge[data-gate="closed"] {
+  stroke: var(--muted);
+}
+
+/* ----------------------------------------------------------- /map · nodes */
+
+.map-node {
+  cursor: pointer;
+}
+
+/* The rim is the white band the core sits inside. --on-accent rather than a
+   literal white: it is the "light mark on a coloured ground" token, and it is
+   near-white in all three themes without being hardcoded anywhere. */
+.map-node-rim {
+  fill: var(--on-accent);
+}
+
+.map-node-core {
+  fill: var(--border);
+}
+
+.map-node[data-zone="fortress"] .map-node-core { fill: var(--zone-fortress); }
+.map-node[data-zone="town"] .map-node-core { fill: var(--zone-town); }
+.map-node[data-zone="forest"] .map-node-core { fill: var(--zone-forest); }
+.map-node[data-zone="hills"] .map-node-core { fill: var(--zone-hills); }
+.map-node[data-zone="marshes"] .map-node-core { fill: var(--zone-marshes); }
+.map-node[data-zone="caves"] .map-node-core { fill: var(--zone-caves); }
+.map-node[data-zone="depths"] .map-node-core { fill: var(--zone-depths); }
+
+/* Somewhere you have only ever seen from next door. The core drops out and
+   the rim stays, so it reads as an outline — a place on the map you have not
+   filled in yet. */
+.map-node[data-state="seen"] .map-node-core {
+  fill-opacity: 0.3;
+}
+
+.map-node[data-state="seen"] .map-node-label {
+  fill: var(--muted);
+  font-size: 21px;
+}
+
+/* Where you are standing. Already the largest node; the ring is what makes it
+   findable at a glance on a board of fifty. */
+.map-node[data-state="here"] .map-node-rim {
+  stroke: var(--accent);
+  stroke-width: 5;
+}
+
+.map-node[data-reach]:hover .map-node-rim,
+.map-node[data-picked] .map-node-rim {
+  stroke: var(--accent-text);
+  stroke-width: 5;
+}
+
+.map-node-label {
+  fill: var(--text);
+  font-size: 24px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 7;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+/* -------------------------------------------------------- /map · controls */
+
+.map-layers {
+  position: absolute;
+  top: var(--sp-2);
+  left: var(--sp-2);
+  background: var(--surface);
+}
+
+.map-controls {
+  position: absolute;
+  bottom: var(--sp-2);
+  left: var(--sp-2);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 2px var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+
+.map-count {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------ /map · card */
+
+.map-card {
+  width: 17rem;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  /* Room at the foot for the (app) layout's floating turn chip, which is
+     fixed to the bottom-right corner and would otherwise sit on top of
+     Return to game. Chat solves the same collision by hiding the chip and
+     drawing its own; the map has no header of its own to draw one in, so it
+     gets out of the way instead. */
+  padding-bottom: calc(var(--sp-3) + 2.5rem);
+  overflow-y: auto;
+}
+
+.map-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  align-items: flex-start;
+}
+
+.map-card-name {
+  font-size: var(--fs-lg);
+  letter-spacing: var(--ls-tight);
+}
+
+/* What is inside a place you have been: its rooms, and your conversations
+   there. Three short lists, not a table — the card is a caption, and the
+   moment this needs columns it wants to be somewhere else. */
+.map-inside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  width: 100%;
+}
+
+.map-inside-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.map-inside-list li {
+  padding: 1px 0;
+}
+
+.map-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  width: 100%;
+}
+
+.map-exits {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.map-exit {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: 4px var(--sp-2);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.map-exit:hover {
+  background: var(--row-hover);
+}
+
+.map-exit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.map-exit .mono {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.map-return {
+  margin-top: auto;
+}
+
+/* The overlay on /play. .modal-panel is a dialog box -- 46rem wide, rounded,
+   floating on a dim -- and a map in one read as a bubble with a map in it.
+   This takes the screen instead: the whole viewport, no radius, no border.
+   Escape and the backdrop still close it, because it is still a Modal. */
+.map-panel {
+  max-width: none;
+  max-height: none;
+  width: 100vw;
+  height: 100dvh;
+  border: 0;
+  border-radius: 0;
+  padding: var(--sp-3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-panel .map-board {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Phone: the card stops being a column and becomes a strip under the board.
+   The board keeps most of the height — the card is a caption, and its Ways
+   out list is the thing worth scrolling. */
+@media (max-width: 640px) {
+  .map-board {
+    flex-direction: column;
+  }
+
+  .map-card {
+    width: auto;
+    max-height: 40%;
+  }
+}
+
+@media (max-width: 720px) {
+  /* The bar's height comes off, the same reason .chat-shell takes it off:
+     .app-main carries the fixed bottom bar's clearance, and a full 100dvh
+     would put the card's Ways out list underneath it. */
+  .map-shell {
+    height: calc(100dvh - var(--rail-h) - env(safe-area-inset-bottom, 0px));
+  }
 }

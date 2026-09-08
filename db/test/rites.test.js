@@ -73,6 +73,18 @@ test("a top-up keeps the words already rolled and fills only the missing ones", 
   assert.equal(Object.keys(rollRiteWords(seeded(7), RITES, {})).length, RITES.length);
 });
 
+test("a mention token cannot chant: {char:<cuid>} is stripped before matching", () => {
+  // A cuid is [a-z0-9], and the letters-only rule turns it into runs that the
+  // matcher would otherwise treat as whole words.
+  const words = { a: "cruo", b: "crudux cruo" };
+  assert.deepEqual(matchRites("hey {char:c1cruo2xk9pq} come here", words), []);
+  assert.deepEqual(matchRites("{resource:cruo}", words), []);
+  // ...and the real thing still counts, tokens beside it or not.
+  assert.deepEqual(matchRites("cruo", words), ["a"]);
+  assert.deepEqual(matchRites("{char:abc123} cruo", words), ["a"]);
+  assert.equal(normalizeChant("hey {char:c1cruo2xk9pq} come here"), "hey come here");
+});
+
 test("the matcher ignores case and punctuation and needs whole words in order", () => {
   const words = { a: "crudux cruo", b: "exim’ha", c: "cruonit" };
   assert.deepEqual(matchRites("Rise, brothers. CRUDUX CRUO!", words), ["a"]);

@@ -1,6 +1,7 @@
 "use client";
 
 import IconButton from "./IconButton";
+import Tooltip from "./Tooltip";
 import { useRequestActions } from "./RequestActionsProvider";
 import { ACTION_SECTIONS, ACTION_HELP } from "./actionRegistry";
 
@@ -38,10 +39,67 @@ function tooltipFor({ label, mode }, reason = null) {
   );
 }
 
-export default function ActionGrid() {
+// The wide form of one action: the glyph AND its name, as a full-width row.
+// The rack above is glyph-only because it lives in a 12rem column on
+// /character; /ledger has a whole screen, and a labelled verb is one fewer
+// thing to hover to understand. Same Tooltip wrapper either way, so the
+// explaining sentence — and a disabled button's reason — still arrive.
+function ActionTile({ icon: Icon, label, tooltip, onClick, disabled }) {
+  return (
+    <Tooltip text={tooltip} pinnable={false}>
+      <button
+        type="button"
+        className="action-tile"
+        aria-label={label}
+        onClick={onClick}
+        disabled={disabled}
+      >
+        <Icon width="18" height="18" />
+        <span>{label}</span>
+      </button>
+    </Tooltip>
+  );
+}
+
+// `variant` picks the frame, not the contents. "rack" is the original: a
+// captioned row of icons, capped narrow, which is what /character's column
+// fits. "columns" is /ledger's: one column per section with a rule between
+// them, each holding labelled tiles.
+export default function ActionGrid({ variant = "rack" }) {
   const actions = useRequestActions();
   if (!actions) return null;
   const { open, pools } = actions;
+
+  if (variant === "columns") {
+    return (
+      <div className="action-columns">
+        {ACTION_SECTIONS.map((section) => {
+          const visible = section.actions.filter((a) => (a.show ? pools[a.show] : true));
+          if (visible.length === 0) return null;
+          return (
+            <div key={section.key} className="action-column">
+              <p className="field-label mb-2">{section.label}</p>
+              <div className="flex flex-col gap-1">
+                {visible.map((a) => {
+                  const disabled = a.gate ? !pools[a.gate] : false;
+                  return (
+                    <ActionTile
+                      key={a.mode}
+                      icon={a.icon}
+                      label={a.label}
+                      tooltip={tooltipFor(a, disabled ? (pools.gateReason?.[a.mode] ?? null) : null)}
+                      onClick={() => open(a.mode)}
+                      disabled={disabled}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2">

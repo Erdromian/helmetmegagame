@@ -11,6 +11,7 @@ import {
   LEADER_WHITELIST_ROLE_ID,
   hasGmRole,
   hasPlaytestRole,
+  hasContributorRole,
   SPECIAL_CHANNELS,
 } from "@lifeweb/db";
 import { applyDeathToRow } from "@lifeweb/db/lib/characterDeath";
@@ -219,11 +220,18 @@ export function isGm(member) {
   return hasGmRole(member.roles);
 }
 
-// The Playtest seat (db/lib/roleIds.js): may skip the lobby and create in any
-// phase like a GM, and passes the roster check without the Player role.
+// The Playtest seat (db/lib/roleIds.js): passes the roster check without the
+// Player role. It does NOT open the doors early — see creationOpen().
 export function isPlaytester(member) {
   if (!member) return false;
   return hasPlaytestRole(member.roles);
+}
+
+// The Contributor seat (db/lib/roleIds.js): a person who works on Bascinet.
+// Read by the playtest-mode roster gate below and nowhere else.
+export function isContributor(member) {
+  if (!member) return false;
+  return hasContributorRole(member.roles);
 }
 
 // Role ID hardcoded rather than env-configured: this gate fails CLOSED, so a
@@ -231,6 +239,21 @@ export function isPlaytester(member) {
 export function isApprovedPlayer(member) {
   if (!member) return false;
   return member.roles?.includes(PLAYER_ROLE_ID) ?? false;
+}
+
+// Who counts as on the roster for this game — the one answer the lobby and
+// both creation actions share, so they cannot drift apart.
+//
+// Normally that is the Player role, which the bot hands to everyone the moment
+// they join the guild (bot/src/events/guildMemberAdd.js), or the Playtest seat.
+// With GameConfig.playtestModeEnabled on, the door narrows to the people
+// building the game: a GM, a playtester, or a Contributor. Superadmins bypass
+// this entirely at every call site.
+export function onRoster(member, { playtestMode = false } = {}) {
+  if (playtestMode) {
+    return isGm(member) || isPlaytester(member) || isContributor(member);
+  }
+  return isApprovedPlayer(member) || isPlaytester(member);
 }
 
 export function isCursed(member) {

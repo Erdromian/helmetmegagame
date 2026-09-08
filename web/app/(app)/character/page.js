@@ -57,11 +57,10 @@ import { craftFreeUnits } from "@/lib/requests";
 import { summarizeCraftBudget } from "@/lib/craftBudget";
 import {
   getGuildMember,
-  isApprovedPlayer,
   isCursed,
   isGm,
-  isPlaytester,
   isLeaderWhitelisted,
+  onRoster,
 } from "@/lib/discordGuild";
 import {
   isSpawnOnly,
@@ -129,15 +128,25 @@ async function loadCreationData(discordUserId) {
   // to a GM during the lobby, which is the Skip button.
   const superadmin = isSuperadmin(discordUserId);
   const phase = state?.phase ?? "CLOSED";
-  // A GM or a playtester may skip the lobby in any phase, and a playtester is
-  // on the roster without the Player role (db/lib/roleIds.js).
-  const skipper = isGm(member) || isPlaytester(member);
+  // Only a GM skips the lobby now: a playtester's bypass is the roster check,
+  // not the phase one, so they rehearse the lobby like everybody else
+  // (db/lib/roleIds.js).
+  const skipper = isGm(member);
+  // Playtest mode narrows the roster to the people building the game
+  // (docs/systemdocs/LOBBY.md §2). Server-side gates re-check it regardless.
+  const playtestMode = config?.playtestModeEnabled === true;
+  const approved = superadmin || onRoster(member, { playtestMode });
   const gate = {
     phase,
     open: superadmin || phase === "RUNNING" || phase === "ENDED" || skipper,
-    approved: superadmin || isApprovedPlayer(member) || isPlaytester(member),
+    approved,
     superadmin,
     gm: skipper,
+    // Turned away by playtest mode rather than by a missing Player role. The
+    // closed page shows its "not open yet" face for this instead of "not on
+    // the roster": there is nothing to apply for, and a closed rehearsal has
+    // no reason to announce itself.
+    masked: playtestMode && !approved,
   };
   // `=== false`, not falsy: no config row means the gate stays enforced.
   const leaderWhitelisted =
@@ -232,9 +241,14 @@ export default async function CharacterPage({ searchParams }) {
 // sheet — each a `kind` in the one object CharacterView draws. Every prop of
 // the sheet below used to be a JSX attribute on <CharacterSheet> right here;
 // the names are unchanged.
-async function FreshCharacter({ userId, searchParams }) {
+//
+// `scope` is the snapshot bucket the result is written into. /ledger renders
+// the same four outcomes in its own layout (web/app/components/CharacterLedger.js)
+// and imports this body whole, so the load lives in one place; it passes its
+// own scope so the two pages never paint each other's stored copy.
+export async function FreshCharacter({ userId, searchParams, scope = "character" }) {
   const session = { discordUserId: userId };
-  const fresh = (data) => <SnapshotFresh scope="character" userId={userId} data={data} />;
+  const fresh = (data) => <SnapshotFresh scope={scope} userId={userId} data={data} />;
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
@@ -273,7 +287,7 @@ async function FreshCharacter({ userId, searchParams }) {
     const { create } = (await searchParams) ?? {};
     const skipping = create === "1" && (gate.gm || gate.superadmin);
     if (gate.phase === "LOBBY" && !skipping) {
-      if (!gate.approved) return fresh({ kind: "closed", open: true });
+      if (!gate.approved) return fresh({ kind: "closed", open: !gate.masked });
       const [preference, entry, readyCount] = await Promise.all([
         prisma.playerPreference.findUnique({ where: { discordUserId: session.discordUserId } }),
         prisma.lobbyEntry.findUnique({ where: { discordUserId: session.discordUserId } }),
@@ -311,7 +325,8 @@ async function FreshCharacter({ userId, searchParams }) {
         },
       });
     }
-    if (!gate.open || !gate.approved) return fresh({ kind: "closed", open: gate.open });
+    if (!gate.open || !gate.approved)
+      return fresh({ kind: "closed", open: gate.masked ? false : gate.open });
     // A seat from the roll, still inside its window: the wizard opens on the
     // Tags step with the role fixed. createCharacter enforces the same lock.
     const assigned = await prisma.lobbyEntry.findFirst({

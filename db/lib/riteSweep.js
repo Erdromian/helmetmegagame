@@ -55,11 +55,19 @@ async function fireAttempt(db, attempt) {
   // clock cleared, and the next chant re-judges it.
   const ingredients = await resolveIngredients(db, rite, room, { participants });
   if (!ingredients.ok || participants.length < rite.minChanters) {
-    await db.riteAttempt.update({
-      where: { id: attempt.id },
+    // GUARDED on READY, like the claim below. Without the predicate a second
+    // sweep — a rolling deploy runs two bot containers, and ready.js's
+    // re-entrancy flag is per-process — could resolve this attempt while the
+    // first sweep was firing it, find the floor "missing" because the first
+    // sweep had just eaten it, and stomp a FIRED row back to OPEN. That loses
+    // the result, strands an AWAITING Panic where nothing can answer it, and
+    // leaves the original chants in place so the next chant re-arms and fires
+    // the same rite a second time.
+    const { count } = await db.riteAttempt.updateMany({
+      where: { id: attempt.id, status: "READY" },
       data: { status: "OPEN", readyAt: null, firesAt: null, result: { rearmed: ingredients.missing } },
     });
-    return { fired: false, rearmed: true };
+    return { fired: false, rearmed: count > 0 };
   }
 
   // Claim it and eat the floor together: a second sweep racing this one finds
@@ -82,19 +90,32 @@ async function fireAttempt(db, attempt) {
   if (!claimed) return { fired: false };
 
   const openTurn = await db.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+  // The number a TIMED tag grant needs, which is not always openTurn.number.
+  // A rite fires off a minute cron, so it lands inside a turn advance — and
+  // advanceTurn leaves nothing OPEN between flipping the old turn RESOLVED and
+  // creating the next, for as long as that takes, or for hours if it wedges
+  // (db/lib/grantExpiry.js). grantTagSlugs THROWS on a timed tag with no turn
+  // number rather than landing it permanent, and by here the floor is already
+  // eaten — so the throw would cost the circle its ingredients for nothing.
+  // The turn a grant belongs to in that window is the one about to open.
+  const grantTurnNumber =
+    openTurn?.number ??
+    ((await db.turn.findFirst({ orderBy: { number: "desc" }, select: { number: true } }))?.number ?? 0) + 1;
   const effect = EFFECTS[rite.key];
   let outcome;
   try {
     outcome = effect
-      ? await effect({ db, rite, attempt, room, location: room.location, participants, resolved: ingredients.resolved, openTurn })
+      ? await effect({ db, rite, attempt, room, location: room.location, participants, resolved: ingredients.resolved, openTurn, grantTurnNumber })
       : { result: { unscripted: true } };
   } catch (err) {
     console.error(`Rite ${rite.key} in ${room.name} effect failed:`, err.message ?? err);
     outcome = { result: { error: err.message ?? String(err) } };
   }
 
-  await db.riteAttempt.update({
-    where: { id: attempt.id },
+  // Also guarded: this sweep claimed the row as FIRED above, so only it may
+  // move the row on to AWAITING or write the result.
+  await db.riteAttempt.updateMany({
+    where: { id: attempt.id, status: "FIRED" },
     data: { status: outcome.awaiting ? "AWAITING" : "FIRED", result: outcome.result ?? null },
   });
   await db.auditLog

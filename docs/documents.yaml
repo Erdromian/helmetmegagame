@@ -309,6 +309,8 @@ documents:
       - Smithing, at a forge: {tag:work-knife}, {tag:hatchet}, {tag:pitchfork},
         {tag:cudgel}, {tag:armored-gloves}
       - {tag:bone-mask} needs Butcher instead.
+      - {tag:rope} is Crafting with no forge as well, but costs 4 ⬢ rather
+        than 3. ‡
 
       **Simple — 6 ⬢, 1 turn**
 

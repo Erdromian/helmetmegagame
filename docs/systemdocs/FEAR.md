@@ -147,7 +147,7 @@ what that wound added.
 | End the turn in a HAVEN | −12 | fear pass |
 | Consume anything that lands you tipsy / wasted / unconscious / blind-drunk / high / euphoric | −30 | `consumeTagRequestImpl` |
 | Consume a `lavish-meal` | −30 | same |
-| Consume `tea` | −15 | same |
+| Consume `tea` or `maggot-milk` | −15 | same |
 | Consume a `cigarette` | −8 | same |
 | Fulfil a Desire (player claim or GM award) | −10 per point | both award sites |
 | A confession the die absolved | −15 | `confessionPass.js` |

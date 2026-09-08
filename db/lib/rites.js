@@ -193,6 +193,13 @@ function riteByKey(key) {
 // "crudux cruo" are the same chant, and `exim’ha` matches `exim'ha`.
 function normalizeChant(text) {
   return String(text ?? "")
+    // Tokens first, and this is not cosmetic. An archived line carries its
+    // mentions as `{char:<cuid>}` (db/lib/say.js), a cuid is [a-z0-9], and the
+    // letters-only rule below shatters one into runs it then treats as WHOLE
+    // WORDS — so `{char:c1cruo2xk9pq}` contains the word "cruo". For a robed,
+    // Inspired speaker that is a real chant off an accidental mention. Same
+    // vector for {resource:…}, photo codes and any id pasted into a room.
+    .replace(/\{[^{}]*\}/g, " ")
     .normalize("NFKC")
     .toLowerCase()
     .replace(/[^\p{L}]+/gu, " ")

@@ -53,6 +53,10 @@ export default function PlaceCard({
   // facts about this character's own turn.
   onResearch = null,
   researchHint = null,
+  // The map (docs/systemdocs/MAP.md §6). Always offered — it is the one
+  // fixture here that belongs to the world rather than to this Location, and
+  // a character with nowhere on it yet is told so by the board itself.
+  onOpenMap = null,
   pending = false,
 }) {
   const [side, setSide] = useState("place");
@@ -91,7 +95,13 @@ export default function PlaceCard({
         )}
       </div>
 
-      {(fixtures.length > 0 || onConverse || depotHref || onFactory || onResearch || researchHint) && (
+      {(fixtures.length > 0 ||
+        onConverse ||
+        depotHref ||
+        onFactory ||
+        onOpenMap ||
+        onResearch ||
+        researchHint) && (
         <div className="chat-buttons">
           {fixtures.map((entry) => (
             <button
@@ -137,6 +147,11 @@ export default function PlaceCard({
           {onConverse && (
             <button type="button" className="btn-secondary" disabled={pending} onClick={() => onConverse()}>
               Converse
+            </button>
+          )}
+          {onOpenMap && (
+            <button type="button" className="btn-secondary" onClick={onOpenMap}>
+              Open map
             </button>
           )}
         </div>

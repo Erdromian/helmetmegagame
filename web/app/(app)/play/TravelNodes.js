@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
 import EmptyState from "@/app/components/EmptyState";
 import useActionRunner from "@/app/components/useActionRunner";
+import { travelFoot } from "@/lib/travelCost";
 import { loadTravel, travelTo } from "./actions";
 
 // TRAVEL: every way out of here as a node you can see, instead of a dropdown
@@ -17,36 +18,13 @@ import { loadTravel, travelTo } from "./actions";
 // crossing spends one of the header's count while you have one left ("1
 // travel") and costs your Move and a day on the road when you do not (MAP.md
 // §3). A trailing "· on foot" or "· indoors" says the crossing (or arrival)
-// will dismount whatever you're currently riding or pushing — see footFor().
+// will dismount whatever you're currently riding or pushing — see travelFoot()
+// in web/lib/travelCost.js, which /map draws its own nodes from too.
 //
 // Nothing that refuses is hidden. A shut gate and a locked door are drawn
 // dimmed with the reason on the foot, because knowing the way is there and
 // shut is what tells you to go find the winch. A way too narrow for a mount
 // no longer refuses at all — see db/lib/indoors.js#dismountForNarrowWay.
-
-// Short enough to sit in a square. The full sentence is on the node's title.
-//
-// A local hop is free full stop — it never touches the header's count. A
-// zone crossing while one is still available spends it, which used to read
-// as the identical word "free" and told a player nothing about the
-// difference. "1 travel" is what it actually costs: one of the number shown
-// up top, singular because a single crossing is always exactly one no matter
-// how many you have left.
-function footFor(option, freeLeft, mounted) {
-  if (!option.passable) {
-    const reason = option.reason ?? "";
-    if (/locked/i.test(reason)) return "locked";
-    if (/shut/i.test(reason)) return "shut";
-    return reason || "no way";
-  }
-  const cost = !option.crossesZone ? "free" : freeLeft > 0 ? "1 travel" : "the turn";
-  // Only worth saying when there's something to lose — dismounts wins over
-  // indoors when a way is both, since either one ends the same way and
-  // saying it twice would be noise.
-  if (option.dismounts) return `${cost} · on foot`;
-  if (mounted && option.indoors) return `${cost} · indoors`;
-  return cost;
-}
 
 // The whole of it, for the hover — the node itself clamps both the name and
 // the description, and a refusal replaces the description entirely.
@@ -159,7 +137,7 @@ export default function TravelNodes({ onDone, pick = null }) {
               {option.description && (
                 <span className="chat-node-desc">{option.description}</span>
               )}
-              <span className="chat-node-foot mono">{footFor(option, data.freeLeft, data.mounted)}</span>
+              <span className="chat-node-foot mono">{travelFoot(option, data.freeLeft, data.mounted)}</span>
             </button>
           ))}
         </div>

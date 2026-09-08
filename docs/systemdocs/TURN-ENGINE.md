@@ -162,9 +162,14 @@ each arrived at by getting them wrong first.
    the banner has somewhere to hang; the next advance is refused.
 
 4d. **Ascension pass** (`db/lib/ascensionPass.js`) — the cult's doomsday, and
-   the second way a game ends (`THANATI.md` §9). Sits immediately after 4c and
-   for the identical reason: the ONLY thing that calls it off is the cult
-   leader dying, so a killing adjudicated this close has to beat the clock.
+   the second way a game ends (`THANATI.md` §9). It runs **before 4c**, not
+   after, though it is numbered here with its sibling. The ONLY thing that
+   calls it off is the cult leader dying, so it must sit after the staged push
+   and 4b — a killing adjudicated this close beats the clock — and *before* the
+   bomb, because the blast kills that same leader. With the bomb first, two
+   doomsdays landing on one close meant the fireball cancelled the rite and the
+   cult silently lost a race it had already won. Now the cult's ending is the
+   one written, and the blast still kills everyone above ground.
    **Nobody dies here** — the bomb leaves survivors underground with a game to
    play, this leaves nothing — so the pass writes one stamp and hands back one
    line. `GameState.ascensionArmedTurn` due plus the snapshot leader still

@@ -150,18 +150,27 @@ async function photographInReach(db, roomId, participants = []) {
     select: { tag: { select: { id: true, name: true, photoOfCharacterId: true } } },
   });
   const candidates = floor.map((r) => ({ holder: { kind: "room", id: roomId }, tag: r.tag }));
-  if (candidates.length === 0 && participants.length) {
+  // Hands are collected ALWAYS, not only when the floor is bare. "Floor first"
+  // is a preference, and reading it as an exclusion meant one stale print of a
+  // dead character lying on the floor blocked every photograph rite forever
+  // while a good print sat in a chanter's pocket. The floor still wins: it is
+  // shuffled and searched first, hands only after it runs out.
+  if (participants.length) {
     const held = await db.characterTag.findMany({
       where: { characterId: { in: participants.map((p) => p.characterId) }, quantity: { gt: 0 }, tag: photoWhere },
       select: { characterId: true, tag: { select: { id: true, name: true, photoOfCharacterId: true } } },
     });
     for (const h of held) candidates.push({ holder: { kind: "character", id: h.characterId }, tag: h.tag });
   }
-  // Shuffle, then take the first whose subject is alive.
-  for (let i = candidates.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-  }
+  // Shuffle each group in place, floor before hands.
+  const shuffle = (list, from, to) => {
+    for (let i = to - 1; i > from; i -= 1) {
+      const j = from + Math.floor(Math.random() * (i - from + 1));
+      [list[i], list[j]] = [list[j], list[i]];
+    }
+  };
+  shuffle(candidates, 0, floor.length);
+  shuffle(candidates, floor.length, candidates.length);
   for (const c of candidates) {
     const target = await pictured(db, c.tag);
     if (target && target.status === "ALIVE") return { ...c, target };
@@ -242,9 +251,19 @@ async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
         },
       });
       if (leaders === 0) missing.push("leader");
-    } else if (state?.ascensionArmedTurn != null || state?.ascensionFiredTurn != null) {
-      // The world can only end once, and it is already ending.
-      missing.push("already-running");
+    } else {
+      // The world can only end once, and it may already be ending.
+      if (state?.ascensionArmedTurn != null || state?.ascensionFiredTurn != null) {
+        missing.push("already-running");
+      }
+      // And there has to be a leader to lose. Without one the rite would arm a
+      // countdown whose only cancel condition is already true, so it would eat
+      // a sceptre, a mitre and 250 ⬢, warn the whole map, and then call itself
+      // off two turns later with nothing said to anybody.
+      const leaders = await db.character.count({
+        where: { status: "ALIVE", tags: { some: { quantity: { gt: 0 }, tag: { slug: THANATI_LEADER_SLUG } } } },
+      });
+      if (leaders === 0) missing.push("leader");
     }
   }
 

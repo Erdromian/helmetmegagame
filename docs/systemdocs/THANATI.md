@@ -200,6 +200,12 @@ is stamped (never cleared), every `#summary` hears the hellfire line, the game
 ends through `endGameInDb`, and `turnBannerPath` pins `hellfire.jpg` on for
 good. A GM can also call it off from `/gm/dev?s=reports`, beside Defuse.
 
+**If the bomb and the rite come due on the same close, the cult wins.** The
+ascension pass runs before `nukeExplosionPass` for exactly that reason: the
+blast would otherwise kill the snapshot leader and cancel the rite. Both still
+happen — everyone above ground dies — but the epilogue is the cult's, because
+`endGameInDb` is a no-op once the state is ENDED.
+
 Fulfillment's "leader must be present" and "once a game", and Ascension's
 "not while one is already running", are checked in `riteIngredients.js` with
 the Pious and hallowed-ground rules — **not** in the handlers. The sweep eats

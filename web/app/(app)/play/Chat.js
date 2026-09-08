@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import EmptyState from "@/app/components/EmptyState";
 import Modal from "@/app/components/Modal";
 import ChatAside from "./ChatAside";
+import MapBoard from "../map/MapBoard";
 import HereList from "./HereList";
 import PlacesColumn, { PlacesTabs } from "./PlacesColumn";
 import useAsideFolded from "./useAsideFolded";
@@ -297,6 +298,21 @@ export default function Chat({
   );
   const openSheet = useCallback(() => setSheetOpen(true), []);
   const closeSheet = useCallback(() => setSheetOpen(false), []);
+
+  // The map, over the top of everything. Mounted HERE rather than in
+  // ChatAside because ChatAside renders twice on a phone — the desktop column
+  // and the "Here" sheet — and a Modal in there would be two of them.
+  //
+  // On a folded viewport it navigates to /map instead of opening. A full-bleed
+  // board inside the sheet would be a dialog inside a dialog on the smallest
+  // screen there is, and /map is a real route precisely so the phone has
+  // somewhere to go.
+  const [mapOpen, setMapOpen] = useState(false);
+  const openMap = useCallback(() => {
+    setSheetOpen(false);
+    if (asideFolded) router.push("/map");
+    else setMapOpen(true);
+  }, [asideFolded, router]);
 
   const onTravelPick = useCallback((locationId) => {
     setTravelPick({ locationId, at: Date.now() });
@@ -631,6 +647,7 @@ export default function Chat({
             travelPick={travelPick}
             addPlace={addPlace}
             onAddMember={onAddMember}
+            onOpenMap={openMap}
           />
         </aside>
       )}
@@ -655,8 +672,18 @@ export default function Chat({
             travelPick={travelPick}
             addPlace={addPlace}
             onAddMember={onAddMember}
+            onOpenMap={openMap}
             inSheet
           />
+        </Modal>
+      )}
+      {/* Escape and the backdrop both close it — Modal.js owns that, and its
+          topmost-wins stack means Escape closes the map before the sheet
+          underneath. "Return to game" inside the board is the same door,
+          spelled out for anyone who does not reach for Escape. */}
+      {mapOpen && (
+        <Modal open title="Map" onClose={() => setMapOpen(false)} panelClassName="modal-panel map-panel">
+          <MapBoard onClose={() => setMapOpen(false)} />
         </Modal>
       )}
     </div>

@@ -70,11 +70,17 @@ const rand = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
 // The room hears one `-#` line, on Discord and on /play. `room` needs { id,
 // name, discordThreadId }.
+// BOTH halves are caught. The Discord half always was; the archive half was
+// not, and a rite is not worth losing over a line of scenery — the floor is
+// eaten by the time any handler speaks, so a throw here costs the circle its
+// ingredients. Panic is the sharp case: it speaks and only THEN returns
+// `awaiting`, so a throw would leave the prompt posted and the row FIRED
+// rather than AWAITING, unanswerable forever.
 async function roomLine(db, room, text) {
   if (room?.discordThreadId) {
     await postMessage(room.discordThreadId, ambientLine(text)).catch(log(`room line (${room.name})`));
   }
-  if (room?.id) await sceneLineAt(db, { roomId: room.id, text, signed: false });
+  if (room?.id) await sceneLineAt(db, { roomId: room.id, text, signed: false }).catch(log(`room scene (${room.name})`));
 }
 
 // A Location's channel hears one line. `location` needs { id, name, discordChannelId }.
@@ -82,7 +88,9 @@ async function locationLine(db, location, text) {
   if (location?.discordChannelId) {
     await postMessage(location.discordChannelId, ambientLine(text)).catch(log(`location line (${location.name})`));
   }
-  if (location?.id) await sceneLineAt(db, { locationId: location.id, text, signed: false });
+  if (location?.id) {
+    await sceneLineAt(db, { locationId: location.id, text, signed: false }).catch(log(`location scene (${location.name})`));
+  }
 }
 
 async function dmParticipants(db, participants, text) {
@@ -96,10 +104,16 @@ async function dmParticipants(db, participants, text) {
 
 // A death by rite: the row (db/lib/characterDeath.js) and then the same
 // Discord teardown the turn engine performs for an automatic death.
+// Returns `{ claimed, corpse }`, NOT just the corpse. The two are different
+// questions and a caller needs both: `claimed: false` means somebody else
+// killed them first — inside the two-minute grace, say — and the rite must not
+// take credit; `corpse: null` with `claimed: true` only means the corpse tag
+// could not be minted (db/lib/characterDeath.js catches that on purpose), and
+// the kill still counts.
 async function killByRite(db, character, { turn = null } = {}) {
   const roleId = character.discordRoleId;
   const { claimed, corpse } = await applyDeathToRow(db, character, { turn, content: `${character.name} died.` });
-  if (!claimed) return null;
+  if (!claimed) return { claimed: false, corpse: null };
   const member = await getGuildMember(character.discordUserId).catch(() => null);
   await revokeAllCharacterAccess(db, character).catch(log(`revoke for ${character.name}`));
   if (roleId) await deleteGuildRole(roleId).catch(log(`role delete for ${character.name}`));
@@ -110,7 +124,7 @@ async function killByRite(db, character, { turn = null } = {}) {
     await setGuildNickname(character.discordUserId, null).catch(log(`nickname for ${character.name}`));
     await sendDm(db, character.discordUserId, "You have died.", { source: "rite" }).catch(log(`death DM for ${character.name}`));
   }
-  return corpse ?? null;
+  return { claimed: true, corpse: corpse ?? null };
 }
 
 // The Rite of Reanimation's other half: the dead character stands up in the
@@ -172,6 +186,31 @@ async function spawnRemains(db, room, { flesh = true, resources = true } = {}) {
   return spawned;
 }
 
+// Take the one thing a rite spends off whoever is holding it, and REFUSE if it
+// is not there any more. dropRoomTag returns false rather than throwing when
+// the stack no longer covers the take (db/lib/tagWrites.js) — deliberately, so
+// a caller can decide. Every rite that spends a print or a weapon wants the
+// same decision: the resolve ran two minutes ago and somebody may have picked
+// the thing up since, and a rite that silently works without consuming its
+// ingredient hands the room an infinite one. Throwing inside the caller's
+// transaction rolls the whole effect back.
+async function spendFromHolder(tx, holder, tagId, what) {
+  if (holder.kind === "room") {
+    // dropRoomTag already answers the question: false means the stack no
+    // longer covers the take.
+    if (!(await dropRoomTag(tx, holder.id, tagId, 1))) throw new Error(`the ${what} is gone`);
+    return;
+  }
+  // dropCharacterTag returns nothing at all — it is a fire-and-forget drop —
+  // so the guarded decrement is written out here rather than read off it.
+  const { count } = await tx.characterTag.updateMany({
+    where: { characterId: holder.id, tagId, quantity: { gte: 1 } },
+    data: { quantity: { decrement: 1 } },
+  });
+  if (count === 0) throw new Error(`the ${what} is gone`);
+  await tx.characterTag.deleteMany({ where: { characterId: holder.id, tagId, quantity: { lte: 0 } } });
+}
+
 async function grantToFloor(db, room, slug, quantity = 1) {
   const tag = await db.tag.findUnique({ where: { slug }, select: { id: true } });
   if (!tag) throw new Error(`no ${slug} tag — run db:sync-tags`);
@@ -209,12 +248,20 @@ const EFFECTS = {
 
   async sacrifice({ db, room, resolved, openTurn }) {
     const victim = resolved.boundPerson;
+    // KILL FIRST, then bank. `claimed` is false when applyDeathToRow finds the
+    // character already DEAD — somebody shot them inside the two-minute grace —
+    // and the cult must not be paid for a death it did not cause, nor a second
+    // body's worth of organs appear out of the floor.
+    const { claimed, corpse } = await killByRite(db, victim, { turn: openTurn });
+    if (!claimed) {
+      await roomLine(db, room, INGREDIENTS_CONSUMED);
+      return { result: { sacrificed: null, characterId: victim.id, alreadyDead: true } };
+    }
     await fulfillObjectives(db, {
       partyKey: "thanati",
       kinds: ["sacrifice-living", "sacrifice-leader", "sacrifice-inquisitor-or-baron"],
       targetCharacterId: victim.id,
     });
-    const corpse = await killByRite(db, victim, { turn: openTurn });
     // The body is not left whole: whatever room the corpse fell into, it is
     // taken apart there.
     const spawned = await spawnRemains(db, room);
@@ -256,8 +303,11 @@ const EFFECTS = {
       purchasableAfterStart: false,
     }));
     if (!animated) throw new Error("could not name the animated weapon");
+    // The drop is checked, and that is the whole point: without it a player who
+    // picked the weapon up during the grace window leaves the room with the
+    // original in their hands AND an indestructible animated copy on the floor.
     await db.$transaction(async (tx) => {
-      await dropRoomTag(tx, room.id, source.id, 1);
+      await spendFromHolder(tx, { kind: "room", id: room.id }, source.id, "weapon");
       await addToRoomStack(tx, room.id, animated.id, 1);
     });
     await roomLine(db, room, `${source.name} shimmers brilliantly!`);
@@ -271,12 +321,11 @@ const EFFECTS = {
     return { result: { risen: dead.name, characterId: dead.id } };
   },
 
-  async stupidity({ db, room, resolved, openTurn }) {
+  async stupidity({ db, room, resolved, grantTurnNumber }) {
     const { target, holder, tag } = resolved.photograph;
     await db.$transaction(async (tx) => {
-      await grantTagSlugs(tx, target.id, [STUPID_SLUG], openTurn?.number ?? null);
-      if (holder.kind === "room") await dropRoomTag(tx, holder.id, tag.id, 1);
-      else await dropCharacterTag(tx, holder.id, tag.id, 1);
+      await grantTagSlugs(tx, target.id, [STUPID_SLUG], grantTurnNumber);
+      await spendFromHolder(tx, holder, tag.id, "photograph");
     });
     await roomLine(db, room, INGREDIENTS_CONSUMED);
     return { result: { target: target.name, characterId: target.id } };
@@ -292,8 +341,7 @@ const EFFECTS = {
     const text = `Their name is ${subject?.name ?? target.name}.\nTheir tags are: ${names.length ? names.join(BULLET) : "Nothing."}`;
     await dmParticipants(db, participants, text);
     await db.$transaction(async (tx) => {
-      if (holder.kind === "room") await dropRoomTag(tx, holder.id, tag.id, 1);
-      else await dropCharacterTag(tx, holder.id, tag.id, 1);
+      await spendFromHolder(tx, holder, tag.id, "photograph");
     });
     await roomLine(db, room, INGREDIENTS_CONSUMED);
     return { result: { target: target.name, told: participants.length, tags: names.length } };
@@ -366,10 +414,13 @@ const EFFECTS = {
     });
     if (!full) throw new Error("the target is gone");
     await db.$transaction(async (tx) => {
-      if (holder.kind === "room") await dropRoomTag(tx, holder.id, tag.id, 1);
-      else await dropCharacterTag(tx, holder.id, tag.id, 1);
+      await spendFromHolder(tx, holder, tag.id, "photograph");
     });
-    const corpse = await killByRite(db, full, { turn: openTurn });
+    const { claimed, corpse } = await killByRite(db, full, { turn: openTurn });
+    // Already dead when the rite landed. The print is spent either way — it
+    // was consumed above — but nothing explodes and no organs appear, because
+    // the body is lying somewhere else already.
+    if (!claimed) return { result: { judged: null, characterId: full.id, alreadyDead: true } };
     const where = corpse?.room ?? (await pickRandomPublicRoom(db, full.locationId));
     const spawned = where ? await spawnRemains(db, where, { flesh: false, resources: false }) : {};
     if (corpse?.tag) await deleteCorpseFor(db, full.id).catch(log(`corpse cleanup for ${full.name}`));
@@ -381,12 +432,14 @@ const EFFECTS = {
   // mad for two turns. The Pious/hallowed refusal is not here — it is in
   // riteIngredients.js with Judgement's, so a rite that cannot land never eats
   // its floor.
-  async madness({ db, room, resolved, openTurn }) {
+  // `grantTurnNumber`, not `openTurn?.number`: Madness is the only rite that
+  // grants a TIMED tag, and a rite fires off a minute cron that regularly
+  // lands mid-advance when nothing is OPEN. See db/lib/riteSweep.js.
+  async madness({ db, room, resolved, grantTurnNumber }) {
     const { target, holder, tag } = resolved.photograph;
     await db.$transaction(async (tx) => {
-      await grantTagSlugs(tx, target.id, [MADNESS_SLUG], openTurn?.number ?? null);
-      if (holder.kind === "room") await dropRoomTag(tx, holder.id, tag.id, 1);
-      else await dropCharacterTag(tx, holder.id, tag.id, 1);
+      await grantTagSlugs(tx, target.id, [MADNESS_SLUG], grantTurnNumber);
+      await spendFromHolder(tx, holder, tag.id, "photograph");
     });
     await roomLine(db, room, INGREDIENTS_CONSUMED);
     return { result: { maddened: target.name, characterId: target.id } };
@@ -397,18 +450,31 @@ const EFFECTS = {
   // is the race guard, so two circles chanting in the same minute cannot both
   // collect. Claimed the way the bomb claims its detonation.
   async fulfillment({ db, room }) {
-    const { count } = await db.gameState.updateMany({
-      where: { id: 1, fulfillmentFiredAt: null },
-      data: { fulfillmentFiredAt: new Date() },
-    });
-    if (count === 0) return { result: { alreadyPerformed: true } };
-
+    // Counted BEFORE the claim, because the count is a read and the claim is
+    // the cult's one shot: a throw in here must not spend it.
     const objectives = await listObjectives(db, { partyKey: "thanati" });
     const completed = objectives.filter((o) => o.done).length;
     const granted = completed * FULFILLMENT_PER_OBJECTIVE;
-    if (granted > 0) {
-      await db.room.update({ where: { id: room.id }, data: { resources: { increment: granted } } });
-    }
+
+    // Claim and pay together. The claim is what stops two circles chanting in
+    // the same minute from both collecting; putting the payout in the same
+    // transaction is what stops a failure between them spending the one shot
+    // for nothing — which is permanent, since riteIngredients.js refuses every
+    // later attempt once the stamp is set.
+    let claimed = false;
+    await db.$transaction(async (tx) => {
+      const { count } = await tx.gameState.updateMany({
+        where: { id: 1, fulfillmentFiredAt: null },
+        data: { fulfillmentFiredAt: new Date() },
+      });
+      if (count === 0) return;
+      if (granted > 0) {
+        await tx.room.update({ where: { id: room.id }, data: { resources: { increment: granted } } });
+      }
+      claimed = true;
+    });
+    if (!claimed) return { result: { alreadyPerformed: true } };
+
     await roomLine(db, room, "Bounty! What success!");
     return { result: { completed, granted } };
   },
@@ -470,6 +536,17 @@ async function answerPanic(db, { attempt, content }) {
   const zone = location ? null : zones.find((z) => containsPhrase(text, normalizeChant(z.name)));
   if (!zone && !location) return null;
 
+  // CLAIM THE ANSWER FIRST. noteChant is fire-and-forget on both faces, so two
+  // participants naming two different places in the same second both reach
+  // here; without this the fear-100 loop ran twice and one heart haunted two
+  // places. Whoever wins the guarded write does the striking, the loser walks
+  // away. Same shape as the READY claim in db/lib/riteChant.js.
+  const { count } = await db.riteAttempt.updateMany({
+    where: { id: attempt.id, status: "AWAITING" },
+    data: { status: "FIRED", firedAt: new Date() },
+  });
+  if (count === 0) return null;
+
   // Rage does not become afraid (db/lib/fear.js) — this write bypasses the
   // multiplier table, so the exemption is applied here by hand.
   const struck = await db.character.findMany({
@@ -486,11 +563,11 @@ async function answerPanic(db, { attempt, content }) {
       await settleFearTag(tx, c.id, {});
     }).catch(log(`panic for ${c.name}`));
   }
+  // The status and the clock were written by the claim above; this only
+  // records what the answer did.
   await db.riteAttempt.update({
     where: { id: attempt.id },
     data: {
-      status: "FIRED",
-      firedAt: new Date(),
       result: { ...(attempt.result ?? {}), haunted: zone?.name ?? location?.name, struck: struck.map((c) => c.name) },
     },
   });

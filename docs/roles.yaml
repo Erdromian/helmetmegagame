@@ -1171,7 +1171,7 @@ zones:
             weight: unlimited
             starting_resources: 1
             starting_zone: caves
-            starting_location: caves-stairhead
+            starting_location: caves-abandoned-camp
             extra_starting_points: 10
             starting_tags: [Pale]
             doc_elements: [caving]
@@ -1344,8 +1344,9 @@ zones:
       # spawn only (db/lib/threats.js), and both are listed in
       # SPAWN_ONLY_ROLE_SLUGS so the creation wizard never offers them. They
       # live under the Black Hills because that is where the shuttle puts them
-      # down — Black Pines, which the map already describes as dense enough
-      # that "sound does not carry, neither do shouts".
+      # down — the Fracturing Waterway, the busiest crossing in the zone. They
+      # arrive in the open, on a bridge, where everybody sees them. That is the
+      # point: the Tribunal does not sneak in.
       #
       # No `silo:` on purpose: a silo is a faction's shared stash in a room
       # somebody holds a key to, and the Tribunal has no room here. They carry
@@ -1371,7 +1372,7 @@ zones:
             weight: 1
             starting_resources: 8
             starting_zone: hills
-            starting_location: hills-black-pines
+            starting_location: hills-waterway
             starting_tags:
               - Melee (Skilled)
               - Ranged (Skilled)
@@ -1422,7 +1423,7 @@ zones:
             weight: 1
             starting_resources: 8
             starting_zone: hills
-            starting_location: hills-black-pines
+            starting_location: hills-waterway
             starting_tags:
               - Melee (Skilled)
               - Ranged (Skilled)
@@ -1447,7 +1448,7 @@ zones:
 
       brigands:
         name: Brigands
-        silo: ravine-camp
+        silo: grand-ravine-camp
         roles:
           brigand-leader:
             name: Brigand Leader
@@ -1470,11 +1471,12 @@ zones:
             multiple: false
             starting_resources: 3
             starting_zone: hills
-            starting_location: hills-ravine
+            starting_location: hills-grand-ravine
             leader: true
             whitelist: true
             starting_tags:
               - Ravine Camp
+              - Brigand Leader
               - Brigand
               - Melee (Basic)
               - Ranged (Basic)
@@ -1508,7 +1510,7 @@ zones:
             weight: 3
             starting_resources: 2
             starting_zone: hills
-            starting_location: hills-ravine
+            starting_location: hills-grand-ravine
             starting_tags:
               - Ravine Camp
               - Brigand

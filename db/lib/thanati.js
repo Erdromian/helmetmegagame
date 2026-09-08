@@ -90,7 +90,18 @@ async function hideoutRoom(db) {
   if (!state?.thanatiHideoutRoomId) return null;
   return db.room.findUnique({
     where: { id: state.thanatiHideoutRoomId },
-    select: { id: true, name: true, slug: true, locationId: true, discordThreadId: true, resources: true },
+    // `kind` and `accessTagSlugs` ride along for accessibleRooms: Purchase
+    // Gear checks the BUYER's key against this room, not just their Location.
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      kind: true,
+      accessTagSlugs: true,
+      locationId: true,
+      discordThreadId: true,
+      resources: true,
+    },
   });
 }
 

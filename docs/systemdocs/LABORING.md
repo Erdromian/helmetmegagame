@@ -117,17 +117,18 @@ Anything not listed has no row and cannot be worked. Locations are addressed by
 slug — open country carries its zone as a prefix, built places do not
 (`docs/zones.yaml`).
 
-**Farming** — Farms 1.0 · Manors 0.6 · `forest-north-road` /
-`forest-crossroads` / `forest-sparse-field` 0.5 · every other Forest place 0.3 ·
+**Farming** — Farms 1.0 · Manors 0.6 · `forest-northern-road` /
+`forest-south` / `forest-sparse-field` 0.5 · every other Forest place 0.3 ·
 Keep 0.2.
 
-**Fishing** — `forest-headwaters` / `forest-creekside` / `forest-north-road` /
-`forest-deep-forest` / `forest-culvert` / `forest-east-river` 0.9 ·
-`hills-black-pines` 0.8 · the five open Marshes 1.0 · the marsh Village 1.0.
+**Fishing** — `forest-headwaters` / `forest-creekside` / `forest-northern-road` /
+`forest-deep-forest` / `forest-embankment` / `forest-east-river` 0.9 ·
+`hills-waterway` 0.8 · `depths-grand-chamber` 0.9 · the five open Marshes 1.0 ·
+the marsh Village 1.0.
 
 **Hunting** — Forest 0.5 except `forest-west-riverbank` 0.8 · the five open
 Marshes 1.0 · Black Hills 1.0 throughout · the four Caves 0.4 · Depths 0.6
-except `depths-runnel` 1.8 and `depths-saltrise` 1.6.
+except `depths-obelisk` 1.8.
 
 The marsh Village fishes at 1.0 and does nothing else; the Godard Factory has
 no rows at all and is worked anyway (§3b). The Fortress has neither hunting nor
@@ -384,7 +385,7 @@ first thing on the line and the eye can skip what it does not need.
 **Noticeboard**: you can pin paper here. ‡
 **Generator**: 5 days of coal left. ‡
 **Shuttle**: it's here. ‡
-**Narrows**: the way stands open. ‡
+**Approach**: the way stands open. ‡
 ```
 
 The second part is `db/lib/locationAttributes.js` reading
@@ -414,7 +415,7 @@ job, and the numbers move anyway.
 | < 1.55 | Ample |
 | ≥ 1.55 | Bountiful |
 
-At base, only `depths-runnel` and `depths-saltrise` wear Bountiful. This button is the
+At base, only `depths-obelisk` wears Bountiful. This button is the
 **only** surface that shows a coefficient — not `#summary`, not the anchor.
 
 ## 10. File map

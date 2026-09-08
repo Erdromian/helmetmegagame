@@ -1075,12 +1075,18 @@ async function syncZonesFromYaml(prisma) {
   }
 
   // A Room's seeded stash: the kit that is simply THERE, like the Sanctuary's
-  // surgical instruments or the Armory's rack. Written as a FLOOR, never a
-  // reset — a stack already at or above the authored quantity is left alone,
-  // and `resources` is written only while the room still holds none. So a
-  // re-sync can't undo a player carrying the anvil off, and can't quietly
-  // duplicate it either. Tags sync AFTER zones, so an unknown slug is skipped
-  // with a warning rather than throwing.
+  // surgical instruments or the Armory's rack. A SEED, never a reset and never
+  // a top-up — an item the room already carries is left exactly as the players
+  // left it, and `resources` is written only while the room still holds none.
+  // So a re-sync can neither undo somebody carrying the anvil off nor quietly
+  // duplicate it. Tags sync AFTER zones, so an unknown slug is skipped with a
+  // warning rather than throwing.
+  //
+  // The items half used to raise an existing stack back to the authored
+  // quantity, which made every re-sync a faucet: empty the Lost Convoy's 46
+  // obols and the next `db:sync-zones` put them back. `resources` never worked
+  // that way, and the header of docs/zones.yaml promised the items did not
+  // either. Now they don't.
   async function seedRoomStash(prisma, roomId, stash) {
     if (stash.resources > 0) {
       // Conditional on 0, so this is a seed and not a top-up: a room somebody
@@ -1098,14 +1104,10 @@ async function syncZonesFromYaml(prisma) {
       }
       const existing = await prisma.roomTag.findUnique({
         where: { roomId_tagId: { roomId, tagId: tag.id } },
-        select: { id: true, quantity: true },
+        select: { id: true },
       });
       if (!existing) {
         await prisma.roomTag.create({ data: { roomId, tagId: tag.id, quantity } });
-        continue;
-      }
-      if (existing.quantity < quantity) {
-        await prisma.roomTag.update({ where: { id: existing.id }, data: { quantity } });
       }
     }
   }

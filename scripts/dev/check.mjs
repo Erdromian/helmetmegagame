@@ -32,6 +32,7 @@ const DEFAULT_ROUTES = [
   // Player surfaces.
   { path: "/character", as: "player" },
   { path: "/play", as: "player" },
+  { path: "/map", as: "player" },
   { path: "/documents", as: "player" },
   { path: "/faction", as: "player" },
   { path: "/notes", as: "player" },
@@ -62,10 +63,13 @@ const DEFAULT_ROUTES = [
   { path: "/gm/dev/characters", as: "gm" },
   { path: "/gm/dev/factions", as: "gm" },
   { path: "/gm/dev/tags", as: "gm" },
+  { path: "/ledger", as: "gm" },
+  { path: "/ledger", as: "player" },
 
   // The gates themselves. A pass here means the door is still shut.
   { path: "/character", as: "anon", expect: "/" },
   { path: "/play", as: "anon", expect: "/" },
+  { path: "/map", as: "anon", expect: "/" },
   { path: "/gm/turns", as: "anon", expect: "/" },
   { path: "/gm/turns", as: "player", expect: "/character" },
   { path: "/gm/players", as: "player", expect: "/character" },
@@ -77,6 +81,7 @@ const DEFAULT_ROUTES = [
   // The GM roster lives on the Dev panel now, behind the same superadmin
   // door — /gm/gamemasters is gone.
   { path: "/gm/dev?s=gamemasters", as: "player", expect: "/character" },
+  { path: "/ledger", as: "anon", expect: "/" },
 ];
 
 // A server component that throws still answers 200: React streams the shell,

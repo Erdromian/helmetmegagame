@@ -142,7 +142,7 @@ export default function AvatarField({
           disabled={Boolean(forcedIdentity) || !concealGear || concealGear.forced}
         >
           <span className="inline-flex items-center gap-1.5">
-            Conceal.
+            Conceal
             <SwitchInfo text="Concealment is based on headgear. Some headgear allows you to optionally conceal yourself, while some is forced." />
           </span>
         </Switch>

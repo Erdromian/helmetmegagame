@@ -49,7 +49,12 @@ function categoryRank(category) {
 function groupTagsByCategory(characterTags) {
   const groups = new Map();
   for (const ct of characterTags) {
-    const category = ct.tag.category?.trim() || "Other";
+    const raw = ct.tag.category?.trim() || "Other";
+    // Case-folded, because the catalog holds both "Items" and "items" and two
+    // cards headed the same word is a bug on sight. The spelling shown is
+    // CATEGORY_ORDER's where there is one, so the fix does not depend on which
+    // tag happened to be read first.
+    const category = CATEGORY_ORDER.find((c) => c.toLowerCase() === raw.toLowerCase()) ?? raw;
     if (!groups.has(category)) groups.set(category, []);
     groups.get(category).push(ct);
   }
@@ -75,6 +80,12 @@ export default function TagsPanel({
   storeRoleSlug = null,
   // GameState.nukeArmedTurn, for the one chip that shows it (TagChip.js).
   nukeArmedTurn = null,
+  // "sheet" is /character: one card, every category inside it, the equipped
+  // rack at the top. "rail" is /ledger's right column: one card per category
+  // and no rack, because that sheet mounts the equipment in its middle
+  // column instead. Same chips, same store, same click behaviour either way.
+  variant = "sheet",
+  showEquipment = true,
 }) {
   // Null on someone else's sheet, where no provider is mounted — which is
   // also exactly when the chips must stay read-only.
@@ -114,50 +125,129 @@ export default function TagsPanel({
     return names.length ? `Click to consume → ${names.join(", ")}` : "Click to consume";
   }
 
+  // One category's chips. Shared by both layouts below so a chip behaves the
+  // same wherever it is drawn — the only difference between the two is the
+  // frame around the list.
+  function chipList(tags) {
+    return (
+      <ul className="flex flex-wrap gap-2">
+        {tags.map((ct) => {
+          // Only your own consumables are clickable — someone else's
+          // sheet stays a read-only hover tooltip.
+          const clickable = isSelf && ct.tag.consumable && openDialog;
+          // The Research tag itself is the second entry point (CRAFTING.md
+          // §2b) — clicking it opens the same dialog the Cathedral place-card
+          // button does. Eligibility is a fact about the WHOLE turn (are you
+          // in the Cathedral, is your Move free), not this chip, so it stays
+          // reachable — but disabled with the hint — even when a gate is shut.
+          const researchable = isSelf && ct.tag.slug === RESEARCH_TAG_SLUG && openDialog;
+          return (
+            <li key={ct.tag.id}>
+              <TagChip
+                tag={ct.tag}
+                quantity={ct.quantity}
+                onConsume={clickable ? () => openDialog("consume", ct.tag.id) : null}
+                consumeHint={clickable ? consumeHintFor(ct.tag) : null}
+                onResearch={researchable && canResearch ? () => openDialog("research") : null}
+                researchHint={researchable && !canResearch ? researchHint : null}
+                expiresTurn={ct.expiresTurn}
+                currentTurn={currentTurn}
+                armedTurn={ct.tag.slug === "nuclear-device" ? nukeArmedTurn : null}
+              />
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
+  // The store, mounted once whichever layout is drawing. It is a modal, so it
+  // does not care which frame it hangs off.
+  const store = isSelf && storeTags && (
+    <Modal
+      open={storeOpen}
+      onClose={() => setStoreOpen(false)}
+      title="Spend Tag Points"
+      width="widest"
+    >
+      <StorePanel
+        tags={storeTags}
+        budget={tagPoints ?? 0}
+        heldTags={storeHeldTags ?? []}
+        roleSlug={storeRoleSlug}
+        onDone={() => setStoreOpen(false)}
+      />
+    </Modal>
+  );
+
+  const pointsControl =
+    tagPoints != null &&
+    (isSelf && storeTags ? (
+      <button type="button" className="btn-quiet" onClick={() => setStoreOpen(true)}>
+        Spend Tag Points (<TagPointsValue points={tagPoints} />)
+      </button>
+    ) : (
+      <span className="text-sm">
+        <span className="text-muted">Tag points </span>
+        <TagPointsValue points={tagPoints} />
+      </span>
+    ));
+
+  // The rail layout (/ledger): one card per category down a narrow column,
+  // instead of one card holding every category. The chips and the store are
+  // the same; only the frame differs.
+  if (variant === "rail") {
+    return (
+      <>
+        {pointsControl && (
+          <section className="panel p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="section-title">Tags</h2>
+              {pointsControl}
+            </div>
+          </section>
+        )}
+        {store}
+        {tagGroups.length === 0 ? (
+          <section className="panel p-4">
+            <p className="text-sm text-muted">No tags yet.</p>
+          </section>
+        ) : (
+          tagGroups.map(([category, tags]) => (
+            <section key={category} className="panel p-4">
+              <div className="mb-2 flex items-baseline justify-between gap-2">
+                <h2 className="section-title">{category}</h2>
+                <span className="mono text-sm text-muted">{tags.length}</span>
+              </div>
+              {chipList(tags)}
+            </section>
+          ))
+        )}
+      </>
+    );
+  }
+
   return (
     <section className="panel p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <h2 className="section-title">Tags</h2>
-          {tagPoints != null && isSelf && storeTags && (
-            <button type="button" className="btn-quiet" onClick={() => setStoreOpen(true)}>
-              Spend Tag Points (<TagPointsValue points={tagPoints} />)
-            </button>
-          )}
-          {tagPoints != null && !(isSelf && storeTags) && (
-            <span className="text-sm">
-              <span className="text-muted">Tag points </span>
-              <TagPointsValue points={tagPoints} />
-            </span>
-          )}
+          {pointsControl}
         </div>
       </div>
 
-      <div className="mb-3 border-b pb-3" style={{ borderColor: "var(--border)" }}>
-        <EquipmentPanel
-          characterTags={characterTags}
-          slots={equipSlots}
-          isSelf={isSelf}
-          embedded
-        />
-      </div>
-
-      {isSelf && storeTags && (
-        <Modal
-          open={storeOpen}
-          onClose={() => setStoreOpen(false)}
-          title="Spend Tag Points"
-          width="widest"
-        >
-          <StorePanel
-            tags={storeTags}
-            budget={tagPoints ?? 0}
-            heldTags={storeHeldTags ?? []}
-            roleSlug={storeRoleSlug}
-            onDone={() => setStoreOpen(false)}
+      {showEquipment && (
+        <div className="mb-3 border-b pb-3" style={{ borderColor: "var(--border)" }}>
+          <EquipmentPanel
+            characterTags={characterTags}
+            slots={equipSlots}
+            isSelf={isSelf}
+            embedded
           />
-        </Modal>
+        </div>
       )}
+
+      {store}
 
       {tagGroups.length === 0 ? (
         <p className="text-sm text-muted">No tags yet.</p>
@@ -166,38 +256,7 @@ export default function TagsPanel({
           {tagGroups.map(([category, tags]) => (
             <div key={category}>
               <p className="field-label mb-1">{category}</p>
-              <ul className="flex flex-wrap gap-2">
-                {tags.map((ct) => {
-                  // Only your own consumables are clickable — someone else's
-                  // sheet stays a read-only hover tooltip.
-                  const clickable = isSelf && ct.tag.consumable && openDialog;
-                  // The Research tag itself is the second entry point
-                  // (CRAFTING.md §2b) — clicking it
-                  // opens the same dialog the Cathedral place-card button
-                  // does. Eligibility is a fact about the WHOLE turn (are
-                  // you in the Cathedral, is your Move free), not this chip,
-                  // so it stays reachable — but disabled with the hint —
-                  // even when a gate is closed.
-                  const researchable = isSelf && ct.tag.slug === RESEARCH_TAG_SLUG && openDialog;
-                  return (
-                    <li key={ct.tag.id}>
-                      <TagChip
-                        tag={ct.tag}
-                        quantity={ct.quantity}
-                        onConsume={clickable ? () => openDialog("consume", ct.tag.id) : null}
-                        consumeHint={clickable ? consumeHintFor(ct.tag) : null}
-                        onResearch={
-                          researchable && canResearch ? () => openDialog("research") : null
-                        }
-                        researchHint={researchable && !canResearch ? researchHint : null}
-                        expiresTurn={ct.expiresTurn}
-                        currentTurn={currentTurn}
-                        armedTurn={ct.tag.slug === "nuclear-device" ? nukeArmedTurn : null}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
+              {chipList(tags)}
             </div>
           ))}
         </div>

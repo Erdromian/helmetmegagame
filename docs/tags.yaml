@@ -544,6 +544,35 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  convoy-directions:
+    catalog: all
+    name: Convoy Directions
+    category: general
+    group: general-location
+    description: "The itinerary of a trade convoy moving through the caves long ago."
+    pointCost: 0
+    tradeable: false
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  # Not knowledge of a place so much as arrival at one: the Walkways' pit is
+  # a room you can only be in once you have fallen into it, so a GM grants
+  # this from /gm/dev and takes it back when the character climbs out.
+  cave-pit:
+    catalog: all
+    name: Cave Pit
+    category: general
+    group: general-location
+    description: "You fell into the pit."
+    pointCost: 0
+    tradeable: false
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
   # Moved out of general-court (2026-08-31, Desires rework) — anyone can be
   # vain, not just the court.
   vain:
@@ -2217,6 +2246,17 @@ tags:
     pointCost: 3
     purchasable: true
     purchasableAfterStart: true
+
+  brigand-leader:
+    catalog: gm
+    name: Brigand Leader
+    category: general
+    group: general-brigand
+    description: "The camp in the Black Hills answers to you."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
 
   # The new general `climbing` skill overlaps this brigand-gated trait.
   # Gunboat to decide whether one of them should go.
@@ -5608,6 +5648,44 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # Cave loot, ultracommon, and seeded by hand across the caves, the depths and
+  # the Black Hills (docs/zones.yaml) so the ground itself is a source.
+  rock:
+    catalog: all
+    name: Rock
+    category: items
+    group: items-gear
+    description: "A hefty stone. Can be thrown with varying results."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  rope:
+    catalog: all
+    name: Rope
+    category: items
+    group: items-gear
+    description: "A long coil of braided rope, stiff with grime. ‡"
+    pointCost: 2
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 4
+      skills: [crafting]
+      gambit: false
+    sellable: true
+    sellablePrice: 4
+
   bear-trap:
     catalog: all
     name: Bear Trap
@@ -5945,6 +6023,51 @@ tags:
     consumable: true
     consumesInto:
       - oneOf: [ate-meal, vomiting]
+
+  # Cave loot, ultracommon. Raw it is a gut full of regret; squeezed by anyone
+  # with Brewing it is a cup of something almost like milk.
+  purring-maggot:
+    catalog: gm
+    name: Purring Maggot
+    category: items
+    group: items-food
+    description: "A pale maggot, squirming in your hand. You can squish it into a mug for maggot milk."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - poisoned
+
+  # Not on the caving table — the maggot is the loot, this is what you make of
+  # it. Calms like {tag:tea} (db/lib/fear.js CONSUME_RELIEF) and feeds you.
+  maggot-milk:
+    catalog: gm
+    name: Maggot Milk
+    category: items
+    group: items-drink
+    description: "A freshly squeezed cup of milk."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 1
+      skills: [brewing-basic]
+      gambit: false
+      items: [purring-maggot]
+    consumable: true
+    consumesInto:
+      - ate-meal
 
   supply-kit:
     catalog: gm
@@ -6460,6 +6583,39 @@ tags:
     category: items
     group: items-keys
     description: "A key to the elevator."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    purchasable: false
+
+  foresters-key:
+    catalog: gm
+    name: "Forester's Key"
+    category: items
+    group: items-keys
+    description: "A key to the forester's waystation."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    purchasable: false
+
+  graywall-key:
+    catalog: gm
+    name: Graywall Key
+    category: items
+    group: items-keys
+    description: "A key to the property room at Graywall."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    purchasable: false
+
+  ancient-keycard:
+    catalog: gm
+    name: Ancient Keycard
+    category: items
+    group: items-keys
+    description: "A small piece of plastic, with a metal lining on one edge."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -6992,7 +7148,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 10
+      resourceCost: 9
       skills: [smithing]
       gambit: false
     sellable: true
@@ -7833,9 +7989,16 @@ tags:
   # still sell them to each other for whatever they can get.
   #
   # The Merchant's station DOES buy them now, which is the ⬢ faucet the note
-  # above worried about — deliberately, and priced low enough that butchering
-  # a body is worth less than a day's labour. The eye and the heart are dearer
-  # than the rest because the rites eat those two (db/lib/rites.js).
+  # above worried about — deliberately, and priced so that butchering a body
+  # comes to roughly ONE good day's labour rather than three. Mutilate is a
+  # free action and every death mints a body, so the arithmetic that matters is
+  # the whole ladder at once: db/lib/mutilate.js takes nine pieces off one
+  # subject (two eyes, two hands, two feet, tongue, stomach, heart), which at
+  # these numbers is 49 ⬢ against 30-42 ⬢ for a specialised labour day. At the
+  # first pass it was 94 ⬢ and this comment claimed otherwise.
+  #
+  # The eye and the heart are dearer than the rest because the rites eat those
+  # two (db/lib/rites.js).
   #
   # `keepSlug` on the eye: it is called an Eyeball on the sheet now, and the
   # Rite of Judgement's ingredient list names the slug `eye`.
@@ -7855,7 +8018,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 15
+    sellablePrice: 8
 
   tongue:
     catalog: gm
@@ -7871,7 +8034,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 5
+    sellablePrice: 3
 
   hand:
     catalog: gm
@@ -7887,7 +8050,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 10
+    sellablePrice: 5
 
   foot:
     catalog: gm
@@ -7903,7 +8066,23 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 8
+    sellablePrice: 4
+
+  bone:
+    catalog: gm
+    name: Bone
+    category: items
+    group: items-remains
+    description: "A human bone."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 1
 
   stomach:
     catalog: gm
@@ -7919,7 +8098,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 8
+    sellablePrice: 4
 
   heart:
     catalog: gm
@@ -7935,7 +8114,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 15
+    sellablePrice: 8
 
   fine-meal:
     catalog: all
@@ -8199,6 +8378,8 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 24
 
   c4:
     catalog: gm
@@ -8809,6 +8990,19 @@ tags:
     tradeable: true
     weight: 0
     stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  prospectors-notes:
+    catalog: gm
+    name: "Prospector's Notes"
+    category: items
+    group: items-paper
+    description: "Notes describing the location of a vein of ore, in a vast chasm."
+    pointCost: 0
+    tradeable: true
+    weight: 0
     visible: false
     purchasable: false
     purchasableAfterStart: false
@@ -11770,6 +11964,29 @@ tags:
       turnsCost: 1
       resourceCost: 6
       skills: [smithing]
+    sellable: true
+    sellablePrice: 9
+
+  # Priced level with {tag:simple-helm} — same plates, plus a lamp. Bought
+  # rather than forged: the lamp is station work, so it sits on the Depot shelf.
+  mining-helmet:
+    catalog: all
+    name: Mining Helmet
+    category: items
+    group: items-headgear
+    description: "A cushioned helmet with a small light, useful in the caves."
+    pointCost: 5
+    depotPrice: 14
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    melee: 0.35
+    ballistic: 0.1
+    visible: true
+    tradeable: true
+    weight: 4
+    purchasable: true
+    purchasableAfterStart: false
     sellable: true
     sellablePrice: 9
 

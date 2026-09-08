@@ -1,0 +1,338 @@
+{
+  "image": "docs/assets/map-prototype.png",
+  "width": 2144,
+  "height": 1792,
+  "note": "Node centres in image pixels. Surface nodes sit on the drawn art; caves and depths are a schematic layer, since the plate no longer draws the tunnels.",
+  "nodes": {
+    "cathedral": {
+      "name": "Cathedral",
+      "zone": "town",
+      "x": 471,
+      "y": 642
+    },
+    "caves-abandoned-camp": {
+      "name": "Abandoned Camp",
+      "zone": "caves",
+      "x": 617,
+      "y": 1529
+    },
+    "caves-approach": {
+      "name": "Approach",
+      "zone": "caves",
+      "x": 475,
+      "y": 1279
+    },
+    "caves-brooding-grounds": {
+      "name": "Brooding Grounds",
+      "zone": "caves",
+      "x": 1117,
+      "y": 1408
+    },
+    "caves-walkways": {
+      "name": "Walkways",
+      "zone": "caves",
+      "x": 1179,
+      "y": 1030
+    },
+    "customs": {
+      "name": "Customs",
+      "zone": "caves",
+      "x": 616,
+      "y": 1287
+    },
+    "depths-chasm": {
+      "name": "Chasm",
+      "zone": "depths",
+      "x": 2041,
+      "y": 837
+    },
+    "depths-crystal-chambers": {
+      "name": "Crystal Chambers",
+      "zone": "depths",
+      "x": 2041,
+      "y": 1612
+    },
+    "depths-fork": {
+      "name": "Fork",
+      "zone": "depths",
+      "x": 977,
+      "y": 1696
+    },
+    "depths-grand-chamber": {
+      "name": "Grand Chamber",
+      "zone": "depths",
+      "x": 1756,
+      "y": 1717
+    },
+    "depths-last-chance": {
+      "name": "Last Chance",
+      "zone": "depths",
+      "x": 429,
+      "y": 1717
+    },
+    "depths-obelisk": {
+      "name": "Obelisk",
+      "zone": "depths",
+      "x": 157,
+      "y": 1706
+    },
+    "depths-steel-wall": {
+      "name": "Steel Wall",
+      "zone": "depths",
+      "x": 115,
+      "y": 1497
+    },
+    "factory": {
+      "name": "Godard Factory",
+      "zone": "marshes",
+      "x": 1509,
+      "y": 1340
+    },
+    "farms": {
+      "name": "Farms",
+      "zone": "forest",
+      "x": 831,
+      "y": 1024
+    },
+    "forest-cliffs": {
+      "name": "Cliffs",
+      "zone": "forest",
+      "x": 283,
+      "y": 408
+    },
+    "forest-creekside": {
+      "name": "Creekside",
+      "zone": "forest",
+      "x": 231,
+      "y": 609
+    },
+    "forest-deep-forest": {
+      "name": "Deep Forest",
+      "zone": "forest",
+      "x": 136,
+      "y": 816
+    },
+    "forest-east-river": {
+      "name": "East River",
+      "zone": "forest",
+      "x": 1046,
+      "y": 780
+    },
+    "forest-embankment": {
+      "name": "Embankment",
+      "zone": "forest",
+      "x": 923,
+      "y": 554
+    },
+    "forest-headwaters": {
+      "name": "Headwaters",
+      "zone": "forest",
+      "x": 157,
+      "y": 131
+    },
+    "forest-northern-road": {
+      "name": "Northern Road",
+      "zone": "forest",
+      "x": 545,
+      "y": 454
+    },
+    "forest-riverbend": {
+      "name": "Riverbend",
+      "zone": "forest",
+      "x": 320,
+      "y": 1006
+    },
+    "forest-south": {
+      "name": "South Forest",
+      "zone": "forest",
+      "x": 574,
+      "y": 1011
+    },
+    "forest-sparse-field": {
+      "name": "Sparse Field",
+      "zone": "forest",
+      "x": 879,
+      "y": 1132
+    },
+    "forest-west-riverbank": {
+      "name": "West Riverbank",
+      "zone": "forest",
+      "x": 294,
+      "y": 797
+    },
+    "garrison": {
+      "name": "Garrison",
+      "zone": "fortress",
+      "x": 570,
+      "y": 205
+    },
+    "gatehouse": {
+      "name": "Gatehouse",
+      "zone": "fortress",
+      "x": 740,
+      "y": 145
+    },
+    "hills-cliffs": {
+      "name": "Cliffs",
+      "zone": "hills",
+      "x": 1936,
+      "y": 821
+    },
+    "hills-grand-ravine": {
+      "name": "Grand Ravine",
+      "zone": "hills",
+      "x": 1675,
+      "y": 653
+    },
+    "hills-gullies": {
+      "name": "Gullies",
+      "zone": "hills",
+      "x": 1811,
+      "y": 417
+    },
+    "hills-mountain": {
+      "name": "Mountain",
+      "zone": "hills",
+      "x": 277,
+      "y": 147
+    },
+    "hills-north": {
+      "name": "North Hills",
+      "zone": "hills",
+      "x": 1501,
+      "y": 340
+    },
+    "hills-shadowed-grove": {
+      "name": "Shadowed Grove",
+      "zone": "hills",
+      "x": 1185,
+      "y": 575
+    },
+    "hills-underlocks": {
+      "name": "Underlocks",
+      "zone": "hills",
+      "x": 1108,
+      "y": 264
+    },
+    "hills-waterway": {
+      "name": "Fracturing Waterway",
+      "zone": "hills",
+      "x": 1433,
+      "y": 610
+    },
+    "hills-west": {
+      "name": "West Hills",
+      "zone": "hills",
+      "x": 1335,
+      "y": 423
+    },
+    "keep": {
+      "name": "Keep",
+      "zone": "fortress",
+      "x": 520,
+      "y": 164
+    },
+    "lifeweb": {
+      "name": "Lifeweb",
+      "zone": "fortress",
+      "x": 512,
+      "y": 110
+    },
+    "manors": {
+      "name": "Manors",
+      "zone": "fortress",
+      "x": 830,
+      "y": 368
+    },
+    "marshes-drowned": {
+      "name": "Drowned Marshes",
+      "zone": "marshes",
+      "x": 1826,
+      "y": 1258
+    },
+    "marshes-north": {
+      "name": "North Marshes",
+      "zone": "marshes",
+      "x": 1692,
+      "y": 986
+    },
+    "marshes-south": {
+      "name": "South Marshes",
+      "zone": "marshes",
+      "x": 1676,
+      "y": 1533
+    },
+    "marshes-village": {
+      "name": "Village",
+      "zone": "marshes",
+      "x": 1651,
+      "y": 1211
+    },
+    "marshes-west": {
+      "name": "West Marshes",
+      "zone": "marshes",
+      "x": 1471,
+      "y": 979
+    },
+    "marshes-woods": {
+      "name": "Woods",
+      "zone": "marshes",
+      "x": 1374,
+      "y": 1188
+    },
+    "north-gate": {
+      "name": "North Gate",
+      "zone": "town",
+      "x": 518,
+      "y": 581
+    },
+    "old-cock-inn": {
+      "name": "The Old Cock Inn",
+      "zone": "town",
+      "x": 686,
+      "y": 769
+    },
+    "road": {
+      "name": "Road",
+      "zone": "fortress",
+      "x": 800,
+      "y": 275
+    },
+    "sanctuary": {
+      "name": "Sanctuary",
+      "zone": "town",
+      "x": 600,
+      "y": 631
+    },
+    "servant-wing": {
+      "name": "Servant Wing",
+      "zone": "fortress",
+      "x": 384,
+      "y": 126
+    },
+    "south-gate": {
+      "name": "South Gate",
+      "zone": "town",
+      "x": 506,
+      "y": 837
+    },
+    "square": {
+      "name": "Square",
+      "zone": "town",
+      "x": 512,
+      "y": 719
+    },
+    "undercroft": {
+      "name": "Undercroft",
+      "zone": "fortress",
+      "x": 392,
+      "y": 206
+    },
+    "underquarter": {
+      "name": "Underquarter",
+      "zone": "town",
+      "x": 725,
+      "y": 691
+    }
+  }
+}

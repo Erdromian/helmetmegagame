@@ -337,6 +337,15 @@ model GameConfig {
   // (docs/systemdocs/LOBBY.md).
   leaderWhitelistEnabled Boolean @default(true)
 
+  // Closed-rehearsal switch (docs/systemdocs/LOBBY.md §2). The game runs its
+  // whole normal shape - phases, lobby, the roll, creation, turns - but the
+  // roster narrows from "holds the Player role" to the people building it: a
+  // GM, a playtester, or a Contributor. Needed because the bot hands the
+  // Player role to everyone who joins the guild, so that role cannot say who a
+  // playtest is for. Gates JOINING only: an existing character keeps playing.
+  // Read through web/lib/discordGuild.js#onRoster and nowhere else.
+  playtestModeEnabled Boolean @default(false)
+
   // How long an assigned seat stays locked to its player after Start Game
   // before the lobby sweep releases it (docs/systemdocs/LOBBY.md §4). The
   // assignment DM carries the deadline as a Discord timestamp; the reminder
@@ -1081,8 +1090,44 @@ model Location {
   actions      Action[]
   threatSpawns ThreatSpawn[]
   cavingRolls  CavingRoll[]
+  visits       LocationVisit[]
 
   @@index([zoneId])
+}
+
+/// What one character knows of the map — the fog behind /map.
+///
+/// There was no record of this anywhere before: AuditLog has no locationId,
+/// ArchiveEntry is keyed to a zone rather than a Location, and a free in-zone
+/// hop files no Action at all. So "where have I been" had to become a table.
+///
+/// Two grades, and the difference is the whole UI. `stood` means the character
+/// has actually been here. A row with `stood` false means they have only ever
+/// seen the place from next door — it draws hollow, and carries a name and a
+/// colour but no description.
+///
+/// NEITHER IS EVER UNLEARNED. Seen once, drawn forever: the map only grows, so
+/// walking away never takes a place back off it. db/lib/locationVisits.js is
+/// the only module that writes here, and its neighbour write is a createMany
+/// with skipDuplicates precisely so it cannot downgrade an existing stood row.
+///
+/// Per CHARACTER, not per player. A re-roll starts with a blank map rather
+/// than inheriting the dead character's.
+model LocationVisit {
+  id String @id @default(cuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  stood Boolean @default(false)
+
+  firstSeenAt DateTime @default(now())
+
+  @@unique([characterId, locationId])
+  @@index([characterId])
 }
 
 /// One edge of the travel graph, mastered by docs/zones.yaml's `connections:`.
@@ -1785,6 +1830,8 @@ model Character {
   craftProjects           CraftProject[]
   roomGuestOf             RoomGuest[]
   noticePosts             NoticePost[]             @relation("NoticePostAuthor")
+  // Every Location this character has stood in or seen from next door.
+  locationVisits          LocationVisit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
