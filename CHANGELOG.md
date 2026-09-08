@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · Door notices stop reading as GM mail
+
+✎ "You were let into ..." no longer lands on the GM desk as if somebody had typed it. Same for "You were named in ...", which is a ping, not a message.  
+− The double dagger on the "let into" line, on both faces.  
+✎ The website's DM sender now labels an unattributed message as the bot's, the way the bot's own sender already did. That is the leak this pair came  
+✎ The inactivity nudge is signed by the GM who sent it, so it still reads as a real message and shows who wrote it.
+
 ## 2026-09-08 · Shouts name who shouted, and some rooms swallow them
 
 ✎ A shout now says who shouted, in your own place only — one step away it is still just "someone", so a concealed character can yell without unmasking. A hood shouts as "a young man", a Beast as "Beast".  
