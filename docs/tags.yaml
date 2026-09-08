@@ -673,8 +673,9 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Ungated on purpose: this wanted "Cruel OR Practicus" and the catalog has no
-  # OR gate — requiredTag is a single FK. The conflicts carry it instead.
+  # Granted, never bought. It wanted a "Cruel OR Practicus" gate and the catalog
+  # has no OR gate — requiredTag is a single FK — so instead of shipping it
+  # ungated in the store it is off the shelf entirely and handed out by hand.
   egomaniac:
     catalog: all
     name: Egomaniac
@@ -683,8 +684,8 @@ tags:
     group: general-personality
     description: "You're always smiling. Nothing can break your spirits. ‡"
     pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
+    purchasable: false
+    purchasableAfterStart: false
 
   torturer:
     catalog: all
