@@ -4296,6 +4296,34 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
+  # {tag:iron-hook}'s aftermath (medical pass, M5) — cosmetic only, no
+  # mechanical effect of its own: missing-arm's own carryBonus is dropped
+  # along with the tag itself the moment this is granted. Not purchasable —
+  # reached only by curing missing-arm.
+  hook-hand:
+    catalog: all
+    name: Hook Hand
+    category: health
+    group: health-maiming
+    description: "Where a hand used to be, now a fitted iron hook."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  # {tag:prosthetic-hand}'s aftermath (medical pass, M5) — cosmetic only,
+  # same shape as {tag:hook-hand} above.
+  prosthetic-hand-worn:
+    catalog: all
+    name: Prosthetic Hand (Worn)
+    category: health
+    group: health-maiming
+    description: "A carved hand where fingers used to be missing. Close up, you can tell."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
   crippled-leg:
     catalog: all
     name: Crippled Leg
@@ -4336,6 +4364,20 @@ tags:
     conflictsWith: [eagle-eyes, blind]
     visible: true
     purchasable: true
+    purchasableAfterStart: false
+
+  # {tag:glass-eye}'s aftermath (medical pass, M5) — cosmetic only, same
+  # shape as {tag:hook-hand}/{tag:prosthetic-hand-worn}. Not purchasable —
+  # reached only by curing missing-eye.
+  glass-eye-worn:
+    catalog: all
+    name: Glass Eye (Worn)
+    category: health
+    group: health-maiming
+    description: "A painted glass eye, fitted where the real one was lost."
+    pointCost: 0
+    visible: true
+    purchasable: false
     purchasableAfterStart: false
 
   night-blind:
@@ -10857,6 +10899,203 @@ tags:
     placement:
       examine: "instruments laid out, lamps hung."
       provides: [surgical-equipment]
+
+  # --- Medical pass: prosthetics (M5) ----------------------------------
+  # All five are `consumable: true` with `administerSkill: medical-expert`
+  # (fitting is surgery — the Expert's own 1/2 Move billing, M1/M2
+  # machinery — there is no separate fitting fee). Each cures a maiming into
+  # its own cosmetic aftermath via `curesInto`, never the tag's own
+  # `removesInto` (none of the four maimings below has one).
+
+  wooden-leg:
+    catalog: all
+    name: Wooden Leg
+    category: items
+    group: items-gear
+    description: "A carved peg fitted below the knee, buckled tight with worn leather straps. Fitted by a steady hand, it cures {tag:missing-leg} outright — you're up and walking again. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-leg]
+    curesInto:
+      missing-leg: peg-leg
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [smithing]
+      gambit: false
+    sellable: true
+    sellablePrice: 17
+
+  iron-hook:
+    catalog: all
+    name: Iron Hook
+    category: items
+    group: items-gear
+    description: "A curved iron hook, fitted where a hand used to be. It won't hold a coin, but it holds plenty else — cures {tag:missing-arm} outright. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-arm]
+    curesInto:
+      missing-arm: hook-hand
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [smithing]
+      gambit: false
+    sellable: true
+    sellablePrice: 17
+
+  prosthetic-hand:
+    catalog: all
+    name: Prosthetic Hand
+    category: items
+    group: items-gear
+    description: "Carved fingers on a jointed frame, laced into a leather glove. Not as quick as the real thing, but it closes a fist again — cures {tag:missing-fingers} outright. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-fingers]
+    curesInto:
+      missing-fingers: prosthetic-hand-worn
+    requirement:
+      turnsCost: 1
+      resourceCost: 12
+      skills: [smithing-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 29
+
+  glass-eye:
+    catalog: all
+    name: Glass Eye
+    category: items
+    group: items-gear
+    description: "A painted glass sphere, fitted into the socket. It sees nothing, but nobody looking at you would guess — cures {tag:missing-eye} outright. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-eye]
+    curesInto:
+      missing-eye: glass-eye-worn
+    requirement:
+      turnsCost: 1
+      resourceCost: 12
+      skills: [smithing-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 31
+
+  # Same shape as {tag:aberrant-heart}: an ingredient and nothing else, gated
+  # secret on top of its own gm-granted rarity (medical-pass plan, M5) —
+  # unlike the heart, nobody in-fiction has ever seen one of these, so even
+  # the ITEM'S existence is withheld, not just its ingredient status.
+  # NOTHING DROPS THIS YET. The laboring loot-table pass wires acquisition;
+  # our job was to make the slug exist. Until then a GM grants it.
+  cybernetic-core:
+    catalog: secret
+    name: Cybernetic Core
+    category: items
+    group: items-gear
+    description: "Salvaged machinery, still faintly warm. Nobody quite knows how it's meant to be grafted on — until somebody who does gets their hands on it. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 20
+
+  # HIDDEN recipes, same door as {tag:last-breath}: the tag's own
+  # catalogVisibility (not just the ingredient's) withholds it from the
+  # Craft menu until the crafter is BOTH medical-expert AND already holding
+  # a {tag:cybernetic-core} (web/lib/tagRequests.js#computeKnownRecipeIds).
+  # A flat cures list rather than a chain — one both-limbed graft would cure
+  # both at once, if a character somehow held both maimings. No `curesInto`:
+  # missing-arm/missing-leg have no `removesInto` of their own, so the
+  # default aftermath is nothing — the graft leaves no mark at all.
+  cybernetic-arm:
+    catalog: secret
+    name: Cybernetic Arm
+    category: items
+    group: items-gear
+    description: "Cold, quiet machinery, grafted straight to bone and nerve. Whatever was lost, this doesn't just replace it — cures {tag:missing-arm} outright, with nothing left to show for the wound. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-arm]
+    requirement:
+      turnsCost: 3
+      resourceCost: 16
+      skills: [medical-expert]
+      gambit: false
+      items: [cybernetic-core]
+    sellable: true
+    sellablePrice: 90
+
+  cybernetic-leg:
+    catalog: secret
+    name: Cybernetic Leg
+    category: items
+    group: items-gear
+    description: "Cold, quiet machinery, grafted straight to bone and nerve. Whatever was lost, this doesn't just replace it — cures {tag:missing-leg} outright, with nothing left to show for the wound. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-leg]
+    requirement:
+      turnsCost: 3
+      resourceCost: 16
+      skills: [medical-expert]
+      gambit: false
+      items: [cybernetic-core]
+    sellable: true
+    sellablePrice: 90
 
   # --- Medical pass: new ailments (M3) --------------------------------
 

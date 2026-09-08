@@ -371,6 +371,11 @@ documents:
       - {tag:portable-surgical-pack} — 8 ⬢, 1 turn, Medical (Expert). Stands
         in for Surgical Equipment's +1 on a single Gambit, once, and never
         while real equipment is already in reach. ‡
+      - {tag:wooden-leg}, {tag:iron-hook} — 6 ⬢, 1 turn, Smithing. Fitting
+        one onto somebody (or yourself) needs Medical (Expert) instead —
+        the craft and the fitting are two different jobs. ‡
+      - {tag:prosthetic-hand}, {tag:glass-eye} — 12 ⬢, 1 turn, Smithing
+        (Skilled). Same fitting rule as above. ‡
 
       **Make it your own.** A few crafts — the {tag:badge}, the {tag:hat},
       the {tag:painting}, the {tag:sketch}, and a cook's meals — can be made
