@@ -3,7 +3,7 @@ import { cursedUserIds } from "@lifeweb/db/lib/curse";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { getOpenTurn } from "@/lib/turn";
-import { dmNoiseSql, genuineConversationSql, dmPreview } from "@/lib/dmThread";
+import { railKindSql, dmPreview } from "@/lib/dmThread";
 import PlayerRail from "./PlayerRail";
 import DeskHeader from "@/app/components/DeskHeader";
 import InboxPoller from "./InboxPoller";

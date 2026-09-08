@@ -727,10 +727,12 @@ model Depot {
 
   creditCapObols Int @default(75)
 
-  // The turret's severity distribution, one weighted column per armour tier.
-  // JSON rather than columns because a GM retuning it should not need a
-  // migration, and db/lib/depotTurret.js validates the shape and that every
-  // column sums to 1 at startup — the same posture as cavingLoot.js.
+  // ORPHAN. The turret's severity distribution, once GM-editable as JSON on
+  // the Dev Panel. Nothing reads or writes it: db/lib/depotTurret.js returns
+  // one shipped table to every caller, because the odds of dying at the gate
+  // are a rule of the game and two turrets disagreeing about them was not
+  // something a player could ever see or reason about. Kept, like
+  // mindlinkChannelId, because this schema drops no columns.
   turretTable Json @default("{}")
 
   updatedAt DateTime @updatedAt

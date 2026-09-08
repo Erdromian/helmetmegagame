@@ -13,10 +13,10 @@
 // severity ladder, the armour curve and the weighted draw stay in
 // db/lib/depotTurret.js: that file is the ballistics, this one is the trigger.
 //
-// `rollTurret(tags, source)` reads only `source.turretTable`, so a turret with
-// no tunable row of its own passes `null` and gets the shipped table. That is
-// why the Gatehouse needs no table, no column validation and no Dev Panel
-// section to be a working gun.
+// `rollTurret(tags, source)` ignores `source` entirely now: there is one
+// shipped severity table and every turret rolls against it. The Gatehouse
+// passing `null` has always worked for that reason, and the Depot's editable
+// copy is gone — what a bullet does to a person is a rule, not a knob.
 //
 // Takes `prisma` as a parameter; see db/lib/dm.js for why.
 const { rollTurret } = require("./depotTurret");

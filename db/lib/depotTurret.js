@@ -66,10 +66,6 @@ const DEFAULT_TURRET_TABLE = {
   dead: 0.414,
 };
 
-// Floating point will not give you exactly 1.0 from six decimals, so the
-// assertion has to have a tolerance. Same posture as cavingLoot's column sums.
-const SUM_EPSILON = 0.0001;
-
 // How hard armour bends the curve. The roll is a uniform draw raised to the
 // power (1 + ARMOR_GAIN * odds), and every step of armour pushes the
 // distribution toward the mild end WITHOUT ever closing the top of it.

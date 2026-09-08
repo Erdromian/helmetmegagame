@@ -4821,7 +4821,7 @@ tags:
     name: Fishing Boat
     category: assets
     group: assets-property
-    description: "A flat-bottomed boat you pole yourself. While it's equipped you get one extra free zone crossing each turn, but only between the Forest, the Black Hills and the Marshes — the boat follows the water and nothing else. Adds +1 to your Fishing labor. You can't have it out at the same time as a {tag:horse} or a {tag:cart}, and it waits outside indoors. ‡"
+    description: "While it's equipped, a fishing boat gives you +1 ⬢ while fishing, and an extra free zone move — but only between the Black Hills, the Marshes and the Forest. You can't have it out at the same time as a {tag:horse} or a {tag:cart}, and it waits outside indoors."
     pointCost: 4
     visible: true
     tradeable: true
@@ -4841,7 +4841,7 @@ tags:
     name: Cart
     category: assets
     group: assets-property
-    description: "A standard hand-cart to push more than you can carry. The wheels work most of the time. Only counts while it's equipped, and it waits outside indoors. Upgrades the {tag:horse}, letting you carry up to 6 people total. {carry:cart} ‡"
+    description: "A standard hand-cart to push more than you can carry. The wheels work most of the time. {carry:cart} With a {tag:horse} it takes up to six of you across a zone together, and the crossing costs the people you bring nothing. Only counts while it's equipped, and it waits outside indoors."
     pointCost: 5
     visible: true
     tradeable: true
