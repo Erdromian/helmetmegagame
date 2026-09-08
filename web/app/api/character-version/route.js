@@ -113,7 +113,14 @@ export async function GET() {
   ].join("|");
 
   return Response.json(
-    { version: deployVersion(), fp },
+    // `locationId` rides alongside the opaque `fp` rather than inside it —
+    // MapBoard.js (../map/MapBoard.js) polls this same endpoint to notice a
+    // move somebody else made (an escort, a leader dragging a party), and it
+    // only wants to know about that one thing: a plain field means it never
+    // has to parse `fp`'s internal shape, and never re-frames the board over
+    // some unrelated change (a resource spent, a turn advancing) the way
+    // comparing the whole fingerprint would.
+    { version: deployVersion(), fp, locationId: me.locationId ?? null },
     { headers: { "cache-control": "no-store" } },
   );
 }
