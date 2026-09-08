@@ -673,20 +673,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Granted, never bought. It wanted a "Cruel OR Practicus" gate and the catalog
-  # has no OR gate — requiredTag is a single FK — so instead of shipping it
-  # ungated in the store it is off the shelf entirely and handed out by hand.
-  egomaniac:
-    catalog: all
-    name: Egomaniac
-    psychological: true
-    category: general
-    group: general-personality
-    description: "You're always smiling. Nothing can break your spirits. ‡"
-    pointCost: 2
-    purchasable: false
-    purchasableAfterStart: false
-
   torturer:
     catalog: all
     name: Torturer

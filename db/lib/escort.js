@@ -293,8 +293,8 @@ async function acceptEscort(prisma, offer, _responder) {
           {
             discordUserId: actor.discordUserId,
             content: together
-              ? `» ${target.name} is with you.`
-              : `» ${target.name} agreed, but you've moved apart. Take them along when you're together again.`,
+              ? `${target.name} is with you.`
+              : `${target.name} agreed, but you've moved apart. Take them along when you're together again. ‡`,
           },
         ]
       : [],
