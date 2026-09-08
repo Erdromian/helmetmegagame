@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · Nothing said while the bot is asleep is lost any more
+
+✚ Messages typed while the bot is down are recovered when it wakes. Under two hours old they go back in the room as the character, exactly as if the bot had caught them live. Older than that the words are kept in the archive and the raw message is taken down, but the scene is left alone — dropping an hours-old line into a room that moved on reads as talking to yourself. The author gets one quiet note either way.  
+✎ The real problem was worse than the missing words: until the bot came back, the message sat in the channel under the player's own Discord name, for anyone to see. That is the half this closes first.  
+✚ The bot now also checks after a dropped connection, not only after a restart. Everything else it catches up on runs once per process, which was fine for a stale nickname and not fine for somebody's words.  
+✎ A channel the bot can't tidy up in is left alone and logged, rather than reposting a message it can't then remove — that would duplicate it on every restart until the next wipe.  
+✚ The bot has tests now, for the first time.  
+✎ Two door notices were still tagged the old way after the inbox rework.
+
 ## 2026-09-08 · The GM inbox shows the last message again, not the player's role
 
 − dmPreview hands back the line itself; the rail and the live delta were still reading it as { preview }, so every row a GM message touched showed "Baroness" or "Commoner" in place of the message
