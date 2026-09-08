@@ -83,6 +83,7 @@ import { getMyFactionRole } from "@lifeweb/db/lib/factionPermissions";
 import { photoCaption } from "@lifeweb/db/lib/photo";
 import { CAMERA_SLUG, mintPhoto } from "@lifeweb/db/lib/photoMint";
 import { sendDm } from "@/lib/discordGuild";
+import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 import { thingGroups } from "./thingRows";
 
 // Every button in Chat's right column, as a server action.
@@ -1901,7 +1902,7 @@ export async function addMember(placeKey, characterId) {
     await sendDm(
       target.discordUserId,
       `*You were let into ${conversation.location?.name ?? "somewhere"} · ${conversation.name}.*`,
-      { source: "system_notice" },
+      { kind: DM_KIND.QUIET },
     ).catch(() => {});
 
     return {
@@ -1930,7 +1931,7 @@ export async function addMember(placeKey, characterId) {
   await sendDm(
     result.notify.discordUserId,
     `*You were let into ${result.notify.placeName ?? "somewhere"} · ${result.notify.threadName}.*`,
-    { source: "system_notice" },
+    { kind: DM_KIND.QUIET },
   ).catch(() => {});
 
   return { ok: true, line: result.line };

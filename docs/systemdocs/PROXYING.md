@@ -151,6 +151,58 @@ re-creates it verbatim as the bot, tagged **Quest** — see `CHANNELS.md`
 character would otherwise have that starter message proxied, and deleting a
 forum post's starter message destroys the entire post.
 
+### What happens to a message typed while the bot was down
+
+Nothing proxies it, because `messageCreate` never fires. That fails three ways
+at once, and the first is the one that matters:
+
+1. **The mask leaks.** The raw message stays in the channel under the player's
+   real Discord account and nickname — the exact thing §2 exists to prevent.
+2. **The web never sees it.** `/play` and `/archive` render `ArchiveEntry` rows
+   and never read Discord, so with no row it is invisible on the site forever.
+3. **The turn wipe deletes it**, so it disappears having never been recorded.
+
+`bot/src/lib/messageCatchUp.js` sweeps for these on boot and again whenever the
+gateway hands the bot a **fresh session** — the mirror of `feedOutbox.js`'s
+drain, which replays web rows that never reached Discord. It is not a rare
+case: Railway rebuilds both services on every push, so the bot restarts many
+times a day and every restart is one of these windows.
+
+**Under two hours old**, the message is handed straight back to
+`messageCreate.execute` and gets the entire ordinary treatment — proxied,
+recorded, deleted, mentions relayed. A recovered message is meant to be
+indistinguishable from one caught live, and running the same code is the surest
+way to manage that.
+
+**Older than that**, the words are written to `ArchiveEntry` with the message's
+**real** timestamp and the raw message is deleted, but nothing is posted back
+into the channel: dropping an hours-old line into a room that moved on reads as
+somebody talking to themselves. The author gets one quiet DM per sweep saying
+so. Such a row carries no `discordMessageId`, and `feedOutbox.js#pushRow`
+refuses anything whose `source` is not `WEB`, so it can never be posted later.
+
+**There is no cursor and no watermark column.** The ordinary path deletes the
+player's message as its last step, so a raw message still standing *is* the
+marker of one nobody handled — which also makes the sweep safe to run twice.
+The obvious alternative is wrong in a way worth recording: the newest
+`ArchiveEntry.discordMessageId` for a channel is the **webhook repost's** id,
+minted later than the raw messages still queued behind it, so an `after:`
+cursor built from it would skip every older message still waiting — and skip it
+on every future run.
+
+Two things bound the damage. A channel where the bot lacks **Manage Messages**
+is skipped whole and logged, because reposting without being able to delete
+would duplicate the message on every restart until the next wipe. And a
+message younger than ten seconds is left to the live handler, which may have it
+in hand already.
+
+One thing to know as a reader: `ArchiveEntry.seq` is assigned at INSERT and
+`/play` is cursored on it, so a recovered row appears at the **bottom** of the
+live feed whatever its timestamp. `/archive`, ordered by `[sentAt, id]`, puts
+it where it belongs. For a sub-minute deploy gap this is invisible; for a long
+outage it is the honest cost of not renumbering the cursor the whole feed rests
+on.
+
 ## 3. Avatars and letter plaques
 
 Profile pictures are stored **as bytes on the row** —
@@ -737,7 +789,7 @@ title off itself.
 | Discord username/display name changes | `bot/src/events/userUpdate.js` |
 | Rejoin | `bot/src/events/guildMemberAdd.js` |
 | Character created, saved on `/character`, or renamed by a GM | `web/lib/discordGuild.js#syncCharacterNickname` (REST) |
-| Bot connect/reconnect | `bot/src/events/ready.js` → `syncNicknamesForGuild`, a one-time catch-up bulk pass, not a recurring tick |
+| Bot process START | `bot/src/events/ready.js` → `syncNicknamesForGuild`, a one-time catch-up bulk pass, not a recurring tick. **Not** every reconnect: `ready` is `once: true`, so a gateway resume or re-identify does not re-run it |
 
 `buildNickname()` is hand-duplicated between `bot/src/lib/nickname.js` and
 `web/lib/discordGuild.js` — the same twin convention as `isTupperChannel`.

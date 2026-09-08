@@ -203,13 +203,19 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
 async function recordSpeech(
   prisma,
   prepared,
-  { discordMessageId = null, discordChannelId = null, zoneId = null, zoneName = null, channelKind = null, threadName = null, content = null, clientId = null } = {},
+  { discordMessageId = null, discordChannelId = null, zoneId = null, zoneName = null, channelKind = null, threadName = null, content = null, clientId = null, sentAt = null } = {},
 ) {
   if (!prepared?.ok) return null;
   const row = await recordArchiveMessage(prisma, {
     // The web composer's token for the copy it has already drawn. Null on the
     // Discord path, which has no optimistic row to reconcile.
     clientId,
+    // When this was actually SAID, for a caller that is not writing it live.
+    // bot/src/lib/messageCatchUp.js recovers messages typed while the bot was
+    // down, and the whole point of the row is that it carries the moment the
+    // player typed it rather than the moment the bot woke up. Null everywhere
+    // else, and recordArchiveMessage falls back to now.
+    sentAt,
     // A caller that appended something to the prepared text (the proxy adds
     // its attachment placeholders) hands the finished string back here.
     // Otherwise the ROW's spelling is what is stored, not Discord's.

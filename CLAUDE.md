@@ -456,8 +456,18 @@ setup.
 ## How the bot populates the database
 
 On `ready`, the bot upserts a `GameConfig` singleton row and runs its
-catch-up passes for anything it missed while disconnected. `guildMemberAdd`
+catch-up passes for anything it missed while it was gone. `guildMemberAdd`
 writes a `member_joined` `AuditLog` entry.
+
+**`ready` is `once: true`, so that burst is once per PROCESS, not once per
+connect.** A gateway drop the process survives re-runs none of it — which is
+fine for the passes that only reconcile drift (a stale nickname stays stale
+until the next deploy), and was not fine for messages, because a message the
+bot never saw is lost for good. So `bot/src/lib/messageCatchUp.js` is the one
+pass that also hangs off `shardReady`: it re-proxies anything typed while the
+bot was away, deletes the raw message that was sitting there under the
+player's real Discord name, and files it in the archive. Anything older than
+two hours is filed and deleted but not put back in the room.
 
 Two **privileged intents** must be turned on for the bot in the Discord
 Developer Portal (Bot → Privileged Gateway Intents). Without them, the bot

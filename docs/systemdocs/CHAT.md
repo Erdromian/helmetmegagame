@@ -366,6 +366,14 @@ acts once. `drainFeedOutbox()` sweeps the last 24 h on `ready` through that
 same queue, which is what makes a bot restart mid-send, mid-edit or
 mid-delete harmless.
 
+**The outbox has a mirror going the other way.**
+`bot/src/lib/messageCatchUp.js` sweeps Discord for messages typed while the bot
+was down — ones that never became a row, because `messageCreate` never fired —
+and re-proxies or files them. Same posture, opposite direction: windowed,
+sequential, safe to run twice. Unlike this drain it also runs on `shardReady`,
+because a web row waits patiently for the next restart while a Discord message
+is lost the moment nobody hears it. `PROXYING.md` §2 has the detail.
+
 Every place kind is wired: `db/lib/placeKey.js#discordTargetForPlaceKey` gives
 back `{ channelId, threadId }`, because a Room or a Conversation is a thread
 and Discord will not hang a webhook off one — the webhook belongs to the parent
