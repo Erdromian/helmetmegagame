@@ -1256,14 +1256,43 @@ zones:
     description: >-
       Older woodland across the river, where the barony's writ thins out and then stops. The trees stand further apart than they have any right to and the ground between them is too clear. People who go in come back with stories that do not agree with each other. ‡
     locations:
+      # Both ways in are `locked: mountaineering` in `connections:`, so the
+      # pass gates itself — a Location wears no `access:` list of its own.
       hills-mountain:
         name: Mountain
         attributes:
           wilderness: true
         indoors: true
-        description: >-
-          The pass over the peak, and the only way across the range on foot. Cut steps where the rock allows and a fixed rope where it does not, both maintained by nobody in particular. From the top you can see the fortress on one side and the western woods on the other, which is the only place in the barony where both are true at once. ‡
-        rooms: {}
+        description: |-
+          The mountain rises so far above Ravenheart that the forests below eventually dissolve into a dark blue haze, and even the fortress seems reduced to something small enough to cup in one hand. The pass claws its way over the exposed peak by means of cut stone steps, narrow ledges, and lengths of fixed rope strung across places where there is simply no proper footing at all. Wind tears constantly across the heights, carrying ice, grit, and cloud through gaps in the rock while whole valleys appear and disappear beneath passing sheets of mist.
+
+          From the summit, the western woods and the fortress can both be seen at once, divided by an immense sweep of country that finally makes the barony feel as expansive as it truly is.
+        rooms:
+          mountain-hanging-steps:
+            name: Hanging Steps
+            description: >-
+              Rough stairs have been cut directly into the mountainside where the path becomes too steep to climb naturally. In several places the steps simply stop, replaced by old fixed ropes and iron spikes hammered into the rock above a drop too deep to judge from the ledge.
+          mountain-summit:
+            name: Summit
+            description: >-
+              Offerings, broken tools, old coins, ribbons, and scraps of cloth have been wedged between the rocks, all bleached pale by the sun and wind.
+            stash:
+              items:
+                old-coin: 9
+                work-knife: 1
+                supply-kit: 1
+          # The three plant forageables BREWING.md §4 lists as having nothing
+          # that drops them yet. A warm spring under the ice is where they grow.
+          mountain-garden:
+            name: Garden
+            description: >-
+              A warm cavern opens unexpectedly around a spring, filled with pale ferns, luminous moss, and tiny white flowers growing beneath shafts of light that descend through cracks far overhead. The air is humid and still, carrying the smell of wet earth in stark contrast to the freezing mountain outside.
+            access: [caving]
+            stash:
+              items:
+                nightshade-herb: 2
+                poppy-pods: 2
+                coca-leaves: 2
 
       hills-underlocks:
         name: Underlocks
