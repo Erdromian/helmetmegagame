@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · The Unlocks list on a tag stops printing bigger than the tag itself
+
+✎ The "Unlocks N Desires" block on a tag now reads a step smaller than the tag's own description, instead of a step larger than it
+
 ## 2026-09-08 · Nothing said while the bot is asleep is lost any more
 
 ✚ Messages typed while the bot is down are recovered when it wakes. Under two hours old they go back in the room as the character, exactly as if the bot had caught them live. Older than that the words are kept in the archive and the raw message is taken down, but the scene is left alone — dropping an hours-old line into a room that moved on reads as talking to yourself. The author gets one quiet note either way.  
