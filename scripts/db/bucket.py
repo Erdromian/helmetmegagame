@@ -97,6 +97,18 @@ def listing():
     return sorted(out, key=lambda r: r[0])
 
 
+def parse_s3_time(value):
+    """S3 returns LastModified with or without fractional seconds depending on
+    the implementation, and Railway's returns both shapes."""
+    for fmt in ("%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ"):
+        try:
+            return (datetime.datetime.strptime(value, fmt)
+                    .replace(tzinfo=datetime.timezone.utc))
+        except ValueError:
+            continue
+    raise ValueError(f"unrecognised S3 timestamp: {value!r}")
+
+
 def human(n):
     for unit in ("B", "KB", "MB", "GB"):
         if n < 1024 or unit == "GB":
@@ -112,9 +124,7 @@ def cmd_list():
     for key, size, when in rows:
         print(f"  {key.split('/')[-1]:44} {human(size):>10}  {when}")
     newest = rows[-1]
-    age = (datetime.datetime.now(datetime.timezone.utc)
-           - datetime.datetime.strptime(newest[2], "%Y-%m-%dT%H:%M:%S.%fZ")
-           .replace(tzinfo=datetime.timezone.utc))
+    age = datetime.datetime.now(datetime.timezone.utc) - parse_s3_time(newest[2])
     hours = age.total_seconds() / 3600
     print(f"\n{len(rows)} dump(s). Newest is {hours:.1f}h old.")
     # A backup system's real failure is going quiet, so say so plainly.

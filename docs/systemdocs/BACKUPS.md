@@ -59,6 +59,17 @@ npm run db:backups     # what is in the bucket, and how old the newest is
 npm run db:backup      # run one now, out of band
 ```
 
+The service is `backup` (id `2dff69fb-7aad-449a-962f-dd02bccd3bc4`), root
+directory `/ops/backup`, schedule `0 4 * * *`, restart policy NEVER, watching
+only `ops/backup/**` so ordinary pushes don't rebuild it.
+
+**Railway will not run a cron service on demand.** Deploying one only schedules
+it, and setting the schedule to a minute from now rolls over to *tomorrow* —
+both were tried. The one lever that works is that a service with no schedule
+runs as soon as it deploys, so `npm run db:backup` clears the schedule, deploys,
+waits, and puts the schedule back on an EXIT trap. If that script is ever
+interrupted in a way that skips the trap, check the schedule is still set.
+
 `npm run db:backups` **exits non-zero if the newest dump is over 36 hours old.**
 That is the whole point of it. The way a backup system fails is not loudly; it
 is by going quiet months before anyone looks.

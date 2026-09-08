@@ -1,26 +1,59 @@
 #!/usr/bin/env bash
-# Take a backup right now, out of band from the nightly cron.
+# Take a portable dump right now, out of band from the nightly run.
 #
-# This used to call Railway's own volume-backup API. That API exists, but the
-# workspace is on the Hobby plan, whose subscriptionPlanLimit reports
-# volumes.maxBackupsCount = 0 — so every backup mutation answers "Not
-# Authorized" no matter which token you hold. Backups are a Pro feature.
+# Railway will not run a cron service on demand: deploying one only schedules
+# it, and setting the schedule to a minute from now rolls over to tomorrow. The
+# one lever that does work is that a service with NO schedule runs its command
+# as soon as it deploys. So this clears the schedule, deploys, waits, and puts
+# the schedule back — the restore is on an EXIT trap, so a Ctrl-C or a failed
+# deploy still leaves the nightly backup armed.
 #
-# So a backup is instead one run of the `backup` service (ops/backup/), which
-# pg_dumps into the bascinet-backups bucket. Deploying that service runs it
-# once immediately, which is what this does. migrate.sh calls it before every
-# production migration.
-#
-# Needs RAILWAY_TOKEN (the *project* token) in the root .env.
+# Needs RAILWAY_API_TOKEN (the *account* token). The project token cannot call
+# serviceInstanceUpdate — it answers "Not Authorized", which reads like a
+# missing permission and is really the wrong token.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 set -a; [ -f .env ] && source .env; set +a
 
-: "${RAILWAY_TOKEN:?RAILWAY_TOKEN is not set — see .env.example}"
-SERVICE="${BACKUP_SERVICE_NAME:-backup}"
+: "${RAILWAY_API_TOKEN:?RAILWAY_API_TOKEN is not set — see .env.example}"
+SERVICE_ID="${BACKUP_SERVICE_ID:-2dff69fb-7aad-449a-962f-dd02bccd3bc4}"
+ENV_ID="${RAILWAY_ENVIRONMENT_ID:-fb09d89d-750c-40ba-a242-0a32db53242b}"
+SCHEDULE="${BACKUP_CRON:-0 4 * * *}"
+API=https://backboard.railway.com/graphql/v2
 
-echo "db-backup: starting a run of the '$SERVICE' service"
-railway redeploy --service "$SERVICE" --yes >/dev/null
+gql() {
+  curl -sS "$API" -H "Authorization: Bearer $RAILWAY_API_TOKEN" \
+    -H "Content-Type: application/json" --data "$1"
+}
 
-echo "db-backup: started. Watch it with:  railway logs --service $SERVICE"
-echo "db-backup: list what landed with:   npm run db:backups"
+set_cron() {  # $1 is a JSON value: a quoted cron string, or null
+  gql "{\"query\":\"mutation(\$s:String!,\$e:String,\$i:ServiceInstanceUpdateInput!){serviceInstanceUpdate(serviceId:\$s,environmentId:\$e,input:\$i)}\",\"variables\":{\"s\":\"$SERVICE_ID\",\"e\":\"$ENV_ID\",\"i\":{\"cronSchedule\":$1}}}" >/dev/null
+}
+
+restore_cron() {
+  echo "db-backup: restoring the nightly schedule ($SCHEDULE)"
+  set_cron "\"$SCHEDULE\"" || echo "db-backup: WARNING — could not restore the schedule. Set it by hand." >&2
+}
+trap restore_cron EXIT
+
+echo "db-backup: clearing the schedule so the service runs on deploy"
+set_cron null
+
+deployment=$(gql "{\"query\":\"mutation(\$s:String!,\$e:String!){serviceInstanceDeployV2(serviceId:\$s,environmentId:\$e)}\",\"variables\":{\"s\":\"$SERVICE_ID\",\"e\":\"$ENV_ID\"}}" \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["serviceInstanceDeployV2"])')
+echo "db-backup: deployment $deployment"
+
+for _ in $(seq 1 60); do
+  status=$(gql "{\"query\":\"{deployment(id:\\\"$deployment\\\"){status}}\"}" \
+    | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["deployment"]["status"])')
+  case "$status" in
+    SUCCESS) echo "db-backup: run finished"; break ;;
+    FAILED|CRASHED) echo "db-backup: the run $status — see: railway logs --service backup" >&2; exit 1 ;;
+    *) sleep 5 ;;
+  esac
+done
+
+# The deploy going green only means the container started. The dump is the
+# thing being claimed, so check the dump.
+echo "db-backup: checking what landed"
+exec python3 scripts/db/bucket.py list
