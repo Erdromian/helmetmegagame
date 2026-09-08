@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · A traveller can walk their own zone while they wait on the road
+
+✎ Spending your Move to cross into another zone no longer pins you in place for the rest of the day — you can still walk the zone you set out from and talk to whoever is in it  
+✎ The roads out of the zone draw closed while you are on one, and say where you are already headed  
+✎ You land at the place you paid to reach whichever corner of the zone you spent the day in, and there is still no turning back
+
 ## 2026-09-08 · The Unlocks list on a tag stops printing bigger than the tag itself
 
 ✎ The "Unlocks N Desires" block on a tag now reads a step smaller than the tag's own description, instead of a step larger than it
