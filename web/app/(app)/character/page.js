@@ -534,9 +534,24 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // A fact about your own sheet, so the button may grey on it. Resolved here
   // rather than in the client so no slug matching reaches the browser.
   const canButcher = character.tags.some((ct) => ct.tag.slug === BUTCHER_SLUG);
-  // A fact about your own sheet, so the Change name button may grey on it.
-  // changeNameRequestImpl re-checks it under the same predicate.
-  const hasMulligan = character.tags.some((ct) => ct.tag.slug === "mulligan-potion");
+  // The Mulligan Potion, if they hold one. Drinking it is the one player-facing
+  // rename, so the tag's own tooltip opens the identity dialog instead of
+  // consuming it — TagsPanel needs the id to tell that bottle from every other
+  // consumable, and the name parts to seed the fields. Resolved here rather
+  // than in the client so no slug matching reaches the browser;
+  // changeNameRequestImpl re-checks the potion under the same predicate.
+  const mulligan = character.tags.find((ct) => ct.tag.slug === "mulligan-potion");
+  const identity = mulligan
+    ? {
+        tagId: mulligan.tag.id,
+        honorific: character.honorific,
+        firstName: character.firstName,
+        title: character.title,
+        lastName: character.lastName,
+        lastNameLocked: isDynastyMember(character.role?.slug),
+        gender: character.gender,
+      }
+    : null;
 
   // From is you or a room; To is anyone here or a room (TransferDialog.js).
   const transferPartyList = { characters: transferParties, rooms };
@@ -1110,7 +1125,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       healParties: healParties,
       corpses: corpses,
       canButcher: canButcher,
-      hasMulligan: hasMulligan,
+      identity: identity,
       canSeeExtract: canSeeExtract,
       canExtract: canExtract,
       extractBlocked: extractBlocked,
@@ -1133,7 +1148,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       deployVersion: deployVersion(),
       harmTargets: harmTargets,
       harmTags: harmTags,
-      lastNameLocked: isDynastyMember(character.role?.slug),
       storeTags: storeTags,
       storeHeldTags: storeHeldTags,
       storeRoleSlug: character.role?.slug ?? null,

@@ -123,7 +123,10 @@ export default function CharacterSheet({
   // is standing here. Empty on someone else's sheet.
   corpses = [],
   canButcher = false,
-  hasMulligan = false,
+  // The Mulligan Potion this character is holding, if any, plus the name
+  // parts that seed its dialog — resolved in character/page.js so no slug
+  // matching reaches the browser. Null with no bottle held.
+  identity = null,
   canSeeExtract = false,
   canExtract = false,
   extractBlocked = null,
@@ -142,7 +145,6 @@ export default function CharacterSheet({
   // { name, tagName } while a held tag fixes the character's presented name
   // and face (Tag.forcedName); null otherwise. Self sheet only.
   forcedIdentity = null,
-  lastNameLocked = false,
   // The mid-game Store, folded into the Tags panel as a modal (see
   // TagsPanel.js / StorePanel.js). Absent on someone else's sheet.
   storeTags = null,
@@ -267,6 +269,7 @@ export default function CharacterSheet({
               <TagsPanel
                 characterTags={character.tags}
                 isSelf={isSelf}
+                identity={identity}
                 tagPoints={character.tagPoints}
                 currentTurn={openTurn?.number ?? null}
                 equipSlots={equipSlots}
@@ -299,8 +302,6 @@ export default function CharacterSheet({
               <h2 className="panel-header">Bio</h2>
               <BioForm
                 character={character}
-                lastNameLocked={lastNameLocked}
-                hasMulligan={hasMulligan}
                 avatarUploadsEnabled={avatarUploadsEnabled}
                 playPanelEnabled={playPanelEnabled}
                 portraitMakerEnabled={portraitMakerEnabled}

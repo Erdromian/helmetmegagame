@@ -117,11 +117,11 @@ formatter:
 | `character/createActions.js` | Creation | `normalizeEarnedHonorific` |
 | `web/lib/characterWrite.js` | GM raw edit, from the dev panel | `normalizeHonorific` (ungated) |
 | `web/lib/dynasty.js#propagateDynastyLastName` | The Baron renaming his house | **none — see §1c** |
-| `character/requestActions.js#changeNameRequestImpl` | The "Change name" request | `normalizeEarnedHonorific` |
+| `character/requestActions.js#changeNameRequestImpl` | A Mulligan Potion, drunk | **none — the bottle buys the word** |
 
 A fifth must do the same.
 
-### A name is immutable — except through the "Change name" request
+### A name is immutable — except through a Mulligan Potion
 
 There is **no direct player-facing rename.** A name is chosen once, in the
 creation wizard, and after that `character/actions.js#updateCharacterProfile`
@@ -141,12 +141,27 @@ of Discord writes; `db/lib/webOnly.js#setWebOnly` enforces it with the same
 atomic `updateMany` guard the Location-move cooldown uses, and a refusal leaves
 the rest of the save standing.
 
-The one way through is the **Mulligan Potion**, drunk from the "Change name"
-button next to those disabled fields: the player picks a new
-honorific/first/last name, it applies immediately, and **one potion is
-consumed**. There is no reason field and no Undo (`REQUESTS.md` §1) — the
+The one way through is the **Mulligan Potion**, and it is drunk from the
+bottle: the potion sits in the Tags card like every other consumable, and its
+tooltip's **Consume** button opens the identity dialog instead of spending it
+on nothing. One line — *What would you like your identity to be? This is
+permanent.* — then four fields, then it applies immediately and **one potion
+is consumed**. There is no reason field and no Undo (`REQUESTS.md` §1) — the
 potion IS the cost, which is the point of gating it on an item rather than on
 a GM reading a justification afterwards.
+
+**All four parts, and two of them are not gated anywhere else.** The prefix is
+free text here rather than the earned-word dropdown creation uses: what a
+bottle sells is a whole identity, so a prefix a character drank is no longer
+proof they earned anything, and finding that out is somebody else's problem.
+The quoted title (`Sir Jorren "the Blind" Vask`) is a GM's to grant
+everywhere else in the game; this is the one player-facing form that writes
+it. Both are still capped by `NAME_LIMITS`, because every writer of `name` is.
+
+`consumeTagRequestImpl` **refuses** the potion outright, beside its sealed-
+paper, camera and crate special cases, and `consumableTags()` leaves it out of
+the ordinary Consume dropdown. Without both, the generic path would drop the
+bottle and change nothing.
 
 The gate had been removed at one point, leaving the tag "a flavor collectible
 only" and renaming free. Free renaming quietly undermines every other identity
@@ -157,8 +172,8 @@ a disguise keeps presenting its `forcedName` over whatever the real name
 becomes (`PROXYING.md` §6).
 
 The potion is brewable (`brewing-skilled`, 2 turns, 8 ⬢) and stocked at the
-Depot, so it is a thing a player can actually get. It re-validates the same allowlist/cap/dynasty-
-lock rules every other writer of `Character.name` enforces, and runs the same
+Depot, so it is a thing a player can actually get. It re-validates the same cap
+and dynasty-lock rules every other writer of `Character.name` enforces, and runs the same
 lightweight Discord fan-out `updateCharacterProfile` used to
 (`ensureCharacterRole`, `syncCharacterNickname`, and
 `propagateDynastyLastName` if the renamer is the Baron) right after the
@@ -509,6 +524,22 @@ Picking a role decides almost everything:
 The sync **throws** on a `starting_tags` name that isn't in the catalog or a
 `starting_zone` slug that isn't a standable zone, rather than half-applying. A
 typo can't ship characters missing part of their package.
+
+Two things arrive on top of the YAML package, both in `createCharacter`:
+
+- **A Commoner who picked no trade starts a farmer.** The three kits
+  (`commoner-farmer` / `-fisherman` / `-hunter`) are ordinary point-buy tags
+  gated by `onlyRoles: [commoner]`, and nothing forced a choice — so a player
+  who skipped the picker got Laboring (Skilled) and no specialisation at all,
+  able to labor but at no location's coefficient. The Farmer is the fallback
+  because it costs 0 points, so granting it can never overrun a budget already
+  spent. It lands as `GM_GRANT` and as the unopened crate: the player still
+  presses Consume, the same as a kit they chose. `COMMONER_KIT_SLUGS` in
+  `web/lib/characterCreation.js` is the list.
+- **The map they wake up with.** `db/lib/startingMemories.js` says which
+  Locations each seat is made already knowing, and `seedMemories()` writes
+  them. See `MAP.md` §6a — the kit above decides which road out of town a
+  Commoner remembers.
 
 ## 3. The point economy
 

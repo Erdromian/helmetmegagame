@@ -36,16 +36,17 @@ function Meta({ label, children }) {
   );
 }
 
-// `onConsume`/`consumeHint` are set only for a consumable tag on your own
-// sheet (see TagsPanel.js), which turns the chip into a shortcut into the
-// Consume dialog. The name resolution behind `consumeHint` stays in the
-// client parent so this component keeps rendering fine on the server
-// everywhere else it's used.
+// `onConsume` is set only for a consumable tag on your own sheet (see
+// TagsPanel.js), which puts a Consume button in the tooltip. The action and
+// its pending/error state stay in the client parent so this component keeps
+// rendering fine on the server everywhere else it's used — and so it never
+// says a word about what the thing turns into.
 export default function TagChip({
   tag,
   quantity = 1,
   onConsume = null,
-  consumeHint = null,
+  consumeBusy = false,
+  consumeError = null,
   expiresTurn = null,
   currentTurn = null,
   // The Nuclear Device only: the turn it fires on, from GameState.nukeArmedTurn
@@ -109,12 +110,17 @@ export default function TagChip({
       ) : (
         tag.description && <ChipText text={tag.description} as="p" inTooltip />
       )}
-      {consumeHint && <p className="text-accent">{consumeHint}</p>}
       {typeof onConsume === "function" && (
-        <button type="button" className="btn-quiet" onClick={onConsume}>
+        <button
+          type="button"
+          className="btn-quiet"
+          onClick={onConsume}
+          disabled={consumeBusy}
+        >
           Consume
         </button>
       )}
+      {consumeError && <p className="text-muted text-xs">{consumeError}</p>}
       <dl className="tag-meta">
         {duration && <Meta label={duration.armed ? "Armed" : "Expires"}>{duration.label}</Meta>}
         {/* Reinforcement, not the only warning — every tag that gets worse

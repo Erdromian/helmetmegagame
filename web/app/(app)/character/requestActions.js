@@ -202,7 +202,6 @@ import {
   NAME_LIMITS,
   formatCharacterName,
   formatBareName,
-  normalizeEarnedHonorific,
 } from "@/lib/characterName";
 import { propagateDynastyLastName } from "@/lib/dynasty";
 
@@ -2306,6 +2305,15 @@ async function consumeTagRequestImpl({ tagId }) {
     return openCrateRequestImpl({ session, character, held });
   }
 
+  // The Mulligan Potion is the one consumable that cannot be drunk from here:
+  // it needs a name typed into it, so its road out is changeNameRequestImpl,
+  // opened from the tag's own tooltip. Without this the generic path would
+  // spend the bottle on nothing at all — it has no `consumesInto`.
+  // MULLIGAN_SLUG is declared beside that function, further down this file.
+  if (held.tag.slug === MULLIGAN_SLUG) {
+    throw new UserError("Drink this one from the tag itself — it needs a name first. ‡");
+  }
+
   const openTurn = await getOpenTurn();
   const restore = {
     tagId: held.tagId,
@@ -3863,21 +3871,22 @@ async function claimDesireImpl({
 
 // --- Name ---------------------------------------------------------------
 
-// The one player-facing rename: an ordinary reason-gated request applying
-// the same allowlist/cap/dynasty-lock rules every writer of Character.name
-// uses. See docs/systemdocs/CHARACTERS.md §1b.
-// Renaming costs a Mulligan Potion, drunk. The gate is the whole point of the
-// item — "a new name and appearance to those with honest regrets" is what its
-// catalog text has always promised — and without it a name is free to change
-// as often as a player likes, which makes every other identity rule (the
-// personal Discord role, a wanted poster, a Disguise that is supposed to be
-// temporary) mean less than it should. A Disguise is the temporary answer;
-// this is the permanent one. See CHARACTERS.md.
+// The one player-facing rename: all four parts of a name, applying the same
+// caps and dynasty lock every other writer of Character.name uses. See
+// docs/systemdocs/CHARACTERS.md §1b.
+// Renaming costs a Mulligan Potion, drunk from the tag's own tooltip. The gate
+// is the whole point of the item — "a new name and appearance to those with
+// honest regrets" is what its catalog text has always promised — and without
+// it a name is free to change as often as a player likes, which makes every
+// other identity rule (the personal Discord role, a wanted poster, a Disguise
+// that is supposed to be temporary) mean less than it should. A Disguise is
+// the temporary answer; this is the permanent one. See CHARACTERS.md.
 const MULLIGAN_SLUG = "mulligan-potion";
 
 async function changeNameRequestImpl({
   honorific: rawHonorific,
   firstName: rawFirstName,
+  title: rawTitle,
   lastName: rawLastName,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
@@ -3891,14 +3900,15 @@ async function changeNameRequestImpl({
     );
   }
 
-  // Gated by what this character has earned — an unearned word lands as
-  // null rather than throwing, so a stale tab renames them untitled instead
-  // of failing outright.
-  const honorific = normalizeEarnedHonorific(rawHonorific, {
-    tagSlugs: character.tags.map((ct) => ct.tag.slug),
-    roleSlug: character.role?.slug ?? null,
-    gender: character.gender,
-  });
+  // Free text here, unlike creation: what a bottle sells is the whole
+  // identity, prefix and quoted title included, so this path deliberately
+  // does NOT run normalizeEarnedHonorific. A prefix a character drank is no
+  // longer proof they earned anything — which is a thing other characters can
+  // find out the hard way. Capped, though; every writer of `name` is.
+  const honorific =
+    rawHonorific?.toString().trim().slice(0, NAME_LIMITS.honorific) || null;
+  // The one player-facing writer of `title`, the part that renders in quotes.
+  const title = rawTitle?.toString().trim().slice(0, NAME_LIMITS.title) || null;
   const firstName =
     rawFirstName?.toString().trim().slice(0, NAME_LIMITS.firstName) || null;
   if (!firstName) throw new UserError("A character needs a first name.");
@@ -3912,17 +3922,19 @@ async function changeNameRequestImpl({
   const previous = {
     honorific: character.honorific,
     firstName: character.firstName,
+    title: character.title,
     lastName: character.lastName,
     name: character.name,
   };
   const next = {
     honorific,
     firstName,
+    title,
     lastName,
     name: formatCharacterName({
       honorific,
       firstName,
-      title: character.title,
+      title,
       lastName,
     }),
   };
@@ -3955,7 +3967,13 @@ async function changeNameRequestImpl({
       actionType: "request_change_name",
       targetCharacterId: character.id,
       turnId: openTurn?.id ?? null,
-      details: { previousName: previous.name, name: next.name, potionTagId: potion.tagId },
+      details: {
+        previousName: previous.name,
+        name: next.name,
+        previousTitle: previous.title,
+        title: next.title,
+        potionTagId: potion.tagId,
+      },
     });
   });
 

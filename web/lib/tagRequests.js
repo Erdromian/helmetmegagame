@@ -172,11 +172,20 @@ export function packableTags(characterTags = []) {
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }
 
+// The Mulligan Potion is consumable but is never on offer here: drinking it
+// means typing a new name into it, which happens in the dialog its own tag
+// tooltip opens (TagsPanel.js -> IdentityDialog.js). Listed among the ordinary
+// consumables it would be a bottle spent on nothing. Its own copy of the slug
+// rather than an import from db/lib/constants.js, for the reason that file
+// gives: this module ships to the client. consumeTagRequestImpl refuses the
+// same slug, and that refusal is the actual lock.
+const MULLIGAN_SLUG = "mulligan-potion";
+
 // Consuming always takes exactly one unit, so the held count here is shown,
 // never a cap.
 export function consumableTags(characterTags = []) {
   return characterTags
-    .filter((ct) => ct.tag?.consumable)
+    .filter((ct) => ct.tag?.consumable && ct.tag.slug !== MULLIGAN_SLUG)
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }
 

@@ -53,7 +53,6 @@ import ExamineDialog from "./ExamineDialog";
 import QuantityField, { parseQuantity } from "./QuantityField";
 import { ENGRAVE_RESOURCE_COST } from "@/lib/constants";
 import { useConfirm } from "./ConfirmProvider";
-import { useTags } from "./TagsProvider";
 import { heldSlugsOf } from "@/lib/consumeGrants";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import { CUSTOM_SURCHARGE, customCraftFields } from "@/lib/customCraft";
@@ -763,10 +762,6 @@ export default function RequestActionsProvider({
     [lessonPeople, targetId],
   );
 
-  // Slug -> name for "Becomes:". A consumesIntoOneOf position isn't resolved
-  // via resolveConsumeGrants here (that rolls a real pick); rendered as
-  // "A or B" off the raw sidecar instead, so the preview stays honest.
-  const { tagsBySlug } = useTags();
   const heldSlugs = useMemo(() => heldSlugsOf(characterTags), [characterTags]);
 
   // Bird recipients filtered by typed text — dead stay in it; current pick kept.
@@ -777,17 +772,6 @@ export default function RequestActionsProvider({
       (t) => t.id === targetId || scoreMatch(q, { name: t.name }),
     );
   }, [birdTargets, birdQuery, targetId]);
-  const nameOf = (slug) => tagsBySlug.get(slug)?.name ?? slug;
-  const becomes = (chosen?.consumesInto ?? [])
-    .map((slug, i) => {
-      const blockers = chosen?.consumesIntoUnless?.[slug] ?? null;
-      if (blockers?.some((b) => heldSlugs.has(b))) return null;
-      const alternatives = chosen?.consumesIntoOneOf?.[i];
-      return Array.isArray(alternatives)
-        ? alternatives.map(nameOf).join(" or ")
-        : nameOf(slug);
-    })
-    .filter(Boolean);
 
   // An `anyOf` ingredient (Tag.requirementItems) is the one part of a recipe
   // the catalog cannot decide for the player: which delicacy goes into the
@@ -1834,19 +1818,13 @@ export default function RequestActionsProvider({
                     ))}
                   </Select>
                 </label>
-                {/* A Depot crate says nothing here: what falls out of it is
-                    printed on the crate itself, and it grants runtime rows
-                    rather than the catalog slugs `becomes` reads — so the
-                    fallback line below would claim it leaves nothing behind,
-                    which is the one thing that is never true of a crate. */}
-                {chosen && !chosen.crateContents && (
+                {/* Nothing about what it leaves behind — that is the tag's
+                    own business, and the tooltip's Consume button is the
+                    one-click way in anyway. Only the count, which is a fact
+                    about the player's own pocket. */}
+                {chosen && chosen.quantity > 1 && (
                   <p className="text-xs text-muted">
-                    {becomes.length
-                      ? `Becomes: ${becomes.join(", ")}.`
-                      : "Gets used up — it doesn't leave anything behind."}
-                    {chosen.quantity > 1
-                      ? ` Takes one of your ${chosen.quantity}.`
-                      : ""}
+                    Takes one of your {chosen.quantity}.
                   </p>
                 )}
               </>

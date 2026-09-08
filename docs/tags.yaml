@@ -156,9 +156,9 @@
 #                           - ate-meal
 #                           - slug: night-vision
 #                             unlessTags: [blind]
-#                     Both halves are validated against this file, and the
-#                     condition is applied identically by the grant itself and
-#                     by the "Becomes:" preview a player sees first.
+#                     Both halves are validated against this file. The
+#                     condition is applied by the grant, and by nothing else:
+#                     consuming says nothing about what it leaves behind.
 #   requirement:    - what it costs a character to add (craftable) or remove
 #                     (healable) this tag in play. Enforced by Craft and Heal.
 #                     One shared block covers whichever direction applies to
@@ -11096,11 +11096,12 @@ tags:
     sellable: true
     sellablePrice: 5
 
-  # Flavor collectible. Changing your name no longer requires this — it's an
-  # ordinary "Change name" Request on the character sheet, gated only on a
-  # reason (docs/systemdocs/CHARACTERS.md §1b). `consumable` with no
-  # `consumesInto`, so drinking it simply spends the tag and leaves a
-  # CONSUME_TAG request in the GM's queue to act on.
+  # The one player-facing rename (docs/systemdocs/CHARACTERS.md §1b). Drunk
+  # from this tag's own tooltip on the character sheet: Consume opens the
+  # identity dialog — prefix, first name, quoted title, last name — and one
+  # bottle buys one permanent name. `consumable` with no `consumesInto`
+  # because it grants no tag at all; the ordinary consume path REFUSES it
+  # rather than spending it on nothing.
   mulligan-potion:
     catalog: all
     name: Mulligan Potion

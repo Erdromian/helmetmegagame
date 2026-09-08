@@ -1,18 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import TagChip from "./TagChip";
 import TagPointsValue from "./TagPointsValue";
-import { useRequestActions } from "./RequestActionsProvider";
 import EquipmentPanel from "./EquipmentPanel";
 import Modal from "./Modal";
 import StorePanel from "./StorePanel";
-import { useTags } from "./TagsProvider";
-import { heldSlugsOf } from "@/lib/consumeGrants";
+import IdentityDialog from "./IdentityDialog";
+import { consumeTagRequest } from "../(app)/character/requestActions";
 
 // The Tags section of a character sheet. It's a client component for one
-// reason: clicking a consumable chip opens the Consume dialog already pointed
-// at that tag, via RequestActionsProvider's context.
+// reason: the Consume button inside a consumable tag's tooltip spends it on
+// the spot — one click, no dialog, and nothing said about what it leaves
+// behind. The Mulligan Potion is the single exception: it needs a name typed
+// into it, so it opens IdentityDialog instead (CHARACTERS.md §1b).
 //
 // Equipment lives here too, as an embedded EquipmentPanel sub-section —
 // equipped items are just a view over the same held-tags data this panel
@@ -76,6 +77,10 @@ export default function TagsPanel({
   storeRoleSlug = null,
   // GameState.nukeArmedTurn, for the one chip that shows it (TagChip.js).
   nukeArmedTurn = null,
+  // The Mulligan Potion this character holds, if any, and the name parts that
+  // seed its dialog — resolved in character/page.js so no slug matching
+  // reaches the browser. Null with no bottle held.
+  identity = null,
   // "sheet" is /character: one card, every category inside it, the equipped
   // rack at the top. "rail" is /ledger's right column: one card per category
   // and no rack, because that sheet mounts the equipment in its middle
@@ -83,35 +88,27 @@ export default function TagsPanel({
   variant = "sheet",
   showEquipment = true,
 }) {
-  // Null on someone else's sheet, where no provider is mounted — which is
-  // also exactly when the chips must stay read-only.
-  const openDialog = useRequestActions()?.open ?? null;
   const [storeOpen, setStoreOpen] = useState(false);
 
-  const { tagsBySlug } = useTags();
   const tagGroups = useMemo(() => groupTagsByCategory(characterTags), [characterTags]);
-  const heldSlugs = useMemo(() => heldSlugsOf(characterTags), [characterTags]);
+  const [identityOpen, setIdentityOpen] = useState(false);
+  // Which tag is mid-consume, and what went wrong with the last one. Keyed by
+  // tag id rather than a single flag so two quick clicks on two different
+  // chips can't blame each other's error on the wrong tooltip.
+  const [busyTagId, setBusyTagId] = useState(null);
+  const [consumeError, setConsumeError] = useState(null);
+  const [, startConsume] = useTransition();
 
-  // Tag.consumesInto carries slugs; the app-wide catalog turns them into
-  // names. It arrives via fetch, so fall back to the raw slug meanwhile.
-  // Resolved against what this character holds, since a grant can be
-  // conditional (Fine Meal cheers everyone but a noble) — promising a tag the
-  // grant won't deliver would be worse than saying nothing. A
-  // consumesIntoOneOf position (Skinned Cave Rat) is rendered as "A or B"
-  // rather than rolled — resolveConsumeGrants commits to a real pick, and
-  // this hint must not re-roll on every hover.
-  function consumeHintFor(tag) {
-    const names = (tag?.consumesInto ?? [])
-      .map((slug, i) => {
-        const blockers = tag?.consumesIntoUnless?.[slug] ?? null;
-        if (blockers?.some((b) => heldSlugs.has(b))) return null;
-        const alternatives = tag?.consumesIntoOneOf?.[i];
-        return Array.isArray(alternatives)
-          ? alternatives.map((s) => tagsBySlug.get(s)?.name ?? s).join(" or ")
-          : (tagsBySlug.get(slug)?.name ?? slug);
-      })
-      .filter(Boolean);
-    return names.length ? `Click to consume → ${names.join(", ")}` : "Click to consume";
+  // Straight to the server, no confirm and no dialog: a consumable is one
+  // click. The action revalidates the page, so the chip disappears on its own.
+  function consume(tagId) {
+    setConsumeError(null);
+    setBusyTagId(tagId);
+    startConsume(async () => {
+      const res = await consumeTagRequest({ tagId });
+      setBusyTagId(null);
+      if (!res?.ok) setConsumeError({ tagId, message: res?.error ?? "Something went wrong." });
+    });
   }
 
   // One category's chips. Shared by both layouts below so a chip behaves the
@@ -123,14 +120,23 @@ export default function TagsPanel({
         {tags.map((ct) => {
           // Only your own consumables are clickable — someone else's
           // sheet stays a read-only hover tooltip.
-          const clickable = isSelf && ct.tag.consumable && openDialog;
+          const clickable = isSelf && ct.tag.consumable;
+          // The bottle asks for a name instead of going down.
+          const isPotion = clickable && ct.tag.id === identity?.tagId;
           return (
             <li key={ct.tag.id}>
               <TagChip
                 tag={ct.tag}
                 quantity={ct.quantity}
-                onConsume={clickable ? () => openDialog("consume", ct.tag.id) : null}
-                consumeHint={clickable ? consumeHintFor(ct.tag) : null}
+                onConsume={
+                  clickable
+                    ? () => (isPotion ? setIdentityOpen(true) : consume(ct.tag.id))
+                    : null
+                }
+                consumeBusy={busyTagId === ct.tag.id}
+                consumeError={
+                  consumeError?.tagId === ct.tag.id ? consumeError.message : null
+                }
                 expiresTurn={ct.expiresTurn}
                 currentTurn={currentTurn}
                 armedTurn={ct.tag.slug === "nuclear-device" ? nukeArmedTurn : null}
@@ -161,6 +167,12 @@ export default function TagsPanel({
     </Modal>
   );
 
+  // Mounted only while open, so the fields seed from the name the character
+  // wears right now rather than from whatever it was when the page loaded.
+  const identityDialog = isSelf && identity && identityOpen && (
+    <IdentityDialog identity={identity} open onClose={() => setIdentityOpen(false)} />
+  );
+
   const pointsControl =
     tagPoints != null &&
     (isSelf && storeTags ? (
@@ -189,6 +201,7 @@ export default function TagsPanel({
           </section>
         )}
         {store}
+        {identityDialog}
         {tagGroups.length === 0 ? (
           <section className="panel p-4">
             <p className="text-sm text-muted">No tags yet.</p>
@@ -229,6 +242,7 @@ export default function TagsPanel({
       )}
 
       {store}
+      {identityDialog}
 
       {tagGroups.length === 0 ? (
         <p className="text-sm text-muted">No tags yet.</p>

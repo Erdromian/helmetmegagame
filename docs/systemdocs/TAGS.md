@@ -1078,10 +1078,9 @@ Five rules carry it:
   `Tag.consumesInto` still stores every target slug in order; the conditions
   live beside it in `Tag.consumesIntoUnless` (`Json`, null for the many tags
   that have none), and `syncTags.js` validates both halves against this file.
-  `resolveConsumeGrants()` in `web/lib/consumeGrants.js` applies them, and is
-  deliberately pure so the server action and the client "Becomes:" preview
-  share it — a preview that promised something the grant then withheld would
-  be worse than no preview. **No tag uses this today.** Fine Meal was the only
+  `resolveConsumeGrants()` in `web/lib/consumeGrants.js` applies them. It is
+  server-side only: consuming a tag prints nothing about what it grants, so
+  there is no preview left to keep honest. **No tag uses this today.** Fine Meal was the only
   one, granting `happy` unless `nobility`, and its condition went with the Mood
   system; the mechanism is kept because it is general.
 - **A grant may override the target's expiry.** The same object form takes an
@@ -1145,10 +1144,9 @@ Purse/Supply Kit/Skinned Cave Rat tags that use them):
   same length and order, for an even random pick between alternatives —
   `{ oneOf: [...] }` in `docs/tags.yaml`, the same shape `expiresInto` (§5c)
   already uses. `Skinned Cave Rat` is the first user: 50/50 `ate-meal` or
-  `vomiting`. `resolveConsumeGrants()` rolls the real pick for the server
-  action; the client "Becomes:" preview does **not** call it for a `oneOf`
-  position, since that would re-roll (and lie about) an outcome on every
-  render — it renders "A or B" straight off the sidecar instead.
+  `vomiting`. `resolveConsumeGrants()` rolls the real pick in the server
+  action, and nothing rolls anywhere else — the player is told neither the
+  alternatives nor which one they got.
 
 ## 5c. Health, the cure ladder, and `expiresInto`
 
@@ -1912,8 +1910,8 @@ GM's custom-tag form has no editor for it, the same posture as `desireLocks`;
 
 `EquipmentPanel.js` on `/character` is **click-to-toggle**, not drag-and-drop —
 drag would need a touch fallback that is exactly this anyway — and is its own
-surface rather than an affordance on `TagChip`, whose click already opens the
-Consume dialog.
+surface rather than an affordance on `TagChip`, whose tooltip already carries
+the Consume button.
 
 Equipping is **instant and writes neither a `Request` nor an `AuditLog` row**,
 unlike everything in `REQUESTS.md`. It costs nothing, the player undoes it in
