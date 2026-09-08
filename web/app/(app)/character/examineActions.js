@@ -4,24 +4,23 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { guarded, UserError } from "@/lib/actionResult";
-import { concealedAlias, withArticle } from "@lifeweb/db/lib/concealedIdentity";
-import { EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire } from "@lifeweb/db/lib/examine";
-import { THANATI_SLUG } from "@lifeweb/db/lib/thanati";
-import { buildSkillAncestry, satisfiedSkillIds } from "@lifeweb/db/lib/medicalVision";
-import { getMyFactionRole } from "@lifeweb/db/lib/factionPermissions";
-import { forcedNameFrom } from "@lifeweb/db/lib/presentedIdentity";
+import { lastSightings } from "@lifeweb/db/lib/sightings";
+import { examineRow } from "@lifeweb/db/lib/examineRow";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
 
-// Examine — looking at somebody standing where you stand. It moves nothing,
-// costs nothing, spends no Move and can be done as often as you like, because
+// Examine — looking at somebody you have HEARD. It moves nothing, costs
+// nothing, spends no Move and can be done as often as you like, because
 // reading a room is not an act, so it writes no audit row at all.
 //
-// It exists because 🔍 hangs off a proxied message, so until now you could
-// only look at someone who had SPOKEN. That was never a hiding rule, just a
-// consequence of attaching the feature to a reaction — a guard on a gate could
-// not size up a silent traveller without first striking up a conversation.
-// /conceal is the actual hiding rule, and it still works here exactly as it
-// works on 🔍: you get the hood's impoverished read.
+// This used to reach anybody standing where you stand, silent or not, on the
+// argument that a guard on a gate should be able to size up a traveller
+// without striking up a conversation first. That went the other way in the
+// end: a silent stranger is a stranger, and standing in the same room as
+// somebody should not hand you a reading of them. So it is now the same rule
+// 🔍 has always had — the subject must have said something you heard, this
+// turn (db/lib/sightings.js) — and what you get is what you heard, frozen at
+// that line rather than re-read live. /conceal is unchanged and still gives
+// the hood's impoverished read.
 //
 // The readout itself is db/lib/examine.js, shared with the reaction handler so
 // the two surfaces cannot drift on the doctor's eye, Inscrutable, or what
@@ -58,18 +57,21 @@ async function blockedFromLooking(me) {
   return examineBlock(me.tags, { phase: openTurn?.phase ?? null, indoors: me.location?.indoors ?? true });
 }
 
-// Who you can look at: everyone ALIVE standing at your Location, INCLUDING the
+// Who you can look at: everyone you have heard speak this turn, INCLUDING the
 // concealed.
 //
-// This is the one people-picker on the sheet that does not use peopleHere()
-// (db/lib/presence.js), and the divergence is deliberate. Every other action
-// there acts ON someone, which means identifying them, so a hood takes you off
-// the list. Looking at a hooded figure is the whole point of a hood — and the
-// Who's here? button in Discord already lists them, as "a young man", so this
-// leaks no presence that the game does not already publish at Location grain.
+// This is the one people-picker on the sheet that is not a roster of who is
+// standing here (db/lib/presence.js), and the divergence is deliberate twice
+// over. Every other action acts ON someone, which means identifying them, so a
+// hood takes you off the list — but looking at a hooded figure is the whole
+// point of a hood, so a hood stays on this one, under its alias.
+//
+// And it is a list of who you have NOTICED rather than who is nearby, which is
+// what stops the dialog being a presence oracle: opening it in a crowded room
+// no longer enumerates the room.
 //
 // Fetched when the dialog opens rather than baked into the page render, so the
-// roster is current and the sheet never carries a list of who is nearby.
+// list is current and the sheet never carries one of who is around you.
 export async function peopleToExamine() {
   return guarded(async () => {
     const me = await looker();
@@ -80,43 +82,30 @@ export async function peopleToExamine() {
     const blocked = await blockedFromLooking(me);
     if (blocked) throw new UserError(blocked);
 
-    const present = await prisma.character.findMany({
-      where: { status: "ALIVE", locationId: me.locationId, id: { not: me.id } },
-      orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-      select: {
-        id: true,
-        name: true,
-        concealed: true,
-        age: true,
-        gender: true,
-        tags: {
-          where: { tag: { forcedName: { not: null } } },
-          select: { tag: { select: { forcedName: true } } },
-        },
-      },
-    });
+    // Everyone you have heard speak this turn, wherever you heard them —
+    // which is not the same set as everyone standing here, and deliberately
+    // so. The label and the hood flag come off the LINE, so somebody who
+    // spoke bare-faced and has since pulled a mask on still lists under their
+    // own name, and somebody who has been standing silently in a corner does
+    // not list at all.
+    const seen = await lastSightings(prisma, me);
 
-    // Named first, hoods after — the same two-part shape Who's here? prints,
-    // and for the same reason: a hood is a different kind of entry, not a
-    // person whose name you have merely forgotten. A forced name (Apex Form)
-    // outranks concealment and lists as itself.
     return {
-      people: present.map((c) => {
-        const forcedName = forcedNameFrom(c.tags);
-        const concealed = c.concealed && !forcedName;
-        return {
-          id: c.id,
-          label: forcedName ?? (concealed ? withArticle(concealedAlias(c).toLowerCase()) : c.name),
-          concealed,
-        };
-      }),
+      people: [...seen.entries()]
+        .map(([id, sighting]) => ({ id, label: sighting.name, concealed: sighting.concealed }))
+        .sort((a, b) => Number(a.concealed) - Number(b.concealed) || (a.label ?? "").localeCompare(b.label ?? "")),
     };
   });
 }
 
-// One look. Re-resolves the subject and re-checks co-presence server-side: the
-// dialog's list can outlive the player walking out of the Location, the same
-// posture every picker on this sheet takes.
+// One look, at the line you heard them say. The seq is resolved server-side
+// into a speaker, a hood and a readout (db/lib/examineRow.js), which is the
+// same path 🔍 takes in Discord and both eyes take on /play — there is one
+// implementation of these rules now, not three.
+//
+// The subject is re-resolved from the sighting rather than trusted from the
+// dialog, so a posted id that names somebody you have never heard gets the
+// same refusal as one that names nobody at all.
 export async function examineCharacter(targetId) {
   return guarded(async () => {
     const me = await looker();
@@ -124,60 +113,15 @@ export async function examineCharacter(targetId) {
     const blocked = await blockedFromLooking(me);
     if (blocked) throw new UserError(blocked);
 
-    const subject = await prisma.character.findFirst({
-      // Co-presence is the whole gate, and it is in the WHERE clause rather
-      // than a check afterwards so a miss is indistinguishable from "no such
-      // character" — a probe for somebody's id learns nothing about where they
-      // are standing.
-      where: { id: targetId ?? "", status: "ALIVE", locationId: me.locationId ?? "", NOT: { id: me.id } },
-      select: EXAMINE_SUBJECT_SELECT,
-    });
-    if (!subject) throw new UserError("They aren't here.");
+    const seen = await lastSightings(prisma, me);
+    const sighting = seen.get(String(targetId ?? ""));
+    if (!sighting) throw new UserError("You haven't heard them say anything. ‡");
 
-    const [openTurn, skillCatalog] = await Promise.all([
-      prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
-      // Tier chain: holding Medical (Expert) must satisfy a requirement
-      // written against Medical (Basic).
-      prisma.tag.findMany({ select: { id: true, parentTagId: true } }),
-    ]);
-
-    // A hood gets the impoverished read and nothing else, so neither query
-    // below is worth running for one. A forced name (Apex Form) is NOT a hood
-    // — a Beast is being something, not hiding — which is why this asks the
-    // same question presentedIdentity does rather than reading `concealed`.
-    const hidden = subject.concealed && !forcedNameFrom(subject.tags);
-
-    // A Leader/Treasurer of the SUBJECT's faction sees their ⬢, the same seat
-    // /faction's roster column reads.
-    const officer =
-      !hidden && subject.factionId
-        ? (await getMyFactionRole(prisma, me.discordUserId, subject.factionId)).isOfficer
-        : false;
-
-    // Only queried when the viewer holds the sight that renders the field.
-    const lastDesire =
-      !hidden && canSeeDesire(me.tags)
-        ? await prisma.desire.findFirst({
-            where: { characterId: subject.id, status: "FULFILLED" },
-            orderBy: [{ endedTurnNumber: "desc" }, { id: "desc" }],
-            select: { text: true, points: true },
-          })
-        : null;
-
-    return {
-      readout: examineReadout({
-        subject,
-        viewerTags: me.tags,
-        satisfied: satisfiedSkillIds(
-          me.tags.map((ct) => ct.tagId),
-          buildSkillAncestry(skillCatalog),
-        ),
-        openTurnNumber: openTurn?.number,
-        lastDesire,
-        viewerFactionId: me.factionId,
-        viewerIsOfficer: officer,
-        viewerIsThanati: me.tags.some((ct) => ct.tag?.slug === THANATI_SLUG),
-      }),
-    };
+    // looker() already selects exactly what examineRow wants — the two lists
+    // are the same list, and VIEWER_SELECT is where it is written down.
+    const result = await examineRow(prisma, me, sighting.seq);
+    if (!result) throw new UserError("You can't see them.");
+    if (result.blocked) throw new UserError(result.blocked);
+    return { readout: result.readout };
   });
 }

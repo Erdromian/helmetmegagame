@@ -15,6 +15,7 @@
 // Deliberately NOT spread into the @lifeweb/db barrel — require it by path.
 
 const { notifyFeed } = require("./feedNotify");
+const { hoodToken } = require("./whosHere");
 
 // The columns the live feed needs off a row, and nothing else. Kept beside
 // feedRowShape below so the two never drift.
@@ -43,28 +44,62 @@ const FEED_ROW_SELECT = {
 // character than a Discord channel does.
 //
 // A row with an alias and no path predates the column, and cannot be given one
-// now: the sprite lived on the Tag equipped at the time. It gets the silhouette
-// rather than a guess, because the only wrong direction here is exposing
-// somebody the room could not see.
+// now: the sprite lived on the Tag equipped at the time. It gets `unknownFace`
+// and the question-mark plate rather than a guess, because the only wrong
+// direction here is exposing somebody the room could not see.
+//
+// `characterId` is WITHHELD on a hooded row, and this is the load-bearing
+// line in the file. Shipping it on every row meant a browser holding one
+// hooded line and one named line could match them by id and read the hood
+// straight off — the exact unmasking db/lib/whosHere.js#hoodToken exists to
+// prevent, sitting in plain JSON. It stayed harmless only while nothing on
+// the page used the id of an aliased row, which stopped being true the moment
+// the eye moved onto hooded lines.
+//
+// `speakerKey` is what replaces it: the same HMAC that file mints, so
+// consecutive lines from one hood still group into a run, and so a player can
+// still recognise their OWN hooded lines — the page is handed its own key and
+// compares. The browser cannot compute one, so it correlates hoods with hoods
+// and never a hood with a name.
+//
+// Withheld per ROW rather than per reader on purpose: web/lib/feedHub.js
+// shapes one row and fans it out to every watcher of a place, so anything
+// decided per reader here would be decided for whoever happened to be first.
+// Ownership is a client-side hint either way — every edit and delete
+// re-resolves the actor from the session (db/lib/say.js).
+//
+// `avatarVersion` goes with the id. It is a cache-buster built from the
+// speaker's updatedAt, and a timestamp that moves when one particular
+// character is edited is one more thing two rows could be matched on.
 //
 // `seq` is a BigInt on the row and a STRING here. JSON.stringify throws on a
 // BigInt, and a Number would lose precision at the far end of the range.
 function feedRowShape(row, extra = {}) {
   if (!row) return null;
+  // Any row said under a name that is not their own — a hood, or a forced
+  // name like Apex Form's Beast. Both wear a face that is not theirs
+  // (db/lib/presentedIdentity.js), so both withhold the id behind it.
+  const hooded = Boolean(row.concealedAlias);
+  // Pulled out of `extra` rather than left to the spread below, or a caller
+  // that knows the speaker's updatedAt (withAvatarVersions, feedHub) would put
+  // the cache-buster back on a hooded row after this took it off.
+  const { avatarVersion, ...rest } = extra;
   return {
     seq: String(row.seq),
     placeKey: row.placeKey ?? null,
-    characterId: row.characterId ?? null,
+    characterId: hooded ? null : (row.characterId ?? null),
+    speakerKey: hooded && row.characterId ? hoodToken(row.characterId) : null,
     name: row.concealedAlias ?? row.characterName ?? null,
     alias: row.concealedAlias ?? null,
-    avatarPath: row.presentedAvatarPath ?? (row.concealedAlias ? "/assets/unknown.png" : null),
-    avatarVersion: row.avatarVersion ?? (row.sentAt ? new Date(row.sentAt).getTime() : null),
+    avatarPath: row.presentedAvatarPath ?? null,
+    unknownFace: hooded && !row.presentedAvatarPath,
+    avatarVersion: hooded ? null : (avatarVersion ?? row.avatarVersion ?? (row.sentAt ? new Date(row.sentAt).getTime() : null)),
     content: row.content ?? "",
     sentAt: row.sentAt ? new Date(row.sentAt).toISOString() : null,
     source: row.source ?? "DISCORD",
     editedAt: row.editedAt ? new Date(row.editedAt).toISOString() : null,
     deletedAt: row.deletedAt ? new Date(row.deletedAt).toISOString() : null,
-    ...extra,
+    ...rest,
   };
 }
 
@@ -226,6 +261,7 @@ async function archiveRowForMessage(prisma, discordMessageId) {
       characterId: true,
       characterName: true,
       concealedAlias: true,
+      presentedAvatarPath: true,
       content: true,
       sentAt: true,
       deletedAt: true,

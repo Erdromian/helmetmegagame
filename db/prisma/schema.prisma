@@ -3221,7 +3221,18 @@ model Note {
   discordChannelId String
   characterId      String?
   character        Character? @relation(fields: [characterId], references: [id])
+
+  // The name the room HEARD, which for a hooded or forced line is the alias
+  // rather than the person (bot/src/events/messageReactionAdd.js).
   characterName    String
+
+  // And the face that went with it, frozen for the same reason
+  // ArchiveEntry.presentedAvatarPath is. NULL means the speaker's own face,
+  // resolved live from /api/avatar/<id> — which is the right answer only
+  // because a note under somebody's real name is a note about somebody whose
+  // face the starrer could see. A note from before this column draws the
+  // question-mark plate instead of a guess.
+  presentedAvatarPath String?
   zoneId           String?
   zone             Zone?      @relation(fields: [zoneId], references: [id])
   content          String

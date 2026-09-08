@@ -315,9 +315,13 @@ export function newestSeq(place) {
 // The CHIME is deliberately narrower: Chat.js rings only on the mention half,
 // because a busy conversation ringing on every line is a reason to mute the
 // Chat rather than a reason to look at it. A dot is patient; a sound is not.
-export function isNotableRow(place, row, selfId) {
+export function isNotableRow(place, row, selfId, selfKey = null) {
   if (!selfId || !row) return false;
+  // Your own line, whichever handle it carries. An aliased row ships no
+  // character id to anybody (db/lib/archive.js#feedRowShape), so without the
+  // key half a player speaking from under a hood lit their own unread dot.
   if (row.characterId === selfId) return false;
+  if (selfKey && row.speakerKey === selfKey) return false;
   if (typeof place === "string" && place.startsWith("conv:")) return true;
   return typeof row.content === "string" && row.content.includes(`{char:${selfId}}`);
 }
@@ -325,12 +329,12 @@ export function isNotableRow(place, row, selfId) {
 // The newest NOTABLE seq this tab holds for a place, as a string, or null.
 // The dot compares this against the read mark, which is the newest seq
 // overall — so reading to the bottom of a place clears it however it was lit.
-export function notableSeq(place, selfId) {
+export function notableSeq(place, selfId, selfKey = null) {
   const rows = state.confirmed.get(place);
   if (!rows || rows.size === 0) return null;
   let best = null;
   for (const [key, row] of rows) {
-    if (!isNotableRow(place, row, selfId)) continue;
+    if (!isNotableRow(place, row, selfId, selfKey)) continue;
     const seq = BigInt(key);
     if (best === null || seq > best) best = seq;
   }

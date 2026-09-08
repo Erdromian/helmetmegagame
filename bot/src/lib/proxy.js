@@ -167,6 +167,9 @@ async function proxyRowFor(discordMessageId) {
     characterId: row.characterId,
     discordUserId: character?.discordUserId ?? null,
     alias: row.concealedAlias,
+    // The face the room saw beside that alias, for whoever needs to freeze it
+    // a second time — ⭐ files it onto the Note (Note.presentedAvatarPath).
+    avatarPath: row.presentedAvatarPath ?? null,
     concealed,
   };
 }

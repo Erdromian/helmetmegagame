@@ -16,6 +16,7 @@ const crypto = require("node:crypto");
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom, presentedIdentity } = require("./presentedIdentity");
 const { concealedAlias, withArticle } = require("./concealedIdentity");
 const { isUnaffiliated } = require("./factionConstants");
+const { lastSightings } = require("./sightings");
 
 const PRESENT_SELECT = {
   id: true,
@@ -58,11 +59,24 @@ function hoodToken(characterId) {
 // the looker out of their own list, which the Discord readout never did and
 // the web column wants (you are not one of the strangers in the room).
 //
-// Returns { named: [{ characterId, name, roleTitle, avatarVersion }],
-// concealed: [{ alias, token }] }. `roleTitle` is null unless the viewer has earned
-// it; `characterId` is null on nobody, because a name in this list is a
-// person a dialog can act on.
-async function whosHere(prisma, viewer, { locationId, includeSelf = true } = {}) {
+// Returns { named: [{ characterId, name, roleTitle, avatarVersion, seen, ... }],
+// concealed: [{ alias, token, seen, ... }] }. `roleTitle` is null unless the
+// viewer has earned it; `characterId` is null on nobody in `named`, because a
+// name in this list is a person a dialog can act on.
+//
+// `withSightings` is what gates the FACE and the eye (db/lib/sightings.js).
+// Off, every row reads as unseen and this behaves as it always did — which is
+// what Discord's Who's here? button wants, since it prints text with no faces
+// in it and would pay for two queries it throws away. The web column turns it
+// on.
+//
+// With it on, a sighting REPLACES the live identity rather than decorating it.
+// That is what puts somebody who chatted bare-faced and then masked up in
+// private into `named` under their real name: which list a person lands in is
+// decided by the identity you actually hold, not by what is over their face at
+// this instant. A hood put on after you heard them speak does not protect them
+// from you until the turn rolls.
+async function whosHere(prisma, viewer, { locationId, includeSelf = true, withSightings = false } = {}) {
   const where = locationId ?? viewer?.locationId ?? null;
   if (!where) return { named: [], concealed: [] };
 
@@ -72,6 +86,9 @@ async function whosHere(prisma, viewer, { locationId, includeSelf = true } = {})
     orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
   });
 
+  // Sightings first, because they decide which list somebody lands in.
+  const sightings = withSightings ? await lastSightings(prisma, viewer) : new Map();
+
   // Concealed the same way the proxy decides it, not straight off the column:
   // a row still flagged concealed after the mask came off is speaking under
   // its own name, and listing it here as a stranger would be a lie the room
@@ -80,7 +97,18 @@ async function whosHere(prisma, viewer, { locationId, includeSelf = true } = {})
     .filter((c) => includeSelf || c.id !== viewer?.id)
     .map((c) => {
       const piece = concealmentFrom(c.tags);
-      return { ...c, forced: forcedNameFrom(c.tags), hidden: Boolean(piece && (piece.forced || c.concealed)) };
+      const forced = forcedNameFrom(c.tags);
+      const live = Boolean(piece && (piece.forced || c.concealed));
+      const self = c.id === viewer?.id;
+      // You have always seen yourself. Nobody should have to speak to learn
+      // what they look like.
+      const sighting = self ? null : (sightings.get(c.id) ?? null);
+      const seen = self || Boolean(sighting);
+      // A forced name is not hiding (PROXYING.md §5), so it never moves lists —
+      // and it is the one identity a sighting cannot speak for, since say.js
+      // writes a Beast's own name into concealedAlias beside a hood's.
+      const hidden = forced ? false : sighting ? sighting.concealed : live;
+      return { ...c, forced, hidden, seen, sighting, self, livePiece: piece };
     });
 
   const named = rows
@@ -90,28 +118,47 @@ async function whosHere(prisma, viewer, { locationId, includeSelf = true } = {})
         viewer?.factionId && c.factionId === viewer.factionId && !isUnaffiliated(c.faction) && c.roleTitle;
       return {
         characterId: c.id,
-        name: c.forced ?? c.name,
+        // The name you HOLD: what you last heard them called, or what they are
+        // called now if you have not heard them at all.
+        name: c.forced ?? c.sighting?.name ?? c.name,
         // No title under a forced name, for the reason at the top.
         roleTitle: c.forced ? null : sameFaction ? c.roleTitle : null,
         avatarVersion: c.updatedAt?.getTime?.() ?? null,
         // A forced name wears its letter plaque, never the face behind it —
         // a Beast listed beside their own portrait would give the whole thing
-        // away. Null for everyone else, who look like themselves.
-        avatarPath: c.forced ? presentedIdentity(c, { forcedName: c.forced }).avatarPath : null,
-        self: c.id === viewer?.id,
+        // away. Null for everyone else, who look like themselves: the client
+        // asks /api/avatar for a face it is allowed to see.
+        avatarPath: c.forced ? presentedIdentity(c, { forcedName: c.forced }).avatarPath : (c.sighting?.avatarPath ?? null),
+        unknownFace: false,
+        seen: c.seen,
+        sightingSeq: c.sighting?.seq ?? null,
+        self: c.self,
       };
     });
 
   const concealed = rows
     .filter((c) => c.hidden && !c.forced)
-    .map((c) => ({
-      alias: withArticle(concealedAlias(c).toLowerCase()),
-      token: hoodToken(c.id),
+    .map((c) => {
       // What is over the face, so the room sees the helm rather than a letter
       // box. Identical for every wearer of the item, which is the point —
       // the sprite says WHAT, never who (PROXYING.md §5).
-      avatarPath: presentedIdentity(c, { concealment: concealmentFrom(c.tags) }).avatarPath,
-    }));
+      //
+      // But only once you have watched them speak in it. Standing in a room is
+      // public; the mask is not, and drawing it for anybody who walks in
+      // announced a cult meeting to the first person through the door. Unseen,
+      // the row keeps its live alias and wears the question-mark plate.
+      const face = c.self
+        ? presentedIdentity(c, { concealment: c.livePiece }).avatarPath
+        : (c.sighting?.avatarPath ?? null);
+      return {
+        alias: c.sighting?.name ?? withArticle(concealedAlias(c).toLowerCase()),
+        token: hoodToken(c.id),
+        avatarPath: c.seen ? face : null,
+        unknownFace: !c.seen || Boolean(c.sighting?.unknownFace),
+        seen: c.seen,
+        sightingSeq: c.sighting?.seq ?? null,
+      };
+    });
 
   return { named, concealed };
 }
@@ -149,4 +196,4 @@ function whosHereLines({ named, concealed }) {
   return lines;
 }
 
-module.exports = { PRESENT_SELECT, whosHere, whosHereLines, resolveHoodToken };
+module.exports = { PRESENT_SELECT, whosHere, whosHereLines, resolveHoodToken, hoodToken };

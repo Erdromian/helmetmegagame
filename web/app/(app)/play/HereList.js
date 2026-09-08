@@ -4,12 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import EmptyState from "@/app/components/EmptyState";
 import IconButton from "@/app/components/IconButton";
-import Modal from "@/app/components/Modal";
-import FormError from "@/app/components/FormError";
+import LookReadout from "@/app/components/LookReadout";
 import { EyeIcon } from "@/app/components/icons";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
-import { Readout } from "@/app/components/ExamineDialog";
-import { examineHooded, loadPeopleHere } from "./actions";
+import { lookAtRow, loadPeopleHere } from "./actions";
 
 // HERE: who is standing where you are, and what you can do to them.
 //
@@ -17,13 +15,22 @@ import { examineHooded, loadPeopleHere } from "./actions";
 // button on the Discord anchor answers with — so the street and the page can
 // never disagree about who a stranger is.
 //
-// A hood gets the SAME row as anybody else, an alias and an eye. Looking at
-// somebody is the one thing you can do to a person you cannot name, and a
-// hood you may not look at was never a rule, only a consequence of the row
-// having no id to hand a dialog. It has a token instead: an HMAC of the
-// character id (db/lib/whosHere.js#resolveHoodToken), so the browser is never
-// told who is under it, and the server resolves it against the people
-// actually standing here.
+// A FACE AND AN EYE ARE EARNED, and this is the rule the column is built
+// around. Standing in a room is public — everyone here is listed, hooded or
+// not — but what is over somebody's face is not, and drawing every mask to
+// anybody who walked in announced a cult meeting to the first person through
+// the door. So a row shows a face and offers a look only once you have watched
+// that person SPEAK this turn (db/lib/sightings.js), and what it shows is what
+// you saw: somebody who chatted bare-faced and then masked up in private is
+// still listed under their own name and their own face until the turn rolls.
+//
+// Unseen, a named row keeps its own face — there was never anything to hide
+// there — and a hood gets the question-mark plate and no eye.
+//
+// The eye points at the LINE, not the person: `sightingSeq` is the last thing
+// you heard them say, and the server resolves the speaker off it
+// (db/lib/examineRow.js). That is what lets a hood carry an eye at all — the
+// browser is never told who is under it, so there is nothing for it to leak.
 //
 // The menu is the sheet's own people dialogs, opened through
 // RequestActionsProvider with the clicked person already filled in. Nothing
@@ -37,7 +44,7 @@ import { examineHooded, loadPeopleHere } from "./actions";
 // hint you can read off a menu without opening it.
 //
 // Look at is NOT on this menu: the eye on the row is the Look at, on every
-// named row and on every hood, and a second copy of it inside the menu was
+// row you have earned one on, and a second copy of it inside the menu was
 // the same dialog one click further away. Neither is Move Player, which is
 // gone entirely — taking somebody with you is the party rack below this list
 // now, and it is a thing you keep rather than a thing you re-do every hop
@@ -115,36 +122,6 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
   );
 }
 
-// A hood's read is the impoverished one db/lib/examine.js builds, and there is
-// no picker to hang it off — the sheet's Look at dialog resolves its roster by
-// character id, which is exactly what this row does not have. So the readout
-// comes back through its own server action and is shown here.
-function HoodReadout({ state, onClose }) {
-  const readout = state?.readout ?? null;
-
-  return (
-    <Modal open title={readout?.name ?? "Look at"} onClose={onClose} width="default">
-      <div className="flex flex-col gap-2">
-        {state?.loading && <p className="text-sm text-muted">Looking…</p>}
-        {state?.error && <FormError>{state.error}</FormError>}
-        {/* The SAME readout the sheet's Look at dialog draws
-            (web/app/components/ExamineDialog.js) — the face, the appearance,
-            the tags. There were three hand-rolled copies of that block and
-            the hood's was the poorest of them, which meant looking at a
-            stranger told you less than looking at a neighbour for no reason
-            anybody had decided. db/lib/examine.js still decides WHAT a hood
-            gives away; this only draws it. */}
-        {readout && <Readout readout={readout} />}
-      </div>
-    </Modal>
-  );
-}
-
-// How often the column re-reads who is standing here. The same minute
-// YouPanel.js polls its own list on, and for the same reason: this is a
-// server prop off page.js, so without it somebody walking up to you never
-// appeared until you reloaded. The strip does not poll — it is the phone's
-// copy of the same list, and one poller per screen is enough.
 const HERE_POLL_MS = 60_000;
 
 export default function HereList({
@@ -188,21 +165,14 @@ export default function HereList({
 
   const close = useCallback(() => setOpenId(null), []);
 
-  const lookAt = useCallback(
-    (characterId) => {
-      close();
-      actions?.open?.("examine", null, { targetId: characterId });
-    },
-    [actions, close],
-  );
-
-  // Fetch-then-set, from a click rather than an effect: the readout is one
-  // round trip and the dialog is open the whole time it is in flight.
-  const lookAtHood = useCallback(
-    (token) => {
+  // One look for every row, hooded or not: the seq of the last line you heard
+  // them say. Fetch-then-set from a click rather than an effect — the readout
+  // is one round trip and the dialog is open the whole time it is in flight.
+  const lookAtSeq = useCallback(
+    (seq) => {
       close();
       setHood({ loading: true });
-      examineHooded(token)
+      lookAtRow(seq)
         .then((res) => {
           if (res?.ok) setHood({ readout: res.readout });
           else setHood({ error: res?.error ?? "You can't see them." });
@@ -235,6 +205,10 @@ export default function HereList({
               aria-expanded={openId === person.characterId}
               onClick={() => setOpenId(openId === person.characterId ? null : person.characterId)}
             >
+              {/* Unseen, this falls through to their own face — a name has
+                  nothing to hide, and withholding it would only make the
+                  column harder to read. `avatarPath` is set only for a forced
+                  name's plaque or a face frozen at the last line you heard. */}
               <CharacterAvatar
                 characterId={person.characterId}
                 name={person.name}
@@ -250,9 +224,13 @@ export default function HereList({
                 </span>
               )}
             </button>
-            {!strip && person.characterId !== selfId && (
+            {/* No eye until you have heard them. Absent rather than greyed:
+                the row above already drops it for yourself, so that is one
+                rule instead of two, and a disabled eye would need a sentence
+                explaining itself. */}
+            {!strip && person.characterId !== selfId && person.sightingSeq && (
               <span className="chat-person-eye">
-                <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAt(person.characterId)} />
+                <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAtSeq(person.sightingSeq)} />
               </span>
             )}
           </div>
@@ -270,9 +248,7 @@ export default function HereList({
 
       {/* Keyed by POSITION rather than by token: db/lib/whosHere.js mints no
           token at all when there is no AUTH_SECRET to key the HMAC with, and
-          two hoods would then share the key `hooded-null`. The eye still
-          draws — looking through a null token gets the refusal the server
-          already answers a bad one with. */}
+          two hoods would then share the key `hooded-null`. */}
       {concealed.map((person, index) => (
         <div key={`hooded-${index}`} className="chat-person-wrap">
           <div className={strip ? undefined : "chat-person-row"}>
@@ -283,12 +259,21 @@ export default function HereList({
               aria-expanded={openId === `hooded-${index}`}
               onClick={() => setOpenId(openId === `hooded-${index}` ? null : `hooded-${index}`)}
             >
-              <CharacterAvatar characterId={null} name={person.alias} src={person.avatarPath ?? undefined} size={24} />
+              {/* The mask, but only if you watched them wear it. Otherwise
+                  the question-mark plate: a room full of hoods should not
+                  publish which cult is standing in it (PROXYING.md §5). */}
+              <CharacterAvatar
+                characterId={null}
+                name={person.alias}
+                src={person.avatarPath ?? undefined}
+                unknown={person.unknownFace}
+                size={24}
+              />
               {!strip && <span className="chat-person-name text-muted">{person.alias}</span>}
             </button>
-            {!strip && (
+            {!strip && person.sightingSeq && (
               <span className="chat-person-eye">
-                <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAtHood(person.token)} />
+                <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAtSeq(person.sightingSeq)} />
               </span>
             )}
           </div>
@@ -312,7 +297,7 @@ export default function HereList({
         </div>
       ))}
 
-      {hood && <HoodReadout state={hood} onClose={() => setHood(null)} />}
+      {hood && <LookReadout state={hood} onClose={() => setHood(null)} />}
     </div>
   );
 }

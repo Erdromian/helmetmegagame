@@ -165,15 +165,17 @@ export default function Chat({
   // everything since. Taking the tab's answer when it has one would hide a
   // mention that landed while the page was closed.
   const selfCharacterId = self?.characterId ?? null;
+  // Their own hood, so a line they said under it is not news to them.
+  const selfSpeakerKey = self?.speakerKey ?? null;
   const newest = useCallback(
     (place) => {
-      const live = notableSeq(place.placeKey, selfCharacterId);
+      const live = notableSeq(place.placeKey, selfCharacterId, selfSpeakerKey);
       const seeded = place.notableSeq ?? null;
       if (live === null) return seeded;
       if (seeded === null) return live;
       return BigInt(live) > BigInt(seeded) ? live : seeded;
     },
-    [selfCharacterId],
+    [selfCharacterId, selfSpeakerKey],
   );
 
   const onSeen = useCallback((placeKey, seq) => markSeen(placeKey, seq), []);

@@ -234,25 +234,28 @@ builds its own. The bot maps it to an `EmbedBuilder`, the web app to JSX
 in it* — the doctor's eye, the concealed read, Inscrutable, Role, ⬢ — is
 decided once, in that file. Add a field to one and both get it.
 
-The two differ only in who they can be pointed at, and that is the point of
-the web one existing:
+**They no longer differ in who they can be pointed at.** They used to: 🔍
+hung off an archived row and so only ever reached somebody who had **spoken**,
+while Look at reached anyone standing at your Location, silent or not. That
+asymmetry was argued for — a guard on a gate should be able to size up a
+traveller without striking up a conversation first — and it went the other way
+in the end. A silent stranger is a stranger. Sharing a room with somebody
+should not hand you a reading of them, and a dialog that listed everyone
+present was a presence oracle besides.
 
-- **🔍 needs a message.** It hangs off an archived row, so it only ever
-  works on someone who has **spoken**. That was never a hiding rule — a
-  guard on a gate could not size up a silent traveller without first striking
-  up a conversation with them.
-- **Look at needs co-presence.** Everyone `ALIVE` standing at your Location,
-  silent or not. It is the one people-picker on the sheet that does **not**
-  use `peopleHere()`: it lists the concealed too, under their alias, exactly
-  as the **Who's here?** anchor button already lists them. Acting on somebody
-  means identifying them, so a hood takes you off every other menu; *looking*
-  at a hooded figure is what a hood is for. No presence leaks that
-  `Who's here?` does not already publish at Location grain.
+So every look now needs a **line**, and answers for the identity that line was
+said under (§5a). One function does it: `db/lib/examineRow.js#examineRow`,
+pressed against an `ArchiveEntry.seq` rather than a character id. That is what
+lets a hooded line carry an eye at all — the server resolves the speaker, so
+the page can offer the look without ever being told who is under the hood, and
+the hood token in `db/lib/whosHere.js` is no longer what a look is keyed on.
 
-Both read a hood the same impoverished way (§5), both are free, spend no
-Move, file no `Request` and tell the subject nothing.
-`web/app/(app)/character/examineActions.js` is the web half: two server
-actions, both read-only.
+Four surfaces, one implementation: 🔍 and 📸 in Discord, the eye on a row in
+the web feed, and the eye in the HERE column, which points at the last line it
+watched that person say. All four read a hood the same impoverished way (§5),
+all four are free, spend no Move, file no `AuditLog` row and tell the subject
+nothing. `web/app/(app)/character/examineActions.js` is the sheet's half, and
+its picker lists who you have heard rather than who is nearby.
 
 **✏️ is a button and a modal, and writes no inbound DM at all**
 (`bot/src/lib/editModal.js`). A reaction carries no interaction token, so a
@@ -367,8 +370,21 @@ When two concealing items are worn at once, the **outermost** wins — highest
 `Tag.equipLayer` — because that is the one an onlooker can actually see. A coif
 under a knight's helm is a coif nobody can see.
 
-`web/public/assets/unknown.png` survives, but only as history: `ArchiveFeed.js`
-still needs it for entries archived before concealment had a face.
+`web/public/assets/unknown.png` is gone. What replaced it is the **question-mark
+plate**, drawn in CSS by `web/app/components/CharacterAvatar.js` under the
+`unknown` prop — the same circle a faceless row has always drawn, holding a
+literal `?` rather than the first letter of a name, because one letter is
+enough to tell two hoods apart. It stands for a face you have not been shown:
+an archived line said before `ArchiveEntry.presentedAvatarPath` existed, a note
+starred before `Note.presentedAvatarPath` did, and — the common case — somebody
+standing in the room you have not watched speak. Where a real URL is needed
+instead, because Discord cannot render CSS, the blank letter plaque
+`/assets/letters/_default.webp` stands in.
+
+**A sprite is not published by presence.** The mask is what somebody looks like
+*while you are watching them speak in it*, and drawing it in the HERE column
+for anybody who walked into the room announced a cult meeting to the first
+person through the door. So a face and an eye are earned: see §5a.
 
 The row records the alias it was posted under (`ArchiveEntry.concealedAlias`),
 and `proxyRowFor` works out whether that was a hood or a forced name by
@@ -449,6 +465,57 @@ the form posted, and drops any upload. The **@-mention role and the nickname
 keep the real bare name** on purpose (§6, §8) — so the `/add` picker naming a
 Beast by their old name is intended. Nothing is written when the tag lands, so
 there is no grant hook: the next message is already the Beast's.
+
+### 5a. A face and an eye are earned
+
+Presence is public. **Who** is standing in a room is not a secret and never
+was: the HERE column on `/play` and the **Who's here?** button both list
+everyone there, hooded or not, under the name or the alias they are wearing.
+
+What is over somebody's face is a different question, and the two used to be
+answered together. The column drew every concealed person wearing their own
+`Tag.concealSprite`, so opening it in the Underquarter announced *two silver
+masks are standing here* — which is precisely what a Thanati in a basement is
+not supposed to broadcast. Standing somewhere silently should not publish what
+you are wearing.
+
+So a **sighting** is what buys a face, and the same sighting is what buys a
+look. `db/lib/sightings.js#lastSightings` answers it:
+
+> You have seen a character **this turn** if a line of theirs sits in a place
+> your own feed shows you, in the open turn.
+
+The scope is `db/lib/feedAccess.js#placesFor` — anywhere you could read it, not
+only where you are standing, because you did read it. Sightings die with the
+turn, and nothing stores them: they are two queries over `ArchiveEntry`, which
+already froze both halves of a presented identity at send time.
+
+**What you saw is frozen, and that is the whole of it.** The name, the face and
+the identity Examine answers for all come from the LAST line you saw, never
+from live state. Somebody who chats bare-faced and then pulls a mask on in
+private is still listed under their own name with their own face until the turn
+rolls — a hood put on after you heard them speak does not protect them from
+you. It follows that a sighting decides which of `whosHere`'s two lists
+somebody lands in, rather than their concealment now.
+
+Four states, and only the eye's absence marks the difference in the column:
+
+| | you have heard them | you have not |
+|---|---|---|
+| **under a name** | their face, and an eye | their face, no eye |
+| **under a hood** | the mask you saw, and an eye | the question-mark plate, no eye |
+
+An unseen named row keeps its own face because there was never anything to hide
+there. The eye is *absent* rather than greyed: the row already drops it for
+yourself, so that is one rule instead of two, and a disabled eye would need a
+sentence explaining itself.
+
+Your own row is always seen. Nobody should have to speak to learn what they
+look like.
+
+**Discord needs none of this** and is unchanged. Its list is text with no faces
+in it, and 🔍 has always required the subject to have spoken — so
+`whosHere(..., { withSightings: true })` is opt-in, and only the web asks.
 
 ## 6. Mentions and conversations
 

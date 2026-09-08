@@ -13,6 +13,8 @@ import { loadDesireView } from "@/lib/selfPools";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "@/lib/dmThread";
 import { PLAYER_DM_MAX_LENGTH } from "@/lib/constants";
 import { whosHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
+import { lastSightings } from "@lifeweb/db/lib/sightings";
+import { VIEWER_SELECT, examineRow } from "@lifeweb/db/lib/examineRow";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { blocksOnFoot, equippedSlugs, fastTravelCapacity } from "@lifeweb/db/lib/mounts";
 import {
@@ -81,7 +83,6 @@ import { getMyFactionRole } from "@lifeweb/db/lib/factionPermissions";
 import { photoCaption } from "@lifeweb/db/lib/photo";
 import { CAMERA_SLUG, mintPhoto } from "@lifeweb/db/lib/photoMint";
 import { sendDm } from "@/lib/discordGuild";
-import { examineCharacter } from "@/app/(app)/character/examineActions";
 import { thingGroups } from "./thingRows";
 
 // Every button in Chat's right column, as a server action.
@@ -153,24 +154,35 @@ export async function loadAffordances() {
 }
 
 export async function loadPeopleHere() {
-  const me = await actor({ id: true, factionId: true, locationId: true });
+  const me = await actor({ id: true, factionId: true, locationId: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };
-  const rows = await whosHere(prisma, me.character);
+  // withSightings is what gives a row its face and its eye — see
+  // db/lib/sightings.js. The Discord button asks without it, because a list of
+  // names has no faces to withhold.
+  const rows = await whosHere(prisma, me.character, { withSightings: true });
   return { ok: true, ...rows };
 }
 
-// Looking at somebody whose face you cannot see. The token is what
-// db/lib/whosHere.js handed the page for a hood — an HMAC of the character id,
-// so the browser is never told who is under it — and it is resolved here
-// against the people actually standing at the looker's own Location. The
-// readout itself is the sheet's own examineCharacter(), which re-resolves the
-// looker from the session and re-checks co-presence a second time.
-export async function examineHooded(token) {
-  const me = await actor({ id: true, factionId: true, locationId: true });
+// Looking at whoever said one line — the web twin of the 🔍 reaction, and the
+// only look the page has now. Both eyes point here: the one on a row in the
+// feed, and the one on a row in HERE, which aims at the last line it watched
+// that person say.
+//
+// The browser sends a SEQ and nothing else. Who spoke, whether they were
+// hooded and whether this reader may see the place are all resolved on the
+// server (db/lib/examineRow.js), which is what lets a hooded line carry an eye
+// at all — the page never learns who is under the hood, so there is nothing
+// for it to leak. That replaces the hood token this used to resolve, and it
+// works on a line scrolled back to long after the speaker walked out, which a
+// token keyed on who is standing here never could.
+export async function lookAtRow(seq) {
+  const me = await actor({ id: true, factionId: true, locationId: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };
-  const targetId = await resolveHoodToken(prisma, me.character, token);
-  if (!targetId) return { ok: false, error: "They aren't here any more. ‡" };
-  return examineCharacter(targetId);
+  const viewer = await prisma.character.findUnique({ where: { id: me.character.id }, select: VIEWER_SELECT });
+  const result = await examineRow(prisma, viewer, seq);
+  if (!result) return { ok: false, error: "You can't see them. ‡" };
+  if (result.blocked) return { ok: false, error: result.blocked };
+  return { ok: true, readout: result.readout };
 }
 
 // Photographing what somebody said — the web twin of the 📸 reaction
@@ -345,6 +357,7 @@ export async function starRow(seq) {
       characterId: true,
       characterName: true,
       concealedAlias: true,
+      presentedAvatarPath: true,
       discordMessageId: true,
       discordChannelId: true,
       deletedAt: true,
@@ -375,6 +388,10 @@ export async function starRow(seq) {
       // reason handleStarReaction gives: the note is private, but writing the
       // real name into it hands the starrer what the hood was hiding.
       characterName: row.concealedAlias ?? row.characterName ?? "Bascinet",
+      // And the face beside it, on the same gate — a note drawing the real
+      // portrait next to an alias hands back what the alias withheld. Null is
+      // their own face, and only a line said under one records it.
+      presentedAvatarPath: row.concealedAlias ? (row.presentedAvatarPath ?? null) : null,
       zoneId: row.zoneId ?? null,
       content: row.content,
       sentAt: row.sentAt,
@@ -1687,17 +1704,33 @@ export async function rollHere(placeKey) {
   return castDie(prisma, me.character, placeKey);
 }
 
-// /look. One entry point for both kinds of person the column knows about: a
-// character id off a named row, or the opaque hood token db/lib/whosHere.js
-// mints for a concealed one. A token is 32 hex characters and a cuid never
-// is, so the two can be told apart without the browser saying which it sent.
+// /look, and the eye in the HERE column. One entry point for both kinds of
+// person the column knows about: a character id off a named row, or the opaque
+// hood token db/lib/whosHere.js mints for a concealed one. A token is 32 hex
+// characters and a cuid never is, so the two can be told apart without the
+// browser saying which it sent.
+//
+// Either way it lands on the LINE you last heard them say, not on the person
+// standing in front of you. You cannot size up a stranger who has not opened
+// their mouth — looking is something you do to somebody you have noticed, and
+// what you get back is what you noticed, frozen (db/lib/sightings.js).
 const HOOD_TOKEN = /^[0-9a-f]{32}$/;
 
 export async function lookAt(personRef) {
   const ref = String(personRef ?? "").trim();
   if (!ref) return { ok: false, error: "Look at who?" };
-  if (HOOD_TOKEN.test(ref)) return examineHooded(ref);
-  return examineCharacter(ref);
+
+  const me = await actor({ id: true, factionId: true, locationId: true, discordUserId: true });
+  if (me.error) return { ok: false, error: me.error };
+
+  const targetId = HOOD_TOKEN.test(ref) ? await resolveHoodToken(prisma, me.character, ref) : ref;
+  if (!targetId) return { ok: false, error: "They aren't here any more. ‡" };
+
+  const seen = await lastSightings(prisma, me.character);
+  const sighting = seen.get(targetId);
+  if (!sighting) return { ok: false, error: "You haven't heard them say anything. ‡" };
+
+  return lookAtRow(sighting.seq);
 }
 
 // ------------------------------------------------- who is in this room, and

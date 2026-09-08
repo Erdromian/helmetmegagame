@@ -10,7 +10,7 @@ import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import PlayView from "./PlayView";
 import Loading from "./loading";
 import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
-import { whosHere } from "@lifeweb/db/lib/whosHere";
+import { whosHere, hoodToken } from "@lifeweb/db/lib/whosHere";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import { carryStatus } from "@lifeweb/db/lib/carry";
@@ -173,7 +173,7 @@ async function FreshPlay({ userId }) {
         };
 
         const [people, affordances, examine, waiting, pools, stashRooms, mine, desires, letters, boardLocation] = await Promise.all([
-          whosHere(prisma, character),
+          whosHere(prisma, character, { withSightings: true }),
           affordancesFor(prisma, character),
           // What Examine used to answer in a modal. It is the place card's
           // body now, rendered on the server with the rest of the column —
@@ -314,6 +314,16 @@ async function FreshPlay({ userId }) {
       // path only when the room is not seeing their own — so an optimistic row
       // never wears a face the confirmed one will not.
       avatarPath: identity.alias ? identity.avatarPath : null,
+      // Whether this character's own sends go out under an alias at all —
+      // a hood or a forced name. The optimistic row shapes itself the way
+      // db/lib/archive.js#feedRowShape will shape the confirmed one.
+      aliased: Boolean(identity.alias),
+      // How this reader recognises their OWN aliased lines. A hooded row ships
+      // no character id to anybody (db/lib/archive.js#feedRowShape), so
+      // without this a player could not see which lines in the scene were
+      // theirs to take back. Learning your own token tells you nothing — it is
+      // the one hood you were already under.
+      speakerKey: viewer.character ? hoodToken(viewer.character.id) : null,
     },
     aside,
     // What the server will do to the words on their way in, so the row the

@@ -12,8 +12,9 @@ import { CameraIcon, EditIcon, EyeIcon, HoodIcon, MoreIcon, NotesIcon, QuillIcon
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { Readout } from "@/app/components/ExamineDialog";
+import LookReadout from "@/app/components/LookReadout";
 import useActionRunner from "@/app/components/useActionRunner";
-import { photographRow, starRow, lookAt, loadTravel, placeMembers, toggleConceal } from "./actions";
+import { photographRow, starRow, lookAt, lookAtRow, loadTravel, placeMembers, toggleConceal } from "./actions";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import {
   useFeed,
@@ -176,6 +177,11 @@ const FeedRow = memo(function FeedRow({
             name={row.name ?? ""}
             version={row.avatarVersion}
             src={row.avatarPath ?? undefined}
+            // A line said under an alias before the game recorded what was
+            // over the speaker's face. It cannot be given one now — the sprite
+            // lived on the tag they were wearing then — so it keeps its secret
+            // and draws the plate (db/lib/archive.js#feedRowShape).
+            unknown={row.unknownFace}
             size={32}
           />
         )}
@@ -234,7 +240,7 @@ const FeedRow = memo(function FeedRow({
               </>
             )}
             {canLook && (
-              <IconButton icon={EyeIcon} label="Look at" onClick={() => onLookAt(row.characterId)} />
+              <IconButton icon={EyeIcon} label="Look at" onClick={() => onLookAt(row.seq)} />
             )}
             {canPhoto && (
               <IconButton icon={CameraIcon} label="Photograph" onClick={() => onPhotograph(row.seq)} />
@@ -444,21 +450,7 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
   );
 }
 
-// `/look`'s answer. The SAME readout the sheet's Look at dialog draws
-// (web/app/components/ExamineDialog.js), so a stranger looked at from the
-// composer tells you exactly what one looked at from the column does.
-function LookReadout({ state, onClose }) {
-  const readout = state?.readout ?? null;
-  return (
-    <Modal open title={readout?.name ?? "Look at"} onClose={onClose} width="default">
-      <div className="flex flex-col gap-2">
-        {state?.loading && <p className="text-sm text-muted">Looking…</p>}
-        {state?.error && <FormError>{state.error}</FormError>}
-        {readout && <Readout readout={readout} />}
-      </div>
-    </Modal>
-  );
-}
+
 
 export default function Feed({
   place,
@@ -1033,9 +1025,13 @@ export default function Feed({
     addPending(placeKey, {
       clientId,
       seq: null,
-      characterId: self.characterId,
+      // Shaped the way the server will shape it (db/lib/archive.js#feedRowShape):
+      // an aliased send carries the key and no id, so the optimistic row and
+      // the confirmed one agree about which lines are yours.
+      characterId: self.aliased ? null : self.characterId,
+      speakerKey: self.aliased ? self.speakerKey : null,
       name: self.name,
-      avatarVersion: self.avatarVersion,
+      avatarVersion: self.aliased ? null : self.avatarVersion,
       avatarPath: self.avatarPath,
       // What the SERVER will store, not what was typed. Both transforms, in
       // the order db/lib/say.js#transformSpeech runs them.
@@ -1130,20 +1126,26 @@ export default function Feed({
 
   // ---- Somebody else's line ------------------------------------------------
 
-  // Look at, from the row rather than from a picker. The SHEET's own dialog,
-  // opened with the speaker already chosen (RequestActionsProvider), so
-  // nothing about the readout is forked — and the server re-resolves the
-  // looker from the session and re-checks co-presence, which is why handing
-  // it a character id off a row is safe.
+  // Look at, from the row rather than from a picker — and pressed against the
+  // ROW rather than the person. The browser sends a seq and nothing else; the
+  // server resolves who said it, whether they were hooded at the time and
+  // whether this reader may see the place (db/lib/examineRow.js). That is what
+  // lets the eye sit on a hooded line at all, and it answers for the hood worn
+  // when the line was said rather than the one being worn now.
   //
-  // A GM has no dialogs mounted at all, so `open` is simply absent for them.
-  const onLookAt = useCallback(
-    (characterId) => {
-      if (!characterId) return;
-      openAction?.("examine", null, { targetId: characterId });
-    },
-    [openAction],
-  );
+  // It no longer goes through the sheet's dialog, which resolved a person by
+  // id: the readout is the same one either way, and this is the version that
+  // never needs the id.
+  const onLookAt = useCallback((seq) => {
+    if (!seq) return;
+    setLook({ loading: true });
+    lookAtRow(seq)
+      .then((res) => {
+        if (res?.ok) setLook({ readout: res.readout });
+        else setLook({ error: res?.error ?? "You can't see them." });
+      })
+      .catch(() => setLook({ error: "You can't see them." }));
+  }, []);
 
   // Photograph. The camera is not spent (db/lib/photoMint.js) and the print
   // is deduped per (photographer, row) server-side, so a second press on the
@@ -1332,28 +1334,39 @@ export default function Feed({
         const at = row.sentAt ? new Date(row.sentAt).getTime() : 0;
         const prevAt = prev?.sentAt ? new Date(prev.sentAt).getTime() : 0;
         const system = row.source === "SYSTEM";
+        // A hooded row somebody else said carries no characterId at all — see
+        // db/lib/archive.js#feedRowShape for why — so runs group on whichever
+        // handle the row has. `speakerKey` is stable per speaker and useless
+        // to the browser for anything else, which is the point.
+        const who = (r) => r?.speakerKey ?? r?.characterId ?? null;
         const startsRun =
-          !prev || prev.source === "SYSTEM" || prev.characterId !== row.characterId || at - prevAt > RUN_GAP_MS;
+          !prev || prev.source === "SYSTEM" || who(prev) !== who(row) || at - prevAt > RUN_GAP_MS;
         // A GM watching with no living character has `self.characterId` null,
         // and so does a SYSTEM line's `row.characterId` — so without the first
         // half of this, every ownerless line in the scene wore Change and Take
         // back as if the GM had said it.
-        const mine = Boolean(row.seq) && Boolean(self.characterId) && row.characterId === self.characterId;
-        const theirs = Boolean(row.seq) && !system && Boolean(row.characterId) && !mine;
-        // THE HOOD RULE, and it is the simplest correct one: the eye is
-        // offered only on a row that carries the speaker's own name. A row
-        // written under an alias — a hood, or a forced name — has
-        // `row.alias` set (db/lib/archive.js#feedRowShape), and opening a
-        // dialog on its character id would be looking a hood up BY ID, which
-        // is exactly what the token in db/lib/whosHere.js exists to prevent.
-        // The eye on that person is in HERE instead, where it goes through
-        // examineHooded and never learns who they are.
+        // Your own lines, hooded ones included. A hooded row carries no
+        // character id for anybody, so this matches on the key instead — the
+        // page is handed its own (play/page.js). Only ever a hint: Change and
+        // Take back both re-resolve the actor from the session.
+        const mine =
+          Boolean(row.seq) &&
+          ((Boolean(self.characterId) && row.characterId === self.characterId) ||
+            (Boolean(self.speakerKey) && row.speakerKey === self.speakerKey));
+        const theirs = Boolean(row.seq) && !system && Boolean(who(row)) && !mine;
+        // THE HOOD RULE IS GONE, and the eye is offered on every line
+        // somebody else said. It used to be withheld from a row written under
+        // an alias, because opening a dialog on its character id would have
+        // been looking a hood up BY ID — but that was a fact about how the
+        // eye was wired, not a rule anybody wanted. Speaking in front of
+        // somebody is exactly what lets them look at you.
         //
-        // The camera has no such problem: it is pressed against a SEQ, the
-        // server resolves the speaker itself, and a photograph of a hood is a
-        // photograph of a hood — the same impoverished readout the 📸
-        // reaction prints (db/lib/examine.js#concealedReadout).
-        const canLook = theirs && !gm && Boolean(openAction) && !row.alias;
+        // It is pressed against a SEQ now, the way the camera beside it always
+        // was: the server resolves the speaker itself, so the page can offer a
+        // look at a hood without ever being told who is under it, and a
+        // photograph of a hood is still a photograph of a hood
+        // (db/lib/examineRow.js).
+        const canLook = theirs && !gm;
         const canPhoto = theirs && !gm && hasCamera;
         const canRemove = gm && Boolean(row.seq) && !system;
         return {

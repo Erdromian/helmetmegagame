@@ -519,18 +519,24 @@ header instead).
   | Row | Buttons |
   |---|---|
   | Yours | ✎ **Change** · ✕ **Take back**. The five-minute window is checked when the button is pressed, not while the page sits open, and again by `deleteSpeech`. Take back goes through the shared `useConfirm()`. |
-  | Somebody else's | 🔍 **Look at** — the SHEET's own Examine dialog, opened with the speaker already chosen; and 📷 **Photograph**, only while the sheet holds an `instant-camera`. |
+  | Somebody else's | 🔍 **Look at**, on every line including a hooded one; and 📷 **Photograph**, only while the sheet holds an `instant-camera`. |
   | Any row, viewer is a GM with no character | ✕ **Remove**, confirmed, through the same `/api/feed/delete` route with `{ gm: true }`. |
   | Any row that has a `seq` | ★ **Save to Notes** — the web twin of Discord's ⭐ (`PROXYING.md` §7), writing the same `Note` row through `starRow`. Offered on your own lines too, exactly as the reaction is, which is why the bar is now drawn on every row rather than only on one somebody can act against. |
 
-  **The eye is offered only on a row that carries the speaker's own name.** A
-  row written under an alias — a hood, or a forced name — has `alias` set
-  (`db/lib/archive.js#feedRowShape`), and opening a dialog on its character id
-  would be looking a hood up BY ID, which is the whole thing the token in
-  `whosHere.js` exists to prevent. The eye on that person is in HERE instead,
-  where it goes through `examineHooded`.
+  **The eye is offered on every line somebody else said, hooded ones
+  included.** It used to be withheld from a row written under an alias, because
+  opening a dialog on its character id would have been looking a hood up BY ID
+  — the whole thing the token in `whosHere.js` exists to prevent. That was a
+  fact about how the eye was wired, not a rule anybody wanted: speaking in
+  front of somebody is exactly what lets them look at you.
 
-  **The camera has no such problem**, and is offered on a hood's line too: it
+  So the eye is pressed against a **seq** now, the way the camera beside it
+  always was, and lands on `lookAtRow(seq)` → `db/lib/examineRow.js`. The
+  server resolves the speaker, so the page can offer a look at a hood without
+  ever being told who is under it, and the readout answers for the hood worn
+  when the line was said rather than the one being worn now.
+
+  **The camera works the same way**, and always did: it
   is pressed against a **seq**, the server resolves the speaker itself, and
   what it prints is the impoverished concealed readout — the hood the ROOM SAW
   at the time, not the one they are wearing now (`examineReadout`'s
@@ -690,21 +696,30 @@ header instead).
      in HERE and so left somebody standing alone with no way to open one.
      The old **Examine** dialog is gone: this is what it said.
   2. **`HereList.js`** — everyone standing here, hooded or not, off
-     `db/lib/whosHere.js#whosHere`. A row is a 24px avatar, the presented name
-     (their Role for a fellow member of a real faction, `you` on your own) and
+     `db/lib/whosHere.js#whosHere` called with `{ withSightings: true }`. A row
+     is a 24px avatar, the presented name (their Role for a fellow member of a
+     real faction, `you` on your own) and, **once you have heard them speak**,
      an eye at the row's right edge that opens **Look at** in one click. The
-     name opens a `.chat-menu` of the SHEET's own people dialogs — Look at,
-     Heal, Transfer, Loot, Bind, Free, Harm, Move Player, **Converse** — by
-     mounting `RequestActionsProvider` on the page with the people pools and
-     calling `open(mode, null, { targetId })`. Nothing is forked: same
-     dialogs, same server actions. A hood gets the same row and the same eye;
-     its menu is Converse alone. Looking at a hood goes through
-     `examineHooded(token)`, where the token is an HMAC of the character id
-     keyed with `AUTH_SECRET` (`whosHere` mints it, `resolveHoodToken`
-     resolves it over the people actually standing here) — so the browser is
-     handed a handle it can send back and never a name. The metagaming rule
-     (`actionRegistry.js`) still holds: no row is greyed for a fact about the
-     person it names.
+     name opens a `.chat-menu` of the SHEET's own people dialogs — Heal,
+     Transfer, Loot, Bind, Free, Harm, **Converse** — by mounting
+     `RequestActionsProvider` on the page with the people pools and calling
+     `open(mode, null, { targetId })`. Nothing is forked: same dialogs, same
+     server actions. A hood gets the same row; its menu is Converse alone.
+
+     **The face and the eye are earned** (`PROXYING.md` §5a). A row you have
+     not heard speak this turn shows no eye at all, and a hooded one shows the
+     question-mark plate rather than the mask — a column that drew every mask
+     to anybody who walked in announced a cult meeting to the first person
+     through the door. What a row does show is FROZEN at the last line you
+     heard, so somebody who chatted bare-faced and then masked up in private
+     stays listed under their own name and face until the turn rolls.
+
+     The eye points at that line — `sightingSeq` — not at the person, so
+     looking at a hood needs no token: `lookAtRow(seq)` resolves the speaker
+     server-side (`db/lib/examineRow.js`) and the browser is never handed a
+     name. `hoodToken` still exists for the party rack and `/look`, but a look
+     is no longer keyed on it. The metagaming rule (`actionRegistry.js`) still
+     holds: no row is greyed for a fact about the person it names.
   3. **`RoomPanel.js`** — drawn only when the OPEN place is a Room, and it is
      the fix for the Intercom-in-every-Keep-room complaint. `affordancesFor`
      answers what this character can do where they stand, which at a Location

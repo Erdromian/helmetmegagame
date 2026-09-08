@@ -66,12 +66,20 @@ async function FreshNotes() {
     // A concealed message was filed under its alias (see
     // bot/src/events/messageReactionAdd.js#handleStarReaction), which stores
     // characterId unconditionally even though characterName becomes the
-    // alias. Rendering a face from that id unconditionally would hand the
-    // starrer the identity the concealment was hiding — so the face is
-    // gated on the stored name still matching the character's real name.
-    // Fails safe in both directions: a merely-renamed character just loses
-    // its face here, never gains someone else's.
-    characterId: n.character && n.character.name === n.characterName ? n.characterId : null,
+    // alias. Rendering a face from that id would hand the starrer the identity
+    // the concealment was hiding.
+    //
+    // The face the room actually SAW is recorded now
+    // (Note.presentedAvatarPath), so an aliased note draws the mask or plaque
+    // it was heard under and never asks /api/avatar at all. The name
+    // comparison behind it is the fallback for notes taken before that column
+    // existed: it fails safe in both directions, since a merely-renamed
+    // character loses its face here rather than gaining somebody else's — and
+    // when it does fail, the plate says so instead of the wrong person.
+    avatarPath: n.presentedAvatarPath ?? null,
+    characterId:
+      !n.presentedAvatarPath && n.character && n.character.name === n.characterName ? n.characterId : null,
+    unknownFace: !n.presentedAvatarPath && !(n.character && n.character.name === n.characterName),
     zoneName: n.zone?.name ?? null,
     content: n.content,
     sentAt: n.sentAt.toISOString(),

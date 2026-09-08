@@ -68,7 +68,13 @@ export default function StarredList({ notes }) {
           <div key={note.id} className="panel flex flex-col gap-2 p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-2">
-                <CharacterAvatar characterId={note.characterId} name={note.characterName} size={20} />
+                <CharacterAvatar
+                  characterId={note.characterId}
+                  name={note.characterName}
+                  src={note.avatarPath ?? undefined}
+                  unknown={note.unknownFace}
+                  size={20}
+                />
                 <div className="flex flex-col">
                   <span className="font-bold">{note.characterName}</span>
                   <span className="text-xs text-muted">
