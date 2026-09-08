@@ -502,10 +502,6 @@ zones:
             name: Yard
             description: >-
               The constant rains have raised vines across the fortress walls, which flower white and pink.
-          gatehouse-stables:
-            name: Stables
-            description: >-
-              A small stable. Most of the pens are empty. Those that aren't have old horses, lame and unable to bear the weight of a human.
           # `fortress-watchtower`, not `watchtower` — Customs holds that slug,
           # and the two town gates hold the other obvious ones. It is named
           # "Watchtower" in play like all four.
@@ -819,14 +815,16 @@ zones:
             access: [cerberus-key]
             description: >-
               In the garrison's central courtyard, surrounded by elevated platforms, a patch of packed earth serves as a sparring ground for recruits and veterans alike. There is a box of wooden training weapons.
-          garrison-kennels:
-            name: Kennels
+          garrison-stables:
+            name: Stables
             access: [cerberus-key]
             description: >-
-              Good and mean dogs both, ready to hunt unruly peasants. Their cages are locked and only accessible by members of the garrison.
+              A small stable. Most of the pens are empty. Those that aren't have old horses, lame and unable to bear the weight of a human. Good and mean dogs both are caged along the back wall, ready to hunt unruly peasants. ‡
             stash:
               items:
                 hound: 2
+                horse: 1
+                plow: 1
       undercroft:
         name: Undercroft
         indoors: true

@@ -7133,7 +7133,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 10
+      resourceCost: 9
       skills: [smithing]
       gambit: false
     sellable: true
