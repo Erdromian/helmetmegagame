@@ -75,17 +75,17 @@ function authSecret(env) {
   return secret;
 }
 
-// Read the superadmin list out of web/lib/superadmin.js rather than copying the
-// IDs: that file is the existing source of truth for host access, and a second
-// copy would drift. It cannot be imported — web/ has no "type": "module", so
-// Node would parse its `export const` as CommonJS and throw.
+// Read the superadmin list out of db/lib/roleIds.js (the canonical copy —
+// web/lib/superadmin.js just re-exports it) rather than copying the IDs, so
+// there is exactly one place that can drift. A plain ESM `import` would need
+// db/'s package.json "exports"/main resolved as CommonJS-from-ESM interop,
+// which the rest of this file sidesteps with createRequire, so this does too.
 function superadminIds() {
-  const path = resolve(REPO_ROOT, "web/lib/superadmin.js");
-  const source = readFileSync(path, "utf8");
-  const block = source.match(/SUPERADMIN_DISCORD_IDS\s*=\s*\[([^\]]*)\]/);
-  const ids = block ? [...block[1].matchAll(/["'](\d{17,20})["']/g)].map((m) => m[1]) : [];
-  if (!ids.length) {
-    throw new Error(`No Discord IDs parsed out of ${path} — has its shape changed?`);
+  const path = resolve(REPO_ROOT, "db/lib/roleIds.js");
+  const require = createRequire(import.meta.url);
+  const ids = require(path).SUPERADMIN_DISCORD_IDS;
+  if (!ids?.length) {
+    throw new Error(`No Discord IDs found in ${path} — has its shape changed?`);
   }
   return ids;
 }

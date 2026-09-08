@@ -1,4 +1,5 @@
-// Static Discord role IDs, hardcoded rather than env-configured.
+// Static Discord role IDs (and one user-ID allowlist), hardcoded rather than
+// env-configured.
 //
 // These are not secrets: a role ID is visible to anyone in the guild, and
 // Bascinet is a single-guild game, so there is exactly one correct value for
@@ -6,8 +7,6 @@
 // means they cannot be half-configured — the failure mode of an env var here
 // was a deploy where the player gate silently locked everyone out or the
 // spectator overwrite silently did nothing.
-//
-// Same reasoning as web/lib/superadmin.js's SUPERADMIN_DISCORD_IDS.
 //
 // Contrast with DISCORD_TOKEN/DISCORD_GUILD_ID/DISCORD_GM_ROLE_ID, which stay
 // in the environment — the token is a real credential, and the others predate
@@ -46,6 +45,13 @@ const PLAYTEST_ROLE_ID = "1546259369539280936";
 // difference is the word the GM roster on /gm/dev puts next to the name.
 const TRIAL_GM_ROLE_ID = "1545942420271931543";
 
+// Discord user IDs allowed onto the /gm/dev panel, independent of the
+// in-game GM role — this is host/developer access, not a game permission.
+// Canonical here (not a Discord role at all) so db/lib/localMode.js can read
+// it without web/ importing back into db/; web/lib/superadmin.js re-exports
+// it rather than keeping its own copy.
+const SUPERADMIN_DISCORD_IDS = ["1507184027919057108", "262426987979735040", "216301927242137600"];
+
 // Every role that counts as a GM, in one place. Nothing reads
 // DISCORD_GM_ROLE_ID directly any more: two roles meaning the same thing is
 // exactly the shape that drifts, and a site still checking one of them would
@@ -71,6 +77,7 @@ module.exports = {
   LEADER_WHITELIST_ROLE_ID,
   TRIAL_GM_ROLE_ID,
   PLAYTEST_ROLE_ID,
+  SUPERADMIN_DISCORD_IDS,
   gmRoleIds,
   hasGmRole,
   hasPlaytestRole,

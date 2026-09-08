@@ -13,24 +13,39 @@ import { loadTravel, travelTo } from "./actions";
 // The list is loaded when the column mounts and again after a move, never
 // with the page: an exit's state moves under a player standing still, and a
 // stale list would offer a shut gate. The cost line under each name is the
-// same rule the old dialog computed — a local hop is free, a zone crossing is
-// free while you have one left and costs your Move and a day on the road when
-// you do not (MAP.md §3).
+// same rule the old dialog computed — a local hop is free full stop, a zone
+// crossing spends one of the header's count while you have one left ("1
+// travel") and costs your Move and a day on the road when you do not (MAP.md
+// §3). A trailing "· on foot" or "· indoors" says the crossing (or arrival)
+// will dismount whatever you're currently riding or pushing — see footFor().
 //
 // Nothing that refuses is hidden. A shut gate and a locked door are drawn
 // dimmed with the reason on the foot, because knowing the way is there and
-// shut is what tells you to go find the winch.
+// shut is what tells you to go find the winch. A way too narrow for a mount
+// no longer refuses at all — see db/lib/indoors.js#dismountForNarrowWay.
 
 // Short enough to sit in a square. The full sentence is on the node's title.
-function footFor(option, freeLeft) {
+//
+// A local hop is free full stop — it never touches the header's count. A
+// zone crossing while one is still available spends it, which used to read
+// as the identical word "free" and told a player nothing about the
+// difference. "1 travel" is what it actually costs: one of the number shown
+// up top, singular because a single crossing is always exactly one no matter
+// how many you have left.
+function footFor(option, freeLeft, mounted) {
   if (!option.passable) {
     const reason = option.reason ?? "";
     if (/locked/i.test(reason)) return "locked";
     if (/shut/i.test(reason)) return "shut";
     return reason || "no way";
   }
-  if (!option.crossesZone) return "free";
-  return freeLeft > 0 ? "free" : "the turn";
+  const cost = !option.crossesZone ? "free" : freeLeft > 0 ? "1 travel" : "the turn";
+  // Only worth saying when there's something to lose — dismounts wins over
+  // indoors when a way is both, since either one ends the same way and
+  // saying it twice would be noise.
+  if (option.dismounts) return `${cost} · on foot`;
+  if (mounted && option.indoors) return `${cost} · indoors`;
+  return cost;
 }
 
 // The whole of it, for the hover — the node itself clamps both the name and
@@ -116,7 +131,7 @@ export default function TravelNodes({ onDone, pick = null }) {
   return (
     <div className="chat-travel">
       <p className="chat-section-title" title={data.freeReason ?? undefined}>
-        Travel · {data.freeLeft} free
+        Travel · {data.freeLeft} available
       </p>
 
       {data.options.length === 0 ? (
@@ -144,7 +159,7 @@ export default function TravelNodes({ onDone, pick = null }) {
               {option.description && (
                 <span className="chat-node-desc">{option.description}</span>
               )}
-              <span className="chat-node-foot mono">{footFor(option, data.freeLeft)}</span>
+              <span className="chat-node-foot mono">{footFor(option, data.freeLeft, data.mounted)}</span>
             </button>
           ))}
         </div>
