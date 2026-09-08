@@ -20,23 +20,42 @@ const PREFIX = "hall:seen:";
 const listeners = new Set();
 
 function emit() {
+  invalidate();
   for (const cb of listeners) cb();
 }
 
+// The snapshot is CACHED, and the cache is thrown away only when the marks
+// can have moved: a write from this tab (emit) or from another one (the
+// storage event). Rebuilding it meant walking every key in localStorage —
+// the page snapshots, the theme, everything — and that walk was the snapshot
+// read useSyncExternalStore made on every render of Chat, which is to say on
+// every row that landed anywhere and every scroll tick at the bottom of a
+// room. Now it is walked once per change.
+let cached = null;
+
+function invalidate() {
+  cached = null;
+}
+
 function subscribe(callback) {
+  // Another tab may have moved a mark while nothing here was listening —
+  // between one visit to Chat and the next — so a new subscriber starts from
+  // a fresh read.
+  invalidate();
   listeners.add(callback);
   // Another tab of the same character reading a room counts as read here too.
-  window.addEventListener("storage", callback);
+  const onStorage = () => {
+    invalidate();
+    callback();
+  };
+  window.addEventListener("storage", onStorage);
   return () => {
     listeners.delete(callback);
-    window.removeEventListener("storage", callback);
+    window.removeEventListener("storage", onStorage);
   };
 }
 
-// One string for the whole map, so useSyncExternalStore's snapshot is stable
-// between renders — returning a fresh object every call is the classic way to
-// make it loop forever.
-function read() {
+function scan() {
   const parts = [];
   try {
     for (let i = 0; i < window.localStorage.length; i += 1) {
@@ -50,18 +69,35 @@ function read() {
   return parts.sort().join("|");
 }
 
+// One string for the whole map, so useSyncExternalStore's snapshot is stable
+// between renders — returning a fresh object every call is the classic way to
+// make it loop forever.
+function read() {
+  if (cached === null) cached = scan();
+  return cached;
+}
+
 function readServer() {
   return "";
 }
 
+// Memoised on the string: the Map is the same object for as long as the
+// snapshot is, so the column's props hold still between changes.
+let parsedFor = null;
+let parsedMap = new Map();
+
 function parse(snapshot) {
+  if (snapshot === parsedFor) return parsedMap;
   const map = new Map();
-  if (!snapshot) return map;
-  for (const part of snapshot.split("|")) {
-    const at = part.lastIndexOf("=");
-    if (at <= 0) continue;
-    map.set(part.slice(0, at), part.slice(at + 1));
+  if (snapshot) {
+    for (const part of snapshot.split("|")) {
+      const at = part.lastIndexOf("=");
+      if (at <= 0) continue;
+      map.set(part.slice(0, at), part.slice(at + 1));
+    }
   }
+  parsedFor = snapshot;
+  parsedMap = map;
   return map;
 }
 

@@ -10,7 +10,8 @@
 const { recordArchiveEvent } = require("./archive");
 const { mintCorpse } = require("./corpseMint");
 const { cancelOffersForCharacter } = require("./lessons");
-const { CATATONIC_SLUG } = require("./constants");
+const { CATATONIC_SLUG, GIBBED_SLUG } = require("./constants");
+const { SEAT_TAG_SLUGS } = require("./threats");
 const { applyFear } = require("./fear");
 
 // Marks one character DEAD. Returns { claimed } — false when the character
@@ -28,6 +29,9 @@ const { applyFear } = require("./fear");
 // transcript. `content` is the archive line; `turn` pins the archive row to a
 // specific turn (the death pass hands the closing turn) rather than whatever
 // happens to be open.
+//
+// `gib` is the vaporised variant — no corpse at all, and every tag replaced by
+// one "Gibbed" row. See vaporizeTags below and docs/systemdocs/CORPSES.md §1a.
 //
 // Returns `corpse` alongside `claimed` — { tag, room } — so a caller that owes
 // Discord an announcement knows which Room the body landed in. `room` is null
@@ -63,7 +67,28 @@ async function vacateFactionOffice(prisma, character) {
   await prisma.character.update({ where: { id: heir.id }, data: { isLeader: true } });
 }
 
-async function applyDeathToRow(prisma, character, { turn = null, content = null, expectStatus = "ALIVE" } = {}) {
+// Vaporised rather than killed: every tag the character owned is deleted and
+// one "Gibbed" row replaces them, and no corpse is minted at all. Called only
+// with `gib: true` set, from the two Thanati rites and the bomb.
+//
+// SEAT_TAG_SLUGS is the one exception to the wipe, and it is load-bearing. The
+// end-of-game reveal reads antagonist seats straight off live Character rows
+// (db/lib/epilogue.js). The bomb gibs everyone above ground and then ends the
+// game, so a blind delete here would leave the ending naming nobody.
+async function vaporizeTags(prisma, characterId) {
+  await prisma.characterTag.deleteMany({
+    where: { characterId, tag: { slug: { notIn: SEAT_TAG_SLUGS } } },
+  });
+
+  const gibbed = await prisma.tag.findUnique({ where: { slug: GIBBED_SLUG }, select: { id: true } });
+  if (!gibbed) {
+    console.error(`No "${GIBBED_SLUG}" tag to stamp on ${characterId} — run npm run db:sync-tags.`);
+    return;
+  }
+  await prisma.characterTag.create({ data: { characterId, tagId: gibbed.id, source: "EVENT" } });
+}
+
+async function applyDeathToRow(prisma, character, { turn = null, content = null, expectStatus = "ALIVE", gib = false } = {}) {
   const claimed = await prisma.character.updateMany({
     where: { id: character.id, status: expectStatus },
     // travelTo* cleared with it: dying on the road ends the journey, and the
@@ -79,12 +104,21 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
   });
   if (claimed.count === 0) return { claimed: false };
 
-  await prisma.characterTag
-    .updateMany({
-      where: { characterId: character.id, equipped: true },
-      data: { equipped: false, equippedQuantity: 0 },
-    })
-    .catch((err) => console.error(`Failed to unequip on death for ${character.id}:`, err));
+  // A gib deletes the tags outright, which makes unequipping them moot; an
+  // ordinary death only drops them out of their slots. Either way a corpse
+  // wields nothing.
+  if (gib) {
+    await vaporizeTags(prisma, character.id).catch((err) =>
+      console.error(`Failed to vaporize tags for ${character.id}:`, err),
+    );
+  } else {
+    await prisma.characterTag
+      .updateMany({
+        where: { characterId: character.id, equipped: true },
+        data: { equipped: false, equippedQuantity: 0 },
+      })
+      .catch((err) => console.error(`Failed to unequip on death for ${character.id}:`, err));
+  }
 
   // A dead leader leads nobody, so everyone following them lets go — and
   // their own standing agreement to follow somebody dies with them. What is
@@ -144,10 +178,16 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
   // Wrapped, and deliberately after the claim: a catalog that has not been
   // synced yet must not turn a death into a throw. A missing corpse is
   // recoverable by hand; a half-applied death is not.
-  const corpse = await mintCorpse(prisma, character, turn).catch((err) => {
-    console.error(`Failed to mint a corpse for ${character.id}:`, err);
-    return { tag: null, room: null };
-  });
+  // A gib leaves no body at all, so there is nothing to mint. This is the
+  // whole difference on the world side: no corpse means nothing to loot,
+  // carry, butcher, bury or engrave, and corpseFollow never has a tag to
+  // follow.
+  const corpse = gib
+    ? { tag: null, room: null }
+    : await mintCorpse(prisma, character, turn).catch((err) => {
+        console.error(`Failed to mint a corpse for ${character.id}:`, err);
+        return { tag: null, room: null };
+      });
 
   // Everyone standing where they fell saw it (docs/systemdocs/FEAR.md). The
   // location is re-read rather than trusted off `character`, since callers

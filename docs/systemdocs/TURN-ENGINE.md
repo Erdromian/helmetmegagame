@@ -229,7 +229,7 @@ each arrived at by getting them wrong first.
    nightly settle for the hidden fear dial (`FEAR.md`). Slotted after hunger,
    so it sees the final Hunger streak, and after carry, so it sees the final
    sheet; before travel arrival, so a traveller pays the night for the
-   Location they set out from rather than the one they haven't reached yet.
+   Location they ended the day in rather than the one they haven't reached yet.
    It applies the turn's flat gains and reliefs to `Character.fear`, settles
    the one status tag the band produces (`db/lib/fear.js#settleFearTag`,
    `source: TagSource.CONDITION`, same convention the old phobia system used),
@@ -240,8 +240,13 @@ each arrived at by getting them wrong first.
    in `TURN_PASSES`) — everyone who spent their Move crossing a zone last turn
    finally lands (`MAP.md` §3). **Last of the passes**, and the slot is
    load-bearing: every pass above settles the turn that just ended, and the
-   traveller spent that turn walking — auto-labor pays them where they set out
-   from, and neither turret shoots somebody still on the road. It does no
+   traveller spent that turn walking — auto-labor pays them at the Location
+   they ended it in, and neither turret shoots somebody who has already left
+   the map. A pending journey shuts the ways out of the zone but not the ways
+   inside it (`MAP.md` §3), so "where they ended the day" and "where they set
+   out from" need not be the same Location any more; every pass above reads the
+   live one, which is the right answer — a traveller who spends their last
+   afternoon under a turret is standing under it. It does no
    Discord work; the arrivals ride back on `travelArrivals` and go out through
    the same thunk loop a GM's staged "Relocate to" uses. Audit action
    `travellers_arrived`.
@@ -273,6 +278,17 @@ Two things follow from that, and both are load-bearing:
   holding the lease can't wedge the turn. `resolvedPasses` is not a lock, and
   `needsResolvedAt` is the completion stamp rather than a lease, so neither
   could do this job.
+
+## 2a. What the bomb does to a body
+
+The nuke pass gibs rather than kills (`CORPSES.md` §1a): everybody above ground
+is vaporised, so the close mints no corpses and every tag they carried is
+deleted. Antagonist seat tags are the exception, because the epilogue that runs
+moments later reads them off live rows.
+
+It also, finally, tells them why. The pass used to push its death entries with
+no `reason` field while the thunk's shared DM loop interpolated one anyway, so
+every victim of the bomb was DM'd the literal string `You have died. undefined`.
 
 ## 3. The side-effect thunk
 
@@ -714,8 +730,18 @@ It does three things:
   turret is armed.
 
 Like every other pass it returns its side effects — `lines` (ambient lines the
-caller speaks into the Depot channel) and `dms` — rather than making a network
-call. The turret's **other** trigger is on arrival, in
+caller speaks into the Depot channel), `dms`, and `deaths` — rather than making
+a network call.
+
+**A turret kill owes the same Discord teardown every other death gets**, and
+for a long time it got none of it: the sheet said `DEAD` while the character
+kept their personal role, every channel overwrite and their nickname, and never
+received the ghost seat. Both guns now hand their kills up as `deaths`, which
+the thunk folds into `turnDeaths` alongside the catatonic, Dying and blast
+ones. The walk itself lives in `db/lib/deathTeardown.js` so the four callers
+that perform it cannot drift. Turret deaths carry `ownDm: true`, because the
+gun has already spoken to the victim in its own voice and a generic "You have
+died" after it would be the same news twice. The turret's **other** trigger is on arrival, in
 `db/lib/locationMove.js`, deliberately before that function's `DISCORD_TOKEN`
 guard: being shot is a database fact and must not depend on there being a token
 to announce it with.

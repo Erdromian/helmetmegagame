@@ -113,7 +113,7 @@ import {
   syncCharacterNarrowcastAccess,
   syncCharacterNickname,
   ensureCharacterRole,
-  removeCursedRole,
+  removeGhostRole,
   sendDm,
   killCharacter,
 } from "@/lib/discordGuild";
@@ -4240,7 +4240,7 @@ async function mutilateRequestImpl({
   // Unattributed, like every other request that acts on somebody else. The
   // death DM rides on killCharacter so nothing ever sends two.
   if (kills) {
-    await killCharacter(subject, `Your ${named.label.toLowerCase()} was cut out. ‡`).catch(
+    await killCharacter(subject, `Your ${named.label.toLowerCase()} was cut out.`).catch(
       (err) =>
         console.error(`Failed to kill mutilated character ${subject.id}:`, err),
     );
@@ -4306,7 +4306,7 @@ async function buryCharacterRequestImpl({
     });
   });
 
-  await removeCursedRole(target.discordUserId).catch((err) =>
+  await removeGhostRole(target.discordUserId).catch((err) =>
     console.error(
       `Bury: failed to lift the curse from ${target.discordUserId}:`,
       err,
@@ -4401,7 +4401,7 @@ async function engraveHeadstoneRequestImpl({
     return { headstone };
   });
 
-  await removeCursedRole(target.discordUserId).catch((err) =>
+  await removeGhostRole(target.discordUserId).catch((err) =>
     console.error(
       `Engrave: failed to lift the curse from ${target.discordUserId}:`,
       err,
@@ -4521,10 +4521,15 @@ async function extractGodfleshRequestImpl() {
   );
 
   revalidateAll();
+  // The DM above carries the same facts with Discord's formatting; this is
+  // the one-line version the page's notice shows.
+  const got = result.quantity > 0 ? `${result.quantity} Godflesh` : "nothing";
+  const hurt = injury ? ` It got hold of you first — ${injury.name}.` : "";
   return {
     die: result.die,
     quantity: result.quantity,
     injury: injury?.name ?? null,
+    line: `You went out into the marsh and cut. The die came up ${result.die}: ${got}.${hurt}`,
   };
 }
 

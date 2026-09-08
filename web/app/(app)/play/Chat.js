@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import EmptyState from "@/app/components/EmptyState";
 import Modal from "@/app/components/Modal";
 import ChatAside from "./ChatAside";
 import MapBoard from "../map/MapBoard";
-import HereList from "./HereList";
+import HereList from "@/app/components/HereList";
 import PlacesColumn, { PlacesTabs } from "./PlacesColumn";
 import useAsideFolded from "./useAsideFolded";
 import Feed from "./Feed";
@@ -21,6 +21,9 @@ import useChatChimeMuted, { chatChimeMuted } from "@/app/components/useChatChime
 import { useSeen, markSeen, seedSeenIfFresh } from "./seenStore";
 import { noteTyping } from "./typingStore";
 import { usePushState, initPush, togglePush } from "./pushStore";
+import { useOpenPlace, setOpenPlace } from "./openPlace";
+import { useStreamState, noteStreamUp, noteStreamDown, noteStreamFatal } from "./streamStore";
+import { useRefresh } from "@/app/components/useRefresh";
 import {
   usePlaces,
   setPlaces,
@@ -32,6 +35,8 @@ import {
   markHistoryLoaded,
   markHistoryLoading,
   historyLoaded,
+  isOwnRow,
+  resetHistory,
 } from "./feedStore";
 
 // Chat: everywhere this character can hear, and one of them open.
@@ -44,36 +49,20 @@ import {
 // which is also how walking into somewhere new reaches an open page without a
 // reload.
 
-// Which place is open lives in the URL hash, so a reload keeps it and a
-// browser Back leaves the room the way it came. Read through
-// useSyncExternalStore rather than an effect: react-hooks/set-state-in-effect
-// is an error here, and the hash is exactly the kind of external mutable
-// value that store is for.
-function subscribeToHash(callback) {
-  window.addEventListener("hashchange", callback);
-  return () => window.removeEventListener("hashchange", callback);
-}
-
-function readHash() {
-  return window.location.hash.slice(1);
-}
-
-function readServerHash() {
-  return "";
-}
+// Which place is open lives in ./openPlace.js — a module store the URL hash
+// follows, rather than the hash itself. The hash used to be the truth, and
+// the app router wrote over it on every refresh (see that file for the whole
+// story); the store is read through useSyncExternalStore, never an effect.
 
 // How many places a player's Chat warms in the background before it stops.
 // See the prefetch effect for why there is a ceiling at all.
 const PREFETCH_LIMIT = 12;
 
-function decodeHash(hash) {
-  if (!hash) return null;
-  try {
-    return decodeURIComponent(hash);
-  } catch {
-    return null;
-  }
-}
+// The stream's own reconnect: a second after the first drop, doubling to half
+// a minute, with a little jitter so a hundred tabs cut off by one redeploy do
+// not all come back on the same tick.
+const RECONNECT_MIN_MS = 1000;
+const RECONNECT_MAX_MS = 30_000;
 
 export default function Chat({
   initialPlaces,
@@ -116,7 +105,8 @@ export default function Chat({
   const places = streamed.length > 0 ? streamed : initialPlaces;
   const seen = useSeen();
 
-  const hash = decodeHash(useSyncExternalStore(subscribeToHash, readHash, readServerHash));
+  const wanted = useOpenPlace();
+  const stream = useStreamState();
 
   // The faction's row. `faction:<id>` is a place key the archive will never
   // hold, which is exactly what makes it safe as a pseudo-key: it round-trips
@@ -127,7 +117,12 @@ export default function Chat({
   // §2b). Its "newest seq" is epoch ms — seenStore compares BigInt strings,
   // and epoch ms is one — so the dot works without seenStore knowing.
   const dmState = useDmState();
-  const dmKey = self?.characterId ? DM_PLACE_KEY : null;
+  // Gated on the ACCOUNT, not on a living character. The DM thread belongs to
+  // the person, not the body — ./actions.js#gmThread says so and checks the
+  // session alone — and a player whose character has died is exactly who most
+  // needs to read what Bascinet said. This used to read self.characterId, so a
+  // web-only player lost the whole conversation the moment they died.
+  const dmKey = self?.discordUserId ? DM_PLACE_KEY : null;
   const dmNewest = dmState.newestOutboundMs === null ? null : String(dmState.newestOutboundMs);
   const navPlaces = useMemo(() => {
     const out = [];
@@ -139,9 +134,9 @@ export default function Chat({
     return out;
   }, [places, factionKey, faction, dmKey, dmNewest]);
   const byKey = useMemo(() => new Map(navPlaces.map((place) => [place.placeKey, place])), [navPlaces]);
-  // A hash naming somewhere you have left falls back to the first place, so a
-  // stale bookmark opens the street rather than a blank column.
-  const selectedKey = (hash && byKey.has(hash) ? hash : null) ?? initialPlace ?? places[0]?.placeKey ?? null;
+  // A remembered place you have since left falls back to the first place, so
+  // a stale bookmark opens the street rather than a blank column.
+  const selectedKey = (wanted && byKey.has(wanted) ? wanted : null) ?? initialPlace ?? places[0]?.placeKey ?? null;
   const selected = selectedKey ? (byKey.get(selectedKey) ?? null) : null;
   const factionOpen = Boolean(factionKey && selectedKey === factionKey);
   const dmOpen = Boolean(dmKey && selectedKey === dmKey);
@@ -151,9 +146,8 @@ export default function Chat({
   const siloOpen = Boolean(faction?.silo && byKey.has(faction.silo.placeKey));
 
   const onSelect = useCallback((placeKey) => {
-    window.location.hash = encodeURIComponent(placeKey);
+    setOpenPlace(placeKey);
   }, []);
-
 
   // What the unread dot compares against: the newest thing said in a place
   // that was ABOUT this viewer, not merely the newest thing said. A place used
@@ -165,15 +159,17 @@ export default function Chat({
   // everything since. Taking the tab's answer when it has one would hide a
   // mention that landed while the page was closed.
   const selfCharacterId = self?.characterId ?? null;
+  // Their own hood, so a line they said under it is not news to them.
+  const selfSpeakerKey = self?.speakerKey ?? null;
   const newest = useCallback(
     (place) => {
-      const live = notableSeq(place.placeKey, selfCharacterId);
+      const live = notableSeq(place.placeKey, selfCharacterId, selfSpeakerKey);
       const seeded = place.notableSeq ?? null;
       if (live === null) return seeded;
       if (seeded === null) return live;
       return BigInt(live) > BigInt(seeded) ? live : seeded;
     },
-    [selfCharacterId],
+    [selfCharacterId, selfSpeakerKey],
   );
 
   const onSeen = useCallback((placeKey, seq) => markSeen(placeKey, seq), []);
@@ -233,6 +229,11 @@ export default function Chat({
   // A search hit somebody clicked: which line, in which place, and when they
   // clicked it (so clicking the same hit twice scrolls twice).
   const [jump, setJump] = useState(null);
+  // Bumped by the stream's `gap` event, after feedStore.resetHistory() has
+  // marked every place idle: the selection effect and the prefetch below
+  // hang off it, which is what makes them ask for the backlog again — the
+  // store's history states are not something either of them subscribes to.
+  const [gapNonce, setGapNonce] = useState(0);
 
   // ---- What the composer's slash commands reach for ------------------------
   //
@@ -281,7 +282,7 @@ export default function Chat({
       if (!placeKey || !seq) return;
       const go = () => {
         setJump({ placeKey, seq: String(seq), at: Date.now() });
-        window.location.hash = encodeURIComponent(placeKey);
+        setOpenPlace(placeKey);
       };
       fetch(`/api/feed/history?place=${encodeURIComponent(placeKey)}&around=${encodeURIComponent(seq)}`)
         .then((res) => (res.ok ? res.json() : null))
@@ -324,148 +325,306 @@ export default function Chat({
   const onConverse = useCallback(() => setConverseOn(true), []);
   // "Add to …" on a person's row in HERE. The same server action the members
   // strip and the /add command use; the strip re-reads off placesVersion.
+  // Answers with the action's own { ok, error }, so the list that offered the
+  // row can say why nothing happened — a menu row that failed used to be
+  // answered by the list not changing, and nothing else.
   const onAddMember = useCallback(
     (characterId) => {
-      if (!selectedKey || !characterId) return;
-      addMember(selectedKey, characterId)
-        .then(bumpPlaces)
-        .catch(() => {
-          // The strip is the surface that reports this; a menu row that
-          // failed is answered by the list not changing.
-        });
+      if (!selectedKey || !characterId) return Promise.resolve({ ok: false, error: "That place is gone." });
+      return addMember(selectedKey, characterId)
+        .then((res) => {
+          if (res?.ok) bumpPlaces();
+          return res ?? { ok: false, error: "Something went wrong." };
+        })
+        .catch(() => ({ ok: false, error: "Could not reach the server. Nothing was changed. ‡" }));
     },
     [selectedKey, bumpPlaces],
   );
 
-  // One stream for the tab. `since` is the seq the server render was taken at,
-  // so the catch-up carries what happened while the page was loading and
-  // nothing that was already in it.
+  // The seq the page was rendered at, captured ONCE. The stream below opens
+  // from it and then keeps its own cursor; a later refresh hands this
+  // component a newer initialSeq, and that one is deliberately ignored — the
+  // stream that is already open has seen everything since. A state
+  // initializer rather than a ref: a ref read during render is what
+  // react-hooks/immutability catches, and this makes the stream effect's
+  // dependency a stable value.
+  const [mountSeq] = useState(() => initialSeq ?? "0");
+  // Whether the stream has announced a place list yet. Once it has, the
+  // server props stop seeding the list (the effect below): the stream's copy
+  // is the newer one, and a refresh landing after a `places` frame must not
+  // put the older list back. Written from the stream's handler only, never
+  // during a render.
+  const streamSpokeRef = useRef(false);
+  const [refresh] = useRefresh();
+
+  // The server render's rows and list, seeded again whenever they change.
+  // All three already ran in the initializer above, before the first paint.
+  // They are idempotent, and they stay here as the guard for the case the
+  // initializer cannot cover: a refresh, or a client-side navigation back
+  // onto this page, handing down newer props. The stream is NOT reopened
+  // for that — it is the effect after this one, and it runs once per mount.
   useEffect(() => {
-    // All three already ran in the initializer above, before the first paint.
-    // They are idempotent, and they stay here as the guard for the one case
-    // the initializer cannot cover: a server render whose props changed under
-    // a client-side navigation back onto this page.
     seedRows(initialPlace, initialRows);
-    setPlaces(initialPlaces);
+    if (!streamSpokeRef.current) setPlaces(initialPlaces);
     if (initialPlace) markHistoryLoaded(initialPlace);
+  }, [initialPlace, initialPlaces, initialRows]);
 
-    // The stream announces the place list once as it opens, which for a page
-    // that was server-rendered a moment ago says nothing new — so the FIRST
-    // one refreshes nothing and every one after it does. An EventSource that
-    // reconnects on its own keeps these handlers, so this is per mount rather
-    // than per connection.
-    let sawPlaces = false;
+  // One stream for the tab, opened once per mount and kept across every
+  // refresh. `since` is the seq the page was rendered at, so the first
+  // catch-up carries what happened while the page was loading and nothing
+  // that was already in it; every reconnect after that asks from the newest
+  // seq THIS stream has delivered, so it carries the gap and nothing else.
+  //
+  // The reconnect is the tab's own, not the browser's. An EventSource that
+  // retries by itself replays the URL it was opened with — the page-load seq
+  // — and the server's catch-up is capped, so after a long session a
+  // browser-driven retry could never reach the rows it had actually missed.
+  // So the `error` handler closes it and opens a new one from the cursor,
+  // backing off from a second to half a minute; a tab coming back to the
+  // front, or the network coming back, reopens at once.
+  //
+  // Why this used to jump the page: the stream was reopened on every refresh,
+  // a reconnect re-announced the place list, and that announce refreshed the
+  // page — which reopened the stream. Now a `places` frame refreshes the
+  // right column only when the server says the character's own presence
+  // moved (`reason: "presence"`), or when a reconnect finds the list changed
+  // under it — never for a reconnect that found nothing new.
+  useEffect(() => {
+    let disposed = false;
+    let source = null;
+    let timer = null;
+    // Consecutive failures, and how many connections have opened on this
+    // mount. A drop says nothing about WHY — an EventSource reports no
+    // status — so from the second failure on, the tab asks the plain places
+    // route before trying again: a 401 there is a session that has expired,
+    // and retrying that forever would only be noise in the server log; a 200
+    // or no answer at all is the server or the network, and worth waiting for.
+    let failures = 0;
+    let opens = 0;
+    let fatal = false;
+    // Whether this streak of failures has been checked against the session
+    // yet, and whether that check is out right now — `wake` must not open a
+    // stream underneath it.
+    let probed = false;
+    let probing = false;
+    // The newest seq this stream has DELIVERED — the same high-water mark the
+    // server keeps for the connection. Not the store's newest: a history
+    // fetch fills one place far past another's unread rows, and a summary row
+    // can legitimately sit below every street row (the two wipe floors), so
+    // the store's maximum is not a claim about every place at once. This is.
+    let cursor = mountSeq;
 
-    const source = new EventSource(`/api/feed?since=${encodeURIComponent(initialSeq ?? "0")}`);
-    source.addEventListener("message", (event) => {
+    const noteSeq = (seq) => {
       try {
-        const row = JSON.parse(event.data);
-        applyRow(row.placeKey, row);
-        // Somebody spoke in the conversation or private room that is OPEN.
-        // A `places` frame only ever fires for the VIEWER's own presence, so
-        // nothing else here tells them that a third party was let in or shown
-        // out; the next thing anybody says is the cheapest honest prompt to
-        // re-read the strip. Only for the two kinds of place that have one.
-        const key = row.placeKey;
-        if (
-          key &&
-          key === selectedRef.current &&
-          (key.startsWith("conv:") || key.startsWith("room:"))
-        ) {
+        if (BigInt(seq) > BigInt(cursor)) cursor = String(seq);
+      } catch {
+        // A seq that is not a number is not a cursor.
+      }
+    };
+
+    // Is the session still good? Asked once per streak of failures, from the
+    // second one on, and only its status is read — `?probe=1` answers off the
+    // session alone (web/app/api/feed/places/route.js).
+    const sessionGone = async () => {
+      try {
+        const res = await fetch("/api/feed/places?probe=1", { cache: "no-store" });
+        return res.status === 401 || res.status === 403;
+      } catch {
+        return false;
+      }
+    };
+
+    const schedule = () => {
+      if (disposed || fatal || timer) return;
+      const base = Math.min(RECONNECT_MIN_MS * 2 ** Math.max(0, failures - 1), RECONNECT_MAX_MS);
+      const wait = base + Math.floor(Math.random() * RECONNECT_MIN_MS);
+      timer = setTimeout(async () => {
+        timer = null;
+        if (failures >= 2 && !probed) {
+          probed = true;
+          probing = true;
+          const gone = await sessionGone();
+          probing = false;
+          if (disposed) return;
+          // A wake got there first and the stream is back up: nothing to do.
+          if (source && source.readyState !== EventSource.CLOSED) return;
+          if (gone) {
+            fatal = true;
+            noteStreamFatal();
+            return;
+          }
+        }
+        connect();
+      }, wait);
+    };
+
+    // The tab is back in front, or the network is back: no reason to sit out
+    // the rest of a backoff.
+    const wake = () => {
+      if (disposed || fatal || probing) return;
+      if (document.visibilityState !== "visible") return;
+      if (source && source.readyState !== EventSource.CLOSED) return;
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      connect();
+    };
+
+    function connect() {
+      if (disposed || fatal) return;
+      source?.close();
+      source = new EventSource(`/api/feed?since=${encodeURIComponent(cursor)}`);
+
+      source.addEventListener("open", () => {
+        failures = 0;
+        probed = false;
+        opens += 1;
+        noteStreamUp();
+        // The DM path has no seq to catch up from, so a reconnect tells the
+        // pane to ask for its page again. The FIRST open is the page's own
+        // load.
+        if (opens > 1) noteDmReconnect();
+      });
+      source.addEventListener("error", () => {
+        if (disposed) return;
+        // Closed here rather than left to retry itself: the browser would
+        // reuse the page-load cursor (see above).
+        source?.close();
+        failures += 1;
+        noteStreamDown(failures);
+        schedule();
+      });
+      source.addEventListener("message", (event) => {
+        try {
+          const row = JSON.parse(event.data);
+          if (row?.seq) noteSeq(row.seq);
+          applyRow(row.placeKey, row);
+          // Somebody spoke in the conversation or private room that is OPEN.
+          // A `places` frame only ever fires for the VIEWER's own presence, so
+          // nothing else here tells them that a third party was let in or shown
+          // out; the next thing anybody says is the cheapest honest prompt to
+          // re-read the strip. Only for the two kinds of place that have one.
+          const key = row.placeKey;
+          if (
+            key &&
+            key === selectedRef.current &&
+            (key.startsWith("conv:") || key.startsWith("room:"))
+          ) {
+            setPlacesVersion((n) => n + 1);
+          }
+          // Somebody said your name. The token is what the row is made of on
+          // both faces (CHAT.md §5), so this rings for a Discord-origin mention
+          // exactly as it does for a web one — and never for your own words.
+          if (
+            self?.characterId &&
+            !isOwnRow(row, self.characterId, self.speakerKey) &&
+            typeof row.content === "string" &&
+            row.content.includes(`{char:${self.characterId}}`) &&
+            !chatChimeMuted() &&
+            !chimedRecently()
+          ) {
+            playChime(0.35);
+          }
+        } catch {
+          // A malformed frame is not worth tearing the stream down over.
+        }
+      });
+      // Somebody is writing something, here or on Discord. Held for six seconds
+      // by typingStore.js and never sent for the viewer's own character.
+      source.addEventListener("typing", (event) => {
+        try {
+          noteTyping(JSON.parse(event.data));
+        } catch {
+          // Same.
+        }
+      });
+      // A delete carries only a seq and its place: the words somebody took back
+      // never come back down the wire.
+      source.addEventListener("delete", (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          removeRow(data?.placeKey, data?.seq);
+        } catch {
+          // Same.
+        }
+      });
+      // Their feet moved, a key turned, or somebody let them into a
+      // conversation — or a connection opened and said where they are. The
+      // server has already resubscribed; this is the column catching up.
+      source.addEventListener("places", (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const changed = setPlaces(data?.places ?? []);
+          streamSpokeRef.current = true;
+          // The members strip re-reads on this: a key turning, or somebody
+          // else's /add, is exactly what a places frame means — and after a
+          // reconnect it is the one thing that can tell the strip who was
+          // let into the open room while the tab was away.
           setPlacesVersion((n) => n + 1);
+          // The right column is server props off page.js (where you are, who
+          // is here, the Examine lines, the rooms a Transfer can reach), and
+          // nothing else refreshes them, so a walk across town has to. Only
+          // when the server says the VIEWER's own presence moved — that frame
+          // fires for a web-only toggle too, which changes the column and not
+          // the list — or when a reconnect found the list changed under it.
+          // A reconnect that re-announces the same list refreshes nothing.
+          // Through the shared transition, so the page never drops to its
+          // loading skeleton for the length of the refetch (useRefresh.js).
+          if (data?.reason === "presence" || (opens > 1 && changed)) refresh();
+        } catch {
+          // Same.
         }
-        // Somebody said your name. The token is what the row is made of on
-        // both faces (CHAT.md §5), so this rings for a Discord-origin mention
-        // exactly as it does for a web one — and never for your own words.
-        if (
-          self?.characterId &&
-          row.characterId !== self.characterId &&
-          typeof row.content === "string" &&
-          row.content.includes(`{char:${self.characterId}}`) &&
-          !chatChimeMuted() &&
-          !chimedRecently()
-        ) {
-          playChime(0.35);
+      });
+      // The reconnect's catch-up was too long to replay row by row
+      // (web/app/api/feed/route.js). Every place is re-read from the history
+      // route instead: the selection effect and the prefetch below do that
+      // on their own once the store says nothing is loaded.
+      source.addEventListener("gap", () => {
+        resetHistory();
+        setGapNonce((n) => n + 1);
+      });
+      // A DM for this account — Bascinet's turn result, a GM's reply, or the
+      // line this tab just sent, coming back round (dmStore.js dedupes by id).
+      // Rings the mention chime for something Bascinet said while the pane is
+      // not the open place: a DM is always about you.
+      source.addEventListener("dm", (event) => {
+        try {
+          const row = JSON.parse(event.data);
+          // The hub's pg client came back from a drop (feedHub.js#resyncDm):
+          // not a row, a prompt to fetch the page again.
+          if (row?.resync) {
+            noteDmReconnect();
+            return;
+          }
+          addDmRow(row);
+          // Quiet only while the pane is open AND somebody is looking at it.
+          const reading = selectedRef.current === DM_PLACE_KEY && document.visibilityState === "visible";
+          if (row?.direction === "OUTBOUND" && !reading && !chatChimeMuted() && !chimedRecently()) {
+            playChime(0.35);
+          }
+        } catch {
+          // Same.
         }
-      } catch {
-        // A malformed frame is not worth tearing the stream down over.
-      }
-    });
-    // Somebody is writing something, here or on Discord. Held for six seconds
-    // by typingStore.js and never sent for the viewer's own character.
-    source.addEventListener("typing", (event) => {
-      try {
-        noteTyping(JSON.parse(event.data));
-      } catch {
-        // Same.
-      }
-    });
-    // A delete carries only a seq and its place: the words somebody took back
-    // never come back down the wire.
-    source.addEventListener("delete", (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        removeRow(data?.placeKey, data?.seq);
-      } catch {
-        // Same.
-      }
-    });
-    // Their feet moved, a key turned, or somebody let them into a
-    // conversation. The server has already resubscribed; this is the column
-    // catching up with it.
-    source.addEventListener("places", (event) => {
-      try {
-        setPlaces(JSON.parse(event.data)?.places ?? []);
-        // The members strip re-reads on this: a key turning, or somebody
-        // else's /add, is exactly what a places frame means.
-        setPlacesVersion((n) => n + 1);
-        // This event only ever fires because the VIEWER's own presence
-        // changed — their feet moved, a key turned, somebody let them into a
-        // conversation — and the right column is server props off page.js
-        // (where you are, who is here, the Examine lines, the rooms a
-        // Transfer can reach). Nothing else refreshes them, so without this
-        // a walk across town left the column describing the old street. The
-        // feed store is client state and survives the refresh.
-        if (sawPlaces) router.refresh();
-        sawPlaces = true;
-      } catch {
-        // Same.
-      }
-    });
-    // A DM for this account — Bascinet's turn result, a GM's reply, or the
-    // line this tab just sent, coming back round (dmStore.js dedupes by id).
-    // Rings the mention chime for something Bascinet said while the pane is
-    // not the open place: a DM is always about you.
-    source.addEventListener("dm", (event) => {
-      try {
-        const row = JSON.parse(event.data);
-        // The hub's pg client came back from a drop (feedHub.js#resyncDm):
-        // not a row, a prompt to fetch the page again.
-        if (row?.resync) {
-          noteDmReconnect();
-          return;
-        }
-        addDmRow(row);
-        // Quiet only while the pane is open AND somebody is looking at it.
-        const reading = selectedRef.current === DM_PLACE_KEY && document.visibilityState === "visible";
-        if (row?.direction === "OUTBOUND" && !reading && !chatChimeMuted() && !chimedRecently()) {
-          playChime(0.35);
-        }
-      } catch {
-        // Same.
-      }
-    });
-    // The DM path has no seq to catch up from, so a reconnect tells the pane
-    // to ask for its page again. The FIRST open is the page's own load.
-    let opened = false;
-    source.addEventListener("open", () => {
-      if (opened) noteDmReconnect();
-      opened = true;
-    });
-    // EventSource reconnects by itself; the server's catch-up is bounded by
-    // `since`, so a reconnect repeats little and the store dedupes by seq.
-    return () => source.close();
-  }, [initialPlace, initialPlaces, initialRows, initialSeq, self?.characterId, router]);
+      });
+    }
+
+    connect();
+    document.addEventListener("visibilitychange", wake);
+    window.addEventListener("online", wake);
+    window.addEventListener("pageshow", wake);
+    return () => {
+      // `disposed` first: a StrictMode double-mount runs this cleanup and
+      // then the effect again, and a timer left ticking from the first run
+      // would open a second stream beside the second run's.
+      disposed = true;
+      if (timer) clearTimeout(timer);
+      source?.close();
+      document.removeEventListener("visibilitychange", wake);
+      window.removeEventListener("online", wake);
+      window.removeEventListener("pageshow", wake);
+    };
+  }, [mountSeq, self?.characterId, self?.speakerKey, refresh]);
 
   // What was said BEFORE the page opened, for a place the reader has just
   // chosen. The stream only ever carries what happens next, so without this a
@@ -496,7 +655,7 @@ export default function Chat({
         markHistoryLoaded(selectedKey);
       });
     return undefined;
-  }, [selectedKey]);
+  }, [selectedKey, gapNonce]);
 
   // PREFETCH. After the first paint, every OTHER place's backlog is fetched
   // one at a time, so opening a room is instant rather than a skeleton and a
@@ -553,7 +712,7 @@ export default function Chat({
       stopped = true;
       if (timer) clearTimeout(timer);
     };
-  }, [places, gm]);
+  }, [places, gm, gapNonce]);
 
   // Which of the open place's doors a person can be let through. Only a
   // conversation and a PRIVATE room have one; everywhere else there is nothing
@@ -563,7 +722,9 @@ export default function Chat({
       ? { placeKey: selected.placeKey, name: selected.name }
       : null;
 
-  if (places.length === 0) {
+  // Nowhere to stand is only a dead end if there is also nothing to read. A
+  // dead character still has Bascinet's column.
+  if (places.length === 0 && !dmKey) {
     return (
       <div className="chat-body chat-body--empty">
         <div className="panel">
@@ -588,6 +749,20 @@ export default function Chat({
       />
       <div className="chat-centre">
         <PlacesTabs places={navPlaces} selected={selectedKey} seen={seen} newest={newest} onSelect={onSelect} />
+        {/* The live feed is down. Here rather than in the feed or the column
+            foot: this row is on screen whichever pane is open, on a phone as
+            well — and the phone is where a stream drops most, every time the
+            screen locks. The first drop says nothing (streamStore.js). */}
+        {stream === "retrying" && (
+          <p className="chat-quiet-line" role="status">
+            Reconnecting…
+          </p>
+        )}
+        {stream === "fatal" && (
+          <p className="chat-quiet-line" role="status">
+            The connection dropped. Reload to catch up. ‡
+          </p>
+        )}
         {/* On a phone the people are an avatar strip under the place header,
             opening the same per-person menu the column's rows do. It draws
             nowhere else — CSS hides it above 720px. */}
@@ -598,6 +773,11 @@ export default function Chat({
           <DmPane self={self} />
         ) : (
         <Feed
+          // Keyed on the place, so opening another room starts the composer
+          // clean — a half-typed line, an edit in progress, a command chip
+          // used to walk across with the reader and land in the wrong room.
+          // The words themselves survive the switch (./draftStore.js).
+          key={selectedKey}
           place={selected}
           self={self}
           autocorrect={autocorrect}
@@ -659,7 +839,7 @@ export default function Chat({
           onClose={() => setConverseOn(false)}
           onDone={() => {
             setConverseOn(false);
-            router.refresh();
+            refresh();
           }}
         />
       )}

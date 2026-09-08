@@ -5,7 +5,7 @@
 // It exists because those two used to be one hand-written embed builder inside
 // the reaction handler, and the web button would have been a second copy of it
 // — the twin drift ARCHITECTURE.md §3 warns about, on rules (the doctor's eye,
-// the concealed read, Inscrutable) where a divergence is invisible until a
+// the concealed read) where a divergence is invisible until a
 // player notices one surface telling them something the other won't.
 //
 // Pure and Prisma-free, same posture as inspectVision.js and presence.js: it
@@ -23,7 +23,7 @@ const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
 const { formatTagRequirement } = require("./formatTagRequirement");
 const { formatTagArmor } = require("./formatTagArmor");
 const { ARMOR_TAG_FIELDS } = require("./armorValue");
-const { inspectVision, isInscrutable } = require("./inspectVision");
+const { inspectVision } = require("./inspectVision");
 const {
   HEALTH_CATEGORY,
   medicallyVisibleTags,
@@ -195,12 +195,10 @@ function examineReadout({
       ...(viewerIsThanati ? thanatiLines(subject.tags) : []),
     ],
     // An unseen field is ABSENT, never a "hidden" placeholder — and nothing
-    // tells the subject they were read. Once the viewer holds the sight, an
-    // empty result reads exactly as Inscrutable's block does, so a reader
-    // cannot tell "they're guarded" from "there's nothing there".
-    desire: canSeeDesire
-      ? { text: isInscrutable(subject.tags) ? null : (lastDesire?.text ?? null), points: lastDesire?.points ?? null }
-      : null,
+    // tells the subject they were read. A viewer without the sight and a
+    // subject with nothing to read produce the same empty field, so a reader
+    // still cannot tell the two apart.
+    desire: canSeeDesire ? { text: lastDesire?.text ?? null, points: lastDesire?.points ?? null } : null,
     // Role is same-faction knowledge, not officer authority (FACTIONS.md §4a)
     // — the same rule the Who's here? list reads by.
     roleTitle: inRealFaction(subject) && viewerFactionId === subject.factionId ? (subject.roleTitle ?? null) : null,

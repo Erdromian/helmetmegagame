@@ -66,19 +66,6 @@ function rebuild(place) {
   state.views.set(place, Object.freeze([...confirmed, ...pending]));
 }
 
-// The newest confirmed seq for a place — the cursor the EventSource asks
-// with, so a reconnect repeats nothing.
-export function lastSeq(place) {
-  const rows = state.confirmed.get(place);
-  if (!rows || rows.size === 0) return "0";
-  let best = 0n;
-  for (const key of rows.keys()) {
-    const seq = BigInt(key);
-    if (seq > best) best = seq;
-  }
-  return String(best);
-}
-
 // Seeds the store from the server-rendered rows. Idempotent: a second call
 // with the same rows changes nothing a reader can see.
 export function seedRows(place, rows) {
@@ -222,13 +209,46 @@ export function dropPending(place, clientId) {
   emit();
 }
 
+// What the column and the composer are drawn from, per place. The two seq
+// watermarks are deliberately NOT in it: they move whenever anybody speaks,
+// and a list that "changed" every time somebody said something would make
+// every reconnect look like a walk.
+function placeShape(place) {
+  return [
+    place.placeKey,
+    place.kind,
+    place.name,
+    place.description ?? "",
+    place.roomKind ?? "",
+    place.canSpeak ? 1 : 0,
+    place.slowmodeSeconds ?? 0,
+  ].join(" ");
+}
+
+function sameShape(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (placeShape(a[i]) !== placeShape(b[i])) return false;
+  }
+  return true;
+}
+
 // The place list, pushed by the stream's `event: places` and seeded by the
 // server render. Replaced whole rather than merged: it IS the answer to
 // "where may you be", and half of an old one is a place you have left.
+//
+// Returns whether the list's SHAPE changed — the doors, their names, who may
+// speak where — which is what Chat.js asks when a reconnect re-announces the
+// list: a walk that happened while the tab was away shows up here, and a
+// reconnect that found nothing different does not. The comparison lives in
+// the store rather than in Chat.js because the stream handler that asks is
+// per mount, and a closure over the render's list would be stale for good.
 export function setPlaces(places) {
-  if (!Array.isArray(places)) return;
+  if (!Array.isArray(places)) return false;
+  const changed = !sameShape(state.places, places);
   state.places = Object.freeze(places);
   emit();
+  return changed;
 }
 
 function getPlaces() {
@@ -270,6 +290,18 @@ export function markHistoryLoaded(place) {
   setHistoryState(place, "loaded");
 }
 
+// Every place back to "idle", so the next selection and the prefetch ask the
+// history route again. The stream's `gap` event is what calls this: the
+// reconnect's catch-up was too long to replay row by row, so the backlog is
+// re-read place by place instead — which is also the only path that repairs
+// a line deleted or changed while the tab was away. The rows already held
+// stay; seedRows merges by seq.
+export function resetHistory() {
+  if (state.history.size === 0) return;
+  state.history = new Map();
+  emit();
+}
+
 // "Has this tab already asked?" — the guard that keeps the empty state from
 // firing a request on every render. Both a fetch in flight and one already
 // answered count as asked.
@@ -300,6 +332,25 @@ export function newestSeq(place) {
   return String(best);
 }
 
+// Is this row one the VIEWER wrote?
+//
+// The one place to ask, because an aliased row — a hood or a forced name —
+// ships no character id to anybody at all (db/lib/archive.js#feedRowShape).
+// Four separate hand-rolled `row.characterId === self.characterId` checks
+// answered this before, and when the id went away three of them silently
+// started answering "no" for a player's own hooded lines: the slow-mode
+// countdown stopped counting, the NEW divider drew above their own words, and
+// the chime rang at them for their own mention.
+//
+// `selfKey` is the viewer's own hoodToken (play/page.js). Learning your own
+// tells you nothing — it is the one hood you were already under.
+export function isOwnRow(row, selfId, selfKey = null) {
+  if (!row) return false;
+  if (selfId && row.characterId === selfId) return true;
+  if (selfKey && row.speakerKey === selfKey) return true;
+  return false;
+}
+
 // Is this row ABOUT the viewer, rather than just near them?
 //
 // What the unread dot draws off. Two ways to qualify, and one disqualifier:
@@ -315,9 +366,10 @@ export function newestSeq(place) {
 // The CHIME is deliberately narrower: Chat.js rings only on the mention half,
 // because a busy conversation ringing on every line is a reason to mute the
 // Chat rather than a reason to look at it. A dot is patient; a sound is not.
-export function isNotableRow(place, row, selfId) {
+export function isNotableRow(place, row, selfId, selfKey = null) {
   if (!selfId || !row) return false;
-  if (row.characterId === selfId) return false;
+  // Your own words are not news, whichever handle the row carries.
+  if (isOwnRow(row, selfId, selfKey)) return false;
   if (typeof place === "string" && place.startsWith("conv:")) return true;
   return typeof row.content === "string" && row.content.includes(`{char:${selfId}}`);
 }
@@ -325,12 +377,12 @@ export function isNotableRow(place, row, selfId) {
 // The newest NOTABLE seq this tab holds for a place, as a string, or null.
 // The dot compares this against the read mark, which is the newest seq
 // overall — so reading to the bottom of a place clears it however it was lit.
-export function notableSeq(place, selfId) {
+export function notableSeq(place, selfId, selfKey = null) {
   const rows = state.confirmed.get(place);
   if (!rows || rows.size === 0) return null;
   let best = null;
   for (const [key, row] of rows) {
-    if (!isNotableRow(place, row, selfId)) continue;
+    if (!isNotableRow(place, row, selfId, selfKey)) continue;
     const seq = BigInt(key);
     if (best === null || seq > best) best = seq;
   }

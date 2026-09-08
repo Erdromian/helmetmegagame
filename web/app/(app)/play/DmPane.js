@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import DmThread from "@/app/components/DmThread";
+import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 import { FeedSkeleton } from "./Feed";
 import EmptyState from "@/app/components/EmptyState";
 import IconButton from "@/app/components/IconButton";
@@ -29,7 +30,9 @@ const MATCH_WINDOW_MS = 30_000;
 
 let optimisticSeq = 0;
 
-export const DM_PLACE_KEY = "gm";
+// Re-exported so every existing `from "./DmPane"` importer is unchanged.
+import { DM_PLACE_KEY } from "@/lib/dmSources";
+export { DM_PLACE_KEY };
 
 export default function DmPane({ self }) {
   const dm = useDmState();
@@ -129,6 +132,9 @@ export default function DmPane({ self }) {
       direction: "INBOUND",
       content,
       source: "player",
+      // Matches the row the server will write. Without it the pending line
+      // draws itself as a grey notice for the instant before its twin lands.
+      kind: DM_KIND.CONVERSATION,
       createdAt: new Date().toISOString(),
       pending: true,
     };

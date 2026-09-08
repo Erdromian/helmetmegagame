@@ -35,12 +35,12 @@ import {
   ensureCharacterRole,
   syncCharacterNarrowcastAccess,
   getGuildMember,
-  isCursed,
   isLeaderWhitelisted,
   isGm,
   onRoster,
-  removeCursedRole,
+  removeGhostRole,
 } from "@/lib/discordGuild";
+import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import {
   computeBudget,
   isSpawnOnly,
@@ -60,6 +60,7 @@ import {
   CURSED_ROLE_SLUGS,
   COMMONER_KIT_SLUGS,
   DEFAULT_COMMONER_KIT_SLUG,
+  LABORING_SPECIALISATION_SLUGS,
 } from "@/lib/characterCreation";
 
 import { reserveRole, releaseRole } from "@lifeweb/db/lib/roleReservation";
@@ -113,6 +114,10 @@ export async function createCharacter(formData) {
   const rawAge = Number.parseInt(formData.get("age")?.toString() ?? "", 10);
   const age =
     Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
+  // "Play from the web", asked on the Identity step. Gated against
+  // GameConfig.playPanelEnabled below, once config is loaded — a server action
+  // is a public endpoint, so the wizard hiding the switch is not the lock.
+  const postedWebOnly = formData.get("webOnly") === "on";
   const postedRoleId = formData.get("roleId")?.toString();
   const tagIds = formData.getAll("tagIds").map((t) => t.toString()).filter(Boolean);
   // Consent for secretly-assigned antagonist seats; normalizeAntagonistSlugs
@@ -145,7 +150,7 @@ export async function createCharacter(formData) {
   const roleId = assignedEntry?.assignedRoleId ?? postedRoleId;
   if (!roleId) return { error: "Pick a role before confirming." };
 
-  const [role, config, state, member, openTurn] = await Promise.all([
+  const [role, config, state, member, openTurn, cursed] = await Promise.all([
     prisma.role.findUnique({
       where: { id: roleId },
       include: {
@@ -159,6 +164,10 @@ export async function createCharacter(formData) {
     // Always fresh: a gate must not refuse on a five-minute-old roles list.
     getGuildMember(discordUserId, 0),
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
+    // A database question now, not a Discord role (db/lib/curse.js). Read out
+    // here with the rest rather than inside the transaction below: by the time
+    // that runs, the new ALIVE row exists and the answer would always be no.
+    isPlayerCursed(prisma, discordUserId),
   ]);
   if (!role) return { error: "That role no longer exists." };
 
@@ -190,7 +199,6 @@ export async function createCharacter(formData) {
     return { error: "That role isn't available to you." };
   }
 
-  const cursed = isCursed(member);
   if (!assignedEntry && !isRoleSelectable({ role, cursed, leaderWhitelisted })) {
     return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
   }
@@ -348,8 +356,11 @@ export async function createCharacter(formData) {
   // and the crate arrives unopened — the player still presses Consume, same as
   // one they chose.
   if (role.slug === "commoner") {
-    const kitHeld = [...selected, ...startingTags].some((t) => COMMONER_KIT_SLUGS.includes(t.slug));
-    if (!kitHeld) {
+    const tradeHeld = [...selected, ...startingTags].some(
+      (t) =>
+        COMMONER_KIT_SLUGS.includes(t.slug) || LABORING_SPECIALISATION_SLUGS.includes(t.slug),
+    );
+    if (!tradeHeld) {
       const kit = await prisma.tag.findUnique({ where: { slug: DEFAULT_COMMONER_KIT_SLUG } });
       if (kit) startingTags.push(kit);
     }
@@ -384,6 +395,20 @@ export async function createCharacter(formData) {
   const heldSlugs = [...selected, ...startingTags]
     .filter((t) => tagIdsToGrant.has(t.id))
     .map((t) => t.slug);
+  // The shape travelOptions wants (db/lib/locationGraph.js), handed to
+  // seedMemories so it does not re-query this character's tags once per
+  // remembered Location. Nothing is equipped at creation, so `equipped: false`
+  // is not an assumption — it is the whole truth about a character this new.
+  const heldTagRows = heldSlugs.map((slug) => ({ equipped: false, tag: { slug } }));
+
+  // `!== false` rather than truthy: no config row leaves the switch offered,
+  // matching actions.js#updateCharacterProfile. Written as a plain column on
+  // the new row rather than through db/lib/webOnly.js#setWebOnly — that is the
+  // FLIP path, and its Discord half would revoke access this character has not
+  // been granted. webOnlyChangedAt stays null on purpose, so a player who
+  // ticked it by mistake can untick it on the Bio card straight away instead
+  // of waiting out the two-hour cooldown.
+  const webOnly = config?.playPanelEnabled !== false && postedWebOnly;
 
   let created;
   try {
@@ -409,6 +434,10 @@ export async function createCharacter(formData) {
           name,
           gender: effectiveGender,
           age,
+          // Set before placement runs, so applyLocationMoveSideEffects and
+          // every helper under it sees it already on and grants nothing
+          // (CHAT.md §6a).
+          webOnly,
           roleId: role.id,
           roleTitle: role.name,
           factionId: role.factionId,
@@ -486,9 +515,12 @@ export async function createCharacter(formData) {
   }
   // The map this seat wakes up with (db/lib/startingMemories.js). After the
   // transaction, so travelOptions can read the tags it just granted, and after
-  // placement for no reason but reading order — both writes are upserts and
-  // neither can downgrade the other.
-  await seedMemories(prisma, created, startingMemorySlugs(role.slug, heldSlugs)).catch(() => {});
+  // placement, which has already recorded the Location they are standing in.
+  await seedMemories(
+    prisma,
+    { ...created, tags: heldTagRows },
+    startingMemorySlugs(role.slug, heldSlugs),
+  ).catch(() => {});
   await syncCharacterNickname(discordUserId, formatBareName({ firstName, lastName })).catch(() => {});
 
   // Somebody who arrives already Wanted has three posters go up in the same
@@ -507,7 +539,9 @@ export async function createCharacter(formData) {
       .catch((err) => console.error("postDebtorNotices failed:", err));
   }
   if (!created.locationId) await syncCharacterNarrowcastAccess(created.id).catch(() => {});
-  if (cursed) await removeCursedRole(discordUserId).catch(() => {});
+  // The ghost seat comes off. The curse itself needs no write: this new ALIVE
+  // row is already the answer db/lib/curse.js gives.
+  if (cursed) await removeGhostRole(discordUserId).catch(() => {});
 
   // The Depot's turret spares exactly one face, and it used to be a GM's job
   // to type it in — so a new Merchant met a gun he was forbidden to arm and
@@ -601,7 +635,7 @@ export async function reserveRoleAction(roleId) {
   if (role.requiresWhitelist && !leaderWhitelisted) {
     return { error: "That role isn't available to you." };
   }
-  const cursed = isCursed(member);
+  const cursed = await isPlayerCursed(prisma, discordUserId);
   if (!isRoleSelectable({ role, cursed, leaderWhitelisted })) {
     return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
   }

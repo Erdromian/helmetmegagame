@@ -307,11 +307,27 @@ stamps start).
 ## 9. What this does not do
 
 - **Forgery is HALF implemented.** The `forger` tag (Brigands only,
-  `general-brigand`) is now a real recipe skill: every one of the six courtier
-  wax seals is `craftable` behind it, at 1 turn and 2 ⬢, so a brigand can make
-  a Fleur-de-Lis and seal a letter with somebody else's mark. The seals stay
+  `general-brigand`) is a real recipe skill, and it now reaches **every stamp
+  in the game** — the six courtier wax seals *and* all eight office stamps,
+  the Baron's included — each `craftable` at 1 turn and 2 ⬢. So a brigand can
+  make a Fleur-de-Lis, or the Bishop's own mark, and seal a letter with it.
+
+  The two sets throttle differently, on purpose. The six courtier seals are
   `exclusive: true`, so a forger holds one at a time and has to hand each off
-  before making the next — a deliberate throttle, not an oversight.
+  before making the next. The eight office stamps are not, because a stamp is
+  an object attached to a seat rather than a signature you chose — holding the
+  Bishop's and the Censor's at once is a situation the game wants. Note that
+  `exclusive` now bites on the craft route where it used to be inert on these:
+  `craftRequest` calls `exclusiveConflict`, and before they were craftable
+  there was no path it could apply to.
+
+  Nothing was opened up besides crafting: the office stamps stay
+  `purchasable: false`, so the only two routes to the Baron's stamp are taking
+  it off the Baron and forging one. The recipe stays hidden from everyone but
+  a forger, because `forger` is a `catalog: gm` skill and
+  `web/app/(app)/character/page.js` strips a recipe gated on a hidden trade —
+  a "Recipe: Forger · 1 turn · 2 ⬢" line on the Baron's stamp would tell the
+  whole game that stamps get forged, which is the one thing a forger pays for.
 
   What is still NOT implemented is forging the **handwriting**: a letter's
   `paperAuthor` is always the writer's presented name, and nothing lets a

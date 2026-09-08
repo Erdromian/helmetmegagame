@@ -18,6 +18,13 @@
 // dialog shows once you chose to look.)
 //
 // `gate`: a key on the provider's pools that greys the button when false.
+// `gateReason`: the sentence a greyed button's tooltip gives for it. Every
+// gate carries one, and every one is a fact about YOUR OWN sheet — the rule
+// above forbids anything else. Where the server already knows a sharper
+// sentence (Look at's eyes, Extract's tools) `pools.gateReason[mode]` wins.
+// `instant`: the verb runs on the click, with no dialog — a confirm at most
+// (RequestActionsProvider.js#runInstant). Documentation; the behaviour is the
+// INSTANT table in components/actions/index.js.
 // `show`: a key that HIDES the button instead — for the rare tags (a bird,
 // literacy) where a permanently dead icon would teach nothing except that
 // something exists which you cannot have.
@@ -97,14 +104,27 @@ export const ACTION_SECTIONS = [
     key: "self",
     label: "You",
     actions: [
-      { mode: "craft", icon: HammerIcon, label: "Craft", gate: "canCraft" },
+      {
+        mode: "craft",
+        icon: HammerIcon,
+        label: "Craft",
+        gate: "canCraft",
+        gateReason: "You know no recipe you could make right now.",
+      },
       {
         mode: "destroy",
         icon: TrashIcon,
         label: "Destroy",
         gate: "canDestroy",
+        gateReason: "You're carrying nothing you could destroy.",
       },
-      { mode: "consume", icon: MealIcon, label: "Consume", gate: "canConsume" },
+      {
+        mode: "consume",
+        icon: MealIcon,
+        label: "Consume",
+        gate: "canConsume",
+        gateReason: "Nothing you're carrying can be used up.",
+      },
       // No gate: you can always move ⬢ or put something down.
       { mode: "transfer", icon: HandOffIcon, label: "Transfer" },
       // HIDDEN rather than greyed, the same reasoning Crucify and the Factory
@@ -124,12 +144,14 @@ export const ACTION_SECTIONS = [
         icon: DocumentsIcon,
         label: "Learn Skill",
         gate: "canLearn",
+        gateReason: "Nobody here can teach you anything you haven't got.",
       },
       {
         mode: "teach",
         icon: SpeakerIcon,
         label: "Teach Skill",
         gate: "canTeach",
+        gateReason: "You have nothing to teach that anyone here could learn.",
       },
       // Gated on whether YOU have anything to confess — your own sheet,
       // never on whether a chaplain happens to be standing here.
@@ -138,6 +160,7 @@ export const ACTION_SECTIONS = [
         icon: BandageIcon,
         label: "Confess",
         gate: "canConfess",
+        gateReason: "You have nothing to confess.",
       },
       // The two Godard Factory verbs. Both HIDE rather than grey when the
       // place is wrong, which is a different thing from the rule at the top of
@@ -150,6 +173,8 @@ export const ACTION_SECTIONS = [
         label: "Extract",
         show: "canSeeExtract",
         gate: "canExtract",
+        gateReason: "You have nothing to cut with.",
+        instant: true,
       },
       {
         mode: "package",
@@ -172,13 +197,15 @@ export const ACTION_SECTIONS = [
     key: "device",
     label: "The device",
     actions: [
-      { mode: "pointer", icon: EyeIcon, label: "Use Pointer", show: "hasDatacard" },
+      { mode: "pointer", icon: EyeIcon, label: "Use Pointer", show: "hasDatacard", instant: true },
       {
         mode: "arm",
         icon: WoundIcon,
         label: "Arm Nuke",
         show: "hasDatacard",
         gate: "hasDevice",
+        gateReason: "You have the card, but not the device.",
+        instant: true,
       },
       {
         mode: "disarm",
@@ -186,6 +213,8 @@ export const ACTION_SECTIONS = [
         label: "Disarm Nuke",
         show: "hasDatacard",
         gate: "hasDevice",
+        gateReason: "You have the card, but not the device.",
+        instant: true,
       },
     ],
   },
@@ -198,8 +227,18 @@ export const ACTION_SECTIONS = [
     key: "thanati",
     label: "THANATI",
     actions: [
-      { mode: "recall", icon: SpeakerIcon, label: "Recall Comrades", show: "isThanati" },
-      { mode: "recover", icon: CharacterIcon, label: "Recover Equipment", show: "isThanati" },
+      { mode: "recall", icon: SpeakerIcon, label: "Recall Comrades", show: "isThanati", instant: true },
+      // The label is derived from what is missing — see labelFor() below — and
+      // the button greys once both are held, which is your own sheet's fact.
+      {
+        mode: "recover",
+        icon: CharacterIcon,
+        label: "Recover Equipment",
+        show: "isThanati",
+        gate: "canRecover",
+        gateReason: "You have both.",
+        instant: true,
+      },
       { mode: "hideout", icon: KeyIcon, label: "Set Hideout", show: "isThanatiLeader" },
       {
         mode: "purchase",
@@ -207,6 +246,7 @@ export const ACTION_SECTIONS = [
         label: "Purchase Gear",
         show: "isThanati",
         gate: "atHideout",
+        gateReason: "You aren't standing at the hideout.",
       },
     ],
   },
@@ -224,8 +264,15 @@ export const ACTION_SECTIONS = [
         icon: EyeIcon,
         label: "Look at",
         gate: "canExamine",
+        gateReason: "You can't see well enough right now.",
       },
-      { mode: "heal", icon: BandageIcon, label: "Heal", gate: "canHeal" },
+      {
+        mode: "heal",
+        icon: BandageIcon,
+        label: "Heal",
+        gate: "canHeal",
+        gateReason: "You have no Medical training.",
+      },
       { mode: "loot", icon: LootIcon, label: "Loot" },
       { mode: "bind", icon: ShackleIcon, label: "Bind" },
       { mode: "free", icon: KeyIcon, label: "Free" },
@@ -260,6 +307,7 @@ export const ACTION_SECTIONS = [
         icon: CleaverIcon,
         label: "Butcher",
         gate: "canButcher",
+        gateReason: "You aren't a Butcher.",
       },
       { mode: "bury", icon: GraveIcon, label: "Bury Person" },
       // Engraving types a name rather than picking one — the reasoning that
@@ -283,6 +331,7 @@ export const ACTION_SECTIONS = [
         label: "Write",
         show: "canRead",
         gate: "canWrite",
+        gateReason: "You can't see to write right now.",
       },
       // Shown only while you are actually holding a wax stamp. A seal is a
       // fact about your own sheet, so hiding it leaks nothing.
@@ -292,6 +341,7 @@ export const ACTION_SECTIONS = [
         label: "Seal Letter",
         show: "hasSeal",
         gate: "canSeal",
+        gateReason: "You have no written letter to close.",
       },
       {
         mode: "bird",
@@ -299,6 +349,7 @@ export const ACTION_SECTIONS = [
         label: "Send Bird",
         show: "hasBird",
         gate: "canSendBirdToday",
+        gateReason: "Your bird has already flown today.",
       },
     ],
   },
@@ -311,5 +362,29 @@ const BY_MODE = new Map(
 // The dialog title and submit label for a mode — the button's own name.
 export function titleFor(mode) {
   return BY_MODE.get(mode)?.label ?? "Request";
+}
+
+export function actionFor(mode) {
+  return BY_MODE.get(mode) ?? null;
+}
+
+// Names for the two things Recover Equipment hands back, keyed by slug. The
+// slugs are db/lib/thanati.js#RECOVERABLE_SLUGS; the names are what the
+// button says, so it reads "Recover Mask" when the robes are already on.
+const RECOVER_NAMES = { "black-robes": "Robes", "thanati-mask": "Mask" };
+
+// The button's label, given the pools — the same word for every action but
+// Recover, whose label is what it would actually do.
+export function labelFor(action, pools) {
+  if (action.mode !== "recover") return action.label;
+  const missing = (pools?.recoverMissing ?? []).map((slug) => RECOVER_NAMES[slug]).filter(Boolean);
+  if (missing.length === 0) return action.label;
+  return `Recover ${missing.join(" & ")}`;
+}
+
+// Why a greyed button is greyed: the server's sharper sentence when it has
+// one, the registry's otherwise.
+export function reasonFor(action, pools) {
+  return pools?.gateReason?.[action.mode] ?? action.gateReason ?? null;
 }
 

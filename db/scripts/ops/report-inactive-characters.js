@@ -2,35 +2,25 @@
 // (Character.lastActivityTurn) or whose last activity was turn 1 — i.e.
 // characters that look like they haven't posted since day one — plus anyone
 // who has left the Discord guild (Character.leftGuildAt). Prints only; makes
-// no writes. Same lastActivityTurn semantics as db/lib/catatonicPass.js:
-// null reads as "active right now," so it is reported separately from a
-// character genuinely stuck on turn 1.
+// no writes.
+//
+// The buckets themselves live in db/lib/inactivity.js, because the Dev Panel's
+// System reports section shows the same list with a Nudge button beside it and
+// the two must not be able to disagree about who counts as inactive.
 //
 //   npm run db:report-inactive-characters
 require("dotenv").config();
 const { prisma } = require("../../index");
+const { inactiveCharacters } = require("../../lib/inactivity");
 
 async function main() {
-  const turn =
-    (await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } })) ??
-    (await prisma.turn.findFirst({ orderBy: { number: "desc" }, select: { number: true } }));
-  if (!turn) {
+  const { turn, leftGuild, neverActive, sinceDayOne } = await inactiveCharacters(prisma);
+  if (turn == null) {
     console.log("No turns found — nothing to report against.");
     return;
   }
 
-  const characters = await prisma.character.findMany({
-    where: { status: "ALIVE" },
-    select: { id: true, name: true, discordUserId: true, lastActivityTurn: true, leftGuildAt: true },
-  });
-
-  const leftGuild = characters.filter((c) => c.leftGuildAt != null);
-  const neverActive = characters.filter((c) => c.leftGuildAt == null && c.lastActivityTurn == null);
-  const sinceDayOne = characters
-    .filter((c) => c.leftGuildAt == null && c.lastActivityTurn === 1)
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  console.log(`Current/most recent turn: ${turn.number}\n`);
+  console.log(`Current/most recent turn: ${turn}\n`);
 
   console.log(`Left the Discord guild (${leftGuild.length}):`);
   for (const c of leftGuild) {
@@ -44,7 +34,7 @@ async function main() {
 
   console.log(`\nLast active on turn 1 — hasn't posted since day one (${sinceDayOne.length}):`);
   for (const c of sinceDayOne) {
-    console.log(`  - ${c.name} (${c.discordUserId}) — idle ${turn.number - 1} turn(s)`);
+    console.log(`  - ${c.name} (${c.discordUserId}) — idle ${turn - 1} turn(s)`);
   }
 
   console.log(

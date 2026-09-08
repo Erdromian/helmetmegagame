@@ -34,7 +34,7 @@ const {
 } = require("./discordRest");
 const crypto = require("node:crypto");
 const { SPECTATOR_ROLE_ID, gmRoleIds } = require("./roleIds");
-const { cursedRoleId, ensureCursedRoleAppearance } = require("./cursedAccess");
+const { ghostRoleId, ensureGhostRoleAppearance } = require("./ghostAccess");
 const { docsPath } = require("./repoPaths");
 const {
   zoneChannelSpec,
@@ -511,7 +511,7 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
 // the next sync. Only role ids belong in this set.
 function managedOverwriteIds(roleIds) {
   return new Set(
-    [...gmRoleIds(), SPECTATOR_ROLE_ID, cursedRoleId(), ...roleIds].filter(Boolean),
+    [...gmRoleIds(), SPECTATOR_ROLE_ID, ghostRoleId(), ...roleIds].filter(Boolean),
   );
 }
 
@@ -1374,7 +1374,7 @@ async function syncZonesFromYaml(prisma) {
     report.anchors[await syncLocationAnchor(prisma, location, roomsByLocationId.get(location.id) ?? [])] += 1;
   }
 
-  await ensureCursedRoleAppearance().catch((err) =>
+  await ensureGhostRoleAppearance().catch((err) =>
     console.warn(`cursed role appearance: ${err.message}`),
   );
 

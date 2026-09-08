@@ -673,19 +673,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Ungated on purpose: this wanted "Cruel OR Practicus" and the catalog has no
-  # OR gate — requiredTag is a single FK. The conflicts carry it instead.
-  egomaniac:
-    catalog: all
-    name: Egomaniac
-    psychological: true
-    category: general
-    group: general-personality
-    description: "You're always smiling. Nothing can break your spirits. ‡"
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
   torturer:
     catalog: all
     name: Torturer
@@ -1035,22 +1022,6 @@ tags:
   # Desire field on the 🔍 embed for free, and that gap is what the Demoness
   # is paying its extra point for. Deliberately not `visible` — being able to
   # read people is not something people should be able to read off you.
-
-  # The counter, and the only rule inspectVision.js reads off the SUBJECT
-  # rather than the viewer: it shuts the Desire field for the Demoness
-  # Seductive and for a Mindreading Gambit alike. Not `visible` — and the 🔍
-  # embed reports a closed read as "Nothing you can read.", the same line an
-  # empty Desire gets, so holding it never announces itself. (Empathetic, the
-  # general-category Gambit this used to name, was retired 2026-09-05.)
-  inscrutable:
-    catalog: all
-    name: Inscrutable
-    category: general
-    group: general-social
-    description: "You are unreadable, so act like it. Nobody can read what your Desires are — not on a Gambit, and not on a 🔍. ‡"
-    pointCost: 7
-    purchasable: true
-    purchasableAfterStart: true
 
   iron-constitution:
     catalog: all
@@ -2222,8 +2193,8 @@ tags:
     category: general
     group: general-brigand
     teachable: true
-    description: "You're invisible in the forest. Good for ambushes. ‡"
-    pointCost: 4
+    description: "You know how to camouflage yourself. When ambushing or doing anything similar in a forested area, you are nearly invisible."
+    pointCost: 3
     purchasable: true
     purchasableAfterStart: true
 
@@ -2232,7 +2203,7 @@ tags:
     name: Forger
     category: general
     group: general-brigand
-    description: "You know how to make letters, seals, and writing appear as though another wrote it. Allows you to craft wax seals. ‡"
+    description: "You know how to craft fake seals, allowing you to impersonate people's letters."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -2286,7 +2257,7 @@ tags:
     name: Mountaineering
     category: skills
     teachable: true
-    description: "You can climb mountains, granting you access to certain locations. ‡"
+    description: "You can climb mountains, granting you access to certain locations."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -2476,12 +2447,17 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # The one Skill that reads on a gate crossing
+  # (db/lib/locationMove.js#announceLevelFor). It moves the announcement down
+  # one step: an unmanned gate says nothing at all, a manned one describes you
+  # instead of naming you. Price left at 5 — Bascinet's call when it stopped
+  # being flavour, so it stays on the ordinary Moderate band.
   stealth:
     catalog: all
     name: Stealth
     category: skills
     teachable: true
-    description: "You know how to step lightly."
+    description: "You know how to step lightly. Unwatched gates do not announce you at all, and a guarded one records only what a passer-by saw. ‡"
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -3008,7 +2984,7 @@ tags:
     name: Bound
     category: status
     group: status-debuffs
-    description: "Restrained — can't act, can be looted or moved by whoever bound them."
+    description: "Restrained — can't act, and their shouts don't carry past where they stand; can be looted or moved by whoever bound them. ‡"
     pointCost: 0
     visible: true
     purchasable: false
@@ -3683,6 +3659,23 @@ tags:
       resourceCost: 8
       skills: [medical-expert]
       gambit: true
+
+  # The end of the line. Not a wound and not curable — a marker on a sheet
+  # whose owner was vaporised outright by one of the Thanati rites or by the
+  # bomb (db/lib/characterDeath.js, the `gib` option). Every other tag the
+  # character held is deleted when this one lands, and no corpse is minted, so
+  # there is nothing left to loot, carry, butcher or bury.
+  gibbed:
+    catalog: all
+    name: Gibbed
+    category: health
+    group: health-infection
+    description: "Vaporized."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    healable: false
 
   # --- Wounds ------------------------------------------------------------
   bruised:
@@ -4817,7 +4810,7 @@ tags:
     name: Fishing Boat
     category: assets
     group: assets-property
-    description: "A flat-bottomed boat you pole yourself. While it's equipped you get one extra free zone crossing each turn, but only between the Forest, the Black Hills and the Marshes — the boat follows the water and nothing else. Adds +1 to your Fishing labor. You can't have it out at the same time as a {tag:horse} or a {tag:cart}, and it waits outside indoors. ‡"
+    description: "While it's equipped, a fishing boat gives you +1 ⬢ while fishing, and an extra free zone move — but only between the Black Hills, the Marshes and the Forest. You can't have it out at the same time as a {tag:horse} or a {tag:cart}, and it waits outside indoors."
     pointCost: 4
     visible: true
     tradeable: true
@@ -4837,7 +4830,7 @@ tags:
     name: Cart
     category: assets
     group: assets-property
-    description: "A standard hand-cart to push more than you can carry. The wheels work most of the time. Only counts while it's equipped, and it waits outside indoors. Upgrades the {tag:horse}, letting you carry up to 6 people total. {carry:cart} ‡"
+    description: "A standard hand-cart to push more than you can carry. The wheels work most of the time. {carry:cart} With a {tag:horse} it takes up to six of you across a zone together, and the crossing costs the people you bring nothing. Only counts while it's equipped, and it waits outside indoors."
     pointCost: 5
     visible: true
     tradeable: true
@@ -9742,12 +9735,21 @@ tags:
   # like every other piece of office regalia, so prying the Bishop's stamp off
   # the Bishop is exactly the kind of thing the game is for (TAGS.md §5).
   #
+  # A forger can now make every one of them, on the same recipe as the six
+  # courtier seals above (Bascinet's call: a forger can craft ANY stamp in the
+  # game). Nothing else opens: they stay `purchasable: false`, so the only two
+  # routes to a Baron's stamp are taking it off the Baron and forging one.
+  # Secrecy holds without extra work, because `forger` is a `catalog: gm`
+  # skill and character/page.js strips a recipe gated on a hidden trade from
+  # everyone who does not hold it.
+  #
   # NOT `exclusive`, unlike the six above. A stamp is an object attached to a
   # seat rather than a signature you chose, so holding the Bishop's and the
   # Censor's at once is a real and interesting situation — you took one of
-  # them off somebody. `exclusive` is also only enforced on the purchase paths,
-  # and nothing here is purchasable, so setting it would be inert as well as
-  # wrong.
+  # them off somebody. Note this now MATTERS where it used to be inert:
+  # `exclusiveConflict` runs on the craft route, so marking these exclusive
+  # would stop a forger holding two forged stamps at once. Leaving them open
+  # is deliberate.
 
   bannerets-wax-stamp:
     catalog: gm
@@ -9762,6 +9764,12 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [forger]
+      gambit: false
 
   barons-wax-stamp:
     catalog: gm
@@ -9776,6 +9784,12 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [forger]
+      gambit: false
 
   esculaps-wax-stamp:
     catalog: gm
@@ -9790,6 +9804,12 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [forger]
+      gambit: false
 
   meisters-wax-stamp:
     catalog: gm
@@ -9804,6 +9824,12 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [forger]
+      gambit: false
 
   censors-wax-stamp:
     catalog: gm
@@ -9818,6 +9844,12 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [forger]
+      gambit: false
 
   hands-wax-stamp:
     catalog: gm
@@ -9832,6 +9864,12 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [forger]
+      gambit: false
 
   bishops-wax-stamp:
     catalog: gm
@@ -9846,6 +9884,12 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [forger]
+      gambit: false
 
   inquisitors-wax-stamp:
     catalog: gm
@@ -9860,6 +9904,12 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [forger]
+      gambit: false
 
   # The one stamp with no mark in this file. The Merchant's bears his actual
   # initials, so it is written once at character creation, beside the line that

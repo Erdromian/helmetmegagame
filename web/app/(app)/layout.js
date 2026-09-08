@@ -1,10 +1,6 @@
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
 import { getGmSession } from "@/lib/discordGuild";
-import { getOpenTurn } from "@/lib/turn";
 import AppRail from "../components/AppRail";
-import TurnChip from "../components/TurnChip";
-import TurnChipAsync from "../components/TurnChipAsync";
 import { GM_NAV, PLAYER_NAV } from "@/lib/navItems";
 
 // The nav item lists and loadNavItems moved to web/lib/navItems.js when (desk)
@@ -22,17 +18,14 @@ export default async function AppLayout({ children }) {
   const { session, isGm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
 
-  // Not awaited here — passed down so Suspense can stream it in behind the
-  // shell instead of blocking every navigation.
-  const turnPromise = getOpenTurn();
-
+  // No turn chip here any more. It used to be a bubble pinned to the corner of
+  // the viewport for every route in this group, hidden by CSS on Chat because
+  // Chat drew its own in its header. Every page has that header now, so the
+  // turn is stated once, in it — see components/AppHeader.js.
   return (
     <div className="app-shell">
       <AppRail discordUserId={session.discordUserId} fallback={isGm ? GM_NAV : PLAYER_NAV} />
       <main className="app-main">{children}</main>
-      <Suspense fallback={<TurnChip turn={null} />}>
-        <TurnChipAsync turnPromise={turnPromise} />
-      </Suspense>
     </div>
   );
 }

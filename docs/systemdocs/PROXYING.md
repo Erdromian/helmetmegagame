@@ -151,6 +151,58 @@ re-creates it verbatim as the bot, tagged **Quest** — see `CHANNELS.md`
 character would otherwise have that starter message proxied, and deleting a
 forum post's starter message destroys the entire post.
 
+### What happens to a message typed while the bot was down
+
+Nothing proxies it, because `messageCreate` never fires. That fails three ways
+at once, and the first is the one that matters:
+
+1. **The mask leaks.** The raw message stays in the channel under the player's
+   real Discord account and nickname — the exact thing §2 exists to prevent.
+2. **The web never sees it.** `/play` and `/archive` render `ArchiveEntry` rows
+   and never read Discord, so with no row it is invisible on the site forever.
+3. **The turn wipe deletes it**, so it disappears having never been recorded.
+
+`bot/src/lib/messageCatchUp.js` sweeps for these on boot and again whenever the
+gateway hands the bot a **fresh session** — the mirror of `feedOutbox.js`'s
+drain, which replays web rows that never reached Discord. It is not a rare
+case: Railway rebuilds both services on every push, so the bot restarts many
+times a day and every restart is one of these windows.
+
+**Under two hours old**, the message is handed straight back to
+`messageCreate.execute` and gets the entire ordinary treatment — proxied,
+recorded, deleted, mentions relayed. A recovered message is meant to be
+indistinguishable from one caught live, and running the same code is the surest
+way to manage that.
+
+**Older than that**, the words are written to `ArchiveEntry` with the message's
+**real** timestamp and the raw message is deleted, but nothing is posted back
+into the channel: dropping an hours-old line into a room that moved on reads as
+somebody talking to themselves. The author gets one quiet DM per sweep saying
+so. Such a row carries no `discordMessageId`, and `feedOutbox.js#pushRow`
+refuses anything whose `source` is not `WEB`, so it can never be posted later.
+
+**There is no cursor and no watermark column.** The ordinary path deletes the
+player's message as its last step, so a raw message still standing *is* the
+marker of one nobody handled — which also makes the sweep safe to run twice.
+The obvious alternative is wrong in a way worth recording: the newest
+`ArchiveEntry.discordMessageId` for a channel is the **webhook repost's** id,
+minted later than the raw messages still queued behind it, so an `after:`
+cursor built from it would skip every older message still waiting — and skip it
+on every future run.
+
+Two things bound the damage. A channel where the bot lacks **Manage Messages**
+is skipped whole and logged, because reposting without being able to delete
+would duplicate the message on every restart until the next wipe. And a
+message younger than ten seconds is left to the live handler, which may have it
+in hand already.
+
+One thing to know as a reader: `ArchiveEntry.seq` is assigned at INSERT and
+`/play` is cursored on it, so a recovered row appears at the **bottom** of the
+live feed whatever its timestamp. `/archive`, ordered by `[sentAt, id]`, puts
+it where it belongs. For a sub-minute deploy gap this is invisible; for a long
+outage it is the honest cost of not renumbering the cursor the whole feed rests
+on.
+
 ## 3. Avatars and letter plaques
 
 Profile pictures are stored **as bytes on the row** —
@@ -231,35 +283,38 @@ DMs no longer carry any reaction-driven flow; the bot does not request the
 `db/lib/examine.js` is the one readout behind both, and neither surface
 builds its own. The bot maps it to an `EmbedBuilder`, the web app to JSX
 (`web/app/components/ExamineDialog.js`), but every rule that decides *what is
-in it* — the doctor's eye, the concealed read, Inscrutable, Role, ⬢ — is
+in it* — the doctor's eye, the concealed read, Role, ⬢ — is
 decided once, in that file. Add a field to one and both get it.
 
-The two differ only in who they can be pointed at, and that is the point of
-the web one existing:
+**They no longer differ in who they can be pointed at.** They used to: 🔍
+hung off an archived row and so only ever reached somebody who had **spoken**,
+while Look at reached anyone standing at your Location, silent or not. That
+asymmetry was argued for — a guard on a gate should be able to size up a
+traveller without striking up a conversation first — and it went the other way
+in the end. A silent stranger is a stranger. Sharing a room with somebody
+should not hand you a reading of them, and a dialog that listed everyone
+present was a presence oracle besides.
 
-- **🔍 needs a message.** It hangs off an archived row, so it only ever
-  works on someone who has **spoken**. That was never a hiding rule — a
-  guard on a gate could not size up a silent traveller without first striking
-  up a conversation with them.
-- **Look at needs co-presence.** Everyone `ALIVE` standing at your Location,
-  silent or not. It is the one people-picker on the sheet that does **not**
-  use `peopleHere()`: it lists the concealed too, under their alias, exactly
-  as the **Who's here?** anchor button already lists them. Acting on somebody
-  means identifying them, so a hood takes you off every other menu; *looking*
-  at a hooded figure is what a hood is for. No presence leaks that
-  `Who's here?` does not already publish at Location grain.
+So every look now needs a **line**, and answers for the identity that line was
+said under (§5a). One function does it: `db/lib/examineRow.js#examineRow`,
+pressed against an `ArchiveEntry.seq` rather than a character id. That is what
+lets a hooded line carry an eye at all — the server resolves the speaker, so
+the page can offer the look without ever being told who is under the hood, and
+the hood token in `db/lib/whosHere.js` is no longer what a look is keyed on.
 
-Both read a hood the same impoverished way (§5), both are free, spend no
-Move, file no `Request` and tell the subject nothing.
-`web/app/(app)/character/examineActions.js` is the web half: two server
-actions, both read-only.
+Four surfaces, one implementation: 🔍 and 📸 in Discord, the eye on a row in
+the web feed, and the eye in the HERE column, which points at the last line it
+watched that person say. All four read a hood the same impoverished way (§5),
+all four are free, spend no Move, file no `AuditLog` row and tell the subject
+nothing. `web/app/(app)/character/examineActions.js` is the sheet's half, and
+its picker lists who you have heard rather than who is nearby.
 
 **✏️ is a button and a modal, and writes no inbound DM at all**
 (`bot/src/lib/editModal.js`). A reaction carries no interaction token, so a
 modal cannot open straight off ✏️. The path is: reaction → a DM carrying one
 "Edit text" button → the click is an interaction → modal, prefilled with the
 current text. `edit:open:<messageId>` opens it, `edit:send:<messageId>`
-submits. The prompt DM is a `system_notice`, so no GM surface shows it.
+submits. The prompt DM is `kind: QUIET`, so no GM surface shows it.
 
 `handleEditOpen` must **not** ack first — `showModal` is the acknowledgement.
 The prefill comes from an in-memory stash armed when ✏️ is pressed, not from a
@@ -279,13 +334,14 @@ sitting in the GM inbox reads exactly like mail. A first fix tagged them
 `source: "prompt_reply"` via a `pendingPrompts` map so the desks could skip
 them; the tagging worked, but the rail badge in `web/lib/navItems.js` had no
 noise predicate at all, so the chime still rang on every edit. The map and its
-source are gone now that the flow produces no DM to tag. `prompt_reply` lives
-on only as a read-side filter for the rows already in the table
-(`web/lib/dmThread.js#withoutDmNoise` and its raw-SQL twin `dmNoiseSql`, which
-every GM-facing DM query now shares precisely so they cannot drift apart
-again).
+source are gone now that the flow produces no DM to tag, and `prompt_reply`
+is not read by anything either: the `dm_kind` migration reclassified those
+historical rows as `kind: QUIET`, so they stay off every GM surface without a
+filter naming them. Which rows a GM sees is `DirectMessage.kind` now
+(`db/lib/dmKinds.js`), written by `sendDm` rather than remembered by whoever
+adds the next DM — see `PLAYER-DESK.md` §5.
 
-`/conceal`'s prompt never needed any of this; it is already a `system_notice`
+`/conceal`'s prompt never needed any of this; it is plumbing like the rest,
 and the player retypes in the channel.
 
 The bot needs the `MESSAGE_CONTENT` privileged intent for any of this
@@ -367,8 +423,21 @@ When two concealing items are worn at once, the **outermost** wins — highest
 `Tag.equipLayer` — because that is the one an onlooker can actually see. A coif
 under a knight's helm is a coif nobody can see.
 
-`web/public/assets/unknown.png` survives, but only as history: `ArchiveFeed.js`
-still needs it for entries archived before concealment had a face.
+`web/public/assets/unknown.png` is gone. What replaced it is the **question-mark
+plate**, drawn in CSS by `web/app/components/CharacterAvatar.js` under the
+`unknown` prop — the same circle a faceless row has always drawn, holding a
+literal `?` rather than the first letter of a name, because one letter is
+enough to tell two hoods apart. It stands for a face you have not been shown:
+an archived line said before `ArchiveEntry.presentedAvatarPath` existed, a note
+starred before `Note.presentedAvatarPath` did, and — the common case — somebody
+standing in the room you have not watched speak. Where a real URL is needed
+instead, because Discord cannot render CSS, the blank letter plaque
+`/assets/letters/_default.webp` stands in.
+
+**A sprite is not published by presence.** The mask is what somebody looks like
+*while you are watching them speak in it*, and drawing it in the HERE column
+for anybody who walked into the room announced a cult meeting to the first
+person through the door. So a face and an eye are earned: see §5a.
 
 The row records the alias it was posted under (`ArchiveEntry.concealedAlias`),
 and `proxyRowFor` works out whether that was a hood or a forced name by
@@ -401,12 +470,9 @@ also the only ones that print what the tag costs (`TAGS.md` §5) — everything
 else on the embed is a bare name.
 
 The **Desire** field on that same embed is bought by exactly one tag, the
-Demoness's Seductive (`db/lib/inspectVision.js`), and closed by
-**Inscrutable**, the one rule in that file read off the *subject* rather than
-the viewer. A closed read renders `Nothing you can read.` — byte for byte what
-a subject with no active Desire produces, so a reader cannot tell "they're
-guarded" from "there's nothing there", and holding Inscrutable never
-advertises itself. Mindreading buys no field at all: it reads a Desire on a
+Demoness's Seductive (`db/lib/inspectVision.js`). A subject with no active
+Desire renders `Nothing you can read.`, so the field never reports more than
+it has. Mindreading buys no field at all: it reads a Desire on a
 Gambit after a conversation, and that is the GM's call, not the bot's. Being
 free and silent is what the Demoness tag is paying its extra point for.
 - **✏️/❌** are unchanged; both already gate on `proxy.discordUserId`.
@@ -449,6 +515,57 @@ the form posted, and drops any upload. The **@-mention role and the nickname
 keep the real bare name** on purpose (§6, §8) — so the `/add` picker naming a
 Beast by their old name is intended. Nothing is written when the tag lands, so
 there is no grant hook: the next message is already the Beast's.
+
+### 5a. A face and an eye are earned
+
+Presence is public. **Who** is standing in a room is not a secret and never
+was: the HERE column on `/play` and the **Who's here?** button both list
+everyone there, hooded or not, under the name or the alias they are wearing.
+
+What is over somebody's face is a different question, and the two used to be
+answered together. The column drew every concealed person wearing their own
+`Tag.concealSprite`, so opening it in the Underquarter announced *two silver
+masks are standing here* — which is precisely what a Thanati in a basement is
+not supposed to broadcast. Standing somewhere silently should not publish what
+you are wearing.
+
+So a **sighting** is what buys a face, and the same sighting is what buys a
+look. `db/lib/sightings.js#lastSightings` answers it:
+
+> You have seen a character **this turn** if a line of theirs sits in a place
+> your own feed shows you, in the open turn.
+
+The scope is `db/lib/feedAccess.js#placesFor` — anywhere you could read it, not
+only where you are standing, because you did read it. Sightings die with the
+turn, and nothing stores them: they are two queries over `ArchiveEntry`, which
+already froze both halves of a presented identity at send time.
+
+**What you saw is frozen, and that is the whole of it.** The name, the face and
+the identity Examine answers for all come from the LAST line you saw, never
+from live state. Somebody who chats bare-faced and then pulls a mask on in
+private is still listed under their own name with their own face until the turn
+rolls — a hood put on after you heard them speak does not protect them from
+you. It follows that a sighting decides which of `whosHere`'s two lists
+somebody lands in, rather than their concealment now.
+
+Four states, and only the eye's absence marks the difference in the column:
+
+| | you have heard them | you have not |
+|---|---|---|
+| **under a name** | their face, and an eye | their face, no eye |
+| **under a hood** | the mask you saw, and an eye | the question-mark plate, no eye |
+
+An unseen named row keeps its own face because there was never anything to hide
+there. The eye is *absent* rather than greyed: the row already drops it for
+yourself, so that is one rule instead of two, and a disabled eye would need a
+sentence explaining itself.
+
+Your own row is always seen. Nobody should have to speak to learn what they
+look like.
+
+**Discord needs none of this** and is unchanged. Its list is text with no faces
+in it, and 🔍 has always required the subject to have spoken — so
+`whosHere(..., { withSightings: true })` is opt-in, and only the web asks.
 
 ## 6. Mentions and conversations
 
@@ -669,7 +786,7 @@ title off itself.
 | Discord username/display name changes | `bot/src/events/userUpdate.js` |
 | Rejoin | `bot/src/events/guildMemberAdd.js` |
 | Character created, saved on `/character`, or renamed by a GM | `web/lib/discordGuild.js#syncCharacterNickname` (REST) |
-| Bot connect/reconnect | `bot/src/events/ready.js` → `syncNicknamesForGuild`, a one-time catch-up bulk pass, not a recurring tick |
+| Bot process START | `bot/src/events/ready.js` → `syncNicknamesForGuild`, a one-time catch-up bulk pass, not a recurring tick. **Not** every reconnect: `ready` is `once: true`, so a gateway resume or re-identify does not re-run it |
 
 `buildNickname()` is hand-duplicated between `bot/src/lib/nickname.js` and
 `web/lib/discordGuild.js` — the same twin convention as `isTupperChannel`.

@@ -55,7 +55,8 @@ const FIELDS = [
   },
   {
     key: "playtestModeEnabled", type: "bool", group: "creation", default: false,
-    label: "Playtest only: GMs, playtesters and contributors may join ‡",
+    label: "Playtest",
+    info: "Only GMs, playtesters, and contributors can join",
   },
 
   // --- Economy ---------------------------------------------------------------
@@ -128,11 +129,11 @@ const FIELDS = [
 
   // --- Features --------------------------------------------------------------
   {
-    key: "avatarUploadsEnabled", type: "bool", group: "features", default: false,
+    key: "avatarUploadsEnabled", type: "bool", group: "features", default: true,
     label: "Player avatar uploads",
   },
   {
-    key: "portraitMakerEnabled", type: "bool", group: "features", default: false,
+    key: "portraitMakerEnabled", type: "bool", group: "features", default: true,
     label: "Portrait maker",
   },
   {

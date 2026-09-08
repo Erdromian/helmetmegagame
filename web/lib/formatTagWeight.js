@@ -4,7 +4,7 @@
 // module requires tagWrites/resourceTransfer/roomStash/roomAnnounce/dm at the
 // top, so importing it here would drag prisma and node:fs into a "use client"
 // bundle (the failure web/lib/formatTagArmor.js's comment describes).
-// TransferDialog.js:67 already inlines the Assets half for the same reason.
+// actions/MoveThingsDialog.js already inlines the Assets half for the same reason.
 // If rowWeight's rule changes, change both.
 //
 // Three things weigh nothing against the cap and so show no weight at all:

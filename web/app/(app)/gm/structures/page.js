@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import StructuresView from "./StructuresView";
-import Loading from "../../loading";
+import Loading from "../../Skeleton";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { statusWord } from "@lifeweb/db/lib/structures";

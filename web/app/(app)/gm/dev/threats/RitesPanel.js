@@ -20,63 +20,67 @@ export default function RitesPanel({ words, attempts }) {
   return (
     <section className="flex flex-col gap-4">
       <h3 className="section-title">Rites</h3>
-      <div className="desk-card">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Rite</th>
-              <th>Minimum</th>
-              <th>Word of the Circle</th>
-            </tr>
-          </thead>
-          <tbody>
-            {words.map((w) => (
-              <tr key={w.key}>
-                <td>{w.name}</td>
-                <td className="mono">{w.minChanters}</td>
-                <td>
-                  <span className="chip word-chip">{w.phrase}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="desk-card">
-        {attempts.length === 0 ? (
-          <EmptyState>No attempts.</EmptyState>
-        ) : (
+      {/* Side by side once there is room: two short tables stacked one under
+          the other left most of a wide desk empty. */}
+      <div className="grid gap-3 xl:grid-cols-2 items-start">
+        <div className="desk-card">
           <table className="data-table">
             <thead>
               <tr>
                 <th>Rite</th>
-                <th>Room</th>
-                <th>Status</th>
-                <th>Chanters</th>
-                <th>Opened</th>
-                <th>Fires</th>
+                <th>Minimum</th>
+                <th>Word of the Circle</th>
               </tr>
             </thead>
             <tbody>
-              {attempts.map((a) => (
-                <tr key={a.id}>
-                  <td>{a.riteName}</td>
-                  <td>{a.roomName}</td>
-                  <td className={`mono ${STATUS_TONE[a.status] ?? ""}`}>
-                    {a.status}
-                    {a.note ? <span className="text-danger"> · {a.note}</span> : null}
-                  </td>
+              {words.map((w) => (
+                <tr key={w.key}>
+                  <td>{w.name}</td>
+                  <td className="mono">{w.minChanters}</td>
                   <td>
-                    <span className="mono">{a.chanters.length}</span>
-                    {a.chanters.length > 0 ? <span className="text-muted"> · {a.chanters.join(", ")}</span> : null}
+                    <span className="chip word-chip">{w.phrase}</span>
                   </td>
-                  <td className="mono">{a.openedAt}</td>
-                  <td className="mono">{a.firesAt ?? a.firedAt ?? ""}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        )}
+        </div>
+        <div className="desk-card">
+          {attempts.length === 0 ? (
+            <EmptyState>No attempts.</EmptyState>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Rite</th>
+                  <th>Room</th>
+                  <th>Status</th>
+                  <th>Chanters</th>
+                  <th>Opened</th>
+                  <th>Fires</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attempts.map((a) => (
+                  <tr key={a.id}>
+                    <td>{a.riteName}</td>
+                    <td>{a.roomName}</td>
+                    <td className={`mono ${STATUS_TONE[a.status] ?? ""}`}>
+                      {a.status}
+                      {a.note ? <span className="text-danger"> · {a.note}</span> : null}
+                    </td>
+                    <td>
+                      <span className="mono">{a.chanters.length}</span>
+                      {a.chanters.length > 0 ? <span className="text-muted"> · {a.chanters.join(", ")}</span> : null}
+                    </td>
+                    <td className="mono">{a.openedAt}</td>
+                    <td className="mono">{a.firesAt ?? a.firedAt ?? ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </section>
   );

@@ -1,8 +1,9 @@
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
+import { cursedUserIds } from "@lifeweb/db/lib/curse";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { getOpenTurn } from "@/lib/turn";
-import { dmNoiseSql, genuineConversationSql, dmPreview } from "@/lib/dmThread";
+import { railKindSql, dmPreview } from "@/lib/dmThread";
 import PlayerRail from "./PlayerRail";
 import DeskHeader from "@/app/components/DeskHeader";
 import InboxPoller from "./InboxPoller";
@@ -61,25 +62,20 @@ export default async function PlayerDeskLayout({ children }) {
     }),
   ]);
 
-  // Newest message per conversation. DISTINCT ON is Postgres-specific, no
-  // Prisma equivalent; rides @@index([discordUserId, createdAt]). The noise
-  // predicate (dmThread.js#withoutDmNoise) must stay null-safe: `NOT (x = y)`
-  // is NULL, not true, when x is NULL, and a NULL predicate drops the row.
-  // Two DISTINCT ON queries because genuineConversationSql additionally
-  // drops bot/effect noise from the preview only, not the recency/unread state.
-  const [latestMessages, genuineMessages, unreadRows, claims, clock] = await Promise.all([
+  // Newest CONVERSATION message per player. DISTINCT ON is Postgres-specific,
+  // no Prisma equivalent; rides @@index([kind, discordUserId, createdAt]).
+  //
+  // One query, where there used to be two. The second existed to find the last
+  // line a PERSON wrote, separately from the last line of any kind, because a
+  // hunger notice could otherwise sit at the top of the inbox looking like
+  // mail. A notice is invisible to the rail now (dmThread.js#railKindSql), so
+  // the two questions have the same answer.
+  const [latestMessages, unreadRows, everDmedUserIds, claims, clock] = await Promise.all([
     prisma.$queryRaw`
       SELECT DISTINCT ON ("discordUserId")
         "discordUserId", "id", "direction", "content", "authorDiscordUserId", "source", "createdAt"
       FROM "DirectMessage"
-      WHERE ${dmNoiseSql()}
-      ORDER BY "discordUserId", "createdAt" DESC
-    `,
-    prisma.$queryRaw`
-      SELECT DISTINCT ON ("discordUserId")
-        "discordUserId", "direction", "content", "authorDiscordUserId"
-      FROM "DirectMessage"
-      WHERE ${genuineConversationSql()}
+      WHERE ${railKindSql()}
       ORDER BY "discordUserId", "createdAt" DESC
     `,
     // Per-GM unread counts: INBOUND rows newer than this GM's read cursor
@@ -92,9 +88,13 @@ export default async function PlayerDeskLayout({ children }) {
         AND cr."gmDiscordUserId" = ${session.discordUserId}
       WHERE dm."direction" = 'INBOUND'
         AND dm."createdAt" > COALESCE(cr."lastReadAt", to_timestamp(0))
-        AND ${dmNoiseSql("dm")}
+        AND ${railKindSql("dm")}
       GROUP BY dm."discordUserId"
     `,
+    // Everyone the game has ever written to, notices included — the third leg
+    // of the rail union below. Ids only, off @@index([kind, discordUserId,
+    // createdAt]); the rows themselves are never loaded.
+    prisma.$queryRaw`SELECT DISTINCT "discordUserId" FROM "DirectMessage"`,
     prisma.conversationMeta.findMany({
       where: {
         OR: [
@@ -111,7 +111,6 @@ export default async function PlayerDeskLayout({ children }) {
   const rowsAsOfMs = Number(clock[0].nowMs);
 
   const latestByUser = new Map(latestMessages.map((m) => [m.discordUserId, m]));
-  const genuineByUser = new Map(genuineMessages.map((m) => [m.discordUserId, m]));
   const unreadByUser = new Map(unreadRows.map((r) => [r.discordUserId, r.unreadCount]));
   const claimByUser = new Map(claims.map((c) => [c.playerDiscordUserId, c.claimedByDiscordUserId]));
   const mutedUserIds = new Set(claims.filter((c) => c.mutedAt).map((c) => c.playerDiscordUserId));
@@ -123,10 +122,10 @@ export default async function PlayerDeskLayout({ children }) {
   const globalNameById = new Map(guildMembers.map((mem) => [mem.id, mem.globalName]));
 
   // Cursed is a live Discord role, not a DB field.
-  const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
-  const cursedUserIds = new Set(
-    cursedRoleId ? guildMembers.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [],
-  );
+  // Who is cursed is a database question now (db/lib/curse.js), not a Discord
+  // role — and the rows it reads are the ones already loaded above, so this
+  // costs no extra query.
+  const cursed = cursedUserIds(characters);
 
   // Name/role/faction/zone resolve together under one ALIVE-wins rule.
   const characterByUser = new Map();
@@ -153,20 +152,34 @@ export default async function PlayerDeskLayout({ children }) {
   }
 
   // The union: every player who has a conversation, plus every player who has
-  // a character. A row can have one, the other, or both — a character with no
-  // DM history is exactly the case the old inbox could not reach.
+  // a character, plus everyone the game has ever DM'd at all.
   //
-  // "Has a conversation" comes off latestByUser, which is the same noise
-  // predicate a per-user COUNT would have used — so the union is identical,
-  // one query cheaper.
-  const userIds = new Set([...latestByUser.keys(), ...characterByUser.keys()]);
+  // The third leg is there because notices stopped counting as conversation. A
+  // lobby entrant handed a seat (db/lib/lobbySweep.js) or someone offered an
+  // antagonist chair (gm/dev/threatActions.js) has no character row yet and
+  // nothing but notices, so the first two legs miss them entirely and a GM
+  // could reach them by no means at all.
+  //
+  // "Anyone the game has DM'd" rather than "every guild member" on purpose:
+  // the guild also holds bots, spectators, contributors and the GMs, none of
+  // whom belong in a roster, and putting all of them in would have made a
+  // two-letter search return more non-players than players. Being written to
+  // by the game is what makes somebody a person this desk is about.
+  //
+  // The rail with an empty query is still only people with a conversation —
+  // a notice-only row appears when a GM searches and not before
+  // (PlayerRail.js).
+  const userIds = new Set([
+    ...latestByUser.keys(),
+    ...characterByUser.keys(),
+    ...everDmedUserIds.map((r) => r.discordUserId),
+  ]);
 
   const rows = [...userIds].map((discordUserId) => {
     const c = characterByUser.get(discordUserId) ?? null;
     const last = latestByUser.get(discordUserId) ?? null;
-    const genuine = genuineByUser.get(discordUserId) ?? null;
     const username = usernameById.get(discordUserId) ?? "";
-    const { preview, previewIsSystem } = dmPreview(genuine, last, session.discordUserId);
+    const preview = dmPreview(last, session.discordUserId);
     return {
       discordUserId,
       characterId: c?.id ?? null,
@@ -179,12 +192,11 @@ export default async function PlayerDeskLayout({ children }) {
       zoneName: c?.zone?.name ?? "",
       status: c?.status ?? null,
       resources: c?.resources ?? 0,
-      cursed: cursedUserIds.has(discordUserId),
+      cursed: cursed.has(discordUserId),
       catatonic: c ? catatonicCharacterIds.has(c.id) : false,
       username,
       globalName: globalNameById.get(discordUserId) ?? "",
       preview,
-      previewIsSystem,
       lastAtMs: last ? last.createdAt.getTime() : 0,
       lastDirection: last?.direction ?? null,
       // Whether a thread exists, not how long — avoids a per-user COUNT scan.

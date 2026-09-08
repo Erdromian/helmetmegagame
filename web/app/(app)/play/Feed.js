@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/app/components/useRefresh";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import EmptyState from "@/app/components/EmptyState";
@@ -12,8 +12,10 @@ import { CameraIcon, EditIcon, EyeIcon, HoodIcon, MoreIcon, NotesIcon, QuillIcon
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { Readout } from "@/app/components/ExamineDialog";
+import LookReadout from "@/app/components/LookReadout";
 import useActionRunner from "@/app/components/useActionRunner";
-import { photographRow, starRow, lookAt, loadTravel, placeMembers, toggleConceal } from "./actions";
+import { photographRow, starRow, lookAt, lookAtRow, loadTravel, placeMembers, toggleConceal } from "./actions";
+import useVisiblePoll from "./useVisiblePoll";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import {
   useFeed,
@@ -23,10 +25,12 @@ import {
   markPendingFailed,
   retryPending,
   newestSeq,
+  isOwnRow,
 } from "./feedStore";
 import FeedSearch from "./FeedSearch";
 import { useTyping, typingLine } from "./typingStore";
 import { peekSeen } from "./seenStore";
+import { readDraft, writeDraft } from "./draftStore";
 // By PATH, never through the @lifeweb/db barrel: the barrel pulls Prisma and
 // node:fs into whatever imports it, and this is a "use client" file. That
 // module is pure string work with no requires of its own, so it is safe here
@@ -176,6 +180,11 @@ const FeedRow = memo(function FeedRow({
             name={row.name ?? ""}
             version={row.avatarVersion}
             src={row.avatarPath ?? undefined}
+            // A line said under an alias before the game recorded what was
+            // over the speaker's face. It cannot be given one now — the sprite
+            // lived on the tag they were wearing then — so it keeps its secret
+            // and draws the plate (db/lib/archive.js#feedRowShape).
+            unknown={row.unknownFace}
             size={32}
           />
         )}
@@ -234,7 +243,7 @@ const FeedRow = memo(function FeedRow({
               </>
             )}
             {canLook && (
-              <IconButton icon={EyeIcon} label="Look at" onClick={() => onLookAt(row.characterId)} />
+              <IconButton icon={EyeIcon} label="Look at" onClick={() => onLookAt(row.seq)} />
             )}
             {canPhoto && (
               <IconButton icon={CameraIcon} label="Photograph" onClick={() => onPhotograph(row.seq)} />
@@ -315,6 +324,9 @@ const MEMBERS_REFRESH_MS = 60_000;
 // through below says it where there is no composer at all.
 const STREET_LINE = "This is the open street. Step into a room to speak. ‡";
 
+// What `/travel`'s picker says when the reachable places could not be read.
+const ROAD_ERROR = "Couldn't read the road. Try again. ‡";
+
 // The chips a command still wants: a person, a Move kind, or a destination.
 //
 // One row at a time — the FIRST unfilled argument is the question being
@@ -341,12 +353,15 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
   useEffect(() => {
     if (arg?.kind !== "destination") return undefined;
     let cancelled = false;
+    // A refusal or a dropped request is kept apart from an empty list: "no
+    // way out" is a fact about the place, and it must not be what a network
+    // blip reads as.
     loadTravel()
       .then((res) => {
-        if (!cancelled) setDestinations(res?.ok ? res.options : []);
+        if (!cancelled) setDestinations(res?.ok ? res.options : { error: res?.error ?? ROAD_ERROR });
       })
       .catch(() => {
-        if (!cancelled) setDestinations([]);
+        if (!cancelled) setDestinations({ error: ROAD_ERROR });
       });
     return () => {
       cancelled = true;
@@ -380,6 +395,7 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
 
   if (arg.kind === "destination") {
     if (!destinations) return <p className="text-sm text-muted">Reading the road…</p>;
+    if (destinations.error) return <p className="text-sm text-muted">{destinations.error}</p>;
     if (destinations.length === 0) return <p className="text-sm text-muted">No way out of here. ‡</p>;
     return (
       <div className="chip-row" aria-label="Where to">
@@ -444,21 +460,7 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
   );
 }
 
-// `/look`'s answer. The SAME readout the sheet's Look at dialog draws
-// (web/app/components/ExamineDialog.js), so a stranger looked at from the
-// composer tells you exactly what one looked at from the column does.
-function LookReadout({ state, onClose }) {
-  const readout = state?.readout ?? null;
-  return (
-    <Modal open title={readout?.name ?? "Look at"} onClose={onClose} width="default">
-      <div className="flex flex-col gap-2">
-        {state?.loading && <p className="text-sm text-muted">Looking…</p>}
-        {state?.error && <FormError>{state.error}</FormError>}
-        {readout && <Readout readout={readout} />}
-      </div>
-    </Modal>
-  );
-}
+
 
 export default function Feed({
   place,
@@ -563,7 +565,13 @@ export default function Feed({
   const typing = typingLine(useTyping(placeKey));
   const coarse = useIsCoarsePointer();
   const confirm = useConfirm();
-  const [draft, setDraft] = useState("");
+  // The box's text. Seeded from what this tab last left unsent in THIS place
+  // (./draftStore.js): Chat.js keys this component on the open place, so a
+  // switch remounts it with a clean slate for everything but the words.
+  const [draft, setDraft] = useState(() => readDraft(placeKey));
+  useEffect(() => {
+    writeDraft(placeKey, draft);
+  }, [placeKey, draft]);
   const [error, setError] = useState(null);
   const [atBottom, setAtBottom] = useState(true);
   const [editingSeq, setEditingSeq] = useState(null);
@@ -614,6 +622,9 @@ export default function Feed({
   const hold = opened.placeKey === placeKey ? opened.hold : 0;
 
   const scrollerRef = useRef(null);
+  // What the scroller holds, so its height can be watched (see the
+  // ResizeObserver below).
+  const innerRef = useRef(null);
   const textareaRef = useRef(null);
   // { at, query, active } — where the live `@word` starts, what has been typed
   // of it, and which row of the popover is highlighted. One piece of state, so
@@ -644,7 +655,7 @@ export default function Feed({
   const [lettersOpen, setLettersOpen] = useState(false);
   const [concealPending, startConceal] = useTransition();
   const [concealError, setConcealError] = useState(null);
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const {
     run: runCommand,
     pending: cmdPending,
@@ -688,7 +699,7 @@ export default function Feed({
     if (slowmodeMs <= 0) return 0;
     let best = 0;
     for (const row of rows) {
-      if (!row.seq || row.characterId !== self.characterId || !row.sentAt) continue;
+      if (!row.seq || !isOwnRow(row, self.characterId, self.speakerKey) || !row.sentAt) continue;
       const at = new Date(row.sentAt).getTime();
       if (at > best) best = at;
     }
@@ -837,13 +848,8 @@ export default function Feed({
   // there is no frame for that at all — so the list could sit wrong for as
   // long as the room stayed quiet. A minute is slow enough to cost nothing and
   // quick enough that nobody notices they waited.
-  useEffect(() => {
-    if (!hasMembers || !placeKey) return undefined;
-    const timer = setInterval(() => setMembersNonce((n) => n + 1), MEMBERS_REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [hasMembers, placeKey]);
-
   const reloadMembers = useCallback(() => setMembersNonce((n) => n + 1), []);
+  useVisiblePoll(reloadMembers, MEMBERS_REFRESH_MS, { enabled: Boolean(hasMembers && placeKey) });
   const membersData = members?.placeKey === placeKey ? members.res : null;
 
   // The `@word` under the caret, recomputed on every edit. In the handler, not
@@ -992,6 +998,14 @@ export default function Feed({
       return;
     }
     const filled = textArg ? { ...values, [textArg.name]: body } : values;
+    // Cleared HERE, not in onOk. /shout fans out to every place that heard it
+    // and only then resolves, so the line was visible in the feed for seconds
+    // while the words still sat in the box — and if anything downstream threw,
+    // onOk never ran and they sat there for good. The plain send at submit()
+    // below has always cleared optimistically; this is the same rule for the
+    // command half, with onFail handing the words back on a refusal.
+    setCommand(null);
+    setDraft("");
     runCommand(
       // `run` may answer with nothing at all — /look and /converse only open
       // something — and useActionRunner reads a missing `ok` as a failure.
@@ -999,9 +1013,15 @@ export default function Feed({
       undefined,
       {
         onOk: (res) => {
-          setCommand(null);
-          setDraft("");
           setCmdLine(res?.line ?? null);
+        },
+        // Back exactly as it was: the chip, the arguments already picked, and
+        // the sentence. Retyping a refused shout is the one thing worse than
+        // watching it sit there.
+        onFail: () => {
+          setCommand({ entry, values });
+          setDraft(body);
+          requestAnimationFrame(() => textareaRef.current?.focus());
         },
       },
     );
@@ -1033,9 +1053,13 @@ export default function Feed({
     addPending(placeKey, {
       clientId,
       seq: null,
-      characterId: self.characterId,
+      // Shaped the way the server will shape it (db/lib/archive.js#feedRowShape):
+      // a hooded send carries the key and no id, so the optimistic row and the
+      // confirmed one agree about which lines are yours.
+      characterId: self.aliased ? null : self.characterId,
+      speakerKey: self.aliased ? self.speakerKey : null,
       name: self.name,
-      avatarVersion: self.avatarVersion,
+      avatarVersion: self.aliased ? null : self.avatarVersion,
       avatarPath: self.avatarPath,
       // What the SERVER will store, not what was typed. Both transforms, in
       // the order db/lib/say.js#transformSpeech runs them.
@@ -1130,20 +1154,26 @@ export default function Feed({
 
   // ---- Somebody else's line ------------------------------------------------
 
-  // Look at, from the row rather than from a picker. The SHEET's own dialog,
-  // opened with the speaker already chosen (RequestActionsProvider), so
-  // nothing about the readout is forked — and the server re-resolves the
-  // looker from the session and re-checks co-presence, which is why handing
-  // it a character id off a row is safe.
+  // Look at, from the row rather than from a picker — and pressed against the
+  // ROW rather than the person. The browser sends a seq and nothing else; the
+  // server resolves who said it, whether they were hooded at the time and
+  // whether this reader may see the place (db/lib/examineRow.js). That is what
+  // lets the eye sit on a hooded line at all, and it answers for the hood worn
+  // when the line was said rather than the one being worn now.
   //
-  // A GM has no dialogs mounted at all, so `open` is simply absent for them.
-  const onLookAt = useCallback(
-    (characterId) => {
-      if (!characterId) return;
-      openAction?.("examine", null, { targetId: characterId });
-    },
-    [openAction],
-  );
+  // It no longer goes through the sheet's dialog, which resolved a person by
+  // id: the readout is the same one either way, and this is the version that
+  // never needs the id.
+  const onLookAt = useCallback((seq) => {
+    if (!seq) return;
+    setLook({ loading: true });
+    lookAtRow(seq)
+      .then((res) => {
+        if (res?.ok) setLook({ readout: res.readout });
+        else setLook({ error: res?.error ?? "You can't see them." });
+      })
+      .catch(() => setLook({ error: "You can't see them." }));
+  }, []);
 
   // Photograph. The camera is not spent (db/lib/photoMint.js) and the print
   // is deduped per (photographer, row) server-side, so a second press on the
@@ -1229,10 +1259,27 @@ export default function Feed({
   // Scrolls the LIST, not the document: scrollIntoView walks every scrollable
   // ancestor, so on a phone it dragged the whole page down under the header
   // every time a row landed.
+  //
+  // On the CONTENT's size, not on the row list. A new row is one thing that
+  // makes the scene taller; the notice cards landing at the top of the
+  // street, a face loading into a run, the members strip above the box
+  // changing height and shrinking the box — each of those used to shove the
+  // reader off the bottom with nothing to put them back. A ResizeObserver on
+  // the scroller and on what it holds catches all of them, after layout.
   useEffect(() => {
     const el = scrollerRef.current;
-    if (el && atBottomRef.current) el.scrollTop = el.scrollHeight;
-  }, [rows]);
+    const inner = innerRef.current;
+    if (!el || !inner || typeof ResizeObserver === "undefined") return undefined;
+    const stick = () => {
+      if (atBottomRef.current) el.scrollTop = el.scrollHeight;
+    };
+    const observer = new ResizeObserver(stick);
+    observer.observe(el);
+    observer.observe(inner);
+    return () => observer.disconnect();
+    // On the place rather than once: a mount that began with no place had no
+    // scroller to watch, and the one that appears with the place needs one.
+  }, [placeKey]);
 
   // Changing place lands the reader at the newest line of the new place, the
   // way opening a channel does. The ref rather than state, so this makes no
@@ -1306,7 +1353,7 @@ export default function Feed({
       return null;
     }
     for (const row of rows) {
-      if (!row.seq || row.characterId === self.characterId) continue;
+      if (!row.seq || isOwnRow(row, self.characterId, self.speakerKey)) continue;
       try {
         if (BigInt(row.seq) > mark) return row.seq;
       } catch {
@@ -1332,28 +1379,36 @@ export default function Feed({
         const at = row.sentAt ? new Date(row.sentAt).getTime() : 0;
         const prevAt = prev?.sentAt ? new Date(prev.sentAt).getTime() : 0;
         const system = row.source === "SYSTEM";
+        // A hooded row somebody else said carries no characterId at all — see
+        // db/lib/archive.js#feedRowShape for why — so runs group on whichever
+        // handle the row has. `speakerKey` is stable per speaker and useless
+        // to the browser for anything else, which is the point.
+        const who = (r) => r?.speakerKey ?? r?.characterId ?? null;
         const startsRun =
-          !prev || prev.source === "SYSTEM" || prev.characterId !== row.characterId || at - prevAt > RUN_GAP_MS;
+          !prev || prev.source === "SYSTEM" || who(prev) !== who(row) || at - prevAt > RUN_GAP_MS;
         // A GM watching with no living character has `self.characterId` null,
         // and so does a SYSTEM line's `row.characterId` — so without the first
         // half of this, every ownerless line in the scene wore Change and Take
         // back as if the GM had said it.
-        const mine = Boolean(row.seq) && Boolean(self.characterId) && row.characterId === self.characterId;
-        const theirs = Boolean(row.seq) && !system && Boolean(row.characterId) && !mine;
-        // THE HOOD RULE, and it is the simplest correct one: the eye is
-        // offered only on a row that carries the speaker's own name. A row
-        // written under an alias — a hood, or a forced name — has
-        // `row.alias` set (db/lib/archive.js#feedRowShape), and opening a
-        // dialog on its character id would be looking a hood up BY ID, which
-        // is exactly what the token in db/lib/whosHere.js exists to prevent.
-        // The eye on that person is in HERE instead, where it goes through
-        // examineHooded and never learns who they are.
+        // Your own lines, hooded ones included — feedStore.js#isOwnRow is the
+        // one place that knows an aliased row carries a key instead of an id.
+        // Only ever a hint: Change and Take back both re-resolve the actor
+        // from the session.
+        const mine = Boolean(row.seq) && isOwnRow(row, self.characterId, self.speakerKey);
+        const theirs = Boolean(row.seq) && !system && Boolean(who(row)) && !mine;
+        // THE HOOD RULE IS GONE, and the eye is offered on every line
+        // somebody else said. It used to be withheld from a row written under
+        // an alias, because opening a dialog on its character id would have
+        // been looking a hood up BY ID — but that was a fact about how the
+        // eye was wired, not a rule anybody wanted. Speaking in front of
+        // somebody is exactly what lets them look at you.
         //
-        // The camera has no such problem: it is pressed against a SEQ, the
-        // server resolves the speaker itself, and a photograph of a hood is a
-        // photograph of a hood — the same impoverished readout the 📸
-        // reaction prints (db/lib/examine.js#concealedReadout).
-        const canLook = theirs && !gm && Boolean(openAction) && !row.alias;
+        // It is pressed against a SEQ now, the way the camera beside it always
+        // was: the server resolves the speaker itself, so the page can offer a
+        // look at a hood without ever being told who is under it, and a
+        // photograph of a hood is still a photograph of a hood
+        // (db/lib/examineRow.js).
+        const canLook = theirs && !gm;
         const canPhoto = theirs && !gm && hasCamera;
         const canRemove = gm && Boolean(row.seq) && !system;
         return {
@@ -1439,13 +1494,14 @@ export default function Feed({
       )}
 
       <div ref={scrollerRef} onScroll={onScroll} className="chat-feed">
+       <div ref={innerRef}>
         {/* The board is nailed to the top of the street, not filed into it in
             the order it went up: a notice is a thing standing there, and it
             has to still be readable after fifty lines of scene. */}
         {notices}
         {withRuns.length === 0 ? (
           historyState === "loaded" ? (
-            <EmptyState>Nothing has been said here yet. ‡</EmptyState>
+            <EmptyState>Nothing has been said here yet.</EmptyState>
           ) : (
             <FeedSkeleton />
           )
@@ -1494,6 +1550,7 @@ export default function Feed({
             })}
           </ul>
         )}
+       </div>
       </div>
 
       {!atBottom && (
@@ -1676,7 +1733,7 @@ export default function Feed({
             // summary they are only listed in, somewhere a GM is watching.
             // The street is not here any more: it has the command-only box
             // above, and says STREET_LINE when somebody types prose into it.
-            <p className="chat-quiet">You can only watch here. ‡</p>
+            <p className="chat-quiet">You’re a ghost. You can’t speak.</p>
           )}
           {/* Paperwork and the hood, beside the send. Neither is a place's
               affordance — they are things you do with your own hands wherever
@@ -1728,7 +1785,7 @@ export default function Feed({
                         // The name every row this composer writes will wear
                         // is a server prop, so the page is what has to
                         // re-read it.
-                        if (res?.ok) router.refresh();
+                        if (res?.ok) refresh();
                         else setConcealError(res?.error ?? "Something went wrong.");
                       } catch {
                         setConcealError("Could not reach the server. Nothing was changed. ‡");

@@ -63,6 +63,20 @@ const BAND_SLUGS = FEAR_BANDS.map((b) => b.slug);
 const PLACE_TERMS = Object.freeze({ CAVE: 14, WILDERNESS: 10, OPEN: -4, INDOORS: -6, HAVEN: -12 });
 const NIGHTLY_DECAY = -4;
 
+// Walking somewhere frightening costs a step charge (arrivalTermFor),
+// and a step is cheap: five walks into the marshes used to be the whole
+// Uncomfortable band, on the first day, before a single turn had closed. So
+// movement is rationed — everything a character's own legs can add to the dial
+// in one open turn, together, stops here. Nothing else is capped: a wound, a
+// death seen, a turret burst and the nightly place term all land in full.
+//
+// The ration counts the delta that ACTUALLY LANDED, after the multipliers and
+// after GameConfig.fearIntensity. Capping the base instead would quietly hand
+// Brave (factor 0.5) twice the allowance of anybody else, which is backwards.
+// Character.moveFearTurnId / moveFearUsed hold the running total, the same
+// shape as zoneMovesTurnId / zoneMovesUsed in locationTravel.js.
+const MOVE_FEAR_TURN_CAP = 15;
+
 // Base values, signed: a gain is positive, relief negative. applyFear defaults
 // to the entry for its kind, so most callers name the kind and nothing else.
 // See FEAR.md for the table with prose. BOUND_HELD and the two moves are
@@ -185,8 +199,12 @@ function placeTermFor(placeClass) {
 // What walking INTO a place costs, or null when it costs nothing.
 function arrivalTermFor(location) {
   const cls = placeClassOf(location);
-  if (cls === "CAVE") return { kind: "CAVE", base: EVENTS.CAVE_MOVE };
-  if (cls === "WILDERNESS") return { kind: "WILDERNESS", base: EVENTS.WILDERNESS_MOVE };
+  // `move: true` is what the ration counts. It cannot be inferred from `kind`:
+  // placeTermFor returns the SAME two kinds for the nightly charge, because
+  // the kind is what the multipliers key on (Rough Camper, Spelunker, the
+  // phobias) and a cave is a cave whether you walked in or slept there.
+  if (cls === "CAVE") return { kind: "CAVE", base: EVENTS.CAVE_MOVE, move: true };
+  if (cls === "WILDERNESS") return { kind: "WILDERNESS", base: EVENTS.WILDERNESS_MOVE, move: true };
   return null;
 }
 
@@ -351,9 +369,16 @@ const FEAR_CHARACTER_SELECT = {
   status: true,
   fear: true,
   discordUserId: true,
+  moveFearTurnId: true,
+  moveFearUsed: true,
   tags: { select: { tagId: true, source: true, equipped: true, tag: { select: { slug: true } } } },
 };
-async function applyFearTerms(tx, characterId, terms, { intensity = null, notify = true, character = null } = {}) {
+async function applyFearTerms(
+  tx,
+  characterId,
+  terms,
+  { intensity = null, notify = true, character = null, moveCapRemaining = null } = {},
+) {
   if (!character) {
     character = await tx.character.findUnique({ where: { id: characterId }, select: FEAR_CHARACTER_SELECT });
   }
@@ -365,13 +390,27 @@ async function applyFearTerms(tx, characterId, terms, { intensity = null, notify
   const equippedSlugs = new Set(character.tags.filter((ct) => ct.equipped).map((ct) => ct.tag.slug));
   const before = character.fear ?? 0;
   let delta = 0;
+  // What the movement terms in this batch contributed, after the ration —
+  // applyArrivalFear adds it to the turn's running total. Stays 0 for every
+  // other caller, which is every caller that passes no moveCapRemaining.
+  let moveApplied = 0;
   if (character.status === "ALIVE" && terms?.length) {
     const k = intensity ?? (await loadIntensity(tx));
+    let moveDelta = 0;
     for (const term of terms) {
       if (!term || !term.base) continue;
-      delta += resolveDelta({ kind: term.kind, base: term.base, heldSlugs, intensity: k, ctx: term.ctx, equippedSlugs });
+      const resolved = resolveDelta({ kind: term.kind, base: term.base, heldSlugs, intensity: k, ctx: term.ctx, equippedSlugs });
+      // Movement is pooled and clamped as a group; everything else — the
+      // Cathedral's relief riding in this very batch included — goes straight
+      // through.
+      if (term.move) moveDelta += resolved;
+      else delta += resolved;
     }
-    delta = Math.round(delta * 100) / 100;
+    if (moveCapRemaining != null && moveDelta > 0) {
+      moveDelta = Math.min(moveDelta, Math.max(0, moveCapRemaining));
+    }
+    moveApplied = Math.round(moveDelta * 100) / 100;
+    delta = Math.round((delta + moveDelta) * 100) / 100;
   }
 
   let after = before;
@@ -398,7 +437,7 @@ async function applyFearTerms(tx, characterId, terms, { intensity = null, notify
   }
   if (dm && notify) scheduleFearDm(dm);
 
-  return { characterId, before, after, delta: Math.round((after - before) * 100) / 100, band, previousBand, dm, granted, removed };
+  return { characterId, before, after, delta: Math.round((after - before) * 100) / 100, moveApplied, band, previousBand, dm, granted, removed };
 }
 
 // One event. `base` may be omitted for the kinds GAINS knows.
@@ -460,28 +499,59 @@ async function applyArrivalFear(prisma, { characterId, fromLocationId, toLocatio
   const arrival = arrivalTermFor(location);
   if (arrival) terms.push(arrival);
 
-  if (location.slug === CATHEDRAL_LOCATION_SLUG) {
-    const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
-    if (openTurn) {
-      const already = await prisma.auditLog.count({
-        where: { actionType: CATHEDRAL_AUDIT_ACTION, turnId: openTurn.id, targetCharacterId: characterId },
+  // One lookup, two users: the Cathedral's once-a-turn relief and the
+  // movement ration below both need the open turn.
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
+
+  if (location.slug === CATHEDRAL_LOCATION_SLUG && openTurn) {
+    const already = await prisma.auditLog.count({
+      where: { actionType: CATHEDRAL_AUDIT_ACTION, turnId: openTurn.id, targetCharacterId: characterId },
+    });
+    if (already === 0) {
+      terms.push({ kind: "CATHEDRAL", base: EVENTS.CATHEDRAL });
+      await prisma.auditLog.create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: CATHEDRAL_AUDIT_ACTION,
+          targetCharacterId: characterId,
+          turnId: openTurn.id,
+          details: { locationId: location.id },
+        },
       });
-      if (already === 0) {
-        terms.push({ kind: "CATHEDRAL", base: EVENTS.CATHEDRAL });
-        await prisma.auditLog.create({
-          data: {
-            actorDiscordUserId: "system",
-            actionType: CATHEDRAL_AUDIT_ACTION,
-            targetCharacterId: characterId,
-            turnId: openTurn.id,
-            details: { locationId: location.id },
-          },
-        });
-      }
     }
   }
   if (!terms.length) return null;
-  return prisma.$transaction((tx) => applyFearTerms(tx, characterId, terms));
+
+  // Between turns there is nothing to ration against, so a move charges in
+  // full — the same answer the Cathedral gives itself two blocks up.
+  const rationed = openTurn != null && terms.some((t) => t.move);
+
+  return prisma.$transaction(async (tx) => {
+    if (!rationed) return applyFearTerms(tx, characterId, terms);
+
+    const character = await tx.character.findUnique({ where: { id: characterId }, select: FEAR_CHARACTER_SELECT });
+    if (!character) return null;
+    const spent = character.moveFearTurnId === openTurn.id ? character.moveFearUsed ?? 0 : 0;
+
+    const result = await applyFearTerms(tx, characterId, terms, {
+      character,
+      moveCapRemaining: MOVE_FEAR_TURN_CAP - spent,
+    });
+
+    if (result?.moveApplied > 0) {
+      // Guarded exactly like the free-move counter in locationTravel.js: the
+      // WHERE re-states what was read, so two arrivals landing in the same
+      // tick cannot both spend the same remainder.
+      await tx.character.updateMany({
+        where:
+          character.moveFearTurnId === openTurn.id
+            ? { id: characterId, moveFearTurnId: openTurn.id, moveFearUsed: spent }
+            : { id: characterId, OR: [{ moveFearTurnId: null }, { moveFearTurnId: { not: openTurn.id } }] },
+        data: { moveFearTurnId: openTurn.id, moveFearUsed: spent + result.moveApplied },
+      });
+    }
+    return result;
+  });
 }
 
 // The relief one consume earns: the largest single figure among what it
@@ -498,6 +568,7 @@ module.exports = {
   BAND_SLUGS,
   PLACE_TERMS,
   NIGHTLY_DECAY,
+  MOVE_FEAR_TURN_CAP,
   EVENTS,
   DESIRE_RELIEF_PER_POINT,
   MULTIPLIER_SLUGS,
@@ -505,6 +576,7 @@ module.exports = {
   bandOf,
   placeClassOf,
   placeTermFor,
+  arrivalTermFor,
   woundRungOf,
   woundFearFor,
   multiplierFor,

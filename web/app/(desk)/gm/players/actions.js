@@ -14,8 +14,9 @@ import { getGmSession, sendDm } from "@/lib/discordGuild";
 import { UserError, guarded } from "@/lib/actionResult";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { getOpenTurn } from "@/lib/turn";
-import { withoutDmNoise, dmNoiseSql } from "@/lib/dmThread";
+import { withoutDmNoise, threadKindSql } from "@/lib/dmThread";
 import { MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
+import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -91,6 +92,7 @@ export async function sendGmDm({ discordUserId, characterId, content, source = "
     const sent = await sendDm(playerDiscordUserId, message, {
       authorDiscordUserId: session.discordUserId,
       source: resolvedSource,
+      kind: DM_KIND.CONVERSATION,
     });
 
     // The row sendDm just wrote, read back by the Discord message id it
@@ -181,7 +183,7 @@ export async function searchConversations({ q }) {
              MAX(dm."createdAt") AS "lastAt"
       FROM "DirectMessage" dm
       WHERE dm."content" ILIKE ${pattern}
-        AND ${dmNoiseSql("dm")}
+        AND ${threadKindSql("dm")}
       GROUP BY dm."discordUserId"
       ORDER BY MAX(dm."createdAt") DESC
       LIMIT ${CONVERSATION_SEARCH_LIMIT}
@@ -475,6 +477,7 @@ async function deliverGmBroadcast(actorDiscordUserId, recipients, message) {
       await sendDm(recipient.discordUserId, message, {
         authorDiscordUserId: actorDiscordUserId,
         source: "gm_broadcast",
+        kind: DM_KIND.CONVERSATION,
       });
     } catch (err) {
       console.error(`GM broadcast to ${recipient.name} (${recipient.discordUserId}) failed:`, err);

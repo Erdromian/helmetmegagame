@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import DevPanelView from "./DevPanelView";
-import Loading from "./loading";
+import Loading from "./Skeleton";
 import { getGmSession } from "@/lib/discordGuild";
 import { loadDevPanelProps } from "@/lib/devPanelData";
 import PageShell from "@/app/components/PageShell";

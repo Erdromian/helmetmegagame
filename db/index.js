@@ -33,6 +33,7 @@ const { runDawnAfflictionPass } = require("./lib/dawnAfflictionPass");
 const { runDepotPass } = require("./lib/depotPass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
 const { getGameState, readGameState } = require("./lib/gameState");
+const { GHOST_ROLE_ID } = require("./lib/roleIds");
 const { announceTurretBurst } = require("./lib/turretBurst");
 const { ambientLine } = require("./lib/ambientLine");
 const { deliverCarryDrop } = require("./lib/carry");
@@ -78,6 +79,7 @@ const { syncZonesFromYaml, refreshLiveRooms } = require("./lib/syncZones");
 const { syncTagsFromYaml } = require("./lib/syncTags");
 const { deleteCharacterRow } = require("./lib/deleteCharacter");
 const { syncRolesFromYaml } = require("./lib/syncRoles");
+const { DM_KIND } = require("./lib/dmKinds");
 const { syncDesiresFromYaml } = require("./lib/syncDesires");
 const { syncDocumentsFromYaml } = require("./lib/syncDocuments");
 const {
@@ -1091,6 +1093,10 @@ async function resolveNeeds(turn, config) {
     // Both guns' DMs, delivered by one loop. It was `depotDms` when there was
     // only the one turret.
     turretDms: [...(depot?.dms ?? []), ...(gatehouse?.dms ?? [])],
+    // Both guns' kills, for the same teardown every other death gets. Until
+    // this was carried up, a turret-killed character kept their personal role,
+    // every channel overwrite and their nickname, and never got the ghost seat.
+    turretDeaths: [...(depot?.deaths ?? []), ...(gatehouse?.deaths ?? [])],
     depotLocationId: depot?.locationId ?? null,
     // Where each gun fired, if either did. Two entries rather than one, because
     // both can go off in the same turn and each is heard by its own zone.
@@ -1143,6 +1149,7 @@ async function advanceTurn() {
   let tagExpiryDms = [];
   let depotLines = [];
   let turretDms = [];
+  let turretDeaths = [];
   let depotLocationId = null;
   let turretBursts = [];
   let catatonicDms = [];
@@ -1209,6 +1216,7 @@ async function advanceTurn() {
       gambitRollNotices,
       depotLines,
       turretDms,
+      turretDeaths,
       depotLocationId,
       turretBursts,
     } = await resolveNeeds(openTurn, config));
@@ -1477,7 +1485,7 @@ async function advanceTurn() {
       );
     }
 
-    const turnDeaths = [...catatonicDeaths, ...dyingDeaths, ...nukeDeaths];
+    const turnDeaths = [...catatonicDeaths, ...dyingDeaths, ...nukeDeaths, ...turretDeaths];
 
     // Same teardown web/lib/discordGuild.js#killCharacter performs, plus a
     // membership check up front so a departed player's steps don't just 403
@@ -1488,7 +1496,15 @@ async function advanceTurn() {
         return null;
       });
 
-      const revoked = await revokeAllCharacterAccess(prisma, death).catch(
+      // `id` spread in because every pass builds its death entry with
+      // `characterId`, and revokeAllCharacterAccess reads `character.id` to
+      // clear private-Room door grants. Without it that deleteMany matched
+      // nothing and a corpse kept every door somebody had held open for them —
+      // silently, since the rest of the revoke worked fine.
+      const revoked = await revokeAllCharacterAccess(prisma, {
+        ...death,
+        id: death.id ?? death.characterId,
+      }).catch(
         (err) => {
           console.error(
             `Failed to revoke access for ${death.name} on an automatic death:`,
@@ -1526,30 +1542,32 @@ async function advanceTurn() {
       }
 
       if (member) {
-        if (process.env.DISCORD_CURSED_ROLE_ID) {
-          await addMemberRole(
-            death.discordUserId,
-            process.env.DISCORD_CURSED_ROLE_ID,
-          ).catch((err) =>
-            console.error(
-              `Failed to grant Cursed to ${death.discordUserId}:`,
-              err.message,
-            ),
-          );
-        }
+        await addMemberRole(death.discordUserId, GHOST_ROLE_ID).catch((err) =>
+          console.error(
+            `Failed to grant the ghost seat to ${death.discordUserId}:`,
+            err.message,
+          ),
+        );
         await setGuildNickname(death.discordUserId, null).catch((err) =>
           console.error(
             `Failed to clear ${death.name}'s nickname:`,
             err.message,
           ),
         );
-        await sendDm(
-          prisma,
-          death.discordUserId,
-          `You have died. ${death.reason}`,
-        ).catch((err) =>
-          console.error(`Death DM to ${death.discordUserId} failed:`, err),
-        );
+        // A turret says it better than this loop can, and already has — its
+        // own DM went out with the burst, in the second person and in the
+        // gun's voice. Sending a generic notice after it would be the same
+        // news twice. Everything else above still runs: the teardown is what
+        // a turret kill was missing, not the words.
+        if (!death.ownDm) {
+          await sendDm(
+            prisma,
+            death.discordUserId,
+            `You have died. ${death.reason}`,
+          ).catch((err) =>
+            console.error(`Death DM to ${death.discordUserId} failed:`, err),
+          );
+        }
       }
     }
     if (turnDeaths.length > 0) {
@@ -1596,7 +1614,7 @@ async function advanceTurn() {
           prisma,
           move.discordUserId,
           `» You arrive at **${move.toLocationName}**. ‡`,
-          { source: "system_notice" },
+          { kind: DM_KIND.QUIET },
         ).catch((err) =>
           console.error(`Arrival DM to ${move.discordUserId} failed:`, err),
         );
@@ -1639,6 +1657,8 @@ async function advanceTurn() {
           await sendDm(prisma, recipient.discordUserId, delivery.content, {
             authorDiscordUserId: delivery.createdByDiscordUserId ?? null,
             source: "staged_push",
+            // A turn result is GM-authored prose, just delivered in bulk.
+            kind: DM_KIND.CONVERSATION,
           });
         } catch (err) {
           failed.push({

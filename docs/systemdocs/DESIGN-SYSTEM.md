@@ -136,7 +136,11 @@ Use these instead of rolling one-off markup.
 | `.status-pill` | A state, coloured by `data-tone`. |
 | `.empty-state` | "Nothing here" text. |
 | `.form-error` | Something went wrong. Always `--danger`. |
-| `.modal-overlay` / `.modal-panel` | Modals — **always** via `Modal`, usually via `useConfirm()`. |
+| `.modal-overlay` / `.modal-panel` | Modals — **always** via `Modal`, usually via `useConfirm()`. Under 640px every one is a bottom sheet: full width, up from the foot, `.modal-actions` pinned. |
+| `.notice-stack` / `.notice-card` | The result notice — via `useNotice()` (`NoticeProvider.js`), never by hand. One line saying what a button just did; `data-tone="bad"` for a refusal. Not a `.modal-overlay`, on purpose. |
+| `.action-tile` / `.menu-item` / `.icon-btn` for a verb | A player action — via `ActionButton` (`variant="tile" | "icon" | "menu"`), which carries the label, the explaining sentence and, when greyed, the reason in one tooltip. |
+| `.stack-row` / `.stack-list` | A stack you are choosing some of — via `StackRow` / `StackPicker`. Replaces a checkbox and a "How many?" box. |
+| `.chip-row` as a single pick | A short local choice — via `ChipPicker`. A dropdown hides the answer behind a click; chips show it. Not for a long list (the Bird's every-character roster stays a `<select>`). |
 | `.field-dirty` | A control carrying a staged/unsaved edit. |
 | `.staged-row` | A staged row, toned by `data-staged` (add vs. remove). |
 | `.panel-danger` | A destructive-area card border — `--danger`. |
@@ -177,7 +181,8 @@ an error. Each now has one component.
 | Concept | Use | Never |
 |---|---|---|
 | A boolean | `CheckField` (a row is selected) or `Switch` (a setting is on) | A bare `<input type="checkbox">` in a hand-rolled `<label>` |
-| A dialog | `Modal`, or `useConfirm()` / `RequestDialog` on top of it | `.modal-overlay` markup of your own |
+| A dialog | `Modal`, or `useConfirm()` / `RequestDialog` on top of it; a player action's dialog is `ActionDialog` (`components/actions/`) | `.modal-overlay` markup of your own |
+| What just happened | `useNotice()` — one sentence,-marked, from the server's `line` or `actions/noticeLines.js` | A dialog that just closes, or a `router.refresh()` as the only signal |
 | A state | `StatusPill` with a **tone**, or `EnumPill` for a DB enum | A raw enum, or a colour picked at the call site |
 | Nothing here | `EmptyState`, or `EmptyRow` in a table | A bespoke `<p className="text-muted">` |
 | In flight / failed | `SubmitButton` and `FormError` | A `<form action>` with no pending state |
@@ -415,6 +420,26 @@ startTransition(async () => {
 The rule of thumb: a transition may wrap the *server call*, never a wait on the
 *user*. If a `run()`-style helper exists, only ever hand it a function that does
 no user interaction.
+
+### Player-action dialogs — `components/actions/`
+
+Every verb on the character sheet is one file under
+`web/app/components/actions/`, mounted by `RequestActionsProvider.js` (a
+router now: instant verb, fast path, or dialog — see its header). Each file
+owns its own fields, its own `useConfirm`, its own submit (`useSubmit.js`) and
+its own roster read (`useRoster.js`, which replaced the whole-page
+`router.refresh()` that used to fire on every open). It renders exactly one
+`ActionDialog`, which is `RequestDialog` plus the two states the old inline
+bodies got wrong: `loading` ("Looking…", Confirm off) and `empty` (the
+sentence and a lone Close — never a disabled Confirm under "Nobody here is
+bound."). A dialog never raises a notice itself: it calls `onDone(line)` and
+the provider says it, so every success reads the same way.
+
+Verbs with nothing to ask — Recall, Recover, the pointer, Arm/Disarm,
+Extract — do not open a dialog at all (`actions/index.js#INSTANT`); a
+confirm where the Move is spent, then the notice. A dialog opened from a
+person's own row with the one thing it would have asked already decided
+(Bind from the HERE list) takes the same route (`FAST_PATHS`).
 
 ## 9. Mobile
 

@@ -91,7 +91,11 @@ async function sweepTurret(prisma, depot) {
   });
 }
 
-const DEATH_CONTENT = "Shot dead by the turret in the depot ceiling. \u2021";
+const DEATH_CONTENT = "Shot dead by the turret in the depot ceiling.";
+// What the victim's death DM ends on, and what #leave reads. Separate from the
+// flavour line above, which the gun speaks in the moment — this is the plain
+// fact, and it has to survive being read a day later out of context.
+const DEATH_REASON = "the turret in the depot ceiling shot them dead.";
 
 // Walking in while it is hot. `armed` is a thunk so loadDepot — an upsert, and
 // therefore a write on one contended row — never runs for the thousands of
@@ -112,6 +116,7 @@ function rollTurretOnArrival(prisma, { characterId, toLocationId, turn }) {
     },
     spares: (name, state) => turretSpares(name, state.depot),
     deathContent: DEATH_CONTENT,
+    deathReason: DEATH_REASON,
   });
 }
 
@@ -137,12 +142,20 @@ async function runDepotPass(prisma, turn) {
 
   const dms = [];
   const outcomes = [];
+  const deaths = [];
   for (const shot of shots) {
-    const outcome = await applyTurretShot(prisma, shot, turn, { deathContent: DEATH_CONTENT });
+    const outcome = await applyTurretShot(prisma, shot, turn, {
+      deathContent: DEATH_CONTENT,
+      deathReason: DEATH_REASON,
+    });
     outcomes.push({ ...outcome, severity: shot.severity, protection: shot.protection });
     if (outcome.discordUserId) {
       dms.push({ discordUserId: outcome.discordUserId, content: turretDmFor(TURRET_DM, outcome) });
     }
+    // The Discord teardown a kill owes — role, overwrites, nickname, the ghost
+    // seat. Carried up to the side-effect thunk rather than done here: this
+    // runs inside the turn's work, and REST calls do not belong there.
+    if (outcome.death) deaths.push(outcome.death);
   }
 
   // Ambient lines the caller speaks into the Depot's channel.
@@ -164,6 +177,7 @@ async function runDepotPass(prisma, turn) {
     burstLocationId: outcomes.length ? locationId : null,
     lines,
     dms,
+    deaths,
   };
 }
 

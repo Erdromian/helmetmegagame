@@ -456,8 +456,18 @@ setup.
 ## How the bot populates the database
 
 On `ready`, the bot upserts a `GameConfig` singleton row and runs its
-catch-up passes for anything it missed while disconnected. `guildMemberAdd`
+catch-up passes for anything it missed while it was gone. `guildMemberAdd`
 writes a `member_joined` `AuditLog` entry.
+
+**`ready` is `once: true`, so that burst is once per PROCESS, not once per
+connect.** A gateway drop the process survives re-runs none of it — which is
+fine for the passes that only reconcile drift (a stale nickname stays stale
+until the next deploy), and was not fine for messages, because a message the
+bot never saw is lost for good. So `bot/src/lib/messageCatchUp.js` is the one
+pass that also hangs off `shardReady`: it re-proxies anything typed while the
+bot was away, deletes the raw message that was sitting there under the
+player's real Discord name, and files it in the archive. Anything older than
+two hours is filed and deleted but not put back in the room.
 
 Two **privileged intents** must be turned on for the bot in the Discord
 Developer Portal (Bot → Privileged Gateway Intents). Without them, the bot
@@ -529,7 +539,7 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 | **Playtest role** | `PLAYTEST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Counts as on the roster without the Player role, and is on the playtest-mode allowlist. It does **not** skip the lobby or the phase gate — only a GM gets the Skip button (`LOBBY.md` §2). Testing access, nothing else. |
 | **Contributor role** | `CONTRIBUTOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A separate seat from Playtest: the people who work on Bascinet. Read by exactly one gate — `GameConfig.playtestModeEnabled`, which narrows the roster to GMs, playtesters and Contributors (`LOBBY.md` §2). Grants nothing else. |
 | **Leader Whitelist role** | `LEADER_WHITELIST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may pick or prioritise a role flagged `whitelist: true`, and tick a whitelisted antagonist box — unless `GameConfig.leaderWhitelistEnabled` is switched off on `/gm/dev` (`CHARACTERS.md` §2, `THREATS.md` §1). |
-| **Cursed role** | `DISCORD_CURSED_ROLE_ID` env var | What a player may re-roll as after a death (`CHARACTERS.md` §4), **and** the ghost seat: read-only view of every zone (cave levels included; private threads stay invisible), and no voice at all — the 🌬️ whisper is gone, an unburied body reports itself instead. Its color is pinned to 0 so ghosts aren't outed in the member list (`CHANNELS.md` §3, `COMMANDS.md` §6). |
+| **Ghost role** | `GHOST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | The ghost seat and nothing else: read-only view of every zone (cave levels included; private threads stay invisible), and no voice at all — the 🌬️ whisper is gone, an unburied body reports itself instead. Its color is pinned to 0 so ghosts aren't outed in the member list (`CHANNELS.md` §3, `COMMANDS.md` §6). **It decides nothing.** What a player may re-roll as after a death is `db/lib/curse.js`, read from the database (`CHARACTERS.md` §4); this role used to answer that too, and a deploy where it was set on one service and not the other is what ended the arrangement. |
 | **Turn-ping role** | `DISCORD_TURN_PING_ROLE_ID` env var | Plain opt-in notification, toggled from `/character`. |
 
 There is one more role family, and it is per-zone rather than global. A
@@ -624,6 +634,39 @@ path.
 
 Inbound DMs are logged directly in `bot/src/events/messageCreate.js`.
 
+### Every DM says what kind of thing it is
+
+`DirectMessage.kind` — `CONVERSATION`, `NOTICE` or `QUIET`, from
+`db/lib/dmKinds.js` — decides how much of the GM inbox a line is entitled to.
+`source` is a separate column and only decides how the line is *drawn*. Keep
+them orthogonal.
+
+- **`CONVERSATION`** — a person composed these words for this reader. It sorts
+  the GM inbox, wins the preview, and counts as unread.
+- **`NOTICE`** — the game said it. Invisible to the rail; a quiet grey line
+  once a GM opens the person.
+- **`QUIET`** — plumbing (an inspect embed, a reaction refusal). Logged, never
+  drawn.
+
+**All three `sendDm` functions default to `NOTICE`, and so does the database
+column.** Conversation is the thing you opt into:
+
+```js
+sendDm(discordUserId, text);                              // a notice
+sendDm(discordUserId, text, { kind: DM_KIND.CONVERSATION }); // a person wrote it
+```
+
+So **a new DM needs no thought to behave** — which is the point. This used to
+be a `source` string whose absence read as "a person wrote this", so every line
+anybody added showed up in the GM inbox as mail until somebody remembered to
+tag it, and "You are the Baroness" sat at the top of the inbox for weeks.
+**Never fix a misbehaving DM by adding its `source` to a filter list** — that
+is the exact pattern this replaced. Set its `kind`.
+
+A raw `prisma.directMessage.create` gets no `sendDm` default, so the four
+inbound writers each set `kind` by hand. The read-side predicates all live in
+`web/lib/dmThread.js`. See `PLAYER-DESK.md` §5.
+
 ## Bot message style ("aura")
 
 Bot-authored Discord text should feel understated, not like a typical bot
@@ -650,6 +693,16 @@ not scenery, it is a loudspeaker, and it carries an `@here` — delivering the
 loudest notification Discord has in the quietest text it renders was
 backwards. Full size, no helper. If something else ever needs to be *heard*
 rather than noticed, it belongs on that side of the line too.
+
+**Discord's angle-bracket syntax is safe on both faces now.** A `<t:EPOCH:R>`
+in DM text renders as a live relative time on Discord *and* on the web, in each
+reader's own timezone — so prefer it over a pre-formatted date. The same goes
+for `<@…>`, `<#…>`, `<:name:id>` and `@here`, though the web deliberately
+prints no id: a mention reads `someone`, a channel `somewhere`. The vocabulary
+is defined once in `db/lib/discordMarkup.js` and rendered by
+`web/app/components/remarkDiscord.js`; `db/test/discordMarkup.test.js` fails
+the build on a token neither has been taught. Before this existed, two lobby
+DMs showed players a literal `<t:1757700120:F>`.
 
 Lines that quote or restate player/character content get a `»` prefix — e.g.
 `» {move description}`. `web/lib/discordGuild.js#sendDm` adds that prefix

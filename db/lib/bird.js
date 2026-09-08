@@ -45,17 +45,29 @@ const BIRD_REPLY_PICK_PREFIX = "bird:replypick:";
 // Deliberately identical for a wrong guess and for a dead recipient. Telling
 // those apart would make the bird a once-a-day test for whether somebody is
 // still alive, which is a far better deal than the letter it is supposed to be.
-// A GM letter's two DirectMessage sources, and the reason it needs its own
-// pair rather than riding "gm_dev": gm_dev is in AUTOMATED_EFFECT_SOURCES
-// (web/lib/dmSources.js), which collapses a row into a grey system line. A
-// letter is the most conversational thing on the desk, not background texture.
+// A GM letter's two DirectMessage sources. They exist so DmThread.js can draw
+// a letter as a piece of paper (LetterBody) rather than as chat — that is all
+// a `source` decides now.
 //
-// Neither may ever be added to that list, and neither may be excluded by
-// withoutDmNoise (web/lib/dmThread.js). DmThread.js repeats both strings as
-// LITERALS — it is a client component, and importing them from here would drag
-// PrismaClient into the browser bundle.
-const GM_LETTER_SOURCE = "gm_letter";
-const GM_LETTER_REPLY_SOURCE = "gm_letter_reply";
+// What each one WEIGHS on the GM desk is its `kind` (db/lib/dmKinds.js), and
+// the two halves differ:
+//
+//   gm_letter, the outgoing half, is a NOTICE. It is the GM's own line and
+//   they already know they sent it, so it should not sit in their inbox
+//   waiting to be answered. (This reverses an earlier call that letters were
+//   "the most conversational thing on the desk". A player-to-player letter,
+//   source "bird", was the loudest case of all: it wore a string no filter
+//   had ever heard of and read as mail from a stranger.)
+//
+//   gm_letter_reply, the incoming half, is CONVERSATION — written at the
+//   insert in bot/src/lib/birdReply.js. A GM wrote a letter and this is the
+//   answer to it, addressed to them. Greying it would mean a GM never learns
+//   they were replied to.
+//
+// Both strings live in db/lib/dmKinds.js, which requires nothing and so can be
+// imported by DmThread.js (a client component) directly. They used to be
+// defined here and copied there as literals, kept in step by hand.
+const { GM_LETTER_SOURCE, GM_LETTER_REPLY_SOURCE } = require("./dmKinds");
 
 const NOT_DELIVERED_DM = "The message wasn't delivered.";
 

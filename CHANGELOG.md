@@ -6,6 +6,154 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-08 · Stealth reaches the gates, and a forger can copy any stamp
+
+✚ Stealth is a real skill now: cross an unwatched gate and it announces nothing at all, cross a guarded one and it records only what a passer-by saw, not your name  
+✚ A forger can craft every wax stamp in the game, the Baron's and the Bishop's included — so the only two routes to a Baron's mark are taking it off the Baron or forging one  
+✚ A gibbed death leaves no corpse behind at all, just a Gibbed mark where the tags were  
+− The Inscrutable tag, and with it the rule that shut your Desire to every reader  
+✎ Ambush Predator costs less, and it, Forger and Mountaineering all say what they actually do
+
+## 2026-09-08 · The travel lines say you'll arrive next turn
+
+✎ "You arrive next turn" now reads "you'll arrive next turn" everywhere it appears, the two departure lines included, so they all match
+
+## 2026-09-08 · A traveller can walk their own zone while they wait on the road
+
+✎ Spending your Move to cross into another zone no longer pins you in place for the rest of the day — you can still walk the zone you set out from and talk to whoever is in it  
+✎ The roads out of the zone draw closed while you are on one, and say where you are already headed  
+✎ You land at the place you paid to reach whichever corner of the zone you spent the day in, and there is still no turning back
+
+## 2026-09-08 · The Unlocks list on a tag stops printing bigger than the tag itself
+
+✎ The "Unlocks N Desires" block on a tag now reads a step smaller than the tag's own description, instead of a step larger than it
+
+## 2026-09-08 · Nothing said while the bot is asleep is lost any more
+
+✚ Messages typed while the bot is down are recovered when it wakes. Under two hours old they go back in the room as the character, exactly as if the bot had caught them live. Older than that the words are kept in the archive and the raw message is taken down, but the scene is left alone — dropping an hours-old line into a room that moved on reads as talking to yourself. The author gets one quiet note either way.  
+✎ The real problem was worse than the missing words: until the bot came back, the message sat in the channel under the player's own Discord name, for anyone to see. That is the half this closes first.  
+✚ The bot now also checks after a dropped connection, not only after a restart. Everything else it catches up on runs once per process, which was fine for a stale nickname and not fine for somebody's words.  
+✎ A channel the bot can't tidy up in is left alone and logged, rather than reposting a message it can't then remove — that would duplicate it on every restart until the next wipe.  
+✚ The bot has tests now, for the first time.  
+✎ Two door notices were still tagged the old way after the inbox rework.
+
+## 2026-09-08 · The GM inbox shows the last message again, not the player's role
+
+− dmPreview hands back the line itself; the rail and the live delta were still reading it as { preview }, so every row a GM message touched showed "Baroness" or "Commoner" in place of the message
+
+## 2026-09-08 · Chat stays in the room you opened
+
+✎ The open room no longer jumps back to the street when the page refreshes itself, and a bare /play comes back to the room you last had open  
+✎ Chat's live stream reconnects itself after a drop — a phone waking, a blip, a redeploy — and picks up exactly what it missed; it says Reconnecting… when that takes a while, and a signed-out tab says so instead of retrying forever  
+✎ Walking, keys and conversations refresh the right column quietly, with no blank flash, and a reconnect no longer refreshes the whole page  
+✎ What you typed in one room stays in that room: switching rooms starts the box clean and brings the words back when you return  
+✎ Notice cards, faces and the members strip loading no longer shove you off the bottom of the scene  
+✎ The phone's tab strip scrolls to the open tab  
+✎ The column's once-a-minute re-reads pause while the tab is hidden  
+✎ "Add to …" on a person now says why it was refused  
+✎ A mention's browser notification opens the place it happened in, the turn notification opens the Bascinet pane, and tapping one no longer reloads a Chat that is already open
+
+## 2026-09-08 · The buttons overhaul: every action answers back, and the Dev Panel stops asking why
+
+✎ Every button on the sheet and on /play now says what it did, in a small notice at the corner of the screen — "Ada is tied up.", "Took 3 Paper from the Cellar.", "Ada has to agree first."  
+✎ Recall Comrades, Recover Equipment, Use Pointer, Arm/Disarm and Extract run on the click, with no dialog; a one-line confirm where the Move is spent  
+✎ Recall Comrades shows the roster on the page instead of DMing it; Recover's button says what it will hand back and greys with "You have both."  
+✎ Every greyed-out action explains itself in its tooltip  
+✎ Transfer, Loot, Take, Drop and Give are one dialog: two chip rows for the direction, then a count per stack. Destroy, Package and Purchase Gear pick the same way  
+✎ Opened from a person's own row, Bind, Free, Torture, Crucify and a one-affliction Heal ask their one question and run  
+✎ Small pickers are chips, not dropdowns: who you're treating, whose body, which room, which skill  
+✚ The HERE list on /ledger, above the Actions rack, with the same per-person menu /play has  
+✎ An empty dialog shows the sentence and Close, not a dead Confirm  
+✎ Opening a dialog no longer re-renders the whole sheet; it reads its own roster  
+✎ On a phone every dialog is a bottom sheet with the buttons pinned in reach  
+✎ On the Dev Panel, Kill, Restore turn and Spend turn are one confirm each, and Transfer ⬢ no longer demands a typed reason
+
+## 2026-09-08 · The GM inbox stops shouting, and the loading flashes are gone for real
+
+✎ Every DM now says how much of the GM inbox it deserves, so system notices stop crowding real conversations off the players desk — a forgotten one is quiet now rather than loud  
+✎ The page skeletons are actually gone this time: an earlier push kept the files by mistake, so pages were still blanking out on the way to the next one  
+✚ A Seats Out table on the Dev desk — who has been offered a seat, not taken it yet, and how long they have left  
+✎ Portraits and avatar uploads are on by default; a game no longer starts with faces switched off and nobody remembering to turn them on  
+− Soundproof rooms
+
+## 2026-09-08 · A dead character keeps Bascinet's messages, and the desk stops throwing
+
+✚ A player whose character has died can still read and answer Bascinet on /play. The messages column used to vanish with the body, which left a web-only player no way to read a DM at all  
+✎ The GM players desk was failing on every load — two things it used were never imported  
+− Spawning a threat no longer offers roles that are seats of their own as a cover role  
+✎ Assign now says so when it works, and says so when the seat lands but the DM does not  
+✎ A push refuses to ship code importing a file git does not have, which is what left the site on a stale build for 25 minutes today
+
+## 2026-09-08 · Egomaniac is gone, and the escort note stops stuttering
+
+− The Egomaniac tag is removed from the catalog — it was buyable but gated by nothing, and it was never part of any role's kit  
+− The note telling you somebody is travelling with you no longer opens with a doubled quote mark
+
+## 2026-09-08 · One header on every page, and the click lands before the page does
+
+✎ Every page wears the same header bar now, with the zone, day and phase in it — the turn no longer floats in the corner of the screen  
+✎ Clicking in the sidebar keeps you on the page you are reading until the next one has actually loaded, instead of blanking it to a skeleton  
+✎ A caving roll is filed under the zone the die rolled in, not the roller's faction seat — a Factory member down in the Caves was showing up as Marshes, and was invisible to the Caves GM  
+✎ Somebody pinged from Discord shows up as a person in Chat now, even if they are standing somewhere else; it used to print raw text  
+✎ /shout clears the box the moment you send it  
+✎ The Audit desk's header is the same height as every other desk's  
+✎ A whitelisted role wears a dashed border in the lobby too, whether or not you hold the whitelist
+
+## 2026-09-08 · Egomaniac is handed out, not bought
+
+− Egomaniac is off the tag store and out of character creation — a GM grants it
+
+## 2026-09-08 · Walking only frightens you so much, and the times in your messages read as times
+
+✎ A long day's walking can only frighten you so much now. The wild and the caves still cost you for every step you take into them, but what the walking alone adds in one day stops at a point. A Refugee cutting Godflesh out of the marshes was reaching Uncomfortable on the first afternoon just by doing the job the role exists to do.  
+✎ Times in your messages read as times. A seat offer that showed you a raw tag now gives the actual date and a live countdown, in your own timezone, on the website as well as in Discord.  
+✎ The quiet grey aside at the bottom of a message reads as a quiet grey aside, instead of starting with a stray -#.  
+✎ Mentions, channels and emoji pasted into a message no longer show up as a row of numbers on the website.  
+✎ The GM inbox stops treating every automatic message as mail. A seat assignment or a bird letter is a notice now; only something a person actually wrote for you sorts to the top.  
+✚ A GM can lift a wrongly-applied curse from the character dev panel, instead of the player needing someone to engrave them a headstone.  
+✎ A starred line from a masked speaker shows the face the room saw, not the speaker's real one.
+
+## 2026-09-08 · Tying someone up takes the carry out of their voice
+
+✚ A bound character's shout no longer carries. The people standing with them still hear it — someone who can see you tied up can obviously hear you — but it stops there, and every copy of it says ", but it's muffled."  
+✎ Bound still does not refuse a shout, and never will: a hostage who cannot call out is a hostage nobody can play. It costs the five-minute throat timer like any other shout, and shows no error.  
+✎ Two things muffle now, at two distances. A soundproof room is sealed and nothing leaves the thread; being bound is a gag and the shout reaches your own place and stops. Bound inside a sealed room is sealed.  
+✎ The Bound tag now says so on the sheet.
+
+## 2026-09-08 · Door notices stop reading as GM mail
+
+✎ "You were let into ..." no longer lands on the GM desk as if somebody had typed it. Same for "You were named in ...", which is a ping, not a message.  
+− The double dagger on the "let into" line, on both faces.  
+✎ The website's DM sender now labels an unattributed message as the bot's, the way the bot's own sender already did. That is the leak this pair came  
+✎ The inactivity nudge is signed by the GM who sent it, so it still reads as a real message and shows who wrote it.
+
+## 2026-09-08 · Shouts name who shouted, and some rooms swallow them
+
+✎ A long day's walking can only frighten you so much now. The wild and the caves still cost you for every step you take into them, but what the walking alone adds in one day stops at a point. A Refugee cutting Godflesh out of the marshes was reaching Uncomfortable on the first afternoon just by doing the job the role exists to do.  
+✎ Times in your messages read as times. A seat offer that showed you a raw tag now gives the actual date and a live countdown, in your own timezone, on the website as well as in Discord.  
+✎ The quiet grey aside at the bottom of a message reads as a quiet grey aside, instead of starting with a stray -#.  
+✎ Mentions, channels and emoji pasted into a message no longer show up as a row of numbers on the website.  
+✎ The GM inbox stops treating every automatic message as mail. A seat assignment or a bird letter is a notice now; only something a person actually wrote for you sorts to the top.  
+✚ A GM can lift a wrongly-applied curse from the character dev panel, instead of the player needing someone to engrave them a headstone.  
+✎ A starred line from a masked speaker shows the face the room saw, not the speaker's real one.
+
+## 2026-09-08 · The cargo bay stops at the gate, and a trade is a trade
+
+✎ The Merchant, the Docker and the Mercenary no longer start knowing the Migrants' camp, which was handing them the brooding grounds and both mouths of the Depths on their first morning. The Migrant, who lives there, still does  
+✎ A Commoner who bought a laboring specialisation outright no longer gets a free Farmer crate on top of it  
+✎ Seeding a character's memories no longer re-queries their tags once per remembered place
+
+## 2026-09-08 · The sheet's auto-refresh stops doing work nobody can see
+
+✎ Follow-up to this morning's Bind fix. The page was quietly re-loading itself whenever anyone at your Location was tied up or walked past — none of which changes anything on screen until you open a dialog, and dialogs now re-read the room themselves. In a crowded Town that was thirty people all reloading at once every time a turn moved them.  
+✎ The one thing kept: 'Waiting for so-and-so to agree to be bound' now clears itself when they answer in Discord, because that line really is on the page.
+
+## 2026-09-08 · Bind, Free and Loot stop needing a page refresh
+
+✎ Somebody accepting your Bind in Discord now shows up on your sheet on its own. It always worked in the game — your page just never heard about it, so Free offered nobody and Loot refused, until you reloaded.  
+✎ The same blind spot hid somebody walking in, somebody dying, and a hood going up or coming down. All three now reach the page.  
+✎ Every action dialog re-reads the room as it opens, so bind, wait for the yes, then loot works with nothing in between.
+
 ## 2026-09-08 · Nobody wakes up blind, and no commoner wakes up without a trade
 
 ✚ Every seat now starts remembering the places its life would have taught it: the home cluster, plus the road that trade actually walks. A Headman opens the map already seeing the Farms he taxes; a Banneret sees every step of the run up to town  

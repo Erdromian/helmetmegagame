@@ -1,5 +1,5 @@
 const cron = require("node-cron");
-const { ActivityType } = require("discord.js");
+const { ActivityType, Events } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const {
   getInvalidResponseStats,
@@ -18,6 +18,7 @@ const { runRiteSweep } = require("@lifeweb/db/lib/riteSweep");
 const { getGameState } = require("@lifeweb/db/lib/gameState");
 const { startDeathSmell } = require("../lib/deathSmell");
 const { registerCommands } = require("../lib/commands");
+const { catchUpMissedMessages } = require("../lib/messageCatchUp");
 
 // Vars this process reads behind a truthiness guard — `if (process.env.X)`,
 // `?? null`, `.filter(Boolean)`. A missing one is not an error, it is a
@@ -31,7 +32,6 @@ const REQUIRED_ENV = [
   ["DISCORD_GUILD_ID", "every REST call"],
   ["DISCORD_CLIENT_ID", "the doctor's check that no zone role outranks the bot"],
   ["DISCORD_GM_ROLE_ID", "the standing GM seat — the gate narrows to Trial GMs"],
-  ["DISCORD_CURSED_ROLE_ID", "the Cursed role on a rite or turn-clock death, and the ghost seat"],
   ["DISCORD_TURN_PING_ROLE_ID", "the turn ping"],
   ["WEB_BASE_URL", "every link the bot writes into a DM"],
   ["AUTH_SECRET", "the hood tokens behind Who's here?"],
@@ -198,6 +198,45 @@ module.exports = {
     // DMs. The cost is propagation — a new or renamed command can take up to
     // an hour to show up. See bot/src/lib/commands.js.
     await registerCommands(client).catch((err) => console.error("Failed to register slash commands:", err));
+
+    // Anything typed while we were not listening. Backgrounded on purpose —
+    // it walks every active thread in the guild, and a slow sweep must never
+    // hold up the bot answering an interaction.
+    //
+    // Resolved here rather than reusing the loop above: that `guild` is a
+    // for-of binding whose scope ended, and Bascinet runs in one guild anyway.
+    const homeGuild =
+      client.guilds.cache.get(process.env.DISCORD_GUILD_ID) ?? client.guilds.cache.first() ?? null;
+    if (homeGuild) {
+      void catchUpMissedMessages(client, homeGuild, { reason: "startup" }).catch((err) =>
+        console.error("Message catch-up failed:", err),
+      );
+
+      // And again whenever the gateway hands us a FRESH session.
+      //
+      // This listener is registered here, inside `ready`, for a reason worth
+      // keeping: shardReady fires BEFORE ready on the first connect, so by the
+      // time this line runs the opening one is already past. Every shardReady
+      // we see from here is therefore a RE-identify — which is exactly the case
+      // that loses messages.
+      //
+      // The distinction that matters: a RESUME replays the dispatches missed
+      // while the socket was away, so messageCreate fires for all of them and
+      // there is nothing to recover. An IDENTIFY is a new session and those
+      // dispatches are gone for good. Only the second one emits shardReady.
+      //
+      // Deliberately just this pass, not the whole burst above: running the
+      // channel doctor and a guild-wide nickname sync on every network blip
+      // would be a new load problem rather than a fix. catchUpMissedMessages
+      // holds its own single-flight guard, so a flapping connection cannot
+      // stack sweeps.
+      client.on(Events.ShardReady, (shardId) => {
+        console.log(`Shard ${shardId} re-identified; checking for messages missed while it was away.`);
+        void catchUpMissedMessages(client, homeGuild, { reason: "reconnect" }).catch((err) =>
+          console.error("Message catch-up failed after reconnect:", err),
+        );
+      });
+    }
 
     const runAdvanceTurn = () => {
       console.log("Turn-advance cron fired.");

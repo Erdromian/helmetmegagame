@@ -34,9 +34,13 @@
 const { concealedAlias } = require("./concealedIdentity");
 
 // The shape concealmentFrom returns, for the legacy fallback above: concealed
-// with no idea what by. web/public/assets/unknown.png survives for exactly
-// this and for already-archived entries (ArchiveFeed.js).
+// with no idea what by. It draws the blank letter plaque, which is the same
+// tile a nameless initial already lands on — a real file, because the one
+// caller that can reach this state is a Discord webhook avatar
+// (db/lib/discordRest.js) and Discord cannot render the web's question-mark
+// plate. web/public/assets/unknown.png is gone.
 const UNSLOTTED = { sprite: null, forced: false };
+const BLANK_PLAQUE = "/assets/letters/_default.webp";
 
 // The Tag columns concealmentFrom reads. Exported so the eight call sites that
 // resolve an identity select the same set — miss one and concealment silently
@@ -146,7 +150,7 @@ function presentedIdentity(character, { forcedName = null, concealment = undefin
       // Everyone in the same mask looks the same on purpose — the sprite says
       // WHAT is over the face, never who is behind it, so a concealed avatar
       // is never a fingerprint.
-      avatarPath: piece.sprite ? `/assets/helms/${piece.sprite}.webp` : "/assets/unknown.png",
+      avatarPath: piece.sprite ? `/assets/helms/${piece.sprite}.webp` : BLANK_PLAQUE,
       alias,
       concealed: true,
       forced: false,

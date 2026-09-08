@@ -1,4 +1,5 @@
 const { prisma } = require("@lifeweb/db");
+const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 
 // Renders one embed (an EmbedBuilder instance or a plain object) to
 // readable text: title, description, then each field as "**name**: value".
@@ -32,6 +33,12 @@ async function sendDm(user, payload, opts = {}) {
         content: contentOf(payload),
         authorDiscordUserId: opts.authorDiscordUserId ?? null,
         source: opts.source ?? "bot_auto",
+        // NOTICE unless the caller says otherwise (db/lib/dmKinds.js): a DM
+        // nobody classified is the game talking, not a person. An embed is
+        // read off the payload the same way `meta` below is, so the three
+        // reaction handlers that send one need no opts at all — an inspect
+        // readout is plumbing, and plumbing is QUIET.
+        kind: opts.kind ?? (payload?.embeds?.length ? DM_KIND.QUIET : DM_KIND.NOTICE),
         discordMessageId: sent?.id ?? null,
         meta: opts.meta ?? (payload?.embeds?.length ? { embed: true } : undefined),
       },

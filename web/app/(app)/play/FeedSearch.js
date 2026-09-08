@@ -107,7 +107,6 @@ export default function FeedSearch({ place, onPick, onClose, notice = null }) {
   // says what they were.
   const long = query.trim().length >= MIN_QUERY;
   const rows = long ? (state?.rows ?? []) : [];
-  const short = query.trim().length > 0 && !long;
 
   return (
     <div className="chat-search" onKeyDown={onKeyDown}>
@@ -149,7 +148,6 @@ export default function FeedSearch({ place, onPick, onClose, notice = null }) {
       )}
 
       {notice && <FormError>{notice}</FormError>}
-      {short && <p className="chat-quiet-line">Three letters at least.</p>}
       {state?.error && <FormError>{state.error}</FormError>}
       {long && state?.rows && rows.length === 0 && <p className="chat-quiet-line">Nobody said that.</p>}
 

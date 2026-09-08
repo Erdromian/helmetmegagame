@@ -1,16 +1,15 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
-import { auth } from "@/lib/auth";
-import { isSuperadmin } from "@/lib/superadmin";
+import { getDevTier } from "@/lib/devAccess";
 import { isUnaffiliated } from "@lifeweb/db/lib/factionConstants";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
+import AppHeader from "@/app/components/AppHeader";
 import DevSubNav from "../DevSubNav";
 import FactionsTable from "./FactionsTable";
 
 export default async function DevFactionsPage() {
-  const session = await auth();
-  if (!session?.discordUserId) redirect("/");
-  if (!isSuperadmin(session.discordUserId)) redirect("/character");
+  const tier = await getDevTier();
+  if (tier === "none") redirect("/character");
 
   const [factions, allRooms, characters, pending] = await Promise.all([
     prisma.faction.findMany({
@@ -83,10 +82,17 @@ export default async function DevFactionsPage() {
   }));
 
   return (
-    <PageShell>
-      <PageHeader title={`Factions (${factions.length})`} actions={<DevSubNav current="factions" />} />
-
-      <FactionsTable rows={rows} rooms={rooms} members={members} applications={applications} />
-    </PageShell>
+    <>
+      <AppHeader title={`Factions (${factions.length})`} actions={<DevSubNav current="factions" />} />
+      <PageShell>
+      <FactionsTable
+        rows={rows}
+        rooms={rooms}
+        members={members}
+        applications={applications}
+        canDelete={tier === "super"}
+      />
+      </PageShell>
+    </>
   );
 }

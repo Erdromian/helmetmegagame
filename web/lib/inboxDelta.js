@@ -1,5 +1,5 @@
 import { prisma, Prisma } from "@lifeweb/db";
-import { dmNoiseSql, genuineConversationSql, withoutDmNoise, dmPreview } from "./dmThread";
+import { railKindSql, withoutDmNoise, dmPreview } from "./dmThread";
 import { listGuildMembers } from "./discordGuild";
 
 // The live half of the player desk: "what changed since the last time you
@@ -42,6 +42,11 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
   const effectiveSince = since ?? nowMs - COLD_START_MS;
   const sinceDate = new Date(effectiveSince);
 
+  // Two predicates in one function, and they are not interchangeable. The rail
+  // half asks "did a person say something" — a notice must not touch, sort or
+  // preview a row. The open thread asks "is there anything to draw", notices
+  // included, or a grey line would appear on a server render and vanish on the
+  // next 3 s tick.
   const [touchedRows, threadRows] = await Promise.all([
     prisma.$queryRaw`
       WITH touched AS (
@@ -49,7 +54,7 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
           (SELECT dm."discordUserId"
              FROM "DirectMessage" dm
             WHERE dm."createdAt" > ${sinceSql(effectiveSince)}
-              AND ${dmNoiseSql("dm")}
+              AND ${railKindSql("dm")}
             ORDER BY dm."createdAt" DESC
             LIMIT ${TOUCHED_LIMIT})
           UNION
@@ -63,18 +68,11 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
       ),
       latest AS (
         SELECT DISTINCT ON (dm."discordUserId")
-               dm."discordUserId", dm."direction", dm."createdAt", dm."content"
+               dm."discordUserId", dm."direction", dm."createdAt", dm."content",
+               dm."authorDiscordUserId"
           FROM "DirectMessage" dm
           JOIN touched t ON t."discordUserId" = dm."discordUserId"
-         WHERE ${dmNoiseSql("dm")}
-         ORDER BY dm."discordUserId", dm."createdAt" DESC
-      ),
-      genuine AS (
-        SELECT DISTINCT ON (dm."discordUserId")
-               dm."discordUserId", dm."direction", dm."content", dm."authorDiscordUserId"
-          FROM "DirectMessage" dm
-          JOIN touched t ON t."discordUserId" = dm."discordUserId"
-         WHERE ${genuineConversationSql("dm")}
+         WHERE ${railKindSql("dm")}
          ORDER BY dm."discordUserId", dm."createdAt" DESC
       ),
       unread AS (
@@ -86,23 +84,20 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
            AND cr."gmDiscordUserId" = ${gmDiscordUserId}
          WHERE dm."direction" = 'INBOUND'
            AND dm."createdAt" > COALESCE(cr."lastReadAt", to_timestamp(0))
-           AND ${dmNoiseSql("dm")}
+           AND ${railKindSql("dm")}
          GROUP BY dm."discordUserId"
       )
       SELECT t."discordUserId",
              l."direction" AS "lastDirection",
              (EXTRACT(EPOCH FROM l."createdAt") * 1000)::double precision AS "lastAtMs",
              l."content" AS "lastContent",
-             g."direction" AS "genuineDirection",
-             g."content" AS "genuineContent",
-             g."authorDiscordUserId" AS "genuineAuthor",
+             l."authorDiscordUserId" AS "lastAuthor",
              COALESCE(u."unreadCount", 0) AS "unreadCount",
              (EXTRACT(EPOCH FROM cm."handledAt") * 1000)::double precision AS "handledAtMs",
              (cm."mutedAt" IS NOT NULL) AS "muted",
              cm."claimedByDiscordUserId"
         FROM touched t
         LEFT JOIN latest l ON l."discordUserId" = t."discordUserId"
-        LEFT JOIN genuine g ON g."discordUserId" = t."discordUserId"
         LEFT JOIN unread u ON u."discordUserId" = t."discordUserId"
         LEFT JOIN "ConversationMeta" cm ON cm."playerDiscordUserId" = t."discordUserId"
     `,
@@ -118,6 +113,7 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
             content: true,
             authorDiscordUserId: true,
             source: true,
+            kind: true,
             createdAt: true,
             meta: true,
           },
@@ -125,8 +121,9 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
       : null,
   ]);
 
-  // A touched conversation with nothing but noise in it has no lastAtMs;
-  // leave the server's row alone rather than patching it with blanks.
+  // A touched conversation with nothing a person said in it has no lastAtMs —
+  // the open one always is touched, whether or not it has moved. Leave the
+  // server's row alone rather than patching it with blanks.
   const touched = touchedRows.filter((r) => r.lastAtMs != null);
 
   // Someone the rail has never heard of — a guild member with no character
@@ -172,14 +169,17 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
 
   const rail = touched.map((r) => {
     const lastAtMs = Number(r.lastAtMs);
-    const genuine = r.genuineContent != null
-      ? { direction: r.genuineDirection, content: r.genuineContent, authorDiscordUserId: r.genuineAuthor }
-      : null;
     const patch = {
       discordUserId: r.discordUserId,
       lastAtMs,
       lastDirection: r.lastDirection,
-      ...dmPreview(genuine, { content: r.lastContent }, gmDiscordUserId),
+      // dmPreview returns the line itself, not { preview } — spreading it put
+      // its characters on the patch and left `preview` unset, so every row a
+      // GM message touched fell back to the role title ("Baroness").
+      preview: dmPreview(
+        { direction: r.lastDirection, content: r.lastContent, authorDiscordUserId: r.lastAuthor },
+        gmDiscordUserId,
+      ),
       unreadCount: Number(r.unreadCount ?? 0),
       handled: r.handledAtMs != null && Number(r.handledAtMs) >= lastAtMs,
       muted: Boolean(r.muted),

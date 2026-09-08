@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import FormError from "@/app/components/FormError";
@@ -11,6 +11,7 @@ import StatusStrip from "./StatusStrip";
 import Things from "./ThingsDrawer";
 import DesiresBlock from "./DesiresBlock";
 import { waitingOnYou, answerWaiting, myMove } from "./actions";
+import useVisiblePoll from "./useVisiblePoll";
 
 // YOU: everything about this character that is not about where they are
 // standing, in the order a player asks it — what day is it and have I moved,
@@ -104,10 +105,7 @@ export default function YouPanel({
 
   // A minute is often enough for a notice board of this kind, and it costs
   // two small queries.
-  useEffect(() => {
-    const timer = setInterval(refresh, 60_000);
-    return () => clearInterval(timer);
-  }, [refresh]);
+  useVisiblePoll(refresh, 60_000);
 
   const say = useCallback(
     (res) => {

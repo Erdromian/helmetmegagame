@@ -39,7 +39,7 @@ export async function GET(request) {
   const params = new URL(request.url).searchParams;
   const q = String(params.get("q") ?? "").trim();
   if (q.length < MIN_QUERY || q.length > MAX_QUERY) {
-    return Response.json({ error: "Three letters at least." }, { status: 400 });
+    return Response.json({ error: "Try a different search." }, { status: 400 });
   }
 
   const places = await placesFor(prisma, viewer.character, viewer.options);

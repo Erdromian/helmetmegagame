@@ -195,22 +195,6 @@ async function performLocationMove(prisma, character, targetLocation) {
   const stuck = blockerFor(character.tags, ACT);
   if (stuck) return { ok: false, reason: `You can't go anywhere — you're ${stuck.name}. ‡` };
 
-  // Already walking. A paid crossing is a day on the road (below), and the
-  // character is frozen where they stood until they get there — there is no
-  // way off the road (MAP.md §3).
-  if (character.travelToLocationId) {
-    const heading = await prisma.location.findUnique({
-      where: { id: character.travelToLocationId },
-      select: { name: true },
-    });
-    return {
-      ok: false,
-      reason: heading
-        ? `You're on the road to ${heading.name}. You arrive next turn. ‡`
-        : "You're on the road. You arrive next turn. ‡",
-    };
-  }
-
   let currentLocation = null;
   let crossingLink = null;
   if (character.locationId) {
@@ -244,6 +228,26 @@ async function performLocationMove(prisma, character, targetLocation) {
   // whose edge crosses into another zone files the Move.
   const first = !currentLocation;
   const crossedZone = !first && currentLocation.zoneId !== targetLocation.zoneId;
+
+  // Already walking. A paid crossing is a day on the road (below) and there is
+  // still no way off it — but the freeze is on LEAVING THE ZONE, not on moving
+  // at all. A hop inside the zone they set out from costs nothing and changes
+  // nothing about the journey, so it goes through, and the traveller gets to
+  // spend their last day somewhere with people in it (MAP.md §3). This sits
+  // BELOW the adjacency gate on purpose: the answer to "can I even get there"
+  // should not depend on whether they happen to be travelling.
+  if (character.travelToLocationId && (crossedZone || first)) {
+    const heading = await prisma.location.findUnique({
+      where: { id: character.travelToLocationId },
+      select: { name: true },
+    });
+    return {
+      ok: false,
+      reason: heading
+        ? `You're on the road to ${heading.name}. You'll arrive next turn.`
+        : "You're on the road. You'll arrive next turn.",
+    };
+  }
 
   let openTurn = null;
   if (crossedZone) {
@@ -445,6 +449,11 @@ async function performLocationMove(prisma, character, targetLocation) {
         // Same zone (or first placement): the cooldown, enforced by the
         // WHERE of a conditional update so two clicks in one tick can't both
         // pass.
+        //
+        // travelToLocationId is deliberately NOT cleared here. A traveller
+        // walking around the zone they set out from is still on the road, and
+        // travelArrivalPass lands them at the destination they paid for
+        // whichever Location they ended the day in.
         const cutoff = new Date(now.getTime() - cooldownMs);
         const claimed = await tx.character.updateMany({
           where: {

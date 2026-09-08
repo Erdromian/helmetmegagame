@@ -19,6 +19,7 @@ import {
   guestRoomIds as roomGuestIds,
 } from "@lifeweb/db/lib/roomAccess";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
+import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import {
   THANATI_SLUG,
   THANATI_LEADER_SLUG,
@@ -58,7 +59,6 @@ import { craftFreeUnits } from "@/lib/requests";
 import { summarizeCraftBudget } from "@/lib/craftBudget";
 import {
   getGuildMember,
-  isCursed,
   isGm,
   isLeaderWhitelisted,
   onRoster,
@@ -79,7 +79,7 @@ import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import CharacterView from "./CharacterView";
-import Loading from "./loading";
+import Loading from "./Skeleton";
 
 // Everything the creation wizard needs, shaped as the Zone -> Faction -> Role
 // tree it renders. Seat counts are computed here, not the client, so the
@@ -117,7 +117,7 @@ async function loadCreationData(discordUserId) {
   );
   const takenByRole = await takenCounts(prisma, roleRows, discordUserId);
 
-  const cursed = isCursed(member);
+  const cursed = await isPlayerCursed(prisma, discordUserId);
   // Presentation only; the server action re-checks regardless. Creation is
   // open while the game runs (Ended locks only the clock — LOBBY.md §1), and
   // to a GM during the lobby, which is the Skip button.
@@ -160,6 +160,9 @@ async function loadCreationData(discordUserId) {
     }),
     playerCount,
     startingTagPoints: config?.startingTagPoints ?? 0,
+    // Same gate the Bio card's switch uses (AvatarField.js): with Chat off
+    // there is no web to play from, so the switch is not offered.
+    playPanelEnabled: config?.playPanelEnabled ?? true,
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
     maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     tags,
@@ -301,6 +304,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
           intro: r.intro,
           factionName: r.factionName,
           grantsLeader: r.grantsLeader,
+          requiresWhitelist: r.requiresWhitelist,
           whitelistBlocked: r.whitelistBlocked,
         })),
       }));
@@ -553,7 +557,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       }
     : null;
 
-  // From is you or a room; To is anyone here or a room (TransferDialog.js).
+  // From is you or a room; To is anyone here or a room (actions/MoveThingsDialog.js).
   const transferPartyList = { characters: transferParties, rooms };
   // Your faction's silo, if it has one and you are standing in its zone: a
   // deposit-only destination pinned above the rooms here (FACTIONS.md). The
@@ -729,8 +733,9 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
 
   // What the Add-tag and Craft menus may PRINT, as opposed to what the server
   // reasons with. A recipe gated on a trade the catalog hides is stripped for
-  // anyone who doesn't hold that trade: the six courtier wax seals are made by
-  // a Forger — Brigands only, `catalog: gm` — and a "Recipe: Forger · 1 turn ·
+  // anyone who doesn't hold that trade: every wax seal in the game, the six
+  // courtier marks and all eight office stamps alike, is made by a Forger —
+  // Brigands only, `catalog: gm` — and a "Recipe: Forger · 1 turn ·
   // 2 ⬢" line on a seal chip would tell the whole game that seals get forged,
   // which is the one thing a forger is paying for. The tag itself stays, with
   // its name, its description and its honest point price. Same rule as

@@ -186,7 +186,7 @@ only code that had ever written a `Character` row:
 Everything Discord-side runs **after** the answer is written, best-effort, via
 `applySpawnSideEffects()`: the personal role (a mentionable name token held by
 nobody — access rides the zone role and the Location overwrite), placement
-through `applyLocationMoveSideEffects`, and the Cursed role dropped. The
+through `applyLocationMoveSideEffects`, and the Ghost role dropped. The
 nickname sync stays on the bot, because `buildNickname` is duplicated per face
 on purpose and a third copy in `db/lib` would be a third thing to keep in step.
 
@@ -222,9 +222,24 @@ children.
 
 ### `?s=antagonists`
 
-Who holds a seat now, derived per §2, plus the offers nobody has answered yet
-with a Cancel button. An unanswered offer's only other trace is a DM in
-somebody else's client. Under both sit the **Objectives** cards, §6a.
+Three blocks under one glance strip — seats held, parties, objectives complete,
+rites in flight, all four derived from props the page already builds rather
+than from a query of their own.
+
+1. **Seats.** Who holds one now, derived per §2, plus the offers nobody has
+   answered yet with a Cancel button. An unanswered offer's only other trace is
+   a DM in somebody else's client.
+2. **Objectives**, §6a — one card per party, in a grid that fills the width.
+   Each card's Add row is folded behind a `+ Add objective` toggle: three
+   always-open forms was most of the section's height, and a GM reads the
+   objectives already there far more often than they write a new one.
+3. **Rites**, read-only (`THANATI.md`) — the Words of the Circle and every
+   attempt, side by side once there is room.
+
+The section wears `.ops-section--wide` for the eight-column seat table. That
+used to fight `.desk-card`'s own `max-width: 52rem; margin: 0 auto`, which is
+right on the reading desks and left every card here floating centred under a
+table that stretched; `.ops-main .desk-card` now drops both.
 
 ## 6a. Objectives
 

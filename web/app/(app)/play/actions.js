@@ -13,6 +13,8 @@ import { loadDesireView } from "@/lib/selfPools";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "@/lib/dmThread";
 import { PLAYER_DM_MAX_LENGTH } from "@/lib/constants";
 import { whosHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
+import { lastSightings } from "@lifeweb/db/lib/sightings";
+import { VIEWER_SELECT, examineRow } from "@lifeweb/db/lib/examineRow";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { blocksOnFoot, equippedSlugs, fastTravelCapacity } from "@lifeweb/db/lib/mounts";
 import {
@@ -81,7 +83,7 @@ import { getMyFactionRole } from "@lifeweb/db/lib/factionPermissions";
 import { photoCaption } from "@lifeweb/db/lib/photo";
 import { CAMERA_SLUG, mintPhoto } from "@lifeweb/db/lib/photoMint";
 import { sendDm } from "@/lib/discordGuild";
-import { examineCharacter } from "@/app/(app)/character/examineActions";
+import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 import { thingGroups } from "./thingRows";
 
 // Every button in Chat's right column, as a server action.
@@ -152,25 +154,26 @@ export async function loadAffordances() {
   return { ok: true, affordances: await affordancesFor(prisma, me.character) };
 }
 
-export async function loadPeopleHere() {
-  const me = await actor({ id: true, factionId: true, locationId: true });
+// Looking at whoever said one line — the web twin of the 🔍 reaction, and the
+// only look the page has now. Both eyes point here: the one on a row in the
+// feed, and the one on a row in HERE, which aims at the last line it watched
+// that person say.
+//
+// The browser sends a SEQ and nothing else. Who spoke, whether they were
+// hooded and whether this reader may see the place are all resolved on the
+// server (db/lib/examineRow.js), which is what lets a hooded line carry an eye
+// at all — the page never learns who is under the hood, so there is nothing
+// for it to leak. That replaces the hood token this used to resolve, and it
+// works on a line scrolled back to long after the speaker walked out, which a
+// token keyed on who is standing here never could.
+export async function lookAtRow(seq) {
+  const me = await actor({ id: true, factionId: true, locationId: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };
-  const rows = await whosHere(prisma, me.character);
-  return { ok: true, ...rows };
-}
-
-// Looking at somebody whose face you cannot see. The token is what
-// db/lib/whosHere.js handed the page for a hood — an HMAC of the character id,
-// so the browser is never told who is under it — and it is resolved here
-// against the people actually standing at the looker's own Location. The
-// readout itself is the sheet's own examineCharacter(), which re-resolves the
-// looker from the session and re-checks co-presence a second time.
-export async function examineHooded(token) {
-  const me = await actor({ id: true, factionId: true, locationId: true });
-  if (me.error) return { ok: false, error: me.error };
-  const targetId = await resolveHoodToken(prisma, me.character, token);
-  if (!targetId) return { ok: false, error: "They aren't here any more. ‡" };
-  return examineCharacter(targetId);
+  const viewer = await prisma.character.findUnique({ where: { id: me.character.id }, select: VIEWER_SELECT });
+  const result = await examineRow(prisma, viewer, seq);
+  if (!result) return { ok: false, error: "You can't see them. ‡" };
+  if (result.blocked) return { ok: false, error: result.blocked };
+  return { ok: true, readout: result.readout };
 }
 
 // Photographing what somebody said — the web twin of the 📸 reaction
@@ -345,6 +348,7 @@ export async function starRow(seq) {
       characterId: true,
       characterName: true,
       concealedAlias: true,
+      presentedAvatarPath: true,
       discordMessageId: true,
       discordChannelId: true,
       deletedAt: true,
@@ -375,6 +379,10 @@ export async function starRow(seq) {
       // reason handleStarReaction gives: the note is private, but writing the
       // real name into it hands the starrer what the hood was hiding.
       characterName: row.concealedAlias ?? row.characterName ?? "Bascinet",
+      // And the face beside it, on the same gate — a note drawing the real
+      // portrait next to an alias hands back what the alias withheld. Null is
+      // their own face, and only a line said under one records it.
+      presentedAvatarPath: row.concealedAlias ? (row.presentedAvatarPath ?? null) : null,
       zoneId: row.zoneId ?? null,
       content: row.content,
       sentAt: row.sentAt,
@@ -482,8 +490,10 @@ export async function loadTravel() {
 
   return {
     ok: true,
-    // Already walking? A paid crossing is a day on the road, and the only
-    // thing on offer is turning round.
+    // Already walking? A paid crossing is a day on the road: there is no
+    // turning back, but the ways inside this zone stay open until the arrival
+    // pass lands them. travelOptions has shut the crossings and named the
+    // destination in each refusal, so `options` below needs nothing here.
     heading: heading?.name ?? null,
     // Both count the party: over the mount's seats, the extra crossing it
     // buys is gone, and the number here has to already say so (MAP.md §3a).
@@ -509,6 +519,12 @@ export async function loadTravel() {
       // A way too narrow to ride or push through — crossing it dismounts
       // instead of refusing (db/lib/indoors.js#dismountForNarrowWay).
       dismounts: Boolean(row.dismounts),
+      // Which of this character's own tags opens the way, when one does — the
+      // node draws it as that tag's chip, so a climb you paid Mountaineering
+      // for says so instead of looking like every other road. Only ever a tag
+      // they hold (locationGraph.js#crossingCheck), so there is nothing here to
+      // leak.
+      openedBy: row.openedBy ?? null,
       // crossingCheck's field is `refusal`, not `reason` — this was silently
       // dropping the actual message (e.g. the locked/shut wording) and
       // falling back to the node's generic "no way".
@@ -665,7 +681,7 @@ export async function travelTo({ locationId } = {}) {
         `*${me.character.name} is taking you to ${target.name}. You'll get there next turn.* ‡`,
       ).catch(() => {});
     }
-    const setOut = [`You set out for ${target.name}. You arrive next turn, and your Move is spent.`];
+    const setOut = [`You set out for ${target.name}. You'll arrive next turn, and your Move is spent.`];
     if (stranded.length > 0) setOut.push(`You can't move ${stranded.join(", ")} through here.`);
     // dismountedMessage already carries its own mark, so only one ‡ ends the
     // block either way.
@@ -1019,9 +1035,12 @@ export async function ringBell({ roomId, word } = {}) {
 
   return {
     ok: true,
-    line: failed.length
-      ? `You haul on the rope. It carries to ${sent} place${sent === 1 ? "" : "s"}, and not to ${failed.join(", ")}. ‡`
-      : "You haul on the rope, and the whole barony hears it. ‡",
+    // Bascinet's wording, and the same on both faces — the bot's twin in
+    // bot/src/events/interactionCreate.js says exactly this. Which places
+    // Discord refused is a fact about Discord, not about the barony, so the
+    // names stay in soundBroadcast.js's console.error and the audit row above
+    // and the ringer hears none of it.
+    line: "The bell sounds.",
   };
 }
 
@@ -1599,7 +1618,23 @@ export async function shoutHere(text, placeKey = null) {
   const me = await actor({ id: true, name: true, locationId: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };
 
-  const result = await shout(prisma, { ...me.character, discordUserId: me.discordUserId }, text);
+  // The write check comes BEFORE shout(), which is a change: shout() claims the
+  // five-minute cooldown, so asking afterwards meant a thread the player may
+  // not write to cost them five minutes of throat for zero posts. That was
+  // always wrong and is now unmissable — from inside a soundproof room the
+  // thread is the ONLY audience, so failing this check would burn the cooldown
+  // on a shout literally nobody heard.
+  const here = parsePlaceKey(placeKey);
+  const inThread = Boolean(here && (here.kind === "room" || here.kind === "conv"));
+  if (inThread) {
+    const mine = await mayWritePlace(prisma, me.character, placeKey, {
+      gm: false,
+      discordUserId: me.discordUserId,
+    });
+    if (!mine) return { ok: false, error: "You can't speak in here. ‡" };
+  }
+
+  const result = await shout(prisma, { ...me.character, discordUserId: me.discordUserId }, text, { placeKey });
   if (!result.ok) {
     return { ok: false, error: result.error, retryAfter: result.retryAfter ?? null };
   }
@@ -1608,30 +1643,41 @@ export async function shoutHere(text, placeKey = null) {
   // Location places only — a Room thread is behind a door, and a shout does
   // not go through every door in the street — but the one door you are inside
   // of would otherwise be the only place that did not hear you.
-  const here = parsePlaceKey(placeKey);
-  if (here && (here.kind === "room" || here.kind === "conv")) {
-    const mine = await mayWritePlace(prisma, me.character, placeKey, {
-      gm: false,
-      discordUserId: me.discordUserId,
-    });
-    const near = result.heard.find((entry) => entry.distance === 0);
-    if (mine && near) {
-      await sceneLine(prisma, { placeKey, text: near.scene.text, lines: near.scene.lines });
-      try {
-        const target = await discordTargetForPlaceKey(prisma, placeKey);
-        const channelId = target?.threadId ?? target?.channelId ?? null;
-        if (channelId) await postMessage(channelId, near.line, undefined, { parse: [] });
-      } catch {
-        // The archive row stands. A thread that refused the post is one
-        // audience short, not a failed shout.
-      }
+  //
+  // `result.here` rather than a distance-0 entry out of `heard`: a soundproof
+  // room empties `heard`, and this post is then the whole of the delivery.
+  // Everything from here down is DELIVERY. The shout itself has already
+  // happened — shout() claimed the cooldown and settled who heard it — so
+  // nothing below may throw its way back to the caller. It used to: only the
+  // postMessage calls were guarded, so a sceneLine that failed on the ninth of
+  // twenty-nine places turned an already-committed shout into a rejected
+  // promise, which the composer read as "it didn't send" and left the words
+  // sitting in the box. One audience short is not a failed shout.
+  if (inThread) {
+    try {
+      await sceneLine(prisma, { placeKey, text: result.here.scene.text, lines: result.here.scene.lines });
+    } catch (err) {
+      console.error(`Shout row for ${placeKey} failed:`, err?.message ?? err);
+    }
+    try {
+      const target = await discordTargetForPlaceKey(prisma, placeKey);
+      const channelId = target?.threadId ?? target?.channelId ?? null;
+      if (channelId) await postMessage(channelId, result.here.line, undefined, { parse: [] });
+    } catch {
+      // The archive row stands. A thread that refused the post is one
+      // audience short, not a failed shout.
     }
   }
 
   for (const place of result.heard) {
-    // The row first: it is what Chat shows and what /archive keeps, and
-    // it is the only half a web-only player ever sees.
-    await sceneLine(prisma, { placeKey: place.placeKey, text: place.scene.text, lines: place.scene.lines });
+    try {
+      // The row first: it is what Chat shows and what /archive keeps, and
+      // it is the only half a web-only player ever sees.
+      await sceneLine(prisma, { placeKey: place.placeKey, text: place.scene.text, lines: place.scene.lines });
+    } catch (err) {
+      console.error(`Shout row for ${place.name} failed:`, err?.message ?? err);
+      continue;
+    }
     if (!place.discordChannelId) continue;
     try {
       // parse: [] — no mentions at all. The text is player-typed and this is
@@ -1671,17 +1717,33 @@ export async function rollHere(placeKey) {
   return castDie(prisma, me.character, placeKey);
 }
 
-// /look. One entry point for both kinds of person the column knows about: a
-// character id off a named row, or the opaque hood token db/lib/whosHere.js
-// mints for a concealed one. A token is 32 hex characters and a cuid never
-// is, so the two can be told apart without the browser saying which it sent.
+// /look, and the eye in the HERE column. One entry point for both kinds of
+// person the column knows about: a character id off a named row, or the opaque
+// hood token db/lib/whosHere.js mints for a concealed one. A token is 32 hex
+// characters and a cuid never is, so the two can be told apart without the
+// browser saying which it sent.
+//
+// Either way it lands on the LINE you last heard them say, not on the person
+// standing in front of you. You cannot size up a stranger who has not opened
+// their mouth — looking is something you do to somebody you have noticed, and
+// what you get back is what you noticed, frozen (db/lib/sightings.js).
 const HOOD_TOKEN = /^[0-9a-f]{32}$/;
 
 export async function lookAt(personRef) {
   const ref = String(personRef ?? "").trim();
   if (!ref) return { ok: false, error: "Look at who?" };
-  if (HOOD_TOKEN.test(ref)) return examineHooded(ref);
-  return examineCharacter(ref);
+
+  const me = await actor({ id: true, factionId: true, locationId: true, discordUserId: true });
+  if (me.error) return { ok: false, error: me.error };
+
+  const targetId = HOOD_TOKEN.test(ref) ? await resolveHoodToken(prisma, me.character, ref) : ref;
+  if (!targetId) return { ok: false, error: "They aren't here any more. ‡" };
+
+  const seen = await lastSightings(prisma, me.character);
+  const sighting = seen.get(targetId);
+  if (!sighting) return { ok: false, error: "You haven't heard them say anything. ‡" };
+
+  return lookAtRow(sighting.seq);
 }
 
 // ------------------------------------------------- who is in this room, and
@@ -1840,9 +1902,13 @@ export async function addMember(placeKey, characterId) {
       await addThreadMember(conversation.threadId, target.discordUserId).catch(() => {});
     }
 
+    // system_notice, like the bot's twin in interactionCreate.js#notifyLetIn:
+    // this is door plumbing, not somebody talking, and without the tag it read
+    // as a genuine message on the GM desk.
     await sendDm(
       target.discordUserId,
-      `*You were let into ${conversation.location?.name ?? "somewhere"} · ${conversation.name}.* ‡`,
+      `*You were let into ${conversation.location?.name ?? "somewhere"} · ${conversation.name}.*`,
+      { kind: DM_KIND.QUIET },
     ).catch(() => {});
 
     return {
@@ -1870,7 +1936,8 @@ export async function addMember(placeKey, characterId) {
   await notifyPresence(prisma, result.target.id).catch(() => {});
   await sendDm(
     result.notify.discordUserId,
-    `*You were let into ${result.notify.placeName ?? "somewhere"} · ${result.notify.threadName}.* ‡`,
+    `*You were let into ${result.notify.placeName ?? "somewhere"} · ${result.notify.threadName}.*`,
+    { kind: DM_KIND.QUIET },
   ).catch(() => {});
 
   return { ok: true, line: result.line };

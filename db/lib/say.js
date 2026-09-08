@@ -49,13 +49,19 @@ const EDIT_WINDOW_MS = 5 * 60_000;
 // not even select `slug`, and the Speak modal's findAliveCharacter loads no
 // tags at all — so a gate that trusted the caller's include read undefined
 // and passed everybody.
+// Tied up. Not in the RESTRICTIONS table above it in incapacitation.js and
+// deliberately not going in: {tag:bound} still takes ACT and not SHOUT, so a
+// hostage can still yell. It only stops the yell CARRYING — see shoutMuffled
+// below.
+const BOUND_SLUG = "bound";
+
 // SHOUT is the superset — everything that takes the ordinary voice takes the
 // yell too (db/lib/incapacitation.js), plus {tag:mute}, which takes only the
-// yell. One query still answers both questions.
-const VOICE_SLUGS = [...slugsBlocking(SHOUT), STUPID_SLUG, GHOUL_SLUG];
+// yell. One query still answers all of these.
+const VOICE_SLUGS = [...slugsBlocking(SHOUT), STUPID_SLUG, GHOUL_SLUG, BOUND_SLUG];
 
 async function loadVoiceState(prisma, characterId) {
-  if (!characterId) return { block: null, shoutBlock: null, babbling: false };
+  if (!characterId) return { block: null, shoutBlock: null, babbling: false, shoutMuffled: false };
   const rows = await prisma.characterTag.findMany({
     where: { characterId, quantity: { gt: 0 }, tag: { slug: { in: VOICE_SLUGS } } },
     select: { tag: { select: { slug: true, name: true } } },
@@ -70,6 +76,11 @@ async function loadVoiceState(prisma, characterId) {
     // A Ghoul growls (docs/systemdocs/THANATI.md §4). Growl beats babble: a
     // risen Stupid is a Ghoul first.
     growling: rows.some((ct) => ct.tag.slug === GHOUL_SLUG),
+    // Bound: the yell happens, it just does not travel. Read only by
+    // db/lib/shout.js, and deliberately NOT part of `shoutBlock` — a refusal
+    // and a muffle are different answers, and being tied up is still not a
+    // reason to be told you may not shout.
+    shoutMuffled: rows.some((ct) => ct.tag.slug === BOUND_SLUG),
   };
 }
 
@@ -192,13 +203,35 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
 async function recordSpeech(
   prisma,
   prepared,
-  { discordMessageId = null, discordChannelId = null, zoneId = null, zoneName = null, channelKind = null, threadName = null, content = null, clientId = null } = {},
+  {
+    discordMessageId = null,
+    discordChannelId = null,
+    zoneId = null,
+    zoneName = null,
+    channelKind = null,
+    threadName = null,
+    content = null,
+    clientId = null,
+    sentAt = null,
+    // The proxy's two extras. `sourceDiscordMessageId` is the player's own
+    // message, claimed on a unique index so a redelivered event cannot post
+    // twice; `rethrow` is how the proxy gets to see that collision instead of
+    // having it swallowed. Both null/false everywhere else.
+    sourceDiscordMessageId = null,
+    rethrow = false,
+  } = {},
 ) {
   if (!prepared?.ok) return null;
   const row = await recordArchiveMessage(prisma, {
     // The web composer's token for the copy it has already drawn. Null on the
     // Discord path, which has no optimistic row to reconcile.
     clientId,
+    // When this was actually SAID, for a caller that is not writing it live.
+    // bot/src/lib/messageCatchUp.js recovers messages typed while the bot was
+    // down, and the whole point of the row is that it carries the moment the
+    // player typed it rather than the moment the bot woke up. Null everywhere
+    // else, and recordArchiveMessage falls back to now.
+    sentAt,
     // A caller that appended something to the prepared text (the proxy adds
     // its attachment placeholders) hands the finished string back here.
     // Otherwise the ROW's spelling is what is stored, not Discord's.
@@ -214,12 +247,13 @@ async function recordSpeech(
     placeKey: prepared.placeKey,
     source: prepared.source,
     discordMessageId,
+    sourceDiscordMessageId,
     discordChannelId,
     zoneId,
     zoneName,
     channelKind,
     threadName,
-  });
+  }, { rethrow });
   // The Thanati listen to every room (db/lib/riteChant.js). Not awaited: a
   // chant that counts writes a row or two of its own, and none of that may
   // slow or fail the message it rode in on.

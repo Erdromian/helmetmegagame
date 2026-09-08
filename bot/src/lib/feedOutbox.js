@@ -153,12 +153,12 @@ async function relayWebMentions({ row, characters, concealed, channelId, message
         })
         .catch((err) => console.error("Failed to record a web thread invite:", err?.message ?? err));
       if (target.locationId === conversation.locationId && !target.webOnly && target.discordUserId) {
-        await addThreadMember(channelId, target.discordUserId).catch(() => {});
+        await addThreadMember(channelId, target.discordUserId).catch(() => { });
       }
     }
     if (!target.discordUserId) continue;
     if (!conversation && !inEarshot(target, earshot)) continue;
-    await sendDm(prisma, target.discordUserId, `*You were mentioned in ${where}.* ‡\n${link}`, {
+    await sendDm(prisma, target.discordUserId, `*You were mentioned in ${where}.*\n${link}`, {
       source: "mention",
       meta: { placeKey: row.placeKey, where },
     }).catch((err) => console.error(`Feed outbox couldn't relay a mention to ${target.name}:`, err));
@@ -169,7 +169,7 @@ async function relayWebMentions({ row, characters, concealed, channelId, message
       title: `${target.name} was named`,
       body: `in ${where}`,
       url: `/play#${encodeURIComponent(row.placeKey)}`,
-    }).catch(() => {});
+    }).catch(() => { });
   }
 }
 
@@ -394,7 +394,7 @@ async function openListener() {
     if (err) console.error("Feed outbox listener error:", err);
     listener = null;
     client.removeAllListeners();
-    client.end().catch(() => {});
+    client.end().catch(() => { });
     scheduleReconnect();
   });
 
@@ -429,7 +429,7 @@ async function openListener() {
     if (listener === client) {
       listener = null;
       client.removeAllListeners();
-      client.end().catch(() => {});
+      client.end().catch(() => { });
     }
     scheduleReconnect();
   }
@@ -451,7 +451,7 @@ function stopFeedOutbox() {
   listener = null;
   if (client) {
     client.removeAllListeners();
-    client.end().catch(() => {});
+    client.end().catch(() => { });
   }
 }
 

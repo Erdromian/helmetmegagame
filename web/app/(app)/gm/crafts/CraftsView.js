@@ -1,6 +1,6 @@
 "use client";
 
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
 import CraftsTable from "./CraftsTable";
 
 // What the page draws, from the one object page.js#FreshCrafts produces — the
@@ -9,9 +9,6 @@ import CraftsTable from "./CraftsTable";
 export default function CraftsView(props) {
   return (
     <PageShell>
-      <PageHeader
-        title="Craft projects"
-      />
       <CraftsTable {...props} />
     </PageShell>
   );

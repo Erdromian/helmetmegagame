@@ -19,16 +19,8 @@ import {
   INQUISITOR_OR_BARON_ROLE_SLUGS,
 } from "@lifeweb/db/lib/objectiveKinds";
 import { locationEligible } from "@lifeweb/db/lib/objectives";
-import { auth } from "@/lib/auth";
-import { isSuperadmin } from "@/lib/superadmin";
+import { requireDev } from "@/lib/devAccess";
 
-async function requireSuperadmin() {
-  const session = await auth();
-  if (!session?.discordUserId || !isSuperadmin(session.discordUserId)) {
-    throw new Error("Not authorized.");
-  }
-  return session;
-}
 
 function repaint() {
   revalidatePath("/gm/dev");
@@ -112,7 +104,7 @@ async function insertObjective(session, { partyKey, kind, targetData, weight }) 
 export async function addObjective({ partyKey, kind: kindKey, targetCharacterId, targetLocationId, value, text, weight }) {
   let session;
   try {
-    session = await requireSuperadmin();
+    session = await requireDev("gm");
   } catch {
     return { error: "Not authorized." };
   }
@@ -143,7 +135,7 @@ export async function addObjective({ partyKey, kind: kindKey, targetCharacterId,
 export async function addStandardObjectives({ partyKey }) {
   let session;
   try {
-    session = await requireSuperadmin();
+    session = await requireDev("gm");
   } catch {
     return { error: "Not authorized." };
   }
@@ -172,7 +164,7 @@ export async function addStandardObjectives({ partyKey }) {
 export async function pinObjective({ id, pinned }) {
   let session;
   try {
-    session = await requireSuperadmin();
+    session = await requireDev("gm");
   } catch {
     return { error: "Not authorized." };
   }
@@ -202,7 +194,7 @@ export async function pinObjective({ id, pinned }) {
 export async function removeObjective({ id }) {
   let session;
   try {
-    session = await requireSuperadmin();
+    session = await requireDev("gm");
   } catch {
     return { error: "Not authorized." };
   }

@@ -296,6 +296,10 @@ zones:
         description: >-
           A gatehouse, usually unmanned, protecting the town from invaders. There's a bridge fording the small creek.
         rooms:
+          north-gate-gateway:
+            name: Gateway
+            description: >-
+              Rusted grates surround you.
           # Both town gates, the fortress and Customs all have a room named
           # "Watchtower" in play; the stem is what tells them apart.
           north-gate-watchtower:
@@ -469,6 +473,10 @@ zones:
         description: >-
           A gatehouse, usually unmanned, protecting the town from invaders. There's a bridge fording the small creek.
         rooms:
+          south-gate-gateway:
+            name: Gateway
+            description: >-
+              The most traveled gate. Tired horses draw half-full wagons.
           south-gate-watchtower:
             name: Watchtower
             access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key, headmans-key]

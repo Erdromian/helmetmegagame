@@ -10,23 +10,15 @@
 // Both re-check everything the UI already checked. A server action is a public
 // endpoint, and a hidden button is a hint, not a lock.
 import { revalidatePath } from "next/cache";
-import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { threatBySlug } from "@lifeweb/db/lib/threats";
 import { resolveAssignTags, spawnOfferComponents } from "@lifeweb/db/lib/threatSpawn";
 import { resolveSeatConflicts, describeSeatConflicts } from "@lifeweb/db/lib/seatConflicts";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
-import { auth } from "@/lib/auth";
-import { isSuperadmin } from "@/lib/superadmin";
+import { isSpawnOnly } from "@lifeweb/db/lib/roleCapacity";
+import { requireDev } from "@/lib/devAccess";
 import { sendDm } from "@/lib/discordGuild";
 
-async function requireSuperadmin() {
-  const session = await auth();
-  if (!session?.discordUserId || !isSuperadmin(session.discordUserId)) {
-    throw new Error("Not authorized.");
-  }
-  return session;
-}
 
 function repaint() {
   revalidatePath("/gm/dev");
@@ -75,7 +67,7 @@ async function seatMessage(threat, { role = null, spawned = false } = {}) {
 export async function assignThreat({ characterId, threatSlug }) {
   let session;
   try {
-    session = await requireSuperadmin();
+    session = await requireDev("gm");
   } catch {
     return { error: "Not authorized." };
   }
@@ -164,26 +156,38 @@ export async function assignThreat({ characterId, threatSlug }) {
     });
   });
 
-  // Post-commit: the DM must never cost the grant. sendDm applies the » prefix,
-  // splits past 2000 characters and logs to DirectMessage, so /gm/messages
-  // shows the whole thing.
+  // Post-commit, but AWAITED rather than deferred to after(): the grant is
+  // already committed, so a failed DM still cannot cost it, and the GM is the
+  // only person who can do anything about a player who was never told. This
+  // used to run in after() with the error swallowed to console, so a seat
+  // granted and never announced returned a clean ok.
+  //
+  // sendDm applies the » prefix, splits past 2000 characters and logs to
+  // DirectMessage, so /gm/messages shows the whole thing.
   const conflictLine = describeSeatConflicts(conflicts);
-  after(async () => {
-    await sendDm(character.discordUserId, [await seatMessage(threat), conflictLine].filter(Boolean).join("\n"), {
-      authorDiscordUserId: session.discordUserId,
-      source: "threat_assign",
-    }).catch((err) => console.error("Threat assign DM failed:", err));
+  const sent = await sendDm(
+    character.discordUserId,
+    [await seatMessage(threat), conflictLine].filter(Boolean).join("\n"),
+    { authorDiscordUserId: session.discordUserId, source: "threat_assign" },
+  ).catch((err) => {
+    console.error("Threat assign DM failed:", err);
+    return null;
   });
 
   repaint();
-  return { ok: true, threat: threat.name, tags: rows.map((r) => r.name) };
+  return {
+    ok: true,
+    threat: threat.name,
+    tags: rows.map((r) => r.name),
+    dmFailed: !sent,
+  };
 }
 
 // Offers a seat to somebody with no character. Writes the row, DMs the buttons.
 export async function offerThreatSpawn({ discordUserId, threatSlug, roleId, locationId }) {
   let session;
   try {
-    session = await requireSuperadmin();
+    session = await requireDev("gm");
   } catch {
     return { error: "Not authorized." };
   }
@@ -199,6 +203,12 @@ export async function offerThreatSpawn({ discordUserId, threatSlug, roleId, loca
       ? await prisma.role.findUnique({ where: { id: roleId } })
       : null;
   if (!role) return { error: "Pick a starting role." };
+  // The dropdown already hides these, and a hidden option is a hint, not a
+  // lock. A spawn-only role is somebody else's seat: handed out as a cover
+  // role it DMs the recruit that seat's whole charter.
+  if (!wantedRoleSlug && isSpawnOnly(role)) {
+    return { error: `${role.name} is a seat of its own, not a cover role. Pick another. \u2021` };
+  }
 
   if (await prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" } })) {
     return { error: "They already have a living character. Assign the seat instead." };
@@ -270,7 +280,7 @@ export async function offerThreatSpawn({ discordUserId, threatSlug, roleId, loca
 export async function cancelThreatSpawn({ spawnId }) {
   let session;
   try {
-    session = await requireSuperadmin();
+    session = await requireDev("gm");
   } catch {
     return { error: "Not authorized." };
   }

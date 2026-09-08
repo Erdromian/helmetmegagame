@@ -1,7 +1,8 @@
 import { prisma, isDynastyMember, gambitModifierTotal } from "@lifeweb/db";
 import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
 import { desireFamilies } from "@lifeweb/db/lib/desireFamilies";
-import { getGuildMember, isCursed } from "@/lib/discordGuild";
+import { getGuildMember } from "@/lib/discordGuild";
+import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import { isSuperadmin } from "@/lib/superadmin";
 import { isHealable } from "@/lib/healRequests";
 import { DEFAULT_MAX_DRAWBACK_TAGS, DEFAULT_MAX_DRAWBACK_POINTS } from "@/lib/characterCreation";
@@ -285,8 +286,14 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     discord: {
       username: member?.user?.username ?? null,
       nickname: member?.nick ?? null,
-      cursed: isCursed(member),
       present: Boolean(member),
+    },
+    // The curse: what the rule says about this player right now, and whether a
+    // GM has already forced it either way. Not under `discord` any more —
+    // it stopped being a Discord fact when db/lib/curse.js took it over.
+    curse: {
+      cursed: await isPlayerCursed(prisma, character.discordUserId),
+      override: character.cursedOverride ?? null,
     },
     // lastNameLocked is read off the already-loaded role rather than a
     // second query. The dynasty name is changed by editing the Baron,
@@ -339,10 +346,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       pointCost: ct.tag.pointCost,
     })),
     feed: { dropSlug: HUNGER_SLUG, grantSlug: ATE_MEAL_SLUG },
-    // computeBudget subtracts CURSED_POINT_PENALTY, so the Refund-points
-    // button needs to know — otherwise a re-rolled cursed character is
-    // handed back 3 points creation never gave them.
-    cursed: isCursed(member),
     equipSlots: config?.equipSlots ?? 10,
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
     maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,

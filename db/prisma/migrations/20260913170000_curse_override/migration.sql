@@ -1,0 +1,13 @@
+-- A GM's override of the curse, for the toggle on the character dev panel.
+--
+-- The curse — your next character may only be a Migrant or a Bum, at six fewer
+-- points — used to be a Discord role, so a GM lifted a wrong one by removing
+-- it in the member list. It is worked out from the database now
+-- (db/lib/curse.js), which took that away and left a wrongly-cursed player no
+-- remedy but asking someone else to spend 4 resources engraving them a
+-- headstone. This column is the replacement.
+--
+-- NULL is the normal case and means "work it out": no backfill, because every
+-- existing row wants exactly that. TRUE or FALSE forces the answer and nothing
+-- recomputes over the top.
+ALTER TABLE "Character" ADD COLUMN "cursedOverride" BOOLEAN;

@@ -2,9 +2,7 @@
 
 import { memo, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkTokens from "./remarkTokens";
-import remarkChat from "./remarkChat";
+import { CHAT_PLUGINS, DISCORD_COMPONENTS } from "./markdownPlugins";
 import InfoIcon from "./InfoIcon";
 import CharacterAvatar from "./CharacterAvatar";
 import { useCharacterMentions } from "./CharacterMentionsProvider";
@@ -14,19 +12,26 @@ import { useCharacterMentions } from "./CharacterMentionsProvider";
 // there.
 //
 // What this adds over plain Markdown: the {kind:payload} tokens (remarkTokens),
-// and chat's own three (remarkChat) — ||spoilers||, `-#` subtext and quoted
-// speech. All four plugins feed ONE tree, which is the reason this is a remark
-// plugin rather than a string pass: a mention inside a spoiler inside a quote
-// has to still be a mention.
+// chat's own three (remarkChat) — ||spoilers||, `-#` subtext and quoted speech —
+// and Discord's angle-bracket vocabulary (remarkDiscord), which reaches a scene
+// line whenever somebody types one into Discord. Every plugin feeds ONE tree,
+// which is the reason these are remark plugins rather than string passes: a
+// mention inside a spoiler inside a quote has to still be a mention.
 
-// A {char:<id>} in a feed row. The roster comes from
-// CharacterMentionsProvider, mounted on /play with exactly the people standing
-// where the reader stands — so a mention of somebody who has since walked off
-// falls back to literal text rather than naming them to a room they left.
-function CharMention({ payload, raw }) {
+// A {char:<id>} in a feed row. The map comes from CharacterMentionsProvider,
+// which /play now fills from two lists: the people standing here, and the
+// wider directory of everybody whose name is safe to print
+// (web/lib/mentionDirectory.js). It used to be the first list alone, so a ping
+// arriving from Discord — where anybody can mention anybody's name role —
+// resolved to nothing and the line printed the raw `{char:<cuid>}`.
+//
+// A miss now means somebody behind a mask, or a character since gone. Either
+// way it draws a person-shaped blank, because a cuid in braces is not a
+// visible unresolved reference, it is a line that looks broken.
+function CharMention({ payload }) {
   const mentionsById = useCharacterMentions();
   const character = mentionsById.get(payload.trim());
-  if (!character) return raw;
+  if (!character) return <span className="chat-mention chat-mention--unknown">someone</span>;
   return (
     <span className="chat-mention">
       <CharacterAvatar
@@ -46,7 +51,7 @@ function CharMention({ payload, raw }) {
 // unresolved token falls back to its literal text, the contract richTokens.js
 // states for every kind.
 function ChatTokenRenderer({ kind, payload, raw }) {
-  if (kind === "char") return <CharMention payload={payload} raw={raw} />;
+  if (kind === "char") return <CharMention payload={payload} />;
   if (kind === "info") return <InfoIcon text={payload.trim()} />;
   if (kind === "cmd") return <code className="cmd-chip">/{payload.trim()}</code>;
   return raw;
@@ -70,12 +75,11 @@ function ChatSpoiler({ children }) {
   );
 }
 
-// Order matters. remarkChat goes FIRST so a quoted sentence is wrapped while
-// it is still one run of text; remarkTokens then resolves any {char:…} inside
-// that wrapper. The other way round, a token in the middle of a quote splits
-// the text node in two and the quote no longer matches itself.
-const PLUGINS = [remarkGfm, remarkChat, remarkTokens];
-const COMPONENTS = { richtoken: ChatTokenRenderer, chatspoiler: ChatSpoiler };
+// The plugin list and its ordering rule now live in markdownPlugins.js, so
+// this renderer and the DM one cannot drift apart again — which is how a
+// Discord timestamp ended up as raw text in somebody's thread.
+const PLUGINS = CHAT_PLUGINS;
+const COMPONENTS = { richtoken: ChatTokenRenderer, chatspoiler: ChatSpoiler, ...DISCORD_COMPONENTS };
 
 // memo'd on the text, which is what makes "parsed once per row" true: a row is
 // keyed by seq in feedStore.js and its content only changes on an edit, so a

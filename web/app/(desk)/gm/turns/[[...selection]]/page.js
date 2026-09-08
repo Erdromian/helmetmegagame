@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import TurnsView from "./TurnsView";
-import Loading from "../loading";
+import Loading from "../Skeleton";
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";

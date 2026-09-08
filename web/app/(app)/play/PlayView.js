@@ -9,7 +9,7 @@ import Chat from "./Chat";
 // stored copy first, the fresh one when it lands (web/lib/snapshot). The
 // props are the same names <Chat> and <RequestActionsProvider> always took;
 // only the place they are spelled out moved.
-export default function PlayView({ kind, chat, providers, roster }) {
+export default function PlayView({ kind, chat, providers, roster, mentionDirectory = [] }) {
   if (kind === "empty" || kind === "nowhere") {
     return (
       <div className="chat-body chat-body--empty">
@@ -22,7 +22,7 @@ export default function PlayView({ kind, chat, providers, roster }) {
   const scene = <Chat {...chat} />;
   if (!providers) return scene;
   return (
-    <CharacterMentionsProvider characters={roster}>
+    <CharacterMentionsProvider characters={roster} directory={mentionDirectory}>
       <RequestActionsProvider {...providers}>{scene}</RequestActionsProvider>
     </CharacterMentionsProvider>
   );

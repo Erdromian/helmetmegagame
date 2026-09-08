@@ -44,7 +44,7 @@ const BOTH_LAYERS = new Set(["customs"]);
 
 export async function loadMap() {
   const session = await auth();
-  if (!session?.discordUserId) return { ok: false, error: "You are not signed in. ‡" };
+  if (!session?.discordUserId) return { ok: false, error: "You are not signed in." };
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
@@ -57,7 +57,7 @@ export async function loadMap() {
   // /map sits in the player half of the rail, not the job half.
   if (!character) {
     const { isGm } = await getGmSession();
-    if (!isGm) return { ok: false, error: "You have no living character. ‡" };
+    if (!isGm) return { ok: false, error: "You have no living character." };
     return buildMap({ character: null, unfogged: true });
   }
 
@@ -96,11 +96,11 @@ async function buildMap({ character, unfogged }) {
     : { stood: new Set(), seen: new Set() };
 
   // Where they can go from here, already gated and costed — the same call the
-  // Travel panel makes, so the two can never disagree about a hop.
-  const neighbours =
-    character?.locationId && !character.travelToLocationId
-      ? await travelOptions(prisma, character, character.locationId)
-      : [];
+  // Travel panel makes, so the two can never disagree about a hop. Somebody on
+  // the road is asked too: travelOptions shuts their zone crossings and leaves
+  // the local ways open, so the board keeps working for the day they have left
+  // in the zone instead of going blank (MAP.md §3).
+  const neighbours = character?.locationId ? await travelOptions(prisma, character, character.locationId) : [];
   const adjacent = new Map(neighbours.map((row) => [row.location.id, row]));
 
   const party = character ? await partyOf(prisma, character.id) : [];
@@ -161,6 +161,10 @@ async function buildMap({ character, unfogged }) {
       crossesZone: Boolean(near?.crossesZone),
       dismounts: Boolean(near?.dismounts),
       reason: near?.refusal ?? null,
+      // The tag of theirs that opens the way here, if one does. Same field the
+      // Travel panel draws a chip from, and safe for the same reason: it is
+      // only ever set for a tag this character already holds.
+      openedBy: near?.openedBy ?? null,
     });
   }
 
@@ -178,7 +182,14 @@ async function buildMap({ character, unfogged }) {
     // `listed` filter is lifted — the verdict itself still decides how a way
     // is drawn, so a shut gate reads as shut on their board too.
     if (!unfogged && !verdict.listed) continue;
-    edges.push({ a: link.aId, b: link.bId, gate: gateOf(link, verdict) });
+    edges.push({
+      a: link.aId,
+      b: link.bId,
+      gate: gateOf(link, verdict),
+      // Drawn as a solid accent line rather than a plain grey one: a road only
+      // your own trait opens is worth seeing on the plate, not just in the card.
+      openedBy: verdict.openedBy ?? null,
+    });
   }
 
   const layers = ["surface"];

@@ -155,6 +155,24 @@ is why `LocationLink` carries fields rather than one enum.
 | Keyed | `keyed`, `openUntil` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — yes and the way ignores its tag and becomes listed until the window lapses |
 | On foot | `onFoot` | too tight, steep or enclosed for a horse or a cart. A **mounted** character is dismounted crossing it, same as walking into an indoors Location |
 
+**Stealth is the one tag that reads on a crossing**, and it moves the
+announcement down exactly one step rather than switching it off
+(`db/lib/locationMove.js#announceLevelFor`, a pure function with its own test
+in `db/test/gateAnnounce.test.js`):
+
+| the edge says | an ordinary traveller | a **Stealth** traveller |
+|---|---|---|
+| `TRUE_NAME` (manned) | their real name | what a passer-by saw |
+| `CONCEALED` (unmanned) | what a passer-by saw | **nothing at all** |
+| `NONE` | nothing | nothing |
+
+The asymmetry is the point, and it is Bascinet's call: you can be quiet, but
+you cannot be quiet past a Cerberus who is reading your papers. So a stealthy
+traveller through the Fortress gatehouse lands exactly where an ordinary one
+lands at a Town gate. This is also the only thing in the game that suppresses
+an *individual's* arrival — everything else about announcing is a property of
+the edge and treats every traveller alike.
+
 **The winch is in the tower.** A modular gate's Open/Close button renders on
 one Room's starter post — the watchtower at that gate — and on neither
 endpoint's Location anchor, which is where it used to live. The four rooms are
@@ -287,11 +305,22 @@ keeps the destination's channels shut for the rest of the turn they left in,
 instead of opening under them the second they press Confirm. A **free**
 crossing and a same-zone hop are untouched and still instant.
 
-While a journey is pending the character is **frozen where they stood**:
-`performLocationMove` refuses every move with "You're on the road to X", and
-the Travel button offers nothing at all until the arrival pass walks them
-over — there is no turning back (the Turn back control was removed on
-2026-09-07). Nothing is announced at departure; the ordinary arrival lines fire next
+While a journey is pending the character **cannot leave the zone they set out
+from, and can still walk around inside it**. Only a crossing is refused —
+`performLocationMove` answers "You're on the road to X" for one, and
+`travelOptions` marks every `crossesZone` row unpassable with the same line, so
+the map, the `/play` panel and the bot's picker all draw the roads out shut and
+the local ways open without a copy of the rule in each. Hops inside the zone
+stay free on the ordinary cooldown, they do **not** clear
+`travelToLocationId`, and the arrival pass lands the traveller at the
+destination they paid for whichever Location they ended the day in — the edge
+was checked and the Move spent at declaration, so wandering buys nothing but
+company. There is still no turning back (the Turn back control was removed on
+2026-09-07). The freeze used to cover every move, including the free ones: that
+guard sat above the point where `performLocationMove` works out whether a hop
+crosses a zone at all, so it caught walks it was never aimed at, and a player
+who spent their Move on the road spent the day standing in one room.
+Nothing is announced at departure; the ordinary arrival lines fire next
 turn, plus a "You arrive at X" DM. Every raw relocation (a GM teleport, Bulk
 Move, the staged "Relocate to") clears the pending destination too, or the
 pass would undo the teleport at Dawn, and so does death. Each of them clears
@@ -512,11 +541,17 @@ the Commoner kit crates so a farmer and a hunter wake up knowing different
 roads. `createCharacter` calls `seedMemories()` once, after the transaction
 commits — after, because `travelOptions` reads the tags it just granted.
 
-Two slugs are in nobody's list on purpose: `caves-brooding-grounds`, the far end
-of the smugglers' crawl, and `hills-mountain`, which has no edge to the rest of
-the Black Hills at all. Handing either one out would give away a way in. Every
-other guard here still applies, because `seedMemories` writes through
-`recordArrival` rather than around it.
+**Leaving a slug out of that table is not a guarantee it stays dark**, and it is
+worth being clear about why. `recordArrival` paints every *listed* neighbour of
+a seeded Location, and a locked way is listed — so `hills-mountain` reaches all
+thirteen Fortress seats through the locked `servant-wing` climb whether the
+table names it or not, which is correct: you can see a mountain from the road.
+What leaving a slug out really protects is a **hidden** way, since
+`travelOptions` drops those before the sighting write ever runs. The table is
+therefore written to the standard of "would this seat's life have taught them
+this", not "is this a secret" — the cargo-bay seats stop at `caves-approach`
+rather than the Migrants' camp, because the camp is one open road from the
+brooding grounds and two from the mouth of the Depths.
 
 ### 6b. What the fog must never leak
 

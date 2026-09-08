@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import useActionRunner from "@/app/components/useActionRunner";
-import { travelFoot } from "@/lib/travelCost";
+import ChipLabel from "@/app/components/ChipLabel";
+import { useTags } from "@/app/components/TagsProvider";
+import { travelFoot, openedByLabel } from "@/lib/travelCost";
 import { loadMap } from "./actions";
 import { travelTo } from "../play/actions";
 
@@ -25,12 +27,19 @@ import { travelTo } from "../play/actions";
 // Rhombus half-widths, in plate pixels. The plate is 2144 wide, so these are
 // small on screen until you zoom — which is the point: the shape reads as a
 // marker on a map rather than a button on a page.
-// A place you have only seen is drawn SMALLER as well as hollow. Town packs
-// seven Locations into a couple of hundred plate pixels, so at a fit that
-// frames the whole of what you know they collide — and the ones worth the
-// room are the ones you have actually been to.
-const RIM = { here: 27, stood: 21, seen: 16 };
-const CORE = { here: 19, stood: 14, seen: 11 };
+//
+// ONE SIZE for every node. They used to grow with what you knew — here bigger
+// than stood, stood bigger than seen — which made a board of fifty read as
+// though the big ones mattered more, when all the size meant was that you had
+// been there. State is carried by the fill instead: a place you have only seen
+// is the same rhombus, drawn hollow. What kept the old scale honest was Town,
+// which packs seven Locations into a couple of hundred plate pixels; the
+// smaller size here is what stops those colliding now.
+//
+// The ring sits well outside the core rather than hugging it, so the two read
+// as a marker with a halo instead of one fat blob.
+const RIM = 12.15;
+const CORE = 8.1;
 // The floor is 1, not something smaller, and that is the whole "no blank
 // space" rule: at k=1 the plate exactly covers the window, so zooming out past
 // it is zooming out past the world. Paired with preserveAspectRatio="slice"
@@ -124,7 +133,7 @@ export default function MapBoard({ onClose = null }) {
         if (!cancelled) setData(res);
       })
       .catch(() => {
-        if (!cancelled) setData({ ok: false, error: "Couldn't read the map. ‡" });
+        if (!cancelled) setData({ ok: false, error: "Couldn't read the map." });
       });
     return () => {
       cancelled = true;
@@ -343,7 +352,7 @@ export default function MapBoard({ onClose = null }) {
   // ---------------------------------------------------------------- render
 
   if (!data) {
-    return <div className="map-board map-board-quiet">Unrolling the map… ‡</div>;
+    return <div className="map-board map-board-quiet">Unrolling the map…</div>;
   }
   if (!data.ok) {
     return (
@@ -411,6 +420,7 @@ export default function MapBoard({ onClose = null }) {
                     key={`${e.a}-${e.b}`}
                     className="map-edge"
                     data-gate={e.gate ?? undefined}
+                    data-opened={e.openedBy ? "true" : undefined}
                     x1={a.x}
                     y1={a.y}
                     x2={b.x}
@@ -437,22 +447,22 @@ export default function MapBoard({ onClose = null }) {
                 >
                   <rect
                     className="map-node-rim"
-                    x={-RIM[n.state]}
-                    y={-RIM[n.state]}
-                    width={RIM[n.state] * 2}
-                    height={RIM[n.state] * 2}
+                    x={-RIM}
+                    y={-RIM}
+                    width={RIM * 2}
+                    height={RIM * 2}
                     transform="rotate(45)"
                   />
                   <rect
                     className="map-node-core"
-                    x={-CORE[n.state]}
-                    y={-CORE[n.state]}
-                    width={CORE[n.state] * 2}
-                    height={CORE[n.state] * 2}
+                    x={-CORE}
+                    y={-CORE}
+                    width={CORE * 2}
+                    height={CORE * 2}
                     transform="rotate(45)"
                   />
                   {labels && (
-                    <text className="map-node-label" y={RIM[n.state] + 34} textAnchor="middle">
+                    <text className="map-node-label" y={RIM + 30} textAnchor="middle">
                       {n.name}
                     </text>
                   )}
@@ -535,7 +545,7 @@ export default function MapBoard({ onClose = null }) {
             }
           />
         ) : (
-          <EmptyState>You are nowhere on this map yet. ‡</EmptyState>
+          <EmptyState>You are nowhere on this map yet.</EmptyState>
         )}
 
         {!chosen && exits.length > 0 && (
@@ -544,6 +554,9 @@ export default function MapBoard({ onClose = null }) {
             {exits.map((n) => (
               <button key={n.id} type="button" className="map-exit" onClick={() => setSel(n.id)}>
                 <span>{n.name}</span>
+                {/* The tag of theirs that opens it, where one does — the same
+                    chip the Travel panel and the card below draw. */}
+                <ViaChip slug={n.openedBy} />
                 <span className="mono">{travelFoot(n, travel?.freeLeft ?? 0, travel?.mounted)}</span>
               </button>
             ))}
@@ -593,6 +606,23 @@ function Inside({ inside }) {
   );
 }
 
+// The trait chip, resolved from a slug. Both places on this page that draw one
+// want the identical thing, and neither has anywhere to put the sentence, so
+// the name is on the chip and the sentence is on its title. `tagsBySlug` is the
+// root layout's streamed catalog plus everything this character holds — and
+// openedBy is only ever a tag they hold, so the lookup cannot come up empty.
+// ChipLabel, not TagChip: both call sites are inside a <button>.
+function ViaChip({ slug }) {
+  const { tagsBySlug } = useTags();
+  const tag = slug ? (tagsBySlug.get(slug) ?? null) : null;
+  if (!tag) return null;
+  return (
+    <span className="map-via" title={openedByLabel(tag.name)}>
+      <ChipLabel tag={tag} />
+    </span>
+  );
+}
+
 function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
   const isHere = here && node.id === here.id;
   const reachable = node.adjacent && node.passable;
@@ -601,15 +631,21 @@ function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
   return (
     <div className="map-card-body">
       <p className="map-card-name">{node.name}</p>
-      <span className="chip zone-chip" data-zone={node.zoneKey}>
-        {node.zoneName}
-      </span>
+      <div className="chip-row">
+        <span className="chip zone-chip" data-zone={node.zoneKey}>
+          {node.zoneName}
+        </span>
+        {/* Beside the zone rather than under it: both answer "what is this
+            place to me", and the shared .chip-row is what a line of chips is
+            already spelled as everywhere else. */}
+        <ViaChip slug={node.openedBy} />
+      </div>
 
       {node.description && <p className="text-sm">{node.description}</p>}
 
-      {isHere && <p className="chat-quiet-line">You are standing here. ‡</p>}
+      {isHere && <p className="chat-quiet-line">You are standing here.</p>}
       {!isHere && node.state === "seen" && (
-        <p className="chat-quiet-line">You have not been here. ‡</p>
+        <p className="chat-quiet-line">You have not been here.</p>
       )}
 
       {/* What is inside, for a place they have actually stood in. Three lists
@@ -620,36 +656,43 @@ function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
           and nothing to leak by forgetting to. */}
       {node.inside && <Inside inside={node.inside} />}
 
+      {/* Already walking. This used to swallow the whole block below it, which
+          left a traveller a board they could read and not use. Only the ways
+          OUT OF THE ZONE are shut now, and the server shuts them — a crossing
+          comes back unpassable with the road named in its reason, so it falls
+          into the refusal branch on its own and the local ways still offer
+          their Go button (MAP.md §3). */}
       {travel?.heading ? (
-        <p className="text-sm">Leaving for {travel.heading} at the turn. ‡</p>
-      ) : (
-        !isHere &&
-        node.adjacent && (
-          <div className="map-confirm">
-            {reachable ? (
-              <>
-                <p className="text-sm">{nextTurn ? `To ${node.name}, next turn.` : `To ${node.name}.`}</p>
-                {travel?.partySize > 0 && (
-                  <p className="chat-quiet-line">
-                    {travel.partySize === 1 ? "One person" : `${travel.partySize} people`} with you. ‡
-                  </p>
-                )}
-                <FormError>{error}</FormError>
-                <div className="chat-buttons">
-                  <button type="button" className="btn" disabled={pending} onClick={onGo}>
-                    Go
-                  </button>
-                  <button type="button" className="btn-quiet" disabled={pending} onClick={onCancel}>
-                    Cancel
-                  </button>
-                </div>
-              </>
-            ) : (
-              // Straight off crossingCheck, which already carries its own mark.
-              <p className="text-sm">{node.reason}</p>
-            )}
-          </div>
-        )
+        <p className="text-sm">
+          Leaving for {travel.heading} at the end of the turn — until then this zone is still yours to walk.
+        </p>
+      ) : null}
+
+      {!isHere && node.adjacent && (
+        <div className="map-confirm">
+          {reachable ? (
+            <>
+              <p className="text-sm">{nextTurn ? `To ${node.name}, next turn.` : `To ${node.name}.`}</p>
+              {travel?.partySize > 0 && (
+                <p className="chat-quiet-line">
+                  {travel.partySize === 1 ? "One person" : `${travel.partySize} people`} with you.
+                </p>
+              )}
+              <FormError>{error}</FormError>
+              <div className="chat-buttons">
+                <button type="button" className="btn" disabled={pending} onClick={onGo}>
+                  Go
+                </button>
+                <button type="button" className="btn-quiet" disabled={pending} onClick={onCancel}>
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            // Straight off crossingCheck, which already carries its own mark.
+            <p className="text-sm">{node.reason}</p>
+          )}
+        </div>
       )}
     </div>
   );

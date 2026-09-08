@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import { FreshCharacter } from "../character/page";
 import LedgerView from "./LedgerView";
-import Loading from "./loading";
+import Loading from "./Skeleton";
 
 // The second character sheet (web/app/components/CharacterLedger.js), drawing
 // the signed-in player's own character in a different frame. Open to every

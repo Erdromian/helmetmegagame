@@ -93,7 +93,9 @@ const getFalse = () => false;
 // ever "Needs attention"; every roll shows by default, unresolved TROUBLE
 // just ranks first.
 const CAVING_FILTER_DEFS = [
-  { key: "zone", label: "Zone", value: (r) => r.factionZoneName },
+  // The zone the die rolled in, not the roller's faction seat — see
+  // cavingRollRow in web/lib/moveRows.js.
+  { key: "zone", label: "Zone", value: (r) => r.zoneName },
   { key: "status", label: "Status", value: (r) => r.statusLabel, options: CAVING_STATUS_OPTIONS },
 ];
 const cavingSearchMap = (r) => ({
@@ -101,7 +103,7 @@ const cavingSearchMap = (r) => ({
   username: r.discordUsername,
   role: r.roleTitle,
   faction: r.factionName,
-  zone: r.factionZoneName,
+  zone: r.zoneName,
   kind: r.kindLabel,
   status: r.statusLabel,
   tag: r.lootTagName,
@@ -236,7 +238,7 @@ function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKe
           <StatusPill tone={CAVING_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
         </span>
         <span className="block truncate text-xs text-muted">
-          {row.factionZoneName} · {row.kindLabel}
+          {row.zoneName} · {row.kindLabel}
         </span>
         {row.lootTagName && <span className="block truncate text-xs text-muted">{row.lootTier} → {row.lootTagName}</span>}
       </button>

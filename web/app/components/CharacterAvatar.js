@@ -32,7 +32,18 @@ function CatatonicDot({ size }) {
   );
 }
 
-export default function CharacterAvatar({ characterId, name, version, src, size = 20, catatonic = false }) {
+export default function CharacterAvatar({
+  characterId,
+  name,
+  version,
+  src,
+  size = 20,
+  catatonic = false,
+  // A face you have not earned. Set for somebody standing here you have not
+  // watched speak this turn, and for an archived line said before the game
+  // recorded what was over the speaker's face.
+  unknown = false,
+}) {
   const wrap = (face) =>
     catatonic ? (
       <span style={{ position: "relative", display: "inline-flex", flexShrink: 0, verticalAlign: "middle" }}>
@@ -46,6 +57,39 @@ export default function CharacterAvatar({ characterId, name, version, src, size 
   // The tooltip is the accessible name for the whole marker, so the AFK
   // state rides it rather than a second stop for a screen reader.
   const label = catatonic ? `${name} — Catatonic (AFK)` : name;
+
+  // The question-mark plate. It must never fall back to an initial the way the
+  // bare branch below does: "a young man" would draw an A, and one letter is
+  // enough to tell two hoods apart, which is the entire thing this withholds.
+  // The tooltip still carries the alias, so a screen reader hears the name the
+  // room hears rather than "unknown".
+  if (unknown) {
+    return (
+      <Tooltip text={label}>
+        {wrap(
+          <span
+            aria-hidden="true"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: size,
+              height: size,
+              borderRadius: "var(--r-full)",
+              background: "var(--field-bg)",
+              border: "1px solid var(--border)",
+              color: "var(--muted)",
+              fontSize: `${Math.max(0.55, size / 32)}rem`,
+              flexShrink: 0,
+              verticalAlign: "middle",
+            }}
+          >
+            ?
+          </span>,
+        )}
+      </Tooltip>
+    );
+  }
 
   if (!characterId && !src) {
     return wrap(

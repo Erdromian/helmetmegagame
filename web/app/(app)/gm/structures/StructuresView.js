@@ -1,6 +1,6 @@
 "use client";
 
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
 import StructuresTable from "./StructuresTable";
 
 // What the page draws, from the one object page.js#FreshStructures produces — the
@@ -9,9 +9,6 @@ import StructuresTable from "./StructuresTable";
 export default function StructuresView(props) {
   return (
     <PageShell>
-      <PageHeader
-        title="Structures"
-      />
       <StructuresTable {...props} />
     </PageShell>
   );

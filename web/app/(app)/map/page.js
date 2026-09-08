@@ -1,4 +1,4 @@
-import DeskHeader from "@/app/components/DeskHeader";
+import AppHeader from "@/app/components/AppHeader";
 import MapBoard from "./MapBoard";
 
 // The map as its own page. The overlay on /play mounts the identical board —
@@ -20,7 +20,7 @@ export const metadata = { title: "Map" };
 export default function MapPage() {
   return (
     <div className="map-shell">
-      <DeskHeader title="Map" />
+      <AppHeader title="Map" />
       <MapBoard />
     </div>
   );

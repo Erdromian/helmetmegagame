@@ -189,8 +189,14 @@ one traversal in the game that never calls `crossingCheck`.
 
 **Who may shout.** The SHOUT capability (`TAGS.md` §5f) — so Paralyzed,
 Unconscious and mid-Seizure refuse, **Mute refuses here and nowhere else**, and
-**Bound deliberately does not refuse at all**. Being tied up takes your hands,
-not your voice, and a hostage nobody can hear is a hostage nobody can rescue.
+**Bound deliberately does not refuse at all** — it *muffles*. Being tied up
+takes your hands, not your voice, so the yell still happens and the people
+standing with you still hear it; it simply does not carry past where you are,
+and the line says so ("but it's muffled"). Somebody who can see you tied up
+can obviously hear you, so a gag takes the **hops**, never the room. That
+lives in `db/lib/say.js#loadVoiceState` as `shoutMuffled` rather than in
+`incapacitation.js`'s table, because the table is about what is *refused* and
+a muffle refuses nothing — the cooldown is still spent, and no error is shown.
 Mute is the mirror of that: an ordinary talker whose voice will not carry. The check runs *before* the cooldown is claimed, so
 a refused shout does not burn the throat timer.
 
@@ -198,7 +204,7 @@ a refused shout does not burn the throat timer.
 
 | Distance | The line |
 |---|---|
-| 0 — your own Location | Full size: "You hear someone shout:" and the words |
+| 0 — your own Location | Full size: **who shouted**, and the words |
 | 1 | `-#` subtext: "…from the direction of *X*", words clear |
 | 2 | the same, 40% of the letters replaced with `░ ▒ ▓` |
 | 3 | "…from the direction of *X*." — no words at all |
@@ -226,9 +232,19 @@ the whole reason `hidden` refuses in the same words a nonexistent edge does
 caves still tells somebody out on the road which way down the road it came
 from.
 
-**Nobody is ever named**, at any distance including zero. That is what lets a
-concealed character shout without unmasking, and it is also just true — you
-hear a shout before you find out whose it was.
+**Named at distance zero, and nowhere else.** Standing in it you can simply
+look, so your own Location and the thread you shouted from get
+`Baroness Ophidia shouts: » …`. From one hop out it is `You hear someone
+shout…` exactly as before — which is the half of the old rule that was doing
+the work, because you hear a shout before you find out whose it was.
+
+The name is the **presented** one (`db/lib/presentedIdentity.js`), so
+concealment survives at zero distance too: a hood shouts as `A young man`, a
+Beast as `Beast`. It is `aliasSubject()`'s lower-case form rather than
+`identity.name`, which is Title Case because it doubles as a webhook username
+and would read as somebody actually called Young Man. An identity that fails
+to load falls back to the old anonymous line — erring toward hiding somebody
+who should be visible, never the reverse.
 
 Distance 0 is full size and everything past it is `ambientLine` subtext, the
 same split `/play` makes: the room hears the performance, the street outside
@@ -240,10 +256,43 @@ Conversation and the thread gets the full-size line too, before the loop runs.
 Without that one exception the only room that certainly heard you would be the
 only room that didn't.
 
+**Two things muffle, at two different distances.** A soundproof room is
+*sealed*: nothing leaves the thread. A bound character is *gagged*: the shout
+reaches their own Location and stops there. Both append `, but it's muffled.`
+and both still cost the cooldown; bound inside a soundproof room is sealed,
+the stricter of the two. See `db/lib/shout.js`.
+
+**And some rooms keep it.** A Room may be `soundproof: true` in
+`docs/zones.yaml` (`Room.soundproof`). Shout from inside one and the thread is
+the *whole* delivery: the parent Location channel and every Location in earshot
+get nothing, the BFS is skipped entirely, and the line everyone in the room
+sees gains `, but it's muffled.` — as does the shouter's own acknowledgement.
+It is not a refusal, so it still costs the five-minute cooldown; a hostage who
+has spent their throat on a room nobody can hear has spent it.
+
+Fifteen rooms carry it, and they are the places you would tie somebody up in:
+the Vault, the Oubliette, the Dungeons, the Order Chambers, the Charon, the
+Nook behind the painting, the windowless Operating Theater, the Underquarter
+Basements and Organ Shop, and the cellars and crypts — the Inn's, the Manor's,
+Creekside's Root Cellar, the North Hills Basement, the flooded Village cellar,
+the drowned Marshes Crypt. The Graga Pit deliberately is **not**: the thing
+rumbling under the throne room is supposed to be heard. Neither are the
+Echoing Halls, whose whole description is that sound carries there.
+
+A Conversation inherits the flag from the Room it hangs under, so a private
+thread opened inside the Vault is muffled and one opened out on the open
+Location is not. A Location itself is never soundproof — standing in the street
+outside a vault is not being in the vault.
+
+It is a **shout** boundary, not a sound boundary. The whisper poll still leaks
+Conversation fragments up into the parent Room every fifteen minutes
+(`db/lib/whisperLeak.js`); only `subtle` suppresses that.
+
 **Rate limits.** One shout is up to a couple of dozen REST posts, so the posting
 loop is sequential with every post individually caught, the discipline
 `bot/src/lib/deathSmell.js` documents — never `Promise.all`. On top of that
-there is a 5-minute per-character cooldown, in memory like `/play`'s, and it is
+there is a 5-minute per-character cooldown — an `AuditLog` row, not an in-memory
+Map, so it survives a bot restart and the two faces share one throat — and it is
 **claimed before the loop rather than after**: the loop takes real seconds,
 which is exactly long enough for a second `/shout` to slip past a cooldown
 stamped at the end.

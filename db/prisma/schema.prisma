@@ -367,15 +367,17 @@ model GameConfig {
   // updateCharacterProfile ignores a posted `avatar` field even if one
   // arrives anyway — everyone falls through to their letter plaque (see
   // "Character proxying" in CLAUDE.md). Existing Character.avatarData is
-  // untouched either way; this only gates new uploads. Deliberately off by
-  // default.
-  avatarUploadsEnabled Boolean @default(false)
+  // untouched either way; this only gates new uploads. On by default since
+  // 2026-09-08 — a game that starts with faces turned off means somebody has
+  // to remember to turn them on, and nobody did.
+  avatarUploadsEnabled Boolean @default(true)
 
   // Master switch for the in-app portrait maker (docs/systemdocs/PORTRAITS.md).
   // Off means the "Customize Appearance" button doesn't render and
   // setPortraitAvatar refuses whatever the client posts — the same
-  // presentation/lock split as avatarUploadsEnabled above. Off by default.
-  portraitMakerEnabled Boolean @default(false)
+  // presentation/lock split as avatarUploadsEnabled above. On by default for
+  // the same reason.
+  portraitMakerEnabled Boolean @default(true)
 
   // Reveals the portrait parts the catalog marks `fantasy`: pointed ears,
   // horns, antlers, and unnatural hair and eye colours. Ravenheart is low
@@ -725,10 +727,12 @@ model Depot {
 
   creditCapObols Int @default(75)
 
-  // The turret's severity distribution, one weighted column per armour tier.
-  // JSON rather than columns because a GM retuning it should not need a
-  // migration, and db/lib/depotTurret.js validates the shape and that every
-  // column sums to 1 at startup — the same posture as cavingLoot.js.
+  // ORPHAN. The turret's severity distribution, once GM-editable as JSON on
+  // the Dev Panel. Nothing reads or writes it: db/lib/depotTurret.js returns
+  // one shipped table to every caller, because the odds of dying at the gate
+  // are a rule of the game and two turrets disagreeing about them was not
+  // something a player could ever see or reason about. Kept, like
+  // mindlinkChannelId, because this schema drops no columns.
   turretTable Json @default("{}")
 
   updatedAt DateTime @updatedAt
@@ -1649,6 +1653,22 @@ model Character {
   // GM-revived character is never a live person marked buried.
   buriedAt DateTime?
 
+  // A GM's override of the curse, from the character dev panel. NULL means
+  // "work it out" — the normal case, answered by db/lib/curse.js from this
+  // character's buriedAt. True or false forces it either way and nothing
+  // recomputes over the top.
+  //
+  // It exists because the curse used to be a Discord role a GM could add or
+  // remove by hand in the member list, and moving the truth into the database
+  // took that away with nothing to replace it. A player wrongly cursed would
+  // otherwise have no remedy but to ask another player to spend 4 ⬢ and a Move
+  // engraving them a headstone.
+  //
+  // Deliberately NOT buriedAt: stamping that to lift a curse would also take
+  // the body out of the world, so it could not be looted, dragged or bound
+  // (db/lib/presence.js, db/lib/escort.js).
+  cursedOverride Boolean?
+
   // The in-game DAY a FAST_TRAVEL was last claimed on — despite the name,
   // NOT a turn id. A day is TWO turns (Dawn/Dusk), so this stores
   // The load at the last db/lib/carry.js settle — the watermark that tells an
@@ -1683,6 +1703,14 @@ model Character {
   // must never cascade into a character row.
   zoneMovesTurnId String?
   zoneMovesUsed   Int     @default(0)
+
+  // The movement fear ration (db/lib/fear.js, MOVE_FEAR_TURN_CAP). Same claim-
+  // token shape as zoneMovesTurnId above, and not a foreign key for the same
+  // reason. Float because what it counts is the delta that actually landed,
+  // after the multipliers and after GameConfig.fearIntensity — Brave halves a
+  // step to 1, so the total is not an integer.
+  moveFearTurnId  String?
+  moveFearUsed    Float   @default(0)
 
   // The in-game DAY this character's bird last flew — the same claim token as
   // fastTravelTurnId above, for the same reason and with the same trap. A day
@@ -3139,10 +3167,25 @@ model DirectMessage {
   // The GM who sent it; null = bot/system or inbound.
   authorDiscordUserId String?
 
-  // gm_reply | gm_broadcast | gm_inspector | gm_dev | gm_slash |
-  // move_unlock | staged_push | bot_auto | player | player_event. Plain
-  // String on purpose — a PG enum would cost a migration per new value.
+  // What PRODUCED the row. Plain String on purpose — a PG enum would cost a
+  // migration per new value, and there are a couple of dozen of these.
+  //
+  // Only five of them are still read by anything: gm_letter, gm_letter_reply
+  // and bird draw as a letter, mention draws as a ping, and staged_push /
+  // gm_broadcast put a chip beside the name (web/app/components/DmThread.js).
+  // The rest are an audit trail. Do NOT add a new one to a filter list to
+  // make it behave — what a row WEIGHS on the GM desk is `kind` below, and
+  // the two are deliberately orthogonal. The accurate roster of historical
+  // values is the CASE in migrations/20260913140000_dm_kind.
   source String?
+
+  // CONVERSATION | NOTICE | QUIET (db/lib/dmKinds.js). How much of the GM
+  // inbox this row is entitled to: a NOTICE is invisible to the rail and grey
+  // in the thread, a QUIET row is never drawn at all. String rather than a PG
+  // enum for the same reason `source` is one, and NOT NULL because a row with
+  // no answer here is exactly the bug this column exists to end. The default
+  // is the quiet one at the database level too, not just in sendDm.
+  kind String @default("NOTICE")
 
   // Discord id of the sent message — the last chunk when postDmBatched had
   // to split it, which is the same message for anything under 2000 chars.
@@ -3154,6 +3197,7 @@ model DirectMessage {
   @@index([discordUserId, createdAt])
   @@index([createdAt])
   @@index([direction, discordUserId, createdAt]) // unread scans
+  @@index([kind, discordUserId, createdAt]) // the rail's DISTINCT ON
 }
 
 // Per-GM read cursor on a player conversation. Unread = INBOUND
@@ -3201,7 +3245,18 @@ model Note {
   discordChannelId String
   characterId      String?
   character        Character? @relation(fields: [characterId], references: [id])
+
+  // The name the room HEARD, which for a hooded or forced line is the alias
+  // rather than the person (bot/src/events/messageReactionAdd.js).
   characterName    String
+
+  // And the face that went with it, frozen for the same reason
+  // ArchiveEntry.presentedAvatarPath is. NULL means the speaker's own face,
+  // resolved live from /api/avatar/<id> — which is the right answer only
+  // because a note under somebody's real name is a note about somebody whose
+  // face the starrer could see. A note from before this column draws the
+  // question-mark plate instead of a guess.
+  presentedAvatarPath String?
   zoneId           String?
   zone             Zone?      @relation(fields: [zoneId], references: [id])
   content          String
@@ -3799,6 +3854,18 @@ model ArchiveEntry {
   // How ✏️ and ❌ find this row again to update or remove it. Null for system
   // events, which have no Discord message behind them.
   discordMessageId String? @unique
+
+  // The player's ORIGINAL Discord message, the one the proxy deletes — not the
+  // webhook repost `discordMessageId` holds. It is the idempotency key for the
+  // Discord -> row direction: bot/src/lib/proxy.js writes this row BEFORE
+  // posting, so a second delivery of the same messageCreate loses the race on
+  // this unique index and bails without posting again.
+  //
+  // That distinction is the whole point. `discordMessageId` is minted fresh by
+  // each webhook post, so two runs of one player message never collide on it —
+  // which is exactly how one typed line got posted twice. Null on every web and
+  // system row, and Postgres lets a unique index hold as many NULLs as it likes.
+  sourceDiscordMessageId String? @unique
 
   // summary | public | private | watch | intercom — lets the panel keep a
   // zone's summary channel apart from its forum scenes. ("plain" in rows

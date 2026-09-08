@@ -407,15 +407,21 @@ one. Deleting a Tag from the catalog cascades its **room** stacks
 > is locked to you. See `FACTIONS.md` §4.
 
 
-One dialog on `/character` (`TransferDialog.js`, mode `transfer` in
-`RequestActionsProvider.js`) replaces the old Transfer Tag and Transfer
-Resources buttons. From → To, any number of tag lines, a ⬢ amount, one reason.
-From is **you or a Room** here; To is a person standing at your Location
-who isn't concealed (web/lib/peopleHere.js — the same roster every picker
-uses) or a Room here you can get into. Nothing is ever taken from another
-person through Transfer, ⬢ included: you can't reach into their pockets, and
-listing what's in them would show their hidden tags. Loot is how you take
-from a person, and only a helpless one (REQUESTS.md §5b). The projection line
+One dialog — **Move things** (`web/app/components/actions/MoveThingsDialog.js`,
+modes `transfer` and `loot`) — is Transfer, Loot, Take, Drop and Give. Two
+chip rows say the direction (From: you, a Room here, or somebody helpless;
+To: you, a person here, a Room, your silo), then every stack the source
+offers is a row with a count (`StackRow.js`: name · − n + · All), plus a ⬢
+box. It replaced two dropdowns, a checkbox list with a "How many?" field per
+tick, and a separate Loot dialog that was a third dropdown over the same body.
+The people are the same roster every picker uses (web/lib/peopleHere.js), and
+the whole thing is re-read the moment the dialog opens
+(`actions/useRoster.js`). Out of a person's pockets **is** Loot — the server
+hands that source to `lootCharacterRequest`, so the helpless gate, the fear
+hit and the "your body was searched" notice fire whichever button opened it;
+you can't reach into a standing person's pockets, and listing what's in them
+would show their hidden tags (REQUESTS.md §5b). The Loot button opens the same
+dialog with you left off the From row. The projection line
 ("After this you carry 60 / 71 lb and 6 / 25 ⬢") warns in accent when the
 result is over a cap and submits anyway — going over is allowed up to the ceiling (§2).
 
@@ -474,7 +480,7 @@ it out for a while, which made every stash in the game a one-way drop. ‡
 | Post-commit tail | `web/lib/afterInventoryChange.js` |
 | Merged action | `web/app/(app)/character/requestActions.js#transferRequest` |
 | Undo, party-shaped moves | `web/lib/tagEffects.js#takeTagFrom` / `giveTagTo` |
-| Dialog, grid, readout | `TransferDialog.js`, `ActionGrid.js`, `StatusPanel.js`, `PartySelect.js` |
+| Dialog, grid, readout | `components/actions/MoveThingsDialog.js`, `StackRow.js`, `ActionGrid.js`, `StatusPanel.js` |
 | `{carry:slug}` | `web/lib/referenceData.js#getCarryReference`, `CarryProvider.js`, `RichText.js`, `ChipText.js` |
 | Free zone moves, travel gate | `db/lib/locationTravel.js#performLocationMove`, `freeZoneMoves`, `freeMovesLeft` |
 | Mounts: what counts while equipped | `db/lib/mounts.js` |

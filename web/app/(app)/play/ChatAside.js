@@ -2,7 +2,7 @@
 
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import FormError from "@/app/components/FormError";
-import HereList from "./HereList";
+import HereList from "@/app/components/HereList";
 import PartyRack from "./PartyRack";
 import PlaceCard from "./PlaceCard";
 import RoomPanel from "./RoomPanel";

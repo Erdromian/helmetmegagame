@@ -19,7 +19,7 @@
 // LOCATION_MEMBER_ALLOW below is the bit set that used to sit on the role,
 // now handed to one member at a time by applyLocationMoveSideEffects.
 const { spectatorOverwrite } = require("./spectatorAccess");
-const { cursedOverwrite } = require("./cursedAccess");
+const { ghostOverwrite } = require("./ghostAccess");
 
 const CHANNEL_TYPE_TEXT = 0;
 const CHANNEL_TYPE_CATEGORY = 4;
@@ -97,7 +97,7 @@ function baseOverwrites(guildId, zoneGmRoleId, { spectators = true } = {}) {
     { id: guildId, type: 0, deny: (PERM_VIEW_CHANNEL | PERM_ATTACH_FILES).toString() },
     ...roleAllow(zoneGmRoleId, PERM_VIEW_CHANNEL | PERM_ATTACH_FILES),
     ...spectatorOverwrite({ visible: spectators }),
-    ...cursedOverwrite(),
+    ...ghostOverwrite(),
   ];
 }
 

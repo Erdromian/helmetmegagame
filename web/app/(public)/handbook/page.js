@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
+import AppHeader from "@/app/components/AppHeader";
 import DocumentMarkdown from "@/app/components/DocumentMarkdown";
 import { getHandbookBody } from "@/lib/handbook";
 
@@ -27,8 +28,8 @@ export default async function HandbookPage() {
   const signedIn = !!session?.discordUserId;
 
   return (
-    <PageShell width="wide">
-      <PageHeader
+    <>
+      <AppHeader
         title="Player Handbook"
         actions={
           signedIn ? (
@@ -38,6 +39,7 @@ export default async function HandbookPage() {
           ) : null
         }
       />
+      <PageShell width="wide">
       {!signedIn && (
         <p className="text-sm text-muted">
           Playing already? <Link href="/">Sign in</Link> to reach your character, the map, and the
@@ -51,6 +53,7 @@ export default async function HandbookPage() {
       <div className="panel doc-sheet-body p-4 sm:p-6">
         <DocumentMarkdown text={body} />
       </div>
-    </PageShell>
+      </PageShell>
+    </>
   );
 }

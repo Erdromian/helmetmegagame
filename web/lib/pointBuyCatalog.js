@@ -2,7 +2,7 @@ import { prisma, startingTagSlugs } from "@lifeweb/db";
 import { DESIRE_UNLOCK_SELECT, stripEmptyUnlocks } from "@/lib/referenceData";
 
 // A buy menu is not a recipe book. It prints a recipe only where the trade
-// that gates it is public knowledge — the six courtier wax seals are made by a
+// that gates it is public knowledge — every wax seal in the game is made by a
 // Forger, a `catalog: gm` Brigand skill, and a "Recipe: Forger" line under a
 // seal in the shop would tell every courtier that seals get forged. The tag
 // keeps its point price either way; that is the honest route and it stays

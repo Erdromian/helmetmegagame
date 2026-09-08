@@ -84,7 +84,7 @@ async function pushTurnOpen(prisma, text) {
     await pushToUser(prisma, player.discordUserId, {
       title: "The turn has opened",
       body: firstLine,
-      url: "/play",
+      url: "/play#gm",
     }).catch(() => {});
     await new Promise((resolve) => setTimeout(resolve, TURN_PUSH_GAP_MS));
   }

@@ -1,7 +1,7 @@
 import { prisma, MORTUS_SLUG, MERCHANT_LICENSE_SLUG } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
-import { dmNoiseSql } from "@/lib/dmThread";
+import { railKindSql } from "@/lib/dmThread";
 
 // The nav rail's item list, shared by every route group that draws a rail —
 // one copy so they can't drift into different navs for the same user.
@@ -66,9 +66,9 @@ async function loadUnreadConversationCount(discordUserId) {
   // the same shape the messages layout uses per-conversation, collapsed to
   // one number for the rail badge.
   //
-  // dmNoiseSql is not optional here: without it, a ✏️-edit reply bumps the
-  // badge and rings InboxChime even though the desk it points at counts none.
-  // A rail that says "3 unread" over a desk showing zero trains GMs to ignore it.
+  // railKindSql is not optional here: without it the badge counts rows the
+  // desk it points at does not, and a rail that says "3 unread" over a desk
+  // showing zero trains GMs to ignore it.
   const rows = await prisma.$queryRaw`
     SELECT COUNT(DISTINCT dm."discordUserId")::int AS "count"
     FROM "DirectMessage" dm
@@ -77,7 +77,7 @@ async function loadUnreadConversationCount(discordUserId) {
       AND cr."gmDiscordUserId" = ${discordUserId}
     WHERE dm."direction" = 'INBOUND'
       AND dm."createdAt" > COALESCE(cr."lastReadAt", to_timestamp(0))
-      AND ${dmNoiseSql("dm")}
+      AND ${railKindSql("dm")}
   `;
   return rows[0]?.count ?? 0;
 }

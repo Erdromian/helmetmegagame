@@ -8,9 +8,10 @@ import { auth } from "@/lib/auth";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import PlayView from "./PlayView";
-import Loading from "./loading";
+import Loading from "./Skeleton";
 import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
-import { whosHere } from "@lifeweb/db/lib/whosHere";
+import { whosHere, hoodToken } from "@lifeweb/db/lib/whosHere";
+import { loadMentionDirectory } from "@/lib/mentionDirectory";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import { carryStatus } from "@lifeweb/db/lib/carry";
@@ -19,6 +20,7 @@ import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import { waitingOnYou, myMove } from "./actions";
 import { loadDesireView, loadLettersView, loadFactionView } from "@/lib/selfPools";
 import { withoutDmNoise } from "@/lib/dmThread";
+import { DM_PLACE_KEY } from "@/lib/dmSources";
 import { thingGroups } from "./thingRows";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
@@ -73,8 +75,29 @@ async function FreshPlay({ userId }) {
   const gameConfig = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   if (gameConfig && !gameConfig.playPanelEnabled) redirect("/character");
 
+  // No living character, and not a GM: they still get Bascinet's column. The
+  // DM thread is the account's, not the body's (./actions.js#gmThread), and
+  // for a web-only player it is the ONLY place a seat offer or any other bot
+  // message can be read at all — Discord is not an option they have. This used
+  // to return `empty` and draw a dead page.
   if (!viewer.character && !viewer.gm) {
-    return <SnapshotFresh scope="play" userId={userId} data={{ kind: "empty" }} />;
+    return (
+      <SnapshotFresh
+        scope="play"
+        userId={userId}
+        data={{
+          kind: "dm",
+          chat: {
+            initialPlaces: [],
+            initialPlace: DM_PLACE_KEY,
+            initialRows: [],
+            initialSeq: "0",
+            self: { characterId: null, discordUserId: viewer.discordUserId, name: null, speakerKey: null },
+            aside: null,
+          },
+        }}
+      />
+    );
   }
 
   const places = await placesFor(prisma, viewer.character, viewer.options);
@@ -173,7 +196,7 @@ async function FreshPlay({ userId }) {
         };
 
         const [people, affordances, examine, waiting, pools, stashRooms, mine, desires, letters, boardLocation] = await Promise.all([
-          whosHere(prisma, character),
+          whosHere(prisma, character, { withSightings: true }),
           affordancesFor(prisma, character),
           // What Examine used to answer in a modal. It is the place card's
           // body now, rendered on the server with the rest of the column —
@@ -301,6 +324,12 @@ async function FreshPlay({ userId }) {
     avatarPath: person.avatarPath ?? null,
   }));
 
+  // And the wider list a token RESOLVES against, which is not the same
+  // question — see web/lib/mentionDirectory.js. A ping arriving from Discord
+  // can name anybody in the guild, so the roster above could never resolve
+  // half of them and the line printed a raw cuid instead of a person.
+  const mentionDirectory = await loadMentionDirectory();
+
   const chat = {
     initialPlaces: places,
     initialPlace: first.placeKey,
@@ -308,12 +337,25 @@ async function FreshPlay({ userId }) {
     initialSeq: watermark._max.seq === null ? "0" : String(watermark._max.seq),
     self: {
       characterId: viewer.character?.id ?? null,
+      // What the Bascinet row in the places column is gated on — the account,
+      // not the character (./Chat.js).
+      discordUserId: viewer.discordUserId,
       name: identity.name,
       avatarVersion: viewer.character?.updatedAt?.getTime?.() ?? null,
       // And the face, on the same gate db/lib/say.js#recordSpeech uses — a
       // path only when the room is not seeing their own — so an optimistic row
       // never wears a face the confirmed one will not.
       avatarPath: identity.alias ? identity.avatarPath : null,
+      // Whether this character's own sends go out under an alias at all —
+      // a hood or a forced name. The optimistic row shapes itself the way
+      // db/lib/archive.js#feedRowShape will shape the confirmed one.
+      aliased: Boolean(identity.alias),
+      // How this reader recognises their OWN aliased lines. A hooded row ships
+      // no character id to anybody (db/lib/archive.js#feedRowShape), so
+      // without this a player could not see which lines in the scene were
+      // theirs to take back. Learning your own token tells you nothing — it is
+      // the one hood you were already under.
+      speakerKey: viewer.character ? hoodToken(viewer.character.id) : null,
     },
     aside,
     // What the server will do to the words on their way in, so the row the
@@ -387,7 +429,7 @@ async function FreshPlay({ userId }) {
     <SnapshotFresh
       scope="play"
       userId={userId}
-      data={{ kind: "chat", chat, providers, roster: mentionRoster }}
+      data={{ kind: "chat", chat, providers, roster: mentionRoster, mentionDirectory }}
     />
   );
 }

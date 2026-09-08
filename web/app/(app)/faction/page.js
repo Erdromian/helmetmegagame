@@ -7,7 +7,8 @@ import { getGmSession } from "@/lib/discordGuild";
 import { getMyFactionRole } from "@/lib/factionPermissions";
 import { loadFaction } from "@/lib/factionView";
 import { isUnaffiliated } from "@lifeweb/db/lib/factionConstants";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
+import AppHeader from "@/app/components/AppHeader";
 import Select from "@/app/components/Select";
 import SubmitButton from "@/app/components/SubmitButton";
 import ZoneChip from "@/app/components/ZoneChip";
@@ -290,26 +291,30 @@ export default async function FactionPage({ searchParams }) {
   if (!gm) {
     if (!myCharacter) {
       return (
-        <PageShell width="narrow">
-          <EmptyState>You don&apos;t have a living character. ‡</EmptyState>
-        </PageShell>
+        <>
+          <AppHeader title="Faction" />
+          <PageShell width="narrow">
+            <EmptyState>You don&apos;t have a living character. ‡</EmptyState>
+          </PageShell>
+        </>
       );
     }
     const props = await buildPlayerProps(session, myCharacter);
     return (
-      <PageShell width="default">
-        <PageHeader
+      <>
+        <AppHeader
           title={props.faction?.name ?? "Factions"}
-          subtitle={
-            props.faction ? (
-              <ZoneChip zoneName={props.faction.zoneName} />
-            ) : (
-              "You answer to nobody. Ask to join somebody, or start something. ‡"
-            )
-          }
+          meta={props.faction ? <ZoneChip zoneName={props.faction.zoneName} /> : null}
         />
-        <FactionConsole {...props} />
-      </PageShell>
+        <PageShell width="default">
+          {props.faction ? null : (
+            <p className="text-sm text-muted">
+              You answer to nobody. Ask somebody to take you in. ‡
+            </p>
+          )}
+          <FactionConsole {...props} />
+        </PageShell>
+      </>
     );
   }
 
@@ -342,17 +347,15 @@ export default async function FactionPage({ searchParams }) {
   });
 
   return (
-    <PageShell width="narrow">
-      <Link href="/gm/players?tab=factions" className="btn-quiet">
-        &larr; All Factions
-      </Link>
-
-      <PageHeader
+    <>
+      <AppHeader
         title={faction.name}
-        subtitle={
+        meta={
           <span className="flex items-center gap-2">
             <ZoneChip zoneName={faction.zone?.name ?? ""} />
-            {faction.parentFaction ? <span>Subject of {faction.parentFaction.name}</span> : null}
+            {faction.parentFaction ? (
+              <span className="text-sm text-muted">Subject of {faction.parentFaction.name}</span>
+            ) : null}
           </span>
         }
         actions={
@@ -375,6 +378,10 @@ export default async function FactionPage({ searchParams }) {
           </form>
         }
       />
+      <PageShell width="narrow">
+      <Link href="/gm/players?tab=factions" className="btn-quiet">
+        &larr; All Factions
+      </Link>
 
       <section className="panel p-4">
         <ul className="flex flex-col gap-1 text-sm">
@@ -520,6 +527,7 @@ export default async function FactionPage({ searchParams }) {
           <SubmitButton>Add</SubmitButton>
         </form>
       </section>
-    </PageShell>
+      </PageShell>
+    </>
   );
 }

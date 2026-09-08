@@ -4,7 +4,7 @@ What a body is once nobody is using it. This doc owns `db/lib/corpses.js`,
 `db/lib/corpseMint.js`, `db/lib/corpseFollow.js`, `db/lib/corpseRotPass.js`,
 `db/lib/headstone.js`, `bot/src/lib/deathSmell.js`, the Butcher/Bury/Engrave
 actions, and `Tag.requirementItems`. Related: `CHARACTERS.md` (death and the
-Cursed role), `CARRY.md` (room stashes and the reach rule), `REQUESTS.md`
+the curse), `CARRY.md` (room stashes and the reach rule), `REQUESTS.md`
 (the three request types), `BREWING.md` (the two enforced ingredients).
 
 ## 1. The one idea
@@ -27,6 +27,31 @@ The alternative — dumping the inventory on the floor — was considered and
 dropped. It would have made `LOOT_CHARACTER` pointless for corpses while
 leaving it necessary for the bound and the helpless, which is two mechanisms
 for one verb.
+
+## 1a. Gibbing — the death that leaves no body
+
+Three deaths in the game vaporise a character outright: the Thanati **Rite of
+Sacrifice**, the **Rite of Judgement**, and the **bomb**. They pass
+`{ gib: true }` to `applyDeathToRow`, and that option is the whole definition:
+
+- **No corpse is minted at all.** Not minted-then-deleted, which is what the
+  two rites used to do — simply never made. So there is nothing to loot, carry,
+  butcher, bury or engrave, and `corpseFollow` has no tag to follow.
+- **Every `CharacterTag` is deleted** and one **Gibbed** tag ("Vaporized.")
+  replaces them. Their goods went up with them.
+- **The sheet survives.** The row stays `DEAD` like any other, because the
+  end-of-game reveal and the curse rule both read live `Character` rows.
+
+**The one thing the wipe must not take is an antagonist seat tag.**
+`db/lib/epilogue.js` reads seats straight off live rows, and the bomb gibs
+everyone above ground and *then* ends the game — so a blind delete would leave
+the game's own ending naming nobody. `SEAT_TAG_SLUGS` is excluded from the
+delete for that reason, and it is load-bearing rather than tidy.
+
+**A gibbed player is cursed permanently.** The curse lifts when somebody buries
+your body (§7), and a gib leaves no body to bury. That is the intended reading
+of being gone — but it is the only death in the game with no way out, so it is
+worth knowing before pricing anything against it.
 
 ## 2. Why the follow reconcile is pull-based
 
@@ -165,7 +190,7 @@ callers use it.
 **Bury needs the actual body.** It used to match a typed first name against the
 dead in your zone; now you pick a corpse you hold or can reach, which is
 strictly tighter (Location-grain, and you have to have it). It consumes the
-corpse tag, stamps `buriedAt`, and lifts the Cursed role as before. A monster
+corpse tag and stamps `buriedAt`, which is what lifts the curse (`db/lib/curse.js`). A monster
 corpse is refused — "There's no soul in that one."
 
 **Engrave is the answer to a body nobody can find**, so it is the one action

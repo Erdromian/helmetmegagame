@@ -13,6 +13,7 @@ import ProductionRatesProvider from "./components/ProductionRatesProvider";
 import CarryProvider from "./components/CarryProvider";
 import DocumentsProvider from "./components/DocumentsProvider";
 import ConfirmProvider from "./components/ConfirmProvider";
+import NoticeProvider from "./components/NoticeProvider";
 import { RefreshProvider } from "./components/useRefresh";
 
 // Body/UI face. Pairs with Source Serif 4 as a designed superfamily.
@@ -89,6 +90,9 @@ export default async function RootLayout({ children }) {
             it and drop a desk to its skeleton. See useRefresh.js. */}
         <RefreshProvider>
           <ConfirmProvider>
+            {/* Inside ConfirmProvider so a notice can be raised from a
+                confirm's continuation; see NoticeProvider.js. */}
+            <NoticeProvider>
             <TagsProvider tagsPromise={tagsPromise}>
               <ProductionRatesProvider ratesPromise={ratesPromise}>
                 <CarryProvider carryPromise={carryPromise}>
@@ -96,6 +100,7 @@ export default async function RootLayout({ children }) {
                 </CarryProvider>
               </ProductionRatesProvider>
             </TagsProvider>
+            </NoticeProvider>
           </ConfirmProvider>
         </RefreshProvider>
       </body>

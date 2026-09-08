@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
 import CheckField from "@/app/components/CheckField";
 import Select from "@/app/components/Select";
 import FormError from "@/app/components/FormError";
@@ -155,7 +155,7 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
 
   return (
     <PageShell width="wide">
-      <PageHeader title="Ravenheart is gathering" />
+      <h2 className="section-title">Ravenheart is gathering</h2>
 
       <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,1fr)_22rem]">
         <aside className="flex flex-col gap-4 md:sticky md:top-6 md:order-2">
@@ -201,14 +201,20 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
             <h2 className="panel-header">Antagonists</h2>
             <div className="flex flex-col gap-1">
               {ANTAGONISTS.map((a) => {
-                const locked = optInWhitelisted(a) && !whitelisted;
+                // Two separate facts. `gated` is about the SEAT and is true for
+                // everyone, which is what the dashed border says; `locked` is
+                // about this player and is what greys the row out.
+                const gated = optInWhitelisted(a);
+                const locked = gated && !whitelisted;
                 return (
                   <CheckField
                     key={a.slug}
                     checked={optIns.includes(a.slug)}
                     onChange={() => toggleOptIn(a.slug)}
                     disabled={locked}
-                    className={locked ? "is-locked" : ""}
+                    className={[gated ? "is-whitelisted" : "", locked ? "is-locked" : ""]
+                      .filter(Boolean)
+                      .join(" ")}
                   >
                     {optInName(a)}
                     {locked ? <span className="ml-2 text-xs text-muted">Whitelist</span> : null}
@@ -225,7 +231,15 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
               <h2 className="text-xs uppercase tracking-wide text-muted">{group.name}</h2>
               <ul className="panel divide-y divide-[var(--border)]">
                 {group.roles.map((role) => (
-                  <li key={role.id} className="lobby-role" data-locked={role.whitelistBlocked ? "true" : undefined}>
+                  <li
+                    key={role.id}
+                    className="lobby-role"
+                    // Whitelisted, and separately blocked-for-you. The border
+                    // is on the first, so a player who HOLDS the whitelist can
+                    // still tell which of their seats are the gated ones.
+                    data-whitelisted={role.requiresWhitelist ? "true" : undefined}
+                    data-locked={role.whitelistBlocked ? "true" : undefined}
+                  >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-baseline gap-2">
                         <button

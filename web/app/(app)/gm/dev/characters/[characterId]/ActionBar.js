@@ -82,7 +82,7 @@ export default function ActionBar({
   // something out of view reads as a dead button, which is exactly how it was
   // first reported — so each one says so in a line beneath the row.
   const [done, setDone] = useState(null);
-  const [dialog, setDialog] = useState(null); // "kill" | "restore" | "spend" | "message" | "delete" | "wound" | "transfer"
+  const [dialog, setDialog] = useState(null); // "message" | "delete" | "wound" | "transfer" | "teleport"
   const [draft, setDraft] = useState("");
   const [transferFromKey, setTransferFromKey] = useState("");
   const [transferToKey, setTransferToKey] = useState("");
@@ -231,7 +231,16 @@ export default function ActionBar({
               icon={SkullIcon}
               label={`Kill ${character.name}`}
               disabled={pending}
-              onClick={() => setDialog("kill")}
+              onClick={() =>
+                confirmThenRun(
+                  {
+                    title: `Kill ${character.name}?`,
+                    message: "They are dead now. Their role, nickname and channel access go, and they get the Cursed seat.",
+                    confirmLabel: "Kill them",
+                  },
+                  () => killCharacterNow({ characterId: character.id }),
+                )
+              }
             />
           ) : (
             <IconButton
@@ -243,7 +252,7 @@ export default function ActionBar({
                   {
                     title: `Revive ${character.name}?`,
                     message:
-                      "Restores their personal Discord role, nickname and channel access, and removes the Cursed role.",
+                      "Restores their personal Discord role, nickname and channel access, and takes back the ghost seat.",
                     confirmLabel: "Revive",
                   },
                   () => reviveCharacter({ characterId: character.id }),
@@ -256,13 +265,31 @@ export default function ActionBar({
             icon={RestoreIcon}
             label={hasActed ? "Give their turn back" : "They haven't acted this turn"}
             disabled={pending || !hasActed}
-            onClick={() => setDialog("restore")}
+            onClick={() =>
+              confirmThenRun(
+                {
+                  title: "Give their turn back?",
+                  message: "Their Move for this turn is undone and they are told they can act again.",
+                  confirmLabel: "Restore turn",
+                },
+                () => restoreTurn({ characterId: character.id }),
+              )
+            }
           />
           <IconButton
             icon={SkipIcon}
             label={hasActed ? "They've already acted this turn" : "Spend their turn"}
             disabled={pending || hasActed || !openTurn}
-            onClick={() => setDialog("spend")}
+            onClick={() =>
+              confirmThenRun(
+                {
+                  title: "Spend their turn?",
+                  message: "A Routine worth nothing is filed for them, and they are told.",
+                  confirmLabel: "Spend it",
+                },
+                () => spendTurn({ characterId: character.id }),
+              )
+            }
           />
           <IconButton
             icon={MessageIcon}
@@ -337,48 +364,11 @@ export default function ActionBar({
         {!error && done && <p className="w-full text-sm text-accent">{done}.</p>}
       </section>
 
-      {/* Restoring a turn DMs the player, so it asks for a reason to send
-          with it — a freed turn they don't know about is a wasted day. */}
-      <RequestDialog
-        modeless
-        reasonRequired
-        open={dialog === "restore"}
-        title="Give their turn back"
-        submitLabel="Restore turn"
-        busy={pending}
-        onCancel={() => setDialog(null)}
-        onConfirm={(reason) => run(() => restoreTurn({ characterId: character.id, reason }))}
-      >
-      </RequestDialog>
-
-      {/* Kill and Spend-turn DM the player too now, so both ask for a reason
-          to send along with the notice. */}
-      <RequestDialog
-        modeless
-        reasonRequired
-        open={dialog === "kill"}
-        title={`Kill ${character.name}?`}
-        submitLabel="Kill them"
-        busy={pending}
-        onCancel={() => setDialog(null)}
-        onConfirm={(reason) => run(() => killCharacterNow({ characterId: character.id, reason }))}
-      >
-      </RequestDialog>
-
-      <RequestDialog
-        modeless
-        reasonRequired
-        open={dialog === "spend"}
-        title="Spend their turn?"
-        submitLabel="Spend it"
-        busy={pending}
-        onCancel={() => setDialog(null)}
-        onConfirm={(reason) =>
-          run(() => spendTurn({ characterId: character.id, description: reason }))
-        }
-      >
-      </RequestDialog>
-
+      {/* Kill, Restore turn and Spend turn used to open a RequestDialog for a
+          typed reason first, to send along with the player's DM. Nobody wrote
+          one that said anything the DM did not, so they are a confirm now;
+          the server actions still take an optional reason for a caller that
+          has one. */}
       {dialog === "message" && (
         <Modal modeless title={`Message ${character.name}`} onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
@@ -463,7 +453,6 @@ export default function ActionBar({
           character. */}
       <RequestDialog
         modeless
-        reasonRequired
         open={dialog === "transfer"}
         title={`Transfer ⬢ for ${character.name}`}
         submitLabel="Transfer"
@@ -476,13 +465,12 @@ export default function ActionBar({
           Number(transferAmount) > 0
         }
         onCancel={() => setDialog(null)}
-        onConfirm={(reason) =>
+        onConfirm={() =>
           run(() =>
             transferResources({
               fromKey: transferFromKey,
               toKey: transferToKey,
               amount: transferAmount,
-              reason,
             }),
           )
         }

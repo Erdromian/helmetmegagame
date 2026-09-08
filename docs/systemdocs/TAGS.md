@@ -493,7 +493,10 @@ pair would have *paid* a player to take a free hood. **Depressed is a sixth,
 at −8** — between the −7 and −9 bands, and the one price on this page set by a
 rule rather than a feel: `DESIRES.md` §5 prices a Personality tag by how much
 of the Desire catalog it closes against how much it opens, and Depressed
-closes everything and opens nothing, so it is that band's floor. Teaching and
+closes everything and opens nothing, so it is that band's floor. **Camouflage is a seventh, at 3** — lowered from 4, Bascinet's call, the same
+between-bands spot as Teaching (Drill Instructor). It buys no code: nothing
+reads the slug, and "nearly invisible when ambushing in a forested area" is
+adjudicated the way Mindreading's Gambit is. Teaching and
 Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
 (`LESSONS.md` §1).
 **Torturing Equipment is 0** — unpurchasable, like the other kits' `purchasable:

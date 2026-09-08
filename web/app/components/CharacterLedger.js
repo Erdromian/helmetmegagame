@@ -7,6 +7,7 @@ import BioForm from "./BioForm";
 import CharacterPoller from "./CharacterPoller";
 import EquipmentPanel from "./EquipmentPanel";
 import GoalsPanel from "./GoalsPanel";
+import HereList from "./HereList";
 import LedgerBand from "./LedgerBand";
 import LedgerWork from "./LedgerWork";
 import RequestActionsProvider from "./RequestActionsProvider";
@@ -263,6 +264,11 @@ export default function CharacterLedger({
               {isSelf && (
                 <section className="panel p-4">
                   <h2 className="panel-header">Actions</h2>
+                  {/* Who is standing here, with the same menu /play's column
+                      has — so Bind, Loot, Heal and the rest start from the
+                      person rather than from a picker. No seed: the list is
+                      read on mount, which is the click that asked. */}
+                  <HereList people={null} selfId={character.id} poll />
                   <ActionGrid variant="columns" />
                   {hasTrumpet && <SoundTrumpetButton />}
                 </section>

@@ -126,16 +126,20 @@ function PendingRow({ row }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
 
-  function cancel() {
+  // Confirm first, transition second (DESIGN-SYSTEM.md §8). Awaiting the
+  // dialog inside the transition deadlocks: the prompt needs an immediate
+  // render, the transition cannot commit until the promise settles, and the
+  // promise cannot settle until somebody clicks a dialog that never mounted.
+  async function cancel() {
     setError(null);
+    const ok = await confirm({
+      title: `Cancel the ${row.threatName} offer?`,
+      message: `${row.handle} won't be able to accept it. ‡`,
+      confirmLabel: "Cancel the offer",
+      cancelLabel: "Leave it",
+    });
+    if (!ok) return;
     startTransition(async () => {
-      const ok = await confirm({
-        title: `Cancel the ${row.threatName} offer?`,
-        message: `${row.handle} won't be able to accept it. ‡`,
-        confirmLabel: "Cancel the offer",
-        cancelLabel: "Leave it",
-      });
-      if (!ok) return;
       const res = await cancelThreatSpawn({ spawnId: row.id });
       if (!res?.ok) setError(res?.error ?? "Something went wrong.");
     });
