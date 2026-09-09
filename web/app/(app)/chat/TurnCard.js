@@ -53,16 +53,19 @@ export default function TurnCard({ turn, move, onFile }) {
             {countdown}
           </span>
         )}
-        {move && <span className="chip">{moveKindLabel(move.kind)}</span>}
       </div>
 
       {move ? (
         /* A filed Move is final, so there is nothing to press but the words
-           themselves. Its kind joins the chip row above rather than opening a
-           second one, and the text follows behind a » — the house mark for a
-           line quoting somebody's own words. Clamped until clicked: a Move can
-           be a paragraph, and neither surface is the place to read the whole
-           of one by default. */
+           themselves — and the words are the point, so they are what this
+           draws. The kind used to be a .chip up in the row above, which put a
+           filled, bordered pill where a plain word belongs and left the
+           player's own sentence reading as the caption to a badge. It is a
+           quiet lead-in now. The » stays: it is the house mark for a line
+           quoting somebody's own words (CLAUDE.md).
+
+           Still clamped until clicked, because a Move can be a paragraph and
+           neither surface is the place to read the whole of one by default. */
         <button
           type="button"
           className="chat-move-text"
@@ -72,6 +75,7 @@ export default function TurnCard({ turn, move, onFile }) {
           <span className="chat-move-mark" aria-hidden="true">
             »
           </span>
+          <span className="chat-move-kind">{moveKindLabel(move.kind)}</span>
           {move.description}
         </button>
       ) : (

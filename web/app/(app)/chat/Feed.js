@@ -143,6 +143,9 @@ const FeedRow = memo(function FeedRow({
   canRemove,
   editing,
   coarse,
+  // True only for a row that arrived after this place was painted, so the
+  // backlog does not animate. See `liveAfter`.
+  live,
   onRetry,
   onEdit,
   onCancelEdit,
@@ -153,25 +156,28 @@ const FeedRow = memo(function FeedRow({
   onStar,
   onRemove,
 }) {
-  const [hover, setHover] = useState(false);
   const [draft, setDraft] = useState(row.content ?? "");
 
-  // Always reachable on a touch screen, where there is no hover to reveal
-  // them; out of the way of a mouse until it is over the row.
   // ⭐ is offered on every line that HAS a seq — your own included, exactly as
   // the reaction is in Discord — which is what widened the bar past the rows
   // somebody can act against. A system line with no seq still has nothing.
   const anyAction = mine || canLook || canPhoto || canRemove || row.seq != null;
-  const showActions = anyAction && !editing && !row.pending && (coarse || hover);
+  // WHETHER the bar exists is decided here; whether it is SEEN is decided in
+  // CSS, by .chat-row:hover and :focus-within. It used to be a useState set
+  // from onMouseEnter/onMouseLeave, which re-rendered the row on every mouse
+  // crossing and — worse — meant a keyboard could never reveal the bar at
+  // all, because a keyboard produces no mouseenter. Rendering it always and
+  // letting :focus-within do the work is what makes it reachable by tab.
+  const showActions = anyAction && !editing && !row.pending;
 
   return (
     <li
       className="chat-row"
       data-seq={row.seq ?? undefined}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
       data-run={startsRun ? "start" : undefined}
       data-pending={row.pending ? "true" : undefined}
+      // Only a line that ARRIVED gets the fade. See `liveAfter` below.
+      data-live={live ? "true" : undefined}
     >
       <div className="chat-row-face">
         {startsRun && (
@@ -1371,6 +1377,33 @@ export default function Feed({
   // sits open, and a render that read it would be deciding on a stale one (and
   // is impure besides). It is checked when the button is pressed, and again by
   // the server, which is the only check that counts.
+  // The seq the feed was already showing when this place first painted.
+  // Anything above it ARRIVED, and only an arrival is worth animating.
+  //
+  // A lazily-filled ref rather than state, deliberately: the repo lints
+  // react-hooks/set-state-in-effect as an error, and this needs no re-render
+  // of its own — it is read during the same render that draws the rows. It is
+  // reset when the place changes, because the next place's backlog is a
+  // backlog too.
+  const liveAfter = useRef({ placeKey: null, seq: 0 });
+  if (liveAfter.current.placeKey !== placeKey) {
+    liveAfter.current = {
+      placeKey,
+      seq: rows.reduce((hi, r) => (Number(r.seq) > hi ? Number(r.seq) : hi), 0),
+    };
+  }
+  const liveFloor = liveAfter.current.seq;
+
+  // How many lines are under the NEW mark, for the pill that floats over the
+  // feed. `newAt` is the first row somebody else said since this place was
+  // last read, so everything from it down is what the reader has not seen.
+  // Nothing to count (no mark, or caught up) reads as a plain "New messages".
+  const newCount = useMemo(() => {
+    if (!newAt) return 0;
+    const from = rows.findIndex((row) => row.seq === newAt);
+    return from < 0 ? 0 : rows.length - from;
+  }, [rows, newAt]);
+
   const withRuns = useMemo(
     () =>
       rows.map((row, i) => {
@@ -1509,6 +1542,12 @@ export default function Feed({
         />
       )}
 
+      {/* The scroller and the pill that floats over it share a wrapper, so
+          the pill can be positioned against the feed's own bottom edge. It
+          used to sit after this block as an ordinary flex child, which cost
+          the feed a whole layout row and pushed the scene up every time
+          somebody scrolled away from the bottom. */}
+      <div className="chat-feed-wrap">
       <div ref={scrollerRef} onScroll={onScroll} className="chat-feed">
        <div ref={innerRef}>
         {/* The board is nailed to the top of the street, not filed into it in
@@ -1551,6 +1590,10 @@ export default function Feed({
                     canRemove={canRemove}
                     editing={editing}
                     coarse={coarse}
+                    // A pending row is your own send, which has always just
+                    // happened; anything past the floor arrived while you
+                    // were watching. Everything else is backlog.
+                    live={Boolean(row.pending) || Number(row.seq) > liveFloor}
                     onRetry={onRetry}
                     onEdit={onEdit}
                     onCancelEdit={onCancelEdit}
@@ -1579,9 +1622,11 @@ export default function Feed({
             scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: "smooth" });
           }}
         >
-          New messages
+          {newCount > 0 ? `${newCount} new` : "New messages"}
+          <span aria-hidden="true"> ↓</span>
         </button>
       )}
+      </div>
 
       {/* Who is writing something, above the composer and below the scene.
           Holds its line's height whether or not anybody is, so the feed does

@@ -5420,9 +5420,32 @@ label.chip {
   /* The row is the positioning context for the action bar that floats at its
      top-right. */
   position: relative;
-  /* A line does not blink into existence, it arrives. 80ms is under the
-     threshold where it reads as an animation at all — it just stops the
-     jump. */
+  /* The hover fill wants to read as a band across the feed rather than a
+     box hugging the words, so the row bleeds out to the scroller's padding
+     and pulls its content back to where it already sat. Net effect on the
+     text's position: none. */
+  padding: 1px var(--sp-2);
+  margin-inline: calc(var(--sp-2) * -1);
+  border-radius: var(--r-sm);
+}
+
+/* The row lights up under the pointer, and under the keyboard: without this
+   there was no indication at all of which line the action bar belonged to.
+   Kept to a fill, no border and no movement — a hundred of these scroll past
+   and any of them shifting by a pixel would read as the feed twitching. */
+.chat-row:hover,
+.chat-row:focus-within {
+  background: var(--row-hover);
+}
+
+/* A line does not blink into existence, it arrives. 80ms is under the
+   threshold where it reads as an animation at all — it just stops the jump.
+
+   ONLY A LINE THAT ARRIVED. This used to run on every .chat-row, so opening a
+   place faded its whole backlog in at once — a hundred lines animating
+   together, which is the one thing the effect was meant to avoid. Feed.js
+   sets data-live on a row past the seq the place painted with. */
+.chat-row[data-live="true"] {
   animation: chat-row-in 80ms ease-out;
 }
 
@@ -5433,7 +5456,7 @@ label.chip {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chat-row {
+  .chat-row[data-live="true"] {
     animation: none;
   }
 }
@@ -5455,6 +5478,28 @@ label.chip {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
+  /* Hidden until the row is under the pointer or holds focus. It is always in
+     the DOM now — Feed.js no longer tracks hover in React — which is what
+     lets a keyboard reach it: opacity leaves a button focusable, and focus on
+     one fires :focus-within on the row, which brings the bar back into view.
+     pointer-events keeps an invisible bar from eating clicks meant for the
+     line underneath. */
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chat-row:hover .chat-row-actions,
+.chat-row:focus-within .chat-row-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* No hover on a touch screen, so the bar is simply always there. */
+@media (pointer: coarse) {
+  .chat-row-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 /* Discord's red line: everything below it arrived since you last had this
@@ -5655,9 +5700,30 @@ label.chip {
   padding-left: calc(var(--chat-face) + var(--sp-3));
 }
 
+/* The scroller and the jump-to-bottom pill. The wrapper exists only to give
+   the pill something to be positioned against. */
+.chat-feed-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* "N new ↓", floating over the last line of the feed rather than sitting in a
+   row of its own. As an ordinary flex child it took a whole row out of the
+   scene the moment somebody scrolled up — the feed jumped, which is a strange
+   thing for a control that exists to say the feed has moved on without you. */
 .chat-pill {
-  align-self: center;
-  margin-bottom: var(--sp-2);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: var(--sp-3);
+  z-index: 2;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--e-2);
+  white-space: nowrap;
 }
 
 .chat-composer {
@@ -6748,9 +6814,10 @@ label.chip {
    full-width bar under the chip that made the box twice as tall as it needed
    to be. /chat's YOU column is untouched: this is scoped to .sheet-turn.
 
-   A filed Move adds its kind to the SAME chip row and puts its words on the
-   line under it — it used to open a second chips row and a column of its own,
-   which roughly tripled the box's height the moment somebody filed. */
+   A filed Move puts its words on the line under the chips — it used to open a
+   second chips row and a column of its own, which roughly tripled the box's
+   height the moment somebody filed. Its kind is a quiet word in front of those
+   words now, not a chip in the row above. */
 .sheet-turn .chat-move {
   display: flex;
   flex-wrap: wrap;
@@ -6776,6 +6843,15 @@ label.chip {
 }
 
 .chat-move-mark {
+  color: var(--muted);
+  margin-right: var(--sp-1);
+}
+
+/* The Move's kind, as a word rather than a badge. It was a .chip in the turn
+   chip row until 2026-09-09 — filled, bordered and fully rounded, which read
+   as a control sitting on top of the player's own sentence. A quiet word in
+   front of the words is all it ever needed to be. */
+.chat-move-kind {
   color: var(--muted);
   margin-right: var(--sp-1);
 }
