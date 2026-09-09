@@ -1639,11 +1639,27 @@ export default function Feed({
         <div className="chat-composer">
           {place.canSpeak ? (
             <>
-              <div className="field chat-composer-box">
+              <div className="field chat-composer-box" data-command={command ? "true" : undefined}>
+                {/* COMMAND MODE reads as a strip across the top of the box —
+                    what you are running, what it does, and a way out. It used
+                    to be a floating accent-tinted pill above the textarea,
+                    which read as a bubble stuck to the composer rather than
+                    as a state the box was in. */}
                 {command && (
-                  <span className="chat-cmd-chip mono" data-cmd={command.entry.name}>
-                    /{command.entry.name}
-                  </span>
+                  <div className="chat-cmd-strip">
+                    <span className="chat-cmd-strip-name mono">/{command.entry.name}</span>
+                    {command.entry.description && (
+                      <span className="chat-cmd-strip-hint">{command.entry.description}</span>
+                    )}
+                    <button
+                      type="button"
+                      className="chat-cmd-strip-out"
+                      aria-label="Leave command mode"
+                      onClick={() => exitCommand("")}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 )}
                 <textarea
                   id="chat-composer"
@@ -1735,10 +1751,20 @@ export default function Feed({
                   }}
                 />
                 {mention && (
-                  <MentionMenu matches={matches} active={mention.active} onPick={pickMention} />
+                  <MentionMenu
+                    matches={matches}
+                    active={mention.active}
+                    onPick={pickMention}
+                    onHover={(i) => setMention((cur) => (cur ? { ...cur, active: i } : cur))}
+                  />
                 )}
                 {slash && (
-                  <CommandMenu matches={cmdMatches} active={slash.active} onPick={pickCommand} />
+                  <CommandMenu
+                    matches={cmdMatches}
+                    active={slash.active}
+                    onPick={pickCommand}
+                    onHover={(i) => setSlash((cur) => (cur ? { ...cur, active: i } : cur))}
+                  />
                 )}
                 {/* The arguments a command still wants, as chips under the
                     box. One row at a time: the first unfilled one is the
@@ -1756,28 +1782,51 @@ export default function Feed({
                   />
                 )}
               </div>
-              {waitSeconds > 0 && (
-                // Slowmode, said as a clock rather than as a refusal. The
-                // zone summary is the only place that has one.
-                <span className="chat-countdown mono" data-nudge={nudge ? "true" : undefined} aria-live="polite">
-                  {waitSeconds} s
+              {/* Slowmode, said as a clock rather than as a refusal — and
+                  said BEFORE it bites. It only appeared once the wait was
+                  already running, so the first a player knew of a slowmode was
+                  being stopped by one. The zone summary is the only place that
+                  has one at all. */}
+              {slowmodeMs > 0 && (
+                <span
+                  className="chat-countdown mono"
+                  data-nudge={nudge ? "true" : undefined}
+                  data-waiting={waitSeconds > 0 ? "true" : undefined}
+                  aria-live="polite"
+                >
+                  {waitSeconds > 0 ? `${waitSeconds} s` : `${Math.round(slowmodeMs / 1000)} s`}
                 </span>
               )}
-              {coarse && (
-                // A phone's Enter is a newline (Discord's app does the same),
-                // so this button is the only way to run a command there too.
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={command ? runCurrent : submit}
-                  disabled={
-                    command
-                      ? cmdPending || (Boolean(textArgOf(command.entry)) && !draft.trim())
-                      : !draft.trim() || waitSeconds > 0
-                  }
+              {/* On a phone Enter is a newline (Discord's app does the same),
+                  so this is the only way to run a command there. On a desktop
+                  it used to be absent ENTIRELY — a mouse had no submit
+                  affordance at all, and nothing on the page said Enter would
+                  send. It is drawn everywhere now, with the keys spelled out
+                  beside it where there is a keyboard to use them. */}
+              <button
+                type="button"
+                className="btn"
+                onClick={command ? runCurrent : submit}
+                disabled={
+                  command
+                    ? cmdPending || (Boolean(textArgOf(command.entry)) && !draft.trim())
+                    : !draft.trim() || waitSeconds > 0
+                }
+              >
+                {command ? "Run" : "Send"}
+              </button>
+              {/* Two quiet readouts under the send. The keys, because nothing
+                  on the page said Enter would send; and the count, but only
+                  where a limit actually exists to run into — the refusal used
+                  to be the first mention of one. */}
+              {!coarse && <span className="chat-composer-keys">Enter to send · Shift+Enter for a line ‡</span>}
+              {command && textArgOf(command.entry)?.maxLength && (
+                <span
+                  className="chat-composer-count mono"
+                  data-over={draft.trim().length > textArgOf(command.entry).maxLength ? "true" : undefined}
                 >
-                  {command ? "Run" : "Send"}
-                </button>
+                  {draft.trim().length}/{textArgOf(command.entry).maxLength}
+                </span>
               )}
             </>
           ) : place.kind === "loc" ? (

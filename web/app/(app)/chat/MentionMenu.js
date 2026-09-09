@@ -15,7 +15,7 @@ import CharacterAvatar from "@/app/components/CharacterAvatar";
 // be addressable, and an autocomplete that offered their real name would undo
 // it in one keystroke.
 
-const MentionMenu = memo(function MentionMenu({ matches, active, onPick }) {
+const MentionMenu = memo(function MentionMenu({ matches, active, onPick, onHover }) {
   if (matches.length === 0) return null;
   return (
     <div className="chat-mentions" role="listbox" aria-label="Mention somebody">
@@ -29,6 +29,10 @@ const MentionMenu = memo(function MentionMenu({ matches, active, onPick }) {
           className="menu-item"
           // Mousedown rather than click: the textarea must not lose focus
           // before the pick lands, or the caret it is about to rewrite moves.
+          // Pointing at a row makes it the active one, so Enter picks what
+          // the mouse is over rather than what the arrow keys last left
+          // behind. Neither list highlighted under a mouse at all before.
+          onMouseEnter={() => onHover?.(i)}
           onMouseDown={(e) => {
             e.preventDefault();
             onPick(person);

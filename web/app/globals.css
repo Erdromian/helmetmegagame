@@ -6546,16 +6546,76 @@ label.chip {
 /* A command in the box, as a chip above the text it is taking. Accent-tinted
    and mono, so it reads as a mode the box is IN rather than as something that
    was typed into it — which is the whole tell that the slash parsed. */
-.chat-cmd-chip {
-  align-self: flex-start;
-  padding: 2px var(--sp-2);
+/* COMMAND MODE. A strip across the top of the composer saying what the box
+   is currently for, and how to get out of it. It replaced .chat-cmd-chip, a
+   floating accent-tinted pill that sat above the textarea and read as a
+   bubble stuck to the composer rather than as a state the box was in.
+
+   The accent is a RULE down the leading edge rather than a fill and a border
+   all the way round, which is the quieter half of the same vocabulary. */
+.chat-cmd-strip {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2);
+  margin: calc(var(--sp-1) * -1) calc(var(--sp-2) * -1) var(--sp-1);
+  border-bottom: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+}
+
+.chat-cmd-strip-name {
   font-size: var(--fs-2xs);
-  /* --accent-text for the letters, --accent for the rule. They are different
-     colours on purpose (the header of this file, rule 2). */
   color: var(--accent-text);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent);
-  border-radius: var(--r-sm);
+  flex-shrink: 0;
+}
+
+/* The one line the `/` menu already shows for this command, so the box says
+   what it is about to do rather than only naming it. */
+.chat-cmd-strip-hint {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-cmd-strip-out {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0 var(--sp-1);
+  font: inherit;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.chat-cmd-strip-out:hover {
+  color: var(--text);
+}
+
+/* The keys, spelled out once beside the send. Nothing on the page said Enter
+   would send, and a desktop had no send button at all until 2026-09-09. */
+.chat-composer-keys {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  align-self: center;
+  white-space: nowrap;
+}
+
+/* Only drawn where a command actually caps its text. The refusal used to be
+   the first anybody heard of a limit. */
+.chat-composer-count {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  align-self: center;
+}
+
+.chat-composer-count[data-over="true"] {
+  color: var(--danger);
 }
 
 /* A row of the `/` popover: the name, then what it does. The name is fixed
