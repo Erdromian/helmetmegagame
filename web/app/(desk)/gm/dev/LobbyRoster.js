@@ -50,7 +50,7 @@ export default function LobbyRoster({ rows, started }) {
             <th scope="col">Med / Low</th>
             <th scope="col">Opt-ins</th>
             <th scope="col">WL</th>
-            <SortHeader label="If nothing fits" sortKey="jobless" sort={sort} onSort={toggleSort} />
+            <SortHeader label="If none are available" sortKey="jobless" sort={sort} onSort={toggleSort} />
             <SortHeader label={started ? "Assigned" : "Status"} sortKey="assigned" sort={sort} onSort={toggleSort} />
             <th scope="col">{started ? "Window" : ""}</th>
           </tr>

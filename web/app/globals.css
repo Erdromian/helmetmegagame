@@ -1020,14 +1020,6 @@ input[type="radio"]:disabled {
   cursor: not-allowed;
 }
 
-/* And the mark that says WHY, which the greying above could never say to
-   somebody who holds the whitelist and so never saw it. Same dashed left
-   border as .lobby-role, for the same reason. */
-.check-row.is-whitelisted {
-  border-left: 2px dashed var(--border);
-  padding-left: var(--sp-2);
-}
-
 /* Touch. The painted box stays 16px — the tick above is drawn to that size —
    so the LABEL is what grows to the 44px floor the rest of the stylesheet
    keeps (.equip-slot). That is only restating what this section already

@@ -55,7 +55,7 @@ debounced on the client):
   (`db/lib/playerPreferences.js#setPriority`, a port of tgstation's
   `set_job_preference_level`). Whitelisted seats are greyed for a player
   without the Whitelist role and dropped server-side if posted anyway.
-- **If nothing fits** — Commoner (default), Migrant, or Return to lobby.
+- **If none are available** — Commoner (default), Migrant, or Return to lobby.
 - **Antagonist opt-ins** — the twelve public boxes (`THREATS.md` §1), the
   whitelisted ones greyed the same way.
 - **Ready** — a `LobbyEntry` row, `status: READY`. Unready deletes it.

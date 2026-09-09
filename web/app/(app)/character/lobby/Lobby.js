@@ -144,6 +144,18 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
     edit({ ...draft.current, antagonistOptIns: next });
   }
 
+  // All/None over the boxes the player may actually tick. A whitelisted seat
+  // they don't hold is left exactly as it is either way — the server drops it
+  // anyway, and ticking it here would only bounce back on the next save.
+  function setAllOptIns(on) {
+    const takeable = ANTAGONISTS.filter((a) => whitelisted || !optInWhitelisted(a)).map((a) => a.slug);
+    const held = draft.current.antagonistOptIns;
+    const next = on
+      ? [...new Set([...held, ...takeable])]
+      : held.filter((slug) => !takeable.includes(slug));
+    edit({ ...draft.current, antagonistOptIns: next });
+  }
+
   function changeJobless(value) {
     edit({ ...draft.current, joblessRole: value });
   }
@@ -155,7 +167,7 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
 
   return (
     <PageShell width="wide">
-      <h2 className="section-title">Ravenheart is gathering</h2>
+      <h2 className="section-title">Lobby</h2>
 
       <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,1fr)_22rem]">
         <aside className="flex flex-col gap-4 md:sticky md:top-6 md:order-2">
@@ -187,7 +199,7 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
           </div>
 
           <label className="field">
-            <span className="field-label">If nothing fits</span>
+            <span className="field-label">If none are available</span>
             <Select value={jobless} onChange={(e) => changeJobless(e.target.value)}>
               {JOBLESS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -198,12 +210,24 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
           </label>
 
           <section className="panel flex flex-col gap-2 p-4">
-            <h2 className="panel-header">Antagonists</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="panel-header">Antagonists</h2>
+              <span className="flex gap-1">
+                <button type="button" className="btn-quiet text-xs" onClick={() => setAllOptIns(true)}>
+                  All
+                </button>
+                <button type="button" className="btn-quiet text-xs" onClick={() => setAllOptIns(false)}>
+                  None
+                </button>
+              </span>
+            </div>
             <div className="flex flex-col gap-1">
               {ANTAGONISTS.map((a) => {
-                // Two separate facts. `gated` is about the SEAT and is true for
-                // everyone, which is what the dashed border says; `locked` is
-                // about this player and is what greys the row out.
+                // Two separate facts. `gated` is about the SEAT and is true
+                // for everyone, which is what the Whitelist mark says — a
+                // player who HOLDS the whitelist can still tell which of their
+                // boxes are the gated ones. `locked` is about this player and
+                // is what greys the row out.
                 const gated = optInWhitelisted(a);
                 const locked = gated && !whitelisted;
                 return (
@@ -212,12 +236,10 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
                     checked={optIns.includes(a.slug)}
                     onChange={() => toggleOptIn(a.slug)}
                     disabled={locked}
-                    className={[gated ? "is-whitelisted" : "", locked ? "is-locked" : ""]
-                      .filter(Boolean)
-                      .join(" ")}
+                    className={locked ? "is-locked" : ""}
                   >
                     {optInName(a)}
-                    {locked ? <span className="ml-2 text-xs text-muted">Whitelist</span> : null}
+                    {gated ? <span className="ml-2 text-xs text-muted">Whitelist</span> : null}
                   </CheckField>
                 );
               })}
