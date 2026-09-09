@@ -95,7 +95,7 @@ function mountMenu(fits, wornRows, { indoors, motionSick }) {
     return true;
   });
   const note = why.size
-    ? `Some of what you carry isn't offered here: ${[...why].join("; ")}. ‡`
+    ? `Some of what you carry isn't offered here: ${[...why].join("; ")}.`
     : null;
   return { options, note };
 }
@@ -105,7 +105,7 @@ function mountMenu(fits, wornRows, { indoors, motionSick }) {
 // having left something out — never a silent omission. A row with room left
 // in a partly-equipped stack still offers it here, alongside whatever else is
 // carried — Equip pulls one more unit out, same gesture either way.
-function EmptyCell({ label, options, onPick, pending, span = 1, note = null }) {
+function EmptyCell({ label, options, onPick, pending, span = 1, note = null, fact = "empty" }) {
   const ref = useRef(null);
   const [open, setOpen] = useState(false);
   return (
@@ -123,12 +123,12 @@ function EmptyCell({ label, options, onPick, pending, span = 1, note = null }) {
         onClick={() => setOpen((was) => !was)}
       >
         <span className="equip-cell-name text-muted">{label}</span>
-        <span className="equip-cell-fact text-muted">empty</span>
+        {fact && <span className="equip-cell-fact text-muted">{fact}</span>}
       </button>
       {open && (
         <ClickMenu triggerRef={ref} onClose={() => setOpen(false)} ariaLabel={label}>
           {options.length === 0 && !note ? (
-            <span className="chat-quiet-line">Nothing you carry goes here. ‡</span>
+            <span className="chat-quiet-line">You don’t have anything that goes in this slot.</span>
           ) : (
             options.map((ct) => (
               <button
@@ -199,7 +199,7 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
         const res = await equipOne(ct.id);
         if (res?.error) setError(res.error);
       } catch {
-        setError("Could not reach the server. Nothing was changed. ‡");
+        setError("Could not reach the server. Nothing was changed.");
       }
     });
   }
@@ -229,7 +229,7 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
           <h2>Equipped</h2>
         </div>
         <p className="text-sm text-muted">
-          You&apos;re not carrying anything that can be worn or readied. ‡
+          You&apos;re not carrying anything that can be worn or readied.
         </p>
       </section>
     );
@@ -307,7 +307,8 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
             drawn.push(
               <EmptyCell
                 key="hands-free"
-                label={freeHands === 1 ? "One hand" : `${freeHands} hands`}
+                label={freeHands === 1 ? "One slot" : `${freeHands} slots`}
+                fact={null}
                 span={freeHands}
                 options={fits.filter((row) => handsOf(row.tag) <= freeHands)}
                 onPick={equip}
@@ -371,7 +372,7 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
             {slot === "WEAPON" && hands > WEAPON_HANDS && (
               <span className="chat-quiet-line">
                 You are holding more than {WEAPON_HANDS} hands&apos; worth — put something away
-                before you ready anything else. ‡
+                before you ready anything else.
               </span>
             )}
           </div>

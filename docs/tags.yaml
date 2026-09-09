@@ -853,8 +853,8 @@ tags:
   leper:
     catalog: all
     name: Leper
-    category: general
-    group: general-traits
+    category: health
+    group: health-illness
     description: "Covered in sores."
     pointCost: -1
     conflictsWith: [pretty, beautiful, ugly, disfigured]
@@ -2273,7 +2273,7 @@ tags:
     category: skills
     requiredTag: chaplain
     description: "You can craft {tag:holy-water}. Poured on the offender, it reduces the efficacy of unholy activity."
-    pointCost: 5
+    pointCost: 3
     purchasable: true
     purchasableAfterStart: true
 
