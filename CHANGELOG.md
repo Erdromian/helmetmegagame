@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · A nekker is lighter than it was
+
+✎ A nekker corpse weighs 35 rather than 45 — a spindly thing should be the lightest body you can pick up, and it was sitting closer to a person than to its own description.
+
 ## 2026-09-08 · Structures are in the recipe book, and a body weighs what it weighs
 
 ✚ Bodies weigh something now. A person is 50 lb — under the 71 lb cap, so you can carry someone and still walk with your kit. Giant makes a heavier body and Dwarf or Frail a lighter one; a frail dwarf is 28 lb.  
