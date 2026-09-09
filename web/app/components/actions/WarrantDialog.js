@@ -4,31 +4,28 @@ import { useState } from "react";
 import ActionDialog from "./ActionDialog";
 import useSubmit from "./useSubmit";
 import { noticeLine } from "./noticeLines";
-import { ENGRAVE_RESOURCE_COST } from "@/lib/constants";
 import { FULL_NAME_LIMIT } from "@/lib/characterName";
-import { engraveHeadstoneRequest } from "@/app/(app)/character/requestActions";
+import { arrestWarrantRequest } from "@/app/(app)/character/cerberonActions";
 
-// Engrave types its target instead of picking it — a dropdown would be a list
-// of the dead, and this one searches every zone (REQUESTS.md §5d). No "nobody
-// here" line either, for the same reason: you type a name and find out.
-//
-// The WHOLE name, since first names repeat and a mourner who knew exactly
-// whose stone they meant used to be turned away. Either form counts: the full
-// display name, or just first and last (db/lib/characterName.js).
-export default function EngraveDialog({ mode, onDone, onClose }) {
+// The warrant types its man instead of picking him, the Engrave reasoning: a
+// dropdown here would be a roster of everybody alive, handed to anyone holding
+// a badge. The whole name, either the full display form or just first and
+// last — first names repeat, and swearing one out against the wrong man is not
+// a thing to make easy.
+export default function WarrantDialog({ mode, onDone, onClose }) {
   const [name, setName] = useState("");
   const { submit, busy, error } = useSubmit();
 
   return (
     <ActionDialog
-      title="Engrave"
+      title="Arrest Warrant"
       busy={busy}
       error={error}
       canSubmit={Boolean(name.trim())}
       onClose={onClose}
       onSubmit={() =>
         submit(
-          () => engraveHeadstoneRequest({ name }),
+          () => arrestWarrantRequest({ name }),
           (res) => onDone(noticeLine(mode, res, { name: name.trim() })),
         )
       }
@@ -46,7 +43,10 @@ export default function EngraveDialog({ mode, onDone, onClose }) {
           data-autofocus
         />
       </label>
-      <p className="text-xs text-muted">Costs {ENGRAVE_RESOURCE_COST} ⬢ and your turn.</p>
+      <p className="text-xs text-muted">
+        Costs you nothing, and no paper goes up. They are seen as wanted by anyone who
+        looks them in the face. ‡
+      </p>
     </ActionDialog>
   );
 }

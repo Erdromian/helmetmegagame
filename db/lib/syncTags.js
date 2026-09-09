@@ -53,6 +53,9 @@ const VISIBILITY_BY_YAML = new Map([
   [true, "ALWAYS"],
   [false, "HIDDEN"],
   ["worn", "WORN"],
+  // A reputation rather than a thing: seen only while the subject is going
+  // under their own name, so a hood or a Disguise Kit takes it off the read.
+  ["named", "NAMED"],
 ]);
 
 // `catalog:` in docs/tags.yaml -> Tag.catalogVisibility. Required on every
@@ -377,16 +380,23 @@ async function syncTagsFromYaml(prisma) {
         `docs/tags.yaml: tag "${t.slug}" has catalog: ${JSON.stringify(t.catalog)} — say secret (cave/antagonist, nobody sees it), gm (GMs, plus players whose character relates to it), or all (fully public)`,
       );
     }
-    // `visible` is three-state: true, false, or "worn".
+    // `visible` is four-state: true, false, "worn" or "named".
     if (!VISIBILITY_BY_YAML.has(t.visible ?? false)) {
       throw new Error(
-        `docs/tags.yaml: tag "${t.slug}" has visible: ${JSON.stringify(t.visible)} — say true, false, or worn`,
+        `docs/tags.yaml: tag "${t.slug}" has visible: ${JSON.stringify(t.visible)} — say true, false, worn, or named`,
       );
     }
     // Same pairing guard as concealsIdentity: visible: worn needs equippable.
     if (t.visible === "worn" && !t.equippable) {
       throw new Error(
         `docs/tags.yaml: tag "${t.slug}" sets visible: worn but not equippable — it could never be equipped, so it could never be seen`,
+      );
+    }
+    // A `named` tag is shown only while the subject wears their own name, so
+    // it cannot be the thing that takes that name away: it would hide itself.
+    if (t.visible === "named" && (t.concealsIdentity || t.forcesName)) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" sets visible: named beside concealsIdentity or forcesName — a tag that hides who you are can't be the tag that only shows while it doesn't`,
       );
     }
     // `tradeable` must be explicit for items/assets — silence would default

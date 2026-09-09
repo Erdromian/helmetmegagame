@@ -40,6 +40,15 @@ export function tagDurationFor({ tag, expiresTurn = null, currentTurn = null, ar
 
 // One label/value row. Labels are muted and values carry --text, so the block
 // reads as answers rather than a flat run of grey <p>s.
+// Tag.inspectVisibility as a sentence. NAMED is the one that needs saying out
+// loud rather than reading as a plain "Yes": it is the reason a hood or a
+// Disguise Kit is worth buying when you are Wanted (db/lib/medicalVision.js).
+const SEEN_BY_OTHERS = {
+  WORN: "Only while worn",
+  NAMED: "Only under your own name",
+  ALWAYS: "Yes",
+};
+
 function Meta({ label, children }) {
   return (
     <>
@@ -125,7 +134,7 @@ export default function TagDetails({
             goes under a helm, that trinkets run out. */}
         {fit && <Meta label="Worn">{fit}</Meta>}
         {tag.inspectVisibility && tag.inspectVisibility !== "HIDDEN" && (
-          <Meta label="Seen by others">{tag.inspectVisibility === "WORN" ? "Only while worn" : "Yes"}</Meta>
+          <Meta label="Seen by others">{SEEN_BY_OTHERS[tag.inspectVisibility] ?? "Yes"}</Meta>
         )}
         {tag.concealsIdentity && (
           <Meta label="Conceals you">{tag.forcesConceal ? "Always, while worn" : "Optional, while worn"}</Meta>

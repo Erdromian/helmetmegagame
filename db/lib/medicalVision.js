@@ -51,15 +51,25 @@ const HEALTH_CATEGORY = "Health";
 // Can a bystander see this tag on this character at all?
 //
 // The plain vision gate, before any of the medical reasoning below layers
-// exceptions on top of it. Three states (Tag.inspectVisibility): never, always,
-// or only while it is equipped — a dagger in a pocket is nobody's business, a
-// drawn one is. Both of the bot's 🔍 embeds route through here rather than
-// testing the enum by hand, so the concealed read and the ordinary one can't
-// drift on what "visible" means.
+// exceptions on top of it. Four states (Tag.inspectVisibility): never, always,
+// only while it is equipped — a dagger in a pocket is nobody's business, a
+// drawn one is — or only while the subject is going under their own name.
+// Both of the bot's 🔍 embeds route through here rather than testing the enum
+// by hand, so the concealed read and the ordinary one can't drift on what
+// "visible" means.
+//
+// NAMED is a reputation rather than a thing. Wanted says the Cerberon know
+// your FACE, so a hood or a Disguise Kit's false name has to take it off the
+// read — otherwise the hooded stranger is an unknown young man whose tags
+// name him. `identityVisible` is the caller's answer to "is this subject
+// wearing their own name right now"; db/lib/examine.js computes it from
+// presentedIdentity(). It defaults TRUE so no existing caller changes
+// behaviour by not passing it — a NAMED tag is ordinary until somebody hides.
 //
 // `tag` needs inspectVisibility; `characterTag` needs equipped.
-function seenByBystander(tag, characterTag) {
+function seenByBystander(tag, characterTag, identityVisible = true) {
   if (tag?.inspectVisibility === "ALWAYS") return true;
+  if (tag?.inspectVisibility === "NAMED") return Boolean(identityVisible);
   if (tag?.inspectVisibility === "WORN") return Boolean(characterTag?.equipped);
   return false;
 }
@@ -88,13 +98,14 @@ function canTreatAsRoutine(tag, satisfied) {
 // as though it were common knowledge.
 //
 // `characterTags` is the subject's rows as `{ tag: { ... } }`; `satisfied` is
-// satisfiedSkillIds() for the INSPECTOR.
-function medicallyVisibleTags(characterTags = [], satisfied = new Set()) {
+// satisfiedSkillIds() for the INSPECTOR, and `identityVisible` is passed
+// straight through to seenByBystander (see there).
+function medicallyVisibleTags(characterTags = [], satisfied = new Set(), identityVisible = true) {
   const out = [];
   for (const ct of characterTags) {
     const tag = ct?.tag;
     if (!tag) continue;
-    if (seenByBystander(tag, ct)) {
+    if (seenByBystander(tag, ct, identityVisible)) {
       out.push({ characterTag: ct, viaSkill: false });
       continue;
     }

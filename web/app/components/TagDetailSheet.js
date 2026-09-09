@@ -85,6 +85,7 @@ const FLAG_LABELS = [
 const VISIBILITY_CHIP = {
   ALWAYS: "Visible on 🔍",
   WORN: "Visible on 🔍 while worn",
+  NAMED: "Visible on 🔍 under your own name",
 };
 
 export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {

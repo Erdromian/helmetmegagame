@@ -4,12 +4,14 @@
 
 import { recallComrades, recoverEquipment } from "@/app/(app)/character/thanatiActions";
 import { readPointer, armNuke, disarmNuke } from "@/app/(app)/character/nukeActions";
+import { checkWanted } from "@/app/(app)/character/cerberonActions";
 import { extractGodfleshRequest, healCharacterRequest } from "@/app/(app)/character/requestActions";
 import BindDialog, { BIND_VERBS } from "./BindDialog";
 import HarmDialog from "./HarmDialog";
 import MutilateDialog from "./MutilateDialog";
 import BodyDialog from "./BodyDialog";
 import EngraveDialog from "./EngraveDialog";
+import WarrantDialog from "./WarrantDialog";
 import DisguiseDialog from "./DisguiseDialog";
 import ConsumeDialog from "./ConsumeDialog";
 import HideoutDialog from "./HideoutDialog";
@@ -37,6 +39,8 @@ const RECOVER_NAMES = { "black-robes": "the robes", "thanati-mask": "the mask" }
 
 export const INSTANT = {
   recall: { run: () => recallComrades(), confirm: () => null },
+  // A free read, like Recall and the pointer — nothing to ask first.
+  wantedlist: { run: () => checkWanted(), confirm: () => null },
   recover: {
     run: () => recoverEquipment(),
     confirm: (pools) => {
@@ -82,6 +86,7 @@ export const DIALOGS = {
   bury: BodyDialog,
   butcher: BodyDialog,
   engrave: EngraveDialog,
+  warrant: WarrantDialog,
   disguise: DisguiseDialog,
   consume: ConsumeDialog,
   hideout: HideoutDialog,

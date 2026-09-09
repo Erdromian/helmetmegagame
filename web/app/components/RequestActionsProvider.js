@@ -164,6 +164,8 @@ export default function RequestActionsProvider({
   // Gear's shelf and the purse on the hideout's floor.
   isThanati = false,
   isThanatiLeader = false,
+  isCerberon = false,
+  canWarrant = false,
   atHideout = false,
   hideoutRooms = [],
   hideoutStock = null,
@@ -409,6 +411,8 @@ export default function RequestActionsProvider({
       hasDevice,
       isThanati,
       isThanatiLeader,
+      isCerberon,
+      canWarrant,
       atHideout,
       canRecover: recoverMissing.length > 0,
       recoverMissing,
@@ -446,6 +450,8 @@ export default function RequestActionsProvider({
       hasDevice,
       isThanati,
       isThanatiLeader,
+      isCerberon,
+      canWarrant,
       atHideout,
     ],
   );

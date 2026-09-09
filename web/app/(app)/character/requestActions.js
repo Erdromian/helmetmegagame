@@ -127,6 +127,7 @@ import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { partFor, resolveMutilation } from "@lifeweb/db/lib/mutilate";
 import { mintHeadstone } from "@lifeweb/db/lib/headstone";
 import { dropRoomTag } from "@lifeweb/db/lib/tagWrites";
+import { WANTED_SLUG } from "@lifeweb/db/lib/wanted";
 import {
   BUTCHER_SLUG,
   ENGRAVE_RESOURCE_COST,
@@ -208,8 +209,10 @@ import {
 import { applyMood, consumeReliefFor, woundMoodFor, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/mood";
 import {
   NAME_LIMITS,
+  FULL_NAME_LIMIT,
   formatCharacterName,
   formatBareName,
+  matchesTypedName,
 } from "@/lib/characterName";
 import { propagateDynastyLastName } from "@/lib/dynasty";
 
@@ -4016,6 +4019,8 @@ async function changeNameRequestImpl({
   // Re-checked here and not merely in the UI: a server action is a public
   // endpoint and page.js's predicate is only a hint.
   const potion = character.tags.find((ct) => ct.tag.slug === MULLIGAN_SLUG);
+  // Read here beside the potion, dropped inside the transaction below.
+  const warrant = character.tags.find((ct) => ct.tag.slug === WANTED_SLUG);
   if (!potion) {
     throw new UserError(
       "You need a Mulligan Potion to take a new name.",
@@ -4084,6 +4089,11 @@ async function changeNameRequestImpl({
     });
     // Drunk, not merely held — one name per bottle.
     await dropCharacterTag(tx, character.id, potion.tagId, 1);
+    // And the warrant goes with the old name. A Wanted man who buys a whole
+    // new identity has bought his way off the list — that is what the bottle
+    // is FOR, and leaving the tag on would mean the Cerberon still read him
+    // as wanted under a name their own book has never heard of.
+    if (warrant) await dropCharacterTag(tx, character.id, warrant.tagId);
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_change_name",
@@ -4095,6 +4105,7 @@ async function changeNameRequestImpl({
         previousTitle: previous.title,
         title: next.title,
         potionTagId: potion.tagId,
+        ...(warrant ? { clearedWanted: true } : {}),
       },
     });
   });
@@ -4463,30 +4474,36 @@ async function buryCharacterRequestImpl({
 // here with no corpse and no reach check at all, and it searches the whole
 // game rather than your zone.
 //
-// This is where Bury's typed first name went, and the reasoning that kept it
-// typed is unchanged and now stronger: a dropdown would answer "who is dead?"
-// to anyone who opened the dialog, and the list would now be every corpse in
+// This is where Bury's typed name went, and the reasoning that kept it typed
+// is unchanged and now stronger: a dropdown would answer "who is dead?" to
+// anyone who opened the dialog, and the list would now be every corpse in
 // Ravenheart rather than the ones at your feet.
 //
-// The >1-match refusal matters far more than it used to for the same reason.
-// It is the only thing standing between a mourner and freeing the wrong soul.
+// It used to match on the FIRST NAME alone, and that was too coarse for a game
+// with a hundred people in it: first names repeat constantly, so a mourner who
+// knew exactly whose stone they were cutting got told "more than one dead
+// person answers to that name" and had to go find a GM. It matches the whole
+// name now — matchesTypedName takes either the full display name or the plain
+// First Last, so an honorific nobody told them about is not a wall.
+//
+// The >1-match refusal stays, and now it means what it says: two dead people
+// with the same full name. It is the only thing standing between a mourner and
+// freeing the wrong soul.
 async function engraveHeadstoneRequestImpl({
-  firstName: rawFirstName,
+  name: rawName,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
-  const typed =
-    rawFirstName?.toString().trim().slice(0, NAME_LIMITS.firstName) ?? "";
+  const typed = rawName?.toString().trim().slice(0, FULL_NAME_LIMIT) ?? "";
   if (!typed) throw new UserError("Whose name?");
 
-  // No zone clause, on purpose (see above).
-  const matches = await prisma.character.findMany({
-    where: {
-      status: "DEAD",
-      buriedAt: null,
-      firstName: { equals: typed, mode: "insensitive" },
-    },
+  // No zone clause, on purpose (see above). The composed name is not something
+  // Prisma can compare against, so the unburied dead — a short list — come
+  // back and matchesTypedName does the rest.
+  const candidates = await prisma.character.findMany({
+    where: { status: "DEAD", buriedAt: null },
   });
+  const matches = candidates.filter((c) => matchesTypedName(c, typed));
   if (matches.length === 0)
     throw new UserError("Nobody by that name is dead and unburied.");
   if (matches.length > 1) {

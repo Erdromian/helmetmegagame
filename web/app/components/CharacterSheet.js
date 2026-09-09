@@ -65,6 +65,8 @@ export default function CharacterSheet({
   // character/page.js and handed straight through to the dialogs.
   isThanati = false,
   isThanatiLeader = false,
+  isCerberon = false,
+  canWarrant = false,
   atHideout = false,
   hideoutRooms = [],
   hideoutStock = null,
@@ -242,6 +244,8 @@ export default function CharacterSheet({
         hasDevice={hasDevice}
         isThanati={isThanati}
         isThanatiLeader={isThanatiLeader}
+        isCerberon={isCerberon}
+        canWarrant={canWarrant}
         atHideout={atHideout}
         hideoutRooms={hideoutRooms}
         hideoutStock={hideoutStock}

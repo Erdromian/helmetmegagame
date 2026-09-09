@@ -97,6 +97,10 @@ export const ACTION_HELP = {
   recall: "Remember the other Thanati cultists in Ravenheart.",
   recover: "Recover your mask and robes from where you left them.",
   hideout: "Set your hideout room, determining where you can purchase things from.",
+  // The Cerberon's two. The first is Bascinet's own words, verbatim.
+  warrant: "Declare a man fit for arrest. They are visible as being wanted.",
+  wantedlist:
+    "Read the warrant book. It names every living man the Cerberon want, hood or no hood. ‡",
 };
 
 export const ACTION_SECTIONS = [
@@ -248,6 +252,18 @@ export const ACTION_SECTIONS = [
         gate: "atHideout",
         gateReason: "You aren't standing at the hideout.",
       },
+    ],
+  },
+  // THE CERBERON. Both rows HIDE rather than grey, the Thanati rule above:
+  // which badge you carry, and whether you are sworn, are your own sheet's
+  // facts — and a dead Arrest Warrant icon on a brigand's sheet would teach
+  // him nothing except that the warrant book exists.
+  {
+    key: "cerberon",
+    label: "CERBERON",
+    actions: [
+      { mode: "warrant", icon: ShackleIcon, label: "Arrest Warrant", show: "canWarrant" },
+      { mode: "wantedlist", icon: DocumentsIcon, label: "Check Wanted", show: "isCerberon", instant: true },
     ],
   },
   {
