@@ -4,8 +4,18 @@
 // The config lives in the database (LaborDropOption), synced from
 // docs/labordrops.yaml by db/lib/syncLaborDrops.js. This file is the reading
 // half: given a roll and the three scopes a payout happened under, it finds
-// every entry that answers to them and draws one uniformly. Weighting a
-// result is done by repeating it in the YAML pool, not by a weight column.
+// every entry that answers to them and draws one.
+//
+// The draw is TWO-STAGE, the shape db/lib/cavingLoot.js has always had: land
+// on a rarity band by the die face's column, then pick evenly among that
+// band's members. db/lib/labordropsRarity.js owns the columns and the
+// arithmetic; this file owns finding the pool.
+//
+// It used to be uniform over the concatenated pool, with repetition as the
+// only way to weight anything. That cost three things — nothing could be
+// rarer than 1/poolsize, every bucket needed its own `nothing` pad or
+// stacking raised the wound rate, and a local table diluted the global one.
+// labordropsRarity.js's header has the full account.
 //
 // A row may ALSO carry requiredTagId, a seventh gate orthogonal to the six
 // scopes — "only in this combined pool for a character who holds this tag
@@ -19,6 +29,8 @@
 // has no entry — the Godard Factory pays in goods, not a die (FACTORY.md),
 // and db/lib/moveEffects.js's laborDrop effect skips it before this is ever
 // called.
+const { drawFromPool } = require("./labordropsRarity");
+
 const TIER_TO_LABOR_DROP_TYPE = {
   basic: "BASIC",
   skilled: "SKILLED",
@@ -62,15 +74,19 @@ async function laborDropPool(tx, { roll, laborType = null, zoneId = null, locati
   return rows.filter((row) => passesRequiredTag(row, heldTagIds));
 }
 
-// Draws one entry uniformly from the combined pool, or null when nothing is
-// configured for this roll at all (or nothing in it survives the
-// requiredTagId gate) — which is the deliberate default while most of the
-// table is still unbuilt (CLAUDE.md session note: "we don't have the full
-// loot table figured out yet").
+// Draws one entry from the combined pool, or null when nothing is configured
+// for this roll at all (or nothing in it survives the requiredTagId gate) —
+// which is the deliberate default while most of the table is still unbuilt
+// (CLAUDE.md session note: "we don't have the full loot table figured out
+// yet"). Faces 2-4 have no column, so they are always null.
+//
+// A NOTHING row can win, and that is not the same as returning null: the
+// caller distinguishes "the die was rolled and gave nothing" from "there was
+// no table to roll on", and only the first is a real result.
 async function pickLaborDropOption(tx, { roll, laborType = null, zoneId = null, locationId = null, heldTagIds = new Set() }) {
   const pool = await laborDropPool(tx, { roll, laborType, zoneId, locationId, heldTagIds });
   if (pool.length === 0) return null;
-  return pool[Math.floor(Math.random() * pool.length)];
+  return drawFromPool(pool, roll);
 }
 
 module.exports = {

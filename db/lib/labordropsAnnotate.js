@@ -13,6 +13,7 @@
 // reorder a key, reformat a list, or drop a blank line, because it never
 // re-serializes anything but the trailing `# ...` on lines it recognizes.
 const { scopeFilters, passesRequiredTag, TIER_TO_LABOR_DROP_TYPE } = require("./laborDrops");
+const { rowShares } = require("./labordropsRarity");
 
 // One "slot" per nesting step before a bucket reaches roll-keyed leaves.
 // laborTypeZone/laborTypeLocation consume two slots (type, then place)
@@ -40,6 +41,21 @@ function splitComment(line) {
   const idx = line.indexOf("#");
   if (idx === -1) return { code: line.replace(/\s+$/, ""), comment: null };
   return { code: line.slice(0, idx).replace(/\s+$/, ""), comment: line.slice(idx).trimEnd() };
+}
+
+// The slug an entry line names. A find is an object now —
+// `{ slug: rope, rarity: uncommon }` — so the value after the dash is no
+// longer the thing to price. Pads and ⬢ deltas stay bare scalars and come
+// through untouched.
+//
+// A regex rather than a YAML parse because this whole module works on LINES:
+// it rewrites comments in place and must not reflow anything it does not
+// own. The shape it has to read is the one the sync accepts, and the sync is
+// the thing that would have thrown already if the file were malformed.
+function entrySlug(raw) {
+  const value = String(raw).trim().replace(/^["']|["']$/g, "");
+  const object = /^\{\s*slug\s*:\s*([^,}\s]+)/.exec(value);
+  return object ? object[1].trim().replace(/^["']|["']$/g, "") : value;
 }
 
 function withComment(code, comment) {
@@ -128,17 +144,25 @@ function priceRows(rows, tagsById) {
 
 function statLine(stats) {
   if (!stats) return null;
-  const ev = stats.count ? (stats.evSum / stats.count).toFixed(2) : "0.00";
-  const hitPct = stats.count ? Math.round((stats.hits / stats.count) * 100) : 0;
-  return `EV ${ev} ⬢ · hit ${hitPct}%`;
+  return `EV ${(stats.ev ?? 0).toFixed(2)} ⬢ · hit ${Math.round((stats.hit ?? 0) * 100)}%`;
 }
 
+// Priced by BAND, not by row count. rowShares hands back each row's real
+// chance under the face's column (db/lib/labordropsRarity.js), so `ev` is a
+// proper expectation and `hit` is the actual miss rate rather than
+// "fraction of lines that aren't pads" — which was only ever the same number
+// because the draw used to be uniform.
 function computeStats(rows, roll, scope) {
   const matched = rows.filter((predicateFor(roll, scope)));
   if (matched.length === 0) return null;
-  const hits = matched.filter((r) => r.kind !== "NOTHING").length;
-  const evSum = matched.reduce((s, r) => s + (r.evValue ?? 0), 0);
-  return { count: matched.length, hits, evSum };
+  const shares = rowShares(matched, roll);
+  let ev = 0;
+  let hit = 0;
+  matched.forEach((r, i) => {
+    ev += (r.evValue ?? 0) * shares[i];
+    if (r.kind !== "NOTHING") hit += shares[i];
+  });
+  return { count: matched.length, hits: hit, evSum: ev, ev, hit };
 }
 
 function predicateFor(roll, { mode, laborType, zoneId, locationId, requiredTagId, heldTagIds }) {
@@ -166,7 +190,7 @@ function buildRollComment(rows, roll, frame) {
   if (!own && !combined) return null;
   const ownLine = own ? statLine(own) : "no entries here";
   const combinedLine = combined ? statLine(combined) : null;
-  const isTrivial = combined && own && own.count === combined.count && own.evSum === combined.evSum;
+  const isTrivial = combined && own && own.count === combined.count && own.ev === combined.ev;
   return isTrivial || !combinedLine
     ? `# ${ownLine}`
     : `# own ${ownLine} · combined ${combinedLine}`;
@@ -193,8 +217,8 @@ function buildRollupComment(rows, frame) {
     const combined = computeStats(rows, roll, { mode: "combined", ...frame });
     if (!combined) continue; // this face's own 0 is added by the /6 below either way
     anyConfigured = true;
-    totalEv += combined.evSum / combined.count;
-    totalHitFraction += combined.hits / combined.count;
+    totalEv += combined.ev;
+    totalHitFraction += combined.hit;
   }
   if (!anyConfigured) return null;
   const ev = (totalEv / 6).toFixed(2);
@@ -352,7 +376,7 @@ function annotateLines(lines, ctx) {
     }
 
     if (listMatch && parent && parent.kind === "rollLeaf") {
-      const rawValue = listMatch[2].trim().replace(/^["']|["']$/g, "");
+      const rawValue = entrySlug(listMatch[2]);
       const mech = mechanicalValue(rawValue, ctx.tagsById);
       const { blurb } = splitBlurb(comment, mech);
       const newComment = mech ? `# ${blurb ? `${blurb} — ` : ""}${mech}` : blurb ? `# ${blurb}` : null;

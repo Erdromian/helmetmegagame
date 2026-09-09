@@ -57,15 +57,15 @@ function fixture() {
   const locationIdBySlug = new Map();
 
   const rows = [
-    { roll: 6, laborType: null, zoneId: null, locationId: null, requiredTagId: null, kind: "TAG", tagId: "t-obol", evValue: 1 },
+    { roll: 6, laborType: null, zoneId: null, locationId: null, requiredTagId: null, kind: "TAG", tagId: "t-obol", rarity: "ultracommon", evValue: 1 },
     { roll: 6, laborType: "HUNTING", zoneId: null, locationId: null, requiredTagId: null, kind: "RESOURCES", resourceAmount: 2, evValue: 2 },
-    { roll: 6, laborType: null, zoneId: "z-forest", locationId: null, requiredTagId: "t-forester", kind: "TAG", tagId: "t-rope", evValue: 4 },
+    { roll: 6, laborType: null, zoneId: "z-forest", locationId: null, requiredTagId: "t-forester", kind: "TAG", tagId: "t-rope", rarity: "uncommon", evValue: 4 },
   ];
 
   const lines = [
     "global:",
     "  6:",
-    "    - obol",
+    "    - { slug: obol, rarity: ultracommon }",
     "",
     "laborType:",
     "  hunting:",
@@ -77,7 +77,7 @@ function fixture() {
     "    requiresTag:",
     "      forester:",
     "        6:",
-    "          - rope  # a coil left behind at an old camp",
+    "          - { slug: rope, rarity: uncommon }  # a coil left behind at an old camp",
     "",
   ];
 
@@ -96,16 +96,21 @@ test("annotateLines: hunting's roll 6 shows own AND combined (global's obol pool
   const out = annotateLines(lines, ctx);
   const line = out[6]; // '    6:' under laborType.hunting
   assert.match(line, /own EV 2\.00 ⬢ · hit 100%/);
-  assert.match(line, /combined EV 1\.50 ⬢ · hit 100%/); // (2 + 1) / 2
+  // Priced by BAND now, not by row count. The ⬢ delta holds `resources`'s
+  // 0.20 at face 6 and nothing more — a consolation prize never absorbs the
+  // slack — so the obol's `ultracommon` takes every absent band's share and
+  // ends at 0.80: 1(0.80) + 2(0.20) = 1.20. Under the old uniform draw this
+  // was (2 + 1) / 2 = 1.50.
+  assert.match(line, /combined EV 1\.20 ⬢ · hit 100%/);
 });
 
 test("annotateLines: the category rollup is a true per-labor EV — divided by all 6 faces, not the 1 configured one", () => {
   const { lines, ...ctx } = fixture();
   const out = annotateLines(lines, ctx);
   const categoryLine = out[5]; // '  hunting:'
-  // Roll 6's combined EV is 1.50 (see the test above), rolls 1-5 are
-  // unconfigured (0 EV each) — the rollup is 1.50/6, NOT 1.50 itself.
-  assert.match(categoryLine, /⬢ EV\/labor 0\.25 · hit 17%/);
+  // Roll 6's combined EV is 1.20 (see the test above), rolls 1-5 are
+  // unconfigured (0 EV each) — the rollup is 1.20/6, NOT 1.20 itself.
+  assert.match(categoryLine, /⬢ EV\/labor 0\.20 · hit 17%/);
 });
 
 test("annotateLines: forester's rollup folds in global AND zone.forest — the cascading case", () => {
@@ -116,16 +121,18 @@ test("annotateLines: forester's rollup folds in global AND zone.forest — the c
   // divided across all 6 faces: 1.00 / 6.
   assert.match(forestLine, /⬢ EV\/labor 0\.17 · hit 17%/);
   const foresterLine = out[12]; // '      forester:'
-  // Global(1) + zone.forest(nothing) + zone.forest.requiresTag.forester(4)
-  // = 2.50 on roll 6 alone; divided across all 6 faces: 2.50 / 6.
-  assert.match(foresterLine, /⬢ EV\/labor 0\.42 · hit 17%/);
+  // Global(obol, ultracommon) + the gated rope (uncommon). ultracommon is the
+  // commonest band present so it absorbs every absent band's share (0.87);
+  // the rope keeps uncommon's 0.13. 1(0.87) + 4(0.13) = 1.39 on roll 6
+  // alone, divided across all six faces.
+  assert.match(foresterLine, /⬢ EV\/labor 0\.23 · hit 17%/);
 });
 
 test("annotateLines: preserves the author's blurb and appends the mechanical value", () => {
   const { lines, ...ctx } = fixture();
   const out = annotateLines(lines, ctx);
   const ropeLine = out[14];
-  assert.equal(ropeLine, "          - rope  # a coil left behind at an old camp — sells 4 ⬢");
+  assert.equal(ropeLine, "          - { slug: rope, rarity: uncommon }  # a coil left behind at an old camp — sells 4 ⬢");
 });
 
 test("annotateLines: never touches a blank or comment-only line, or an empty-dict bucket", () => {

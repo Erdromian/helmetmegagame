@@ -1107,11 +1107,34 @@ enum LaborDropKind {
   NOTHING
 }
 
+// How rare a TAG entry is within its pool. The same six names
+// db/lib/cavingLoot.js uses, deliberately — two loot systems in one game
+// should not speak two vocabularies. The NUMBERS are not shared: the
+// probability each name carries lives in db/lib/labordropsRarity.js, keyed by
+// die face, and a cave 6 and a labor 6 are different events.
+//
+// Only TAG rows carry one. A NOTHING pad and a RESOURCES delta are not items
+// and sit in their own bands, outside the ladder — the sync refuses a rarity
+// on either.
+enum LaborDropRarity {
+  ULTRACOMMON
+  COMMON
+  UNCOMMON
+  RARE
+  EXTREMELY_RARE
+  NEARLY_IMPOSSIBLE
+}
+
 // One entry in one pool. A "table" is never its own row: it is every
-// LaborDropOption sharing one (roll, laborType, zoneId, locationId) scope,
-// drawn from uniformly — repeat an entry to weight it, the way
-// docs/labordrops.yaml's own examples do. Combining several scopes at once
-// (LABORDROPS.md §2) is a query over this table, not a join anywhere else.
+// LaborDropOption sharing one (roll, laborType, zoneId, locationId) scope.
+// Combining several scopes at once (LABORDROPS.md §2) is a query over this
+// table, not a join anywhere else.
+//
+// The draw is TWO-STAGE now, not uniform: land on a rarity band by the die
+// face's column, then pick evenly among that band's members
+// (db/lib/labordropsRarity.js), the same shape db/lib/cavingLoot.js has
+// always had. Repeat-to-weight is gone with it — a repeated entry is now
+// just a duplicate, and the sync says so.
 model LaborDropOption {
   id String @id @default(cuid())
 
@@ -1131,6 +1154,16 @@ model LaborDropOption {
   location   Location? @relation(fields: [locationId], references: [id], onDelete: Cascade)
 
   kind LaborDropKind
+
+  // TAG only, and required on every TAG row (the sync enforces both).
+  // Authored as `rarity:` in docs/labordrops.yaml.
+  //
+  // This replaced repeat-to-weight, which was the only lever the old uniform
+  // draw had: 87 of the file's 180 lines were duplicates, 53 more were
+  // `nothing` pads, and nothing could be rarer than 1/poolsize. See
+  // db/lib/labordropsRarity.js for what each name is worth and why the
+  // column is keyed by face.
+  rarity LaborDropRarity?
 
   // TAG only. Cascades on delete rather than blocking a tag prune — the sync
   // fully rebuilds this table from docs/labordrops.yaml on every run, so a

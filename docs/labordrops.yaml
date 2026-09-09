@@ -5,14 +5,39 @@
 # Six top-level buckets, one per legal scope. Each nests roll face (1-6) ->
 # a pool (a plain list). A combined draw for one Labor payout pulls from
 # whichever of the six buckets actually name that labor type/zone/location,
-# all at the SAME roll face, and picks one entry uniformly from all of them
-# pooled together — repeat an entry to weight it, the way the good tables
-# below repeat "nothing" rather than carrying a weight field.
+# all at the SAME roll face, and draws from them pooled together.
+#
+# THE DRAW IS TWO-STAGE, the shape db/lib/cavingLoot.js has always had: land
+# on a rarity band by the die face's column, then pick evenly among that
+# band's members. db/lib/labordropsRarity.js owns the columns.
 #
 # One pool entry is one of three things:
-#   - a Tag slug (docs/tags.yaml)              -> grants the tag
+#   - { slug: rope, rarity: uncommon }         -> grants the tag
 #   - "+N" / "-N"                               -> a ⬢ delta
-#   - nothing                                   -> an explicit no-result pad
+#   - nothing                                   -> the pool can miss
+#
+# EVERY FIND CARRIES A RARITY, one of, commonest first:
+#
+#   ultracommon  common  uncommon  rare  extremely-rare  nearly-impossible
+#
+# The same six names cavingLoot.js uses — two loot systems in one game should
+# not speak two vocabularies — though not the same numbers, because a cave 6
+# and a labor 6 are different events.
+#
+# RARITY IS ABSOLUTE. A `rare` entry is worth its band's share whatever else
+# sits beside it, and the bands nobody authored give their share to the
+# commonest TIER present (never to a ⬢ delta, which would otherwise become the
+# likeliest outcome of half these pools). That is what stops one bucket
+# diluting another: adding a local table no longer steals probability from the
+# global one.
+#
+# `nothing` IS NOT A PAD ANY MORE — it is one line saying "this pool can
+# miss", and how often is the face's column, not how many times you wrote it.
+# 53 pad lines and 87 duplicate lines came out of this file when that landed,
+# along with the footgun LABORDROPS.md used to warn about: adding a wound no
+# longer raises the wound rate everywhere the bucket applies. Say `nothing`
+# once or not at all; the sync refuses a second, and refuses a repeated tag
+# for the same reason (a repeat is a copy-paste now, not a weight).
 #
 # laborType keys: basic, skilled, hunting, farming, fishing — the five
 # Laboring tiers db/lib/laborAccess.js resolves a Labor payout to
@@ -62,79 +87,63 @@
 # `laborDrop` in db/lib/moveEffects.js stamps the catalog's durationTurns onto
 # the grant, so they really do tick.
 global:
-  1:  # EV 0.00 ⬢ · hit 70%
-    - bruised  # an ordinary knock, nothing dramatic — not sellable
-    - bruised  # not sellable
-    - bruised  # not sellable
-    - vomiting  # something you ate, or just a bad morning — not sellable
-    - vomiting  # not sellable
-    - aching  # a long day, nothing more — not sellable
-    - aching  # not sellable
-    - nothing
-    - nothing
+  1:  # EV 0.00 ⬢ · hit 55%
+    - { slug: bruised, rarity: ultracommon }  # an ordinary knock, nothing dramatic — not sellable
+    - { slug: vomiting, rarity: ultracommon }  # something you ate, or just a bad morning — not sellable
+    - { slug: aching, rarity: ultracommon }  # a long day, nothing more — not sellable
     - nothing
   6:  # EV 1.00 ⬢ · hit 100%
-    - obol  # someone dropped it and never noticed — the coin itself, worth 1 ⬢
+    - { slug: obol, rarity: ultracommon }  # someone dropped it and never noticed — the coin itself, worth 1 ⬢
 
 laborType:
-  hunting:  # ⬢ EV/labor 0.33 · hit 27%
+  hunting:  # ⬢ EV/labor 0.30 · hit 26%
     # A boar doesn't go down quietly, and neither does anything bigger.
     # Minor, self-limiting, medical-basic-or-free injuries only — the
     # zone-specific hunting tables below (laborTypeZone.hunting.*) are
     # where the genuinely dangerous game lives (LABORDROPS.md §2a-adjacent).
-    1:  # own EV 0.00 ⬢ · hit 60% · combined EV 0.00 ⬢ · hit 65%
-      - minor-bleeding  # a snare wire or a blade gets away from you — not sellable
-      - minor-bleeding  # not sellable
-      - minor-wound  # the animal gets one good hit in before it goes down — not sellable
-      - minor-wound  # not sellable
-      - sprained-ankle  # a bad step chasing something faster than you — not sellable
-      - sprained-ankle  # not sellable
+    1:  # own EV 0.00 ⬢ · hit 55% · combined EV 0.00 ⬢ · hit 55%
+      - { slug: minor-bleeding, rarity: ultracommon }  # a snare wire or a blade gets away from you — not sellable
+      - { slug: minor-wound, rarity: common }  # the animal gets one good hit in before it goes down — not sellable
+      - { slug: sprained-ankle, rarity: common }  # a bad step chasing something faster than you — not sellable
       - nothing
-      - nothing
-      - nothing
-      - nothing
-    6:  # own EV 2.14 ⬢ · hit 100% · combined EV 2.00 ⬢ · hit 100%
-      - nightshade-herb  # a coil left behind at an old camp — sells 2 ⬢
-      - poppy-pods  # sells 2 ⬢
-      - coca-leaves  # sells 2 ⬢
-      - ravens-eye  # sells 4 ⬢
-      - leeches  # sells 2 ⬢
+    6:  # own EV 2.34 ⬢ · hit 100% · combined EV 1.77 ⬢ · hit 100%
+      - { slug: nightshade-herb, rarity: common }  # a coil left behind at an old camp — sells 2 ⬢
+      - { slug: poppy-pods, rarity: common }  # sells 2 ⬢
+      - { slug: coca-leaves, rarity: common }  # sells 2 ⬢
+      - { slug: ravens-eye, rarity: uncommon }  # sells 4 ⬢
+      - { slug: leeches, rarity: common }  # sells 2 ⬢
       # The cooking rework's three hunting finds (docs/systemdocs/COOKING.md).
       # A hunter is the one labourer who comes home with MEAT, which is what a
       # cook has had nothing of until now.
-      - boar-loin  # the best cut off the day's kill — sells 4 ⬢
-      - deer-liver  # what a hunter eats first, or sells to somebody who will — sells 3 ⬢
-      - goose-fat  # rendered off a bird nobody else wanted — sells 5 ⬢
+      - { slug: boar-loin, rarity: uncommon }  # the best cut off the day's kill — sells 4 ⬢
+      - { slug: deer-liver, rarity: common }  # what a hunter eats first, or sells to somebody who will — sells 3 ⬢
+      - { slug: goose-fat, rarity: uncommon }  # rendered off a bird nobody else wanted — sells 5 ⬢
       - "+1"
       - "+2"
-  fishing:  # ⬢ EV/labor 0.25 · hit 25%
-    6:  # own EV 1.56 ⬢ · hit 78% · combined EV 1.50 ⬢ · hit 80%
-      - trout-heart  # sells 4 ⬢
-      - poppy-pods  # sells 2 ⬢
-      - leeches  # sells 2 ⬢
-      - fish-roe  # sells 2 ⬢
-      - old-coin  # sells 1 ⬢
+  fishing:  # ⬢ EV/labor 0.27 · hit 23%
+    6:  # own EV 1.59 ⬢ · hit 85% · combined EV 1.59 ⬢ · hit 85%
+      - { slug: trout-heart, rarity: uncommon }  # sells 4 ⬢
+      - { slug: poppy-pods, rarity: common }  # sells 2 ⬢
+      - { slug: leeches, rarity: common }  # sells 2 ⬢
+      - { slug: fish-roe, rarity: common }  # sells 2 ⬢
+      - { slug: old-coin, rarity: ultracommon }  # sells 1 ⬢
       # Fishing's own cooking find, everywhere there is water. The zone tables
       # below are where the water decides WHAT you pull out
       # (docs/systemdocs/COOKING.md).
-      - crayfish  # a bucket of them off the shallows — sells 3 ⬢
-      - nothing
+      - { slug: crayfish, rarity: common }  # a bucket of them off the shallows — sells 3 ⬢
       - nothing
       - "+1"
       - "+2"
-  farming:  # ⬢ EV/labor 0.20 · hit 23%
-    6:  # own EV 1.22 ⬢ · hit 67% · combined EV 1.20 ⬢ · hit 70%
-      - nightshade-herb  # sells 2 ⬢
-      - poppy-pods  # sells 2 ⬢
-      - coca-leaves  # sells 2 ⬢
-      - honey  # sells 2 ⬢
+  farming:  # ⬢ EV/labor 0.19 · hit 23%
+    6:  # own EV 1.60 ⬢ · hit 85% · combined EV 1.15 ⬢ · hit 85%
+      - { slug: nightshade-herb, rarity: common }  # sells 2 ⬢
+      - { slug: poppy-pods, rarity: common }  # sells 2 ⬢
+      - { slug: coca-leaves, rarity: common }  # sells 2 ⬢
+      - { slug: honey, rarity: common }  # sells 2 ⬢
       # Farming's cooking find (docs/systemdocs/COOKING.md). Deliberately the
       # commonest and cheapest of the thirteen: a cook should always be able
       # to get their hands on an onion, and never be excited about it.
-      - onion  # a good day in the beds — sells 2 ⬢
-      - onion  # sells 2 ⬢
-      - nothing
-      - nothing
+      - { slug: onion, rarity: common }  # a good day in the beds — sells 2 ⬢
       - nothing
       - "+1"
       - "+2"
@@ -151,12 +160,12 @@ zone:
   # work, so nothing extra applies to an ordinary character standing in it —
   # `laborTypeLocation.hunting.forest-cliffs` below is the one deliberate
   # exception, a single dangerous spot inside an otherwise uneventful zone.
-  forest:  # ⬢ EV/labor 0.17 · hit 28%
+  forest:  # ⬢ EV/labor 0.17 · hit 26%
     requiresTag:
-      forester:  # ⬢ EV/labor 0.25 · hit 28%
-        6:  # own EV 1.67 ⬢ · hit 100% · combined EV 1.50 ⬢ · hit 100%
-          - rope  # a coil left behind at an old camp — sells 4 ⬢
-          - trail-ration  # provisions someone else didn't need any more — not sellable
+      forester:  # ⬢ EV/labor 0.18 · hit 26%
+        6:  # own EV 0.72 ⬢ · hit 100% · combined EV 1.05 ⬢ · hit 100%
+          - { slug: rope, rarity: uncommon }  # a coil left behind at an old camp — sells 4 ⬢
+          - { slug: trail-ration, rarity: ultracommon }  # provisions someone else didn't need any more — not sellable
           - "+1"
 
   # Six of the marsh's seven locations carry `attributes.godflesh` in
@@ -166,20 +175,13 @@ zone:
   # the zone's own words) is also where the two bad entries below come from:
   # a mire that hides more than mud (marshes-woods' sleeping thing, the
   # north marshes' scratched-up cages).
-  marshes:  # ⬢ EV/labor 0.17 · hit 27%
-    1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 60%
-      - minor-bleeding  # the reeds and the leeches both bite — not sellable
-      - minor-bleeding  # not sellable
-      - minor-bleeding  # not sellable
-      - deep-wound  # something under the water was not a root — not sellable
-      - deep-wound  # not sellable
+  marshes:  # ⬢ EV/labor 0.12 · hit 26%
+    1:  # own EV 0.00 ⬢ · hit 55% · combined EV 0.00 ⬢ · hit 55%
+      - { slug: minor-bleeding, rarity: ultracommon }  # the reeds and the leeches both bite — not sellable
+      - { slug: deep-wound, rarity: uncommon }  # something under the water was not a root — not sellable
       - nothing
-      - nothing
-      - nothing
-      - nothing
-      - nothing
-    6:  # own EV 1.00 ⬢ · hit 100% · combined EV 1.00 ⬢ · hit 100%
-      - godflesh  # the mud gives up a piece of what it's fed on — not sellable
+    6:  # own EV 0.30 ⬢ · hit 100% · combined EV 0.70 ⬢ · hit 100%
+      - { slug: godflesh, rarity: ultracommon }  # the mud gives up a piece of what it's fed on — not sellable
       - "+1"
       - "+2"
 
@@ -187,34 +189,20 @@ zone:
   # stonework, sheer drops (the Hanging Steps, the Grand Ravine), and a
   # brigand camp sharing the high ground. Danger only; the zone's own name
   # never promised a bonus for it.
-  hills:  # ⬢ EV/labor 0.17 · hit 27%
-    1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 60%
-      - sprained-ankle  # the ground here doesn't forgive a bad step — not sellable
-      - sprained-ankle  # not sellable
-      - sprained-ankle  # not sellable
-      - bruised  # loose stone, and a long way down to the next ledge — not sellable
-      - bruised  # not sellable
-      - nothing
-      - nothing
-      - nothing
-      - nothing
+  hills:  # ⬢ EV/labor 0.17 · hit 26%
+    1:  # own EV 0.00 ⬢ · hit 55% · combined EV 0.00 ⬢ · hit 55%
+      - { slug: sprained-ankle, rarity: common }  # the ground here doesn't forgive a bad step — not sellable
+      - { slug: bruised, rarity: ultracommon }  # loose stone, and a long way down to the next ledge — not sellable
       - nothing
 
   # "A place of true darkness. The end of the world." (zones.yaml) — the
   # zone-wide entry is deliberately the only thing authored for Depths
   # outside the labor-specific hunting table below; nothing about working
   # here is meant to feel safe.
-  depths:  # ⬢ EV/labor 0.17 · hit 27%
-    1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 60%
-      - deep-wound  # the dark gets a piece of you before you see what did it — not sellable
-      - deep-wound  # not sellable
-      - minor-wound  # you find the low ceiling with your head, again — not sellable
-      - minor-wound  # not sellable
-      - minor-wound  # not sellable
-      - nothing
-      - nothing
-      - nothing
-      - nothing
+  depths:  # ⬢ EV/labor 0.17 · hit 26%
+    1:  # own EV 0.00 ⬢ · hit 55% · combined EV 0.00 ⬢ · hit 55%
+      - { slug: deep-wound, rarity: uncommon }  # the dark gets a piece of you before you see what did it — not sellable
+      - { slug: minor-wound, rarity: common }  # you find the low ceiling with your head, again — not sellable
       - nothing
 
 location:
@@ -222,10 +210,10 @@ location:
   # manors / manors-garden) — old money, and old money misplaces things.
   # Deliberately not laborType-scoped: whatever work brings you to the
   # Manors, someone here dropped something worth finding.
-  manors:  # ⬢ EV/labor 0.37 · hit 25%
-    6:  # own EV 2.50 ⬢ · hit 75% · combined EV 2.20 ⬢ · hit 80%
-      - purse  # tucked behind a hedge, forgotten mid-errand — not sellable
-      - jewelry  # a stray earring, or worse, nobody's come looking for — sells 8 ⬢
+  manors:  # ⬢ EV/labor 0.20 · hit 23%
+    6:  # own EV 0.88 ⬢ · hit 85% · combined EV 1.17 ⬢ · hit 85%
+      - { slug: purse, rarity: ultracommon }  # tucked behind a hedge, forgotten mid-errand — not sellable
+      - { slug: jewelry, rarity: rare }  # a stray earring, or worse, nobody's come looking for — sells 8 ⬢
       - nothing
       - "+2"
 
@@ -236,29 +224,17 @@ laborTypeZone:
     # the reason forest-cliffs gets its own laborTypeLocation table below
     # instead of a zone-wide entry; this section is the OTHER three zones,
     # where the danger is the whole place rather than one den in it.
-    marshes:  # ⬢ EV/labor 0.29 · hit 26%
-      1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 57%
-        - grievous-wound  # whatever sleeps in the mire wakes up wrong — not sellable
-        - deep-wound  # it had hold of you before the water gave it away — not sellable
-        - deep-wound  # not sellable
-        - minor-wound  # you got clear, mostly — not sellable
-        - minor-wound  # not sellable
+    marshes:  # ⬢ EV/labor 0.26 · hit 26%
+      1:  # own EV 0.00 ⬢ · hit 55% · combined EV 0.00 ⬢ · hit 55%
+        - { slug: grievous-wound, rarity: extremely-rare }  # whatever sleeps in the mire wakes up wrong — not sellable
+        - { slug: deep-wound, rarity: uncommon }  # it had hold of you before the water gave it away — not sellable
+        - { slug: minor-wound, rarity: common }  # you got clear, mostly — not sellable
         - nothing
-        - nothing
-        - nothing
-        - nothing
-        - nothing
-    hills:  # ⬢ EV/labor 0.33 · hit 26%
-      1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 57%
-        - blunt-force-trauma  # gored, thrown, or both, before the kill lands — not sellable
-        - sprained-ankle  # it went uphill, and you followed — not sellable
-        - sprained-ankle  # not sellable
-        - sprained-ankle  # not sellable
-        - minor-wound  # it turned on you once and then ran — not sellable
-        - nothing
-        - nothing
-        - nothing
-        - nothing
+    hills:  # ⬢ EV/labor 0.30 · hit 26%
+      1:  # own EV 0.00 ⬢ · hit 55% · combined EV 0.00 ⬢ · hit 55%
+        - { slug: blunt-force-trauma, rarity: uncommon }  # gored, thrown, or both, before the kill lands — not sellable
+        - { slug: sprained-ankle, rarity: common }  # it went uphill, and you followed — not sellable
+        - { slug: minor-wound, rarity: common }  # it turned on you once and then ran — not sellable
         - nothing
     # Faces 5 and 6 are where the Depths pays for itself: something down here
     # is worth killing, and what you carry out is a body. Zone-scoped rather
@@ -272,40 +248,22 @@ laborTypeZone:
     # this pool alone. A 6 pools with the global obol and the hunting table,
     # which halves it — deliberate: a 6 in the Depths is a body or an ordinary
     # find, a 5 is always a body.
-    depths:  # ⬢ EV/labor 1.57 · hit 43%
-      1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 57%
-        - grievous-wound  # something down here hunts back — not sellable
-        - deep-wound  # it got a piece of you on the way down — not sellable
-        - deep-wound  # not sellable
-        - minor-wound  # you heard it before it reached you — not sellable
-        - minor-wound  # not sellable
+    depths:  # ⬢ EV/labor 1.01 · hit 43%
+      1:  # own EV 0.00 ⬢ · hit 55% · combined EV 0.00 ⬢ · hit 55%
+        - { slug: grievous-wound, rarity: extremely-rare }  # something down here hunts back — not sellable
+        - { slug: deep-wound, rarity: uncommon }  # it got a piece of you on the way down — not sellable
+        - { slug: minor-wound, rarity: common }  # you heard it before it reached you — not sellable
         - nothing
-        - nothing
-        - nothing
-        - nothing
-        - nothing
-      5:  # EV 5.50 ⬢ · hit 100%
-        - skinless-corpse  # pink and slimy, and still warm — not sellable
-        - skinless-corpse  # not sellable
-        - skinless-corpse  # not sellable
-        - nekker-corpse  # spindly, and lighter than it looked — not sellable
-        - nekker-corpse  # not sellable
-        - nekker-corpse  # not sellable
-        - graga-corpse  # bloated, and it will not be carried far — not sellable
-        - graga-corpse  # not sellable
-        - graga-corpse  # not sellable
-        - aberrant-heart  # an Aberrant fell here, and this is what was worth taking — sells 55 ⬢
-      6:  # own EV 5.50 ⬢ · hit 100% · combined EV 3.94 ⬢ · hit 100%
-        - skinless-corpse  # not sellable
-        - skinless-corpse  # not sellable
-        - skinless-corpse  # not sellable
-        - nekker-corpse  # not sellable
-        - nekker-corpse  # not sellable
-        - nekker-corpse  # not sellable
-        - graga-corpse  # not sellable
-        - graga-corpse  # not sellable
-        - graga-corpse  # not sellable
-        - aberrant-heart  # sells 55 ⬢
+      5:  # EV 3.58 ⬢ · hit 100%
+        - { slug: skinless-corpse, rarity: common }  # pink and slimy, and still warm — not sellable
+        - { slug: nekker-corpse, rarity: common }  # spindly, and lighter than it looked — not sellable
+        - { slug: graga-corpse, rarity: common }  # bloated, and it will not be carried far — not sellable
+        - { slug: aberrant-heart, rarity: extremely-rare }  # an Aberrant fell here, and this is what was worth taking — sells 55 ⬢
+      6:  # own EV 0.88 ⬢ · hit 100% · combined EV 2.47 ⬢ · hit 100%
+        - { slug: skinless-corpse, rarity: common }  # not sellable
+        - { slug: nekker-corpse, rarity: common }  # not sellable
+        - { slug: graga-corpse, rarity: common }  # not sellable
+        - { slug: aberrant-heart, rarity: extremely-rare }  # sells 55 ⬢
 
   # WHAT YOU PULL OUT DEPENDS ON THE WATER (docs/systemdocs/COOKING.md). The
   # crayfish in laborType.fishing above is everywhere; these three are the
@@ -314,48 +272,29 @@ laborTypeZone:
   # which roughly halves it — a 6 by the forest river is an eel or an ordinary
   # find, never a guaranteed eel.
   fishing:
-    forest:  # river eel
-      6:
-        - river-eel  # slow water under the trees — sells 3 ⬢
-        - river-eel  # sells 3 ⬢
+    forest:  # ⬢ EV/labor 0.26 · hit 23%
+      6:  # own EV 2.15 ⬢ · hit 85% · combined EV 1.59 ⬢ · hit 85%
+        - { slug: river-eel, rarity: common }  # slow water under the trees — sells 3 ⬢
         - nothing
         - "+1"
-    marshes:  # lamprey
-      6:
-        - lamprey  # the mire's own fish, and it fastens on — sells 3 ⬢
-        - lamprey  # sells 3 ⬢
+    marshes:  # ⬢ EV/labor 0.25 · hit 23%
+      6:  # own EV 2.15 ⬢ · hit 85% · combined EV 1.49 ⬢ · hit 85%
+        - { slug: lamprey, rarity: common }  # the mire's own fish, and it fastens on — sells 3 ⬢
         - nothing
         - "+1"
     # Fishing in the dark. There is exactly one thing down here worth eating
-    # and it has no eyes.
+    # and it has no eyes, and one thing somebody lost a long time ago.
     #
-    # THE GRENADE'S RATE IS NOT 0.1%, AND CANNOT BE. Bascinet asked for
-    # "like .1%" as an extremely rare fishing find. The draw is uniform over
-    # the concatenated pool and this file has no weight field on purpose (see
-    # the header: "repeat an entry to weight it"), so the only lever is repeat
-    # count — and 0.1% per labor would need roughly 150 lines of `blind-fish`
-    # sitting in this table forever. What is written below is ONE grenade in
-    # 12 entries at a face that is itself 1-in-6, pooled with the global
-    # fishing table's 9 entries at the same face: about 0.8% per cave fishing
-    # labor. That is roughly eight times what was asked for.
-    #
-    # Two ways to close the gap, neither taken here: pad this pool out (ugly
-    # but free), or teach db/lib/laborDrops.js a weight column (a small change
-    # to a system this rework was not asked to touch). Bascinet's call.
-    caves:
-      6:
-        - blind-fish  # pale, eyeless, and perfectly good cooked — sells 3 ⬢
-        - blind-fish  # sells 3 ⬢
-        - blind-fish  # sells 3 ⬢
-        - blind-fish  # sells 3 ⬢
-        - blind-fish  # sells 3 ⬢
-        - blind-fish  # sells 3 ⬢
-        - blind-fish  # sells 3 ⬢
-        - blind-fish  # sells 3 ⬢
-        - blind-fish  # sells 3 ⬢
-        - blind-fish  # sells 3 ⬢
-        - blind-fish  # sells 3 ⬢
-        - fragmentation-grenade  # somebody lost it in the water a long time ago — sells 12 ⬢
+    # The grenade is what rarity tiers were adopted FOR. Bascinet asked for
+    # "like .1%"; under the old uniform draw the floor was 1/poolsize and it
+    # shipped at about 0.8%, eight times too common, because nothing rarer
+    # was expressible without ~150 lines of `blind-fish` in this file.
+    # `nearly-impossible` says it in a word, and lands near 1 in 1,500 cave
+    # fishing labors.
+    caves:  # ⬢ EV/labor 0.29 · hit 23%
+      6:  # own EV 3.08 ⬢ · hit 100% · combined EV 1.71 ⬢ · hit 85%
+        - { slug: blind-fish, rarity: common }  # pale, eyeless, and perfectly good cooked — sells 3 ⬢
+        - { slug: fragmentation-grenade, rarity: nearly-impossible }  # somebody lost it in the water a long time ago — sells 24 ⬢
 
 laborTypeLocation:
   hunting:
@@ -364,19 +303,13 @@ laborTypeLocation:
     # toward the edges." Forest stays the safe zone in general (see the
     # `zone.forest` comment above) — this is the one named exception, a
     # single dangerous den inside it, with the payout to match the risk.
-    forest-cliffs:  # ⬢ EV/labor 0.38 · hit 27%
-      1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 60%
-        - deep-wound  # whatever denned here doesn't share — not sellable
-        - deep-wound  # not sellable
-        - minor-wound  # it was home, and it made that clear — not sellable
-        - minor-wound  # not sellable
-        - sprained-ankle  # the scree above the den goes out from under you — not sellable
+    forest-cliffs:  # ⬢ EV/labor 0.33 · hit 26%
+      1:  # own EV 0.00 ⬢ · hit 55% · combined EV 0.00 ⬢ · hit 55%
+        - { slug: deep-wound, rarity: uncommon }  # whatever denned here doesn't share — not sellable
+        - { slug: minor-wound, rarity: common }  # it was home, and it made that clear — not sellable
+        - { slug: sprained-ankle, rarity: common }  # the scree above the den goes out from under you — not sellable
         - nothing
-        - nothing
-        - nothing
-        - nothing
-        - nothing
-      6:  # own EV 3.50 ⬢ · hit 100% · combined EV 2.30 ⬢ · hit 100%
+      6:  # own EV 3.50 ⬢ · hit 100% · combined EV 1.97 ⬢ · hit 100%
         - "+3"
         - "+4"
   fishing:
@@ -387,11 +320,9 @@ laborTypeLocation:
     # (CAVING.md's own Rare/Extremely-rare loot tiers), heavily padded with
     # `nothing` so a fishing trip here is ordinary nine times in ten and a
     # real find the rest.
-    hills-waterway:  # ⬢ EV/labor 0.65 · hit 23%
-      6:  # own EV 7.83 ⬢ · hit 50% · combined EV 3.88 ⬢ · hit 69%
-        - salvage-plate  # scrap metal, snagged off the collapsed scaffolding — sells 3 ⬢
-        - bastard-sword  # someone went into that water and didn't come out for it — sells 42 ⬢
-        - nothing
-        - nothing
+    hills-waterway:  # ⬢ EV/labor 0.38 · hit 23%
+      6:  # own EV 2.97 ⬢ · hit 85% · combined EV 2.31 ⬢ · hit 85%
+        - { slug: salvage-plate, rarity: common }  # scrap metal, snagged off the collapsed scaffolding — sells 3 ⬢
+        - { slug: bastard-sword, rarity: extremely-rare }  # someone went into that water and didn't come out for it — sells 42 ⬢
         - nothing
         - "+2"

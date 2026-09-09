@@ -248,9 +248,10 @@ adjudicating should see everything.
 Room stashes are a **seed, never a top-up** (`syncZones.js#seedRoomStash`):
 once the five cheeses are eaten there are no more.
 
-**The fragmentation grenade's fishing rate is about 0.8%, not the 0.1% asked
-for.** `docs/labordrops.yaml` says why at the `caves` pool, and the choice is
-Bascinet's.
+**The fragmentation grenade lands at 0.067% — about 1 in 1,500 cave fishing
+labors.** Getting there is what made the labor-drop die adopt caving's rarity
+tiers: under the old uniform draw the floor was 1/poolsize and it would have
+shipped eight times too common. See `LABORDROPS.md` §2.
 
 ## 12. Two catalog bugs fixed here
 

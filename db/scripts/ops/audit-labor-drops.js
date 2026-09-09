@@ -28,6 +28,7 @@ const { prisma } = require("../../index");
 const { loadDoc, parseDoc } = require("../../lib/syncLaborDrops");
 const { scopeFilters, TIER_TO_LABOR_DROP_TYPE, passesRequiredTag } = require("../../lib/laborDrops");
 const { annotateLines, priceRows } = require("../../lib/labordropsAnnotate");
+const { rowShares, bandOf } = require("../../lib/labordropsRarity");
 const { docsPath } = require("../../lib/repoPaths");
 
 function parseArgs(argv) {
@@ -87,12 +88,25 @@ function bucketLabel(row, zoneNameById, locationNameById, tagsById) {
   return parts.length ? parts.join(" + ") : "global";
 }
 
-function summarize(rows, tagsById) {
+// Priced by BAND, not by row count: a row's chance comes from the die face's
+// rarity column (db/lib/labordropsRarity.js), so `ev` is a real expectation
+// and `hit` is the real miss rate. Under the old uniform draw the two
+// happened to coincide with "fraction of lines"; they do not any more.
+//
+// `hits` stays a count because the printout says "N entries" beside it;
+// `hit` is the fraction that actually matters.
+function summarize(rows, tagsById, roll) {
   const priced = rows.map((r) => priceEntry(r, tagsById));
+  const shares = rowShares(rows, roll);
   const hits = priced.filter((p) => p.label !== "(nothing)").length;
-  const ev = priced.length ? priced.reduce((sum, p) => sum + p.evValue, 0) / priced.length : 0;
+  let ev = 0;
+  let hit = 0;
+  priced.forEach((p, i) => {
+    ev += p.evValue * shares[i];
+    if (p.label !== "(nothing)") hit += shares[i];
+  });
   const unpriced = priced.filter((p) => p.note === "unpriced").length;
-  return { priced, hits, ev, unpriced };
+  return { priced, hits, hit, ev, unpriced, shares };
 }
 
 async function main() {
@@ -148,11 +162,16 @@ async function main() {
   console.log("=== Authored pools ===\n");
   for (const [key, group] of [...byBucketRoll.entries()].sort()) {
     const [label, roll] = key.split("|||");
-    const { priced, hits, ev, unpriced } = summarize(group, tagsById);
+    const { priced, hit, ev, unpriced, shares } = summarize(group, tagsById, Number(roll));
     console.log(`${label}, roll ${roll} — ${group.length} entries`);
-    for (const p of priced) console.log(`  ${p.label}`);
+    // The per-entry chance is the point of the readout now: a tier name is
+    // only meaningful if you can see what it is worth here.
+    priced.forEach((p, i) => {
+      const band = bandOf(group[i]) ?? "?";
+      console.log(`  ${`${(shares[i] * 100).toFixed(2)}%`.padStart(7)}  ${band.padEnd(18)} ${p.label}`);
+    });
     console.log(
-      `  -> ⬢ EV ${ev.toFixed(2)} · hit rate ${((hits / group.length) * 100).toFixed(0)}%` +
+      `  -> ⬢ EV ${ev.toFixed(2)} · hit rate ${(hit * 100).toFixed(0)}%` +
         (unpriced ? ` · ${unpriced} tag(s) with no ⬢ price` : ""),
     );
     console.log("");
@@ -215,12 +234,12 @@ async function main() {
       );
       if (combined.length === 0) continue;
       anyConfigured = true;
-      const { hits, ev, unpriced } = summarize(combined, tagsById);
+      const { hit, ev, unpriced } = summarize(combined, tagsById, roll);
       totalEv += ev;
-      totalHitFraction += hits / combined.length;
+      totalHitFraction += hit;
       console.log(
         `${tier}, roll ${roll} — ${combined.length} pooled entries -> ⬢ EV ${ev.toFixed(2)} · ` +
-          `hit rate ${((hits / combined.length) * 100).toFixed(0)}%` +
+          `hit rate ${(hit * 100).toFixed(0)}%` +
           (unpriced ? ` · ${unpriced} unpriced` : ""),
       );
     }
