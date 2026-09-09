@@ -59,8 +59,16 @@ const CHARACTER_SELECT = {
 // unless a horse is doing the walking.
 // How many are LEFT right now, for the surfaces that have to say so before a
 // player commits: the Travel confirm and the character sheet.
-function freeMovesLeft(character, config, openTurn, partySize = 0) {
-  const allowance = freeZoneMoves(character, config, null, partySize);
+//
+// `crossing` is the same optional `{ fromZoneSlug, toZoneSlug }` freeZoneMoves
+// takes, and for the same reason: a caller with a specific destination in
+// hand (the Travel panel and /map, once a node is picked) has to pass it, or
+// a boat's bonus — earned per crossing, never banked — silently disappears
+// from the very surfaces that are supposed to tell a player it applies. A
+// caller with no destination yet (the sheet's ambient count) passes nothing,
+// same as freeZoneMoves, and gets the honest pre-commitment number.
+function freeMovesLeft(character, config, openTurn, partySize = 0, crossing = null) {
+  const allowance = freeZoneMoves(character, config, crossing, partySize);
   if (!openTurn) return allowance;
   const spent = character?.zoneMovesTurnId === openTurn.id ? (character.zoneMovesUsed ?? 0) : 0;
   return Math.max(0, allowance - spent);

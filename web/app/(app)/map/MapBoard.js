@@ -557,7 +557,7 @@ export default function MapBoard({ onClose = null }) {
                 {/* The tag of theirs that opens it, where one does — the same
                     chip the Travel panel and the card below draw. */}
                 <ViaChip slug={n.openedBy} />
-                <span className="mono">{travelFoot(n, travel?.freeLeft ?? 0, travel?.mounted)}</span>
+                <span className="mono">{travelFoot(n, n.freeLeft ?? 0, travel?.mounted)}</span>
               </button>
             ))}
           </div>
@@ -626,7 +626,10 @@ function ViaChip({ slug }) {
 function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
   const isHere = here && node.id === here.id;
   const reachable = node.adjacent && node.passable;
-  const nextTurn = Boolean(node.crossesZone && (travel?.freeLeft ?? 0) <= 0);
+  // node's OWN count, not the header's ambient one — a boat's bonus is
+  // earned per crossing, so a water-eligible destination can still be free
+  // even when the header's pre-selection number already reads 0.
+  const nextTurn = Boolean(node.crossesZone && (node.freeLeft ?? 0) <= 0);
 
   return (
     <div className="map-card-body">

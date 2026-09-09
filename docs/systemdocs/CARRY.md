@@ -200,6 +200,18 @@ statement, so nothing ever sweeps the field. `freeZoneMoves()` and
 number and Discord's Travel confirm says what the hop will cost before you take
 it.
 
+`freeMovesLeft()` takes an optional `crossing` (the same
+`{ fromZoneSlug, toZoneSlug }` shape `freeZoneMoves()` does), and it matters:
+the boat's bonus is earned per crossing, never banked, so it can only ever
+show up once a destination is actually known. The sheet's ambient count
+(before anyone has picked one) passes nothing and reads the honest
+pre-commitment number. Every surface that DOES know the destination — the
+Travel panel's per-node cost, `/map`'s per-node cost, and Discord's Travel
+picker — has to pass the real crossing per node/option rather than reusing
+one shared number for the whole list, or a boated character crossing
+Forest↔Hills or Hills↔Marshes reads as costing the day when it would
+actually be free.
+
 ## 3. Mounts, carts, and indoors
 
 `horse`, `motorcycle` and `cart` are **equippable**, and
