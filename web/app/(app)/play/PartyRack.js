@@ -126,7 +126,7 @@ export default function PartyRack() {
               className="equip-slot party-slot"
               // Past the mount's seats. Dashed and in the accent, which is
               // how the rest of the app says "this costs you something"
-              // (StatusPanel's overburden row). Never set on foot, where
+              // (the band's overburden row). Never set on foot, where
               // seats is 0 and there is no bonus to lose.
               data-overflow={seats > 0 && index + 1 >= seats ? "true" : undefined}
             >

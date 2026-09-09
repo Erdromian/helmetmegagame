@@ -63,8 +63,11 @@ const DEFAULT_ROUTES = [
   { path: "/gm/dev/characters", as: "gm" },
   { path: "/gm/dev/factions", as: "gm" },
   { path: "/gm/dev/tags", as: "gm" },
-  { path: "/ledger", as: "gm" },
-  { path: "/ledger", as: "player" },
+  // The sheet moved to /character and this is only the forward that keeps old
+  // links working (SHEET.md). Asserting the destination is the point: a
+  // /ledger that answered 200 again would mean a second sheet came back.
+  { path: "/ledger", as: "gm", expect: "/character" },
+  { path: "/ledger", as: "player", expect: "/character" },
 
   // The gates themselves. A pass here means the door is still shut.
   { path: "/character", as: "anon", expect: "/" },

@@ -34,7 +34,7 @@ const SOURCE_LABELS = {
 
 // The three letter sources now come from @lifeweb/db/lib/dmKinds rather than
 // being copied here as literals. That import is safe by the same rule that
-// lets StatusPanel.js import @lifeweb/db/lib/constants — the module requires
+// lets a client component import @lifeweb/db/lib/constants — the module requires
 // nothing, so it cannot drag PrismaClient into the browser bundle. Importing
 // from the @lifeweb/db BARREL still would.
 

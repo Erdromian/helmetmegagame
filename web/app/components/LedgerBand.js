@@ -8,7 +8,21 @@ import SheetTurn from "./SheetTurn";
 import SoundTrumpetButton from "./SoundTrumpetButton";
 import TagDetails from "./TagDetails";
 import TurnForecast from "./TurnForecast";
-import { carryCapTitle } from "./statusBits";
+
+// What holds a carry cap up, in words, under the carry tile. Assets are absent
+// on purpose: they raise the cap without ever weighing on it (CARRY.md §1).
+// It lived in a statusBits.js of its own while the old sheet's StatusPanel
+// wanted the same string; that sheet is gone and this is the only caller left.
+function carryCapTitle(carry) {
+  const lines = [`Base ${carry.baseWeightCap} lb`];
+  // Signed, because a body can now push the cap down as well as up: a Cart
+  // reads "+4", Frail reads "−0.1" (CARRY.md §1).
+  for (const m of carry.breakdown ?? []) {
+    lines.push(`${m.name} ${m.bonus > 0 ? "+" : "−"}${Math.abs(m.bonus)}`);
+  }
+  lines.push(`= ${carry.weightCap} lb, and ${carry.weightHardCap} lb is the most you could ever hold.`);
+  return lines.join("\n");
+}
 
 // One number and its label. The label is the word, the value carries the
 // glyph — the house rule for ⬢ (CLAUDE.md), and the reason no tile below
@@ -35,8 +49,8 @@ function Tile({ label, value, over = false, hasDetail = false, open = false, onT
   );
 }
 
-// The band across the top of /ledger, pinned while the columns under it
-// scroll: who this is and where they stand, the four numbers a player checks
+// The band across the top of the sheet — it scrolls away with the rest of the
+// page: who this is and where they stand, the four numbers a player checks
 // before doing anything, then the pieces of the Chat's YOU column that belong
 // on a sheet too — the turn card with its Move, the status strip — and under
 // them what the turn will change and every verb in one strip.

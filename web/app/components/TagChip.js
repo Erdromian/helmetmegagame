@@ -7,7 +7,7 @@ import TagDetails, { tagDurationFor } from "./TagDetails";
 // the row say exactly the same things about a tag.
 //
 // `onConsume` is set only for a consumable tag on your own sheet (see
-// TagsPanel.js), which puts a Consume button in the panel. The action and its
+// TagRail.js), which puts a Consume button beside the tag. The action and its
 // pending/error state stay in the client parent so this component keeps
 // rendering fine on the server everywhere else it's used — and so it never
 // says a word about what the thing turns into.

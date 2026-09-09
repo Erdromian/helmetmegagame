@@ -1,25 +1,43 @@
-# The character sheet (`/ledger`)
+# The character sheet (`/character`)
 
-The second character sheet, and the one being built up. `/character`
-(`web/app/components/CharacterSheet.js`) is still the first: a page that
-scrolls, chips for tags, the icon rack of verbs. `/ledger`
-(`web/app/components/CharacterLedger.js`) draws the same character as a
-workspace. Both take the SAME prop bag, built once by
-`web/app/(app)/character/page.js#FreshCharacter` — one load, two layouts, so
-the two can never disagree about what a character is carrying. `/ledger`
-passes its own snapshot `scope`, and nothing else differs on the way in.
+The sheet is `/character`, and `web/app/components/CharacterSheet.js` is the
+component that draws it. There used to be two — a page of chips and an icon
+rack at `/character`, and a rebuilt workspace at `/ledger` being judged against
+it. The rebuild won. The old sheet and its panels are deleted, and `/ledger` is
+a one-line permanent redirect to `/character` so old links and bookmarks still
+land (`web/app/(app)/ledger/page.js`).
 
-## 1. The shell
+Everything it draws is built once by
+`web/app/(app)/character/page.js#FreshCharacter`, which resolves one of four
+`kind`s — a closed door, the lobby, the creation wizard, or the sheet — and
+`CharacterView.js` picks the component. The other three are ordinary
+`PageShell` pages; only the sheet is the workspace below.
 
-`web/app/(app)/ledger/layout.js` owns the screen the way `play/layout.js`
-does: a `.sheet-shell` (100dvh, no `PageShell`) under the shared `AppHeader`
-(`web/app/components/AppHeader.js`). The header is a person rather than a
-page name — titled with the character's name, their role and faction as the
-meta line — and its actions are the avatar plus **← Back to the game · Esc**,
-a link to `/play`. The turn chip is `AppHeader`'s own `TurnMeta`, the same one
-every other page gets.
+## 1. The frame
 
-**Escape goes back to the game.** `ledger/EscapeToPlay.js` listens on
+**It is an ordinary scrolling page.** One scrollbar, the document's: the band
+scrolls away with everything else, the three columns grow to fit their cards,
+and reaching the bottom of the tag rail is the same gesture as reaching the
+bottom of any other page. It was built the other way first — a `100dvh`
+`.sheet-shell` over three independently scrolling columns, the way Chat still
+works — and that was wrong for a sheet: nothing on it arrives while you read,
+so nothing had to be pinned. The shell class is gone entirely.
+
+`web/app/(app)/character/layout.js` draws the shared `AppHeader`
+(`web/app/components/AppHeader.js`) and nothing else around `{children}`. The
+header is a person rather than a page name — titled with the character's name,
+their role and faction as the meta line — and its actions are the avatar plus
+**← Back to the game · Esc**, a link to `/play`. The turn chip is `AppHeader`'s
+own `TurnMeta`, the same one every other page gets.
+
+The Back link and the Escape listener are drawn **only when there is a living
+`ALIVE` character** (`loadHeaderIdentity()`, the same question that decides
+`kind === "sheet"`) and only when the Play page is on
+(`GameConfig.playPanelEnabled`), since `/play` would just bounce back. That
+gate matters: a player halfway through the creation wizard pressing Escape
+means "close this", not "leave".
+
+**Escape goes back to the game.** `character/EscapeToPlay.js` listens on
 `window` in the *capture* phase and stands down when a dialog holds the
 keyboard (`Modal.js#dialogHoldsKeyboard`), when a field has focus (it blurs
 it instead), or when a floating thing is open — a pinned tag panel, a click
@@ -28,19 +46,17 @@ Capture, because those handlers sit on `document` and React flushes their
 close before a bubbling `window` listener runs; by then the menu was gone
 and the page navigated out from under a player who meant to close a menu.
 The `/play` snapshot (`CHAT.md` §5c) paints in the first frame, which is what
-makes it feel immediate. Both the link and the listener are left out when the
-Play page is switched off (`GameConfig.playPanelEnabled`), since `/play`
-would only bounce back.
+makes it feel immediate.
 
-Inside the shell, `.sheet-body` is the band, then `.ledger-body`: three
-columns (`18rem / 1fr / 22rem`) that each scroll on their own under the
-pinned band. Under 1180px the body scrolls as one and the rail folds under
-the working column; under 820px the three columns become three tabs, **You /
-Do / Tags**, a `.tab-bar` keyed on `data-tab` in CSS with no JS media query.
+Inside, `.sheet-body` is the band, then `.ledger-body`: three columns
+(`18rem / 1fr / 22rem`). Under 1180px the rail folds under the working column;
+under 820px the three columns become three tabs, **You / Do / Tags**, a
+`.tab-bar` keyed on `data-tab` in CSS with no JS media query. Only the widths
+change at those breakpoints — the scrolling is the same at every size.
 
 ## 2. The band (`LedgerBand.js`)
 
-Pinned. Who this is, where they stand, and:
+Who this is, where they stand, and:
 
 - **The status strip** — Chat's own `play/StatusStrip.js`: ⬢, the carry
   line, every Status and Health tag. On the sheet it takes `onPick`, and a
@@ -54,7 +70,14 @@ Pinned. Who this is, where they stand, and:
 - **This turn** — Chat's `TurnCard` + `MoveDialog`, wrapped in
   `SheetTurn.js`, over the same `play/actions.js#myMove` and the same minute
   poll (`play/useMyMove.js`, which `YouPanel.js` shares). File or edit the
-  Move from here; a pending lesson or binding reads under it.
+  Move from here; a pending lesson or binding reads under it. The turn chip
+  and the **Move…** button sit on ONE line — `.sheet-turn .chat-move` is a
+  wrapping flex row, and the button keeps its natural width instead of
+  stretching into a bar that doubled the box's height. A Move already filed
+  breaks the line and takes the full width under the chips, because it holds a
+  paragraph of somebody's own words and a clamp that opens. The rules are
+  scoped to `.sheet-turn`: `/play`'s YOU column draws the same `TurnCard` and
+  is deliberately untouched.
 - **When the turn turns** (`TurnForecast.js`) — the turn passes read forward
   one step: tags on their last turn and what they become (`expiresInto`),
   crafts and builds that finish, the road's end, and dinner (the
@@ -98,9 +121,9 @@ with the tag preselected, or `equipActions.js#toggleEquip`. Heal opens the
 Heal dialog on yourself and that wound. Hidden until hover or focus on a
 pointer device, always drawn on a touch one.
 
-The header holds **Spend Tag Points** (the store modal, as on TagsPanel) and
-the filter box: name, description or group; a card with nothing left hides
-while a query is set.
+The header holds **Spend Tag Points** (the store modal) and the filter box:
+name, description or group; a card with nothing left hides while a query is
+set.
 
 ## 4. The rig (`EquipBoard.js`)
 
@@ -131,6 +154,15 @@ portaled click menu that used to live inside `play/ThingsDrawer.js`.
 - **The Bio form is the form** (`BioForm.js`), unchanged, in the left column.
 - No collapsing cards, no Traits/Drawbacks split — both were put to Bascinet
   and skipped.
-- `/character` still draws chips (`TagsPanel.js`) and the old rack
-  (`EquipmentPanel.js`, minus the slot denominator it no longer has). It is
-  not touched by this work except where a mechanic changed under it.
+
+## 6. The `ledger` names are kept on purpose
+
+`LedgerBand.js`, `LedgerWork.js` and every `.ledger-*` class are named after
+the route this sheet was built on. The route is gone; the names stay. Renaming
+them is a few hundred lines of mechanical churn across the components and
+`globals.css` for no change in behaviour, and every rename of that size is a
+chance to break one selector nobody notices until a player opens the page.
+Same reasoning CLAUDE.md gives for keeping the Lifeweb names: **a
+`grep -i ledger` hit in this area is not a bug.** `SheetTurn.js`,
+`TagRail.js`, `EquipBoard.js` and the `.sheet-*` classes are the ones that
+were always named for the sheet, and they keep those names too.

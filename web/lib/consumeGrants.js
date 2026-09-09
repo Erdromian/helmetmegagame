@@ -27,7 +27,7 @@
 // this twice — a second call can roll a different outcome.
 //
 // LIGHTWEIGHT_SLUG / IRON_LIVER_SLUG / HOLDING_SLUG live only here, on
-// purpose: this file is imported by "use client" components (TagsPanel.js,
+// purpose: this file is imported by "use client" components (TagRail.js,
 // RequestActionsProvider.js), so pulling in @lifeweb/db/lib/constants would
 // drag the db package into the browser bundle. docs/tags.yaml is the source
 // of truth for the slugs themselves — keep these three in sync with it by

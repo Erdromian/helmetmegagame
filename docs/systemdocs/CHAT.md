@@ -815,7 +815,7 @@ header instead).
      and **Converse**, which is otherwise only reachable from a person's row
      in HERE and so left somebody standing alone with no way to open one.
      The old **Examine** dialog is gone: this is what it said.
-  2. **`HereList.js`** (`web/app/components/`, since /ledger draws it too) —
+  2. **`HereList.js`** (`web/app/components/`, since the sheet draws it too) —
      everyone standing here, hooded or not, off
      `db/lib/whosHere.js#whosHere` called with `{ withSightings: true }`. A row
      is a 24px avatar, the presented name (their Role for a fellow member of a
@@ -889,7 +889,7 @@ header instead).
   2. **`StatusStrip.js`** — one wrapping row of data chips: `{n} ⬢`, the carry
      line against the cap, and every held tag whose `Tag.category` is
      **Status** or **Health**. The category test is the sheet's own
-     (`TagsPanel.js`), so a new affliction appears here the day it is added to
+     (`web/lib/sheetCards.js`), so a new affliction appears here the day it is added to
      `docs/tags.yaml`. Overburdened, Dying and Catatonic — and a carry line
      over its cap — wear the danger tone.
   3. **`ThingsDrawer.js`** — **Things ‡**, the pockets drawer, collapsed by
@@ -912,10 +912,10 @@ header instead).
      arrives: the page carries the slots only, and the ~271 evaluated
      templates are fetched by `desireCatalogView()` the first time somebody
      opens the picker.
-  5. **`Sheet ›`** — the link to `/character`. The second sheet, `/ledger`,
-     carries the way back: a Back link in its header, and Escape
-     (`SHEET.md` §1). Its band reuses this column's turn card and status
-     strip, so the two never disagree about your Move.
+  5. **`Sheet ›`** — the link to `/character`. The sheet carries the way
+     back: a Back link in its header, and Escape (`SHEET.md` §1). Its band
+     reuses this column's turn card and status strip, so the two never
+     disagree about your Move.
   6. **`WaitingList`** — the pending offers, threat spawns, unanswered bird
      letters and a lobby assignment. Accept and Decline call the **same**
      `db/lib` functions the DM buttons call (`lessons.js`, `bind.js`,

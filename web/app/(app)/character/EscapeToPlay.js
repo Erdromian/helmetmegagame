@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
 import { hasModifier, isFieldFocused } from "@/lib/deskKeyGuard";
 
-// Escape takes you back to the game. Mounted by the ledger's layout, so it
-// covers the sheet and its empty state alike; the layout leaves it out when
-// the Play page is switched off, since /play would only bounce back here.
+// Escape takes you back to the game. Mounted by /character's layout, and only
+// when there is a living character to draw a sheet for — the lobby and the
+// creation wizard keep their own Escape. The layout leaves it out when the
+// Play page is switched off too, since /play would only bounce back here.
 //
 // The order is the desks' (gm/turns/Workspace.js): a dialog that holds the
 // keyboard keeps its Escape; a field with focus is blurred rather than

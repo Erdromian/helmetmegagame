@@ -12,7 +12,7 @@ import { useRefresh } from "./useRefresh";
 // (play/useMyMove.js), so the sheet and the chat cannot disagree.
 //
 // Pending offers (a lesson, a binding) still read under it, in the words
-// StatusPanel.js#ThisTurn has always used — they are why a Move may not be
+// the old sheet's "This turn" row always used — they are why a Move may not be
 // filed yet, and the card alone would not say so.
 export default function SheetTurn({ moveState, pendingOffers = [] }) {
   const state = useMyMove(moveState ?? { turn: null, move: null });

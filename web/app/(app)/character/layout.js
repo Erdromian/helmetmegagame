@@ -1,7 +1,10 @@
+import Link from "next/link";
+import { prisma } from "@lifeweb/db";
 import AppHeader from "@/app/components/AppHeader";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import FactionLink from "@/app/components/FactionLink";
 import { loadHeaderIdentity } from "@/lib/headerIdentity";
+import EscapeToPlay from "./EscapeToPlay";
 
 // The one page whose header is a person rather than a page name. The title is
 // the character's name, with the role and faction as meta chips beside it and
@@ -16,9 +19,24 @@ import { loadHeaderIdentity } from "@/lib/headerIdentity";
 // a client component cannot render AppHeader.
 //
 // No living character — the lobby, the creation wizard, a closed door — falls
-// back to the page name, because there is nobody to name yet.
+// back to the page name, because there is nobody to name yet, and gets neither
+// the Back link nor the Escape listener: those belong to the sheet, and a
+// player halfway through the creation wizard who taps Escape means "close
+// this", not "leave". `loadHeaderIdentity()` is the same ALIVE-character
+// question page.js asks to decide it draws the sheet at all, and it is
+// cache()d, so asking it twice costs one query.
+//
+// There is no full-height shell here. The sheet is an ordinary page that
+// scrolls with the document, like every other route in this group
+// (docs/systemdocs/SHEET.md §1).
 export default async function CharacterLayout({ children }) {
-  const character = await loadHeaderIdentity();
+  const [character, config] = await Promise.all([
+    loadHeaderIdentity(),
+    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true } }),
+  ]);
+  // Left out when the Play page is switched off (GameConfig.playPanelEnabled),
+  // since /play would only bounce back here.
+  const backToPlay = Boolean(character) && (config?.playPanelEnabled ?? true);
   return (
     <>
       <AppHeader
@@ -32,16 +50,24 @@ export default async function CharacterLayout({ children }) {
           ) : null
         }
         actions={
-          character ? (
-            <CharacterAvatar
-              characterId={character.id}
-              name={character.name}
-              version={character.updatedAt.getTime()}
-              size={24}
-            />
-          ) : null
+          <>
+            {backToPlay && (
+              <Link href="/play" className="btn-secondary">
+                ← Back to the game · Esc ‡
+              </Link>
+            )}
+            {character ? (
+              <CharacterAvatar
+                characterId={character.id}
+                name={character.name}
+                version={character.updatedAt.getTime()}
+                size={24}
+              />
+            ) : null}
+          </>
         }
       />
+      {backToPlay && <EscapeToPlay />}
       {children}
     </>
   );

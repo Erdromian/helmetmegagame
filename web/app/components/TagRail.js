@@ -28,7 +28,7 @@ import { useRequestActions } from "./RequestActionsProvider";
 // - a wound's Heal opens the Heal dialog on yourself and that wound.
 //
 // The store (Spend Tag Points) hangs off this header, beside the points it
-// spends, as it did on TagsPanel.
+// spends, as it did on the old sheet's tag panel.
 export default function TagRail({
   characterTags,
   isSelf,

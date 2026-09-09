@@ -480,7 +480,7 @@ it out for a while, which made every stash in the game a one-way drop. ‡
 | Post-commit tail | `web/lib/afterInventoryChange.js` |
 | Merged action | `web/app/(app)/character/requestActions.js#transferRequest` |
 | Undo, party-shaped moves | `web/lib/tagEffects.js#takeTagFrom` / `giveTagTo` |
-| Dialog, grid, readout | `components/actions/MoveThingsDialog.js`, `StackRow.js`, `ActionGrid.js`, `StatusPanel.js` |
+| Dialog, grid, readout | `components/actions/MoveThingsDialog.js`, `StackRow.js`, `ActionGrid.js`, `LedgerBand.js` |
 | `{carry:slug}` | `web/lib/referenceData.js#getCarryReference`, `CarryProvider.js`, `RichText.js`, `ChipText.js` |
 | Free zone moves, travel gate | `db/lib/locationTravel.js#performLocationMove`, `freeZoneMoves`, `freeMovesLeft` |
 | Mounts: what counts while equipped | `db/lib/mounts.js` |

@@ -9,7 +9,7 @@ import InfoIcon from "./InfoIcon";
 // what this form posts, which (not the greying) is the actual lock. See
 // docs/systemdocs/CHARACTERS.md §1b. The one way a name changes after that is
 // drinking a Mulligan Potion, and that is clicked on the bottle itself over in
-// TagsPanel — this card only ever shows the result. No per-field InfoIcon: CharacterSheet.js already puts one
+// the tag rail — this card only ever shows the result. No per-field InfoIcon: CharacterSheet.js already puts one
 // summary tooltip on the "Bio" heading; `title` keeps its own since it explains
 // a different thing (how to get one, not why it's locked).
 

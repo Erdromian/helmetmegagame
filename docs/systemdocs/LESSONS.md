@@ -134,7 +134,7 @@ victim's DM never does still holds for Loot and Harm.
   with the skills they could teach **me**) and, when I hold Teaching,
   `learners`. Only skills I could learn cross the wire — never another
   sheet. `pendingOffers` is every PENDING offer I'm part of this turn;
-  `StatusPanel.js` shows it under "This turn" ("Waiting for Ada to accept…").
+  `SheetTurn.js` shows it under "This turn" ("Waiting for Ada to accept…").
 - `actionRegistry.js`: `learn` greys on `canLearn` (nobody here offers me
   anything) and `teach` on `canTeach` (I don't hold Teaching) — both facts
   about my own sheet or a list the server already filtered, so greying is
@@ -154,7 +154,7 @@ victim's DM never does still holds for Loot and Harm.
 | Bot click handlers | `bot/src/lib/offers.js`, routed in `bot/src/events/interactionCreate.js` |
 | Co-presence rule | `db/lib/presence.js` (web: `web/lib/peopleHere.js`) |
 | Web actions | `web/app/(app)/character/requestActions.js` (`learnRequest`, `teachRequest`, `bindCharacterRequest`) |
-| Menus and status line | `character/page.js`, `RequestActionsProvider.js`, `StatusPanel.js` |
+| Menus and status line | `character/page.js`, `RequestActionsProvider.js`, `SheetTurn.js` |
 | Catalog | `docs/tags.yaml` (`teaching`, `teaching-lecturing`, `teaching-drill-instructor`; `teachable:` on skills) |
 | Player text | `docs/documents.yaml` `teachingskills`, `docs/handbook.md` "Teaching" |
 

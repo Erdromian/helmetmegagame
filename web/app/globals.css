@@ -856,9 +856,12 @@ input[type="radio"]:focus-visible,
   border-color: var(--danger);
 }
 
-/* Equipment rack. Slots wrap into as many columns as fit, so a rack reads as
-   one row on a laptop and two or three on a phone without a breakpoint —
-   the tap targets stay full-width-ish rather than shrinking to fit. */
+/* A grid of slots that wraps into as many columns as fit, so it reads as one
+   row on a laptop and two or three on a phone without a breakpoint — the tap
+   targets stay full-width-ish rather than shrinking to fit. It was the old
+   character sheet's equipment rack; the sheet draws a proper board now
+   (.equip-row / .equip-cell below), and what is left of this is the escort
+   party's seats (play/PartyRack.js). */
 .equip-slots {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
@@ -876,46 +879,6 @@ input[type="radio"]:focus-visible,
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   cursor: pointer;
-}
-
-/* A filled slot is wrapped in a Tooltip, and .tag-hover is inline-flex — so
-   the wrapper stretched across its grid cell but the button inside shrank to
-   the tag, leaving a gap before the next slot. Make the wrapper a stretching
-   flex row and let the button fill it, so filled and empty slots match. */
-.equip-slots > .tag-hover {
-  display: flex;
-}
-
-.equip-slots > .tag-hover > .equip-slot {
-  flex: 1;
-  min-width: 0;
-}
-
-.equip-slot:disabled {
-  cursor: default;
-}
-
-.equip-slot:hover:not(:disabled) {
-  border-color: var(--accent-text);
-}
-
-.equip-add {
-  min-height: 44px;
-  padding: var(--sp-1) var(--sp-2);
-  background: transparent;
-  border: 1px dashed var(--border);
-  border-radius: var(--r-sm);
-  cursor: pointer;
-}
-
-.equip-add:hover:not(:disabled) {
-  border-color: var(--accent-text);
-  border-style: solid;
-}
-
-.equip-add:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
 }
 
 /* A read-only field — today only the GM-granted title on the character
@@ -2262,8 +2225,8 @@ input[type="radio"]:disabled {
 
    Dashed rather than dotted because the lobby list below now wears the same
    mark, and two pickers spelling one rule two ways is how a convention starts
-   drifting. `dashed var(--border)` is what .equip-add and .party-slot already
-   use for "set apart, not selected". */
+   drifting. `dashed var(--border)` is what .equip-cell.is-empty and
+   .party-slot already use for "set apart, not selected". */
 .select-card[data-whitelisted="true"] {
   border-style: dashed;
 }
@@ -5881,7 +5844,9 @@ label.chip {
 
    The cards reuse .equip-slots / .equip-slot rather than a second slot grid,
    because they are the same idea: a fixed number of places, some of them
-   full. What is new is the overflow state. A dashed border already means
+   full — and since the old character sheet's rack went, the party is the
+   only thing left drawing them. What is new is the overflow state. A dashed
+   border already means
    "empty" on the sheet's equipment board (.equip-cell.is-empty), so the
    overflow card takes the accent as well — dashed AND accented reads as
    "occupied, and it costs you", which
@@ -6504,47 +6469,42 @@ label.chip {
   padding-right: var(--sp-3);
 }
 
-/* ── /ledger ─────────────────────────────────────────────────────────────────
-   The second character sheet (docs/systemdocs/SHEET.md). It owns its whole
-   screen the way Chat does: .sheet-shell is the 100dvh column the ledger's
-   layout draws (DeskHeader on top), .sheet-body is the page inside it — a
-   pinned band of numbers, then three columns that each scroll on their own,
-   so a long tag rail never pushes the Move or the verbs off the screen.
-   Numbers are laid out here rather than with utility classes because the
-   tile row and the band share one measure. */
-.sheet-shell {
-  display: flex;
-  flex-direction: column;
-  height: 100dvh;
-  overflow: hidden;
-  background: var(--bg);
-}
+/* ── /character ──────────────────────────────────────────────────────────────
+   The character sheet (docs/systemdocs/SHEET.md): a band of numbers, then
+   three columns — bio, the working column, the tag rail.
 
+   It is an ORDINARY SCROLLING PAGE. There is no 100dvh shell and nothing here
+   scrolls inside itself: the band scrolls away with everything else and the
+   document is the one scrollbar, so a player reaches the bottom of the tag
+   rail the way they reach the bottom of any other page. It was built the
+   other way — a fixed shell over three independent scroll regions, the way
+   Chat still works — and a sheet is not a chat: nothing on it arrives while
+   you read, so nothing had to be pinned.
+
+   Numbers are laid out here rather than with utility classes because the tile
+   row and the band share one measure. */
 .sheet-body {
-  flex: 1;
-  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4) 0;
+  /* Room at the bottom for the last card's shadow and the mobile bar. */
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
 }
 
-/* The band does not scroll; it is what everything else is read against. */
 .sheet-band {
-  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
 }
 
+/* align-items: start, so a short column is a short column — with the columns
+   no longer scrolling there is nothing to stretch them to. */
 .ledger-body {
-  flex: 1;
-  min-height: 0;
   display: grid;
   grid-template-columns: 18rem minmax(0, 1fr) 22rem;
   gap: var(--sp-4);
-  align-items: stretch;
+  align-items: start;
 }
 
 .ledger-col {
@@ -6552,10 +6512,6 @@ label.chip {
   flex-direction: column;
   gap: var(--sp-4);
   min-width: 0;
-  min-height: 0;
-  overflow-y: auto;
-  /* Room for the last card's shadow and the mobile bar's clearance. */
-  padding-bottom: var(--sp-4);
 }
 
 /* The banner: portrait and name on the left, the tiles on the right, wrapping
@@ -6658,14 +6614,37 @@ label.chip {
   gap: var(--sp-2);
 }
 
-/* TurnCard's own spacing was written for the chat column; in a band it sits
-   in a tighter box, so its bottom margin comes off. */
+/* TurnCard's own spacing was written for the chat column, where everything
+   stacks down a narrow strip. In the band it has a whole row, so the turn
+   chips and the Move button share it — the button at its own width, not a
+   full-width bar under the chip that made the box twice as tall as it needed
+   to be. /play's YOU column is untouched: this is scoped to .sheet-turn.
+
+   The filed Move breaks the line and takes the whole width, because it holds
+   a paragraph of somebody's own words and a clamp that opens. */
 .sheet-turn .chat-move {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
   margin-bottom: 0;
 }
 
-.sheet-turn .chat-chips {
-  margin-bottom: var(--sp-1);
+.sheet-turn .chat-move > .chat-chips {
+  margin-bottom: 0;
+}
+
+.sheet-turn .chat-buttons {
+  flex: 0 0 auto;
+}
+
+.sheet-turn .chat-move-filed {
+  flex: 1 0 100%;
+}
+
+/* Its own kind chip and Edit sit in a column with a gap already. */
+.sheet-turn .chat-move-filed .chat-chips {
+  margin-bottom: 0;
 }
 
 .sheet-forecast {
@@ -6981,22 +6960,9 @@ button.equip-cell-face:focus-visible {
 /* ── Widths ── */
 @media (max-width: 1180px) {
   /* The rail goes under the working column first — it is a reference list,
-     and the bio form is the narrow thing that keeps its width best. The
-     columns stop scrolling on their own and the body scrolls as one. */
-  .sheet-body {
-    overflow-y: auto;
-    padding-bottom: var(--sp-4);
-  }
-
+     and the bio form is the narrow thing that keeps its width best. */
   .ledger-body {
-    flex: none;
-    min-height: auto;
     grid-template-columns: 18rem minmax(0, 1fr);
-  }
-
-  .ledger-col {
-    overflow: visible;
-    padding-bottom: 0;
   }
 
   .ledger-rail {

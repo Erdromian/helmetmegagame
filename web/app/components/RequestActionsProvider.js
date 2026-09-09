@@ -15,8 +15,8 @@ import { RECOVERABLE_SLUGS } from "@lifeweb/db/lib/thanati";
 
 // Every player action on the character sheet: the mode that is open, what
 // the grid greys each button on, and the one place a result is spoken.
-// Renders no chrome of its own — mounted once per sheet (CharacterSheet.js
-// and CharacterLedger.js, self mode only) and once on /play, read off
+// Renders no chrome of its own — mounted once per sheet (CharacterSheet.js,
+// self mode only) and once on /play, read off
 // context by ActionGrid.js, HereList.js, RoomPanel.js and ThingsDrawer.js.
 //
 // This is a ROUTER now. It used to hold every dialog's fields and every
@@ -40,7 +40,7 @@ export function useRequestActions() {
 export default function RequestActionsProvider({
   children,
   // False on someone else's sheet — hooks still run unconditionally, but no
-  // context/dialog is handed down, so TagsPanel's chips stay read-only.
+  // context/dialog is handed down, so the tag rail's rows stay read-only.
   enabled = true,
   selfId,
   selfName,

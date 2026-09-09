@@ -420,7 +420,7 @@ audit entry's `diceModifiers`, which is the only place it survives.
 The DM reads `🎲 **4** −2 Hungry → **2**`. It is keyed on whether *any*
 contributor applied rather than on the total, so a contributor worth 0 would
 still show its work instead of pretending nothing happened.
-`StatusPanel`'s Gambit row reads the same module.
+The sheet band's Gambit tile (`LedgerBand.js`) reads the same module.
 
 ## 5. Desires
 
@@ -795,12 +795,12 @@ existing `.modal-overlay` / `.modal-panel` styling, so it matches every other
 modal for free, and it only mounts its body while open, which resets the
 reason field between openings without an effect syncing state.
 
-The Status panel (`StatusPanel.js`) lays Zone / Resources / Gambit / Tag
-Points out on one `<dl>` grid, and **every player action sits beside it as an
-icon grid** (`ActionGrid.js`, each button an `ActionButton` whose tooltip is
-the label, the explaining sentence and — when greyed — the reason from
-`actionRegistry.js#gateReason`). `/ledger` draws the same registry as
-labelled tiles, with the HERE list (`HereList.js`) above it.
+The sheet's band (`LedgerBand.js`) lays the four numbers out as tiles, and
+**every player action sits under them as one wrapping strip** (`ActionGrid.js`
+with `variant="strip"`, each button labelled; a greyed one writes the reason
+from `actionRegistry.js#gateReason` to a line under the strip rather than into
+a tooltip, since the sheet has none). `/play`'s YOU column draws the same
+registry as an icon grid, with the HERE list (`HereList.js`) above it.
 
 That grid replaced three separate surfaces: a row of text buttons inside the
 Tags panel, a Transfer Resources button in the Status panel's own footer, and
@@ -819,10 +819,10 @@ glance, which matters more now that co-presence actually filters who shows up
 in the dialog (§5b).
 
 **The state had to move up to make that work.** `TagRequestButtons.js` used to
-own both the buttons and the dialogs, and handed its opener up to `TagsPanel`
+own both the buttons and the dialogs, and handed its opener up to the tag panel
 through an `onReady` callback so a chip click could open Consume. The buttons
-now live in `StatusPanel`, a **sibling above** `TagsPanel`, so no component
-contains both. `RequestActionsProvider.js` holds the mode state and routes each
+now live in the band's verb strip (`LedgerBand.js`), a **sibling above** the
+tag rail (`TagRail.js`), so no component contains both. `RequestActionsProvider.js` holds the mode state and routes each
 click — an instant verb, a fast path, or one dialog file under
 `components/actions/` (DESIGN-SYSTEM.md §8) — and the consumers read the
 opener off context, the same shape `ConfirmProvider` uses for the same
@@ -901,7 +901,7 @@ over the URL, so a filtered view stays linkable.
 | The player-facing server actions | `web/app/(app)/character/requestActions.js` |
 | Universal popup | `web/app/components/RequestDialog.js`, `actions/ActionDialog.js` on top of it |
 | The result notice | `web/app/components/NoticeProvider.js`, `actions/noticeLines.js` |
-| Status panel | `web/app/components/StatusPanel.js` |
+| The sheet's band: numbers, turn card, verb strip | `web/app/components/LedgerBand.js` (`SHEET.md` §2) |
 | The mode state, instant verbs, fast paths | `web/app/components/RequestActionsProvider.js`, `actions/index.js` |
 | One dialog per verb | `web/app/components/actions/*Dialog.js`, `CraftAction.js`, `ExamineAction.js` |
 | A dialog's roster, read when it opens | `web/app/components/actions/useRoster.js`, `web/app/(app)/character/rosterActions.js` |
@@ -915,7 +915,7 @@ over the URL, so a filtered view stays linkable.
 | Heal gate, tier chain, `healable` filter | `web/lib/healRequests.js` |
 | One end of a resource movement | `web/app/components/actions/MoveThingsDialog.js` (chips), `PartySelect.js` (Craft's payer) |
 | Reach gate — same zone | `web/lib/transferReach.js` |
-| Tags panel + click-a-chip-to-consume | `web/app/components/TagsPanel.js`, `TagChip.js` |
+| Tag rail + click-a-row-to-consume | `web/app/components/TagRail.js`, `TagRow.js`, `TagChip.js` |
 | Desires — panel shell, catalog picker, GM surface, gate evaluator | `web/app/components/GoalsPanel.js`, `DesirePanel.js`, `DesireCatalog.js`; `gm/dev/characters/[characterId]/GoalsTab.js`; `db/lib/desireGates.js`. Full file map: `DESIRES.md` §11 |
 | Lifeweb blood tiers + cap, shared bot/web | `db/lib/lifeweb.js` |
 | Lifeweb requests, GM bypass panel | `web/app/(app)/lifeweb/requestActions.js`, `actions.js` |

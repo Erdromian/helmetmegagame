@@ -1939,12 +1939,12 @@ beside `concealsIdentity` — a tag cannot hide who you are and dictate it. The
 GM's custom-tag form has no editor for it, the same posture as `desireLocks`;
 `/gm/dev/tags` shows it as a `Forces name: …` chip.
 
-### The equipment panel
+### The equipment board
 
-`EquipmentPanel.js` on `/character` is **click-to-toggle**, not drag-and-drop —
-drag would need a touch fallback that is exactly this anyway — and is its own
-surface rather than an affordance on `TagChip`, whose tooltip already carries
-the Consume button.
+`EquipBoard.js` on `/character` (`SHEET.md` §4) is **click-to-toggle**, not
+drag-and-drop — drag would need a touch fallback that is exactly this anyway —
+and is its own surface rather than an affordance on `TagChip`, whose tooltip
+already carries the Consume button.
 
 Equipping is **instant and writes neither a `Request` nor an `AuditLog` row**,
 unlike everything in `REQUESTS.md`. It costs nothing, the player undoes it in

@@ -34,6 +34,13 @@ Entries below predate this format and list files instead.
 ✎ Characters standing in the Caves or the Depths are on the player desk again, for a GM who has picked their zones  
 ✎ Their conversations are back in the inbox, so a DM from someone underground can no longer go unseen  
 ✎ Caving rolls reach the Underground GM instead of nobody
+## 2026-09-09 · The new sheet is the character page now, and the Ledger is gone
+
+✎ /character is the rebuilt sheet: the band with your Move and every verb, the equip rig, and your tags as rows in cards. The old chip-and-panel sheet is gone.  
+− The Ledger entry on the rail. Its address still works and lands on /character, so an old link is not broken.  
+✎ The sheet scrolls as one page again. The columns were each scrolling inside themselves, which was wrong for a page where nothing arrives while you read it.  
+✎ The Move button sits beside the day and phase instead of below them, so the turn box is a line rather than a block.  
+✎ Routine, Gambit and Labor are explained on the web in the same words the Discord modal uses.
 
 ## 2026-09-08 · The silo picker stops naming rooms you have never seen
 
