@@ -85,13 +85,12 @@ kind (CRAFTING.md §2).
 | `white-honey` | **3** | 1 | `honey` + `trout-heart` | — |
 | `purifier` | 6 | 1 | `cave-fungus` | — |
 | `dreamers-draught` | 6 | 1 | `skinless-brain` | — |
-| `succubus-draught` | **8** | 1 | `nekker-pheromones` | `mindreading` |
 | `forgiveness` | 8 | 1 | `poppy` | — |
 | `flawless-skin` | 8 | 1 | — | `otherworldly-beauty` |
 
-Four recipes lost a prose ingredient and pay in ⬢ instead, because the
+Three recipes lost a prose ingredient and pay in ⬢ instead, because the
 ingredient was the whole gate: `white-honey` 2 → **6** (it cures any poisoning),
-`succubus-draught` 2 → **8** (it grants mindreading), and `forgiveness` /
+and `forgiveness` /
 `flawless-skin` keep their 8, which was already doing the work. White Honey
 has since regained a real gate twice over — it spends a `honey` (a gm-catalog
 Depot import, which also makes it one of the HIDDEN recipes: off the Recipes
@@ -100,9 +99,6 @@ the trout's heart came back as a loot-pass fishing find, a `trout-heart` too.
 Its ⬢ eased 6 → **3** with the second ingredient (Chris 2026-09-07): the rare
 catch is most of the price of a cure-all now, and 6 on top of both was a
 triple gate.
-`succubus-draught` regained a real gate the same day — it spends
-`nekker-pheromones`, butchered from a Nekker Corpse, which hides the recipe
-the same way (sells 18 with it; 7 sat below the brew's own ⬢ cost).
 `phrygian-tears` is the most potent poison in the game and brews from
 poisons now: a bottle of `nightshade` distilled further, cut with
 `cave-fungus` — both public, so the recipe stays in the book.
