@@ -6,6 +6,18 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The Play page is Chat now, and it has had a proper going-over
+
+✎ The page is called Chat, in the rail and in the address bar. Old /play links still work  
+✎ A filed Move reads as its own words instead of a pill with your sentence captioned under it  
+✚ Place, Here, Room, Travel and You are tabs in the right column now, and it remembers which one you left open  
+✎ Each panel is a card, so a long description and a one-line status strip stop looking like the same thing  
+✚ A Send button on a desktop. There was none at all, and nothing said Enter would send  
+✎ Typing a command puts a strip across the composer saying what it will do, with a way out  
+✚ Sections in the left rail fold shut, and stay shut. A folded one still shows anything unread in it  
+✎ Lines light up as you point at them, opening a place no longer fades a hundred old lines in at once, and New messages floats over the feed with a count  
+✚ Zone and Location above the place you are reading, so you can tell where you are standing
+
 ## 2026-09-09 · A new game starts under its own sky
 
 ✎ A new game no longer inherits the last one's ending: no nuke banner, no epilogue, and the bomb can be armed again  
