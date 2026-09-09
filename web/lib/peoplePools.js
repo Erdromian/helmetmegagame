@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@lifeweb/db";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
+import { kissBlock } from "@lifeweb/db/lib/kiss";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { peopleHere } from "@/lib/peopleHere";
@@ -51,6 +52,12 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
         tags: {
           select: {
             tagId: true,
+            // `equipped` and the four concealment fields are KISS's, and they
+            // ride along here rather than in a second query: kissBlock() only
+            // counts a hood somebody is actually WEARING, and a row loaded
+            // without them reports every mask as a bare face — wrong in the
+            // one direction it must not be.
+            equipped: true,
             tag: {
               select: {
                 id: true,
@@ -61,6 +68,10 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
                 requirementResources: true,
                 requirementGambit: true,
                 requirementSkills: { select: { id: true, name: true } },
+                concealsIdentity: true,
+                concealSprite: true,
+                forcesConceal: true,
+                equipLayer: true,
               },
             },
           },
@@ -128,6 +139,15 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     phase: openTurn?.phase ?? null,
     indoors: character.location?.indoors ?? true,
   });
+
+  // Why this character cannot kiss anybody, or null — their own broken jaw,
+  // their own Rage, their own hood. Resolved server-side for the same reason
+  // examineBlocked is: the sentence the greyed button shows and the one
+  // kissRequestImpl refuses with have to be the same sentence.
+  //
+  // Their own sheet ONLY. Never who is standing near them — the rule at the
+  // top of actionRegistry.js, which a kiss could break more loudly than most.
+  const kissBlocked = kissBlock(character, { self: true });
 
   // Healing. The medical gate is resolved here, server-side, so no tier-chain
   // math reaches the client bundle.
@@ -268,8 +288,22 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     })
   ).filter(isInflictable);
 
+  // Who this character could kiss (docs/systemdocs/KISS.md). `here` is already
+  // narrowed to the living, unconcealed people standing at this Location, so
+  // what is left to ask is kissBlock's question — a mouth injury, a state with
+  // nobody home, a Ghoul, a covered face.
+  //
+  // Menu hygiene only. kissRequestImpl re-runs the whole gate through
+  // kissAuthority on whatever id is posted, and so does the Accept click a day
+  // later, so a stale page can never push a kiss past this list.
+  const kissTargets = here
+    .filter((p) => !kissBlock(p, { self: false }))
+    .map(({ id, name }) => ({ id, name }));
+
   return {
     here,
+    kissTargets,
+    kissBlocked,
     zoneRoster,
     peopleParties,
     transferParties,

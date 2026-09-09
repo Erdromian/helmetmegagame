@@ -282,6 +282,37 @@ frees its number, so numbers are reusable now, which is exactly why an old
 `?game=3` link must not silently resolve to whatever game holds 3 today: an
 unknown game redirects rather than falling through to the current one.
 
+### A copy on your own disk
+
+A packet is the only copy of a finished game, and the bucket is one place. So
+`npm run archive:pull` syncs every packet in it down to a folder here.
+
+```
+npm run archive:pull                      # -> ./archives, everything
+npm run archive:pull -- --dest ~/packets  # somewhere else
+npm run archive:pull -- --final           # only the permanent packets
+npm run archive:pull -- --recheck         # re-verify what is already here
+```
+
+It touches no database at all, so it runs anywhere the `S3_*` credentials do.
+It reuses `listObjects`/`getObject` and `verifyPacket` rather than growing a
+third S3 client or a second verifier, and it exits 1 if anything failed, so it
+is safe on a cron.
+
+Two things it will not do.
+
+**It never trusts the transfer.** A download lands on a `.part` file, is
+verified, and is only then renamed into place — so a half-written file never
+occupies the name and the next run re-fetches it rather than skipping it as
+already there. `--recheck` re-verifies files that are already local, and a bad
+one is renamed to `.corrupt` for the same reason: bit rot does not change a
+file's size, so leaving it on the name would have every later run skip it.
+
+**It never lets a packet reach git.** The transcript names the character behind
+every `/conceal` and this repo is public. `archives/` and `*.jsonl.gz` are in
+the root `.gitignore`, and the destination folder is given its own
+`.gitignore` holding `*`, so a folder somewhere else is covered too.
+
 ### Where the code lives
 
 | File | What |
@@ -289,7 +320,7 @@ unknown game redirects rather than falling through to the current one.
 | `db/lib/archiveExport.js` | `exportGame`, `verifyPacket`, `importPacket`, the seq guard |
 | `db/lib/archiveBucket.js` | SigV4 against the bucket, for the web action and the scripts |
 | `scripts/db/bucket.py` | the same, for a terminal: `archives`, `put`, `getkey`, `rm` |
-| `db/scripts/ops/archive-*.js` | `npm run archive:export` / `import` / `exports` |
+| `db/scripts/ops/archive-*.js` | `npm run archive:export` / `import` / `pull` / `exports` |
 | `web/app/(app)/gm/dev/actions.js` | `archiveCurrentGame`, and the delete inside `wipeGameData` |
 
 `npm run archive:exports` exits 1 when the current game's newest nightly is

@@ -46,6 +46,7 @@
     "db:rename-depot-rooms": "node db/scripts/ops/rename-depot-rooms.js",
     "archive:export": "node db/scripts/ops/archive-export.js",
     "archive:import": "node db/scripts/ops/archive-import.js",
+    "archive:pull": "node db/scripts/ops/archive-pull.js",
     "archive:exports": "node db/scripts/ops/archive-exports.js",
     "db:backup": "bash scripts/db/backup-now.sh",
     "db:backups": "bash scripts/db/backups-list.sh",

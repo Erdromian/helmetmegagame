@@ -54,6 +54,7 @@ import {
   SealIcon,
   CharacterIcon,
   InterceptIcon,
+  KissIcon,
 } from "./icons";
 
 export const ACTION_HELP = {
@@ -70,6 +71,8 @@ export const ACTION_HELP = {
     "Confessing a tag is a Gambit. It succeeds on a 5 or a 6. It also takes the confessor's turn.",
   move: "Forcibly move an incapacitated or Bound person. If you're a Leader, you can also move people within your own faction.",
   bind: "Tie someone up. Bound people can be looted or forcefully moved.",
+  kiss:
+    "Ask somebody standing here for a kiss. They have to say yes, and it lifts both your moods. ‡",
   crucify:
     "Put someone standing here on the cross. It needs a Cross built where you stand, and it doesn't spend your Move. They hang there unable to act, and in a turn they are Dying.",
   harm: "Further injure someone who is bound or incapacitated.",
@@ -79,6 +82,10 @@ export const ACTION_HELP = {
     "Cut a piece off somebody tied up here, or off a body you can reach. One piece each time, and it costs you nothing. The piece is yours to keep.",
   bury: "Bury someone. Removes the player's Cursed status.",
   engrave: "Memorialize someone's name. Removes the player's Cursed status.",
+  whisper:
+    "Drink the draught and say one thing to one person, wherever they are. They can't answer, and you are never told whether anyone heard it.",
+  stepstone:
+    "Break the stone and stand somewhere else. Anywhere you have been, or seen from a doorway. It costs you nothing and takes no time.",
   disguise:
     "Put on a false name and face for 3 turns. Nobody sees who you are — not your name, not your portrait — and you cannot conceal yourself on top of it. The kit is not used up.",
   pointer:
@@ -189,6 +196,11 @@ export const ACTION_SECTIONS = [
         label: "Package",
         show: "canSeePackage",
       },
+      // HIDDEN, never greyed — the stone is a `catalog: secret` item, and a
+      // dead row on every sheet in the game would advertise that it exists.
+      // Whether you are carrying one is your own sheet's fact, so hiding it
+      // leaks nothing.
+      { mode: "stepstone", icon: MapIcon, label: "Stepstone", show: "hasStepstone" },
     ],
   },
   // The bomb. Its own section rather than three more rows under "You",
@@ -294,6 +306,19 @@ export const ACTION_SECTIONS = [
       },
       { mode: "loot", icon: LootIcon, label: "Loot" },
       { mode: "bind", icon: ShackleIcon, label: "Bind" },
+      // Greys on YOUR OWN mouth and nothing else — a broken jaw, a hood you
+      // are wearing, a state with nobody home (db/lib/kiss.js#kissBlock,
+      // resolved server-side into pools.gateReason.kiss). NEVER on whether
+      // anybody here would say yes, which is the rule at the top of this file
+      // and which this verb could break more loudly than most: a lit or dead
+      // Kiss button must not tell a player anything about the room.
+      {
+        mode: "kiss",
+        icon: KissIcon,
+        label: "Kiss",
+        gate: "canKiss",
+        gateReason: "You're in no state to kiss anybody. ‡",
+      },
       { mode: "free", icon: KeyIcon, label: "Free" },
       // NO gate and NO show. Laying in wait needs nothing and says nothing
       // about who is near you — the metagaming rule at the top of this file
@@ -374,6 +399,18 @@ export const ACTION_SECTIONS = [
         show: "hasBird",
         gate: "canSendBirdToday",
         gateReason: "Your bird has already flown today.",
+      },
+      // A bird you drink (docs/systemdocs/BIRD.md §8). It sits here rather
+      // than under You because what it does is the Bird's job, not a potion's
+      // — and it HIDES on the same rule the seal above it follows: whether a
+      // bottle is in your bag is your own sheet's fact. No `gate`: there is
+      // no once-a-day on it, and nothing about the recipient could grey it
+      // without saying something about them.
+      {
+        mode: "whisper",
+        icon: SpeakerIcon,
+        label: "Send a message",
+        show: "hasRavenDraught",
       },
     ],
   },

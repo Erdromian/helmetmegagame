@@ -1,0 +1,148 @@
+// node --test over the pure half of kissing (db/lib/kiss.js): who may kiss
+// whom. That is the whole rule set — everything else in the feature is the
+// Offer handshake it shares with Bind and Confession, and two applyMood calls.
+//
+// The three things worth pinning, because each is a decision somebody could
+// undo by accident:
+//
+//   1. ACT implies KISS (db/lib/incapacitation.js#expandCaps), so the helpless
+//      are refused without a second list to maintain — Bascinet's call that a
+//      kiss needs somebody who can answer.
+//   2. mute keeps it. TAGS.md §5f: over-gating that tag "removed the PLAYER
+//      from the game rather than the character from a conversation".
+//   3. A covered face is DERIVED from concealsIdentity, never a slug list, so
+//      a helmet added to the catalog tomorrow is covered by it today.
+//
+// Run with: npm test --workspace=db
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { kissAuthority, kissBlock, KISS_SELECT, KISS_COOLDOWN_MS } = require("../lib/kiss");
+const { blockerFor, KISS, ACT, INCAPACITATING_SLUGS } = require("../lib/incapacitation");
+const { KISS_BLOCKING_SLUGS } = require("../lib/constants");
+
+const HERE = "loc-1";
+
+// A CharacterTag row as the loaders shape it. `worn` is what makes a
+// concealing piece count — concealmentFrom ignores anything not equipped.
+const tag = (slug, over = {}) => ({
+  equipped: false,
+  tag: { slug, name: slug, concealsIdentity: false, concealSprite: null, forcesConceal: false, equipLayer: null, ...over },
+});
+const hood = (slug = "hood", over = {}) => ({
+  equipped: true,
+  tag: {
+    slug,
+    name: "Hood",
+    concealsIdentity: true,
+    concealSprite: "hood",
+    forcesConceal: true,
+    equipLayer: 3,
+    ...over,
+  },
+});
+
+const person = (over = {}) => ({
+  id: "A",
+  name: "Ada",
+  status: "ALIVE",
+  locationId: HERE,
+  concealed: false,
+  buriedAt: null,
+  discordUserId: "1",
+  tags: [],
+  ...over,
+});
+const other = (over = {}) => person({ id: "B", name: "Bo", discordUserId: "2", ...over });
+
+test("two ordinary people standing together may kiss", () => {
+  assert.equal(kissAuthority(person(), other()), null);
+});
+
+test("every helpless state refuses, through ACT rather than a second list", () => {
+  for (const slug of INCAPACITATING_SLUGS) {
+    // The premise: these are ACT blockers, and expandCaps turns that into KISS.
+    assert.ok(blockerFor([tag(slug)], ACT), `${slug} should block ACT`);
+    assert.ok(blockerFor([tag(slug)], KISS), `${slug} should block KISS`);
+    assert.ok(kissAuthority(person(), other({ tags: [tag(slug)] })), `${slug} target should refuse`);
+    assert.ok(kissAuthority(person({ tags: [tag(slug)] }), other()), `${slug} actor should refuse`);
+  }
+});
+
+test("mute keeps the button — it takes the yell, not the mouth", () => {
+  assert.equal(blockerFor([tag("mute")], KISS), null);
+  assert.equal(kissAuthority(person(), other({ tags: [tag("mute")] })), null);
+});
+
+test("the mouth injuries refuse without touching ACT", () => {
+  for (const slug of ["broken-jaw", "wired-jaw", "choking", "vomiting"]) {
+    assert.equal(blockerFor([tag(slug)], ACT), null, `${slug} must not block ACT`);
+    assert.ok(kissAuthority(person(), other({ tags: [tag(slug)] })), `${slug} should refuse a kiss`);
+  }
+});
+
+test("the states with nobody home refuse", () => {
+  for (const slug of ["asleep", "blind-drunk", "hallucinating", "madness", "sepsis", "pain-shock", "stupid"]) {
+    assert.ok(kissAuthority(person(), other({ tags: [tag(slug)] })), `${slug} should refuse`);
+  }
+});
+
+test("every fiction blocker refuses, from either side", () => {
+  for (const slug of KISS_BLOCKING_SLUGS) {
+    assert.ok(kissAuthority(person(), other({ tags: [tag(slug)] })), `${slug} target should refuse`);
+    assert.ok(kissAuthority(person({ tags: [tag(slug)] }), other()), `${slug} actor should refuse`);
+  }
+});
+
+test("taste, belief and appearance keep the button", () => {
+  // The convention is that a build locks DESIRES, not verbs — Eunuch and
+  // Prudish already lock the `romance` family in docs/tags.yaml.
+  for (const slug of ["prudish", "eunuch", "pacifist", "saint", "chaplain", "pious", "ugly", "unhygienic", "disfigured", "leper", "pox", "consumptive", "demoness"]) {
+    assert.equal(kissAuthority(person(), other({ tags: [tag(slug)] })), null, `${slug} should be allowed`);
+  }
+});
+
+test("a covered face refuses both ways, derived from concealsIdentity", () => {
+  assert.ok(kissAuthority(person({ tags: [hood()] }), other()));
+  assert.ok(kissAuthority(person(), other({ tags: [hood()] })));
+  // A catalog piece nobody has heard of works the same — the rule is the flag.
+  assert.ok(kissAuthority(person(), other({ tags: [hood("brand-new-helm", { name: "Brand New Helm" })] })));
+});
+
+test("a hood in the pack is not a hood on the face", () => {
+  const stowed = { ...hood(), equipped: false };
+  assert.equal(kissAuthority(person(), other({ tags: [stowed] })), null);
+});
+
+test("the refusal names the tag rather than saying no", () => {
+  const bound = kissBlock(person({ tags: [tag("bound", { name: "Bound" })] }), { self: true });
+  assert.match(bound, /Bound/);
+  assert.match(kissBlock(person({ tags: [hood()] }), { self: true }), /Hood/);
+});
+
+test("nobody kisses themselves, the dead, or somebody across the map", () => {
+  const me = person();
+  assert.ok(kissAuthority(me, me));
+  assert.ok(kissAuthority(person(), other({ status: "DEAD" })));
+  assert.ok(kissAuthority(person(), other({ locationId: "loc-2" })));
+  assert.ok(kissAuthority(person({ locationId: null }), other()));
+});
+
+test("a concealed target is unreachable, the presence.js rule", () => {
+  assert.ok(kissAuthority(person(), other({ concealed: true })));
+});
+
+test("KISS_SELECT carries what the rules actually read", () => {
+  // A row loaded without `equipped` or the concealment fields reports every
+  // hood as a bare face, which fails in the one direction it must not.
+  for (const field of ["id", "name", "status", "locationId", "concealed", "buriedAt", "discordUserId", "tags"]) {
+    assert.ok(KISS_SELECT[field], `KISS_SELECT is missing ${field}`);
+  }
+  assert.equal(KISS_SELECT.tags.select.equipped, true);
+  for (const field of ["slug", "name", "concealsIdentity", "concealSprite", "forcesConceal", "equipLayer"]) {
+    assert.ok(KISS_SELECT.tags.select.tag.select[field], `KISS_SELECT tags missing ${field}`);
+  }
+});
+
+test("the cooldown is two hours", () => {
+  assert.equal(KISS_COOLDOWN_MS, 2 * 60 * 60 * 1000);
+});

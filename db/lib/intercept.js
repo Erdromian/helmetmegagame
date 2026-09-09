@@ -136,6 +136,56 @@ async function releaseHeldBy(db, holderId, { targetId = null } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// The anchor
+// ---------------------------------------------------------------------------
+
+// PURE. A watch is set in one place and works in that place only. Every reader
+// asks this rather than trusting the row to have been cleaned up: the delete
+// below is what a player sees, and this is what makes a row that somehow
+// outlived its place harmless anyway.
+function anchorHolds(watch, locationId) {
+  return Boolean(watch?.locationId) && Boolean(locationId) && watch.locationId === locationId;
+}
+
+// Moving cancels the watch. Called from
+// db/lib/locationMove.js#applyLocationMoveSideEffects, which is the writer
+// EVERY relocation runs — walking, being carried along by an escort, a GM's
+// teleport, a Bulk Move, a staged Relocate to, a rite. That is deliberately
+// the opposite hook from firing (fireWatches hangs off the mover, so a
+// teleport cannot trip somebody's ambush): a watch fires only from the road,
+// but it dies however you left.
+//
+// IT SENDS NOTHING, like the rest of this module. The caller is handed
+// `cancelled` and sends INTERCEPT_CANCELLED_DM itself.
+async function cancelWatchOnMove(db, characterId) {
+  if (!characterId) return { cancelled: false };
+  const gone = await db.interceptWatch.deleteMany({ where: { characterId } });
+  if (gone.count === 0) return { cancelled: false };
+
+  // The same actionType the save and Stop watching write: the AuditLog row is
+  // the only history a watch has, because the row itself is overwritten.
+  const openTurn = await db.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
+  await db.auditLog
+    .create({
+      data: {
+        // "system", not the walker: nobody chose to end the watch — a GM's
+        // teleport ends one as surely as its owner's own legs do.
+        actorDiscordUserId: "system",
+        actionType: "request_intercept_set",
+        targetCharacterId: characterId,
+        turnId: openTurn?.id ?? null,
+        details: { stopped: true, reason: "moved" },
+      },
+    })
+    .catch((err) => console.error(`Intercept: cancel audit row failed for ${characterId}:`, err.message ?? err));
+
+  return { cancelled: true };
+}
+
+// Bascinet's words, verbatim.
+const INTERCEPT_CANCELLED_DM = "You left, so your interception was canceled.";
+
+// ---------------------------------------------------------------------------
 // Who a watch catches
 // ---------------------------------------------------------------------------
 
@@ -224,6 +274,13 @@ async function fireWatches(db, { arrivals, locationId, openTurn }) {
   // fire at all. Loaded once for the whole party.
   const watches = await db.interceptWatch.findMany({
     where: {
+      // The anchor is the rule: a watch works where it was set and nowhere
+      // else. The character clause stays beside it rather than being replaced
+      // by it, because the cancel can be missed — every caller of
+      // applyLocationMoveSideEffects swallows its throw, so a Discord failure
+      // mid-relocation can leave a live row anchored to a place its owner has
+      // already left. This is what makes that a dud instead of a ghost.
+      locationId,
       character: { locationId, status: "ALIVE" },
       OR: [{ anyPerson: true }, { anyConcealed: true }, { NOT: { targetNames: { isEmpty: true } } }],
     },
@@ -268,11 +325,15 @@ async function fireWatches(db, { arrivals, locationId, openTurn }) {
       // THE RATION, and the insert IS the enforcement. Without it a lapsed
       // two-minute hold is walked straight back into, and a Safe watch on a
       // busy road becomes an endless roadblock and an endless DM feed. A
-      // unique violation means this watch already caught this person this
-      // turn, which is not an error — it is the rule working.
+      // unique violation means this person already caught this one this turn,
+      // which is not an error — it is the rule working.
+      //
+      // Keyed to the CATCHER, never to the watch row: a watch dies when its
+      // owner walks off, so a ration keyed to the row would be reset by
+      // stepping out and back.
       try {
         await db.interceptHit.create({
-          data: { watchId: watch.id, targetCharacterId: row.id, turnId: openTurn.id },
+          data: { interceptorId: watch.characterId, targetCharacterId: row.id, turnId: openTurn.id },
         });
       } catch (err) {
         if (err?.code === "P2002") continue;
@@ -292,7 +353,10 @@ async function fireWatches(db, { arrivals, locationId, openTurn }) {
       await db.auditLog
         .create({
           data: {
-            actorDiscordUserId: watch.character.discordUserId ?? null,
+            // An interceptor with no Discord account is a threat seat, and
+            // AuditLog.actorDiscordUserId is NOT NULL — the whole row used to
+            // be lost to the catch below.
+            actorDiscordUserId: watch.character.discordUserId ?? "system",
             actionType: "request_intercept_fired",
             targetCharacterId: row.id,
             turnId: openTurn.id,
@@ -400,6 +464,9 @@ module.exports = {
   cleanNames,
   heldReasonFor,
   releaseHeldBy,
+  anchorHolds,
+  cancelWatchOnMove,
+  INTERCEPT_CANCELLED_DM,
   matchesArrival,
   seenAs,
   saidWord,

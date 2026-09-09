@@ -122,6 +122,7 @@ const EVENTS = Object.freeze({
   NOBLE_MEAL: -10,
   ROBBED: -10,
   CONFESSION: 15,
+  KISS: 15,
   MUSIC: 10,
   CATHEDRAL: 10,
 });
@@ -474,6 +475,45 @@ async function applyMood(tx, characterId, { kind, base = EVENTS[kind], ctx = {},
   return applyMoodTerms(tx, characterId, [{ kind, base, ctx }], { intensity, notify });
 }
 
+// A kiss, rationed (docs/systemdocs/KISS.md). Worth the same as a confession
+// and, like the Cathedral two blocks down, worth it ONCE a turn per person —
+// so a pair who kiss all afternoon lift each other one band, not eight.
+//
+// The ration is an AuditLog row rather than a column pair. At +15 against a
+// 15-a-turn ceiling a magnitude cap and a once-a-turn gate are the same
+// arithmetic, so this takes the cheap one: no migration, and the row is
+// already worth writing. (MOVE_MOOD_TURN_CAP's heavier machinery earns itself
+// on movement, where a dozen small steps have to part-spend one allowance.)
+//
+// Returns the applyMood result, or null when the ration is already spent —
+// which is not a failure. The caller still posts its scene line; a kiss that
+// moves no dial is a kiss that happened.
+const KISS_AUDIT_ACTION = "mood_kissed";
+
+async function applyKissMood(tx, characterId, { turnId, partnerId = null } = {}) {
+  // No open turn means nothing to ration against, the answer applyArrivalMood
+  // gives itself: it charges in full.
+  if (turnId) {
+    const already = await tx.auditLog.count({
+      where: { actionType: KISS_AUDIT_ACTION, turnId, targetCharacterId: characterId },
+    });
+    if (already > 0) return null;
+  }
+  const result = await applyMood(tx, characterId, { kind: "KISS", base: EVENTS.KISS });
+  if (turnId) {
+    await tx.auditLog.create({
+      data: {
+        actorDiscordUserId: "system",
+        actionType: KISS_AUDIT_ACTION,
+        targetCharacterId: characterId,
+        turnId,
+        details: { partnerId },
+      },
+    });
+  }
+  return result;
+}
+
 // Sets the dial outright, ignoring the tables — the Rite of Panic's hammer,
 // and nothing else. Still reports the band change, so the DM rule is the one
 // every other path uses.
@@ -640,6 +680,8 @@ module.exports = {
   loadIntensity,
   applyMoodTerms,
   applyMood,
+  applyKissMood,
+  KISS_AUDIT_ACTION,
   setMood,
   applyWoundMood,
   applyArrivalMood,

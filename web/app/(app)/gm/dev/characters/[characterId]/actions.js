@@ -33,6 +33,7 @@ import {
 import { deleteCorpseFor } from "@lifeweb/db/lib/corpseMint";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
+import { cancelWatchOnMove } from "@lifeweb/db/lib/intercept";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { applyMood, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/mood";
@@ -566,6 +567,13 @@ async function teleportCharacterImpl({ characterId, locationId }) {
           toLocationId: updated.locationId,
         });
       } else {
+        // Moved to NOWHERE, so the shared fan-out is skipped — and with it the
+        // one thing that must still happen: a watch anchored to the place they
+        // just left would sit there inert and come back to life the moment
+        // anything put them back (INTERCEPT.md §1).
+        await cancelWatchOnMove(prisma, characterId).catch((err) =>
+          console.error("Dev Panel teleport: cancelling the watch failed:", err),
+        );
         await afterInventoryChange(characterId);
       }
     } catch (err) {

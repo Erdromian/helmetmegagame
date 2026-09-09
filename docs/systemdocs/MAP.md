@@ -511,6 +511,31 @@ between the pick and the walk, and drops them into `leftBehind` with the reason
 `held`. That is the one `leftBehind` reason the leader IS told, because it is
 plain to see. See [`INTERCEPT.md`](INTERCEPT.md).
 
+## 3b. The Stepstone — the one move that is not travel
+
+A `catalog: secret` item that a player spends to stand somewhere else. It is a
+**raw relocation**, the same shape the Dev Panel's Teleport uses: no ⬢, no Move,
+no adjacency check, no cooldown, and no Action filed. What it is not is
+unlimited — the picker offers only what that character **knows**, which is the
+fog behind `/map`: everywhere they have stood, plus everywhere they have seen
+from a doorway (`db/lib/locationVisits.js#knownLocations`). A picker over all 56
+Locations would hand the reader the entire map, which is the one thing the fog
+exists to prevent, so `stepstoneRequest` recomputes the set server-side and
+refuses a posted id for anywhere else.
+
+It writes `locationId` **and** `zoneId`, clears `travelToLocationId` /
+`travelTurnId` / `escortedById`, and then calls `applyLocationMoveSideEffects`
+(§4) like every other writer of `locationId` — which is what gets it the
+`LocationVisit` row, the channel overwrite, the zone role, the carry settle and
+the corpses it is carrying, for free. `rollCavingOnArrival` runs after, because
+stepping into the dark wakes it the same as walking in.
+
+**Two things it inherits from Teleport, both deliberate.** Anyone escorting the
+stepper is left behind — a party follows a walk, not a stone. And because a
+teleport crosses no graph link, `announceGateCrossing` has no edge to read and
+posts nothing: you arrive without the gate line a walker would set off, which is
+the closest thing the item has to stealth.
+
 ## 4. The Discord half
 
 **`db/lib/locationMove.js#applyLocationMoveSideEffects(prisma, entry)`** is
@@ -654,6 +679,12 @@ its own — it arrives as two clicks, which pick and then go — which is why
 there is no `onDoubleClick` here to fight the 6px drag guard that stops a pan
 from registering as a pick.
 
+**Tapping the plate itself unpicks**, on both surfaces. A node's own handler
+owns its clicks and the drag guard still applies, so this is only ever a tap on
+open ground. It exists because the second tap on the node you picked was the
+only way out of a card, which on a phone left a description sitting over most
+of the board with nothing obvious to do about it.
+
 **Not on a finger.** On a coarse pointer the second tap unpicks like any
 other and the card's Go is the only door. A stray tap on a phone is easy and
 this one spends a crossing; a deliberate press an inch away is not much to
@@ -730,15 +761,23 @@ a lottery. `applyView` writes `--map-hit` on every frame to shrink that toward
 honest: fifty nodes over 375px cannot each own 44px, and pinch is the answer
 to that, not arithmetic.
 
+**There is no zoom bar on a phone.** Pinch is the zoom, and the bar was sitting
+over the top-left corner of the plate — Headwaters and the Mountain live under
+it — to buy back a control nobody was reaching for. Reset went with it and is no
+loss: `applyView`'s clamp means you cannot get lost off the plate, and pinching
+out to the floor shows the whole thing. Only the layer switch is left up there,
+and a tablet wide enough for the two-column layout keeps the bar.
+
 **Under 640px the card is a sheet over the board, not a column beside it.**
 It used to be a strip underneath taking 40% of an already short screen, which
 letterboxed the plate. Over it, the drawing runs on underneath and anything
 the sheet covers is one drag away. Its two heights come off `sel` and nothing
 else, through a `data-picked` attribute — nothing picked is a caption and its
-Ways out list, something picked opens far enough to show Go. The layer switch
-and the zoom controls stack down the top-left corner in a `.map-hud` wrapper,
-which is `display: contents` on a desktop so each keeps the corner it has
-always had; side by side they want 486px of a 390px screen.
+Ways out list, something picked opens far enough to show Go. The `.map-hud` wrapper is
+`display: contents` on a desktop, so the layer switch and the zoom bar each keep
+the corner they have always had; on a phone it is a column, which is what let
+the two stack rather than fight over 486px of a 390px screen — and is now
+carrying the layer switch alone.
 
 ## 7. Where the code lives
 

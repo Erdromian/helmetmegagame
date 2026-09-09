@@ -75,6 +75,45 @@ const TORTURER_SLUG = "torturer";
 // and the Thanati are the ones who want the pieces.
 const MUTILATE_GATE_SLUGS = Object.freeze(["cruel", "torturer", "thanati"]);
 
+// Kissing's OTHER gate (docs/systemdocs/KISS.md). The incapacity half lives in
+// db/lib/incapacitation.js, where every ACT-blocking state already removes the
+// KISS capability; this is the short, hand-written list of things that are not
+// an incapacity at all — a character here walks, works and talks normally and
+// still cannot kiss or be kissed.
+//
+// Hand-written and deliberately shorter than it could be, the same posture
+// FINISHABLE_SLUGS takes: every addition should cost somebody a keystroke.
+// Taste, belief and appearance stay OUT of it — Prudish, Eunuch, Pacifist,
+// Saint, Ugly and Unhygienic all keep the button, because the game's own
+// convention is that a build locks DESIRES rather than removing a verb
+// (Eunuch and Prudish already lock the `romance` family in docs/tags.yaml).
+//
+//   ghoul / apex-form / servant-of-tzchernobog
+//                       not a person any more. A pallid corpse, a thing with
+//                       hands like rakes, and one "unable to perform anything
+//                       other than violence".
+//   rage                consumed by bloodlust; already locks every Desire but
+//                       cruelty.
+//   broken /            the Demoness's Break leaves a walking empty shell.
+//   broken-enslaved     It can press Accept, which is exactly why it is here:
+//                       the consent would not mean anything. This is what
+//                       keeps {desire:dem-kiss-a-broken} a GM's adjudication
+//                       rather than a button.
+//   phrygian-toxin      "Blood is dripping from your mouth."
+//   installed-poison-tooth
+//                       a nerve agent wired into a tooth, released by biting
+//                       down. See KISS.md for the tell this refusal leaks.
+const KISS_BLOCKING_SLUGS = Object.freeze([
+  "ghoul",
+  "rage",
+  "servant-of-tzchernobog",
+  "apex-form",
+  "broken",
+  "broken-enslaved",
+  "phrygian-toxin",
+  "installed-poison-tooth",
+]);
+
 // Holding one puts a Sound Trumpet button on your own Character page, and
 // sounding it is heard across the Location graph (db/lib/trumpet.js). Held,
 // not equipped: you pick a trumpet up to blow it.
@@ -180,6 +219,7 @@ module.exports = {
   TORTURING_EQUIPMENT_SLUG,
   TORTURER_SLUG,
   MUTILATE_GATE_SLUGS,
+  KISS_BLOCKING_SLUGS,
   TRUMPET_SLUG,
   HORSE_SLUG,
   HORSE_UPKEEP_COST,

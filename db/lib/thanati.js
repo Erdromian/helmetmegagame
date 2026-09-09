@@ -35,6 +35,7 @@ const RECOVERABLE_SLUGS = Object.freeze([BLACK_ROBES_SLUG, THANATI_MASK_SLUG]);
 const THANATI_WARES = Object.freeze([
   { slug: "paper", price: 1 },
   { slug: "black-robes", price: 3 },
+  { slug: "instant-camera", price: 3 },
   { slug: "sacrificial-knife", price: 4 },
   { slug: "dagger", price: 6 },
   { slug: "thanati-mask", price: 10 },

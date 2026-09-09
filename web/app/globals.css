@@ -7937,11 +7937,18 @@ button.equip-cell-face:focus-visible {
     max-height: 62dvh;
   }
 
-  /* Bottom left is under the sheet now, and the two bars will not fit on one
-     line — 191px of layer switch and 295px of controls against a 390px
-     screen. So they stack down the top-left corner instead, and neither needs
-     to know the other's width. The wrapper is what takes the position;
-     pointer-events step aside so the column's own gaps stay draggable map. */
+  /* Gone on a phone. Pinch is the zoom here, and the bar sat over the top-left
+     corner of the plate — Headwaters and the Mountain live under it — to buy
+     back a control nobody was reaching for. Reset goes with it and is no loss:
+     the clamp in applyView means you cannot get lost off the plate, and
+     pinching out to the floor shows the whole thing. */
+  .map-controls {
+    display: none;
+  }
+
+  /* Only the layer switch is left up there, and it is small. The wrapper still
+     takes the position so nothing has to know the other's width; pointer-events
+     step aside so the column's own gaps stay draggable map. */
   .map-hud {
     display: flex;
     position: absolute;

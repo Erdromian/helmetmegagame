@@ -28,6 +28,7 @@ const { DM_ACTION, DM_CHOICE } = require("./dmActions");
 const { acceptLesson, declineOffer } = require("./lessons");
 const { acceptBind } = require("./bind");
 const { acceptConfession } = require("./confession");
+const { acceptKiss } = require("./kiss");
 const { acceptEscort } = require("./escort");
 const { acceptThreatSpawn, declineThreatSpawn } = require("./threatSpawn");
 const { declineAssignment } = require("./lobby");
@@ -94,7 +95,9 @@ async function answerOffer(prisma, { id, discordUserId, choice }) {
         ? await acceptConfession(prisma, offer, responder)
         : offer.kind === "ESCORT"
           ? await acceptEscort(prisma, offer, responder)
-          : await acceptLesson(prisma, offer, responder)
+          : offer.kind === "KISS"
+            ? await acceptKiss(prisma, offer, responder)
+            : await acceptLesson(prisma, offer, responder)
     : await declineOffer(prisma, offer, responder);
 
   const base = empty();

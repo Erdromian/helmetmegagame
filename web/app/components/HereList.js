@@ -64,6 +64,7 @@ const PEOPLE_ACTIONS = [
   { mode: "bind", label: "Bind", preset: "targetId" },
   { mode: "free", label: "Free", preset: "targetId" },
   { mode: "harm", label: "Harm", preset: "targetId" },
+  { mode: "kiss", label: "Kiss", preset: "targetId" },
 ];
 
 function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {

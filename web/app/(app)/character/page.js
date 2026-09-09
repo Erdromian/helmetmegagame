@@ -19,6 +19,7 @@ import {
   guestRoomIds as roomGuestIds,
 } from "@lifeweb/db/lib/roomAccess";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
+import { knownLocations } from "@lifeweb/db/lib/locationVisits";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import {
   THANATI_SLUG,
@@ -509,6 +510,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     bindTargets,
     harmTargets,
     harmTags,
+    kissTargets,
+    kissBlocked,
   } = await loadPeoplePools(character, {
     discordUserId: session.discordUserId,
     openTurn,
@@ -931,6 +934,34 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // since a hidden button is a hint and not a lock.
   const hasDatacard = heldSlugs.has("nuclear-datacard");
   const hasDevice = heldSlugs.has("nuclear-device");
+  // The Stepstone. Where you may step is the fog behind /map — stood in, or
+  // seen from next door (db/lib/locationVisits.js) — and it is built ONLY for
+  // somebody carrying one. It is a per-character query, and there is no reason
+  // to run it for the whole roster; more to the point, a list of everywhere
+  // this character has been has no business in the page source of a sheet that
+  // has no stone to step with. stepstoneRequest recomputes all of it anyway.
+  const hasStepstone = heldSlugs.has("stepstone");
+  const stepstoneTargets = hasStepstone
+    ? await (async () => {
+        const { stood, seen } = await knownLocations(prisma, character.id);
+        const ids = [...new Set([...stood, ...seen])].filter(
+          (id) => id !== character.locationId,
+        );
+        if (ids.length === 0) return [];
+        const rows = await prisma.location.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, name: true, zone: { select: { name: true } } },
+          orderBy: [{ zone: { sortOrder: "asc" } }, { name: "asc" }],
+        });
+        return rows.map((l) => ({
+          id: l.id,
+          name: l.name,
+          zoneName: l.zone?.name ?? null,
+          // Somewhere only glimpsed from a doorway still draws, and says so.
+          stood: stood.has(l.id),
+        }));
+      })()
+    : [];
   // Paperwork, seals, books and the Bird (docs/systemdocs/PAPERWORK.md). Every
   // gate and every option list is built in web/lib/selfPools.js, because the
   // Chat's composer opens the same four dialogs and two copies of these rules
@@ -1188,11 +1219,15 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       hideoutStock: hideoutStock,
       thanatiWares: thanatiWares,
       hasDatacard: hasDatacard,
+      hasStepstone: hasStepstone,
+      stepstoneTargets: stepstoneTargets,
       hasDevice: hasDevice,
       nukeArmedTurn: nukeState?.nukeArmedTurn ?? null,
       deployVersion: deployVersion(),
       harmTargets: harmTargets,
       harmTags: harmTags,
+      kissTargets: kissTargets,
+      kissBlocked: kissBlocked,
       storeTags: storeTags,
       storeHeldTags: storeHeldTags,
       storeRoleSlug: character.role?.slug ?? null,

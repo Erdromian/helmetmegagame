@@ -259,6 +259,7 @@ you pick the right doc — they are never enough to change code with.
 | [`TORTURE.md`](docs/systemdocs/TORTURE.md) | You're touching the Torture button, the torture die and its thresholds, what a broken character reveals, the `TORTURED` mood hit, the Torturing Equipment kit, or the **Mutilate** button and the body parts it takes |
 | [`THANATI.md`](docs/systemdocs/THANATI.md) | You're touching the cult — the THANATI buttons, Recall Comrades, the hideout and Purchase Gear, Flesh / Dark Inspiration / Black Robes / the Grimoire, or the **rites** (no button: robed, Inspired, ingredients on the floor, say the word), the word roll, the chant hook in `say.js` or the minute sweep. Placeholder until a human doc replaces it |
 | [`LESSONS.md`](docs/systemdocs/LESSONS.md) | You're touching Learn Skill / Teach Skill, the Teaching tags, the Offer handshake (Bind's consent too), or the lesson turn pass |
+| [`KISS.md`](docs/systemdocs/KISS.md) | You're touching the Kiss verb — the consent handshake, the `KISS` capability and what blocks it, the +15 both sides take, its two rations, or the line the room hears |
 | [`CONFESSION.md`](docs/systemdocs/CONFESSION.md) | You're touching Confess, the `psychological` tag flag, who may hear a confession, or the rule that a chaplain is never shown the sin |
 | [`CRAFTING.md`](docs/systemdocs/CRAFTING.md) | You're touching Craft, Destroy, the four tag capability flags (`craftable` / `removable` / `healable` / `teachable`), multi-turn projects, or who pays for a recipe |
 | [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript, `/archive`, or **anything that exports, imports or deletes a game's transcript** — the archive packets and the archive-or-discard wipe |
@@ -340,6 +341,11 @@ npm run archive:export               # one game's transcript -> a packet in the
                                      #   will keep a game. See ARCHIVE.md.
 npm run archive:import -- --key K    # load a packet back. Prints every column
                                      #   it dropped or defaulted.
+npm run archive:pull                 # every packet in the bucket -> ./archives
+                                     #   (gitignored). Skips what it has,
+                                     #   verifies each download, EXITS 1 on a
+                                     #   bad file. `-- --recheck` re-verifies
+                                     #   what is already there.
 npm run archive:exports              # what packets exist. EXITS 1 if the
                                      #   current game's newest is over 36h old.
 npm run db:backups                   # what is in the bucket. EXITS 1 if the

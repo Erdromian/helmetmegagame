@@ -30,6 +30,7 @@ const { settleCarry, deliverCarryDrop } = require("./carry");
 const { parkMountsIndoors, parkedMessage, dismountForNarrowWay, dismountedMessage } = require("./indoors");
 const { applyArrivalMood } = require("./mood");
 const { recordArrival } = require("./locationVisits");
+const { cancelWatchOnMove, releaseHeldBy, INTERCEPT_CANCELLED_DM } = require("./intercept");
 const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW } = require("./zoneChannelSpec");
 const { linkBetween, endpoints, shouldPromptKeyed } = require("./locationGraph");
@@ -141,6 +142,17 @@ async function materializeDiscordPresence(prisma, character) {
   if (!process.env.DISCORD_TOKEN) return;
   if (!character?.discordUserId || !character.locationId) return;
   const discordUserId = character.discordUserId;
+
+  // The watch this move just ended, told plainly. The delete itself happened
+  // above the guard; only the letter waits for a token. FIRST of the DMs, and
+  // ahead of the channel work below, because swapLocationOverwrite and swapRole
+  // are unguarded and every caller swallows this function's throw — one Discord
+  // 5xx down there and the owner would never hear that their watch was gone.
+  if (droppedWatch?.cancelled) {
+    await sendDm(prisma, discordUserId, INTERCEPT_CANCELLED_DM).catch((err) =>
+      console.error(`Move: intercept-cancelled DM to ${discordUserId} failed:`, err.message ?? err),
+    );
+  }
 
   const location = await prisma.location.findUnique({
     where: { id: character.locationId },
@@ -295,6 +307,36 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     console.error(`Move: recording the visit failed for ${characterId}:`, err.message ?? err);
   });
 
+  // A hold is a hand on a shoulder, and it ends when the holder leaves —
+  // HOWEVER they leave. performLocationMove already does this inside its own
+  // transaction for somebody walking off (INTERCEPT.md §3); this is the same
+  // clear for the ways they can be taken away instead, which used to leave a
+  // victim pinned by somebody three zones off with nobody able to free them.
+  // Idempotent, so the walking case running it twice costs one no-op update.
+  if (fromLocationId) {
+    await releaseHeldBy(prisma, characterId).catch((err) =>
+      console.error(`Move: releasing holds failed for ${characterId}:`, err.message ?? err),
+    );
+  }
+
+  // Laying in wait ends the moment you leave the place you were waiting in
+  // (docs/systemdocs/INTERCEPT.md §1). Here rather than in performLocationMove
+  // because this is the writer every relocation runs — a teleport, a Bulk
+  // Move, a staged Relocate to and a rite all break the anchor as surely as
+  // walking does. Above the Discord guard, the recordArrival reasoning: the
+  // watch is a database fact and must not survive on a box with no token.
+  //
+  // `fromLocationId` has to be set. Three callers pass null for something that
+  // is NOT a move — a GM's Discord resync, a revive, and a character's first
+  // placement — and cancelling on those would have a GM pressing Resync
+  // silently end a player's ambush.
+  const droppedWatch = fromLocationId
+    ? await cancelWatchOnMove(prisma, characterId).catch((err) => {
+        console.error(`Move: cancelling the watch failed for ${characterId}:`, err.message ?? err);
+        return null;
+      })
+    : null;
+
   // Before the Discord guard below, because this one is a DB change and has to
   // happen whether or not there is a token to talk to Discord with. Also
   // before the settle further down, so the settle sees the reduced cap and
@@ -401,6 +443,17 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
   ]);
   if (!character?.discordUserId || !toLocation) return;
   const discordUserId = character.discordUserId;
+
+  // The watch this move just ended, told plainly. The delete itself happened
+  // above the guard; only the letter waits for a token. FIRST of the DMs, and
+  // ahead of the channel work below, because swapLocationOverwrite and swapRole
+  // are unguarded and every caller swallows this function's throw — one Discord
+  // 5xx down there and the owner would never hear that their watch was gone.
+  if (droppedWatch?.cancelled) {
+    await sendDm(prisma, discordUserId, INTERCEPT_CANCELLED_DM).catch((err) =>
+      console.error(`Move: intercept-cancelled DM to ${discordUserId} failed:`, err.message ?? err),
+    );
+  }
 
   // The "web only" switch holds this account out of every channel, so the
   // Discord half of standing somewhere is simply not done for them (CHAT.md

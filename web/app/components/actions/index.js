@@ -22,9 +22,12 @@ import PackageDialog from "./PackageDialog";
 import PurchaseDialog from "./PurchaseDialog";
 import HealDialog from "./HealDialog";
 import LessonDialog from "./LessonDialog";
+import KissDialog from "./KissDialog";
 import WriteDialog from "./WriteDialog";
 import SealDialog from "./SealDialog";
 import BirdDialog from "./BirdDialog";
+import WhisperDialog from "./WhisperDialog";
+import StepstoneDialog from "./StepstoneDialog";
 import ExamineAction from "./ExamineAction";
 import CraftAction from "./CraftAction";
 import ResearchAction from "./ResearchAction";
@@ -101,9 +104,12 @@ export const DIALOGS = {
   learn: LessonDialog,
   teach: LessonDialog,
   confess: LessonDialog,
+  kiss: KissDialog,
   write: WriteDialog,
   seal: SealDialog,
   bird: BirdDialog,
+  whisper: WhisperDialog,
+  stepstone: StepstoneDialog,
   examine: ExamineAction,
   craft: CraftAction,
   research: ResearchAction,

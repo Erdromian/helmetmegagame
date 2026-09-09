@@ -10,9 +10,8 @@
 // when the rite is not finished until the room answers (Panic).
 //
 // Takes `db` as a parameter, the db/lib/dm.js convention.
-const { postMessage, createGuildRole, removeMemberRole } = require("./discordRest");
-const { ambientLine } = require("./ambientLine");
-const { sceneLineAt } = require("./scene");
+const { createGuildRole, removeMemberRole } = require("./discordRest");
+const { roomLine, locationLine } = require("./placeLine");
 const { sendDm } = require("./dm");
 const { aliasSubject } = require("./concealedIdentity");
 const { applyDeathToRow } = require("./characterDeath");
@@ -77,30 +76,17 @@ const rand = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
 // ---- Lines -----------------------------------------------------------------
 
-// The room hears one `-#` line, on Discord and on /chat. `room` needs { id,
-// name, discordThreadId }.
-// BOTH halves are caught. The Discord half always was; the archive half was
-// not, and a rite is not worth losing over a line of scenery — the floor is
-// eaten by the time any handler speaks, so a throw here costs the circle its
-// ingredients. Panic is the sharp case: it speaks and only THEN returns
-// `awaiting`, so a throw would leave the prompt posted and the row FIRED
-// rather than AWAITING, unanswerable forever.
-async function roomLine(db, room, text) {
-  if (room?.discordThreadId) {
-    await postMessage(room.discordThreadId, ambientLine(text)).catch(log(`room line (${room.name})`));
-  }
-  if (room?.id) await sceneLineAt(db, { roomId: room.id, text, signed: false }).catch(log(`room scene (${room.name})`));
-}
-
-// A Location's channel hears one line. `location` needs { id, name, discordChannelId }.
-async function locationLine(db, location, text) {
-  if (location?.discordChannelId) {
-    await postMessage(location.discordChannelId, ambientLine(text)).catch(log(`location line (${location.name})`));
-  }
-  if (location?.id) {
-    await sceneLineAt(db, { locationId: location.id, text, signed: false }).catch(log(`location scene (${location.name})`));
-  }
-}
+// roomLine and locationLine now live in db/lib/placeLine.js — a second system
+// (kissing) wanted the same pair, and a rite module is the wrong home for "how
+// does a room hear a thing". Both are re-exported below, so every caller here
+// and in riteChant.js is unchanged.
+//
+// Why both halves of each are catch-wrapped is written there, and the rites
+// are the sharp case it names: the floor is eaten by the time any handler
+// speaks, so a throw would cost the circle its ingredients. Panic is sharper
+// still — it speaks and only THEN returns `awaiting`, so a throw would leave
+// the prompt posted and the row FIRED rather than AWAITING, unanswerable
+// forever.
 
 async function dmParticipants(db, participants, text) {
   for (const p of participants) {

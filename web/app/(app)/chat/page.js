@@ -452,6 +452,8 @@ async function FreshChat({ userId }) {
         bindTargets: aside.pools.bindTargets,
         harmTargets: aside.pools.harmTargets,
         harmTags: aside.pools.harmTags,
+        kissTargets: aside.pools.kissTargets,
+        kissBlocked: aside.pools.kissBlocked,
         // The four paperwork dialogs the ✉ opens, named exactly as
         // web/lib/selfPools.js returns them.
         ...aside.letters,

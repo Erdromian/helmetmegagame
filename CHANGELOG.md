@@ -13,6 +13,52 @@ Entries below predate this format and list files instead.
 ✚ The party rack is reachable on a phone now; it used to live inside a tab a phone never drew  
 ✎ Playing from the web now takes your turn-ping role off too. It was being kept, so you were pinged twice a day about #turns — a channel the switch had just closed to you, carrying a message that is deleted and reposted every turn, so there was nothing there by the time you looked. The Bio card says so, and the ping comes back if you switch off
 
+## 2026-09-09 · The stone and the draught do what they say
+
+✚ Raven Draught: a Send a message button. Pick anyone in the game, type a line, and they hear it — no zone to guess, no letter, no reply. It says "Sent." whether or not anyone was alive to hear it, so it can't be used to ask  
+✚ Stepstone: step to anywhere you know — somewhere you have stood, or seen from a doorway. It costs no ⬢ and not your Move  
+− The Illusion Crystal is out of the catalog and off the Depot shelf
+
+## 2026-09-09 · An interception ends however you leave, and so does a hold
+
+✚ Being taken away now lets your prisoner go. Walking off already did; a GM moving you, a rite dragging you or a Bulk Move did not, so a victim could stay pinned to the end of the turn by somebody three zones away with nobody able to free them  
+✎ The cancelled-interception letter is sent before the Discord channel work, so a hiccup in the middle of a move can no longer take somebody's watch away without telling them  
+✚ A GM teleporting somebody to nowhere cancels their watch too. It was the one move that ran nothing, so the watch sat waiting and came back to life if anything put them back  
+✎ The dialog says the watch ends when you leave, however you leave — not just when you walk  
+✎ The audit log tells a watch you stopped apart from one a move ended
+
+## 2026-09-09 · You can kiss somebody now
+
+✚ A Kiss button on the sheet and on a person's row in Chat. You pick somebody standing with you and they get a DM with Accept or Decline — nothing happens until they press one.  
+✚ A kiss lifts BOTH moods by 15, the same as a confession. It costs no Move and rolls nothing.  
+✚ Two things hold it back: you can only ask once every two hours, and the mood is only worth something once a turn per person. Kissing all afternoon lifts you one band, not eight.  
+✚ The room hears one quiet line saying it happened.  
+✎ Who can't: the helpless (bound, dying, unconscious, crucified, asleep), the mouth injuries (a broken or wired jaw, choking, vomiting), the states with nobody home, Ghouls, Rage, Broken, and anybody with their face covered. Illness is NOT a gate — lepers kiss freely. Nor is Prudish, Eunuch, Pacifist or Saint: a build locks Desires, not buttons.
+
+## 2026-09-09 · Sell instant cameras on the Thanati shelf
+
+✚ Purchase Gear at the hideout now stocks an Instant Camera for 3 ⬢
+
+## 2026-09-09 · You lie in wait in one place, and leaving cancels it
+
+✎ An interception is now set in one place and works in that place only. It used to be read live off wherever you happened to be standing, so a watch set at the gatehouse followed you around Ravenheart and was still stopping strangers on the far side of the map days later  
+✚ Any move at all ends it — walking, being carried along by somebody, a GM moving you, a rite — and you are told: "You left, so your interception was canceled."  
+✚ The dialog names the place you are waiting in, and says that walking away ends it  
+✎ Catching somebody once a turn is now counted against the catcher rather than against the watch, so stepping out of the room and setting a new one no longer buys a fresh set of catches  
+✎ A watch survives a GM pressing Resync, a revive, and a character's first placement — none of those is a move
+
+## 2026-09-09 · Tap the map to put a place card away
+
+✚ Tapping open ground on the map unpicks the place you had selected, so the card gets out of the way  
+− The zoom bar is gone on a phone — pinch does that, and the bar was sitting on top of Headwaters and the Mountain  
+✎ The map's own Surface / Underground switch is all that is left over the plate on a phone
+
+## 2026-09-09 · Archive packets can be kept on a disk of your own
+
+✚ npm run archive:pull syncs every packet in the bucket down to a local folder, skipping what is already there  
+✎ Every download is re-read and re-hashed before it is kept, and a bad one is moved aside so the next run fetches it again  
+✎ Packets can never be committed: the repo is public and a transcript names the character behind every /conceal
+
 ## 2026-09-09 · A finished game becomes one file, and leaves the database
 
 ✚ An Archive this game button on /gm/dev. It writes the whole transcript out to one file, checks it reads back, and deletes nothing  

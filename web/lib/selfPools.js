@@ -233,9 +233,17 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
   const birdSentToday =
     Boolean(openTurn) && character.birdTurnId === String(describeTurn(openTurn).day);
 
+  // The Raven Draught (REQUESTS.md) reaches anybody, anywhere, once. It shares
+  // the Bird's recipient list below rather than building a second one — both
+  // are "every character in the game", and two queries would be two chances
+  // for one of them to start filtering by liveness and become a casualty list.
+  const hasRavenDraught = tags.some(
+    (ct) => ct.tag.slug === "raven-draught" && ct.quantity > 0,
+  );
+
   // Recipient list is EVERY character regardless of status; a letter to a dead
-  // name never arrives. Only fetched for someone who holds a bird.
-  const birdTargets = hasBird
+  // name never arrives. Only fetched for someone holding a bird or a draught.
+  const birdTargets = hasBird || hasRavenDraught
     ? await prisma.character.findMany({
         where: { id: { not: character.id } },
         select: { id: true, name: true },
@@ -254,6 +262,7 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
 
   return {
     hasBird,
+    hasRavenDraught,
     canRead: canReadNow,
     canWrite,
     hasSeal,

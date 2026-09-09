@@ -42,6 +42,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
   const [anyConcealed, setAnyConcealed] = useState(false);
   const [anyPerson, setAnyPerson] = useState(false);
   const [holding, setHolding] = useState([]);
+  const [place, setPlace] = useState(null);
   const [limits, setLimits] = useState({ names: 12, message: 300 });
   const { submit, busy, error } = useSubmit();
 
@@ -58,6 +59,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
           setNames(res.watch.names);
           setAnyConcealed(res.watch.anyConcealed);
           setAnyPerson(res.watch.anyPerson);
+          setPlace(res.watch.place ?? null);
         }
       })
       .finally(() => live && setLoading(false));
@@ -86,6 +88,12 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
     >
       <p className="text-sm text-muted">
         You wait where you are standing. Anyone you are watching for is stopped when they walk in. ‡
+      </p>
+      {/* Said on the page, not hidden behind anything: where the watch is set
+          and what ends it are the two things about this verb a player cannot
+          work out by using it (SHEET.md §3, INTERCEPT.md §8). */}
+      <p className="text-sm text-muted">
+        {place ? `You are lying in wait at ${place}. ` : ""}Leave this place, however you leave it, and the watch ends. ‡
       </p>
 
       {/* The two standing rules sit ABOVE the typed names rather than mixed in

@@ -109,14 +109,22 @@ export default function RequestActionsProvider({
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
+  // Kiss (docs/systemdocs/KISS.md). `kissTargets` is who you could ask;
+  // `kissBlocked` is why YOU can't ask anybody, or null — your own broken jaw,
+  // your own hood. Both resolved server-side in web/lib/peoplePools.js so the
+  // greyed button and kissRequestImpl's refusal read the same sentence.
+  kissTargets = [],
+  kissBlocked = null,
   // Corpses (CORPSES.md): every body in reach — yours and the ones lying in
   // rooms here — built once server-side by db/lib/corpses.js#corpsesInReach so
   // the menu and the two server re-checks can't disagree about what you can
   // touch. canButcher is just "do you hold the Butcher tag".
   corpses = [],
   canButcher = false,
-  // The Bird. birdTargets is EVERY character, alive or dead, on purpose.
+  // The Bird. birdTargets is EVERY character, alive or dead, on purpose —
+  // and the Raven Draught reaches into the same list, for the same reason.
   hasBird = false,
+  hasRavenDraught = false,
   birdSentToday = false,
   birdTargets = [],
   birdZones = [],
@@ -158,6 +166,11 @@ export default function RequestActionsProvider({
   // The datacard, and the device itself. Both facts about your own sheet.
   hasDatacard = false,
   hasDevice = false,
+  // The Stepstone. Whether you carry one is your own sheet; where you may step
+  // is the fog behind /map, resolved server-side in character/page.js and
+  // re-checked by stepstoneRequest.
+  hasStepstone = false,
+  stepstoneTargets = [],
   // THE THANATI (docs/systemdocs/THANATI.md). Whether you are one and whether
   // you lead are your own sheet; the hideout is one you set. `hideoutRooms`
   // is Set Hideout's picker, `thanatiWares` / `hideoutStock` are Purchase
@@ -247,6 +260,8 @@ export default function RequestActionsProvider({
     bindTargets,
     harmTargets,
     harmTags,
+    kissTargets,
+    kissBlocked,
     corpses,
     healTargets,
     healParties,
@@ -262,6 +277,7 @@ export default function RequestActionsProvider({
     sealOptions,
     birdTargets,
     birdZones,
+    stepstoneTargets,
     hideoutRooms,
     hideoutStock,
     thanatiWares,
@@ -383,16 +399,23 @@ export default function RequestActionsProvider({
       canExamine: !examineBlocked,
       // The sentence ActionGrid appends to a greyed button's tooltip, so a
       // player reads why instead of DMing to ask.
-      gateReason: { examine: examineBlocked, extract: extractBlocked },
+      gateReason: { examine: examineBlocked, extract: extractBlocked, kiss: kissBlocked },
       canLearn: teachers.length > 0,
       canTeach,
       // Your own sheet only. Greying this on whether a chaplain happens to be
       // standing here would announce their presence to anyone who glanced at
       // their own page — the rule at the top of actionRegistry.js.
       canConfess: mySins.length > 0,
+      // Your own mouth, never the room's. A Kiss button that lit up only when
+      // somebody kissable was standing there would be free scouting on every
+      // page load — the rule at the top of actionRegistry.js.
+      canKiss: !kissBlocked,
+      kissTargets,
       // `show` gates whether ActionGrid renders the icon; canSendBirdToday
       // is a `gate` on top, so the button exists but is dead post-send.
       hasBird,
+      hasRavenDraught,
+      hasStepstone,
       canRead,
       canWrite,
       hasSeal,
@@ -429,10 +452,14 @@ export default function RequestActionsProvider({
       researchHint,
       examineBlocked,
       extractBlocked,
+      kissBlocked,
+      kissTargets,
       teachers,
       canTeach,
       mySins,
       hasBird,
+      hasRavenDraught,
+      hasStepstone,
       canRead,
       canWrite,
       hasSeal,
