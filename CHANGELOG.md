@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The buttons in Bascinet's messages work on the web
+
+✎ Anything the game asks you to answer by message — a lesson, a confession, a bind, being taken along, a seat, a spawn, holding a door open — now has its Accept and Decline in the Bascinet pane, not only in Discord  
+✚ Somebody playing entirely on the web can take a seat now. Before, the offer arrived and there was nothing to press  
+✚ An offer that has already been answered, or run out, stops showing buttons instead of leaving a dead one to click
+
 ## 2026-09-09 · Click a place twice to go there
 
 ✚ Picking a place twice travels — on the map and in the Travel panel — so an ordinary hop no longer means clicking the place, crossing to the card, and clicking Go  
