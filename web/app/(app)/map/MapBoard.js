@@ -7,6 +7,7 @@ import FormError from "@/app/components/FormError";
 import useActionRunner from "@/app/components/useActionRunner";
 import ChipLabel from "@/app/components/ChipLabel";
 import { useTags } from "@/app/components/TagsProvider";
+import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { travelFoot, openedByLabel } from "@/lib/travelCost";
 import { loadMap } from "./actions";
 import { travelTo } from "../play/actions";
@@ -40,6 +41,15 @@ import { travelTo } from "../play/actions";
 // as a marker with a halo instead of one fat blob.
 const RIM = 12.15;
 const CORE = 8.1;
+// The invisible square a finger actually aims at, half-width in plate pixels.
+// 27, because the two closest Locations on the plate sit 54.6 apart (Keep and
+// Lifeweb) and a hit area wider than half that gap turns a tap in the Fortress
+// into a lottery about which of two places you meant. Touch only — see
+// .map-node-hit, which leaves a mouse the rhombus it has always had.
+const HIT = 27;
+// What a comfortable target is, in CSS pixels, half-width. 22 -> a 44px box,
+// the floor DESIGN-SYSTEM.md §9 sets for everything else you tap.
+const HIT_PX = 22;
 // The floor is 1, not something smaller, and that is the whole "no blank
 // space" rule: at k=1 the plate exactly covers the window, so zooming out past
 // it is zooming out past the world. Paired with preserveAspectRatio="slice"
@@ -66,6 +76,7 @@ export default function MapBoard({ onClose = null }) {
   const [labels, setLabels] = useState(true);
   const [layer, setLayer] = useState(null);
   const { run, pending, error } = useActionRunner();
+  const coarse = useIsCoarsePointer();
   // useId() returns a string with punctuation React reserves (":r0:"), which
   // is legal in an id but not in a url(#…) reference. Stripped to word
   // characters so the mask resolves.
@@ -87,6 +98,13 @@ export default function MapBoard({ onClose = null }) {
   // pointerup and `click` fires after it, so a node's handler reading `drag`
   // would always see null and treat the end of a pan as a selection.
   const panned = useRef(false);
+  // Every pointer currently down on the board, by id, in client pixels. A Map
+  // rather than two slots because a third finger landing mid-pinch must not
+  // corrupt the two that started it.
+  const pointers = useRef(new Map());
+  // The live pinch: how far apart the two fingers were and where their midpoint
+  // sat, in plate pixels. Null whenever fewer than two are down.
+  const pinch = useRef(null);
 
   // How much of the plate the board can actually show, in plate pixels. With
   // "slice" the viewBox is scaled to COVER the element, so the visible window
@@ -127,6 +145,16 @@ export default function MapBoard({ onClose = null }) {
     }
     const { x, y, k } = view.current;
     rootRef.current?.setAttribute("transform", `translate(${x} ${y}) scale(${k})`);
+    // How big the touch target has to be drawn to come out 44px on the glass.
+    // Written here rather than through state for the same reason the transform
+    // is: it changes on every frame of a pan, and fifty nodes must not
+    // re-render for it. HIT is already the widest a node may be without
+    // reaching its neighbour, so this only ever shrinks it — which it does
+    // once you are zoomed in far enough that a plate pixel is worth having.
+    if (win) {
+      const want = HIT_PX / (win.s * k * HIT);
+      rootRef.current?.style.setProperty("--map-hit", String(Math.min(1, Math.max(0.5, want))));
+    }
   }, [windowOf]);
 
   useEffect(() => {
@@ -182,21 +210,42 @@ export default function MapBoard({ onClose = null }) {
     [data?.plate],
   );
 
+  // `to` defaults to `at`, so the wheel and the +/- buttons behave exactly as
+  // they did: the plate point under the anchor stays under the anchor. A pinch
+  // passes the OLD midpoint as `at` and the NEW one as `to`, and that one
+  // difference is what makes two fingers pan and zoom in a single write — the
+  // spot they grabbed stays between them. Panning survives the clamp on `k`,
+  // too: at the floor of 1 the factor is swallowed and the translation is not.
   const zoomBy = useCallback(
-    (factor, at = null) => {
+    (factor, at = null, to = null) => {
       const plate = data?.plate;
       if (!plate?.width) return;
       const anchor = at ?? { vx: plate.width / 2, vy: plate.height / 2 };
+      const land = to ?? anchor;
       const world = {
         x: (anchor.vx - view.current.x) / view.current.k,
         y: (anchor.vy - view.current.y) / view.current.k,
       };
       const k = Math.min(ZOOM.max, Math.max(ZOOM.min, view.current.k * factor));
-      view.current = { k, x: anchor.vx - world.x * k, y: anchor.vy - world.y * k };
+      view.current = { k, x: land.vx - world.x * k, y: land.vy - world.y * k };
       applyView();
     },
     [applyView, data?.plate],
   );
+
+  // The two fingers, measured: how far apart, and the plate pixel between them.
+  // toWorld reads nothing off an event but clientX/clientY, so a bare pair of
+  // numbers is a legal argument and there is no second conversion to keep in
+  // step with the first.
+  const gauge = useCallback(() => {
+    if (pointers.current.size < 2) return null;
+    const [a, b] = [...pointers.current.values()];
+    const mid = toWorld({ clientX: (a.cx + b.cx) / 2, clientY: (a.cy + b.cy) / 2 });
+    if (!mid) return null;
+    // Never zero: two contacts reported on the same pixel would make the ratio
+    // in onMove infinite and throw the view to ZOOM.max in one frame.
+    return { d: Math.max(1, Math.hypot(a.cx - b.cx, a.cy - b.cy)), vx: mid.vx, vy: mid.vy };
+  }, [toWorld]);
 
   // Frame whatever is currently drawn, rather than the whole plate. Early on a
   // character knows four Locations in one corner, and fitting the art would
@@ -246,12 +295,25 @@ export default function MapBoard({ onClose = null }) {
     fit();
   }, [data, layer, nonce, fit]);
 
+  // The guard stays: a touch contact reports button 0, the second finger
+  // included, so nothing here shuts pinch out — but a right-click must still
+  // not start a pan.
   const onPointerDown = (ev) => {
     if (ev.button !== 0) return;
     const p = toWorld(ev);
     if (!p) return;
-    panned.current = false;
-    drag.current = { vx: p.vx, vy: p.vy, x: view.current.x, y: view.current.y };
+    pointers.current.set(ev.pointerId, { cx: ev.clientX, cy: ev.clientY });
+    if (pointers.current.size === 1) {
+      panned.current = false;
+      drag.current = { vx: p.vx, vy: p.vy, x: view.current.x, y: view.current.y };
+      return;
+    }
+    // A second finger ends the pan and starts a pinch. `panned` goes true and
+    // stays true for the rest of the gesture: the click that fires when the
+    // last finger lifts must never be read as picking a place.
+    drag.current = null;
+    panned.current = true;
+    pinch.current = gauge();
   };
 
   // On the window rather than the SVG, and deliberately NOT via
@@ -261,6 +323,20 @@ export default function MapBoard({ onClose = null }) {
   // leaves the board and lets the click land where it was aimed.
   useEffect(() => {
     const onMove = (ev) => {
+      // A fresh object rather than a mutated one: react-hooks/immutability is
+      // an error in this repo, and one small allocation per move is nothing.
+      if (pointers.current.has(ev.pointerId)) {
+        pointers.current.set(ev.pointerId, { cx: ev.clientX, cy: ev.clientY });
+      }
+      if (pinch.current) {
+        const g = gauge();
+        if (!g) return;
+        zoomBy(g.d / pinch.current.d, pinch.current, g);
+        pinch.current = g;
+        // Two fingers never fall through to the pan below, or the board would
+        // be moved twice in one frame.
+        return;
+      }
       if (!drag.current) return;
       const p = toWorld(ev);
       if (!p) return;
@@ -272,7 +348,26 @@ export default function MapBoard({ onClose = null }) {
       view.current = { ...view.current, x: drag.current.x + dx, y: drag.current.y + dy };
       applyView();
     };
-    const onUp = () => {
+    const onUp = (ev) => {
+      pointers.current.delete(ev.pointerId);
+      if (pointers.current.size >= 2) {
+        // Three fingers down to two. Re-measure rather than keep the old
+        // distance, which belonged to a different pair and would jump the view
+        // by the ratio between them.
+        pinch.current = gauge();
+        return;
+      }
+      pinch.current = null;
+      if (pointers.current.size === 1) {
+        // One finger left of two. The pan has to be re-seated on where THAT
+        // finger actually is; leaving it on the midpoint would leap the map by
+        // half the gap between the fingers the moment one lifted. `panned`
+        // stays true, because this is still one gesture.
+        const [only] = [...pointers.current.values()];
+        const p = toWorld({ clientX: only.cx, clientY: only.cy });
+        drag.current = p ? { vx: p.vx, vy: p.vy, x: view.current.x, y: view.current.y } : null;
+        return;
+      }
       drag.current = null;
     };
     window.addEventListener("pointermove", onMove);
@@ -283,7 +378,7 @@ export default function MapBoard({ onClose = null }) {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [applyView, toWorld]);
+  }, [applyView, gauge, toWorld, zoomBy]);
 
   // Non-passive, because the page behind must not scroll while the map zooms.
   // React's onWheel is passive by default, so this is attached by hand.
@@ -445,16 +540,28 @@ export default function MapBoard({ onClose = null }) {
                       setSel(n.id);
                       return;
                     }
-                    // The second click on the place already picked IS the Go
-                    // button, so a hop is one gesture instead of a trip across
-                    // the plate to the card. A real double-click lands here too
-                    // — it arrives as two clicks, which pick and then go — so
-                    // there is no onDoubleClick to fight the drag guard above.
-                    // Anywhere you cannot go, it still just unpicks.
-                    if (canTravelTo(n, here) && !pending) go(n.id);
+                    // On a mouse, the second click on the place already picked
+                    // IS the Go button, so a hop is one gesture instead of a
+                    // trip across the plate to the card. A real double-click
+                    // lands here too — it arrives as two clicks, which pick and
+                    // then go — so there is no onDoubleClick to fight the drag
+                    // guard above. Anywhere you cannot go, it still just
+                    // unpicks.
+                    //
+                    // Not on a finger. A stray tap on a phone is easy and this
+                    // one spends a crossing, so on a coarse pointer the second
+                    // tap unpicks like any other and Go on the card — which is
+                    // on screen the moment you pick, since the sheet opens — is
+                    // the only door. canTravelTo is untouched: this narrows a
+                    // gesture, not the rule about where you may walk.
+                    if (!coarse && canTravelTo(n, here) && !pending) go(n.id);
                     else setSel(null);
                   }}
                 >
+                  {/* The thing a finger aims at. First, so it paints under the
+                      marker; invisible, so the board is unchanged; inert on a
+                      mouse, which does not need it (.map-node-hit). */}
+                  <rect className="map-node-hit" x={-HIT} y={-HIT} width={HIT * 2} height={HIT * 2} />
                   <rect
                     className="map-node-rim"
                     x={-RIM}
@@ -482,60 +589,71 @@ export default function MapBoard({ onClose = null }) {
           </g>
         </svg>
 
-        {/* Only once the character knows somewhere underground. Offering the
-            switch before that would tell them a second layer exists, which is
-            exactly the kind of thing the fog is for. */}
-        {data.layers.length > 1 && (
-          <div className="map-layers segmented">
-            <button
-              type="button"
-              aria-pressed={layer === "surface"}
-              onClick={() => {
-                setLayer("surface");
-                setSel(null);
-              }}
-            >
-              Surface
-            </button>
-            <button
-              type="button"
-              aria-pressed={layer === "under"}
-              onClick={() => {
-                setLayer("under");
-                setSel(null);
-              }}
-            >
-              Underground
-            </button>
-          </div>
-        )}
+        {/* The two HUD blocks in one wrapper. It is display: contents on a
+            desktop, so each keeps the corner it has always had; on a phone it
+            becomes a column, which is the only way neither has to know how
+            wide the other is — side by side they need 486px of a 390px
+            screen and the layer switch ended up behind the zoom buttons. */}
+        <div className="map-hud">
+          {/* Only once the character knows somewhere underground. Offering the
+              switch before that would tell them a second layer exists, which is
+              exactly the kind of thing the fog is for. */}
+          {data.layers.length > 1 && (
+            <div className="map-layers segmented">
+              <button
+                type="button"
+                aria-pressed={layer === "surface"}
+                onClick={() => {
+                  setLayer("surface");
+                  setSel(null);
+                }}
+              >
+                Surface
+              </button>
+              <button
+                type="button"
+                aria-pressed={layer === "under"}
+                onClick={() => {
+                  setLayer("under");
+                  setSel(null);
+                }}
+              >
+                Underground
+              </button>
+            </div>
+          )}
 
-        <div className="map-controls">
-          <button type="button" className="btn-quiet" onClick={() => zoomBy(1 / 1.25)} aria-label="Zoom out">
-            −
-          </button>
-          <button type="button" className="btn-quiet" onClick={() => zoomBy(1.25)} aria-label="Zoom in">
-            +
-          </button>
-          <button type="button" className="btn-quiet" onClick={fit}>
-            Reset
-          </button>
-          <button
-            type="button"
-            className="chip"
-            data-active={labels ? "true" : undefined}
-            aria-pressed={labels}
-            onClick={() => setLabels((on) => !on)}
-          >
-            Names
-          </button>
-          <span className="map-count mono">
-            {data.known} of {data.total}
-          </span>
+          <div className="map-controls">
+            <button type="button" className="btn-quiet" onClick={() => zoomBy(1 / 1.25)} aria-label="Zoom out">
+              −
+            </button>
+            <button type="button" className="btn-quiet" onClick={() => zoomBy(1.25)} aria-label="Zoom in">
+              +
+            </button>
+            <button type="button" className="btn-quiet" onClick={fit}>
+              Reset
+            </button>
+            <button
+              type="button"
+              className="chip"
+              data-active={labels ? "true" : undefined}
+              aria-pressed={labels}
+              onClick={() => setLabels((on) => !on)}
+            >
+              Names
+            </button>
+            <span className="map-count mono">
+              {data.known} of {data.total}
+            </span>
+          </div>
         </div>
       </div>
 
-      <aside className="map-card panel">
+      {/* data-picked is the whole phone layout: under 640px the card is a
+          sheet over the board, and this is what decides whether it is a strip
+          of Ways out or open far enough to show Go. No state of its own —
+          `chosen` already knows. */}
+      <aside className="map-card panel" data-picked={chosen ? "true" : undefined}>
         {card ? (
           <MapCard
             node={card}

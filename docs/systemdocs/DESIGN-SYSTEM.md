@@ -477,6 +477,13 @@ they are ~31px there, and raising that everywhere is a redesign, not a fix. A
 small control inside a table row — the row checkbox on `/gm/players`, say —
 gets its hit area from the cell's padding rather than from a bigger box.
 
+`.map-controls` is the one place that raises the floor for itself, under
+`(pointer: coarse)` rather than at 720px. Its `−` / `+` / Reset are
+`.btn-quiet`, which the global coarse-pointer block takes to 36px for all
+fifty-odd of its call sites — right for a flush text link in a row of prose,
+and not enough for the only way to zoom a map for anyone who cannot pinch. The
+carve-out is scoped to that one bar so nothing else moves.
+
 **The bottom bar respects `env(safe-area-inset-bottom)`**, and `.app-main`'s
 bottom padding must include the same inset. Otherwise the rail labels sit under
 an iPhone's home indicator.

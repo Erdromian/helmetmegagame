@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The map pinches to zoom on a phone
+
+✚ Pinch to zoom the map, and a two-finger drag pans it  
+✚ The zoom buttons and the places themselves are thumb-sized on a touch screen  
+✎ On a phone the place card is a sheet laid over the map instead of a strip under it, so the map gets the whole screen  
+− Tapping a place twice no longer travels there on a phone — the card's Go button does, so a stray tap cannot spend a crossing
+
 ## 2026-09-09 · Fear is now the Mood system, and it goes both ways
 
 ✎ Your mood is a word in its own box on the character sheet, between Carrying and Gambit die: Happy, Pleased, Content, Fine, Uncomfortable, Stressed, Anxious, Afraid, Panicking. Grey at Fine, red at Panicking, and hovering it says what moves it  
@@ -59,7 +66,6 @@ Entries below predate this format and list files instead.
 − The Carrying tile no longer opens a breakdown when clicked — it is a number like the three beside it
 
 ## 2026-09-09 · A burial and an engraving are heard where they happen
-
 
 ## 2026-09-09 · Four things about you, and the buying screen tells the whole truth
 
@@ -300,7 +306,6 @@ Entries below predate this format and list files instead.
 
 ## 2026-09-08 · Mute stops you shouting, not talking
 
-
 ## 2026-09-08 · Pruning a zone takes its channels down with it
 
 − A retired zone no longer leaves its location channels standing in Discord
@@ -348,7 +353,6 @@ Entries below predate this format and list files instead.
 − - it cascades from Character, which goes first.
 
 ## 2026-09-08 · Add a playtest-only switch for who may join
-
 
 ## 2026-09-08 · Stock the caves with thirteen more things to find
 
@@ -815,11 +819,9 @@ Entries below predate this format and list files instead.
 ✎ The marsh Village fishes at 1.3 instead of 1.5 — still the best water in the game
 ✎ Corrected the Laboring doc's yield table, which had drifted off the map
 
-
 ## 2026-09-06 · Farming pays 9% more
 
 ✎ Laboring (Farming) now pays 15–21 ⬢ instead of 14–19
-
 
 ## 2026-09-06 · Travel that costs your Move takes a day
 
@@ -912,9 +914,7 @@ Entries below predate this format and list files instead.
 
 ## 2026-09-06 · The Fisherman starts skilled at Laboring
 
-
 ## 2026-09-06 · The turn header is a dated subtext line
-
 
 ## 2026-09-06 · Knighthood is back on the picker, for a single point
 
@@ -1085,7 +1085,6 @@ Entries below predate this format and list files instead.
 ✎ A hatchet is the Refugee's whole job (Godflesh needs one equipped), there is no forge in the Marshes, and the crafting change earlier today put the hatchet recipe behind a forge — so a Refugee who lost theirs had no way to replace it in their own zone  
 ✎ Not in the Spillway, which destroys what lands in it, and not in the Overseer Box, which is the Banneret's
 
-
 ## 2026-09-05 · Armour is a number on the gear now, and the turrets are lethal
 
 ✚ Every piece of armour, headgear and shield carries a Melee and a Ballistic rating, shown as a word — None, Meager, Sufficient, Good, Strong, Overkill  
@@ -1131,7 +1130,6 @@ Entries below predate this format and list files instead.
 ✎ Photos were free and unlimited. One shot per message per photographer now — the camera is still reusable, but photographing the same moment twice is the same photo
 ✎ The Caving desk showed only the zone, so a GM saw several identical rows for one character with no way to tell which tunnel each happened in. It names the place
 ✎ Shouting from inside a room put the shout everywhere except that room
-
 
 ## 2026-09-05 · Every room id says where it is
 
@@ -1386,9 +1384,7 @@ Entries below predate this format and list files instead.
 
 ## 2026-09-04 · Equipped slots stay full width instead of shrinking to the tag
 
-
 ## 2026-09-04 · The Spillway no longer eats a shift by accident
-
 
 ## 2026-09-04 · The Depot's turret learns the Merchant's face when he is created
 
@@ -1401,7 +1397,6 @@ Entries below predate this format and list files instead.
 ✎ The cast starts with 80 ¢ between them rather than 90; nobody else's purse changed
 
 ## 2026-09-04 · Adds the Godard Factory, the Banneret, and the Squeeze production chain
-
 
 ## 2026-09-04 · An obol is one Resource, so the Merchant can sell you a cup of tea
 
