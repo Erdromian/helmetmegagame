@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Wanted follows the face, and the Cerberon can hand it out
+
+✎ A Wanted man is only read as wanted while he is under his own name — a hood or a Disguise Kit's false name now takes it off the read, which is what the tag always said it meant  
+✚ An Arrest Warrant button for the Censor, the Sheriff and a Cerberus: type a man's whole name and he is Wanted. Costs nothing and puts up no paper  
+✚ A Check Wanted button for every Cerberon — the warrant book, hoods and all  
+✎ Drinking a Mulligan Potion clears your warrant. A new name is a new man  
+✎ Engrave matches the whole name now, not the first name, so two dead men called Jorren can each get their stone
+
 ## 2026-09-09 · A filed Move is final, and the rope beats the arrangement
 
 − A Move can no longer be edited once it is filed. You get one Move a turn and it stands; only a GM changes one now
