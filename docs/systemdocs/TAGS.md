@@ -1864,6 +1864,17 @@ which is both how armour actually works and what stops somebody in six
 overlapping layers from being untouchable. The 0.95 cap is the same idea said
 absolutely: nothing is ever bulletproof.
 
+The result is rounded to four places before it leaves `combineArmor` — a
+single piece authored at exactly a band edge (`0.2`, `0.4`, `0.6`, `0.8`)
+combines to `0.19999999999999996` in IEEE 754, which `armorWord`'s strict `<`
+reads as one word weaker than the tag says. Invisible for a long time because
+the only caller was `db/lib/depotTurret.js`'s roll math, where the error is
+irrelevant; visible the moment something displays the word — a character's
+combined Melee/Ballistic now shows as an `Armor` line on the GM's Sheet tab
+(`web/app/components/InspectorColumn.js`, shared by `/gm/turns` and
+`/gm/players`), computed across every equipped piece the same way
+`combineArmor` always has.
+
 ### Authoring one
 
 `db/lib/syncTags.js` rejects a value outside 0..1, and rejects either key on a

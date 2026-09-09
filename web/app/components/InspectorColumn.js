@@ -14,6 +14,7 @@ import CustomTagDialog from "./CustomTagDialog";
 import Tooltip from "./Tooltip";
 import useSubmitOnEnter from "./useSubmitOnEnter";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
+import { combineArmor, armorWord } from "@/lib/armorValue";
 import {
   getCharacterInspector,
   getArchiveSlice,
@@ -276,6 +277,15 @@ function SheetView({
     ],
     ["Gambit", data.gambitModifier > 0 ? `+${data.gambitModifier}` : String(data.gambitModifier)],
     ["Acted", data.acted ? "yes" : "no"],
+    // Combined across every EQUIPPED piece (db/lib/armorValue.js#combineArmor),
+    // same words TagChip's own per-tag "Armour" line uses — an adjudicating
+    // GM needs the character's actual protection, not one gauntlet's rating.
+    // Always shown, "None" included: the fact that there is nothing to turn a
+    // blow aside matters exactly as much as a number would.
+    [
+      "Armor",
+      `Melee: ${armorWord(combineArmor(data.tags, "meleeArmor"))} | Ballistic: ${armorWord(combineArmor(data.tags, "ballisticArmor"))}`,
+    ],
   ];
   return (
     <dl className="desk-inspector-facts p-3">
