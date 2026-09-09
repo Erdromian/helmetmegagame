@@ -8,9 +8,8 @@ import {
   CUSTOM_NAME_MAX,
   CUSTOM_DESCRIPTION_MAX,
   INSCRIPTION_MAX,
-  customCraftFields,
+  customCraftFor,
   customCraftName,
-  surchargeFor,
 } from "@/lib/customCraft";
 import IngredientSlots from "./IngredientSlots";
 import QuantityField from "./QuantityField";
@@ -98,22 +97,12 @@ export default function CraftDialog({
   ));
   const turns = chosen?.requirementTurns ?? 1;
   const qty = Math.max(1, Number(quantity) || 1);
-  // The same shared verdict the server bills by: blank-after-cleaning fields
-  // cost nothing, and what words cost is the recipe's own business —
-  // surchargeFor, which is 0 on the two meals (COOKING.md). A recipe that
-  // takes no description never counts one, so a value left in state by a
-  // previous pick cannot quietly bill.
+  // The one shared verdict the server bills by (web/lib/customCraft.js), so
+  // the ⬢ shown here can never be less than the ⬢ charged.
   const describable = chosen?.customDescribable !== false;
-  const custom = chosen?.customizable
-    ? customCraftFields({
-        customName,
-        customDescription: describable ? customDescription : "",
-      })
-    : null;
-  const surcharge = surchargeFor(chosen);
+  const { custom, surcharge } = customCraftFor(chosen, { customName, customDescription });
   const cost =
-    ((chosen?.requirementResources ?? 0) + (custom?.active ? surcharge : 0)) *
-    (chosen?.stackable ? qty : 1);
+    ((chosen?.requirementResources ?? 0) + surcharge) * (chosen?.stackable ? qty : 1);
   // Smith's work needs a forge in reach (SMITHING.md). Said here so a player
   // sees it before committing; craftRequest re-checks it regardless — and
   // grants the same fieldwork exemption the server does, or the hint would
@@ -346,7 +335,7 @@ export default function CraftDialog({
                   {/* The surcharge half of this line disappears where a
                       recipe buys the words out. What it will READ as stays:
                       that is the one thing worth showing before the click. */}
-                  {custom?.active && (
+                  {custom.active && (
                     <p className="text-xs text-muted">
                       {surcharge > 0 ? `Your words on your work, +${surcharge} ⬢ each. ` : ""}
                       It will read as “{customCraftName(chosen.name, custom.name)}”.

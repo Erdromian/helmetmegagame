@@ -26,28 +26,19 @@
 // Pure — no prisma, no React — so the Craft dialog and the server action can
 // both read it, the way web/lib/customCraft.js is shared.
 
-// One ingredient's contribution, as consumesInto-shaped entries.
-//
-// `cooked.into` is stored in the normalised quad shape the sync writes
-// ({ slug, unlessTags, durationTurns, oneOf }); the ingredient's OWN grants
-// live across the four parallel columns instead, so they get zipped back into
-// the same shape here. Two sources, one shape, one merge.
+// One ingredient's contribution, as consumesInto-shaped entries. Two sources:
+// `cooked.into` is already in the normalised quad shape the sync writes
+// ({ slug, unlessTags, durationTurns, oneOf }), and a tag's OWN grants live
+// across four parallel columns that ownEntries zips back into it.
 //
 // NULL AND [] ARE DIFFERENT and the distinction is load-bearing: a null
 // `into` means "use my own consumesInto", an authored `[]` means
 // "contribute nothing". Blind Fish and Deep Morel are the second — cooking is
 // what takes their nausea off.
 function ingredientEntries(tag) {
-  const cookedInto = tag?.cooked?.into ?? null;
-  if (cookedInto) {
-    return cookedInto.map((e) => ({
-      slug: e.slug,
-      oneOf: e.oneOf ?? null,
-      unlessTags: e.unlessTags ?? [],
-      durationTurns: e.durationTurns ?? null,
-    }));
-  }
-  return ownEntries(tag);
+  // `cooked.into` is stored in exactly this shape already — the sync writes
+  // it through the same normalizer — so it needs no reshaping, only choosing.
+  return tag?.cooked?.into ?? ownEntries(tag);
 }
 
 // A tag's own grants, zipped out of the four parallel columns.
@@ -107,19 +98,6 @@ export function mergeDishGrants(mealTag, ingredientTags = []) {
   };
 }
 
-// Every ingredient's mood, in slot order, for db/lib/mood.js#dishMoodTerms.
-export function dishIngredientMoods(ingredientTags = []) {
-  return ingredientTags.map((t) => t?.cooked?.mood ?? 0);
-}
-
-// The tastes an eater is told about, in the order the cook built the dish.
-// An empty taste is dropped rather than printed as a gap — that is Phrygian
-// Tears and Adder's Bite, the two things a cook can hide in a meal with no
-// tell at all.
-export function dishTastes(ingredientTags = []) {
-  return ingredientTags.map((t) => t?.cooked?.taste ?? "").filter(Boolean);
-}
-
 // The line the eater reads (NoticeProvider, bottom-right).
 //
 // The ‡ sits here and nowhere else. A taste is a FRAGMENT dropped into the
@@ -127,7 +105,11 @@ export function dishTastes(ingredientTags = []) {
 // onions ‡" — one mark per message, at the very end, is the convention
 // (CLAUDE.md), and db/lib/tagShapes.js#normalizeCooked refuses a ‡ in a taste
 // to keep it that way.
+// An empty taste is dropped rather than printed as a gap — that is Phrygian
+// Tears and Adder's Bite, the two things a cook can hide in a meal with no
+// tell at all.
 export function tasteLine(tastes = []) {
+  tastes = tastes.filter(Boolean);
   if (!tastes.length) return "You ate a meal. ‡";
   if (tastes.length === 1) return `You ate a meal. It tastes like ${tastes[0]}. ‡`;
   return `You ate a meal. It tastes like ${tastes.slice(0, -1).join(", ")} and ${tastes[tastes.length - 1]}. ‡`;

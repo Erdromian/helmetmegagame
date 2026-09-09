@@ -20,7 +20,7 @@ import {
   unitsAffordable,
 } from "@/lib/craftBudget";
 import { heldSlugsOf } from "@/lib/consumeGrants";
-import { customCraftFields, surchargeFor } from "@/lib/customCraft";
+import { customCraftFor } from "@/lib/customCraft";
 import {
   craftRequest,
   continueCraft,
@@ -312,17 +312,9 @@ export default function CraftAction({ presets, onDone, onClose }) {
     if (!projectId && !siteId && chosen) {
       const turns = chosen.requirementTurns ?? 1;
       const qty = craftQty;
-      // The same price craftRequestImpl charges — surchargeFor, so a recipe
-      // that buys its words out quotes no surcharge and the confirm never
-      // quotes less than the bill.
-      const surcharge =
-        chosen.customizable &&
-        customCraftFields({
-          customName,
-          customDescription: chosen.customDescribable === false ? "" : customDescription,
-        }).active
-          ? surchargeFor(chosen)
-          : 0;
+      // The same price craftRequestImpl charges, so the confirm can never
+      // quote less than the bill (web/lib/customCraft.js).
+      const { surcharge } = customCraftFor(chosen, { customName, customDescription });
       const cost = ((chosen.requirementResources ?? 0) + surcharge) * qty;
       const what = qty > 1 ? `${qty}× ${chosen.name}` : chosen.name;
       // What this costs of the Move, in the player's words. Three shapes: it
@@ -466,17 +458,8 @@ export default function CraftAction({ presets, onDone, onClose }) {
     // A Lavish Meal needs something in it. A Fine Meal's slot is optional, so
     // min 0 never blocks (docs/systemdocs/COOKING.md).
     if (ingredientChoices.length < (ingredientSlots?.min ?? 0)) return false;
-    // Custom words cost what the recipe says they cost — the same shared
-    // verdict the server bills by (web/lib/customCraft.js), which is 0 on the
-    // two meals. A recipe that takes no description never counts one.
-    const surcharge =
-      chosen.customizable &&
-      customCraftFields({
-        customName,
-        customDescription: chosen.customDescribable === false ? "" : customDescription,
-      }).active
-        ? surchargeFor(chosen)
-        : 0;
+    // Same verdict again (web/lib/customCraft.js).
+    const { surcharge } = customCraftFor(chosen, { customName, customDescription });
     const cost = ((chosen.requirementResources ?? 0) + surcharge) * craftQty;
     // A 0-turn craft inside its free allowance never needed a Move and
     // still doesn't; everything else has to fit in what the turn has left

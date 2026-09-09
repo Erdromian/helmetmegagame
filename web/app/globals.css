@@ -529,6 +529,7 @@ h3 {
    in the whole stylesheet before, and each merely changed a colour — so the
    app had no visible focus ring at all, including on all 156 .field inputs. */
 .btn:focus-visible,
+.slot-clear:focus-visible,
 .btn-secondary:focus-visible,
 .btn-danger:focus-visible,
 .btn-quiet:focus-visible,
@@ -3884,9 +3885,19 @@ label.chip {
   background: var(--row-hover);
 }
 
-.slot-clear:focus-visible {
-  outline: 2px solid var(--accent-text);
-  outline-offset: 2px;
+
+/* The cooking bench's pantry: ChipPicker's own row, boxed and bounded. 58
+   tags in the catalog carry a `cooked` block, so a hoarder's chip row would
+   otherwise push the slots and the Craft button off the bottom of the modal —
+   which is the failure ChipPicker's header warns about. Drawn as a recessed
+   .control surface so it reads as one field rather than as loose chips. */
+.pantry {
+  max-height: 9.5rem;
+  overflow-y: auto;
+  padding: var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--field-bg);
 }
 
 /* A chip's aside — a corpse's yield, "✓ current", a price — in the muted

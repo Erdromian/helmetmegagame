@@ -1,15 +1,18 @@
 "use client";
 
+import ChipPicker from "./ChipPicker";
+
 // The cooking bench (docs/systemdocs/COOKING.md): the ordered ingredient
 // slots a meal recipe takes, over the pantry of everything you are carrying
 // that can go in one.
 //
-// NOT an extension of ChipPicker.js, though it wears the same .chip-row.
-// That one is a SINGLE value picker — `onChange(active ? "" : id)`, one
-// answer, toggled — and this is an ordered multi-slot where the same list can
-// fill two positions and the positions mean different things (a Lavish Meal
-// requires its first and offers its second). Reusing it would have meant
-// bending "one value" into "an array" at every call site.
+// The SLOTS are what this file is for. The pantry under them is ChipPicker's
+// row, borrowed rather than re-typed — a chip is a chip, and the one thing
+// this needed that it did not have (more than one live answer at a time) is
+// now a per-option `active`. What ChipPicker cannot be is the slots
+// themselves: it is a single-value picker, and these are ordered positions
+// that mean different things (a Lavish Meal requires its first and offers its
+// second).
 //
 // What the cook is told is the TASTE and nothing else. No mood figure, no
 // effect list, no hint that the thing they are about to serve will make
@@ -33,24 +36,13 @@ export default function IngredientSlots({
   // How many of each the batch will spend, so a stack of one cannot fill two
   // meals' worth of a slot.
   quantity = 1,
-  disabled = false,
-  emptyLabel = "You have nothing to cook with. ‡",
 }) {
   const picked = Array.isArray(value) ? value : [];
   const bySlug = new Map(options.map((o) => [o.slug, o]));
   const full = picked.length >= max;
 
-  const add = (slug) => {
-    if (disabled || full || picked.includes(slug)) return;
-    onChange([...picked, slug]);
-  };
-  const clear = (index) => {
-    if (disabled) return;
-    onChange(picked.filter((_, i) => i !== index));
-  };
-
   return (
-    <div className="field">
+    <>
       <div className="slot-row">
         {Array.from({ length: max }, (_, i) => {
           const slug = picked[i];
@@ -77,8 +69,7 @@ export default function IngredientSlots({
               <button
                 type="button"
                 className="slot-clear"
-                onClick={() => clear(i)}
-                disabled={disabled}
+                onClick={() => onChange(picked.filter((_, n) => n !== i))}
                 aria-label={`Take out ${ing.name}`}
               >
                 ✕
@@ -90,32 +81,29 @@ export default function IngredientSlots({
         })}
       </div>
 
-      {options.length === 0 ? (
-        <p className="text-sm text-muted">{emptyLabel}</p>
-      ) : (
-        <div className="chip-row" role="group" aria-label="What you can cook with">
-          {options.map((o) => {
-            const slotted = picked.includes(o.slug);
-            // A stack of two cannot fill a slot on a batch of three. The
-            // server prices this again; here it just stops the click.
-            const short = o.held < quantity;
-            return (
-              <button
-                key={o.slug}
-                type="button"
-                className="chip"
-                data-active={slotted ? "true" : undefined}
-                aria-pressed={slotted}
-                disabled={disabled || slotted || short || full}
-                onClick={() => add(o.slug)}
-              >
-                {o.name}
-                <span className="chip-note mono">×{o.held}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+      {/* Bounded, because ChipPicker's own header is right that two hundred
+          chips is worse than a dropdown: 58 tags in the catalog carry a
+          `cooked` block, and a hoarder can be holding a lot of them. The row
+          scrolls inside its own box rather than pushing the slots and the
+          Craft button off the bottom of the modal. */}
+      <div className="pantry">
+      <ChipPicker
+        options={options.map((o) => ({
+          id: o.slug,
+          label: o.name,
+          note: `×${o.held}`,
+          // Slotted chips read as chosen AND refuse a second click; a stack
+          // too short for the batch, or a full set of slots, only refuses.
+          active: picked.includes(o.slug),
+          disabled: picked.includes(o.slug) || o.held < quantity || full,
+        }))}
+        value=""
+        onChange={(slug) => {
+          if (slug && !full && !picked.includes(slug)) onChange([...picked, slug]);
+        }}
+        emptyLabel="You have nothing to cook with. ‡"
+      />
+      </div>
+    </>
   );
 }

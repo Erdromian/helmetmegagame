@@ -20,6 +20,26 @@ export const CUSTOM_SURCHARGE = 1; // ⬢ per unit, on top of the recipe's own
 export function surchargeFor(tag) {
   return tag?.customCost ?? CUSTOM_SURCHARGE;
 }
+
+// The whole custom-words verdict for one recipe: what the words amount to
+// after cleaning, and what they cost. Four call sites priced this by hand —
+// the dialog's readout, its canSubmit, the confirm prompt and the server —
+// and each had to remember the same two rules (a recipe that takes no
+// description must not count one; the surcharge is the recipe's own). Four
+// copies of a price is how a confirm ends up quoting less than the bill.
+export function customCraftFor(tag, fields) {
+  const custom = tag?.customizable
+    ? customCraftFields({
+        customName: fields?.customName,
+        // A recipe may take a name and no words — the Fine Meal does
+        // (COOKING.md). A description posted at one is dropped rather than
+        // refused: a hidden textarea is a hint, and a stale client is not an
+        // attack.
+        customDescription: tag.customDescribable === false ? "" : fields?.customDescription,
+      })
+    : { name: "", description: "", active: false };
+  return { custom, surcharge: custom.active ? surchargeFor(tag) : 0 };
+}
 export const CUSTOM_NAME_MAX = 30;
 export const CUSTOM_DESCRIPTION_MAX = 300;
 export const INSCRIPTION_MAX = 200;

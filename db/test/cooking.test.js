@@ -1,6 +1,7 @@
 // node --test over the pure half of the cooking rework (COOKING.md): the
-// `cooked` / `ingredientSlots` / `custom` normalizers in db/lib/tagShapes.js,
-// dishMoodTerms in db/lib/mood.js, and the taste line in web/lib/cooking.js.
+// `cooked` / `ingredientSlots` / `custom` normalizers in db/lib/tagShapes.js
+// and dishMoodTerms in db/lib/mood.js. web/lib/cooking.js is not reachable
+// from this workspace, so tasteLine is exercised by hand instead.
 // Run with `npm test --workspace=db`. Nothing here touches Prisma.
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -100,11 +101,7 @@ test("every slug a cooked block grants must exist", () => {
     /unknown tag "vomiting"/,
   );
   assert.doesNotThrow(() =>
-    validateCooked(c, {
-      selfSlug: "foot",
-      tagSlugs: new Set(["nauseous", "vomiting"]),
-      consumable: true,
-    }),
+    validateCooked(c, { selfSlug: "foot", tagSlugs: new Set(["nauseous", "vomiting"]) }),
   );
 });
 

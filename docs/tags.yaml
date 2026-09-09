@@ -8465,7 +8465,7 @@ tags:
     consumable: true
     consumesInto: []
     cooked:
-      taste: "crayfish"   # mine ‡
+      taste: "crayfish"   # Bascinet has not written this one. ‡
       mood: 12
     sellable: true
     sellablePrice: 3
@@ -8488,7 +8488,7 @@ tags:
     # Raw it is a bad idea and no dinner. Cooked it is a fish.
     consumesInto: [nauseous]
     cooked:
-      taste: "pale fish"   # mine ‡
+      taste: "pale fish"   # Bascinet has not written this one. ‡
       mood: 8
       # The override that makes the raw/cooked split real: cooking takes the
       # nausea off, so `into` is empty rather than absent.
@@ -8512,7 +8512,7 @@ tags:
     consumable: true
     consumesInto: [nauseous]
     cooked:
-      taste: "cave mushroom"   # mine ‡
+      taste: "cave mushroom"   # Bascinet has not written this one. ‡
       mood: 18
       into: []
     sellable: true
@@ -8534,7 +8534,7 @@ tags:
     consumable: true
     consumesInto: []
     cooked:
-      taste: "salt"   # mine ‡
+      taste: "salt"   # Bascinet has not written this one. ‡
       # Ultracommon in the caves, so it has to stay small — it is the floor
       # under a meal, not a reason to cook one.
       mood: 6
@@ -8584,7 +8584,7 @@ tags:
     consumable: true
     consumesInto: []
     cooked:
-      taste: "butter"   # mine ‡
+      taste: "butter"   # Bascinet has not written this one. ‡
       mood: 30
     sellable: true
     sellablePrice: 6
@@ -8641,7 +8641,7 @@ tags:
     customizable: true
     # Free words, and the Lavish is the one recipe that takes a DESCRIPTION —
     # the dish a cook writes their own line for (COOKING.md).
-    custom: { cost: 0, describable: true }
+    custom: { cost: 0 }
     # Was a flat 30 in db/lib/mood.js, which was the single largest relief in
     # the game and left the ingredient nothing to say. See MOOD.md §6.
     mealMood: 8

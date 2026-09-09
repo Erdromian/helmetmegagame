@@ -176,15 +176,10 @@ import {
   INSCRIPTION_MAX,
   cleanCustomText,
   customCraftFields,
+  customCraftFor,
   customCraftName,
-  surchargeFor,
 } from "@/lib/customCraft";
-import {
-  mergeDishGrants,
-  dishIngredientMoods,
-  dishTastes,
-  tasteLine,
-} from "@/lib/cooking";
+import { mergeDishGrants, tasteLine } from "@/lib/cooking";
 import { formatManifest, formatStack } from "@lifeweb/db/lib/roomStash";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
 import {
@@ -420,12 +415,13 @@ async function requireWorkshop(character, tag) {
 // block", which is why the caller resolves the rows and hands them in as
 // `cookableBySlug`. A recipe never has to be edited to accept a new
 // ingredient, and this function never has to know what any of them are.
+// `ingredientChoices` arrives ALREADY cleaned (trimmed, blanks dropped) — the
+// caller has to clean it anyway to look the rows up, and cleaning it twice is
+// how the two copies drift.
 function resolveIngredientSlots(character, tag, quantity, ingredientChoices, cookableBySlug) {
   const slots = tag.requirementIngredientSlots;
-  const plan = { spend: [], hold: [], cookedFrom: [] };
-  const picks = (Array.isArray(ingredientChoices) ? ingredientChoices : [])
-    .map((s) => (typeof s === "string" ? s.trim() : ""))
-    .filter(Boolean);
+  const plan = { spend: [], cookedFrom: [] };
+  const picks = ingredientChoices ?? [];
   if (!slots) {
     // Picks posted at a recipe with no slots are ignored rather than refused,
     // the same posture quantity takes on a non-stackable.
@@ -458,8 +454,8 @@ function resolveIngredientSlots(character, tag, quantity, ingredientChoices, coo
     if (!ct || ct.quantity < quantity) {
       throw new UserError(
         quantity > 1
-          ? `Making ${quantity} of those takes ${quantity} × ${name}, and you have ${ct?.quantity ?? 0}.`
-          : `Making that needs ${name}.`,
+          ? `Making ${quantity} of those takes ${quantity} × ${name}, and you have ${ct?.quantity ?? 0}. ‡`
+          : `Making that needs ${name}. ‡`,
       );
     }
     plan.spend.push({ tagId: ct.tagId, tagName: name, quantity });
@@ -863,19 +859,45 @@ async function spendCraftMove(
 // player's words — its query also filters `ephemeral` as a second lock),
 // and catalogVisibility (the GM default keeps a mint out of the public
 // catalog; referenceData ships an ephemeral row only to who holds it).
-async function mintCustomCraft(db, baseTag, { name, description, literal = false, cookedFrom = [] }) {
+// "(rich spices)" for a dish nobody named, or "" when it has no ingredients
+// or none of them taste of anything. `cookedTastes` is the caller's lookup,
+// already loaded — this runs outside the craft transaction and must not
+// query.
+function cookedTasteSuffix(cookedFrom, cookedTastes) {
+  const tastes = cookedFrom.map((slug) => cookedTastes?.get(slug) ?? "").filter(Boolean);
+  return tastes.length ? ` (${tastes.join(", ")})` : "";
+}
+
+async function mintCustomCraft(
+  db,
+  baseTag,
+  { name, description, literal = false, cookedFrom = [], cookedTastes = null },
+) {
   // `literal` is the Death Mask's door: the name arrives finished ("Death
   // Mask of Ada" — stamped from the corpse, never typed) and must not gain
   // the "(Death Mask)" suffix a player-worded custom wears, because the base
   // identity is already the first two words.
-  // An unnamed, undescribed cooking mint keeps the base recipe's own name.
-  // Tag.name is NOT unique (schema.prisma says so at the column), so "Fine
-  // Meal" beside the catalog's own "Fine Meal" is fine — and a plate of food
-  // nobody bothered to name should not read as "Fine Meal (custom)".
-  const composedName =
-    literal || (!name && cookedFrom.length && !description)
-      ? name || baseTag.name
-      : customCraftName(baseTag.name, name);
+  // An unnamed dish is named after what it TASTES of: "Lavish Meal (rich
+  // spices)". Tag.name is NOT unique (schema.prisma says so at the column),
+  // so this sits happily beside the catalog's own "Lavish Meal".
+  //
+  // Without it a cook's own pantry is unreadable. Every Lavish Meal has an
+  // ingredient, so every one of them mints; two unnamed dishes — one built on
+  // saffron, one on feces — would be two rows with the same name and the same
+  // stock description, and their cook would have no way to tell which was
+  // which before biting. "Nothing tells them apart" is the right rule for two
+  // DIFFERENT cooks and a bad joke inside one kitchen.
+  //
+  // A taste is coarser than an ingredient ("meat" covers a boar loin and a
+  // human foot), and the two undetectable poisons have no taste at all, so
+  // this gives away less than it looks. A cook who wants to hide something
+  // types a name, which is what a name is for.
+  const tasteSuffix = literal ? "" : cookedTasteSuffix(cookedFrom, cookedTastes);
+  const composedName = literal
+    ? name
+    : name || description
+      ? customCraftName(baseTag.name, name)
+      : `${baseTag.name}${tasteSuffix}`;
   const composedDescription = description || baseTag.description;
   // THE INGREDIENTS ARE PART OF THE IDENTITY. Reuse used to key on the words
   // alone, which was right when the words were all a mint carried. A dish
@@ -1167,23 +1189,19 @@ async function craftRequestImpl({
   const posted = (Array.isArray(ingredientChoices) ? ingredientChoices : [])
     .map((s) => (typeof s === "string" ? s.trim() : ""))
     .filter(Boolean);
-  const cookableBySlug = new Map(
+  const cookableRows =
     posted.length && tag.requirementIngredientSlots
-      ? (
-          await prisma.tag.findMany({
-            where: { slug: { in: posted }, cooked: { not: null } },
-            select: { slug: true, name: true },
-          })
-        ).map((t) => [t.slug, t])
-      : [],
-  );
-  const slotPlan = resolveIngredientSlots(
-    character,
-    tag,
-    quantity,
-    ingredientChoices,
-    cookableBySlug,
-  );
+      ? await prisma.tag.findMany({
+          where: { slug: { in: posted }, cooked: { not: null } },
+          select: { slug: true, name: true, cooked: true },
+        })
+      : [];
+  const cookableBySlug = new Map(cookableRows.map((t) => [t.slug, t]));
+  // Just the tastes, for naming a dish nobody named (mintCustomCraft). Read
+  // here because the mint runs outside the craft transaction and must not
+  // open a query of its own.
+  const cookedTastes = new Map(cookableRows.map((t) => [t.slug, t.cooked?.taste ?? ""]));
+  const slotPlan = resolveIngredientSlots(character, tag, quantity, posted, cookableBySlug);
   // One plan from here on: the ingredients a dish spends are spent the same
   // way, under the same lock, and land in the same `details.consumed`.
   //
@@ -1205,26 +1223,15 @@ async function craftRequestImpl({
     tag.slug === DEATH_MASK_SLUG
       ? resolveDeathMaskSource(character, ingredientChoice)
       : null;
-  // Customizing costs what the recipe says it costs — surchargeFor, the same
-  // verdict the dialog prices with, so the ⬢ shown is the ⬢ billed. Usually
-  // CUSTOM_SURCHARGE; zero on the two meals, which buy their words out
-  // (COOKING.md). Fields posted against a non-customizable recipe are
-  // ignored, not refused — the same posture as quantity on a non-stackable.
-  //
-  // A recipe that refuses descriptions (`customDescribable: false`, the Fine
-  // Meal) has one dropped here rather than throwing, for the same reason: a
-  // hidden textarea is a hint, and a posted value that the recipe has no room
-  // for is not an attack, it is a stale client.
-  const custom = tag.customizable
-    ? customCraftFields({
-        customName,
-        customDescription: tag.customDescribable === false ? "" : customDescription,
-      })
-    : { name: "", description: "", active: false };
+  // The one shared verdict the dialog prices with (web/lib/customCraft.js):
+  // what the words amount to after cleaning, and what this recipe charges for
+  // them — usually CUSTOM_SURCHARGE, zero on the two meals, which buy them
+  // out (COOKING.md). Fields posted against a non-customizable recipe, and a
+  // description posted at a recipe that takes none, are dropped rather than
+  // refused — the same posture as quantity on a non-stackable.
+  const { custom, surcharge } = customCraftFor(tag, { customName, customDescription });
   const turns = tag.requirementTurns ?? 1;
-  const cost =
-    ((tag.requirementResources ?? 0) + (custom.active ? surchargeFor(tag) : 0)) *
-    quantity;
+  const cost = ((tag.requirementResources ?? 0) + surcharge) * quantity;
   const payer = await resolveCraftPayer(character, payerKey, cost);
   const openTurn = await getOpenTurn();
 
@@ -1287,7 +1294,7 @@ async function craftRequestImpl({
     // the Restart Game ephemeral sweep.
     const grant =
       custom.active || cookedFrom.length
-        ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom })
+        ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom, cookedTastes })
         : null;
     try {
     await prisma.$transaction(async (tx) => {
@@ -1402,7 +1409,7 @@ async function craftRequestImpl({
           literal: true,
         })
       : custom.active || cookedFrom.length
-        ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom })
+        ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom, cookedTastes })
         : null
     : null;
   try {
@@ -2647,15 +2654,14 @@ async function consumeTagRequestImpl({ tagId }) {
   // one drink, and Sweets is a treat rather than a treat plus a meal.
   const isDish = ingredientTags.length > 0 || held.tag.mealMood != null;
   const moodTerms = isDish
-    ? dishMoodTerms(held.tag.mealMood, dishIngredientMoods(ingredientTags))
+    ? dishMoodTerms(held.tag.mealMood, ingredientTags.map((t) => t.cooked?.mood ?? 0))
     : null;
   const moodRelief = isDish ? 0 : consumeReliefFor(held.tag.slug, grantSlugs);
 
   // What the eater is told, and the only thing they are told: a dish names
   // its tastes and never its ingredients. `line` is returned to the client,
   // which prefers it over the generic "It used up." (noticeLines.js).
-  const tastes = dishTastes(ingredientTags);
-  const line = isDish ? tasteLine(tastes) : null;
+  const line = isDish ? tasteLine(ingredientTags.map((t) => t.cooked?.taste ?? "")) : null;
 
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, 1);

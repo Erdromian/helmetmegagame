@@ -2695,11 +2695,10 @@ model Tag {
   // ingredient — there is no separate flag and no per-recipe list, so adding
   // a fourteenth thing you can cook with is one YAML entry and a sync.
   //
-  // `into` is DELIBERATELY OPTIONAL, and its absence is not "nothing". An
-  // ingredient that does not override it contributes its own live
-  // `consumesInto`, read at the moment somebody eats the dish — which is why
-  // this is the raw/cooked split rather than two frozen copies. See the
-  // note on normalizeCooked before touching it.
+  // `into` is OPTIONAL, and its absence is not "nothing" — it means "use my
+  // own consumesInto, live". That is the raw/cooked split, and the medical
+  // rework's whole hand-off rests on it: COOKING.md §4-5, and the block
+  // comment on db/lib/tagShapes.js#normalizeCooked.
   cooked Json?
 
   // The ingredient slugs that went into THIS dish, in the order the cook

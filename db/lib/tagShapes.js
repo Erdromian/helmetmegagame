@@ -508,29 +508,17 @@ const COOKED_TASTE_MAX = 40;
 //       mood: 28
 //       into: [nauseous]        # optional — see below
 //
-// READ THIS BEFORE CHANGING `into`, AND ESPECIALLY IF YOU ARE HERE FROM THE
-// MEDICAL REWORK. `into` is optional, and its absence does NOT mean "this
-// contributes nothing". An ingredient that omits it contributes its own live
-// `consumesInto`, looked up at the moment somebody eats the dish rather than
-// frozen into the dish when it was cooked. That is deliberate and it is the
-// whole reason the effects are derived at consume time:
-//
-//   - It is the RAW/COOKED SPLIT. A tag's own `consumesInto` is what eating
-//     it plain does; `cooked.into` overrides that for the cooked case. A
-//     deep morel is nausea raw and good in a stew, so it authors both. An
-//     onion does nothing either way, so it authors neither.
-//   - It means a medical consumable needs NOTHING here. When the medical
-//     rework changes what White Honey's `consumesInto` does, every dish
-//     already sitting in somebody's pocket does the new thing on the next
-//     bite — no re-mint, no backfill, no code. If you are merging the medical
-//     PR and looking for the cooking hook: there isn't one, and that is the
-//     design. Author a `cooked.taste` and a `cooked.mood` if the ingredient
-//     needs them, and leave `into` alone.
+// IF YOU ARE HERE FROM THE MEDICAL REWORK: there is no cooking hook, and that
+// is the design. `into` is optional, and omitting it means "contribute my own
+// `consumesInto`", looked up when somebody eats the dish rather than frozen
+// in when it was cooked — so changing what a medicine does changes what it
+// does in a stew, for every dish already in every pocket, with no code here.
+// Give a NEW medical consumable a taste and a mood, and leave `into` alone.
+// COOKING.md §4-5 has the reasoning and the raw-vs-cooked table.
 //
 // `into` is parsed by the caller's own consumesInto normalizer (passed in as
-// `normalizeInto`) so `{oneOf:[…]}`, `{slug, durationTurns}` and
-// `{slug, unlessTags}` all work in a cooked block for free, rather than
-// growing a second parser that drifts from the first.
+// `normalizeInto`), so every shape that works there works here for free
+// rather than through a second parser that drifts from the first.
 function normalizeCooked(cooked, { slug, normalizeInto, label = "docs/tags.yaml" }) {
   if (cooked == null) return null;
   if (typeof cooked !== "object" || Array.isArray(cooked)) {
@@ -566,10 +554,15 @@ function normalizeCooked(cooked, { slug, normalizeInto, label = "docs/tags.yaml"
   if (!Number.isFinite(mood)) {
     throw new Error(`${label}: tag "${slug}" cooked.mood must be a number`);
   }
-  // The dial itself (db/lib/mood.js). A single ingredient past either end is
-  // always an authoring slip, and clamping it silently would hide one.
-  if (mood > 64 || mood < -100) {
-    throw new Error(`${label}: tag "${slug}" cooked.mood is ${mood} — the dial runs +64 to -100`);
+  // The dial itself. A single ingredient past either end is always an
+  // authoring slip, and clamping it silently would hide one. Required lazily:
+  // mood.js does not require this file, so there is no cycle, but keeping the
+  // require inside the function makes that hard to break by accident.
+  const { MOOD_MAX, MOOD_MIN } = require("./mood");
+  if (mood > MOOD_MAX || mood < MOOD_MIN) {
+    throw new Error(
+      `${label}: tag "${slug}" cooked.mood is ${mood} — the dial runs +${MOOD_MAX} to ${MOOD_MIN}`,
+    );
   }
   const into = cooked.into == null ? null : normalizeInto(cooked.into);
   return { taste: taste.trim(), mood, into };

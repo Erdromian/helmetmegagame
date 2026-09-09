@@ -46,14 +46,21 @@ Lavish Meal always mints, because it always has an ingredient.
 
 **The ingredients are part of the mint's identity.** Reuse keys on name +
 description + `cookedFrom`, so two cooks who both type "Steak Dinner" — one
-over saffron, one over feces — get two rows. Nothing on any surface tells
-them apart, which is the point. Miss this and one of them is serving the
-other's dinner.
+over saffron, one over feces — get two rows. Nothing on any surface tells them
+apart, which is the point. Miss this and one of them is serving the other's
+dinner.
 
-Sorted rather than in slot order because Postgres array equality is
-order-sensitive: a key that did not match what was written would reuse
-nothing and mint a row per craft. The cost is that the taste sentence reads
-alphabetically.
+**A dish nobody named is named after its taste** — "Lavish Meal (rich
+spices)". That rule is for the cook's own pantry rather than for anyone else's
+secrecy: every Lavish Meal mints, so without it a cook who named neither of
+their two dinners would have two identical rows and no way to tell the saffron
+from the feces before biting. A taste is coarser than an ingredient ("meat"
+covers a boar loin and a human foot), and the two undetectable poisons have no
+taste at all, so it gives away less than it looks. A cook who wants to hide
+something types a name.
+
+Sorted rather than kept in slot order because Postgres array equality is
+order-sensitive; the cost is that the taste sentence reads alphabetically.
 
 Dishes are swept like disguises — `db/index.js`'s expiry pass deletes
 `ephemeral` `custom-craft-` rows nobody holds, that no room holds, and that
@@ -71,8 +78,9 @@ no Offer or CraftProject pins.
 
 **The presence of this block is the only thing that makes a tag cookable.**
 There is no `ingredient: true`, and no recipe names a legal ingredient
-anywhere. Adding a fourteenth thing you can cook with is one YAML entry and a
-`db:sync-tags`.
+anywhere. **58 tags carry one** — the thirteen new ones plus every brew, drug,
+body part and relic worth putting in a pot — and adding the fifty-ninth is one
+YAML entry and a `db:sync-tags`.
 
 - **`taste`** is a *fragment*, dropped into the middle of one sentence, so it
   is lowercase and under 40 characters. `taste: ""` is legal and means
@@ -143,34 +151,15 @@ mood and leave `into` alone.
 
 ## 7. Mood
 
-A dish takes its own path, because `consumeReliefFor` is a max over a table of
-positives and can express neither a sum nor a negative.
+**[`MOOD.md` §6a](MOOD.md) is canonical** — it sits with the rest of the mood
+tables, which is where somebody asking "what moves the dial" will look. In
+short: `dishMoodTerms` sums the meal's own small figure and its ingredients'
+(rather than taking a max, the way every other consume does), returns harm and
+relief as two terms so only the harm half is scaled, and flags the harm
+`noMultiplier` so nothing in the fright table makes disgust free.
 
-`dishMoodTerms(mealMood, ingredientMoods)` **sums** — two delicacies in a
-Lavish Meal are worth both, which is the only thing that makes a second slot
-mean anything — and returns the halves as **two terms, never netted**:
-
-```
-MEAL     +53   (8 mealMood + 45 saffron)
-DISGUST  −55   (feces)
-```
-
-Netting them first would charge a scaled −2 instead of an unscaled +53 and an
-unscaled −55, because only harm is ever scaled.
-
-**`DISGUST` carries `noMultiplier`**, the way `DRIFT` does. Three rules in
-`MULTIPLIERS` apply to `kinds: "*"`, and while "Brave halves your disgust at
-eating a liver" is arguable, "the Rite of Rage makes feces free" and "holding
-the right sword makes you immune to disgust" are not. Revulsion at what you
-just swallowed is not a fright.
-
-`CONSUME_RELIEF`'s `fine-meal: 15` and `lavish-meal: 30` are **gone**. A
-minted dish's slug is `custom-craft-…` and could never have matched a table
-keyed by slug. `ate-meal: 5` stays and is now genuinely the floor.
-
-**Eating is not rationed.** `MOVE_MOOD_TURN_CAP` counts only `move: true`
-terms. The ingredients are the ration — you have to *find* three lots of
-feces, and each costs a fraction of a cooking Routine.
+The recipe's own figure is deliberately tiny beside its ingredients' — **5**
+for a Fine Meal and **8** for a Lavish, against +45 (saffron) to −55 (feces).
 
 ## 8. The taste line
 
@@ -211,16 +200,11 @@ tastes like onion and onion" off the notice, and it keeps the spend honest.
 
 ### The Honey discovery moved, and got better
 
-`isNonPublicRecipe` asks "does this recipe *name* something the catalog
-hides", which is what used to keep the honeyed Lavish Meal secret: the
-Recipes tab narrowed the `anyOf` to "Tea, Sweets or Fish Roe" until a cook
-held a jar.
-
-A slots recipe names nothing, so **`isNonPublicRecipe` must ignore
-`requirementIngredientSlots`** — reading them the way `items` is read would
-mark both meals non-public and hide dinner from the whole game. The secret
-now lives in the chip list instead: Honey appears as something you can slot
-only if you are holding one. Same discovery, one less place to maintain it.
+**`isNonPublicRecipe` must ignore `requirementIngredientSlots`**
+(`character/page.js`, which says why at the function). A slots recipe names no
+ingredient, so reading its slots the way `items` is read would mark both meals
+non-public and hide dinner from the whole game. The secret lives in the chip
+list now: Honey appears as something you can slot only if you hold a jar.
 
 ## 10. The dialog
 
@@ -228,11 +212,13 @@ Cooking is a **branch inside the Craft dialog**, not a screen of its own: a
 cook spends the same Move, pays the same way and stacks the same batch, and
 forking `CraftDialog.js` to change one control would double the maintenance.
 
-`IngredientSlots.js` draws a `.slot-row` of `max` slots over a `.chip-row` of
-everything on the sheet that can go in a pot. Click a chip, it fills the first
-empty slot; click a slot's ✕, it comes back out. Not an extension of
-`ChipPicker.js` — that is a single-value picker and this is an ordered
-multi-slot where the positions mean different things.
+`IngredientSlots.js` draws a `.slot-row` of `max` slots over `ChipPicker`'s
+own row — boxed in a bounded `.pantry` that scrolls, since 58 cookable tags is
+well past the "short, local list" ChipPicker's header asks for — borrowed
+rather than re-typed — the one thing it needed that
+ChipPicker lacked (more than one live answer at a time) is now a per-option
+`active`. Click a chip, it fills the first empty slot; click a slot's ✕, it
+comes back out.
 
 **The cook is told the taste and nothing else.** No mood figure, no effect
 list, no hint that the thing they are about to serve will make somebody vomit
@@ -262,12 +248,9 @@ adjudicating should see everything.
 Room stashes are a **seed, never a top-up** (`syncZones.js#seedRoomStash`):
 once the five cheeses are eaten there are no more.
 
-**The fragmentation grenade's fishing rate is not 0.1%.** The labor-drop draw
-is uniform over a concatenated pool and the file has no weight field on
-purpose, so the only lever is repeat count — 0.1% would need ~150 lines of
-`blind-fish` living in `docs/labordrops.yaml` forever. What ships is about
-**0.8%** per cave fishing labor. Closing the gap means either padding the pool
-out or teaching `db/lib/laborDrops.js` a weight column.
+**The fragmentation grenade's fishing rate is about 0.8%, not the 0.1% asked
+for.** `docs/labordrops.yaml` says why at the `caves` pool, and the choice is
+Bascinet's.
 
 ## 12. Two catalog bugs fixed here
 
