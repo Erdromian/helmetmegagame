@@ -89,6 +89,18 @@ which is the same six rows from the other direction. The channel doctor checks
 the invariant from a third: no stamped `zoneId` may point at a `CAVE_LEVEL`
 row, and it counts the offenders if any exist (`CHANNELS.md` §6).
 
+**The desk gate resolves a cave level to its seat, and that is not optional.**
+`GmZoneView` can only ever hold a seat, so a GM's ticked list says
+"Underground" and never "Caves" or "Depths" — while `Character.zoneId` and
+`Faction.zoneId` both point at the *level* (`unaligned` sits in Caves, and
+anybody standing in a cave reads as one). Comparing those two lists by name
+therefore matched nothing, and every character in the cave system, plus every
+caving roll, was missing from `/gm/players` and `/gm/turns` for any GM who had
+ticked a zone at all. `web/lib/zones.js#inVisibleZones` folds a row's zone onto
+its seat with `seatKey` before comparing, so ticking Underground shows the cave
+rows — the desk half of what `db:sync-zones`' `gmRoleIdFor` already does for the
+Discord channels. A row still *displays* the level it is in.
+
 ### 2b. Seat by faction, not by feet
 
 **The zone a character's *faction* is keyed to — `Faction.zoneId` — never where
@@ -333,8 +345,14 @@ log exists for. Peer visibility is now the feature. **Every GM reads the whole
 log**, and the Actor filter's `GMs` toggle makes reviewing each other a
 first-class view rather than something you squint for.
 
-The Dev panel (`/gm/dev`), the GM roster included, stays superadmin — those are
-host access, not game permission.
+The Dev panel (`/gm/dev`) is **two tiers**, not one seat. Wiping the game,
+retuning the economy, forcing a turn and opening the lobby are host access and
+stay with the superadmin; the operations and threats work — bulk actions,
+letters, ambient lines, the inactivity nudge, seats and objectives — is what
+running the game means and is open to every GM, trial GMs included. The GM
+roster itself is GM-readable for the same reason `/gm/audit` is: peer
+visibility is the feature. `web/lib/devAccess.js` holds the one table that
+decides it, and `DEV-PANEL.md` §11a is its doc.
 
 The page is a **desk** (`web/app/(desk)/gm/audit/`), not a table: filter rail,
 feed, inspector, the same frame as `/gm/turns`. Three things about it are worth

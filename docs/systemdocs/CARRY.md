@@ -104,7 +104,7 @@ nothing.
 | Medium | 4–6 | spear, mace, helm, halberd, fishing rod |
 | Heavy | 8–12 | crossbow, rifle, shield, bear trap, padded armor |
 | Very Heavy | 20–30 | mail shirt, breastplate, pavise, Godflesh |
-| Massive | 40–75 | plate armor, flamethrower, a creature's corpse |
+| Massive | 40–75 | plate armor, flamethrower, a corpse (a person's or a creature's) |
 | Immense | 100 | workshop equipment, a nuclear device |
 
 **A thing with an obvious real weight gets that weight**, and the band is for
@@ -178,7 +178,10 @@ crossing per *day*. Now:
 
 - Everyone gets `GameConfig.freeZoneMovesPerTurn` crossings a turn, default 1.
 - An **equipped** mount adds one, and it refreshes every turn — a horse carries
-  you at Dawn and again at Dusk. **Only while your escort party fits its
+  you at Dawn and again at Dusk. It is **spent first**: the mount's crossing
+  goes before the base one and stays charged to the mount, so parking the horse
+  at an indoors door later in the turn cannot take back a crossing you never
+  spent. **Only while your escort party fits its
   seats**: go over `fastTravelCapacity` and the mount buys nothing this
   crossing (`MAP.md` §3a). On foot there are no seats and nothing to lose, so
   walking any number of people is free.
@@ -192,7 +195,9 @@ crossing per *day*. Now:
 So a peasant walks Town → Forest for nothing, spends their Move to reach the
 Fortress, and the way back waits for the next turn. That is the whole model.
 
-`Character.zoneMovesTurnId` + `zoneMovesUsed` track it, claimed by a
+`Character.zoneMovesTurnId` + `zoneMovesUsed` track it, and
+`zoneMovesBonusUsed` counts how many of those crossings went on a mount's or a
+boat's extra rather than the base allowance. All three are claimed by a
 conditional `updateMany` whose WHERE is the check, so two tabs cannot both
 spend the last one. A differing turn id resets the counter in the same
 statement, so nothing ever sweeps the field. `freeZoneMoves()` and
@@ -200,13 +205,25 @@ statement, so nothing ever sweeps the field. `freeZoneMoves()` and
 number and Discord's Travel confirm says what the hop will cost before you take
 it.
 
+`freeMovesLeft()` takes an optional `crossing` (the same
+`{ fromZoneSlug, toZoneSlug }` shape `freeZoneMoves()` does), and it matters:
+the boat's bonus is earned per crossing, never banked, so it can only ever
+show up once a destination is actually known. The sheet's ambient count
+(before anyone has picked one) passes nothing and reads the honest
+pre-commitment number. Every surface that DOES know the destination — the
+Travel panel's per-node cost, `/map`'s per-node cost, and Discord's Travel
+picker — has to pass the real crossing per node/option rather than reusing
+one shared number for the whole list, or a boated character crossing
+Forest↔Hills or Hills↔Marshes reads as costing the day when it would
+actually be free.
+
 ## 3. Mounts, carts, and indoors
 
 `horse`, `motorcycle` and `cart` are **equippable**, and
 give nothing while stowed — no carry multiplier, no extra zone move, no
-passenger seats. They compete for the same six `GameConfig.equipSlots` as
-armour and weapons, which is the point: a cart should cost you something to
-keep out.
+passenger seats. They sit in the `MOUNT` slot (`TAGS.md`, "equipSlot"): a
+horse, a motorcycle or a boat is *ridden* (layer 1) and a cart is *towed*
+(layer 2), so a horse and a cart go together and a horse and a boat do not.
 
 **Seats, from `fastTravelCapacity()`:** a Horse alone is 2, and a Cart upgrades
 that pair to 6 — the biggest ride there is. They count the **rider**, so a
@@ -242,7 +259,7 @@ A Location marked `indoors: true` in `docs/zones.yaml` — the Cathedral, the
 Sanctuary, the Inn, the Keep, the Undercroft, the Factory — is a place you walk
 into, and you do not bring a horse into a chapel. On arrival
 `db/lib/indoors.js#parkMountsIndoors` unequips them and DMs the character;
-`toggleEquip` refuses to put them back on while they stand there. The anchor
+`equipOne` refuses to put them back on while they stand there. The anchor
 message says so in its own `-#` line, written by `syncZones` and hashed with
 the rest of the body, so it appears once and never again.
 
@@ -407,15 +424,21 @@ one. Deleting a Tag from the catalog cascades its **room** stacks
 > is locked to you. See `FACTIONS.md` §4.
 
 
-One dialog on `/character` (`TransferDialog.js`, mode `transfer` in
-`RequestActionsProvider.js`) replaces the old Transfer Tag and Transfer
-Resources buttons. From → To, any number of tag lines, a ⬢ amount, one reason.
-From is **you or a Room** here; To is a person standing at your Location
-who isn't concealed (web/lib/peopleHere.js — the same roster every picker
-uses) or a Room here you can get into. Nothing is ever taken from another
-person through Transfer, ⬢ included: you can't reach into their pockets, and
-listing what's in them would show their hidden tags. Loot is how you take
-from a person, and only a helpless one (REQUESTS.md §5b). The projection line
+One dialog — **Move things** (`web/app/components/actions/MoveThingsDialog.js`,
+modes `transfer` and `loot`) — is Transfer, Loot, Take, Drop and Give. Two
+chip rows say the direction (From: you, a Room here, or somebody helpless;
+To: you, a person here, a Room, your silo), then every stack the source
+offers is a row with a count (`StackRow.js`: name · − n + · All), plus a ⬢
+box. It replaced two dropdowns, a checkbox list with a "How many?" field per
+tick, and a separate Loot dialog that was a third dropdown over the same body.
+The people are the same roster every picker uses (web/lib/peopleHere.js), and
+the whole thing is re-read the moment the dialog opens
+(`actions/useRoster.js`). Out of a person's pockets **is** Loot — the server
+hands that source to `lootCharacterRequest`, so the helpless gate, the mood
+hit and the "your body was searched" notice fire whichever button opened it;
+you can't reach into a standing person's pockets, and listing what's in them
+would show their hidden tags (REQUESTS.md §5b). The Loot button opens the same
+dialog with you left off the From row. The projection line
 ("After this you carry 60 / 71 lb and 6 / 25 ⬢") warns in accent when the
 result is over a cap and submits anyway — going over is allowed up to the ceiling (§2).
 
@@ -474,7 +497,7 @@ it out for a while, which made every stash in the game a one-way drop. ‡
 | Post-commit tail | `web/lib/afterInventoryChange.js` |
 | Merged action | `web/app/(app)/character/requestActions.js#transferRequest` |
 | Undo, party-shaped moves | `web/lib/tagEffects.js#takeTagFrom` / `giveTagTo` |
-| Dialog, grid, readout | `TransferDialog.js`, `ActionGrid.js`, `StatusPanel.js`, `PartySelect.js` |
+| Dialog, grid, readout | `components/actions/MoveThingsDialog.js`, `StackRow.js`, `ActionGrid.js`, `LedgerBand.js` |
 | `{carry:slug}` | `web/lib/referenceData.js#getCarryReference`, `CarryProvider.js`, `RichText.js`, `ChipText.js` |
 | Free zone moves, travel gate | `db/lib/locationTravel.js#performLocationMove`, `freeZoneMoves`, `freeMovesLeft` |
 | Mounts: what counts while equipped | `db/lib/mounts.js` |

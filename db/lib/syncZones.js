@@ -34,7 +34,7 @@ const {
 } = require("./discordRest");
 const crypto = require("node:crypto");
 const { SPECTATOR_ROLE_ID, gmRoleIds } = require("./roleIds");
-const { cursedRoleId, ensureCursedRoleAppearance } = require("./cursedAccess");
+const { ghostRoleId, ensureGhostRoleAppearance } = require("./ghostAccess");
 const { docsPath } = require("./repoPaths");
 const {
   zoneChannelSpec,
@@ -511,7 +511,7 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
 // the next sync. Only role ids belong in this set.
 function managedOverwriteIds(roleIds) {
   return new Set(
-    [...gmRoleIds(), SPECTATOR_ROLE_ID, cursedRoleId(), ...roleIds].filter(Boolean),
+    [...gmRoleIds(), SPECTATOR_ROLE_ID, ghostRoleId(), ...roleIds].filter(Boolean),
   );
 }
 
@@ -585,12 +585,6 @@ function buildAnchorBody(location, rooms) {
         .map((paragraph) => `-# ${paragraph.trim().replace(/\s*\n+\s*/g, " ")}`)
         .join("\n"),
     );
-  }
-  // Said once, on the pinned message, so nobody has to be told at the door
-  // every time (docs/systemdocs/CARRY.md §3). It rides the same content hash
-  // as the rest of the body, so it appears on the next sync and never again.
-  if (location.indoors) {
-    parts.push("-# Indoors: carts and horses cannot be equipped in here. ‡");
   }
   const publicRooms = rooms
     .filter((r) => r.kind === "PUBLIC" && r.discordThreadId)
@@ -1075,12 +1069,18 @@ async function syncZonesFromYaml(prisma) {
   }
 
   // A Room's seeded stash: the kit that is simply THERE, like the Sanctuary's
-  // surgical instruments or the Armory's rack. Written as a FLOOR, never a
-  // reset — a stack already at or above the authored quantity is left alone,
-  // and `resources` is written only while the room still holds none. So a
-  // re-sync can't undo a player carrying the anvil off, and can't quietly
-  // duplicate it either. Tags sync AFTER zones, so an unknown slug is skipped
-  // with a warning rather than throwing.
+  // surgical instruments or the Armory's rack. A SEED, never a reset and never
+  // a top-up — an item the room already carries is left exactly as the players
+  // left it, and `resources` is written only while the room still holds none.
+  // So a re-sync can neither undo somebody carrying the anvil off nor quietly
+  // duplicate it. Tags sync AFTER zones, so an unknown slug is skipped with a
+  // warning rather than throwing.
+  //
+  // The items half used to raise an existing stack back to the authored
+  // quantity, which made every re-sync a faucet: empty the Lost Convoy's 46
+  // obols and the next `db:sync-zones` put them back. `resources` never worked
+  // that way, and the header of docs/zones.yaml promised the items did not
+  // either. Now they don't.
   async function seedRoomStash(prisma, roomId, stash) {
     if (stash.resources > 0) {
       // Conditional on 0, so this is a seed and not a top-up: a room somebody
@@ -1098,14 +1098,10 @@ async function syncZonesFromYaml(prisma) {
       }
       const existing = await prisma.roomTag.findUnique({
         where: { roomId_tagId: { roomId, tagId: tag.id } },
-        select: { id: true, quantity: true },
+        select: { id: true },
       });
       if (!existing) {
         await prisma.roomTag.create({ data: { roomId, tagId: tag.id, quantity } });
-        continue;
-      }
-      if (existing.quantity < quantity) {
-        await prisma.roomTag.update({ where: { id: existing.id }, data: { quantity } });
       }
     }
   }
@@ -1372,7 +1368,7 @@ async function syncZonesFromYaml(prisma) {
     report.anchors[await syncLocationAnchor(prisma, location, roomsByLocationId.get(location.id) ?? [])] += 1;
   }
 
-  await ensureCursedRoleAppearance().catch((err) =>
+  await ensureGhostRoleAppearance().catch((err) =>
     console.warn(`cursed role appearance: ${err.message}`),
   );
 
@@ -1398,6 +1394,34 @@ async function syncZonesFromYaml(prisma) {
 
   const staleZones = await prisma.zone.findMany({ where: { slug: { notIn: [...zonesBySlug.keys()] } } });
   for (const zone of staleZones) {
+    // Location.zoneId is onDelete: Cascade, so deleting the zone row below
+    // takes its Locations (and their Rooms) with it in one statement —
+    // silently, and WITHOUT passing through the location prune above, which
+    // only sees slugs the YAML dropped. A zone the YAML dropped while its
+    // Locations kept their slugs therefore left a full set of live Discord
+    // channels behind that no row pointed at any more, and the next sync,
+    // finding no discordChannelId, made a second set beside them. That is how
+    // the Underground ended up with two of every cave channel on 2026-09-08.
+    // Take the channels and threads down here, before the cascade eats the
+    // rows that name them.
+    const doomedLocations = await prisma.location.findMany({
+      where: { zoneId: zone.id },
+      select: { discordChannelId: true, rooms: { select: { discordThreadId: true } } },
+    });
+    for (const location of doomedLocations) {
+      // The threads go first: deleting a channel takes its threads anyway,
+      // but a room whose thread lives elsewhere is not the channel's to lose.
+      for (const room of location.rooms) {
+        if (room.discordThreadId) await deleteThread(room.discordThreadId);
+      }
+      if (location.discordChannelId) await deleteChannel(location.discordChannelId);
+    }
+    if (doomedLocations.length > 0) {
+      report.warnings.push(
+        `pruning zone "${zone.name}" also took ${doomedLocations.length} Location row(s) with it (FK cascade)`,
+      );
+    }
+
     for (const id of [zone.discordSummaryChannelId, zone.discordCategoryId].filter(Boolean)) {
       await deleteChannel(id);
     }

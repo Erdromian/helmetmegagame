@@ -1,6 +1,8 @@
 // A character's displayed name is built from four parts rather than one
-// string: an honorific they earned, a required first name, a GM-granted title
-// that renders in quotes, and an optional last name.
+// string: an honorific, a required first name, a title that renders in
+// quotes, and an optional last name. The honorific is earned at creation and
+// the title is a GM's to grant — except through a Mulligan Potion, which
+// buys a player all four (docs/systemdocs/CHARACTERS.md §1b).
 //
 //   Sir Jorren "the Blind" Vask
 //
@@ -49,6 +51,41 @@ function formatBareName({ firstName, lastName } = {}) {
     .map((part) => (typeof part === "string" ? part.trim() : ""))
     .filter(Boolean)
     .join(" ");
+}
+
+// How long a composed name can get: the four caps above plus the separators
+// and the two quote marks, 79 by the arithmetic in the NAME_LIMITS comment.
+// Every field that asks a player to TYPE somebody's whole name caps here, so
+// the box can hold anything the game can produce and nothing longer.
+const FULL_NAME_LIMIT = 80;
+
+// What two typed names are compared as: trimmed, inner whitespace collapsed,
+// case folded. "  Sir   JORREN  " and "sir jorren" are the same key.
+function nameKey(value) {
+  return (value ?? "")
+    .toString()
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+// Does this character answer to what somebody typed?
+//
+// TWO forms count, and that is deliberate. The full display name is what a
+// table or a proxied message shows — `Sir Jorren "the Blind" Vask` — but a
+// player who has only ever heard the man called Jorren Vask should not be
+// stopped by an honorific they never learned, or by a quoted title they have
+// no way to punctuate. So the bare `First Last` (formatBareName) matches too.
+//
+// Exact either way. There is no fuzzy matching anywhere in this game, and the
+// two callers — Engrave and the Arrest Warrant — are both things you should
+// have to get right.
+//
+// `character` needs `name`, `firstName` and `lastName`.
+function matchesTypedName(character, typed) {
+  const key = nameKey(typed);
+  if (!key) return false;
+  return key === nameKey(character?.name) || key === nameKey(formatBareName(character ?? {}));
 }
 
 // Splits a legacy single-string name on the FIRST space, remainder to the
@@ -107,8 +144,11 @@ module.exports = {
   AGE_MIN,
   AGE_MAX,
   NAME_LIMITS,
+  FULL_NAME_LIMIT,
   formatCharacterName,
   formatBareName,
+  nameKey,
+  matchesTypedName,
   splitLegacyName,
   normalizeHonorific,
   normalizeEarnedHonorific,

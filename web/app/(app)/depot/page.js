@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import DepotView from "./DepotView";
-import Loading from "../loading";
+import Loading from "../Skeleton";
 import {
   prisma,
   MERCHANT_LICENSE_SLUG,

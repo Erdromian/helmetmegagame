@@ -1,7 +1,7 @@
 // A line the WORLD says, written down.
 //
 // db/lib/ambientLine.js is how one of these LOOKS on Discord (`-#` subtext);
-// this is how it is RECORDED, so Chat (/play) can show it too. Until phase
+// this is how it is RECORDED, so Chat (/chat) can show it too. Until phase
 // 4 none of them archived at all, which meant a web player never saw a gate
 // crossing, a smell, a turret burst or a noticeboard pin — the scene simply
 // did not happen on that face.
@@ -33,9 +33,8 @@ const {
 } = require("./placeKey");
 
 // `text` is the line; `lines` are quoted extras under it, taking the same `»`
-// ambientLine gives them. `signed` decides the ‡ and defaults to true for the
-// same reason ambientLine's does — a caller opts out only for words Bascinet
-// wrote verbatim, or for text that already carries its own mark.
+// ambientLine gives them. `signed` is still accepted so callers need not
+// change, but it does nothing now — see below.
 async function sceneLine(prisma, { placeKey, text, lines = [], signed = true } = {}) {
   if (!placeKey) return null;
 
@@ -45,9 +44,12 @@ async function sceneLine(prisma, { placeKey, text, lines = [], signed = true } =
   ].filter(Boolean);
   if (body.length === 0) return null;
 
-  // One ‡ per row, at the very end — the same rule ambientLine keeps for the
-  // message it renders, so the two faces carry the same single mark.
-  const content = `${body.join("\n")}${signed ? " ‡" : ""}`;
+  // The mark is no longer appended, the same call ambientLine.js made in the
+  // copy pass and for the same reason: a scene row is the world moving, not
+  // drafted copy, and marking every arrival and every overheard shout put a ‡
+  // in front of players a hundred times a day.
+  void signed;
+  const content = body.join("\n");
 
   try {
     const context = await archiveContextForPlaceKey(prisma, placeKey);

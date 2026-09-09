@@ -1,6 +1,6 @@
 // Torture, the pure half (docs/systemdocs/TORTURE.md). A Torturer picks a
 // Bound person standing where they are, one die is rolled, and this file says
-// whether they broke. Prisma-free, the same posture as the top of fear.js:
+// whether they broke. Prisma-free, the same posture as the top of mood.js:
 // the web action loads the rows, this decides, the test reads it directly.
 //
 // Off the @lifeweb/db barrel on purpose; require it by path.
@@ -32,8 +32,9 @@ const TORTURE_BONUSES = Object.freeze([
 
 // Everything a broken person gives up, minus what the room could already see
 // or a medic could already read: wounds and the transient statuses (Bound,
-// Hungry, the fear bands, the meal markers). Those are not secrets, and they
-// would bury the ones that are. Tag.category stores the DISPLAY name.
+// Hungry, the meal markers). Those are not secrets, and they would bury the
+// ones that are. Tag.category stores the DISPLAY name. (The fear bands used
+// to be on that list; the mood dial is not a tag at all now — MOOD.md.)
 const STATUS_CATEGORY = "Status";
 const REVEAL_EXCLUDED_CATEGORIES = new Set([HEALTH_CATEGORY, STATUS_CATEGORY]);
 
@@ -62,8 +63,8 @@ function tortureBonuses({ torturerSlugs = [], equipmentInReach = false } = {}) {
   );
 }
 
-// `gambitMods` is gambitModifiers(torturerTags, { hungerStreak }) — Hungry,
-// Afraid, Panic — computed by the caller because those read Character columns
+// `gambitMods` is gambitModifiers(torturerTags, { hungerStreak, mood }) — Hungry,
+// Afraid, Panicking — computed by the caller because those read Character columns
 // this file never sees. They count here exactly as they would on any Gambit.
 function resolveTorture({ die, torturerSlugs = [], targetSlugs = [], equipmentInReach = false, gambitMods = [] }) {
   const modifiers = [...tortureBonuses({ torturerSlugs, equipmentInReach }), ...gambitMods];

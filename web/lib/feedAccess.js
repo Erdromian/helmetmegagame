@@ -1,3 +1,4 @@
+import { cache } from "react";
 import "server-only";
 import { prisma } from "@lifeweb/db";
 import { placesFor as placesForCharacter, findPlace, mayReadPlace, mayWritePlace } from "@lifeweb/db/lib/feedAccess";
@@ -111,7 +112,25 @@ async function notableWatermarks(client, places, character) {
         where: {
           ...base,
           ...placeSeqWhere(floors, allKeys),
-          content: { contains: `{char:${character.id}}` },
+          // Both spellings of a mention. The token carries the name it was
+          // sent under now (db/lib/characterMentions.js), so the bare form
+          // only ever matches a row written before that — and a bare
+          // `{char:<id>` prefix would be wrong in the other direction, since
+          // nothing makes one cuid a non-prefix of another.
+          //
+          // Under AND, not a bare OR: placeSeqWhere returns its OWN `OR` when
+          // the set spans both zone summaries and turn places, and a sibling
+          // `OR` key would overwrite it — dropping the place scoping entirely
+          // and marking this reader notable for mentions in rooms they cannot
+          // read.
+          AND: [
+            {
+              OR: [
+                { content: { contains: `{char:${character.id}}` } },
+                { content: { contains: `{char:${character.id}|` } },
+              ],
+            },
+          ],
         },
         _max: { seq: true },
       }),
@@ -161,7 +180,10 @@ export async function loadFeedCharacter(discordUserId) {
 // alternative is a GM who cannot use their own sheet.
 //
 // `options` is what every db/lib/feedAccess.js call needs: `{ gm, discordUserId }`.
-export async function loadFeedViewer() {
+// cache()d because every page's header asks for it now (AppHeader -> TurnMeta)
+// and /chat asks again for its own load. One small indexed lookup either way,
+// but there is no reason for a page to run it twice in a request.
+export const loadFeedViewer = cache(async () => {
   const { session, isGm } = await getGmSession();
   if (!session?.discordUserId) return { discordUserId: null, character: null, gm: false, options: null };
 
@@ -173,4 +195,4 @@ export async function loadFeedViewer() {
     gm,
     options: { gm, discordUserId: session.discordUserId },
   };
-}
+});

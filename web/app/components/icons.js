@@ -8,7 +8,7 @@
 // Sizing is the caller's job, same as before: `width`/`height` props for a
 // one-off (IconButton passes 15), CSS on `svg` for a family (.rail-item).
 //
-// Six glyphs have no Lucide equivalent and stay hand-drawn at the bottom of
+// Nine glyphs have no Lucide equivalent and stay hand-drawn at the bottom of
 // the file, redrawn to Lucide's conventions so they sit in the same weight.
 
 import {
@@ -38,6 +38,7 @@ import {
   HeartCrack,
   Bandage,
   Soup,
+  Ham,
   RefreshCw,
   Trash2,
   Hammer,
@@ -60,6 +61,7 @@ import {
   BellOff,
   Camera,
   Search,
+  OctagonMinus,
   X,
 } from "lucide-react";
 
@@ -112,11 +114,11 @@ export const CameraIcon = lucide(Camera, "CameraIcon");
 export const SearchIcon = lucide(Search, "SearchIcon");
 
 // Showing somebody out of a conversation or a private room
-// (web/app/(app)/play/MembersStrip.js). A dismissal, not a deletion:
+// (web/app/(app)/chat/MembersStrip.js). A dismissal, not a deletion:
 // TrashIcon says the person is being thrown away, which is the wrong
 // sentence for "they may not come in here any more".
 export const CloseIcon = lucide(X, "CloseIcon");
-// The Play page: a doorway you speak through. A plain speech bubble would have
+// The Chat page: a doorway you speak through. A plain speech bubble would have
 // read as MessageIcon at rail size, which is the GM's inbox.
 export const PlayIcon = lucide(DoorOpen, "PlayIcon");
 // Chat's mention chime, at the foot of the places column. Two glyphs
@@ -167,6 +169,10 @@ export const HandOffIcon = lucide(ArrowLeftRight, "HandOffIcon");
 export const LootIcon = lucide(Hand, "LootIcon");
 // Bind — a chain link.
 export const ShackleIcon = lucide(Link, "ShackleIcon");
+// Intercept — a halt sign. Not the Hand that Loot already wears, and not the
+// Link that Bind wears: laying in wait is neither taking nor tying, it is
+// standing in somebody's way (docs/systemdocs/INTERCEPT.md).
+export const InterceptIcon = lucide(OctagonMinus, "InterceptIcon");
 // Free — the key that opens it.
 export const KeyIcon = lucide(KeyRound, "KeyIcon");
 // A bird in flight, for the Bird's letter.
@@ -236,20 +242,16 @@ export function AnkhIcon(props) {
   );
 }
 
-// Butcher — a cleaver: a broad rectangular blade with a short handle off its
-// heel. Squared-off and blade-heavy so it doesn't read as the hammer at 16px.
-export function CleaverIcon(props) {
-  return (
-    <Glyph {...props}>
-      <path d="M4 4.5h11v9.5H4z" />
-      <path d="M15 6.5h3.5M18.5 6.5V19" />
-    </Glyph>
-  );
-}
+// Butcher — a ham. Lucide has no cleaver, and the hand-drawn one it replaces
+// proved why that is hard: an outlined rectangle at 16px is a saucepan, not a
+// blade. Lucide's own knife (`Slice`) is legible but is the same diagonal as
+// the Pencil. The joint reads as butchery at any size and can't be mistaken
+// for anything else in the strip.
+export const HamIcon = lucide(Ham, "HamIcon");
 
-// Mutilate — shears. It sits next to the Cleaver in the grid and has to read
-// as a different verb at 16px: the cleaver is one heavy blade taking a whole
-// body, this is two small ones taking a piece.
+// Mutilate — shears. It sits next to Butcher's ham in the grid and has to
+// read as a different verb at 16px: Butcher takes a whole body and gives you
+// meat, this takes a piece off somebody still standing.
 export function ShearsIcon(props) {
   return (
     <Glyph {...props}>
@@ -304,6 +306,21 @@ export function HoodIcon(props) {
       <path d="M12 3c-3.6 0-6 3.1-6 7 0 2.4 1 4.4 2.5 5.5" />
       <path d="M12 3c3.6 0 6 3.1 6 7 0 2.4-1 4.4-2.5 5.5" />
       <path d="M8.5 15.5 5 17.5V21h14v-3.5l-3.5-2" />
+    </Glyph>
+  );
+}
+
+// Lips, for the Kiss verb (docs/systemdocs/KISS.md). Bascinet asked for the
+// lips emoji; 💋 is the only colour glyph that would ever have sat in the verb
+// strip, which is otherwise a row of monochrome line icons that take the
+// theme's colour — so it is drawn instead of pasted. The cupid's bow on top
+// and the fuller lower lip are what read at 16px; the centre line is what
+// stops it looking like a leaf.
+export function KissIcon(props) {
+  return (
+    <Glyph {...props}>
+      <path d="M12 9.5c1.2-2 3-2.8 4.8-2.4 2 .5 3.2 2.2 3.2 4 0 3.2-3.6 6.4-8 6.4S4 14.3 4 11.1c0-1.8 1.2-3.5 3.2-4C9 6.7 10.8 7.5 12 9.5Z" />
+      <path d="M4.4 10.6c2.4.9 5 1.3 7.6 1.3s5.2-.4 7.6-1.3" />
     </Glyph>
   );
 }

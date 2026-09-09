@@ -31,6 +31,7 @@ import { prisma } from "@lifeweb/db";
 import { settleCarry, deliverCarryDrop } from "@lifeweb/db/lib/carry";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { reconcileCorpses } from "@lifeweb/db/lib/corpseFollow";
+import { refreshCorpseWeight } from "@lifeweb/db/lib/corpseWeight";
 import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 
 // `characters`: ids or rows (anything with `.id`), one or many. Rows are
@@ -43,6 +44,12 @@ export async function afterInventoryChange(characters) {
       console.error(`settleCarry failed for ${id}:`, err);
       return null;
     });
+    // A dead character's body weighs what they weigh PLUS what is still on
+    // their sheet (db/lib/corpseWeight.js), so looting one lightens it for
+    // whoever is carrying it. settleCarry above returns early for anybody not
+    // ALIVE, so this is the only thing that keeps a corpse's weight honest.
+    // No-ops for the living, who have no corpse row.
+    await refreshCorpseWeight(prisma, id).catch(() => {});
     const row = await prisma.character
       .findUnique({ where: { id }, select: { id: true, discordUserId: true, locationId: true, status: true } })
       .catch(() => null);

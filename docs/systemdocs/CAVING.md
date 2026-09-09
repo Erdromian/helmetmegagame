@@ -85,13 +85,14 @@ Three callers:
   had dropped underground, and without this a staged relocation into the Depths
   would roll nothing at all until the character walked.
 
-### 2a. Customs is safe
+### 2a. The cave mouth is safe
 
 `Location.attributes.safe` (`db/lib/locationAttributes.js`) exempts a Location
-from the Die, and **Customs is the only place that wears it**. It is a cave
-mouth with a sentry, a floodlight, a campfire and a shop in it; nothing stalks a
-place that busy. It is also where every migrant lands, and rolling a 1 on
-somebody's first step into the game was the worst first impression the map had.
+from the Die, and **Customs and the Depot are the only two places that wear
+it**. Between them they are the cave mouth: a sentry, a floodlight, a campfire
+and, one plain hop east, a shop. Nothing stalks a place that busy. Customs is
+also where every migrant lands, and rolling a 1 on somebody's first step into
+the game was the worst first impression the map had.
 
 It is an attribute rather than a slug comparison in `cavingPass.js` for the
 reason `MAP.md` §1b gives: a system that owns a place should ask what is true
@@ -101,33 +102,55 @@ instead of inferring it from a week of quiet rolls. The line names the Die
 rather than just promising safety, because the attribute means *this* one
 specific thing and a surface Location's silence must not read as a warning.
 
-**One consequence worth stating plainly.** Same-zone travel is free, and the
-Caves and the Depths hold eight non-safe Locations between them, so a caver who
-walks the level now rolls up to eight times in a turn where the old turn-start
-pass rolled once. Camping is free and exploring is expensive — which is the
-design, but it is roughly an eight-fold increase in TROUBLE for anyone actually
-moving, and the GM load on the Caving lens rises with it.
+**One consequence worth stating plainly.** Same-zone travel is free, so a caver
+who walks the level rolls once per step where the old turn-start pass rolled
+once per day. Camping is free and exploring is expensive — which is the design,
+but it is a large increase in TROUBLE for anyone actually moving, and the GM
+load on the Caving lens rises with it. §2b is the other half of that arithmetic:
+there is no ceiling on the steps.
 
-### 2b. One roll per Location per turn
+### 2b. Every arrival rolls
 
-`CavingRoll.@@unique([characterId, turnId, trigger, locationId])` is the cap.
-Walk from one cave into the next and each of them rolls; walk *back* into
-somewhere you already saw today and it is silent. `rollCaving` swallows that
-repeat's `P2002` as "already rolled" — never a second roll, never an error
-surfaced to the player.
+**There is no cap.** Walk from one cave into the next and each rolls; walk
+*back* through the four rooms you came in by and each of those rolls again.
+First visit or fifth, the die does not care.
 
-That is the anti-pacing rule, and it is what makes the Die a cost of
-*exploration* rather than a slot machine you feed by walking in and out of a
-doorway. The 60-second intra-zone move cooldown is a second brake on top of it.
+It used to care. `CavingRoll.@@unique([characterId, turnId, trigger,
+locationId])` capped it at one roll per Location per turn, and `rollCaving`
+swallowed the repeat's `P2002` as "already rolled". The argument was
+anti-pacing: make the Die a cost of *exploration* rather than a slot machine
+you feed by walking in and out of a doorway. What it actually produced was a
+caver backtracking out of the Depths through four rooms of known monsters in
+total silence, which reads as a broken die and not as a rule — nothing on the
+way in tells you the way out is free. The index is dropped
+(`20260914010000_caving_every_arrival`) and the P2002 branch is gone with it;
+a P2002 out of `rollCaving` would now be a real bug.
 
-`CavingRoll.locationId` is nullable only because the rows written before this
-change have none; every new row sets it.
+**What replaced the brake: nothing, deliberately.** The only thing rationing
+rolls now is `GameConfig.locationMoveCooldownSeconds` — the wait between two
+walks inside one zone, **3 seconds** by default. So a player standing between
+two adjacent cave rooms can roll every few seconds, all turn: an uncapped loot
+faucet, an uncapped `CAVE_TROUBLE` mood drain (`MOOD.md`), and an uncapped
+supply of unresolved `TROUBLE` rows on the Caving lens. That was chosen with the numbers
+on the table, not overlooked. If it does start to bite, the lever is that
+cooldown on `/gm/dev` — a GM can price a cave step at a minute without anybody
+touching code, and a per-turn roll ceiling is the next thing to build if the
+cooldown is not enough.
+
+The public brief has always described it this way, incidentally: "each
+movement from a location to another within the caves has a chance to trigger
+an encounter", and "hunkering down in a single location reduces your chances"
+(`docs/documents.yaml`, key `caving`). Only now is that exactly true.
+
+`CavingRoll.locationId` is nullable only because the rows written before the
+Die became arrival-only have none; every new row sets it. It gates nothing —
+it is what lets the lens say *where*.
 
 ### What each face means
 
 | Die | Kind | What happens |
 |---|---|---|
-| 1 | `TROUBLE` | Nothing auto-applies. The row lands **unresolved** on the Caving lens for a GM to adjudicate — monsters are a GM call, briefed by the GM-only `cavingmonsters` document (`documents.yaml`). The player gets one short DM immediately: *"Caving Die: 1 — Something is wrong down here. A GM has been notified."* The caver also takes +10 fear, tripled by Teratophobia (`FEAR.md`). |
+| 1 | `TROUBLE` | Nothing auto-applies. The row lands **unresolved** on the Caving lens for a GM to adjudicate — monsters are a GM call, briefed by the GM-only `cavingmonsters` document (`documents.yaml`). The player gets one short DM immediately: *"Caving Die: 1 — Something is wrong down here. A GM has been notified."* The caver also takes −10 mood, tripled by Teratophobia (`MOOD.md`). |
 | 2–5 | `QUIET` | Stamped resolved at creation. No GM attention — the row exists as a record (so the lens' default filter, and a GM skimming the log, both read the truth). The player still gets one line: *"Caving Die: 3 — Nothing happens."* |
 | 6 | `FIND` | Draws a loot tier and a tag (below), grants it, and DMs the player what they found. Also resolved at creation — the grant already landed. |
 
@@ -140,7 +163,7 @@ a die that never rolled, so it now says so in one line.
 hidden butcher craft): when the die lands `TROUBLE` for a holder, one lure is
 spent in the same transaction — the conditional write is the check — and the
 row lands `QUIET`, already resolved, so nothing reaches the Caving lens and
-no `CAVE_TROUBLE` fear fires. The DM says what happened: whatever it was
+no `CAVE_TROUBLE` mood hit fires. The DM says what happened: whatever it was
 followed the stink instead. One lure, one trouble; the next 1 is real.
 
 ## 3. The loot table
@@ -181,16 +204,17 @@ to carry what all three tiers below the surface used to.
 weapon/armor entries pull representative slugs off `SMITHING.md` §3/§4's
 ladder rather than every entry in it:
 
-- **Ultracommon** — Cave Fungus, Saltpeter.
+- **Ultracommon** — Cave Fungus, Saltpeter, Purring Maggot, Rock.
 - **Common** — Cudgel, Purse, Cracked Bone Club, Sling, Skinned Cave Rat, Old
-  Coin.
-- **Uncommon** — Alcohol, Cleaning Powder, Fine Meal, Bear Trap, plus
-  low-tier weapons and armor.
+  Coin, Coal.
+- **Uncommon** — Alcohol, Cleaning Powder, Fine Meal, Bear Trap, Rope, Honey,
+  Buckler, Spear, Work Knife, Knuckle Duster, plus low-tier weapons and armor.
 - **Rare** — Ravenheart Red, Cat, Salvage Plate, Supply Kit, Jewelry, Bliss,
-  Spyglass, Gas Mask, plus mid-tier weapons and armor.
+  Spyglass, Gas Mask, Instrument, Mining Helmet, plus mid-tier weapons and
+  armor.
 - **Extremely rare** — EMP Grenade, refined gunpowder, Skeleton Wedge,
   Jester Outfit, Starting Wares, Military Autoinjector, Autocannon Shell,
-  plus top-tier weapons and armor.
+  Fragmentation Grenade, Neoclassic Duelista, plus top-tier weapons and armor.
 - **Nearly impossible** — Energy Shield, Power Fist, the Neoclassic
   Revolver, Stepstone, Dark-Eye Lenses, Motorcycle.
 
@@ -288,10 +312,20 @@ gear, bulk goods and salvage. The six originals kept their numbers: Graga Sac
 Autoinjector (10). See [`DEPOT.md`](DEPOT.md) §4, which is now canonical for
 all of it.
 
-Two of the caving artifacts are also on the Depot's *buy* shelf — the
+Three of the caving artifacts are also on the Depot's *buy* shelf — the
 Motorcycle and the Flamethrower, which the station has no trouble sourcing and
-Ravenheart has every trouble hauling out of the Caves. Nothing else on the loot
-table is purchasable at any price.
+Ravenheart has every trouble hauling out of the Caves, and the **Mining
+Helmet** (14 ⬢), which is station work rather than forge work: the plates are
+a Simple Helm's, the lamp is not. Nothing else on the loot table is purchasable
+at any price.
+
+**Two of the new entries are not only loot.** `rock` is seeded by hand into
+thirteen rooms across the Caves, the Depths, the Black Hills, the Mountain and
+the Headwaters (`docs/zones.yaml`), so the ground is a source and the die is a
+bonus. `purring-maggot` is the loot; **`maggot-milk` is not on the table at
+all** — it is what a holder of Brewing (Basic) makes of one maggot for 1 ⬢, and
+it calms exactly as much as tea does (`db/lib/mood.js` `CONSUME_RELIEF`) while
+the raw maggot only poisons.
 
 ## 7. Two catalog fields this update added
 
@@ -308,10 +342,9 @@ Both documented in full in `schema.prisma`'s `Tag` model comments and read by
   and order, for an even random pick between alternatives —
   `{ oneOf: [...] }` in `docs/tags.yaml`, the same shape `expiresInto`
   already used. `Skinned Cave Rat` is the first user: 50/50 Ate Meal or
-  Vomiting. The "Becomes:" previews on `/character` render an unresolved
-  `oneOf` position as "A or B" rather than rolling a real pick on every
-  render or hover — `resolveConsumeGrants` still exists for the server
-  action, which does commit to one.
+  Vomiting. Nothing is previewed on `/character` — a player clicks Consume in
+  the tag's tooltip and finds out — so `resolveConsumeGrants`, which commits
+  to one, runs only in the server action.
 
 ## 8. The Radio rename
 

@@ -11,14 +11,19 @@
 // everything else is derived from it, which is the point: the old set and a
 // speech gate maintained separately would have drifted within a month.
 //
-// Two capabilities, because two is what the game actually distinguishes:
+// Three capabilities, because three is what the game actually distinguishes:
 //
 //   ACT    the physical half — equip, craft, destroy, labor, butcher, trade,
 //          extract, teach, confess. "Can't act" must stay literally true of
 //          every slug that blocks it, because db/lib/autoLaborPass.js skips
 //          filing an auto-Labor for them.
 //   SPEAK  the voice half — the proxy (ordinary chat, whispers, the Speak
-//          modal), /shout, the Council Room intercom, a Bird reply.
+//          modal), the Council Room intercom, a Bird reply.
+//   SHOUT  the loud half — /shout and nothing else. Split off SPEAK because
+//          {tag:mute} is the one state that takes the carrying voice without
+//          taking the ordinary one. SPEAK IMPLIES SHOUT: a slug that removes
+//          your voice removes your yell too, so no entry ever lists both, and
+//          expandCaps() below is what keeps the two from drifting apart.
 //
 // Deliberately NOT capabilities: seeing and hearing. Vision already has two
 // homes that predate this file (db/lib/examineVision.js,
@@ -29,12 +34,37 @@
 // is roleplay, as it always has been.
 const ACT = "ACT";
 const SPEAK = "SPEAK";
+const SHOUT = "SHOUT";
+// KISS is the fourth, and the narrowest: it gates one verb
+// (docs/systemdocs/KISS.md). It is separate from ACT rather than folded into
+// it because the two disagree in both directions — {tag:mute} acts and kisses
+// fine, and {tag:broken-jaw} acts fine with its mouth wired shut.
+const KISS = "KISS";
+
+// Two implications, written once here rather than by listing the second half
+// beside every first half in the table, because that second half is exactly
+// the thing somebody forgets.
+//
+//   SPEAK implies SHOUT   a slug that takes your voice takes your yell too.
+//   ACT   implies KISS    every state that leaves you unable to act — bound,
+//                         dying, unconscious, crucified — is also a state
+//                         nobody can kiss you in. This is what makes the
+//                         "a kiss needs somebody who can answer" rule fall
+//                         out of the table instead of being a second list.
+function expandCaps(caps) {
+  const out = caps.includes(SPEAK) ? [...caps, SHOUT] : [...caps];
+  if (caps.includes(ACT) && !out.includes(KISS)) out.push(KISS);
+  return out;
+}
 
 // The table. A slug absent from here takes nothing away.
 //
-//   bound        can't act, CAN shout. Being tied up is the one state where
-//                calling for help is the whole point, and a hostage nobody
-//                can hear is a hostage nobody can rescue.
+//   bound        can't act, CAN shout — but the shout no longer carries past
+//                the place you are standing in, and says so ("but it's
+//                muffled"). That MUFFLE lives in db/lib/say.js#loadVoiceState
+//                as shoutMuffled, not in this table, because the table is
+//                about what is refused and a muffle refuses nothing. The
+//                people beside you still hear you; nobody a street away does.
 //   dying        can't act, CAN speak. Last words are the tradition.
 //   catatonic-afk  can't act, CAN speak — and this one is not a taste call.
 //                db/lib/catatonicPass.js DMs the player "it lifts the moment
@@ -50,7 +80,14 @@ const SPEAK = "SPEAK";
 //   crucified    can't act, CAN speak — nailed up in the Square is the one
 //                place last words are the whole show. Put on by the Crucify
 //                button; becomes Dying after a turn (docs/tags.yaml).
-//   mute         speech only. Acts normally — a mute smith is still a smith.
+//   mute         shouting only. Acts normally — a mute smith is still a smith —
+//                and talks normally too: it went from blocking every word a
+//                character said to blocking only the ones they have to bellow.
+//                Bought speechlessness turned out to be a tag that removed the
+//                player from the game rather than the character from a
+//                conversation, so it is no longer purchasable either
+//                (docs/tags.yaml); the tongue rung of the Mutilate ladder
+//                (db/lib/mutilate.js) is what puts it on somebody now.
 const RESTRICTIONS = {
   dying: [ACT],
   "catatonic-afk": [ACT],
@@ -59,7 +96,38 @@ const RESTRICTIONS = {
   seizure: [ACT, SPEAK],
   paralyzed: [ACT, SPEAK],
   unconscious: [ACT, SPEAK],
-  mute: [SPEAK],
+  mute: [SHOUT],
+
+  // KISS only. Everything above already blocks it through ACT (see
+  // expandCaps); these are the states that leave a character walking and
+  // working and still in no condition to kiss anybody. Three groups:
+  //
+  //   nobody home    asleep, blind-drunk, hallucinating, madness, sepsis,
+  //                  pain-shock, stupid — the consent is not there to give.
+  //                  {tag:madness} also compels an attack on whoever is
+  //                  standing nearby, which settles it twice over.
+  //   the mouth      broken-jaw, wired-jaw, choking, vomiting. The injury IS
+  //                  the mouth; {tag:wired-jaw} is literally wired shut.
+  //   nothing left   gibbed, exploded-chest. Both are unrecoverable, and both
+  //                  can sit on a row the engine has not finished with.
+  //
+  // Illness is deliberately absent. Leper, Pox, Consumptive and the rest all
+  // kiss freely — Bascinet's call, and the same posture TAGS.md §5f takes
+  // about what is NOT gated ("somebody can always pour a drink into you").
+  asleep: [KISS],
+  "blind-drunk": [KISS],
+  hallucinating: [KISS],
+  madness: [KISS],
+  sepsis: [KISS],
+  "pain-shock": [KISS],
+  stupid: [KISS],
+  "disabled-shocked": [KISS],
+  choking: [KISS],
+  vomiting: [KISS],
+  "broken-jaw": [KISS],
+  "wired-jaw": [KISS],
+  gibbed: [KISS],
+  "exploded-chest": [KISS],
 };
 
 // A living character who can't defend themselves or walk away — the target
@@ -116,7 +184,7 @@ function slugSet(characterTags) {
 function blockerFor(characterTags, capability) {
   const held = slugSet(characterTags);
   for (const [slug, caps] of Object.entries(RESTRICTIONS)) {
-    if (!caps.includes(capability) || !held.has(slug)) continue;
+    if (!expandCaps(caps).includes(capability) || !held.has(slug)) continue;
     const match = (characterTags ?? []).find((ct) => (ct?.tag?.slug ?? ct?.slug) === slug);
     return { slug, name: match?.tag?.name ?? match?.name ?? slug };
   }
@@ -128,13 +196,15 @@ function blockerFor(characterTags, capability) {
 // all on the hottest path in the game.
 function slugsBlocking(capability) {
   return Object.entries(RESTRICTIONS)
-    .filter(([, caps]) => caps.includes(capability))
+    .filter(([, caps]) => expandCaps(caps).includes(capability))
     .map(([slug]) => slug);
 }
 
 module.exports = {
   ACT,
   SPEAK,
+  SHOUT,
+  KISS,
   RESTRICTIONS,
   INCAPACITATING_SLUGS,
   FINISHABLE_SLUGS,

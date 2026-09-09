@@ -74,10 +74,11 @@ role (§3).
 > lands there is arrivals, gate crossings, smells, the turret, the noticeboard
 > and the turn line. **Talk happens in a Room thread, a Conversation or the
 > zone's `#summary`** — all of them a scene somebody chose to be in. Three
-> things carry the rule: `LOCATION_MEMBER_ALLOW` drops Send (§3),
+> things carry the rule: the `@everyone` **`SendMessages` deny** in
+> `locationChannelSpec` (§3),
 > `bot/src/lib/channels.js#isDesignatedTupperChannel` stops treating a
 > top-level Location channel as a tupper channel (so a GM typing there is left
-> alone rather than reposted under a mask), and `/play` draws no composer on a
+> alone rather than reposted under a mask), and `/chat` draws no composer on a
 > Location (`CHAT.md` §5b).
 
 **Room threads carry no slowmode.** The 5-minute one is `#summary`'s alone; a
@@ -172,7 +173,7 @@ The overwrites every target carries (`baseOverwrites`):
   every phase transition runs `syncSpectatorAccess`, which PUTs only where
   the live bits differ; and the doctor's **cheap** scope carries a
   `spectator-visibility` check as the backstop.
-- **The ghost seat** (`db/lib/cursedAccess.js`) — see §5.
+- **The ghost seat** (`db/lib/ghostAccess.js`) — see §5.
 
 On top of that: the zone role gets `ViewChannel` + `SendMessages` +
 `AddReactions` on `#summary`. Each character standing in a Location gets
@@ -189,9 +190,22 @@ does not update itself. The doctor's `location-occupancy` check therefore
 compares the **allow bits**, not merely whether a target is present, so one
 `npm run db:doctor -- --apply` rewrites every existing occupant (§6).
 
-**Room and Conversation creation is denied to `@everyone` on every Location
-channel.** `CREATE_PUBLIC_THREADS` and `CREATE_PRIVATE_THREADS` are both
-denied, while `SEND_MESSAGES_IN_THREADS` stays open — so players can talk
+> **Taking a bit out of an allow denies nothing.** Dropping `SendMessages` from
+> `LOCATION_MEMBER_ALLOW` was, on its own, decorative: Discord resolves a
+> channel from the guild-level `@everyone` permissions first, and `@everyone`
+> carries Send Messages guild-wide. So for two days the street was quiet on the
+> web and still open on Discord — and worse than open, because
+> `isDesignatedTupperChannel` had already stopped watching, so anything typed
+> there posted under the player's real Discord name, unproxied and unarchived.
+> The deny that carries the rule lives on `@everyone` in `locationChannelSpec`,
+> the same shape `#turns`, the spectator seat and the ghost seat all use. The
+> allow mask says what an occupant gains over `@everyone`; only a deny takes
+> something away.
+
+**Send, Room creation and Conversation creation are all denied to `@everyone`
+on every Location channel.** `SEND_MESSAGES`, `CREATE_PUBLIC_THREADS` and
+`CREATE_PRIVATE_THREADS` are denied, while `SEND_MESSAGES_IN_THREADS` stays
+open — a separate bit, so the quiet street does not reach into its rooms — so players can talk
 inside any thread they can see but can never open one themselves. The bot
 alone creates a Room (the sync, from `docs/zones.yaml`) or a Conversation (the
 Converse button, §4). Players hold no create permission anywhere, which is
@@ -222,7 +236,7 @@ its writers find it by exact name (`isTurnsChannel` in
 in `db/lib/turnsChannelAccess.js#syncTurnsChannelAccess`:
 
 - `@everyone` denied `ViewChannel` + `SendMessages` + `AttachFiles`. The
-  channel stays bot-only; the console's Travel/Move/Speak buttons are
+  channel stays bot-only; the console's Move/Travel buttons are
   components, not messages, so nobody needs send.
 - **every** zone role allowed `ViewChannel`. This is the gate. A living
   character holds exactly one zone role from the moment `createCharacter` runs,
@@ -345,9 +359,13 @@ departed player still reading rooms.
 Location has none of the grants this section describes. No member overwrite on
 the Location channel, no zone role (so no `#summary` and no `#turns`, whose
 view grants ride the zone roles), no narrowcast overwrite, and no membership in
-any Room or Conversation thread. Their DMs, their turn-ping role and the OOC
-report channel are untouched — the report channel is opened by the Player role
-rather than per character, so there was never anything to take away.
+any Room or Conversation thread — **and no turn-ping role**, because the turn
+ping is a `<@&…>` inside the `#turns` console and `#turns` is one of the
+channels the line above has just closed to them. Keeping it meant a ping twice a
+day about a message they could not open, and the console is replaced every turn,
+so it was gone by the time they looked. Their DMs and the OOC report channel are
+untouched — the report channel is opened by the Player role rather than per
+character, so there was never anything to take away.
 
 The fiction does not change: they still stand where they stand, they still show
 in Who's here?, they still hold their keys and their guest rows, and they are
@@ -589,7 +607,7 @@ ordinary unknown thread is (§8). The web `/map` panel is gone too (`MAP.md`).
 
 ## 5. The ghost seat
 
-The Cursed role — a dead player, not yet buried or engraved — gets
+The Ghost role — a dead player, not yet buried or engraved — gets
 `ViewChannel` plus `AddReactions` and a deny on everything else, including
 `ManageThreads`. Reactions are allowed where the spectator seat denies them,
 so a ghost can still ⭐ a message onto their own `/notes` page. That grant
@@ -617,7 +635,8 @@ every mismatch, and — with `apply` — repairs it. **Dry run by default.**
 Two scopes:
 
 - **cheap** — role membership (zone roles vs `Character.zoneId`, turn-ping vs
-  `turnPingOptIn`, cursed vs the dead-and-not-yet-rerolled set), character
+  `turnPingOptIn` **and not `webOnly`**, cursed vs the dead-and-not-yet-rerolled
+  set), character
   roles existing/orphaned, **`location-occupancy`** (below), a
   **`connection-slug`** check that every tag and Role a `LocationLink` names
   actually exists in the catalogs — they cannot be foreign keys, because tags
@@ -639,7 +658,12 @@ Two scopes:
   the structure pass already fetched.
 - **full** — all of the above plus the expensive halves: zone and **Location
   channel overwrites** vs the spec (the *role* half; occupancy is cheap-scope),
-  leftover per-member overwrites on zone channels, **`room-thread`** (a Room's thread exists and is
+  leftover per-member overwrites on zone channels — **`member-overwrite`**, and
+  it skips Location channels on purpose, because there the per-member overwrite
+  is the access mechanism rather than a leftover. It used to sweep those too,
+  which meant one `--full --apply` threw every player out of every Location
+  channel at once and left them out until the next run, since `location-occupancy`
+  has already gone by the time the full scope starts — **`room-thread`** (a Room's thread exists and is
   unarchived — recreating a missing one is the sync's job, so this is
   report-only), **`room-membership`** (a private Room's actual thread
   membership vs who currently holds one of its `accessTagSlugs` **or a
@@ -821,7 +845,7 @@ fires identically whether the turn came from the bot's nightly cron or a GM's
 sets `GameConfig.feedWipeSeq` to the newest `ArchiveEntry.seq` as it BEGINS,
 and `feedWipeSummarySeq` alongside it on a Dawn
 (`db/lib/feedWipe.js#markFeedWiped`, called from `db/index.js` immediately
-before `runMessageWipe`). Every feed query on `/play` then reads `seq >` the
+before `runMessageWipe`). Every feed query on `/chat` then reads `seq >` the
 floor for **that place's own cadence**: a `zone:` key against the summary
 watermark, everything else against the turn one. The instant is deliberately
 the same one `cutoffMs` names below, so a message posted while the wipe is

@@ -64,8 +64,12 @@ async function syncMemberNickname(member) {
   }
 }
 
-// One-time bulk catch-up (called on bot connect) for whatever drifted while
-// the bot was offline — not a recurring poll.
+// One-time bulk catch-up for whatever drifted while the bot was offline — not
+// a recurring poll. Called from ready.js, which is `once: true`, so this is
+// once per PROCESS and not once per connect: a gateway drop the process
+// survives never re-runs it. Only the message catch-up
+// (bot/src/lib/messageCatchUp.js) hangs off shardReady as well, because a
+// missed message is lost for good and a stale nickname is merely stale.
 async function syncNicknamesForGuild(guild) {
   // Gate once for the whole guild rather than once per member: the per-member
   // path re-reads GameConfig every call, which is a query per guild member

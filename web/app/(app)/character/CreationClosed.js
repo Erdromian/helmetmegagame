@@ -1,9 +1,14 @@
 import Link from "next/link";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
 
 // Shown in place of the creation wizard when a player can't roll a character
 // yet — either the game isn't running (GameState.phase) or they aren't on the
 // roster (PLAYER_ROLE_ID in db/lib/roleIds.js).
+//
+// A third case borrows the first one's face: with GameConfig.playtestModeEnabled
+// on, anyone outside the build crew is turned away as "not open yet" rather
+// than "not on the roster" (page.js's `gate.masked`). There is nothing for them
+// to apply for, and a closed rehearsal should not advertise itself.
 //
 // createCharacter enforces both independently; this exists so the reason is
 // legible up front rather than arriving as an error after four steps of work.
@@ -12,7 +17,7 @@ import PageShell, { PageHeader } from "@/app/components/PageShell";
 export default function CreationClosed({ open }) {
   return (
     <PageShell>
-      <PageHeader title={open ? "You Are Not On The Roster" : "Ravenheart Is Not Open Yet"} />
+      <h2 className="section-title">{open ? "You Are Not On The Roster" : "Ravenheart Is Not Open Yet"}</h2>
       <div className="panel flex flex-col gap-3 p-4">
         <p className="text-sm">
           {open

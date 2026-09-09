@@ -260,7 +260,14 @@ export function cavingRollRow(c, { usernameById, catatonicIds }) {
     catatonic: catatonicIds?.has(c.characterId) ?? false,
     discordUsername: nameFor,
     roleTitle: c.character.roleTitle ?? "",
-    factionZoneName: c.character.faction?.zone?.name ?? c.zone?.name ?? "",
+    factionZoneName: c.character.faction?.zone?.name ?? "",
+    // Where the die actually rolled, which for a caving row is the only zone
+    // that means anything. It used to read the SEAT zone first and fall back
+    // to this, so a Factory member (seated in the Marshes) who walked into the
+    // Caves produced a roll the lens printed as "Marshes" — and, because
+    // inVisibleZones gates on the same value, one a Caves GM could not see at
+    // all. A CavingRoll is always in a cave; the seat is beside the point.
+    zoneName: c.zone?.name ?? "",
     locationName: c.location?.name ?? null,
     die: c.die,
     kind: c.kind,

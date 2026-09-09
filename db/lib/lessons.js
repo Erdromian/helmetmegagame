@@ -17,6 +17,7 @@ const { moveWindow } = require("./turnClock");
 const { clockFrozen } = require("./gameState");
 const { isHere, notHereMessage } = require("./presence");
 const { offerButtonRow } = require("./offerRow");
+const { DM_ACTION, dmAction } = require("./dmActions");
 const {
   TEACHING_SLUG,
   LECTURING_SLUG,
@@ -27,8 +28,8 @@ const {
   DRILL_THRESHOLD,
 } = require("./constants");
 
-// What a lesson needs to know about each side. hungerStreak feeds the
-// learner's Gambit modifier, same as a hand-filed Gambit.
+// What a lesson needs to know about each side. hungerStreak and mood feed
+// the learner's Gambit modifier, same as a hand-filed Gambit.
 const LESSON_CHARACTER_SELECT = {
   id: true,
   name: true,
@@ -39,6 +40,7 @@ const LESSON_CHARACTER_SELECT = {
   buriedAt: true,
   discordUserId: true,
   hungerStreak: true,
+  mood: true,
   tags: {
     select: {
       tagId: true,
@@ -336,6 +338,7 @@ async function createLessonOffer(
       discordUserId: responder.discordUserId,
       content,
       components: offerButtonRow(offer.id),
+      meta: dmAction(DM_ACTION.OFFER, offer.id),
     },
   };
 }
@@ -427,6 +430,7 @@ async function acceptLesson(prisma, offer, responder) {
           diceRoll: rollDie(),
           diceModifier: gambitModifierTotal(learner.tags, {
             hungerStreak: learner.hungerStreak,
+            mood: learner.mood,
           }),
           zoneId: learner.zoneId ?? null,
           gmNotes: "auto:lesson",
@@ -570,6 +574,10 @@ async function declineOffer(prisma, offer, responder) {
     ESCORT: {
       content: `${responder.name} isn't coming with you.`,
       line: "You stay where you are. ‡",
+    },
+    KISS: {
+      content: `${responder.name} turned you down.`,
+      line: "You said no.",
     },
   };
   const wording = WORDING[offer.kind] ?? {

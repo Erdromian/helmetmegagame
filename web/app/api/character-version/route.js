@@ -16,6 +16,22 @@ import { deployVersion } from "@/lib/deployVersion";
 // clock. A GM grant, a bot-side move, a labor payout, a room being looted, a
 // turn closing — each moves one of those. Anything it misses is still there
 // on the next navigation, which is where the page was before this existed.
+//
+// It does NOT watch the people standing with you, and that is a decision
+// rather than an oversight. Everything the sheet knows about your neighbours
+// feeds a dialog and nothing else (web/lib/peoplePools.js: "every people pool
+// the sheet's dialogs act on"), so a neighbour being bound, arriving or
+// leaving changes not one pixel until you open something — and a dialog
+// reads its own roster the moment it opens (components/actions/useRoster.js).
+// Watching them here would mean a full render
+// of this page, on a timer, for a change nobody can see, and thirty people at
+// one Location all firing it the moment a turn moves them.
+//
+// The open handshakes are the exception, because those ARE on the page: "Waiting
+// for Ada to agree to be bound" sits under the turn card until the offer leaves
+// PENDING, and an answer given in Discord moves nothing else here. Not scoped
+// to the open turn — the lesson pass expires every PENDING offer at the close
+// (LESSONS.md §3a), so the two sets are the same set.
 export const dynamic = "force-dynamic";
 
 export async function GET() {
@@ -28,10 +44,10 @@ export async function GET() {
   });
   if (!me) return new Response("No living character.", { status: 403 });
 
-  const [tags, roomTags, roomResources, openTurn, state] = await Promise.all([
+  const [tags, roomTags, roomResources, openTurn, state, offers] = await Promise.all([
     prisma.characterTag.findMany({
       where: { characterId: me.id },
-      select: { tagId: true, quantity: true, equipped: true, expiresTurn: true },
+      select: { tagId: true, quantity: true, equipped: true, equippedQuantity: true, expiresTurn: true },
       orderBy: { tagId: "asc" },
     }),
     me.locationId
@@ -47,6 +63,9 @@ export async function GET() {
       : null,
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } }),
     prisma.gameState.findUnique({ where: { id: 1 }, select: { phase: true, nukeArmedTurn: true } }),
+    prisma.offer.count({
+      where: { status: "PENDING", OR: [{ initiatorId: me.id }, { responderId: me.id }] },
+    }),
   ]);
 
   const fp = [
@@ -54,7 +73,9 @@ export async function GET() {
     me.zoneId ?? "",
     me.resources,
     me.tagPoints,
-    tags.map((t) => `${t.tagId}:${t.quantity}:${t.equipped ? 1 : 0}:${t.expiresTurn ?? ""}`).join(","),
+    tags
+      .map((t) => `${t.tagId}:${t.quantity}:${t.equipped ? 1 : 0}:${t.equippedQuantity}:${t.expiresTurn ?? ""}`)
+      .join(","),
     roomTags?._count?._all ?? 0,
     roomTags?._sum?.quantity ?? 0,
     roomTags?._max?.updatedAt?.getTime() ?? 0,
@@ -63,10 +84,18 @@ export async function GET() {
     openTurn?.number ?? "",
     state?.phase ?? "",
     state?.nukeArmedTurn ?? "",
+    offers,
   ].join("|");
 
   return Response.json(
-    { version: deployVersion(), fp },
+    // `locationId` rides alongside the opaque `fp` rather than inside it —
+    // MapBoard.js (../map/MapBoard.js) polls this same endpoint to notice a
+    // move somebody else made (an escort, a leader dragging a party), and it
+    // only wants to know about that one thing: a plain field means it never
+    // has to parse `fp`'s internal shape, and never re-frames the board over
+    // some unrelated change (a resource spent, a turn advancing) the way
+    // comparing the whole fingerprint would.
+    { version: deployVersion(), fp, locationId: me.locationId ?? null },
     { headers: { "cache-control": "no-store" } },
   );
 }

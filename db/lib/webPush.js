@@ -63,7 +63,7 @@ async function pushToUser(prisma, discordUserId, { title, body, url } = {}) {
   }
   if (rows.length === 0) return { sent: 0, reason: "none" };
 
-  const payload = JSON.stringify({ title: title ?? "", body: body ?? "", url: url ?? "/play" });
+  const payload = JSON.stringify({ title: title ?? "", body: body ?? "", url: url ?? "/chat" });
   let sent = 0;
   for (const row of rows) {
     try {

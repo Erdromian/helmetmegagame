@@ -18,7 +18,8 @@ import { recipeRows } from "@/lib/recipeCatalog";
 // Which recipes reach the browser at all is decided server-side by
 // catalogTags() and redactWithheldRecipes() — see web/lib/recipeCatalog.js for
 // why a recipe with a secret ingredient goes missing rather than going vague.
-// Structures are dropped there too: building isn't crafting.
+// Structures ARE listed — they cost skills, turns and ⬢ like anything else,
+// and the Kind column says which are which.
 //
 // `mySkillIds` is the reader's satisfied-skill set (held tags plus the tiers
 // they replace, computed by the page) — null for a GM or a viewer with no

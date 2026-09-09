@@ -137,7 +137,7 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
     });
     const bySlug = new Map(roles.map((r) => [r.slug, r]));
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + (config.creationWindowHours ?? 24) * 3600 * 1000);
+    const expiresAt = new Date(now.getTime() + (config.creationWindowHours ?? 12) * 3600 * 1000);
 
     const assigned = [];
     const returned = [];
@@ -211,8 +211,8 @@ function assignmentMessage({ roleName, factionName, zoneName, expiresAt }, origi
     `**You're in. You are the ${roleName}.**`,
     [factionName ? `${factionName}.` : null, zoneName ? `You start in ${zoneName}.` : null].filter(Boolean).join(" "),
     `Build your character here: ${origin}/character`,
-    `The seat is yours until <t:${t}:F> (<t:${t}:R>). After that it opens to anyone.`,
-    "-# Can't make it? Press Decline and the seat goes to somebody else. ‡",
+    `The seat is yours until <t:${t}:F> (<t:${t}:R>).`,
+    "-# Can't make it? Free the seat up by pressing Decline.",
   ].join("\n");
 }
 

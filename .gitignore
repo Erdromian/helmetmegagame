@@ -29,3 +29,24 @@ local-discord-outbox.jsonl
 # Python bytecode from scripts/copy
 __pycache__/
 *.pyc
+
+# Archive packets pulled down by `npm run archive:pull` (docs/systemdocs/
+# ARCHIVE.md §6). A transcript names the character behind every /conceal and
+# this repo is public, so a packet must never be committed. The folder writes
+# its own .gitignore too, for a destination that is not this one.
+archives/
+*.jsonl.gz
+
+# Database dumps. `scripts/db/bucket.py get` writes into the working directory,
+# push.sh runs `git add -A`, and this repo is public — so a dump pulled in to
+# look at is one `npm run push` away from publishing every DM, note and journal
+# entry. A small dump is worse than a large one: GitHub bounces anything over
+# 100MB, and a pre-launch dump goes straight through.
+*.dump
+# Both of these are anchored to the root deliberately. A bare `*.sql` would
+# stop db/prisma/migrations/*/migration.sql from being committed AND blind the
+# untracked-migration guard in push.sh, which uses --exclude-standard — both
+# halves of the failure that guard exists to catch. A bare `backups/` would
+# hide a db/prisma/migrations/backups/ from it in the same way.
+/backups/
+/*.sql

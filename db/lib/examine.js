@@ -5,7 +5,7 @@
 // It exists because those two used to be one hand-written embed builder inside
 // the reaction handler, and the web button would have been a second copy of it
 // — the twin drift ARCHITECTURE.md §3 warns about, on rules (the doctor's eye,
-// the concealed read, Inscrutable) where a divergence is invisible until a
+// the concealed read) where a divergence is invisible until a
 // player notices one surface telling them something the other won't.
 //
 // Pure and Prisma-free, same posture as inspectVision.js and presence.js: it
@@ -23,7 +23,7 @@ const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
 const { formatTagRequirement } = require("./formatTagRequirement");
 const { formatTagArmor } = require("./formatTagArmor");
 const { ARMOR_TAG_FIELDS } = require("./armorValue");
-const { inspectVision, isInscrutable } = require("./inspectVision");
+const { inspectVision } = require("./inspectVision");
 const {
   HEALTH_CATEGORY,
   medicallyVisibleTags,
@@ -127,7 +127,9 @@ function thanatiLines(subjectTags = []) {
 // doctor's eye does not apply either: a surgeon reading a hood is still just
 // reading a hood.
 function concealedReadout(identity, subject) {
-  const seen = (subject.tags ?? []).filter((ct) => seenByBystander(ct.tag, ct));
+  // `false` is the whole point of this branch: a NAMED tag is a reputation
+  // attached to a face, and there is no face here (db/lib/medicalVision.js).
+  const seen = (subject.tags ?? []).filter((ct) => seenByBystander(ct.tag, ct, false));
   // Tag.category stores the display name, not the YAML slug.
   const isHealth = (ct) => ct.tag.category === HEALTH_CATEGORY;
   return {
@@ -184,6 +186,13 @@ function examineReadout({
   // presented name. presentedIdentity.js carries that distinction.
   if (identity.concealed) return concealedReadout(identity, subject);
 
+  // A forced name is not concealment — a Beast under Apex Form gets the
+  // ordinary read (see above) — but it is still not the subject's OWN name,
+  // and a Disguise Kit is exactly that: a false name over an unhidden face.
+  // So a NAMED tag comes off here too, or a wanted man would buy a kit, be
+  // read under somebody else's name, and still be read as Wanted.
+  const identityVisible = !identity.forced;
+
   const { canSeeDesire } = inspectVision(viewerTags);
   return {
     concealed: false,
@@ -203,16 +212,16 @@ function examineReadout({
     // both read the CHARACTER'S OWN held tags directly, which is the design
     // (own-sheet detection, not examining someone else's pockets).
     tags: [
-      ...medicallyVisibleTags(subject.tags, satisfied).map((entry) => describeTag(entry, openTurnNumber)),
+      ...medicallyVisibleTags(subject.tags, satisfied, identityVisible).map((entry) =>
+        describeTag(entry, openTurnNumber),
+      ),
       ...(viewerIsThanati ? thanatiLines(subject.tags) : []),
     ],
     // An unseen field is ABSENT, never a "hidden" placeholder — and nothing
-    // tells the subject they were read. Once the viewer holds the sight, an
-    // empty result reads exactly as Inscrutable's block does, so a reader
-    // cannot tell "they're guarded" from "there's nothing there".
-    desire: canSeeDesire
-      ? { text: isInscrutable(subject.tags) ? null : (lastDesire?.text ?? null), points: lastDesire?.points ?? null }
-      : null,
+    // tells the subject they were read. A viewer without the sight and a
+    // subject with nothing to read produce the same empty field, so a reader
+    // still cannot tell the two apart.
+    desire: canSeeDesire ? { text: lastDesire?.text ?? null, points: lastDesire?.points ?? null } : null,
     // Role is same-faction knowledge, not officer authority (FACTIONS.md §4a)
     // — the same rule the Who's here? list reads by.
     roleTitle: inRealFaction(subject) && viewerFactionId === subject.factionId ? (subject.roleTitle ?? null) : null,

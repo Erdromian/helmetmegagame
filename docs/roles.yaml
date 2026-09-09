@@ -649,6 +649,8 @@ zones:
             description:
               - >-
                 Earth is a speck in the infinite firmament. You have always been humbled — or perhaps energized — by the Truth. Try to understand it. Investigate the world around you, find out its hidden truths, and create your own Great Work. Be a hermit or preach on the streets. Whether you wake others up or not, ensure you yourself _never_ fall asleep.
+
+                You can Research held items in the Cathedral, uncovering lost or secret crafting recipes.
             difficulty: normal
             multiple: true
             weight: 1
@@ -935,11 +937,15 @@ zones:
               You're a commoner. Make a living during the day, live your life at night.
             description:
               - >-
-                Commonry — the unlimitedness of knowing you are not being watched, because you are one of Many. You are free, in a way. You must feed yourself and pay your taxes, but what else? It is time to choose a path. Fulfill your Desires or become honest and authentic — choose a life, build it, and protect it.
+                There are many commoners, but each have their own lives, trades, and secrets.
               - >-
-                Naturally, you must work during the Dawn, but you are encouraged to experiment with what you do at Dusk.
+                Choose a Commoner Kit. You can be a farmer, a fisherman, a hunter, or ply your own trade. Fishermen start with a boat and hunters with bows, but farmers make by far the most production.
               - >-
-                You start skilled at Labor and nothing else, but buy the proper kit and you are a fisherman, a farmer or a hunter by Dawn. Press Examine in a Location to see what it yields before you spend the day there. Or find your own entirely unique trade to pioneer.
+                Different locations have different yields. The only place to farm in Ravenheart is in the Farms, a small location south of the town. To hunt, consider going to the Black Hills; to fish, go to the rivers around town or to the Marshes.
+              - >-
+                As a commoner, you have to pay taxes to the headman. Typically, the taxation rate leaves the farmers with almost no surplus.
+              - >-
+                If you fail to pay your taxes, you will likely face a brutal death. Even massed together, commoners are incapable of revolting against the Fortress. In any case, taxation is not the greatest threat: it is the evil that hides in the shadows of Ravenheart. Proper laboring supplies the Cerberon with the necessary resources to protect the lands.
             difficulty: easy
             multiple: true
             weight: unlimited
@@ -1095,7 +1101,7 @@ zones:
     factions:
       the-company:
         name: The Company
-        silo: customs-cargo-bay
+        silo: depot-cargo-bay
         roles:
           merchant:
             name: Merchant
@@ -1105,7 +1111,7 @@ zones:
               - >-
                 Ravenheart's poor souls are a great source of business, but it's a terrible place otherwise. You wouldn't dare put your heart here — the place is doomed. Time to make some money.
               - >-
-                Your Depot is in Customs, between the forest and the caverns. Your License lets you call down a shuttle. The mini-turret is keyed to your face, so it will shoot everyone except you. Be careful not to conceal your face, however.
+                Your Depot is one hop east of Customs, between the forest and the caverns. Your License lets you call down a shuttle. The mini-turret is keyed to your face, so it will shoot everyone except you. Be careful not to conceal your face, however. ‡
               - >-
                 You deal in obols (¢), not ⬢. You are the only place they come from and the only place they go back to. You can buy at the Depot's price and sell it at whatever makes sense for profit. You can also buy things from Ravenheartians and sell them to the Depot: brews, ore, cave fungus, smithing production, paintings. {tag:ravenheart-red} and paintings especially fetch a good price.
               - >-
@@ -1118,7 +1124,7 @@ zones:
             multiple: false
             starting_resources: 10
             starting_zone: caves
-            starting_location: customs
+            starting_location: depot
             leader: true
             whitelist: true
             starting_tags:
@@ -1143,14 +1149,12 @@ zones:
                 Maybe they'll let you get a ride on their spaceship if things ever get bad around here.
               - >-
                 You are the legs of the Merchant's business. The Depot is at the bottom of the Caves and their customers are not, so somebody carries the goods up and the money down — that is you. Somebody also collects from the people who owe them. That is also you.
-              - >-
-                One warning about the Depot: the mini-turret does not recognize your keycard, or anybody's. It recognizes the Merchant's face and yours, unfortunately, is not theirs.
             difficulty: easy
             multiple: true
             weight: 2
             starting_resources: 1
             starting_zone: caves
-            starting_location: customs
+            starting_location: depot
             starting_tags:
               - Depot Keycard
             doc_elements:
@@ -1169,7 +1173,7 @@ zones:
             weight: unlimited
             starting_resources: 1
             starting_zone: caves
-            starting_location: caves-stairhead
+            starting_location: caves-abandoned-camp
             extra_starting_points: 10
             starting_tags: [Pale]
             doc_elements: [caving]
@@ -1342,8 +1346,9 @@ zones:
       # spawn only (db/lib/threats.js), and both are listed in
       # SPAWN_ONLY_ROLE_SLUGS so the creation wizard never offers them. They
       # live under the Black Hills because that is where the shuttle puts them
-      # down — Black Pines, which the map already describes as dense enough
-      # that "sound does not carry, neither do shouts".
+      # down — the Fracturing Waterway, the busiest crossing in the zone. They
+      # arrive in the open, on a bridge, where everybody sees them. That is the
+      # point: the Tribunal does not sneak in.
       #
       # No `silo:` on purpose: a silo is a faction's shared stash in a room
       # somebody holds a key to, and the Tribunal has no room here. They carry
@@ -1369,7 +1374,7 @@ zones:
             weight: 1
             starting_resources: 8
             starting_zone: hills
-            starting_location: hills-black-pines
+            starting_location: hills-waterway
             starting_tags:
               - Melee (Skilled)
               - Ranged (Skilled)
@@ -1420,7 +1425,7 @@ zones:
             weight: 1
             starting_resources: 8
             starting_zone: hills
-            starting_location: hills-black-pines
+            starting_location: hills-waterway
             starting_tags:
               - Melee (Skilled)
               - Ranged (Skilled)
@@ -1445,7 +1450,7 @@ zones:
 
       brigands:
         name: Brigands
-        silo: ravine-camp
+        silo: grand-ravine-camp
         roles:
           brigand-leader:
             name: Brigand Leader
@@ -1468,11 +1473,12 @@ zones:
             multiple: false
             starting_resources: 3
             starting_zone: hills
-            starting_location: hills-ravine
+            starting_location: hills-grand-ravine
             leader: true
             whitelist: true
             starting_tags:
               - Ravine Camp
+              - Brigand Leader
               - Brigand
               - Melee (Basic)
               - Ranged (Basic)
@@ -1506,7 +1512,7 @@ zones:
             weight: 3
             starting_resources: 2
             starting_zone: hills
-            starting_location: hills-ravine
+            starting_location: hills-grand-ravine
             starting_tags:
               - Ravine Camp
               - Brigand

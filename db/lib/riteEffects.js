@@ -10,13 +10,12 @@
 // when the rite is not finished until the room answers (Panic).
 //
 // Takes `db` as a parameter, the db/lib/dm.js convention.
-const { postMessage, createGuildRole, deleteGuildRole, addMemberRole, removeMemberRole, setGuildNickname, getGuildMember } = require("./discordRest");
-const { ambientLine } = require("./ambientLine");
-const { sceneLineAt } = require("./scene");
+const { createGuildRole, removeMemberRole } = require("./discordRest");
+const { roomLine, locationLine } = require("./placeLine");
 const { sendDm } = require("./dm");
 const { aliasSubject } = require("./concealedIdentity");
 const { applyDeathToRow } = require("./characterDeath");
-const { revokeAllCharacterAccess } = require("./accessSweep");
+const { applyDeathTeardown } = require("./deathTeardown");
 const { deleteCorpseFor } = require("./corpseMint");
 const { pickRandomPublicRoom } = require("./roomStash");
 const { characterRoleAppearance } = require("./characterRoleAppearance");
@@ -24,12 +23,13 @@ const { formatBareName } = require("./characterName");
 const { STUPID_SLUG } = require("./babble");
 const { HUNGERLESS_SLUG } = require("./constants");
 const { applyLocationMoveSideEffects } = require("./locationMove");
-const { grantTagSlugs, addToRoomStack, dropRoomTag, dropCharacterTag } = require("./tagWrites");
+const { grantTagSlugs, addToRoomStack, dropRoomTag, dropCharacterTag, clampEquippedQuantity } = require("./tagWrites");
 const { createWithRetry } = require("./paperMint");
 const { resolveSeatConflicts } = require("./seatConflicts");
 const { listObjectives, fulfillObjectives } = require("./objectives");
-const { settleFearTag } = require("./fear");
+const { setMood, MOOD_MIN } = require("./mood");
 const { normalizeChant, containsPhrase } = require("./rites");
+const { GHOST_ROLE_ID } = require("./roleIds");
 const { BOUND_SLUG, onHallowedGround } = require("./riteIngredients");
 const { broadcastToZones } = require("./worldBroadcast");
 const {
@@ -61,6 +61,14 @@ const REMAINS_SLUGS = Object.freeze(["eye", "tongue", "hand", "foot", "stomach",
 // eyeball, the shimmering robes, the rising corpse) stay: those are not the
 // floor going, they are what the rite made.
 const INGREDIENTS_CONSUMED = "The ingredients evaporate into dust.";
+
+// What the two gibbing rites tell their victim. Drafted, not dictated — these
+// are the lines the death DM ends on, and the whole point of naming them here
+// is that Bascinet can rewrite them in one place.
+const SACRIFICE_DEATH_REASON =
+  "You were laid out on the cult's floor and opened up. Your body burst into a puddle of organs and gore.";
+const JUDGEMENT_DEATH_REASON =
+  "Something looked at your likeness and decided against you. You exploded into mist.";
 const ANIMATED_LINE = "This weapon is animated! It is indestructible, it cuts through armor, and it heals its targets whenever it harms someone.";
 
 const log = (what) => (err) => console.error(`Rite: ${what} failed:`, err?.message ?? err);
@@ -68,30 +76,17 @@ const rand = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
 // ---- Lines -----------------------------------------------------------------
 
-// The room hears one `-#` line, on Discord and on /play. `room` needs { id,
-// name, discordThreadId }.
-// BOTH halves are caught. The Discord half always was; the archive half was
-// not, and a rite is not worth losing over a line of scenery — the floor is
-// eaten by the time any handler speaks, so a throw here costs the circle its
-// ingredients. Panic is the sharp case: it speaks and only THEN returns
-// `awaiting`, so a throw would leave the prompt posted and the row FIRED
-// rather than AWAITING, unanswerable forever.
-async function roomLine(db, room, text) {
-  if (room?.discordThreadId) {
-    await postMessage(room.discordThreadId, ambientLine(text)).catch(log(`room line (${room.name})`));
-  }
-  if (room?.id) await sceneLineAt(db, { roomId: room.id, text, signed: false }).catch(log(`room scene (${room.name})`));
-}
-
-// A Location's channel hears one line. `location` needs { id, name, discordChannelId }.
-async function locationLine(db, location, text) {
-  if (location?.discordChannelId) {
-    await postMessage(location.discordChannelId, ambientLine(text)).catch(log(`location line (${location.name})`));
-  }
-  if (location?.id) {
-    await sceneLineAt(db, { locationId: location.id, text, signed: false }).catch(log(`location scene (${location.name})`));
-  }
-}
+// roomLine and locationLine now live in db/lib/placeLine.js — a second system
+// (kissing) wanted the same pair, and a rite module is the wrong home for "how
+// does a room hear a thing". Both are re-exported below, so every caller here
+// and in riteChant.js is unchanged.
+//
+// Why both halves of each are catch-wrapped is written there, and the rites
+// are the sharp case it names: the floor is eaten by the time any handler
+// speaks, so a throw would cost the circle its ingredients. Panic is sharper
+// still — it speaks and only THEN returns `awaiting`, so a throw would leave
+// the prompt posted and the row FIRED rather than AWAITING, unanswerable
+// forever.
 
 async function dmParticipants(db, participants, text) {
   for (const p of participants) {
@@ -110,19 +105,24 @@ async function dmParticipants(db, participants, text) {
 // take credit; `corpse: null` with `claimed: true` only means the corpse tag
 // could not be minted (db/lib/characterDeath.js catches that on purpose), and
 // the kill still counts.
-async function killByRite(db, character, { turn = null } = {}) {
+async function killByRite(db, character, { turn = null, reason = null, content = null, gib = false } = {}) {
   const roleId = character.discordRoleId;
-  const { claimed, corpse } = await applyDeathToRow(db, character, { turn, content: `${character.name} died.` });
+  const { claimed, corpse } = await applyDeathToRow(db, character, {
+    turn,
+    gib,
+    content: content ?? `${character.name} died.`,
+  });
   if (!claimed) return { claimed: false, corpse: null };
-  const member = await getGuildMember(character.discordUserId).catch(() => null);
-  await revokeAllCharacterAccess(db, character).catch(log(`revoke for ${character.name}`));
-  if (roleId) await deleteGuildRole(roleId).catch(log(`role delete for ${character.name}`));
+  // The role id is passed rather than read off `character`, which
+  // applyDeathToRow has just nulled.
+  const { member } = await applyDeathTeardown(db, { ...character, discordRoleId: roleId });
   if (member) {
-    if (process.env.DISCORD_CURSED_ROLE_ID) {
-      await addMemberRole(character.discordUserId, process.env.DISCORD_CURSED_ROLE_ID).catch(log(`Cursed for ${character.name}`));
-    }
-    await setGuildNickname(character.discordUserId, null).catch(log(`nickname for ${character.name}`));
-    await sendDm(db, character.discordUserId, "You have died.", { source: "rite" }).catch(log(`death DM for ${character.name}`));
+    // The reason matters more here than anywhere else in the game: a rite kills
+    // from off-screen, so without it the victim is told they are dead and
+    // nothing about what reached them.
+    await sendDm(db, character.discordUserId, `You have died.${reason ? `\n${reason}` : ""}`, {
+      source: "rite",
+    }).catch(log(`death DM for ${character.name}`));
   }
   return { claimed: true, corpse: corpse ?? null };
 }
@@ -148,9 +148,7 @@ async function reviveByRite(db, dead, { location, turnNumber }) {
   } catch (err) {
     log(`role for ${dead.name}`)(err);
   }
-  if (process.env.DISCORD_CURSED_ROLE_ID) {
-    await removeMemberRole(dead.discordUserId, process.env.DISCORD_CURSED_ROLE_ID).catch(() => {});
-  }
+  await removeMemberRole(dead.discordUserId, GHOST_ROLE_ID).catch(() => {});
   // No nickname write here: the bot's nickname sync owns that, and it knows
   // the web-only and sync-disabled rules a raw setGuildNickname would bypass.
   await applyLocationMoveSideEffects(db, { characterId: dead.id, fromLocationId: null, toLocationId: location.id }).catch(
@@ -209,6 +207,7 @@ async function spendFromHolder(tx, holder, tagId, what) {
   });
   if (count === 0) throw new Error(`the ${what} is gone`);
   await tx.characterTag.deleteMany({ where: { characterId: holder.id, tagId, quantity: { lte: 0 } } });
+  await clampEquippedQuantity(tx, holder.id, tagId);
 }
 
 async function grantToFloor(db, room, slug, quantity = 1) {
@@ -252,7 +251,12 @@ const EFFECTS = {
     // character already DEAD — somebody shot them inside the two-minute grace —
     // and the cult must not be paid for a death it did not cause, nor a second
     // body's worth of organs appear out of the floor.
-    const { claimed, corpse } = await killByRite(db, victim, { turn: openTurn });
+    const { claimed } = await killByRite(db, victim, {
+      turn: openTurn,
+      gib: true,
+      content: `${victim.name} was sacrificed on the Thanati floor.`,
+      reason: SACRIFICE_DEATH_REASON,
+    });
     if (!claimed) {
       await roomLine(db, room, INGREDIENTS_CONSUMED);
       return { result: { sacrificed: null, characterId: victim.id, alreadyDead: true } };
@@ -264,8 +268,9 @@ const EFFECTS = {
     });
     // The body is not left whole: whatever room the corpse fell into, it is
     // taken apart there.
+    // No corpse to clean up — the gib minted none. The organs on the floor are
+    // the only thing the rite leaves of them.
     const spawned = await spawnRemains(db, room);
-    if (corpse?.tag) await deleteCorpseFor(db, victim.id).catch(log(`corpse cleanup for ${victim.name}`));
     await roomLine(db, room, "The sacrifice explodes into a puddle of organs and gore!");
     return { result: { sacrificed: victim.name, characterId: victim.id, spawned } };
   },
@@ -292,6 +297,7 @@ const EFFECTS = {
       equippable: source.equippable,
       equipSlot: source.equipSlot,
       equipLayer: source.equipLayer,
+      twoHanded: source.twoHanded,
       requiredTagId: source.requiredTagId,
       laborBonus: source.laborBonus ?? undefined,
       inspectVisibility: source.inspectVisibility,
@@ -416,14 +422,20 @@ const EFFECTS = {
     await db.$transaction(async (tx) => {
       await spendFromHolder(tx, holder, tag.id, "photograph");
     });
-    const { claimed, corpse } = await killByRite(db, full, { turn: openTurn });
+    const { claimed } = await killByRite(db, full, {
+      turn: openTurn,
+      gib: true,
+      content: `${full.name} was judged.`,
+      reason: JUDGEMENT_DEATH_REASON,
+    });
     // Already dead when the rite landed. The print is spent either way — it
     // was consumed above — but nothing explodes and no organs appear, because
     // the body is lying somewhere else already.
     if (!claimed) return { result: { judged: null, characterId: full.id, alreadyDead: true } };
-    const where = corpse?.room ?? (await pickRandomPublicRoom(db, full.locationId));
+    // Same as sacrifice: the gib left no body, so the mist has to be dropped
+    // somewhere chosen rather than wherever a corpse happened to fall.
+    const where = await pickRandomPublicRoom(db, full.locationId);
     const spawned = where ? await spawnRemains(db, where, { flesh: false, resources: false }) : {};
-    if (corpse?.tag) await deleteCorpseFor(db, full.id).catch(log(`corpse cleanup for ${full.name}`));
     await locationLine(db, full.location, `${full.name} explodes into mist!`);
     return { result: { judged: full.name, characterId: full.id, spawned } };
   },
@@ -538,7 +550,7 @@ async function answerPanic(db, { attempt, content }) {
 
   // CLAIM THE ANSWER FIRST. noteChant is fire-and-forget on both faces, so two
   // participants naming two different places in the same second both reach
-  // here; without this the fear-100 loop ran twice and one heart haunted two
+  // here; without this the panic loop ran twice and one heart haunted two
   // places. Whoever wins the guarded write does the striking, the loser walks
   // away. Same shape as the READY claim in db/lib/riteChant.js.
   const { count } = await db.riteAttempt.updateMany({
@@ -547,7 +559,7 @@ async function answerPanic(db, { attempt, content }) {
   });
   if (count === 0) return null;
 
-  // Rage does not become afraid (db/lib/fear.js) — this write bypasses the
+  // Rage does not become afraid (db/lib/mood.js) — this write bypasses the
   // multiplier table, so the exemption is applied here by hand.
   const struck = await db.character.findMany({
     where: {
@@ -559,8 +571,7 @@ async function answerPanic(db, { attempt, content }) {
   });
   for (const c of struck) {
     await db.$transaction(async (tx) => {
-      await tx.character.update({ where: { id: c.id }, data: { fear: 100 } });
-      await settleFearTag(tx, c.id, {});
+      await setMood(tx, c.id, MOOD_MIN);
     }).catch(log(`panic for ${c.name}`));
   }
   // The status and the clock were written by the claim above; this only

@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import TagCatalogView from "./TagCatalogView";
-import Loading from "./loading";
+import Loading from "./Skeleton";
 import { DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";

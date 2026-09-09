@@ -13,12 +13,12 @@ import { lockedSlotLabel } from "@/lib/desireLabels";
 // The one help tooltip, on the heading. It used to be two — flavour text
 // here and the rules behind a "How this works" line — and the flavour said
 // nothing the catalog doesn't now say for itself.
-function desireHelp(desireSlots, lockTurns) {
+function desireHelp(desireSlots) {
   return (
     <>
       <p>
         You have {desireSlots} Desire slot{desireSlots === 1 ? "" : "s"}. After fulfilling a Desire,
-        that slot is locked for {lockTurns} turn{lockTurns === 1 ? "" : "s"}.
+        that slot is locked temporarily.
       </p>
       <p>Addictions lock your bottom slot to everything except their related desires.</p>
       <p>
@@ -76,7 +76,7 @@ export default function DesirePanel({
     <div className="flex flex-col gap-3">
       <h3 className="field-label panel-header--with-icon">
         Desire
-        <InfoIcon text={desireHelp(desireSlots, slotLockTurns)} />
+        <InfoIcon text={desireHelp(desireSlots)} />
       </h3>
 
       <div className="flex flex-col gap-3">

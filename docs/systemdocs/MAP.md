@@ -23,8 +23,8 @@ semantics, including the format).
 
 **How a Location is slugged.** A built place takes a bare slug and a bare
 name — `keep`, `factory`, `cathedral`, `customs`. Open country takes its zone as
-a prefix — `forest-river`, `hills-ravine`, `marshes-village`,
-`depths-runnel` — because a ravine and a river are things every zone has one
+a prefix — `forest-creekside`, `hills-gullies`, `marshes-village`,
+`depths-obelisk` — because a ravine and a river are things every zone has one
 of, and the slug is also the Discord channel name. The wilderness used to be
 numbered instead (`forest-7`, `Depths 3`), with the hand-drawn map's number
 buried in the slug and a different one in the display name; the drawing's
@@ -77,14 +77,14 @@ list of the built things that were always standing there (the Square's cross),
 seeded as `COMPLETE` `Structure` rows by the zone sync (`SYNC.md` §2):
 
 ```yaml
-customs:
-  name: Customs
+depot:
+  name: Depot
   attributes:
     depot: true
 ```
 
-Two more keys feed the fear dial (`FEAR.md`): `wilderness` marks a Location
-where arriving and ending the turn cost fear (every Forest, Black Hills and
+Two more keys feed the mood dial (`MOOD.md`): `wilderness` marks a Location
+where arriving and ending the turn cost mood (every Forest, Black Hills and
 Marshes Location except the factory, the farms and the marshes village), and
 `haven` marks a Location whose roof gives extra relief at turn close — the
 Inn, the Keep and the Sanctuary.
@@ -154,6 +154,24 @@ is why `LocationLink` carries fields rather than one enum.
 | Modular | `modular`, `isOpen`, `openerRoleSlugs`, `openerTagSlugs` | an Open/Close button on the **watchtower** at the gate; impassable while shut |
 | Keyed | `keyed`, `openUntil` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — yes and the way ignores its tag and becomes listed until the window lapses |
 | On foot | `onFoot` | too tight, steep or enclosed for a horse or a cart. A **mounted** character is dismounted crossing it, same as walking into an indoors Location |
+
+**Stealth is the one tag that reads on a crossing**, and it moves the
+announcement down exactly one step rather than switching it off
+(`db/lib/locationMove.js#announceLevelFor`, a pure function with its own test
+in `db/test/gateAnnounce.test.js`):
+
+| the edge says | an ordinary traveller | a **Stealth** traveller |
+|---|---|---|
+| `TRUE_NAME` (manned) | their real name | what a passer-by saw |
+| `CONCEALED` (unmanned) | what a passer-by saw | **nothing at all** |
+| `NONE` | nothing | nothing |
+
+The asymmetry is the point, and it is Bascinet's call: you can be quiet, but
+you cannot be quiet past a Cerberus who is reading your papers. So a stealthy
+traveller through the Fortress gatehouse lands exactly where an ordinary one
+lands at a Town gate. This is also the only thing in the game that suppresses
+an *individual's* arrival — everything else about announcing is a property of
+the edge and treats every traveller alike.
 
 **The winch is in the tower.** A modular gate's Open/Close button renders on
 one Room's starter post — the watchtower at that gate — and on neither
@@ -259,7 +277,8 @@ anywhere, spends nothing, and files no Action — it isn't travel, it's
 arrival. The adjacency gate is skipped entirely.
 
 **A hop inside the same zone is free, on a cooldown.**
-`GameConfig.locationMoveCooldownSeconds` (default 60, edited on `/gm/dev`)
+`GameConfig.locationMoveCooldownSeconds` (default 3, edited on `/gm/dev`; it
+was 60 until 2026-09-08, which was long enough to feel like a wall)
 gates it, enforced by a **conditional `updateMany`** whose `WHERE` clause
 *is* the check (`lastLocationMoveAt` null or old enough) — the same shape the
 hunger decrement and the mount's daily claim use, so two clicks in one tick
@@ -277,25 +296,56 @@ adds one, and being Overburdened takes them all away — the full rule lives in
 [`CARRY.md`](CARRY.md) §2a. So a peasant walks Town → Forest for nothing,
 spends their Move to reach the Fortress, and the way home waits for next turn.
 
-**A crossing that costs the Move only lands NEXT TURN.** It is a day on the
-road: the Move is spent the moment the player confirms, but
-`Character.locationId` is not written. The destination is parked on
-`Character.travelToLocationId` (with `travelTurnId`, the turn it was declared
-in), and `db/lib/travelArrivalPass.js` — **last** in `TURN_PASSES` — walks the
-traveller and everyone they dragged over at the next advance. That is what
-keeps the destination's channels shut for the rest of the turn they left in,
-instead of opening under them the second they press Confirm. A **free**
-crossing and a same-zone hop are untouched and still instant.
+**A crossing lands at once, whatever it cost.** The Move is spent and the
+character is standing at the destination by the time the call returns — same as
+a free crossing and same as a same-zone hop.
 
-While a journey is pending the character is **frozen where they stood**:
-`performLocationMove` refuses every move with "You're on the road to X", and
-the Travel button offers nothing at all until the arrival pass walks them
-over — there is no turning back (the Turn back control was removed on
-2026-09-07). Nothing is announced at departure; the ordinary arrival lines fire next
-turn, plus a "You arrive at X" DM. Every raw relocation (a GM teleport, Bulk
-Move, the staged "Relocate to") clears the pending destination too, or the
-pass would undo the teleport at Dawn, and so does death. Each of them clears
-`escortedById` in the same statement (§3a).
+It was not always so. Until 2026-09-14 a crossing that cost the Move was a day
+on the road: the Move went at once, `Character.locationId` did not move, the
+destination was parked on `Character.travelToLocationId`, and
+`db/lib/travelArrivalPass.js` walked the traveller and their party over at the
+next advance. The point of that was the destination's Discord channels — they
+stayed shut for the rest of the turn you left in, instead of opening under you
+the second you pressed Confirm. Removing it is Bascinet's call, and the cost is
+exactly that: **press Confirm and the far zone's category, `#summary` and
+Location channel are yours within the minute**, along with the gate
+announcement, the Caving Die, the turrets, arrival mood and the carry settle.
+Anyone standing there can Bind, Loot or Harm you the same turn you set out.
+
+Two smaller things moved with it. The turn passes now settle a crosser at the
+**destination** rather than the origin — auto-labor pays the yield of the place
+they ended the day in, and the night's mood reads its `wilderness`/`haven`. And
+`travelArrivalPass` is now a **drain**: nothing files work for it, and it is
+kept only to land anybody who was mid-journey when the change deployed. Delete
+it once they have.
+
+The two columns stay in the schema, unwritten, beside `missedMealStreak` and
+`mindlinkChannelId`.
+
+**Being HELD is the one thing that stops a move outright.** Somebody laid in
+wait where you walked in and stopped you — see
+[`INTERCEPT.md`](INTERCEPT.md). `performLocationMove` refuses with the hold's
+own sentence, beside its incapacitation gate, and `travelOptions` draws every
+way shut and says why. A held follower is left behind rather than carried out
+(§3a).
+
+UNDOING a Move gives back what the crossing SPENT, and not the crossing:
+`web/lib/moveEconomy.js#deleteActionRestoringTurn` — shared by the Dev
+Panel's "Give their turn back" and the Moves desk's Reject — deletes the
+auto-resolved `Action` a paid crossing filed, and
+`db/lib/locationTravel.js#travelClaimsToUndo` is what tells it to also zero
+`zoneMovesUsed`/`zoneMovesTurnId` when this turn's free-crossing claim
+belongs to that Action (`Action.turnId` is unique per character, so a match
+can only ever mean this one). Left alone, the day's free crossings stayed
+spent even though the Move that spent them just came back.
+
+**It does not walk them home.** When a paid crossing was a day on the road,
+undoing the Action really did call the journey off, because nobody had moved
+yet. They have now — a GM who wants them back where they started teleports
+them. `travelClaimsToUndo`'s `travelTo*` branch survives only as a drain for
+a straggler, and goes with the arrival pass. `escortedById` is not restored
+either: a crossing overwrites it with `null` and never remembers what it
+was, so there is nothing to give back.
 
 Spending the Move is written as a real, auto-resolved `Action`
 (`type: MOVE`, `status: CONFIRMED`, `moveReviewStatus: SOLVED`,
@@ -312,7 +362,19 @@ turn** rather than once a day — a horse carries you at Dawn and again at Dusk.
 They only count while **equipped**, and they are unequipped for you at the door
 of any indoors Location (`CARRY.md` §3).
 
-The allowance is tracked on `Character.zoneMovesTurnId` / `zoneMovesUsed`,
+**A bonus crossing is spent before the base one.** The mount's move goes
+first, and it stays charged to the mount for the rest of the turn — so
+stabling the horse at an indoors door gives nothing back and, more to the
+point, takes nothing back. Before this, the allowance was one number
+recomputed from scratch on every read: a rider with two crossings who rode
+into the Customs house had their ride charged to their base move, and then
+watched the horse's move leave with the horse. Two, ride once, none left. The
+narrow-way case is untouched, because `dismountForNarrowWay` runs *inside* the
+transaction before any of this arithmetic — a rider who cannot get their horse
+through the gap never earns the bonus to begin with (§2c).
+
+The allowance is tracked on `Character.zoneMovesTurnId` / `zoneMovesUsed`, with
+`zoneMovesBonusUsed` counting how many of those went on a bonus, all three
 claimed by a conditional `updateMany` whose WHERE is the check, so two tabs
 cannot both spend the last one. The **`FAST_TRAVEL` Request is retired** —
 there's no separate route through `requestActions.js`; a mount is just a
@@ -331,20 +393,17 @@ extra free hop the instant they can act again.
 **The Caving Die rolls on arrival** for the mover and everyone in their
 party, on any `CAVE_LEVEL` destination — and arrival is now the *only*
 time it rolls, so walking is what wakes the dark. A Location wearing the
-`safe` attribute is exempt; Customs is the only one (`CAVING.md` §2).
-
-On a deferred crossing the die waits with everything else: nobody has arrived,
-so `travelArrivalPass` rolls it next turn through the thunk.
+`safe` attribute is exempt; Customs and the Depot are the two (`CAVING.md` §2).
 
 `performLocationMove` returns `{ ok, oldLocation, oldZone, targetLocation,
 targetZone, crossedZone, spentTurn, usedHorse, moved: [{ character,
 fromLocationId, fromZoneId, toLocationId, toZoneId, zoneChanged, cavingDm },
-...], leftBehind: [{ character, reason }] }` (mover first) on success, or
-`{ ok: false, reason, retryAfterSeconds? }` on refusal. A deferred crossing
-adds `deferred: true` and returns **`moved: []`** — every caller drives its
-role swaps off that list and nothing has moved — with the party in
-`travelers` instead, for the DM that tells a passenger they are being walked
-somewhere. `leftBehind` is filled on both, and is the caller's cue to DM.
+...], leftBehind: [{ character, reason }], interceptDms }` (mover first) on
+success, or `{ ok: false, reason, retryAfterSeconds? }` on refusal. There is
+one shape now — the `deferred: true` / empty-`moved` / `travelers` form went
+with the deferral. `leftBehind` is the caller's cue to DM, and `interceptDms`
+is sent the same way `cavingDm` is: built here, sent by the caller, never
+inside a transaction.
 
 ## 3a. Escorting — the party you carry
 
@@ -364,7 +423,30 @@ one answer:
 | `FORCED` | a corpse; anyone holding an `INCAPACITATING_SLUGS` tag; a member of the faction you lead | attaches at once |
 | `CONSENTED` | somebody whose standing agreement to *you* has not lapsed | attaches at once |
 | `ASK` | any other living character standing with you | files an `ESCORT` `Offer` and DMs them |
-| `null` | not standing with you, hooded, yourself, buried, or already following somebody else | not offered |
+| `null` | not standing with you, hooded, yourself, buried, or **willingly** following somebody else | not offered |
+
+**Force beats an arrangement.** The three `FORCED` branches are reached
+*before* the `escortedById` guard, so a captor takes their prisoner off
+whoever is holding them, and the same goes for a corpse and for a member of
+the faction you lead. It read the other way round until a player found it:
+tie somebody up while they were walking with a friend, and the friend kept
+them, because asking first had won the column. `attach()` re-asserted the
+same rule in its `updateMany` WHERE, so it takes a `takeover` flag that only
+a `FORCED` verdict may pass — everybody else keeps the conditional write,
+because the race it guards is real: two people asking the same willing
+follower still resolve to one party.
+
+**A refusal says which rule refused** (`escortRefusal`, the opposite number of
+`escortReason`). It used to be one flat "You can't take them along", which on
+a picker that silently omits whoever it will not take reads as the game
+pretending somebody standing in front of you is not there. `hereWhere` has
+already dropped the far away, the hooded, the buried and yourself before a
+candidate is judged, so after the reordering above the only branch a
+co-located person can hit is *already with somebody* — and that is safe to
+say, because walking with somebody is plain to see. **Their leader is not
+named**: the refusal does not need it. The METAGAMING rule
+(`web/app/components/HereList.js`) is why the sentence arrives on the click
+rather than as a greyed row in the picker.
 
 Three things about it are easy to get wrong:
 
@@ -378,9 +460,9 @@ Three things about it are easy to get wrong:
   `db/test/escort.test.js` pins the case.
 - **`ESCORT_SELECT` is a strict superset of `CHARACTER_SELECT`**, because
   every caller now loads a mover with it and hands that row straight to
-  `performLocationMove`. Drop `travelToLocationId` and a character on the road
-  walks off it; drop `zoneMoves*` and free crossings never run out. A test
-  asserts the superset holds.
+  `performLocationMove`. Drop `zoneMoves*` and free crossings never run out;
+  drop `heldUntil` and an ambush stops working. A test asserts the superset
+  holds.
 
 **Consent lasts two turns.** Accepting stamps `escortConsentToId` and
 `escortConsentUntilTurn` (`turn.number + CONSENT_TURNS`) on the **responder's**
@@ -419,8 +501,56 @@ day it was written until this rework.
 **A stale attachment is inert, not dangerous.** `escortAuthority` returns
 `null` the moment two people are not co-located, so a row left behind by a GM
 teleport costs one poll of a wrong-looking panel and nothing else. The raw
-relocation writers clear it anyway, beside the `travelTo*` they already
-cleared.
+relocation writers clear it anyway.
+
+**Somebody being held is not available to be picked up.** `escortAuthority`
+returns `null` for them — above the FORCED branches, so an ambusher cannot walk
+off with their own prisoner either; taking them somewhere is what the Gambit is
+for. `performLocationMove` re-checks it per follower, because a hold can land
+between the pick and the walk, and drops them into `leftBehind` with the reason
+`held`. That is the one `leftBehind` reason the leader IS told, because it is
+plain to see. See [`INTERCEPT.md`](INTERCEPT.md).
+
+## 3b. The Stepstone — the one move that is not travel
+
+A `catalog: secret` item that a player spends to stand somewhere else. It is a
+**raw relocation**, the same shape the Dev Panel's Teleport uses: no ⬢, no Move,
+no adjacency check, no cooldown, and no Action filed. What it is not is
+unlimited — the picker offers only Locations that character has actually
+**stood** in (`db/lib/locationVisits.js#knownLocations`), and
+`stepstoneRequest` recomputes that set server-side and refuses a posted id for
+anywhere else.
+
+**`stood`, never `seen`, and that is a security boundary rather than a
+flavour choice.** The `seen` half of the fog is written for every **listed**
+neighbour, and §2 above is explicit that `listed` is weaker than `passable`: a
+locked door or a shut portcullis is listed on purpose, so you know the door is
+there and cannot open it. A stone that accepted `seen` would therefore step
+through every locked gate and tag-gated crawl anybody had ever stood beside —
+a skeleton key to the whole map, granted by the very rows that exist to show
+players doors they have not earned. A `stood` row is a place the character
+already reached legitimately, so stepping back into it grants nothing they did
+not already have.
+
+**A hold stops it**, the same as it stops a walk (`INTERCEPT.md`): an ambush is
+a hand on your shoulder, and the stone is not the way out of one.
+
+It writes `locationId` **and** `zoneId`, clears `travelToLocationId` /
+`travelTurnId` / `escortedById`, and then calls `applyLocationMoveSideEffects`
+(§4) like every other writer of `locationId` — which is what gets it the
+`LocationVisit` row, the channel overwrite, the zone role, the carry settle and
+the corpses it is carrying, for free. `rollCavingOnArrival` runs after, because
+stepping into the dark wakes it the same as walking in.
+
+**Anyone escorting the stepper is cut loose**, not merely left behind — the
+step clears their `escortedById` the way `db/lib/characterDeath.js` does when a
+leader leaves play. Left dangling, `partyOf()` would go on counting followers
+standing in another zone, which can cost a mounted leader the horse's extra
+crossing for a party that is not with them.
+
+And because a teleport crosses no graph link, `announceGateCrossing` has no
+edge to read and posts nothing: you arrive without the gate line a walker would
+set off, which is the closest thing the item has to stealth.
 
 ## 4. The Discord half
 
@@ -453,16 +583,217 @@ The Lifeweb is the same rule with a fixed address: bleeding or feeding
 someone to the Web needs the Mortus **and** the target standing in the
 Fortress zone, because that is where the tower is (`REQUESTS.md` §5a).
 
-## 6. The web `/map` panel is gone
+## 6. The web `/map` panel
 
-The drawn Ravenheart plate, its pointcrawl overlay and the depth strip
-(`web/app/(app)/map/*`) were retired along with per-zone-only travel — a
-player-facing graph over dozens of Locations spanning multiple zones needs a
-different UI than four rhombus nodes, and nobody's built its replacement
-yet. The dormant `map: { polygon, label }` block is gone from
-`docs/zones.yaml` as well: it described the retired plate's four rhombi, and
-the geography it described no longer exists. The
-`Zone.mapPolygon`/`mapLabelX`/`mapLabelY` columns remain, now always null.
+`/map` is the travel graph drawn over the Ravenheart plate: one rhombus per
+Location, one line per edge the character may see, with the plate itself
+underneath. It replaced the retired four-rhombus zone panel, which went out
+with per-zone-only travel and left this note in its place for a while.
+
+Two hosts, **one component** (`web/app/(app)/map/MapBoard.js`): the `/map`
+route, and an overlay on `/chat` opened by the place card's **Open map** and
+closed with Escape, the backdrop or Return to game. On a folded viewport the
+button navigates to the route instead of opening the overlay — a full-bleed
+board inside the phone's "Here" sheet would be a dialog inside a dialog, and
+§6e is what makes the route the better place to land anyway.
+
+**Drag to pan, pinch or wheel to zoom**, with `−` / `+` / Reset as the path
+for anyone who does neither. The whole view is `{x, y, k}` in a ref, written
+straight onto one `<g>`; nothing about the board is React state, because a
+pointermove that re-rendered fifty nodes and eighty lines drops frames on a
+phone.
+
+### 6a. The fog
+
+**A player sees the country they have walked, not the board.** Two grades:
+
+| Grade | Means | Draws |
+|---|---|---|
+| `stood` | been there | solid core, full label, description |
+| seen | only ever one step away from it | hollow core, muted label, **no** description |
+| — | neither | absent from the payload entirely |
+
+**Seen once, drawn forever.** Walking away never takes a place back off the
+map, so it only ever grows — which is also why the board can count itself
+("12 of 55") and have that mean something.
+
+`LocationVisit` is the record, and `db/lib/locationVisits.js` is the only
+module that touches it. There was nowhere to derive this from: `AuditLog` has
+no `locationId`, `ArchiveEntry` is keyed to a zone rather than a Location, and
+a free in-zone hop files no `Action` at all.
+
+Three things about it are easy to get wrong:
+
+- **The write hangs off `applyLocationMoveSideEffects`**, not
+  `performLocationMove` — §4's rule is that the first is what *every* writer of
+  `Character.locationId` runs, so a GM teleport, a first placement, a rite and
+  the arrival pass all record themselves. Hooking the mover would have left
+  each of those a hole.
+- **The neighbour write is a `createMany` with `skipDuplicates`**, and that is
+  load-bearing rather than an optimisation: it is what makes walking past a
+  door unable to downgrade a place you have actually stood in back to a
+  sighting.
+- **It reads `travelOptions`, never `LocationLink`.** A hidden crawl the
+  character cannot use is therefore never recorded, and can never be revealed
+  by the map later.
+
+`loadMap()` re-records the character's current Location on every open, so a
+sighting the post-commit hook dropped heals itself the next time they look.
+
+**The fog does not start fully closed.** A character is made knowing the places
+their life would have taught them — the home cluster, plus the road their trade
+actually walks. A Headman opens the board already seeing the Farms he has taxed
+for years; a Banneret sees every step of the run up to town. The table is
+`db/lib/startingMemories.js`, keyed by role slug, with a second half keyed by
+the Commoner kit crates so a farmer and a hunter wake up knowing different
+roads. `createCharacter` calls `seedMemories()` once, after the transaction
+commits — after, because `travelOptions` reads the tags it just granted.
+
+**Leaving a slug out of that table is not a guarantee it stays dark**, and it is
+worth being clear about why. `recordArrival` paints every *listed* neighbour of
+a seeded Location, and a locked way is listed — so `hills-mountain` reaches all
+thirteen Fortress seats through the locked `servant-wing` climb whether the
+table names it or not, which is correct: you can see a mountain from the road.
+What leaving a slug out really protects is a **hidden** way, since
+`travelOptions` drops those before the sighting write ever runs. The table is
+therefore written to the standard of "would this seat's life have taught them
+this", not "is this a secret" — the cargo-bay seats stop at `caves-approach`
+rather than the Migrants' camp, because the camp is one open road from the
+brooding grounds and two from the mouth of the Depths.
+
+### 6b. What the fog must never leak
+
+**The fog is server-side, not CSS.** An unknown Location is absent from
+`loadMap`'s payload; it is not sent and hidden. A server action is a public
+endpoint.
+
+**An edge draws only when both ends are known *and* `crossingCheck` says
+`listed`.** That is the §2a rule applied to a picture: a locked door draws
+dashed and says why, a hidden crawl draws nothing at all and reads exactly like
+two places with no way between them. The three `hidden: caving` crawls are the
+only unknown ways into the Depths, and this is what keeps them that way.
+
+**The Underground switch is hidden until the character knows somewhere
+underground.** Offering it earlier would announce that a second layer exists.
+`customs` draws on both layers — it is the threshold, and hiding it from the
+surface would make the way down start nowhere.
+
+### 6c. Travel
+
+The map is a second **door** onto travel, never a second mover. Picking a
+reachable node opens the same confirm strip the Travel panel uses, reading the
+same numbers through `web/lib/travelCost.js#travelFoot` — extracted from
+`TravelNodes.js` precisely so the two surfaces cannot disagree about what a hop
+costs — and Go calls the same `travelTo`, which re-derives every gate
+server-side regardless.
+
+**Picking a place twice goes there**, on both surfaces, so an ordinary hop
+need not cross the board to the card and back. The second click on the node
+already picked *is* the Go button; anywhere you cannot go it still just
+unpicks. A real double-click works for the same reason and needs no code of
+its own — it arrives as two clicks, which pick and then go — which is why
+there is no `onDoubleClick` here to fight the 6px drag guard that stops a pan
+from registering as a pick.
+
+**Tapping the plate itself unpicks**, on both surfaces. A node's own handler
+owns its clicks and the drag guard still applies, so this is only ever a tap on
+open ground. It exists because the second tap on the node you picked was the
+only way out of a card, which on a phone left a description sitting over most
+of the board with nothing obvious to do about it.
+
+**Not on a finger.** On a coarse pointer the second tap unpicks like any
+other and the card's Go is the only door. A stray tap on a phone is easy and
+this one spends a crossing; a deliberate press an inch away is not much to
+ask, and the sheet in §6e puts Go on screen the moment you pick, so there is
+nowhere to travel to. `canTravelTo` is untouched by this — it narrows a
+gesture, not the rule about where you may walk. It is also why there is no
+double-tap-to-zoom: on this board a double tap already means *go*.
+
+**Enter does the same** once something is picked. On the Travel panel that is
+free: its nodes are real `<button>`s, so a click focuses one and Enter
+re-activates it, which is the second pick. The map has to spell it out — its
+rhombi are SVG `<g>` elements with no focus, and the Ways out list, which *is*
+real buttons, unmounts the moment you pick something — so `MapBoard` listens on
+the window, and stands aside for anything already focused. Enter on **Cancel**
+means cancel. There is deliberately **no Escape**: on `/chat` the map sits in a
+Modal that already owns it.
+
+`canTravelTo(node, here)` is the one predicate all three doors read, so a place
+can never travel on a gesture while its own card is showing a refusal. Go and
+Cancel are untouched — this adds a shortcut and draws nothing new.
+
+### 6d. The plate
+
+`docs/assets/map-nodes.json` places every Location on the art in image pixels,
+read at runtime through `web/lib/mapNodes.js` (the `web/lib/handbook.js`
+pattern, `docsPath()` rather than `__dirname`). A Location the table does not
+place is simply not drawn, rather than stacked on the origin. Surface nodes sit
+on the drawing; Caves and Depths are a schematic layer, since the plate draws no
+tunnels.
+
+The art is a raster and never follows the theme — but it was drawn with exactly
+one accent in it, `#57a9bc`, the water, and that blue answered to nothing. So
+the river is cut to an alpha mask (`docs/assets/make-map-river.py` →
+`web/public/assets/map-river.png`) and painted through it with `--map-river`,
+which each theme sets for itself. Everything else drawn on the plate — the
+rims, the cores, the ways — is tokens all the way down.
+
+`Zone.mapPolygon` / `mapLabelX` / `mapLabelY` are still there and still always
+null: they described the retired panel's four rhombi, and nothing reads them.
+
+### 6e. The board on a phone
+
+For a while the map was readable on a desktop and a picture of a map on a
+phone: there was no pinch handler at all, `touch-action: none` had already
+taken the browser's own away, and the only zoom left was two ~20px buttons in
+a corner. Three things fix it, and they are all in `MapBoard.js` and the
+`/map` block of `globals.css`.
+
+**Pinch is two pointers and one number.** Every pointer down on the board is
+kept by id in a ref; a second one ends the pan and starts a pinch, measured by
+`gauge()` as the distance between the fingers and the plate pixel between
+them. Each move hands `zoomBy` the ratio of the distances, the **old**
+midpoint as its anchor and the **new** one as where that anchor should land —
+which is the whole trick, because it makes a two-finger drag pan and zoom in a
+single write. `to` defaults to `at`, so the wheel and the buttons are
+unchanged. Two things are easy to get wrong and are handled: lifting one
+finger of two re-seats the pan on the finger that is *left* (on the midpoint,
+the map leaps by half the gap between them), and `panned` is set the moment a
+second finger lands, so the click that fires when the last one lifts is never
+read as picking a place.
+
+**The zoom floor of 1 still holds**, and pinch-panning survives it: at the
+clamp the factor is swallowed and the translation is not, so a two-finger
+drag at full extent still moves the board.
+
+**A node is about two pixels across at the floor**, so each carries an
+invisible `.map-node-hit` square — the `.check-hit` idea in SVG. It is inert
+on a mouse, which does not need it and would only lose precision. `HIT` is 27
+plate pixels half-width, which is not a taste: the two closest Locations on
+the plate sit 54.6 apart, and anything wider turns a tap in the Fortress into
+a lottery. `applyView` writes `--map-hit` on every frame to shrink that toward
+44 CSS px once you are zoomed in far enough to have the room. Below about
+2.7× the cap binds and the target is simply as big as it may be — which is
+honest: fifty nodes over 375px cannot each own 44px, and pinch is the answer
+to that, not arithmetic.
+
+**There is no zoom bar on a phone.** Pinch is the zoom, and the bar was sitting
+over the top-left corner of the plate — Headwaters and the Mountain live under
+it — to buy back a control nobody was reaching for. Reset went with it and is no
+loss: `applyView`'s clamp means you cannot get lost off the plate, and pinching
+out to the floor shows the whole thing. Only the layer switch is left up there,
+and a tablet wide enough for the two-column layout keeps the bar.
+
+**Under 640px the card is a sheet over the board, not a column beside it.**
+It used to be a strip underneath taking 40% of an already short screen, which
+letterboxed the plate. Over it, the drawing runs on underneath and anything
+the sheet covers is one drag away. Its two heights come off `sel` and nothing
+else, through a `data-picked` attribute — nothing picked is a caption and its
+Ways out list, something picked opens far enough to show Go. The `.map-hud` wrapper is
+`display: contents` on a desktop, so the layer switch and the zoom bar each keep
+the corner they have always had; on a phone it is a column, which is what let
+the two stack rather than fight over 486px of a 390px screen — and is now
+carrying the layer switch alone.
 
 ## 7. Where the code lives
 
@@ -470,7 +801,8 @@ the geography it described no longer exists. The
 |---|---|
 | `db/lib/locationTravel.js` | `performLocationMove` — validation, the cooldown or the Move, walking the party, the Caving roll; no Discord |
 | `db/lib/escort.js` | The escort authority, the party, and the consent handshake — §3a. The ONLY module that decides who follows whom |
-| `db/lib/travelArrivalPass.js` | the turn pass that lands a paid crossing — the relocation and the archive row; no Discord |
+| `db/lib/travelArrivalPass.js` | a DRAIN. Nothing files work for it; it lands anybody left mid-journey by the removal of deferred travel (§3) |
+| `db/lib/intercept.js` | Laying in wait, and the hold it puts on somebody — [`INTERCEPT.md`](INTERCEPT.md). The ONLY module that decides who a watch catches |
 | `db/lib/locationMove.js` | `applyLocationMoveSideEffects` — the Discord half, shared by every caller |
 | `db/lib/roomAccess.js` | `syncCharacterRoomAccess` — private Room membership |
 | `db/lib/threadInvites.js` | `applyPendingInvites` — replays standing `/add` invites on arrival |
@@ -479,4 +811,8 @@ the geography it described no longer exists. The
 | `db/lib/turnFormat.js` | `turnDay` — the in-game day a mount's second crossing is claimed against |
 | `db/lib/locationGraph.js` | `LocationLink` reads and the gating verdict — the only module that touches the edge model |
 | `db/lib/locationAttributes.js` | The attribute registry, its sync-time validation, and the prose Examine prints |
+| `db/lib/locationVisits.js` | The fog: what one character knows of the map. The ONLY module that reads or writes `LocationVisit` |
+| `db/lib/startingMemories.js` | The map a character is made knowing — role slug and Commoner kit to Location slugs — §6a |
+| `web/app/(app)/map/` | `loadMap()`, the board, and the route — §6 |
+| `web/lib/travelCost.js` | `travelFoot` — what a hop costs, in the words both travel surfaces print |
 | `docs/zones.yaml` | The master: zones, Locations (with their seeded `structures:`), Rooms, and `connections:` with its edge types |

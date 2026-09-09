@@ -1,8 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkTokens from "./remarkTokens";
+import { MESSAGE_PLUGINS, DISCORD_COMPONENTS, escapeTokenBars } from "./markdownPlugins";
 import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
 import { useDocuments } from "./DocumentsProvider";
@@ -128,10 +127,11 @@ export default function DocumentMarkdown({ text }) {
   return (
     <div className="markdown-content">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkTokens]}
+        remarkPlugins={MESSAGE_PLUGINS}
         disallowedElements={["img"]}
         unwrapDisallowed
         components={{
+          ...DISCORD_COMPONENTS,
           richtoken: RichTokenRenderer,
           table: TableRenderer,
           h1: makeHeading("h1"),
@@ -140,7 +140,7 @@ export default function DocumentMarkdown({ text }) {
           a: AnchorLink,
         }}
       >
-        {text}
+        {escapeTokenBars(text)}
       </ReactMarkdown>
     </div>
   );

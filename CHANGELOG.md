@@ -6,6 +6,584 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The Stepstone is not a skeleton key
+
+✎ The stone only takes you somewhere you have actually STOOD. It used to accept anywhere you had SEEN from a doorway, and a locked gate is listed-but-shut on purpose — so it would have stepped through every locked door and gated crawl anyone had ever stood next to  
+✎ Somebody holding you stops the stone, the same as it stops a walk  
+✎ Stepping cuts your escort party loose instead of leaving them pointed at you from another zone
+
+## 2026-09-09 · A game has no number at all now, and there is a list of them
+
+− The last two places a game was called Game 13: the Game Ended post in #turns, and the chip on the dev panel's Game section, which shows the game's short id instead  
+✚ A Games section on the dev panel: every game there has ever been, what it was called, how it ended, its days, turns, characters and deaths, whether its transcript is in a packet, and a link into it  
+✎ The archive picks a game by its id only. An old /archive?game=3 link now sends you to the current game rather than resolving to whichever game once held 3  
+✎ Old archive packets still import: the reader follows the current schema and ignores the number the file carries
+
+## 2026-09-09 · Bascinet's words on the Kiss button
+
+✎ Every line the Kiss verb says is now written rather than drafted, so none of it carries a ‡ any more  
+✎ A hood or a helmet now refuses with "You can't kiss when you have a Hood on" instead of "Not through your Hood"  
+✎ The help under the button is just "Ask somebody for a kiss", and a greyed button says "You can't kiss right now"  
+✎ Asking says "Waiting on response"  
+− The line under the picker explaining the two-hour wait
+
+## 2026-09-09 · Who's here is back on the page, and the web stops the turn ping
+
+✎ The people standing where you are are drawn at the top of the Place panel again, so you no longer press a tab to find out who you are in a room with  
+✚ On a phone the ⋯ sheet finally lists the people, and between 720 and 900 pixels wide — where the sheet is up but the face strip is hidden — they were drawn nowhere at all  
+✚ The party rack is reachable on a phone now; it used to live inside a tab a phone never drew  
+✎ Playing from the web now takes your turn-ping role off too. It was being kept, so you were pinged twice a day about #turns — a channel the switch had just closed to you, carrying a message that is deleted and reposted every turn, so there was nothing there by the time you looked. The Bio card says so, and the ping comes back if you switch off
+
+## 2026-09-09 · The stone and the draught do what they say
+
+✚ Raven Draught: a Send a message button. Pick anyone in the game, type a line, and they hear it — no zone to guess, no letter, no reply. It says "Sent." whether or not anyone was alive to hear it, so it can't be used to ask  
+✚ Stepstone: step to anywhere you know — somewhere you have stood, or seen from a doorway. It costs no ⬢ and not your Move  
+− The Illusion Crystal is out of the catalog and off the Depot shelf
+
+## 2026-09-09 · An interception ends however you leave, and so does a hold
+
+✚ Being taken away now lets your prisoner go. Walking off already did; a GM moving you, a rite dragging you or a Bulk Move did not, so a victim could stay pinned to the end of the turn by somebody three zones away with nobody able to free them  
+✎ The cancelled-interception letter is sent before the Discord channel work, so a hiccup in the middle of a move can no longer take somebody's watch away without telling them  
+✚ A GM teleporting somebody to nowhere cancels their watch too. It was the one move that ran nothing, so the watch sat waiting and came back to life if anything put them back  
+✎ The dialog says the watch ends when you leave, however you leave — not just when you walk  
+✎ The audit log tells a watch you stopped apart from one a move ended
+
+## 2026-09-09 · You can kiss somebody now
+
+✚ A Kiss button on the sheet and on a person's row in Chat. You pick somebody standing with you and they get a DM with Accept or Decline — nothing happens until they press one.  
+✚ A kiss lifts BOTH moods by 15, the same as a confession. It costs no Move and rolls nothing.  
+✚ Two things hold it back: you can only ask once every two hours, and the mood is only worth something once a turn per person. Kissing all afternoon lifts you one band, not eight.  
+✚ The room hears one quiet line saying it happened.  
+✎ Who can't: the helpless (bound, dying, unconscious, crucified, asleep), the mouth injuries (a broken or wired jaw, choking, vomiting), the states with nobody home, Ghouls, Rage, Broken, and anybody with their face covered. Illness is NOT a gate — lepers kiss freely. Nor is Prudish, Eunuch, Pacifist or Saint: a build locks Desires, not buttons.
+
+## 2026-09-09 · Sell instant cameras on the Thanati shelf
+
+✚ Purchase Gear at the hideout now stocks an Instant Camera for 3 ⬢
+
+## 2026-09-09 · You lie in wait in one place, and leaving cancels it
+
+✎ An interception is now set in one place and works in that place only. It used to be read live off wherever you happened to be standing, so a watch set at the gatehouse followed you around Ravenheart and was still stopping strangers on the far side of the map days later  
+✚ Any move at all ends it — walking, being carried along by somebody, a GM moving you, a rite — and you are told: "You left, so your interception was canceled."  
+✚ The dialog names the place you are waiting in, and says that walking away ends it  
+✎ Catching somebody once a turn is now counted against the catcher rather than against the watch, so stepping out of the room and setting a new one no longer buys a fresh set of catches  
+✎ A watch survives a GM pressing Resync, a revive, and a character's first placement — none of those is a move
+
+## 2026-09-09 · Tap the map to put a place card away
+
+✚ Tapping open ground on the map unpicks the place you had selected, so the card gets out of the way  
+− The zoom bar is gone on a phone — pinch does that, and the bar was sitting on top of Headwaters and the Mountain  
+✎ The map's own Surface / Underground switch is all that is left over the plate on a phone
+
+## 2026-09-09 · Archive packets can be kept on a disk of your own
+
+✚ npm run archive:pull syncs every packet in the bucket down to a local folder, skipping what is already there  
+✎ Every download is re-read and re-hashed before it is kept, and a bad one is moved aside so the next run fetches it again  
+✎ Packets can never be committed: the repo is public and a transcript names the character behind every /conceal
+
+## 2026-09-09 · A finished game becomes one file, and leaves the database
+
+✚ An Archive this game button on /gm/dev. It writes the whole transcript out to one file, checks it reads back, and deletes nothing  
+✎ Restart Game now asks whether the game that is ending is worth keeping. Discard throws its transcript away for good; Keep needs a packet written first, and refuses without one  
+✎ Either way the transcript leaves the database, so a playtest stops leaving a permanent entry in the archive picker  
+✚ npm run archive:export, archive:import and archive:exports for doing it by hand  
+✎ The archive picker names a game by its dates or a label now, never Game N  
+✎ An archived game shows how it ended and where its transcript went, instead of an empty page  
+✎ A bot restart can no longer repost an old game's lines into today's channels
+
+## 2026-09-09 · The edit refusal just says no
+
+✎ Trying to edit something older than five minutes now says "You can't edit that any more." instead of explaining itself
+
+## 2026-09-09 · Mind reading is out of the game
+
+− Mindreading and the Succubus Draught are gone: the tags, the brewing recipe, the row on the player's recipe paper and the BREWING.md entry  
+✎ Bruised says the wound will heal
+
+## 2026-09-09 · The tags say what they are, not what you have
+
+✎ 328 tag descriptions rewritten from the player's pass: object-first wording instead of "You have a…", and the effect stated plainly  
+✎ Relentless costs 7 ⬢ instead of 9 ⬢
+
+## 2026-09-09 · Both turrets say the same short thing
+
+✎ The turret lines are much shorter, and both guns now use the same wording — hit, graze, death and the sounds in the yard  
+✎ Arming the Depot turret is one confirm instead of a confirm and then a second dialog  
+− The Docker's warning about the Depot turret, and the turret half of the Merchant's License  
+− The block telling a Merchant a GM has to put his face on file — the Depot has learned it at character creation for a while now
+
+## 2026-09-09 · The Play page is Chat now, and it has had a proper going-over
+
+✎ The page is called Chat, in the rail and in the address bar. Old /play links still work  
+✎ A filed Move reads as its own words instead of a pill with your sentence captioned under it  
+✚ Place, Here, Room, Travel and You are tabs in the right column now, and it remembers which one you left open  
+✎ Each panel is a card, so a long description and a one-line status strip stop looking like the same thing  
+✚ A Send button on a desktop. There was none at all, and nothing said Enter would send  
+✎ Typing a command puts a strip across the composer saying what it will do, with a way out  
+✚ Sections in the left rail fold shut, and stay shut. A folded one still shows anything unread in it  
+✎ Lines light up as you point at them, opening a place no longer fades a hundred old lines in at once, and New messages floats over the feed with a count  
+✚ Zone and Location above the place you are reading, so you can tell where you are standing
+
+## 2026-09-09 · A new game starts under its own sky
+
+✎ A new game no longer inherits the last one's ending: no nuke banner, no epilogue, and the bomb can be armed again  
+✎ Resuming an ended game takes the reveal back down instead of leaving it hanging off a game that is being played  
+✎ Fixed the crash that was breaking the character sheet and the dev panel whenever a Desire gate was read
+
+## 2026-09-09 · You can lay in wait, and travel arrives when you make it
+
+✚ An Intercept button on the sheet: name who you are watching for, write them a line, and stop them when they walk in where you stand  
+✚ Safe holds somebody two minutes and hands them your message; Ambush holds them until the turn ends, or until you let them go — file a Gambit if you mean them harm  
+✎ A crossing that costs your Move no longer waits for the turn to end. You arrive the moment you go, and the far zone's channels open with you  
+✎ A hood beats a name: watching for Lord Greeblus will not catch him hooded. Watch for anyone concealed instead  
+✎ Nobody can be carried out of an ambush by a friend, and one watch catches a given person once a turn
+
+## 2026-09-09 · A room says what it looks like
+
+✎ Every place on the web now shows its own description under its name, opened with a click. A room's words used to have nowhere to appear at all  
+✚ The little result popups render italics and bold instead of printing the asterisks  
+✎ The Mood box's heading sits level with the boxes beside it again
+
+## 2026-09-09 · A turn finishes saying what it has to say
+
+✎ The turn's Discord half is now recorded as it goes out, so a deploy that kills the app mid-announcement no longer loses the rest of it  
+✎ An unfinished turn is finished on the next advance, and by the bot the moment it restarts  
+✚ The Rite of Ascension kills everyone, not just the game
+
+## 2026-09-09 · Restart Game forgets the Depot too
+
+✎ A Restart Game now resets the Depot. It was the one machine the wipe never touched, so the turret, the generator, the Merchant's account, the docked shuttle and the face on file all carried into the next game — which is how a turret nobody had armed shot the people in the caves
+
+## 2026-09-09 · The arrival letter stops stuttering its »
+
+
+## 2026-09-09 · Chat shows how loaded you are
+
+✚ A load bar under the Resources and weight chips in Chat's You panel — it fills as you pick things up and turns red once you are over your cap, so being Overburdened is something you can see coming instead of being told about  
+✚ Hovering a thing in your pockets now says what it weighs, quantity included, so you can tell what is worth putting down  
+✎ The ⬢ and pounds chips each redden for their own cap now. Being over on Resources used to turn the POUNDS number red, which said nothing true about what you were carrying
+
+## 2026-09-09 · Leper is an illness, Blessing is cheaper, and the daggers come off
+
+✎ Leper now sits under Health · Illness instead of General, so it reads and inspects like the ailment it is  
+✎ Blessing costs 3 points instead of 5  
+✎ The Held row says "3 slots" instead of "3 hands / empty", and an empty slot's menu says what it is waiting for  
+✎ The ‡ marks are off the web UI's error and empty-state copy — Pyrias's sweep
+
+## 2026-09-09 · Wielding five swords costs five hands, not one
+
+✎ Equipping something out of a stack now takes one slot per item — the rest stay in the pack, and three knives out of five fill three hands  
+✎ The equip rack draws one cell per item worn, so a stack no longer sits in a slot wearing a ×5 badge  
+✎ A second hat, or a fourth knife, is refused the same way two different helms always were  
+✎ Resetting a Move gives back the zone crossing it queued, so the travel menu unlocks and the day's free crossings come back  
+✎ The map redraws when somebody else moves you — an escort, or a leader dragging the party  
+✎ The travel panel counts the boat's extra crossing, which it was quietly leaving out  
+✚ The GM inspector's Sheet tab shows a character's combined armour, melee and ballistic
+
+## 2026-09-09 · The off hand is gone; you hold four things now
+
+− The Off hand row on the sheet. A shield goes in your hands like anything else, and the row is called Held  
+✎ You have four hands' worth instead of three, which is exactly what a shield plus three hands already allowed, so nobody's kit is refused by this  
+✎ Two shields at once are legal now, because hands are the only limit on what you hold
+
+## 2026-09-09 · Wanted follows the face, and the Cerberon can hand it out
+
+✎ A Wanted man is only read as wanted while he is under his own name — a hood or a Disguise Kit's false name now takes it off the read, which is what the tag always said it meant  
+✚ An Arrest Warrant button for the Censor, the Sheriff and a Cerberus: type a man's whole name and he is Wanted. Costs nothing and puts up no paper  
+✚ A Check Wanted button for every Cerberon — the warrant book, hoods and all  
+✎ Drinking a Mulligan Potion clears your warrant. A new name is a new man  
+✎ Engrave matches the whole name now, not the first name, so two dead men called Jorren can each get their stone
+
+## 2026-09-09 · A filed Move is final, and the rope beats the arrangement
+
+− A Move can no longer be edited once it is filed. You get one Move a turn and it stands; only a GM changes one now
+✎ The filed Move reads on one line on the sheet — its kind joins the turn chips, its words sit under them — instead of opening a second row that tripled the box
+✚ You can now take a prisoner off whoever is walking with them. Tying somebody up used to lose to a friend who had asked first, so a captor could not take their own captive
+✎ Corpses and members of a faction you lead come off somebody else's party the same way. A willing follower still doesn't — you ask a person, you don't take them
+✎ Being told you can't take somebody now says why, instead of the person quietly not being in the list at all
+
+## 2026-09-09 · A name in an old line stays the name that was said
+
+✎ Starred lines, journal entries and the transcript now read the way a line reads in the hall — they were showing raw braces and asterisks instead  
+✎ Mentioning somebody records the name they were going by, so putting on a disguise or taking a new name no longer rewrites what an old line said  
+✎ A conversation's member list shows somebody hooded as a stranger, instead of naming them and drawing their face  
+✚ The @-mention role follows a disguise now, colour and all  
+✎ A journal entry no longer names or draws a disguised character
+
+## 2026-09-09 · The caves roll the die every time you walk in, not just the first
+
+✎ Walking back into a cave location you already saw today rolls the Caving Die again — retreating through the dark is still walking through the dark  
+− The one-roll-per-location-per-turn cap, which made backtracking out of the Depths silent and read as a broken die  
+✎ Nothing rations rolls now but the walk cooldown on /gm/dev, so expect more finds and more Trouble on the Caving lens — raise that cooldown if it gets loud
+
+## 2026-09-09 · The street has no mouth, and the floor says what it is
+
+✎ The chat box is gone from a Location: there is a line there now saying to step into a room, the summary or a conversation to speak  
+− Shouting from the open street. A shout is a voice, and the street takes none  
+✚ Hover an item lying on a room's floor and it tells you what it is, instead of just its name  
+✚ The same hover on the things in your own pockets
+
+## 2026-09-09 · The map pinches to zoom on a phone
+
+✚ Pinch to zoom the map, and a two-finger drag pans it  
+✚ The zoom buttons and the places themselves are thumb-sized on a touch screen  
+✎ On a phone the place card is a sheet laid over the map instead of a strip under it, so the map gets the whole screen  
+− Tapping a place twice no longer travels there on a phone — the card's Go button does, so a stray tap cannot spend a crossing
+
+## 2026-09-09 · Fear is now the Mood system, and it goes both ways
+
+✎ Your mood is a word in its own box on the character sheet, between Carrying and Gambit die: Happy, Pleased, Content, Fine, Uncomfortable, Stressed, Anxious, Afraid, Panicking. Grey at Fine, red at Panicking, and hovering it says what moves it  
+✚ A mood can now be GOOD. It runs +64 down to -100, so a drink, a decent meal or a night at the Inn is worth something to somebody who was already calm  
+✚ Eating lifts a mood: any proper meal, a Fine Meal, sweets, honey, honeyed cakes, fish roe, a pumpkin, a coffee, a sky lantern, a firecracker  
+✎ Only Afraid and Panicking are DM'd now, and only on the way in. The other seven bands say nothing — a player crossing into Stressed and back used to get two DMs about it  
+✎ Only Afraid (-1) and Panicking (-2) touch the dice. A good mood is its own reward  
+✎ Every mood drifts back toward Fine overnight now, from either direction — a fright wears off, and so does a good evening  
+− The five Condition tags. The band is read off the number, so a GM can no longer hand-grant one that fights the dial  
+✎ The GM's dial on the Dev Panel is "Mood", -100 to +64, and it finally shows the real value instead of 0 for everybody  
+✎ Tea and a chrism's blessing say what they do in plain words instead of naming tags that no longer exist
+
+## 2026-09-09 · Horses and carts no longer fit in a crate
+
+− The Package button no longer accepts a Horse, Cart, Fishing Boat or Motorcycle  
+✎ They carry no weight, so a crate of one came out at 1 lb and a hand-cart could be walked indoors as anonymous cargo  
+✎ The Depot still ships a horse crated, the same as before
+
+## 2026-09-09 · A hood works on Discord again, and the Bio card stops taking it off you
+
+✎ A hood you chose to wear hides you on Discord again. Anything you typed on the website reached the channel under your own name and face, so the hood worked on the website and did nothing where people were reading it.  
+✎ Saving your Bio card no longer takes your hood off. It used to clear the setting whenever nothing concealing was worn at that moment, so tidying your appearance, or ticking Play from the web, quietly unmasked you until you noticed — and you could not set it again until the hood was back on.  
+✎ Looking back at something said under a disguise reads properly once the disguise has worn off. Every line said under one used to turn into an anonymous hooded stranger three turns later.  
+✚ The Dev Panel shows whether someone is playing from the web, and whether they are concealed. Neither was visible to a GM anywhere before, and the conceal line says when the setting is on but nothing is being worn, which is the state a player reports as their disguise not working.  
+✎ A message the bot cannot repost is taken down and handed back on one more path, where it used to be left in the channel under the player's real Discord name.
+
+## 2026-09-09 · Speak is a slash command now, not a button
+
+− The 🔊 Speak button on the #turns console  
+✎ /message opens the compose box wherever you run it, and tells you where to run it if you can't speak there  
+✎ The button's destination picker could never list a Room thread or a Conversation, which is exactly where talk happens
+
+## 2026-09-09 · The Supply Kit says what it is for
+
+✎ The Supply Kit's description: "Open it to gain resources and a nice surprise."
+
+## 2026-09-09 · The End turn confirm just asks
+
+✎ Ending a turn asks the question and nothing else — the paragraph explaining Needs, the upkeep and the channel wipe is gone
+
+## 2026-09-09 · The horse spends its own free move first
+
+✎ A rider who stables their horse at an indoors door keeps the free crossing they never spent. Riding in used to be charged to your own move, and then the horse's move left with the horse — two crossings, one ride, none left.  
+✎ The same for a boat: crossing the water no longer eats the crossing you had on land
+
+## 2026-09-09 · The turn's effects read as one line
+
+✎ What the turn will change now reads as one wrapping line separated by dots, instead of a list that made the box taller than the turn card beside it
+✎ Past three effects the rest fold behind a "+N more"
+✎ The Butcher button's icon is a ham. It was meant to be a cleaver, but an outlined rectangle at that size reads as a saucepan
+− The Carrying tile no longer opens a breakdown when clicked — it is a number like the three beside it
+
+## 2026-09-09 · A burial and an engraving are heard where they happen
+
+## 2026-09-09 · Four things about you, and the buying screen tells the whole truth
+
+✚ You can keep four things about you at once; the equipped rig counts them like it counts hands  
+✎ The head's outer layer is named Outer, the same as the body's  
+✎ The buying screen now says who else can see a tag, whether it conceals you, what it weighs, how long it lasts and where it is worn  
+✎ Armour values are back on the buying screen, having quietly shown nothing at all
+
+## 2026-09-09 · Location channels go quiet on Discord too
+
+✎ Players can no longer type in a Location channel on Discord, the way they already couldn't on the web  
+✎ The channel doctor no longer throws everyone out of a Location channel when it runs in full
+
+## 2026-09-09 · Randomizing a portrait now suits the character's gender
+
+✎ The masculine hairstyles are men only now; the unisex ones stay open to anyone  
+✎ A woman no longer randomizes into a beard, and a man still can  
+✎ The picker itself is unchanged: every style is still there to pick by hand
+
+## 2026-09-09 · Merge PR #31: Scholastics can research secret recipes in the Cathedral
+
+✚ The Scholastic can Research an ingredient they are carrying, in the Cathedral. It takes the Move as a Gambit, and the answer arrives at the end of the turn  
+✚ A 6 or better turns up a recipe nobody else can see — one of the seven GM-only craftables, dealt once per character and minted as a note in their hands  
+✚ Every failed attempt on the same ingredient makes the next one easier, so a sixth try cannot miss. It resets once that ingredient gives something up  
+✚ A Research button on the tag's own row, and on the Cathedral's place card in Chat
+
+## 2026-09-09 · Take Pyrias's tag description rewrites
+
+✎ 152 tag descriptions rewritten from PR #33 — the double daggers are off  
+✎ Only the wording changed; no tag was added or removed by this
+
+## 2026-09-09 · The buttons in Bascinet's messages work on the web
+
+✎ Anything the game asks you to answer by message — a lesson, a confession, a bind, being taken along, a seat, a spawn, holding a door open — now has its Accept and Decline in the Bascinet pane, not only in Discord  
+✚ Somebody playing entirely on the web can take a seat now. Before, the offer arrived and there was nothing to press  
+✚ An offer that has already been answered, or run out, stops showing buttons instead of leaving a dead one to click
+
+## 2026-09-09 · Click a place twice to go there
+
+✚ Picking a place twice travels — on the map and in the Travel panel — so an ordinary hop no longer means clicking the place, crossing to the card, and clicking Go  
+✚ Enter goes to the place you have picked  
+✎ The walk cooldown drops from 60 seconds to 3  
+✎ A way you hold no key to now says "This way isn't open to you."
+
+## 2026-09-09 · A nekker is lighter than it was
+
+✎ A nekker corpse weighs 35 rather than 45 — a spindly thing should be the lightest body you can pick up, and it was sitting closer to a person than to its own description.
+
+## 2026-09-08 · Structures are in the recipe book, and a body weighs what it weighs
+
+✚ Bodies weigh something now. A person is 50 lb — under the 71 lb cap, so you can carry someone and still walk with your kit. Giant makes a heavier body and Dwarf or Frail a lighter one; a frail dwarf is 28 lb.  
+✚ And whatever is still on them comes too, since their gear never leaves their sheet. A body in full plate is 105 lb, which is about the most anyone can shift — strip it first and it drops back to 50. Strong deliberately doesn't make you heavier dead; it isn't a tax on a trait somebody paid for.  
+✎ Structures now appear in the Recipes tab. They were being dropped on the grounds that raising one isn't crafting, but it is the same Craft button and the same recipe, and a player planning a Palisade had nowhere to read that it costs four turns and 40 ⬢.
+
+## 2026-09-08 · Cave characters come back to the GM desks
+
+✎ Characters standing in the Caves or the Depths are on the player desk again, for a GM who has picked their zones  
+✎ Their conversations are back in the inbox, so a DM from someone underground can no longer go unseen  
+✎ Caving rolls reach the Underground GM instead of nobody
+## 2026-09-09 · The new sheet is the character page now, and the Ledger is gone
+
+✎ /character is the rebuilt sheet: the band with your Move and every verb, the equip rig, and your tags as rows in cards. The old chip-and-panel sheet is gone.  
+− The Ledger entry on the rail. Its address still works and lands on /character, so an old link is not broken.  
+✎ The sheet scrolls as one page again. The columns were each scrolling inside themselves, which was wrong for a page where nothing arrives while you read it.  
+✎ The Move button sits beside the day and phase instead of below them, so the turn box is a line rather than a block.  
+✎ Routine, Gambit and Labor are explained on the web in the same words the Discord modal uses.
+
+## 2026-09-08 · The silo picker stops naming rooms you have never seen
+
+✚ "Where does the faction bank?" now only offers rooms the officer has stood in and can open — it used to read out the name and address of every secret room in the district, the Inn's Cellar and the Order Chambers included  
+✎ The faction's current silo is always on the list, even for an officer who has no key, so re-pointing it can never blank out  
+✎ An officer with no key can no longer move the silo behind a door they cannot open — depositing into a locked silo is unchanged
+
+## 2026-09-08 · Stealth reaches the gates, and a forger can copy any stamp
+
+✚ Stealth is a real skill now: cross an unwatched gate and it announces nothing at all, cross a guarded one and it records only what a passer-by saw, not your name  
+✚ A forger can craft every wax stamp in the game, the Baron's and the Bishop's included — so the only two routes to a Baron's mark are taking it off the Baron or forging one  
+✚ A gibbed death leaves no corpse behind at all, just a Gibbed mark where the tags were  
+− The Inscrutable tag, and with it the rule that shut your Desire to every reader  
+✎ Ambush Predator costs less, and it, Forger and Mountaineering all say what they actually do
+
+## 2026-09-08 · The travel lines say you'll arrive next turn
+
+✎ "You arrive next turn" now reads "you'll arrive next turn" everywhere it appears, the two departure lines included, so they all match
+## 2026-09-08 · The sheet on /ledger is rebuilt, and equipment goes in slots now
+
+✎ Your tags are rows in cards by kind now, not one heap of chips. Wounds sort by how soon they turn and say what they become and what the cure costs; skills group by family and show the next rung; items group by kind with their weight against your cap.  
+✎ Click a tag and it opens where it sits. Items and wounds carry Use, Equip, Give, Destroy and Heal on the row itself.  
+✚ A search box over your tags, for the sheets that have got long  
+✎ The top of the sheet holds still while the columns scroll: your Move is filed and edited from there, your state and carry are on it, and every verb is one row of buttons instead of a panel. A greyed verb says why when you press it.  
+✚ A line saying what the turn will change: what runs out or turns worse, what finishes, where you arrive, and whether dinner is covered  
+✎ Escape takes you back to the game from the sheet.  
+✎ Equipment is places on the body, not a count of six. Three head layers, three body layers, an off hand, three hands, a ride and what it tows, and as many small things as you like. A two-handed weapon takes two hands. So a bastard sword on the back and a pistol on the hip, but not eight swords.  
+✎ The rig draws those places: click an empty one and it lists what you carry that fits. It will not offer a cart indoors or a boat beside a horse without saying why.  
+− The flat equipment-slot number on the Dev Panel
+
+## 2026-09-08 · A traveller can walk their own zone while they wait on the road
+
+✎ Spending your Move to cross into another zone no longer pins you in place for the rest of the day — you can still walk the zone you set out from and talk to whoever is in it  
+✎ The roads out of the zone draw closed while you are on one, and say where you are already headed  
+✎ You land at the place you paid to reach whichever corner of the zone you spent the day in, and there is still no turning back
+
+## 2026-09-08 · The Unlocks list on a tag stops printing bigger than the tag itself
+
+✎ The "Unlocks N Desires" block on a tag now reads a step smaller than the tag's own description, instead of a step larger than it
+
+## 2026-09-08 · Nothing said while the bot is asleep is lost any more
+
+✚ Messages typed while the bot is down are recovered when it wakes. Under two hours old they go back in the room as the character, exactly as if the bot had caught them live. Older than that the words are kept in the archive and the raw message is taken down, but the scene is left alone — dropping an hours-old line into a room that moved on reads as talking to yourself. The author gets one quiet note either way.  
+✎ The real problem was worse than the missing words: until the bot came back, the message sat in the channel under the player's own Discord name, for anyone to see. That is the half this closes first.  
+✚ The bot now also checks after a dropped connection, not only after a restart. Everything else it catches up on runs once per process, which was fine for a stale nickname and not fine for somebody's words.  
+✎ A channel the bot can't tidy up in is left alone and logged, rather than reposting a message it can't then remove — that would duplicate it on every restart until the next wipe.  
+✚ The bot has tests now, for the first time.  
+✎ Two door notices were still tagged the old way after the inbox rework.
+
+## 2026-09-08 · The GM inbox shows the last message again, not the player's role
+
+− dmPreview hands back the line itself; the rail and the live delta were still reading it as { preview }, so every row a GM message touched showed "Baroness" or "Commoner" in place of the message
+
+## 2026-09-08 · Chat stays in the room you opened
+
+✎ The open room no longer jumps back to the street when the page refreshes itself, and a bare /play comes back to the room you last had open  
+✎ Chat's live stream reconnects itself after a drop — a phone waking, a blip, a redeploy — and picks up exactly what it missed; it says Reconnecting… when that takes a while, and a signed-out tab says so instead of retrying forever  
+✎ Walking, keys and conversations refresh the right column quietly, with no blank flash, and a reconnect no longer refreshes the whole page  
+✎ What you typed in one room stays in that room: switching rooms starts the box clean and brings the words back when you return  
+✎ Notice cards, faces and the members strip loading no longer shove you off the bottom of the scene  
+✎ The phone's tab strip scrolls to the open tab  
+✎ The column's once-a-minute re-reads pause while the tab is hidden  
+✎ "Add to …" on a person now says why it was refused  
+✎ A mention's browser notification opens the place it happened in, the turn notification opens the Bascinet pane, and tapping one no longer reloads a Chat that is already open
+
+## 2026-09-08 · The buttons overhaul: every action answers back, and the Dev Panel stops asking why
+
+✎ Every button on the sheet and on /play now says what it did, in a small notice at the corner of the screen — "Ada is tied up.", "Took 3 Paper from the Cellar.", "Ada has to agree first."  
+✎ Recall Comrades, Recover Equipment, Use Pointer, Arm/Disarm and Extract run on the click, with no dialog; a one-line confirm where the Move is spent  
+✎ Recall Comrades shows the roster on the page instead of DMing it; Recover's button says what it will hand back and greys with "You have both."  
+✎ Every greyed-out action explains itself in its tooltip  
+✎ Transfer, Loot, Take, Drop and Give are one dialog: two chip rows for the direction, then a count per stack. Destroy, Package and Purchase Gear pick the same way  
+✎ Opened from a person's own row, Bind, Free, Torture, Crucify and a one-affliction Heal ask their one question and run  
+✎ Small pickers are chips, not dropdowns: who you're treating, whose body, which room, which skill  
+✚ The HERE list on /ledger, above the Actions rack, with the same per-person menu /play has  
+✎ An empty dialog shows the sentence and Close, not a dead Confirm  
+✎ Opening a dialog no longer re-renders the whole sheet; it reads its own roster  
+✎ On a phone every dialog is a bottom sheet with the buttons pinned in reach  
+✎ On the Dev Panel, Kill, Restore turn and Spend turn are one confirm each, and Transfer ⬢ no longer demands a typed reason
+
+## 2026-09-08 · The GM inbox stops shouting, and the loading flashes are gone for real
+
+✎ Every DM now says how much of the GM inbox it deserves, so system notices stop crowding real conversations off the players desk — a forgotten one is quiet now rather than loud  
+✎ The page skeletons are actually gone this time: an earlier push kept the files by mistake, so pages were still blanking out on the way to the next one  
+✚ A Seats Out table on the Dev desk — who has been offered a seat, not taken it yet, and how long they have left  
+✎ Portraits and avatar uploads are on by default; a game no longer starts with faces switched off and nobody remembering to turn them on  
+− Soundproof rooms
+
+## 2026-09-08 · A dead character keeps Bascinet's messages, and the desk stops throwing
+
+✚ A player whose character has died can still read and answer Bascinet on /play. The messages column used to vanish with the body, which left a web-only player no way to read a DM at all  
+✎ The GM players desk was failing on every load — two things it used were never imported  
+− Spawning a threat no longer offers roles that are seats of their own as a cover role  
+✎ Assign now says so when it works, and says so when the seat lands but the DM does not  
+✎ A push refuses to ship code importing a file git does not have, which is what left the site on a stale build for 25 minutes today
+
+## 2026-09-08 · Egomaniac is gone, and the escort note stops stuttering
+
+− The Egomaniac tag is removed from the catalog — it was buyable but gated by nothing, and it was never part of any role's kit  
+− The note telling you somebody is travelling with you no longer opens with a doubled quote mark
+
+## 2026-09-08 · One header on every page, and the click lands before the page does
+
+✎ Every page wears the same header bar now, with the zone, day and phase in it — the turn no longer floats in the corner of the screen  
+✎ Clicking in the sidebar keeps you on the page you are reading until the next one has actually loaded, instead of blanking it to a skeleton  
+✎ A caving roll is filed under the zone the die rolled in, not the roller's faction seat — a Factory member down in the Caves was showing up as Marshes, and was invisible to the Caves GM  
+✎ Somebody pinged from Discord shows up as a person in Chat now, even if they are standing somewhere else; it used to print raw text  
+✎ /shout clears the box the moment you send it  
+✎ The Audit desk's header is the same height as every other desk's  
+✎ A whitelisted role wears a dashed border in the lobby too, whether or not you hold the whitelist
+
+## 2026-09-08 · Egomaniac is handed out, not bought
+
+− Egomaniac is off the tag store and out of character creation — a GM grants it
+
+## 2026-09-08 · Walking only frightens you so much, and the times in your messages read as times
+
+✎ A long day's walking can only frighten you so much now. The wild and the caves still cost you for every step you take into them, but what the walking alone adds in one day stops at a point. A Refugee cutting Godflesh out of the marshes was reaching Uncomfortable on the first afternoon just by doing the job the role exists to do.  
+✎ Times in your messages read as times. A seat offer that showed you a raw tag now gives the actual date and a live countdown, in your own timezone, on the website as well as in Discord.  
+✎ The quiet grey aside at the bottom of a message reads as a quiet grey aside, instead of starting with a stray -#.  
+✎ Mentions, channels and emoji pasted into a message no longer show up as a row of numbers on the website.  
+✎ The GM inbox stops treating every automatic message as mail. A seat assignment or a bird letter is a notice now; only something a person actually wrote for you sorts to the top.  
+✚ A GM can lift a wrongly-applied curse from the character dev panel, instead of the player needing someone to engrave them a headstone.  
+✎ A starred line from a masked speaker shows the face the room saw, not the speaker's real one.
+
+## 2026-09-08 · Tying someone up takes the carry out of their voice
+
+✚ A bound character's shout no longer carries. The people standing with them still hear it — someone who can see you tied up can obviously hear you — but it stops there, and every copy of it says ", but it's muffled."  
+✎ Bound still does not refuse a shout, and never will: a hostage who cannot call out is a hostage nobody can play. It costs the five-minute throat timer like any other shout, and shows no error.  
+✎ Two things muffle now, at two distances. A soundproof room is sealed and nothing leaves the thread; being bound is a gag and the shout reaches your own place and stops. Bound inside a sealed room is sealed.  
+✎ The Bound tag now says so on the sheet.
+
+## 2026-09-08 · Door notices stop reading as GM mail
+
+✎ "You were let into ..." no longer lands on the GM desk as if somebody had typed it. Same for "You were named in ...", which is a ping, not a message.  
+− The double dagger on the "let into" line, on both faces.  
+✎ The website's DM sender now labels an unattributed message as the bot's, the way the bot's own sender already did. That is the leak this pair came  
+✎ The inactivity nudge is signed by the GM who sent it, so it still reads as a real message and shows who wrote it.
+
+## 2026-09-08 · Shouts name who shouted, and some rooms swallow them
+
+✎ A long day's walking can only frighten you so much now. The wild and the caves still cost you for every step you take into them, but what the walking alone adds in one day stops at a point. A Refugee cutting Godflesh out of the marshes was reaching Uncomfortable on the first afternoon just by doing the job the role exists to do.  
+✎ Times in your messages read as times. A seat offer that showed you a raw tag now gives the actual date and a live countdown, in your own timezone, on the website as well as in Discord.  
+✎ The quiet grey aside at the bottom of a message reads as a quiet grey aside, instead of starting with a stray -#.  
+✎ Mentions, channels and emoji pasted into a message no longer show up as a row of numbers on the website.  
+✎ The GM inbox stops treating every automatic message as mail. A seat assignment or a bird letter is a notice now; only something a person actually wrote for you sorts to the top.  
+✚ A GM can lift a wrongly-applied curse from the character dev panel, instead of the player needing someone to engrave them a headstone.  
+✎ A starred line from a masked speaker shows the face the room saw, not the speaker's real one.
+
+## 2026-09-08 · The cargo bay stops at the gate, and a trade is a trade
+
+✎ The Merchant, the Docker and the Mercenary no longer start knowing the Migrants' camp, which was handing them the brooding grounds and both mouths of the Depths on their first morning. The Migrant, who lives there, still does  
+✎ A Commoner who bought a laboring specialisation outright no longer gets a free Farmer crate on top of it  
+✎ Seeding a character's memories no longer re-queries their tags once per remembered place
+
+## 2026-09-08 · The sheet's auto-refresh stops doing work nobody can see
+
+✎ Follow-up to this morning's Bind fix. The page was quietly re-loading itself whenever anyone at your Location was tied up or walked past — none of which changes anything on screen until you open a dialog, and dialogs now re-read the room themselves. In a crowded Town that was thirty people all reloading at once every time a turn moved them.  
+✎ The one thing kept: 'Waiting for so-and-so to agree to be bound' now clears itself when they answer in Discord, because that line really is on the page.
+
+## 2026-09-08 · Bind, Free and Loot stop needing a page refresh
+
+✎ Somebody accepting your Bind in Discord now shows up on your sheet on its own. It always worked in the game — your page just never heard about it, so Free offered nobody and Loot refused, until you reloaded.  
+✎ The same blind spot hid somebody walking in, somebody dying, and a hood going up or coming down. All three now reach the page.  
+✎ Every action dialog re-reads the room as it opens, so bind, wait for the yes, then loot works with nothing in between.
+
+## 2026-09-08 · Nobody wakes up blind, and no commoner wakes up without a trade
+
+✚ Every seat now starts remembering the places its life would have taught it: the home cluster, plus the road that trade actually walks. A Headman opens the map already seeing the Farms he taxes; a Banneret sees every step of the run up to town  
+✚ A Commoner who picks no kit now starts a farmer, instead of being able to labor but at nothing in particular  
+✎ The Commoner's description is rewritten: the kits, where each trade actually pays, and what the Headman takes
+
+## 2026-09-08 · Mute stops you shouting, not talking
+
+## 2026-09-08 · Pruning a zone takes its channels down with it
+
+− A retired zone no longer leaves its location channels standing in Discord
+
+## 2026-09-08 · The shuttle stops asking for a zone sync
+
+− The landing pad is found again, so calling and sending the shuttle works
+
+## 2026-09-08 · A mask hides your face on the web, not just your name
+
+✎ Wearing something over your face now changes the portrait beside your words on the web, the way it already did on Discord — a hood, a helm or a mask shows itself instead of you  
+✎ Everyone in the same mask looks identical, on purpose: the picture says what is over the face, never who is behind it  
+✎ A character under a forced name wears that name's plaque instead of their own face too  
+✎ The face is recorded with each line as it is said, so taking a mask off never uncovers what you said while wearing it
+
+## 2026-09-08 · Give the character sheet its Torture and Mutilate buttons back
+
+✎ Torture and Mutilate never appeared on anyone's sheet. Both pages worked out who was allowed to press them and then threw the answer away before the buttons could read it, so they were always hidden — on the Ledger too.
+
+## 2026-09-08 · The Assign button on the Antagonists desk actually assigns
+
+✎ Pressing Assign on a threat seat did nothing at all — no confirm, no error, and the button then sat dead until the page was reloaded. No seat has ever been handed out that way. It asks and assigns now.  
+✎ The party rack on the play page loads again for anyone with a pending "come along with me" ask, instead of failing outright
+
+## 2026-09-08 · Give the Ledger's actions their names back
+
+✎ On the Ledger, every action is a labelled button now — the glyph and the word, big enough to read without hovering  
+✎ Its sections stand side by side in columns with a rule between them instead of stacking, which is what all that width is for  
+✎ The narrow rack on the Character page is untouched
+
+## 2026-09-08 · Open the Ledger to everyone, and let it fill the screen
+
+✚ The Ledger is on every player's rail now, not just a superadmin's — it is there to be looked at  
+✎ It takes the whole width instead of sitting in a narrow centred column  
+✎ The Conceal switch lost its full stop, and the crafting panel says "Nothing in progress" when there is none
+
+## 2026-09-08 · A second character sheet on /ledger, for superadmins only
+
+✚ A new Ledger page: the same character, laid out as a banner of numbers over three columns — bio, everything you do, and your tags spread down a rail  
+✚ Free moves, Resources, Carrying and the Gambit die now read as four tiles at the top of it, over the Move you filed this turn  
+✎ Tag cards no longer split "Items" from "items" — one card per category, however the catalog spells it
+
+## 2026-09-08 · Fix Restart Game failing on the lesson handshakes
+
+− - it cascades from Character, which goes first.
+
+## 2026-09-08 · Add a playtest-only switch for who may join
+
+## 2026-09-08 · Stock the caves with thirteen more things to find
+
+✚ Five new items: Rock, Rope, Purring Maggot, Maggot Milk and the Mining Helmet  
+✚ Thirteen more entries on the caving loot table, from a rock at ultracommon to a Fragmentation Grenade and a Neoclassic Duelista at the top  
+✚ Rocks are simply lying around in thirteen rooms across the Caves, the Depths, the Black Hills, the Mountain and the Headwaters, so the ground is a source and the die is a bonus  
+✚ A Purring Maggot poisons you raw, but anyone with Brewing can squeeze one into a cup of Maggot Milk for 1 resource: it steadies the nerves exactly as much as tea does, and counts as a proper meal  
+✚ The Merchant now sells the Mining Helmet at 14 resources and buys a Fragmentation Grenade off you for 24  
+✚ Rope is craftable with no forge, for 4 resources
+
+## 2026-09-08 · Put three rooms on the mountain pass
+
+✚ The Mountain has a Hanging Steps, a Summit worth searching, and a warm Garden under the ice that only a caver finds  
+✚ Nightshade herb, poppy pods and coca leaves grow in the Garden — the first place in the game that actually has them
+
 ## 2026-09-08 · A horse eats a resource a turn
 
 ✎ Holding a Horse now costs 1 ⬢ at the close of every turn, whether it is out or stowed in your pack  
@@ -457,11 +1035,9 @@ Entries below predate this format and list files instead.
 ✎ The marsh Village fishes at 1.3 instead of 1.5 — still the best water in the game
 ✎ Corrected the Laboring doc's yield table, which had drifted off the map
 
-
 ## 2026-09-06 · Farming pays 9% more
 
 ✎ Laboring (Farming) now pays 15–21 ⬢ instead of 14–19
-
 
 ## 2026-09-06 · Travel that costs your Move takes a day
 
@@ -554,9 +1130,7 @@ Entries below predate this format and list files instead.
 
 ## 2026-09-06 · The Fisherman starts skilled at Laboring
 
-
 ## 2026-09-06 · The turn header is a dated subtext line
-
 
 ## 2026-09-06 · Knighthood is back on the picker, for a single point
 
@@ -727,7 +1301,6 @@ Entries below predate this format and list files instead.
 ✎ A hatchet is the Refugee's whole job (Godflesh needs one equipped), there is no forge in the Marshes, and the crafting change earlier today put the hatchet recipe behind a forge — so a Refugee who lost theirs had no way to replace it in their own zone  
 ✎ Not in the Spillway, which destroys what lands in it, and not in the Overseer Box, which is the Banneret's
 
-
 ## 2026-09-05 · Armour is a number on the gear now, and the turrets are lethal
 
 ✚ Every piece of armour, headgear and shield carries a Melee and a Ballistic rating, shown as a word — None, Meager, Sufficient, Good, Strong, Overkill  
@@ -773,7 +1346,6 @@ Entries below predate this format and list files instead.
 ✎ Photos were free and unlimited. One shot per message per photographer now — the camera is still reusable, but photographing the same moment twice is the same photo
 ✎ The Caving desk showed only the zone, so a GM saw several identical rows for one character with no way to tell which tunnel each happened in. It names the place
 ✎ Shouting from inside a room put the shout everywhere except that room
-
 
 ## 2026-09-05 · Every room id says where it is
 
@@ -1028,9 +1600,7 @@ Entries below predate this format and list files instead.
 
 ## 2026-09-04 · Equipped slots stay full width instead of shrinking to the tag
 
-
 ## 2026-09-04 · The Spillway no longer eats a shift by accident
-
 
 ## 2026-09-04 · The Depot's turret learns the Merchant's face when he is created
 
@@ -1043,7 +1613,6 @@ Entries below predate this format and list files instead.
 ✎ The cast starts with 80 ¢ between them rather than 90; nobody else's purse changed
 
 ## 2026-09-04 · Adds the Godard Factory, the Banneret, and the Squeeze production chain
-
 
 ## 2026-09-04 · An obol is one Resource, so the Merchant can sell you a cup of tea
 

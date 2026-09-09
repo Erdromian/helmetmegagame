@@ -74,7 +74,7 @@ General questions can be asked in the `#general` channel or by creating a thread
 |---|---|
 | `/move` | Open the Move submission form. |
 | `/location` | Open the Travel picker — walk to a connected Location, or cross into another Zone. |
-| `/message` | Speak as your character directly into a channel. |
+| `/message` | Speak as your character in the room or thread you're in, without typing in it. ‡ |
 | `/roll` | Roll a 1d6 into the channel, for everyone to see. |
 | `/add` | Invite a character into your Conversation. |
 | `/remove` | Remove a character from your Conversation. |
@@ -102,10 +102,9 @@ Bascinet runs for 30 real days. One turn is one of those days, and turns alterna
 
 At the end of each turn the game resolves what happened during it. Move results are posted, Resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
 
-You can find information on the current turn in the `#turns` channel, in addition to the three main controls:  
+You can find information on the current turn in the `#turns` channel, in addition to the two main controls: ‡  
 - **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. You get one free Zone crossing a turn, and an **equipped mount** gives you a second; past those, crossing spends your Move, and once you've acted you can't cross at all. Your sheet shows how many you have left. Either way you arrive immediately, and the picker always lets you bring along anyone you could carry: someone bound or helpless, a body, or a member of your faction if you lead it.  
 - **Move** is used to submit your character's Move for the turn.  
-- **Speak** allows you to post as your character without typing into a channel, helping to obscure your identity.
 
 ### The Wipe
 
@@ -169,9 +168,7 @@ Sometimes turns will have consequences that impact your character. If you were b
 
 As a roleplay game, conversation is at the heart of Bascinet, and the bot is designed to maintain separation between a player's identity and their character. When you send a message to a roleplay channel, the bot will automatically delete your message and post it again under your character name. No special commands or formatting is needed to speak in character.
 
-Sometimes Discord may take a few seconds to update your message with the bot's version, and your username is also visible at the bottom of the channel when typing directly. If you want to ensure neither of these can be used to connect you to your character, you have two options:
-- Press the **Speak** button in the `#turns` channel.
-- Use the `/message` slash command in any channel, including the bot's DMs.
+Sometimes Discord may take a few seconds to update your message with the bot's version, and your username is also visible at the bottom of the channel when typing directly. If you want to ensure neither of these can be used to connect you to your character, use the `/message` slash command in the room you want to speak in. It opens a box to type into, so nothing you write appears under your own name and nobody sees you typing. ‡
 
 ### Channels And Locations
 
@@ -186,7 +183,7 @@ There are seven Zones in Bascinet:
 
 Every Zone is made of Locations — the Gatehouse, the Keep and the Garrison in the Fortress, say. Your character stands in exactly one Location at a time, and sees only that Location's channel (plus the Zone's Summary). Locations are connected like a map: use **Travel** to walk to a neighbouring one. Walking inside your Zone is free, with a short cooldown between steps; crossing into another Zone costs your Move.
 
-Out in the wild, a Location carries its Zone in its name — the Ravine in the Black Hills is hills-ravine, the Village in the Marshes is marshes-village. Every zone has a ravine and a river of its own, so the Zone is part of the name. Built places need no such help and go by what they are: the Keep, the Cathedral, the Factory.
+Out in the wild, a Location carries its Zone in its name — the Gullies in the Black Hills is hills-gullies, the Village in the Marshes is marshes-village. Every zone has a ravine and a river of its own, so the Zone is part of the name. Built places need no such help and go by what they are: the Keep, the Cathedral, the Factory.
 
 Not every way is simply open. A **gate** announces you in the Zone's Summary when you cross it — a manned one names you outright, an unmanned one only reports what a passer-by would have seen. A **locked** way appears in your Travel list but refuses you until you carry the right thing. Some ways can be **opened and closed** by the people who hold them, with a button on the Location's pinned message; while shut, nobody passes. And some ways you will not see listed at all.
 
@@ -198,7 +195,7 @@ Each Location's channel has a pinned message at the top with its description, th
 | Channel | What it's for |
 |---|---|
 | **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode and is not meant for conversations. |
-| **A Location** (text channel) | The open street. Anyone standing here can talk in the channel itself. |
+| **A Location** (text channel) | The open street. You can see what happens here, but talk belongs in its Rooms — step into one to speak. ‡ |
 | **Rooms** (threads under the Location) | The places inside a Location — the Old Cock Inn on the Square, the Throne Room in the Keep. Public Rooms are open to everyone here. Private Rooms are hidden: you only see one if you hold the right tag, such as a key. |
 
 The three buttons on the pinned message:
@@ -289,9 +286,15 @@ Eating removes **one turn's worth** of Hunger, not all of it. If you've gone sev
 
 After 6 turns spent hungry, you receive the {tag:dying} tag and a GM will review your situation to determine what happens next.
 
-### Fear
+### Mood
 
-Some things wear on a character's nerves — nights spent out in the wilderness or down in the caves, a wound, going hungry, worse. It shows up on your sheet as a Condition: Uncomfortable, Stressed, Anxious, Afraid, or Panicking, in rising order. Afraid costs you −1 on Gambit rolls; Panic costs −2. A roof settles it back down, and the Inn, the Keep, or the Sanctuary more so than an ordinary room. So does a drink, a lavish meal, a pot of tea, a smoke, hearing a Musician play, confession, or getting what you wanted from a Desire. A noble who skips a fine meal gets stressed the same way anyone else does from a rough night outdoors.
+Your character has a mood, and there is a box for it on your sheet that says it in one word. From best to worst: Happy, Pleased, Content, **Fine**, Uncomfortable, Stressed, Anxious, Afraid, Panicking. Most people sit at Fine. ‡
+
+Things wear on a character — nights spent out in the wilderness or down in the caves, a wound, going hungry, being tied up, seeing somebody die, worse. Things lift them too: a roof over your head, and the Inn, the Keep or the Sanctuary more so than an ordinary room. So does a drink, a meal, a treat, a pot of tea, a coffee, a smoke, hearing a Musician play, a confession, or getting what you wanted from a Desire. Nothing stays extreme for long — every night your mood slides a little back toward Fine, from either direction. ‡
+
+Only the bottom two do anything to the dice: **Afraid** costs you −1 on Gambit rolls and **Panicking** costs −2. A good mood is its own reward and changes no roll. You are told when you drop into Afraid or Panicking, and otherwise the box on your sheet is the only place your mood is written down. ‡
+
+A noble who skips a fine meal takes it as hard as anyone else takes a rough night outdoors. ‡
 
 
 ## Submitting A Move

@@ -4,9 +4,11 @@ import { factsLine, rosterLine } from "@lifeweb/db/lib/epilogue";
 import { formatAntagonistLines } from "@lifeweb/db/lib/objectives";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
+import AppHeader from "@/app/components/AppHeader";
 import Pager from "@/app/components/Pager";
 import Select from "@/app/components/Select";
+import { gameTitle } from "@/lib/gameLabel";
 import ArchiveTranscript from "./ArchiveTranscript";
 
 // The transcript, one game at a time (docs/systemdocs/ARCHIVE.md). A past
@@ -23,21 +25,35 @@ export default async function ArchivePage({ searchParams }) {
     getGmSession(),
     prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true, gameId: true, phase: true } }),
     prisma.game.findMany({
-      orderBy: { number: "desc" },
-      select: { id: true, number: true, startedAt: true, endedAt: true, epilogue: true },
+      // Newest first. This was `number: "desc"` while a game had one; the
+      // ordinal is gone and creation order is the same order.
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true, label: true, startedAt: true, endedAt: true, epilogue: true,
+        archivedAt: true, entryCount: true, exportKey: true, createdAt: true,
+      },
     }),
   ]);
 
   const params = await searchParams;
-  const requestedNumber = Number.parseInt(params?.game?.toString() ?? "", 10);
+  // Keyed on the game's ID, and only on that. `?game=3` was honoured for a
+  // while, for links written when a game had a number — but numbers were
+  // reusable by then, so an old link could already resolve to a DIFFERENT
+  // game, and the column is gone now anyway. An id nobody has is no game:
+  // what it must not do is quietly fall through to the current one and show
+  // it as if it were the one that was asked for.
+  const requested = params?.game?.toString().trim() ?? "";
   const current = games.find((g) => g.id === state?.gameId) ?? games[0] ?? null;
-  const game = games.find((g) => g.number === requestedNumber) ?? current;
+  const game = requested ? (games.find((g) => g.id === requested) ?? null) : current;
   const isCurrent = Boolean(game && game.id === state?.gameId);
 
   // The real gate. The nav hides the link when it's shut, but a page is a
   // public URL — same posture as /character's creation gate. A past game is
   // over, and its record is everyone's.
-  if (!game) redirect("/character");
+  // A named game that no longer exists was discarded, or the link predates
+  // the numbering going away. Send them to the current game rather than silently
+  // showing it as if it were the one they asked for.
+  if (!game) redirect(current ? "/archive" : "/character");
   if (isCurrent && !gm && !state?.archiveVisible) redirect("/character");
 
   const zoneName = params?.zone?.toString().trim() || "";
@@ -85,23 +101,33 @@ export default async function ArchivePage({ searchParams }) {
   // Filter vocabularies come from the game's own rows, not the live tables:
   // a past game's characters are gone and its zones may have been re-synced
   // under new ids, but the snapshot names on the rows are exactly what was.
-  const [entries, total, zoneRows, characterRows] = await Promise.all([
-    prisma.archiveEntry.findMany({
-      where,
-      // id breaks ties: sentAt is millisecond-resolution, and a burst of
-      // proxied messages can share a timestamp — without it the same row can
-      // appear on two pages and another on neither.
-      orderBy: [{ sentAt: order }, { id: order }],
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-    }),
-    prisma.archiveEntry.count({ where }),
-    prisma.archiveEntry.groupBy({ by: ["zoneName"], where: { gameId: game.id, zoneName: { not: null } } }),
-    prisma.archiveEntry.groupBy({
-      by: ["characterId", "characterName"],
-      where: { gameId: game.id, kind: "MESSAGE", characterId: { not: null } },
-    }),
-  ]);
+  // An archived game's rows have LEFT the database (docs/systemdocs/ARCHIVE.md):
+  // it lives in a packet in the bucket now. Skipping the four queries matters —
+  // they would all come back empty and the page would render as a transcript
+  // with nothing in it and empty filter dropdowns, which reads as a bug rather
+  // than as a game that was deliberately put away. The epilogue below is the
+  // whole content of the stub, and it is still on the Game row.
+  const archived = Boolean(game.archivedAt);
+
+  const [entries, total, zoneRows, characterRows] = archived
+    ? [[], 0, [], []]
+    : await Promise.all([
+        prisma.archiveEntry.findMany({
+          where,
+          // id breaks ties: sentAt is millisecond-resolution, and a burst of
+          // proxied messages can share a timestamp — without it the same row
+          // can appear on two pages and another on neither.
+          orderBy: [{ sentAt: order }, { id: order }],
+          skip: (page - 1) * PAGE_SIZE,
+          take: PAGE_SIZE,
+        }),
+        prisma.archiveEntry.count({ where }),
+        prisma.archiveEntry.groupBy({ by: ["zoneName"], where: { gameId: game.id, zoneName: { not: null } } }),
+        prisma.archiveEntry.groupBy({
+          by: ["characterId", "characterName"],
+          where: { gameId: game.id, kind: "MESSAGE", characterId: { not: null } },
+        }),
+      ]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const zones = zoneRows.map((r) => r.zoneName).sort((a, b) => a.localeCompare(b));
   const characters = characterRows
@@ -110,7 +136,7 @@ export default async function ArchivePage({ searchParams }) {
 
   function pageHref(newPage) {
     const next = new URLSearchParams({
-      game: String(game.number), zone: zoneName, character: characterId, day, q, order, show, page: String(newPage),
+      game: game.id, zone: zoneName, character: characterId, day, q, order, show, page: String(newPage),
     });
     for (const key of [...next.keys()]) if (!next.get(key)) next.delete(key);
     return `/archive?${next.toString()}`;
@@ -123,10 +149,9 @@ export default async function ArchivePage({ searchParams }) {
   const revealHidden = isCurrent && !gm && state?.phase !== "ENDED";
   const epilogue = revealHidden ? null : (game.epilogue ?? null);
   return (
-    <PageShell width="wide">
-      <PageHeader
-        title={`Archive · Game ${game.number}`}
-      />
+    <>
+      <AppHeader title={`Archive · ${gameTitle(game)}`} />
+      <PageShell width="wide">
 
       {epilogue ? (
         <section className="panel flex flex-col gap-3 p-4">
@@ -154,13 +179,25 @@ export default async function ArchivePage({ searchParams }) {
         </section>
       ) : null}
 
+      {archived ? (
+        <section className="panel flex flex-col gap-2 p-4">
+          <h2 className="panel-header">This game has been put away</h2>
+          <p className="text-sm">
+            Its {game.entryCount ?? "—"} lines were written out to a file and taken out of the database, so the
+            transcript is not here to read. What it ended with is above. ‡
+          </p>
+          <p className="text-sm text-muted mono">npm run archive:import -- --key {game.exportKey ?? "…"}</p>
+        </section>
+      ) : null}
+
+      {archived ? null : (
       <form className="panel flex flex-wrap items-end gap-3 p-4">
         <label className="field">
           <span className="field-label">Game</span>
-          <Select name="game" defaultValue={String(game.number)}>
+          <Select name="game" defaultValue={game.id}>
             {games.map((g) => (
-              <option key={g.id} value={g.number}>
-                Game {g.number}{g.id === state?.gameId ? " · current" : ""}
+              <option key={g.id} value={g.id}>
+                {gameTitle(g)}{g.id === state?.gameId ? " · current" : g.archivedAt ? " · archived" : ""}
               </option>
             ))}
           </Select>
@@ -213,17 +250,21 @@ export default async function ArchivePage({ searchParams }) {
           Apply
         </button>
       </form>
+      )}
 
-      <ArchiveTranscript entries={entries} />
+      {archived ? null : <ArchiveTranscript entries={entries} />}
 
-      <Pager
-        page={page}
-        totalPages={totalPages}
-        total={total}
-        unit="entries"
-        prevHref={pageHref(page - 1)}
-        nextHref={pageHref(page + 1)}
-      />
-    </PageShell>
+      {archived ? null : (
+        <Pager
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          unit="entries"
+          prevHref={pageHref(page - 1)}
+          nextHref={pageHref(page + 1)}
+        />
+      )}
+      </PageShell>
+    </>
   );
 }

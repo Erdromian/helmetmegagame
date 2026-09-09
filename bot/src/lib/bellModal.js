@@ -20,7 +20,7 @@ const { RING_WORD, bellWordMatches } = require("@lifeweb/db/lib/bell");
 const BELL_MODAL_PREFIX = "bell:ring:";
 const BELL_WORD_FIELD = "bell:word";
 
-const BELL_HELP = "-# Heard for a long way around, loudest near the Cathedral. Nobody is pinged. ‡";
+const BELL_HELP = "-# The bell is heard throughout Ravenheart.";
 
 function buildBellModal(roomId) {
   return new ModalBuilder()

@@ -1,0 +1,203 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import ActionDialog from "./ActionDialog";
+import useSubmit from "./useSubmit";
+import ChipPicker from "../ChipPicker";
+import NameChips from "../NameChips";
+import { noticeLine } from "./noticeLines";
+import { FULL_NAME_LIMIT } from "@/lib/characterName";
+import {
+  loadIntercept,
+  setIntercept,
+  stopIntercept,
+  releaseHeld,
+} from "@/app/(app)/character/interceptActions";
+
+// Laying in wait (docs/systemdocs/INTERCEPT.md). Re-openable and editable: it
+// loads whatever watch is already set and Save overwrites it.
+//
+// NOTHING HERE IS A TOOLTIP. Both modes print their sentence on the page, both
+// at once rather than only the chosen one, and the "any person" note reads
+// under the chips. That is SHEET.md §3's rule for this surface, and it is why
+// the dialog is a column of short paragraphs rather than a row of ⓘ icons.
+
+const MODES = [
+  { id: "SAFE", label: "Safe" },
+  { id: "AMBUSH", label: "Ambush" },
+];
+
+// Bascinet's words, both of them, so neither carries a ‡.
+const MODE_HELP = {
+  SAFE: "Freezes them for two minutes and sends them the message.",
+  AMBUSH:
+    "Freezes them until the end of the turn, when the gambit is adjudicated, or until you let them go. If you wish to harm them, make sure to enter a Gambit declaring your intention.",
+};
+
+export default function InterceptDialog({ mode: verb, onDone, onClose }) {
+  const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState("SAFE");
+  const [message, setMessage] = useState("");
+  const [names, setNames] = useState([]);
+  const [anyConcealed, setAnyConcealed] = useState(false);
+  const [anyPerson, setAnyPerson] = useState(false);
+  const [holding, setHolding] = useState([]);
+  const [place, setPlace] = useState(null);
+  const [limits, setLimits] = useState({ names: 12, message: 300 });
+  const { submit, busy, error } = useSubmit();
+
+  useEffect(() => {
+    let live = true;
+    loadIntercept()
+      .then((res) => {
+        if (!live || !res?.ok) return;
+        setLimits(res.limits ?? { names: 12, message: 300 });
+        setHolding(res.holding ?? []);
+        if (res.watch) {
+          setMode(res.watch.mode);
+          setMessage(res.watch.message);
+          setNames(res.watch.names);
+          setAnyConcealed(res.watch.anyConcealed);
+          setAnyPerson(res.watch.anyPerson);
+          setPlace(res.watch.place ?? null);
+        }
+      })
+      .finally(() => live && setLoading(false));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const watching = anyPerson || anyConcealed || names.length > 0;
+
+  return (
+    <ActionDialog
+      title="Intercept"
+      submitLabel="Save"
+      busy={busy}
+      error={error}
+      loading={loading}
+      canSubmit={watching}
+      onClose={onClose}
+      onSubmit={() =>
+        submit(
+          () => setIntercept({ mode, message, names, anyConcealed, anyPerson }),
+          (res) => onDone(noticeLine(verb, res)),
+        )
+      }
+    >
+      <p className="text-sm text-muted">
+        You wait where you are standing. Anyone you are watching for is stopped when they walk in. ‡
+      </p>
+      {/* Said on the page, not hidden behind anything: where the watch is set
+          and what ends it are the two things about this verb a player cannot
+          work out by using it (SHEET.md §3, INTERCEPT.md §8). */}
+      <p className="text-sm text-muted">
+        {place ? `You are lying in wait at ${place}. ` : ""}Leave this place, however you leave it, and the watch ends. ‡
+      </p>
+
+      {/* The two standing rules sit ABOVE the typed names rather than mixed in
+          with them: ✕ has to mean exactly one thing in a chip row, and "anyone
+          who comes" is not a name somebody typed. */}
+      <div className="field">
+        <span className="field-label">Who do you want to intercept?</span>
+        <div className="chip-row" role="group" aria-label="Who do you want to intercept?">
+          <button
+            type="button"
+            className="chip"
+            data-active={anyPerson ? "true" : undefined}
+            aria-pressed={anyPerson}
+            onClick={() => setAnyPerson((on) => !on)}
+          >
+            Any person
+          </button>
+          <button
+            type="button"
+            className="chip"
+            data-active={anyConcealed ? "true" : undefined}
+            aria-pressed={anyConcealed}
+            disabled={anyPerson}
+            onClick={() => setAnyConcealed((on) => !on)}
+          >
+            Any concealed person
+          </button>
+        </div>
+        {anyPerson ? (
+          <p className="text-xs text-muted">Any person already covers everyone. ‡</p>
+        ) : null}
+      </div>
+
+      <NameChips
+        label="…or by name"
+        names={names}
+        onChange={setNames}
+        max={limits.names}
+        maxLength={FULL_NAME_LIMIT}
+        disabled={anyPerson}
+      />
+      {/* Said out loud, because it is the one rule about this verb a player
+          could not work out by using it (INTERCEPT.md). */}
+      <p className="text-xs text-muted">
+        A name only catches a face you would recognise. Somebody hooded walks past it — watch for
+        anyone concealed instead. ‡
+      </p>
+
+      <label className="field">
+        <span className="field-label">What do you want to message them?</span>
+        <textarea
+          rows={2}
+          value={message}
+          maxLength={limits.message}
+          placeholder="Halt, in the name of the Baron!"
+          onChange={(e) => setMessage(e.target.value)}
+        />
+      </label>
+
+      <ChipPicker label="How?" options={MODES} value={mode} onChange={(id) => setMode(id || "SAFE")} />
+      <p className="text-xs text-muted">
+        <strong>Safe.</strong> {MODE_HELP.SAFE}
+      </p>
+      <p className="text-xs text-muted">
+        <strong>Ambush.</strong> {MODE_HELP.AMBUSH}
+      </p>
+
+      {holding.length > 0 ? (
+        <div className="field">
+          <span className="field-label">You are holding</span>
+          {holding.map((row) => (
+            <div key={row.id} className="chip-row">
+              <span className="text-sm">{row.name}</span>
+              <button
+                type="button"
+                className="btn-quiet"
+                disabled={busy}
+                onClick={() =>
+                  submit(
+                    () => releaseHeld({ targetCharacterId: row.id }),
+                    (res) => {
+                      setHolding((rows) => rows.filter((r) => r.id !== row.id));
+                      onDone(res.line);
+                    },
+                  )
+                }
+              >
+                Let them go
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {watching ? (
+        <button
+          type="button"
+          className="btn-quiet"
+          disabled={busy}
+          onClick={() => submit(() => stopIntercept(), (res) => onDone(res.line))}
+        >
+          Stop watching
+        </button>
+      ) : null}
+    </ActionDialog>
+  );
+}

@@ -1,45 +1,46 @@
-import BioForm from "./BioForm";
-import GoalsPanel from "./GoalsPanel";
-import StatusPanel from "./StatusPanel";
-import RequestActionsProvider from "./RequestActionsProvider";
-import TagsPanel from "./TagsPanel";
-import CharacterPoller from "./CharacterPoller";
-import RichText from "./RichText";
-import FactionLink from "./FactionLink";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+"use client";
 
-// The header's avatar, rendered into PageHeader's `actions` slot. A plain
-// image rather than a button — the portrait maker and avatar upload live in
-// the Bio panel below, not up here.
-function Avatar({ avatarSrc, name }) {
-  return avatarSrc ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={avatarSrc}
-      alt={name}
-      className="h-16 w-16 object-cover"
-      style={{
-        borderRadius: "var(--radius)",
-        border: "1px solid var(--border)",
-      }}
-    />
-  ) : (
-    <div
-      aria-hidden="true"
-      className="h-16 w-16"
-      style={{
-        background: "var(--field-bg)",
-        borderRadius: "var(--radius)",
-        border: "1px solid var(--border)",
-      }}
-    />
-  );
-}
+import { useState } from "react";
+import { MOTION_SICKNESS_SLUG, TRUMPET_SLUG } from "@lifeweb/db/lib/constants";
+import BioForm from "./BioForm";
+import CharacterPoller from "./CharacterPoller";
+import EquipBoard from "./EquipBoard";
+import GoalsPanel from "./GoalsPanel";
+import HereList from "./HereList";
+import LedgerBand from "./LedgerBand";
+import LedgerWork from "./LedgerWork";
+import RequestActionsProvider from "./RequestActionsProvider";
+import RichText from "./RichText";
+import StandingHerePanel from "./StandingHerePanel";
+import TagRail from "./TagRail";
+
+// The character sheet, at /character. See docs/systemdocs/SHEET.md.
+//
+// A band of numbers across the top — the Move, the status strip and every
+// verb — over three columns: bio on the left, the rig and what you are
+// working on in the middle, and the tags down a rail on the right as one card
+// per kind. On a phone the three columns are three tabs. The whole thing
+// scrolls as one ordinary page; nothing here scrolls inside itself.
+//
+// The props are built once in character/page.js#FreshCharacter, which is also
+// what /chat's YOU column reads from, so the two surfaces cannot disagree
+// about what a character is carrying.
+//
+// The file this replaced was the older sheet — PageShell, chips for tags, an
+// icon rack of verbs. The .ledger-* class names and the LedgerBand/LedgerWork
+// components are that rebuild's own, kept on purpose rather than churned;
+// SHEET.md §6 says why.
+
+// The three columns as tabs, below the sheet's own breakpoint (globals.css).
+const TABS = [
+  ["you", "You"],
+  ["do", "Do"],
+  ["tags", "Tags"],
+];
 
 export default function CharacterSheet({
   character,
   mode,
-  currentAction,
   openTurn,
   avatarSrc,
   transferParties,
@@ -47,20 +48,26 @@ export default function CharacterSheet({
   carry = null,
   zoneMoves = null,
   zoneMovesReason = null,
-  travellingTo = null,
   examineBlocked = null,
-  // Six flags the page computes off your own sheet and the provider gates
+  // Eight flags the page computes off your own sheet and the provider gates
   // buttons on. They were passed here and dropped for a while, which is why
   // the Nuclear Datacard never showed its buttons: the provider's default
-  // `false` won, silently.
+  // `false` won, silently. Torture and Mutilate were dropped the same way,
+  // and had never once rendered until they were added to this list.
   canCrucify = false,
   canDisguise = false,
+  canTorture = false,
+  canMutilate = false,
   hasDatacard = false,
+  hasStepstone = false,
+  stepstoneTargets = [],
   hasDevice = false,
   // The THANATI section (docs/systemdocs/THANATI.md), resolved in
   // character/page.js and handed straight through to the dialogs.
   isThanati = false,
   isThanatiLeader = false,
+  isCerberon = false,
+  canWarrant = false,
   atHideout = false,
   hideoutRooms = [],
   hideoutStock = null,
@@ -83,10 +90,20 @@ export default function CharacterSheet({
   desireAddiction = null,
   canHeal = false,
   healsLeft = null,
+  // Surgery's site (the medical pass, M3, reworked M6b): whether one is in
+  // reach at all, and whether the only thing standing in for it is a
+  // Portable Surgical Pack, which the Gambit takes a −1 for.
   hasSurgicalSite = false,
   surgicalSitePenalty = false,
   // Lessons and Craft (LESSONS.md, CRAFTING.md), all built in character/page.js.
   hasMoved = false,
+  // Research (CRAFTING.md §2b), same posture: three facts built
+  // once in character/page.js and handed straight to the provider, which
+  // composes them into canResearch/researchHint for the Research row in
+  // the tag rail.
+  holdsResearch = false,
+  atCathedral = false,
+  researchOptions = [],
   canTeach = false,
   knownRecipeIds = [],
   deathMaskCorpses = [],
@@ -105,6 +122,7 @@ export default function CharacterSheet({
   mySins = [],
   pendingOffers = [],
   hasBird = false,
+  hasRavenDraught = false,
   canRead = false,
   canWrite = false,
   hasSeal = false,
@@ -122,18 +140,22 @@ export default function CharacterSheet({
   // is standing here. Empty on someone else's sheet.
   corpses = [],
   canButcher = false,
-  hasMulligan = false,
+  identity = null,
   canSeeExtract = false,
   canExtract = false,
   extractBlocked = null,
   canSeePackage = false,
   lootTargets = [],
+  // Who a cure or an administerable item could be given to (the medical
+  // pass), and who is helpless enough to be dosed directly (M4). Both built
+  // server-side in web/lib/peoplePools.js.
   consumeTargets = [],
+  doseTargets = [],
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
-  doseTargets = [],
-  equipSlots = 6,
+  kissTargets = [],
+  kissBlocked = null,
   avatarUploadsEnabled = false,
   playPanelEnabled = true,
   portraitMakerEnabled = false,
@@ -143,189 +165,233 @@ export default function CharacterSheet({
   // { name, tagName } while a held tag fixes the character's presented name
   // and face (Tag.forcedName); null otherwise. Self sheet only.
   forcedIdentity = null,
-  lastNameLocked = false,
-  // The mid-game Store, folded into the Tags panel as a modal (see
-  // TagsPanel.js / StorePanel.js). Absent on someone else's sheet.
+  // The mid-game Store, opened from the tag rail's header as a modal (see
+  // TagRail.js / StorePanel.js). Absent on someone else's sheet.
   storeTags = null,
   storeHeldTags = null,
   // The seat, so the store's shelf can drop a tag this role may never buy
   // (Tag.excludedRoleSlugs). Null on someone else's sheet, like the two above.
   storeRoleSlug = null,
+  // The turn card's first paint: { turn, move } from play/actions.js#myMove,
+  // read by character/page.js beside everything else.
+  moveState = null,
 }) {
   const isSelf = mode === "self";
+  // Held, not equipped: you pick a trumpet up to blow it.
+  const hasTrumpet = character.tags?.some(
+    (ct) => (ct?.tag?.slug ?? ct?.slug) === TRUMPET_SLUG,
+  );
+  // The two facts the rig needs beyond the slot rule, because equipActions.js
+  // refuses on them too: a cart is not set up indoors, and a queasy stomach
+  // rules out riding anything at all.
+  const indoors = Boolean(character.location?.indoors);
+  const motionSick = Boolean(
+    character.tags?.some((ct) => (ct?.tag?.slug ?? ct?.slug) === MOTION_SICKNESS_SLUG),
+  );
+  const [tab, setTab] = useState("you");
 
   return (
-    <PageShell width="wide">
-      <PageHeader
-        title={character.name}
-        subtitle={
-          <>
-            {character.roleTitle ?? "No role"} —{" "}
-            <FactionLink
-              factionId={character.factionId}
-              name={character.faction?.name ?? "No faction"}
-            />
-          </>
-        }
-        actions={<Avatar avatarSrc={avatarSrc} name={character.name} />}
-      />
+    <div className="sheet-body">
+      {isSelf && <CharacterPoller deployVersion={deployVersion} />}
 
-      {/* Two real columns, not panels flowed by guessed height. The left
-          column is the wide working column — tags/equipment first (what a
-          player checks most), then the two small self-forms below it. The
-          right column is a fixed-width rail that stays put while the left
-          column scrolls past it, the same sticky treatment PointBuy.js uses
-          for its own build-list aside. Below `md` both collapse into one
-          stacked column, tags-and-status first since that's what a player on
-          their phone actually wants — not a form. */}
-      <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="flex flex-col gap-6">
-          {/* Every player action — the icon grid in StatusPanel and the
-              chip-click-to-consume path in TagsPanel — reads its opener off
-              this provider. It wraps both because they are siblings: the
-              buttons sit in the panel ABOVE the one that needs to drive them,
-              so the state can't live in either. Not mounted on someone else's
-              sheet, which is what makes their chips read-only for free. */}
-          {isSelf && <CharacterPoller deployVersion={deployVersion} />}
-          <RequestActionsProvider
-            enabled={isSelf}
-            selfId={character.id}
-            selfName={character.name}
-            catalog={tagCatalog ?? []}
-            characterTags={character.tags}
-            resources={character.resources}
-            transferParties={transferParties}
-            transferSilo={transferSilo}
-            carry={carry}
-            hasWorkshop={hasWorkshop}
-            canHeal={canHeal}
-            healsLeft={healsLeft}
-            hasSurgicalSite={hasSurgicalSite}
-            surgicalSitePenalty={surgicalSitePenalty}
-            hasMoved={hasMoved}
-            canTeach={canTeach}
-            knownRecipeIds={knownRecipeIds}
-            deathMaskCorpses={deathMaskCorpses}
-            craftProjects={craftProjects}
-            craftBudget={craftBudget}
-            craftAllowances={craftAllowances}
-            sitesHere={sitesHere}
-            buildable={buildable}
-            teachers={teachers}
-            learners={learners}
-            confessors={confessors}
-            mySins={mySins}
-            hasBird={hasBird}
-            canRead={canRead}
-            canWrite={canWrite}
-            hasSeal={hasSeal}
-            canSeal={canSeal}
-            paperOptions={paperOptions}
-            letterOptions={letterOptions}
-            sealOptions={sealOptions}
-            birdSentToday={birdSentToday}
-            birdTargets={birdTargets}
-            birdZones={birdZones}
-            healTargets={healTargets}
-            healParties={healParties}
-            corpses={corpses}
-            canButcher={canButcher}
-            canSeeExtract={canSeeExtract}
-            canExtract={canExtract}
-            extractBlocked={extractBlocked}
-            canSeePackage={canSeePackage}
-            lootTargets={lootTargets}
-            consumeTargets={consumeTargets}
-            bindTargets={bindTargets}
-            harmTargets={harmTargets}
-            harmTags={harmTags}
-            doseTargets={doseTargets}
-            examineBlocked={examineBlocked}
-            canCrucify={canCrucify}
-            canDisguise={canDisguise}
-            hasDatacard={hasDatacard}
-            hasDevice={hasDevice}
-            isThanati={isThanati}
-            isThanatiLeader={isThanatiLeader}
-            atHideout={atHideout}
-            hideoutRooms={hideoutRooms}
-            hideoutStock={hideoutStock}
-            thanatiWares={thanatiWares}
-          >
-            <div className="flex flex-col gap-6">
-              <StatusPanel
-                character={character}
-                isSelf={isSelf}
-                currentAction={currentAction}
-                openTurn={openTurn}
-                carry={carry}
-                zoneMoves={zoneMoves}
-                zoneMovesReason={zoneMovesReason}
-                travellingTo={travellingTo}
-                pendingOffers={pendingOffers}
-                sitesHere={sitesHere}
-                craftProjects={craftProjects}
-              />
+      {/* One provider around the band AND the grid: the verb strip in the
+            band, the rows' verbs in the rail and the wound's Heal all open
+            their dialogs through it, and they are a screen apart. */}
+      <RequestActionsProvider
+        enabled={isSelf}
+        selfId={character.id}
+        selfName={character.name}
+        catalog={tagCatalog ?? []}
+        characterTags={character.tags}
+        resources={character.resources}
+        transferParties={transferParties}
+        transferSilo={transferSilo}
+        carry={carry}
+        hasWorkshop={hasWorkshop}
+        canHeal={canHeal}
+        healsLeft={healsLeft}
+        hasSurgicalSite={hasSurgicalSite}
+        surgicalSitePenalty={surgicalSitePenalty}
+        hasMoved={hasMoved}
+        holdsResearch={holdsResearch}
+        atCathedral={atCathedral}
+        researchOptions={researchOptions}
+        canTeach={canTeach}
+        knownRecipeIds={knownRecipeIds}
+        deathMaskCorpses={deathMaskCorpses}
+        craftProjects={craftProjects}
+        craftBudget={craftBudget}
+        craftAllowances={craftAllowances}
+        sitesHere={sitesHere}
+        buildable={buildable}
+        teachers={teachers}
+        learners={learners}
+        confessors={confessors}
+        mySins={mySins}
+        hasBird={hasBird}
+        hasRavenDraught={hasRavenDraught}
+        canRead={canRead}
+        canWrite={canWrite}
+        hasSeal={hasSeal}
+        canSeal={canSeal}
+        paperOptions={paperOptions}
+        letterOptions={letterOptions}
+        sealOptions={sealOptions}
+        birdSentToday={birdSentToday}
+        birdTargets={birdTargets}
+        birdZones={birdZones}
+        healTargets={healTargets}
+        healParties={healParties}
+        corpses={corpses}
+        canButcher={canButcher}
+        canSeeExtract={canSeeExtract}
+        canExtract={canExtract}
+        extractBlocked={extractBlocked}
+        canSeePackage={canSeePackage}
+        lootTargets={lootTargets}
+        consumeTargets={consumeTargets}
+        doseTargets={doseTargets}
+        bindTargets={bindTargets}
+        harmTargets={harmTargets}
+        harmTags={harmTags}
+        kissTargets={kissTargets}
+        kissBlocked={kissBlocked}
+        examineBlocked={examineBlocked}
+        canCrucify={canCrucify}
+        canDisguise={canDisguise}
+        canTorture={canTorture}
+        canMutilate={canMutilate}
+        hasDatacard={hasDatacard}
+        hasStepstone={hasStepstone}
+        stepstoneTargets={stepstoneTargets}
+        hasDevice={hasDevice}
+        isThanati={isThanati}
+        isThanatiLeader={isThanatiLeader}
+        isCerberon={isCerberon}
+        canWarrant={canWarrant}
+        atHideout={atHideout}
+        hideoutRooms={hideoutRooms}
+        hideoutStock={hideoutStock}
+        thanatiWares={thanatiWares}
+      >
+        <LedgerBand
+          character={character}
+          avatarSrc={avatarSrc}
+          carry={carry}
+          zoneMoves={zoneMoves}
+          zoneMovesReason={zoneMovesReason}
+          openTurn={openTurn}
+          moveState={moveState}
+          pendingOffers={pendingOffers}
+          craftProjects={craftProjects}
+          sitesHere={sitesHere}
+          hasTrumpet={hasTrumpet}
+          isSelf={isSelf}
+        />
 
-              <TagsPanel
-                characterTags={character.tags}
-                isSelf={isSelf}
-                tagPoints={character.tagPoints}
-                currentTurn={openTurn?.number ?? null}
-                equipSlots={equipSlots}
-                storeTags={storeTags}
-                storeHeldTags={storeHeldTags}
-                storeRoleSlug={storeRoleSlug}
-                nukeArmedTurn={nukeArmedTurn}
-              />
-            </div>
-          </RequestActionsProvider>
-
-          {isSelf && (
-            <GoalsPanel
-              desireSlots={desireSlots}
-              slotLockTurns={desireSlotLockTurns}
-              slotStates={desireSlotStates}
-              catalog={desireCatalog}
-              families={desireFamilies}
-              familyGroups={desireFamilyGroups}
-              lockNotes={desireLockNotes}
-              addiction={desireAddiction}
-              openTurnNumber={openTurn?.number ?? null}
-            />
-          )}
+        <div className="tab-bar sheet-tabs" role="tablist">
+          {TABS.map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              className="tab-item"
+              data-active={tab === key ? "true" : undefined}
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
-        <div className="flex flex-col gap-6 md:sticky md:top-4">
-          {isSelf && (
-            <section className="panel p-4">
-              <h2 className="panel-header">Bio</h2>
-              <BioForm
-                character={character}
-                lastNameLocked={lastNameLocked}
-                hasMulligan={hasMulligan}
-                avatarUploadsEnabled={avatarUploadsEnabled}
-                playPanelEnabled={playPanelEnabled}
-                portraitMakerEnabled={portraitMakerEnabled}
-                portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
-                portraitSelection={portraitSelection}
-                hasCustomAvatar={hasCustomAvatar}
-                forcedIdentity={forcedIdentity}
-                concealGear={concealGear}
-              />
-            </section>
-          )}
+        <div className="ledger-body" data-tab={tab}>
+          <div className="ledger-col" data-col="you">
+            {isSelf ? (
+              <section className="panel p-4">
+                <h2 className="panel-header">Bio</h2>
+                <BioForm
+                  character={character}
+                  avatarUploadsEnabled={avatarUploadsEnabled}
+                  playPanelEnabled={playPanelEnabled}
+                  portraitMakerEnabled={portraitMakerEnabled}
+                  portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
+                  portraitSelection={portraitSelection}
+                  hasCustomAvatar={hasCustomAvatar}
+                  forcedIdentity={forcedIdentity}
+                  concealGear={concealGear}
+                />
+              </section>
+            ) : (
+              character.appearance && (
+                <section className="panel p-4">
+                  <h2 className="panel-header">Appearance</h2>
+                  <p className="text-sm">
+                    <RichText text={character.appearance} />
+                  </p>
+                </section>
+              )
+            )}
+          </div>
 
-          {!isSelf && character.appearance && (
-            <section className="panel p-4">
-              <h2 className="panel-header">Appearance</h2>
-              <p className="text-sm">
-                <RichText text={character.appearance} />
-              </p>
-            </section>
-          )}
+          <div className="ledger-col" data-col="do">
+            {/* Who is standing here, with the same menu /chat's column has —
+                so Bind, Loot, Heal and the rest start from the person rather
+                than from a picker. No seed: the list is read on mount, which
+                is the click that asked. It leads this column because the
+                verbs under it are mostly things you do TO somebody. */}
+            {isSelf && (
+              <section className="panel p-4">
+                <h2 className="panel-header">Who&apos;s here</h2>
+                <HereList people={null} selfId={character.id} poll />
+              </section>
+            )}
+
+            <EquipBoard
+              characterTags={character.tags}
+              isSelf={isSelf}
+              indoors={indoors}
+              motionSick={motionSick}
+            />
+
+            {isSelf && (
+              <GoalsPanel
+                desireSlots={desireSlots}
+                slotLockTurns={desireSlotLockTurns}
+                slotStates={desireSlotStates}
+                catalog={desireCatalog}
+                families={desireFamilies}
+                familyGroups={desireFamilyGroups}
+                lockNotes={desireLockNotes}
+                addiction={desireAddiction}
+                openTurnNumber={openTurn?.number ?? null}
+              />
+            )}
+
+            {isSelf && (
+              <LedgerWork craftProjects={craftProjects} sitesHere={sitesHere} />
+            )}
+
+            <StandingHerePanel sites={sitesHere} />
+          </div>
+
+          <div className="ledger-col ledger-rail" data-col="tags">
+            <TagRail
+              characterTags={character.tags}
+              isSelf={isSelf}
+              selfId={character.id}
+              identity={identity}
+              tagPoints={character.tagPoints}
+              tagCatalog={tagCatalog ?? []}
+              currentTurn={openTurn?.number ?? null}
+              storeTags={storeTags}
+              storeHeldTags={storeHeldTags}
+              storeRoleSlug={storeRoleSlug}
+              nukeArmedTurn={nukeArmedTurn}
+            />
+          </div>
         </div>
-      </div>
-    </PageShell>
+      </RequestActionsProvider>
+    </div>
   );
 }

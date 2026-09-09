@@ -85,13 +85,12 @@ kind (CRAFTING.md §2).
 | `white-honey` | **3** | 1 | `honey` + `trout-heart` | — |
 | `purifier` | 6 | 1 | `cave-fungus` | — |
 | `dreamers-draught` | 6 | 1 | `skinless-brain` | — |
-| `succubus-draught` | **8** | 1 | `nekker-pheromones` | `mindreading` |
 | `forgiveness` | 8 | 1 | `poppy` | — |
 | `flawless-skin` | 8 | 1 | — | `otherworldly-beauty` |
 
-Four recipes lost a prose ingredient and pay in ⬢ instead, because the
+Three recipes lost a prose ingredient and pay in ⬢ instead, because the
 ingredient was the whole gate: `white-honey` 2 → **6** (it cures a poisoning),
-`succubus-draught` 2 → **8** (it grants mindreading), and `forgiveness` /
+and `forgiveness` /
 `flawless-skin` keep their 8, which was already doing the work. White Honey
 has since regained a real gate twice over — it spends a `honey` (a gm-catalog
 Depot import, which also makes it one of the HIDDEN recipes: off the Recipes
@@ -104,9 +103,6 @@ triple gate. Its own `cures:` list (the medical pass, TAGS.md §5c) is
 the catalog (nightshade's choking and soporific's asleep aren't on it). Its
 player-facing description says as much ("not every toxin bends to it") since
 the medical pass truthed it.
-`succubus-draught` regained a real gate the same day — it spends
-`nekker-pheromones`, butchered from a Nekker Corpse, which hides the recipe
-the same way (sells 18 with it; 7 sat below the brew's own ⬢ cost).
 `phrygian-tears` is the most potent poison in the game and brews from
 poisons now: a bottle of `nightshade` distilled further, cut with
 `cave-fungus` — both public, so the recipe stays in the book.
@@ -267,7 +263,7 @@ drinker paces at 1 drink → Tipsy, two more → Wasted, two more → Unconsciou
 The catalog's `conflictsWith` keeps a character from holding both at once. The
 three slugs (`lightweight`, `iron-liver`, `holding-it-down`) are duplicated by
 hand at the top of `consumeGrants.js`, because that file is imported by client
-components (`TagsPanel.js`, `RequestActionsProvider.js`) and pulling
+components (`TagRail.js`, `RequestActionsProvider.js`) and pulling
 `@lifeweb/db/lib/constants` into the browser bundle isn't an option — keep
 them in sync with `db/lib/constants.js` if either ever changes.
 

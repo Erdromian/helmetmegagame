@@ -4,8 +4,14 @@ Who belongs to what, who can see what a member is holding, and where the
 faction keeps its things.
 
 Factions are **live**, not authored. `docs/roles.yaml` seeds them; after that
-players join, leave, secede, rename and found them, and nothing in this system
-may be re-derived from the YAML.
+players join, leave, secede and rename them, and nothing in this system may be
+re-derived from the YAML.
+
+**A player cannot make one.** Which factions exist is Bascinet's to decide, in
+`docs/roles.yaml` — a player picks between them, and the point of belonging to
+one goes away if walking out and declaring yourself a faction of one is a
+button. The Found verb existed until 2026-09-08 and is gone; §3a says what is
+left of it.
 
 ## 1. Faction is game state, not a Discord role
 
@@ -47,7 +53,7 @@ at once. They all go through `db/lib/factionConstants.js` now:
 aren't now, and nothing should reintroduce them as tags.
 
 - **Leader** is set by a GM (`setFactionLeader`, `assignFactionMember`), or
-  taken by founding a faction, or inherited. A Leader who walks out **or dies**
+  inherited. A Leader who walks out **or dies**
   hands the seat on: Treasurer first, then longest-standing, and a Catatonic
   member last — crowning somebody who has left Discord leaves the faction as
   stuck as leaving the seat with a corpse. `promoteSuccessor`
@@ -61,10 +67,10 @@ aren't now, and nothing should reintroduce them as tags.
 A role can also grant either at creation, via `leader:`/`treasurer:` booleans
 in `docs/roles.yaml`.
 
-## 3. Membership moves, in five verbs
+## 3. Membership moves, in four verbs
 
 `Character.factionId` is still a plain FK — one faction, no history table. What
-changed is who may write it. All five live in
+changed is who may write it. All four live in
 `web/app/(app)/faction/actions.js` and return the `{ ok }` shape
 (`web/lib/actionResult.js`), because a thrown error reaches a client component
 as React #441.
@@ -75,7 +81,6 @@ as React #441.
 | **Apply** | any character | A PENDING `APPLICATION`. The faction's Leader and Treasurer get a DM. |
 | **Invite** | Leader/Treasurer | A PENDING `INVITE`. The named character gets a DM and answers it themselves. |
 | **Secede** | Leader | `parentFactionId = null`. Nobody moves. The parent's officers are told. |
-| **Found** | any character | A brand-new faction, free and instant, founder as Leader. No parent, no silo, nothing inherited. |
 
 Removing somebody is Leave with an officer's finger on it. A Treasurer cannot
 remove the Leader they answer to.
@@ -95,14 +100,14 @@ immediately and is reviewed afterwards, carrying an applied-and-undoable
 somebody answers it, which that model has no status for.
 
 An application is withdrawn automatically when the applicant joins somewhere
-else, founds a faction, leaves, is moved by a GM, or dies
-(`db/lib/characterDeath.js`).
+else, leaves, is moved by a GM, or dies (`db/lib/characterDeath.js`).
 
-**A player-founded faction is never pruned.** `db:sync-roles` deletes factions
-absent from `roles.yaml`, and a founded one is absent by nature — so the prune
-skips any row with `foundedById` set. Without that, the first sync after its
-last member walked out would have deleted it. A Restart Game wipe *does* delete
-them, which is the one time it is right.
+**A faction founded before 2026-09-08 is never pruned.** Nothing mints
+`Faction.foundedById` any more, but rows that carry it are still in the live
+database, and `db:sync-roles` deletes factions absent from `roles.yaml` — which
+a founded one is by nature. So the prune still skips any row with `foundedById`
+set, and the Restart Game wipe still deletes them. Both stay until the last of
+those rows is gone; neither is dead code while one exists.
 
 ## 4. Silos are rooms
 
@@ -115,6 +120,21 @@ Two factions may share a room. The Church and the Order both sit in the
 Cathedral. A silo must be **in the faction's own zone** — deposits are
 zone-scoped, so one anywhere else could never be used; both pickers filter to
 that zone and `setSiloRoom` re-checks.
+
+**The picker only offers rooms the officer has stood in and can open**
+(`db/lib/locationVisits.js#knownRooms`, the map's own rule: `stood`, not
+`seen`, and `accessibleRooms` for the door). It used to be a plain `findMany`
+over the zone, which read out the name and address of every secret room in the
+district — the Inn's Cellar, the Order Chambers, the Depot's Cargo Bay — to
+anyone who opened the dropdown. `setSiloRoom` re-checks with the same call, so
+the list and the gate cannot drift apart.
+
+The faction's **current** silo is pinned onto that list whether or not the
+filter keeps it. An officer who never had the key still has to see where their
+faction banks — and the dialog seeds its `<select>` from `Faction.siloRoomId`,
+so an option that is not there renders blank and "Set silo" would post `null`
+and quietly un-silo the faction. Re-posting the current silo is allowed for the
+same reason. This is the same pinning §4a describes for the Transfer dialog.
 
 Two of the ten authored silos — the Storehouse and the Mess Hall — are
 **public rooms**, and that is deliberate. Anyone standing there can walk off
@@ -151,6 +171,13 @@ everybody but the key-holder, and a Cerberus handing in loot should not need
 the Censor present. Both surfaces say it out loud rather than letting a
 player post goods into a hole — the Silo tab's banner, and the Transfer
 dialog's footnote when the silo is the destination.
+
+One thing a keyless officer can no longer do is **re-point** the silo at a
+locked room: the picker and `setSiloRoom` both ask whether the door opens for
+them (§4). You have to be able to open your own treasury. Nothing else here
+changes — the eight private silos above are authored in `docs/zones.yaml` and
+never go through that picker, a keyless *member* still deposits from across the
+zone, and the balance and contents stay withheld exactly as below.
 
 Two consequences worth stating, because both were bugs once:
 
@@ -227,9 +254,8 @@ name, silo, silo ⬢, member count, Leader, pending count — and tabs under it.
 | Standing | everyone | Parent and subjects, your own pending handshakes, Rename, Secede, Leave. |
 
 A character with **no faction** gets a directory instead: every real faction,
-its Leader, its member count, an Apply button, and a Found your own button.
-That replaces a dead end that read "You aren't assigned to a faction yet."
-with nothing to do about it.
+its Leader, its member count, and an Apply button. That replaces a dead end
+that read "You aren't assigned to a faction yet." with nothing to do about it.
 
 Accepting somebody into a faction whose silo is locked hands them the key.
 Which keys travel depends on **who is answering**, and that is a permission
@@ -250,9 +276,13 @@ Every hidden tab and disabled button is a hint. The actions re-resolve the
 acting character from the session and re-check the officer seat inside their
 own transactions.
 
-**GM side.** `/gm/dev/factions` carries create, rename, re-parent, **set
-silo**, delete, a member mover (any character into any faction, either seat,
-in one write) and a read-only list of every pending application. The
+**GM side.** `/gm/dev/factions` carries rename, re-parent, **set silo**,
+delete, a member mover (any character into any faction, either seat, in one
+write) and a read-only list of every pending application. It has **no create**
+— it never did, and now that the player's Found verb is gone, `docs/roles.yaml`
+plus `db:sync-roles` is the only way a new faction comes into existence at all.
+If a GM ever needs to raise one mid-game without a sync, that button has to be
+built. The
 applications are read-only on purpose: answering one would be answering for a
 faction's officers. `/faction?factionId=…` is still the per-faction GM detail
 view.

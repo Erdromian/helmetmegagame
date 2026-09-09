@@ -16,6 +16,10 @@ export function notifyCharacter(character, text, opts = {}) {
     sendDm(character.discordUserId, text, {
       authorDiscordUserId: opts.authorDiscordUserId ?? null,
       source: opts.source ?? "player_event",
+      // Forwarded, but the default stands: everything this helper sends is
+      // the game telling a player what happened to them, which is a NOTICE
+      // by definition (db/lib/dmKinds.js).
+      kind: opts.kind,
       // Forwarded rather than dropped: a Bird's letter carries a Reply button,
       // and names the paper it delivered in meta so /gm/messages can join the
       // DM to the object that moved.

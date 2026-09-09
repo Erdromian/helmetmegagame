@@ -1,5 +1,6 @@
 "use client";
 
+import { WEAPON_HANDS, handsUsed } from "@lifeweb/db/lib/equipSlots";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { tagsById as buildTagsById } from "@/lib/characterCreation";
 import { tagDuration, turnsLeft } from "@/lib/turnFormat";
@@ -27,7 +28,6 @@ export default function TagEditor({
   tags,
   held,
   openTurn,
-  equipSlots,
   onApplyOps,
   characterId,
   characterName,
@@ -162,7 +162,13 @@ export default function TagEditor({
     });
   }, [held, tagsById]);
 
-  const equippedCount = held.filter((h) => h.equipped).length;
+  // Slots spent, not rows worn — a stack equipped 3-of-5 spends 3.
+  const equippedCount = held.reduce((sum, h) => sum + (h.equippedQuantity ?? 0), 0);
+  // Hands are the one equipment limit that is a number (db/lib/equipSlots.js);
+  // the layered slots say no for themselves when a GM patches a clash in.
+  // handsUsed expands each row by its own equippedQuantity, so this counts
+  // physical units the same way equippedCount above does.
+  const hands = handsUsed(held.filter((h) => h.equippedQuantity > 0));
 
   return (
     <>
@@ -197,7 +203,7 @@ export default function TagEditor({
           </span>
         )}
         <span className="text-xs text-muted">
-          Equipment {equippedCount} / {equipSlots}
+          Equipped {equippedCount} · {hands} / {WEAPON_HANDS} hands
         </span>
       </section>
 
@@ -283,7 +289,17 @@ function HeldRow({ tag, holding, openTurn, busy, onSetQuantity, onRemove, onPatc
           <span className="mono text-xs text-muted">×{holding.quantity}</span>
         )}
         <span className="text-xs text-muted mono">{holding.source}</span>
-        {holding.equipped && <span className="chip">equipped</span>}
+        {holding.equipped && (
+          <span className="chip">
+            {/* The count only when it says something a bare "equipped"
+                doesn't — a non-stackable holding, or a fully-equipped stack,
+                is unambiguous without it. */}
+            equipped
+            {stackable && holding.equippedQuantity < holding.quantity
+              ? ` ${holding.equippedQuantity}/${holding.quantity}`
+              : ""}
+          </span>
+        )}
         {holding.expiresTurn != null && (
           <span className="text-xs text-muted">
             {/* tagDuration returns {label, badge} — TagChip destructures it. */}
@@ -313,6 +329,10 @@ function HeldRow({ tag, holding, openTurn, busy, onSetQuantity, onRemove, onPatc
           </button>
         )}
         {tag?.equippable && (
+          // All-or-nothing for the whole holding — Equip puts every unit out
+          // (each spending its own slot), Unequip clears all of them. Taking
+          // out exactly 3 of 5 is the player's own rack; the Dev Panel has no
+          // per-unit control for it.
           <button
             type="button"
             className="btn-quiet"

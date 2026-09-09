@@ -1,12 +1,14 @@
 import { prisma, isDynastyMember, gambitModifierTotal } from "@lifeweb/db";
 import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
 import { desireFamilies } from "@lifeweb/db/lib/desireFamilies";
-import { getGuildMember, isCursed } from "@/lib/discordGuild";
+import { getGuildMember } from "@/lib/discordGuild";
+import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import { isSuperadmin } from "@/lib/superadmin";
 import { isHealable } from "@/lib/healRequests";
 import { DEFAULT_MAX_DRAWBACK_TAGS, DEFAULT_MAX_DRAWBACK_POINTS } from "@/lib/characterCreation";
 import { projectDesireTemplateForGates, loadRoleBySlugForTemplates } from "@/lib/desireProjection";
 import { HUNGER_SLUG, ATE_MEAL_SLUG } from "@lifeweb/db/lib/constants";
+import { concealmentFrom, forcedNameFrom, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 
 // The whole data-assembly behind the Dev Character Panel, extracted so it can
 // be shared by the standalone page (/gm/dev/characters/[characterId]) and the
@@ -277,7 +279,23 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       isTreasurer: character.isTreasurer,
       resources: character.resources,
       tagPoints: character.tagPoints,
+      // The dial itself, so the Mood box shows what it actually is
+      // (docs/systemdocs/MOOD.md). It was missing while this was `fear`, so
+      // that box read 0 for everybody however frightened they were.
+      mood: character.mood,
       turnPingOptIn: character.turnPingOptIn,
+      // The two switches on /character a GM could not see. Both matter when a
+      // player reports being visible, or unhidden, when they expect otherwise
+      // — and `concealed` alone answers half the question, because the column
+      // is only a wish: it takes effect solely while something concealing is
+      // equipped (CHAT.md §6a, PROXYING.md §5). So the resolved answer comes
+      // along beside it, from the same function every send path asks.
+      webOnly: character.webOnly,
+      concealed: character.concealed,
+      concealedInEffect: presentedIdentity(character, {
+        forcedName: forcedNameFrom(heldTags),
+        concealment: concealmentFrom(heldTags),
+      }).concealed,
       discordRoleId: character.discordRoleId,
       avatarMimeType: character.avatarMimeType,
       hasAvatar: Boolean(character.avatarMimeType),
@@ -285,8 +303,14 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     discord: {
       username: member?.user?.username ?? null,
       nickname: member?.nick ?? null,
-      cursed: isCursed(member),
       present: Boolean(member),
+    },
+    // The curse: what the rule says about this player right now, and whether a
+    // GM has already forced it either way. Not under `discord` any more —
+    // it stopped being a Discord fact when db/lib/curse.js took it over.
+    curse: {
+      cursed: await isPlayerCursed(prisma, character.discordUserId),
+      override: character.cursedOverride ?? null,
     },
     // lastNameLocked is read off the already-loaded role rather than a
     // second query. The dynasty name is changed by editing the Baron,
@@ -331,6 +355,10 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       name: ct.tag.name,
       quantity: ct.quantity,
       equipped: ct.equipped,
+      equippedQuantity: ct.equippedQuantity,
+      // Where it sits, for the state strip's hands count (db/lib/equipSlots.js).
+      equipSlot: ct.tag.equipSlot,
+      twoHanded: ct.tag.twoHanded,
       expiresTurn: ct.expiresTurn,
       source: ct.source,
       // For the state strip's drawback point total — a negative pointCost is
@@ -338,16 +366,11 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       pointCost: ct.tag.pointCost,
     })),
     feed: { dropSlug: HUNGER_SLUG, grantSlug: ATE_MEAL_SLUG },
-    // computeBudget subtracts CURSED_POINT_PENALTY, so the Refund-points
-    // button needs to know — otherwise a re-rolled cursed character is
-    // handed back 3 points creation never gave them.
-    cursed: isCursed(member),
-    equipSlots: config?.equipSlots ?? 10,
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
     maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     startingTagPoints: config?.startingTagPoints ?? 12,
     openTurn: openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null,
-    gambitModifier: gambitModifierTotal(heldTags, { hungerStreak: character.hungerStreak }),
+    gambitModifier: gambitModifierTotal(heldTags, { hungerStreak: character.hungerStreak, mood: character.mood }),
     stagedForPush,
     openTurnAction: openTurnAction
       ? {

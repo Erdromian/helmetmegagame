@@ -4,9 +4,9 @@
 // gates. See DEPOT.md §3 and CARRY.md §2.
 //
 // A mount only works while it is EQUIPPED. That is the whole discouragement
-// behind making Cart and Horse equippable: they compete for the same
-// GameConfig.equipSlots as your armour and your weapon, and they are unequipped
-// at the door of any indoors Location. So every helper here takes the slugs a
+// behind making Cart and Horse equippable: they take the MOUNT slot (a horse
+// is ridden, a cart towed behind it — db/lib/equipSlots.js), and they are
+// unequipped at the door of any indoors Location. So every helper here takes the slugs a
 // character has ACTIVE, not merely the ones they hold — `equippedSlugs` below
 // is what builds that set, and callers must not hand these functions a bare
 // held-slug set by mistake.

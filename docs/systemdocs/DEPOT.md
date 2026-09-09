@@ -131,7 +131,7 @@ even if the switch says otherwise.
 
 ## 0d. The shuttle and the landing pad
 
-The landing pad is a **real room** — a thread under the Customs channel,
+The landing pad is a **real room** — a thread under the Depot channel,
 authored in `docs/zones.yaml`. The lock sits on the Cargo Bay next door rather
 than on the pad, which is only a hole in the roof; where a room IS gated,
 membership is handled entirely by `db/lib/roomAccess.js` and reconciled by the
@@ -450,7 +450,7 @@ is where most of his first order has to come from. It has to be paid back.
 (`DEBTOR_STARTING_OBOLS`, `db/lib/wantedPoster.js`), and the character owes
 40 back. That debt is only ever paper — three notices go up ("DEBTOR:
 {name}. Owes: 40 obols. Send the dockers."), a loose sheet each in the
-Merchant's Office and the Storefront, and one pinned to the Customs
+Merchant's Office and the Storefront, and one pinned to the Depot
 noticeboard. It shares the Wanted poster machinery (`NOTICE_SPECS.DEBTOR`),
 just with different rooms and no zone name, since the debt is the debt
 wherever the debtor is standing. Nothing collects it automatically — the
@@ -492,7 +492,7 @@ The rows stay visible and a GM corrects by hand.
 
 ## 1. What it is
 
-A shuttle parked at Customs, in the Caves, tethered to an orbital station the
+A shuttle parked at the Depot, in the Caves, tethered to an orbital station the
 Merchant's sponsors own. It is the only route in or out of Ravenheart for
 anything manufactured, and it is not a public shop: **only the Merchant trades
 with it.** He buys imports into his own inventory at the station's price, then
@@ -504,7 +504,7 @@ prohibitive — a working person saves for a Boombox and never sees a pistol.
 | | |
 |---|---|
 | Page | `/depot` (`web/app/(app)/depot/page.js`) |
-| Location | `customs` — the cave mouth. The gate used to be the whole Caverns zone, which meant trading from anywhere underground; then the Depot was split off as a Location of its own, which meant a migrant who cleared customs could not walk to the shop. It is one place again, and `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading the list works anywhere; trading needs him standing there. |
+| Location | `depot` — the merchant's berth at the cave mouth, one plain hop east of `customs`. The gate used to be the whole Caverns zone, which meant trading from anywhere underground. The Depot was then split off as a Location of its own with **no edge to Customs**, so a migrant who cleared customs could not walk to the shop; the two were merged to fix that, and are two again now that the edge is authored. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading the list works anywhere; trading needs him standing there. |
 | Gate | the `merchants-license` tag, **not** the Merchant role |
 | Requests | `DEPOT_BUY`, `DEPOT_SELL`, `DEPOT_CREDIT` — auto-applied, GM-reviewed, undoable |
 | Constants | `db/lib/depot.js` |
@@ -586,7 +586,7 @@ buying one mid-game is still a real decision.
 |---|---|---|---|
 | `paper` | 1 | — | **The cheapest thing on the shelf**, deliberately. Blank stock: writing on it mints the letter (`PAPERWORK.md`). Sells back for nothing, so buying and reselling is pure loss. |
 | `coffee` | 2 | 1 | Consumes into `caffeinated` (2t) |
-| `tea` | 2 | 1 | Cures minor nerve effects — `afraid`, `panic`. Adjudicated, not automated. |
+| `tea` | 2 | 1 | +15 mood (`MOOD.md` §5), the same as Maggot Milk |
 | `art-supplies` | 3 | 2 | What a `painting` spends — the Artist's one running cost |
 | `firecracker` | 3 | 2 | |
 | `honey` | 4 | 2 | Consumes into `ate-meal` |
@@ -601,6 +601,7 @@ buying one mid-game is still a real decision.
 | `whip` | 11 | 7 | Equippable |
 | `censer` | 12 | 7 | |
 | `jewelry` | 13 | 8 | Also a 2-pt creation pick |
+| `mining-helmet` | 14 | 9 | Caving loot he also imports. A Simple Helm's plates plus a lamp, so it prices level with one — the lamp is station work, not forge work |
 | `black-body-bag` | 22 | 13 | |
 | `monkey` | 22 | 13 | |
 | `poison-snooper` | 22 | 13 | **The exception:** also buyable at creation, 9 pt |
@@ -824,7 +825,7 @@ Selling to a player is **not** on this page. It is the existing `TRANSFER_TAG`
 and `TRANSFER_RESOURCES` pair on `/character`, which requires both parties in
 the same zone (`FACTIONS.md` §3b).
 
-That friction is the design. He sits at Customs at the bottom of the Caves, so
+That friction is the design. He sits at the Depot at the bottom of the Caves, so
 either the buyer comes down to him or a Docker carries the goods up — which is
 the entire reason the Docker seat exists. If it ever proves too much in play,
 the fix is a courier request, not loosening reach.

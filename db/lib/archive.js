@@ -15,6 +15,7 @@
 // Deliberately NOT spread into the @lifeweb/db barrel — require it by path.
 
 const { notifyFeed } = require("./feedNotify");
+const { hoodToken } = require("./whosHere");
 
 // The columns the live feed needs off a row, and nothing else. Kept beside
 // feedRowShape below so the two never drift.
@@ -24,6 +25,7 @@ const FEED_ROW_SELECT = {
   characterId: true,
   characterName: true,
   concealedAlias: true,
+  presentedAvatarPath: true,
   content: true,
   sentAt: true,
   source: true,
@@ -31,30 +33,73 @@ const FEED_ROW_SELECT = {
   deletedAt: true,
 };
 
-// One archived row as the wire shape /play and /api/feed speak.
+// One archived row as the wire shape /chat and /api/feed speak.
 //
 // `name` is the PRESENTED name: a concealed or forced send was written under
-// its alias, and that is the only name the room ever heard. `discordUserId`
-// is never sent — the whole point of the proxy is that the web page has no
-// more idea who is behind a character than a Discord channel does.
+// its alias, and that is the only name the room ever heard. `avatarPath` is
+// the same answer for the FACE — the mask or plaque frozen onto the row at
+// send time, null when the room saw the character's own face and the client
+// should ask /api/avatar for it. `discordUserId` is never sent — the whole
+// point of the proxy is that the web page has no more idea who is behind a
+// character than a Discord channel does.
+//
+// A row with an alias and no path predates the column, and cannot be given one
+// now: the sprite lived on the Tag equipped at the time. It gets `unknownFace`
+// and the question-mark plate rather than a guess, because the only wrong
+// direction here is exposing somebody the room could not see.
+//
+// `characterId` is WITHHELD on a hooded row, and this is the load-bearing
+// line in the file. Shipping it on every row meant a browser holding one
+// hooded line and one named line could match them by id and read the hood
+// straight off — the exact unmasking db/lib/whosHere.js#hoodToken exists to
+// prevent, sitting in plain JSON. It stayed harmless only while nothing on
+// the page used the id of an aliased row, which stopped being true the moment
+// the eye moved onto hooded lines.
+//
+// `speakerKey` is what replaces it: the same HMAC that file mints, so
+// consecutive lines from one hood still group into a run, and so a player can
+// still recognise their OWN hooded lines — the page is handed its own key and
+// compares. The browser cannot compute one, so it correlates hoods with hoods
+// and never a hood with a name.
+//
+// Withheld per ROW rather than per reader on purpose: web/lib/feedHub.js
+// shapes one row and fans it out to every watcher of a place, so anything
+// decided per reader here would be decided for whoever happened to be first.
+// Ownership is a client-side hint either way — every edit and delete
+// re-resolves the actor from the session (db/lib/say.js).
+//
+// `avatarVersion` goes with the id. It is a cache-buster built from the
+// speaker's updatedAt, and a timestamp that moves when one particular
+// character is edited is one more thing two rows could be matched on.
 //
 // `seq` is a BigInt on the row and a STRING here. JSON.stringify throws on a
 // BigInt, and a Number would lose precision at the far end of the range.
 function feedRowShape(row, extra = {}) {
   if (!row) return null;
+  // Any row said under a name that is not their own — a hood, or a forced
+  // name like Apex Form's Beast. Both wear a face that is not theirs
+  // (db/lib/presentedIdentity.js), so both withhold the id behind it.
+  const hooded = Boolean(row.concealedAlias);
+  // Pulled out of `extra` rather than left to the spread below, or a caller
+  // that knows the speaker's updatedAt (withAvatarVersions, feedHub) would put
+  // the cache-buster back on a hooded row after this took it off.
+  const { avatarVersion, ...rest } = extra;
   return {
     seq: String(row.seq),
     placeKey: row.placeKey ?? null,
-    characterId: row.characterId ?? null,
+    characterId: hooded ? null : (row.characterId ?? null),
+    speakerKey: hooded && row.characterId ? hoodToken(row.characterId) : null,
     name: row.concealedAlias ?? row.characterName ?? null,
     alias: row.concealedAlias ?? null,
-    avatarVersion: row.avatarVersion ?? (row.sentAt ? new Date(row.sentAt).getTime() : null),
+    avatarPath: row.presentedAvatarPath ?? null,
+    unknownFace: hooded && !row.presentedAvatarPath,
+    avatarVersion: hooded ? null : (avatarVersion ?? row.avatarVersion ?? (row.sentAt ? new Date(row.sentAt).getTime() : null)),
     content: row.content ?? "",
     sentAt: row.sentAt ? new Date(row.sentAt).toISOString() : null,
     source: row.source ?? "DISCORD",
     editedAt: row.editedAt ? new Date(row.editedAt).toISOString() : null,
     deletedAt: row.deletedAt ? new Date(row.deletedAt).toISOString() : null,
-    ...extra,
+    ...rest,
   };
 }
 
@@ -66,7 +111,7 @@ function feedRowShape(row, extra = {}) {
 // watched a portrait blink down the whole scene. The live NOTIFY path already
 // passes the right number (web/lib/feedHub.js#avatarVersionFor); this is the
 // same answer for the three surfaces that render a batch instead of a row:
-// the first paint of /play, the stream's catch-up, and /api/feed/history.
+// the first paint of /chat, the stream's catch-up, and /api/feed/history.
 //
 // ArchiveEntry.characterId is a SNAPSHOT string rather than a foreign key, so
 // a row whose character has since been deleted simply misses the map and
@@ -130,9 +175,16 @@ async function resolveTurn(prisma, turn) {
 // One proxied character message. `concealedAlias` is non-null only for a
 // /conceal send — both halves are kept, since the panel renders
 // "Young Man (Sir Alder)": the alias is what the room saw, characterName is
-// who it actually was.
-async function recordArchiveMessage(prisma, entry) {
-  return safely("message write", async () => {
+// who it actually was. `presentedAvatarPath` is the face that went with it,
+// frozen the same way and null whenever the room saw their own.
+// `rethrow` is for the one caller that needs to SEE a failure: the proxy
+// claims its row before posting to Discord (bot/src/lib/proxy.js), and the
+// whole point of that claim is the P2002 a redelivered messageCreate raises on
+// `sourceDiscordMessageId`. safely() would swallow it and the second post would
+// go out anyway. Every other caller keeps the swallow — an archive write must
+// never be the thing that breaks a turn pass.
+async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
+  const run = async () => {
     const [turn, gameId] = await Promise.all([resolveTurn(prisma, entry.turn), currentGameId(prisma)]);
     const row = await prisma.archiveEntry.create({
       data: {
@@ -146,8 +198,13 @@ async function recordArchiveMessage(prisma, entry) {
         characterId: entry.character?.id ?? null,
         characterName: entry.character?.name ?? null,
         concealedAlias: entry.concealedAlias ?? null,
+        presentedAvatarPath: entry.presentedAvatarPath ?? null,
         content: entry.content ?? "",
         discordMessageId: entry.discordMessageId ?? null,
+        // The player's original message, when one produced this row. The
+        // unique index on it is what stops a redelivered Discord event
+        // becoming a second post — see the field's note in schema.prisma.
+        sourceDiscordMessageId: entry.sourceDiscordMessageId ?? null,
         channelKind: entry.channelKind ?? null,
         threadName: entry.threadName ?? null,
         discordChannelId: entry.discordChannelId ?? null,
@@ -169,7 +226,8 @@ async function recordArchiveMessage(prisma, entry) {
       await notifyFeed(prisma, { seq: row.seq, placeKey: row.placeKey, clientId: entry.clientId ?? null });
     }
     return row;
-  });
+  };
+  return rethrow ? run() : safely("message write", run);
 }
 
 // A system event — a turn opening, a death, a fulfilled Desire. Same table as
@@ -214,6 +272,7 @@ async function archiveRowForMessage(prisma, discordMessageId) {
       characterId: true,
       characterName: true,
       concealedAlias: true,
+      presentedAvatarPath: true,
       content: true,
       sentAt: true,
       deletedAt: true,
@@ -239,13 +298,35 @@ async function updateArchiveMessage(prisma, discordMessageId, content, options =
 
 // Soft since phase 1. A client holding the row has to be able to reconcile,
 // and the outbox needs something to read when it goes to remove the Discord
-// message — so the row stays and /archive and /play filter it out.
+// message — so the row stays and /archive and /chat filter it out.
 async function deleteArchiveMessage(prisma, discordMessageId, options = {}) {
   return safely("message delete", async () => {
     const row = await archiveRowForMessage(prisma, discordMessageId);
     if (!row) return { ok: false, refusal: "That message is gone." };
     const { deleteSpeech } = require("./say");
     return deleteSpeech(prisma, { characterId: row.characterId, seq: row.seq, ...options });
+  });
+}
+
+// Take a row back that nobody should have seen — the proxy's claim row when
+// the Discord post it was written for then failed.
+//
+// Soft, and it notifies, for the same reason deleteSpeech is: the insert has
+// already woken every stream watching that place, so a hard delete would leave
+// those tabs holding a line Discord never heard. Not deleteSpeech itself, which
+// is the PLAYER's take-back and enforces an edit window and an owner — this is
+// the bot tidying up after itself.
+async function retractArchiveRow(prisma, id) {
+  return safely("row retraction", async () => {
+    const row = await prisma.archiveEntry.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+      select: { seq: true, placeKey: true },
+    });
+    if (row.placeKey) {
+      await notifyFeed(prisma, { seq: row.seq, placeKey: row.placeKey, op: "delete" });
+    }
+    return row;
   });
 }
 
@@ -260,4 +341,5 @@ module.exports = {
   archiveRowForMessage,
   updateArchiveMessage,
   deleteArchiveMessage,
+  retractArchiveRow,
 };

@@ -31,7 +31,8 @@ const DEFAULT_ROUTES = [
 
   // Player surfaces.
   { path: "/character", as: "player" },
-  { path: "/play", as: "player" },
+  { path: "/chat", as: "player" },
+  { path: "/map", as: "player" },
   { path: "/documents", as: "player" },
   { path: "/faction", as: "player" },
   { path: "/notes", as: "player" },
@@ -62,10 +63,16 @@ const DEFAULT_ROUTES = [
   { path: "/gm/dev/characters", as: "gm" },
   { path: "/gm/dev/factions", as: "gm" },
   { path: "/gm/dev/tags", as: "gm" },
+  // The sheet moved to /character and this is only the forward that keeps old
+  // links working (SHEET.md). Asserting the destination is the point: a
+  // /ledger that answered 200 again would mean a second sheet came back.
+  { path: "/ledger", as: "gm", expect: "/character" },
+  { path: "/ledger", as: "player", expect: "/character" },
 
   // The gates themselves. A pass here means the door is still shut.
   { path: "/character", as: "anon", expect: "/" },
-  { path: "/play", as: "anon", expect: "/" },
+  { path: "/chat", as: "anon", expect: "/" },
+  { path: "/map", as: "anon", expect: "/" },
   { path: "/gm/turns", as: "anon", expect: "/" },
   { path: "/gm/turns", as: "player", expect: "/character" },
   { path: "/gm/players", as: "player", expect: "/character" },
@@ -77,6 +84,7 @@ const DEFAULT_ROUTES = [
   // The GM roster lives on the Dev panel now, behind the same superadmin
   // door — /gm/gamemasters is gone.
   { path: "/gm/dev?s=gamemasters", as: "player", expect: "/character" },
+  { path: "/ledger", as: "anon", expect: "/" },
 ];
 
 // A server component that throws still answers 200: React streams the shell,

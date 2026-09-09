@@ -2,6 +2,7 @@ import { GROUPS, fieldsInGroup } from "@lifeweb/db/lib/gameConfigFields";
 import { updateGameConfig } from "@/app/(app)/gm/dev/actions";
 import SubmitButton from "@/app/components/SubmitButton";
 import Switch from "@/app/components/Switch";
+import InfoIcon from "@/app/components/InfoIcon";
 
 // The Configuration section, rendered from the registry rather than written
 // by hand — see db/lib/gameConfigFields.js for why. A plain server component:
@@ -33,6 +34,7 @@ function BoolField({ field, value }) {
       <div className="flex flex-1 min-w-0 flex-col gap-1">
         <Switch name={field.key} defaultChecked={Boolean(value)}>
           {field.label}
+          {field.info ? <InfoIcon text={field.info} /> : null}
         </Switch>
       </div>
     </div>

@@ -7,6 +7,7 @@ import { addThreadMember } from "@lifeweb/db/lib/discordRest";
 import { auth } from "@/lib/auth";
 import { loadFeedCharacter } from "@/lib/feedAccess";
 import { sendDm } from "@/lib/discordGuild";
+import { MENTION_SOURCE } from "@lifeweb/db/lib/dmKinds";
 
 // POST /api/feed/say — the web half of the send. Every gate, transform and
 // identity decision lives in db/lib/say.js, the one write path the Discord
@@ -24,13 +25,13 @@ export async function POST(request) {
   if (!session?.discordUserId) return jsonResponse({ error: "Sign in first." }, 401);
 
   const character = await loadFeedCharacter(session.discordUserId);
-  if (!character) return jsonResponse({ error: "You have no living character. ‡" }, 403);
+  if (!character) return jsonResponse({ error: "You have no living character." }, 403);
 
   let body;
   try {
     body = await request.json();
   } catch {
-    return jsonResponse({ error: "That didn't arrive in one piece. ‡" }, 400);
+    return jsonResponse({ error: "That didn't arrive in one piece." }, 400);
   }
 
   const place = typeof body?.place === "string" ? body.place : null;
@@ -122,6 +123,13 @@ async function pullIntoConversation(character, placeKey, content) {
     }
     // The web's sendDm (REST, and it logs the row) — CLAUDE.md's three
     // sendDm signatures, one per calling context.
-    await sendDm(target.discordUserId, `*You were named in ${where} · ${conversation.name}.* ‡`).catch(() => {});
+    // MENTION_SOURCE, the same tag bot/src/lib/mentions.js puts on its relay.
+    // `kind` decides how much of the inbox it gets (NOTICE, by sendDm's
+    // default) and `source` decides how it is DRAWN — DmThread renders a
+    // mention row differently, and dmThread.js filters on it. Orthogonal, and
+    // both wanted here. It lives in dmKinds.js now, not the old dmSources.js.
+    await sendDm(target.discordUserId, `*You were named in ${where} · ${conversation.name}.*`, {
+      source: MENTION_SOURCE,
+    }).catch(() => {});
   }
 }

@@ -104,7 +104,7 @@ function describeSeatConflicts({ refunded, removed, kept }) {
   }
   if (removed.length) parts.push(`Dropped: ${removed.map((r) => r.name).join(", ")}.`);
   if (kept.length) parts.push(`Kept, drawbacks and all: ${kept.map((r) => r.name).join(", ")}.`);
-  return parts.length ? `${parts.join(" ")} ‡` : null;
+  return parts.length ? parts.join(" ") : null;
 }
 
 module.exports = { resolveSeatConflicts, describeSeatConflicts };

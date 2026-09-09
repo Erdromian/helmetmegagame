@@ -2,55 +2,25 @@
 
 import { memo, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkTokens from "./remarkTokens";
-import remarkChat from "./remarkChat";
-import InfoIcon from "./InfoIcon";
-import CharacterAvatar from "./CharacterAvatar";
-import { useCharacterMentions } from "./CharacterMentionsProvider";
+import { CHAT_PLUGINS, DISCORD_COMPONENTS, escapeTokenBars } from "./markdownPlugins";
+import MessageToken from "./messageTokens";
 
-// One line of a scene, rendered. MarkdownContent.js stays exactly as it is for
-// DMs — a DM is a GM and a player talking, and none of what follows belongs
-// there.
+// One line of a scene, rendered.
 //
-// What this adds over plain Markdown: the {kind:payload} tokens (remarkTokens),
-// and chat's own three (remarkChat) — ||spoilers||, `-#` subtext and quoted
-// speech. All four plugins feed ONE tree, which is the reason this is a remark
-// plugin rather than a string pass: a mention inside a spoiler inside a quote
-// has to still be a mention.
-
-// A {char:<id>} in a feed row. The roster comes from
-// CharacterMentionsProvider, mounted on /play with exactly the people standing
-// where the reader stands — so a mention of somebody who has since walked off
-// falls back to literal text rather than naming them to a room they left.
-function CharMention({ payload, raw }) {
-  const mentionsById = useCharacterMentions();
-  const character = mentionsById.get(payload.trim());
-  if (!character) return raw;
-  return (
-    <span className="chat-mention">
-      <CharacterAvatar
-        characterId={character.id}
-        name={character.name}
-        version={character.updatedAt}
-        size={16}
-      />
-      <span>{character.name}</span>
-    </span>
-  );
-}
-
-// Deliberately a short list. A feed row is a player writing, and the catalog
-// tokens ({tag:…}, {resource:…}, {document:…}) are authored reference syntax —
-// resolving them here would let anyone mint a live chip mid-scene. An
-// unresolved token falls back to its literal text, the contract richTokens.js
-// states for every kind.
-function ChatTokenRenderer({ kind, payload, raw }) {
-  if (kind === "char") return <CharMention payload={payload} raw={raw} />;
-  if (kind === "info") return <InfoIcon text={payload.trim()} />;
-  if (kind === "cmd") return <code className="cmd-chip">/{payload.trim()}</code>;
-  return raw;
-}
+// What this adds over MarkdownContent.js: chat's own three (remarkChat) —
+// ||spoilers|| and quoted speech. Both renderers now understand the same
+// SYNTAX — the {kind:payload} tokens (remarkTokens), `-#` subtext
+// (remarkSubtext) and Discord's angle-bracket vocabulary (remarkDiscord) —
+// because text written on one face is read on the other and a surface that had
+// not been taught a pass printed it raw. What still differs is the tint and the
+// spoilers, which are a SCENE's, and a DM is a GM and a player talking.
+//
+// Every plugin feeds ONE tree, which is the reason these are remark plugins
+// rather than string passes: a mention inside a spoiler inside a quote has to
+// still be a mention.
+//
+// The token vocabulary itself is messageTokens.js, shared with MarkdownContent
+// — deliberately short, so nobody can mint a live catalog chip mid-scene.
 
 // Hidden until it is clicked, and it stays open after — the same as Discord's,
 // and the same as what a reader expects from anything they had to ask to see.
@@ -62,7 +32,7 @@ function ChatSpoiler({ children }) {
       type="button"
       className="chat-spoiler"
       data-shown={shown ? "true" : "false"}
-      aria-label={shown ? undefined : "Hidden. Click to show it ‡"}
+      aria-label={shown ? undefined : "Hidden. Click to show it"}
       onClick={() => setShown(true)}
     >
       {children}
@@ -70,12 +40,11 @@ function ChatSpoiler({ children }) {
   );
 }
 
-// Order matters. remarkChat goes FIRST so a quoted sentence is wrapped while
-// it is still one run of text; remarkTokens then resolves any {char:…} inside
-// that wrapper. The other way round, a token in the middle of a quote splits
-// the text node in two and the quote no longer matches itself.
-const PLUGINS = [remarkGfm, remarkChat, remarkTokens];
-const COMPONENTS = { richtoken: ChatTokenRenderer, chatspoiler: ChatSpoiler };
+// The plugin list and its ordering rule now live in markdownPlugins.js, so
+// this renderer and the DM one cannot drift apart again — which is how a
+// Discord timestamp ended up as raw text in somebody's thread.
+const PLUGINS = CHAT_PLUGINS;
+const COMPONENTS = { richtoken: MessageToken, chatspoiler: ChatSpoiler, ...DISCORD_COMPONENTS };
 
 // memo'd on the text, which is what makes "parsed once per row" true: a row is
 // keyed by seq in feedStore.js and its content only changes on an edit, so a
@@ -85,7 +54,7 @@ function ChatMarkdown({ content }) {
   return (
     <div className="markdown-content chat-markdown">
       <ReactMarkdown remarkPlugins={PLUGINS} disallowedElements={["img"]} unwrapDisallowed components={COMPONENTS}>
-        {content}
+        {escapeTokenBars(content)}
       </ReactMarkdown>
     </div>
   );

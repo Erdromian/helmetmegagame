@@ -136,7 +136,11 @@ Use these instead of rolling one-off markup.
 | `.status-pill` | A state, coloured by `data-tone`. |
 | `.empty-state` | "Nothing here" text. |
 | `.form-error` | Something went wrong. Always `--danger`. |
-| `.modal-overlay` / `.modal-panel` | Modals — **always** via `Modal`, usually via `useConfirm()`. |
+| `.modal-overlay` / `.modal-panel` | Modals — **always** via `Modal`, usually via `useConfirm()`. Under 640px every one is a bottom sheet: full width, up from the foot, `.modal-actions` pinned. |
+| `.notice-stack` / `.notice-card` | The result notice — via `useNotice()` (`NoticeProvider.js`), never by hand. One line saying what a button just did; `data-tone="bad"` for a refusal. Not a `.modal-overlay`, on purpose. |
+| `.action-tile` / `.menu-item` / `.icon-btn` for a verb | A player action — via `ActionButton` (`variant="tile" | "icon" | "menu"`), which carries the label, the explaining sentence and, when greyed, the reason in one tooltip. |
+| `.stack-row` / `.stack-list` | A stack you are choosing some of — via `StackRow` / `StackPicker`. Replaces a checkbox and a "How many?" box. |
+| `.chip-row` as a single pick | A short local choice — via `ChipPicker`. A dropdown hides the answer behind a click; chips show it. Not for a long list (the Bird's every-character roster stays a `<select>`). |
 | `.field-dirty` | A control carrying a staged/unsaved edit. |
 | `.staged-row` | A staged row, toned by `data-staged` (add vs. remove). |
 | `.panel-danger` | A destructive-area card border — `--danger`. |
@@ -177,7 +181,8 @@ an error. Each now has one component.
 | Concept | Use | Never |
 |---|---|---|
 | A boolean | `CheckField` (a row is selected) or `Switch` (a setting is on) | A bare `<input type="checkbox">` in a hand-rolled `<label>` |
-| A dialog | `Modal`, or `useConfirm()` / `RequestDialog` on top of it | `.modal-overlay` markup of your own |
+| A dialog | `Modal`, or `useConfirm()` / `RequestDialog` on top of it; a player action's dialog is `ActionDialog` (`components/actions/`) | `.modal-overlay` markup of your own |
+| What just happened | `useNotice()` — one sentence,-marked, from the server's `line` or `actions/noticeLines.js` | A dialog that just closes, or a `router.refresh()` as the only signal |
 | A state | `StatusPill` with a **tone**, or `EnumPill` for a DB enum | A raw enum, or a colour picked at the call site |
 | Nothing here | `EmptyState`, or `EmptyRow` in a table | A bespoke `<p className="text-muted">` |
 | In flight / failed | `SubmitButton` and `FormError` | A `<form action>` with no pending state |
@@ -220,9 +225,16 @@ top-level page is:
 </PageShell>
 ```
 
-`width` is `narrow` / `default` / `wide`, and that's the whole menu — it
-replaced five ad-hoc `max-w-*` values chosen per page. `PageHeader`'s `actions`
-slot takes anything belonging beside the title: a sub-nav, a faction switcher.
+`width` is `narrow` / `default` / `wide` / `full`, and that's the whole menu —
+it replaced five ad-hoc `max-w-*` values chosen per page. `full` drops the
+centring for a page whose own grid is the width; it still keeps the shell's
+padding, which is what separates it from the desk exception below. (The
+character sheet used it once. It now draws its own full-width body under the
+shared `AppHeader` with no `PageShell` at all — still an ordinary scrolling
+page, just not a centred one: `SHEET.md` §1.)
+
+`PageHeader`'s `actions` slot takes anything belonging beside the title: a
+sub-nav, a faction switcher.
 
 **Don't hand-roll `mx-auto flex max-w-… p-6 sm:p-8` or a bare `<h1>`.** That
 was a documented convention for months and drifted anyway, which is why it is
@@ -412,6 +424,26 @@ The rule of thumb: a transition may wrap the *server call*, never a wait on the
 *user*. If a `run()`-style helper exists, only ever hand it a function that does
 no user interaction.
 
+### Player-action dialogs — `components/actions/`
+
+Every verb on the character sheet is one file under
+`web/app/components/actions/`, mounted by `RequestActionsProvider.js` (a
+router now: instant verb, fast path, or dialog — see its header). Each file
+owns its own fields, its own `useConfirm`, its own submit (`useSubmit.js`) and
+its own roster read (`useRoster.js`, which replaced the whole-page
+`router.refresh()` that used to fire on every open). It renders exactly one
+`ActionDialog`, which is `RequestDialog` plus the two states the old inline
+bodies got wrong: `loading` ("Looking…", Confirm off) and `empty` (the
+sentence and a lone Close — never a disabled Confirm under "Nobody here is
+bound."). A dialog never raises a notice itself: it calls `onDone(line)` and
+the provider says it, so every success reads the same way.
+
+Verbs with nothing to ask — Recall, Recover, the pointer, Arm/Disarm,
+Extract — do not open a dialog at all (`actions/index.js#INSTANT`); a
+confirm where the Move is spent, then the notice. A dialog opened from a
+person's own row with the one thing it would have asked already decided
+(Bind from the HERE list) takes the same route (`FAST_PATHS`).
+
 ## 9. Mobile
 
 These rules lived only as comments in `globals.css` until a 375px pass found
@@ -444,6 +476,13 @@ block in `globals.css`. They are not 44px on desktop on purpose: at `--fs-xs`
 they are ~31px there, and raising that everywhere is a redesign, not a fix. A
 small control inside a table row — the row checkbox on `/gm/players`, say —
 gets its hit area from the cell's padding rather than from a bigger box.
+
+`.map-controls` is the one place that raises the floor for itself, under
+`(pointer: coarse)` rather than at 720px. Its `−` / `+` / Reset are
+`.btn-quiet`, which the global coarse-pointer block takes to 36px for all
+fifty-odd of its call sites — right for a flush text link in a row of prose,
+and not enough for the only way to zoom a map for anyone who cannot pinch. The
+carve-out is scoped to that one bar so nothing else moves.
 
 **The bottom bar respects `env(safe-area-inset-bottom)`**, and `.app-main`'s
 bottom padding must include the same inset. Otherwise the rail labels sit under

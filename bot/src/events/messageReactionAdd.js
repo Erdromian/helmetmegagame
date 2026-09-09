@@ -1,12 +1,9 @@
 const { EmbedBuilder } = require("discord.js");
 const { prisma, formatTagRequirement, formatTagArmor, turnsLeft, formatTurnsLeft } = require("@lifeweb/db");
-const { getMyFactionRole } = require("@lifeweb/db/lib/factionPermissions");
 const { gmRoleIds } = require("@lifeweb/db/lib/roleIds");
-// The 🔍 readout is shared with the Look at button on /character — see
-// db/lib/examine.js for why it is one module and not two embeds.
-const { EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire } = require("@lifeweb/db/lib/examine");
-const { buildSkillAncestry, satisfiedSkillIds } = require("@lifeweb/db/lib/medicalVision");
-const { BLIND_SLUG } = require("@lifeweb/db/lib/examineVision");
+// The 🔍 readout is shared with both eyes on the web — see db/lib/examineRow.js
+// for why it is one module and not three copies of the same rules.
+const { VIEWER_SELECT, examineRow } = require("@lifeweb/db/lib/examineRow");
 const { deleteSpeech, EDIT_WINDOW_MS, WINDOW_REFUSAL } = require("@lifeweb/db/lib/say");
 const { proxyRowFor } = require("../lib/proxy");
 const { resolveChannelContext } = require("../lib/channels");
@@ -30,6 +27,7 @@ function fitDescription(value) {
 }
 const { sendDm } = require("../lib/dm");
 const { buildEditPrompt, stashEdit } = require("../lib/editModal");
+const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 
 const DELETE_EMOJI = "❌";
 const EDIT_EMOJIS = ["✏️", "📝"];
@@ -61,6 +59,7 @@ async function handleStarReaction(reaction, proxy, user) {
 
   let characterId = null;
   let characterName = null;
+  let avatarPath = null;
   let zoneId = null;
 
   if (proxy) {
@@ -72,12 +71,17 @@ async function handleStarReaction(reaction, proxy, user) {
     // the starrer, but recording the real name would quietly hand them the
     // answer the concealment was hiding.
     characterName = proxy.alias ?? character.name;
+    // And the face, on the same gate: a note showing the real portrait beside
+    // an alias would hand back exactly what the alias withheld. Null means
+    // their own face, which is only ever recorded for a line said under it.
+    avatarPath = proxy.alias ? (proxy.avatarPath ?? null) : null;
     zoneId = character.zoneId ?? null;
   } else {
     const archived = await prisma.archiveEntry.findUnique({ where: { discordMessageId: message.id } });
     if (archived && archived.characterId) {
       characterId = archived.characterId;
       characterName = archived.concealedAlias ?? archived.characterName ?? "Unknown";
+      avatarPath = archived.concealedAlias ? (archived.presentedAvatarPath ?? null) : null;
       zoneId = archived.zoneId ?? null;
     } else {
       characterName = message.member?.displayName ?? message.author?.displayName ?? message.author?.username ??
@@ -99,6 +103,7 @@ async function handleStarReaction(reaction, proxy, user) {
       discordChannelId: message.channelId,
       characterId,
       characterName,
+      presentedAvatarPath: avatarPath,
       zoneId,
       content,
       sentAt: message.createdAt,
@@ -206,84 +211,22 @@ async function handleDossierReaction(reaction, proxy, user) {
   await sendDm(user, { embeds: [embed] });
 }
 
-// The readout behind BOTH 🔍 and 📸. One function rather than two copies,
-// for db/lib/examine.js's own reason: a divergence between "what you see when
-// you look" and "what the camera catches" would be invisible until a player
-// noticed one surface telling them something the other wouldn't.
+// The readout behind BOTH 🔍 and 📸, and now behind both eyes on the web too:
+// db/lib/examineRow.js is the one implementation, and this is the four lines
+// of Discord that reach it. What used to live here — the BLIND check, the
+// subject load, the officer seat, the doctor's eye, the hood the room saw —
+// all moved there when the web feed learned to offer a look at a hooded line
+// and needed exactly the same answer.
 //
-// Returns { blind: true } when the viewer can't see at all, null when the
-// subject has gone, and { readout } otherwise.
-//
-// The subject is read off the PROXY, not the live row: the hood the room saw
-// when this was posted is the hood this answers for, even if they have since
-// taken it off.
-// `bystander: true` strips the viewer's own sight before the readout is built
-// — no doctor's eye, no Seductive. That is what the CAMERA sees: a lens has no
-// medical training, and without this a surgeon's photograph would carry their
-// diagnosis into the hands of whoever they gave the print to, which is the one
-// way the doctor's-eye gate could be laundered.
+// Pressed against the row's seq rather than its character id, so the server is
+// the only thing that ever knows who is under the hood.
 async function readoutForReaction(proxy, user, { bystander = false } = {}) {
   const viewer = await prisma.character.findFirst({
     where: { discordUserId: user.id, status: "ALIVE" },
-    select: { factionId: true, tags: { select: { tagId: true, tag: { select: { slug: true } } } } },
+    select: VIEWER_SELECT,
   });
-
-  // The one thing that closes this door. Everything else about 🔍 is
-  // deliberately open — it needs the subject to have just spoken beside you,
-  // which is close enough to see whatever your eyes are — but a blind viewer
-  // sees nothing at all, here as on /character (db/lib/examineVision.js). A
-  // camera is gated the same way: framing a shot is something you do by eye.
-  if (viewer?.tags?.some((t) => t.tag?.slug === BLIND_SLUG)) return { blind: true };
-
-  const subject = await prisma.character.findUnique({
-    where: { id: proxy.characterId },
-    select: EXAMINE_SUBJECT_SELECT,
-  });
-  if (!subject) return null;
-
-  const [openTurn, skillCatalog] = await Promise.all([
-    prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
-    // Tier chain: holding Medical (Expert) must satisfy a requirement written
-    // against Medical (Basic).
-    prisma.tag.findMany({ select: { id: true, parentTagId: true } }),
-  ]);
-
-  const hooded = Boolean(proxy.concealed);
-  // Sight the READOUT is allowed to use. A camera gets none of the viewer's.
-  const sightTags = bystander ? [] : (viewer?.tags ?? []);
-  const officer =
-    !hooded && subject.factionId
-      ? (await getMyFactionRole(prisma, user.id, subject.factionId)).isOfficer
-      : false;
-  const lastDesire =
-    !hooded && canSeeDesire(sightTags)
-      ? await prisma.desire.findFirst({
-        where: { characterId: subject.id, status: "FULFILLED" },
-        orderBy: [{ endedTurnNumber: "desc" }, { id: "desc" }],
-        select: { text: true, points: true },
-      })
-      : null;
-
-  const readout = examineReadout({
-    // Faked onto the subject shape so one readout serves both — see
-    // db/lib/examine.js.
-    subject: hooded ? { ...subject, concealed: true } : subject,
-    viewerTags: sightTags,
-    satisfied: bystander
-      ? new Set()
-      : satisfiedSkillIds(
-        (viewer?.tags ?? []).map((ct) => ct.tagId),
-        buildSkillAncestry(skillCatalog),
-      ),
-    openTurnNumber: openTurn?.number,
-    lastDesire,
-    viewerFactionId: viewer?.factionId ?? null,
-    viewerIsOfficer: officer,
-    // The hood the room SAW, which outlives the hood they are wearing now.
-    wasConcealedAs: hooded ? (proxy.alias ?? null) : null,
-  });
-
-  return { readout, viewer };
+  if (!viewer) return null;
+  return examineRow(prisma, viewer, proxy.seq, { bystander });
 }
 
 // The readout as an embed. Shared by 🔍 and 📸 — a photograph shows the same
@@ -353,7 +296,7 @@ async function handleCameraReaction(reaction, proxy, user) {
     select: { characterId: true },
   });
   if (!held) {
-    await sendDm(user, "» *You have no camera.*", { source: "system_notice" }).catch((err) =>
+    await sendDm(user, "» *You have no camera.*", { kind: DM_KIND.QUIET }).catch((err) =>
       console.error(`Couldn't tell ${user.id} they have no camera:`, err),
     );
     return;
@@ -361,7 +304,7 @@ async function handleCameraReaction(reaction, proxy, user) {
 
   const key = photographKey(reaction.message.id, held.characterId);
   if (photographed.has(key)) {
-    await sendDm(user, "» *You already have that shot.*", { source: "system_notice" }).catch((err) =>
+    await sendDm(user, "» *You already have that shot.*", { kind: DM_KIND.QUIET }).catch((err) =>
       console.error(`Couldn't tell ${user.id} they already shot that:`, err),
     );
     return;
@@ -369,9 +312,11 @@ async function handleCameraReaction(reaction, proxy, user) {
 
   const result = await readoutForReaction(proxy, user, { bystander: true });
   if (!result) return;
-  if (result.blind) {
-    await sendDm(user, "» *You can't see.*", { source: "system_notice" }).catch((err) =>
-      console.error(`Couldn't tell ${user.id} they're blind:`, err),
+  if (result.blocked) {
+    // The refusal names the reason — a blindfold and a bright afternoon are
+    // not the same problem (db/lib/examineVision.js).
+    await sendDm(user, `» *${result.blocked}*`, { kind: DM_KIND.QUIET }).catch((err) =>
+      console.error(`Couldn't tell ${user.id} why they can't look:`, err),
     );
     return;
   }
@@ -492,7 +437,7 @@ module.exports = {
       // window decided in one place (db/lib/say.js). A GM is not held to it.
       const result = await deleteSpeech(prisma, { characterId: proxy.characterId, seq: proxy.seq, gm });
       if (!result?.ok && result?.refusal) {
-        await sendDm(user, `» *${result.refusal}*`, { source: "system_notice" }).catch((err) =>
+        await sendDm(user, `» *${result.refusal}*`, { kind: DM_KIND.QUIET }).catch((err) =>
           console.error(`Couldn't tell ${user.id} why the delete was refused:`, err),
         );
       }
@@ -505,7 +450,7 @@ module.exports = {
       // Refused here as well as inside editSpeech: the modal is a lot of
       // ceremony to walk somebody through before telling them it was too late.
       if (Date.now() - new Date(proxy.sentAt).getTime() > EDIT_WINDOW_MS) {
-        await sendDm(user, `» *${WINDOW_REFUSAL}*`, { source: "system_notice" }).catch((err) =>
+        await sendDm(user, `» *${WINDOW_REFUSAL}*`, { kind: DM_KIND.QUIET }).catch((err) =>
           console.error(`Couldn't tell ${user.id} the edit window had closed:`, err),
         );
         await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
@@ -514,7 +459,7 @@ module.exports = {
       // A reaction carries no interaction token, so it can only stash the
       // text and DM a button whose click opens the modal (editModal.js).
       stashEdit(reaction.message.id, reaction.message.content);
-      await sendDm(user, buildEditPrompt(reaction.message.id), { source: "system_notice" }).catch((err) =>
+      await sendDm(user, buildEditPrompt(reaction.message.id), { kind: DM_KIND.QUIET }).catch((err) =>
         console.error(`Couldn't send the edit prompt to ${user.id}:`, err),
       );
       await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
@@ -527,9 +472,9 @@ module.exports = {
       try {
         const result = await readoutForReaction(proxy, user);
         if (!result) return;
-        if (result.blind) {
-          await sendDm(user, "» *You can't see.*", { source: "system_notice" }).catch((err) =>
-            console.error(`Couldn't tell ${user.id} they're blind:`, err),
+        if (result.blocked) {
+          await sendDm(user, `» *${result.blocked}*`, { kind: DM_KIND.QUIET }).catch((err) =>
+            console.error(`Couldn't tell ${user.id} why they can't look:`, err),
           );
           return;
         }

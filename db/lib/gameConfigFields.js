@@ -18,7 +18,7 @@ const GROUPS = [
   { key: "creation", name: "Character creation" },
   { key: "economy", name: "Economy" },
   { key: "carry", name: "Carrying" },
-  { key: "fear", name: "Fear" },
+  { key: "mood", name: "Mood" },
   { key: "desires", name: "Desires" },
   { key: "clock", name: "Turn clock" },
   { key: "catatonic", name: "Catatonic" },
@@ -46,12 +46,17 @@ const FIELDS = [
     label: "Expected players (until Start)",
   },
   {
-    key: "creationWindowHours", type: "int", group: "creation", default: 24, min: 1, max: 168,
+    key: "creationWindowHours", type: "int", group: "creation", default: 12, min: 1, max: 168,
     label: "Creation window (hours)",
   },
   {
     key: "leaderWhitelistEnabled", type: "bool", group: "creation", default: true,
     label: "Require the whitelist for gated roles",
+  },
+  {
+    key: "playtestModeEnabled", type: "bool", group: "creation", default: false,
+    label: "Playtest",
+    info: "Only GMs, playtesters, and contributors can join",
   },
 
   // --- Economy ---------------------------------------------------------------
@@ -62,10 +67,6 @@ const FIELDS = [
   {
     key: "lifewebDecayPerTurn", type: "int", group: "economy", default: 10, min: 0, max: 100,
     label: "Lifeweb decay / turn",
-  },
-  {
-    key: "equipSlots", type: "int", group: "economy", default: 10, min: 1, max: 20,
-    label: "Equip slots",
   },
   {
     key: "noticeExpiryTurns", type: "int", group: "economy", default: 10, min: 1, max: 100,
@@ -86,14 +87,14 @@ const FIELDS = [
     label: "Free zone moves",
   },
   {
-    key: "locationMoveCooldownSeconds", type: "int", group: "carry", default: 60, min: 0, max: 3600,
+    key: "locationMoveCooldownSeconds", type: "int", group: "carry", default: 3, min: 0, max: 3600,
     label: "Walk cooldown (seconds)",
   },
 
-  // --- Fear ------------------------------------------------------------------
+  // --- Mood ------------------------------------------------------------------
   {
-    key: "fearIntensity", type: "float", group: "fear", default: 1, min: 0, max: 4, step: 0.1,
-    label: "Fear intensity",
+    key: "moodIntensity", type: "float", group: "mood", default: 1, min: 0, max: 4, step: 0.1,
+    label: "Mood intensity",
   },
 
   // --- Desires ---------------------------------------------------------------
@@ -124,11 +125,11 @@ const FIELDS = [
 
   // --- Features --------------------------------------------------------------
   {
-    key: "avatarUploadsEnabled", type: "bool", group: "features", default: false,
+    key: "avatarUploadsEnabled", type: "bool", group: "features", default: true,
     label: "Player avatar uploads",
   },
   {
-    key: "portraitMakerEnabled", type: "bool", group: "features", default: false,
+    key: "portraitMakerEnabled", type: "bool", group: "features", default: true,
     label: "Portrait maker",
   },
   {
@@ -173,6 +174,9 @@ const INTERNAL_KEYS = [
   "messageWipeEnabled",
   "radioCategoryId",
   "cerberonChannelId",
+  // Retired 2026-09-13: the per-slot rules in db/lib/equipSlots.js are the
+  // whole equipment limit. The column stays, unread, so nothing drops a value.
+  "equipSlots",
 ];
 
 function fieldsInGroup(groupKey) {

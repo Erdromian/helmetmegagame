@@ -62,9 +62,24 @@ export async function updateCharacterProfile(_prevState, formData) {
   // forces it there is no choice either way, so the stored preference is left
   // exactly as it was rather than being quietly rewritten by a form post.
   const concealment = forcedName ? null : await loadConcealment(prisma, character.id);
-  const concealed = concealment?.forced
-    ? character.concealed
-    : Boolean(concealment) && formData.get("concealed") === "on";
+  // Whether the switch was OFFERED, which is the only case its value may be
+  // read in. AvatarField.js renders it `disabled` under a forced identity,
+  // under something that forces concealment, and — the one this is really
+  // about — while nothing concealing is equipped. A disabled checkbox posts
+  // nothing, and a missing checkbox reads as "off", so treating those three as
+  // an answer wrote `false` over a standing wish the player never touched:
+  // take a hood off for a moment, save the Bio card for any other reason (the
+  // appearance, the turn ping, "Play from the web"), and the hood no longer
+  // worked when it went back on. Nothing said so, and /conceal refuses to set
+  // it again while the gear is off, so there was no way back from the page
+  // that broke it.
+  //
+  // Leaving the column alone is safe in the direction that matters:
+  // concealment is derived at read time, so a row left `concealed: true` with
+  // a bare face resolves back to the real face on its own
+  // (db/lib/presentedIdentity.js). The stored preference is a wish, not a
+  // state, and only the player retracts it.
+  const concealOffered = Boolean(concealment) && !concealment.forced;
   const avatar = forcedName ? null : formData.get("avatar");
 
   // Age is set once and then fixed. The input renders `disabled` after the
@@ -75,7 +90,8 @@ export async function updateCharacterProfile(_prevState, formData) {
   const age =
     Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
 
-  const data = { appearance, turnPingOptIn, concealed };
+  const data = { appearance, turnPingOptIn };
+  if (concealOffered) data.concealed = formData.get("concealed") === "on";
   if (age !== null && character.age === null) data.age = age;
 
   // The UI hides the file input while GameConfig.avatarUploadsEnabled is off
@@ -133,7 +149,12 @@ export async function updateCharacterProfile(_prevState, formData) {
   }
 
   await syncCharacterNickname(session.discordUserId, formatBareName(updated)).catch(() => {});
-  await setTurnPingRole(session.discordUserId, updated.turnPingOptIn).catch(() => {});
+  // A web-only player holds no turn-ping role: the ping lives in the #turns
+  // console, and web-only closes #turns to them (db/lib/webOnly.js). NOT read
+  // off `updated` — that row was written before the flip above and still says
+  // whatever they walked in as. A refused flip leaves them where they were.
+  const webOnlyNow = webOnlyError ? character.webOnly : webOnlyWanted;
+  await setTurnPingRole(session.discordUserId, updated.turnPingOptIn && !webOnlyNow).catch(() => {});
   // Kept as a self-heal, not a rename: the name can no longer change here, so
   // this only ever creates a personal role that went missing.
   await ensureCharacterRole(updated).catch(() => {});

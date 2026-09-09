@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import DocumentsView from "./DocumentsView";
-import Loading from "./loading";
+import Loading from "./Skeleton";
 import { auth } from "@/lib/auth";
 import { DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
 import { prisma, startingTagSlugs as parseStartingTagSlugs } from "@lifeweb/db";
@@ -296,8 +296,9 @@ async function FreshDocuments() {
     // redacted below before it reaches anybody — see recipeCatalog.js.
     requirementPerTurn: t.requirementPerTurn,
     requirementItems: t.requirementItems,
-    // The building system's marker; recipeRows drops carriers from the
-    // Recipes tab — a structure is raised, not crafted into a pocket.
+    // The building system's marker. The Recipes tab lists these like any other
+    // recipe now; this still tells a reader the thing is raised on the ground
+    // rather than carried away in a pocket.
     placement: t.placement,
   }));
 

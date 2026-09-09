@@ -493,7 +493,10 @@ pair would have *paid* a player to take a free hood. **Depressed is a sixth,
 at −8** — between the −7 and −9 bands, and the one price on this page set by a
 rule rather than a feel: `DESIRES.md` §5 prices a Personality tag by how much
 of the Desire catalog it closes against how much it opens, and Depressed
-closes everything and opens nothing, so it is that band's floor. Teaching and
+closes everything and opens nothing, so it is that band's floor. **Camouflage is a seventh, at 3** — lowered from 4, Bascinet's call, the same
+between-bands spot as Teaching (Drill Instructor). It buys no code: nothing
+reads the slug, and "nearly invisible when ambushing in a forested area" is
+adjudicated the way Mindreading's Gambit is. Teaching and
 Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
 (`LESSONS.md` §1).
 **Torturing Equipment is 0** — unpurchasable, like the other kits' `purchasable:
@@ -511,8 +514,8 @@ Bascinet's call, the same off-band spot as Motion Sickness and Insomniac.
 that is Bascinet's call rather than a new scale.** Fourteen tags now sit
 between bands: Adventurer 3, Dagger 3, Death Wish 3, Knuckle Duster 3,
 Pickpocket 3, Skeleton Wedge 3 and Nine Lives 3 (between 2 and 5); Brave was 4 here too, but the fear-dial batch of
-2026-09-06 moved it to 5 (repriced for its new ×0.5 relief on every fear
-gain, FEAR.md) — it sits on the ordinary 5 band now, so drop it from this
+2026-09-06 moved it to 5 (repriced for its new ×0.5 on every mood harm,
+MOOD.md) — it sits on the ordinary 5 band now, so drop it from this
 off-band list. Escape Artist 4, Esoteric 4, Lockpicking 4, Pavise 4 and
 Camouflage 4 (also between 2 and 5); Light Sleeper and Old Blood at 1 (below
 the 2 band, alongside Pilgrim and Instrument). Don't read a pattern into any
@@ -701,7 +704,7 @@ has since been deleted outright along with the channel it opened.
   public by omission.
 - `visible` (`Tag.inspectVisibility`) — whether another player who 🔍-reacts
   to this character's proxied messages sees the tag
-  (`bot/src/events/messageReactionAdd.js`). **Three states**, and the YAML
+  (`bot/src/events/messageReactionAdd.js`). **Four states**, and the YAML
   says them in words:
 
   | `visible:` | Column | Means |
@@ -709,6 +712,7 @@ has since been deleted outright along with the channel it opened.
   | `false` (default) | `HIDDEN` | Never seen. |
   | `true` | `ALWAYS` | Seen whether it is equipped or not. |
   | `worn` | `WORN` | Seen **only while `CharacterTag.equipped`**. |
+  | `named` | `NAMED` | Seen **only while the subject is under their own name**. |
 
   **THE RULE, and it is catalog-wide.** `visible: true` means *a stranger
   looking you over would notice*: your body, your face, your gait; your
@@ -734,6 +738,29 @@ has since been deleted outright along with the channel it opened.
   `syncTagsFromYaml` **throws** if it is set without one — the same pairing
   discipline as `concealsIdentity`, and for the same reason. See the
   `equippable` section below for the item-by-item rule of thumb.
+
+  `named` is the reputation case, and **Wanted is the tag it was written
+  for**. A bounty is on a *name*, and the tag's own description says so — the
+  Cerberon know your **face**. Under `true` it read the same either way, so a
+  hooded stranger came back as "an unknown young man" whose kit included
+  Wanted, and a man wearing a Disguise Kit's false name was read as Wanted
+  under somebody else's name. Both are the hood failing at the one job it has.
+  So a `named` tag is dropped from the read whenever the viewer is not seeing
+  the real name: under concealment, and under a forced name (Apex Form, the
+  Disguise Kit). It behaves exactly like `true` the rest of the time.
+
+  The rule lives in `seenByBystander()` (`db/lib/medicalVision.js`) like the
+  other three, and `db/lib/examine.js` is what works out whether the name is
+  the subject's own — so **both** branches of the readout, the ordinary one and
+  the concealed one, get it, and the camera's `wasConcealedAs` path inherits
+  it. `db/test/wantedVisibility.test.js` holds it down. Two things it
+  deliberately does **not** touch: torture (breaking a man gets you his real
+  name, so the warrant comes with it — `TORTURE.md`), and the Cerberon's
+  warrant book (`Check Wanted`, `REQUESTS.md`), which is a *record* and does
+  not care who is hooded.
+
+  Knighted is `true` and stays `true` for now — whether a hooded knight should
+  still read as Knighted is Bascinet's call, and it is now a one-word change.
 
   Read it through `seenByBystander()` (`db/lib/medicalVision.js`), never by
   comparing the enum at a call site: both of the bot's embeds route through
@@ -908,8 +935,11 @@ them).
 - `teachable` — whether this tag is a skill Learn Skill / Teach Skill will
   offer. Set `true` on every entry in the `skills` category except the
   Teaching tree itself (Teaching, Lecturing, Drill Instructor are `false` —
-  you can't be taught to teach), not derived from the category; the one rule
-  is `db/lib/lessons.js#teachableSkills` (`LESSONS.md` §2).
+  you can't be taught to teach) and Research (also `false` — it arrives only
+  through the Scholastic's `starting_tags`, and studying it yourself in the
+  Cathedral is the whole point, not something a lesson can hand you), not
+  derived from the category; the one rule is
+  `db/lib/lessons.js#teachableSkills` (`LESSONS.md` §2).
 - `consumable` / `consumesInto` — whether a player can use this tag up, and
   what it becomes. Live; see §5b.
 - `expiresInto` — what this tag becomes when its `durationTurns` runs out,
@@ -917,11 +947,13 @@ them).
 - `laborBonus` — what this tag adds to one kind of Laboring, e.g.
   `laborBonus: { kind: hunting, amount: 3 }`. `equipped` defaults **true**;
   `requiresTag` gates it on holding something else (the Plow needs a horse).
-  Bonuses sum, and `GameConfig.equipSlots` is the real limit. Normalised and
-  validated in `db/lib/tagShapes.js`, which throws on an unknown `kind`, on a
-  bonus that requires equipping a tag that is not `equippable`, and on a
-  `requiresTag` naming a tag that does not exist — a typo'd `kind` would
-  otherwise make a tool silently worthless. Full rules in `LABORING.md` §5.
+  Bonuses sum. The three hands cap readied WEAPONS only; accessories are
+  uncapped, and the fishing rod and the trapping gear are accessories.
+  Normalised and validated in `db/lib/tagShapes.js`, which throws on an
+  unknown `kind`, on a bonus that requires equipping a tag that is not
+  `equippable`, and on a `requiresTag` naming a tag that does not exist — a
+  typo'd `kind` would otherwise make a tool silently worthless. Full rules in
+  `LABORING.md` §5.
 - `requirementItems` (YAML: `requirement.items`) — the recipe's
   **ingredients**, and the only ones the game has. **Spent by default**:
   `quantity` units come off the crafter's sheet per craft, the same scaling ⬢
@@ -1078,10 +1110,9 @@ Five rules carry it:
   `Tag.consumesInto` still stores every target slug in order; the conditions
   live beside it in `Tag.consumesIntoUnless` (`Json`, null for the many tags
   that have none), and `syncTags.js` validates both halves against this file.
-  `resolveConsumeGrants()` in `web/lib/consumeGrants.js` applies them, and is
-  deliberately pure so the server action and the client "Becomes:" preview
-  share it — a preview that promised something the grant then withheld would
-  be worse than no preview. **No tag uses this today.** Fine Meal was the only
+  `resolveConsumeGrants()` in `web/lib/consumeGrants.js` applies them. It is
+  server-side only: consuming a tag prints nothing about what it grants, so
+  there is no preview left to keep honest. **No tag uses this today.** Fine Meal was the only
   one, granting `happy` unless `nobility`, and its condition went with the Mood
   system; the mechanism is kept because it is general.
 - **A grant may override the target's expiry.** The same object form takes an
@@ -1148,10 +1179,9 @@ Purse/Supply Kit/Skinned Cave Rat tags that use them):
   same length and order, for an even random pick between alternatives —
   `{ oneOf: [...] }` in `docs/tags.yaml`, the same shape `expiresInto` (§5c)
   already uses. `Skinned Cave Rat` is the first user: 50/50 `ate-meal` or
-  `vomiting`. `resolveConsumeGrants()` rolls the real pick for the server
-  action; the client "Becomes:" preview does **not** call it for a `oneOf`
-  position, since that would re-roll (and lie about) an outcome on every
-  render — it renders "A or B" straight off the sidecar instead.
+  `vomiting`. `resolveConsumeGrants()` rolls the real pick in the server
+  action, and nothing rolls anywhere else — the player is told neither the
+  alternatives nor which one they got.
 
 ## 5c. Health, the cure ladder, and `expiresInto`
 
@@ -1204,9 +1234,9 @@ presence of a `requirement:` block (§5, `isHealable`). A rung priced
 carelessly can still be wrong twice, on both surfaces — just remember they're
 two different flags now, not one inference.
 
-The ladder is read a third time by the fear dial: a new wound's rung decides
-how much it frightens the character who takes it, `db/lib/fear.js` reading the
-same rungs as the table above (FEAR.md). Pricing a rung carelessly is now
+The ladder is read a third time by the mood dial: a new wound's rung decides
+how much it costs the character who takes it, `db/lib/mood.js` reading the
+same rungs as the table above (MOOD.md). Pricing a rung carelessly is now
 wrong three ways, not two.
 
 **Remove/Destroy no longer cures anything.** Before `healable` existed, the
@@ -1755,9 +1785,9 @@ The Personality batch of 2026-09-05 added a second wave of scripted
 drawbacks, each with its own writer:
 
 - **Claustrophobia, Hemophobia, Agoraphobia, Pyrophobia and Teratophobia**
-  each multiply one kind of fear gain rather than sustaining a mood of their
-  own — `db/lib/fear.js` (the multiplier table) and `db/lib/fearPass.js` (the
-  nightly turn pass). See `FEAR.md`.
+  each multiply one kind of mood harm rather than sustaining a state of their
+  own — `db/lib/mood.js` (the multiplier table) and `db/lib/moodPass.js` (the
+  nightly turn pass). See `MOOD.md`.
 - **Guilt Ridden and Insomniac** each carry a nightly chance of a bad night's
   sleep, stepped through the same Tired -> Exhausted ladder a day's Labor uses
   (`LABORING.md` §4) — `db/lib/dawnAfflictionPass.js`, run right after the
@@ -1778,18 +1808,32 @@ drawbacks, each with its own writer:
 
 ## Phobias
 
-A phobia is no longer its own system. It's a multiplier on one kind of fear
-gain in the hidden fear dial — see `FEAR.md` for the dial, the five mood
-bands it produces, and the full multiplier table.
+A phobia is no longer its own system. It's a multiplier on one kind of harm to
+the mood dial — see `MOOD.md` for the dial, the nine bands it produces, and the
+full multiplier table.
 
 ## `equippable` / `concealsIdentity`
 
 `equippable: true` marks a tag as something a character can wear or carry
-readied, and so occupies one of `GameConfig.equipSlots` (default 6). The state
-lives on `CharacterTag.equipped`, not on a join table: equipping is a property
-of holding the tag, so `@@unique([characterId, tagId])` stays and every
-"holds it or doesn't" check in the codebase is unaffected. A `stackable` tag
-takes one slot however many units are held.
+readied, and so occupies its `equipSlot` (next section). Each UNIT spends its
+own slot or hand: a stack of 5 swords, all equipped, is three hands full and
+two still in the pack, not one hand for "a stack of swords" — a stackable tag
+with no `equipSlot` at all still takes no more room than any other equippable
+tag, since the slot (or the lack of one) is the only limit, never a flat count.
+
+The state lives on two `CharacterTag` columns rather than a join table.
+`equippedQuantity` is how many of `quantity` are currently out — 0 for an
+unheld or fully-stowed stack, up to `quantity` itself for one equipped down to
+the last unit — and `equipped` is kept in sync as `equippedQuantity > 0`, so
+every "holds it or doesn't" check elsewhere in the codebase (fear, armour,
+mounts, concealment, labor bonuses...) reads that one boolean and needs to
+know nothing about counts. `@@unique([characterId, tagId])` stays: a stack is
+still one row, it just carries two numbers instead of one flag.
+
+Shrinking a stack below what is equipped — `dropCharacterTag`, a GM's quantity
+patch — clamps `equippedQuantity` down to match and frees whatever slots or
+hands that frees. Nothing is ever left with `equippedQuantity` pointing past
+the end of a shorter stack.
 
 `CharacterTag.equipped` is **cleared on death** — `killCharacter` runs an
 `updateMany` over the corpse's held tags. A corpse doesn't wield things, and
@@ -1816,24 +1860,81 @@ nobody can see is not concealment, it is a missing image. Build the files with
 `npm run assets:helms --workspace=web` after adding a source sprite to
 `web/assets/helms/`.
 
-### `equipSlot` / `equipLayer`
+### `equipSlot` / `equipLayer` / `twoHanded`
 
-`GameConfig.equipSlots` is a flat **count** — six things, whatever they are —
-and for a long time it was the only limit, so a character with free slots could
-wear three helmets and two shields at once.
+There used to be a flat count, `GameConfig.equipSlots` — six things, then ten,
+whatever they were — and for a long time it was the only limit, so a character
+with free slots could ready eight swords, and later three helmets. **It is
+retired** (2026-09-13): the column stays in the schema, unread and listed under
+`INTERNAL_KEYS` in `db/lib/gameConfigFields.js`, and the slot is the whole
+rule. Every `equippable` tag names one; sync throws on one that doesn't.
 
-`equipSlot:` is the other half. `HEAD`, `BODY` and `SHIELD` are the only three,
-because they are the only places where wearing two things at once is nonsense;
-a sword or a lantern has no slot and is limited by the count alone. **Two
-equipped tags may not share a slot.**
+`equipSlot:` is the other half — `HEAD`, `BODY`, `SHIELD`, `WEAPON`,
+`ACCESSORY` and `MOUNT`, the table below. `HEAD`, `BODY` and `MOUNT` are
+layered (next paragraph), `SHIELD` holds exactly one, `WEAPON` is counted in
+hands rather than a slot, and `ACCESSORY` has no limit at all. **Two equipped
+tags may not share a slot (or, on a layered slot, a layer)** — including two
+UNITS of the very same stackable slotted tag (`hat`, `death-mask`, `gas-mask`,
+`graga-hide-cloak` are four that are both today): equipping a second one
+clashes with the first, same as it would against any other tag in that slot,
+because a slot holds one physical thing however large the stack behind it is.
 
-`equipLayer:` 1–4 subdivides `HEAD` and `BODY`, 1 against the skin and 4
-outermost, and **two equipped tags may not share a layer** either. So a mail
-coif (`HEAD` 1) goes under a knight's helm (`HEAD` 3), but two helms do not go
-together. `SHIELD` carries no layer — there is only ever one shield — and sync
-throws if one is set on it. Sync also throws on a layer outside 1–4, a layer
-with no slot, a `HEAD`/`BODY` slot with no layer, and a slot on a tag that is
-not `equippable`.
+> **Shipping this needs a tag sync.** The migration only adds the enum values
+> and `Tag.twoHanded`. Every slot, every layer and every `twoHanded` flag
+> lives in `docs/tags.yaml` and reaches the database through `npm run
+> db:sync-tags` — and **no deploy step runs that for you**. Push without it
+> and every weapon, accessory and mount is slotless: the rig draws empty rows,
+> and the limit that stops eight swords is not there. The sync is upsert-only,
+> so running it against the live database is safe (`SYNC.md` §2).
+
+| `equipSlot` | limit | holds |
+|---|---|---|
+| `HEAD` | layers 1–3, one thing per layer | 1 liner (coif, cap, mask), 2 helm, 3 outer (hat, hood, bag) |
+| `BODY` | layers 1–3, one thing per layer | 1 clothes (padded armor, robes, garb), 2 mail (mail shirt, brigandine), 3 outer (breastplate, plate, cloak, longcoat) |
+| `WEAPON` | **four hands**; a `twoHanded: true` weapon takes two | everything you hold — every weapon, the shields, the banners, the flamethrower, the chainsaw |
+| `ACCESSORY` | **four** | badges, pins, jewelry, spectacles, lenses, gloves, hand tools |
+| `MOUNT` | layers 1–2 | 1 ridden (horse, motorcycle, boat), 2 towed (cart) |
+
+`equipLayer:` 1 is against the skin and 3 outermost, and **two equipped tags
+may not share a layer**. So a mail coif (`HEAD` 1) goes under a knight's helm
+(`HEAD` 2), but two helms do not go together; a cart (`MOUNT` 2) is towed
+behind a horse (`MOUNT` 1), but a horse and a boat are one ride too many.
+`WEAPON` and `ACCESSORY` carry no layer, and sync throws if one is set on
+them. Sync also throws on a layer outside **that slot's own range** —
+1–3 on `HEAD` and `BODY`, 1–2 on `MOUNT`, since the rig has no third mount
+cell to draw one in — a layer with no slot, a layered slot with no layer, a
+slot on a tag that is not `equippable`, and `twoHanded` on anything but a
+`WEAPON`.
+
+**Hands** are the one limit that is a number: `WEAPON_HANDS = 4` in
+`db/lib/equipSlots.js`, a constant rather than a knob. A bastard sword on the
+back, a shield and a pistol in the holster is exactly four. The two-handers
+are the polearms, the great swords, the bows and the long guns, and the
+refusal names which of them is eating two. The rig calls the row **Held**, and
+prints `n/4` on it the way the accessories row does.
+
+There used to be a **`SHIELD`** slot beside this one, holding exactly one
+thing under the title "Off hand". It was a second rule for the same place on
+the body, so it was folded in here (2026-09-14) and the hands went from three
+to four — which is precisely what the two slots already allowed together, so
+no living character was left wearing a set the rules refuse. Two consequences
+worth knowing: a shield now costs a hand like anything else, and **two shields
+at once are legal**, because hands are the only limit on what you hold. The
+enum value is **retired, not deleted** — Postgres cannot drop one, so it stays
+in `schema.prisma` while `EQUIP_SLOTS` in `db/lib/equipSlots.js` leaves it
+out, which makes sync throw on any YAML still naming it.
+
+**Accessories** are the second, and the same shape: `MAX_ACCESSORIES = 4`,
+beside it in the same file. The slot started uncapped, which made it the
+pocket that everything fitting nowhere else went into — a character could wear
+a dozen badges and every one of them counted. Four is a hard number rather
+than a `GameConfig` knob for the reason the flat count was retired: a limit a
+GM can set is a limit that can disagree with the slots. The refusal names only
+the excess, the way the hands one does, and the rig prints `n/4` on the row.
+
+A GM-authored custom tag (`/gm/dev/tags`) that is `equippable` but names no
+slot is limited by nothing at all — the form has no slot picker yet — which is
+the same as it was before, minus the count.
 
 The layer also decides **which face shows**: the outermost equipped concealing
 piece is the one whose `concealSprite` the room sees.
@@ -1938,6 +2039,17 @@ which is both how armour actually works and what stops somebody in six
 overlapping layers from being untouchable. The 0.95 cap is the same idea said
 absolutely: nothing is ever bulletproof.
 
+The result is rounded to four places before it leaves `combineArmor` — a
+single piece authored at exactly a band edge (`0.2`, `0.4`, `0.6`, `0.8`)
+combines to `0.19999999999999996` in IEEE 754, which `armorWord`'s strict `<`
+reads as one word weaker than the tag says. Invisible for a long time because
+the only caller was `db/lib/depotTurret.js`'s roll math, where the error is
+irrelevant; visible the moment something displays the word — a character's
+combined Melee/Ballistic now shows as an `Armor` line on the GM's Sheet tab
+(`web/app/components/InspectorColumn.js`, shared by `/gm/turns` and
+`/gm/players`), computed across every equipped piece the same way
+`combineArmor` always has.
+
 ### Authoring one
 
 `db/lib/syncTags.js` rejects a value outside 0..1, and rejects either key on a
@@ -2001,22 +2113,30 @@ beside `concealsIdentity` — a tag cannot hide who you are and dictate it. The
 GM's custom-tag form has no editor for it, the same posture as `desireLocks`;
 `/gm/dev/tags` shows it as a `Forces name: …` chip.
 
-### The equipment panel
+### The equipment board
 
-`EquipmentPanel.js` on `/character` is **click-to-toggle**, not drag-and-drop —
-drag would need a touch fallback that is exactly this anyway — and is its own
-surface rather than an affordance on `TagChip`, whose click already opens the
-Consume dialog.
+`EquipBoard.js` on `/character` (`SHEET.md` §4) is **click-to-toggle**, not
+drag-and-drop — drag would need a touch fallback that is exactly this anyway —
+and is its own surface rather than an affordance on `TagChip`, whose tooltip
+already carries the Consume button.
 
 Equipping is **instant and writes neither a `Request` nor an `AuditLog` row**,
 unlike everything in `REQUESTS.md`. It costs nothing, the player undoes it in
 one tap, and at 100+ players a row per toggle would drown `/gm/audit`.
 
-`toggleEquip` (`web/app/(app)/character/equipActions.js`) resolves the character
-from the session rather than trusting a posted id, re-checks `tag.equippable`,
-and counts the slots inside a transaction — **but the count alone is not
-sufficient.** Prisma runs at READ COMMITTED, so two tabs both read the same free
-slot and both write. The transaction opens with
+`equipOne` and `unequipOne` (`web/app/(app)/character/equipActions.js`) replaced
+a single `toggleEquip` the day a slot stopped being a whole-holding flag —
+`equipOne` pulls one more unit out of a stack, `unequipOne` puts one back, and
+`EquipmentPanel.js` renders one box per `CharacterTag.equippedQuantity`, all of
+them acting on the same row (units of a stack are fungible, so it never matters
+which visual box unequips). The "Carrying" row underneath shows only the
+REMAINDER — `quantity - equippedQuantity` — not the stack's full count.
+
+Both resolve the character from the session rather than trusting a posted id,
+re-check `tag.equippable`, and `equipOne` counts the slots inside a
+transaction — **but the count alone is not sufficient.** Prisma runs at READ
+COMMITTED, so two tabs both read the same free slot and both write. The
+transaction opens with
 
 ```sql
 SELECT id FROM "Character" ... FOR UPDATE
@@ -2064,21 +2184,34 @@ character could shout across a Location and a Mute one could talk all day —
 
 It is now a table. Each slug names the capabilities it removes:
 
-| Tag | ACT | SPEAK | |
-|---|---|---|---|
-| `unconscious` | ✗ | ✗ | the top of the drinking ladder (`BREWING.md` §5a) |
-| `paralyzed` | ✗ | ✗ | its description has promised this since the day it was written |
-| `seizure` | ✗ | ✗ | you are on the floor (`FACTORY.md`) |
-| `bound` | ✗ | **✓** | **a hostage can yell for help** |
-| `dying` | ✗ | ✓ | last words are the tradition |
-| `crucified` | ✗ | ✓ | the Crucify button's tag (`REQUESTS.md`); becomes Dying after a turn, and a public death with no last words would be half a spectacle |
-| `catatonic-afk` | ✗ | ✓ | see the trap below |
-| `mute` | ✓ | ✗ | a mute smith is still a smith |
+| Tag | ACT | SPEAK | SHOUT | |
+|---|---|---|---|---|
+| `unconscious` | ✗ | ✗ | ✗ | the top of the drinking ladder (`BREWING.md` §5a) |
+| `paralyzed` | ✗ | ✗ | ✗ | its description has promised this since the day it was written |
+| `seizure` | ✗ | ✗ | ✗ | you are on the floor (`FACTORY.md`) |
+| `bound` | ✗ | **✓** | **✓** | **a hostage can yell for help** |
+| `dying` | ✗ | ✓ | ✓ | last words are the tradition |
+| `crucified` | ✗ | ✓ | ✓ | the Crucify button's tag (`REQUESTS.md`); becomes Dying after a turn, and a public death with no last words would be half a spectacle |
+| `catatonic-afk` | ✗ | ✓ | ✓ | see the trap below |
+| `mute` | ✓ | **✓** | ✗ | a mute smith is still a smith — and now still a talker |
 
 **ACT** is the physical half — equip, craft, destroy, labor, butcher, package,
 transfer, extract, travel, teach, confess, the Depot, writing on paper.
 **SPEAK** is the voice — the proxy (ordinary chat, whispers, the Speak modal),
-`/shout`, and the Council Room intercom.
+and the Council Room intercom. **SHOUT** is `/shout` and nothing else.
+
+**SPEAK implies SHOUT**, written once in `expandCaps()` rather than by listing
+both beside every entry, because the second half of such a pair is exactly what
+somebody forgets. So no row above sets SPEAK ✗ and SHOUT ✓, and only `mute`
+sets them the other way round.
+
+**Why `mute` moved.** It used to take SPEAK, which meant a player who bought it
+— or lost a tongue to Mutilate — could not say a word on either face for the
+rest of the game. That removed the *player* from the game rather than the
+character from a conversation, which is not a −7 drawback, it is a quit button.
+It now takes SHOUT alone: the voice is there, it just will not carry. It is
+also **no longer purchasable** (`docs/tags.yaml`); the tongue rung of the
+Mutilate ladder (`TORTURE.md`) is the only thing that puts it on somebody now.
 
 `INCAPACITATING_SLUGS` still exists and still means what it always did —
 "helpless, therefore lootable, draggable and bindable" — but it is now
@@ -2093,12 +2226,12 @@ activity clock. Gate catatonic speech and the tag becomes self-sealing: the
 player can never do the one thing that lifts it, and
 `db/lib/catatonicDeathPass.js` then kills them for it. **Catatonic must never
 block SPEAK.** For the same reason, a refused message still writes the
-speaker's activity (`bot/src/lib/proxy.js`) — being Mute must not march
+speaker's activity (`bot/src/lib/proxy.js`) — being silenced must not march
 somebody toward an auto-kill for trying to talk.
 
 **Composing with Stupid.** `stupid` is not in the table — it garbles speech
 (`db/lib/babble.js`) rather than removing it. The gate runs first: a Stupid
-Mute is silent, not babbling.
+Paralytic is silent, not babbling.
 
 **The seam.** `blockerFor(characterTags, capability)` returns the offending
 `{ slug, name }` rather than a boolean, so every refusal can name the tag —

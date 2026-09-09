@@ -244,8 +244,10 @@ you pick the right doc — they are never enough to change code with.
 | [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the arbitration workspace, staging, or the turn-end push |
 | [`PLAYER-DESK.md`](docs/systemdocs/PLAYER-DESK.md) | You're working on `/gm/players` — the merged roster + conversations desk, GM notes, or ⌘K |
 | [`LOBBY.md`](docs/systemdocs/LOBBY.md) | You're touching the game phases (`GameState.phase`), readying up, role priorities, the assignment roll, the creation window, Start Game / End Game, the epilogue, or what Restart Game keeps |
+| [`SHEET.md`](docs/systemdocs/SHEET.md) | You're touching `/character` — the sheet: the band, the verb strip, the tag rail and its rows, the equip board, Escape back to `/play`, or the rule that **nothing on that sheet is a tooltip** |
 | [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, or `/gm/dev/tags` |
 | [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, or the `/map` panel |
+| [`INTERCEPT.md`](docs/systemdocs/INTERCEPT.md) | You're touching the Intercept verb — laying in wait, Safe and Ambush, the hold on somebody's movement and its Release, or **anything that asks whether a character may move** (`heldReasonFor`) |
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, nicknames, notes |
 | [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, or who can see a member's ⬢ (Leader/Treasurer) |
@@ -254,13 +256,14 @@ you pick the right doc — they are never enough to change code with.
 | [`FACTORY.md`](docs/systemdocs/FACTORY.md) | You're touching the Godard Factory — Extract, refining Godflesh into Squeeze, the Package button and crate weights, the Spillway, or what eating a cube does |
 | [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
 | [`CORPSES.md`](docs/systemdocs/CORPSES.md) | You're touching what a body is — the corpse tag, butchering, Bury or Engrave, the rot clock, the death smell, or an **enforced recipe ingredient** (`requirement.items`) |
-| [`FEAR.md`](docs/systemdocs/FEAR.md) | You're touching the fear dial — the five band tags, what frightens or calms a character, the phobias, Brave / Rough Camper / Outsider / Spelunker, `fearIntensity`, or the nightly fear pass |
-| [`TORTURE.md`](docs/systemdocs/TORTURE.md) | You're touching the Torture button, the torture die and its thresholds, what a broken character reveals, the `TORTURED` fear hit, the Torturing Equipment kit, or the **Mutilate** button and the body parts it takes |
+| [`MOOD.md`](docs/systemdocs/MOOD.md) | You're touching the mood dial — the nine bands and the Mood box on the sheet, what sinks or lifts a mood, the phobias, Brave / Rough Camper / Outsider / Spelunker, `moodIntensity`, or the nightly mood pass |
+| [`TORTURE.md`](docs/systemdocs/TORTURE.md) | You're touching the Torture button, the torture die and its thresholds, what a broken character reveals, the `TORTURED` mood hit, the Torturing Equipment kit, or the **Mutilate** button and the body parts it takes |
 | [`THANATI.md`](docs/systemdocs/THANATI.md) | You're touching the cult — the THANATI buttons, Recall Comrades, the hideout and Purchase Gear, Flesh / Dark Inspiration / Black Robes / the Grimoire, or the **rites** (no button: robed, Inspired, ingredients on the floor, say the word), the word roll, the chant hook in `say.js` or the minute sweep. Placeholder until a human doc replaces it |
 | [`LESSONS.md`](docs/systemdocs/LESSONS.md) | You're touching Learn Skill / Teach Skill, the Teaching tags, the Offer handshake (Bind's consent too), or the lesson turn pass |
+| [`KISS.md`](docs/systemdocs/KISS.md) | You're touching the Kiss verb — the consent handshake, the `KISS` capability and what blocks it, the +15 both sides take, its two rations, or the line the room hears |
 | [`CONFESSION.md`](docs/systemdocs/CONFESSION.md) | You're touching Confess, the `psychological` tag flag, who may hear a confession, or the rule that a chaplain is never shown the sin |
 | [`CRAFTING.md`](docs/systemdocs/CRAFTING.md) | You're touching Craft, Destroy, the four tag capability flags (`craftable` / `removable` / `healable` / `teachable`), multi-turn projects, or who pays for a recipe |
-| [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript or `/archive` |
+| [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript, `/archive`, or **anything that exports, imports or deletes a game's transcript** — the archive packets and the archive-or-discard wipe |
 | [`CHAT.md`](docs/systemdocs/CHAT.md) | You're touching `/play`, the live feed (`/api/feed`, the SSE hub, the bot's outbox), `ArchiveEntry.seq` / `placeKey`, or the coming "web only" switch |
 | [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents`, `docs/documents.yaml`, `/handbook`, or `docs/handbook.md` |
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
@@ -332,6 +335,20 @@ npm run db:migrate:deploy            # prisma migrate deploy (production).
                                      #   backup first.
 npm run db:backup                    # one pg_dump into the backup bucket, now.
                                      #   ./migrate.sh runs it before migrating.
+npm run archive:export               # one game's transcript -> a packet in the
+                                     #   bucket. `-- --final` makes the
+                                     #   permanent one and stamps the Game row,
+                                     #   which Restart Game requires before it
+                                     #   will keep a game. See ARCHIVE.md.
+npm run archive:import -- --key K    # load a packet back. Prints every column
+                                     #   it dropped or defaulted.
+npm run archive:pull                 # every packet in the bucket -> ./archives
+                                     #   (gitignored). Skips what it has,
+                                     #   verifies each download, EXITS 1 on a
+                                     #   bad file. `-- --recheck` re-verifies
+                                     #   what is already there.
+npm run archive:exports              # what packets exist. EXITS 1 if the
+                                     #   current game's newest is over 36h old.
 npm run db:backups                   # what is in the bucket. EXITS 1 if the
                                      #   newest dump is over 36h old, which is
                                      #   how a dead backup system announces
@@ -385,6 +402,16 @@ npm run db:prune-stale-channels      # deletes categories, channels and zone/
 npm run db:check-config              # the GameConfig field registry vs. the
                                      #   schema (db/lib/gameConfigFields.js).
                                      #   push.sh runs it; exits 1 on drift.
+npm run db:audit-equip               # read-only: living characters wearing a
+                                     #   set the slot rules would now refuse
+                                     #   (TAGS.md "equipSlot"). Never unequips.
+npm run db:inspect-character -- "Ada"  # read-only: one character's two hiding
+                                     #   switches and what they RESOLVE to —
+                                     #   webOnly and its cooldown, the conceal
+                                     #   wish against what is actually
+                                     #   equipped, any forced name, and the
+                                     #   equip set. The first thing to run on
+                                     #   "my hood doesn't work".
 npm test --workspace=db              # node --test over db/test/ (the
                                      #   assignment roll, so far).
 npm run db:report-inactive-characters  # read-only inactivity report
@@ -451,8 +478,18 @@ setup.
 ## How the bot populates the database
 
 On `ready`, the bot upserts a `GameConfig` singleton row and runs its
-catch-up passes for anything it missed while disconnected. `guildMemberAdd`
+catch-up passes for anything it missed while it was gone. `guildMemberAdd`
 writes a `member_joined` `AuditLog` entry.
+
+**`ready` is `once: true`, so that burst is once per PROCESS, not once per
+connect.** A gateway drop the process survives re-runs none of it — which is
+fine for the passes that only reconcile drift (a stale nickname stays stale
+until the next deploy), and was not fine for messages, because a message the
+bot never saw is lost for good. So `bot/src/lib/messageCatchUp.js` is the one
+pass that also hangs off `shardReady`: it re-proxies anything typed while the
+bot was away, deletes the raw message that was sitting there under the
+player's real Discord name, and files it in the archive. Anything older than
+two hours is filed and deleted but not put back in the room.
 
 Two **privileged intents** must be turned on for the bot in the Discord
 Developer Portal (Bot → Privileged Gateway Intents). Without them, the bot
@@ -521,9 +558,10 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 | **GM role** | `DISCORD_GM_ROLE_ID` env var, **or** `TRIAL_GM_ROLE_ID` in `db/lib/roleIds.js` | `/gm` pages, the `/gm` and `/message` slash commands, and the GM's standing channel overwrites. Checked via REST (`isGm`), not stored on any model. The two are access-identical — `gmRoleIds()` is the only list, and the roster on `/gm/dev?s=gamemasters` is the one surface that tells them apart. |
 | **Spectator role** | `SPECTATOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A standing read-only observer seat, applied at provisioning time. See `CHANNELS.md`. |
 | **Player role** | `PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may ready up in the lobby or create a character, paired with `GameState.phase` (`LOBBY.md` §1, `CHARACTERS.md` §4b). |
-| **Playtest role** | `PLAYTEST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | May skip the lobby and create a character in any phase, like a GM, and counts as on the roster without the Player role. Testing access, nothing else (`LOBBY.md` §2). |
+| **Playtest role** | `PLAYTEST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Counts as on the roster without the Player role, and is on the playtest-mode allowlist. It does **not** skip the lobby or the phase gate — only a GM gets the Skip button (`LOBBY.md` §2). Testing access, nothing else. |
+| **Contributor role** | `CONTRIBUTOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A separate seat from Playtest: the people who work on Bascinet. Read by exactly one gate — `GameConfig.playtestModeEnabled`, which narrows the roster to GMs, playtesters and Contributors (`LOBBY.md` §2). Grants nothing else. |
 | **Leader Whitelist role** | `LEADER_WHITELIST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may pick or prioritise a role flagged `whitelist: true`, and tick a whitelisted antagonist box — unless `GameConfig.leaderWhitelistEnabled` is switched off on `/gm/dev` (`CHARACTERS.md` §2, `THREATS.md` §1). |
-| **Cursed role** | `DISCORD_CURSED_ROLE_ID` env var | What a player may re-roll as after a death (`CHARACTERS.md` §4), **and** the ghost seat: read-only view of every zone (cave levels included; private threads stay invisible), and no voice at all — the 🌬️ whisper is gone, an unburied body reports itself instead. Its color is pinned to 0 so ghosts aren't outed in the member list (`CHANNELS.md` §3, `COMMANDS.md` §6). |
+| **Ghost role** | `GHOST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | The ghost seat and nothing else: read-only view of every zone (cave levels included; private threads stay invisible), and no voice at all — the 🌬️ whisper is gone, an unburied body reports itself instead. Its color is pinned to 0 so ghosts aren't outed in the member list (`CHANNELS.md` §3, `COMMANDS.md` §6). **It decides nothing.** What a player may re-roll as after a death is `db/lib/curse.js`, read from the database (`CHARACTERS.md` §4); this role used to answer that too, and a deploy where it was set on one service and not the other is what ended the arrangement. |
 | **Turn-ping role** | `DISCORD_TURN_PING_ROLE_ID` env var | Plain opt-in notification, toggled from `/character`. |
 
 There is one more role family, and it is per-zone rather than global. A
@@ -618,6 +656,39 @@ path.
 
 Inbound DMs are logged directly in `bot/src/events/messageCreate.js`.
 
+### Every DM says what kind of thing it is
+
+`DirectMessage.kind` — `CONVERSATION`, `NOTICE` or `QUIET`, from
+`db/lib/dmKinds.js` — decides how much of the GM inbox a line is entitled to.
+`source` is a separate column and only decides how the line is *drawn*. Keep
+them orthogonal.
+
+- **`CONVERSATION`** — a person composed these words for this reader. It sorts
+  the GM inbox, wins the preview, and counts as unread.
+- **`NOTICE`** — the game said it. Invisible to the rail; a quiet grey line
+  once a GM opens the person.
+- **`QUIET`** — plumbing (an inspect embed, a reaction refusal). Logged, never
+  drawn.
+
+**All three `sendDm` functions default to `NOTICE`, and so does the database
+column.** Conversation is the thing you opt into:
+
+```js
+sendDm(discordUserId, text);                              // a notice
+sendDm(discordUserId, text, { kind: DM_KIND.CONVERSATION }); // a person wrote it
+```
+
+So **a new DM needs no thought to behave** — which is the point. This used to
+be a `source` string whose absence read as "a person wrote this", so every line
+anybody added showed up in the GM inbox as mail until somebody remembered to
+tag it, and "You are the Baroness" sat at the top of the inbox for weeks.
+**Never fix a misbehaving DM by adding its `source` to a filter list** — that
+is the exact pattern this replaced. Set its `kind`.
+
+A raw `prisma.directMessage.create` gets no `sendDm` default, so the four
+inbound writers each set `kind` by hand. The read-side predicates all live in
+`web/lib/dmThread.js`. See `PLAYER-DESK.md` §5.
+
 ## Bot message style ("aura")
 
 Bot-authored Discord text should feel understated, not like a typical bot
@@ -644,6 +715,16 @@ not scenery, it is a loudspeaker, and it carries an `@here` — delivering the
 loudest notification Discord has in the quietest text it renders was
 backwards. Full size, no helper. If something else ever needs to be *heard*
 rather than noticed, it belongs on that side of the line too.
+
+**Discord's angle-bracket syntax is safe on both faces now.** A `<t:EPOCH:R>`
+in DM text renders as a live relative time on Discord *and* on the web, in each
+reader's own timezone — so prefer it over a pre-formatted date. The same goes
+for `<@…>`, `<#…>`, `<:name:id>` and `@here`, though the web deliberately
+prints no id: a mention reads `someone`, a channel `somewhere`. The vocabulary
+is defined once in `db/lib/discordMarkup.js` and rendered by
+`web/app/components/remarkDiscord.js`; `db/test/discordMarkup.test.js` fails
+the build on a token neither has been taught. Before this existed, two lobby
+DMs showed players a literal `<t:1757700120:F>`.
 
 Lines that quote or restate player/character content get a `»` prefix — e.g.
 `» {move description}`. `web/lib/discordGuild.js#sendDm` adds that prefix
@@ -716,19 +797,20 @@ it before writing any UI. Four rules apply everywhere:
   clean, and threw only when someone opened the page. That's why the rule is
   on.
 
-## Game state: playtest data is real — ask before anything destructive
+## Game state: the live data is real — ask before anything destructive
 
-**There is a single live production site now, with playtest users whose
-characters, turns and messages are real.** The pre-launch "act, don't ask"
-era described in git history is over. Do not treat production as a sandbox
-you can rebuild from the YAML masters and a wipe — someone's afternoon is in
-that database.
+**There is a single live production site, and the characters, turns and
+messages in it are real.** Do not treat production as a sandbox you can
+rebuild from the YAML masters and a wipe — someone's afternoon is in that
+database.
 
 - **Stop and ask before anything that can lose data on the live database.**
   A migration that drops a column, `db:sync-zones`, `db:sync-documents`,
   `db:prune-tags -- --apply`, `db:prune-orphan-roles -- --apply`,
   `db:prune-stale-channels -- --apply`, a `#info` rebuild, a Restart Game
-  wipe — none of these are "just do it" any more. Say exactly what you're
+  wipe — none of these are "just do it" any more. **Restart Game got sharper,
+  not softer:** it now takes the transcript out of the database too, and on
+  "discard" that is gone for good with no packet behind it (`ARCHIVE.md` §6). Say exactly what you're
   about to run and why, in chat, and wait for a real yes before running it.
   "The user asked me to fix X" is not the same as "the user approved
   wiping/pruning rows to do it" — a destructive step inside a bigger task
@@ -742,6 +824,22 @@ that database.
   A full reset (`prisma migrate dev`/`reset`, `db push`, `npm run
   db:migrate`) has **no bypass at all**, confirmed or not — see the next
   bullet.
+- **`echo $DATABASE_URL` before you run anything that writes. The variable
+  wins, and a `.env` file proves nothing.** `dotenv.config()` does NOT override
+  a variable that is already exported, so a scratch script with a local `.env`
+  sitting right beside it will happily write to Railway and say nothing about
+  it. That is not hypothetical: on 2026-09-09 a throwaway regression harness
+  truncated seven tables on the live database exactly this way and emptied a
+  real game. Two guards now stand behind this, and neither replaces looking:
+  `db/lib/localDatabase.js` refuses TRUNCATE/DROP through the shared Prisma
+  client against any non-local host (no bypass, and it holds inside
+  `$transaction`), and `.claude/hooks/db-guard.py` refuses the same verbs typed
+  on a command line. The client guard is the one that catches SQL living inside
+  a file; the hook cannot see that far.
+- **A throwaway harness that writes calls `requireLocalDatabase()` first**, from
+  `db/lib/localDatabase.js`, before it opens a connection — the way
+  `scripts/dev/seed-test-data.mjs` does. One line, and it names the host it
+  refused.
 - **Test locally first, by default.** There is close to never a reason to
   need the live database just to check whether a change works.
   [`LOCAL-DEV.md`](docs/systemdocs/LOCAL-DEV.md) covers `npm run dev:setup`
@@ -1021,11 +1119,17 @@ global CLIs. To make one able to build, run, and deploy:
   `ActionStatus.ADJUDICATED`. `TagSource.DESIRE_REWARD` and
   `TagSource.LEADER_GRANT` are the same shape from an earlier tag-sourcing
   design — declared in the enum, written and read nowhere.
+  `Character.travelToLocationId` / `travelTurnId` joined them on 2026-09-14,
+  when deferred travel was removed and every crossing started landing at once
+  (`MAP.md` §3) — `db/lib/travelArrivalPass.js` still reads them, purely as a
+  drain for anybody left mid-journey by that change, and should be deleted once
+  they have landed.
   `GameConfig.mindlinkChannelId` is the same kind of orphan: the column
   stays in the schema, but nothing reads or writes it since the Cult of
   Bacchus was archived (`docs/archive/bacchus.yaml`), and `Character.missedMealStreak`
   joined it the same way when the fear dial replaced the Disappointed track
-  (`FEAR.md`).
+  (`MOOD.md`). `TagSource.CONDITION` became the newest of them when the mood
+  rework stopped projecting the dial onto a tag at all.
 - The **mid-game tag store is `/store`**: the shared `PointBuy.js` experience
   mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
   filed as one `BUY_TAGS` request. What's still open is the rules for earning

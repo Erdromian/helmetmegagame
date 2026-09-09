@@ -15,7 +15,8 @@ import {
   negativeTagCount,
   negativeTagPoints,
 } from "@/lib/characterCreation";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
+import Switch from "@/app/components/Switch";
 import InfoIcon from "@/app/components/InfoIcon";
 import Tooltip from "@/app/components/Tooltip";
 import Select from "@/app/components/Select";
@@ -124,10 +125,12 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
   // because a disabled button swallows pointer events for its descendants and
   // a tooltip inside it would never fire. `block` is load-bearing: HoverCard's
   // trigger is an inline span, and an inline grid child would collapse the
-  // card's width.
+  // card's width. `hover-bare` is the other half: .tag-hover paints chip
+  // typography, and without it the whole card inherited monospace and stopped
+  // matching the cards next to it.
   if (role.whitelistBlocked) {
     return (
-      <Tooltip text="Whitelist only" className="block">
+      <Tooltip text="Whitelist only" className="block hover-bare">
         {card}
       </Tooltip>
     );
@@ -149,6 +152,10 @@ export default function CreateCharacterWizard({
   // Whether this player holds the Whitelist role. Greys the whitelisted
   // antagonist boxes; the server drops those slugs regardless.
   whitelisted = false,
+  // GameConfig.playPanelEnabled. With Chat off there is nowhere else to play
+  // from, so the "Play from the web" switch is not offered — the same gate
+  // AvatarField.js puts on the Bio card's copy of it.
+  playPanelEnabled = true,
   // What they ticked in the lobby (PlayerPreference), so the step opens
   // already filled in. The server writes the final answer back there too.
   initialAntagonists = [],
@@ -167,6 +174,10 @@ export default function CreateCharacterWizard({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [age, setAge] = useState("");
+  // Off by default, same as the column. Asked here rather than only on the Bio
+  // card because creation is what hands out the Discord access — ticking it
+  // now means it is never granted, instead of granted and then revoked.
+  const [webOnly, setWebOnly] = useState(false);
   const [roleId, setRoleId] = useState(lockedRole?.id ?? null);
   const [selectedIds, setSelectedIds] = useState([]);
   // Opt-in, so nothing ticked is the honest default — a player who walks past
@@ -353,6 +364,9 @@ export default function CreateCharacterWizard({
     // it anyway, and posting it would imply otherwise.
     if (!lastNameLocked && lastName.trim()) fd.set("lastName", lastName.trim());
     if (age.trim()) fd.set("age", age.trim());
+    // "on" is what a checkbox posts, and what actions.js#updateCharacterProfile
+    // reads for the same field — the two readers agree on the wire format.
+    if (webOnly) fd.set("webOnly", "on");
     fd.set("roleId", roleId);
     for (const id of selectedIds) fd.append("tagIds", id);
     for (const slug of antagonists) fd.append("antagonistOptIns", slug);
@@ -382,7 +396,7 @@ export default function CreateCharacterWizard({
 
   return (
     <PageShell>
-      <PageHeader title="Create Your Character" />
+      <h2 className="section-title">Create Your Character</h2>
       <StepBar step={step} />
 
       {lockedRole && role && (
@@ -410,7 +424,7 @@ export default function CreateCharacterWizard({
 
       {cursed && (
         <p className="panel p-3 text-sm text-accent">
-          You&apos;re <strong>Cursed</strong>! Until someone buries your body or immortalizes your name, you can only be a Bum or a Migrant. You suffer -3 to starting points.
+          You&apos;re <strong>Cursed</strong>! Until someone buries your body or immortalizes your name, you can only be a Bum or a Migrant. You suffer -6 to starting points.
         </p>
       )}
 
@@ -558,12 +572,6 @@ export default function CreateCharacterWizard({
               You take the Baron&apos;s last name.
             </p>
           )}
-          {earned.length === 0 && (
-            <p className="text-sm text-muted">
-              Your role and tags haven&apos;t earned you a title. Most people in
-              Ravenheart have none — you can earn one in play.
-            </p>
-          )}
           {/* The only place a player sees the join rule before submitting, and
               where Randomize sits so a roll and its result read as one line. */}
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -585,6 +593,18 @@ export default function CreateCharacterWizard({
               placeholder={`${AGE_MIN}\u2013${AGE_MAX} \u2014 fixed once set, so leave it for later if you'd like`}
             />
           </label>
+          {/* The same switch as the Bio card's (AvatarField.js), one step
+              earlier. createCharacter writes the column inside the creating
+              transaction, so every grant site in the placement fan-out reads
+              it as already on and simply does nothing (CHAT.md \u00a76a). */}
+          {playPanelEnabled && (
+            <Switch checked={webOnly} onChange={(e) => setWebOnly(e.target.checked)}>
+              <span className="inline-flex items-center gap-1.5">
+                Play from the web
+                <InfoIcon text="Removes you from the Discord channels, preserving your character's anonymity. Recommended." />
+              </span>
+            </Switch>
+          )}
         </div>
       )}
 

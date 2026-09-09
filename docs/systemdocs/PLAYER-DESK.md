@@ -282,45 +282,65 @@ client, not a support inbox.
   arrives on this desk through the ordinary delta poll and nothing here had
   to learn a new value. `via` is the only tell, for a GM reading the record.
   The reply path is unchanged: `sendGmDm` reaches the player on both faces.
-- The thread is a **conversation**, not a raw `DirectMessage` dump: rows that
-  are pure bot/UI plumbing — inspect/dossier embeds, the ✏️ edit-flow prompt
-  (`bot/src/lib/editModal.js`), proxy hand-back —
-  are tagged `source: "system_notice"` at the `sendDm()` call site. An
-  `@mention` relay is `source: "mention"` (`web/lib/dmSources.js`), and the
-  filter takes a chair: the desk (`perspective: "gm"`, the default) drops it
-  like any other notice, the player's Chat pane keeps it — a ping is about
-  the player, and on Discord that DM is simply in their inbox. The old
-  ✏️ DM-collector's replies were `source: "prompt_reply"`; nothing writes
-  that any more (✏️ is a button and a modal now, so editing produces no
-  inbound DM at all), but the historical rows stay filtered.
+- The thread is a **conversation**, not a raw `DirectMessage` dump, and what
+  decides that is **`DirectMessage.kind`** — `CONVERSATION`, `NOTICE` or
+  `QUIET`, from `db/lib/dmKinds.js`. A row's `kind` is what it WEIGHS here;
+  its `source` only says how it is DRAWN. The two are orthogonal on purpose.
+
+  | kind | What it is | The rail | The pane |
+  |---|---|---|---|
+  | `CONVERSATION` | a person wrote it — a GM's reply, `/dm`, a broadcast, a staged turn result, the player writing in | sorts, previews, counts as unread | a full row |
+  | `NOTICE` | the game said it — a seat assignment, a letter arriving, hunger, a travel outcome | **nothing at all** | a centred `SystemLine`, collapsing in runs of 3+ |
+  | `QUIET` | plumbing — inspect/dossier embeds, the ✏️ edit-flow prompt (`bot/src/lib/editModal.js`), proxy hand-back, reaction refusals | nothing | not drawn |
+
+  **All three `sendDm` functions default `kind` to `NOTICE`, so conversation
+  is the thing you opt into.** That is the whole design. It used to be the
+  other way round: `source` was a free string, `web/lib/discordGuild.js`
+  defaulted it to `null`, and `null` read as "a person wrote this" — so every
+  DM anybody added landed in the inbox looking like mail unless they
+  remembered to tag it, and nine strings nobody had ever added to a list
+  (`lobby_assignment` — "You are the Baroness" — plus `bird`, `rite`,
+  `threat_assign`, `gm_dev_panel` and the other `lobby_*`) sat at the top of
+  the inbox as if a stranger had just written in. A forgotten `kind` is now
+  quiet rather than loud.
+
+  A `NOTICE` is **invisible to the rail**: it cannot put a player in the
+  inbox, move one up it, win the preview slot, or un-tick a GM's ✓. It is
+  still perfectly readable the moment you open the person. Two consequences
+  worth knowing: somebody the game has only ever *notified* is reachable by
+  search and not by the empty-query rail (the rail's third union leg is
+  "everyone the game has ever DM'd", which is what keeps a lobby entrant with
+  no character findable at all); and there is still **no surface that lists
+  pending seat or antagonist offers**, which used to be visible only as an
+  accident of them counting as conversation.
+
+  An `@mention` relay is the one row the two chairs disagree about. It is a
+  `NOTICE` like any other, but it also carries `source: "mention"`, and the
+  filter takes a chair: the desk (`perspective: "gm"`, the default) drops it,
+  the player's Chat pane keeps it — a ping is about the player, and on
+  Discord that DM is simply in their inbox.
+
+  The predicates all live in `web/lib/dmThread.js` so a hand-rolled copy
+  cannot drift: `railKindSql` (`kind = CONVERSATION`) for the rail, the
+  unread counts and the nav badge; `withoutDmNoise` (`kind <> QUIET`) for a
+  thread, plus its raw twin `threadKindSql` for the one raw-SQL caller that
+  asks the thread question, the desk's message-content **search**. Search
+  deliberately uses the *thread* predicate: a GM who remembers reading a line
+  on somebody's thread and cannot search for it has been told the search is
+  broken.
+
+  This replaced a three-query arrangement — a noise filter, a second
+  `DISTINCT ON` for "the last thing a *person* said", and a muted
+  `previewIsSystem` state for a row whose only content was a turret notice.
+  All three existed only because a notice could put a row on the rail with
+  nothing to say, so all three are gone. The `You: / GM: / Bot:` preview
+  prefix is folded into `dmThread.js#dmPreview`, shared with the live delta so
+  the two can't drift.
+
   (Tag search covers **living** characters only — the layout's tag load is
   bounded to `ALIVE`, since it re-runs on every revalidation; a dead
   character is still found by name, role, faction and handle.)
-  `system_notice` and `prompt_reply` are excluded at the query
-  (`web/lib/dmThread.js#withoutDmNoise`), not just visually collapsed.
-  **The rail's raw queries carry the noise predicate written out as SQL**
-  (`layout.js`: the `DISTINCT ON` preview and the unread count, via
-  `dmThread.js#dmNoiseSql`), which they did not before — so the rail
-  previewed and *sorted by* rows the pane hid, and an inspect embed sat at
-  the top of the inbox as if the player had just written. Written as
-  `IS DISTINCT FROM` rather than `NOT (… = …)`: a NULL predicate drops its
-  row, and almost every row has a NULL `source` or no `meta.embed` key.
-  - **The preview snippet goes one step further than the noise filter.**
-    A *third* query (`layout.js`, `genuineConversationSql`) additionally
-    excludes `bot_auto`/`player_event`/`gm_dev`/`move_unlock` — canned
-    bot/effect text ("You were given 1 ⬢.", a dev-panel edit summary, a
-    Move-unlock notice) that would otherwise win the "last message" slot and
-    bury a player's actual last line. This is **preview text only** — the
-    row's relative-time chip and its "awaiting reply" status still key off
-    the ordinary noise-filtered latest DM, automated or not, so recency
-    doesn't silently change meaning depending on who or what sent the most
-    recent thing. `staged_push` (turn-result prose) is deliberately **not**
-    in this bucket — it's GM-authored content, just delivered in bulk. In
-    the pane, these same four sources render as a centered, row-less
-    `SystemLine` (`DmThread.js`, `.dm-system-line` in `globals.css`) and
-    still collapse in runs of 3+. The `You: / GM: / Bot:` preview prefix is
-    `dmThread.js#dmPreviewLabel`, shared with the live delta so the two can't
-    drift.
+
 - Mark-read fires from a client effect, never during RSC render — otherwise
   Next's link prefetch marks a conversation read on hover. It is the one
   action on the desk that deliberately does **not** `revalidatePath`: the

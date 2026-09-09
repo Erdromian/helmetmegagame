@@ -4,12 +4,11 @@ import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
 import { useCarryReference } from "./CarryProvider";
 import { useDocuments } from "./DocumentsProvider";
-import { useCharacterMentions } from "./CharacterMentionsProvider";
 import TagChip from "./TagChip";
 import ResourceChip from "./ResourceChip";
 import DocumentChip from "./DocumentChip";
-import CharacterAvatar from "./CharacterAvatar";
 import InfoIcon from "./InfoIcon";
+import { CharMention } from "./messageTokens";
 import { splitTokens } from "./richTokens";
 
 function TagToken({ payload, fallback }) {
@@ -39,26 +38,10 @@ function DocumentToken({ payload, fallback }) {
   return doc ? <DocumentChip doc={doc} /> : fallback;
 }
 
-// Payload is a Character.id. The lookup map comes from
-// CharacterMentionsProvider, mounted only by /notes — its default is an
-// empty Map, so a {char:…} anywhere else in the app just falls back to
-// literal text like any other unresolved reference.
-function CharToken({ payload, fallback }) {
-  const mentionsById = useCharacterMentions();
-  const character = mentionsById.get(payload.trim());
-  if (!character) return fallback;
-  return (
-    <span className="inline-flex items-center gap-1 align-middle">
-      <CharacterAvatar
-        characterId={character.id}
-        name={character.name}
-        version={character.updatedAt}
-        size={16}
-      />
-      <span>{character.name}</span>
-    </span>
-  );
-}
+// Payload is a Character.id, optionally with the name it was mentioned under
+// after a `|`. One implementation, shared with the Markdown renderers
+// (messageTokens.js) — this used to be a second copy, and a second copy of a
+// rule about whose name may be printed is a second answer to it.
 
 // Payload is the tooltip sentence itself, not a lookup key — the one token
 // that can never fail to resolve. It renders the shared "?" glyph, for a
@@ -96,7 +79,7 @@ const BUBBLE_KINDS = {
   resource: ResourceToken,
   carry: CarryToken,
   document: DocumentToken,
-  char: CharToken,
+  char: CharMention,
   info: InfoToken,
   cmd: CmdToken,
   word: WordToken,

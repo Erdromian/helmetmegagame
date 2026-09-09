@@ -17,7 +17,7 @@ provisioned channels, or a special channel whose registry entry says
 | Channel | Tupper | Summary |
 |---|---|---|
 | A zone's `#summary` (text) | yes | **yes** |
-| A Location's channel (text), and every Room or Conversation thread under it | yes | no |
+| Every Room or Conversation thread under a Location's channel | yes | no |
 | `#cerberon` | yes | no |
 
 The special channels aren't tied to a place, so they're never summary.
@@ -38,7 +38,7 @@ an `ALIVE` character in a tupper channel: `bot/src/lib/proxy.js#sendAsCharacter`
 runs the one write path (`db/lib/say.js` — `prepareSpeech`, post, `recordSpeech`),
 reposting through a per-channel webhook under the character's name and avatar,
 then deletes the original. The gates, the babble and autocorrect passes and the
-identity all live in `say.js` now, so a message typed into `/play` is decided
+identity all live in `say.js` now, so a message typed into `/chat` is decided
 by exactly the same code (`CHAT.md` §2).
 
 **No bracket or trigger syntax.** Each player has exactly one living character
@@ -92,12 +92,12 @@ summaries posted from `advanceTurn`'s side effects.
 **Speaking without being seen to type.** Discord fires the typing indicator
 under the player's *real* account, before the proxy ever runs — so composing
 in a channel announces who you are regardless of what the webhook posts. The
-Speak flow (the 🔊 button on the `#turns` console, or `/message`) composes in
-a modal instead: the text arrives as an interaction, and there is no typing
-indicator and no message to delete. `/message` run inside a channel you can
-already speak in posts straight there; that does not hide the typing
-indicator, since you are already in the channel, but it does stop the message
-existing in plain sight before the proxy removes it.
+Speak flow (`/message`) composes in a modal instead: the text arrives as an
+interaction, and there is no typing indicator and no message to delete. It
+posts into whichever channel or thread you ran it in — which does not hide the
+typing indicator if you were already typing there, but it does stop the message
+existing in plain sight under your real name before the proxy removes it. The
+🔊 button that used to front this flow is gone; `COMMANDS.md` §5 says why.
 
 **`recentProxies` is gone** (phase 1 of `CHAT.md`). It was an in-memory map
 tying a proxied message back to its player and character — last 20,000, single
@@ -111,9 +111,11 @@ the character's player off it, and a database row does not forget. ‡
 `postAsCharacterTo` is the only funnel a character's words reach a channel
 through — ordinary chat, whispers and the Speak modal all end up there — so the
 SPEAK gate (`TAGS.md` §5f) sits in it as the backstop, with the Speak modal
-also refusing early as a courtesy. Mute, Paralyzed, Unconscious and mid-Seizure
-are silent; **Bound is not**, because being tied up takes your hands and not
-your voice.
+also refusing early as a courtesy. Paralyzed, Unconscious and mid-Seizure are
+silent; **Bound is not**, because being tied up takes your hands and not your
+voice — and **Mute is not either**, for the mirror of that reason: it takes the
+carrying voice and leaves the ordinary one, so `/shout` is the only thing that
+refuses it (`TAGS.md` §5f).
 
 A silenced player is handled exactly like any other refusal: the original is
 deleted and `handBack` DMs them their words. That is the right answer here and
@@ -121,7 +123,7 @@ not merely a convenient one — the mask still has to hold for somebody who
 cannot talk, and they should not lose what they typed to find that out.
 
 **A refused message still writes the speaker's activity.** They were here; they
-tried. Without that, being Mute would quietly march somebody toward the
+tried. Without that, being silenced would quietly march somebody toward the
 auto-kill in `db/lib/catatonicDeathPass.js` for the crime of attempting to
 speak.
 
@@ -136,7 +138,7 @@ That mismatch was a live bug, not a hypothetical. `speaksBabble` reads
 returned false every time: **{tag:stupid} had never garbled ordinary channel
 chat**, only the Speak modal, which happened to take the old fallback query.
 The same round trip now answers both questions. Blocked beats garbled — a
-Stupid Mute is silent, not babbling.
+Stupid Paralytic is silent, not babbling.
 
 ### The one message replaced by the *bot* rather than a character
 
@@ -148,6 +150,58 @@ re-creates it verbatim as the bot, tagged **Quest** — see `CHANNELS.md`
 `isDesignatedTupperChannel`, which is load-bearing: a GM who also has a living
 character would otherwise have that starter message proxied, and deleting a
 forum post's starter message destroys the entire post.
+
+### What happens to a message typed while the bot was down
+
+Nothing proxies it, because `messageCreate` never fires. That fails three ways
+at once, and the first is the one that matters:
+
+1. **The mask leaks.** The raw message stays in the channel under the player's
+   real Discord account and nickname — the exact thing §2 exists to prevent.
+2. **The web never sees it.** `/chat` and `/archive` render `ArchiveEntry` rows
+   and never read Discord, so with no row it is invisible on the site forever.
+3. **The turn wipe deletes it**, so it disappears having never been recorded.
+
+`bot/src/lib/messageCatchUp.js` sweeps for these on boot and again whenever the
+gateway hands the bot a **fresh session** — the mirror of `feedOutbox.js`'s
+drain, which replays web rows that never reached Discord. It is not a rare
+case: Railway rebuilds both services on every push, so the bot restarts many
+times a day and every restart is one of these windows.
+
+**Under two hours old**, the message is handed straight back to
+`messageCreate.execute` and gets the entire ordinary treatment — proxied,
+recorded, deleted, mentions relayed. A recovered message is meant to be
+indistinguishable from one caught live, and running the same code is the surest
+way to manage that.
+
+**Older than that**, the words are written to `ArchiveEntry` with the message's
+**real** timestamp and the raw message is deleted, but nothing is posted back
+into the channel: dropping an hours-old line into a room that moved on reads as
+somebody talking to themselves. The author gets one quiet DM per sweep saying
+so. Such a row carries no `discordMessageId`, and `feedOutbox.js#pushRow`
+refuses anything whose `source` is not `WEB`, so it can never be posted later.
+
+**There is no cursor and no watermark column.** The ordinary path deletes the
+player's message as its last step, so a raw message still standing *is* the
+marker of one nobody handled — which also makes the sweep safe to run twice.
+The obvious alternative is wrong in a way worth recording: the newest
+`ArchiveEntry.discordMessageId` for a channel is the **webhook repost's** id,
+minted later than the raw messages still queued behind it, so an `after:`
+cursor built from it would skip every older message still waiting — and skip it
+on every future run.
+
+Two things bound the damage. A channel where the bot lacks **Manage Messages**
+is skipped whole and logged, because reposting without being able to delete
+would duplicate the message on every restart until the next wipe. And a
+message younger than ten seconds is left to the live handler, which may have it
+in hand already.
+
+One thing to know as a reader: `ArchiveEntry.seq` is assigned at INSERT and
+`/chat` is cursored on it, so a recovered row appears at the **bottom** of the
+live feed whatever its timestamp. `/archive`, ordered by `[sentAt, id]`, puts
+it where it belongs. For a sub-minute deploy gap this is invisible; for a long
+outage it is the honest cost of not renumbering the cursor the whole feed rests
+on.
 
 ## 3. Avatars and letter plaques
 
@@ -229,35 +283,38 @@ DMs no longer carry any reaction-driven flow; the bot does not request the
 `db/lib/examine.js` is the one readout behind both, and neither surface
 builds its own. The bot maps it to an `EmbedBuilder`, the web app to JSX
 (`web/app/components/ExamineDialog.js`), but every rule that decides *what is
-in it* — the doctor's eye, the concealed read, Inscrutable, Role, ⬢ — is
+in it* — the doctor's eye, the concealed read, Role, ⬢ — is
 decided once, in that file. Add a field to one and both get it.
 
-The two differ only in who they can be pointed at, and that is the point of
-the web one existing:
+**They no longer differ in who they can be pointed at.** They used to: 🔍
+hung off an archived row and so only ever reached somebody who had **spoken**,
+while Look at reached anyone standing at your Location, silent or not. That
+asymmetry was argued for — a guard on a gate should be able to size up a
+traveller without striking up a conversation first — and it went the other way
+in the end. A silent stranger is a stranger. Sharing a room with somebody
+should not hand you a reading of them, and a dialog that listed everyone
+present was a presence oracle besides.
 
-- **🔍 needs a message.** It hangs off an archived row, so it only ever
-  works on someone who has **spoken**. That was never a hiding rule — a
-  guard on a gate could not size up a silent traveller without first striking
-  up a conversation with them.
-- **Look at needs co-presence.** Everyone `ALIVE` standing at your Location,
-  silent or not. It is the one people-picker on the sheet that does **not**
-  use `peopleHere()`: it lists the concealed too, under their alias, exactly
-  as the **Who's here?** anchor button already lists them. Acting on somebody
-  means identifying them, so a hood takes you off every other menu; *looking*
-  at a hooded figure is what a hood is for. No presence leaks that
-  `Who's here?` does not already publish at Location grain.
+So every look now needs a **line**, and answers for the identity that line was
+said under (§5a). One function does it: `db/lib/examineRow.js#examineRow`,
+pressed against an `ArchiveEntry.seq` rather than a character id. That is what
+lets a hooded line carry an eye at all — the server resolves the speaker, so
+the page can offer the look without ever being told who is under the hood, and
+the hood token in `db/lib/whosHere.js` is no longer what a look is keyed on.
 
-Both read a hood the same impoverished way (§5), both are free, spend no
-Move, file no `Request` and tell the subject nothing.
-`web/app/(app)/character/examineActions.js` is the web half: two server
-actions, both read-only.
+Four surfaces, one implementation: 🔍 and 📸 in Discord, the eye on a row in
+the web feed, and the eye in the HERE column, which points at the last line it
+watched that person say. All four read a hood the same impoverished way (§5),
+all four are free, spend no Move, file no `AuditLog` row and tell the subject
+nothing. `web/app/(app)/character/examineActions.js` is the sheet's half, and
+its picker lists who you have heard rather than who is nearby.
 
 **✏️ is a button and a modal, and writes no inbound DM at all**
 (`bot/src/lib/editModal.js`). A reaction carries no interaction token, so a
 modal cannot open straight off ✏️. The path is: reaction → a DM carrying one
 "Edit text" button → the click is an interaction → modal, prefilled with the
 current text. `edit:open:<messageId>` opens it, `edit:send:<messageId>`
-submits. The prompt DM is a `system_notice`, so no GM surface shows it.
+submits. The prompt DM is `kind: QUIET`, so no GM surface shows it.
 
 `handleEditOpen` must **not** ack first — `showModal` is the acknowledgement.
 The prefill comes from an in-memory stash armed when ✏️ is pressed, not from a
@@ -277,13 +334,14 @@ sitting in the GM inbox reads exactly like mail. A first fix tagged them
 `source: "prompt_reply"` via a `pendingPrompts` map so the desks could skip
 them; the tagging worked, but the rail badge in `web/lib/navItems.js` had no
 noise predicate at all, so the chime still rang on every edit. The map and its
-source are gone now that the flow produces no DM to tag. `prompt_reply` lives
-on only as a read-side filter for the rows already in the table
-(`web/lib/dmThread.js#withoutDmNoise` and its raw-SQL twin `dmNoiseSql`, which
-every GM-facing DM query now shares precisely so they cannot drift apart
-again).
+source are gone now that the flow produces no DM to tag, and `prompt_reply`
+is not read by anything either: the `dm_kind` migration reclassified those
+historical rows as `kind: QUIET`, so they stay off every GM surface without a
+filter naming them. Which rows a GM sees is `DirectMessage.kind` now
+(`db/lib/dmKinds.js`), written by `sendDm` rather than remembered by whoever
+adds the next DM — see `PLAYER-DESK.md` §5.
 
-`/conceal`'s prompt never needed any of this; it is already a `system_notice`
+`/conceal`'s prompt never needed any of this; it is plumbing like the rest,
 and the player retypes in the channel.
 
 The bot needs the `MESSAGE_CONTENT` privileged intent for any of this
@@ -325,6 +383,27 @@ whole of it, and `CONCEALMENT_TAG_FIELDS` beside it is the field list every
 call site selects — miss one and concealment silently stops working at that
 surface only.
 
+Because it resolves back on its own, **the stored wish is never overwritten on
+the player's behalf**. The switch on `/character` is drawn `disabled` whenever
+there is nothing to toggle, and a disabled checkbox posts nothing, so
+`updateCharacterProfile` leaves the column out of the write entirely rather
+than reading a missing field as "off". It used to read it: take a hood off for
+a moment, save the Bio card for any other reason — the appearance, the turn
+ping, **Play from the web** — and the hood no longer worked when it went back
+on, with nothing said and no way to set it again from the page that broke it.
+
+**The relay is the other half, and it has to pass the answer through
+unchanged.** `db/lib/discordRest.js#postAsCharacter` is the REST twin of
+`bot/src/lib/proxy.js#postAsCharacterTo`, and it is the path every line typed
+on `/chat` takes to Discord. It used to keep a concealment only when the gear
+*forced* it, and override `Character.concealed` to match, on the reasoning that
+the player's own `/conceal` choice was not that path's business. It was: a
+voluntary hood was resolved correctly into the archive row and then posted to
+the channel under the speaker's real name and real face, so the hood worked on
+`/chat` and did nothing on Discord. `db/test/presentedIdentity.test.js` holds
+the invariant now — a hood somebody chose conceals exactly as hard as one tied
+on for them.
+
 The slash command only flips the column and replies; the message itself still
 rides the ordinary proxy path, so ✏️/❌/⭐/🔍 all behave unchanged.
 
@@ -365,13 +444,40 @@ When two concealing items are worn at once, the **outermost** wins — highest
 `Tag.equipLayer` — because that is the one an onlooker can actually see. A coif
 under a knight's helm is a coif nobody can see.
 
-`web/public/assets/unknown.png` survives, but only as history: `ArchiveFeed.js`
-still needs it for entries archived before concealment had a face.
+`web/public/assets/unknown.png` is gone. What replaced it is the **question-mark
+plate**, drawn in CSS by `web/app/components/CharacterAvatar.js` under the
+`unknown` prop — the same circle a faceless row has always drawn, holding a
+literal `?` rather than the first letter of a name, because one letter is
+enough to tell two hoods apart. It stands for a face you have not been shown:
+an archived line said before `ArchiveEntry.presentedAvatarPath` existed, a note
+starred before `Note.presentedAvatarPath` did, and — the common case — somebody
+standing in the room you have not watched speak. Where a real URL is needed
+instead, because Discord cannot render CSS, the blank letter plaque
+`/assets/letters/_default.webp` stands in.
+
+**A sprite is not published by presence.** The mask is what somebody looks like
+*while you are watching them speak in it*, and drawing it in the HERE column
+for anybody who walked into the room announced a cult meeting to the first
+person through the door. So a face and an eye are earned: see §5a.
 
 The row records the alias it was posted under (`ArchiveEntry.concealedAlias`),
-and `proxyRowFor` works out whether that was a hood or a forced name by
-comparing it against the character's current forced name. Three handlers read
-it: ‡
+which holds a forced name as well as a hood's, so reading a line back means
+telling the two apart. `presentedIdentity.js#wasHooded` is the one answer, and
+both faces ask it — `proxyRowFor` here and `db/lib/examineRow.js` for the web's
+Look at. It reads only what the ROW froze at send time: the
+`presentedAvatarPath`, since a hood wears the concealing item's own sprite
+under `/assets/helms/` and nothing else does, and failing that the alias
+itself, since a hood's can only ever be one of the nine
+`concealedIdentity.js#CONCEALED_ALIASES` can build.
+
+**This used to compare the alias against the character's *current* forced
+name**, which was right until the name went away — and one of them is built to.
+A Disguise Kit lasts three turns and is swept at turn advance, so after it
+expired every line the character had spoken under it flipped to reading as a
+hood, on both faces at once. The live forced name is still passed, but only as
+the tiebreaker for a row too old to carry a face whose forced name happens to
+read like an alias; an ambiguous row reads as a hood, which is the safe
+direction. Three handlers read it: ‡
 
 - **🔍** returns a **hardcoded** embed *before* any of the normal field logic:
   the concealed line, plus only the visible ailments and the visible gear —
@@ -399,12 +505,9 @@ also the only ones that print what the tag costs (`TAGS.md` §5) — everything
 else on the embed is a bare name.
 
 The **Desire** field on that same embed is bought by exactly one tag, the
-Demoness's Seductive (`db/lib/inspectVision.js`), and closed by
-**Inscrutable**, the one rule in that file read off the *subject* rather than
-the viewer. A closed read renders `Nothing you can read.` — byte for byte what
-a subject with no active Desire produces, so a reader cannot tell "they're
-guarded" from "there's nothing there", and holding Inscrutable never
-advertises itself. Mindreading buys no field at all: it reads a Desire on a
+Demoness's Seductive (`db/lib/inspectVision.js`). A subject with no active
+Desire renders `Nothing you can read.`, so the field never reports more than
+it has. Mindreading buys no field at all: it reads a Desire on a
 Gambit after a conversation, and that is the GM's call, not the bot's. Being
 free and silent is what the Demoness tag is paying its extra point for.
 - **✏️/❌** are unchanged; both already gate on `proxy.discordUserId`.
@@ -443,10 +546,98 @@ has no prisma of its own.
 
 While a forced name is held, `/conceal` refuses and the switch on `/character`
 renders disabled; `updateCharacterProfile` writes `concealed: false` whatever
-the form posted, and drops any upload. The **@-mention role and the nickname
-keep the real bare name** on purpose (§6, §8) — so the `/add` picker naming a
-Beast by their old name is intended. Nothing is written when the tag lands, so
-there is no grant hook: the next message is already the Beast's.
+the form posted, and drops any upload.
+
+**The @-mention role follows the forced name; the nickname does not.** This
+used to say both kept the real bare name on purpose, and the Disguise Kit is
+what changed the answer: a disguise's whole job is to put somebody behind a
+false name, and a scene where the false name is in the prose and the real one
+is in the `@`-token beside it is not a disguise. So the role is titled after
+the forced name, and — the load-bearing half — **coloured by it too**
+(`db/lib/characterRoleAppearance.js`). `hashNameToColor` is deterministic, so
+titling by the false name while colouring by the real one would leave a stable
+per-character swatch beside every disguise that character ever wore: a
+fingerprint that survives the thing meant to hide them, which is worse than not
+renaming at all. The `/add` picker names a Beast as Beast.
+
+**A hood renames nothing.** `/conceal` presents as "Young Woman", which is a
+description rather than a name — a guild of identical `@Young Woman` tokens is
+unmentionable in practice, and concealment is already answered by the rule that
+a concealed message relays nothing at all (§6). Only a forced *name* moves the
+role.
+
+**The nickname still says who they really are** (§8), and that is a real hole
+rather than a subtlety: anyone who can see the member sidebar can pair
+`Rowan | Sir Alder` against `@John` and undo the disguise. What this buys is
+the token that appears *inline in scene text*, which is where a false name
+actually does any work. Closing the rest means taking the nickname too.
+
+There is a **grant path** now, where there used to be none, and it is a
+reconcile rather than a hook: `db/lib/characterRoleNames.js` asks Discord what
+the roles are called and PATCHes only the ones that disagree, run from
+`advanceTurn` beside the Catatonic pass's own role updates and merged with them
+so one role is never edited twice in a turn. The reason it is not a hook is
+arithmetic — a `forcedName` tag can arrive or leave through the Disguise Kit,
+an early drop, `advanceTurn`'s bulk expiry `deleteMany` (which has no
+per-character seam at all), a GM grant or revoke, a trade, a loot, a corpse
+strip and a Restart. That is eight or more generic tag writes, none of which
+knows a Discord role exists. One comparison covers all of them and costs
+nothing in a steady state. The Disguise Kit action also calls
+`ensureCharacterRole` directly, because a disguise that only takes hold at the
+next turn roll is a disguise that did not work when it was put on; taking one
+*off* waits for the pass. It is capped at 25 renames a turn so a Restart cannot
+spend the guild's role budget in one go.
+
+### 5a. A face and an eye are earned
+
+Presence is public. **Who** is standing in a room is not a secret and never
+was: the HERE column on `/chat` and the **Who's here?** button both list
+everyone there, hooded or not, under the name or the alias they are wearing.
+
+What is over somebody's face is a different question, and the two used to be
+answered together. The column drew every concealed person wearing their own
+`Tag.concealSprite`, so opening it in the Underquarter announced *two silver
+masks are standing here* — which is precisely what a Thanati in a basement is
+not supposed to broadcast. Standing somewhere silently should not publish what
+you are wearing.
+
+So a **sighting** is what buys a face, and the same sighting is what buys a
+look. `db/lib/sightings.js#lastSightings` answers it:
+
+> You have seen a character **this turn** if a line of theirs sits in a place
+> your own feed shows you, in the open turn.
+
+The scope is `db/lib/feedAccess.js#placesFor` — anywhere you could read it, not
+only where you are standing, because you did read it. Sightings die with the
+turn, and nothing stores them: they are two queries over `ArchiveEntry`, which
+already froze both halves of a presented identity at send time.
+
+**What you saw is frozen, and that is the whole of it.** The name, the face and
+the identity Examine answers for all come from the LAST line you saw, never
+from live state. Somebody who chats bare-faced and then pulls a mask on in
+private is still listed under their own name with their own face until the turn
+rolls — a hood put on after you heard them speak does not protect them from
+you. It follows that a sighting decides which of `whosHere`'s two lists
+somebody lands in, rather than their concealment now.
+
+Four states, and only the eye's absence marks the difference in the column:
+
+| | you have heard them | you have not |
+|---|---|---|
+| **under a name** | their face, and an eye | their face, no eye |
+| **under a hood** | the mask you saw, and an eye | the question-mark plate, no eye |
+
+An unseen named row keeps its own face because there was never anything to hide
+there. The eye is *absent* rather than greyed: the row already drops it for
+yourself, so that is one rule instead of two, and a disabled eye would need a
+sentence explaining itself.
+
+Your own row is always seen. Nobody should have to speak to learn what they
+look like.
+
+**Discord needs none of this** and is unchanged. Its list is text with no faces
+in it, and 🔍 has always required the subject to have spoken — so
+`whosHere(..., { withSightings: true })` is opt-in, and only the web asks.
 
 ## 6. Mentions and conversations
 
@@ -469,8 +660,8 @@ and is silently ignored.
 ### The row spells it differently, on purpose
 
 Since Chat's phase 6, `<@&roleId>` is **Discord's** spelling and the
-archive row stores a face-neutral **`{char:<id>}`** instead — the same inline
-token syntax the web renders everywhere else
+archive row stores a face-neutral **`{char:<id>|<Name>}`** instead — the same
+inline token syntax the web renders everywhere else
 (`web/app/components/richTokens.js`). `db/lib/characterMentions.js` is the pair
 of translations, and neither face ever sees the other's:
 
@@ -492,7 +683,64 @@ Only a role id that IS a character's name token is ever rewritten —
 character or with nothing. A GM/spectator/player role passes through
 untouched, exactly as it always has.
 
-The composer on `/play` writes tokens directly, over an `@` autocomplete of
+### The token carries the name it was sent under
+
+The half after the `|` is the name the room heard, frozen at send time.
+
+Everything else about a row's identity was already frozen —
+`ArchiveEntry.characterName`, `.concealedAlias`, `.presentedAvatarPath`
+(`db/lib/archive.js`). The mention was the exception: it resolved live against
+the roster on every render, which made a past sentence editable by its own
+subject. A Mulligan rename renamed somebody in every line that had ever named
+them, and putting a hood on collapsed all of those to "someone" — retroactively
+erasing a name that was public when it was said. A row records who someone was
+as they were known then, and that rule now covers the people a speaker named as
+well as the speaker.
+
+**In the token rather than a column beside the row**, because the text gets
+copied. A ⭐ lifts a body into `Note.content` (both star paths do, and the
+Discord one never reads the `ArchiveEntry` for its text at all), and a journal
+entry is its own store. A sidecar would have needed a column on three tables
+and hand-carried copy code down every path, where a missed one falls back to
+live resolution — which is the bug. A name in the token travels with the words
+for free, and needed no migration.
+
+The name written is the **presented** one (`db/lib/presentedIdentity.js`):
+forced > concealed > own. A row must never print a name the room could not have
+heard, so a hooded target mentioned from Discord — where any name role can be
+pinged — freezes as `Young Woman`, and a Beast freezes as `Beast`.
+
+`stampMentionNames` runs on both faces and **overwrites** whatever is there.
+The web composer writes the name in as it inserts the chip so the draft reads
+right, and a server action is a public endpoint, so a posted
+`{char:<victim>|Some Fake Name}` is a claim until the server re-resolves it.
+`freezeMentionName` strips `{`, `}` and `|` and caps at 64 — a disguise name is
+player-typed and `normalizeDisguiseName` only collapses whitespace, so a
+character called `Bob}` is reachable today and would otherwise break the
+grammar.
+
+An **edit** re-stamps the whole text, so a mention added by a ✏️ freezes as of
+now. That does re-date a mention the edit kept; the edit window is five
+minutes, and the alternative is diffing two strings to work out which tokens
+are old.
+
+A token with **no `|`** was written before this existed and resolves live,
+exactly as it always did. There is deliberately **no backfill** — stamping
+today's names onto old rows would perform the retroactive rewrite this exists
+to prevent, once, in bulk, and permanently.
+
+On the way out, a token whose character has no role falls back to printing the
+frozen **name** as plain text rather than the raw braces. Braces were the best
+answer available while the token held nothing a human could read.
+
+Three things scan a row for a mention — the unread dot (`feedStore.js`), the
+chime (`Chat.js`) and the feed's own mention gate (`web/lib/feedAccess.js`) —
+and each used to build the string itself. They go through `mentionsCharacter`
+now (`db/lib/characterMentions.js`, and a client twin in `richTokens.js`),
+which knows both spellings: a widened grammar otherwise stops matching at one
+call site and not the others, and the failure is silent.
+
+The composer on `/chat` writes tokens directly, over an `@` autocomplete of
 `whosHere().named`: you can only name somebody you can see, and a row only
 renders a name its reader could have seen too (CHAT.md §5).
 
@@ -548,8 +796,49 @@ option** rather than a user option on purpose: the picker then names
 characters, never Discord accounts, so inviting someone can't reveal who plays
 them. Anyone already in the thread may add or remove, plus GMs.
 
+**Every sentence either of them answers with uses the presented name**
+(`db/lib/presentedMembers.js#presentedNameOf`). They said `Character.name` out
+loud, in a channel, about somebody who might have been standing there in a
+hood — so the disguise came apart at the door. Same for the Room half's four
+replies, and for `removeRoomGuest`'s own `line`.
+
+### Who is IN a place, and what face it draws
+
+`db/lib/presentedMembers.js` is the resolver for a Conversation's members and a
+private Room's guests, and it is the same rule `whosHere` applies to the HERE
+column. It is a second function rather than an argument to that one because
+**membership is not presence** — a member may be standing anywhere, since the
+row persists when they walk away — and what the two share is the projection.
+
+Before it existed, `conversationMembers()` and `roomGuests()` selected
+`Character.name` and shipped the character's id beside it. `MembersStrip.js`
+draws that under `.chat-head`, at the top of the pane, which is why "inviting
+people into a conversation breaks disguises" was a true sentence: the strip
+named a hooded member outright and drew their real portrait. The *candidate*
+picker was always right, because it was built from `whosHere()`.
+
+**A concealed row carries no `characterId` at all.** `/api/avatar/<id>` takes
+an id and answers with a face, so shipping the id is the leak whatever the page
+then chooses to draw. It carries `hoodToken(id)` instead — the same HMAC handle
+the HERE column mints, moved to its own leaf `db/lib/hoodToken.js` so this
+module can use one without dragging `whosHere` → `sightings` → `feedAccess` →
+`conversations` round in a circle. `removeMember` takes either an id or a
+token, told apart the way `/look` tells them apart (32 hex characters, and a
+cuid never is), and `resolveMemberToken` recomputes it **only over the roster
+of the place the caller already gated on** — so a token names somebody in a
+room you are in and nobody anywhere else.
+
+The face is on §5a's sighting rule, unchanged: a mask is drawn only for
+somebody you have watched speak in it this turn, and the question-mark plate
+until then. The sightings Map is an **argument** rather than a query made
+inside — `placeMembers` already pays for one to build the candidate list in the
+same breath, and two identical queries would be two answers to one question.
+
+A forced name is not hiding, so a Beast is named openly with their id intact,
+and loses only their portrait for the letter plaque.
+
 **A mention is an invite, on the same contract as `/add`** (`COMMANDS.md` §2b),
-and it reads the same typed into `/play` as typed into Discord — the web half
+and it reads the same typed into `/chat` as typed into Discord — the web half
 lives in `bot/src/lib/feedOutbox.js#relayWebMentions`, which used to send the
 notification and stop there:
 a `PlayerThreadInvite` row is recorded, the Discord add is attempted now, and
@@ -574,7 +863,7 @@ covered here only because it shares the page. Neither tab is ever
 GM-visible or shared between players; see below.
 
 There are two ways in now: the reaction in Discord, and the ★ on a row's
-action bar on `/play` (`web/app/(app)/play/actions.js#starRow`, `CHAT.md` §5).
+action bar on `/chat` (`web/app/(app)/chat/actions.js#starRow`, `CHAT.md` §5).
 Both write the same row. A line with no Discord message behind it — a web-only
 player's, or one the outbox has not pushed yet — is filed under `seq:<seq>`
 instead of a message id, so the `(discordMessageId, discordUserId)` unique
@@ -624,17 +913,24 @@ free-text labels. A body can `@`-mention a character, which is stored as a
 `{char:<characterId>}` token (the same `{kind:payload}` grammar `RichText.js`
 already uses for `{tag:…}` and friends) and renders inline as a face + name.
 
-The mention roster and the mention *resolver* are the same query — every
-character `ALIVE`, or `DEAD` and not yet buried (mirroring
-`character/page.js`'s own zone-roster precedent) — passed once to
-`CharacterMentionsProvider.js`, mounted only by this page. There is
-deliberately no second, narrower lookup keyed off whatever ids a body happens
-to contain: an entry can only ever mention a character its author was allowed
-to see in the autocomplete in the first place, so a second lookup could only
-ever widen what a pasted-in id could reveal (a buried character's name and
-portrait, for instance) — never narrow it usefully. A mention of a character
-outside that roster (buried, or simply invented) just fails to resolve and
-renders as the raw token, the token pipeline's existing behaviour for any
+The mention roster is `web/lib/mentionDirectory.js#loadMentionDirectory`, the
+same one `/chat` uses, asked for `{ includeUnburiedDead: true }` — every
+character `ALIVE`, or `DEAD` and not yet buried (mirroring `character/page.js`'s
+own zone-roster precedent). It is passed once to
+`CharacterMentionsProvider.js`, mounted only by this page.
+
+**This page used to roll its own `findMany` with no concealment filter at all**,
+which meant a hooded or disguised character was offered by name in the
+autocomplete and drew their real portrait in an entry — while `/chat`, one
+directory over, withheld both. The forced/concealed rule has three cases and a
+precedence order, and the second copy of it is always the one that never got
+written; there is one now.
+
+What the roster supplies is the **face**. The NAME comes off the token itself,
+frozen when the entry was written (§6), so an entry naming somebody who has
+since put a hood on keeps saying what its author wrote and simply loses the
+portrait. A mention of a character outside the roster (buried, or simply
+invented) draws the neutral chip, the token pipeline's behaviour for any
 unresolvable reference.
 
 ## 8. Nickname sync
@@ -653,6 +949,15 @@ source of truth for the same 32 characters and nothing else.
 Gated behind `GameConfig.nicknameSyncEnabled` (off by default). Clearing a dead
 character's nickname is **not** gated (`CHARACTERS.md` §5).
 
+**A disguise does not reach here.** The `@`-mention role follows a held
+`Tag.forcedName` now (§5), and the nickname deliberately still carries the real
+bare name — which means the two disagree while a disguise is on, and anybody
+reading the member sidebar can pair `Rowan | Sir Alder` against `@John` and
+undo it. That is a known hole, not a subtlety: what the role rename buys is the
+token that appears inline in scene text, and closing the rest means taking the
+nickname with it. Written down so the next person does not assume the omission
+was an oversight, or extend the rename to a hood by symmetry.
+
 **The nickname is the one surface where a title deliberately does not appear.**
 The 32-char cap is shared between the two halves — roughly 14 each — and
 `Sir Jorren "the Blind" Vask` is 27 characters on its own, so titling here
@@ -667,7 +972,7 @@ title off itself.
 | Discord username/display name changes | `bot/src/events/userUpdate.js` |
 | Rejoin | `bot/src/events/guildMemberAdd.js` |
 | Character created, saved on `/character`, or renamed by a GM | `web/lib/discordGuild.js#syncCharacterNickname` (REST) |
-| Bot connect/reconnect | `bot/src/events/ready.js` → `syncNicknamesForGuild`, a one-time catch-up bulk pass, not a recurring tick |
+| Bot process START | `bot/src/events/ready.js` → `syncNicknamesForGuild`, a one-time catch-up bulk pass, not a recurring tick. **Not** every reconnect: `ready` is `once: true`, so a gateway resume or re-identify does not re-run it |
 
 `buildNickname()` is hand-duplicated between `bot/src/lib/nickname.js` and
 `web/lib/discordGuild.js` — the same twin convention as `isTupperChannel`.
@@ -683,6 +988,9 @@ title off itself.
 | Channel opt-in | `bot/src/lib/channels.js`, `web/lib/discordGuild.js` |
 | Concealed alias | `db/lib/concealedIdentity.js` |
 | Presented identity (forced > concealed > own) | `db/lib/presentedIdentity.js` |
+| Presented membership (a conversation, a room) | `db/lib/presentedMembers.js` |
+| Hood handle (HMAC, no id) | `db/lib/hoodToken.js` |
+| Role title follows a forced name | `db/lib/characterRoleAppearance.js`, `db/lib/characterRoleNames.js` |
 | Mentions, `/add`, `/remove` | `bot/src/lib/mentions.js`, `bot/src/lib/commands.js` |
 | Inspect gates | `db/lib/inspectVision.js` |
 | Doctor's eye on inspect | `db/lib/medicalVision.js` (`TAGS.md` §5c) |
@@ -690,4 +998,4 @@ title off itself.
 | Avatar route | `web/app/api/avatar/[characterId]/route.js` |
 | Plaque generator | `web/scripts/generate-letters.js` |
 | Notes UI (Starred + Journal) | `web/app/(app)/notes/` |
-| `{char:…}` mention token | `web/app/components/RichText.js`, `CharacterMentionsProvider.js` |
+| `{char:…\|…}` mention token | `db/lib/characterMentions.js`, `web/app/components/messageTokens.js`, `CharacterMentionsProvider.js` |

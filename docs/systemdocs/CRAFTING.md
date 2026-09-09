@@ -178,6 +178,38 @@ which units are free and what the rest lock. Every number of it is computed
 server-side in `character/page.js` and re-checked by `craftRequest` under the
 lock — the dialog is a hint, never the gate.
 
+## 2b. Recipe visibility: known vs secret
+
+`requirement.skills` decides who is *allowed* to make a recipe (§2); a
+recipe's own ingredients decide who is even shown it exists.
+`knownRecipeIds` (`web/app/(app)/character/page.js`) is the second filter on
+top of the skill check: a recipe naming an ingredient whose own
+`catalogVisibility` isn't `all` (or, for a `group:` entry, whose group has
+any non-`all` member) stays off the Craft menu and the Recipes tab —
+`isNonPublicRecipe` — until the character actually holds one of those
+ingredients (`satisfiesIngredientsAtQuantityOne`, checked at quantity one: a
+hidden recipe only has to prove itself known, not affordable). Holding the
+ingredient is what proves you know the recipe calls for it, so once you hold
+it, showing you the recipe tells you nothing a document search wouldn't have.
+A public recipe that merely names a `catalog: gm` ingredient (honey → Lavish
+Meal, and eight more like it) works exactly this way: the ingredient hides
+it from everyone who doesn't hold one, and reveals it in full — cost,
+turns, every other ingredient — to anyone who does.
+
+**A "secret" recipe is a narrower thing than "a recipe with a hidden
+ingredient": it is a craftable whose own *product* — the tag it makes — is
+`catalog: gm`, never `catalog: secret`.** Holding an ingredient never
+reveals one of these on the Craft menu or the Recipes tab; the gate above
+only ever hides or shows a recipe by its *ingredients*, and a secret
+recipe's product visibility is a separate field nothing here reads. The
+Cathedral's Research skill (`TAGS.md`; the pass is `TURN-ENGINE.md` §2) is
+the one way a character can ever learn one of these exists, and even then
+only as a blurb on a minted paper — a name and a requirement line
+(`PAPERWORK.md`), never a standing Craft-menu entry. `catalog: secret`
+products sit a level further out again: hidden even from GMs on every
+surface but the unfiltered `/gm/dev/tags` view, and Research never turns one
+up.
+
 ## 3. Projects
 
 ```

@@ -6,7 +6,7 @@ import { statusWord } from "@lifeweb/db/lib/structures";
 //
 // A server component, so `statusWord` comes off the shared module rather than
 // a copy — the sheet and the Location's own ambient lines have to agree about
-// what "half-built" means. Rendered by StatusPanel as its sibling, and only
+// what "half-built" means. Rendered beside LedgerWork.js on the sheet, and only
 // when something is here: an empty panel saying nothing stands here is noise
 // on every Location in the game.
 

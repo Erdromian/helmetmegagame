@@ -59,11 +59,18 @@ rather than grey on `isThanati` / `isThanatiLeader` (own-sheet facts).
 `character/page.js` resolves the flags and the dialog data; every action
 re-checks the tag from the session.
 
-- **Recall Comrades** — DMs `formatComrades(listComrades())`: every living
-  cultist as `Name, Role`, leader first and marked `[LEADER]`, joined by ` • `.
-  Free, no Move. Audit `request_recall_comrades`.
-- **Recover Equipment** — grants whichever of `black-robes` / `thanati-mask`
-  the cultist lacks. Spends the Move (`web/lib/moveSpend.js`, lifted out of
+- **Recall Comrades** — an instant verb (no dialog; `components/actions/
+  index.js#INSTANT`). Returns `listComrades()` to the page, and the notice
+  under the button lists every living cultist as `Name · Role`, leader first
+  and marked `[LEADER]`. It used to go out as a DM; the page is private
+  already. Free, no Move. Audit `request_recall_comrades`.
+  `formatComrades` is still in `db/lib/thanati.js` for a Discord caller.
+- **Recover Equipment** — an instant verb with a one-line confirm, since it
+  spends the Move. The button's label is what it would hand back ("Recover
+  Robes & Mask", "Recover Mask"; `actionRegistry.js#labelFor`) and it greys
+  with "You have both." once nothing is missing. Grants whichever of
+  `black-robes` / `thanati-mask` the cultist lacks and says so in the notice.
+  Spends the Move (`web/lib/moveSpend.js`, lifted out of
   `requestActions.js` for this). Cooldown of one turn: refused if an audit
   row `request_recover_equipment` by this player carries this turn's or the
   previous turn's `turnId` — the ration-counts-rows pattern.
@@ -162,6 +169,7 @@ cascade. `GameState.riteWords` and `thanatiHideoutRoomId` go with the row.
 | `web/lib/moveSpend.js` | `requireFreeMove`, `fileAutoRoutine` |
 | `web/lib/grimoire.js` | The Grimoire body |
 | `web/app/(app)/character/thanatiActions.js` | The four actions |
+| `web/app/components/actions/HideoutDialog.js`, `PurchaseDialog.js` | The two that open a dialog |
 | `web/app/(app)/gm/dev/threats/RitesPanel.js` | The GM view |
 
 ## 9. The rite scripts
@@ -174,18 +182,18 @@ words where a room or a player hears anything:
 |---|---|---|
 | Initial | 1 chanter | DMs every participant the cult's objectives with Success!/Incomplete |
 | Conversion | a Bound character at the Location with access to the room, not Pious, not already Thanati; leaders first | grants `thanati` (Belief conflicts resolved), pins the convert-* objectives naming them, DMs them, room hears "…’s eyes widen…" |
-| Sacrifice | a Bound character with access | pins the living sacrifice-* objectives, kills them (`killByRite`), 2–7 remains + 1–2 Flesh + 2–5 ⬢ on the floor, corpse removed |
+| Sacrifice | a Bound character with access | pins the living sacrifice-* objectives, **gibs** them (`killByRite`, `gib: true`), 2–7 remains + 1–2 Flesh + 2–5 ⬢ on the floor. No corpse is minted at all — see `CORPSES.md` §1a |
 | Scrying | 15 ⬢ | a `scrying-eye` on the floor |
 | Possession | a weapon stack on the floor, 15 ⬢ | one unit becomes a custom "<Name> (Animated)" copy, indestructible |
 | Reanimation | a corpse on the floor, 1 heart, 5 ⬢ | `reviveByRite`: ALIVE in this Location with `ghoul`, `servant-of-tzchernobog`, `hungerless`; role, Cursed and placement restored |
 | Stupidity | 1 squeeze, a photograph (floor first, then hands), 5 ⬢ | target gets `stupid`; the print is spent |
 | Omniscience | 1 skinless-brain, a photograph | every participant is DMed the target's full tag list; print spent |
 | Summoning | 1 saltpeter, 15 ⬢ | every living Thanati not on hallowed ground moves to this Location and is unbound |
-| Panic | 1 heart, 20 ⬢ | room hears "Name a zone."; status **AWAITING**; the next participant line naming a Zone (else a Location) sets everyone there to fear 100 (`answerPanic`) |
+| Panic | 1 heart, 20 ⬢ | room hears "Name a zone."; status **AWAITING**; the next participant line naming a Zone (else a Location) sets everyone there to mood −100, Panicking (`answerPanic`) |
 | Famine | 1 feces, 1 lavish-meal, 10 ⬢ | every faction silo loses up to 100 ⬢ |
 | Reflection | 1 black-robes (floor), 15 ⬢ | `shimmering-robes` on the floor (counts as robes for chanting) |
-| Rage | 1 ravenheart-red | every participant gets `rage`: fear ×0, Desires locked but cruelty |
-| Judgement | 1 heart, 2 eye, a photograph, 40 ⬢; target not Pious, not on hallowed ground | target killed wherever they stand, their Location hears "… explodes into mist!", remains where the body fell |
+| Rage | 1 ravenheart-red | every participant gets `rage`: every mood harm ×0, Desires locked but cruelty |
+| Judgement | 1 heart, 2 eye, a photograph, 40 ⬢; target not Pious, not on hallowed ground | target **gibbed** wherever they stand, their Location hears "… explodes into mist!", remains dropped in a random public Room there — there is no body to drop them beside |
 | Madness | 1 mindbreaker-toxin, a photograph, 15 ⬢; same target rule as Judgement | target gets `madness` for two turns; the print is spent |
 | Fulfillment | nothing on the floor — but the **leader must be among the chanters**, and it fires once per game | 100 ⬢ per completed cult objective, on the room's floor; room hears "Bounty! What success!" |
 | Ascension | 1 barons-scepter, 1 bishops-mitre, 250 ⬢, eight chanters | arms the end of the world for two turns' time and tells every zone where it is being planned |
@@ -198,13 +206,20 @@ leader killed this turn beats the clock. If that leader is not ALIVE the
 countdown is cleared and nothing more is said. Otherwise `ascensionFiredTurn`
 is stamped (never cleared), every `#summary` hears the hellfire line, the game
 ends through `endGameInDb`, and `turnBannerPath` pins `hellfire.jpg` on for
-good. A GM can also call it off from `/gm/dev?s=reports`, beside Defuse.
+good — for **this** game: the stamp is written to `Game.ascensionFiredTurn`,
+not to `GameState`, so the next game starts under a clean sky
+(`TURN-ENGINE.md` §banner). A GM can also call it off from `/gm/dev?s=reports`, beside Defuse.
+
+**The hellfire kills everyone**, gibbed, with no zone exemption — not even the
+caves. That is the whole difference between the two endings: the bomb leaves
+survivors underground with a game to keep playing, and this leaves nothing to
+play.
 
 **If the bomb and the rite come due on the same close, the cult wins.** The
 ascension pass runs before `nukeExplosionPass` for exactly that reason: the
-blast would otherwise kill the snapshot leader and cancel the rite. Both still
-happen — everyone above ground dies — but the epilogue is the cult's, because
-`endGameInDb` is a no-op once the state is ENDED.
+blast would otherwise kill the snapshot leader and cancel the rite. By the time
+the bomb runs there is nobody left alive for it to find, and the epilogue is the
+cult's, because `endGameInDb` is a no-op once the state is ENDED.
 
 Fulfillment's "leader must be present" and "once a game", and Ascension's
 "not while one is already running", are checked in `riteIngredients.js` with

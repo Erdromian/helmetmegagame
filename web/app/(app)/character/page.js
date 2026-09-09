@@ -10,6 +10,7 @@ import {
   roleCapacity,
   isDynastyMember,
   presentedIdentity,
+  concealmentFrom,
   startingTagSlugs,
   normalizeAntagonistSlugs,
 } from "@lifeweb/db";
@@ -18,6 +19,8 @@ import {
   guestRoomIds as roomGuestIds,
 } from "@lifeweb/db/lib/roomAccess";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
+import { knownLocations } from "@lifeweb/db/lib/locationVisits";
+import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import {
   THANATI_SLUG,
   THANATI_LEADER_SLUG,
@@ -25,6 +28,7 @@ import {
   OBOL_SLUG,
   hideoutRoom,
 } from "@lifeweb/db/lib/thanati";
+import { CERBERON_SLUG, WARRANT_BADGE_SLUGS } from "@lifeweb/db/lib/wanted";
 import {
   BUTCHER_SLUG,
   MUTILATE_GATE_SLUGS,
@@ -53,16 +57,15 @@ import { deployVersion } from "@/lib/deployVersion";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
+import { myMove } from "../chat/actions";
 import { loadDesireView, loadLettersView } from "@/lib/selfPools";
 import { craftFreeUnits } from "@/lib/requests";
 import { summarizeCraftBudget } from "@/lib/craftBudget";
 import {
   getGuildMember,
-  isApprovedPlayer,
-  isCursed,
   isGm,
-  isPlaytester,
   isLeaderWhitelisted,
+  onRoster,
 } from "@/lib/discordGuild";
 import {
   isSpawnOnly,
@@ -76,12 +79,18 @@ import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { computeKnownRecipeIds } from "@/lib/tagRequests";
 import { canBuildHere, structuresAt } from "@lifeweb/db/lib/structures";
+import {
+  RESEARCH_TAG_SLUG,
+  CATHEDRAL_LOCATION_SLUG,
+  loadResearchCatalog,
+  researchableHeld,
+} from "@lifeweb/db/lib/research";
 import { parseSelection } from "@/lib/portrait/catalog";
 import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import CharacterView from "./CharacterView";
-import Loading from "./loading";
+import Loading from "./Skeleton";
 
 // Everything the creation wizard needs, shaped as the Zone -> Faction -> Role
 // tree it renders. Seat counts are computed here, not the client, so the
@@ -119,21 +128,31 @@ async function loadCreationData(discordUserId) {
   );
   const takenByRole = await takenCounts(prisma, roleRows, discordUserId);
 
-  const cursed = isCursed(member);
+  const cursed = await isPlayerCursed(prisma, discordUserId);
   // Presentation only; the server action re-checks regardless. Creation is
   // open while the game runs (Ended locks only the clock — LOBBY.md §1), and
   // to a GM during the lobby, which is the Skip button.
   const superadmin = isSuperadmin(discordUserId);
   const phase = state?.phase ?? "CLOSED";
-  // A GM or a playtester may skip the lobby in any phase, and a playtester is
-  // on the roster without the Player role (db/lib/roleIds.js).
-  const skipper = isGm(member) || isPlaytester(member);
+  // Only a GM skips the lobby now: a playtester's bypass is the roster check,
+  // not the phase one, so they rehearse the lobby like everybody else
+  // (db/lib/roleIds.js).
+  const skipper = isGm(member);
+  // Playtest mode narrows the roster to the people building the game
+  // (docs/systemdocs/LOBBY.md §2). Server-side gates re-check it regardless.
+  const playtestMode = config?.playtestModeEnabled === true;
+  const approved = superadmin || onRoster(member, { playtestMode });
   const gate = {
     phase,
     open: superadmin || phase === "RUNNING" || phase === "ENDED" || skipper,
-    approved: superadmin || isApprovedPlayer(member) || isPlaytester(member),
+    approved,
     superadmin,
     gm: skipper,
+    // Turned away by playtest mode rather than by a missing Player role. The
+    // closed page shows its "not open yet" face for this instead of "not on
+    // the roster": there is nothing to apply for, and a closed rehearsal has
+    // no reason to announce itself.
+    masked: playtestMode && !approved,
   };
   // `=== false`, not falsy: no config row means the gate stays enforced.
   const leaderWhitelisted =
@@ -152,6 +171,9 @@ async function loadCreationData(discordUserId) {
     }),
     playerCount,
     startingTagPoints: config?.startingTagPoints ?? 0,
+    // Same gate the Bio card's switch uses (AvatarField.js): with Chat off
+    // there is no web to play from, so the switch is not offered.
+    playPanelEnabled: config?.playPanelEnabled ?? true,
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
     maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     tags,
@@ -228,9 +250,14 @@ export default async function CharacterPage({ searchParams }) {
 // sheet — each a `kind` in the one object CharacterView draws. Every prop of
 // the sheet below used to be a JSX attribute on <CharacterSheet> right here;
 // the names are unchanged.
-async function FreshCharacter({ userId, searchParams }) {
+//
+// `scope` is the snapshot bucket the result is written into (web/lib/snapshot).
+// There is only one caller and one bucket now that /ledger is a redirect, but
+// the parameter stays: it is what keeps a second surface over this same load
+// from painting /character's stored copy.
+export async function FreshCharacter({ userId, searchParams, scope = "character" }) {
   const session = { discordUserId: userId };
-  const fresh = (data) => <SnapshotFresh scope="character" userId={userId} data={data} />;
+  const fresh = (data) => <SnapshotFresh scope={scope} userId={userId} data={data} />;
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
@@ -244,7 +271,6 @@ async function FreshCharacter({ userId, searchParams }) {
       location: { include: { zone: { select: { kind: true } } } },
       // Where they are WALKING, if a paid crossing is still on the road
       // (MAP.md §3). Name only — the sheet just says so in a line.
-      travelTo: { select: { name: true } },
       role: { select: { slug: true } },
       // requirementSkills must be named explicitly: `include` doesn't pull
       // unnamed relations, and formatTagRequirement's `?.length` guard would
@@ -269,7 +295,7 @@ async function FreshCharacter({ userId, searchParams }) {
     const { create } = (await searchParams) ?? {};
     const skipping = create === "1" && (gate.gm || gate.superadmin);
     if (gate.phase === "LOBBY" && !skipping) {
-      if (!gate.approved) return fresh({ kind: "closed", open: true });
+      if (!gate.approved) return fresh({ kind: "closed", open: !gate.masked });
       const [preference, entry, readyCount] = await Promise.all([
         prisma.playerPreference.findUnique({ where: { discordUserId: session.discordUserId } }),
         prisma.lobbyEntry.findUnique({ where: { discordUserId: session.discordUserId } }),
@@ -288,6 +314,7 @@ async function FreshCharacter({ userId, searchParams }) {
           intro: r.intro,
           factionName: r.factionName,
           grantsLeader: r.grantsLeader,
+          requiresWhitelist: r.requiresWhitelist,
           whitelistBlocked: r.whitelistBlocked,
         })),
       }));
@@ -307,7 +334,8 @@ async function FreshCharacter({ userId, searchParams }) {
         },
       });
     }
-    if (!gate.open || !gate.approved) return fresh({ kind: "closed", open: gate.open });
+    if (!gate.open || !gate.approved)
+      return fresh({ kind: "closed", open: gate.masked ? false : gate.open });
     // A seat from the roll, still inside its window: the wizard opens on the
     // Tags step with the role fixed. createCharacter enforces the same lock.
     const assigned = await prisma.lobbyEntry.findFirst({
@@ -332,6 +360,15 @@ async function FreshCharacter({ userId, searchParams }) {
     // The bomb's clock, for the Nuclear Device chip (TagChip.js). World
     // state, so every sheet shows it, not just the holder's.
     nukeState,
+    // The turn card on /ledger (web/app/components/SheetTurn.js): the same
+    // server action Chat's YOU column polls, so the two never disagree.
+    // Only /ledger reads it, so /character skips the call entirely.
+    mine,
+    // The Research picker's held-ingredients shortlist (CRAFTING.md
+    // §2b) — a dedicated read rather than filtered off
+    // `tagCatalog` above, since that select doesn't carry `catalogVisibility`
+    // on the tag itself, which loadResearchCatalog's secret-recipe rule needs.
+    researchCatalog,
   ] = await Promise.all([
     getOpenTurn(),
     // getVisibleTags doesn't select purchasable/craftable, so this comes
@@ -411,7 +448,6 @@ async function FreshCharacter({ userId, searchParams }) {
     prisma.gameConfig.findUnique({
       where: { id: 1 },
       select: {
-        equipSlots: true,
         avatarUploadsEnabled: true,
         playPanelEnabled: true,
         portraitMakerEnabled: true,
@@ -425,7 +461,21 @@ async function FreshCharacter({ userId, searchParams }) {
     findOpenTurnAction(prisma, character.id),
     clockFrozen(prisma),
     readGameState(prisma, { nukeArmedTurn: true }),
+    // The turn card in the sheet's band paints from this, so it is read on
+    // every load rather than gated on a scope.
+    myMove(),
+    loadResearchCatalog(prisma),
   ]);
+
+  // Research (CRAFTING.md §2b): held ingredients that are in ANY recipe,
+  // server-computed so the menu and researchRequestImpl's
+  // own re-check can't drift.
+  const holdsResearch = character.tags.some((ct) => ct.tag?.slug === RESEARCH_TAG_SLUG);
+  const atCathedral = character.location?.slug === CATHEDRAL_LOCATION_SLUG;
+  const researchOptions = researchableHeld(character.tags, researchCatalog).map((ct) => ({
+    slug: ct.tag.slug,
+    name: ct.tag.name,
+  }));
 
   // Desires: the slots, and the evaluated catalog behind the picker. Both
   // are built in web/lib/selfPools.js, which Chat's YOU column reads too,
@@ -451,7 +501,7 @@ async function FreshCharacter({ userId, searchParams }) {
     .map((t) => ({ id: t.id, name: t.name }));
   // Every people pool the sheet's dialogs act on — the roster standing here,
   // the medical gate, and the Loot / Move / Bind / Harm lists — built once in
-  // web/lib/peoplePools.js so Chat's people column (/play) and this sheet
+  // web/lib/peoplePools.js so Chat's people column (/chat) and this sheet
   // cannot disagree about who is standing near you.
   const {
     here,
@@ -471,6 +521,8 @@ async function FreshCharacter({ userId, searchParams }) {
     harmTargets,
     harmTags,
     doseTargets,
+    kissTargets,
+    kissBlocked,
   } = await loadPeoplePools(character, {
     discordUserId: session.discordUserId,
     openTurn,
@@ -514,7 +566,7 @@ async function FreshCharacter({ userId, searchParams }) {
       })
     : [];
   // The Transfer dialog's far side, from the shared helper rather than a
-  // second copy of the same map — /play builds the identical list off it, and
+  // second copy of the same map — /chat builds the identical list off it, and
   // two answers to "which doors are open to you" is exactly what
   // web/lib/peoplePools.js exists to stop. `roomsHere` above is still this
   // page's own, because corpsesInReach below needs the ROWS and not the shape.
@@ -529,11 +581,26 @@ async function FreshCharacter({ userId, searchParams }) {
   // A fact about your own sheet, so the button may grey on it. Resolved here
   // rather than in the client so no slug matching reaches the browser.
   const canButcher = character.tags.some((ct) => ct.tag.slug === BUTCHER_SLUG);
-  // A fact about your own sheet, so the Change name button may grey on it.
-  // changeNameRequestImpl re-checks it under the same predicate.
-  const hasMulligan = character.tags.some((ct) => ct.tag.slug === "mulligan-potion");
+  // The Mulligan Potion, if they hold one. Drinking it is the one player-facing
+  // rename, so the tag's own tooltip opens the identity dialog instead of
+  // consuming it — the tag rail needs the id to tell that bottle from every other
+  // consumable, and the name parts to seed the fields. Resolved here rather
+  // than in the client so no slug matching reaches the browser;
+  // changeNameRequestImpl re-checks the potion under the same predicate.
+  const mulligan = character.tags.find((ct) => ct.tag.slug === "mulligan-potion");
+  const identity = mulligan
+    ? {
+        tagId: mulligan.tag.id,
+        honorific: character.honorific,
+        firstName: character.firstName,
+        title: character.title,
+        lastName: character.lastName,
+        lastNameLocked: isDynastyMember(character.role?.slug),
+        gender: character.gender,
+      }
+    : null;
 
-  // From is you or a room; To is anyone here or a room (TransferDialog.js).
+  // From is you or a room; To is anyone here or a room (actions/MoveThingsDialog.js).
   const transferPartyList = { characters: transferParties, rooms };
   // Your faction's silo, if it has one and you are standing in its zone: a
   // deposit-only destination pinned above the rooms here (FACTIONS.md). The
@@ -688,8 +755,9 @@ async function FreshCharacter({ userId, searchParams }) {
 
   // What the Add-tag and Craft menus may PRINT, as opposed to what the server
   // reasons with. A recipe gated on a trade the catalog hides is stripped for
-  // anyone who doesn't hold that trade: the six courtier wax seals are made by
-  // a Forger — Brigands only, `catalog: gm` — and a "Recipe: Forger · 1 turn ·
+  // anyone who doesn't hold that trade: every wax seal in the game, the six
+  // courtier marks and all eight office stamps alike, is made by a Forger —
+  // Brigands only, `catalog: gm` — and a "Recipe: Forger · 1 turn ·
   // 2 ⬢" line on a seal chip would tell the whole game that seals get forged,
   // which is the one thing a forger is paying for. The tag itself stays, with
   // its name, its description and its honest point price. Same rule as
@@ -805,6 +873,10 @@ async function FreshCharacter({ userId, searchParams }) {
   // yourself. thanatiActions.js re-checks every one of these.
   const isThanati = heldSlugs.has(THANATI_SLUG);
   const isThanatiLeader = heldSlugs.has(THANATI_LEADER_SLUG);
+  // THE CERBERON. Whether you are sworn, and which badge you carry, are your
+  // own sheet's facts too. cerberonActions.js re-checks both.
+  const isCerberon = heldSlugs.has(CERBERON_SLUG);
+  const canWarrant = WARRANT_BADGE_SLUGS.some((slug) => heldSlugs.has(slug));
   const hideout = isThanati ? await hideoutRoom(prisma) : null;
   const atHideout = Boolean(hideout && hideout.locationId === character.locationId);
   // Set Hideout's picker: the rooms at this Location the leader can get into.
@@ -852,6 +924,38 @@ async function FreshCharacter({ userId, searchParams }) {
   // since a hidden button is a hint and not a lock.
   const hasDatacard = heldSlugs.has("nuclear-datacard");
   const hasDevice = heldSlugs.has("nuclear-device");
+  // The Stepstone. Where you may step is where this character has actually
+  // STOOD (db/lib/locationVisits.js) — never the `seen` half of the fog.
+  //
+  // That is a security boundary, not a flavour choice. `seen` is written from
+  // travelOptions, which filters on `listed`, and a LOCKED gate or a shut
+  // portcullis is listed-but-not-passable on purpose (locationGraph.js §85-90)
+  // — you are meant to know the door is there and be unable to open it. Taking
+  // `seen` would have made the stone a skeleton key to every locked door and
+  // tag-gated crawl anybody had ever stood beside. A `stood` row, by contrast,
+  // is a place this character already reached legitimately.
+  //
+  // Built ONLY for somebody carrying a stone: it is a per-character query, and
+  // a list of everywhere they have been has no business in the page source of
+  // a sheet with no stone to step with. stepstoneRequest recomputes it anyway.
+  const hasStepstone = heldSlugs.has("stepstone");
+  const stepstoneTargets = hasStepstone
+    ? await (async () => {
+        const { stood } = await knownLocations(prisma, character.id);
+        const ids = [...stood].filter((id) => id !== character.locationId);
+        if (ids.length === 0) return [];
+        const rows = await prisma.location.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, name: true, zone: { select: { name: true } } },
+          orderBy: [{ zone: { sortOrder: "asc" } }, { name: "asc" }],
+        });
+        return rows.map((l) => ({
+          id: l.id,
+          name: l.name,
+          zoneName: l.zone?.name ?? null,
+        }));
+      })()
+    : [];
   // Paperwork, seals, books and the Bird (docs/systemdocs/PAPERWORK.md). Every
   // gate and every option list is built in web/lib/selfPools.js, because the
   // Chat's composer opens the same four dialogs and two copies of these rules
@@ -890,6 +994,11 @@ async function FreshCharacter({ userId, searchParams }) {
   // there is no "view someone else's held items" surface). Everyone else's
   // row is the plain row, exactly as if the columns were never selected.
   const canSmellPoison = canDetectPoison(character.tags);
+
+  // The mood dial rides along as a number (docs/systemdocs/MOOD.md) because
+  // the sheet needs it for two things — the Mood box's word and the Gambit
+  // tile's modifier — and both are computed client-side. Nothing renders the
+  // figure itself; LedgerBand only ever prints bandOf()'s label.
   const sheetCharacter = {
     ...character,
     tags: character.tags.map((ct) => {
@@ -921,10 +1030,6 @@ async function FreshCharacter({ userId, searchParams }) {
       };
     }),
   };
-  // The fear dial is hidden from players by design (docs/systemdocs/FEAR.md):
-  // they see the band tag, never the number. The sheet is handed to client
-  // components, so the column must not ride along in the payload.
-  delete sheetCharacter.fear;
   // Who can pay: you, anyone here, or a room stash here (same as Craft).
   const healParties = { characters: peopleParties, rooms };
 
@@ -1036,20 +1141,17 @@ async function FreshCharacter({ userId, searchParams }) {
   // usable at all (PROXYING.md §5). Only `forced` is read now — the label used
   // to name WHICH thing was doing it, and says the rule once in a tooltip
   // instead, so the tag's own name has no reader left.
-  const concealingTag =
-    character.tags
-      .filter((ct) => ct.equipped && ct.tag.concealsIdentity)
-      .sort((a, b) => (b.tag.equipLayer ?? 0) - (a.tag.equipLayer ?? 0))[0]
-      ?.tag ?? null;
-  const concealGear = concealingTag
-    ? { forced: Boolean(concealingTag.forcesConceal) }
-    : null;
-  const avatarSrc = forcedIdentity
-    ? presentedIdentity(character, { forcedName: forcedIdentity.name })
-        .avatarPath
-    : `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
+  const concealment = concealmentFrom(character.tags);
+  const concealGear = concealment ? { forced: concealment.forced } : null;
+  // The face the room sees, which is the face the sheet shows: the mask, the
+  // forced name's plaque, or their own. One resolver decides it for every
+  // surface, so a player is never the last to know what they look like.
+  const avatarSrc = presentedIdentity(character, {
+    forcedName: forcedIdentity?.name ?? null,
+    concealment,
+  }).avatarPath;
 
-  // The Move cutoff for StatusPanel's "This turn" row.
+  // The Move cutoff for the band's "This turn" box.
   const openTurnWithWindow = openTurn
     ? {
         ...openTurn,
@@ -1070,6 +1172,10 @@ async function FreshCharacter({ userId, searchParams }) {
       mode: "self",
       openTurn: openTurnWithWindow,
       currentAction: sheetAction,
+      // The turn card's first paint on /ledger: the same server action the
+      // Chat's YOU column reads (play/actions.js#myMove), so the two cannot
+      // disagree about the Move you filed.
+      moveState: mine.ok ? { turn: mine.turn, move: mine.move } : { turn: null, move: null },
       avatarSrc: avatarSrc,
       forcedIdentity: forcedIdentity,
       concealGear: concealGear,
@@ -1078,7 +1184,6 @@ async function FreshCharacter({ userId, searchParams }) {
       carry: carry,
       zoneMoves: zoneMoves,
       zoneMovesReason: zoneMovesReason,
-      travellingTo: character.travelTo?.name ?? null,
       examineBlocked: examineBlocked,
       hasWorkshop: hasWorkshop,
       tagCatalog: clientTagCatalog,
@@ -1095,6 +1200,9 @@ async function FreshCharacter({ userId, searchParams }) {
       hasSurgicalSite: hasSurgicalSite,
       surgicalSitePenalty: surgicalSitePenalty,
       hasMoved: Boolean(currentAction),
+      holdsResearch: holdsResearch,
+      atCathedral: atCathedral,
+      researchOptions: researchOptions,
       canTeach: canTeach,
       knownRecipeIds: knownRecipeIds,
       deathMaskCorpses: deathMaskCorpses,
@@ -1109,7 +1217,6 @@ async function FreshCharacter({ userId, searchParams }) {
       mySins: mySins,
       pendingOffers: pendingOffers,
       ...letters,
-      equipSlots: gameConfig?.equipSlots ?? 10,
       avatarUploadsEnabled: gameConfig?.avatarUploadsEnabled ?? false,
       playPanelEnabled: gameConfig?.playPanelEnabled ?? true,
       portraitMakerEnabled: gameConfig?.portraitMakerEnabled ?? false,
@@ -1123,7 +1230,7 @@ async function FreshCharacter({ userId, searchParams }) {
       healParties: healParties,
       corpses: corpses,
       canButcher: canButcher,
-      hasMulligan: hasMulligan,
+      identity: identity,
       canSeeExtract: canSeeExtract,
       canExtract: canExtract,
       extractBlocked: extractBlocked,
@@ -1137,11 +1244,15 @@ async function FreshCharacter({ userId, searchParams }) {
       canMutilate: canMutilate,
       isThanati: isThanati,
       isThanatiLeader: isThanatiLeader,
+      isCerberon: isCerberon,
+      canWarrant: canWarrant,
       atHideout: atHideout,
       hideoutRooms: hideoutRooms,
       hideoutStock: hideoutStock,
       thanatiWares: thanatiWares,
       hasDatacard: hasDatacard,
+      hasStepstone: hasStepstone,
+      stepstoneTargets: stepstoneTargets,
       hasDevice: hasDevice,
       nukeArmedTurn: nukeState?.nukeArmedTurn ?? null,
       deployVersion: deployVersion(),
@@ -1149,6 +1260,8 @@ async function FreshCharacter({ userId, searchParams }) {
       harmTags: harmTags,
       doseTargets: doseTargets,
       lastNameLocked: isDynastyMember(character.role?.slug),
+      kissTargets: kissTargets,
+      kissBlocked: kissBlocked,
       storeTags: storeTags,
       storeHeldTags: storeHeldTags,
       storeRoleSlug: character.role?.slug ?? null,

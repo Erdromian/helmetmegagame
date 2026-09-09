@@ -31,14 +31,40 @@ const SPECTATOR_ROLE_ID = "1540054129752154292";
 // fails closed on purpose, and that is exactly why it was silent.
 const LEADER_WHITELIST_ROLE_ID = "1545070354295169214";
 
-// The playtest seat. Whoever holds it may skip the lobby and make a character
-// in any phase, the way a GM can, and counts as on the roster whether or not
-// they hold the Player role — so a contributor can test creation and play
-// without being seated as a GM. Grants nothing else. Reads as "Playtest" in
+// The playtest seat. Counts as on the roster whether or not they hold the
+// Player role — so a contributor can test creation and play without being
+// seated as a GM. It does NOT open the doors early: a playtester readies up in
+// the lobby and waits for the roll like everybody else, because a rehearsal
+// that skips the lobby never rehearses the lobby. Only a GM keeps the Skip
+// button. Grants nothing else. Reads as "Playtest" in
 // the guild; created 2026-09-07 and handed to every Contributor at the time.
 // Unmentionable and uncoloured on purpose, so db:prune-orphan-roles never
 // mistakes it for a character's name token.
 const PLAYTEST_ROLE_ID = "1546259369539280936";
+
+// The people building this game. Distinct from the Playtest seat above:
+// Playtest is a testing bypass, while this marks a person who works on
+// Bascinet. It grants nothing on its own and is read by exactly one gate —
+// GameConfig.playtestModeEnabled, which narrows the roster to the people
+// making the thing. Reads as "Contributor" in the guild.
+const CONTRIBUTOR_ROLE_ID = "1544753625526440027";
+
+// The ghost seat: read-only visibility for a dead player, and nothing else.
+// Reads as "Ghost" in the guild.
+//
+// This is a PERMISSION HANDLE, not a fact about anybody. Whether a player is
+// Cursed — migrant/bum only, six fewer points on the next roll — is a database
+// question now, answered by db/lib/curse.js from Character.status and
+// Character.buriedAt. Nothing reads this role to decide anything; the death
+// path writes it and the channel doctor reconciles it against the database.
+//
+// Hardcoded here for the reason at the top of this file, and with a live
+// example behind it: as the env var DISCORD_CURSED_ROLE_ID it was set on the
+// web service and not on the bot, so every rite kill and every turn-clock
+// death silently skipped granting it while web-side kills worked fine. Same
+// role, same id, renamed from "Cursed" in place so its overwrites on all 66
+// channels survived the rename.
+const GHOST_ROLE_ID = "1540018826580852736";
 
 // The trial GM seat. Access-identical to the Gamemaster role everywhere — the
 // web panel, the GM channel overwrites, the bot's /gm and /dm — and the only
@@ -71,14 +97,22 @@ function hasPlaytestRole(roleIds) {
   return (roleIds ?? []).includes(PLAYTEST_ROLE_ID);
 }
 
+// Does this list of role ids carry the contributor seat?
+function hasContributorRole(roleIds) {
+  return (roleIds ?? []).includes(CONTRIBUTOR_ROLE_ID);
+}
+
 module.exports = {
   PLAYER_ROLE_ID,
   SPECTATOR_ROLE_ID,
+  GHOST_ROLE_ID,
   LEADER_WHITELIST_ROLE_ID,
   TRIAL_GM_ROLE_ID,
   PLAYTEST_ROLE_ID,
+  CONTRIBUTOR_ROLE_ID,
   SUPERADMIN_DISCORD_IDS,
   gmRoleIds,
   hasGmRole,
   hasPlaytestRole,
+  hasContributorRole,
 };

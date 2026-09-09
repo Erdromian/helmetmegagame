@@ -81,9 +81,10 @@ advertises the secret as loudly as the name would. The pass clears
 through TagChip on the TAGS tab either.
 
 **A recipe gated on a SKILL the reader may not see loses the whole recipe**, not
-one line of it. The six courtier wax seals are public objects — a courtier buys
-their own mark openly, and everyone can read what a Fleur de Lis looks like —
-but the only way to MAKE one is Forger, a Brigand-only `catalog: gm` skill.
+one line of it. The wax seals are public objects — a courtier buys
+their own mark openly, everyone can read what a Fleur de Lis looks like, and
+every office's stamp is a known thing — but the only way to MAKE one is
+Forger, a Brigand-only `catalog: gm` skill.
 Printing "Forger · 1 turn · 2 ⬢" under a seal tells the whole game that seals
 get forged, which is exactly what the forger is paying for. So every
 requirement column is cleared for that reader and the tag simply stops looking

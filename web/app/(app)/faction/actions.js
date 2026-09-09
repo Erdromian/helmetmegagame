@@ -12,6 +12,7 @@ import { guarded, UserError } from "@/lib/actionResult";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { addToStack } from "@lifeweb/db/lib/tagWrites";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
+import { knownRooms } from "@lifeweb/db/lib/locationVisits";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -261,23 +262,6 @@ async function promoteSuccessor(tx, factionId) {
   if (!heir) return null;
   await tx.character.update({ where: { id: heir.id }, data: { isLeader: true } });
   return heir.id;
-}
-
-// Slug from a player-typed name, uniquified. The slug is permanent and the
-// name is not, so this runs once, at founding, and never again on a rename.
-async function freeSlug(name) {
-  const base =
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 48) || "faction";
-  for (let n = 0; n < 50; n += 1) {
-    const candidate = n === 0 ? base : `${base}-${n + 1}`;
-    const taken = await prisma.faction.findUnique({ where: { slug: candidate }, select: { id: true } });
-    if (!taken) return candidate;
-  }
-  throw new UserError("Too many factions are called that. Pick another name.");
 }
 
 function cleanName(raw) {
@@ -625,46 +609,6 @@ async function secedeFactionImpl() {
   return { parentName: parent?.name ?? null };
 }
 
-// Founding is free and instant on purpose: the whole point is that a player
-// who walks out has somewhere to walk to. The new faction inherits nothing —
-// no parent, no silo, no zone — and the old one is not touched at all.
-async function foundFactionImpl({ name }) {
-  const { session, character } = await requireActor();
-  const clean = cleanName(name);
-  await requireFreeName(clean);
-  const was = character.faction;
-
-  const slug = await freeSlug(clean);
-  const unaffiliated = await unaffiliatedFaction();
-  const faction = await prisma.$transaction(async (tx) => {
-    if (character.factionId && character.factionId !== unaffiliated.id) {
-      await detachMember(tx, character, unaffiliated.id);
-    }
-    const created = await tx.faction.create({
-      data: { slug, name: clean, zoneId: character.zoneId ?? null, foundedById: character.id },
-      select: { id: true, name: true },
-    });
-    await tx.character.update({
-      where: { id: character.id },
-      data: { factionId: created.id, isLeader: true, isTreasurer: false },
-    });
-    await tx.factionApplication.updateMany({
-      where: { characterId: character.id, status: "PENDING" },
-      data: { status: "WITHDRAWN" },
-    });
-    return created;
-  });
-  await audit(session, "faction_founded", character.id, { factionId: faction.id, name: clean });
-
-  if (was && !isUnaffiliated(was)) {
-    for (const officer of await officersOf(was.id)) {
-      notifyCharacter(officer, `${character.name} has left ${was.name} to found ${clean}.`);
-    }
-  }
-  revalidateFaction();
-  return { name: clean };
-}
-
 // Re-pointing the silo moves NOTHING. The old room keeps whatever is in it —
 // which is why the confirm on the other end says so out loud.
 async function setSiloRoomImpl({ roomId }) {
@@ -685,12 +629,27 @@ async function setSiloRoomImpl({ roomId }) {
     // happily offer a room on the far side of the map.
     const home = await prisma.faction.findUnique({
       where: { id: character.factionId },
-      select: { zoneId: true, zone: { select: { name: true } } },
+      select: { zoneId: true, siloRoomId: true, zone: { select: { name: true } } },
     });
     if (home?.zoneId && room.location.zoneId !== home.zoneId) {
       throw new UserError(
         `A silo has to be somewhere in ${home.zone?.name ?? "your own zone"} — nobody could put anything into one in ${room.location.zone?.name ?? "another zone"}.`,
       );
+    }
+
+    // And somewhere this officer has actually been, behind a door that opens
+    // for them — the same call the picker builds its list from, because a
+    // re-check that can drift from the list it re-checks is worse than none.
+    // A rendered option is a hint, not a lock.
+    //
+    // Re-posting the faction's CURRENT silo is always allowed: the picker pins
+    // it on whether or not the filter kept it, so an officer with no key can
+    // still press Set silo without being refused their own treasury.
+    if (id !== home?.siloRoomId) {
+      const allowed = await knownRooms(prisma, character.id, { id });
+      if (allowed.length === 0) {
+        throw new UserError("You can only bank somewhere you have been, behind a door that opens for you. ‡");
+      }
     }
   }
   await prisma.faction.update({ where: { id: character.factionId }, data: { siloRoomId: room?.id ?? null } });
@@ -767,9 +726,6 @@ export async function renameFaction(input) {
 }
 export async function secedeFaction() {
   return guarded(() => secedeFactionImpl());
-}
-export async function foundFaction(input) {
-  return guarded(() => foundFactionImpl(input));
 }
 export async function setSiloRoom(input) {
   return guarded(() => setSiloRoomImpl(input));

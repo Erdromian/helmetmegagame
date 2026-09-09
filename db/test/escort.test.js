@@ -6,8 +6,8 @@
 // Run with: npm test --workspace=db
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { escortAuthority, escortReason, ESCORT_SELECT } = require("../lib/escort");
-const { freeZoneMoves, fitsMount, CHARACTER_SELECT } = require("../lib/locationTravel");
+const { escortAuthority, escortReason, escortRefusal, ESCORT_SELECT } = require("../lib/escort");
+const { freeZoneMoves, freeMovesLeft, fitsMount, CHARACTER_SELECT } = require("../lib/locationTravel");
 const { equippedSlugs } = require("../lib/mounts");
 
 const HERE = "loc-1";
@@ -71,14 +71,39 @@ test("consent counts, and only until its window lapses", () => {
   assert.equal(escortAuthority(leader(), willing, null), "ASK");
 });
 
-test("nobody is taken from across the map, from the ground, or from somebody else", () => {
+test("nobody is taken from across the map, from the ground, or off a friend", () => {
   assert.equal(escortAuthority(leader(), person({ locationId: "loc-2" })), null);
   assert.equal(escortAuthority(leader(), person({ status: "DEAD", buriedAt: new Date() })), null);
-  assert.equal(escortAuthority(leader(), person({ escortedById: "Z" })), null);
+  // A WILLING follower is somebody else's, and stays theirs.
+  assert.equal(escortAuthority(leader(), person({ escortedById: "Z", factionId: "f2" })), null);
   // Already yours is still yours.
   assert.equal(escortAuthority(leader(), person({ escortedById: "L" })), "ASK");
   assert.equal(escortAuthority(leader(), person({ id: "L" })), null);
   assert.equal(escortAuthority(leader({ locationId: null }), person()), null);
+});
+
+test("force beats an arrangement: a captor takes their prisoner off whoever has them", () => {
+  // The reported bug. Tie somebody up while they are walking with a friend
+  // and the friend used to keep them, because the escortedById guard ran
+  // before the FORCED branches ever did.
+  assert.equal(escortAuthority(leader(), person({ escortedById: "Z", tags: [tag("bound", "Bound")] })), "FORCED");
+  assert.equal(escortAuthority(leader(), person({ escortedById: "Z", status: "DEAD" })), "FORCED");
+  assert.equal(escortAuthority(leader(), person({ escortedById: "Z", factionId: "f1" })), "FORCED");
+  // Consent is not force: a standing agreement to YOU does not outrank
+  // somebody who is holding them right now.
+  assert.equal(
+    escortAuthority(leader(), person({ escortedById: "Z", escortConsentToId: "L", escortConsentUntilTurn: 9 }), 3),
+    null,
+  );
+});
+
+test("a refusal says which rule refused", () => {
+  assert.equal(escortRefusal(leader(), person({ escortedById: "Z" })), "They're already with somebody. ‡");
+  assert.equal(escortRefusal(leader(), person({ locationId: "loc-2", name: "Ada" })), "Ada isn't here.");
+  assert.equal(escortRefusal(leader(), null), "They aren't here any more. ‡");
+  // Yours is not a refusal at all, so it falls through to the flat wording
+  // rather than claiming somebody else has them.
+  assert.equal(escortRefusal(leader(), person({ escortedById: "L" })), "You can't take them along. ‡");
 });
 
 test("a hood is off the list, the way it is off every other picker", () => {
@@ -153,4 +178,51 @@ test("ESCORT_SELECT stays a superset of what performLocationMove needs", () => {
   // spent every time and never runs out.
   const missing = Object.keys(CHARACTER_SELECT).filter((key) => !(key in ESCORT_SELECT));
   assert.deepEqual(missing, []);
+});
+
+// --- what is LEFT after a crossing ---------------------------------------
+
+// The bonus a mount (or a boat, on the water) buys is spent BEFORE the base
+// allowance, and Character.zoneMovesBonusUsed remembers that. Without it, a
+// rider who stables their horse at an indoors door lost a crossing they had
+// never spent: the allowance is recomputed every time, so the horse's move
+// went away and the base move was already gone.
+const TURN = { id: "t1" };
+const after = (character, spent, bonusSpent, partySize = 0) =>
+  freeMovesLeft(
+    { ...character, zoneMovesTurnId: TURN.id, zoneMovesUsed: spent, zoneMovesBonusUsed: bonusSpent },
+    CONFIG,
+    TURN,
+    partySize,
+  );
+
+test("a rider who parks their horse indoors keeps the crossing they never spent", () => {
+  // Two before, one charged to the horse, then the horse is unequipped at the
+  // door — the base crossing is still there.
+  assert.equal(freeMovesLeft(held("horse"), CONFIG, TURN), 2);
+  assert.equal(after(held("horse"), 1, 1), 1);
+  assert.equal(after(held(), 1, 1), 1);
+});
+
+test("the base crossing is charged only once the bonus is gone", () => {
+  assert.equal(after(held("horse"), 2, 1), 0);
+  assert.equal(after(held(), 1, 0), 0);
+});
+
+test("a stale bonus count can never hand back more than the allowance", () => {
+  // Overburdened after spending both: zero, not a negative that reads as one.
+  assert.equal(after(held("overburdened"), 2, 1), 0);
+  // Dismounted at a narrow way BEFORE the arithmetic, so nothing was charged
+  // to a bonus and the base move is spent as it always was.
+  assert.equal(after(held(), 1, 0), 0);
+});
+
+test("with no open turn the number is just the allowance", () => {
+  assert.equal(freeMovesLeft(held("horse"), CONFIG, null), 2);
+  assert.equal(freeMovesLeft(held(), CONFIG, null), 1);
+});
+
+test("last turn's counters do not follow you into this one", () => {
+  const yesterday = { ...held("horse"), zoneMovesTurnId: "t0", zoneMovesUsed: 2, zoneMovesBonusUsed: 1 };
+  assert.equal(freeMovesLeft(yesterday, CONFIG, TURN), 2);
 });

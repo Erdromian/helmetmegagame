@@ -3,7 +3,6 @@ const {
   LabelBuilder,
   TextInputBuilder,
   TextInputStyle,
-  TextDisplayBuilder,
 } = require("discord.js");
 
 // The confirm on the big red button in the Censor's Office
@@ -13,8 +12,7 @@ const {
 // Cerberon, the Baron and whoever happens to be crossing the yard.
 //
 // The typed word is the confirm. It is deliberate friction — a misclick on a
-// red button should not be able to shoot the Keep — and it doubles as the
-// place to say, in plain words, what is about to happen.
+// red button should not be able to shoot the Keep.
 //
 // The room id rides in the customId so the submit handler can re-check where
 // the presser is standing. An ephemeral modal outlives somebody walking out of
@@ -26,10 +24,6 @@ const { ARM_WORD, DISARM_WORD, turretWordMatches } = require("@lifeweb/db/lib/ga
 
 const TURRET_MODAL_PREFIX = "turret:toggle:";
 const TURRET_WORD_FIELD = "turret:word";
-
-const ARM_HELP =
-  "-# It fires on everyone standing in the Gatehouse — the Cerberon, the Baron, you. Armour helps; a name does not. ‡";
-const DISARM_HELP = "-# The barrels drop and the yard is safe to cross again. ‡";
 
 // `armed` is the turret's state RIGHT NOW, so the modal offers the opposite.
 function buildTurretModal(roomId, armed) {
@@ -47,8 +41,7 @@ function buildTurretModal(roomId, armed) {
             .setMaxLength(16)
             .setRequired(true),
         ),
-    )
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(armed ? DISARM_HELP : ARM_HELP));
+    );
 }
 
 module.exports = {

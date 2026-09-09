@@ -1,6 +1,6 @@
 "use client";
 
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
 import PersonShell from "./PersonShell";
 
 // What the page draws, from the one object page.js#FreshPlayerDeskPerson produces — the

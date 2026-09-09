@@ -21,7 +21,7 @@
 const { recordArchiveMessage } = require("./archive");
 const { notifyFeed } = require("./feedNotify");
 const { babble, growl, STUPID_SLUG, GHOUL_SLUG } = require("./babble");
-const { blockerFor, slugsBlocking, SPEAK } = require("./incapacitation");
+const { blockerFor, slugsBlocking, SPEAK, SHOUT } = require("./incapacitation");
 const { capitalizeSentences, fixContractions } = require("./textCorrection");
 const {
   loadForcedName,
@@ -29,7 +29,7 @@ const {
   presentedIdentity,
 } = require("./presentedIdentity");
 const { mayWritePlace, slowmodeMsFor } = require("./feedAccess");
-const { rolesToTokens } = require("./characterMentions");
+const { rolesToTokens, stampMentionNames } = require("./characterMentions");
 const { noteChant } = require("./riteChant");
 
 // Discord's own ceiling for a message. Kept on the web side too, because the
@@ -49,21 +49,38 @@ const EDIT_WINDOW_MS = 5 * 60_000;
 // not even select `slug`, and the Speak modal's findAliveCharacter loads no
 // tags at all — so a gate that trusted the caller's include read undefined
 // and passed everybody.
-const VOICE_SLUGS = [...slugsBlocking(SPEAK), STUPID_SLUG, GHOUL_SLUG];
+// Tied up. Not in the RESTRICTIONS table above it in incapacitation.js and
+// deliberately not going in: {tag:bound} still takes ACT and not SHOUT, so a
+// hostage can still yell. It only stops the yell CARRYING — see shoutMuffled
+// below.
+const BOUND_SLUG = "bound";
+
+// SHOUT is the superset — everything that takes the ordinary voice takes the
+// yell too (db/lib/incapacitation.js), plus {tag:mute}, which takes only the
+// yell. One query still answers all of these.
+const VOICE_SLUGS = [...slugsBlocking(SHOUT), STUPID_SLUG, GHOUL_SLUG, BOUND_SLUG];
 
 async function loadVoiceState(prisma, characterId) {
-  if (!characterId) return { block: null, babbling: false };
+  if (!characterId) return { block: null, shoutBlock: null, babbling: false, shoutMuffled: false };
   const rows = await prisma.characterTag.findMany({
     where: { characterId, quantity: { gt: 0 }, tag: { slug: { in: VOICE_SLUGS } } },
     select: { tag: { select: { slug: true, name: true } } },
   });
   return {
-    // Blocked beats garbled: a Stupid Mute is silent, not babbling.
+    // Blocked beats garbled: a Stupid Paralytic is silent, not babbling.
     block: blockerFor(rows, SPEAK),
+    // Only /shout reads this one (db/lib/shout.js). It is `block` plus
+    // {tag:mute}, whose owner talks fine and simply cannot make a voice carry.
+    shoutBlock: blockerFor(rows, SHOUT),
     babbling: rows.some((ct) => ct.tag.slug === STUPID_SLUG),
     // A Ghoul growls (docs/systemdocs/THANATI.md §4). Growl beats babble: a
     // risen Stupid is a Ghoul first.
     growling: rows.some((ct) => ct.tag.slug === GHOUL_SLUG),
+    // Bound: the yell happens, it just does not travel. Read only by
+    // db/lib/shout.js, and deliberately NOT part of `shoutBlock` — a refusal
+    // and a muffle are different answers, and being tied up is still not a
+    // reason to be told you may not shout.
+    shoutMuffled: rows.some((ct) => ct.tag.slug === BOUND_SLUG),
   };
 }
 
@@ -166,7 +183,16 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
   // the web renders and the outbox translates back (PROXYING.md §6,
   // db/lib/characterMentions.js). A web send needs no translation in this
   // direction: its composer already writes tokens.
-  const rowContent = source === "DISCORD" ? await rolesToTokens(prisma, text) : text;
+  //
+  // Then every mention is stamped with the name its subject is presenting now,
+  // so the row freezes who it named the same way it already freezes who said
+  // it. Both faces, unconditionally: the web composer writes a name in as it
+  // inserts the chip and this OVERWRITES it, because a server action is a
+  // public endpoint and a posted name is a claim, not a fact.
+  const rowContent = await stampMentionNames(
+    prisma,
+    source === "DISCORD" ? await rolesToTokens(prisma, text) : text,
+  );
 
   // Which name and face this goes out under: forced > concealed > own
   // (db/lib/presentedIdentity.js). Read off the character, never off the
@@ -186,28 +212,57 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
 async function recordSpeech(
   prisma,
   prepared,
-  { discordMessageId = null, discordChannelId = null, zoneId = null, zoneName = null, channelKind = null, threadName = null, content = null, clientId = null } = {},
+  {
+    discordMessageId = null,
+    discordChannelId = null,
+    zoneId = null,
+    zoneName = null,
+    channelKind = null,
+    threadName = null,
+    content = null,
+    clientId = null,
+    sentAt = null,
+    // The proxy's two extras. `sourceDiscordMessageId` is the player's own
+    // message, claimed on a unique index so a redelivered event cannot post
+    // twice; `rethrow` is how the proxy gets to see that collision instead of
+    // having it swallowed. Both null/false everywhere else.
+    sourceDiscordMessageId = null,
+    rethrow = false,
+  } = {},
 ) {
   if (!prepared?.ok) return null;
   const row = await recordArchiveMessage(prisma, {
     // The web composer's token for the copy it has already drawn. Null on the
     // Discord path, which has no optimistic row to reconcile.
     clientId,
+    // When this was actually SAID, for a caller that is not writing it live.
+    // bot/src/lib/messageCatchUp.js recovers messages typed while the bot was
+    // down, and the whole point of the row is that it carries the moment the
+    // player typed it rather than the moment the bot woke up. Null everywhere
+    // else, and recordArchiveMessage falls back to now.
+    sentAt,
     // A caller that appended something to the prepared text (the proxy adds
     // its attachment placeholders) hands the finished string back here.
     // Otherwise the ROW's spelling is what is stored, not Discord's.
     content: content ?? prepared.rowContent ?? prepared.content,
     character: prepared.character,
     concealedAlias: prepared.identity?.alias ?? null,
+    // The face that went with the name, frozen for the same reason: a live
+    // lookup would unmask every old line the moment the mask came off. Gated
+    // on `alias` rather than written unconditionally, because the own-face
+    // path carries a ?v=<updatedAt> cache-buster and freezing one would pin a
+    // stale portrait forever. Null is how "their own face" is recorded.
+    presentedAvatarPath: prepared.identity?.alias ? (prepared.identity.avatarPath ?? null) : null,
     placeKey: prepared.placeKey,
     source: prepared.source,
     discordMessageId,
+    sourceDiscordMessageId,
     discordChannelId,
     zoneId,
     zoneName,
     channelKind,
     threadName,
-  });
+  }, { rethrow });
   // The Thanati listen to every room (db/lib/riteChant.js). Not awaited: a
   // chant that counts writes a row or two of its own, and none of that may
   // slow or fail the message it rode in on.
@@ -227,7 +282,7 @@ async function sayInPlace(prisma, { character, placeKey, content, source = "WEB"
 // ---- Edits and deletes -----------------------------------------------------
 //
 // The ROW is the source of truth for both, on both faces. A player pressing
-// ✏️ in Discord and a player pressing ✎ on /play now do the same thing: they
+// ✏️ in Discord and a player pressing ✎ on /chat now do the same thing: they
 // change the row and notify, and bot/src/lib/feedOutbox.js is the only thing
 // that touches the Discord message. That is what retires the in-memory
 // recentProxies map, and with it the restart amnesia that made an hour-old
@@ -243,6 +298,7 @@ const EDITABLE_SELECT = {
   characterId: true,
   characterName: true,
   concealedAlias: true,
+  presentedAvatarPath: true,
   content: true,
   sentAt: true,
   source: true,
@@ -256,7 +312,7 @@ function pastWindow(row) {
   return Date.now() - new Date(row.sentAt).getTime() > EDIT_WINDOW_MS;
 }
 
-const WINDOW_REFUSAL = "That was said more than five minutes ago and stands. ‡";
+const WINDOW_REFUSAL = "You can't edit that any more.";
 const GONE_REFUSAL = "That message is gone.";
 const NOT_YOURS_REFUSAL = "That isn't yours to change. ‡";
 
@@ -304,7 +360,14 @@ async function editSpeech(prisma, { characterId, seq, content, gm = false } = {}
   // row has to store as a token; a ✎ on the web already wrote one. Running it
   // unconditionally is safe because rolesToTokens only ever touches a role id
   // that IS a character's name token.
-  const text = await rolesToTokens(prisma, transformed);
+  //
+  // The stamp re-runs over the whole edited text, so a mention ADDED by an
+  // edit freezes the name as it is now. That does re-date a mention the edit
+  // kept, which is the right trade: an edit is fresh writing, the window for
+  // one is five minutes (EDIT_WINDOW_MS), and the alternative is diffing two
+  // strings to decide which tokens are old — a great deal of machinery to
+  // preserve a name that is five minutes stale at worst.
+  const text = await stampMentionNames(prisma, await rolesToTokens(prisma, transformed));
 
   const updated = await prisma.archiveEntry.update({
     where: { id: row.id },
@@ -320,7 +383,7 @@ async function editSpeech(prisma, { characterId, seq, content, gm = false } = {}
 
 // Soft, everywhere. The row stays so a client holding it can reconcile, and
 // so the outbox has something to read when it goes to delete the Discord
-// message; /archive and /play both filter on deletedAt.
+// message; /archive and /chat both filter on deletedAt.
 async function deleteSpeech(prisma, { characterId, seq, gm = false } = {}) {
   const found = await loadEditable(prisma, { characterId, seq, gm });
   if (!found.ok) return found;

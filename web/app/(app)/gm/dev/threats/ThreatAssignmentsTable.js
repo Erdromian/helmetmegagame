@@ -153,26 +153,56 @@ function Row({ row, threats, onSpawn, onMessage }) {
   const [pending, startTransition] = useTransition();
   const [slug, setSlug] = useState("");
   const [error, setError] = useState(null);
+  // Assign used to say nothing at all when it worked, which is
+  // indistinguishable from a button that does nothing. The repaint fills the
+  // Seat column a moment later, but the press itself needs an answer.
+  const [note, setNote] = useState(null);
 
   const assignable = threats.filter((t) => t.assignable);
 
-  function assign() {
+  // The confirm is awaited OUTSIDE the transition, which is not a style
+  // preference. Inside one, the state update that opens the dialog is itself
+  // transition-scoped, and React holds the transition open until the async
+  // action returns — so the dialog never rendered, the promise it resolves on
+  // never settled, and the button sat disabled forever. Pressing Assign did
+  // nothing at all, silently, and no seat was ever handed out this way. Every
+  // other useConfirm caller in the app already asks first and then transitions.
+  async function assign() {
     const threat = assignable.find((t) => t.slug === slug);
-    if (!threat) return;
+    if (!threat) {
+      setError("Pick a seat to assign first. ‡");
+      return;
+    }
+    const ok = await confirm({
+      title: `Make ${row.characterName} the ${threat.name}?`,
+      message: `They get the seat's tags and ${threat.tagPoints} tag points, and a DM telling them so. ‡`,
+      confirmLabel: "Assign",
+    });
+    if (!ok) return;
+
     setError(null);
+    setNote(null);
     startTransition(async () => {
-      const ok = await confirm({
-        title: `Make ${row.characterName} the ${threat.name}?`,
-        message: `They get the seat's tags and ${threat.tagPoints} tag points, and a DM telling them so. ‡`,
-        confirmLabel: "Assign",
-      });
-      if (!ok) return;
-      const res = await assignThreat({ characterId: row.characterId, threatSlug: slug });
-      if (!res?.ok) {
-        setError(res?.error ?? "Something went wrong.");
-        return;
+      // A rejected action has no error.js to land on here either, so a
+      // transport failure would go the same silent way — same guard
+      // EndTurnButton keeps for the same reason.
+      try {
+        const res = await assignThreat({ characterId: row.characterId, threatSlug: slug });
+        if (!res?.ok) {
+          setError(res?.error ?? "Something went wrong.");
+          return;
+        }
+        setSlug("");
+        // The seat lands either way — the DM is the half that can fail on its
+        // own, and the GM is the only one who can tell the player instead.
+        if (res.dmFailed) {
+          setError(`${row.characterName} holds the seat, but the DM never sent. Tell them yourself. ‡`);
+        } else {
+          setNote(`${row.characterName} is now the ${threat.name}. ‡`);
+        }
+      } catch {
+        setError("Could not reach the server. Nothing was changed. ‡");
       }
-      setSlug("");
     });
   }
 
@@ -229,6 +259,7 @@ function Row({ row, threats, onSpawn, onMessage }) {
           </button>
         </div>
         <FormError>{error}</FormError>
+        {note ? <p className="text-sm text-muted">{note}</p> : null}
       </td>
     </tr>
   );
@@ -245,8 +276,13 @@ function SpawnDialog({ row, threats, roles, locations, onClose }) {
   const [done, setDone] = useState(null);
 
   const threat = threats.find((t) => t.slug === slug) ?? null;
+  // The pinned lookup runs over EVERY role, the dropdown only over the ones a
+  // GM may pick. A spawn-only role (the Tribunal's two — db/lib/roleCapacity.js)
+  // is a seat of its own, and offering one as a cover role hands the recruit
+  // that seat's charter, secrets and all.
   const pinnedRole = threat?.spawnRoleSlug ? roles.find((r) => r.slug === threat.spawnRoleSlug) : null;
-  const role = pinnedRole ?? roles.find((r) => r.id === roleId) ?? null;
+  const coverRoles = roles.filter((r) => !r.spawnOnly);
+  const role = pinnedRole ?? coverRoles.find((r) => r.id === roleId) ?? null;
 
   // The role's own start is the default, and the picker only overrides it.
   const effectiveLocationId = locationId || role?.startingLocationId || "";
@@ -293,7 +329,7 @@ function SpawnDialog({ row, threats, roles, locations, onClose }) {
             }}
           >
             <option value="">Choose a role…</option>
-            {roles.map((r) => (
+            {(pinnedRole ? [pinnedRole] : coverRoles).map((r) => (
               <option key={r.id} value={r.id}>
                 {r.name} ({r.seatsLeft} left)
               </option>

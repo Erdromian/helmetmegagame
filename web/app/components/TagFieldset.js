@@ -16,11 +16,14 @@ import { filterTagsByQuery } from "@/lib/characterCreation";
 // progression rather than restructuring the catalog.
 
 // Tag.inspectVisibility. WORN needs the tag to be equippable; the server
-// re-checks it (actions.js#scalarsFrom).
+// re-checks it (actions.js#scalarsFrom). NAMED is the reputation case — seen
+// only while the wearer is going under their own name, so a hood or a
+// Disguise Kit takes it off the read (db/lib/medicalVision.js).
 const VISIBILITY_OPTIONS = [
   ["HIDDEN", "Never"],
   ["ALWAYS", "Always"],
   ["WORN", "Only while equipped"],
+  ["NAMED", "Only under their own name"],
 ];
 
 const BEHAVIOUR_FIELDS = [

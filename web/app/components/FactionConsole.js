@@ -22,7 +22,6 @@ import {
   decideApplication,
   renameFaction,
   secedeFaction,
-  foundFaction,
   setSiloRoom,
   setMemberTreasurer,
 } from "@/app/(app)/faction/actions";
@@ -258,9 +257,19 @@ function SiloTab({ faction, silo, isOfficer, rooms, run, pending }) {
             ))}
           </Select>
         </label>
-        <p className="text-sm text-muted mt-2">
-          A locked silo still takes deposits from anyone in the faction. Only people holding its key can open it again.
-        </p>
+        {/* The list is the rooms this officer has stood in and can open, so an
+            officer who has not walked their own zone yet gets nothing but "No
+            silo" — which reads like a broken dropdown unless it says otherwise. */}
+        {rooms.length === 0 ? (
+          <p className="text-sm text-muted mt-2">
+            Nowhere to bank yet. A room only turns up here once you have stood at its door and can open it.
+          </p>
+        ) : (
+          <p className="text-sm text-muted mt-2">
+            A locked silo still takes deposits from anyone in the faction. Only people holding its key can open it
+            again.
+          </p>
+        )}
       </Modal>
     );
   }
@@ -437,9 +446,7 @@ function ApplicationsTab({ faction, applications, invites, siloKeys, candidates,
 function StandingTab({ faction, isLeader, myApplications, run, pending }) {
   const confirm = useConfirm();
   const [renaming, setRenaming] = useState(false);
-  const [founding, setFounding] = useState(false);
   const [name, setName] = useState(faction.name);
-  const [newName, setNewName] = useState("");
 
   return (
     <div className="flex flex-col gap-4">
@@ -536,12 +543,6 @@ function StandingTab({ faction, isLeader, myApplications, run, pending }) {
             Secede from {faction.parentName}
           </button>
         )}
-        {/* Founding works from inside a faction too — foundFaction detaches
-            you on the way out. Leaving first and then founding was two steps
-            for one decision. */}
-        <button type="button" className="btn-quiet" onClick={() => setFounding(true)}>
-          Found your own
-        </button>
         <button
           type="button"
           className="btn-quiet"
@@ -580,37 +581,6 @@ function StandingTab({ faction, isLeader, myApplications, run, pending }) {
           <input className="field-input" value={name} onChange={(e) => setName(e.target.value)} maxLength={48} />
         </label>
       </RequestDialog>
-
-      <RequestDialog
-        modeless
-        open={founding}
-        title="Found a faction"
-        submitLabel="Found it"
-        busy={pending}
-        reasonRequired={false}
-        canSubmit={newName.trim().length >= 2}
-        onCancel={() => setFounding(false)}
-        onConfirm={async () => {
-          const done = await run(() => foundFaction({ name: newName }));
-          if (done) {
-            setFounding(false);
-            setNewName("");
-          }
-        }}
-      >
-        <label className="field">
-          <span className="field-label">Name</span>
-          <input
-            className="field-input"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            maxLength={48}
-          />
-        </label>
-        <p className="text-sm text-muted mt-2">
-          You leave {faction.name} and become the new faction&apos;s Leader.
-        </p>
-      </RequestDialog>
     </div>
   );
 }
@@ -622,11 +592,9 @@ function StandingTab({ faction, isLeader, myApplications, run, pending }) {
 function Directory({ directory, myApplications, run, pending }) {
   const [applying, setApplying] = useState(null);
   const [applyNote, setApplyNote] = useState("");
-  const [founding, setFounding] = useState(false);
-  const [name, setName] = useState("");
   const pendingIds = new Set(myApplications.map((a) => a.factionId));
-  // Founding is free and unlimited, so this list has no natural ceiling —
-  // search and paging rather than a bare table that grows forever.
+  // Every faction in the game, so this list has no natural ceiling — search
+  // and paging rather than a bare table that grows forever.
   const table = useTableState({
     rows: directory,
     searchFields: DIRECTORY_SEARCH,
@@ -637,12 +605,7 @@ function Directory({ directory, myApplications, run, pending }) {
   return (
     <div className="flex flex-col gap-4">
       <section className="panel overflow-x-auto p-4 flex flex-col gap-3">
-        <div className="flex items-baseline justify-between gap-3 flex-wrap">
-          <h2 className="panel-header">Factions</h2>
-          <button type="button" className="btn-quiet" onClick={() => setFounding(true)}>
-            Found your own
-          </button>
-        </div>
+        <h2 className="panel-header">Factions</h2>
         <FilterBar
           filterDefs={[]}
           filters={table.filters}
@@ -771,32 +734,6 @@ function Directory({ directory, myApplications, run, pending }) {
           />
         </label>
       </RequestDialog>
-
-      <RequestDialog
-        modeless
-        open={founding}
-        title="Found a faction"
-        submitLabel="Found it"
-        busy={pending}
-        reasonRequired={false}
-        canSubmit={name.trim().length >= 2}
-        onCancel={() => setFounding(false)}
-        onConfirm={async () => {
-          const done = await run(() => foundFaction({ name }));
-          if (done) {
-            setFounding(false);
-            setName("");
-          }
-        }}
-      >
-        <label className="field">
-          <span className="field-label">Name</span>
-          <input className="field-input" value={name} onChange={(e) => setName(e.target.value)} maxLength={48} />
-        </label>
-        <p className="text-sm text-muted mt-2">
-          You become its Leader.
-        </p>
-      </RequestDialog>
     </div>
   );
 }
@@ -822,7 +759,7 @@ export default function FactionConsole(props) {
   const [tab, setTab] = useState("roster");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
-  const doRefresh = useRefresh();
+  const [doRefresh] = useRefresh();
 
   // The one submit wrapper. Returns whether it worked, so a dialog knows
   // whether to close itself.

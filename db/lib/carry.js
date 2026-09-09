@@ -208,6 +208,7 @@ const CHARACTER_SELECT = {
       tagId: true,
       quantity: true,
       equipped: true,
+      equippedQuantity: true,
       expiresTurn: true,
       tag: {
         select: {
@@ -233,15 +234,21 @@ let warnedMissingTag = false;
 // dropping the Cart to fix being over would shrink the cap again and loop, and
 // being disarmed by an overfull pack reads badly.
 //
+// "Equipped gear" means only the equipped UNITS, not the whole row — three
+// swords equipped out of five leaves the other two exactly as droppable as
+// anything else in the pack, since a slot only protects what is actually in
+// it.
+//
 // A weightless unit can never help, so it is not even a candidate — otherwise
 // the shuffle would spend draws on letters while the anvil stayed put.
 function drawDrops(characterTags, excessLbs) {
   const units = [];
   for (const ct of characterTags) {
-    if (!ct.tag.tradeable || ct.equipped || ct.tag.carryBonus) continue;
+    if (!ct.tag.tradeable || ct.tag.carryBonus) continue;
     const each = rowWeight({ ...ct, quantity: 1 });
     if (each <= 0) continue;
-    for (let i = 0; i < (ct.quantity ?? 1); i += 1) units.push(ct);
+    const droppable = Math.max(0, (ct.quantity ?? 1) - (ct.equippedQuantity ?? 0));
+    for (let i = 0; i < droppable; i += 1) units.push(ct);
   }
   // Fisher–Yates, then take from the front until the excess is covered.
   for (let i = units.length - 1; i > 0; i -= 1) {

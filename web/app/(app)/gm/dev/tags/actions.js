@@ -118,9 +118,9 @@ function scalarsFrom(input) {
     );
   }
 
-  // Three states, not a checkbox (Tag.inspectVisibility). A missing or unknown
+  // Four states, not a checkbox (Tag.inspectVisibility). A missing or unknown
   // value reads as HIDDEN, which is the safe direction for a vision gate.
-  const inspectVisibility = ["HIDDEN", "ALWAYS", "WORN"].includes(input.inspectVisibility)
+  const inspectVisibility = ["HIDDEN", "ALWAYS", "WORN", "NAMED"].includes(input.inspectVisibility)
     ? input.inspectVisibility
     : "HIDDEN";
   // Same pairing as concealsIdentity above, and as syncTags.js enforces on the
@@ -378,7 +378,6 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
       });
       applied.push(...liveTargets);
     } else {
-      const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true } });
       const tagsById = new Map([[tag.id, tag]]);
       for (const characterId of liveTargets) {
         try {
@@ -388,7 +387,6 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
               ops: [{ tagId: tag.id, op: "add", quantity: 1 }],
               tagsById,
               openTurn,
-              equipSlots: config?.equipSlots ?? 10,
             }),
           );
           applied.push(characterId);

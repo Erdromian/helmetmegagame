@@ -1,6 +1,6 @@
 "use client";
 
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
 import Workspace from "../Workspace";
 
 // What the page draws, from the one object page.js#FreshTurnsWorkspace produces — the

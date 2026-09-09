@@ -111,13 +111,16 @@ reason.
 | `DONATE_BLOOD` | Mortus bleeds someone into the Lifeweb | blood added; clear Drained | Draws the blood back, clears Drained |
 | `FEED_PERSON` | Mortus feeds someone to the Lifeweb | blood added | Draws the blood back (never revives) |
 | `HEAL_CHARACTER` | Treats a `healable` affliction on anyone at their Location who isn't concealed, on whoever's tab they choose, billed to a payer — yourself, a Room stash here, or a person here. An affliction with `removesInto` leaves its treated form on the patient (`TAGS.md` §5c) | cost; put the affliction back (which also takes the aftermath off) | Restores the tag with its original expiry, takes back the aftermath, refunds the payer |
+| `RESEARCH` | A Scholastic in the Cathedral spends their Move as a GAMBIT studying a held ingredient — the die and the Hunger/Mood modifier are rolled and stored at submit, same as a Lesson's. Nobody adjudicates it: the Research pass resolves it at turn close, not a GM (`TURN-ENGINE.md` §2, `CRAFTING.md` §2b) | — | Nothing to undo once the pass has resolved it; before then, Reject the Action to give the Move back |
+| `request_whisper` | Spends a Raven Draught to send one typed sentence to any character in the game, immediately (`BIRD.md` §8a). No zone guess, no letter, no literacy, no reply. It reports "Sent." whatever happened — the row's `delivered` is the only record, and a whisper to a dead name is silently spent | — | Restores the bottle |
+| `request_stepstone` | Spends a Stepstone to stand in any Location that character has STOOD in (`MAP.md` §3b) — never one merely seen from a doorway, which would make the stone a key to every locked gate. No ⬢, no Move, no adjacency, no Action, but a hold still stops it. Escorts are cut loose and no gate line is posted | — | Restores the bottle and the old `locationId`/`zoneId` |
 | `CHANGE_NAME` | Takes a new honorific/first/last name | — | Restores the previous name |
 | `CAVING_LOOT` | Nothing — the turn engine files it when a Caving Die rolls a 6 (`CAVING.md`) | — | Drops the find |
 | `LOOT_CHARACTER` | Searches a body, **or** anyone Bound/Dying/Paralyzed/Catatonic in their zone, taking Items, Assets and ⬢ in one act | — | Returns every tag with its original expiry, and the ⬢ |
 | `BIND_CHARACTER` | Ties up anyone at their Location who isn't concealed. A conscious, unhelpless target must accept an Offer first (`LESSONS.md` §3b); a target who is dead or already holds an incapacitating tag is bound on the spot | — | Cuts them loose |
 | `FREE_CHARACTER` | Cuts someone in their zone loose | — | Puts Bound back with its original expiry |
 | `CRUCIFY_CHARACTER` | Puts the `crucified` status on anyone standing at their Location. Needs the `fundamentalist` tag and a `COMPLETE` `crucifix` Structure standing there. **No consent and no Move** — the cross is the gate. Crucified blocks ACT and not SPEAK (`TAGS.md` §5f), becomes Dying at the close of the turn, and the Dying pass kills at the next | — | Drops `crucified`. After the close only Dying is left, and Undo leaves it — heal that |
-| `TORTURE_CHARACTER` | A Torturer works on someone Bound and standing here. One d6 resolved on the spot (`TORTURE.md`): a break DMs the torturer every tag but wounds and statuses, the last three Desires and, off a Thanati Leader, the cult roster, and puts Depressed on the victim; either way the victim takes +40 fear and the torturer's Move is spent as an auto-Routine | — | Take Depressed off from `/gm/dev`; the fear is a dial edit. Reject the Action to give the Move back |
+| `TORTURE_CHARACTER` | A Torturer works on someone Bound and standing here. One d6 resolved on the spot (`TORTURE.md`): a break DMs the torturer every tag but wounds and statuses, the last three Desires and, off a Thanati Leader, the cult roster, and puts Depressed on the victim; either way the victim takes −40 mood and the torturer's Move is spent as an auto-Routine | — | Take Depressed off from `/gm/dev`; the mood is a dial edit. Reject the Action to give the Move back |
 | `HARM_CHARACTER` | Inflicts a Health affliction on someone already helpless, **kills** them, or both — see §5b | — | Heals what was inflicted; never revives |
 | `BURY_CHARACTER` | Puts a body into the ground, lifting the **Cursed** role off the dead player's Discord account. Needs their **actual corpse tag**, held or reachable in a room here, and spends the filer's Move | — | Raises the body and puts the corpse back where it came from; does **not** re-curse, and the Move stays spent |
 | `ENGRAVE_HEADSTONE` | Frees a soul with a stone instead of a body, for **4 ⬢** and the filer's Move. Target is **typed**, first name only, matched **game-wide**. Leaves a `{name}'s Headstone` tag | — | Refunds the ⬢, takes the stone, reopens the grave; does **not** re-curse |
@@ -126,9 +129,10 @@ reason.
 | `EXTRACT_GODFLESH` | Cuts Godflesh out of a marsh tile. Spends the Routine, needs a blade equipped, rolls a d6 — a 6 pays an extra, a 1 rolls an injury table that Armored Gloves dominate (`FACTORY.md` §3) | — | Takes the Godflesh back and heals what it cost; the Move stays spent |
 | `PACKAGE_ITEMS` | Packs up to 150 lb of held goods into one crate weighing half that, with a line the packer types. Needs Packaging Equipment in reach; costs no Move (`FACTORY.md` §5) | — | Prises the crate open, returns the contents, deletes the runtime Tag |
 | `BIRD_MESSAGE` | Sends one written letter to a named person in a **guessed** zone. Once a day, gated on `bird` + `literate`. A wrong guess or a dead recipient means it never arrives, and the sender is told a turn later (`BIRD.md`) | — | Hands the day back and closes the reply window; **cannot unsend a letter that landed** |
-| `DEPOT_BUY` | Buys an import off the orbital station at its `depotPrice`. Licence + standing at Customs (`DEPOT.md`) | — | Returns the goods, refunds the ⬢ |
+| `DEPOT_BUY` | Buys an import off the orbital station at its `depotPrice`. Licence + standing at the Depot (`DEPOT.md`) | — | Returns the goods, refunds the ⬢ |
 | `DEPOT_SELL` | Sells a `sellable` tag to the station at its `sellablePrice` | — | Buys it back with its original expiry, takes the ⬢ |
 | `DEPOT_CREDIT` | Draws on or repays the Company's 60 ⬢ credit line | — | Reverses the ⬢ and the tab together |
+| `INTERCEPT` | Lays in wait where they stand: names who they are watching for (or "anyone", or "anyone concealed"), writes a line to hand them, and picks Safe or Ambush. Costs no Move and no ⬢. When one of them walks in, they are stopped — two minutes, or until the turn ends. **A typed name never catches a hooded face**; that is what "anyone concealed" is for (`INTERCEPT.md`) | — | Nothing to undo: the hold lapses on its own, and the holder can Release early |
 | `BUILD_STRUCTURE` | Filed by whoever's crew-turn FINISHES a build site — the one Request a structure ever files, carrying type, ground, cost, payer and every contributor (docs/systemdocs/ADJUDICATION.md §6) | — | Tears the structure down, refunds the payer, and restores any edge it flipped (conditionally — see the Discord note below); the crew's spent Moves stay spent |
 
 (`DAMAGE_STRUCTURE` is also in the enum, declared ahead of use because
@@ -420,7 +424,7 @@ audit entry's `diceModifiers`, which is the only place it survives.
 The DM reads `🎲 **4** −2 Hungry → **2**`. It is keyed on whether *any*
 contributor applied rather than on the total, so a contributor worth 0 would
 still show its work instead of pretending nothing happened.
-`StatusPanel`'s Gambit row reads the same module.
+The sheet band's Gambit tile (`LedgerBand.js`) reads the same module.
 
 ## 5. Desires
 
@@ -725,19 +729,31 @@ Bury originally had it. Every other target menu in the app is a dropdown built
 from the roster; a dropdown here would be a list of the dead, readable by anyone
 who opened the dialog, and the whole reason `/character`'s panels never render a
 status pill on a corpse is that who died is not supposed to be free information.
-So the dialog holds one text field and `firstName` is matched
-case-insensitively against `Character.firstName` inside a `WHERE` scoped to
-`status: DEAD` and `buriedAt: null`.
+So the dialog holds one text field.
+
+It matches the **whole name** now, not the first name. First names repeat
+constantly in a game this size, so a mourner who knew exactly whose stone they
+meant was told "more than one dead person answers to that name" and had to go
+find a GM — the refusal firing on a case it was never written for. The
+comparison is `matchesTypedName()` (`db/lib/characterName.js`), which accepts
+either form: the full display name (`Sir Jorren "the Blind" Vask`) or the plain
+`First Last`, since an honorific the mourner never learned should not be a wall.
+Both are exact, trimmed and case-folded — there is no fuzzy matching anywhere in
+this game. `Character.name` is composed rather than stored in parts Prisma can
+compare, so the unburied dead come back on a `WHERE` scoped to `status: DEAD`
+and `buriedAt: null` and the filter runs in JS. The Arrest Warrant (§5g) uses
+the same matcher against the living.
 
 **And Engrave's search is game-wide** — no zone clause at all, because the whole
 point is a body nobody can find. Two consequences follow, and both are accepted
 deliberately. The leak is bigger than Bury's was: a hit tells you that person is
 dead *somewhere*, where before it only told you they were not a corpse in your
-zone. And **the `>1 match` refusal now does real work.** Two dead people sharing
-a first name anywhere in Ravenheart is a plain error — "More than one dead
-person answers to that name. A GM will have to do it." — rather than a guess,
-because it is the only thing standing between a mourner and freeing the wrong
-soul. Do not soften it into picking the first match.
+zone. And **the `>1 match` refusal still does real work**, though it is rare now
+that the match is on the whole name: two dead people sharing a full name
+anywhere in Ravenheart is a plain error — "More than one dead person answers to
+that name. A GM will have to do it." — rather than a guess, because it is the
+only thing standing between a mourner and freeing the wrong soul. Do not soften
+it into picking the first match.
 
 **Butchering destroys a body without freeing the soul.** This reads as an
 oversight and is not: cutting someone up is not a burial, so their player stays
@@ -788,6 +804,54 @@ same reason: whether a corpse lies where you stand, or whether the name you have
 in mind belongs to someone dead, is exactly what you are not supposed to learn
 from a greyed-out icon.
 
+## 5g. The Cerberon: Arrest Warrant, Check Wanted
+
+Two buttons in a `CERBERON` section of the Actions grid, both **hidden** rather
+than greyed — which badge you carry, and whether you are sworn, are your own
+sheet's facts, and a dead Arrest Warrant icon on a brigand's sheet would teach
+him nothing except that the warrant book exists. They live in
+`web/app/(app)/character/cerberonActions.js`, the `thanatiActions.js` shape:
+one actor resolver, each verb re-checking the tag the button's `show` already
+read.
+
+**Arrest Warrant** is gated on the **badge, not the role**:
+`censors-key`, `sheriffs-badge` or `cerberus-helmet` (`WARRANT_BADGE_SLUGS`,
+`db/lib/wanted.js`). Every other button on the sheet gates on a tag, and this
+way the authority travels with the thing — including when it is looted off a
+body, which is a story the game should be able to tell.
+
+It types the name rather than picking it, the Engrave reasoning (§5d) and it
+applies harder here: a dropdown would be a roster of everybody alive, handed to
+anyone holding a badge. Same `matchesTypedName()` matcher, against
+`status: ALIVE`. Four refusals: nobody by that name, more than one, yourself,
+and a warrant already out on them.
+
+**It costs nothing** — no Move, no ⬢, no Routine filed. And it deliberately
+does **not** put paper up: `postWantedPosters` (`db/lib/wantedPoster.js`) stays
+a character-creation thing. Granting the tag is the whole act, and the only way
+anyone finds out is by looking the man in the face — which is exactly what
+`visible: named` (`TAGS.md`) makes worth doing. There is no cooldown either, so
+a Censor could paper the roster; `AuditLog` is the record (`request_arrest_warrant`)
+and a GM repairs by hand from `/gm/dev`. If that turns out to matter, the cheap
+fix is Recover Equipment's shape — count the last two turns' audit rows — and it
+needs no column. ‡
+
+**Check Wanted** is the warrant book, open to anyone holding the `cerberon`
+tag. `listWanted()` (`db/lib/wanted.js`), returned as notice rows under the
+officer's own cursor, exactly like Recall Comrades (`THANATI.md`). Costs
+nothing, spends no Move.
+
+**It lists a hooded man the same as a bare-faced one, on purpose.** It is a
+*record*, not an act of looking: a name does not come off the book because
+somebody pulled a hood up. That is the whole point of the pairing with
+`visible: named` — the book says Jorren Vask is wanted, the stranger in the
+Square reads as an unknown young man, and closing that gap is the game.
+
+**A Mulligan Potion clears the tag** (`changeNameRequestImpl`,
+`requestActions.js`). A new name is a new man, and that is what the bottle is
+for. The posters already nailed up are not recalled — they are paper, on their
+own 30-turn clock.
+
 ## 6. The player-facing surface
 
 `RequestDialog.js` is the universal popup. It is a rendered component taking
@@ -797,9 +861,12 @@ existing `.modal-overlay` / `.modal-panel` styling, so it matches every other
 modal for free, and it only mounts its body while open, which resets the
 reason field between openings without an effect syncing state.
 
-The Status panel (`StatusPanel.js`) lays Zone / Resources / Gambit / Tag
-Points out on one `<dl>` grid, and **every player action sits beside it as an
-icon grid** (`ActionGrid.js`, hover tooltips via the shared `IconButton.js`).
+The sheet's band (`LedgerBand.js`) lays the four numbers out as tiles, and
+**every player action sits under them as one wrapping strip** (`ActionGrid.js`
+with `variant="strip"`, each button labelled; a greyed one writes the reason
+from `actionRegistry.js#gateReason` to a line under the strip rather than into
+a tooltip, since the sheet has none). `/chat`'s YOU column draws the same
+registry as an icon grid, with the HERE list (`HereList.js`) above it.
 
 That grid replaced three separate surfaces: a row of text buttons inside the
 Tags panel, a Transfer Resources button in the Status panel's own footer, and
@@ -818,12 +885,14 @@ glance, which matters more now that co-presence actually filters who shows up
 in the dialog (§5b).
 
 **The state had to move up to make that work.** `TagRequestButtons.js` used to
-own both the buttons and the dialogs, and handed its opener up to `TagsPanel`
+own both the buttons and the dialogs, and handed its opener up to the tag panel
 through an `onReady` callback so a chip click could open Consume. The buttons
-now live in `StatusPanel`, a **sibling above** `TagsPanel`, so no component
-contains both. `RequestActionsProvider.js` holds the mode state and every
-dialog, and the two consumers read the opener off context — the same shape
-`ConfirmProvider` uses for the same reason. It is mounted only in `self` mode,
+now live in the band's verb strip (`LedgerBand.js`), a **sibling above** the
+tag rail (`TagRail.js`), so no component contains both. `RequestActionsProvider.js` holds the mode state and routes each
+click — an instant verb, a fast path, or one dialog file under
+`components/actions/` (DESIGN-SYSTEM.md §8) — and the consumers read the
+opener off context, the same shape `ConfirmProvider` uses for the same
+reason. Every success is said once, as a notice (`NoticeProvider.js`). It is mounted only in `self` mode,
 which is what keeps another player's chips read-only for free.
 
 **A button greys out only for a fact about your own sheet** — nothing to
@@ -841,10 +910,10 @@ The tag menu inside the Add and Harm dialogs shares `filterTagsByQuery` with
 for the same words, and its pane is `60vh` rather than the 16rem box that used
 to show three rows of a hundred-tag catalog.
 
-### 6a. The same dialogs on `/play`
+### 6a. The same dialogs on `/chat`
 
 Since phase 3 of Chat (`CHAT.md` §5) the **people** dialogs have a second
-home. `/play`'s HERE column mounts the same `RequestActionsProvider` with the
+home. `/chat`'s HERE column mounts the same `RequestActionsProvider` with the
 same pools and calls `open(mode, null, { targetId })` from a person's own row,
 so clicking somebody standing in the Keep opens the very dialog the sheet
 opens, already pointed at them. Nothing is forked, and no rule is stated twice.
@@ -867,7 +936,7 @@ The sheet keeps everything else. Craft, the paperwork verbs, the Bird and the
 Factory are not mounted in Chat, and `ActionGrid` is not either — the
 column is a list of people, not a second grid.
 
-`/play` also carries two player actions that were Discord-only, both of them
+`/chat` also carries two player actions that were Discord-only, both of them
 in `play/actions.js` and both re-checking every gate the panel drew:
 **Move** (`db/lib/moves.js#fileMove`, the same call the `#turns` Move modal
 makes) and **Waiting on you** — the Accept/Decline for a pending offer, a
@@ -896,10 +965,15 @@ over the URL, so a filtered view stays linkable.
 | Request creation, reason validation, audit helper | `web/lib/requests.js` |
 | `UserError` + `guarded()` result wrapper | `web/lib/actionResult.js` |
 | The player-facing server actions | `web/app/(app)/character/requestActions.js` |
-| Universal popup | `web/app/components/RequestDialog.js` |
-| Status panel | `web/app/components/StatusPanel.js` |
-| Every action's dialog + the mode state | `web/app/components/RequestActionsProvider.js` |
-| The Actions icon grid | `web/app/components/ActionGrid.js`, `IconButton.js`, `icons.js` |
+| The Cerberon's two (§5g) | `web/app/(app)/character/cerberonActions.js`, `db/lib/wanted.js` |
+| Matching a typed name against a character | `db/lib/characterName.js#matchesTypedName` (Engrave §5d, Arrest Warrant §5g) |
+| Universal popup | `web/app/components/RequestDialog.js`, `actions/ActionDialog.js` on top of it |
+| The result notice | `web/app/components/NoticeProvider.js`, `actions/noticeLines.js` |
+| The sheet's band: numbers, turn card, verb strip | `web/app/components/LedgerBand.js` (`SHEET.md` §2) |
+| The mode state, instant verbs, fast paths | `web/app/components/RequestActionsProvider.js`, `actions/index.js` |
+| One dialog per verb | `web/app/components/actions/*Dialog.js`, `CraftAction.js`, `ExamineAction.js` |
+| A dialog's roster, read when it opens | `web/app/components/actions/useRoster.js`, `web/app/(app)/character/rosterActions.js` |
+| The Actions grid | `web/app/components/ActionGrid.js`, `ActionButton.js`, `icons.js` |
 | Which held tags each menu offers | `web/lib/tagRequests.js` |
 | Who is standing in your zone (one roster, five menus) | `web/app/(app)/character/page.js` |
 | Co-presence at Location-grain (web / db) | `web/lib/peopleHere.js`, `db/lib/presence.js` |
@@ -907,9 +981,9 @@ over the URL, so a filtered view stays linkable.
 | Action-grid rows and per-action entries | `web/app/components/actionRegistry.js` |
 | Who counts as helpless, and who can be finished off | `db/lib/incapacitation.js` |
 | Heal gate, tier chain, `healable` filter | `web/lib/healRequests.js` |
-| One end of a resource movement | `web/app/components/PartySelect.js` |
+| One end of a resource movement | `web/app/components/actions/MoveThingsDialog.js` (chips), `PartySelect.js` (Craft's payer) |
 | Reach gate — same zone | `web/lib/transferReach.js` |
-| Tags panel + click-a-chip-to-consume | `web/app/components/TagsPanel.js`, `TagChip.js` |
+| Tag rail + click-a-row-to-consume | `web/app/components/TagRail.js`, `TagRow.js`, `TagChip.js` |
 | Desires — panel shell, catalog picker, GM surface, gate evaluator | `web/app/components/GoalsPanel.js`, `DesirePanel.js`, `DesireCatalog.js`; `gm/dev/characters/[characterId]/GoalsTab.js`; `db/lib/desireGates.js`. Full file map: `DESIRES.md` §11 |
 | Lifeweb blood tiers + cap, shared bot/web | `db/lib/lifeweb.js` |
 | Lifeweb requests, GM bypass panel | `web/app/(app)/lifeweb/requestActions.js`, `actions.js` |

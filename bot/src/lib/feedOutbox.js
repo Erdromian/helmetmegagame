@@ -1,6 +1,6 @@
 // The outbox: the bot is the only process that talks to Discord about chat.
 //
-// A message typed into /play is written straight to ArchiveEntry with
+// A message typed into /chat is written straight to ArchiveEntry with
 // `source = WEB` and no `discordMessageId`. This module listens on the
 // `bascinet_feed` NOTIFY channel, picks those rows up, and posts them into the
 // Location's Discord channel through the same webhook path a proxied message
@@ -22,7 +22,7 @@ const {
   addThreadMember,
 } = require("@lifeweb/db/lib/discordRest");
 const { addConversationMember } = require("@lifeweb/db/lib/conversations");
-const { loadForcedName, loadConcealment } = require("@lifeweb/db/lib/presentedIdentity");
+const { loadForcedName, loadConcealment, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 const { pushToUser } = require("@lifeweb/db/lib/webPush");
 const { FEED_CHANNEL } = require("@lifeweb/db/lib/feedNotify");
 const { discordTargetForPlaceKey, archiveContextForPlaceKey } = require("@lifeweb/db/lib/placeKey");
@@ -32,6 +32,7 @@ const {
   inEarshot,
 } = require("@lifeweb/db/lib/characterMentions");
 const { sendDm } = require("@lifeweb/db/lib/dm");
+const { currentGameId } = require("@lifeweb/db/lib/archive");
 
 // How far back the catch-up looks. A row older than this that never reached
 // Discord is not worth posting into a scene that moved on hours ago — the
@@ -143,7 +144,7 @@ async function relayWebMentions({ row, characters, concealed, channelId, message
       // beside it so db/lib/threadInvites.js can replay the Discord add when
       // they walk in, and the Discord add now if they are already standing
       // here. A "web only" target has no Discord presence to add (CHAT.md §6)
-      // — the row above is their invite and they read it on /play.
+      // — the row above is their invite and they read it on /chat.
       await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: target.id });
       await prisma.playerThreadInvite
         .upsert({
@@ -153,23 +154,23 @@ async function relayWebMentions({ row, characters, concealed, channelId, message
         })
         .catch((err) => console.error("Failed to record a web thread invite:", err?.message ?? err));
       if (target.locationId === conversation.locationId && !target.webOnly && target.discordUserId) {
-        await addThreadMember(channelId, target.discordUserId).catch(() => {});
+        await addThreadMember(channelId, target.discordUserId).catch(() => { });
       }
     }
     if (!target.discordUserId) continue;
     if (!conversation && !inEarshot(target, earshot)) continue;
-    await sendDm(prisma, target.discordUserId, `*You were mentioned in ${where}.* ‡\n${link}`, {
+    await sendDm(prisma, target.discordUserId, `*You were mentioned in ${where}.*\n${link}`, {
       source: "mention",
       meta: { placeKey: row.placeKey, where },
     }).catch((err) => console.error(`Feed outbox couldn't relay a mention to ${target.name}:`, err));
-    // And a browser notification, which is what reaches somebody whose /play
+    // And a browser notification, which is what reaches somebody whose /chat
     // tab is closed. After the DM, and wrapped: a push that will not send must
     // never cost the DM that already went (db/lib/webPush.js).
     await pushToUser(prisma, target.discordUserId, {
       title: `${target.name} was named`,
       body: `in ${where}`,
-      url: `/play#${encodeURIComponent(row.placeKey)}`,
-    }).catch(() => {});
+      url: `/chat#${encodeURIComponent(row.placeKey)}`,
+    }).catch(() => { });
   }
 }
 
@@ -224,9 +225,15 @@ async function pushRow(row) {
 
   // The row stores `{char:<id>}`; Discord reads `<@&roleId>`
   // (db/lib/characterMentions.js). Rewritten here rather than at write time,
-  // so /play and /archive keep the face-neutral text and only the copy
+  // so /chat and /archive keep the face-neutral text and only the copy
   // Discord receives wears Discord's spelling.
   const { content, characters } = await tokensToRoles(prisma, row.content);
+
+  // The same answer postAsCharacter reaches internally, resolved here too
+  // because the mention relay below turns on it. `alias` is the one field that
+  // is set for BOTH a hood and a forced name, which is exactly the pair that
+  // relays nothing.
+  const identity = presentedIdentity(character, { forcedName, concealment });
 
   const posted = await postAsCharacter(target.channelId, character, content, {
     forcedName,
@@ -254,7 +261,7 @@ async function pushRow(row) {
   await relayWebMentions({
     row,
     characters,
-    concealed: Boolean(forcedName) || Boolean(concealment),
+    concealed: Boolean(identity.alias),
     channelId: target.threadId ?? target.channelId,
     messageId: posted.id,
   }).catch((err) => console.error("Feed outbox mention relay failed:", err));
@@ -263,7 +270,7 @@ async function pushRow(row) {
 }
 
 // One row, edited on Discord. The row is the source of truth for the text
-// now, so this runs for a ✏️ in Discord exactly as it does for a ✎ on /play.
+// now, so this runs for a ✏️ in Discord exactly as it does for a ✎ on /chat.
 async function editRow(row) {
   if (!row?.discordMessageId || row.deletedAt) return false;
 
@@ -336,8 +343,16 @@ async function syncBySeq(seq) {
 // deleted while the bot was down still lands.
 async function drainFeedOutbox() {
   try {
+    // Scoped to the current game, not just to the last day. A row belonging to
+    // a finished game must never be posted into today's channels, and `sentAt`
+    // alone does not say that: a game archived and imported back reintroduces
+    // rows whose timestamps are inside the window, and the drain would narrate
+    // a dead game into the live map. The window is the freshness rule; this is
+    // the identity one.
+    const gameId = await currentGameId(prisma);
     const rows = await prisma.archiveEntry.findMany({
       where: {
+        ...(gameId ? { gameId } : {}),
         sentAt: { gte: new Date(Date.now() - DRAIN_WINDOW_MS) },
         OR: [
           // Never posted: a web message written while the bot was down.
@@ -394,7 +409,7 @@ async function openListener() {
     if (err) console.error("Feed outbox listener error:", err);
     listener = null;
     client.removeAllListeners();
-    client.end().catch(() => {});
+    client.end().catch(() => { });
     scheduleReconnect();
   });
 
@@ -429,7 +444,7 @@ async function openListener() {
     if (listener === client) {
       listener = null;
       client.removeAllListeners();
-      client.end().catch(() => {});
+      client.end().catch(() => { });
     }
     scheduleReconnect();
   }
@@ -451,7 +466,7 @@ function stopFeedOutbox() {
   listener = null;
   if (client) {
     client.removeAllListeners();
-    client.end().catch(() => {});
+    client.end().catch(() => { });
   }
 }
 

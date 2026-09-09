@@ -224,7 +224,7 @@ export function transferableTags(characterTags = []) {
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1, poisonMarker: Boolean(ct.poisonMarker) }));
 }
 
-// What may go into a crate: anything tradeable, minus crates. Nesting one
+// What may go into a crate: anything tradeable, minus crates and mounts. Nesting one
 // crate inside another would compound the halving into a free carry exploit,
 // and would nest a consumesInto chain arbitrarily deep besides —
 // packageItemsRequest refuses it server-side too.
@@ -238,11 +238,29 @@ export function isCrate(tag) {
   return Boolean(tag?.custom && (tag?.crateContents || tag?.crate));
 }
 
+// A mount is not cargo. The four MOUNT-slot tags carry no weight on purpose —
+// you ride them, you don't carry them — so crateWeight's floor of 1 turned a
+// fishing boat into a 1 lb box you could walk indoors. The Depot is the
+// deliberate exception: it ships a horse crated like anything else
+// (FACTORY.md §5, DEPOT.md §0e).
+export function isMount(tag) {
+  return tag?.equipSlot === "MOUNT";
+}
+
 export function packableTags(characterTags = []) {
   return characterTags
-    .filter((ct) => isTradeable(ct.tag) && !isCrate(ct.tag))
+    .filter((ct) => isTradeable(ct.tag) && !isCrate(ct.tag) && !isMount(ct.tag))
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }
+
+// The Mulligan Potion is consumable but is never on offer here: drinking it
+// means typing a new name into it, which happens in the dialog its own tag
+// row opens (TagRail.js -> IdentityDialog.js). Listed among the ordinary
+// consumables it would be a bottle spent on nothing. Its own copy of the slug
+// rather than an import from db/lib/constants.js, for the reason that file
+// gives: this module ships to the client. consumeTagRequestImpl refuses the
+// same slug, and that refusal is the actual lock.
+const MULLIGAN_SLUG = "mulligan-potion";
 
 // Consuming always takes exactly one unit, so the held count here is shown,
 // never a cap. `poisonMarker` (M4 fix round) — the moment of eating is
@@ -251,7 +269,7 @@ export function packableTags(characterTags = []) {
 // Consume list both read this.
 export function consumableTags(characterTags = []) {
   return characterTags
-    .filter((ct) => ct.tag?.consumable)
+    .filter((ct) => ct.tag?.consumable && ct.tag.slug !== MULLIGAN_SLUG)
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1, poisonMarker: Boolean(ct.poisonMarker) }));
 }
 

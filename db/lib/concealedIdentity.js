@@ -67,6 +67,23 @@ function aliasSubject(character) {
   return capitalizeFirst(withArticle(concealedAlias(character ?? {}).toLowerCase()));
 }
 
+// Every alias a hood can produce: the three age words (one of them nothing)
+// against the three gender words, nine strings in all. Built from the same two
+// functions the alias itself is, so it cannot drift away from them.
+//
+// It exists to read an ARCHIVED row back. ArchiveEntry.concealedAlias holds a
+// forced name as well as a hood's alias, and only one of the two is drawn from
+// this closed set — so an alias that is not in here was a forced name, however
+// long ago, and no lookup against what the speaker holds today is needed to
+// say so. See presentedIdentity.js#wasHooded.
+const CONCEALED_ALIASES = new Set(
+  [null, 24, 60].flatMap((age) => ["MAN", "WOMAN", "NEUTRAL"].map((gender) => concealedAlias({ age, gender }))),
+);
+
+function isConcealedAlias(alias) {
+  return CONCEALED_ALIASES.has(alias);
+}
+
 module.exports = {
   concealedAlias,
   concealedLine,
@@ -74,4 +91,5 @@ module.exports = {
   withArticle,
   capitalizeFirst,
   aliasSubject,
+  isConcealedAlias,
 };

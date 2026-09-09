@@ -10,6 +10,7 @@ const { sendAsCharacter } = require("../lib/proxy");
 const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/channels");
 const { sendDm } = require("../lib/dm");
 const { REPORT_CHANNEL_ID } = require("@lifeweb/db/lib/reportChannelAccess");
+const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 const { addConversationMember } = require("@lifeweb/db/lib/conversations");
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const {
@@ -79,8 +80,9 @@ module.exports = {
       const content = message.content || (attachmentNames ? `*(attachment: ${attachmentNames.join(", ")})*` : "");
       // Every inbound DM is mail for the GMs now. Mechanic edits go through a
       // button and a modal (bot/src/lib/editModal.js), so nothing a player
-      // types for a mechanic travels as a DM message; web/lib/dmThread.js
-      // still filters "prompt_reply" rows out of the read side.
+      // types for a mechanic travels as a DM message. The historical
+      // "prompt_reply" rows those used to produce were reclassified QUIET by
+      // the dm_kind migration, so they stay off the desk without a filter.
       //
       // Loud on purpose. This insert used to fail into an empty catch, and the
       // first sign anything was wrong was a player saying their message to
@@ -93,6 +95,10 @@ module.exports = {
             direction: "INBOUND",
             content,
             source: "player",
+            // A player's own words. No sendDm default reaches a raw create,
+            // so this is written out or the message is a NOTICE and never
+            // reaches the desk at all (db/lib/dmKinds.js).
+            kind: DM_KIND.CONVERSATION,
             discordMessageId: message.id,
             meta: attachmentNames ? { attachments: attachmentNames } : undefined,
           },
@@ -233,7 +239,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
       message.author,
       `» *That pinged ${mentioned.length} people at once, so only the first ${MAX_MENTION_RELAYS} were told. ` +
       `Not notified: ${dropped.map((t) => t.name).join(", ")}.*`,
-      { source: "system_notice" },
+      { kind: DM_KIND.QUIET },
     ).catch(() => { });
   }
 
@@ -271,7 +277,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
         })
         .catch((err) => console.error("Failed to record thread invite:", err));
       // A "web only" target has no Discord presence to add (CHAT.md §6) — the
-      // membership row above is the invite, and they read it on /play.
+      // membership row above is the invite, and they read it on /chat.
       if (target.locationId === conversation.locationId && !target.webOnly) {
         await channel.members.add(target.discordUserId).catch((err) =>
           console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err),
@@ -298,7 +304,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
       notHere.length === 1
         ? `» *${notHere[0]} isn't in ${where}. They'll see this conversation when they arrive.*`
         : `» *${notHere.join(", ")} aren't in ${where}. They'll see this conversation when they arrive.*`,
-      { source: "system_notice" },
+      { kind: DM_KIND.QUIET },
     ).catch(() => { });
   }
 }

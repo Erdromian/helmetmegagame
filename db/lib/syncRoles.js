@@ -309,7 +309,10 @@ async function syncRolesFromYaml(prisma) {
 
   for (const faction of await prisma.faction.findMany({
     // A faction founded in play was never in roles.yaml and never will be, so
-    // "absent from the YAML" cannot mean "delete" for it. Without this, the
+    // "absent from the YAML" cannot mean "delete" for it. Nothing mints
+    // foundedById any more — the Found verb went in 2026-09-08 — but the rows
+    // it wrote are still live, so this stays until the last of them is gone.
+    // Without it, the
     // moment its last member walked out or died the next `db:sync-roles` —
     // which `npm run db:sync` runs every time — would delete the row and
     // cascade its applications away (FACTIONS.md §3: a faction with nobody

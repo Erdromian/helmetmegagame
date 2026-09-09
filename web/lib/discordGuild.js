@@ -11,9 +11,11 @@ import {
   LEADER_WHITELIST_ROLE_ID,
   hasGmRole,
   hasPlaytestRole,
+  hasContributorRole,
   SPECIAL_CHANNELS,
 } from "@lifeweb/db";
 import { applyDeathToRow } from "@lifeweb/db/lib/characterDeath";
+import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 import {
   revokeAllCharacterAccess as revokeAllCharacterAccessShared,
   revokeAccessForCharacters as revokeAccessForCharactersShared,
@@ -24,6 +26,7 @@ import {
   discordRequest,
   postDmBatched,
 } from "@lifeweb/db/lib/discordRest";
+import { GHOST_ROLE_ID } from "@lifeweb/db/lib/roleIds";
 
 // Channels opt into summary/tupper behavior by id — see bot/src/lib/channels.js
 // for the bot-side twin (kept separate since the bot uses its gateway cache).
@@ -219,11 +222,18 @@ export function isGm(member) {
   return hasGmRole(member.roles);
 }
 
-// The Playtest seat (db/lib/roleIds.js): may skip the lobby and create in any
-// phase like a GM, and passes the roster check without the Player role.
+// The Playtest seat (db/lib/roleIds.js): passes the roster check without the
+// Player role. It does NOT open the doors early — see creationOpen().
 export function isPlaytester(member) {
   if (!member) return false;
   return hasPlaytestRole(member.roles);
+}
+
+// The Contributor seat (db/lib/roleIds.js): a person who works on Bascinet.
+// Read by the playtest-mode roster gate below and nowhere else.
+export function isContributor(member) {
+  if (!member) return false;
+  return hasContributorRole(member.roles);
 }
 
 // Role ID hardcoded rather than env-configured: this gate fails CLOSED, so a
@@ -233,10 +243,19 @@ export function isApprovedPlayer(member) {
   return member.roles?.includes(PLAYER_ROLE_ID) ?? false;
 }
 
-export function isCursed(member) {
-  const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
-  if (!member || !cursedRoleId) return false;
-  return member.roles?.includes(cursedRoleId) ?? false;
+// Who counts as on the roster for this game — the one answer the lobby and
+// both creation actions share, so they cannot drift apart.
+//
+// Normally that is the Player role, which the bot hands to everyone the moment
+// they join the guild (bot/src/events/guildMemberAdd.js), or the Playtest seat.
+// With GameConfig.playtestModeEnabled on, the door narrows to the people
+// building the game: a GM, a playtester, or a Contributor. Superadmins bypass
+// this entirely at every call site.
+export function onRoster(member, { playtestMode = false } = {}) {
+  if (playtestMode) {
+    return isGm(member) || isPlaytester(member) || isContributor(member);
+  }
+  return isApprovedPlayer(member) || isPlaytester(member);
 }
 
 export function isLeaderWhitelisted(member) {
@@ -335,13 +354,18 @@ export async function setTurnPingRole(discordUserId, optIn) {
   }
 }
 
-// Granted by killCharacter on death; removed by createCharacter on re-roll,
-// or by a BURY_CHARACTER request. A GM can also clear it by hand in Discord.
-export async function grantCursedRole(discordUserId) {
+// The ghost seat — read-only channel access for a dead player. Granted by
+// killCharacter on death, taken off on a re-roll, a burial or a revive, and
+// reconciled against the database by the channel doctor.
+//
+// A PERMISSION HANDLE, nothing more. Whether the player is Cursed — Migrant or
+// Bum only, six fewer points — is db/lib/curse.js's answer, and no longer has
+// anything to do with whether this role landed.
+export async function grantGhostRole(discordUserId) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
-  const roleId = process.env.DISCORD_CURSED_ROLE_ID;
-  if (!guildId || !token || !roleId) return;
+  const roleId = GHOST_ROLE_ID;
+  if (!guildId || !token) return;
 
   try {
     await discordRequest(`/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`, {
@@ -351,15 +375,15 @@ export async function grantCursedRole(discordUserId) {
     memberCache.delete(discordUserId);
     memberListCache.delete("all");
   } catch (err) {
-    console.error(`Failed to grant cursed role to ${discordUserId}:`, err);
+    console.error(`Failed to grant the ghost role to ${discordUserId}:`, err);
   }
 }
 
-export async function removeCursedRole(discordUserId) {
+export async function removeGhostRole(discordUserId) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
-  const roleId = process.env.DISCORD_CURSED_ROLE_ID;
-  if (!guildId || !token || !roleId) return;
+  const roleId = GHOST_ROLE_ID;
+  if (!guildId || !token) return;
 
   try {
     await discordRequest(`/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`, {
@@ -369,24 +393,32 @@ export async function removeCursedRole(discordUserId) {
     memberCache.delete(discordUserId);
     memberListCache.delete("all");
   } catch (err) {
-    console.error(`Failed to remove cursed role from ${discordUserId}:`, err);
+    console.error(`Failed to remove the ghost role from ${discordUserId}:`, err);
   }
 }
 
 // Personal Discord role titled after this character, colored deterministically.
 // Goes through db/lib/characterRoleAppearance.js so a Catatonic character's
-// grey stays intact.
+// grey and a disguised character's false name both stay intact — a profile
+// save landing mid-disguise would otherwise put the real name straight back on
+// the token, which is the failure mode that comment has always warned about.
 export async function ensureCharacterRole(character) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
   const bare = formatBareName(character);
   if (!guildId || !token || !bare) return character.discordRoleId ?? null;
 
-  const catatonic =
-    (await prisma.characterTag.count({
-      where: { characterId: character.id, tag: { slug: CATATONIC_SLUG } },
-    })) > 0;
-  const { name, color } = characterRoleAppearance(bare, { catatonic });
+  // One query for both halves of the title.
+  const held = await prisma.characterTag.findMany({
+    where: {
+      characterId: character.id,
+      OR: [{ tag: { slug: CATATONIC_SLUG } }, { tag: { forcedName: { not: null } } }],
+    },
+    select: { tag: { select: { slug: true, forcedName: true } } },
+  });
+  const catatonic = held.some((row) => row.tag?.slug === CATATONIC_SLUG);
+  const forcedName = held.find((row) => row.tag?.forcedName)?.tag?.forcedName ?? null;
+  const { name, color } = characterRoleAppearance(bare, { catatonic, forcedName });
 
   try {
     if (!character.discordRoleId) {
@@ -506,22 +538,32 @@ export async function killCharacter(character, reason = null) {
     content: `${character.name} died.`,
   }).catch((err) => console.error(`Death row cleanup failed for ${character.id}:`, err));
 
-  await grantCursedRole(character.discordUserId);
+  await grantGhostRole(character.discordUserId);
 
   await sendDm(character.discordUserId, `You have died.${reason?.trim() ? `\n${reason.trim()}` : ""}`, {
     source: "player_event",
   }).catch((err) => console.error(`Death DM failed for ${character.id}:`, err));
 }
 
-// Applies the `»` prefix and logs the DM so /gm/messages keeps the full
+// Applies the `»` prefix and logs the DM so the player desk keeps the full
 // conversation. postDmBatched splits anything over Discord's 2000-char limit;
 // `opts.components` is an optional action row and `opts.embeds` an optional
-// list of embed objects; both land on the LAST chunk. A caller sending an
-// embed should also pass `meta: { embed: true }`, which is what keeps it out
-// of the GM conversation view (web/lib/dmThread.js).
+// list of embed objects; both land on the LAST chunk.
+//
+// `opts.kind` decides how much of the GM inbox this line is entitled to, and
+// it defaults to NOTICE (db/lib/dmKinds.js). This default used to be "no
+// answer", which the desk read as conversation — which is how a seat
+// assignment and a bird letter ended up in the inbox looking like mail. Pass
+// DM_KIND.CONVERSATION only when a person actually typed the words.
 export async function sendDm(discordUserId, content, opts = {}) {
   const formatted = `» ${content}`;
-  const message = await postDmBatched(discordUserId, formatted, { components: opts.components, embeds: opts.embeds });
+  const message = await postDmBatched(discordUserId, formatted, {
+    components: opts.components,
+    embeds: opts.embeds,
+    // Pass one whenever the line carries text a PLAYER typed, so it cannot
+    // ping the room out of somebody else's inbox.
+    allowedMentions: opts.allowedMentions,
+  });
   await prisma.directMessage
     .create({
       data: {
@@ -530,6 +572,7 @@ export async function sendDm(discordUserId, content, opts = {}) {
         content: formatted,
         authorDiscordUserId: opts.authorDiscordUserId ?? null,
         source: opts.source ?? null,
+        kind: opts.kind ?? (opts.embeds?.length ? DM_KIND.QUIET : DM_KIND.NOTICE),
         discordMessageId: message?.id ?? null,
         meta: opts.meta ?? undefined,
       },

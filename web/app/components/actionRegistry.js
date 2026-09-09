@@ -18,6 +18,13 @@
 // dialog shows once you chose to look.)
 //
 // `gate`: a key on the provider's pools that greys the button when false.
+// `gateReason`: the sentence a greyed button's tooltip gives for it. Every
+// gate carries one, and every one is a fact about YOUR OWN sheet — the rule
+// above forbids anything else. Where the server already knows a sharper
+// sentence (Look at's eyes, Extract's tools) `pools.gateReason[mode]` wins.
+// `instant`: the verb runs on the click, with no dialog — a confirm at most
+// (RequestActionsProvider.js#runInstant). Documentation; the behaviour is the
+// INSTANT table in components/actions/index.js.
 // `show`: a key that HIDES the button instead — for the rare tags (a bird,
 // literacy) where a permanently dead icon would teach nothing except that
 // something exists which you cannot have.
@@ -35,7 +42,7 @@ import {
   KeyIcon,
   WoundIcon,
   GraveIcon,
-  CleaverIcon,
+  HamIcon,
   HeadstoneIcon,
   BirdIcon,
   EyeIcon,
@@ -47,6 +54,8 @@ import {
   SealIcon,
   CharacterIcon,
   SkullIcon,
+  InterceptIcon,
+  KissIcon,
 } from "./icons";
 
 export const ACTION_HELP = {
@@ -65,15 +74,20 @@ export const ACTION_HELP = {
     "Confessing a tag is a Gambit. It succeeds on a 5 or a 6. It also takes the confessor's turn.",
   move: "Forcibly move an incapacitated or Bound person. If you're a Leader, you can also move people within your own faction.",
   bind: "Tie someone up. Bound people can be looted or forcefully moved.",
+  kiss: "Ask somebody for a kiss.",
   crucify:
     "Put someone standing here on the cross. It needs a Cross built where you stand, and it doesn't spend your Move. They hang there unable to act, and in a turn they are Dying.",
   harm: "Further injure someone who is bound or incapacitated.",
   torture:
-    "You can torture people, revealing all their tags on a 4 or higher. Brave or Craven characters will break on different timelines. ‡",
+    "You can torture people, revealing all their tags on a 4 or higher. Brave or Craven characters will break on different timelines.",
   mutilate:
-    "Cut a piece off somebody tied up here, or off a body you can reach. One piece each time, and it costs you nothing. The piece is yours to keep. ‡",
+    "Cut a piece off somebody tied up here, or off a body you can reach. One piece each time, and it costs you nothing. The piece is yours to keep.",
   bury: "Bury someone. Removes the player's Cursed status.",
   engrave: "Memorialize someone's name. Removes the player's Cursed status.",
+  whisper:
+    "Drink the draught and say one thing to one person, wherever they are. They can't answer, and you are never told whether anyone heard it.",
+  stepstone:
+    "Break the stone and stand somewhere else. Anywhere you have been, or seen from a doorway. It costs you nothing and takes no time.",
   disguise:
     "Put on a false name and face for 3 turns. Nobody sees who you are — not your name, not your portrait — and you cannot conceal yourself on top of it. The kit is not used up.",
   pointer:
@@ -93,6 +107,12 @@ export const ACTION_HELP = {
   recall: "Remember the other Thanati cultists in Ravenheart.",
   recover: "Recover your mask and robes from where you left them.",
   hideout: "Set your hideout room, determining where you can purchase things from.",
+  // Bascinet's words, verbatim.
+  intercept: "Lay in wait at your location, intercepting a chosen target whenever they come.",
+  // The Cerberon's two. The first is Bascinet's own words, verbatim.
+  warrant: "Declare a man fit for arrest. They are visible as being wanted.",
+  wantedlist:
+    "Read the warrant book. It names every living man the Cerberon want, hood or no hood. ‡",
 };
 
 export const ACTION_SECTIONS = [
@@ -100,19 +120,32 @@ export const ACTION_SECTIONS = [
     key: "self",
     label: "You",
     actions: [
-      { mode: "craft", icon: HammerIcon, label: "Craft", gate: "canCraft" },
+      {
+        mode: "craft",
+        icon: HammerIcon,
+        label: "Craft",
+        gate: "canCraft",
+        gateReason: "You know no recipe you could make right now.",
+      },
       {
         mode: "destroy",
         icon: TrashIcon,
         label: "Destroy",
         gate: "canDestroy",
+        gateReason: "You're carrying nothing you could destroy.",
       },
-      { mode: "consume", icon: MealIcon, label: "Consume", gate: "canConsume" },
+      {
+        mode: "consume",
+        icon: MealIcon,
+        label: "Consume",
+        gate: "canConsume",
+        gateReason: "Nothing you're carrying can be used up.",
+      },
       // HIDDEN rather than greyed, same reasoning as Disguise just below:
       // whether YOU are holding a poison is a fact about your own sheet, and
       // a dead icon on everybody else's grid would only teach them poisons
-      // exist. Reachable either way by clicking the poison chip itself
-      // (TagsPanel.js).
+      // exist. Reachable either way by clicking the poison chip itself on
+      // your own sheet.
       { mode: "poison", icon: SkullIcon, label: "Poison", show: "canPoison" },
       // No gate: you can always move ⬢ or put something down.
       { mode: "transfer", icon: HandOffIcon, label: "Transfer" },
@@ -133,12 +166,14 @@ export const ACTION_SECTIONS = [
         icon: DocumentsIcon,
         label: "Learn Skill",
         gate: "canLearn",
+        gateReason: "Nobody here can teach you anything you haven't got.",
       },
       {
         mode: "teach",
         icon: SpeakerIcon,
         label: "Teach Skill",
         gate: "canTeach",
+        gateReason: "You have nothing to teach that anyone here could learn.",
       },
       // Gated on whether YOU have anything to confess — your own sheet,
       // never on whether a chaplain happens to be standing here.
@@ -147,6 +182,7 @@ export const ACTION_SECTIONS = [
         icon: BandageIcon,
         label: "Confess",
         gate: "canConfess",
+        gateReason: "You have nothing to confess.",
       },
       // The two Godard Factory verbs. Both HIDE rather than grey when the
       // place is wrong, which is a different thing from the rule at the top of
@@ -159,6 +195,8 @@ export const ACTION_SECTIONS = [
         label: "Extract",
         show: "canSeeExtract",
         gate: "canExtract",
+        gateReason: "You have nothing to cut with.",
+        instant: true,
       },
       {
         mode: "package",
@@ -166,6 +204,11 @@ export const ACTION_SECTIONS = [
         label: "Package",
         show: "canSeePackage",
       },
+      // HIDDEN, never greyed — the stone is a `catalog: secret` item, and a
+      // dead row on every sheet in the game would advertise that it exists.
+      // Whether you are carrying one is your own sheet's fact, so hiding it
+      // leaks nothing.
+      { mode: "stepstone", icon: MapIcon, label: "Stepstone", show: "hasStepstone" },
     ],
   },
   // The bomb. Its own section rather than three more rows under "You",
@@ -181,13 +224,15 @@ export const ACTION_SECTIONS = [
     key: "device",
     label: "The device",
     actions: [
-      { mode: "pointer", icon: EyeIcon, label: "Use Pointer", show: "hasDatacard" },
+      { mode: "pointer", icon: EyeIcon, label: "Use Pointer", show: "hasDatacard", instant: true },
       {
         mode: "arm",
         icon: WoundIcon,
         label: "Arm Nuke",
         show: "hasDatacard",
         gate: "hasDevice",
+        gateReason: "You have the card, but not the device.",
+        instant: true,
       },
       {
         mode: "disarm",
@@ -195,6 +240,8 @@ export const ACTION_SECTIONS = [
         label: "Disarm Nuke",
         show: "hasDatacard",
         gate: "hasDevice",
+        gateReason: "You have the card, but not the device.",
+        instant: true,
       },
     ],
   },
@@ -207,8 +254,18 @@ export const ACTION_SECTIONS = [
     key: "thanati",
     label: "THANATI",
     actions: [
-      { mode: "recall", icon: SpeakerIcon, label: "Recall Comrades", show: "isThanati" },
-      { mode: "recover", icon: CharacterIcon, label: "Recover Equipment", show: "isThanati" },
+      { mode: "recall", icon: SpeakerIcon, label: "Recall Comrades", show: "isThanati", instant: true },
+      // The label is derived from what is missing — see labelFor() below — and
+      // the button greys once both are held, which is your own sheet's fact.
+      {
+        mode: "recover",
+        icon: CharacterIcon,
+        label: "Recover Equipment",
+        show: "isThanati",
+        gate: "canRecover",
+        gateReason: "You have both.",
+        instant: true,
+      },
       { mode: "hideout", icon: KeyIcon, label: "Set Hideout", show: "isThanatiLeader" },
       {
         mode: "purchase",
@@ -216,7 +273,20 @@ export const ACTION_SECTIONS = [
         label: "Purchase Gear",
         show: "isThanati",
         gate: "atHideout",
+        gateReason: "You aren't standing at the hideout.",
       },
+    ],
+  },
+  // THE CERBERON. Both rows HIDE rather than grey, the Thanati rule above:
+  // which badge you carry, and whether you are sworn, are your own sheet's
+  // facts — and a dead Arrest Warrant icon on a brigand's sheet would teach
+  // him nothing except that the warrant book exists.
+  {
+    key: "cerberon",
+    label: "CERBERON",
+    actions: [
+      { mode: "warrant", icon: ShackleIcon, label: "Arrest Warrant", show: "canWarrant" },
+      { mode: "wantedlist", icon: DocumentsIcon, label: "Check Wanted", show: "isCerberon", instant: true },
     ],
   },
   {
@@ -233,11 +303,36 @@ export const ACTION_SECTIONS = [
         icon: EyeIcon,
         label: "Look at",
         gate: "canExamine",
+        gateReason: "You can't see well enough right now.",
       },
-      { mode: "heal", icon: BandageIcon, label: "Heal", gate: "canHeal" },
+      {
+        mode: "heal",
+        icon: BandageIcon,
+        label: "Heal",
+        gate: "canHeal",
+        gateReason: "You have no Medical training.",
+      },
       { mode: "loot", icon: LootIcon, label: "Loot" },
       { mode: "bind", icon: ShackleIcon, label: "Bind" },
+      // Greys on YOUR OWN mouth and nothing else — a broken jaw, a hood you
+      // are wearing, a state with nobody home (db/lib/kiss.js#kissBlock,
+      // resolved server-side into pools.gateReason.kiss). NEVER on whether
+      // anybody here would say yes, which is the rule at the top of this file
+      // and which this verb could break more loudly than most: a lit or dead
+      // Kiss button must not tell a player anything about the room.
+      {
+        mode: "kiss",
+        icon: KissIcon,
+        label: "Kiss",
+        gate: "canKiss",
+        gateReason: "You can't kiss right now.",
+      },
       { mode: "free", icon: KeyIcon, label: "Free" },
+      // NO gate and NO show. Laying in wait needs nothing and says nothing
+      // about who is near you — the metagaming rule at the top of this file
+      // has nothing to bite on, and there is no fact about your own sheet
+      // that could grey it either.
+      { mode: "intercept", icon: InterceptIcon, label: "Intercept" },
       // HIDDEN rather than greyed, the Extract rule: whether YOU are a
       // Fundamentalist standing at a Cross is your own fact, and a dead
       // Crucify icon on every other sheet would teach nothing.
@@ -266,9 +361,10 @@ export const ACTION_SECTIONS = [
       // whether there's a body nearby; you find that out by opening it.
       {
         mode: "butcher",
-        icon: CleaverIcon,
+        icon: HamIcon,
         label: "Butcher",
         gate: "canButcher",
+        gateReason: "You aren't a Butcher.",
       },
       { mode: "bury", icon: GraveIcon, label: "Bury Person" },
       // Engraving types a name rather than picking one — the reasoning that
@@ -292,6 +388,7 @@ export const ACTION_SECTIONS = [
         label: "Write",
         show: "canRead",
         gate: "canWrite",
+        gateReason: "You can't see to write right now.",
       },
       // Shown only while you are actually holding a wax stamp. A seal is a
       // fact about your own sheet, so hiding it leaks nothing.
@@ -301,6 +398,7 @@ export const ACTION_SECTIONS = [
         label: "Seal Letter",
         show: "hasSeal",
         gate: "canSeal",
+        gateReason: "You have no written letter to close.",
       },
       {
         mode: "bird",
@@ -308,6 +406,19 @@ export const ACTION_SECTIONS = [
         label: "Send Bird",
         show: "hasBird",
         gate: "canSendBirdToday",
+        gateReason: "Your bird has already flown today.",
+      },
+      // A bird you drink (docs/systemdocs/BIRD.md §8). It sits here rather
+      // than under You because what it does is the Bird's job, not a potion's
+      // — and it HIDES on the same rule the seal above it follows: whether a
+      // bottle is in your bag is your own sheet's fact. No `gate`: there is
+      // no once-a-day on it, and nothing about the recipient could grey it
+      // without saying something about them.
+      {
+        mode: "whisper",
+        icon: SpeakerIcon,
+        label: "Send a message",
+        show: "hasRavenDraught",
       },
     ],
   },
@@ -320,5 +431,29 @@ const BY_MODE = new Map(
 // The dialog title and submit label for a mode — the button's own name.
 export function titleFor(mode) {
   return BY_MODE.get(mode)?.label ?? "Request";
+}
+
+export function actionFor(mode) {
+  return BY_MODE.get(mode) ?? null;
+}
+
+// Names for the two things Recover Equipment hands back, keyed by slug. The
+// slugs are db/lib/thanati.js#RECOVERABLE_SLUGS; the names are what the
+// button says, so it reads "Recover Mask" when the robes are already on.
+const RECOVER_NAMES = { "black-robes": "Robes", "thanati-mask": "Mask" };
+
+// The button's label, given the pools — the same word for every action but
+// Recover, whose label is what it would actually do.
+export function labelFor(action, pools) {
+  if (action.mode !== "recover") return action.label;
+  const missing = (pools?.recoverMissing ?? []).map((slug) => RECOVER_NAMES[slug]).filter(Boolean);
+  if (missing.length === 0) return action.label;
+  return `Recover ${missing.join(" & ")}`;
+}
+
+// Why a greyed button is greyed: the server's sharper sentence when it has
+// one, the registry's otherwise.
+export function reasonFor(action, pools) {
+  return pools?.gateReason?.[action.mode] ?? action.gateReason ?? null;
 }
 

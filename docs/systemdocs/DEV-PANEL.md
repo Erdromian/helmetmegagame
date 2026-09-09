@@ -82,6 +82,16 @@ can't disagree about what an affliction is.
   nowhere as a column live: points spent, equipment slots used, the gambit
   modifier. Discord carries the live guild state (username, nickname,
   Cursed, whether the personal role exists).
+
+  Identity also carries the **two switches on `/character`** — `Play from the
+  web` and `Concealed` — which had no GM surface anywhere until they were put
+  here, though `CHAT.md` §6a tells a GM to look for web-only players before
+  turning Chat off. `Concealed` reads the resolved answer, not the column:
+  `Character.concealed` is only a wish and takes effect solely while something
+  concealing is equipped, so the strip says **On, but nothing worn** for the
+  state that reads to a player as "my hood does not work". The resolution
+  happens in `web/lib/devPanelData.js`, through `presentedIdentity` — the same
+  function every send path asks — rather than being restated on the client.
 - **Action bar** — `IconButton`s over `.icon-btn`, in three clusters
   separated by `.dev-bar-sep`: life & turn · staging · repair. A destructive
   verb never sits flush against a harmless one.
@@ -118,7 +128,7 @@ One payload, one transaction, one audit row. In order:
    GM writer of that column; there is a fixed set and they all go through the
    formatter.
 5. **In the transaction**: `SELECT … FOR UPDATE` on the Character row (the
-   same lock `equipActions.js#toggleEquip` takes, so an Apply and a player's
+   same lock `equipActions.js#equipOne` takes, so an Apply and a player's
    equip tap serialise), an `expectedUpdatedAt` check, the update, the tag
    ops, the audit row.
 6. **Discord afterwards**, in `after()`, never inside the transaction — a
@@ -263,9 +273,12 @@ Everything follows from that:
   is a wasted day.
 - **Spend turn** files a stub: a `PASSED` Routine worth nothing, marked
   `gmNotes: "auto:gm_spent_turn"` in the same family as
-  `autoLaborPass.js`'s `auto:labor`. It DMs the player too now, so
-  like Restore and Kill it opens a `RequestDialog` for a reason first — the
-  same reason becomes both the stub's `description` and the DM text.
+  `autoLaborPass.js`'s `auto:labor`. It DMs the player too. Kill, Restore
+  turn and Spend turn are each a one-line `useConfirm` — they used to open a
+  `RequestDialog` for a typed reason first, and nobody ever wrote one that
+  said anything the DM did not. The server actions still take an optional
+  `reason`, which becomes the DM's second line (and the stub's
+  `description` for Spend turn) when a caller passes one.
 
 Editing a Move is **not** duplicated here. `/gm/turns` owns that, with the
 cooperative lock, the dirty guard, Solve/Reject and the dice invariant on a
@@ -291,7 +304,8 @@ adjudication desk's staged transfers use
 superadmin — and writes an `AuditLog` row rather than a `Request`, so there
 is no one-click Undo; the reverse transfer is the reversal.
 
-`gmTransferResources({ fromKey, toKey, amount, reason })` is the same generic
+`gmTransferResources({ fromKey, toKey, amount, reason })` (the reason is
+optional now, and the Dev Panel no longer asks for one) is the same generic
 primitive the adjudication desk's `TransferComposer` stages a transfer
 through, so the Dev Panel's server action (`transferResourcesImpl`) just
 passes `fromKey`/`toKey` straight through. It still preselects this
@@ -495,32 +509,94 @@ and refreshes the desk, instead of the page's own navigation away.
 
 ## 11. The other Dev Panel: `/gm/dev`
 
-Superadmin-only, and a different page — the game-level one, not this doc's
-character panel. It is the fourth page in the `(desk)` family (`DESIGN-
-SYSTEM.md` §6): a two-column settings workspace, `OpsNav.js` picking one
-section down the left over a validated `?s=` param (`game` when absent or
-unrecognised), one settings surface on the right. Each section fetches only
-its own data — `listGuildMembers()` and the role/seat maths only load for the
-two Threats sections, instead of on every visit regardless of which section a
-GM actually opens.
+A different page from this doc's character panel — the game-level one. It is
+the fourth page in the `(desk)` family (`DESIGN-SYSTEM.md` §6): a two-column
+settings workspace, `OpsNav.js` picking one section down the left over a
+validated `?s=` param, one settings surface on the right. Each section fetches
+only its own data — `listGuildMembers()` and the role/seat maths only load for
+the two Threats sections, instead of on every visit regardless of which section
+a GM actually opens.
 
 The split across two route groups is deliberate. `page.js` and `OpsNav.js`
 live in `(desk)/gm/dev/`, because the `(app)` layout's fixed `TurnChip` would
 float over a desk shell (same reason no desk carries one — `DESIGN-SYSTEM.md`
 §6). The server actions and the other sections (`characters/`, `factions/`,
-`tags/`) stay in `(app)/gm/dev/`, since only the top page needed to move. The
-superadmin gate lives in `page.js` itself rather than the layout, because
-`(desk)/layout.js` only checks GM membership — `/gm/players` and `/gm/turns`
-share that layout and are meant to stay GM-open.
+`tags/`) stay in `(app)/gm/dev/`, since only the top page needed to move.
 
-Ten sections: **Game**, **Turn**, **Configuration** and **The Depot** under
-"Game"; **Bulk move**, **Send a letter**, **System reports** and
+### 11a. Two tiers, one table
+
+The panel is **not** superadmin-only. It has two tiers, and the line between
+them is *host access* against *running the game*:
+
+- **`super`** — the superadmin (`web/lib/superadmin.js`). Wipe the game, retune
+  the economy, force a turn, open and close the lobby: things whose blast
+  radius is the whole installation.
+- **`gm`** — anyone holding either GM role (`gmRoleIds()`, `GAMEMASTERS.md`).
+  The daily work: move a group of characters, send a letter, say a line into a
+  zone, set an antagonist's objectives.
+
+`web/lib/devAccess.js` is the whole difference. `SECTION_TIER` names a tier per
+section, `allows(tier, need)` answers, and `getDevTier()` resolves the viewer
+to `"super" | "gm" | "none"` off `getGmSession()` (already `cache()`d, so the
+guild lookup is paid once). Three things read that one table, and nothing else
+decides access:
+
+1. `page.js` — redirects `"none"`, then picks the section through
+   `resolveSection(tier, s)`. A section this tier cannot open falls back to
+   their home section (`game` for a master, `bulk` for a GM) rather than
+   bouncing them off the panel.
+2. `OpsNav.js` — filters its items and drops a group that empties, so a GM
+   never sees a door the gate will not open.
+3. `requireDev(need)` — the one guard every server action in
+   `actions.js`, `threatActions.js` and `objectiveActions.js` calls. It
+   replaced three identical copies of `requireSuperadmin`, which survives as a
+   one-line alias so the callers that still cost `super` read unchanged.
+
+The gate lives in `page.js` rather than the layout because `(desk)/layout.js`
+only checks GM membership — `/gm/players` and `/gm/turns` share that layout.
+
+**Four controls narrow inside a section a GM can otherwise open.** Each is
+checked against the tier at the call site *and* in its action, because a server
+action is a public endpoint and a hidden button is a hint:
+
+| Where | Superadmin only |
+|---|---|
+| `?s=reports` | **Repair**. `runDoctorAction` reads the posted `mode` **before** the guard and asks for `super` only when it is `repair` — the dry run is GM work |
+| `/gm/dev/factions` | Delete a faction (`FactionsTable`'s `canDelete` prop) |
+| `/gm/dev/tags` | Delete a custom tag |
+| `/gm/dev/characters/[id]` | Delete a character |
+
+`/gm/dev/characters` and `/gm/dev/factions` are GM-open pages now. The
+per-character panel this doc is about was always GM-gated, so its own index
+page being superadmin was an inconsistency, not a policy.
+
+### 11b. The sections
+
+Twelve: **Game**, **Games**, **Turn**, **Configuration** and **The Depot** under "Game";
+**Bulk actions**, **Send a letter**, **Say something**, **System reports** and
 **Gamemasters** under "Operations"; **Assignments** and **Antagonists** under
-"Threats"; **Restart game** on its own under "Danger".
+"Threats"; **Restart game** on its own under "Danger". Everything under "Game"
+and "Danger" is `super`; everything else is `gm`.
 The Game section — phase, lobby roster, the assignment preview, Start and End
 — is `LOBBY.md`. The two Threats sections replaced the old Antagonist Roster
 popup and have their own doc — `THREATS.md`; the Antagonists section also
-carries the **Objectives** cards, one per antagonist party (`THREATS.md` §6a).
+carries the **Objectives** cards, one per antagonist party (`THREATS.md` §6a),
+and the pending spawn offers.
+
+**Assignments opens with Seats out** (`SeatsOut.js`): every `LobbyEntry` that
+is `ASSIGNED` with no character yet — a seat handed out and not taken up —
+with the handle, the role, how long is left on the window, and whether the
+six-hours-left reminder has gone. Read-only: the seat expires on its own
+(`db/lib/lobbySweep.js`) and re-offering is a Start-Game concern.
+
+It is here rather than beside the lobby roster because **`assignments` is `gm`
+and `game` is `super`**. The roster shows the same rows, but it sits next to
+Start, End and Restart Game, so an ordinary GM could not reach it — which
+meant the loudest thing the game says to anybody ("You're in. You are the
+Baroness.") went out with nobody but the master able to see who had been told.
+That gap only became visible when notices stopped counting as conversation on
+the player desk (`PLAYER-DESK.md` §5); before that the assignment DM sat in
+the inbox and the answer was an accident.
 `LAUNCH.md` covers Restart Game itself, and the Depot section is this doc's
 appendix.
 
@@ -548,12 +624,54 @@ signal, and the reason the row is written *before* the work starts rather than
 after. Two buttons sit above it: **Run channel doctor (dry)** and **Repair**,
 both full scope, both fired into `after()` so the button returns immediately
 and the outcome shows up where every other pass reports (`CHANNELS.md` §6).
+Repair is superadmin — see §11a.
 
-**Bulk Move** relocates several living characters to one zone at once. It is a
-raw relocation like `updateCharacterRaw`'s, **not** travel: no Move cost, no
-`Action` filed, no adjacency check. The database write is synchronous; the
-Discord half (role swap, special-channel access, pending thread invites) runs
-sequentially in `after()` and lands on a `BULK_MOVE` report.
+**Who has gone quiet** sits above it: the same three buckets
+`npm run db:report-inactive-characters` prints — left the guild, never
+registered any activity, idle since day one — with a checkbox per row and a DM
+box. Both surfaces read `db/lib/inactivity.js`, which is why the query was
+lifted out of the ops script: the list a GM nudges from the web and the list
+the CLI prints cannot be allowed to disagree about who counts as inactive.
+`nudgeInactivePlayers` re-derives the eligible set from that module rather than
+trusting the posted ids, and sends through `web/lib/discordGuild.js#sendDm` so
+the nudge lands in the player's conversation on `/gm/players` instead of only
+in somebody's client.
+
+**Bulk actions** is one character picker and three verbs — **Move**,
+**Resources**, **Tag** — behind `applyBulkAction`. All three are raw edits like
+`updateCharacterRaw`'s: no Move cost, no `Action` filed, no adjacency check, no
+point spend, and no Undo. `AuditLog` is the only record (`REQUESTS.md` §1a), so
+each verb writes its own row — `gm_bulk_move`, `gm_bulk_resources`,
+`gm_bulk_tag` — and every run opens a `BULK_MOVE` `SystemReport` finished
+inside `after()`, because the Discord half runs past the response and a failure
+has nowhere else to be seen.
+
+Two things about the verbs are load-bearing:
+
+- **Tag goes through `grantTagSlugs` / `dropCharacterTag`** (`db/lib/tagWrites.js`),
+  deliberately **not** the staged `applyTagOpsInTx` path the character panel
+  uses — that one carries per-sheet validation and an optimistic-concurrency
+  token this form has neither of. The stacking rules and the Blessed ward still
+  apply, because they live in `grantTagSlugs`. It ends in
+  `afterInventoryChange`, the same sweep every other tag writer runs, since a
+  tag can change carry or a room key.
+- **Resources clamps at zero.** A negative balance is not a state the rest of
+  the game knows how to read.
+
+The picker replaced a `<select multiple size={8}>` that offered no search, no
+place names and no way to see what you had picked without scrolling the box.
+`.bulk-picker` is its scroll surface.
+
+**Say something** (`AmbientForm.js`) posts a line of scenery into a zone's
+`#summary`, a Location channel or a Room thread, through
+`db/lib/ambientLine.js` and `postMessage`. The formatting is the whole reason
+it exists: `-#` subtext is **per line**, so a two-line scene typed by hand in
+Discord comes out half subtext, and `ambientLine` no longer signs anything
+itself — the panel renders exactly what will be posted beside the textarea. The
+target picker is scoped to the GM's own `GmZoneView` zones (no rows means every
+zone) and `sendAmbientLine` re-checks that scope. The intercom is the
+deliberate exception to all of this and is **not** reachable from here — a PA
+is a loudspeaker, not scenery (`db/lib/intercom.js`).
 
 **Send a Letter** puts a bird at somebody's window carrying a letter from
 whoever the GM says it is from — the God-King, a dead man, nobody at all. It is
@@ -567,6 +685,26 @@ It is the one section on this page whose form is a **client component**
 inside the server page, which has nowhere to report a refusal to; a letter has
 two of them worth reading ("no turn is open", "they're past reading it") and a
 pair of seal fields that only appear once Sealed is on.
+
+### 11c. The Games section
+
+`/gm/dev?s=games`, superadmin. Every `Game` row there has ever been, newest
+first: what it is called (its label, or the dates it ran — `gameTitle`), its
+short id, how it ended (Running / Ended / Nuked or Ascended with the turn /
+Never finished), whether its transcript has been exported to a packet or has
+left the database entirely, and the days, turns, characters and deaths off its
+stored epilogue. The archive count is the exception — it is counted live,
+because `epilogue.facts.archived` is a snapshot from the moment a game ended
+and the game being played has no epilogue at all — and it is the link into
+`/archive?game=<id>` for that game. A game that has been archived away links
+too: the page renders its stub.
+
+This section exists because a game stopped having a number (`ARCHIVE.md`
+§"Identity"). The ordinal was the only thing that made the pile of `Game` rows
+legible; the list is what makes them legible now. It reads, it does not edit —
+Archive this game and Restart Game's keep-or-discard are on the Game and Danger
+sections, and taking the whole history down at once is `npm run
+db:collapse-games`, off a command line and behind a dry run.
 
 ## 12. Where the code lives
 
@@ -591,6 +729,7 @@ pair of seal fields that only appear once Sealed is on.
 | Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel`, and `.qty` / `.qty-btn` / `.qty-input` in `globals.css` |
 | Desk modal mount (shared by turns/players desks) + `prefetchDevPanel`, and its server actions (`getDevPanelData`, `getDevPanelRecord`) | `web/app/components/DevPanelModal.js`, `devPanelActions.js` |
 | The game-level panel (§11) — page shell + section rail | `web/app/(desk)/gm/dev/page.js`, `web/app/(desk)/gm/dev/OpsNav.js` |
+| Games (§11c) — every game there has ever been, and the way into each transcript | `web/app/(desk)/gm/dev/PastGames.js`, and `web/lib/gameLabel.js` for what a game is called |
 | Send a Letter (§11) — the form, and the action behind it | `web/app/(desk)/gm/dev/SendLetterForm.js`, `web/app/(app)/gm/dev/actions.js#sendGmLetter` |
 | The game-level panel's server actions | `web/app/(app)/gm/dev/actions.js` |
 | The game-level panel's toggle help text, read through `InfoIcon` | `web/app/(app)/gm/dev/devHelp.js` |

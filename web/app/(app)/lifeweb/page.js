@@ -11,7 +11,7 @@ import { getGmSession } from "@/lib/discordGuild";
 import LifewebDonateBloodPanel from "../../components/LifewebDonateBloodPanel";
 import LifewebFeedPersonButton from "../../components/LifewebFeedPersonButton";
 import LifewebRequestButtons from "../../components/LifewebRequestButtons";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
 
 function bloodBand(blood) {
   if (blood <= 0) return { label: "Dry", color: "var(--accent-text)" };
@@ -77,7 +77,6 @@ export default async function LifewebPage() {
 
   return (
     <PageShell width="narrow">
-      <PageHeader title="Lifeweb" />
 
       <section className="panel p-5">
         <div className="flex items-baseline justify-between">

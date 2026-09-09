@@ -9,6 +9,8 @@ import { formatCost, costColor } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { formatTagArmor } from "@/lib/formatTagArmor";
 import { formatTagWeight } from "@/lib/formatTagWeight";
+import { chainTokens } from "@/lib/tagChains";
+import { SLOT_TITLES } from "@lifeweb/db/lib/equipSlots";
 import PaperSheet from "./PaperSheet";
 
 // The read-only detail sheet behind a row click on the Tag Catalog: the full
@@ -25,26 +27,6 @@ import PaperSheet from "./PaperSheet";
 // tab on /documents. The GM caller ships `held` and `custom`; the player
 // payload (web/lib/tagCatalog.js) ships neither, so the rows below that
 // depend on them are conditional rather than assumed.
-
-// Tag.expiresInto / Tag.removesInto entries are normalised to
-// { oneOf: [...] } by db/lib/syncTags.js — same rendering TagChip gives them.
-// `bySlug` is the sheet's own shipped-tag map: a token is only emitted for a
-// slug present in it, so a chain into a tag the viewer wasn't sent (a
-// withheld/secret tag) renders nothing instead of naming it via the
-// app-wide {tag:…} provider ChipText resolves against.
-function chainTokens(chain, bySlug) {
-  const entries = Array.isArray(chain) ? chain : null;
-  if (!entries?.length) return null;
-  return entries
-    .map((entry) =>
-      (entry?.oneOf ?? [])
-        .filter((slug) => bySlug.has(slug))
-        .map((slug) => `{tag:${slug}}`)
-        .join(" or "),
-    )
-    .filter(Boolean)
-    .join(" and ");
-}
 
 // The group-peers row label: "All Tonics", "All Buffs". Already-plural names
 // (Traits, Wounds) pass through; "The Watch" / "The Court" read as
@@ -105,6 +87,7 @@ const FLAG_LABELS = [
 const VISIBILITY_CHIP = {
   ALWAYS: "Visible on 🔍",
   WORN: "Visible on 🔍 while worn",
+  NAMED: "Visible on 🔍 under your own name",
 };
 
 export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
@@ -161,7 +144,10 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
     // is the question a GM building kit actually asks.
     tag.concealSprite ? `Conceal sprite: ${tag.concealSprite}` : null,
     tag.equipSlot
-      ? `Worn: ${tag.equipSlot.toLowerCase()}${tag.equipLayer ? ` · layer ${tag.equipLayer}` : ""}`
+      // The row title the sheet itself uses, not the raw enum: since the off
+      // hand folded into the hands, `equipSlot.toLowerCase()` would have read
+      // "weapon" under a shield.
+      ? `Worn: ${(SLOT_TITLES[tag.equipSlot] ?? tag.equipSlot).toLowerCase()}${tag.equipLayer ? ` · layer ${tag.equipLayer}` : ""}${tag.twoHanded ? " · two hands" : ""}`
       : null,
     // This sheet is the GM's door onto a tag, so it carries the raw numbers
     // the word scale hides everywhere else — tuning a piece of gear against

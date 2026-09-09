@@ -15,7 +15,7 @@ import {
   revokeAllCharacterAccess,
   deleteCharacterRole,
   updateGuildNickname,
-  removeCursedRole,
+  removeGhostRole,
   killCharacter,
   sendDm,
 } from "@/lib/discordGuild";
@@ -31,12 +31,15 @@ import {
   planDiscordEffects,
 } from "@/lib/characterWrite";
 import { deleteCorpseFor } from "@lifeweb/db/lib/corpseMint";
+import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
+import { cancelWatchOnMove } from "@lifeweb/db/lib/intercept";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
-import { applyFear, settleFearTag, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/fear";
+import { applyMood, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/mood";
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
 import { gmTransferResources } from "@/lib/gmTransfer";
+import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 
 // Dev Panel microactions, gated on GM membership; delete requires superadmin
 // (see requireSuperadminSession).
@@ -102,9 +105,8 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   const session = await requireGm();
   const existing = await loadCharacter(characterId);
 
-  const [openTurn, config, held] = await Promise.all([
+  const [openTurn, held] = await Promise.all([
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
-    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true } }),
     prisma.characterTag.findMany({
       where: { characterId },
       select: { tagId: true, quantity: true },
@@ -152,9 +154,6 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
 
     if (Object.keys(data).length) {
       await tx.character.update({ where: { id: characterId }, data });
-      // A GM typing 90 into the Fear box should see Panic land on the sheet in
-      // the same Apply (docs/systemdocs/FEAR.md).
-      if ("fear" in data) await settleFearTag(tx, characterId);
     }
 
     // Keyed on the POST-edit faction: promoting someone who is also changing
@@ -170,7 +169,6 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
         ops,
         tagsById,
         openTurn,
-        equipSlots: config?.equipSlots ?? 10,
       });
     }
 
@@ -316,7 +314,7 @@ async function reviveCharacterImpl({ characterId }) {
 
   after(async () => {
     try {
-      await removeCursedRole(updated.discordUserId);
+      await removeGhostRole(updated.discordUserId);
       await ensureCharacterRole(updated);
       await syncCharacterNickname(updated.discordUserId, formatBareName(updated));
       // fromLocationId null: kill already stripped every grant, so this is a
@@ -337,6 +335,33 @@ async function reviveCharacterImpl({ characterId }) {
 }
 
 // Giving the turn back means deleting the Action row (web/lib/moveEconomy.js).
+// The curse toggle. Replaces the GM adding or removing the Cursed role in
+// Discord by hand, which moving the truth into the database took away — see
+// db/lib/curse.js. Three states, because "off" and "work it out" are different
+// answers: null lets the rule decide, true and false override it.
+//
+// It writes Character.cursedOverride and NOT buriedAt. Stamping that to lift a
+// curse would also take the body out of the world — un-lootable, un-draggable,
+// gone from every target menu (db/lib/presence.js, db/lib/escort.js).
+//
+// The ghost seat is left alone: it is channel access, the channel doctor
+// reconciles it against this answer on its next pass, and a GM overriding the
+// points penalty is not necessarily saying anything about who sees what.
+async function setCurseOverrideImpl({ characterId, override }) {
+  const session = await requireGm();
+  const character = await loadCharacter(characterId);
+  if (override !== null && typeof override !== "boolean") {
+    throw new UserError("Pick cursed, not cursed, or automatic.");
+  }
+
+  await prisma.character.update({ where: { id: characterId }, data: { cursedOverride: override } });
+
+  const cursed = await isPlayerCursed(prisma, character.discordUserId);
+  await audit(session, "gm_curse_override", characterId, { name: character.name, override, cursed });
+  repaint(characterId);
+  return { cursed, override };
+}
+
 async function restoreTurnImpl({ characterId, reason }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
@@ -443,6 +468,7 @@ async function messageCharacterImpl({ characterId, message }) {
   const sent = await sendDm(character.discordUserId, text, {
     authorDiscordUserId: session.discordUserId,
     source: "gm_dev",
+    kind: DM_KIND.CONVERSATION,
   }).catch(() => null);
   await audit(session, sent ? "gm_dm_sent" : "gm_message_delivery_failed", characterId, {
     length: text.length,
@@ -541,14 +567,21 @@ async function teleportCharacterImpl({ characterId, locationId }) {
           toLocationId: updated.locationId,
         });
       } else {
+        // Moved to NOWHERE, so the shared fan-out is skipped — and with it the
+        // one thing that must still happen: a watch anchored to the place they
+        // just left would sit there inert and come back to life the moment
+        // anything put them back (INTERCEPT.md §1).
+        await cancelWatchOnMove(prisma, characterId).catch((err) =>
+          console.error("Dev Panel teleport: cancelling the watch failed:", err),
+        );
         await afterInventoryChange(characterId);
       }
     } catch (err) {
       console.error("Dev Panel teleport Discord sync failed:", err);
     }
-    // Rolls the Caving Die on arrival like walking in does (CAVING.md), keyed
-    // on the LOCATION. Sent plainly, not via notifyCharacter — the die speaks,
-    // not the GM.
+    // Rolls the Caving Die on arrival like walking in does (CAVING.md), every
+    // arrival and not just the first. Sent plainly, not via notifyCharacter —
+    // the die speaks, not the GM.
     const cavingDm = await rollCavingOnArrival(prisma, updated, location);
     if (cavingDm) {
       await sendDm(cavingDm.discordUserId, cavingDm.content).catch((err) =>
@@ -671,8 +704,8 @@ async function awardDesireGmImpl({ characterId, slotIndex: rawSlotIndex, slug, t
       where: { id: characterId },
       data: { tagPoints: { increment: value } },
     });
-    // Same relief the player-side claim gives (docs/systemdocs/FEAR.md).
-    await applyFear(tx, characterId, { kind: "DESIRE", base: -DESIRE_RELIEF_PER_POINT * value });
+    // Same relief the player-side claim gives (docs/systemdocs/MOOD.md).
+    await applyMood(tx, characterId, { kind: "DESIRE", base: DESIRE_RELIEF_PER_POINT * value });
     return row;
   });
 
@@ -735,6 +768,9 @@ export async function killCharacterNow(input) {
 }
 export async function reviveCharacter(input) {
   return guarded(() => reviveCharacterImpl(input));
+}
+export async function setCurseOverride(input) {
+  return guarded(() => setCurseOverrideImpl(input));
 }
 export async function restoreTurn(input) {
   return guarded(() => restoreTurnImpl(input));

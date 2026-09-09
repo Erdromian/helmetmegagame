@@ -31,6 +31,7 @@
 
 const { heldTagSlugs, recordRoomThread, roomAccessKeys } = require("./roomAccess");
 const { addThreadMember, removeThreadMember } = require("./discordRest");
+const { presentedMembers, presentedNameOf } = require("./presentedMembers");
 
 const ROOM_SELECT = {
   id: true,
@@ -82,7 +83,9 @@ async function doorwayFor(prisma, { actor, roomId, characterId, gm = false }) {
   });
   if (!target) return { error: "That isn't a living character. ‡" };
   if (target.locationId !== room.locationId) {
-    return { error: `${target.name} isn't here to be let in. ‡` };
+    // The presented name in every sentence this file answers with. A door
+    // refusing to open for somebody is not the place to learn who they are.
+    return { error: `${await presentedNameOf(prisma, target.id, actor)} isn't here to be let in. ‡` };
   }
   return { room, target };
 }
@@ -129,7 +132,7 @@ async function addRoomGuest(prisma, { actor = null, roomId, characterId, gm = fa
       threadName: room.name,
       threadId: room.discordThreadId,
     },
-    line: `${target.name} was let in. They stay until they leave. ‡`,
+    line: `${await presentedNameOf(prisma, target.id, actor)} was let in. They stay until they leave. ‡`,
   };
 }
 
@@ -162,27 +165,30 @@ async function removeRoomGuest(prisma, { actor = null, roomId, characterId, gm =
     }
   }
 
-  return { ok: true, room, target, line: `${target.name} was shown out.` };
+  // The presented name, not the real one: showing somebody out should not be
+  // the thing that says who they were.
+  const shown = await presentedNameOf(prisma, target.id, actor ?? null);
+  return { ok: true, room, target, line: `${shown} was shown out.` };
 }
 
 // Who is in a private room on a guest row. Key-holders are NOT in this list —
 // they are in it by their key, which is a different fact and one the room's
 // own accessTagSlugs already says.
-async function roomGuests(prisma, roomId) {
+//
+// Through db/lib/presentedMembers.js, the same resolver the HERE column and a
+// conversation's strip go through. This used to select `name` off the row and
+// hand the id over with it, which named a guest standing there in a hood and
+// drew their real portrait — /api/avatar/<id> is ungated, so the id was the
+// leak on its own.
+async function roomGuests(prisma, roomId, viewer, options) {
   if (!roomId) return [];
   const rows = await prisma.roomGuest.findMany({
     where: { roomId },
     orderBy: { createdAt: "asc" },
-    select: { character: { select: { id: true, name: true, status: true, updatedAt: true } } },
+    select: { characterId: true },
   });
-  return rows
-    .map((row) => row.character)
-    .filter((entry) => entry && entry.status === "ALIVE")
-    .map((entry) => ({
-      characterId: entry.id,
-      name: entry.name,
-      avatarVersion: entry.updatedAt?.getTime?.() ?? null,
-    }));
+  if (rows.length === 0) return [];
+  return presentedMembers(prisma, rows.map((row) => row.characterId), viewer, options);
 }
 
 module.exports = { addRoomGuest, removeRoomGuest, roomGuests };

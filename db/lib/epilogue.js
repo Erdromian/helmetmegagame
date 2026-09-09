@@ -89,9 +89,11 @@ function rosterLine(r) {
   return `${r.handle} as ${r.name}, ${r.roleTitle ?? "no role"}${seat}${died}`;
 }
 
-// The Discord post. One string; the poster chunks it under 2000.
-function formatEpilogue(epilogue, { number } = {}) {
-  const lines = [`**Game Ended**${number ? ` · Game ${number}` : ""}`];
+// The Discord post. One string; the poster chunks it under 2000. It names no
+// game: the creation ordinal it used to carry was never anything a player
+// should read, and it is gone (web/lib/gameLabel.js).
+function formatEpilogue(epilogue) {
+  const lines = ["**Game Ended**"];
   if (epilogue.closingNote) lines.push(`» ${epilogue.closingNote}`);
   lines.push("", factsLine(epilogue.facts));
   // Older epilogues (before objectives existed) carry no `antagonists`.

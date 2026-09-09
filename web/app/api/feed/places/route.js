@@ -10,12 +10,17 @@ import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 // path.
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request) {
   const viewer = await loadFeedViewer();
   if (!viewer.discordUserId) return Response.json({ error: "Sign in first." }, { status: 401 });
   if (!viewer.character && !viewer.gm) {
-    return Response.json({ error: "You have no living character. ‡" }, { status: 403 });
+    return Response.json({ error: "You have no living character." }, { status: 403 });
   }
+  // `?probe=1` is Chat asking only whether the session is still good after
+  // its stream has dropped twice (Chat.js): the gates above are the whole
+  // answer, and a hundred tabs recovering from one redeploy should not each
+  // pay for the place list to learn it.
+  if (new URL(request.url).searchParams.get("probe")) return new Response(null, { status: 204 });
 
   const places = await placesFor(prisma, viewer.character, viewer.options);
   return Response.json({ places });

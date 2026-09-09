@@ -311,6 +311,7 @@ export default function RosterTable({
                         name={c.name}
                         version={c.avatarVersion}
                         catatonic={c.catatonic}
+                        zoomable
                       />
                       {/* Straight into their conversation — the verb this desk
                           exists for. The Dev Panel is one click further, off

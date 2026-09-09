@@ -18,6 +18,8 @@
 // imports this, so requiring it back would resolve to a partial exports
 // object.
 
+const { mentionedIdsIn } = require("./characterMentions");
+const { presentedMembers, presentedNameOf } = require("./presentedMembers");
 const { notifyPresence } = require("./presenceNotify");
 
 // Every writer works from a Discord THREAD id, because that is what the
@@ -107,7 +109,18 @@ async function conversationsFor(prisma, characterId, { locationId = undefined } 
 // Two queries rather than one join: PlayerThreadMember.characterId is a plain
 // column with no relation behind it (see the model), so there is nothing for
 // an `include` to walk.
-async function conversationMembers(prisma, playerThreadId) {
+//
+// The projection is db/lib/presentedMembers.js, which is the same resolver the
+// HERE column goes through. It used to be `select: { id, name, updatedAt }`
+// straight off the row, so the strip at the top of a conversation named a
+// hooded member outright and drew their real portrait beside it — the reason
+// "inviting someone breaks disguises" was a true sentence.
+//
+// `viewer` is who is asking, and it is required for that: the sighting rule
+// decides whether a mask is drawn at all. A caller with nobody to be (the
+// bot's own bookkeeping) passes null and gets every hood plateless, which errs
+// toward hiding.
+async function conversationMembers(prisma, playerThreadId, viewer, options) {
   if (!playerThreadId) return [];
   const rows = await prisma.playerThreadMember.findMany({
     where: { playerThreadId },
@@ -115,22 +128,9 @@ async function conversationMembers(prisma, playerThreadId) {
     select: { characterId: true },
   });
   if (rows.length === 0) return [];
-
-  const people = await prisma.character.findMany({
-    where: { id: { in: rows.map((row) => row.characterId) }, status: "ALIVE" },
-    select: { id: true, name: true, updatedAt: true },
-  });
-  const byId = new Map(people.map((person) => [person.id, person]));
   // Kept in the order they were added, which is the order the rows came back
-  // in — the map above is only the lookup.
-  return rows
-    .map((row) => byId.get(row.characterId))
-    .filter(Boolean)
-    .map((entry) => ({
-      characterId: entry.id,
-      name: entry.name,
-      avatarVersion: entry.updatedAt?.getTime?.() ?? null,
-    }));
+  // in — presentedMembers preserves whatever order it is handed.
+  return presentedMembers(prisma, rows.map((row) => row.characterId), viewer, options);
 }
 
 // Pinging somebody into a conversation puts them IN it, the way it does in
@@ -153,8 +153,11 @@ async function conversationMembers(prisma, playerThreadId) {
 async function pullMentionedIntoConversation(prisma, { conversation, content, speakerId } = {}) {
   if (!conversation?.id || typeof content !== "string") return [];
 
-  const ids = [...content.matchAll(/\{char:([A-Za-z0-9_-]+)\}/g)].map((m) => m[1]);
-  const wanted = [...new Set(ids)].filter((id) => id && id !== speakerId);
+  // mentionedIdsIn, not a second copy of the grammar. This file used to
+  // re-declare the token regex inline, which stopped matching the moment the
+  // token learned to carry a name — a mention would still ping and still
+  // render and simply stop pulling anyone into the room.
+  const wanted = mentionedIdsIn(content).filter((id) => id !== speakerId);
   if (wanted.length === 0) return [];
 
   const members = await prisma.playerThreadMember.findMany({
@@ -189,7 +192,16 @@ async function pullMentionedIntoConversation(prisma, { conversation, content, sp
         })
         .catch((err) => console.error("Failed to record thread invite:", err?.message ?? err));
     }
-    added.push(target);
+    // The presented name rides along beside the real one, so a caller telling
+    // the pinger who was invited has a name it may print. `name` stays because
+    // the Discord half needs the real character to act on; `shownName` is the
+    // only one that belongs in a sentence. Resolved per target rather than in
+    // one batch: `added` is however many people one message named, so it is a
+    // handful at most, and a batch would have to be zipped back by index —
+    // which silently desyncs the moment one of them stops being ALIVE between
+    // the two queries.
+    const shownName = await presentedNameOf(prisma, target.id, { id: speakerId });
+    added.push({ ...target, shownName });
   }
   return added;
 }

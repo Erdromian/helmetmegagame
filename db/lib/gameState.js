@@ -15,12 +15,22 @@ async function getGameConfig(db) {
   return db.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
 }
 
-// What a brand-new GameState row is: CLOSED, and pointing at Game 1 — made
-// on the spot if a fresh database has no Game yet. Every upsert of the row
-// uses this so none of them can trip on the required gameId.
+// The id the very first Game row was backfilled with, in the migration that
+// gave games their own table (20260911060000_games_outlive_the_wipe). The
+// bootstrap below connects to it by name rather than creating a fresh cuid,
+// so two upserts racing on an empty database cannot end up making two games.
+// It is a bootstrap key and nothing else — every game after the first one is
+// an ordinary cuid, and there is no ordinal any more to connect on instead.
+const BOOTSTRAP_GAME_ID = "game1";
+
+// What a brand-new GameState row is: CLOSED, and pointing at a game — made on
+// the spot if a fresh database has no Game yet. Every upsert of the row uses
+// this so none of them can trip on the required gameId.
 const GAME_STATE_CREATE = {
   id: 1,
-  game: { connectOrCreate: { where: { number: 1 }, create: { number: 1 } } },
+  game: {
+    connectOrCreate: { where: { id: BOOTSTRAP_GAME_ID }, create: { id: BOOTSTRAP_GAME_ID } },
+  },
 };
 
 async function getGameState(db) {

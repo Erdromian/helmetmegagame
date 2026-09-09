@@ -56,7 +56,7 @@ rejects a duplicate across all three lists.
 
 Locations follow one naming rule, split between built places and open country.
 A built place takes a bare slug — `keep`, `factory`, `cathedral`, `depot`.
-Open country takes its zone as a prefix — `forest-river`, `hills-ravine`,
+Open country takes its zone as a prefix — `forest-creekside`, `hills-gullies`,
 `marshes-village` — because every zone has a ravine and a river, and the slug
 is also the Discord channel name.
 
@@ -174,7 +174,7 @@ connections:              # the whole travel graph. ONE entry per edge — it is
       open: true
   - pair: [fortress/undercroft, forest/forest-cliffs]
     hidden: elevator-key
-  - pair: [fortress/road, hills/hills-descent]
+  - pair: [fortress/road, hills/hills-underlocks]
     locked: mountaineering
     on_foot: true
 ```
@@ -254,9 +254,10 @@ could never conceal anything.
 The rest of the headgear family throws the same way: `concealsIdentity` with no
 `concealSprite`, a `concealSprite` naming a file that isn't in
 `web/public/assets/helms/`, `forcesConceal` without `concealsIdentity`, an
-`equipSlot` on something not `equippable`, an `equipLayer` outside 1–4 or with
-no slot, a `HEAD`/`BODY` slot with no layer, and a layer on a `SHIELD`. The
-sprite check is the interesting one: it is the only validation here that
+`equipSlot` on something not `equippable`, an `equipLayer` outside that slot's
+own range — 1–3 on `HEAD` and `BODY`, 1–2 on `MOUNT` — or with no slot, a
+`HEAD`/`BODY` slot with no layer, and a layer on a `WEAPON` or an
+`ACCESSORY`, neither of which has one. The sprite check is the interesting one: it is the only validation here that
 touches the filesystem outside `docs/`, and it deliberately treats a missing
 directory as "cannot check" rather than as a failure, since `web/public` may
 not be laid out the same way inside a Next standalone build.
@@ -402,6 +403,7 @@ pre-launch wipe rebuilds everything else from YAML.
 | `db:prune-orphan-roles` | Dry-run by default (`-- --apply`): deletes Discord character roles no living character claims. Only touches roles carrying the character-role signature (mentionable + `hashNameToColor` colour), so zone, divider and GM cosmetic roles are never candidates. Add `-- --include-catatonic` to also accept the Catatonic repaint (`CATATONIC_ROLE_COLOR` + the ` • Catatonic` suffix), which otherwise can never match — harmless while a character claims the role, but it strands one left by a finished game. "Permissionless" here means **`0` or exactly @everyone's bitfield**: Discord's create-role endpoint copies @everyone's permissions when the field is omitted, which `ensureCharacterRole` used to do, so a stricter test made this script a silent no-op. Guards the 250-role guild cap. |
 | `db:prune-stale-channels` | Dry-run by default (`-- --apply`): deletes categories, channels and `Zone:`/`Location:` roles left behind by a **previous game** — objects no DB row points at any more. `db:sync-zones` cannot reach these: it only prunes a Zone/Location row that left `docs/zones.yaml` while the DB still holds its Discord ids, and the doctor never deletes a channel at all. So a retired layout lingers beside the live one under a category of the same name. Conservative by construction, with no hardcoded ids — a category is a candidate only when its name matches a live `Zone.name` *and* nothing in the DB references it, channels are only ever deleted as that category's children, and the run aborts outright if any candidate turns out to be referenced. |
 | `db:report-inactive-characters` | Read-only: ALIVE characters with no activity since turn 1, and anyone who has left the guild. |
+| `db:inspect-character` | Read-only, takes a name fragment: one character's `webOnly` (with the cooldown clock, and a warning when a flip left Room threads behind), `Character.concealed` against the gear actually equipped, any forced name, what `presentedIdentity` resolves to right now, and whether the equipped set would still pass the slot rules. Neither switch has a trace anywhere else a GM can read, and concealment is derived rather than stored, so "it says true and does nothing" is the normal state to have to explain. See `PROXYING.md` §5. |
 | `db:sync-narrowcast-channels` | Provisions **and reconciles** the `radio` category and its `#cerberon` channel from the special-channels registry. Run after `db:sync-zones`. |
 | `db:rebuild-info-channel` | Destructive rebuild of `#info` from `infochannel.yaml` (`INFOCHANNEL.md`). |
 | `db:set-bot-avatar` | Pushes `docs/assets/bot-icon.png` to the bot user's avatar. |

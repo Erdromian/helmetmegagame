@@ -115,10 +115,10 @@ async function pointerReading(prisma, fromLocationId) {
 
 // The lines the card DMs back. Bascinet's own wording, kept verbatim.
 function pointerLine(reading) {
-  if (!reading.found) return "» *The datacard finds nothing to point at.* ‡";
-  if (reading.here) return "» *The datacard stopped pointing. The nuclear device is here.* ‡";
-  if (!reading.via) return "» *The datacard strains, and settles. It cannot find a way there.* ‡";
-  return `» *The datacard points towards ${reading.via}.* ‡`;
+  if (!reading.found) return "» *The datacard finds nothing to point at.*";
+  if (reading.here) return "» *The datacard stopped pointing. The nuclear device is here.*";
+  if (!reading.via) return "» *The datacard strains, and settles. It cannot find a way there.*";
+  return `» *The datacard points towards ${reading.via}.*`;
 }
 
 module.exports = {

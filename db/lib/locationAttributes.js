@@ -25,7 +25,7 @@
 const GODFLESH_ATTRIBUTE = "godflesh";
 const REFINERY_ATTRIBUTE = "refinery";
 const SAFE_ATTRIBUTE = "safe";
-// The two the fear dial reads (db/lib/fear.js#placeClassOf).
+// The two the mood dial reads (db/lib/mood.js#placeClassOf).
 const WILDERNESS_ATTRIBUTE = "wilderness";
 const HAVEN_ATTRIBUTE = "haven";
 
@@ -53,45 +53,46 @@ const ATTRIBUTES = {
   // Extract button matches on, so no marsh tile has to be named by slug.
   // See docs/systemdocs/FACTORY.md.
   godflesh: {
-    describe: () => "**Godflesh**: you can cut it out of the water here. ‡",
+    describe: () => "**Godflesh**: you can cut it out of the water here.",
   },
 
   // The Godard Factory floor. Laboring here refines Godflesh into Squeeze
   // instead of paying ⬢, and it is the one place in the game where labor is
   // legal with no LocationYield row at all.
   refinery: {
-    describe: () => "**Refinery**: laboring here turns Godflesh into Squeeze. ‡",
+    describe: () => "**Refinery**: laboring here turns Godflesh into Squeeze.",
   },
 
   // Underground, and nothing in the dark wants you. The Caving Die skips a
-  // Location wearing this (db/lib/cavingPass.js), which is what makes Customs
-  // — a cave mouth with a sentry, a floodlight and a shop in it — the one
-  // place down there you can stand without rolling. Says so out loud, because
-  // a player choosing where to camp should be able to read the answer.
+  // Location wearing this (db/lib/cavingPass.js), which is what makes the cave
+  // mouth — Customs and the Depot one hop east of it, between them a sentry, a
+  // floodlight and a shop — the only ground down there you can stand on
+  // without rolling. Says so out loud, because a player choosing where to camp
+  // should be able to read the answer.
   safe: {
-    describe: () => "**Safe**: the Caving Die doesn't roll here. Nothing underground stalks this place. ‡",
+    describe: () => "**Safe**: Caving dice don't roll here.",
   },
 
   // Open country: nobody lives here, and a night in it wears on you
-  // (docs/systemdocs/FEAR.md). Worn by every Location in the Forest, the Black
+  // (docs/systemdocs/MOOD.md). Worn by every Location in the Forest, the Black
   // Hills and the Marshes that is not a settled place — the Factory, the Farms
-  // and the marsh Village are the exceptions. Walking in costs a little fear,
+  // and the marsh Village are the exceptions. Walking in costs a little mood,
   // ending the turn here costs more, and Rough Camper / Outsider soften it.
   wilderness: {
-    describe: () => "**Wilderness**: nobody lives out here, and a night in it wears on you. ‡",
+    describe: () => "**Wilderness**: spending time here is wearying.",
   },
 
   // A place that settles a person more than any roof does: the Inn, the Keep,
   // the Sanctuary. The best turn-end relief the dial has.
   haven: {
-    describe: () => "**Haven**: ending your turn here calms your nerves. ‡",
+    describe: () => "**Haven**: ending your turn here calms your nerves.",
   },
 
   // A public board somebody can pin a paper to. What the Noticeboard button on
   // this Location's anchor matches on, so no board has to be named by slug.
   // See docs/systemdocs/PAPERWORK.md.
   noticeboard: {
-    describe: () => "**Noticeboard**: you can pin paper here. ‡",
+    describe: () => "**Noticeboard**: you can pin paper here.",
   },
 };
 
@@ -117,8 +118,8 @@ function authoredLines(location, ctx = {}) {
 // stated in the place it bites, which is the worst moment to learn it.
 function placementLine(location) {
   return location?.indoors
-    ? "**Indoors**: you can't equip a cart or horse here. ‡"
-    : "**Outdoors**: you can use your horse or cart here. ‡";
+    ? "**Indoors**: you can't equip a cart or horse here."
+    : "**Outdoors**: you can use your horse or cart here.";
 }
 
 // The modular gates touching this location. `gates` is [{ farName, isOpen }],
@@ -134,8 +135,8 @@ function gateLines(gates) {
     .sort((x, y) => x.farName.localeCompare(y.farName))
     .map((gate) => {
       return gate.isOpen
-        ? `**${gate.farName}**: the way stands open. Worked from the watchtower. ‡`
-        : `**${gate.farName}**: the way is closed. Worked from the watchtower. ‡`;
+        ? `**${gate.farName}**: the way stands open. Worked from the watchtower.`
+        : `**${gate.farName}**: the way is closed. Worked from the watchtower.`;
     });
 }
 
@@ -152,19 +153,19 @@ function depotLines(ctx = {}) {
 
   const lines = [];
   if (!depot.powered) {
-    lines.push("**Generator**: it's off, so nothing in here works. ‡");
+    lines.push("**Generator**: it's off, so nothing in here works.");
   } else if (depot.fuelTurnsLeft == null) {
     lines.push("**Generator**: it's running.");
   } else {
     const days = depot.fuelTurnsLeft;
-    lines.push(`**Generator**: ${days} day${days === 1 ? "" : "s"} of coal left. ‡`);
+    lines.push(`**Generator**: ${days} day${days === 1 ? "" : "s"} of coal left.`);
   }
   lines.push(depot.shuttleDocked ? "**Shuttle**: it's here." : "**Shuttle**: it's not here.");
   // Only worth a line when it is a danger. A disarmed turret is a fixture, and
   // saying so every time would train people to stop reading the line that
   // matters.
   if (depot.turretArmed && depot.powered) {
-    lines.push("**Turret**: it's armed, and it's watching you. ‡");
+    lines.push("**Turret**: it's armed.");
   }
   return lines;
 }
@@ -188,24 +189,22 @@ function structureLines(ctx = {}) {
     // only while the structure WORKS — COMPLETE or DAMAGED — never off a
     // wreck or a rising site, or a ruined ram would still license a storm.
     // Both the note and the structure's own `examine:` are authored as
-    // ‡-free fragments (tagShapes enforces that): the GM Move card splices
-    // the note mid-line, and Examine puts each one after a **topic** of its
-    // own. They pick the ‡ up on the way out.
+    // fragments: the GM Move card splices the note mid-line, and Examine puts
+    // each one after a **topic** of its own.
     const note = structure.placement?.defenseNote;
     const noteLines = note ? [`**Defense**: ${note}`] : [];
-    // The builder's inscription replaces the stock examine fragment — and
-    // prints WITHOUT the ‡, because these are a player's words, not drafted
-    // copy (sanitized on the way in by web/lib/customCraft.js). » is the
-    // quoted-player-content prefix, same as everywhere else.
+    // The builder's inscription replaces the stock examine fragment — a
+    // player's words, sanitized on the way in by web/lib/customCraft.js. » is
+    // the quoted-player-content prefix, same as everywhere else.
     const inscribed = structure.inscription?.trim();
     switch (structure.status) {
       case "UNDER_CONSTRUCTION":
-        return [`**${typeName}**: going up, ${structure.turnsDone} of ${structure.turnsNeeded} days done. ‡`];
+        return [`**${typeName}**: going up, ${structure.turnsDone} of ${structure.turnsNeeded} days done.`];
       case "COMPLETE":
         return [
           inscribed
             ? `**${typeName}**: » ${inscribed}`
-            : `**${typeName}**: ${structure.placement?.examine ?? "it stands here."} ‡`,
+            : `**${typeName}**: ${structure.placement?.examine ?? "it stands here."}`,
           ...noteLines,
         ];
       case "DAMAGED":
@@ -213,7 +212,7 @@ function structureLines(ctx = {}) {
       case "RUINED":
         return [`**${typeName}**: a ruin.`];
       case "ABANDONED":
-        return [`**${typeName}**: abandoned groundwork, gone nowhere. ‡`];
+        return [`**${typeName}**: abandoned.`];
       default:
         return [];
     }

@@ -6,6 +6,7 @@ import { PRESENCE_CHANNEL } from "@lifeweb/db/lib/presenceNotify";
 import { TYPING_CHANNEL } from "@lifeweb/db/lib/typingNotify";
 import { DM_CHANNEL } from "@lifeweb/db/lib/dmNotify";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "./dmThread";
+import { dmActionOf } from "@lifeweb/db/lib/dmActions";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 
 // One Postgres LISTEN per web process, fanned out to every open SSE stream.
@@ -209,7 +210,10 @@ async function handleDm(payload) {
     select: PLAYER_DM_SELECT,
   });
   if (!row) return;
-  const shaped = playerDmRow(row);
+  // A row arriving down the stream was written a moment ago, so anything it
+  // asks is by definition still open — no need to go and ask the database
+  // (web/lib/dmActions.js). A page load re-resolves it properly.
+  const shaped = { ...playerDmRow(row), actionable: Boolean(dmActionOf(row)) };
   for (const send of [...set]) {
     try {
       send(shaped);
@@ -219,10 +223,30 @@ async function handleDm(payload) {
   }
 }
 
-// The pg client dropped and came back. The place feed papers over the gap
-// with its `since` cursor; the DM path has none, so every DM subscriber is
-// handed a resync frame and the pane asks for its page again (CHAT.md §2b).
-// The browser's own EventSource never broke, so nothing else would tell it.
+// The pg client dropped and came back, so every row written in the gap was
+// never fanned out to anybody. Both sides need telling, and for the same
+// reason: the browser's own EventSource never broke, so nothing else would.
+//
+// Places recover by asking their stream to catch up from its own cursor. That
+// works precisely because the cursor is frozen during an outage — no rows
+// arrive, so nothing advances it, and every row written in the gap is still
+// ABOVE it. This used to be left to "the place feed papers over the gap with
+// its `since` cursor", which was only true if something happened to trigger a
+// catch-up; if the reader sat still, the gap stayed a hole in the scene.
+function resyncPlaces() {
+  for (const set of hub().subscribers.values()) {
+    for (const send of [...set]) {
+      try {
+        send({ resync: true });
+      } catch (err) {
+        console.error("Place subscriber failed:", err);
+      }
+    }
+  }
+}
+
+// The DM path has no cursor at all, so its pane asks for the whole page again
+// (CHAT.md §2b).
 function resyncDm() {
   for (const set of hub().dmSubscribers.values()) {
     for (const send of [...set]) {
@@ -331,8 +355,27 @@ async function connect() {
 
   client.on("error", drop);
   client.on("end", () => drop(null));
+  // FEED notifications run ONE AT A TIME; everything else stays concurrent.
+  //
+  // This was fire-and-forget for every channel, and that was enough on its own
+  // to lose a message. handleFeed awaits a row lookup and an avatar lookup
+  // before it fans anything out, so two notifications that arrive in the right
+  // order can still reach fanOut in the wrong one — and the stream's cursor in
+  // web/app/api/feed/route.js used to drop anything below its high-water mark,
+  // permanently. Ordering the fan-out costs one indexed lookup of latency per
+  // message and removes the race at its source.
+  //
+  // Typing, presence and DM stay off the chain deliberately: a typing frame
+  // held up behind a slow row lookup is a worse trade, and none of them is
+  // ordered against anything.
+  let feedQueue = Promise.resolve();
   client.on("notification", (msg) => {
-    handleNotification(msg).catch((err) => console.error("Feed hub notification failed:", err));
+    const run = () => handleNotification(msg).catch((err) => console.error("Feed hub notification failed:", err));
+    if (msg.channel !== FEED_CHANNEL) {
+      void run();
+      return;
+    }
+    feedQueue = feedQueue.then(run);
   });
 
   try {
@@ -346,7 +389,10 @@ async function connect() {
     h.client = client;
     h.connecting = false;
     h.backoffMs = BACKOFF_MIN_MS;
-    if (h.everConnected) resyncDm();
+    if (h.everConnected) {
+      resyncPlaces();
+      resyncDm();
+    }
     h.everConnected = true;
   } catch (err) {
     console.error("Feed hub could not start listening:", err);

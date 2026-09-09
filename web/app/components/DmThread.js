@@ -5,8 +5,16 @@ import MarkdownContent from "./MarkdownContent";
 import GmAvatar from "./GmAvatar";
 import CharacterAvatar from "./CharacterAvatar";
 import useNowTick from "./useNowTick";
-import { AUTOMATED_EFFECT_SOURCES, MENTION_SOURCE } from "@/lib/dmSources";
+import {
+  DM_KIND,
+  MENTION_SOURCE,
+  GM_LETTER_SOURCE,
+  GM_LETTER_REPLY_SOURCE,
+  BIRD_SOURCE,
+} from "@lifeweb/db/lib/dmKinds";
 import { dayKey, dayLabel, clockLabel, formatDmTime, fullTimestamp } from "@/lib/dmTime";
+import { dmActionOf } from "@lifeweb/db/lib/dmActions";
+import DmActionRow from "./DmActionRow";
 
 // The one shared thread — the player desk's conversation pane and the
 // inspector's DMs tab both render this. It reads like a chat client rather
@@ -24,12 +32,11 @@ const SOURCE_LABELS = {
   gm_letter: "by bird",
 };
 
-// The two GM-letter sources (db/lib/bird.js). Repeated as LITERALS on purpose:
-// this is a client component, and importing them from @lifeweb/db would drag
-// PrismaClient into the browser bundle and kill the route with a node:fs error
-// carrying no digest. Keep them in step with the constants by hand.
-const LETTER_SOURCE = "gm_letter";
-const LETTER_REPLY_SOURCE = "gm_letter_reply";
+// The three letter sources now come from @lifeweb/db/lib/dmKinds rather than
+// being copied here as literals. That import is safe by the same rule that
+// lets a client component import @lifeweb/db/lib/constants — the module requires
+// nothing, so it cannot drag PrismaClient into the browser bundle. Importing
+// from the @lifeweb/db BARREL still would.
 
 const RUN_GAP_MS = 7 * 60_000;
 const AT_BOTTOM_PX = 80;
@@ -50,15 +57,44 @@ function isEmbed(m) {
 // ("A bird finds you..."), so the letter's own words ride in meta and are what
 // gets drawn. The inbound row's content IS the reply, so it falls back to that.
 function isLetter(m) {
-  return m.source === LETTER_SOURCE || m.source === LETTER_REPLY_SOURCE;
+  return m.source === GM_LETTER_SOURCE || m.source === GM_LETTER_REPLY_SOURCE || m.source === BIRD_SOURCE;
 }
 
-// Bot/effect notifications — resource grants, dev-panel summaries, Move
-// unlocks. They render as centred system lines, and runs of three or more
-// collapse. Pure UI plumbing (source: "system_notice", "prompt_reply") never
-// reaches this component: @/lib/dmThread#withoutDmNoise excludes it at the query.
+// A notice — the game telling this player something, rather than a person
+// writing to them. Resource grants, hunger, a seat assignment, a travel
+// outcome. They render as centred system lines, and runs of three or more
+// collapse. Pure plumbing (kind QUIET) never reaches this component:
+// @/lib/dmThread excludes it at the query.
+//
+// The three exceptions are notices that have a body of their own to draw — a
+// letter, a mention relay, an embed. They are quiet in the inbox like any
+// other notice, but collapsing one into "3 automated messages" would throw
+// away the only thing worth looking at. Note isMention is NOT gated on the
+// perspective here: the GM chair never receives one (the query drops it), and
+// gating it would let the two chairs disagree about item keys.
+// A notice that still asks something — an offer's Accept/Decline, a seat's
+// Decline. `actionable` is stamped server-side by web/lib/dmActions.js, so a
+// row whose offer has since been answered is background texture again.
+function liveAction(m) {
+  return m.actionable ? dmActionOf(m) : null;
+}
+
 function isEffect(m) {
-  return !isEmbed(m) && m.direction === "OUTBOUND" && AUTOMATED_EFFECT_SOURCES.includes(m.source);
+  return (
+    m.kind === DM_KIND.NOTICE &&
+    // A player's own words can never be background texture. Nothing writes an
+    // INBOUND notice today, but the DB default is NOTICE, so a future inbound
+    // writer that forgets `kind` would otherwise have its message collapsed
+    // into "3 automated messages" instead of merely misfiled.
+    m.direction === "OUTBOUND" &&
+    !isEmbed(m) &&
+    !isLetter(m) &&
+    !isMention(m) &&
+    // The fourth exception, and the one that matters most: a row with live
+    // buttons is a question, not texture. Collapsed into "3 automated
+    // messages" it would be unanswerable without knowing to unfold it.
+    !liveAction(m)
+  );
 }
 
 // A mention relay, read from the player's chair. The row's content is the
@@ -77,8 +113,8 @@ function MentionBody({ message }) {
   if (!placeKey) return <MarkdownContent content={message.content} />;
   return (
     <p className="dm-mention">
-      <em>{where ? `You were mentioned in ${where}. ‡` : "You were mentioned. ‡"}</em>{" "}
-      <a className="dm-mention-open" href={`/play#${encodeURIComponent(placeKey)}`}>
+      <em>{where ? `You were mentioned in ${where}.` : "You were mentioned."}</em>{" "}
+      <a className="dm-mention-open" href={`/chat#${encodeURIComponent(placeKey)}`}>
         Open
       </a>
     </p>
@@ -96,7 +132,11 @@ function LetterBody({ message }) {
         {meta.replierName && <span className="dm-letter-from">from {meta.replierName}</span>}
       </div>
       {meta.sealed && meta.sealMark && <p className="dm-letter-seal">Sealed. {meta.sealMark}</p>}
-      {text && <div className="dm-letter-text">{text}</div>}
+      {/* Through the renderer, like every other body in this thread. It was a
+          raw string, which is how a letter carrying a mention or a `<t:…>`
+          reached its reader as literal characters — the same gap that put a
+          raw `<t:1757700120:F>` in a lobby DM, one component further down. */}
+      {text && <MarkdownContent content={text} className="dm-letter-text" />}
     </div>
   );
 }
@@ -283,7 +323,7 @@ function Row({ item, gmProfileById, character, now, perspective }) {
           outbound ? (
             <GmAvatar profile={profile} size={32} />
           ) : (
-            <CharacterAvatar characterId={character?.id ?? null} name={name} version={character?.avatarVersion} size={32} />
+            <CharacterAvatar characterId={character?.id ?? null} name={name} version={character?.avatarVersion} size={32} zoomable />
           )
         ) : (
           <span className="dm-row-cont-time mono">{clockLabel(ms)}</span>
@@ -308,6 +348,7 @@ function Row({ item, gmProfileById, character, now, perspective }) {
         ) : (
           <MarkdownContent content={message.content} />
         )}
+        {perspective === "player" && liveAction(message) && <DmActionRow action={liveAction(message)} />}
       </div>
     </div>
   );

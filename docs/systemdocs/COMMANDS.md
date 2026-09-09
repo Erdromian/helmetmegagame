@@ -187,17 +187,24 @@ not care, because none of those are about sound. A portcullis you
 cannot open is still a portcullis you can yell through. It is deliberately the
 one traversal in the game that never calls `crossingCheck`.
 
-**Who may shout.** The SPEAK capability (`TAGS.md` §5f) — so Mute, Paralyzed,
-Unconscious and mid-Seizure refuse, and **Bound deliberately does not**. Being
-tied up takes your hands, not your voice, and a hostage nobody can hear is a
-hostage nobody can rescue. The check runs *before* the cooldown is claimed, so
+**Who may shout.** The SHOUT capability (`TAGS.md` §5f) — so Paralyzed,
+Unconscious and mid-Seizure refuse, **Mute refuses here and nowhere else**, and
+**Bound deliberately does not refuse at all** — it *muffles*. Being tied up
+takes your hands, not your voice, so the yell still happens and the people
+standing with you still hear it; it simply does not carry past where you are,
+and the line says so ("but it's muffled"). Somebody who can see you tied up
+can obviously hear you, so a gag takes the **hops**, never the room. That
+lives in `db/lib/say.js#loadVoiceState` as `shoutMuffled` rather than in
+`incapacitation.js`'s table, because the table is about what is *refused* and
+a muffle refuses nothing — the cooldown is still spent, and no error is shown.
+Mute is the mirror of that: an ordinary talker whose voice will not carry. The check runs *before* the cooldown is claimed, so
 a refused shout does not burn the throat timer.
 
 **What they hear**, from `db/lib/shout.js`:
 
 | Distance | The line |
 |---|---|
-| 0 — your own Location | Full size: "You hear someone shout:" and the words |
+| 0 — your own Location | Full size: **who shouted**, and the words |
 | 1 | `-#` subtext: "…from the direction of *X*", words clear |
 | 2 | the same, 40% of the letters replaced with `░ ▒ ▓` |
 | 3 | "…from the direction of *X*." — no words at all |
@@ -225,9 +232,19 @@ the whole reason `hidden` refuses in the same words a nonexistent edge does
 caves still tells somebody out on the road which way down the road it came
 from.
 
-**Nobody is ever named**, at any distance including zero. That is what lets a
-concealed character shout without unmasking, and it is also just true — you
-hear a shout before you find out whose it was.
+**Named at distance zero, and nowhere else.** Standing in it you can simply
+look, so your own Location and the thread you shouted from get
+`Baroness Ophidia shouts: » …`. From one hop out it is `You hear someone
+shout…` exactly as before — which is the half of the old rule that was doing
+the work, because you hear a shout before you find out whose it was.
+
+The name is the **presented** one (`db/lib/presentedIdentity.js`), so
+concealment survives at zero distance too: a hood shouts as `A young man`, a
+Beast as `Beast`. It is `aliasSubject()`'s lower-case form rather than
+`identity.name`, which is Title Case because it doubles as a webhook username
+and would read as somebody actually called Young Man. An identity that fails
+to load falls back to the old anonymous line — erring toward hiding somebody
+who should be visible, never the reverse.
 
 Distance 0 is full size and everything past it is `ambientLine` subtext, the
 same split `/play` makes: the room hears the performance, the street outside
@@ -239,10 +256,43 @@ Conversation and the thread gets the full-size line too, before the loop runs.
 Without that one exception the only room that certainly heard you would be the
 only room that didn't.
 
+**Two things muffle, at two different distances.** A soundproof room is
+*sealed*: nothing leaves the thread. A bound character is *gagged*: the shout
+reaches their own Location and stops there. Both append `, but it's muffled.`
+and both still cost the cooldown; bound inside a soundproof room is sealed,
+the stricter of the two. See `db/lib/shout.js`.
+
+**And some rooms keep it.** A Room may be `soundproof: true` in
+`docs/zones.yaml` (`Room.soundproof`). Shout from inside one and the thread is
+the *whole* delivery: the parent Location channel and every Location in earshot
+get nothing, the BFS is skipped entirely, and the line everyone in the room
+sees gains `, but it's muffled.` — as does the shouter's own acknowledgement.
+It is not a refusal, so it still costs the five-minute cooldown; a hostage who
+has spent their throat on a room nobody can hear has spent it.
+
+Fifteen rooms carry it, and they are the places you would tie somebody up in:
+the Vault, the Oubliette, the Dungeons, the Order Chambers, the Charon, the
+Nook behind the painting, the windowless Operating Theater, the Underquarter
+Basements and Organ Shop, and the cellars and crypts — the Inn's, the Manor's,
+Creekside's Root Cellar, the North Hills Basement, the flooded Village cellar,
+the drowned Marshes Crypt. The Graga Pit deliberately is **not**: the thing
+rumbling under the throne room is supposed to be heard. Neither are the
+Echoing Halls, whose whole description is that sound carries there.
+
+A Conversation inherits the flag from the Room it hangs under, so a private
+thread opened inside the Vault is muffled and one opened out on the open
+Location is not. A Location itself is never soundproof — standing in the street
+outside a vault is not being in the vault.
+
+It is a **shout** boundary, not a sound boundary. The whisper poll still leaks
+Conversation fragments up into the parent Room every fifteen minutes
+(`db/lib/whisperLeak.js`); only `subtle` suppresses that.
+
 **Rate limits.** One shout is up to a couple of dozen REST posts, so the posting
 loop is sequential with every post individually caught, the discipline
 `bot/src/lib/deathSmell.js` documents — never `Promise.all`. On top of that
-there is a 5-minute per-character cooldown, in memory like `/play`'s, and it is
+there is a 5-minute per-character cooldown — an `AuditLog` row, not an in-memory
+Map, so it survives a bot restart and the two faces share one throat — and it is
 **claimed before the loop rather than after**: the loop takes real seconds,
 which is exactly long enough for a second `/shout` to slip past a cooldown
 stamped at the end.
@@ -324,7 +374,6 @@ deleted and files nothing.
 |---|---|---|---|
 | Travel | 🗺️ | `loc:open` | The Location picker (§4) |
 | Move | ⚜️ | `move:open` | The Move modal (§5) |
-| Speak | 🔊 | `say:open` | The Speak picker (§5) |
 
 Tracked on `GameConfig.turnsConsoleChannelId` / `turnsConsoleMessageId`.
 
@@ -349,8 +398,7 @@ parsed by literal `startsWith` + `slice`.
 | `conv:room:{locationId}` | Select | Pick which Room to link the Conversation to, then show the Converse modal |
 | `conv:new:{roomId}` | Modal | Create the Conversation |
 | `move:open` | Button | Show the Move modal |
-| `say:open` | Button | Show the Speak picker |
-| `say:pick` | Select | Pick a destination, then show the Speak modal |
+| `say:open` | Button | Retired — answers with a pointer to `/message` (§5) |
 | `heal:pick:{characterId}` | Select | Clear the chosen afflictions |
 | `edit:open:{messageId}` | Button | Show the Edit-message modal, prefilled |
 | `edit:send:{messageId}` | Modal | Rewrite a proxied message |
@@ -418,7 +466,7 @@ file and you must change it in `interactionCreate.js` too.
 - **Who's here?** (`handleWhosHere`) lists everyone `ALIVE` and standing in
   this Location. Since phase 3 of Chat the rule itself is
   **`db/lib/whosHere.js#whosHere`**, and the handler only speaks the answer —
-  `/play`'s people column reads the same function, so the street and the page
+  `/chat`'s people column reads the same function, so the street and the page
   cannot disagree about who a stranger is. Named characters first (with their `roleTitle` shown to a
   fellow member of the same real faction, same rule the 🔍 inspect gate
   uses), then concealed characters as their alias with an article — "a young
@@ -440,22 +488,19 @@ file and you must change it in `interactionCreate.js` too.
   silently, and writes the `PlayerThread` row (`locationId`, `roomId`) plus a
   `conversation_opened` `AuditLog` entry.
 
-`say:nav` is the value carried by a **group header** option in the Speak
-picker. Discord select menus have no option groups, so headers are ordinary
-options; picking one re-renders the panel unchanged.
-
 ## 5. Modals
 
-Three modals. All need discord.js >= 14.27 for the component types involved:
+Four modals. All need discord.js >= 14.27 for the component types involved:
 `Label` (18) wrapping a `TextInput` (4), `RadioGroup` (21) or `Checkbox` (23),
 plus a bare `TextDisplay` (10) for the `-#` line.
 
 A modal must be shown within 3 seconds of the interaction and **cannot be
 deferred first**. That is why the Move button opens its modal directly — it
 makes the single cheap cutoff check below and falls through to the modal if
-that read fails, since submit checks it again — while Converse and Speak both
-go through a picker first (enumerating Rooms or threads costs API calls), so
-each picker's handler shows the modal with nothing awaited, and every real
+that read fails, since submit checks it again — and why `/message` tests
+speakability before it acks anything, taking the modal path or the refusal but
+never both. Converse still goes through a picker first (enumerating Rooms costs
+API calls), so its handler shows the modal with nothing awaited and every real
 gate runs on submit instead.
 
 ### Move — `move:new` (`bot/src/lib/moveModal.js`)
@@ -518,34 +563,41 @@ no longer asked per-message — it's the standing `Character.concealed` toggle
 while concealed goes out under `concealedAlias(character)` with no extra
 choice to make on submit.
 
-Destinations come from `bot/src/lib/speakTargets.js#listSpeakTargets`, which
-keeps anything that is **both** a tupper channel and one Discord says the
-member may actually post in. That second test is the live answer to every
-narrowcast rule without a second copy of them, so a channel added later
-appears automatically.
+**There is one entry point, `/message`, and the destination is wherever you
+ran it.** `bot/src/lib/speakTargets.js#canSpeakInTarget` is the only question
+asked: does Discord say this member may post here? That is the live answer to
+every narrowcast rule without a second copy of them, so a channel added later
+works automatically.
 
 "May post in" is two different permissions, and conflating them is a bug:
 
 | Target | Needs |
 |---|---|
-| Text / forum channel | `ViewChannel` + `SendMessages` |
+| Text channel | `ViewChannel` + `SendMessages` |
 | Thread | `ViewChannel` + `SendMessagesInThreads` |
 
-The two thread containers are **never** offered as destinations themselves —
-you cannot post a message to a forum channel, and `#private` denies
-`SendMessages` for `@everyone` by design (`CHANNELS.md` §2). Both are walked
-for their threads on `ViewChannel` alone. A private thread additionally
-requires the member to be in it.
+A standing character holds `SendMessagesInThreads` on the Location channel they
+are in, and `locationChannelSpec` **denies** `SendMessages` to `@everyone`
+there. The deny is the part that carries the rule — taking a bit out of an allow
+mask denies nothing, which is why the street stayed typeable for two days
+(`db/lib/zoneChannelSpec.js`). So `/message` opens on a Room thread, a
+Conversation or the zone `#summary` and refuses on the street, which is the rule
+`CHANNELS.md` §2 states.
 
-Grouped Room / Threads / Broadcast, each group prefixed by a header option and
-its entries carrying a group emoji, capped at Discord's 25 options with the
-overflow counted rather than dropped silently. **Every option value must be
-unique** — Discord rejects the whole payload otherwise, and `discord.js` does
-not check this locally, so each group header carries its own `say:nav:{group}`
-value rather than a shared one.
+Run somewhere you cannot speak — a DM, or `#turns` — it answers with a pointer
+rather than a list. The destination is re-checked on submit anyway: an open
+modal outlives its player walking out of the room.
 
-The destination is re-checked on submit: an ephemeral picker outlives its
-player walking out of the room.
+**Retired: the 🔊 button and its destination picker.** The picker enumerated
+every place a player could speak, grouped Room / Threads / Broadcast. It could
+never list a Room thread or a Conversation: it reached threads only through
+their parent Location channel, and that channel stopped being a designated
+tupper channel when Send came off the street on 2026-09-06 (`CHAT.md` §5b), so
+the branch collecting them was unreachable and the THREADS group was always
+empty — the picker offered `#summary` and `#cerberon` and nothing else.
+`say:open` is now a stub answering with a pointer to `/message`, kept only
+because `#turns` is one rolling message and a console posted before the deploy
+keeps a live button for up to a real day.
 
 ### Intercom — `intercom:send:{roomId}` (`bot/src/lib/intercomModal.js`)
 
@@ -657,8 +709,8 @@ long-lived listener for one message. ‡
 
 Every **player** command in §2 now has a web twin in Chat's composer
 (`CHAT.md` §5). Typing `/` at the start of the box opens the same list; the
-registry is `web/app/(app)/play/commands.js`, and each entry lands on a server
-action in `web/app/(app)/play/actions.js`.
+registry is `web/app/(app)/chat/commands.js`, and each entry lands on a server
+action in `web/app/(app)/chat/actions.js`.
 
 That matters for three of them in particular. `/conceal`, `/shout` and `/roll`
 were **guild-only and Discord-only**, which meant a character on the "web only"
@@ -703,7 +755,7 @@ room's own thread, and a thread is only visible to a character entitled to it
 test the same pair: one of `Room.accessTagSlugs` held, or a `RoomGuest` row
 for that room (`db/lib/roomAccess.js#roomAccessKeys`). Without it, anybody
 standing in the street could have let anybody through a door they could not
-open themselves. `web/app/(app)/play/actions.js#privateRoomHere` applies the
+open themselves. `web/app/(app)/chat/actions.js#privateRoomHere` applies the
 identical test, so the members strip never draws a guest list for somebody
 outside the room either.
 
@@ -730,20 +782,20 @@ Two smaller rules on the same pair:
 | `db/lib/placeAffordances.js` | **The affordance catalog** — the label and the predicate for every place-bound button, plus `affordancesFor(prisma, character)` for Chat's place panel. Both row builders below read it, so a new button is one entry |
 | `db/lib/locationAnchorRow.js` | The anchor buttons as Discord component JSON, styled off the catalog's tones |
 | `db/lib/roomStarterRow.js` | A Room starter's buttons, the same way |
-| `db/lib/gates.js` | `toggleGate` / `holdKeyedOpen` — the transactional flip and the 24-hour hold, shared with `/play` |
-| `db/lib/moves.js` | `fileMove` — every gate in front of an `Action` row, shared with `/play` |
-| `db/lib/whosHere.js` | `whosHere` / `whosHereLines` — who is standing here, shared with `/play` |
-| `db/lib/examineLocation.js` | `examineLines` — the Examine readout, read by `/play` |
+| `db/lib/gates.js` | `toggleGate` / `holdKeyedOpen` — the transactional flip and the 24-hour hold, shared with `/chat` |
+| `db/lib/moves.js` | `fileMove` — every gate in front of an `Action` row, shared with `/chat` |
+| `db/lib/whosHere.js` | `whosHere` / `whosHereLines` — who is standing here, shared with `/chat` |
+| `db/lib/examineLocation.js` | `examineLines` — the Examine readout, read by `/chat` |
 | `db/lib/roomAccess.js` | `syncCharacterRoomAccess`, `accessibleRooms`, `heldTagSlugs` — private Room membership |
 | `db/lib/roomGuests.js` | `addRoomGuest` / `removeRoomGuest` / `roomGuests` — the Room half of `/add` and `/remove`, extracted for the web (§6a) |
 | `db/lib/conceal.js` | `toggleConceal` — `/conceal`'s rule, both faces (§6a) |
 | `db/lib/shout.js` | `shoutLine` / `shoutParts` / `shout` — what a shout sounds like at N hops, and who hears it (§6a) |
 | `db/lib/roll.js` | `castDie` — one d6 as a `SYSTEM` archive row beside its Discord post (§6a) |
-| `web/app/(app)/play/commands.js` | The web twin registry Chat's composer reads (§6a) |
+| `web/app/(app)/chat/commands.js` | The web twin registry Chat's composer reads (§6a) |
 | `bot/src/lib/converseModal.js` | The Converse modal |
 | `bot/src/lib/whisperPoll.js` | The 15-minute Room whisper cron |
 | `bot/src/lib/moveConfirm.js` | Resolving a Move |
-| `bot/src/lib/speakModal.js` | The Speak picker and modal |
+| `bot/src/lib/speakModal.js` | The Speak modal |
 | `bot/src/lib/speakTargets.js` | Where a character may speak |
 | `bot/src/lib/interactionGuild.js` | Guild/member resolution for DM-run commands, the GM gate |
 | `bot/src/events/messageReactionAdd.js` | Every reaction |

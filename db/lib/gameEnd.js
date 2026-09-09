@@ -5,6 +5,7 @@
 // caller to send. Ended locks only the clock: late join and every other
 // action keep working until Restart Game.
 
+const { Prisma } = require("@prisma/client");
 const { buildEpilogue, formatEpilogue } = require("./epilogue");
 const { postMessageBatched } = require("./discordRest");
 
@@ -25,22 +26,45 @@ async function endGameInDb(db, { closingNote = null, reason = "gm", actorDiscord
     data: { endedAt, closingNote: note, playerCount: state.playerCount, startedAt: state.startedAt, epilogue },
   });
   await db.auditLog
-    .create({ data: { actorDiscordUserId, actionType: "game_ended", details: { reason, closingNote: note } } })
+    .create({
+      data: {
+        actorDiscordUserId,
+        actionType: "game_ended",
+        // gameId, because a restart wipes the audit log and the turn number
+        // alone cannot say which game a row belonged to.
+        details: { reason, gameId: state.gameId, closingNote: note },
+      },
+    })
     .catch((err) => console.error("game_ended audit failed:", err));
 
-  return { ended: true, epilogue, post: formatEpilogue(epilogue, { number: state.game?.number }) };
+  return { ended: true, epilogue, post: formatEpilogue(epilogue) };
 }
 
 // The undo. The archive stays open — closing it again would re-hide what
-// every player has already seen — and the epilogue stays on the Game row
-// until the next ending overwrites it.
+// every player has already seen.
+//
+// The ENDING itself is withdrawn, though, and it did not used to be: the
+// epilogue and the closing note stayed on the Game row "until the next ending
+// overwrites it". So a resumed game went on running with a full reveal hanging
+// off it — /archive kept rendering "How it ended" over a game that was still
+// being played, which is what a GM sees as the game having ended twice. If the
+// clock is ticking again, the game has not ended, and the reveal has to go
+// with the end stamp rather than outlive it. What the players already read in
+// #turns stands; a Discord post cannot be unsent, and a game that really is
+// over gets a fresh epilogue built at that moment anyway.
 async function resumeGameInDb(db, { actorDiscordUserId = "system" } = {}) {
   const state = await db.gameState.findUnique({ where: { id: 1 } });
   if (!state || state.phase !== "ENDED") return { resumed: false };
-  await db.gameState.update({ where: { id: 1 }, data: { phase: "RUNNING", endedAt: null } });
-  await db.game.update({ where: { id: state.gameId }, data: { endedAt: null } });
+  await db.gameState.update({
+    where: { id: 1 },
+    data: { phase: "RUNNING", endedAt: null, closingNote: null },
+  });
+  await db.game.update({
+    where: { id: state.gameId },
+    data: { endedAt: null, closingNote: null, epilogue: Prisma.DbNull },
+  });
   await db.auditLog
-    .create({ data: { actorDiscordUserId, actionType: "game_resumed", details: {} } })
+    .create({ data: { actorDiscordUserId, actionType: "game_resumed", details: { gameId: state.gameId } } })
     .catch((err) => console.error("game_resumed audit failed:", err));
   return { resumed: true };
 }

@@ -16,8 +16,8 @@ reader.
 
 | Phase | Ready up | Character creation | Turns advance | Moved by |
 |---|---|---|---|---|
-| CLOSED | no | GM/superadmin/Playtest only (the Skip button) | no | the wipe lands here; **Open lobby** |
-| LOBBY | yes (Player or Playtest role) | GM/superadmin/Playtest only | no | **Start Game** |
+| CLOSED | no | GM/superadmin only (the Skip button) | no | the wipe lands here; **Open lobby** |
+| LOBBY | yes (Player or Playtest role) | GM/superadmin only | no | **Start Game** |
 | RUNNING | no | yes (Player role, Cursed rules) | yes | **End Game**, or the bomb |
 | ENDED | no | yes | no | **Resume** |
 
@@ -73,13 +73,41 @@ explainer text anywhere on it — the handbook carries that. Players see the
 ready count and nothing else — no seat counts, no demand, and no starting
 areas (a role row is its name, faction and pitch) — so nobody games the roll.
 
-GMs, superadmins and holders of the **Playtest** role (`PLAYTEST_ROLE_ID`,
-`db/lib/roleIds.js`) see a **Skip to character creation** button
+GMs and superadmins see a **Skip to character creation** button
 (`/character?create=1`), which opens the ordinary wizard in any phase. The
-server gate (`createActions.js#creationOpen`) is the same rule, and a
-playtester also passes the roster check without the Player role — the seat
+server gate (`createActions.js#creationOpen`) is the same rule.
+
+The **Playtest** role (`PLAYTEST_ROLE_ID`, `db/lib/roleIds.js`) does *not* get
+that button. It passes the **roster** check without the Player role — the seat
 exists so a contributor can test creation and play without being seated as a
-GM or a player.
+GM or a player — but it takes the lobby and the roll like anybody else. It used
+to skip the phase gate too, which meant the people most likely to be testing
+the lobby were the one group that never saw it. ‡
+
+### Playtest mode
+
+`GameConfig.playtestModeEnabled`, a switch on `/gm/dev` under **Character
+creation**, runs the game's whole normal shape — every phase, the lobby, the
+roll, creation, turns — for a closed group. With it on, the roster narrows from
+"holds the Player role" to **a GM, a playtester, or a Contributor**
+(`CONTRIBUTOR_ROLE_ID`); superadmins bypass it as they bypass everything. ‡
+
+It exists because the Player role cannot say who a playtest is for: the bot
+hands that role to everyone the moment they join the guild
+(`bot/src/events/guildMemberAdd.js`), so "on the roster" and "in the Discord"
+are the same set. ‡
+
+The switch gates **joining only** — readying up and character creation. Anybody
+who already has a living character keeps playing, so flipping it mid-game
+strands nobody. All three gates read it through one helper,
+`web/lib/discordGuild.js#onRoster`: `lobbyGate()` in `lobbyActions.js`, both
+creation actions in `createActions.js`, and the presentation mirror in
+`character/page.js`. ‡
+
+Somebody turned away by it is told **"Ravenheart Is Not Open Yet"**, not "You
+Are Not On The Roster" (`gate.masked` in `character/page.js`). There is nothing
+for them to apply for, and a closed rehearsal has no reason to announce
+itself. ‡
 
 A role handed out in Discord reaches these surfaces within a minute. The web
 app caches a member's roles for five minutes
@@ -155,8 +183,8 @@ in `after()`, one at a time:
 **You're in. You are the Sheriff.**
 The Town. You start in Town.
 Build your character here: https://ravenheart.quest/character
-The seat is yours until <t:…:F> (<t:…:R>). After that it opens to anyone.
--# Can't make it? Press Decline and the seat goes to somebody else. ‡
+The seat is yours until <t:…:F> (<t:…:R>).
+-# Can't make it? Free the seat up by pressing Decline.
 [ Decline the seat ]
 ```
 
@@ -173,7 +201,16 @@ one-line DM pointing at late join.
 - past `expiresAt`, the entry goes **EXPIRED** — which frees the seat — and
   the player is told late join is open.
 
-`creationWindowHours` is a `GameConfig` knob (default 24).
+`creationWindowHours` is a `GameConfig` knob (default 12).
+
+**Who is mid-window is visible to every GM**, on the Dev Panel's Assignments
+section as **Seats out** (`DEV-PANEL.md` §11b): the ASSIGNED entries with no
+character yet, what is left on each window, and whether the reminder has gone.
+The full lobby roster on the Game section says the same thing, but that section
+is superadmin-only because it also holds Start and Restart Game — so before
+this, nobody but the master could see who had been handed a seat and not taken
+it. The three DMs above are all notices (`db/lib/dmKinds.js`), so they
+deliberately do not appear in the GM inbox.
 
 ## 5. Late join
 
@@ -183,7 +220,7 @@ build, spawn. Open during RUNNING and ENDED to anyone with the Player role.
 
 ## 6. The GM side
 
-`/gm/dev?s=game`: the phase with its stamps and game number; Open lobby / Close
+`/gm/dev?s=game`: the phase with its stamps and the game's short id; Open lobby / Close
 lobby / Start game / End game (with a closing-note box) / Resume; the Preview
 table; and the lobby roster (`LobbyRoster.js`) — who readied, their High and
 their Med/Low counts, opt-ins by public name, whitelist standing, fallback,
@@ -207,22 +244,41 @@ seat tag, the dead marked with their turn. `formatEpilogue` is the `**Game
 Ended**` post to `#turns`; `/archive` renders the same object. Resume undoes
 the phase and leaves the archive open.
 
-`Game` is one row per game (`number`, dates, note, epilogue). `GameState.gameId`
-points at the current one; every `ArchiveEntry` carries `gameId` as a snapshot,
-stamped by `db/lib/archive.js` from a thirty-second memo. **Restart Game keeps
-the transcript**: it snapshots an epilogue onto the old Game if it never got
-one, creates Game N+1, and recreates GameState pointing at it. `/archive` picks
-a game (`ARCHIVE.md`).
+`Game` is one row per game (dates, note, epilogue). **A game is its id** —
+there was a creation ordinal beside it until 2026-09-09, and `ARCHIVE.md`
+§"Identity" is why it went. `GameState.gameId` points at the current one; every
+`ArchiveEntry` carries `gameId` as a snapshot, stamped by `db/lib/archive.js`
+from a thirty-second memo. Restart Game snapshots an epilogue onto the old Game
+if it never got one, creates a fresh Game row, and recreates GameState pointing
+at it. `/archive` picks a game, and `/gm/dev?s=games` lists every game there has
+ever been with a link into each transcript (`ARCHIVE.md`, `DEV-PANEL.md` §11c).
 
 ## 8. What Restart Game does and does not touch
 
-Keeps: `GameConfig` (every knob), `PlayerPreference`, `Game`, `ArchiveEntry`.
+Keeps: `GameConfig` (every knob), `PlayerPreference`.
 Wipes: `LobbyEntry`, and recreates `GameState` (phase CLOSED, new `gameId`).
 Everything else as before (`LAUNCH.md` §2, §4).
 
-`ArchiveEntry` is kept for `/archive` and shown nowhere else: Chat floors
-its feed at the highest seq belonging to a previous game, so `/play` is empty
-after a restart rather than full of the last game (`CHAT.md` §7).
+**The transcript now LEAVES the database**, which is the one thing here that
+changed. Restart Game asks first — keep this game or discard it — and either
+way its `ArchiveEntry` rows go:
+
+- **Discard** takes the rows and the `Game` row with them. Nothing survives.
+  This is the answer for a playtest, and it is the default: twelve dead
+  playtests sat in the `/archive` picker before this existed.
+- **Keep** requires an archive packet to have been written first — the
+  **Archive this game** button, beside Restart Game on `/gm/dev`. The rows
+  still go; the packet in the bucket is what survives, and the `Game` row stays
+  behind as a stub so `/archive` can still show the epilogue and say where the
+  transcript went. Restart Game refuses to keep a game that has no packet.
+
+Read [`ARCHIVE.md`](ARCHIVE.md) before touching any of that. The delete is
+batched outside the main transaction and bounded by the seq the packet reaches
+to, and both of those are load-bearing.
+
+`/chat` is unaffected either way: Chat floors its feed at the highest seq
+belonging to a previous game, so it is empty after a restart rather than full
+of the last game (`CHAT.md` §7).
 
 ## 9. Where the code lives
 
@@ -240,3 +296,7 @@ after a restart rather than full of the last game (`CHAT.md` §7).
 | `web/app/(app)/gm/dev/gameActions.js` | Phase transitions, Preview, hand-set, Start, End, Resume |
 | `web/app/(desk)/gm/dev/{GameControls,AssignmentPreview,LobbyRoster}.js` | The Game section |
 | `bot/src/lib/lobby.js` | The Decline click |
+
+The **Decline the seat** button is answerable on either face — it is drawn in
+the Bascinet pane on `/chat` as well as in the Discord DM (`CHAT.md` §2b),
+which matters here because a player in the lobby has no character yet.

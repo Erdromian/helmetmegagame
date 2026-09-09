@@ -4,7 +4,7 @@ What a body is once nobody is using it. This doc owns `db/lib/corpses.js`,
 `db/lib/corpseMint.js`, `db/lib/corpseFollow.js`, `db/lib/corpseRotPass.js`,
 `db/lib/headstone.js`, `bot/src/lib/deathSmell.js`, the Butcher/Bury/Engrave
 actions, and `Tag.requirementItems`. Related: `CHARACTERS.md` (death and the
-Cursed role), `CARRY.md` (room stashes and the reach rule), `REQUESTS.md`
+the curse), `CARRY.md` (room stashes and the reach rule), `REQUESTS.md`
 (the three request types), `BREWING.md` (the two enforced ingredients).
 
 ## 1. The one idea
@@ -27,6 +27,60 @@ The alternative — dumping the inventory on the floor — was considered and
 dropped. It would have made `LOOT_CHARACTER` pointless for corpses while
 leaving it necessary for the bound and the helpless, which is two mechanisms
 for one verb.
+
+### What a body weighs
+
+A corpse used to weigh nothing, so a character could walk a pile of them across
+the map while a Graga's corpse (75 lb) had always been real cargo.
+`db/lib/corpseWeight.js` gives one two parts:
+
+**The body.** 50 lb for a person, which is under the 71 lb base cap on purpose
+— carrying somebody costs you most of your back and still lets you walk with
+your own kit. It sits between the spindly nekker at 35 and the skinless at 55.
+Build bends it, as multipliers so they compose: Giant ×1.5 (75, the Graga's
+number), Fat ×1.3, Frail ×0.8, Dwarf ×0.7. A frail dwarf is 28 lb and nothing
+goes under 20. **Strong is deliberately not on that list** — muscle does weigh
+more, but the difference is small next to these and quietly taxing a trait
+somebody spent points on is a poor way to buy realism.
+
+**Their gear**, because of §1: a corpse is a handle to a sheet, not a
+container, and their belongings never move off the `Character` row. So whoever
+hauls the body hauls the plate armour still on it. A body in full harness is
+105 lb, which is a hair under the 1.5× hard stop — you have to strip it before
+you can carry it, and stripping drops it back to 50. That is the intended
+lesson rather than an accident of the numbers.
+
+The figure is **stored** on the corpse Tag's `weightLbs` rather than computed
+at read time: `db/lib/carry.js#rowWeight` reads that one column and every
+readout on both faces flows from it, so making one tag's weight dynamic would
+have meant threading a dead character's sheet through all of them, client
+components included. It is written at mint and recomputed by
+`refreshCorpseWeight` whenever the body is looted.
+
+## 1a. Gibbing — the death that leaves no body
+
+Three deaths in the game vaporise a character outright: the Thanati **Rite of
+Sacrifice**, the **Rite of Judgement**, and the **bomb**. They pass
+`{ gib: true }` to `applyDeathToRow`, and that option is the whole definition:
+
+- **No corpse is minted at all.** Not minted-then-deleted, which is what the
+  two rites used to do — simply never made. So there is nothing to loot, carry,
+  butcher, bury or engrave, and `corpseFollow` has no tag to follow.
+- **Every `CharacterTag` is deleted** and one **Gibbed** tag ("Vaporized.")
+  replaces them. Their goods went up with them.
+- **The sheet survives.** The row stays `DEAD` like any other, because the
+  end-of-game reveal and the curse rule both read live `Character` rows.
+
+**The one thing the wipe must not take is an antagonist seat tag.**
+`db/lib/epilogue.js` reads seats straight off live rows, and the bomb gibs
+everyone above ground and *then* ends the game — so a blind delete would leave
+the game's own ending naming nobody. `SEAT_TAG_SLUGS` is excluded from the
+delete for that reason, and it is load-bearing rather than tidy.
+
+**A gibbed player is cursed permanently.** The curse lifts when somebody buries
+your body (§7), and a gib leaves no body to bury. That is the intended reading
+of being gone — but it is the only death in the game with no way out, so it is
+worth knowing before pricing anything against it.
 
 ## 2. Why the follow reconcile is pull-based
 
@@ -112,7 +166,7 @@ obligations here are negative, and they matter: never pin the line, and never
 record its id as an anchor. Do neither and it clears itself every Dawn.
 
 An unburied corpse also costs the living: at turn close, everyone ending the
-turn in a Location that still holds a rotten body takes +5 fear (`FEAR.md`).
+turn in a Location that still holds a rotten body takes −5 mood (`MOOD.md`).
 
 ## 6. Butcher
 
@@ -165,7 +219,7 @@ callers use it.
 **Bury needs the actual body.** It used to match a typed first name against the
 dead in your zone; now you pick a corpse you hold or can reach, which is
 strictly tighter (Location-grain, and you have to have it). It consumes the
-corpse tag, stamps `buriedAt`, and lifts the Cursed role as before. A monster
+corpse tag and stamps `buriedAt`, which is what lifts the curse (`db/lib/curse.js`). A monster
 corpse is refused — "There's no soul in that one."
 
 **Engrave is the answer to a body nobody can find**, so it is the one action
@@ -183,6 +237,13 @@ between a mourner and freeing the wrong soul.
 The headstone mint is an **upsert**: two mourners can engrave the same person,
 and the second gets a grant of the row the first made. One stone; more than one
 person can have helped.
+
+**Both say so where they happened.** A burial posts `{name} was buried.` and an
+engraving `A headstone was engraved for {name}.` into the actor's own Location
+channel, as ambient subtext (`speakHere` in `requestActions.js`, over the shared
+`speakAtSite`/`ambientLine` pair). The Location is the actor's in both cases —
+for Engrave that is the only sensible one, since the body may be anywhere and
+the carving is not.
 
 ## 8. `Tag.requirementItems` — the enforced ingredient
 

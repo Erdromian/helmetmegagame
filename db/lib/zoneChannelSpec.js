@@ -19,7 +19,7 @@
 // LOCATION_MEMBER_ALLOW below is the bit set that used to sit on the role,
 // now handed to one member at a time by applyLocationMoveSideEffects.
 const { spectatorOverwrite } = require("./spectatorAccess");
-const { cursedOverwrite } = require("./cursedAccess");
+const { ghostOverwrite } = require("./ghostAccess");
 
 const CHANNEL_TYPE_TEXT = 0;
 const CHANNEL_TYPE_CATEGORY = 4;
@@ -97,7 +97,7 @@ function baseOverwrites(guildId, zoneGmRoleId, { spectators = true } = {}) {
     { id: guildId, type: 0, deny: (PERM_VIEW_CHANNEL | PERM_ATTACH_FILES).toString() },
     ...roleAllow(zoneGmRoleId, PERM_VIEW_CHANNEL | PERM_ATTACH_FILES),
     ...spectatorOverwrite({ visible: spectators }),
-    ...cursedOverwrite(),
+    ...ghostOverwrite(),
   ];
 }
 
@@ -146,8 +146,16 @@ function zoneChannelSpec(zone, { spectators = true } = {}) {
 // CHANNELS.md §2). A Location channel is the street's SCENERY now — arrivals,
 // smells, the turret, the noticeboard, the turn line — and talk belongs in a
 // Room thread, a Conversation or the zone summary, all of which are a scene
-// somebody chose to be in. The web face agrees: /play draws no composer on a
+// somebody chose to be in. The web face agrees: /chat draws no composer on a
 // Location.
+//
+// But taking a bit OUT OF AN ALLOW DENIES NOTHING. Discord resolves a channel
+// from the guild-level @everyone permissions first, and @everyone carries Send
+// Messages guild-wide, so for two days every occupant of every Location channel
+// could still type there — unproxied and unarchived, under their real Discord
+// name, because isDesignatedTupperChannel had stopped watching the channel. The
+// deny that actually carries the rule is on @everyone in locationChannelSpec
+// below, the same shape #turns, the spectator seat and the ghost seat all use.
 //
 // One `npm run db:doctor -- --apply` rewrites every existing occupant's
 // overwrite to this bit set; the occupancy check compares the allow bits, not
@@ -159,6 +167,13 @@ const LOCATION_MEMBER_ALLOW = PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES_IN_THREADS 
 // Occupant overwrites are written by the move pipeline and reconciled by the
 // channel doctor's occupancy check — never by this spec, which is exactly
 // why managedOverwriteIds() must never learn to delete a member target.
+//
+// The @everyone deny is what makes the street quiet. SEND_MESSAGES governs the
+// top level only — SEND_MESSAGES_IN_THREADS is a separate bit, so a Room thread
+// under this channel still takes an occupant's words. The GM: <Zone> allow
+// above outranks it (Discord applies role allows after the @everyone deny), so
+// a GM still types here; the bot bypasses overwrites outright, which is why the
+// arrivals and the turn line keep landing.
 function locationChannelSpec(location, zoneGmRoleId = null, { spectators = true } = {}) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const base = baseOverwrites(guildId, zoneGmRoleId, { spectators });
@@ -173,7 +188,11 @@ function locationChannelSpec(location, zoneGmRoleId = null, { spectators = true 
       {
         id: guildId,
         type: 0,
-        deny: (PERM_CREATE_PUBLIC_THREADS | PERM_CREATE_PRIVATE_THREADS).toString(),
+        deny: (
+          PERM_SEND_MESSAGES |
+          PERM_CREATE_PUBLIC_THREADS |
+          PERM_CREATE_PRIVATE_THREADS
+        ).toString(),
       },
     ].reduce(mergeOverwrite, base),
   };

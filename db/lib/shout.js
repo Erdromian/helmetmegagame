@@ -1,14 +1,9 @@
-// TODO(rewire): shout() below is a faithful extraction of
-// bot/src/events/interactionCreate.js#handleShoutCommand (around lines
-// 1909-2008 at 2f4f79ca), minus the Discord posting loop, which stays with
-// its caller. The bot still runs its own copy and its own in-memory cooldown
-// Map; it should call shout() instead and post the `heard` lines it hands
-// back. Same gates, in the same order, with the same refusal sentences.
-//
-// One difference the rewiring settles: the bot's cooldown lives in a Map that
-// a restart empties and that the web process could never share, so this one is
-// a row in AuditLog instead — there is no timestamp column on Character to put
-// it in, and this batch adds no migration.
+// The rewiring the old TODO here asked for is done: bot/src/events/
+// interactionCreate.js#handleShoutCommand calls shout() below instead of
+// keeping its own copy of the gates, and its in-memory cooldown Map is gone.
+// The cooldown is an AuditLog row instead — there is no timestamp column on
+// Character to put it in — so it now survives a bot restart and is shared with
+// the web, which a process-local Map could never be.
 
 // What a shout sounds like from N places away.
 //
@@ -18,14 +13,26 @@
 //
 // The shape of the rule is that distance takes the words away before it takes
 // the direction away. You always learn which way to run. You stop learning
-// what was said. Nobody ever learns WHO shouted, at any distance including
-// zero — which is what lets a concealed character yell without unmasking.
+// what was said.
+//
+// You learn WHO shouted only at distance zero, where you are standing in it and
+// could simply look. And it is the PRESENTED name (db/lib/presentedIdentity.js),
+// so a hood shouts as "a young man" and a Beast as "Beast" — concealment still
+// holds, in the room and everywhere past it. From one hop out nobody is named
+// at all, which is the half of the old rule that was doing the work.
 
 const { ambientLine } = require("./ambientLine");
 const { soundRange } = require("./locationGraph");
 const { loadVoiceState } = require("./say");
-const { placeKeyForLocation } = require("./placeKey");
+const { placeKeyForLocation, parsePlaceKey } = require("./placeKey");
 const { muffle } = require("./muffle");
+const {
+  CONCEALMENT_TAG_FIELDS,
+  concealmentFrom,
+  forcedNameFrom,
+  presentedIdentity,
+} = require("./presentedIdentity");
+const { aliasSubject } = require("./concealedIdentity");
 
 // How much is lost at each remove. Index IS the hop count, so the table reads
 // off the distance directly; index 0 is never reached, because your own
@@ -40,12 +47,17 @@ const MUFFLE_BY_DISTANCE = [0, 0, 0.4];
 // The line one Location gets. `viaName` is the hearer's own neighbour toward
 // the noise, and is null only at distance 0 (where you are standing in it).
 //
+// `shouterName` and `muffled` are both distance-0 facts and both ignored
+// anywhere else — a soundproof room posts nothing past its own thread, and
+// nobody outside it is told a name. They ride in an options bag rather than as
+// two more positionals so the three-argument calls elsewhere stay honest.
+//
 // Distance 0 is FULL SIZE and everything beyond it is `-#` subtext — the same
 // split /play already makes, where the room hears the performance and the
 // street outside only notices it. A shout in your own street is not scenery.
-function shoutLine(text, distance, viaName) {
-  if (distance === 0) return `You hear someone shout: » ${text}`;
-  const parts = shoutParts(text, distance, viaName);
+function shoutLine(text, distance, viaName, options = {}) {
+  const parts = shoutParts(text, distance, viaName, options);
+  if (distance === 0) return parts.text;
   return ambientLine(parts.text, parts.lines);
 }
 
@@ -61,8 +73,16 @@ function shoutLine(text, distance, viaName) {
 // is not character-for-character the same static as the Discord copy. That is
 // deliberate: both are "you missed most of it", and neither is the canonical
 // one to diff the other against.
-function shoutParts(text, distance, viaName) {
-  if (distance === 0) return { text: `You hear someone shout: » ${text}`, lines: [] };
+function shoutParts(text, distance, viaName, { shouterName = null, muffled = false } = {}) {
+  if (distance === 0) {
+    // No name is the FALLBACK, not a special case: an identity that failed to
+    // load leaves the old anonymous line standing, which errs toward hiding
+    // somebody who should be visible rather than the other way round.
+    const said = shouterName ? `${shouterName} shouts: » ${text}` : `You hear someone shout: » ${text}`;
+    // Under four words, so no ‡ — and it trails player-typed text, where a
+    // mark would read as part of the shout.
+    return { text: muffled ? `${said}, but it's muffled.` : said, lines: [] };
+  }
 
   const where = viaName ? ` from the direction of ${viaName}` : " somewhere nearby";
 
@@ -75,6 +95,92 @@ function shoutParts(text, distance, viaName) {
 
 // ---------------------------------------------------------------- the shout
 
+// What the room is told to call the shouter.
+//
+// Everything concealment-shaped is already decided by presentedIdentity(); the
+// one choice left here is WHICH string a hood gets. `identity.name` is Title
+// Case ("Young Man") because it is a webhook username; mid-sentence that reads
+// as somebody actually called Young Man, so a hood takes aliasSubject()'s "A
+// young man" instead. A forced name (Beast) and a real name both come straight
+// off the identity — those are names, and they read as names.
+//
+// Pure, and exported for the tests: the whole feature rests on this one
+// choice, and it should be pinned somewhere that needs no database.
+function shouterNameFor(character, identity) {
+  if (!identity) return null;
+  if (identity.concealed) return aliasSubject(character ?? {});
+  return identity.name || null;
+}
+
+// The columns presentedIdentity() reads, plus the tags it resolves against.
+// Modelled on db/lib/whosHere.js#PRESENT_SELECT minus the Role and Faction
+// halves, which a shout has no business showing — hearing somebody yell tells
+// you their name, not who they answer to.
+const SHOUTER_SELECT = {
+  id: true,
+  name: true,
+  age: true,
+  gender: true,
+  concealed: true,
+  updatedAt: true,
+  tags: {
+    where: {
+      OR: [{ tag: { forcedName: { not: null } } }, { equipped: true, tag: { concealsIdentity: true } }],
+    },
+    select: { equipped: true, tag: { select: { forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
+  },
+};
+
+// The shouter's own row, re-read here rather than trusted from the caller. The
+// web's actor() and the bot's select carry neither age/gender/concealed nor the
+// tags, and growing both call sites is exactly the failure CONCEALMENT_TAG_FIELDS
+// warns about: miss one and concealment stops working at that surface only.
+//
+// Any failure returns null, which shoutParts renders as the old anonymous line.
+async function loadShouterName(prisma, characterId) {
+  try {
+    const row = await prisma.character.findUnique({ where: { id: characterId }, select: SHOUTER_SELECT });
+    if (!row) return null;
+    const identity = presentedIdentity(row, {
+      forcedName: forcedNameFrom(row.tags),
+      concealment: concealmentFrom(row.tags),
+    });
+    return shouterNameFor(row, identity);
+  } catch (err) {
+    console.error("Shout identity load failed:", err.message ?? err);
+    return null;
+  }
+}
+
+// Does this place eat a shout?
+//
+// A Room may be `soundproof` (docs/zones.yaml), and a Conversation inherits it
+// from the Room it hangs under — PlayerThread.roomId is nullable, so one held
+// out on the open Location inherits nothing, which is right.
+//
+// A Location itself never is. Standing in the street outside a vault is not
+// being in the vault, and a shout there should carry the way any other does.
+async function soundproofAt(prisma, placeKey) {
+  const here = parsePlaceKey(placeKey);
+  if (!here) return false;
+  try {
+    if (here.kind === "room") {
+      const room = await prisma.room.findUnique({ where: { id: here.id }, select: { soundproof: true } });
+      return room?.soundproof === true;
+    }
+    if (here.kind === "conv") {
+      const conv = await prisma.playerThread.findUnique({
+        where: { id: here.id },
+        select: { room: { select: { soundproof: true } } },
+      });
+      return conv?.room?.soundproof === true;
+    }
+  } catch (err) {
+    console.error("Shout soundproof lookup failed:", err.message ?? err);
+  }
+  return false;
+}
+
 // Five minutes between shouts, per character. The bot's number.
 const SHOUT_COOLDOWN_MS = 5 * 60_000;
 
@@ -86,19 +192,29 @@ const SHOUT_ACTION = "shout";
 
 // Who hears it, and what they hear.
 //
-// `character` needs { id, name, locationId, discordUserId }. Returns
+// `character` needs { id, locationId, discordUserId }; the name comes off a
+// fresh read (loadShouterName), not off this row. `placeKey` is where the
+// shout was MADE — the thread, when it was made in one — and is the only way
+// this can tell a vault from the street outside it. Returns
 //
-//   { ok: true, heard: [{ locationId, placeKey, distance, viaName, line,
-//                         discordChannelId }] }
+//   { ok: true, muffled,
+//     here:  { line, scene: { text, lines } },
+//     heard: [{ locationId, placeKey, name, distance, viaName, line, scene,
+//               discordChannelId }] }
 //
 // or { ok: false, error, retryAfter? } — `retryAfter` in seconds, for a
 // caller that wants to count it down rather than print the sentence.
 //
-// The list is ordered by distance, nearest first, and includes the shouter's
-// own Location at distance 0. Posting it — to Discord, to the archive, or to
-// both — is the caller's half: the bot posts to channels, the web writes a
-// scene row per place AND posts, because the outbox never carries a SYSTEM row.
-async function shout(prisma, character, text) {
+// `here` is the distance-0 rendering and is ALWAYS present, even when `heard`
+// is empty. In the ordinary case it duplicates heard[0]; from inside a
+// soundproof room it is the only thing there is, because nothing leaves the
+// thread. Callers post it into the room they are standing in and then walk
+// `heard`, which is already ordered by distance, nearest first.
+//
+// Posting is the caller's half either way: the bot posts to channels, the web
+// writes a scene row per place AND posts, because the outbox never carries a
+// SYSTEM row.
+async function shout(prisma, character, text, { placeKey = null } = {}) {
   const body = String(text ?? "").trim();
   if (!body) return { ok: false, error: "Say something." };
   // 300, the option's own maximum. This goes into a couple of dozen channels
@@ -106,17 +222,19 @@ async function shout(prisma, character, text) {
   // of blocks is not a message anybody reads.
   if (body.length > 300) return { ok: false, error: "A shout is 300 characters at the most. ‡" };
 
-  if (!character?.id) return { ok: false, error: "You don't have a living character. ‡" };
+  if (!character?.id) return { ok: false, error: "You don't have a living character." };
   if (!character.locationId) return { ok: false, error: "You're nowhere." };
 
-  // SPEAK, not ACT — and that distinction is the whole point of this gate.
-  // {tag:bound} blocks acting but never speech, so a hostage can still yell
-  // for help, which is the one thing being tied up ought to leave you.
-  // Checked BEFORE the cooldown is claimed below: a refused shout must not
-  // burn the throat timer.
+  // SHOUT, not ACT and not SPEAK — and those distinctions are the whole point
+  // of this gate. {tag:bound} blocks acting but never the voice, so a hostage
+  // can still yell for help, which is the one thing being tied up ought to
+  // leave you — it only stops the yell CARRYING, further down, and that is a
+  // muffle rather than a refusal; {tag:mute} is the mirror of it, talking
+  // normally and refused only here. Checked BEFORE the cooldown is claimed
+  // below: a refused shout must not burn the throat timer.
   const voice = await loadVoiceState(prisma, character.id);
-  if (voice.block) {
-    return { ok: false, error: `You can't get the words out — you're ${voice.block.name}. ‡` };
+  if (voice.shoutBlock) {
+    return { ok: false, error: `You can't get the words out — you're ${voice.shoutBlock.name}. ‡` };
   }
 
   const last = await prisma.auditLog
@@ -137,10 +255,40 @@ async function shout(prisma, character, text) {
     };
   }
 
+  // Two different things muffle a shout, and they are not the same distance.
+  //
+  //   sealed — the walls hold it (a soundproof Room). Nothing leaves the
+  //            thread at all, not even into the street the door opens onto.
+  //   gagged — {tag:bound}. The yell happens and the people standing with you
+  //            hear it; it simply does not carry past where you are. Tied up
+  //            still is not a refusal (COMMANDS.md §2d), and somebody who can
+  //            SEE you being bound can obviously hear you — so this takes the
+  //            hops, never the room.
+  //
+  // Neither is a gate. Everything above this point can still refuse; nothing
+  // below it does, because a muffled shout is a shout that happened and it
+  // costs the throat like any other.
+  const sealed = await soundproofAt(prisma, placeKey);
+  const gagged = voice.shoutMuffled === true;
+  const muffled = sealed || gagged;
+  const shouterName = await loadShouterName(prisma, character.id);
+
+  // The room you are standing in, rendered once. Named, and told about the
+  // walls if there are any.
+  const here = {
+    line: shoutLine(body, 0, null, { shouterName, muffled }),
+    scene: shoutParts(body, 0, null, { shouterName, muffled }),
+  };
+
   // WHO hears it, before the cooldown is claimed below. Every other refusal in
   // this function already came first for the same reason: a shout that is
   // turned away must not cost the shouter five minutes of throat.
-  const range = await soundRange(prisma, character.locationId);
+  //
+  // Skipped entirely when the room is soundproof: soundRange is a BFS across
+  // the whole Location graph, and there is nowhere for the answer to go. A gag
+  // asks the same BFS for nothing but its origin (maxHops 0), rather than
+  // walking three hops out and throwing the rest away.
+  const range = sealed ? [] : await soundRange(prisma, character.locationId, gagged ? 0 : undefined);
   const heard = range.map((place) => ({
     locationId: place.locationId,
     placeKey: placeKeyForLocation(place.locationId),
@@ -148,15 +296,18 @@ async function shout(prisma, character, text) {
     discordChannelId: place.discordChannelId,
     distance: place.distance,
     viaName: place.viaName,
-    line: shoutLine(body, place.distance, place.viaName),
+    line: shoutLine(body, place.distance, place.viaName, { shouterName, muffled }),
     // For db/lib/scene.js, which stores the pieces rather than the rendering.
-    scene: shoutParts(body, place.distance, place.viaName),
+    scene: shoutParts(body, place.distance, place.viaName, { shouterName, muffled }),
   }));
 
   // Nobody at all is not an error the player can do anything about, but it is
   // still worth saying rather than answering "you shout" into a void. Still
   // ahead of the claim: an empty street is not a shout that happened.
-  if (heard.length === 0) return { ok: false, error: "There's nobody here to hear it. ‡" };
+  //
+  // The `!muffled` guard is load-bearing. A soundproof room empties `heard` by
+  // design, and without it every single muffled shout would refuse here.
+  if (!muffled && heard.length === 0) return { ok: false, error: "There's nobody here to hear it. ‡" };
 
   // The cooldown, claimed once the shout is certain — and BEFORE the caller's
   // posting loop, not after: that loop is a couple of dozen REST calls and
@@ -175,12 +326,14 @@ async function shout(prisma, character, text) {
         actionType: SHOUT_ACTION,
         targetCharacterId: character.id,
         turnId: openTurn?.id ?? null,
-        details: { locationId: character.locationId, text: body },
+        details: { locationId: character.locationId, text: body, placeKey, muffled, sealed, gagged },
       },
     })
     .catch((err) => console.error("Shout audit log failed:", err.message ?? err));
 
-  return { ok: true, heard, line: "You shout." };
+  // No ‡ on the muffled ack either: it is the same four words the room is
+  // shown, and marking one copy and not the other would be worse than neither.
+  return { ok: true, muffled, here, heard, line: muffled ? "You shout, but it's muffled." : "You shout." };
 }
 
-module.exports = { shoutLine, shoutParts, shout, SHOUT_COOLDOWN_MS };
+module.exports = { shoutLine, shoutParts, shouterNameFor, shout, SHOUT_COOLDOWN_MS };

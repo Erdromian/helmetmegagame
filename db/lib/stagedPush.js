@@ -66,7 +66,7 @@ class StagedZoneError extends Error {}
 // One transaction per row, never one around the batch: one bad row must not
 // roll back a hundred good ones. Returns what the row actually moved, for the
 // appliedEffect snapshot.
-async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
+async function applyOneStagedEffect(prisma, row, turn) {
   return prisma.$transaction(async (tx) => {
     // The claim IS the double-apply guard: a resumed pass re-selects
     // appliedAt: null, so this updateMany comes back 0 for anything the
@@ -137,7 +137,6 @@ async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
         ops,
         tagsById,
         openTurn: { ...turn, number: turn.number + 1 },
-        equipSlots,
       });
     }
 
@@ -175,8 +174,7 @@ async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
   });
 }
 
-async function runStagedPushPass(prisma, turn, config) {
-  const equipSlots = config?.equipSlots ?? 6;
+async function runStagedPushPass(prisma, turn) {
   const failures = [];
 
   // ── 1. GM-staged effects ─────────────────────────────────────────────────
@@ -192,7 +190,7 @@ async function runStagedPushPass(prisma, turn, config) {
   });
   for (const row of stagedEffects) {
     try {
-      const snapshot = await applyOneStagedEffect(prisma, row, turn, equipSlots);
+      const snapshot = await applyOneStagedEffect(prisma, row, turn);
       if (snapshot) {
         effectsApplied += 1;
         if (snapshot.location) {
@@ -256,10 +254,13 @@ async function runStagedPushPass(prisma, turn, config) {
   // decided at submit, this pass just delivers the news. Every CONFIRMED
   // Gambit still unpaid this turn qualifies.
   // A lesson's Gambit is excluded: the lesson pass (db/lib/lessonPass.js)
-  // already told the learner the die AND what it did, in one line.
+  // already told the learner the die AND what it did, in one line. A
+  // research Gambit is excluded for the same reason: db/lib/researchPass.js
+  // already told the researcher the die and what it turned up.
   const gambitRollNotices = [];
   for (const action of unapplied) {
     if ((action.gmNotes ?? "").includes("auto:lesson")) continue;
+    if ((action.gmNotes ?? "").includes("auto:research")) continue;
     if (action.moveKind === "GAMBIT" && action.diceRoll != null && action.character?.discordUserId) {
       gambitRollNotices.push({
         discordUserId: action.character.discordUserId,

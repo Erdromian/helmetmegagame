@@ -386,7 +386,6 @@ documents:
       | {tag:graga-sweat} | Brewing (Skilled) | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
       | {tag:invisibility-potion} | Brewing (Skilled) | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
       | {tag:dreamers-draught} | Brewing (Skilled) | 6 | {tag:skinless-brain} | butchered from a {tag:skinless-corpse} |
-      | {tag:succubus-draught} | Brewing (Skilled) | 8 | {tag:nekker-pheromones} | butchered from a {tag:nekker-corpse} |
       | {tag:pure-luck} | Brewing (Skilled) | 0 | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
       | {tag:raven-draught} | Brewing (Skilled) | 2 | {tag:ravens-eye} | foraged — GM-granted until the loot pass wires it |
       | {tag:honeyed-cakes} | Cooking (Skilled) | 3 | {tag:honey} | the Depot's shelf, 4 ⬢ |
@@ -402,7 +401,7 @@ documents:
 
       The {tag:lavish-meal} also takes {tag:honey} as an unlisted delicacy — a cook holding a jar sees the option; the public paper names tea, sweets and fish roe, but never honey. ‡
 
-      Mechanics a GM adjudicates or should know: the {tag:blessed} status a {tag:chrism} grants blocks Break-family grants outright and halves fear gains for 3 turns; an equipped {tag:heartforged-blade} zeroes fear gains and fights as Exceptional; a held {tag:musk-lure} is auto-spent to negate its holder's first cave TROUBLE; an equipped {tag:minted-charm} adds +1 to Learn Skill rolls; a {tag:death-mask} can be taken ONCE per corpse — the body's description says when a face is gone — and the finished mask is named for the dead. ‡
+      Mechanics a GM adjudicates or should know: the {tag:blessed} status a {tag:chrism} grants blocks Break-family grants outright and halves everything that sinks the mood for 3 turns; an equipped {tag:heartforged-blade} stops the mood sinking at all and fights as Exceptional; a held {tag:musk-lure} is auto-spent to negate its holder's first cave TROUBLE; an equipped {tag:minted-charm} adds +1 to Learn Skill rolls; a {tag:death-mask} can be taken ONCE per corpse — the body's description says when a face is gone — and the finished mask is named for the dead. ‡
 
   # The Demoness threat's own brief (db/lib/threats.js). Assigned by the
   # Demoness tag, which is also what unlocks the hidden Demoness tag

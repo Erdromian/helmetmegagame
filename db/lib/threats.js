@@ -95,7 +95,7 @@ const THREATS = [
     // /gm/dev/characters/[id] still shows up.
     seatTagSlug: "demoness",
     zone: "Fortress",
-    // Rough Camper: she sleeps where she hunts (docs/systemdocs/FEAR.md).
+    // Rough Camper: she sleeps where she hunts (docs/systemdocs/MOOD.md).
     assign: { tagPoints: 7, tagSlugs: ["demoness", "hungerless", "beautiful", "rough-camper"] },
     spawn: {
       gender: "WOMAN",
@@ -115,7 +115,7 @@ const THREATS = [
     assignable: true,
     seatTagSlug: "judge",
     zone: "Town, or Cave",
-    // Nothing out there frightens him, and little else does (FEAR.md).
+    // Nothing out there frightens him, and little else does (MOOD.md).
     assign: { tagPoints: 17, tagSlugs: ["cruel", "judge", "rough-camper", "outsider", "brave"] },
     spawn: {
       gender: "MAN",
@@ -185,9 +185,9 @@ const THREATS = [
   },
   // THE TRIBUNAL. Both carry `spawn.locationSlug`, which nothing else does:
   // the seat knows where its own shuttle puts down, so a GM offering one does
-  // not have to remember. Black Pines is the corner the map already describes
-  // as dense enough that "sound does not carry, neither do shouts", and it
-  // borders both crossings into the Marshes.
+  // not have to remember. The Fracturing Waterway is the busiest node in the
+  // Hills — an open bridge, four ways out, both crossings into the Marshes.
+  // They put down in plain sight rather than in a corner, on purpose.
   {
     slug: "tribunal-ordinator",
     name: "Tribunal Ordinator",
@@ -215,7 +215,7 @@ const THREATS = [
     spawn: {
       gender: "NEUTRAL",
       roleSlug: "tribunal-ordinator",
-      locationSlug: "hills-black-pines",
+      locationSlug: "hills-waterway",
       resources: 8,
       tagPoints: 10,
     },
@@ -244,7 +244,7 @@ const THREATS = [
     spawn: {
       gender: "NEUTRAL",
       roleSlug: "tribune",
-      locationSlug: "hills-black-pines",
+      locationSlug: "hills-waterway",
       resources: 8,
       tagPoints: 10,
     },

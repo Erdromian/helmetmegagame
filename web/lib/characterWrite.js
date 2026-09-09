@@ -24,7 +24,7 @@ import {
   validateTagOps as validateTagOpsDb,
   applyTagOpsInTx as applyTagOpsInTxDb,
 } from "@lifeweb/db/lib/tagOps";
-import { clampFear } from "@lifeweb/db/lib/fear";
+import { clampMood } from "@lifeweb/db/lib/mood";
 import { UserError } from "@/lib/actionResult";
 import { dynastyLastName } from "@/lib/dynasty";
 
@@ -48,7 +48,7 @@ export const EDITABLE_FIELDS = [
   "isTreasurer",
   "resources",
   "tagPoints",
-  "fear",
+  "mood",
   "turnPingOptIn",
 ];
 
@@ -180,9 +180,9 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
   }
 
   if ("resources" in picked) data.resources = intOrNull(picked.resources) ?? 0;
-  // The fear dial is 0–100 by definition (docs/systemdocs/FEAR.md); the
+  // The mood dial is +64 … −100 by definition (docs/systemdocs/MOOD.md); the
   // dial's own clamp, so the rounding rule lives in one place.
-  if ("fear" in picked) data.fear = clampFear(Number(picked.fear));
+  if ("mood" in picked) data.mood = clampMood(Number(picked.mood));
   // tagPoints is allowed to go negative on purpose — clamping it at 0 would
   // let a broke player take a drawback's points for free (CHARACTERS.md).
   if ("tagPoints" in picked) data.tagPoints = intOrNull(picked.tagPoints) ?? 0;

@@ -19,6 +19,7 @@ const { applyLocationMoveSideEffects } = require("@lifeweb/db/lib/locationMove")
 const { putChannelOverwrite } = require("@lifeweb/db/lib/discordRest");
 const { LOCATION_MEMBER_ALLOW } = require("@lifeweb/db/lib/zoneChannelSpec");
 const { sendDm } = require("@lifeweb/db/lib/dm");
+const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 
 // The gateway half of the Travel flow. Every rule and every database write
 // lives in db/lib/locationTravel.js so the web app runs the identical ones;
@@ -82,7 +83,7 @@ function buildLocationSelectRow(locations, from) {
         description: (from
           ? location.zoneId === from.zoneId
             ? "Same zone"
-            : `Into ${location.zone?.name ?? "another zone"} — free, or your Move and a day's walk ‡`
+            : `Into ${location.zone?.name ?? "another zone"} — free, or costs a Move`
           : `${location.zone?.name ?? "Somewhere"} ‡`
         ).slice(0, 100),
       })),
@@ -90,7 +91,7 @@ function buildLocationSelectRow(locations, from) {
   return new ActionRowBuilder().addComponents(menu);
 }
 
-// Who you are taking with you — the Discord twin of the party rack on /play.
+// Who you are taking with you — the Discord twin of the party rack on /chat.
 // Null when nobody here can be brought: an empty select menu is rejected by
 // Discord, and a disabled one just asks a question with no answer.
 //
@@ -153,7 +154,12 @@ async function applyBring(mover, pickedIds, turn) {
       }
       continue;
     }
-    if (await attach(prisma, mover.id, id)) out.attached.push(candidate.name);
+    // FORCED is taken rather than agreed with, so a leader already holding
+    // the column is not a reason to refuse — the same call the web's
+    // bringAlong makes (db/lib/escort.js#attach).
+    if (await attach(prisma, mover.id, id, { takeover: candidate.verdict === "FORCED" })) {
+      out.attached.push(candidate.name);
+    }
   }
   return out;
 }
@@ -189,37 +195,17 @@ async function performMove(character, targetLocation) {
         entry.reason === "edge"
           ? `*You can't move ${entry.character.name} through here. They stay behind.* ‡`
           : `*${entry.character.name} isn't with you any more.* ‡`,
-        { source: "system_notice" },
-      ).catch(() => {});
+        { kind: DM_KIND.QUIET },
+      ).catch(() => { });
     }
     if (entry.character.status === "ALIVE" && entry.character.discordUserId) {
       await sendDm(
         prisma,
         entry.character.discordUserId,
         `*${character.name} went on without you.* ‡`,
-        { source: "system_notice" },
-      ).catch(() => {});
+        { kind: DM_KIND.QUIET },
+      ).catch(() => { });
     }
-  }
-
-  // A paid crossing is a day on the road: nobody has moved yet, so there are
-  // no roles to swap and no Caving Die to roll — db/lib/travelArrivalPass.js
-  // does all of it at the next turn advance (MAP.md §3). The one thing owed
-  // now is a word to the passengers, who did not press anything.
-  if (result.deferred) {
-    for (const entry of result.travelers) {
-      if (entry.character.id === character.id) continue;
-      if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
-      await sendDm(
-        prisma,
-        entry.character.discordUserId,
-        `*${character.name} is taking you to ${targetLocation.name}. You'll get there next turn.* ‡`,
-        { source: "system_notice" },
-      ).catch((err) =>
-        console.error(`Drag DM to ${entry.character.discordUserId} failed:`, err.message ?? err),
-      );
-    }
-    return result;
   }
 
   // Sequential on purpose: each entry is a handful of REST calls, and firing
@@ -249,6 +235,22 @@ async function performMove(character, targetLocation) {
     );
   }
 
+  // Anybody who was laying in wait here (docs/systemdocs/INTERCEPT.md). Built
+  // inside performLocationMove and sent from out here, the same split the
+  // Caving DM above uses.
+  for (const dm of result.interceptDms ?? []) {
+    await sendDm(prisma, dm.discordUserId, dm.content, {
+      kind: dm.kind,
+      authorDiscordUserId: dm.authorDiscordUserId ?? null,
+      components: dm.components,
+      meta: dm.meta,
+      // Player-typed text rides in these. cleanMessage() already took the
+      // broadcast pings out of the stored copy; this is the belt to those
+      // braces.
+      allowedMentions: { parse: [] },
+    }).catch((err) => console.error(`Intercept DM to ${dm.discordUserId} failed:`, err.message ?? err));
+  }
+
   // Being carried off is the one thing that happens to a player without them
   // pressing anything, so it is the one thing that has to be told. Corpses
   // and departed accounts are skipped. db/lib/dm.js#sendDm writes the "»".
@@ -259,7 +261,7 @@ async function performMove(character, targetLocation) {
       prisma,
       entry.character.discordUserId,
       `*${character.name} brought you along to ${targetLocation.name}.* ‡`,
-      { source: "system_notice" },
+      { kind: DM_KIND.QUIET },
     ).catch((err) =>
       console.error(`Drag DM to ${entry.character.discordUserId} failed:`, err.message ?? err),
     );
@@ -277,7 +279,7 @@ async function performMove(character, targetLocation) {
 async function restoreStandingRoles(member, character) {
   // A "web only" character holds no Discord access on purpose, so a rejoin
   // restores nothing (docs/systemdocs/CHAT.md §6). Their sight of the game is
-  // /play, which never went away.
+  // /chat, which never went away.
   if (character.webOnly) return;
 
   const zoneRoleId = character.zone?.discordRoleId ?? null;

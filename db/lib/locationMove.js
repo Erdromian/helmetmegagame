@@ -17,16 +17,20 @@ const {
   postMessage,
   addThreadMember,
 } = require("./discordRest");
+const { DM_ACTION, dmAction } = require("./dmActions");
 const { buildNarrowcastContext, computeNarrowcastAccess, SPECIAL_CHANNELS } = require("./specialChannels");
 const { applyPendingInvites } = require("./threadInvites");
 const { conversationsFor } = require("./conversations");
 const { notifyPresence } = require("./presenceNotify");
 const { syncCharacterRoomAccess } = require("./roomAccess");
 const { ambientLine } = require("./ambientLine");
+const { STEALTH_SLUG } = require("./constants");
 const { sceneLineAt } = require("./scene");
 const { settleCarry, deliverCarryDrop } = require("./carry");
 const { parkMountsIndoors, parkedMessage, dismountForNarrowWay, dismountedMessage } = require("./indoors");
-const { applyArrivalFear } = require("./fear");
+const { applyArrivalMood } = require("./mood");
+const { recordArrival } = require("./locationVisits");
+const { cancelWatchOnMove, releaseHeldBy, INTERCEPT_CANCELLED_DM } = require("./intercept");
 const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW } = require("./zoneChannelSpec");
 const { linkBetween, endpoints, shouldPromptKeyed } = require("./locationGraph");
@@ -34,6 +38,7 @@ const { keyedPromptRow } = require("./locationAnchorRow");
 const { aliasSubject } = require("./concealedIdentity");
 const { sendDm } = require("./dm");
 const { rollTurretOnArrival, TURRET_DM } = require("./depotPass");
+const { applyDeathTeardown } = require("./deathTeardown");
 const {
   rollGatehouseTurretOnArrival,
   GATEHOUSE_TURRET_DM,
@@ -138,6 +143,17 @@ async function materializeDiscordPresence(prisma, character) {
   if (!character?.discordUserId || !character.locationId) return;
   const discordUserId = character.discordUserId;
 
+  // The watch this move just ended, told plainly. The delete itself happened
+  // above the guard; only the letter waits for a token. FIRST of the DMs, and
+  // ahead of the channel work below, because swapLocationOverwrite and swapRole
+  // are unguarded and every caller swallows this function's throw — one Discord
+  // 5xx down there and the owner would never hear that their watch was gone.
+  if (droppedWatch?.cancelled) {
+    await sendDm(prisma, discordUserId, INTERCEPT_CANCELLED_DM).catch((err) =>
+      console.error(`Move: intercept-cancelled DM to ${discordUserId} failed:`, err.message ?? err),
+    );
+  }
+
   const location = await prisma.location.findUnique({
     where: { id: character.locationId },
     include: { zone: true },
@@ -177,6 +193,29 @@ async function materializeDiscordPresence(prisma, character) {
   );
 }
 
+// What a crossing actually says, once the traveller's own tags have had their
+// say. Pure and exported so the rule is testable without a database — the
+// db/lib/inspectVision.js posture.
+//
+// Stealth takes the announcement down ONE step rather than silencing every
+// gate, which is the whole shape of the tag: you can be quiet, but you cannot
+// be quiet past somebody who is reading your papers.
+//
+//   unmanned (CONCEALED) -> NONE.      Nobody was watching.
+//   manned   (TRUE_NAME) -> CONCEALED. What a passer-by saw, not your papers.
+//
+// So at the Fortress gatehouse a stealthy traveller lands exactly where an
+// ordinary one lands at the Town gates, and at the Town gates they vanish.
+// NONE stays NONE: a gate that announces nothing cannot announce less.
+const STEALTH_DOWNGRADE = { TRUE_NAME: "CONCEALED", CONCEALED: "NONE" };
+
+function announceLevelFor(linkAnnounce, characterTags = []) {
+  if (linkAnnounce === "NONE") return "NONE";
+  const stealthy = (characterTags ?? []).some((ct) => (ct?.tag?.slug ?? ct?.slug) === STEALTH_SLUG);
+  if (!stealthy) return linkAnnounce;
+  return STEALTH_DOWNGRADE[linkAnnounce] ?? linkAnnounce;
+}
+
 // A gate crossing, announced in the destination zone's #summary. This is
 // game narration rather than the character speaking, so it is a plain bot
 // message and NOT postAsCharacter — a webhook post under the traveller's own
@@ -199,7 +238,10 @@ async function announceGateCrossing(prisma, character, fromLocationId, toLocatio
   const link = await linkBetween(prisma, fromLocationId, toLocation.id);
   if (!link || link.announce === "NONE") return;
 
-  const who = link.announce === "TRUE_NAME" ? character.name : aliasSubject(character);
+  const announce = announceLevelFor(link.announce, character.tags);
+  if (announce === "NONE") return;
+
+  const who = announce === "TRUE_NAME" ? character.name : aliasSubject(character);
   if (!who) return;
   const said = `${who} has entered ${toLocation.name}.`;
   await postMessage(channelId, ambientLine(said));
@@ -229,7 +271,7 @@ async function offerToHoldKeyed(prisma, character, fromLocationId, toLocation) {
     character.discordUserId,
     `The way between ${far.name} and ${toLocation.name} is open behind you. Leave it open for the next 24 hours? ‡\n` +
       `-# While it stands open, anyone can see it and follow you through. ‡`,
-    { components: keyedPromptRow(link.id), source: "bot_auto" },
+    { components: keyedPromptRow(link.id), meta: dmAction(DM_ACTION.KEYED_WAY, link.id), source: "bot_auto" },
   );
 }
 
@@ -249,6 +291,51 @@ async function offerToHoldKeyed(prisma, character, fromLocationId, toLocation) {
 async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationId, toLocationId, dismounted }) {
   if (!characterId || !toLocationId) return;
   if (fromLocationId === toLocationId) return;
+
+  // The map remembers. This is here rather than in performLocationMove because
+  // this function is the one every writer of Character.locationId runs (§4
+  // below) — a GM teleport, a first placement, a rite and the turn's arrival
+  // pass all land here, and hooking the mover instead would leave each of them
+  // a hole in somebody's map. Before the Discord guard for the same reason
+  // parking a mount is: knowing where you have been is a database fact and
+  // must not depend on there being a token to talk to Discord with.
+  //
+  // Wrapped, because losing a node off a map must never wedge a move — and
+  // /map's own loader re-records the character's current location on every
+  // open, so a drop here heals itself the next time they look.
+  await recordArrival(prisma, { id: characterId }, toLocationId).catch((err) => {
+    console.error(`Move: recording the visit failed for ${characterId}:`, err.message ?? err);
+  });
+
+  // A hold is a hand on a shoulder, and it ends when the holder leaves —
+  // HOWEVER they leave. performLocationMove already does this inside its own
+  // transaction for somebody walking off (INTERCEPT.md §3); this is the same
+  // clear for the ways they can be taken away instead, which used to leave a
+  // victim pinned by somebody three zones off with nobody able to free them.
+  // Idempotent, so the walking case running it twice costs one no-op update.
+  if (fromLocationId) {
+    await releaseHeldBy(prisma, characterId).catch((err) =>
+      console.error(`Move: releasing holds failed for ${characterId}:`, err.message ?? err),
+    );
+  }
+
+  // Laying in wait ends the moment you leave the place you were waiting in
+  // (docs/systemdocs/INTERCEPT.md §1). Here rather than in performLocationMove
+  // because this is the writer every relocation runs — a teleport, a Bulk
+  // Move, a staged Relocate to and a rite all break the anchor as surely as
+  // walking does. Above the Discord guard, the recordArrival reasoning: the
+  // watch is a database fact and must not survive on a box with no token.
+  //
+  // `fromLocationId` has to be set. Three callers pass null for something that
+  // is NOT a move — a GM's Discord resync, a revive, and a character's first
+  // placement — and cancelling on those would have a GM pressing Resync
+  // silently end a player's ambush.
+  const droppedWatch = fromLocationId
+    ? await cancelWatchOnMove(prisma, characterId).catch((err) => {
+        console.error(`Move: cancelling the watch failed for ${characterId}:`, err.message ?? err);
+        return null;
+      })
+    : null;
 
   // Before the Discord guard below, because this one is a DB change and has to
   // happen whether or not there is a token to talk to Discord with. Also
@@ -281,11 +368,11 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
 
   // What walking in here does to the nerves is a DB fact too, same as parking
   // a mount above — before the Discord guard, so it lands whether or not
-  // there's a token to talk to Discord with (docs/systemdocs/FEAR.md). No
+  // there's a token to talk to Discord with (docs/systemdocs/MOOD.md). No
   // per-turn ration on the arrival cost: a mount's two crossings are two real
   // arrivals. The Cathedral's relief rations itself inside.
-  await applyArrivalFear(prisma, { characterId, fromLocationId, toLocationId }).catch((err) => {
-    console.error(`Move: fear on arrival failed for ${characterId}:`, err.message ?? err);
+  await applyArrivalMood(prisma, { characterId, fromLocationId, toLocationId }).catch((err) => {
+    console.error(`Move: mood on arrival failed for ${characterId}:`, err.message ?? err);
   });
 
   // Walking into an armed turret. Before the Discord guard, and before the
@@ -315,6 +402,16 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
         console.error(`Move: turret DM failed for ${characterId}:`, err.message ?? err),
       );
     }
+    // A kill on arrival happens outside the turn engine, so the side-effect
+    // thunk that tears every other death down never sees it. Done here
+    // instead, and only here — the turn-end sweep's kills are carried up to
+    // db/index.js as `deaths` rather than torn down inline.
+    if (shot.death) {
+      await applyDeathTeardown(prisma, shot.death).catch((err) =>
+        console.error(`Move: death teardown failed for ${characterId}:`, err.message ?? err),
+      );
+    }
+
     // The noise carries whatever the roll was — a graze is still a machinegun
     // going off, and a zone that only hears the shots that land can never learn
     // to stay out of the yard.
@@ -346,6 +443,17 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
   ]);
   if (!character?.discordUserId || !toLocation) return;
   const discordUserId = character.discordUserId;
+
+  // The watch this move just ended, told plainly. The delete itself happened
+  // above the guard; only the letter waits for a token. FIRST of the DMs, and
+  // ahead of the channel work below, because swapLocationOverwrite and swapRole
+  // are unguarded and every caller swallows this function's throw — one Discord
+  // 5xx down there and the owner would never hear that their watch was gone.
+  if (droppedWatch?.cancelled) {
+    await sendDm(prisma, discordUserId, INTERCEPT_CANCELLED_DM).catch((err) =>
+      console.error(`Move: intercept-cancelled DM to ${discordUserId} failed:`, err.message ?? err),
+    );
+  }
 
   // The "web only" switch holds this account out of every channel, so the
   // Discord half of standing somewhere is simply not done for them (CHAT.md
@@ -432,9 +540,14 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     console.error(`Move: thread invite pass failed for ${characterId}:`, err.message ?? err),
   );
 
-  // The feet moved, so the web's place list did too: every open /play tab of
+  // The feet moved, so the web's place list did too: every open /chat tab of
   // this character re-asks db/lib/feedAccess.js#placesFor (docs CHAT.md §3).
   await notifyPresence(prisma, characterId);
 }
 
-module.exports = { applyLocationMoveSideEffects, materializeDiscordPresence, reconcileNarrowcastAccess };
+module.exports = {
+  applyLocationMoveSideEffects,
+  materializeDiscordPresence,
+  reconcileNarrowcastAccess,
+  announceLevelFor,
+};

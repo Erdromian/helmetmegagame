@@ -28,7 +28,7 @@ const {
   stowedMounts,
   performMove,
 } = require("../lib/locationTravel");
-const { applyFear } = require("@lifeweb/db/lib/fear");
+const { applyMood } = require("@lifeweb/db/lib/mood");
 const {
   travelOptions,
   canToggleGate,
@@ -39,6 +39,9 @@ const {
   soundRange,
   KEYED_OPEN_MS,
 } = require("@lifeweb/db/lib/locationGraph");
+const { heldReasonFor, INTERCEPT_RELEASE_PREFIX } = require("@lifeweb/db/lib/intercept");
+const { answerDmAction } = require("@lifeweb/db/lib/dmAnswer");
+const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
 const { reconcileNarrowcastAccess } = require("@lifeweb/db/lib/locationMove");
 const {
   syncCharacterRoomAccess,
@@ -56,9 +59,10 @@ const { sendDm } = require("../lib/dm");
 const { escortCandidates, partyOf } = require("@lifeweb/db/lib/escort");
 const { buildMoveModal } = require("../lib/moveModal");
 const { confirmMove } = require("../lib/moveConfirm");
-const { buildSpeakModal, buildSpeakPicker } = require("../lib/speakModal");
-const { listSpeakTargets, canSpeakInTarget, canSpeakInChannel, isNavValue } = require("../lib/speakTargets");
-const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/interactionGuild");
+const { buildSpeakModal } = require("../lib/speakModal");
+const { canSpeakInTarget } = require("../lib/speakTargets");
+const { resolveActingMember, isGmMember, findAliveCharacter, actingCharacter } = require("../lib/interactionGuild");
+const { presentedNameOf } = require("@lifeweb/db/lib/presentedMembers");
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const { postAsCharacterTo, loadVoiceState } = require("../lib/proxy");
 const { prepareSpeech, recordSpeech } = require("@lifeweb/db/lib/say");
@@ -70,6 +74,7 @@ const { moveWindow, epochSeconds } = require("@lifeweb/db/lib/turnClock");
 const { rollDie } = require("@lifeweb/db/lib/moveEffects");
 const { messageLink } = require("../lib/mentions");
 const { startPrivateThread, addThreadMember, removeThreadMember } = require("@lifeweb/db/lib/discordRest");
+const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 const {
   WHOS_HERE_PREFIX,
   SECRET_ROOMS_PREFIX,
@@ -201,14 +206,14 @@ async function handleZoneCommand(interaction) {
     }),
   ]);
   if (zones.length === 0) {
-    await respond(interaction, "» *There are no zones yet — run the zone sync first.* ‡");
+    await respond(interaction, "» *There aren't any zones yet.*");
     return;
   }
   const chosen = new Set(current.map((r) => r.zoneId));
 
   const menu = new StringSelectMenuBuilder()
     .setCustomId(ZONE_VIEW_ID)
-    .setPlaceholder("Which zones do you want to see? ‡")
+    .setPlaceholder("Which zones do you want to see?")
     .setMinValues(0)
     .setMaxValues(zones.length)
     .addOptions(
@@ -221,8 +226,8 @@ async function handleZoneCommand(interaction) {
 
   await respond(interaction, {
     content:
-      "Which zones do you want to see? ‡\n" +
-      "-# This sets your Discord channels and your desks at once. Pick none to see everything. ‡",
+      "Which zones do you want to see?\n" +
+      "-# This sets your Discord channels and your desks.",
     components: [new ActionRowBuilder().addComponents(menu)],
   });
 }
@@ -243,7 +248,7 @@ async function handleZoneViewPick(interaction) {
   );
 
   if (wanted.length === 0) {
-    await respond(interaction, "» You can see every zone. ‡");
+    await respond(interaction, "» You can see every zone.");
     return;
   }
   const zones = await prisma.zone.findMany({
@@ -287,7 +292,11 @@ async function handleGmDmCommand(interaction) {
   const content = interaction.options.getString("message", true);
 
   try {
-    await sendDm(recipient, `» ${content}`, { authorDiscordUserId: interaction.user.id, source: "gm_slash" });
+    await sendDm(recipient, `» ${content}`, {
+      authorDiscordUserId: interaction.user.id,
+      source: "gm_slash",
+      kind: DM_KIND.CONVERSATION,
+    });
     await respond(interaction, `» *Sent to ${recipient}.*`, { fleeting: true });
   } catch (err) {
     console.error("Failed to send /dm DM:", err);
@@ -322,7 +331,7 @@ async function handleThreadMemberCommand(interaction, action) {
 
   const channel = interaction.channel;
   if (!channel) {
-    await respond(interaction, "» *That only works inside a conversation or a private room.* ‡");
+    await respond(interaction, "» *That only works inside a conversation or a private room.*");
     return;
   }
 
@@ -350,7 +359,7 @@ async function handleThreadMemberCommand(interaction, action) {
     return;
   }
   if (!row) {
-    await respond(interaction, "» *That only works inside a conversation or a private room.* ‡");
+    await respond(interaction, "» *That only works inside a conversation or a private room.*");
     return;
   }
 
@@ -358,7 +367,7 @@ async function handleThreadMemberCommand(interaction, action) {
   if (!gm) {
     const member = await channel.members.fetch(interaction.user.id).catch(() => null);
     if (!member) {
-      await respond(interaction, "» *You're not in this conversation.* ‡");
+      await respond(interaction, "» *You're not in this conversation.*");
       return;
     }
   }
@@ -368,9 +377,16 @@ async function handleThreadMemberCommand(interaction, action) {
     where: { discordRoleId: role.id, status: "ALIVE" },
   });
   if (!target) {
-    await respond(interaction, "» *That isn't a living character's role.* ‡");
+    await respond(interaction, "» *That isn't a living character's role.*");
     return;
   }
+
+  // What to CALL them in the three sentences below. `target.name` is the real
+  // one and these said it out loud, in a channel, about somebody who might be
+  // standing there in a hood — so the whole point of the disguise came apart
+  // at the door. presentedNameOf is the same resolver the web strip and the
+  // HERE column go through (db/lib/presentedMembers.js).
+  const shown = await presentedNameOf(prisma, target.id, await actingCharacter(interaction, { select: { id: true } }));
 
   if (action === "remove") {
     // The ROW is what membership is now (db/lib/conversations.js); the thread
@@ -383,10 +399,10 @@ async function handleThreadMemberCommand(interaction, action) {
       await channel.members.remove(target.discordUserId);
     } catch (err) {
       console.error(`Failed to remove ${target.discordUserId} from thread ${channel.id}:`, err);
-      await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.* ‡");
+      await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.*");
       return;
     }
-    await respond(interaction, `» *${target.name} was removed.*`, { fleeting: true });
+    await respond(interaction, `» *${shown} was removed.*`, { fleeting: true });
     return;
   }
 
@@ -404,7 +420,7 @@ async function handleThreadMemberCommand(interaction, action) {
     .catch((err) => console.error("Failed to record thread invite:", err));
 
   // A "web only" target is out of every channel on purpose (CHAT.md §6), so
-  // the row above is the whole of the add: they see the conversation on /play
+  // the row above is the whole of the add: they see the conversation on /chat
   // and the invite row replays the Discord half if they ever come back off it.
   if (target.locationId === row.locationId && !target.webOnly) {
     try {
@@ -413,12 +429,12 @@ async function handleThreadMemberCommand(interaction, action) {
       console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err);
     }
     await notifyLetIn(interaction, target, row.name, row.location?.name, channel.id);
-    await respond(interaction, `» *${target.name} was added.*`, { fleeting: true });
+    await respond(interaction, `» *${shown} was added.*`, { fleeting: true });
     return;
   }
   await respond(
     interaction,
-    `» *${target.name} is invited — they'll see this when they reach ${row.location?.name ?? "this place"}.* ‡`,
+    `» *${shown} is invited — they'll see this when they reach ${row.location?.name ?? "this place"}.*`,
     { fleeting: true },
   );
 }
@@ -433,7 +449,7 @@ async function notifyLetIn(interaction, target, threadName, placeName, threadId)
   const user = await interaction.client.users.fetch(target.discordUserId).catch(() => null);
   if (!user) return;
   const link = `https://discord.com/channels/${interaction.guildId}/${threadId}`;
-  await sendDm(user, `» *You were let into ${where}.* ‡\n${link}`, { source: "system_notice" }).catch(() => {});
+  await sendDm(user, `» *You were let into ${where}.*\n${link}`, { kind: DM_KIND.QUIET }).catch(() => { });
 }
 
 // The Room half of /add and /remove.
@@ -454,7 +470,7 @@ async function notifyLetIn(interaction, target, threadName, placeName, threadId)
 // itself.
 async function handleRoomGuestCommand(interaction, action, room) {
   if (room.kind !== "PRIVATE") {
-    await respond(interaction, "» *Anyone standing here can already walk in.* ‡");
+    await respond(interaction, "» *Anyone standing here can already walk in.*");
     return;
   }
 
@@ -462,7 +478,7 @@ async function handleRoomGuestCommand(interaction, action, room) {
   if (!gm) {
     const standing = await findAliveCharacter(interaction.user.id);
     if (!standing || !room.locationId || standing.locationId !== room.locationId) {
-      await respond(interaction, "» *You're not in this room.* ‡");
+      await respond(interaction, "» *You're not in this room.*");
       return;
     }
   }
@@ -472,18 +488,22 @@ async function handleRoomGuestCommand(interaction, action, room) {
     where: { discordRoleId: role.id, status: "ALIVE" },
   });
   if (!target) {
-    await respond(interaction, "» *That isn't a living character's role.* ‡");
+    await respond(interaction, "» *That isn't a living character's role.*");
     return;
   }
+  // What to CALL them, for the same reason the conversation half above does
+  // it: a door opening or refusing is not the moment to say who is under the
+  // hood standing in front of it.
+  const shown = await presentedNameOf(prisma, target.id, await actingCharacter(interaction, { select: { id: true } }));
   if (target.locationId !== room.locationId) {
-    await respond(interaction, `» *${target.name} isn't here to be let in.* ‡`);
+    await respond(interaction, `» *${shown} isn't here to be let in.*`);
     return;
   }
 
   if (action === "remove") {
     const held = await heldTagSlugs(prisma, target.id);
     if (room.accessTagSlugs.some((slug) => held.has(slug))) {
-      await respond(interaction, "» *Their key admits them. Take the key.* ‡");
+      await respond(interaction, "» *They have a key. You can't remove them.*");
       return;
     }
     await prisma.roomGuest
@@ -493,7 +513,7 @@ async function handleRoomGuestCommand(interaction, action, room) {
     // Calling with an undefined id fails, and the catch below would report it
     // as a missing bot permission — a wrong answer to a question nobody asked.
     if (!target.discordUserId) {
-      await respond(interaction, `» *${target.name} was shown out.*`, { fleeting: true });
+      await respond(interaction, `» *${shown} was shown out.*`, { fleeting: true });
       return;
     }
     try {
@@ -503,10 +523,10 @@ async function handleRoomGuestCommand(interaction, action, room) {
       await recordRoomThread(prisma, target.id, room.id, false);
     } catch (err) {
       console.error(`Failed to remove ${target.discordUserId} from room ${room.id}:`, err);
-      await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.* ‡");
+      await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.*");
       return;
     }
-    await respond(interaction, `» *${target.name} was shown out.*`, { fleeting: true });
+    await respond(interaction, `» *${shown} was shown out.*`, { fleeting: true });
     return;
   }
 
@@ -535,7 +555,7 @@ async function handleRoomGuestCommand(interaction, action, room) {
     }
   }
   await notifyLetIn(interaction, target, room.name, room.location?.name, room.discordThreadId);
-  await respond(interaction, `» *${target.name} was let in. They stay until they leave.* ‡`, {
+  await respond(interaction, `» *${shown} was let in.*`, {
     fleeting: true,
   });
 }
@@ -581,7 +601,7 @@ async function handleBellSubmit(interaction, roomId) {
 
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
-    await respond(interaction, "» *You don't have a living character.* ‡");
+    await respond(interaction, "» *You don't have a living character.*");
     return;
   }
   const room = await prisma.room.findUnique({
@@ -595,11 +615,11 @@ async function handleBellSubmit(interaction, roomId) {
   // Decided at submit, never at open: the modal outlives somebody walking back
   // down the tower stairs, and reaching the rope is the only safeguard on it.
   if (character.locationId !== room.locationId) {
-    await respond(interaction, `» *You're not standing in the ${room.name} any more.* ‡`);
+    await respond(interaction, `» *You're not standing in the ${room.name} any more.*`);
     return;
   }
   if (!bellWordMatches(interaction.fields.getTextInputValue(BELL_WORD_FIELD))) {
-    await respond(interaction, "» *You leave the rope alone.* ‡");
+    await respond(interaction, "» *You leave the rope alone.*");
     return;
   }
 
@@ -613,7 +633,7 @@ async function handleBellSubmit(interaction, roomId) {
     const minutes = Math.max(1, Math.ceil(secondsLeft / 60));
     await respond(
       interaction,
-      `» *The bell is still humming from the last pull. About ${minutes} more minute${minutes === 1 ? "" : "s"}.* ‡`,
+      `» *The bell is on cooldown. About ${minutes} more minute${minutes === 1 ? "" : "s"}.*`,
     );
     return;
   }
@@ -636,8 +656,8 @@ async function handleBellSubmit(interaction, roomId) {
   await respond(
     interaction,
     failed.length
-      ? `» *You haul on the rope. It carries to ${sent} place${sent === 1 ? "" : "s"}, and not to ${failed.join(", ")}.* ‡`
-      : "» *You haul on the rope, and the whole barony hears it.* ‡",
+      ? `» *The bell sounds.*`
+      : "» *The bell sounds.*",
   );
 }
 
@@ -646,7 +666,7 @@ async function handleTurretSubmit(interaction, roomId) {
 
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
-    await respond(interaction, "» *You don't have a living character.* ‡");
+    await respond(interaction, "» *You don't have a living character.*");
     return;
   }
   const room = await prisma.room.findUnique({
@@ -660,7 +680,7 @@ async function handleTurretSubmit(interaction, roomId) {
   // Decided at submit, never at open: the modal outlives somebody walking out
   // of the Garrison, and reaching the switch is the only safeguard on it.
   if (character.locationId !== room.locationId) {
-    await respond(interaction, `» *You're not standing in the ${room.name} any more.* ‡`);
+    await respond(interaction, `» *You're not standing in the ${room.name} any more.*`);
     return;
   }
 
@@ -669,7 +689,7 @@ async function handleTurretSubmit(interaction, roomId) {
   // to type is what says which way they meant to throw it.
   const armed = await gatehouseTurretArmed(prisma);
   if (!turretWordMatches(interaction.fields.getTextInputValue(TURRET_WORD_FIELD), armed)) {
-    await respond(interaction, "» *You leave the button alone.* ‡");
+    await respond(interaction, "» *You leave the button alone.*");
     return;
   }
 
@@ -701,8 +721,8 @@ async function handleTurretSubmit(interaction, roomId) {
   await respond(
     interaction,
     next
-      ? "» *The button clicks down. Somewhere below, the rotor comes alive.* ‡"
-      : "» *The button clicks up, and the yard goes quiet.* ‡",
+      ? "» *The button toggles on.*"
+      : "» *The button toggles off.*",
   );
 }
 
@@ -711,7 +731,7 @@ async function handleIntercomSubmit(interaction, roomId) {
 
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
-    await respond(interaction, "» *You don't have a living character.* ‡");
+    await respond(interaction, "» *You don't have a living character.*");
     return;
   }
   const room = await prisma.room.findUnique({
@@ -723,7 +743,7 @@ async function handleIntercomSubmit(interaction, roomId) {
     return;
   }
   if (character.locationId !== room.locationId) {
-    await respond(interaction, `» *You're not standing in the ${room.name} any more.* ‡`);
+    await respond(interaction, `» *You're not standing in the ${room.name} any more.*`);
     return;
   }
 
@@ -735,14 +755,14 @@ async function handleIntercomSubmit(interaction, roomId) {
 
   const voice = await loadVoiceState(character.id);
   if (voice.block) {
-    await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.* ‡`);
+    await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.*`);
     return;
   }
   const { sent, failed } = await broadcastIntercom(prisma, body);
 
   // The transcript is broadcastIntercom's own job since phase 4: it writes one
   // SYSTEM row per zone it reached, so the announcement lands in each zone's
-  // feed on /play as well as in /archive. The single row that used to be
+  // feed on /chat as well as in /archive. The single row that used to be
   // written here had no place key and so was invisible in Chat.
 
   await prisma.auditLog
@@ -760,7 +780,7 @@ async function handleIntercomSubmit(interaction, roomId) {
   // not a failure, but the speaker has to know which one nobody heard. One ‡
   // for the whole message, riding the last line rather than the first.
   const note = failed.length > 0 ? `\n-# Nothing came through in ${failed.join(", ")}.` : "";
-  await respond(interaction, `» *Your voice goes out across Ravenheart.*${note} ‡`, { fleeting: true });
+  await respond(interaction, `» *Your voice goes out across Ravenheart.*${note}`, { fleeting: true });
 }
 
 // Custom IDs below are "loc:"-namespaced for the travel flow off the Travel
@@ -777,24 +797,15 @@ async function handleTravelOpen(interaction) {
 
   const character = await loadMover(interaction.user.id);
   if (!character) {
-    await respond(interaction, "» *You don't have a living character.* ‡");
+    await respond(interaction, "» *You don't have a living character.*");
     return;
   }
 
-  // On the road already. A paid crossing takes the whole day (MAP.md §3), so
-  // there is no picker to offer and no way off the road: the arrival pass
-  // walks them over at the next advance.
-  if (character.travelToLocationId) {
-    const heading = await prisma.location.findUnique({
-      where: { id: character.travelToLocationId },
-      select: { name: true },
-    });
-    await respond(interaction, {
-      content: `» You're on the road to **${heading?.name ?? "somewhere"}**. You arrive next turn. ‡`,
-      components: [],
-    });
-    return;
-  }
+  // Somebody has hold of them (docs/systemdocs/INTERCEPT.md). The picker is
+  // still worth drawing: travelOptions has marked every row unpassable, which
+  // drops them into `shut` below with no work here, so a held player can see
+  // where they would have gone.
+  const held = heldReasonFor(character);
 
   let current = null;
   let destinations;
@@ -822,7 +833,7 @@ async function handleTravelOpen(interaction) {
   }
 
   if (destinations.length === 0 && shut.length === 0) {
-    await respond(interaction, "» *Nowhere to go from here.* ‡");
+    await respond(interaction, "» *Nowhere to go from here.*");
     return;
   }
 
@@ -830,16 +841,17 @@ async function handleTravelOpen(interaction) {
   const truncated = destinations.length - Math.min(destinations.length, MENU_OPTION_LIMIT);
   const shutLine =
     shut.length > 0
-      ? `-# Closed to you right now: ${shut.map((row) => row.location.name).join(", ")}. ‡`
+      ? `-# Closed to you right now: ${shut.map((row) => row.location.name).join(", ")}.`
       : null;
   await respond(interaction, {
     content: [
-      destinations.length > 0 ? "Where would you like to go? ‡" : "» *Every way out of here is closed to you.* ‡",
+      held ? `» *${held.replace(" ‡", "")}*` : null,
+      destinations.length > 0 ? "Where would you like to go?" : "» *Every way out of here is closed to you.*",
       shutLine,
-      truncated > 0 ? `-# ${truncated} more not shown — Discord caps this list at 25. ‡` : null,
+      truncated > 0 ? `-# ${truncated} more not shown — Discord caps this list at 25.` : null,
     ]
       .filter(Boolean)
-      .join("\n"),
+      .join("\n") + " ‡",
     components: destinations.length > 0 ? [buildLocationSelectRow(destinations, current)] : [],
   });
 }
@@ -920,6 +932,31 @@ async function handleKeyedPrompt(interaction, payload) {
   });
 }
 
+// Letting a prisoner go, from the Release button on the ambusher's own DM
+// (docs/systemdocs/INTERCEPT.md). The handleKeyedPrompt shape: update IS the
+// ack, and the buttons come off whatever the answer was. The shared half —
+// who may release whom, and the word owed to the person let go — is
+// db/lib/dmAnswer.js, so the web's Release cannot drift from this one.
+async function handleInterceptRelease(interaction, targetId) {
+  await ack(interaction, { update: true });
+
+  const result = await answerDmAction(prisma, {
+    action: { kind: DM_ACTION.INTERCEPT_HOLD, id: targetId },
+    choice: DM_CHOICE.ACCEPT,
+    discordUserId: interaction.user.id,
+  });
+  await respond(interaction, { content: `» *${result.line}*`, components: [] });
+  // The gateway twin takes a User, not an id (ARCHITECTURE.md §3) — the
+  // bot/src/lib/offers.js#fanOut shape.
+  for (const dm of result.dms ?? []) {
+    const user = await interaction.client.users.fetch(dm.discordUserId).catch(() => null);
+    if (!user) continue;
+    await sendDm(user, `» ${dm.content}`).catch((err) =>
+      console.error(`Intercept release DM to ${dm.discordUserId} failed:`, err.message ?? err),
+    );
+  }
+}
+
 // One message carries both the passenger list and the confirmation, because
 // Discord cannot keep them on two: an ephemeral reply is a single editable
 // surface, and a second message would leave the first one lying around with
@@ -934,11 +971,11 @@ async function handleTravelPick(interaction) {
     prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } }),
   ]);
   if (!target) {
-    await respond(interaction, { content: "» *That place no longer exists.* ‡", components: [] });
+    await respond(interaction, { content: "» *That place no longer exists.*", components: [] });
     return;
   }
   if (!character) {
-    await respond(interaction, { content: "» *You don't have a living character.* ‡", components: [] });
+    await respond(interaction, { content: "» *You don't have a living character.*", components: [] });
     return;
   }
 
@@ -959,21 +996,34 @@ async function handleTravelPick(interaction) {
   // The party is what decides whether the mount's extra crossing survives, so
   // the number quoted below has to count it (MAP.md §3a).
   const party = await partyOf(prisma, character.id);
-  const left = crossing ? freeMovesLeft(character, config, openTurn, party.length) : null;
+  // THIS crossing's own count, not a flat one that ignores where it goes — a
+  // boat's bonus is earned per crossing (db/lib/mounts.js#boatCrossing), so
+  // Forest<->Hills or Hills<->Marshes has to show one more than a crossing
+  // the water does nothing for. `crossing` above is only a boolean ("does
+  // this leave the zone at all"); the actual zone slugs live here.
+  const currentZone = character.zoneId
+    ? await prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } })
+    : null;
+  const left = crossing
+    ? freeMovesLeft(character, config, openTurn, party.length, {
+        fromZoneSlug: currentZone?.slug ?? null,
+        toZoneSlug: target.zone?.slug ?? null,
+      })
+    : null;
   const seatWarning = crossing ? freeZoneMovesReason(character, party.length) : null;
 
   const cost = !character.locationId
     ? "-# Arriving costs you nothing."
     : !crossing
-      ? "-# A step inside the zone is free. ‡"
+      ? "-# You have free zone moves left, so this is free."
       : left > 0
-        ? `-# Crossing into ${target.zone.name} uses 1 of your ${left} free ${left === 1 ? "move" : "moves"} this turn. ‡`
-        : `-# You have no free moves left, so crossing into ${target.zone.name} spends your Move. ‡`;
+        ? `-# Crossing into ${target.zone.name} uses 1 of your ${left} free ${left === 1 ? "move" : "moves"} this turn.`
+        : `-# You have no free moves left, so crossing into ${target.zone.name} spends your Move.`;
 
   const stowed = crossing ? stowedMounts(character.tags) : [];
   const stowedLine =
     stowed.length > 0
-      ? `-# Your ${listNames(stowed)} ${stowed.length === 1 ? "isn't" : "aren't"} equipped, so ${stowed.length === 1 ? "it does" : "they do"} nothing for you. ‡`
+      ? `-# Your ${listNames(stowed)} ${stowed.length === 1 ? "isn't" : "aren't"} equipped, so ${stowed.length === 1 ? "it does" : "they do"} nothing for you.`
       : null;
 
   await respond(
@@ -984,7 +1034,7 @@ async function handleTravelPick(interaction) {
         cost,
         seatWarning ? `-# ${seatWarning}` : null,
         stowedLine,
-        overflow > 0 ? `-# ${overflow} more not shown — Discord caps this list at 25. ‡` : null,
+        overflow > 0 ? `-# ${overflow} more not shown — Discord caps this list at 25.` : null,
       ]
         .filter(Boolean)
         .join("\n"),
@@ -1010,7 +1060,7 @@ async function handleTravelBring(interaction) {
   for (const dm of outcome.dms) {
     const user = await interaction.client.users.fetch(dm.discordUserId).catch(() => null);
     if (!user) continue;
-    await sendDm(user, { content: `» ${dm.content}`, components: dm.components }).catch((err) =>
+    await sendDm(user, { content: `» ${dm.content}`, components: dm.components }, { meta: dm.meta }).catch((err) =>
       console.error("Escort ask DM failed:", err.message ?? err),
     );
   }
@@ -1038,11 +1088,11 @@ async function handleTravelConfirm(interaction, locationId) {
     prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } }),
   ]);
   if (!character) {
-    await respond(interaction, { content: "» *You don't have a living character.* ‡", components: [] });
+    await respond(interaction, { content: "» *You don't have a living character.*", components: [] });
     return;
   }
   if (!target) {
-    await respond(interaction, { content: "» *That place no longer exists.* ‡", components: [] });
+    await respond(interaction, { content: "» *That place no longer exists.*", components: [] });
     return;
   }
 
@@ -1052,12 +1102,11 @@ async function handleTravelConfirm(interaction, locationId) {
     return;
   }
 
-  const brought = (result.deferred ? result.travelers : result.moved)
+  const brought = result.moved
     .filter((entry) => entry.character.id !== character.id)
     .map((entry) => entry.character.name);
-  const parts = result.deferred
-    ? [`» You set out for **${target.name}**. You arrive next turn.`, "Your Move is spent."]
-    : [`» Moved to **${target.name}**.`];
+  const parts = [`» Moved to **${target.name}**.`];
+  if (result.spentTurn) parts.push("Your Move is spent.");
   if (result.usedFreeMove) {
     parts.push(
       result.freeMovesLeft > 0
@@ -1066,8 +1115,13 @@ async function handleTravelConfirm(interaction, locationId) {
     );
   }
   if (brought.length > 0) parts.push(`Bringing ${listNames(brought)}.`);
-  const stranded = (result.leftBehind ?? []).map((entry) => entry.character.name);
+  const stranded = (result.leftBehind ?? []).filter((e) => e.reason !== "held").map((e) => e.character.name);
   if (stranded.length > 0) parts.push(`${listNames(stranded)} couldn't follow.`);
+  // "held" is the one reason the leader IS given, because it is plain to see:
+  // somebody has hold of them (INTERCEPT.md). Every other reason stays unnamed
+  // — a hidden crawl's refusal would announce that the crawl is there.
+  const heldBack = (result.leftBehind ?? []).filter((e) => e.reason === "held").map((e) => e.character.name);
+  if (heldBack.length > 0) parts.push(`Somebody has hold of ${listNames(heldBack)}.`);
   // The way was too narrow for what they had out — dismounted rather than
   // refused (db/lib/indoors.js#dismountForNarrowWay), already applied by
   // performLocationMove by the time this reads it.
@@ -1106,7 +1160,7 @@ async function handleWhosHere(interaction, locationId) {
     await respond(interaction, "» *Nobody is here.*");
     return;
   }
-  await respond(interaction, `${lines.join("\n")} ‡`);
+  await respond(interaction, `${lines.join("\n")}`);
 }
 
 // "Secret rooms?": the doors this character can open here that nobody else
@@ -1201,7 +1255,7 @@ async function handleSecretRooms(interaction, locationId) {
 
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
-    await respond(interaction, "» *You don't have a living character.* ‡");
+    await respond(interaction, "» *You don't have a living character.*");
     return;
   }
 
@@ -1239,10 +1293,10 @@ async function handleSecretRooms(interaction, locationId) {
     lines.push(`**Conversations:** ${conversations.map((c) => `<#${c.threadId}>`).join(" | ")}`);
   }
   if (lines.length === 0) {
-    await respond(interaction, "» *No secret rooms for you here.* ‡");
+    await respond(interaction, "» *No secret rooms here.*");
     return;
   }
-  await respond(interaction, `${lines.join("\n")} ‡`);
+  await respond(interaction, `${lines.join("\n")}`);
 }
 
 // "Converse": the only thread a player can still open. It is linked to a
@@ -1254,11 +1308,11 @@ async function handleConverseOpen(interaction, locationId) {
 
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
-    await respond(interaction, "» *You don't have a living character.* ‡");
+    await respond(interaction, "» *You don't have a living character.*");
     return;
   }
   if (character.locationId !== locationId) {
-    await respond(interaction, "» *You're not there any more.* ‡");
+    await respond(interaction, "» *You're not there any more.*");
     return;
   }
 
@@ -1272,7 +1326,7 @@ async function handleConverseOpen(interaction, locationId) {
   ]);
   const options = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds).slice(0, MENU_OPTION_LIMIT);
   if (options.length === 0) {
-    await respond(interaction, "» *There's no room here to hold a conversation in.* ‡");
+    await respond(interaction, "» *There's no room here to hold a conversation in.*");
     return;
   }
 
@@ -1304,7 +1358,7 @@ async function handleConverseCreate(interaction, roomId) {
 
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
-    await respond(interaction, "» *You don't have a living character.* ‡");
+    await respond(interaction, "» *You don't have a living character.*");
     return;
   }
 
@@ -1313,15 +1367,15 @@ async function handleConverseCreate(interaction, roomId) {
     include: { location: true },
   });
   if (!room) {
-    await respond(interaction, "» *That room no longer exists.* ‡");
+    await respond(interaction, "» *That room no longer exists.*");
     return;
   }
   if (character.locationId !== room.locationId) {
-    await respond(interaction, `» *You're not in ${room.location.name} any more.* ‡`);
+    await respond(interaction, `» *You're not in ${room.location.name} any more.*`);
     return;
   }
   if (!room.location.discordChannelId) {
-    await respond(interaction, "» *That place has no channel yet — tell a GM.* ‡");
+    await respond(interaction, "» *That place has no channel yet — tell a GM.*");
     return;
   }
 
@@ -1342,7 +1396,7 @@ async function handleConverseCreate(interaction, roomId) {
     if (!character.webOnly) await addThreadMember(thread.id, interaction.user.id);
   } catch (err) {
     console.error(`Failed to open a conversation in ${room.location.name}:`, err);
-    await respond(interaction, "» *Couldn't open that — try again, or tell a GM.* ‡");
+    await respond(interaction, "» *Couldn't open that — try again, or tell a GM.*");
     return;
   }
 
@@ -1384,13 +1438,13 @@ async function handleConcealCommand(interaction) {
 
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
-    await respond(interaction, "» *You don't have a living character.* ‡");
+    await respond(interaction, "» *You don't have a living character.*");
     return;
   }
 
   const forcedName = await loadForcedName(prisma, character.id);
   if (forcedName) {
-    await respond(interaction, `» *You are ${forcedName} now. There is no hiding that.* ‡`);
+    await respond(interaction, `» *You are ${forcedName} now.*`);
     return;
   }
 
@@ -1407,15 +1461,15 @@ async function handleConcealCommand(interaction) {
   // concealment rather than granted it. Name the piece where we know it.
   const concealment = await loadConcealment(prisma, character.id);
   if (!concealment) {
-    await respond(interaction, "» *Your face is bare. Put something over it first.* ‡");
+    await respond(interaction, "» *Your face is exposed. Wear a hood or helmet.*");
     return;
   }
   if (concealment.forced) {
     await respond(
       interaction,
       concealment.name
-        ? `» *The ${concealment.name} already hides you, and it does not come off by asking.* ‡`
-        : "» *That already hides you, and it does not come off by asking.* ‡",
+        ? `» *You're already hidden by the ${concealment.name}.*`
+        : "» *You're already hidden by the ${concealment.name}.*",
     );
     return;
   }
@@ -1436,8 +1490,8 @@ async function handleConcealCommand(interaction) {
   await respond(
     interaction,
     concealed
-      ? `» *You now speak as **${withArticle(concealedAlias(character).toLowerCase())}**. Nobody sees your name until you run \`/conceal\` again.* ‡`
-      : "» *You speak under your own name again.* ‡",
+      ? `» *You now speak as **${withArticle(concealedAlias(character).toLowerCase())}**.`
+      : "» *You're no longer concealed.",
   );
 }
 
@@ -1508,45 +1562,17 @@ function optionalText(interaction, customId) {
   }
 }
 
+// The 🔊 Speak button is gone: its destination picker could never list a Room
+// thread or a Conversation (bot/src/lib/speakTargets.js says why), so /message
+// — run in the room you want to speak in — is the whole feature now.
+//
+// This stub stays because #turns is ONE ROLLING MESSAGE replaced each turn
+// (db/lib/turnAnnouncement.js), so a console posted before the deploy keeps a
+// live button for up to a real day, and an unrouted button answers "This
+// application did not respond". Delete it once no such message survives.
 async function handleSpeakOpen(interaction) {
   await ack(interaction);
-
-  const character = await findAliveCharacter(interaction.user.id);
-  if (!character) {
-    await respond(interaction, "» *You don't have a living character.*");
-    return;
-  }
-
-  const { guild, member } = await resolveActingMember(interaction);
-  if (!guild || !member) {
-    await respond(interaction, "» *Couldn't reach the server.*");
-    return;
-  }
-
-  const { options, truncated } = await listSpeakTargets(guild, member);
-  if (options.length === 0) {
-    await respond(interaction, "» *There's nowhere you can speak right now.*");
-    return;
-  }
-
-  const { rows, note } = buildSpeakPicker(options, truncated);
-  await respond(interaction, {
-    content: ["Where would you like to speak?", note].filter(Boolean).join("\n"),
-    components: rows,
-  });
-}
-
-// A modal must be shown within 3 seconds and cannot be deferred first, so
-// nothing is awaited here — the permission re-check lives on submit.
-async function handleSpeakPick(interaction) {
-  const targetId = interaction.values[0];
-  if (isNavValue(targetId)) {
-    await interaction.deferUpdate();
-    return;
-  }
-
-  const cached = interaction.client.channels.cache.get(targetId);
-  await interaction.showModal(buildSpeakModal(targetId, cached ? `#${cached.name}` : null));
+  await respond(interaction, "» *Speak has moved — use /message in the room you want to speak in.* ‡");
 }
 
 async function handleSpeakSubmit(interaction, channelId) {
@@ -1585,7 +1611,7 @@ async function handleSpeakSubmit(interaction, channelId) {
   const voice = await loadVoiceState(character.id);
   if (voice.block) {
     await touchCharacterActivity(prisma, character.id);
-    await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.* ‡`);
+    await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.*`);
     return;
   }
 
@@ -1624,15 +1650,21 @@ async function handleSpeakSubmit(interaction, channelId) {
   await respond(interaction, `» *Sent.*\n${messageLink(guild.id, channel.id, posted.webhookMessage.id)}`);
 }
 
-// /message: inside a channel the player can already speak in, skip the
-// picker and post there directly.
+// /message is contextual: it speaks into the channel or thread you ran it in.
+// There is no destination picker any more, so run it somewhere you cannot
+// speak — a DM, or #turns — and it says where to run it instead.
+//
+// showModal IS the acknowledgement and a deferred interaction can no longer
+// open one, so the speakable case must be tested BEFORE anything is acked, and
+// only the refusal branch calls ack().
 async function handleMessageCommand(interaction) {
   const channel = interaction.channel;
   if (interaction.inGuild() && interaction.member && channel && canSpeakInTarget(channel, interaction.member)) {
     await interaction.showModal(buildSpeakModal(channel.id, `#${channel.name}`));
     return;
   }
-  await handleSpeakOpen(interaction);
+  await ack(interaction);
+  await respond(interaction, "» *Run this in the channel or thread you want to speak in.* ‡");
 }
 
 // GM-only, and deliberately not the player medic path
@@ -1730,7 +1762,7 @@ async function handleHealPick(interaction, characterId) {
   await syncCharacterRoomAccess(prisma, target).catch((err) =>
     console.error(`Heal: room access sync failed for ${target.name}:`, err.message ?? err),
   );
-  if (carry?.drop) await deliverCarryDrop(prisma, carry).catch(() => {});
+  if (carry?.drop) await deliverCarryDrop(prisma, carry).catch(() => { });
 
   await respond(interaction, {
     content: `» *Cleared ${cleared.join(", ")} from ${target.name}.*`,
@@ -1771,9 +1803,9 @@ const NOTE_GLYPHS = ["♫", "♩", "♪", "♬"];
 const PLAY_COOLDOWN_MS = 5 * 60_000;
 const lastPlayed = new Map();
 
-const PLAY_SOOTHE_AUDIT_ACTION = "fear_soothed_play";
+const PLAY_SOOTHE_AUDIT_ACTION = "mood_soothed_play";
 
-// −10 fear to every living character standing at the musician's Location, the
+// +10 mood to every living character standing at the musician's Location, the
 // musician included. The ration is an AuditLog row per listener with turnId
 // set (REQUESTS.md §1a); /play is rate-limited to one a few minutes and a
 // room holds a dozen people at most, so the rows stay few. The band DM goes
@@ -1801,7 +1833,7 @@ async function sootheListeners(musician) {
   for (const { id } of listeners) {
     if (soothedAlready.has(id)) continue;
     await prisma.$transaction(async (tx) => {
-      await applyFear(tx, id, { kind: "MUSIC" });
+      await applyMood(tx, id, { kind: "MUSIC" });
       await tx.auditLog.create({
         data: {
           actorDiscordUserId: musician.discordUserId ?? "system",
@@ -1831,13 +1863,13 @@ async function handlePlayCommand(interaction) {
     include: { tags: { include: { tag: true } } },
   });
   if (!character) {
-    await respond(interaction, "» *You don't have a living character.* ‡");
+    await respond(interaction, "» *You don't have a living character.*");
     return;
   }
 
   const held = (slug) => character.tags.some((ct) => ct.tag?.slug === slug && ct.quantity > 0);
   if (!held(INSTRUMENT_SLUG)) {
-    await respond(interaction, "» *You have nothing to play.* ‡");
+    await respond(interaction, "» *You have nothing to play.*");
     return;
   }
 
@@ -1848,14 +1880,14 @@ async function handlePlayCommand(interaction) {
   const channel = interaction.channel;
   const context = channel ? resolveChannelContext(channel) : null;
   if (!channel || context?.channelKind !== "location") {
-    await respond(interaction, "» *There's nobody here to hear it.* ‡");
+    await respond(interaction, "» *There's nobody here to hear it.*");
     return;
   }
 
   const since = Date.now() - (lastPlayed.get(character.id) ?? 0);
   if (since < PLAY_COOLDOWN_MS) {
     const minutes = Math.max(1, Math.ceil((PLAY_COOLDOWN_MS - since) / 60_000));
-    await respond(interaction, `» *Let the last one finish — about ${minutes} more minute${minutes === 1 ? "" : "s"}.* ‡`);
+    await respond(interaction, `» *Let the last one finish — about ${minutes} more minute${minutes === 1 ? "" : "s"}.*`);
     return;
   }
 
@@ -1866,7 +1898,7 @@ async function handlePlayCommand(interaction) {
   // The room first, and its result is what decides whether this counted. A
   // failed overhear must not cost the player their cooldown or swallow the
   // performance.
-  const posted = await channel.send(`${line} ‡`).catch(() => null);
+  const posted = await channel.send(`${line}`).catch(() => null);
   if (!posted) {
     await respond(interaction, "» *Couldn't play here.*");
     return;
@@ -1874,7 +1906,7 @@ async function handlePlayCommand(interaction) {
   lastPlayed.set(character.id, Date.now());
 
   // A musician's playing settles everyone in earshot, once per listener per
-  // turn (docs/systemdocs/FEAR.md). Only a MUSICIAN's: a bad performance calms
+  // turn (docs/systemdocs/MOOD.md). Only a MUSICIAN's: a bad performance calms
   // nobody. Wrapped, so the dial can never swallow the performance.
   if (held(MUSICIAN_SLUG)) {
     await sootheListeners(character).catch((err) =>
@@ -1918,7 +1950,7 @@ async function handleShoutCommand(interaction) {
     select: { id: true, locationId: true },
   });
   if (!character) {
-    await respond(interaction, "» *You don't have a living character.* ‡");
+    await respond(interaction, "» *You don't have a living character.*");
     return;
   }
 
@@ -1928,7 +1960,7 @@ async function handleShoutCommand(interaction) {
   // fired out of a zone #summary or a DM.
   const context = interaction.channel ? resolveChannelContext(interaction.channel) : null;
   if (context?.channelKind !== "location") {
-    await respond(interaction, "» *There's nobody here to hear it.* ‡");
+    await respond(interaction, "» *There's nobody here to hear it.*");
     return;
   }
   if (!character.locationId) {
@@ -1936,21 +1968,22 @@ async function handleShoutCommand(interaction) {
     return;
   }
 
-  // SPEAK, not ACT — and that distinction is the whole point of this gate.
-  // {tag:bound} blocks acting but never speech, so a hostage can still yell
-  // for help, which is the one thing being tied up ought to leave you.
-  // Checked BEFORE the cooldown is claimed below: a refused shout must not
-  // burn the throat timer.
+  // SHOUT, not ACT and not SPEAK — and those distinctions are the whole point
+  // of this gate. {tag:bound} blocks acting but never the voice, so a hostage
+  // can still yell for help, which is the one thing being tied up ought to
+  // leave you; {tag:mute} is the mirror of that, talking normally and refused
+  // only here. Checked BEFORE the cooldown is claimed below: a refused shout
+  // must not burn the throat timer.
   const voice = await loadVoiceState(character.id);
-  if (voice.block) {
-    await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.* ‡`);
+  if (voice.shoutBlock) {
+    await respond(interaction, `» *You can't get the words out — you're ${voice.shoutBlock.name}.*`);
     return;
   }
 
   const since = Date.now() - (lastShouted.get(character.id) ?? 0);
   if (since < SHOUT_COOLDOWN_MS) {
     const minutes = Math.max(1, Math.ceil((SHOUT_COOLDOWN_MS - since) / 60_000));
-    await respond(interaction, `» *Your throat needs about ${minutes} more minute${minutes === 1 ? "" : "s"}.* ‡`);
+    await respond(interaction, `» *You need about ${minutes} more minute${minutes === 1 ? "" : "s"}.*`);
     return;
   }
   // Claimed BEFORE the posting loop, not after: the loop is a couple of dozen
@@ -2062,6 +2095,12 @@ module.exports = {
         if (interaction.customId.startsWith(KEYED_PREFIX)) {
           return void (await handleKeyedPrompt(interaction, interaction.customId.slice(KEYED_PREFIX.length)));
         }
+        if (interaction.customId.startsWith(INTERCEPT_RELEASE_PREFIX)) {
+          return void (await handleInterceptRelease(
+            interaction,
+            interaction.customId.slice(INTERCEPT_RELEASE_PREFIX.length),
+          ));
+        }
         if (interaction.customId === "move:open") return void (await handleMoveOpen(interaction));
         if (interaction.customId === "say:open") return void (await handleSpeakOpen(interaction));
         // Arrive in a DM on a consent offer (docs/systemdocs/LESSONS.md), so
@@ -2118,7 +2157,6 @@ module.exports = {
         if (interaction.customId.startsWith(CONVERSE_ROOM_PREFIX)) {
           return void (await handleConverseRoomPick(interaction));
         }
-        if (interaction.customId === "say:pick") return void (await handleSpeakPick(interaction));
         if (interaction.customId.startsWith("heal:pick:")) {
           return void (await handleHealPick(interaction, interaction.customId.slice("heal:pick:".length)));
         }

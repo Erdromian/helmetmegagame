@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { prisma, isDynastyHead, isDynastyMember, canOpenCrate } from "@lifeweb/db";
 import { resolveParty as dbResolveParty } from "@lifeweb/db/lib/parties";
 import { linkBetween, crossingCheck } from "@lifeweb/db/lib/locationGraph";
+import { heldReasonFor } from "@lifeweb/db/lib/intercept";
 import { blocksOnFoot, equippedSlugs } from "@lifeweb/db/lib/mounts";
 import { applyHiddenCures } from "@lifeweb/db/lib/hiddenCures";
 import {
@@ -58,6 +59,7 @@ import {
 import {
   isTradeable,
   isCrate,
+  isMount,
   addRequirementSatisfied,
   craftFamily,
   needsWorkshop,
@@ -107,6 +109,7 @@ import {
 } from "@lifeweb/db/lib/bind";
 import { createLessonOffer } from "@lifeweb/db/lib/lessons";
 import { createConfessionOffer } from "@lifeweb/db/lib/confession";
+import { createKissOffer, KISS_SELECT } from "@lifeweb/db/lib/kiss";
 import { resolveConsumeGrants, heldSlugsOf, resistSlugsOf } from "@/lib/consumeGrants";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { recordArchiveEvent } from "@/lib/archive";
@@ -114,11 +117,16 @@ import {
   syncCharacterNarrowcastAccess,
   syncCharacterNickname,
   ensureCharacterRole,
-  removeCursedRole,
+  removeGhostRole,
   sendDm,
   killCharacter,
 } from "@/lib/discordGuild";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
+// The fog behind /map, and the die that walking into the dark wakes. Both
+// belong to the Stepstone below: it lands you somewhere the same way a walk
+// does, so it owes the map the same row and the caves the same roll.
+import { knownLocations } from "@lifeweb/db/lib/locationVisits";
+import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { breakSeal } from "@lifeweb/db/lib/paperMint";
 import { CAMERA_SLUG, attachPhoto, createBlankPhotoRow } from "@lifeweb/db/lib/photoMint";
@@ -126,7 +134,8 @@ import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { partFor, resolveMutilation } from "@lifeweb/db/lib/mutilate";
 import { mintHeadstone } from "@lifeweb/db/lib/headstone";
-import { dropRoomTag, lockRoom } from "@lifeweb/db/lib/tagWrites";
+import { dropRoomTag, clampEquippedQuantity, lockRoom } from "@lifeweb/db/lib/tagWrites";
+import { WANTED_SLUG } from "@lifeweb/db/lib/wanted";
 import {
   BUTCHER_SLUG,
   ENGRAVE_RESOURCE_COST,
@@ -140,6 +149,7 @@ import {
   PACKAGE_MAX_LBS,
   PACKAGE_MAX_UNITS,
   PACKAGE_LABEL_MAX,
+  WHISPER_MAX,
 } from "@lifeweb/db/lib/constants";
 import {
   resolveTorture,
@@ -173,6 +183,13 @@ import {
 import { formatManifest, formatStack } from "@lifeweb/db/lib/roomStash";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
 import {
+  RESEARCH_TAG_SLUG,
+  CATHEDRAL_LOCATION_SLUG,
+  researchMarker,
+  loadResearchCatalog,
+  researchableHeld,
+} from "@lifeweb/db/lib/research";
+import {
   placementOf,
   structuresAt,
   canBuildHere,
@@ -199,12 +216,13 @@ import {
   ACT,
   SPEAK,
 } from "@lifeweb/db/lib/incapacitation";
-import { applyFear, consumeReliefFor, woundFearFor, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/fear";
+import { applyMood, consumeReliefFor, woundMoodFor, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/mood";
 import {
   NAME_LIMITS,
+  FULL_NAME_LIMIT,
   formatCharacterName,
   formatBareName,
-  normalizeEarnedHonorific,
+  matchesTypedName,
 } from "@/lib/characterName";
 import { propagateDynastyLastName } from "@/lib/dynasty";
 
@@ -833,6 +851,7 @@ async function mintCustomCraft(db, baseTag, { name, description, literal = false
     equippable: baseTag.equippable,
     equipSlot: baseTag.equipSlot,
     equipLayer: baseTag.equipLayer,
+    twoHanded: baseTag.twoHanded,
     removable: baseTag.removable,
     consumable: baseTag.consumable,
     consumesInto: baseTag.consumesInto,
@@ -1979,6 +1998,7 @@ async function lessonOfferImpl({ teacherId, learnerId, tagId }) {
   after(() =>
     sendDm(offer.dm.discordUserId, offer.dm.content, {
       components: offer.dm.components,
+      meta: offer.dm.meta,
       source: "player_event",
     }).catch((err) =>
       console.error(`Lesson offer DM for ${offer.offer.id} failed:`, err),
@@ -2024,6 +2044,7 @@ async function confessRequestImpl({ chaplainId, tagId }) {
   after(() =>
     sendDm(offer.dm.discordUserId, offer.dm.content, {
       components: offer.dm.components,
+      meta: offer.dm.meta,
       source: "player_event",
     }).catch((err) =>
       console.error(`Confession offer DM for ${offer.offer.id} failed:`, err),
@@ -2044,6 +2065,51 @@ async function confessRequestImpl({ chaplainId, tagId }) {
       },
     },
   });
+  revalidateAll();
+  return { pending: true };
+}
+
+// --- Kiss (docs/systemdocs/KISS.md) --------------------------------------
+
+// The one door. Every gate lives in db/lib/kiss.js#kissAuthority so the picker
+// on the sheet, this action, and the Accept click a day later all refuse for
+// the same reasons — and createKissOffer re-runs it rather than trusting
+// anything that arrived in the body.
+//
+// The acting character comes from the session, never from a posted id, so
+// there is no way to file a kiss on somebody else's behalf.
+//
+// No Move is spent and no Action row is filed. What holds it back is the
+// 2-hour cooldown inside createKissOffer and the once-a-turn mood ration on
+// the other side of Accept.
+async function kissRequestImpl({ targetCharacterId }) {
+  const { character } = await requireCharacter({ needs: ACT });
+
+  const target = await prisma.character.findFirst({
+    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    select: KISS_SELECT,
+  });
+  if (!target) throw new UserError(notHereMessage(target));
+
+  const openTurn = await getOpenTurn();
+  if (!openTurn) throw new UserError("No turn is open.");
+
+  const offer = await createKissOffer(prisma, { actor: character, target, turn: openTurn });
+  if (!offer.ok) throw new UserError(offer.reason);
+
+  after(() =>
+    sendDm(offer.dm.discordUserId, offer.dm.content, {
+      components: offer.dm.components,
+      meta: offer.dm.meta,
+      source: "player_event",
+    }).catch((err) => console.error(`Kiss offer DM to ${target.id} failed:`, err)),
+  );
+
+  // No audit row here on purpose. createKissOffer writes it inside the same
+  // transaction as the Offer, because that row IS the two-hour cooldown
+  // (db/lib/kiss.js#kissCooldownLeft) — a second one written here would just
+  // be a duplicate, and leaving it to each caller is how a cooldown quietly
+  // stops existing for whichever caller forgets.
   revalidateAll();
   return { pending: true };
 }
@@ -2355,6 +2421,28 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     return openCrateRequestImpl({ session, character, held });
   }
 
+  // The Mulligan Potion is the one consumable that cannot be drunk from here:
+  // it needs a name typed into it, so its road out is changeNameRequestImpl,
+  // opened from the tag's own tooltip. Without this the generic path would
+  // spend the bottle on nothing at all — it has no `consumesInto`.
+  // MULLIGAN_SLUG is declared beside that function, further down this file.
+  if (held.tag.slug === MULLIGAN_SLUG) {
+    throw new UserError("Drink this one from the tag itself — it needs a name first. ‡");
+  }
+
+  // Two more that cannot be drunk from here, for the reason the Mulligan gives:
+  // the generic path below reads `consumesInto`, and neither of these turns
+  // into a tag at all. One asks who you are whispering to, the other where you
+  // are going, so both come in through their own button on the Actions grid
+  // and spend the bottle there. Without these branches the generic path would
+  // swallow either one for nothing.
+  if (held.tag.slug === RAVEN_DRAUGHT_SLUG) {
+    throw new UserError("Drink this one from Send a message — it needs someone to reach. ‡");
+  }
+  if (held.tag.slug === STEPSTONE_SLUG) {
+    throw new UserError("Use this one from Stepstone — it needs somewhere to go. ‡");
+  }
+
   // Administerable: the item's `cures` intersects what a target holds, or
   // it's flagged `administerable` outright (Mercy, which cures nothing on a
   // list but stabilizes all the same) — never a bare force-feed. Hoisted
@@ -2486,11 +2574,11 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   // exactly where they were rather than leaving them Wasted with no Tipsy
   // underneath.
 
-  // What this eases (docs/systemdocs/FEAR.md): a drink or a drug by the state
-  // it lands you in, a lavish meal, tea or a cigarette by what it is. The
-  // largest single figure, never a sum — Bliss is one drink. A fine meal
-  // feeds a noble and calms nobody, on purpose.
-  const fearRelief = consumeReliefFor(held.tag.slug, grantSlugs);
+  // What this lifts (docs/systemdocs/MOOD.md): a drink or a drug by the state
+  // it lands you in, a meal, a treat, a hot drink or a smoke by what it is.
+  // The largest single figure, never a sum — Bliss is one drink, and Sweets
+  // is a treat rather than a treat plus a meal.
+  const moodRelief = consumeReliefFor(held.tag.slug, grantSlugs);
 
   // Cure application (the medical pass, TAGS.md §5c): every cured slug the
   // TARGET actually holds — not just the first, since one item (white-honey,
@@ -2646,14 +2734,14 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     // db/lib/hiddenCures.js. Runs after the ordinary grants and records
     // nothing on the request, on purpose.
     await applyHiddenCures(tx, target.id, held.tag.slug);
-    if (fearRelief) await applyFear(tx, target.id, { kind: "DRINK", base: -fearRelief });
+    if (moodRelief) await applyMood(tx, target.id, { kind: "DRINK", base: moodRelief });
 
     // Per held cured tag: drop it, grant the aftermath (the item's own
     // `curesInto` override if it names this slug, else the cured tag's own
     // `removesInto` — same as an ordinary Heal), and ease half the wound's
-    // fear cost. Re-read WITH group each time — the target load above omits
+    // mood cost. Re-read WITH group each time — the target load above omits
     // it, the same trap healCharacterRequestImpl already dodges, and
-    // woundFearFor needs it.
+    // woundMoodFor needs it.
     const cured = [];
     for (const ct of curedHeldNow) {
       await dropCharacterTag(tx, target.id, ct.tagId);
@@ -2672,8 +2760,10 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
       const override = held.tag.curesInto?.[curedTag.slug];
       const aftermathSlugs = override ? [override] : rollTagChain(curedTag.removesInto);
       const grantedAftermath = await grantTagSlugs(tx, target.id, aftermathSlugs, openTurn?.number ?? null);
-      const relief = woundFearFor(curedTag) / 2;
-      if (relief > 0) await applyFear(tx, target.id, { kind: "HEALED", base: -relief });
+      // woundMoodFor is signed (MOOD.md), hence the minus — the same
+      // shape healCharacterRequestImpl uses.
+      const relief = -woundMoodFor(curedTag) / 2;
+      if (relief > 0) await applyMood(tx, target.id, { kind: "HEALED", base: relief });
       cured.push({
         tagId: ct.tagId,
         tagName: curedTag.name,
@@ -2686,7 +2776,6 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
         },
       });
     }
-
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_consume_tag",
@@ -2701,7 +2790,7 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
         restore,
         granted: granted.map((g) => g.tagName),
         resourcesGranted: allResourcesGranted,
-        fearRelief: fearRelief || undefined,
+        moodRelief: moodRelief || undefined,
         climbed: climbed.map((c) => c.tagName),
         cured: cured.length ? cured : undefined,
         administered: administered || undefined,
@@ -3026,7 +3115,7 @@ async function transferRequestImpl({
   // whole job to lootCharacterRequestImpl rather than growing a second
   // implementation beside it. That is what keeps the helpless gate
   // (INCAPACITATING_SLUGS — Bound, Dying, Paralyzed, Catatonic, or a body),
-  // the ROBBED fear hit and the "your body was searched" notification from
+  // the ROBBED mood hit and the "your body was searched" notification from
   // depending on which button was pressed.
   //
   // It has to land in YOUR hands, the same rule Loot has always had — there is
@@ -3565,6 +3654,7 @@ async function healCharacterRequestImpl({
             diceModifier:
               gambitModifierTotal(character.tags, {
                 hungerStreak: character.hungerStreak,
+                mood: character.mood,
               }) + (surgicalPenalty ? -1 : 0),
             zoneId: character.zoneId ?? null,
             gmNotes: "auto:heal_gambit",
@@ -3607,7 +3697,8 @@ async function healCharacterRequestImpl({
         aftermathSlugs,
         openTurn?.number ?? null,
       );
-      // Being treated eases half of what the wound cost the nerves (FEAR.md).
+      // Being treated gives back half of what the wound cost the mood
+      // (MOOD.md) — woundMoodFor is signed, hence the minus.
       // Only a routine cure — a gambit heal leaves the affliction on them. The
       // held row's tag was loaded without its group, which the rung needs, so
       // it is re-read here rather than trusted.
@@ -3615,8 +3706,8 @@ async function healCharacterRequestImpl({
         where: { id: held.tagId },
         select: { slug: true, requirementResources: true, requirementTurns: true, requirementGambit: true, group: { select: { slug: true } } },
       });
-      const relief = woundFearFor(woundTag) / 2;
-      if (relief > 0) await applyFear(tx, target.id, { kind: "HEALED", base: -relief });
+      const relief = -woundMoodFor(woundTag) / 2;
+      if (relief > 0) await applyMood(tx, target.id, { kind: "HEALED", base: relief });
     }
 
     await logAudit(tx, {
@@ -3653,6 +3744,101 @@ async function healCharacterRequestImpl({
     cost,
     gambit,
   };
+}
+
+// --- Research (Scholastic skill, docs/tags.yaml `research`) -------------
+//
+// Studying a held ingredient in the Cathedral's library. Filed exactly like
+// the heal Gambit above — CONFIRMED, `moveKind: GAMBIT`, the die already
+// rolled and stored, `moveReviewStatus: OPEN` — but for a different reason.
+// A gambit heal sits OPEN because a GM reads it and writes the cure by hand
+// (docs/systemdocs/TAGS.md §5c). Nobody adjudicates a research roll: it sits
+// OPEN because it hasn't been RESOLVED yet, the same posture a Lesson Gambit
+// takes (db/lib/lessons.js) — db/lib/researchPass.js reads `gmNotes` back at
+// turn close, in its own pass between Lessons and Confessions, and writes
+// the paper (or the "nothing" line) and the SOLVED status itself. Which
+// ingredient was chosen has nowhere else to live: the Action has one
+// `description` and no ingredient column, so `researchMarker()` stamps the
+// slug into `gmNotes`, the same channel Craft's `auto:craft` marker and the
+// Death Mask's corpse choice both ride.
+//
+// No file-time DM: the confirm prompt already told the player this spends
+// the Move as a Gambit whose result lands at turn close (the sheet's own
+// dialogs never echo that back the way Play's Move panel does — heal's
+// Gambit branch above sends nothing to the medic either, only to a target
+// who is someone else).
+async function researchRequestImpl({ ingredientSlug }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  if (!character.tags.some((ct) => ct.tag?.slug === RESEARCH_TAG_SLUG))
+    throw new UserError("You don't know how to research.");
+
+  // No `character.location` on the shared include (requireCharacter is every
+  // request's loader) — a targeted read off the scalar FK, the same shape
+  // db/lib/mood.js#applyArrivalMood uses for its own Cathedral check.
+  const location = character.locationId
+    ? await prisma.location.findUnique({
+        where: { id: character.locationId },
+        select: { slug: true },
+      })
+    : null;
+  if (location?.slug !== CATHEDRAL_LOCATION_SLUG)
+    throw new UserError("You must be located in the Cathedral to Research.");
+
+  const catalog = await loadResearchCatalog(prisma);
+  const held = researchableHeld(character.tags, catalog);
+  const ingredient = held.find((ct) => ct.tag?.slug === ingredientSlug);
+  if (!ingredient) throw new UserError("You aren't carrying that.");
+
+  const openTurn = await getOpenTurn();
+  // requireFreeMove is also the Move-window check (web/lib/moveSpend.js) —
+  // no separate `moveWindow` read is needed the way craft's fractional Move
+  // needs one, because a Gambit always takes the whole thing.
+  await requireFreeMove(character, openTurn);
+
+  let action;
+  await prisma.$transaction(async (tx) => {
+    // The P2002 catch below is the real gate — @@unique([characterId,
+    // turnId]) — but requireFreeMove's read a moment ago is what keeps a
+    // normal submit from ever reaching it.
+    try {
+      action = await tx.action.create({
+        data: {
+          characterId: character.id,
+          turnId: openTurn.id,
+          type: "MOVE",
+          status: "CONFIRMED",
+          confirmedAt: new Date(),
+          moveKind: "GAMBIT",
+          moveReviewStatus: "OPEN",
+          description: `Researching ${ingredient.tag.name} in the Cathedral.`,
+          diceRoll: rollDie(),
+          diceModifier: gambitModifierTotal(character.tags, {
+            hungerStreak: character.hungerStreak,
+            mood: character.mood,
+          }),
+          zoneId: character.zoneId ?? null,
+          locationId: character.locationId ?? null,
+          gmNotes: researchMarker(ingredientSlug),
+        },
+      });
+    } catch (err) {
+      if (err?.code === "P2002")
+        throw new UserError("You've already used your Move this turn.");
+      throw err;
+    }
+
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "research_filed",
+      targetCharacterId: character.id,
+      turnId: openTurn.id,
+      details: { ingredientSlug },
+    });
+  });
+
+  revalidateAll();
+  return { ingredientName: ingredient.tag.name };
 }
 
 // --- Looting a living, incapacitated target ----------------------------
@@ -3802,8 +3988,8 @@ async function lootCharacterRequestImpl({
       })),
       amount,
     };
-    // Waking up robbed is frightening; a corpse minds nothing (FEAR.md).
-    if (target.status === "ALIVE") await applyFear(tx, target.id, { kind: "ROBBED" });
+    // Waking up robbed is frightening; a corpse minds nothing (MOOD.md).
+    if (target.status === "ALIVE") await applyMood(tx, target.id, { kind: "ROBBED" });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_loot_character",
@@ -3840,7 +4026,7 @@ async function lootCharacterRequestImpl({
 // word for word. Both are replaced by escorting: you attach somebody once and
 // they follow you, the helpless without asking and everyone else through an
 // Offer. db/lib/escort.js is the one authority now, and the party rack on
-// /play is the surface. See docs/systemdocs/MAP.md §3a.
+// /chat is the surface. See docs/systemdocs/MAP.md §3a.
 
 // --- Binding and freeing -------------------------------------------------
 
@@ -3887,6 +4073,7 @@ async function bindCharacterRequestImpl({
     after(() =>
       sendDm(offer.dm.discordUserId, offer.dm.content, {
         components: offer.dm.components,
+        meta: offer.dm.meta,
         source: "player_event",
       }).catch((err) =>
         console.error(`Bind offer DM to ${target.id} failed:`, err),
@@ -4039,8 +4226,8 @@ async function crucifyCharacterRequestImpl({
       expiresTurn,
       stackable: crucified.stackable,
     });
-    // The single most frightening thing that can happen to a person (FEAR.md).
-    await applyFear(tx, target.id, { kind: "CRUCIFIED" });
+    // The single most frightening thing that can happen to a person (MOOD.md).
+    await applyMood(tx, target.id, { kind: "CRUCIFIED" });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_crucify_character",
@@ -4065,7 +4252,7 @@ async function crucifyCharacterRequestImpl({
 // resolved on the spot: a break DMs the torturer everything on the sheet that
 // isn't a wound or a passing status, plus the last three Desires fulfilled,
 // and the Depressed tag lands on the victim. Either way the victim takes the
-// TORTURED fear hit and the torturer's Move is spent. The die and its
+// TORTURED mood hit and the torturer's Move is spent. The die and its
 // arithmetic live in db/lib/torture.js; this file only loads rows and writes.
 //
 // Filed as a ROUTINE already PASSED (fileAutoRoutine) rather than a Gambit:
@@ -4122,9 +4309,10 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
     torturerSlugs,
     targetSlugs,
     equipmentInReach,
-    // Hungry, Afraid and Panic count here as on any Gambit.
+    // Hungry, Afraid and Panicking count here as on any Gambit.
     gambitMods: gambitModifiers(character.tags, {
       hungerStreak: character.hungerStreak,
+      mood: character.mood,
     }),
   });
   const rollLine = formatTortureRoll(result);
@@ -4167,8 +4355,8 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
 
   const outcome = result.success ? "they broke" : "they held out";
   await prisma.$transaction(async (tx) => {
-    // +40, or nothing under Pain Immunity / an Opium High (FEAR.md §6).
-    await applyFear(tx, target.id, { kind: "TORTURED" });
+    // +40, or nothing under Pain Immunity / an Opium High (MOOD.md §6).
+    await applyMood(tx, target.id, { kind: "TORTURED" });
     if (result.success && depressed) {
       // An EVENT grant, so Depressed's conflictsWith (a purchase-time check)
       // does not stop it — the same door a GM grant walks through.
@@ -4299,6 +4487,18 @@ async function disguiseSelfRequestImpl({ name: rawName }) {
       details: effect,
     });
   });
+
+  // The mention token follows the false name (PROXYING.md §6), and this is the
+  // one moment a player is watching for it — a disguise that only takes hold
+  // at the next turn roll is a disguise that did not work when it was put on.
+  // Taking it OFF can wait for the reconcile in advanceTurn
+  // (db/lib/characterRoleNames.js), which is what covers every other way a
+  // forcedName tag can arrive or leave.
+  //
+  // Best-effort and outside the transaction, the rule for every Discord call
+  // (ARCHITECTURE.md §5): the disguise is the tag, not the role, and a Discord
+  // hiccup must not cost somebody their kit.
+  await ensureCharacterRole(character).catch(() => {});
 
   await afterInventoryChange(character.id);
   revalidateAll();
@@ -4557,8 +4757,8 @@ async function claimDesireImpl({
       where: { id: character.id },
       data: { tagPoints: { increment: row.points } },
     });
-    // Getting what you wanted settles the nerves, 10 a point (FEAR.md).
-    await applyFear(tx, character.id, { kind: "DESIRE", base: -DESIRE_RELIEF_PER_POINT * row.points });
+    // Getting what you wanted settles the nerves, 10 a point (MOOD.md).
+    await applyMood(tx, character.id, { kind: "DESIRE", base: DESIRE_RELIEF_PER_POINT * row.points });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_fulfill_desire",
@@ -4587,21 +4787,22 @@ async function claimDesireImpl({
 
 // --- Name ---------------------------------------------------------------
 
-// The one player-facing rename: an ordinary reason-gated request applying
-// the same allowlist/cap/dynasty-lock rules every writer of Character.name
-// uses. See docs/systemdocs/CHARACTERS.md §1b.
-// Renaming costs a Mulligan Potion, drunk. The gate is the whole point of the
-// item — "a new name and appearance to those with honest regrets" is what its
-// catalog text has always promised — and without it a name is free to change
-// as often as a player likes, which makes every other identity rule (the
-// personal Discord role, a wanted poster, a Disguise that is supposed to be
-// temporary) mean less than it should. A Disguise is the temporary answer;
-// this is the permanent one. See CHARACTERS.md.
+// The one player-facing rename: all four parts of a name, applying the same
+// caps and dynasty lock every other writer of Character.name uses. See
+// docs/systemdocs/CHARACTERS.md §1b.
+// Renaming costs a Mulligan Potion, drunk from the tag's own tooltip. The gate
+// is the whole point of the item — "a new name and appearance to those with
+// honest regrets" is what its catalog text has always promised — and without
+// it a name is free to change as often as a player likes, which makes every
+// other identity rule (the personal Discord role, a wanted poster, a Disguise
+// that is supposed to be temporary) mean less than it should. A Disguise is
+// the temporary answer; this is the permanent one. See CHARACTERS.md.
 const MULLIGAN_SLUG = "mulligan-potion";
 
 async function changeNameRequestImpl({
   honorific: rawHonorific,
   firstName: rawFirstName,
+  title: rawTitle,
   lastName: rawLastName,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
@@ -4609,20 +4810,23 @@ async function changeNameRequestImpl({
   // Re-checked here and not merely in the UI: a server action is a public
   // endpoint and page.js's predicate is only a hint.
   const potion = character.tags.find((ct) => ct.tag.slug === MULLIGAN_SLUG);
+  // Read here beside the potion, dropped inside the transaction below.
+  const warrant = character.tags.find((ct) => ct.tag.slug === WANTED_SLUG);
   if (!potion) {
     throw new UserError(
       "You need a Mulligan Potion to take a new name.",
     );
   }
 
-  // Gated by what this character has earned — an unearned word lands as
-  // null rather than throwing, so a stale tab renames them untitled instead
-  // of failing outright.
-  const honorific = normalizeEarnedHonorific(rawHonorific, {
-    tagSlugs: character.tags.map((ct) => ct.tag.slug),
-    roleSlug: character.role?.slug ?? null,
-    gender: character.gender,
-  });
+  // Free text here, unlike creation: what a bottle sells is the whole
+  // identity, prefix and quoted title included, so this path deliberately
+  // does NOT run normalizeEarnedHonorific. A prefix a character drank is no
+  // longer proof they earned anything — which is a thing other characters can
+  // find out the hard way. Capped, though; every writer of `name` is.
+  const honorific =
+    rawHonorific?.toString().trim().slice(0, NAME_LIMITS.honorific) || null;
+  // The one player-facing writer of `title`, the part that renders in quotes.
+  const title = rawTitle?.toString().trim().slice(0, NAME_LIMITS.title) || null;
   const firstName =
     rawFirstName?.toString().trim().slice(0, NAME_LIMITS.firstName) || null;
   if (!firstName) throw new UserError("A character needs a first name.");
@@ -4636,17 +4840,19 @@ async function changeNameRequestImpl({
   const previous = {
     honorific: character.honorific,
     firstName: character.firstName,
+    title: character.title,
     lastName: character.lastName,
     name: character.name,
   };
   const next = {
     honorific,
     firstName,
+    title,
     lastName,
     name: formatCharacterName({
       honorific,
       firstName,
-      title: character.title,
+      title,
       lastName,
     }),
   };
@@ -4674,12 +4880,24 @@ async function changeNameRequestImpl({
     });
     // Drunk, not merely held — one name per bottle.
     await dropCharacterTag(tx, character.id, potion.tagId, 1);
+    // And the warrant goes with the old name. A Wanted man who buys a whole
+    // new identity has bought his way off the list — that is what the bottle
+    // is FOR, and leaving the tag on would mean the Cerberon still read him
+    // as wanted under a name their own book has never heard of.
+    if (warrant) await dropCharacterTag(tx, character.id, warrant.tagId);
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_change_name",
       targetCharacterId: character.id,
       turnId: openTurn?.id ?? null,
-      details: { previousName: previous.name, name: next.name, potionTagId: potion.tagId },
+      details: {
+        previousName: previous.name,
+        name: next.name,
+        previousTitle: previous.title,
+        title: next.title,
+        potionTagId: potion.tagId,
+        ...(warrant ? { clearedWanted: true } : {}),
+      },
     });
   });
 
@@ -4918,10 +5136,10 @@ async function mutilateRequestImpl({
       expiresTurn,
       stackable: itemTag.stackable,
     });
-    // A corpse feels nothing. applyFear on a dead row would move a dial
-    // nobody reads and show up in the fear log as a live event.
+    // A corpse feels nothing. applyMood on a dead row would move a dial
+    // nobody reads and show up in the mood log as a live event.
     if (subject.status === "ALIVE")
-      await applyFear(tx, subject.id, { kind: "MUTILATED" });
+      await applyMood(tx, subject.id, { kind: "MUTILATED" });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_mutilate",
@@ -4945,7 +5163,7 @@ async function mutilateRequestImpl({
   // Unattributed, like every other request that acts on somebody else. The
   // death DM rides on killCharacter so nothing ever sends two.
   if (kills) {
-    await killCharacter(subject, `Your ${named.label.toLowerCase()} was cut out. ‡`).catch(
+    await killCharacter(subject, `Your ${named.label.toLowerCase()} was cut out.`).catch(
       (err) =>
         console.error(`Failed to kill mutilated character ${subject.id}:`, err),
     );
@@ -4965,6 +5183,20 @@ async function mutilateRequestImpl({
 
   revalidateAll();
   return { part: named.label, name: subject.name };
+}
+
+// Scenery into the Location the actor is standing in. Corpse work is the most
+// visible thing a person can do with a body, and until now only a room stash
+// pull said anything. `requireCharacter` carries no `character.location`, so
+// the channel is read here (the same lookup every other action in this file
+// does).
+async function speakHere(character, text) {
+  if (!character.locationId) return;
+  const location = await prisma.location.findUnique({
+    where: { id: character.locationId },
+    select: { discordChannelId: true },
+  });
+  speakAtSite(location?.discordChannelId, ambientLine(text));
 }
 
 // Burying. Takes the body — you have to actually have it, or be able to reach
@@ -5011,7 +5243,7 @@ async function buryCharacterRequestImpl({
     });
   });
 
-  await removeCursedRole(target.discordUserId).catch((err) =>
+  await removeGhostRole(target.discordUserId).catch((err) =>
     console.error(
       `Bury: failed to lift the curse from ${target.discordUserId}:`,
       err,
@@ -5023,6 +5255,7 @@ async function buryCharacterRequestImpl({
   if (corpse.source.kind === "room") {
     after(() => announceInRoom(corpse.source, character, "takes a body away."));
   }
+  await speakHere(character, `${target.name} was buried.`);
 
   revalidateAll();
   return { name: target.name };
@@ -5032,30 +5265,36 @@ async function buryCharacterRequestImpl({
 // here with no corpse and no reach check at all, and it searches the whole
 // game rather than your zone.
 //
-// This is where Bury's typed first name went, and the reasoning that kept it
-// typed is unchanged and now stronger: a dropdown would answer "who is dead?"
-// to anyone who opened the dialog, and the list would now be every corpse in
+// This is where Bury's typed name went, and the reasoning that kept it typed
+// is unchanged and now stronger: a dropdown would answer "who is dead?" to
+// anyone who opened the dialog, and the list would now be every corpse in
 // Ravenheart rather than the ones at your feet.
 //
-// The >1-match refusal matters far more than it used to for the same reason.
-// It is the only thing standing between a mourner and freeing the wrong soul.
+// It used to match on the FIRST NAME alone, and that was too coarse for a game
+// with a hundred people in it: first names repeat constantly, so a mourner who
+// knew exactly whose stone they were cutting got told "more than one dead
+// person answers to that name" and had to go find a GM. It matches the whole
+// name now — matchesTypedName takes either the full display name or the plain
+// First Last, so an honorific nobody told them about is not a wall.
+//
+// The >1-match refusal stays, and now it means what it says: two dead people
+// with the same full name. It is the only thing standing between a mourner and
+// freeing the wrong soul.
 async function engraveHeadstoneRequestImpl({
-  firstName: rawFirstName,
+  name: rawName,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
-  const typed =
-    rawFirstName?.toString().trim().slice(0, NAME_LIMITS.firstName) ?? "";
+  const typed = rawName?.toString().trim().slice(0, FULL_NAME_LIMIT) ?? "";
   if (!typed) throw new UserError("Whose name?");
 
-  // No zone clause, on purpose (see above).
-  const matches = await prisma.character.findMany({
-    where: {
-      status: "DEAD",
-      buriedAt: null,
-      firstName: { equals: typed, mode: "insensitive" },
-    },
+  // No zone clause, on purpose (see above). The composed name is not something
+  // Prisma can compare against, so the unburied dead — a short list — come
+  // back and matchesTypedName does the rest.
+  const candidates = await prisma.character.findMany({
+    where: { status: "DEAD", buriedAt: null },
   });
+  const matches = candidates.filter((c) => matchesTypedName(c, typed));
   if (matches.length === 0)
     throw new UserError("Nobody by that name is dead and unburied.");
   if (matches.length > 1) {
@@ -5106,7 +5345,7 @@ async function engraveHeadstoneRequestImpl({
     return { headstone };
   });
 
-  await removeCursedRole(target.discordUserId).catch((err) =>
+  await removeGhostRole(target.discordUserId).catch((err) =>
     console.error(
       `Engrave: failed to lift the curse from ${target.discordUserId}:`,
       err,
@@ -5118,6 +5357,7 @@ async function engraveHeadstoneRequestImpl({
     target,
     "Somebody carved your name in stone. The curse has lifted.",
   );
+  await speakHere(character, `A headstone was engraved for ${target.name}.`);
 
   revalidateAll();
   return { name: target.name, headstone: result.headstone.name };
@@ -5226,10 +5466,15 @@ async function extractGodfleshRequestImpl() {
   );
 
   revalidateAll();
+  // The DM above carries the same facts with Discord's formatting; this is
+  // the one-line version the page's notice shows.
+  const got = result.quantity > 0 ? `${result.quantity} Godflesh` : "nothing";
+  const hurt = injury ? ` It got hold of you first — ${injury.name}.` : "";
   return {
     die: result.die,
     quantity: result.quantity,
     injury: injury?.name ?? null,
+    line: `You went out into the marsh and cut. The die came up ${result.die}: ${got}.${hurt}`,
   };
 }
 
@@ -5279,6 +5524,12 @@ async function packageItemsRequestImpl({
     // A crate of crates would nest a consumesInto chain arbitrarily deep, and
     // halving twice is a free carry exploit besides.
     if (isCrate(row.tag)) throw new UserError("You can't crate a crate.");
+    // A mount is not cargo, and the MOUNT slot is weightless on purpose, so a
+    // crate of one came out at crateWeight's floor of 1 lb. The Depot still
+    // ships a horse crated (DEPOT.md §0e) — this refusal is the hand-packed
+    // button only.
+    if (isMount(row.tag))
+      throw new UserError("A mount doesn't fit in a crate. ‡");
     const quantity = Math.min(line.quantity, row.quantity);
     return {
       tagId: row.tagId,
@@ -5466,6 +5717,10 @@ export async function confessRequest(input) {
   return guarded(() => confessRequestImpl(input));
 }
 
+export async function kissRequest(input) {
+  return guarded(() => kissRequestImpl(input));
+}
+
 export async function transferRequest(input) {
   return guarded(() => transferRequestImpl(input));
 }
@@ -5484,6 +5739,9 @@ export async function poisonCharacterRequest(input) {
 
 export async function healCharacterRequest(input) {
   return guarded(() => healCharacterRequestImpl(input));
+}
+export async function researchRequest(input) {
+  return guarded(() => researchRequestImpl(input));
 }
 
 export async function claimDesire(input) {
@@ -5720,3 +5978,242 @@ export async function packageItemsRequest(input) {
 export async function birdMessageRequest(input) {
   return guarded(() => birdMessageRequestImpl(input));
 }
+
+// ---- The Raven Draught ---------------------------------------------------
+//
+// The second crossing of zone isolation, after the Bird (docs/systemdocs/
+// BIRD.md). A brewed bottle, spent on one sentence to one person anywhere in
+// Ravenheart, with no guess to get right and no reply coming back.
+//
+// It is allowed to be certain where the Bird is not, and the reason is the
+// whole of BIRD.md §2: the Bird's delayed, identically-worded failure exists
+// so nobody can use it to ask "is this person alive". This asks nothing. It
+// reports "Sent." every single time — to the living, to the dead, to somebody
+// who logged off in week one — so the sender learns exactly nothing they did
+// not already know. The truth goes in the audit row, for a GM, and nowhere a
+// player can read it.
+//
+// Declared here rather than in db/lib for the reason MULLIGAN_SLUG gives: one
+// bespoke consumable, one place that names it.
+const RAVEN_DRAUGHT_SLUG = "raven-draught";
+
+// Bascinet's words, verbatim, so no dagger.
+function whisperDm(message) {
+  return `You hear a whisper in your mind: ${message}`;
+}
+
+async function whisperRequestImpl({ recipientId, message: rawMessage }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  const held = character.tags.find(
+    (ct) => ct.tag.slug === RAVEN_DRAUGHT_SLUG && ct.quantity > 0,
+  );
+  if (!held) throw new UserError("You aren't carrying a Raven Draught. ‡");
+
+  const message = String(rawMessage ?? "").trim().slice(0, WHISPER_MAX);
+  if (!message) throw new UserError("Say something first.");
+
+  const targetId = String(recipientId ?? "");
+  if (!targetId) throw new UserError("Pick someone.");
+  if (targetId === character.id) {
+    throw new UserError("You already know what you were going to say.");
+  }
+  // Loaded WITHOUT a status filter, the way the Bird loads its recipient: a
+  // query that could only find the living would answer the question this
+  // whole action is built not to answer.
+  const recipient = await prisma.character.findUnique({
+    where: { id: targetId },
+    select: { id: true, name: true, status: true, discordUserId: true },
+  });
+  if (!recipient) throw new UserError("Nobody by that name.");
+
+  const delivered = recipient.status === "ALIVE";
+  const openTurn = await getOpenTurn();
+  const restore = {
+    tagId: held.tagId,
+    source: held.source,
+    expiresTurn: held.expiresTurn,
+    quantity: 1,
+  };
+
+  await prisma.$transaction(async (tx) => {
+    // The bottle was read outside this transaction — lock before spending it,
+    // or two submits in flight both see one draught and send two whispers.
+    await lockCharacter(tx, character.id);
+    const stillHeld = await tx.characterTag.findFirst({
+      where: { characterId: character.id, tagId: held.tagId, quantity: { gt: 0 } },
+      select: { id: true },
+    });
+    if (!stillHeld) throw new UserError("You aren't carrying a Raven Draught. ‡");
+    await dropCharacterTag(tx, character.id, held.tagId, 1);
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_whisper",
+      targetCharacterId: recipient.id,
+      turnId: openTurn?.id ?? null,
+      details: {
+        restore,
+        recipientId: recipient.id,
+        recipientName: recipient.name,
+        message,
+        // The one place the outcome is written down. The sender is never told.
+        delivered,
+      },
+    });
+  });
+
+  // Post-commit, and only to somebody alive to hear it (ARCHITECTURE.md §5).
+  if (delivered) {
+    notifyCharacter(recipient, whisperDm(message), { source: RAVEN_DRAUGHT_SLUG });
+  }
+
+  await afterInventoryChange(character.id);
+  revalidateAll();
+  // Identical either way. See the note at the top of this section.
+  return { ok: true };
+}
+
+// ---- The Stepstone -------------------------------------------------------
+//
+// A raw relocation, the shape the Dev Panel's Teleport already uses: no Move
+// cost, no adjacency, no cooldown, immediate. The one thing it is NOT is
+// unlimited — you step somewhere you KNOW, which is the fog behind /map
+// (db/lib/locationVisits.js), stood in or seen from next door. A picker over
+// all 56 Locations would hand the reader the whole map, which is the one
+// thing the fog exists to stop.
+const STEPSTONE_SLUG = "stepstone";
+
+async function stepstoneRequestImpl({ locationId }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  const held = character.tags.find(
+    (ct) => ct.tag.slug === STEPSTONE_SLUG && ct.quantity > 0,
+  );
+  if (!held) throw new UserError("You aren't carrying a Stepstone. ‡");
+
+  // A hold stops a walk at locationTravel.js#performLocationMove, and it has to
+  // stop a step for the same reason: an ambush is a hand on your shoulder
+  // (docs/systemdocs/INTERCEPT.md). Without this the stone is the one way out
+  // of an intercept in the game.
+  const heldBy = heldReasonFor(character);
+  if (heldBy) throw new UserError(heldBy);
+
+  const targetId = String(locationId ?? "");
+  if (!targetId) throw new UserError("Pick somewhere.");
+  if (character.locationId === targetId) {
+    throw new UserError("You're already there.");
+  }
+
+  const location = await prisma.location.findUnique({
+    where: { id: targetId },
+    include: { zone: true },
+  });
+  if (!location) throw new UserError("There's no such place.");
+
+  // Recomputed here rather than trusted from the dialog: the picker is a hint,
+  // and a posted id for somewhere this character has never been must be
+  // refused whatever the client drew.
+  // STOOD only, never `seen`. A `seen` row is written for every LISTED
+  // neighbour, and a locked gate or a shut portcullis is listed-but-not-
+  // passable by design (db/lib/locationGraph.js) — so accepting `seen` would
+  // let the stone step through every door in Ravenheart anybody had ever
+  // stood next to. Somewhere you have STOOD is somewhere you already got into.
+  const { stood } = await knownLocations(prisma, character.id);
+  if (!stood.has(targetId)) {
+    throw new UserError("You've never stood there. The stone only takes you back. ‡");
+  }
+
+  const fromLocationId = character.locationId;
+  const openTurn = await getOpenTurn();
+  const restore = {
+    tagId: held.tagId,
+    source: held.source,
+    expiresTurn: held.expiresTurn,
+    quantity: 1,
+  };
+
+  await prisma.$transaction(async (tx) => {
+    await lockCharacter(tx, character.id);
+    const stillHeld = await tx.characterTag.findFirst({
+      where: { characterId: character.id, tagId: held.tagId, quantity: { gt: 0 } },
+      select: { id: true },
+    });
+    if (!stillHeld) throw new UserError("You aren't carrying a Stepstone. ‡");
+    await dropCharacterTag(tx, character.id, held.tagId, 1);
+    await tx.character.update({
+      where: { id: character.id },
+      data: {
+        locationId: location.id,
+        // Denormalized mirror — every writer of locationId writes both.
+        zoneId: location.zoneId,
+        // A crossing already declared would otherwise walk them off again at
+        // the next close, and an escort you have vanished out of is over.
+        travelToLocationId: null,
+        travelTurnId: null,
+        escortedById: null,
+      },
+    });
+    // Nobody follows a stone. Cut the party loose here rather than leaving
+    // them pointed at somebody standing in another zone — the same tidy-up
+    // db/lib/characterDeath.js does when a leader leaves play. Left dangling,
+    // partyOf() still counts them and can cost a mounted leader the horse's
+    // extra crossing for followers who are nowhere near them.
+    await tx.character.updateMany({
+      where: { escortedById: character.id },
+      data: { escortedById: null },
+    });
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_stepstone",
+      targetCharacterId: character.id,
+      turnId: openTurn?.id ?? null,
+      details: {
+        restore,
+        fromLocationId,
+        toLocationId: location.id,
+        toLocationName: location.name,
+        toZoneName: location.zone?.name ?? null,
+      },
+    });
+  });
+
+  // Post-commit and out of band: this is the one hook every writer of
+  // locationId owes — the map row, the channel overwrite, the zone role, the
+  // carry settle, the corpses being carried, the poke at every open /chat.
+  // Discord must never be touched from inside a transaction.
+  after(async () => {
+    try {
+      await applyLocationMoveSideEffects(prisma, {
+        characterId: character.id,
+        fromLocationId,
+        toLocationId: location.id,
+      });
+    } catch (err) {
+      console.error("Stepstone: location side effects failed:", err);
+    }
+    // Walking is what wakes the dark, and stepping counts as arriving.
+    try {
+      const moved = await prisma.character.findUnique({ where: { id: character.id } });
+      const cavingDm = await rollCavingOnArrival(prisma, moved, location);
+      if (cavingDm) {
+        await sendDm(cavingDm.discordUserId, cavingDm.content).catch((err) =>
+          console.error("Stepstone: caving arrival DM failed:", err),
+        );
+      }
+    } catch (err) {
+      console.error("Stepstone: caving roll failed:", err);
+    }
+  });
+
+  revalidateAll();
+  return { ok: true, locationName: location.name, zoneName: location.zone?.name ?? null };
+}
+
+export async function whisperRequest(input) {
+  return guarded(() => whisperRequestImpl(input));
+}
+
+export async function stepstoneRequest(input) {
+  return guarded(() => stepstoneRequestImpl(input));
+}
+

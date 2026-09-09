@@ -29,9 +29,11 @@ function isMerchantRole(slug) {
 //
 // A LOCATION slug from docs/zones.yaml, not a zone one. The gate used to be
 // the whole Caverns zone, which meant trading from anywhere underground.
-// Standing there is now literal — and the place is Customs, since the depot
-// and the sentry post at the cave mouth are one Location again.
-const DEPOT_LOCATION_SLUG = "customs";
+// Standing there is now literal — and the place is the Depot, which is a
+// Location of its own again, one plain hop east of the sentry post at
+// Customs. That hop is authored in `connections:`; without it this constant
+// would name a shop nobody who cleared customs could reach.
+const DEPOT_LOCATION_SLUG = "depot";
 
 // Resources across the shuttle, and the reason the Merchant's own ⬢ counter
 // is gone. The station imports ⬢ at RESOURCE_IMPORT_PRICE and pays

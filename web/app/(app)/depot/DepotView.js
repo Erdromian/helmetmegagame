@@ -1,6 +1,6 @@
 "use client";
 
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
 import DepotConsole from "@/app/components/DepotConsole";
 
 // What the page draws, from the one object page.js#FreshDepot produces — the
@@ -9,9 +9,6 @@ import DepotConsole from "@/app/components/DepotConsole";
 export default function DepotView(props) {
   return (
     <PageShell width="wide">
-      <PageHeader
-        title="The Depot"
-      />
       <DepotConsole {...props} />
     </PageShell>
   );

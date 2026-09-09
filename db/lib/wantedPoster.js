@@ -26,8 +26,10 @@ const { mintUnownedPaper } = require("./paperMint");
 const { addToRoomStack } = require("./tagWrites");
 const { expiryFrom } = require("./turnFormat");
 const { DEBTOR_SLUG } = require("./constants");
-
-const WANTED_SLUG = "wanted";
+// The tag itself lives in wanted.js; this file is only the paper. Both are
+// re-exported below so the callers that always imported them from here still
+// can.
+const { WANTED_SLUG, isWanted } = require("./wanted");
 
 // The Merchant advanced him half of it; the paper says the rest.
 const DEBTOR_DEBT_OBOLS = 40;
@@ -52,8 +54,8 @@ const NOTICE_SPECS = {
   },
   DEBTOR: {
     author: "The Merchant",
-    roomSlugs: ["customs-merchants-office", "customs-storefront"],
-    boardLocationSlug: "customs",
+    roomSlugs: ["depot-merchants-office", "depot-storefront"],
+    boardLocationSlug: "depot",
     text: (name) => `DEBTOR: ${name}. Owes: ${DEBTOR_DEBT_OBOLS} obols. Send the dockers.`,
     needsZone: false,
   },
@@ -61,13 +63,6 @@ const NOTICE_SPECS = {
 
 function posterText(name, zoneName) {
   return NOTICE_SPECS.WANTED.text(name, zoneName);
-}
-
-// True when a freshly created character bought Wanted. `heldSlugs` is any
-// iterable of the slugs they ended up with.
-function isWanted(heldSlugs) {
-  const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
-  return held.has(WANTED_SLUG);
 }
 
 // True when a freshly created character bought Debtor.

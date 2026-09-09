@@ -10,6 +10,13 @@
 #     outright against Railway, no bypass, ever. "Game one ended that way on
 #     day 10" — see CLAUDE.md. Author migrations locally, apply with
 #     'npm run db:migrate:deploy' (./migrate.sh).
+#   - IRREVERSIBLE SQL (TRUNCATE, DROP TABLE) anywhere in the command:
+#     refused against Railway, no bypass. This tier exists because the two
+#     below match a FIXED LIST of known scripts, and on 2026-09-09 a throwaway
+#     `node scratch-file.js` truncated seven tables on the live database
+#     without matching any of them. The verb is the thing worth catching, not
+#     the filename. db/lib/localDatabase.js is the same refusal one layer in,
+#     at the Prisma client, where it cannot be routed around at all.
 #   - TARGETED DESTRUCTIVE (db:sync-zones, db:prune-tags -- --apply, ...):
 #     real rows get deleted, but it isn't a whole-database reset. Refused
 #     against Railway UNLESS the command is prefixed with CONFIRMED=1 — that
@@ -27,6 +34,10 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 RESET_PRISMA = re.compile(r"prisma\s+(migrate\s+(dev|reset)|db\s+push)")
+# Matched against the command TEXT, so it catches psql, an inline `node -e`,
+# and any ad-hoc script whose SQL is written on the command line. A script that
+# hides the verb in a file it reads is caught by the client-side guard instead.
+IRREVERSIBLE_SQL = re.compile(r"\b(TRUNCATE|DROP\s+(TABLE|SCHEMA|DATABASE))\b", re.I)
 RESET_NPM = re.compile(r"npm\s+run\s+db:migrate(\s|$)")
 
 # npm script name -> the direct node invocation some sessions use instead
@@ -96,6 +107,19 @@ def main():
     url = resolve_database_url(c)
     if not is_production(url):
         return 0
+
+    # Before the allowlist tiers: the verb, wherever it appears.
+    m = IRREVERSIBLE_SQL.search(c)
+    if m:
+        verb = re.sub(r"\s+", " ", m.group(0)).upper()
+        sys.stderr.write(
+            f"db-guard: refused. '{verb}' against a Railway database is not recoverable, and "
+            "DATABASE_URL resolves to the live one. No bypass — on 2026-09-09 a scratch script "
+            "truncated seven tables here and emptied a real game. Point DATABASE_URL at a local "
+            "Postgres (docs/systemdocs/LOCAL-DEV.md), and remember an EXPORTED DATABASE_URL beats "
+            "any .env file: check `echo $DATABASE_URL`, not the file.\n"
+        )
+        return 2
 
     reset_verb = None
     if RESET_NPM.search(c):

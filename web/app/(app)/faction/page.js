@@ -2,12 +2,14 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import { roomAccessKeys, accessibleRooms } from "@lifeweb/db/lib/roomAccess";
+import { knownRooms } from "@lifeweb/db/lib/locationVisits";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { getMyFactionRole } from "@/lib/factionPermissions";
 import { loadFaction } from "@/lib/factionView";
 import { isUnaffiliated } from "@lifeweb/db/lib/factionConstants";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import PageShell from "@/app/components/PageShell";
+import AppHeader from "@/app/components/AppHeader";
 import Select from "@/app/components/Select";
 import SubmitButton from "@/app/components/SubmitButton";
 import ZoneChip from "@/app/components/ZoneChip";
@@ -195,16 +197,15 @@ async function buildPlayerProps(session, me) {
           // Only the faction's own zone. A silo anywhere else could never be
           // deposited into — deposits are zone-scoped — so offering the whole
           // map was offering rooms that could not work. setSiloRoom re-checks.
-          prisma.room.findMany({
-            where: faction.zoneId ? { location: { zoneId: faction.zoneId } } : undefined,
-            orderBy: { name: "asc" },
-            select: {
-              id: true,
-              name: true,
-              accessTagSlugs: true,
-              location: { select: { name: true, zone: { select: { name: true } } } },
-            },
-          }),
+          //
+          // And only rooms this officer could legitimately NAME. A plain
+          // findMany over the zone read out the name and address of every
+          // secret room in the district — the Inn's Cellar, the Order
+          // Chambers, the Depot's Cargo Bay — to anybody who opened the
+          // dropdown, which is a map the player is supposed to have to walk.
+          // knownRooms is the map's own rule (stood in front of the door, and
+          // the door opens), and setSiloRoom re-checks with the same call.
+          knownRooms(prisma, me.id, faction.zoneId ? { location: { zoneId: faction.zoneId } } : {}),
         ]);
         const shaped = rows.map((a) => ({
           id: a.id,
@@ -221,7 +222,17 @@ async function buildPlayerProps(session, me) {
             name: c.name,
             factionName: c.faction && !isUnaffiliated(c.faction) ? c.faction.name : null,
           })),
-          rooms: rooms.map((r) => ({
+          // The faction's CURRENT silo is pinned on even when the filter drops
+          // it — an officer who has lost the key, or never had it, still has to
+          // see where their faction banks. It is not optional politeness:
+          // SiloTab seeds its select from faction.siloRoomId, so an option that
+          // is not there renders blank and "Set silo" would post null and
+          // quietly un-silo the faction. Same reason §4a pins the silo onto the
+          // Transfer dialog's destination list.
+          rooms: [
+            ...rooms,
+            ...(faction.siloRoom && !rooms.some((r) => r.id === faction.siloRoom.id) ? [faction.siloRoom] : []),
+          ].map((r) => ({
             id: r.id,
             name: r.name,
             locationName: r.location.name,
@@ -290,26 +301,30 @@ export default async function FactionPage({ searchParams }) {
   if (!gm) {
     if (!myCharacter) {
       return (
-        <PageShell width="narrow">
-          <EmptyState>You don&apos;t have a living character. ‡</EmptyState>
-        </PageShell>
+        <>
+          <AppHeader title="Faction" />
+          <PageShell width="narrow">
+            <EmptyState>You don&apos;t have a living character. ‡</EmptyState>
+          </PageShell>
+        </>
       );
     }
     const props = await buildPlayerProps(session, myCharacter);
     return (
-      <PageShell width="default">
-        <PageHeader
+      <>
+        <AppHeader
           title={props.faction?.name ?? "Factions"}
-          subtitle={
-            props.faction ? (
-              <ZoneChip zoneName={props.faction.zoneName} />
-            ) : (
-              "You answer to nobody. Ask to join somebody, or start something. ‡"
-            )
-          }
+          meta={props.faction ? <ZoneChip zoneName={props.faction.zoneName} /> : null}
         />
-        <FactionConsole {...props} />
-      </PageShell>
+        <PageShell width="default">
+          {props.faction ? null : (
+            <p className="text-sm text-muted">
+              You answer to nobody. Ask somebody to take you in. ‡
+            </p>
+          )}
+          <FactionConsole {...props} />
+        </PageShell>
+      </>
     );
   }
 
@@ -342,17 +357,15 @@ export default async function FactionPage({ searchParams }) {
   });
 
   return (
-    <PageShell width="narrow">
-      <Link href="/gm/players?tab=factions" className="btn-quiet">
-        &larr; All Factions
-      </Link>
-
-      <PageHeader
+    <>
+      <AppHeader
         title={faction.name}
-        subtitle={
+        meta={
           <span className="flex items-center gap-2">
             <ZoneChip zoneName={faction.zone?.name ?? ""} />
-            {faction.parentFaction ? <span>Subject of {faction.parentFaction.name}</span> : null}
+            {faction.parentFaction ? (
+              <span className="text-sm text-muted">Subject of {faction.parentFaction.name}</span>
+            ) : null}
           </span>
         }
         actions={
@@ -375,6 +388,10 @@ export default async function FactionPage({ searchParams }) {
           </form>
         }
       />
+      <PageShell width="narrow">
+      <Link href="/gm/players?tab=factions" className="btn-quiet">
+        &larr; All Factions
+      </Link>
 
       <section className="panel p-4">
         <ul className="flex flex-col gap-1 text-sm">
@@ -520,6 +537,7 @@ export default async function FactionPage({ searchParams }) {
           <SubmitButton>Add</SubmitButton>
         </form>
       </section>
-    </PageShell>
+      </PageShell>
+    </>
   );
 }

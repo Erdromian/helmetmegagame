@@ -50,7 +50,7 @@ a GM unseated unless you specifically want the default.
 turn-scoped row deleted in one transaction (in FK-dependency order), the old
 `Game` given its epilogue and the next one opened, `GameState` recreated at
 CLOSED, and a fresh Turn 1/DAWN opened. The transcript is **kept** under the
-old game's number (`ARCHIVE.md`). It writes a
+old game's id (`ARCHIVE.md`). It writes a
 `SystemReport` row (`kind: WIPE`) **before** the Discord half starts, then hands
 that half to `after()` and returns.
 
@@ -65,7 +65,7 @@ The order, and why:
 |---|---|---|
 | 1 | **Access sweep** (`revokeAccessForCharacters`) | First, while nothing has re-provisioned: strips every character's zone role and every stray member overwrite, channel-major |
 | 2 | **Per character**: delete the personal role, clear the nickname, drop turn-ping | Discord role state the DB transaction never touched. Sequential — 240+ simultaneous requests against two per-guild buckets is its own incident. Each character is its own step, so a failure names them |
-| 3 | **Cursed roles** removed from everyone who held one | A restart should not leave anyone cursed from the last game |
+| 3 | **Ghost roles** removed from everyone who held one | A restart should not leave an ex-player read-only vision of every zone in the new game |
 | 4 | **Full channel wipe** (`runFullChannelWipe`) | Spares nothing — `#turns`, `#archive`-named channels, every zone's `#summary`, every Location channel and every thread under it, Rooms and anchors included. It then **nulls the recorded thread/anchor ids and hashes** so the re-sync rebuilds them instead of hash-matching something that no longer exists |
 | 5 | **`#turns` console repost** | After the wipe, never before: step 4 bulk-deletes every message in `#turns`, including this one if it were posted first. Turn 1 is opened by a plain `turn.create`, so `runSideEffects()` never fires and the announcement that normally rides it never went out |
 | 6 | **Zone sync** (`syncZonesFromYaml`) | Regenerates every category, `#summary`, Location channel, zone and location role, Room thread and anchor from `docs/zones.yaml` |
@@ -134,7 +134,7 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 | The `#turns` console pointer | Deliberate, and the safety net for step 5 above: a stale id makes the bot repost on its next `ready`. |
 | `GameConfig` | Every knob on the Configuration section. Per-game state is on `GameState`, which is recreated. |
 | `PlayerPreference` rows | Role priorities, opt-ins and the fallback a player set in the lobby, keyed by Discord user. Next game they only press Ready. |
-| `Game` and `ArchiveEntry` rows | The transcript of every past game, readable on `/archive` under its number, with the reveal on top. |
+| `Game` and `ArchiveEntry` rows | The transcript of every past game, readable on `/archive` under its id, with the reveal on top. |
 | `GmZoneView` rows | GMs keep the zones they chose across a restart. Clearing the table is safe: no rows means every zone. |
 | `SystemReport` rows | The operational history is kept on purpose; the panel shows the latest per kind. |
 | `Zone`, `Location`, `Room`, `Faction`, `Tag`, `Role`, `Document` | Re-synced from YAML rather than deleted. |
@@ -172,10 +172,13 @@ A GM-role holder can run the whole game: Moves, Requests, kills, revives,
 tags, DMs, the per-character dev panel, and the bot's `/gm` `/dm` `/heal`
 (from a guild channel — none of them work in the bot's DMs).
 
+A GM-role holder also runs the Dev Panel's Operations and Threats sections —
+bulk actions, letters, ambient lines, the inactivity nudge, threat seats and
+objectives (`DEV-PANEL.md` §11a).
+
 A GM-role holder **cannot**: end a turn early, wipe or restart, edit Game
-Config, set next turn's note, edit factions, run the channel doctor
-or a Bulk Move, delete a character or a custom tag, or open `/gm/audit` and
-`/gm/dev?s=gamemasters`. All of those are superadmin.
+Config, set next turn's note, delete a faction, run the channel doctor's
+Repair, or delete a character or a custom tag. All of those are superadmin.
 
 The practical one is **ending a turn**. `forceAdvanceTurn` checks only
 `isSuperadmin` and never consults the GM role, so if the superadmin is away,

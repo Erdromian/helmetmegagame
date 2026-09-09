@@ -8,17 +8,17 @@
 const { expiryFrom } = require("./turnFormat");
 const { drawPoisonedUnits } = require("./poison");
 
-// A wound landing on a sheet frightens its owner (docs/systemdocs/FEAR.md).
+// A wound landing on a sheet frightens its owner (docs/systemdocs/MOOD.md).
 // Both creators below call this for the row they just made — a stack going up
 // or an already-held tag is not a new wound, so only the `!existing` branches
-// do. Required lazily: db/lib/fear.js is the module that owns the rule, and a
-// top-level require here would be a cycle. Wrapped: a fear hiccup must never
+// do. Required lazily: db/lib/mood.js is the module that owns the rule, and a
+// top-level require here would be a cycle. Wrapped: a mood hiccup must never
 // fail a tag write.
-async function chargeWoundFear(tx, characterId, tagIds) {
+async function chargeWoundMood(tx, characterId, tagIds) {
   try {
-    await require("./fear").applyWoundFear(tx, characterId, tagIds);
+    await require("./mood").applyWoundMood(tx, characterId, tagIds);
   } catch (err) {
-    console.error(`Wound fear failed for ${characterId}:`, err.message ?? err);
+    console.error(`Wound mood failed for ${characterId}:`, err.message ?? err);
   }
 }
 
@@ -62,7 +62,7 @@ async function addToStack(tx, characterId, tagId, quantity, options = {}) {
         poisonPayload: incomingPoisoned > 0 ? poisonPayload : null,
       },
     });
-    await chargeWoundFear(tx, characterId, [tagId]);
+    await chargeWoundMood(tx, characterId, [tagId]);
     return created;
   }
   // Latent (M4 fix round): an already-held NON-stackable tag is left
@@ -96,6 +96,12 @@ async function addToStack(tx, characterId, tagId, quantity, options = {}) {
 // of them — dropping a climbed drinking rung, a cured tag, a spent
 // ingredient) simply ignores the return value, same as before this returned
 // anything at all.
+// A unit taken off a stack is never one that is equipped — equippedQuantity
+// is clamped down to whatever quantity remains, freeing the slot(s) that
+// frees, rather than leaving it pointing past the end of a shorter stack.
+// This is the single place quantity ever shrinks without an explicit equip
+// op, so it is the one place that has to know the invariant
+// (equippedQuantity <= quantity) can break and put it back.
 async function dropCharacterTag(tx, characterId, tagId, quantity = null) {
   const existing = await tx.characterTag.findUnique({
     where: { characterId_tagId: { characterId, tagId } },
@@ -116,15 +122,44 @@ async function dropCharacterTag(tx, characterId, tagId, quantity = null) {
   // poisonedCount 0 is a permanent false "already tainted" lock on a clean
   // stack (poisonItemRequestImpl's refusal reads exactly this pair).
   const remainingPoisoned = existing.poisonedCount - poisonedTaken;
+  const remaining = existing.quantity - take;
+  const equippedQuantity = Math.min(existing.equippedQuantity, remaining);
   await tx.characterTag.update({
     where: { id: existing.id },
     data: {
-      quantity: existing.quantity - take,
+      quantity: remaining,
+      equippedQuantity,
+      equipped: equippedQuantity > 0,
       poisonedCount: remainingPoisoned,
       poisonPayload: remainingPoisoned > 0 ? existing.poisonPayload : null,
     },
   });
   return { poisonedTaken, poisonPayload };
+}
+
+// A stack shrunk by a raw quantity decrement OUTSIDE dropCharacterTag —
+// riteEffects.js#spendFromHolder, thanatiActions.js#spendCharacterTag,
+// requestActions.js#consumeRecipeItems, cavingPass.js's musk-lure spend —
+// each a guarded conditional updateMany rather than dropCharacterTag, for its
+// own concurrency reason documented at its call site (dropCharacterTag reads
+// then writes, "the wrong shape for money"). Every one of those needs this
+// run right after, the same clamp dropCharacterTag applies inline: a stack
+// spent down to fewer units than are equipped frees the slots that frees,
+// rather than leaving equippedQuantity pointing past the end of it.
+//
+// A single atomic UPDATE, safe to call unconditionally after any decrement —
+// the WHERE only ever matches a row the decrement actually left
+// over-equipped, so it is a no-op the rest of the time. Keyed on
+// (characterId, tagId) rather than the row id because not every call site has
+// read the row first.
+async function clampEquippedQuantity(tx, characterId, tagId) {
+  await tx.$executeRaw`
+    UPDATE "CharacterTag"
+    SET "equippedQuantity" = LEAST("equippedQuantity", "quantity"),
+        "equipped" = (LEAST("equippedQuantity", "quantity") > 0)
+    WHERE "characterId" = ${characterId} AND "tagId" = ${tagId}
+      AND "equippedQuantity" > "quantity"
+  `;
 }
 
 // A chain replaces upward (TAGS.md §3): gaining Melee (Trained) takes Melee
@@ -252,7 +287,7 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
           expiresTurn,
         },
       });
-      await chargeWoundFear(tx, characterId, [tag.id]);
+      await chargeWoundMood(tx, characterId, [tag.id]);
       granted.push({ tagId: tag.id, tagName: tag.name, added: tag.stackable ? count : 1 });
       continue;
     }
@@ -421,4 +456,13 @@ async function dropRoomTag(tx, roomId, tagId, quantity = null) {
   return { ok: true, poisonedTaken, poisonPayload };
 }
 
-module.exports = { addToStack, dropCharacterTag, replaceLowerTiers, grantTagSlugs, addToRoomStack, dropRoomTag, lockRoom };
+module.exports = {
+  addToStack,
+  dropCharacterTag,
+  clampEquippedQuantity,
+  replaceLowerTiers,
+  grantTagSlugs,
+  addToRoomStack,
+  dropRoomTag,
+  lockRoom,
+};

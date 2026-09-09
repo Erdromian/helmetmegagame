@@ -61,7 +61,7 @@ function loadPuppeteer() {
 const ROUTES = [
   ["/handbook", "public"],
   ["/character", "player"],
-  ["/play", "player"],
+  ["/chat", "player"],
   ["/documents", "player"],
   ["/faction", "player"],
   ["/notes", "player"],

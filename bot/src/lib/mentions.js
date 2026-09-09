@@ -64,7 +64,7 @@ function messageLink(guildId, channelId, messageId) {
 //
 // `placeKey` is the Chat place the message was filed under
 // (db/lib/placeKey.js). It rides in the row's meta so the player's Chat pane
-// can open that place; the desk never shows the row (web/lib/dmSources.js).
+// can open that place; the desk never shows the row (db/lib/dmKinds.js).
 async function notifyMentioned(client, character, context, link, { placeKey = null } = {}) {
   const place = context.locationName ?? context.zoneName ?? null;
   const where = context.threadName
@@ -77,13 +77,13 @@ async function notifyMentioned(client, character, context, link, { placeKey = nu
     source: "mention",
     meta: { placeKey, where },
   }).catch(() => {});
-  // And a browser notification, for a player whose /play tab is closed. Never
+  // And a browser notification, for a player whose /chat tab is closed. Never
   // in front of the DM and never allowed to affect it: an unconfigured
   // deployment is a no-op and every failure is swallowed (db/lib/webPush.js).
   await pushToUser(prisma, character.discordUserId, {
     title: `${character.name} was named`,
     body: `in ${where}`,
-    url: "/play",
+    url: placeKey ? `/chat#${encodeURIComponent(placeKey)}` : "/chat",
   }).catch(() => {});
 }
 

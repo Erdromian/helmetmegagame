@@ -255,6 +255,27 @@ sealed, which a modal could never have expressed.
 `BirdMessage.body` survives as the GM's snapshot of what went — null on a
 sealed letter, because the bird did not open it either.
 
+### 6a. Paper minted straight into someone's hands
+
+Not every written sheet comes off the Write button. `paperMint.js#mintLetterFor`
+mints a `PAPER` row already carrying its text and puts it directly into a
+character's hands, with no blank sheet spent and no player at the keyboard.
+Two callers do this:
+
+- **The GM letter** (`BIRD.md` §9) — a God-King has no sheet to take a page
+  off, so the letter is minted rather than moved, authored in whatever name
+  the GM typed.
+- **The Research pass** (`db/lib/researchPass.js`, `TURN-ENGINE.md` §2) —
+  a Scholastic's Gambit that rolls a 6 or better against a secret recipe
+  (`CRAFTING.md` §2b) mints them a page of notes on it at turn close,
+  authored in the researcher's own presented name. Same primitive as the GM
+  letter, opposite direction: there the author is invented, here it's the
+  reader who earned the page.
+
+Either way the row is the same `PAPER_SHAPE` as a written sheet — it has
+weight, can be handed on, pinned up, stolen, and is swept by a Restart Game —
+so nothing downstream needs to know how it arrived.
+
 ## 7. Noticeboards
 
 `noticeboard: true` in a Location's `attributes:` map
@@ -290,8 +311,15 @@ doing. The `noticeboard` pass in `db/index.js` deletes the `NoticePost` and the
 
 Wanted and Debtor notices ride this same machinery rather than a bespoke one —
 `db/lib/wantedPoster.js` mints them through `paperMint.js` and pins one copy
-on a board (the Square for Wanted, the Depot/Customs board for Debtor) with
+on a board (the Square for Wanted, the Depot's board for Debtor) with
 two more loose sheets scattered in nearby rooms, on a 30-turn clock.
+
+That machinery is a **character-creation** thing only. The Censor's and the
+Sheriff's Arrest Warrant button (`REQUESTS.md` §5g) grants the Wanted tag and
+puts up **no paper at all** — the man is read as wanted off his own face
+(`TAGS.md`, `visible: named`) and nothing announces it. Do not "fix" that by
+wiring `postWantedPosters` into the warrant: a warrant nobody can see coming is
+the point of it. ‡
 
 ## 8. Where the code lives
 
@@ -307,11 +335,27 @@ stamps start).
 ## 9. What this does not do
 
 - **Forgery is HALF implemented.** The `forger` tag (Brigands only,
-  `general-brigand`) is now a real recipe skill: every one of the six courtier
-  wax seals is `craftable` behind it, at 1 turn and 2 ⬢, so a brigand can make
-  a Fleur-de-Lis and seal a letter with somebody else's mark. The seals stay
+  `general-brigand`) is a real recipe skill, and it now reaches **every stamp
+  in the game** — the six courtier wax seals *and* all eight office stamps,
+  the Baron's included — each `craftable` at 1 turn and 2 ⬢. So a brigand can
+  make a Fleur-de-Lis, or the Bishop's own mark, and seal a letter with it.
+
+  The two sets throttle differently, on purpose. The six courtier seals are
   `exclusive: true`, so a forger holds one at a time and has to hand each off
-  before making the next — a deliberate throttle, not an oversight.
+  before making the next. The eight office stamps are not, because a stamp is
+  an object attached to a seat rather than a signature you chose — holding the
+  Bishop's and the Censor's at once is a situation the game wants. Note that
+  `exclusive` now bites on the craft route where it used to be inert on these:
+  `craftRequest` calls `exclusiveConflict`, and before they were craftable
+  there was no path it could apply to.
+
+  Nothing was opened up besides crafting: the office stamps stay
+  `purchasable: false`, so the only two routes to the Baron's stamp are taking
+  it off the Baron and forging one. The recipe stays hidden from everyone but
+  a forger, because `forger` is a `catalog: gm` skill and
+  `web/app/(app)/character/page.js` strips a recipe gated on a hidden trade —
+  a "Recipe: Forger · 1 turn · 2 ⬢" line on the Baron's stamp would tell the
+  whole game that stamps get forged, which is the one thing a forger pays for.
 
   What is still NOT implemented is forging the **handwriting**: a letter's
   `paperAuthor` is always the writer's presented name, and nothing lets a

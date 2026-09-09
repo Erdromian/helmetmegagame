@@ -128,7 +128,12 @@ export default function HoverCard({ children, panel, className = "", pinnable = 
       >
         {children}
       </span>
+      {/* `panel &&`: a caller may have nothing to say for a given row, or may
+          want the panel out of the way for a moment (ThingsDrawer.js drops it
+          while its action menu is open). Without this that renders an empty
+          tooltip box next to the trigger. */}
       {open &&
+        panel &&
         createPortal(
           <span
             ref={panelRef}

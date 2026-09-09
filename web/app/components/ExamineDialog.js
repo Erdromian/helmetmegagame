@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AvatarZoom from "./AvatarZoom";
 import Modal from "./Modal";
 import Select from "./Select";
 import FormError from "./FormError";
@@ -107,7 +108,7 @@ function ExamineDialogBody({ onClose, targetId = null }) {
   );
 }
 
-// The readout itself, exported: /play's HERE column draws it for a hood and
+// The readout itself, exported: /chat's HERE column draws it for a hood and
 // its feed draws it for a photograph, and all three used to hand-roll their
 // What you can see on them, as hoverable chips.
 //
@@ -154,14 +155,21 @@ export function Readout({ readout }) {
             standing here under a hood. presentedIdentity already decided which
             face this is — the silhouette, a letter plaque or their own — and
             the whole point is to render THAT and nothing else. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={readout.avatarPath}
-          alt=""
-          width={32}
-          height={32}
-          style={{ borderRadius: "var(--r-full)", objectFit: "cover", flexShrink: 0 }}
-        />
+        {/* Openable, and the same rule holds through the zoom: it is handed
+            `avatarPath` and shows exactly that, so a hood stays a hood. This
+            Readout is itself inside a dialog — Modal settles Escape by focus
+            first and mount order second, so the face closes on its own without
+            taking the examine window with it. */}
+        <AvatarZoom src={readout.avatarPath} name={readout.name}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={readout.avatarPath}
+            alt=""
+            width={32}
+            height={32}
+            style={{ borderRadius: "var(--r-full)", objectFit: "cover", flexShrink: 0 }}
+          />
+        </AvatarZoom>
         <strong>{readout.name}</strong>
       </div>
 
@@ -179,9 +187,9 @@ export function Readout({ readout }) {
       <Line label="Role" values={readout.roleTitle ? [readout.roleTitle] : null} />
       <Line label="Resources" values={readout.resources != null ? [`${readout.resources} ⬢`] : null} />
 
-      {/* Rendered only when the looker holds the sight that buys it. An empty
-          read prints the same words a guarded one does, so Inscrutable never
-          advertises itself — db/lib/inspectVision.js. */}
+      {/* Rendered only when the looker holds the sight that buys it. A subject
+          with nothing to read prints the same words either way, so the field
+          never reports more than it should — db/lib/inspectVision.js. */}
       {readout.desire && (
         <div className="field">
           <span className="field-label">Last Desire</span>

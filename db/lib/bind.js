@@ -10,10 +10,11 @@
 // Takes `prisma` as the first parameter and is NOT on the barrel; require it
 // by path.
 const { addToStack } = require("./tagWrites");
-const { applyFear } = require("./fear");
+const { applyMood } = require("./mood");
 const { expiryForGrant } = require("./grantExpiry");
 const { isHere, notHereMessage } = require("./presence");
 const { offerButtonRow } = require("./offerRow");
+const { DM_ACTION, dmAction } = require("./dmActions");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
 
 const BIND_SELECT = {
@@ -61,9 +62,9 @@ async function applyBind(prisma, { actor, target, turn, offerId = null }) {
   };
   await prisma.$transaction(async (tx) => {
     await addToStack(tx, target.id, bound.id, 1, { source: "EVENT", expiresTurn, stackable: bound.stackable });
-    // Being tied up is frightening, consented to or not (FEAR.md); every night
-    // still bound costs more, in db/lib/fearPass.js.
-    await applyFear(tx, target.id, { kind: "BOUND" });
+    // Being tied up is frightening, consented to or not (MOOD.md); every night
+    // still bound costs more, in db/lib/moodPass.js.
+    await applyMood(tx, target.id, { kind: "BOUND" });
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: actor.discordUserId ?? "system",
@@ -95,6 +96,7 @@ async function createBindOffer(prisma, { actor, target, turn }) {
       discordUserId: target.discordUserId,
       content: `*${actor.name}* wants to bind you. Accept?`,
       components: offerButtonRow(offer.id),
+      meta: dmAction(DM_ACTION.OFFER, offer.id),
     },
   };
 }

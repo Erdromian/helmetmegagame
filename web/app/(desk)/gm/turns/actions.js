@@ -29,6 +29,7 @@ import {
   cavingRollRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
+import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 
 // Server actions for the adjudication workspace (/gm/turns). Staged rows
 // apply and deliver only at the turn-end push (db/lib/stagedPush.js);
@@ -206,6 +207,8 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
         await sendDm(target.discordUserId, existing.content, {
           authorDiscordUserId: existing.createdByDiscordUserId,
           source: "staged_push",
+          // A turn result is GM-authored prose, just delivered in bulk.
+          kind: DM_KIND.CONVERSATION,
         });
         resent += 1;
       } catch (err) {
@@ -298,7 +301,7 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
   const ops = normalizeStagedOps(tagOps);
   const place = await normalizeStagedLocation(locationId);
   if (!delta && !points && !ops.length && !place) {
-    throw new UserError("Stage a resource, tag-point, tag change, or relocation. ‡");
+    throw new UserError("Stage a resource, tag-point, tag change, or relocation.");
   }
 
   // Validated now with the same engine the push runs, so they can't disagree.
@@ -422,7 +425,7 @@ async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, ta
   const ops = normalizeStagedOps(tagOps);
   const place = await normalizeStagedLocation(locationId);
   if (!delta && !points && !ops.length && !place) {
-    throw new UserError("Stage a resource, tag-point, tag change, or relocation. ‡");
+    throw new UserError("Stage a resource, tag-point, tag change, or relocation.");
   }
   if (ops.length) {
     const tags = await prisma.tag.findMany({ where: { id: { in: ops.map((o) => o.tagId) } } });
@@ -577,7 +580,7 @@ async function releaseMoveLockImpl({ actionId }) {
 
 // A Gambit always carries a fresh roll, a Routine never does, so switching
 // kind rewrites the dice rather than leaving a stale number.
-function normalizeEdits(action, edits, characterTags, hungerStreak) {
+function normalizeEdits(action, edits, characterTags, hungerStreak, mood) {
   const data = {};
 
   const kind = ["GAMBIT", "ROUTINE", "LABOR"].includes(edits.moveKind) ? edits.moveKind : action.moveKind;
@@ -587,10 +590,10 @@ function normalizeEdits(action, edits, characterTags, hungerStreak) {
       data.diceRoll = null;
       data.diceModifier = null;
     } else {
-      // Rolled from the character's current tags/hungerStreak, not whatever
-      // was true when the player submitted.
+      // Rolled from the character's current tags/hungerStreak/mood, not
+      // whatever was true when the player submitted.
       data.diceRoll = rollDie();
-      data.diceModifier = gambitModifierTotal(characterTags, { hungerStreak });
+      data.diceModifier = gambitModifierTotal(characterTags, { hungerStreak, mood });
     }
   }
 
@@ -634,7 +637,7 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
       return { status: "OPEN", note: "Reopened." };
     }
 
-    const data = normalizeEdits(action, edits, action.character.tags, action.character.hungerStreak);
+    const data = normalizeEdits(action, edits, action.character.tags, action.character.hungerStreak, action.character.mood);
 
     if (mode === "save") {
       // Save keeps the edits and leaves status wherever it was.
@@ -756,7 +759,9 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
     await sendDm(
       action.character.discordUserId,
       `Your Move was returned to you — you can act again this turn.\n${reason}`,
-      { authorDiscordUserId: session.discordUserId, source: "move_unlock" },
+      // The GM's typed reason rides in the body, so this is a person
+      // writing even though the wrapper around it is canned.
+      { authorDiscordUserId: session.discordUserId, source: "move_unlock", kind: DM_KIND.CONVERSATION },
     );
   } catch (err) {
     console.error(`Failed to DM the reject reason to ${action.character.discordUserId}:`, err);
@@ -804,7 +809,7 @@ async function getCharacterInspectorImpl({ characterId }) {
       : character.zone?.name || "Unassigned",
     resources: character.resources,
     tagPoints: character.tagPoints,
-    gambitModifier: gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak }),
+    gambitModifier: gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak, mood: character.mood }),
     acted,
     currentTurnNumber: openTurn?.number ?? null,
     tags: character.tags.map((ct) => ({
@@ -1109,14 +1114,14 @@ async function undoCavingFindImpl({ rollId }) {
   });
   if (!roll) throw new UserError("That roll is gone.");
   if (!roll.lootTagId) throw new UserError("That roll found nothing.");
-  if (roll.lootUndoneAt) throw new UserError("That find has already been taken back. ‡");
+  if (roll.lootUndoneAt) throw new UserError("That find has already been taken back.");
 
   await prisma.$transaction(async (tx) => {
     const claimed = await tx.cavingRoll.updateMany({
       where: { id: roll.id, lootUndoneAt: null },
       data: { lootUndoneAt: new Date() },
     });
-    if (claimed.count === 0) throw new UserError("That find has already been taken back. ‡");
+    if (claimed.count === 0) throw new UserError("That find has already been taken back.");
     await dropCharacterTag(tx, roll.characterId, roll.lootTagId, 1);
     await tx.auditLog.create({
       data: {

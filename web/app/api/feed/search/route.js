@@ -33,13 +33,13 @@ export async function GET(request) {
   const viewer = await loadFeedViewer();
   if (!viewer.discordUserId) return Response.json({ error: "Sign in first." }, { status: 401 });
   if (!viewer.character && !viewer.gm) {
-    return Response.json({ error: "You have no living character. ‡" }, { status: 403 });
+    return Response.json({ error: "You have no living character." }, { status: 403 });
   }
 
   const params = new URL(request.url).searchParams;
   const q = String(params.get("q") ?? "").trim();
   if (q.length < MIN_QUERY || q.length > MAX_QUERY) {
-    return Response.json({ error: "Three letters at least." }, { status: 400 });
+    return Response.json({ error: "Try a different search." }, { status: 400 });
   }
 
   const places = await placesFor(prisma, viewer.character, viewer.options);
@@ -70,6 +70,7 @@ export async function GET(request) {
            ae."characterId",
            ae."characterName",
            ae."concealedAlias",
+           ae."presentedAvatarPath",
            ae."content",
            ae."sentAt",
            ae."source",

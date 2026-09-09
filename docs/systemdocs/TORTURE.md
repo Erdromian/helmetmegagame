@@ -3,7 +3,7 @@
 The Torture button, the die behind it, what a broken person gives up, the
 Torturing Equipment kit, and the Mutilate button beside it. Read this before
 touching `db/lib/torture.js`, `db/lib/mutilate.js`, the
-`torturer` tag, the `TORTURED` fear event, or anything that decides who breaks
+`torturer` tag, the `TORTURED` mood event, or anything that decides who breaks
 under questioning.
 
 Shipped 2026-09-06. Before it, the Order's role text promised "your torturer's
@@ -15,7 +15,7 @@ had to honour by hand.
 **Torture** sits in the "People here" section of the character sheet's action
 grid (`web/app/components/actionRegistry.js`) and is **hidden, not greyed**,
 unless the character holds `torturer` — an own-sheet fact, which the grid's
-metagaming rule allows hiding on. `/play` does not mount the grid, and its
+metagaming rule allows hiding on. `/chat` does not mount the grid, and its
 per-person menu (`HereList.js`) is unconditional with no pools access, so
 Torture is deliberately not on it: a row there would tell every player that
 torture exists whether or not they could do it.
@@ -80,7 +80,7 @@ and the own avatar rather than `presentedIdentity`.
 
 - **Their tags** — every row on the sheet **except** `Health` and `Status`
   (`REVEAL_EXCLUDED_CATEGORIES`). Wounds are not secrets, and the passing
-  statuses (Bound, Hungry, the fear bands, the meal markers) would bury the
+  statuses (Bound, Hungry, the meal markers) would bury the
   ones that are. Everything else shows: items, personality, beliefs, skills,
   keys, and the secret-catalog tags — `thanati`, `demoness`, a body's mark —
   which is the point.
@@ -99,8 +99,8 @@ Hungry against 4. They held out.`
 
 ## 4. What it does to the victim
 
-**Fear.** `+40`, kind `TORTURED`, success or failure, through `applyFear`
-inside the action's transaction (FEAR.md §3). Two statuses zero it —
+**Mood.** `−40`, kind `TORTURED`, success or failure, through `applyMood`
+inside the action's transaction (MOOD.md §3). Two statuses zero it —
 `pain-immunity` and `opium-high`, both ×0 in `MULTIPLIERS` — and a 0 beats
 Brave's ×0.5. Both are two-turn statuses, so a torturer who waits a day gets
 the full hit.
@@ -224,8 +224,8 @@ two dear ones — a cultist and the Merchant want the same organs.
 
 ### What it does to the victim
 
-**Fear +50**, kind `MUTILATED`, on a living subject only — a corpse feels
-nothing, and `applyFear` on a dead row would move a dial nobody reads. There
+**Mood −50**, kind `MUTILATED`, on a living subject only — a corpse feels
+nothing, and `applyMood` on a dead row would move a dial nobody reads. There
 are no ×0 rows for it: `pain-immunity` and `opium-high` zero `TORTURED` on
 purpose, and losing a hand is not a question of pain tolerance.
 
@@ -249,7 +249,7 @@ The subject dropdown holds two id spaces in one control (`person:` /
 
 - `db/lib/mutilate.js` — `MUTILATE_PARTS`, `partFor`, `resolveMutilation`.
 - `db/lib/constants.js` — `MUTILATE_GATE_SLUGS`.
-- `db/lib/fear.js` — `EVENTS.MUTILATED`.
+- `db/lib/mood.js` — `EVENTS.MUTILATED`.
 - `web/app/(app)/character/requestActions.js#mutilateRequestImpl`.
 - `web/app/components/actionRegistry.js` (mode `mutilate`),
   `RequestActionsProvider.js`, `character/page.js` (`canMutilate`),
@@ -264,7 +264,7 @@ The subject dropdown holds two id spaces in one control (`person:` /
   `formatTortureRoll`, `buildTortureEmbed`. Off the barrel; require by path.
 - `db/lib/constants.js` — `TORTURER_SLUG`, `TORTURING_EQUIPMENT_SLUG`.
 - `db/lib/examine.js#tortureReadout` — the unfiltered read.
-- `db/lib/fear.js` — `EVENTS.TORTURED`, the two ×0 rows.
+- `db/lib/mood.js` — `EVENTS.TORTURED`, the two ×0 rows.
 - `db/lib/discordRest.js` — `embeds` on `postMessage` / `postDmOnce` /
   `postDmBatched`, forwarded by both `sendDm`s and `notifyCharacter`. Added for
   this; the bot's own embeds go through discord.js and never touched it.
@@ -272,4 +272,4 @@ The subject dropdown holds two id spaces in one control (`person:` /
 - `web/app/components/actionRegistry.js`, `RequestActionsProvider.js` (mode
   `torture`, sharing the Bind/Free roster), `character/page.js` (`canTorture`).
 - `web/app/components/icons.js#TortureIcon` — Lucide's flame.
-- `db/test/torture.test.js`, and the TORTURED case in `db/test/fear.test.js`.
+- `db/test/torture.test.js`, and the TORTURED case in `db/test/mood.test.js`.

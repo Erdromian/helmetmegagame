@@ -1,3 +1,4 @@
+import AvatarZoom from "./AvatarZoom";
 import Tooltip from "./Tooltip";
 
 // The little face next to a character's name wherever a GM scans a list of
@@ -32,7 +33,26 @@ function CatatonicDot({ size }) {
   );
 }
 
-export default function CharacterAvatar({ characterId, name, version, size = 20, catatonic = false }) {
+export default function CharacterAvatar({
+  characterId,
+  name,
+  version,
+  src,
+  size = 20,
+  catatonic = false,
+  // A face you have not earned. Set for somebody standing here you have not
+  // watched speak this turn, and for an archived line said before the game
+  // recorded what was over the speaker's face.
+  unknown = false,
+  // Click the face to see it at the size it is actually stored (AvatarZoom).
+  //
+  // Opt-in rather than on by default, because half the call sites in the app
+  // draw this INSIDE a control — a queue row, a mention-menu item, a link in a
+  // table — where a nested <button> is invalid markup and the click already
+  // means something else. Set it where the face is the subject, not where it
+  // is a decoration on somebody else's button.
+  zoomable = false,
+}) {
   const wrap = (face) =>
     catatonic ? (
       <span style={{ position: "relative", display: "inline-flex", flexShrink: 0, verticalAlign: "middle" }}>
@@ -47,7 +67,40 @@ export default function CharacterAvatar({ characterId, name, version, size = 20,
   // state rides it rather than a second stop for a screen reader.
   const label = catatonic ? `${name} — Catatonic (AFK)` : name;
 
-  if (!characterId) {
+  // The question-mark plate. It must never fall back to an initial the way the
+  // bare branch below does: "a young man" would draw an A, and one letter is
+  // enough to tell two hoods apart, which is the entire thing this withholds.
+  // The tooltip still carries the alias, so a screen reader hears the name the
+  // room hears rather than "unknown".
+  if (unknown) {
+    return (
+      <Tooltip text={label}>
+        {wrap(
+          <span
+            aria-hidden="true"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: size,
+              height: size,
+              borderRadius: "var(--r-full)",
+              background: "var(--field-bg)",
+              border: "1px solid var(--border)",
+              color: "var(--muted)",
+              fontSize: `${Math.max(0.55, size / 32)}rem`,
+              flexShrink: 0,
+              verticalAlign: "middle",
+            }}
+          >
+            ?
+          </span>,
+        )}
+      </Tooltip>
+    );
+  }
+
+  if (!characterId && !src) {
     return wrap(
       <span
         aria-hidden="true"
@@ -70,14 +123,28 @@ export default function CharacterAvatar({ characterId, name, version, size = 20,
     );
   }
 
-  const src = `/api/avatar/${characterId}${version ? `?v=${version}` : ""}`;
+  // An explicit src is a face somebody else already decided — the mask sprite
+  // or letter plaque presentedIdentity resolved, frozen onto an archive row or
+  // re-derived for a live roster. Used verbatim, with no `?v=`: the file is
+  // the same for every wearer and never changes, so cache-busting it would be
+  // both pointless and a fingerprint (PROXYING.md §5).
+  //
+  // Without one this builds the character's own URL, and that route is
+  // identity-BLIND — it serves the real face whatever is over it. Never send a
+  // concealed character down that branch.
+  const imageSrc = src ?? `/api/avatar/${characterId}${version ? `?v=${version}` : ""}`;
 
-  return (
-    <Tooltip text={label}>
+  // `pinnable={!zoomable}` is load-bearing, not tidiness: Tooltip is a
+  // HoverCard, and a HoverCard PINS its panel on click. Without this one click
+  // would both open the dialog and leave a pinned name card sitting behind it.
+  // IconButton turns it off for the same reason — a button is already a
+  // control.
+  const face = (
+    <Tooltip text={label} pinnable={!zoomable}>
       {wrap(
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={src}
+          src={imageSrc}
           alt=""
           width={size}
           height={size}
@@ -92,5 +159,16 @@ export default function CharacterAvatar({ characterId, name, version, size = 20,
         />,
       )}
     </Tooltip>
+  );
+
+  // Deliberately here and nowhere earlier: the two branches above — the `?`
+  // plate and the bare initial — have already returned, so a face with nothing
+  // behind it is never clickable. Enlarging a question mark would be pointless,
+  // and that plate exists to withhold.
+  if (!zoomable) return face;
+  return (
+    <AvatarZoom src={imageSrc} name={label}>
+      {face}
+    </AvatarZoom>
   );
 }

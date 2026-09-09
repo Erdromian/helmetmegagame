@@ -1,10 +1,10 @@
 "use client";
 
+import { WEAPON_HANDS, handsUsed } from "@lifeweb/db/lib/equipSlots";
 import { CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRefresh } from "@/app/components/useRefresh";
-import { PageHeader } from "@/app/components/PageShell";
 import FactionLink from "@/app/components/FactionLink";
 import TagPointsValue from "@/app/components/TagPointsValue";
 import Modal from "@/app/components/Modal";
@@ -15,7 +15,7 @@ import TagEditor from "./TagEditor";
 import TurnTab from "./TurnTab";
 import GoalsTab from "./GoalsTab";
 import RecordTab from "./RecordTab";
-import { applyCharacterEdits } from "./actions";
+import { applyCharacterEdits, setCurseOverride } from "./actions";
 import { getDevPanelRecord } from "@/app/components/devPanelActions";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
@@ -47,6 +47,7 @@ const TABS = ["Identity", "Tags", "Turn", "Goals", "Record"];
 export default function DevPanel({
   character,
   discord,
+  curse,
   lastNameLocked,
   canDelete,
   factions,
@@ -56,7 +57,6 @@ export default function DevPanel({
   tags,
   held,
   feed,
-  equipSlots,
   maxDrawbackTags,
   maxDrawbackPoints,
   openTurn,
@@ -227,8 +227,8 @@ export default function DevPanel({
         character={character}
         staged={staged}
         discord={discord}
+        curse={curse}
         held={held}
-        equipSlots={equipSlots}
         maxDrawbackTags={maxDrawbackTags}
         maxDrawbackPoints={maxDrawbackPoints}
         gambitModifier={gambitModifier}
@@ -288,7 +288,6 @@ export default function DevPanel({
           tags={tags}
           held={held}
           openTurn={openTurn}
-          equipSlots={equipSlots}
           onApplyOps={applyTagOps}
         />
       )}
@@ -350,7 +349,7 @@ export default function DevPanel({
 
   const titleWithAvatar = (
     <span className="flex items-center gap-2">
-      <CharacterAvatar characterId={character.id} name={character.name} version={character.updatedAt} size={32} />
+      <CharacterAvatar characterId={character.id} name={character.name} version={character.updatedAt} size={32} zoomable />
       {staged.name || character.name}
     </span>
   );
@@ -368,18 +367,49 @@ export default function DevPanel({
     );
   }
 
+  // No header of its own on the page frame: the route's layout draws the
+  // shared bar, with the name, the face and the way back in it. The modal
+  // frame above still wants `titleWithAvatar`, which is why it stays.
+  return body;
+}
+
+// The GM's thumb on the curse. Three states, because "not cursed" and "work it
+// out" are different answers: Automatic lets db/lib/curse.js decide from the
+// body and the re-roll, the other two overrule it and stay overruled.
+//
+// This replaces adding or removing the Cursed role in Discord by hand, which
+// is what a GM used to do before the curse became a database fact.
+function CurseOverride({ characterId, value }) {
+  const [pending, startTransition] = useTransition();
+  const [refresh] = useRefresh();
+  const [error, setError] = useState(null);
+
+  const onChange = (next) => {
+    setError(null);
+    startTransition(async () => {
+      const result = await setCurseOverride({
+        characterId,
+        override: next === "auto" ? null : next === "cursed",
+      });
+      if (result?.error) setError(result.error);
+      else refresh();
+    });
+  };
+
   return (
-    <>
-      <PageHeader
-        title={titleWithAvatar}
-        actions={
-          <Link href="/gm/players" className="btn-quiet">
-            &larr; Players
-          </Link>
-        }
-      />
-      {body}
-    </>
+    <span className="field">
+      <select
+        value={value === null || value === undefined ? "auto" : value ? "cursed" : "clear"}
+        disabled={pending}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label="Curse override"
+      >
+        <option value="auto">Automatic</option>
+        <option value="cursed">Cursed</option>
+        <option value="clear">Not cursed</option>
+      </select>
+      {error && <span className="text-danger text-xs">{error}</span>}
+    </span>
   );
 }
 
@@ -390,8 +420,8 @@ function StateStrip({
   character,
   staged,
   discord,
+  curse,
   held,
-  equipSlots,
   maxDrawbackTags,
   maxDrawbackPoints,
   gambitModifier,
@@ -399,7 +429,12 @@ function StateStrip({
   hasActed,
   stagedForPush,
 }) {
-  const equipped = held.filter((h) => h.equipped).length;
+  // Slots spent, not rows worn — a stack equipped 3-of-5 spends 3.
+  const equipped = held.reduce((sum, h) => sum + (h.equippedQuantity ?? 0), 0);
+  // Hands, not a flat count: the only equipment limit that is a number now
+  // (db/lib/equipSlots.js). The layered slots refuse on their own. handsUsed
+  // expands each row by its own equippedQuantity, matching `equipped` above.
+  const hands = handsUsed(held.filter((h) => h.equippedQuantity > 0));
   // Point-bought drawbacks only, matching the ceilings PointBuy enforces — a
   // GM-inflicted wound is not one of the player's tags. Shown as a fact, not
   // a limit: a GM grant deliberately ignores every gate, these included.
@@ -427,6 +462,17 @@ function StateStrip({
         ],
         ["Location", character.locationName ?? "—"],
         ["Zone", character.zoneName ?? "—"],
+        // Both switches on /character, which had no GM surface at all until
+        // now — CHAT.md §6a even tells a GM to check the roster for web-only
+        // players before turning Chat off, and there was nothing to check.
+        ["Play from the web", character.webOnly ? "On" : "Off"],
+        [
+          "Concealed",
+          // The column is a wish; it only takes effect while something
+          // concealing is equipped. A GM reading a bare "Yes" against a player
+          // insisting they are visible would learn nothing.
+          character.concealedInEffect ? "Yes" : character.concealed ? "On, but nothing worn" : "No",
+        ],
       ],
     ],
     [
@@ -434,7 +480,7 @@ function StateStrip({
       [
         ["Resources", `${staged.resources} ⬢`],
         ["Tag points", <TagPointsValue key="tp" points={staged.tagPoints} />],
-        ["Equipment", `${equipped} / ${equipSlots}`],
+        ["Equipped", `${equipped} · ${hands} / ${WEAPON_HANDS} hands`],
         [
           "Drawbacks",
           <span key="db" className={overDrawbackCap ? "text-danger" : undefined}>
@@ -452,12 +498,22 @@ function StateStrip({
       ],
     ],
     [
+      "Curse",
+      [
+        ["Cursed", curse.cursed ? "yes" : "no"],
+        [
+          "Override",
+          <CurseOverride key="co" characterId={character.id} value={curse.override} />,
+        ],
+      ],
+    ],
+    [
       "Discord",
       [
         ["Discord", discord.username ?? "not in guild"],
         ["Nickname", discord.nickname ?? "—"],
-        ["Cursed", discord.cursed ? "yes" : "no"],
         ["Name role", character.discordRoleId ? "provisioned" : "missing"],
+        ["Ghost seat", character.status === "ALIVE" ? "no" : "yes"],
       ],
     ],
   ];

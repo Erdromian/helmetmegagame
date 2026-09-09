@@ -160,6 +160,30 @@ about to run and why it's needed — not to retry with the prefix on your own
 judgment. A hook can check *where* a command points; it cannot check whether
 anyone actually agreed to run it.
 
+- **Irreversible SQL** — a `TRUNCATE` or a `DROP TABLE` anywhere in the
+  command — is refused against Railway with **no bypass**. This tier exists
+  because the other two match a *fixed list of known scripts*, and on
+  2026-09-09 a throwaway `node scratch-file.js` truncated seven tables on the
+  live database without matching any of them. The verb is worth catching; the
+  filename never was.
+
+**The hook can only read the command line. `db/lib/localDatabase.js` is the
+same refusal one layer in**, on the shared Prisma client, so SQL that lives
+inside a file is caught too — which the hook cannot do. It refuses TRUNCATE and
+DROP against any host that is not `localhost` / `127.0.0.1` / `::1`, it holds
+inside `$transaction`, and it has no bypass at all. It costs nothing real:
+every TRUNCATE and DROP in this repo is migration SQL, which the Prisma CLI
+applies without going through that client.
+
+**The trap that actually caused it, and the one to check first: an exported
+`DATABASE_URL` beats every `.env` file.** `dotenv.config()` does not override a
+variable that is already set, so a scratch script with a local `.env` beside it
+read production and said nothing. `echo $DATABASE_URL` is the only honest
+answer to "which database am I pointed at" — not the file, not the worktree.
+Any throwaway harness that writes should call `requireLocalDatabase()` from
+`db/lib/localDatabase.js` as its first statement, the way
+`scripts/dev/seed-test-data.mjs` now does.
+
 The hook resolves `DATABASE_URL` the same way for every check: an inline
 `DATABASE_URL=...` on the command itself, falling back to the root `.env`.
 It treats a host containing `rlwy.net` or `railway` as production and

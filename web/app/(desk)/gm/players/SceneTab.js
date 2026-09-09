@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import EmptyState from "@/app/components/EmptyState";
-import Feed from "@/app/(app)/play/Feed";
-import { seedRows, applyRow, removeRow } from "@/app/(app)/play/feedStore";
-import { noteTyping } from "@/app/(app)/play/typingStore";
+import Feed from "@/app/(app)/chat/Feed";
+import { seedRows, applyRow, removeRow } from "@/app/(app)/chat/feedStore";
+import { noteTyping } from "@/app/(app)/chat/typingStore";
 import { getCharacterScene } from "./actions";
 
 // The Scene tab: what is being said where this character is standing, live, in
@@ -108,7 +108,7 @@ export default function SceneTab({ characterId }) {
   if (state.places.length === 0) {
     return (
       <div className="p-3">
-        <EmptyState>They are nowhere you can see. ‡</EmptyState>
+        <EmptyState>They are nowhere you can see.</EmptyState>
       </div>
     );
   }

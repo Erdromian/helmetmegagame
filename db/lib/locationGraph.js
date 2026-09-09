@@ -13,6 +13,7 @@
 // Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { heldTagSlugs } = require("./roomAccess");
 const { blocksOnFoot, equippedSlugs } = require("./mounts");
+const { heldReasonFor } = require("./intercept");
 
 // The two endpoints of a link, oriented so `near` is the side you are
 // standing on. Callers only ever want `far`.
@@ -100,6 +101,15 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
 
   const held = tagSlugs instanceof Set ? tagSlugs : new Set(tagSlugs ?? []);
   const hasTag = !link.requiredTagSlug || held.has(link.requiredTagSlug) || isHeldOpen(link, now);
+  // Which of THEIR OWN tags opens this way, for a surface that wants to say so.
+  // Deliberately not `hasTag`: that is also true of a keyed way somebody else
+  // propped open, and walking through a door another player wedged is not your
+  // trait opening it. Only ever a tag they hold, so it leaks nothing — a hidden
+  // crawl names its tag only to the one person who already owns it — and it is
+  // absent from every refusing branch below, so a locked way says no more than
+  // it did.
+  const openedBy =
+    link.requiredTagSlug && held.has(link.requiredTagSlug) ? link.requiredTagSlug : null;
 
   if (link.hidden && !hasTag) {
     // Same wording a nonexistent edge gets, deliberately: a refusal that
@@ -107,7 +117,7 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
     return { listed: false, passable: false, refusal: "You can't get there directly from here." };
   }
   if (!hasTag) {
-    return { listed: true, passable: false, refusal: "The way is locked. You don't have what opens it. ‡" };
+    return { listed: true, passable: false, refusal: "This way isn't open to you." };
   }
   if (link.modular && !link.isOpen) {
     return {
@@ -122,9 +132,9 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
   // way arriving indoors already parks a mount at the door. `dismounts` is
   // surfaced here so the picker can say so before anyone commits to it.
   if (link.onFoot && onFootBlocked) {
-    return { listed: true, passable: true, refusal: null, dismounts: true };
+    return { listed: true, passable: true, refusal: null, dismounts: true, openedBy };
   }
-  return { listed: true, passable: true, refusal: null, dismounts: false };
+  return { listed: true, passable: true, refusal: null, dismounts: false, openedBy };
 }
 
 // Does this edge have a gate to work at all? Only a modular edge does. The
@@ -153,6 +163,13 @@ function canToggleGate(link, { tagSlugs, roleSlug } = {}) {
 // [{ location, link, listed, passable, refusal, crossesZone }]; callers that
 // render a list must filter on `listed` themselves, because the mover wants
 // the unlisted rows too in order to refuse correctly.
+//
+// A character already on the road gets every ZONE CROSSING back shut, with the
+// destination named in the refusal (MAP.md §3). Hops inside their own zone are
+// untouched — a paid crossing costs the day, not the ability to walk across
+// town and talk to somebody before it ends. Doing it here rather than in each
+// picker is what keeps the map, the /chat panel and the bot's list from ever
+// disagreeing about a hop, the same reason the gates live here.
 async function resolveNeighbors(prisma, character, locationId, { fromZoneId = null } = {}) {
   const links = await linksFor(prisma, locationId);
   if (links.length === 0) return [];
@@ -177,15 +194,31 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
   // down it and show as both open and shut in one render.
   const now = new Date();
 
+  // Somebody has hold of them (docs/systemdocs/INTERCEPT.md). Pure — one
+  // comparison against Character.heldUntil, no query — so every picker draws
+  // the refusal the mover is about to give, instead of the server refusing
+  // after a click.
+  const heldReason = heldReasonFor(character, now);
+
   return links
     .map((link) => {
       const { far } = endpoints(link, locationId);
-      return {
+      const row = {
         location: far,
         link,
         crossesZone: Boolean(zoneId) && far.zoneId !== zoneId,
         ...crossingCheck(link, { tagSlugs, onFootBlocked, now }),
       };
+      // Being held here shuts every way out, not just the ones that cross a
+      // zone — an ambush is a hand on your shoulder (INTERCEPT.md). `listed`
+      // is deliberately left alone: the way still draws, it just draws SHUT
+      // and says why, the same shape a locked gate uses, rather than vanishing
+      // and reading like there was never a way there at all.
+      if (heldReason) {
+        row.passable = false;
+        row.refusal = heldReason;
+      }
+      return row;
     })
     .sort(
       (x, y) =>

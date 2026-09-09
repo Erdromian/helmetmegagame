@@ -24,9 +24,10 @@
 // from everyone, GMs included, over a line that gives away nothing.
 
 // A withheld SKILL is the harder version of the same leak, and it loses the
-// whole recipe rather than one line. The six courtier wax seals are public
-// objects — a courtier buys their own mark openly — but the only way to MAKE
-// one is Forger, a Brigand-only `catalog: gm` skill. Printing "Forger · 1 turn
+// whole recipe rather than one line. The wax seals are public objects — a
+// courtier buys their own mark openly, and every office's stamp is a known
+// thing — but the only way to MAKE one is Forger, a Brigand-only
+// `catalog: gm` skill. Printing "Forger · 1 turn
 // · 2 ⬢" under a seal tells the whole game that seals get forged, which is the
 // one thing the forger is buying. So a craftable whose gating skill this
 // reader was not sent keeps its name, its description and its point cost, and
@@ -186,9 +187,13 @@ export function workBand(turns) {
 // uses to route them to its own build flow.
 export function recipeRows(tags) {
   return tags
-    .filter(
-      (tag) => tag.craftable && !tag.ingredientsWithheld && !tag.recipeWithheld && !tag.placement,
-    )
+    // A structure is listed like anything else with a recipe. It used to be
+    // dropped here on the argument that raising one is not crafting — true of
+    // how you BUILD it, and beside the point for a reference book. A Palisade
+    // costs skills, turns, ⬢ and timber exactly the way a sword does, and a
+    // player planning one had nowhere to read the cost. The Kind column
+    // already says "Structures", so the row explains itself.
+    .filter((tag) => tag.craftable && !tag.ingredientsWithheld && !tag.recipeWithheld)
     .map((tag) => {
       const { turns, ration, shared } = recipeWork(tag);
       const work = workLabel(tag);

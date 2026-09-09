@@ -21,7 +21,9 @@ import {
   StoreIcon,
   SpeakerIcon,
   PlayIcon,
+  MapIcon,
 } from "./icons";
+import RailLinkPending from "./RailLinkPending";
 import { signOutOfDiscord } from "../actions";
 import { playChime } from "./chime";
 import useChimeMuted from "./useChimeMuted";
@@ -29,6 +31,7 @@ import useChimeMuted from "./useChimeMuted";
 const ICONS = {
   character: CharacterIcon,
   play: PlayIcon,
+  map: MapIcon,
   players: PlayersIcon,
   turns: ScaleIcon,
   audit: AuditIcon,
@@ -113,6 +116,7 @@ export default function NavRail({ items }) {
               <Icon aria-hidden="true" />
               <span>{item.label}</span>
               {item.badge > 0 && <span className="rail-item-badge mono">{item.badge}</span>}
+              <RailLinkPending />
             </Link>
             </Fragment>
           );
@@ -174,6 +178,7 @@ export default function NavRail({ items }) {
                 >
                   <Icon aria-hidden="true" />
                   <span>{item.label}</span>
+                  <RailLinkPending />
                 </Link>
                 </Fragment>
               );

@@ -59,6 +59,29 @@ each arrived at by getting them wrong first.
    with a DM to the initiator. Its slot is load-bearing: **after** the
    auto-labor pass, and **before** the staged push, so the push's silent-close and
    payout logic sees the lesson's Action already resolved. See `LESSONS.md`.
+2c. **Research pass** (`db/lib/researchPass.js`, `"research"` in
+   `TURN_PASSES`) — the Scholastic's own code-adjudicated Gambit, same shape
+   as Lessons and slotted right after it. For every Action this turn whose
+   `gmNotes` carries `auto:research:<ingredient-slug>` it totals the die
+   already rolled at submit against the secret recipes that ingredient
+   unlocks — a craftable whose *product* is `catalog: gm`, never `catalog:
+   secret` — minus whichever ones this character has already been dealt
+   (ledgered per-character in `AuditLog`, `research_revealed`, so a binned
+   paper can't be farmed for a second try at the same recipe). Every earlier
+   filing on the same ingredient (`research_filed` rows since that
+   ingredient's last reveal) adds +1 — the first try needs a 6, the sixth
+   cannot miss, and the die line says so the way a Lesson shows a charm's
+   bonus. A total of 6
+   or more with at least one recipe left mints the researcher a paper of
+   notes on one, chosen at random, through `db/lib/paperMint.js#mintLetterFor`
+   (`PAPERWORK.md`); 4 or more with nothing left to find says so; anything
+   else turns up nothing. One DM at close carries the die and the outcome —
+   so, like Lessons, step 3 below skips its own 🎲 DM for `auto:research`.
+   Its slot is load-bearing the same way Lessons' is: **after** the
+   auto-labor pass and **before** the staged push, and it sits **before**
+   Confessions too, since neither pass's PENDING-offer expiry has anything to
+   do with a Gambit that was already CONFIRMED at submit. See `REQUESTS.md`
+   and `ADJUDICATION.md`.
 3. **Staged push pass** (`db/lib/stagedPush.js`) — applies every `StagedEffect`
    the GMs queued this turn, then every confirmed Move's own declared numbers
    (nothing pays at confirm any more — a Routine, a Labor payout and a
@@ -146,10 +169,15 @@ each arrived at by getting them wrong first.
    bomb, because the blast kills that same leader. With the bomb first, two
    doomsdays landing on one close meant the fireball cancelled the rite and the
    cult silently lost a race it had already won. Now the cult's ending is the
-   one written, and the blast still kills everyone above ground.
-   **Nobody dies here** — the bomb leaves survivors underground with a game to
-   play, this leaves nothing — so the pass writes one stamp and hands back one
-   line. `GameState.ascensionArmedTurn` due plus the snapshot leader still
+   one written, and by the time the bomb runs there is usually nobody left for
+   it to kill.
+   **Everyone dies here, with no zone exemption at all** — which is the one
+   line that separates this ending from the bomb's. The blast spares the two
+   cave levels because being under the rock is the whole escape; here the rock
+   is what Ravenheart is swallowed into. Gibbed, like the blast: no corpses to
+   loot or bury, and no afterwards to do it in. The pass hands back `deaths`
+   and one line, the `nukeExplosionPass` contract exactly.
+   `GameState.ascensionArmedTurn` due plus the snapshot leader still
    ALIVE fires it: `ascensionFiredTurn` is claimed first, every `#summary`
    hears the hellfire (no `@everyone`; the warning two turns ago was the one
    worth waking anybody for), and `endGameInDb` runs exactly as at 4c. A dead
@@ -225,26 +253,31 @@ each arrived at by getting them wrong first.
    `settleCarry` for every ALIVE character holding a tradeable tag,
    Overburdened, or more ⬢ than the base cap — one transaction each — and the
    overflow drops ride back for the thunk (`CARRY.md` §3).
-8c. **Fear pass** (`db/lib/fearPass.js`, `"fear"` in `TURN_PASSES`) — the
-   nightly settle for the hidden fear dial (`FEAR.md`). Slotted after hunger,
+8c. **Mood pass** (`db/lib/moodPass.js`, `"mood"` in `TURN_PASSES`) — the
+   nightly settle for the mood dial (`MOOD.md`). Slotted after hunger,
    so it sees the final Hunger streak, and after carry, so it sees the final
    sheet; before travel arrival, so a traveller pays the night for the
-   Location they set out from rather than the one they haven't reached yet.
-   It applies the turn's flat gains and reliefs to `Character.fear`, settles
-   the one status tag the band produces (`db/lib/fear.js#settleFearTag`,
-   `source: TagSource.CONDITION`, same convention the old phobia system used),
+   Location they ended the day in rather than the one they haven't reached yet.
+   It applies the turn's flat harms and reliefs to `Character.mood`, slides
+   every dial one step of `MOOD_DRIFT` back toward Fine from either direction,
    and deletes each character's `dined` marker so a fresh turn starts
-   unmarked. Audit action `fear_resolved`; its DMs ride the `tagExpiryDms`
-   channel back on the thunk.
+   unmarked. It settles no tag: the band is a word read off the number, not a
+   row. Audit action `mood_resolved`; its DMs — only the two bands that carry
+   one — ride the `tagExpiryDms` channel back on the thunk.
 8d. **Travel arrival pass** (`db/lib/travelArrivalPass.js`, `"travelArrival"`
-   in `TURN_PASSES`) — everyone who spent their Move crossing a zone last turn
-   finally lands (`MAP.md` §3). **Last of the passes**, and the slot is
-   load-bearing: every pass above settles the turn that just ended, and the
-   traveller spent that turn walking — auto-labor pays them where they set out
-   from, and neither turret shoots somebody still on the road. It does no
-   Discord work; the arrivals ride back on `travelArrivals` and go out through
-   the same thunk loop a GM's staged "Relocate to" uses. Audit action
-   `travellers_arrived`.
+   in `TURN_PASSES`) — **a drain, and nothing else.** It used to land everyone
+   who had spent their Move crossing a zone last turn; every crossing lands the
+   moment it is made now (`MAP.md` §3) and nothing files work for this pass at
+   all. It stays last, and stays at all, only to walk over anybody who was
+   mid-journey when that change deployed — after which its query matches
+   nobody. Delete it once they have landed. It does no Discord work; anything
+   it finds rides back on `travelArrivals` through the same thunk loop a GM's
+   staged "Relocate to" uses. Audit action `travellers_arrived`.
+
+   One consequence of the removal worth knowing here: every pass above now
+   settles a zone-crosser at their **destination** rather than their origin.
+   Auto-labor pays the yield of the place they ended the day in, the night's
+   mood reads its `wilderness`/`haven`, and a turret there can shoot them.
 9. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
 10. **Open the next turn** with the alternated phase, and pick its banner (§4).
 11. **Write the `TURN_START` archive row** — here, where the turn is created,
@@ -274,16 +307,77 @@ Two things follow from that, and both are load-bearing:
   `needsResolvedAt` is the completion stamp rather than a lease, so neither
   could do this job.
 
+## 2a. What the bomb does to a body
+
+The nuke pass gibs rather than kills (`CORPSES.md` §1a): everybody above ground
+is vaporised, so the close mints no corpses and every tag they carried is
+deleted. Antagonist seat tags are the exception, because the epilogue that runs
+moments later reads them off live rows.
+
+It also, finally, tells them why. The pass used to push its death entries with
+no `reason` field while the thunk's shared DM loop interpolated one anyway, so
+every victim of the bomb was DM'd the literal string `You have died. undefined`.
+
 ## 3. The side-effect thunk
 
 `advanceTurn` **composes but does not run** the Discord work. It returns
 `{ advanced, previousTurn, newTurn, note, runSideEffects }`, and the caller
-decides when the thunk runs.
+decides when the thunk runs. The thunk itself lives in
+`db/lib/turnSideEffects.js`.
 
 That split is load-bearing. The message wipe walks every zone's channels
 sequentially; awaiting it inside a server action holds the action open, and a
 pending server action blocks client-side navigation — which froze the entire
 web app until a hard refresh.
+
+### 3a. The thunk is recorded, and an unfinished one is finished
+
+**The four `Turn.sideEffect*` columns are to the Discord half what
+`resolvedPasses` and `needsResolvedAt` are to the database half, and they exist
+because that half had nothing of the kind.** `needsResolvedAt` is stamped by
+`resolveNeeds` before `advanceTurn` has even composed the thunk, so a turn whose
+fan-out died was already finished as far as §2's resume was concerned.
+
+What that cost, on 2026-09-08: the bomb went off at the close of turn 3 and the
+database half committed perfectly — twelve dead, gibbed, the game ENDED, all of
+it logged. A redeploy landed twenty-eight seconds later and SIGTERM'd the web
+container inside the per-death teardown loop. Three of twelve death DMs got out.
+**The fireball and the Game Ended post never did**, and nothing was ever going
+to send them.
+
+So, in order:
+
+- `advanceTurn` writes **`sideEffectPayload`** — everything the thunk needs, as
+  plain JSON — onto the closing turn *before* handing the thunk back. No Prisma
+  rows, no Dates, no functions: `newTurnId` rather than the row, and
+  `startedAtMs` rather than a live `Date.now()`, because that value is the
+  message wipe's cutoff and a resumed run would otherwise sweep away everything
+  said since. `buildSideEffectPayload` is the whole list.
+- Each send is wrapped in **`step(key, fn)`**, which records the key in
+  **`sideEffectSteps`** only once the send returns. Anything that posts or DMs
+  gets a per-item key (`death:<characterId>`, `delivery:<id>:<n>`, index keys
+  for the notice loops); a singleton post gets a section key
+  (`nukeBroadcast`, `gameEnded`, `messageWipe`). The granularity is the point:
+  a re-run must not tell somebody a second time that they died. The existing
+  per-call `.catch()`es stay — those stop one dead channel taking a loop down,
+  which is a different job.
+- **`sideEffectsDoneAt`** is stamped only at the very end, and is the sole
+  selector for the resume.
+- **`resumeTurnSideEffects(prisma)`** finds the oldest turn with a payload and
+  no `sideEffectsDoneAt`, claims **`sideEffectClaimedAt`** with the same
+  compare-and-swap and the same 30-minute staleness window §2 uses for
+  `needsResumeClaimedAt`, and finishes only the outstanding keys. It writes a
+  `turn_side_effects_resumed` audit row.
+
+**Two things call it, and the second is the one that matters.** `advanceTurn`'s
+own thunk runs it first, so the next advance catches up whatever the last one
+dropped — but a game that ended at 22:00 is not helped by the 04:00 cron. So the
+**bot calls it on `ready`**, as one of its catch-up passes: the bot coming back
+up is the earliest signal available that somebody's process just died, and the
+deploy that kills the web container restarts the bot too.
+
+**A turn that closed before this existed has a null payload and is never
+selected** — there is nothing to replay for it.
 
 The thunk performs, in narrative order:
 
@@ -370,9 +464,29 @@ mid-turn. A null `banner` — a row from before the column existed, or a creatio
 path that forgot — is not "no picture": the resolver picks one on the spot, so a
 Turn 1 never posts bare.
 
-**After the bomb there is no morning, only the sky.** `GameState.nukeDetonatedTurn`
+**After the bomb there is no morning, only the sky.** `Game.nukeDetonatedTurn`
 pins `nuke.jpg` for the rest of the game, ahead of the ordinary plate, and
-`ascensionFiredTurn` pins `hellfire.jpg` the same way.
+`Game.ascensionFiredTurn` pins `hellfire.jpg` the same way.
+
+**Both stamps live on the `Game` row, and that is load-bearing.** They used to
+sit on `GameState` — but they are turn NUMBERS, and turn numbers restart at 1
+every game, so the value said nothing about which game had ended and every
+reader took a stale one as its own. On 2026-09-09 a freshly restarted game
+opened wearing the last one's fireball: the nuke plate over every turn
+announcement, an epilogue on a game one turn old, and the Arm button refusing
+on the grounds that the bomb had already gone off. A `Game` row is created
+fresh by the wipe, so it cannot carry anything over. The `GameState` columns
+are still written as a forensic record and read by nothing — the readers are
+`turnBannerPath`, `turnAnnouncement.js`, `bot/src/lib/turnsConsole.js`,
+`objectives.js` (the Tribunal), `riteIngredients.js` (the Ascension's
+"already running" gate), the two nuke buttons and `/gm/dev`, and every one of
+them selects `{ game: { select: … } }`.
+
+**Resume withdraws the ending.** `resumeGameInDb` clears the Game row's
+`endedAt`, `closingNote` and `epilogue` as well as the phase. It used to leave
+the reveal in place "until the next ending overwrites it", which meant a
+resumed game went on being played with `/archive` still rendering how it
+ended.
 
 How it is posted (`db/lib/turnAnnouncement.js`): **`#turns` is ONE rolling
 message**, replaced each turn, carrying the announcement, the banner and the
@@ -470,14 +584,14 @@ Full writeup: `REQUESTS.md` §4.
 
 The Disappointed track is gone — no separate tag, no streak counter driving
 it. A noble who ends the turn without the `dined` marker (no fine or lavish
-meal that turn) instead takes +10 fear at the fear pass (8c, `FEAR.md`), the
-same as any other fear gain. Hungerless and Dying nobles are exempt.
+meal that turn) instead takes −10 mood at the mood pass (8c, `MOOD.md`), the
+same as any other harm to the dial. Hungerless and Dying nobles are exempt.
 
 `Character.missedMealStreak` is an orphan column now — nothing writes or
 reads it any more, same as `GameConfig.mindlinkChannelId`. There is no
 player-facing tracker: the sheet's old Dinner row went with the track
 (Bascinet's call, 2026-09-07). A noble learns they skipped dinner the way
-everyone learns about fear — the band tag, and its one-line DM.
+everyone learns about a bad night — the word in the Mood box on their sheet.
 
 ### 5b. The horse's feed
 
@@ -598,69 +712,28 @@ sends `moveWindow(...).cutoffAt` as `closesAt`, and `TurnCard.js` renders
 `closes in N h` from it, or `locked` once the window has shut. Counting to
 `endsAt` told a player they had three hours they did not have.
 
-### 6a-i. Editing a Move already filed
+### 6a-i. A filed Move is final
 
-A filed Move can be **changed** until that same cutoff
-(`db/lib/moves.js#editMove`). The one-Move-a-turn row IS the turn — the
-`@@unique([characterId, turnId])` Action — so there is nothing to cancel and
-re-file; the row is edited in place. It refuses unless every one of these
-holds: the Move belongs to the character asking (ownership and the open turn
-are part of the *query*, never trusted from the post), **the player filed it
-themselves**, Moves are not locked, `status` is `PENDING_TYPE` or `CONFIRMED`,
-`moveReviewStatus` is `OPEN` or `PASSED` (anything else is a GM holding the
-row), the adjudication lock is not live, the character is not blocked from
-ACT (`db/lib/incapacitation.js` — a Bound or Dying character cannot change a
-Move any more than they could file one), and `appliedEffects` is still null.
-The audit row is `move_edited`, with `turnId` set, the previous kind, and
-`kindChanged` in `details`.
+There is no editing a Move once it is filed, and no cancelling one. The
+one-Move-a-turn row IS the turn — the `@@unique([characterId, turnId])`
+Action — so a player gets one Move and it stands. `db/lib/moves.js` exports
+`fileMove` and nothing else; the only way a filed Move changes now is a GM
+doing it from `/gm/dev`.
 
-**Not every Action on a turn was filed by the player.** A lesson writes the
-learner a Gambit and the teacher a Routine (`db/lib/lessons.js`), a confession
-writes the penitent one and the chaplain another (`db/lib/confession.js`), the
-auto-labor pass writes a Labor, a paid zone crossing writes a travel stub, and
-a GM can spend somebody's turn from the dev panel. All of them come out
-`CONFIRMED`/`OPEN` with `appliedEffects` null, which is exactly the shape Edit
-was written for — so they all used to be editable, and re-picking the kind on
-one would have rolled a fresh die for a lesson nobody re-taught. Every one of
-those writers stamps an **`auto:` marker into `gmNotes`**, and
-`moves.js#filedByPlayer` is the single test both faces run against it; the
-refusal is *"That turn is already spoken for."* `myMove` selects `gmNotes` for
-the same reason, so the Edit button is never drawn on one.
+It used to be editable until the cutoff (`editMove`), which brought a fair
+amount of machinery with it: `filedByPlayer` to keep a lesson's or an
+auto-Labor's Action out of a player's hands, and a **once-a-turn cap on
+changing the kind**, because changing kinds re-confirms the row and
+re-confirming rolls — so an uncapped Edit was a re-roll button you could flip
+Gambit → Routine → Gambit on all afternoon. None of that exists any more.
 
-Changing the KIND re-confirms the row: the old Gambit die and any Labor payout
-are cleared and `db/lib/moveConfirm.js#confirmMove` runs again, so switching
-into Gambit rolls a die and switching into Labor rolls the new range. Changing
-only the *text* touches neither — Edit is not a re-roll button, and a Gambit
-that already has a die keeps it.
+Old **`move_edited` rows stay in the audit log** and still render, through the
+`move_` prefix fallback in `web/lib/auditNarrative.js` — which never had a
+sentence for them. Nothing writes another.
 
-Which is why the kind change is **once a turn**. Re-confirming rolls, so an
-uncapped Edit was a re-roll button after all: flip Gambit → Routine → Gambit
-and the die is thrown again, all afternoon, for free. The cap is a ration
-counted off the audit log the way the other three are (`REQUESTS.md` §1a) —
-`move_edited` rows on this turn whose `details.kindChanged` is true — so it
-survives a reload and a second browser tab. A second attempt is refused with
-*"You can change what kind of Move it is once a turn."*, and the text stays
-editable regardless. `myMove` returns the same fact as `kindLocked`, which
-greys the dialog's kind chips and puts that sentence where the help line goes.
-
-The final write is an `updateMany` filtered on `appliedEffects: DbNull` and
-the editable statuses rather than a bare `update` on the id — the staged push
-claims rows under the same `DbNull` filter (`db/lib/stagedPush.js`), and
-between the read and the write a turn can close underneath an open dialog. A
-lost race edits nothing and answers *"That Move has already been settled."*
-
-An edit of a `PENDING_TYPE` row always re-confirms, whether or not the kind
-changed. That status is a draft abandoned half-way through the Discord
-dropdowns; the push skips it and the desk never shows it, so finishing the
-text and leaving it `PENDING_TYPE` would still have cost the player the turn
-silently.
-
-The Discord `#turns` console has no Edit twin yet. A player who filed in the
-Chat can still edit in Chat; a player who filed in Discord can also edit on
-the web, but not the other way round. ‡
-
-`web/lib/auditNarrative.js` has no `move_edited` entry, so `/gm/audit` renders
-that row as its raw slug until somebody writes the sentence.
+The `auto:` marker on `Action.gmNotes` outlives all of this: `db/lib/
+stagedPush.js` tests the same substring, and `web/lib/moves.js` reads the
+markers for the desk's labels.
 
 ## 7. Where the code lives
 
@@ -714,8 +787,18 @@ It does three things:
   turret is armed.
 
 Like every other pass it returns its side effects — `lines` (ambient lines the
-caller speaks into the Depot channel) and `dms` — rather than making a network
-call. The turret's **other** trigger is on arrival, in
+caller speaks into the Depot channel), `dms`, and `deaths` — rather than making
+a network call.
+
+**A turret kill owes the same Discord teardown every other death gets**, and
+for a long time it got none of it: the sheet said `DEAD` while the character
+kept their personal role, every channel overwrite and their nickname, and never
+received the ghost seat. Both guns now hand their kills up as `deaths`, which
+the thunk folds into `turnDeaths` alongside the catatonic, Dying and blast
+ones. The walk itself lives in `db/lib/deathTeardown.js` so the four callers
+that perform it cannot drift. Turret deaths carry `ownDm: true`, because the
+gun has already spoken to the victim in its own voice and a generic "You have
+died" after it would be the same news twice. The turret's **other** trigger is on arrival, in
 `db/lib/locationMove.js`, deliberately before that function's `DISCORD_TOKEN`
 guard: being shot is a database fact and must not depend on there being a token
 to announce it with.

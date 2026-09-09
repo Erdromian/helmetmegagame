@@ -123,7 +123,7 @@ async function handleEditOpen(interaction) {
   const { messageId, proxy } = await resolveOwnedProxy(interaction, OPEN_PREFIX);
   if (!proxy) {
     await ack(interaction);
-    await respond(interaction, "» *That message can no longer be edited.* ‡");
+    await respond(interaction, "» *That message can no longer be edited.*");
     return;
   }
   // The stash is only a prefill shortcut; after a restart the row's own text
@@ -136,7 +136,7 @@ async function handleEditSubmit(interaction) {
 
   const { messageId, proxy } = await resolveOwnedProxy(interaction, MODAL_PREFIX);
   if (!proxy) {
-    await respond(interaction, "» *That message can no longer be edited.* ‡");
+    await respond(interaction, "» *That message can no longer be edited.*");
     return;
   }
 
@@ -144,7 +144,7 @@ async function handleEditSubmit(interaction) {
 
   // The ROW is edited, and nothing here touches Discord. The outbox
   // (bot/src/lib/feedOutbox.js) sees the notify and carries the change across,
-  // which is the same path a ✎ on /play takes — one writer, one editor, and
+  // which is the same path a ✎ on /chat takes — one writer, one editor, and
   // the five-minute window enforced in one place (db/lib/say.js).
   const result = await editSpeech(prisma, { characterId: proxy.characterId, seq: proxy.seq, content });
   if (!result?.ok) {

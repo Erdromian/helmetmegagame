@@ -1,6 +1,6 @@
 const cron = require("node-cron");
-const { ActivityType } = require("discord.js");
-const { prisma } = require("@lifeweb/db");
+const { ActivityType, Events } = require("discord.js");
+const { prisma, resumeTurnSideEffects } = require("@lifeweb/db");
 const {
   getInvalidResponseStats,
   loadBreakerState,
@@ -18,6 +18,39 @@ const { runRiteSweep } = require("@lifeweb/db/lib/riteSweep");
 const { getGameState } = require("@lifeweb/db/lib/gameState");
 const { startDeathSmell } = require("../lib/deathSmell");
 const { registerCommands } = require("../lib/commands");
+const { catchUpMissedMessages } = require("../lib/messageCatchUp");
+
+// Vars this process reads behind a truthiness guard — `if (process.env.X)`,
+// `?? null`, `.filter(Boolean)`. A missing one is not an error, it is a
+// feature that is off with nothing in the log to say so, which is how
+// DISCORD_CURSED_ROLE_ID sat unset on the bot (and set on web) through a whole
+// playtest while every rite and turn-clock death skipped the Cursed role.
+//
+// DATABASE_URL and DISCORD_TOKEN are deliberately absent: without either, this
+// line is never reached at all.
+const REQUIRED_ENV = [
+  ["DISCORD_GUILD_ID", "every REST call"],
+  ["DISCORD_CLIENT_ID", "the doctor's check that no zone role outranks the bot"],
+  ["DISCORD_GM_ROLE_ID", "the standing GM seat — the gate narrows to Trial GMs"],
+  ["DISCORD_TURN_PING_ROLE_ID", "the turn ping"],
+  ["WEB_BASE_URL", "every link the bot writes into a DM"],
+  ["AUTH_SECRET", "the hood tokens behind Who's here?"],
+  ["VAPID_PUBLIC_KEY", "web push from the bot"],
+  ["VAPID_PRIVATE_KEY", "web push from the bot"],
+  ["VAPID_SUBJECT", "web push from the bot"],
+];
+
+// Printed, never thrown: guard() in bot/src/index.js would abort the whole
+// ready chain — doctor, nickname sync, cron registration — over a missing
+// turn-ping role.
+function reportMissingEnv() {
+  const missing = REQUIRED_ENV.filter(([name]) => !process.env[name]);
+  if (missing.length === 0) return;
+  console.error(
+    `Missing env on the bot — these are silently OFF:\n` +
+      missing.map(([name, what]) => `  ${name} — ${what}`).join("\n"),
+  );
+}
 
 module.exports = {
   name: "ready",
@@ -31,6 +64,8 @@ module.exports = {
     // The whole point of the health line below is to report what the LAST
     // process left behind.
     await loadBreakerState();
+
+    reportMissingEnv();
 
     // discord.js runs its own REST manager, so everything the gateway client
     // does — the ~130 nickname syncs below, every channel permission edit,
@@ -86,7 +121,7 @@ module.exports = {
 
     await refreshLocationChannels().catch((err) => console.error("Failed to refresh location channels:", err));
 
-    // The web feed's Discord half: listen for messages typed into /play and
+    // The web feed's Discord half: listen for messages typed into /chat and
     // post them into their Location channel, plus a catch-up sweep for
     // anything sent while the bot was down. After refreshLocationChannels so
     // the channel ids it resolves are the current ones. Never throws.
@@ -163,6 +198,58 @@ module.exports = {
     // DMs. The cost is propagation — a new or renamed command can take up to
     // an hour to show up. See bot/src/lib/commands.js.
     await registerCommands(client).catch((err) => console.error("Failed to register slash commands:", err));
+
+    // Anything typed while we were not listening. Backgrounded on purpose —
+    // it walks every active thread in the guild, and a slow sweep must never
+    // hold up the bot answering an interaction.
+    //
+    // Resolved here rather than reusing the loop above: that `guild` is a
+    // for-of binding whose scope ended, and Bascinet runs in one guild anyway.
+    const homeGuild =
+      client.guilds.cache.get(process.env.DISCORD_GUILD_ID) ?? client.guilds.cache.first() ?? null;
+    if (homeGuild) {
+      void catchUpMissedMessages(client, homeGuild, { reason: "startup" }).catch((err) =>
+        console.error("Message catch-up failed:", err),
+      );
+
+      // And again whenever the gateway hands us a FRESH session.
+      //
+      // This listener is registered here, inside `ready`, for a reason worth
+      // keeping: shardReady fires BEFORE ready on the first connect, so by the
+      // time this line runs the opening one is already past. Every shardReady
+      // we see from here is therefore a RE-identify — which is exactly the case
+      // that loses messages.
+      //
+      // The distinction that matters: a RESUME replays the dispatches missed
+      // while the socket was away, so messageCreate fires for all of them and
+      // there is nothing to recover. An IDENTIFY is a new session and those
+      // dispatches are gone for good. Only the second one emits shardReady.
+      //
+      // Deliberately just this pass, not the whole burst above: running the
+      // channel doctor and a guild-wide nickname sync on every network blip
+      // would be a new load problem rather than a fix. catchUpMissedMessages
+      // holds its own single-flight guard, so a flapping connection cannot
+      // stack sweeps.
+      client.on(Events.ShardReady, (shardId) => {
+        console.log(`Shard ${shardId} re-identified; checking for messages missed while it was away.`);
+        void catchUpMissedMessages(client, homeGuild, { reason: "reconnect" }).catch((err) =>
+          console.error("Message catch-up failed after reconnect:", err),
+        );
+      });
+    }
+
+    // The web app closes a turn and then fans out to Discord from a deferred
+    // after() callback, which a redeploy can kill halfway. That happened on
+    // 2026-09-08: the bomb detonated, twelve characters died in the database,
+    // and the fireball and the Game Ended post were never posted at all. The
+    // bot coming back up is the earliest signal available that somebody's
+    // process just died, so finishing an unsaid turn is one of the catch-up
+    // passes now — waiting for the 04:00 cron is no use to a game that ended
+    // at 22:00. Idempotent and leased: it stands down if a live run holds the
+    // turn, and does nothing at all when there is nothing outstanding.
+    void resumeTurnSideEffects(prisma).catch((err) =>
+      console.error("Resuming an unfinished turn's side effects failed:", err),
+    );
 
     const runAdvanceTurn = () => {
       console.log("Turn-advance cron fired.");

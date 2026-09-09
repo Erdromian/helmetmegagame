@@ -148,6 +148,15 @@ what falls out of one is a list of runtime tag IDs rather than catalog slugs.
 A crate cannot go inside a crate. Halving twice is a free carry exploit, and it
 would nest a `consumesInto` chain arbitrarily deep. Refused on both faces.
 
+**A mount cannot go in one either.** Horse, Cart, Fishing Boat and Motorcycle
+carry no weight at all — you ride them, you do not carry them — so the floor of
+1 put a flat-bottomed boat in a one-pound box, and a hand-cart could be walked
+indoors or past a Cerberus as anonymous cargo. Refused on both faces, by
+`equipSlot: MOUNT` (`isMount` in `web/lib/tagRequests.js`). **The Depot is the
+deliberate exception**: Horse and Motorcycle are wares with a `depotPrice`, and
+every shipment arrives crated (`DEPOT.md` §0e), so `db/lib/depotCrates.js` packs
+them as before. This refusal is the hand-packed button only.
+
 **The line on the side is not checked.** `[CONTAINS]: whatever they typed`. That
 is the feature — it is how you smuggle something past a Cerberus, and the GM
 desk says so out loud on the request row.

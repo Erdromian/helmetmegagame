@@ -36,10 +36,9 @@ const SHUTTLE_DEPARTED_LINE = {
 };
 
 const TURRET_DM = {
-  graze:
-    "The turret tracked you across the depot floor and fired. It missed by an inch and put a hole in the wall behind you.",
-  hit: "The turret in the depot ceiling identified your face, decided it did not like it, and fired.",
-  dead: "The turret in the depot ceiling identified your face, decided it did not like it, and did not miss.",
+  graze: "The turret shoots you. You get in cover just in time.",
+  hit: "The turret shoots you.",
+  dead: "The turret shoots you.",
 };
 
 // One turn of the generator. Returns the line to speak if it died this turn.
@@ -91,7 +90,11 @@ async function sweepTurret(prisma, depot) {
   });
 }
 
-const DEATH_CONTENT = "Shot dead by the turret in the depot ceiling. \u2021";
+const DEATH_CONTENT = "Shot by a turret.";
+// What the victim's death DM ends on, and what #leave reads. Separate from the
+// flavour line above, which the gun speaks in the moment — this is the plain
+// fact, and it has to survive being read a day later out of context.
+const DEATH_REASON = "they were shot by a turret.";
 
 // Walking in while it is hot. `armed` is a thunk so loadDepot — an upsert, and
 // therefore a write on one contended row — never runs for the thousands of
@@ -112,6 +115,7 @@ function rollTurretOnArrival(prisma, { characterId, toLocationId, turn }) {
     },
     spares: (name, state) => turretSpares(name, state.depot),
     deathContent: DEATH_CONTENT,
+    deathReason: DEATH_REASON,
   });
 }
 
@@ -137,12 +141,20 @@ async function runDepotPass(prisma, turn) {
 
   const dms = [];
   const outcomes = [];
+  const deaths = [];
   for (const shot of shots) {
-    const outcome = await applyTurretShot(prisma, shot, turn, { deathContent: DEATH_CONTENT });
+    const outcome = await applyTurretShot(prisma, shot, turn, {
+      deathContent: DEATH_CONTENT,
+      deathReason: DEATH_REASON,
+    });
     outcomes.push({ ...outcome, severity: shot.severity, protection: shot.protection });
     if (outcome.discordUserId) {
       dms.push({ discordUserId: outcome.discordUserId, content: turretDmFor(TURRET_DM, outcome) });
     }
+    // The Discord teardown a kill owes — role, overwrites, nickname, the ghost
+    // seat. Carried up to the side-effect thunk rather than done here: this
+    // runs inside the turn's work, and REST calls do not belong there.
+    if (outcome.death) deaths.push(outcome.death);
   }
 
   // Ambient lines the caller speaks into the Depot's channel.
@@ -164,6 +176,7 @@ async function runDepotPass(prisma, turn) {
     burstLocationId: outcomes.length ? locationId : null,
     lines,
     dms,
+    deaths,
   };
 }
 

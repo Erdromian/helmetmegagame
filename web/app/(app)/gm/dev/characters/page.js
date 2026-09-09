@@ -1,15 +1,13 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
-import { auth } from "@/lib/auth";
-import { isSuperadmin } from "@/lib/superadmin";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
+import { getDevTier } from "@/lib/devAccess";
+import PageShell from "@/app/components/PageShell";
+import AppHeader from "@/app/components/AppHeader";
 import DevSubNav from "../DevSubNav";
 import CharactersTable from "./CharactersTable";
 
 export default async function DevCharactersPage() {
-  const session = await auth();
-  if (!session?.discordUserId) redirect("/");
-  if (!isSuperadmin(session.discordUserId)) redirect("/character");
+  if ((await getDevTier()) === "none") redirect("/character");
 
   const characters = await prisma.character.findMany({
     orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
@@ -33,10 +31,11 @@ export default async function DevCharactersPage() {
   }));
 
   return (
-    <PageShell>
-      <PageHeader title={`Characters (${characters.length})`} actions={<DevSubNav current="characters" />} />
-
+    <>
+      <AppHeader title={`Characters (${characters.length})`} actions={<DevSubNav current="characters" />} />
+      <PageShell>
       <CharactersTable rows={rows} />
-    </PageShell>
+      </PageShell>
+    </>
   );
 }

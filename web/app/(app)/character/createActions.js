@@ -19,6 +19,8 @@ import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
 import { setMerchantSeal } from "@lifeweb/db/lib/merchantSeal";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
+import { seedMemories } from "@lifeweb/db/lib/locationVisits";
+import { startingMemorySlugs } from "@lifeweb/db/lib/startingMemories";
 import {
   isWanted,
   postWantedPosters,
@@ -33,13 +35,12 @@ import {
   ensureCharacterRole,
   syncCharacterNarrowcastAccess,
   getGuildMember,
-  isCursed,
-  isApprovedPlayer,
   isLeaderWhitelisted,
   isGm,
-  isPlaytester,
-  removeCursedRole,
+  onRoster,
+  removeGhostRole,
 } from "@/lib/discordGuild";
+import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import {
   computeBudget,
   isSpawnOnly,
@@ -57,6 +58,9 @@ import {
   conflictingTag,
   roleExcluded,
   CURSED_ROLE_SLUGS,
+  COMMONER_KIT_SLUGS,
+  DEFAULT_COMMONER_KIT_SLUG,
+  LABORING_SPECIALISATION_SLUGS,
 } from "@/lib/characterCreation";
 
 import { reserveRole, releaseRole } from "@lifeweb/db/lib/roleReservation";
@@ -74,17 +78,16 @@ import {
 } from "@/lib/characterName";
 
 // When somebody may make a character at all (docs/systemdocs/LOBBY.md §1):
-// while the game runs or has ended, or — for a GM or a playtester — in any
-// phase, which is the lobby's Skip button.
+// while the game runs or has ended, or — for a GM — in any phase, which is the
+// lobby's Skip button.
+//
+// A playtester does NOT skip ahead here. The seat used to open the doors in any
+// phase the way a GM's does, which meant the one group most likely to be
+// testing the lobby never saw it. Their bypass is the roster check below, not
+// this one.
 function creationOpen(phase, member) {
   if (phase === "RUNNING" || phase === "ENDED") return true;
-  return isGm(member) || isPlaytester(member);
-}
-
-// On the list: the Player role, or the Playtest seat, which exists so a
-// contributor can test without being seated as a player or a GM.
-function onRoster(member) {
-  return isApprovedPlayer(member) || isPlaytester(member);
+  return isGm(member);
 }
 
 // Creates a character from the wizard's Confirm step. Everything posted is
@@ -111,6 +114,10 @@ export async function createCharacter(formData) {
   const rawAge = Number.parseInt(formData.get("age")?.toString() ?? "", 10);
   const age =
     Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
+  // "Play from the web", asked on the Identity step. Gated against
+  // GameConfig.playPanelEnabled below, once config is loaded — a server action
+  // is a public endpoint, so the wizard hiding the switch is not the lock.
+  const postedWebOnly = formData.get("webOnly") === "on";
   const postedRoleId = formData.get("roleId")?.toString();
   const tagIds = formData.getAll("tagIds").map((t) => t.toString()).filter(Boolean);
   // Consent for secretly-assigned antagonist seats; normalizeAntagonistSlugs
@@ -143,7 +150,7 @@ export async function createCharacter(formData) {
   const roleId = assignedEntry?.assignedRoleId ?? postedRoleId;
   if (!roleId) return { error: "Pick a role before confirming." };
 
-  const [role, config, state, member, openTurn] = await Promise.all([
+  const [role, config, state, member, openTurn, cursed] = await Promise.all([
     prisma.role.findUnique({
       where: { id: roleId },
       include: {
@@ -157,6 +164,10 @@ export async function createCharacter(formData) {
     // Always fresh: a gate must not refuse on a five-minute-old roles list.
     getGuildMember(discordUserId, 0),
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
+    // A database question now, not a Discord role (db/lib/curse.js). Read out
+    // here with the rest rather than inside the transaction below: by the time
+    // that runs, the new ALIVE row exists and the answer would always be no.
+    isPlayerCursed(prisma, discordUserId),
   ]);
   if (!role) return { error: "That role no longer exists." };
 
@@ -168,7 +179,7 @@ export async function createCharacter(formData) {
   if (!bypass && !creationOpen(state?.phase, member)) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
-  if (!bypass && !onRoster(member)) {
+  if (!bypass && !onRoster(member, { playtestMode: config?.playtestModeEnabled === true })) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
 
@@ -188,7 +199,6 @@ export async function createCharacter(formData) {
     return { error: "That role isn't available to you." };
   }
 
-  const cursed = isCursed(member);
   if (!assignedEntry && !isRoleSelectable({ role, cursed, leaderWhitelisted })) {
     return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
   }
@@ -334,6 +344,28 @@ export async function createCharacter(formData) {
     return { error: `That costs ${spent} points and you have ${budget}.` };
   }
 
+  // A Commoner who reached the end of the wizard without picking a trade
+  // starts a farmer. Left alone they would hold Laboring (Skilled) and no
+  // specialisation at all — able to labor, but at no location's coefficient,
+  // which is the one build in the game that cannot feed itself.
+  //
+  // It lands in startingTags rather than selected on purpose: everything above
+  // this line has already validated the cart, and the GM_GRANT loop below
+  // stamps the expiry and carries the slug into heldSlugs for the memories.
+  // The kit is 0 points, so the budget checked above is untouched either way,
+  // and the crate arrives unopened — the player still presses Consume, same as
+  // one they chose.
+  if (role.slug === "commoner") {
+    const tradeHeld = [...selected, ...startingTags].some(
+      (t) =>
+        COMMONER_KIT_SLUGS.includes(t.slug) || LABORING_SPECIALISATION_SLUGS.includes(t.slug),
+    );
+    if (!tradeHeld) {
+      const kit = await prisma.tag.findUnique({ where: { slug: DEFAULT_COMMONER_KIT_SLUG } });
+      if (kit) startingTags.push(kit);
+    }
+  }
+
   // Union bought + granted tags, refunding nothing (already budget-checked).
   // A tag with a catalog duration must arrive already stamped — nothing
   // else backfills expiresTurn later.
@@ -363,6 +395,20 @@ export async function createCharacter(formData) {
   const heldSlugs = [...selected, ...startingTags]
     .filter((t) => tagIdsToGrant.has(t.id))
     .map((t) => t.slug);
+  // The shape travelOptions wants (db/lib/locationGraph.js), handed to
+  // seedMemories so it does not re-query this character's tags once per
+  // remembered Location. Nothing is equipped at creation, so `equipped: false`
+  // is not an assumption — it is the whole truth about a character this new.
+  const heldTagRows = heldSlugs.map((slug) => ({ equipped: false, tag: { slug } }));
+
+  // `!== false` rather than truthy: no config row leaves the switch offered,
+  // matching actions.js#updateCharacterProfile. Written as a plain column on
+  // the new row rather than through db/lib/webOnly.js#setWebOnly — that is the
+  // FLIP path, and its Discord half would revoke access this character has not
+  // been granted. webOnlyChangedAt stays null on purpose, so a player who
+  // ticked it by mistake can untick it on the Bio card straight away instead
+  // of waiting out the two-hour cooldown.
+  const webOnly = config?.playPanelEnabled !== false && postedWebOnly;
 
   let created;
   try {
@@ -388,6 +434,10 @@ export async function createCharacter(formData) {
           name,
           gender: effectiveGender,
           age,
+          // Set before placement runs, so applyLocationMoveSideEffects and
+          // every helper under it sees it already on and grants nothing
+          // (CHAT.md §6a).
+          webOnly,
           roleId: role.id,
           roleTitle: role.name,
           factionId: role.factionId,
@@ -463,6 +513,14 @@ export async function createCharacter(formData) {
       toLocationId: created.locationId,
     }).catch(() => {});
   }
+  // The map this seat wakes up with (db/lib/startingMemories.js). After the
+  // transaction, so travelOptions can read the tags it just granted, and after
+  // placement, which has already recorded the Location they are standing in.
+  await seedMemories(
+    prisma,
+    { ...created, tags: heldTagRows },
+    startingMemorySlugs(role.slug, heldSlugs),
+  ).catch(() => {});
   await syncCharacterNickname(discordUserId, formatBareName({ firstName, lastName })).catch(() => {});
 
   // Somebody who arrives already Wanted has three posters go up in the same
@@ -481,7 +539,9 @@ export async function createCharacter(formData) {
       .catch((err) => console.error("postDebtorNotices failed:", err));
   }
   if (!created.locationId) await syncCharacterNarrowcastAccess(created.id).catch(() => {});
-  if (cursed) await removeCursedRole(discordUserId).catch(() => {});
+  // The ghost seat comes off. The curse itself needs no write: this new ALIVE
+  // row is already the answer db/lib/curse.js gives.
+  if (cursed) await removeGhostRole(discordUserId).catch(() => {});
 
   // The Depot's turret spares exactly one face, and it used to be a GM's job
   // to type it in — so a new Merchant met a gun he was forbidden to arm and
@@ -562,7 +622,7 @@ export async function reserveRoleAction(roleId) {
   if (!bypass && !creationOpen(state?.phase, member)) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
-  if (!bypass && !onRoster(member)) {
+  if (!bypass && !onRoster(member, { playtestMode: config?.playtestModeEnabled === true })) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
   // Never pickable, config switch or not — a server action is a public
@@ -575,7 +635,7 @@ export async function reserveRoleAction(roleId) {
   if (role.requiresWhitelist && !leaderWhitelisted) {
     return { error: "That role isn't available to you." };
   }
-  const cursed = isCursed(member);
+  const cursed = await isPlayerCursed(prisma, discordUserId);
   if (!isRoleSelectable({ role, cursed, leaderWhitelisted })) {
     return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
   }

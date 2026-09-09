@@ -1,14 +1,15 @@
 import { prisma, MORTUS_SLUG, MERCHANT_LICENSE_SLUG } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
-import { dmNoiseSql } from "@/lib/dmThread";
+import { railKindSql } from "@/lib/dmThread";
 
 // The nav rail's item list, shared by every route group that draws a rail —
 // one copy so they can't drift into different navs for the same user.
 
 export const PLAYER_NAV = [
   { href: "/character", label: "Character", icon: "character" },
-  { href: "/play", label: "Play", icon: "play" },
+  { href: "/chat", label: "Chat", icon: "play" },
+  { href: "/map", label: "Map", icon: "map" },
   { href: "/faction", label: "Faction", icon: "faction" },
   { href: "/notes", label: "Notes", icon: "notes" },
   { href: "/documents", label: "Documents", icon: "documents" },
@@ -31,7 +32,8 @@ export const GM_NAV = [
   { href: "/gm/audit", label: "Audit", icon: "audit", section: "gm" },
   // The GM's own player screens, in PLAYER_NAV's order minus Faction.
   { href: "/character", label: "Character", icon: "character", section: "player" },
-  { href: "/play", label: "Play", icon: "play", section: "player" },
+  { href: "/chat", label: "Chat", icon: "play", section: "player" },
+  { href: "/map", label: "Map", icon: "map", section: "player" },
   { href: "/notes", label: "Notes", icon: "notes", section: "player" },
   { href: "/documents", label: "Documents", icon: "documents", section: "player" },
   { href: "/handbook", label: "Handbook", icon: "help", section: "player" },
@@ -59,9 +61,9 @@ async function loadUnreadConversationCount(discordUserId) {
   // the same shape the messages layout uses per-conversation, collapsed to
   // one number for the rail badge.
   //
-  // dmNoiseSql is not optional here: without it, a ✏️-edit reply bumps the
-  // badge and rings InboxChime even though the desk it points at counts none.
-  // A rail that says "3 unread" over a desk showing zero trains GMs to ignore it.
+  // railKindSql is not optional here: without it the badge counts rows the
+  // desk it points at does not, and a rail that says "3 unread" over a desk
+  // showing zero trains GMs to ignore it.
   const rows = await prisma.$queryRaw`
     SELECT COUNT(DISTINCT dm."discordUserId")::int AS "count"
     FROM "DirectMessage" dm
@@ -70,7 +72,7 @@ async function loadUnreadConversationCount(discordUserId) {
       AND cr."gmDiscordUserId" = ${discordUserId}
     WHERE dm."direction" = 'INBOUND'
       AND dm."createdAt" > COALESCE(cr."lastReadAt", to_timestamp(0))
-      AND ${dmNoiseSql("dm")}
+      AND ${railKindSql("dm")}
   `;
   return rows[0]?.count ?? 0;
 }
@@ -90,7 +92,7 @@ export async function loadNavItems(discordUserId) {
       where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MERCHANT_LICENSE_SLUG } },
     }),
     prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
-    // Chat switch (CHAT.md §5). Presentation here; /play enforces it.
+    // Chat switch (CHAT.md §5). Presentation here; /chat enforces it.
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true } }),
     // A finished past game is everyone's to read, whatever the current one is.
     prisma.game.count({ where: { endedAt: { not: null } } }),
@@ -102,7 +104,7 @@ export async function loadNavItems(discordUserId) {
   const unreadCount = gm ? await loadUnreadConversationCount(discordUserId) : 0;
   const playEnabled = gameConfig?.playPanelEnabled ?? true;
   const baseNav = (gm ? GM_NAV : PLAYER_NAV)
-    .filter((item) => playEnabled || item.href !== "/play")
+    .filter((item) => playEnabled || item.href !== "/chat")
     .map((item) =>
       item.href === "/gm/players" && unreadCount > 0 ? { ...item, badge: unreadCount } : item,
     );
@@ -118,5 +120,8 @@ export async function loadNavItems(discordUserId) {
   // after the player group. That is one more divider than the two groups
   // suggest, which is correct: Dev is not the same job as Players/Adjudicate
   // and reads better as its own mark at the bottom.
+  // There was a Ledger item after this one while the rebuilt sheet was being
+  // judged. It won and became /character, so the Character item above is it
+  // and /ledger is only a redirect now (docs/systemdocs/SHEET.md).
   return superadmin ? [...withDepot, DEV_NAV_ITEM] : withDepot;
 }

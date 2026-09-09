@@ -25,9 +25,10 @@ const {
   addThreadMember,
   removeThreadMember,
 } = require("./discordRest");
-const { PLAYER_ROLE_ID, SPECTATOR_ROLE_ID, LEADER_WHITELIST_ROLE_ID, gmRoleIds } = require("./roleIds");
+const { PLAYER_ROLE_ID, SPECTATOR_ROLE_ID, LEADER_WHITELIST_ROLE_ID, GHOST_ROLE_ID, gmRoleIds } = require("./roleIds");
 const { hashNameToColor } = require("./roleColor");
-const { cursedRoleId, ensureCursedRoleAppearance } = require("./cursedAccess");
+const { ghostRoleId, ensureGhostRoleAppearance } = require("./ghostAccess");
+const { cursedUserIds, CURSE_SELECT } = require("./curse");
 const {
   zoneChannelSpec,
   locationChannelSpec,
@@ -65,7 +66,7 @@ function standingRoleIds() {
       SPECTATOR_ROLE_ID,
       LEADER_WHITELIST_ROLE_ID,
       ...gmRoleIds(),
-      process.env.DISCORD_CURSED_ROLE_ID,
+      GHOST_ROLE_ID,
       process.env.DISCORD_TURN_PING_ROLE_ID,
     ].filter(Boolean),
   );
@@ -125,13 +126,15 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
       select: {
         id: true,
         name: true,
-        status: true,
-        discordUserId: true,
         discordRoleId: true,
         zoneId: true,
         locationId: true,
         turnPingOptIn: true,
         webOnly: true,
+        // status and discordUserId come from here too — spreading it is what
+        // keeps the ghost reconcile below reading the same fields the rule
+        // does. Drop one and db/lib/curse.js answers from undefined.
+        ...CURSE_SELECT,
       },
     }),
     getGuildRoles(),
@@ -268,11 +271,20 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
   }
 
 
-  // Cursed appearance: color 0, so ghosts aren't visually outed.
-  const cursed = cursedRoleId() ? rolesById.get(cursedRoleId()) : null;
-  if (cursed && (cursed.color !== 0 || cursed.hoist)) {
-    await report("cursed-appearance", cursed.name, "cursed role is colored/hoisted", () =>
-      ensureCursedRoleAppearance(),
+  // Ghost appearance: color 0, so ghosts aren't visually outed.
+  //
+  // The absent case is reported rather than skipped. The id is a constant now
+  // (db/lib/roleIds.js), so "not in the guild" means the role was deleted or
+  // the constant is stale — and a stale one is worse than a missing env var
+  // ever was: every grant below would 404 against a role that isn't there, on
+  // every bot start and every turn advance, and the REST breaker only counts
+  // 401/403/429 so nothing would damp it.
+  const ghost = rolesById.get(GHOST_ROLE_ID) ?? null;
+  if (!ghost) {
+    await report("ghost-role", GHOST_ROLE_ID, "no such role in the guild — GHOST_ROLE_ID is stale");
+  } else if (ghost.color !== 0 || ghost.hoist) {
+    await report("ghost-appearance", ghost.name, "ghost role is colored/hoisted", () =>
+      ensureGhostRoleAppearance(),
     );
   }
 
@@ -347,28 +359,33 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     }
   }
 
-  // Turn-ping: living characters' preferences, nobody else.
+  // Turn-ping: living characters' preferences, nobody else — and not a
+  // web-only one. The ping is a <@&role> inside the #turns console, and
+  // #turns is opened by the zone role that the web-only switch takes away
+  // (db/lib/turnsChannelAccess.js), so holding the role there meant being
+  // pinged twice a day about a channel you cannot open. Bidirectional, like
+  // every reconcile here, which is what makes this one predicate both take
+  // the role off everybody already in that state and hand it back the moment
+  // they switch web-only off again.
   await reconcileRoleMembership({
     roleId: process.env.DISCORD_TURN_PING_ROLE_ID,
     label: "turn-ping",
-    shouldHave: alive.filter((c) => c.turnPingOptIn).map((c) => c.discordUserId),
+    shouldHave: alive.filter((c) => c.turnPingOptIn && !c.webOnly).map((c) => c.discordUserId),
     members,
     report,
   });
 
-  // Cursed: exactly the players who have a dead character and no living one
-  // (died and not yet rerolled — a reroll removes the role, a wipe removes
-  // everyone's).
-  const aliveUserIds = new Set(alive.map((c) => c.discordUserId));
-  const cursedShould = [
-    ...new Set(
-      characters
-        .filter((c) => c.status !== "ALIVE" && !aliveUserIds.has(c.discordUserId))
-        .map((c) => c.discordUserId),
-    ),
-  ];
+  // The ghost seat: whoever db/lib/curse.js says is cursed, and nobody else.
+  //
+  // One-directional, database -> role, never the reverse. The role is a cache
+  // of a derived set now; it decides nothing, so a disagreement costs a dead
+  // player some channels until the next run rather than costing them points.
+  // This used to compute the set inline and WITHOUT the buriedAt clause, so it
+  // re-granted the role to anyone who had buried their body and not yet
+  // re-rolled.
+  const cursedShould = [...cursedUserIds(characters)];
   await reconcileRoleMembership({
-    roleId: cursedRoleId(),
+    roleId: ghostRoleId(),
     label: "cursed",
     shouldHave: cursedShould,
     members,
@@ -466,18 +483,19 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     const overwriteTargets = [];
     for (const zone of zones) {
       const spec = zoneChannelSpec(zone, { spectators });
-      overwriteTargets.push([`${zone.name}/category`, zone.discordCategoryId, spec.category]);
-      overwriteTargets.push([`${zone.name}/summary`, zone.discordSummaryChannelId, spec.summary]);
+      overwriteTargets.push([`${zone.name}/category`, zone.discordCategoryId, spec.category, false]);
+      overwriteTargets.push([`${zone.name}/summary`, zone.discordSummaryChannelId, spec.summary, false]);
     }
     for (const location of locations) {
       overwriteTargets.push([
         `${location.zoneName}/${location.name}`,
         location.discordChannelId,
         locationChannelSpec(location, location.zoneGmRoleId ?? null, { spectators }),
+        true,
       ]);
     }
     {
-      for (const [label, channelId, want] of overwriteTargets) {
+      for (const [label, channelId, want, isLocation] of overwriteTargets) {
         if (!channelId || !want) continue;
         let live;
         try {
@@ -488,16 +506,25 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
         }
         if (!live) continue;
 
-        // A member overwrite on a zone or location channel belongs to
-        // nobody; access rides the roles.
-        for (const overwrite of live.permission_overwrites ?? []) {
-          if (overwrite.type !== 1) continue;
-          await report(
-            "member-overwrite",
-            `${label}/${overwrite.id}`,
-            "stray per-member overwrite on a game channel",
-            () => deleteChannelOverwrite(channelId, overwrite.id),
-          );
+        // A member overwrite on a zone's CATEGORY or #summary belongs to
+        // nobody; access there rides the zone role.
+        //
+        // A LOCATION channel is the opposite, and this sweep used to take it
+        // down with the rest: since Bascinet 2 the per-member overwrite IS how
+        // an occupant is let in (CHANNELS.md §3), so one `--full --apply` threw
+        // every player out of every Location channel at once and left them out
+        // until the next run — the occupancy check that puts them back has
+        // already run by the time this gets here.
+        if (!isLocation) {
+          for (const overwrite of live.permission_overwrites ?? []) {
+            if (overwrite.type !== 1) continue;
+            await report(
+              "member-overwrite",
+              `${label}/${overwrite.id}`,
+              "stray per-member overwrite on a game channel",
+              () => deleteChannelOverwrite(channelId, overwrite.id),
+            );
+          }
         }
 
         // Spec drift, repaired with the same reconcile the sync uses.

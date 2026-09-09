@@ -5,6 +5,10 @@ const HUNGERLESS_SLUG = "hungerless";
 // are — there is no generic upkeep field on Tag.
 const FAST_METABOLISM_SLUG = "fast-metabolism";
 const DYING_SLUG = "dying";
+// Vaporised outright — the Thanati rites and the bomb (db/lib/characterDeath.js
+// `gib`). Replaces every tag the character owned, and no corpse is minted, so
+// there is nothing left to loot, carry, butcher or bury.
+const GIBBED_SLUG = "gibbed";
 const NOBILITY_SLUG = "nobility";
 const COURTIER_SLUG = "courtier";
 const ATE_MEAL_SLUG = "ate-meal";
@@ -22,6 +26,12 @@ const CATATONIC_SLUG = "catatonic-afk";
 // Over a carry cap (db/lib/carry.js). Granted and cleared by settleCarry,
 // never by a player; read by the travel gate in db/lib/locationTravel.js.
 const OVERBURDENED_SLUG = "overburdened";
+
+// Stepping lightly, read on a gate crossing (db/lib/locationMove.js
+// #announceGateCrossing). It takes the announcement down one step rather than
+// silencing every gate: an unmanned gate says nothing at all, a MANNED one
+// falls back to what a passer-by saw instead of the name off your papers.
+const STEALTH_SLUG = "stealth";
 
 // Corpses (docs/systemdocs/CORPSES.md). CORPSE_GROUP_SLUG is the whole
 // discriminator on the catalog side — the three monster corpses live in that
@@ -51,6 +61,11 @@ const PACKAGE_MAX_LBS = 150;
 // without a ceiling — and a crate's consumesInto repeats a slug per unit.
 const PACKAGE_MAX_UNITS = 200;
 const PACKAGE_LABEL_MAX = 120;
+
+// The Raven Draught carries one sentence (docs/systemdocs/BIRD.md §8a). Shared
+// so the textarea and the server's own clamp cannot drift into a player losing
+// the tail of what they typed with no error.
+const WHISPER_MAX = 400;
 const SURGICAL_EQUIPMENT_SLUG = "surgical-equipment";
 // The one-use stand-in for it (M3, TAGS.md §5c): +1 on a single medical
 // Gambit's die, held-by-the-actor only (not hasEquipmentInReach's room/
@@ -69,6 +84,45 @@ const TORTURER_SLUG = "torturer";
 // pieces off somebody" tag — Cruel is the personality, Torturer is the trade,
 // and the Thanati are the ones who want the pieces.
 const MUTILATE_GATE_SLUGS = Object.freeze(["cruel", "torturer", "thanati"]);
+
+// Kissing's OTHER gate (docs/systemdocs/KISS.md). The incapacity half lives in
+// db/lib/incapacitation.js, where every ACT-blocking state already removes the
+// KISS capability; this is the short, hand-written list of things that are not
+// an incapacity at all — a character here walks, works and talks normally and
+// still cannot kiss or be kissed.
+//
+// Hand-written and deliberately shorter than it could be, the same posture
+// FINISHABLE_SLUGS takes: every addition should cost somebody a keystroke.
+// Taste, belief and appearance stay OUT of it — Prudish, Eunuch, Pacifist,
+// Saint, Ugly and Unhygienic all keep the button, because the game's own
+// convention is that a build locks DESIRES rather than removing a verb
+// (Eunuch and Prudish already lock the `romance` family in docs/tags.yaml).
+//
+//   ghoul / apex-form / servant-of-tzchernobog
+//                       not a person any more. A pallid corpse, a thing with
+//                       hands like rakes, and one "unable to perform anything
+//                       other than violence".
+//   rage                consumed by bloodlust; already locks every Desire but
+//                       cruelty.
+//   broken /            the Demoness's Break leaves a walking empty shell.
+//   broken-enslaved     It can press Accept, which is exactly why it is here:
+//                       the consent would not mean anything. This is what
+//                       keeps {desire:dem-kiss-a-broken} a GM's adjudication
+//                       rather than a button.
+//   phrygian-toxin      "Blood is dripping from your mouth."
+//   installed-poison-tooth
+//                       a nerve agent wired into a tooth, released by biting
+//                       down. See KISS.md for the tell this refusal leaks.
+const KISS_BLOCKING_SLUGS = Object.freeze([
+  "ghoul",
+  "rage",
+  "servant-of-tzchernobog",
+  "apex-form",
+  "broken",
+  "broken-enslaved",
+  "phrygian-toxin",
+  "installed-poison-tooth",
+]);
 
 // Holding one puts a Sound Trumpet button on your own Character page, and
 // sounding it is heard across the Location graph (db/lib/trumpet.js). Held,
@@ -112,19 +166,8 @@ const CONFESSION_THRESHOLD = 5;
 // general-category tag that worked the same way, was retired 2026-09-05.)
 const SEDUCTIVE_DEMONESS_SLUG = "demoness-seductive";
 
-// The counter to both of the above, read off the SUBJECT rather than the
-// viewer — see db/lib/inspectVision.js.
-const INSCRUTABLE_SLUG = "inscrutable";
-
-// The five fear bands (docs/systemdocs/FEAR.md), lowest to highest. Owned by
-// db/lib/fear.js#settleFearTag; the top two are Gambit modifiers.
-const UNCOMFORTABLE_SLUG = "uncomfortable";
-const STRESSED_SLUG = "stressed";
-const ANXIOUS_SLUG = "anxious";
-const AFRAID_SLUG = "afraid";
-const PANIC_SLUG = "panic";
 // The "ate a fine or lavish meal this turn" marker a noble needs to sleep
-// easy. Granted by consumesInto, consumed by the fear pass — never by time.
+// easy. Granted by consumesInto, consumed by the mood pass — never by time.
 const DINED_SLUG = "dined";
 // What a drawback-triggered ride leaves you as — db/lib/locationTravel.js.
 const VOMITING_SLUG = "vomiting";
@@ -138,7 +181,7 @@ const MOTION_SICKNESS_SLUG = "motion-sickness";
 // own copies rather than importing from here.
 const DEBTOR_SLUG = "debtor";
 // The phobias, Brave, Pale, Rough Camper and friends are read by slug inside
-// db/lib/fear.js's multiplier table rather than exported from here.
+// db/lib/mood.js's multiplier table rather than exported from here.
 
 // A ZONE slug, not a tag: the Fortress holds the Lifeweb tower and the PA
 // system, so two separate rules gate on standing there.
@@ -159,6 +202,7 @@ module.exports = {
   HUNGERLESS_SLUG,
   FAST_METABOLISM_SLUG,
   DYING_SLUG,
+  GIBBED_SLUG,
   NOBILITY_SLUG,
   COURTIER_SLUG,
   ATE_MEAL_SLUG,
@@ -173,6 +217,7 @@ module.exports = {
   LABORING_FISHING_SLUG,
   CATATONIC_SLUG,
   OVERBURDENED_SLUG,
+  STEALTH_SLUG,
   CORPSE_GROUP_SLUG,
   BUTCHER_SLUG,
   WORKSHOP_EQUIPMENT_SLUG,
@@ -180,11 +225,13 @@ module.exports = {
   PACKAGE_MAX_LBS,
   PACKAGE_MAX_UNITS,
   PACKAGE_LABEL_MAX,
+  WHISPER_MAX,
   SURGICAL_EQUIPMENT_SLUG,
   PORTABLE_SURGICAL_PACK_SLUG,
   TORTURING_EQUIPMENT_SLUG,
   TORTURER_SLUG,
   MUTILATE_GATE_SLUGS,
+  KISS_BLOCKING_SLUGS,
   TRUMPET_SLUG,
   HORSE_SLUG,
   HORSE_UPKEEP_COST,
@@ -201,12 +248,6 @@ module.exports = {
   CHAPLAIN_SLUG,
   CONFESSION_THRESHOLD,
   SEDUCTIVE_DEMONESS_SLUG,
-  INSCRUTABLE_SLUG,
-  UNCOMFORTABLE_SLUG,
-  STRESSED_SLUG,
-  ANXIOUS_SLUG,
-  AFRAID_SLUG,
-  PANIC_SLUG,
   DINED_SLUG,
   VOMITING_SLUG,
   LAZY_SLUG,

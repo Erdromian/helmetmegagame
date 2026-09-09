@@ -1,12 +1,13 @@
 const { WebhookClient, RESTJSONErrorCodes, GuildPremiumTier } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
-const { loadForcedName, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
-const { archiveRowForMessage } = require("@lifeweb/db/lib/archive");
+const { loadForcedName, presentedIdentity, wasHooded } = require("@lifeweb/db/lib/presentedIdentity");
+const { archiveRowForMessage, retractArchiveRow } = require("@lifeweb/db/lib/archive");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { prepareSpeech, recordSpeech, loadVoiceState: loadVoiceStateFor } = require("@lifeweb/db/lib/say");
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const { resolveChannelContext } = require("./channels");
 const { sendDm } = require("./dm");
+const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 
 const WEBHOOK_NAME = "Bascinet Tupper";
 
@@ -141,9 +142,11 @@ async function postAsCharacterTo(channel, character, { content, files = [], iden
 // ✏️ ❌ 🔍 📸, and a row does not forget.
 //
 // `concealed` cannot be read straight off `concealedAlias`, because the column
-// holds a FORCED name too and a forced identity is not a concealed one. The
-// character's current forced name settles it: if the alias is that name, this
-// was a forced send and 🔍 answers for the real person, as it always has.
+// holds a FORCED name too and a forced identity is not a concealed one.
+// presentedIdentity.js#wasHooded settles it from what the row froze at send
+// time. The current forced name goes along as its tiebreaker only — on its own
+// it was wrong the moment the name expired, which for a Disguise Kit is three
+// turns in.
 async function proxyRowFor(discordMessageId) {
   const row = await archiveRowForMessage(prisma, discordMessageId);
   if (!row || row.kind !== "MESSAGE" || !row.characterId) return null;
@@ -153,11 +156,10 @@ async function proxyRowFor(discordMessageId) {
     select: { discordUserId: true },
   });
 
-  let concealed = Boolean(row.concealedAlias);
-  if (concealed) {
-    const forced = await loadForcedName(prisma, row.characterId);
-    if (forced && forced === row.concealedAlias) concealed = false;
-  }
+  // Short-circuited on the column, so an ordinary line costs no extra query.
+  const concealed = row.concealedAlias
+    ? wasHooded(row, { forcedName: await loadForcedName(prisma, row.characterId) })
+    : false;
 
   return {
     seq: row.seq,
@@ -167,6 +169,9 @@ async function proxyRowFor(discordMessageId) {
     characterId: row.characterId,
     discordUserId: character?.discordUserId ?? null,
     alias: row.concealedAlias,
+    // The face the room saw beside that alias, for whoever needs to freeze it
+    // a second time — ⭐ files it onto the Note (Note.presentedAvatarPath).
+    avatarPath: row.presentedAvatarPath ?? null,
     concealed,
   };
 }
@@ -222,10 +227,10 @@ async function deleteOriginal(message) {
 // the commonest refusal is the message being too long for one DM too.
 async function handBack(message, reason, text) {
   try {
-    await sendDm(message.author, `» *${reason}*`, { source: "system_notice" });
+    await sendDm(message.author, `» *${reason}*`, { kind: DM_KIND.QUIET });
     const body = (text ?? "").trim();
     for (let i = 0; i < body.length; i += DM_CHUNK) {
-      await sendDm(message.author, body.slice(i, i + DM_CHUNK), { source: "system_notice" });
+      await sendDm(message.author, body.slice(i, i + DM_CHUNK), { kind: DM_KIND.QUIET });
     }
   } catch (err) {
     console.error(`Couldn't return the unproxied message to ${message.author.id}:`, err);
@@ -246,25 +251,39 @@ async function handBack(message, reason, text) {
 async function sendAsCharacter(channel, character, message, { identity: _identity = null, content: override = null } = {}) {
   const text = override ?? message.content;
 
-  // What the row will be filed under. Memoised in placeKey.js, so this costs
-  // nothing on the hot path once the channel is warm.
-  const placeKey = await placeKeyForChannel(prisma, {
-    channelId: channel.id,
-    parentId: channel.parent?.id,
-  });
+  // Both of these used to sit outside any handler, and the only catch above
+  // them — messageCreate.js's — just logs and returns. So a database hiccup
+  // while working out the place or resolving the identity left the player's
+  // raw message sitting in the channel under their real Discord name, with
+  // nothing said to them: the exact failure the header above promises cannot
+  // happen. Deleting and handing back is the answer here as everywhere else.
+  let prepared;
+  try {
+    // What the row will be filed under. Memoised in placeKey.js, so this costs
+    // nothing on the hot path once the channel is warm.
+    const placeKey = await placeKeyForChannel(prisma, {
+      channelId: channel.id,
+      parentId: channel.parent?.id,
+    });
 
-  // The gates, the transforms and the identity, in one call. Its activity
-  // write on a refusal is deliberate: a player whose words were refused was
-  // still HERE, so their catatonic clock has to move even though nothing
-  // reached the channel — otherwise being Mute or Paralyzed would quietly
-  // march them toward the auto-kill in db/lib/catatonicDeathPass.js for the
-  // crime of trying to talk.
-  const prepared = await prepareSpeech(prisma, {
-    character,
-    placeKey,
-    content: text,
-    source: "DISCORD",
-  });
+    // The gates, the transforms and the identity, in one call. Its activity
+    // write on a refusal is deliberate: a player whose words were refused was
+    // still HERE, so their catatonic clock has to move even though nothing
+    // reached the channel — otherwise being Mute or Paralyzed would quietly
+    // march them toward the auto-kill in db/lib/catatonicDeathPass.js for the
+    // crime of trying to talk.
+    prepared = await prepareSpeech(prisma, {
+      character,
+      placeKey,
+      content: text,
+      source: "DISCORD",
+    });
+  } catch (err) {
+    console.error("Failed to prepare a message for proxying, returning it to its author:", err);
+    await deleteOriginal(message);
+    await handBack(message, "Something went wrong reposting that. Here it is back: ‡", text);
+    return null;
+  }
   if (!prepared.ok) {
     if (prepared.blocked) await touchCharacterActivity(prisma, character.id);
     await deleteOriginal(message);
@@ -281,6 +300,59 @@ async function sendAsCharacter(channel, character, message, { identity: _identit
     return null;
   }
 
+  // THE ROW COMES FIRST, and it is a claim as much as a record.
+  //
+  // This used to run the other way round — post, then record, then delete the
+  // original — and both halves of that order were wrong. Nothing was keyed on
+  // the player's own message id, so a redelivered `messageCreate` (a gateway
+  // RESUME race, a reconnect mid-handler) ran the whole thing twice: two
+  // webhook posts, two rows, and the second deleteOriginal quietly no-opping on
+  // an already-deleted message. ArchiveEntry.discordMessageId is unique, but it
+  // holds the WEBHOOK's id, minted fresh per run, so it never collided and
+  // never helped. One typed line went out twice that way.
+  //
+  // Writing first turns the unique index on `sourceDiscordMessageId` into the
+  // gate: the second delivery loses the race here and returns before Discord is
+  // touched at all. It also closes the other hole in the old order — a failed
+  // archive write was swallowed AFTER the post had succeeded, leaving a message
+  // in Discord with no row, invisible on the website for good.
+  //
+  // Safe against the outbox posting it a second time: feedOutbox.js#pushRow and
+  // the drain both require `source === "WEB"`, and this row is DISCORD.
+  let row;
+  try {
+    row = await recordSpeech(prisma, prepared, {
+      sourceDiscordMessageId: message.id,
+      // Stamped after the post lands, below.
+      discordMessageId: null,
+      // prepared.rowContent, not prepared.content: the webhook below gets
+      // Discord's `<@&roleId>` spelling and the ROW keeps the face-neutral
+      // `{char:<id>}` one (db/lib/characterMentions.js, PROXYING.md §6).
+      content: [prepared.rowContent ?? prepared.content, ...attachmentPlaceholders(message)]
+        .filter(Boolean)
+        .join("\n"),
+      ...resolveChannelContext(channel),
+      // Let P2002 through; everything else about archive writes still swallows.
+      rethrow: true,
+    });
+  } catch (err) {
+    if (err?.code === "P2002") {
+      // Already proxied. Delete the original in case the first run has not got
+      // that far, and say nothing to the player — from where they sit their
+      // message posted once, which is the truth.
+      console.warn(`Duplicate messageCreate for ${message.id}; already proxied.`);
+      await deleteOriginal(message);
+      return null;
+    }
+    // We could not record it, so we will not post it. Handing it back is the
+    // honest answer: the old behaviour posted anyway and lost the row, which is
+    // how a message ends up on Discord and nowhere else.
+    console.error("Failed to record message, returning it to its author:", err);
+    await deleteOriginal(message);
+    await handBack(message, "Something went wrong reposting that. Here it is back: ‡", text);
+    return null;
+  }
+
   let webhookMessage;
   try {
     ({ webhookMessage } = await postAsCharacterTo(channel, character, {
@@ -290,24 +362,29 @@ async function sendAsCharacter(channel, character, message, { identity: _identit
     }));
   } catch (err) {
     console.error("Failed to proxy message, returning it to its author:", err);
+    // The row's insert has already fired its NOTIFY, so a web client may be
+    // showing this line. Take it back the way any deletion is taken back
+    // rather than dropping the row, or that tab keeps a message Discord never
+    // heard.
+    if (row?.id) await retractArchiveRow(prisma, row.id);
     await deleteOriginal(message);
     await handBack(message, "Something went wrong reposting that. Here it is back: ‡", text);
     return null;
   }
 
-  // Both halves of a forced or concealed send are kept: alias is what the
-  // room saw, character.name is who it was. recordSpeech swallows its own
-  // failures, the way every archive write does.
-  await recordSpeech(prisma, prepared, {
-    discordMessageId: webhookMessage.id,
-    // prepared.rowContent, not prepared.content: the webhook above got
-    // Discord's `<@&roleId>` spelling and the ROW keeps the face-neutral
-    // `{char:<id>}` one (db/lib/characterMentions.js, PROXYING.md §6).
-    content: [prepared.rowContent ?? prepared.content, ...attachmentPlaceholders(message)]
-      .filter(Boolean)
-      .join("\n"),
-    ...resolveChannelContext(channel),
-  });
+  // Both halves of a forced or concealed send are already on the row: alias is
+  // what the room saw, character.name is who it was. All that is left is to
+  // point it at the message Discord actually took.
+  //
+  // updateMany with a `discordMessageId: null` guard, the same shape
+  // feedOutbox.js uses for its own claim: idempotent if anything else got here
+  // first, rather than overwriting a live id.
+  if (row?.id) {
+    await prisma.archiveEntry.updateMany({
+      where: { id: row.id, discordMessageId: null },
+      data: { discordMessageId: webhookMessage.id, discordSyncedAt: new Date() },
+    });
+  }
   await touchCharacterActivity(prisma, character.id);
 
   await deleteOriginal(message);
@@ -317,6 +394,9 @@ async function sendAsCharacter(channel, character, message, { identity: _identit
 
 module.exports = {
   loadVoiceState,
+  // For bot/src/lib/messageCatchUp.js, which files a recovered message's
+  // attachments the same way the live path does rather than losing them.
+  attachmentPlaceholders,
   proxyRowFor,
   sendAsCharacter,
   postAsCharacterTo,

@@ -24,7 +24,7 @@ const SEARCH_FIELDS = [(f) => f.name];
 // Modest by design: name search and name sort, nothing more — the row
 // itself is the interesting part (the inline-edit form below), not the list
 // mechanics around it.
-export default function FactionsTable({ rows, rooms = [], members = [], applications = [] }) {
+export default function FactionsTable({ rows, rooms = [], members = [], applications = [], canDelete = false }) {
   const table = useTableState({
     rows,
     searchFields: SEARCH_FIELDS,
@@ -115,7 +115,7 @@ export default function FactionsTable({ rows, rooms = [], members = [], applicat
                 </button>
               </td>
               <td>
-                {f.deletable && (
+                {f.deletable && canDelete && (
                   <form action={deleteFaction}>
                     <input type="hidden" name="factionId" value={f.id} />
                     <SubmitButton className="btn-quiet" pendingLabel="Deleting…">

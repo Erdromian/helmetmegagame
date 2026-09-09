@@ -136,6 +136,20 @@
   --zone-marshes: #8d9384;
   --zone-caves: #939d9e;
   --zone-depths: #8f7f9c;
+
+  /* The river on the /map plate. The drawn plate is flat Playscii art with
+     exactly one accent in it -- #57a9bc, the water -- picked in the drawing
+     program, so it followed no theme and sat wrong against the palette in all
+     three. Rather than ship a tinted copy of the art per theme, the water is
+     cut to an alpha mask (docs/assets/make-map-river.py -> map-river.png) and
+     painted through it with this token, so it follows the theme like every
+     other surface and a fourth theme would get a river for free.
+
+     A FILL, not a text colour: nothing is ever set on it, so it is gated like
+     the zone code rather than at AA. Read against the plate's own ground
+     (#0c1013) and land (#c1c4c2), not against --surface -- the art does not
+     change with the theme, only this does. */
+  --map-river: #4f9d94;
 }
 
 /* Dawn — lamps up. Not daylight: a warmer, lifted dark with brighter ember. */
@@ -175,6 +189,10 @@
   --zone-marshes: #8d9384;
   --zone-caves: #939d9e;
   --zone-depths: #8f7f9c;
+
+  /* The /map river -- see the dusk block. Sunrise on the water, warm, since
+     dawn is the one theme whose whole ember runs orange. */
+  --map-river: #c07a3c;
 }
 
 /* Limestone — the light-theme backup, kept for comparison rather than wired
@@ -227,6 +245,11 @@
   --zone-marshes: #7f8677;
   --zone-caves: #838e90;
   --zone-depths: #82728f;
+
+  /* The /map river -- see the dusk block. Limestone was not named when this
+     was chosen; it takes dusk's teal a shade deeper, and is the one of the
+     three to revisit if the water reads wrong in daylight. */
+  --map-river: #3f8b90;
 }
 
 /* Bridge the tokens into Tailwind. Without this the app runs two disconnected
@@ -457,11 +480,10 @@ h3 {
 
 /* The global h1/h2/h3 rule (above) only sets the serif face and line-height —
    every other heading-sized element in the app carries its own explicit
-   font-size and weight at the call site (PageHeader's h1 is literally
-   `text-2xl font-bold`; .panel-header and .section-title set --fs-lg). A
-   Markdown-rendered heading had neither, so it read as plain body text.
-   font-weight: 700 to match PageHeader's own `font-bold`, since a document's
-   H1 is standing in for a page title the same way. */
+   font-size and weight at the call site (.panel-header and .section-title set
+   --fs-lg). A Markdown-rendered heading had neither, so it read as plain body
+   text. font-weight: 700 because a document's H1 is standing in for a page
+   title, which is the one thing on the page allowed to shout. */
 .markdown-content h1,
 .markdown-content h2,
 .markdown-content h3 {
@@ -834,9 +856,12 @@ input[type="radio"]:focus-visible,
   border-color: var(--danger);
 }
 
-/* Equipment rack. Slots wrap into as many columns as fit, so six slots read
-   as one row on a laptop and two or three on a phone without a breakpoint —
-   the tap targets stay full-width-ish rather than shrinking to fit. */
+/* A grid of slots that wraps into as many columns as fit, so it reads as one
+   row on a laptop and two or three on a phone without a breakpoint — the tap
+   targets stay full-width-ish rather than shrinking to fit. It was the old
+   character sheet's equipment rack; the sheet draws a proper board now
+   (.equip-row / .equip-cell below), and what is left of this is the escort
+   party's seats (play/PartyRack.js). */
 .equip-slots {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
@@ -854,51 +879,6 @@ input[type="radio"]:focus-visible,
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   cursor: pointer;
-}
-
-/* A filled slot is wrapped in a Tooltip, and .tag-hover is inline-flex — so
-   the wrapper stretched across its grid cell but the button inside shrank to
-   the tag, leaving a gap before the next slot. Make the wrapper a stretching
-   flex row and let the button fill it, so filled and empty slots match. */
-.equip-slots > .tag-hover {
-  display: flex;
-}
-
-.equip-slots > .tag-hover > .equip-slot {
-  flex: 1;
-  min-width: 0;
-}
-
-.equip-slot:disabled {
-  cursor: default;
-}
-
-.equip-slot.is-empty {
-  border-style: dashed;
-  opacity: 0.5;
-}
-
-.equip-slot:not(.is-empty):hover:not(:disabled) {
-  border-color: var(--accent-text);
-}
-
-.equip-add {
-  min-height: 44px;
-  padding: var(--sp-1) var(--sp-2);
-  background: transparent;
-  border: 1px dashed var(--border);
-  border-radius: var(--r-sm);
-  cursor: pointer;
-}
-
-.equip-add:hover:not(:disabled) {
-  border-color: var(--accent-text);
-  border-style: solid;
-}
-
-.equip-add:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
 }
 
 /* A read-only field — today only the GM-granted title on the character
@@ -1038,6 +1018,14 @@ input[type="radio"]:disabled {
 .check-row.is-locked {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+/* And the mark that says WHY, which the greying above could never say to
+   somebody who holds the whitelist and so never saw it. Same dashed left
+   border as .lobby-role, for the same reason. */
+.check-row.is-whitelisted {
+  border-left: 2px dashed var(--border);
+  padding-left: var(--sp-2);
 }
 
 /* Touch. The painted box stays 16px — the tick above is drawn to that size —
@@ -1209,6 +1197,19 @@ input[type="radio"]:disabled {
 
 .lobby-role[data-locked] {
   opacity: 0.55;
+}
+
+/* The same dashed mark the creation picker's cards wear, on the row rather
+   than the card. Keyed on the role BEING whitelisted, not on whether this
+   player is blocked from it — a player who holds the whitelist could not tell
+   which of their seats were the gated ones, because the only signal was the
+   greying that never applied to them.
+
+   A left border, not a box: these rows sit in a `divide-y` list, so a full
+   outline fights the rules between them. */
+.lobby-role[data-whitelisted="true"] {
+  border-left: 2px dashed var(--border);
+  padding-left: calc(var(--sp-3) - 2px);
 }
 
 .lobby-role[data-locked] .lobby-role-name {
@@ -1526,6 +1527,21 @@ input[type="radio"]:disabled {
   color: var(--text);
 }
 
+/* The typography above is here because .tag-hover almost always wraps a tag
+   CHIP. Wrap it round arbitrary content instead — a role card, which has its
+   own name, intro and chips — and every one of those declarations is inherited
+   straight through, because none of that content sets a font-family of its own
+   (.chip sets only font-size and letter-spacing). The card comes out in
+   monospace and stops matching the cards beside it.
+   This keeps the positioning and the hover, and drops the paint. */
+.tag-hover.hover-bare {
+  font-family: inherit;
+  font-weight: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
 /* Fixed, not absolute, and portaled to document.body by HoverCard.js — an
    in-tree tooltip was clipped by every scrolling ancestor (.doc-sheet,
    .table-scroll, .modal-panel, .app-rail). Top/left are set inline from a
@@ -1625,6 +1641,12 @@ input[type="radio"]:disabled {
   margin-top: 6px;
   padding-top: 6px;
   border-top: 1px solid var(--border);
+  /* Pinned rather than inherited. PointBuy's catalog row is a <button> at body
+     size whose every other line — the description included — is .text-sm, so an
+     unstyled block came out BIGGER than the tag it belongs to. This is
+     supporting metadata, so it sits a step under the description everywhere,
+     and the 280px tooltip (already --fs-xs) is unchanged by it. */
+  font-size: var(--fs-xs);
 }
 
 .desire-unlocks-head {
@@ -1724,6 +1746,185 @@ input[type="radio"]:disabled {
 .modal-panel[data-width="narrow"] { max-width: 24rem; }
 .modal-panel[data-width="wide"] { max-width: 40rem; }
 .modal-panel[data-width="widest"] { max-width: 46rem; }
+
+/* An avatar you can click to see properly (AvatarZoom). The trigger is a bare
+   button so the face it wraps keeps whatever the call site was drawing — its
+   own size, its catatonic dot, its tooltip. */
+.avatar-zoom {
+  all: unset;
+  cursor: zoom-in;
+  display: inline-flex;
+  border-radius: var(--r-full);
+}
+
+.avatar-zoom:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+/* Every avatar in the game is stored at 256 square, so this stops there rather
+   than filling the panel — past its own resolution it would only get blurrier
+   (PORTRAITS.md). */
+.avatar-zoom-full {
+  display: block;
+  width: 100%;
+  max-width: 256px;
+  margin-inline: auto;
+  border-radius: var(--r-lg);
+}
+
+/* Under 640px a dialog is a bottom sheet: full width, up from the bottom,
+   with the Cancel/Confirm row pinned to the foot so it stays reachable under
+   a long body — the panel is its own scroll container (overflow-y above), so
+   a sticky footer works the way the sticky .modal-header already does.
+   Modeless dialogs are desktop-only and never reach this width. */
+@media (max-width: 640px) {
+  .modal-overlay:not([data-modeless="true"]) {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-overlay:not([data-modeless="true"]) .modal-panel {
+    max-width: none;
+    width: 100%;
+    max-height: 92dvh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border-bottom: 0;
+    padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+    animation: sheet-up 180ms ease-out;
+  }
+
+  .modal-overlay:not([data-modeless="true"]) .modal-panel .modal-actions {
+    position: sticky;
+    bottom: calc((var(--sp-4) + env(safe-area-inset-bottom, 0px)) * -1);
+    z-index: 2;
+    margin: var(--sp-4) calc(var(--sp-4) * -1) calc((var(--sp-4) + env(safe-area-inset-bottom, 0px)) * -1);
+    padding: var(--sp-3) var(--sp-4) calc(var(--sp-3) + env(safe-area-inset-bottom, 0px));
+    background: var(--surface-raised);
+    border-top: 1px solid var(--border);
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(12%);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* The result notice (NoticeProvider.js): one line saying what a button just
+   did, bottom-right, over everything but a tooltip. Deliberately NOT a
+   .modal-overlay — Modal.js#dialogHoldsKeyboard counts those. z-index sits
+   between .modal-overlay (100) and .tag-tooltip (120). */
+.notice-stack {
+  position: fixed;
+  right: var(--sp-4);
+  bottom: var(--sp-4);
+  z-index: 110;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-width: 24rem;
+  pointer-events: none;
+}
+
+.notice-card {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent-text);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3);
+  box-shadow: var(--e-3);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  animation: notice-in 160ms ease-out;
+}
+
+.notice-card[data-tone="bad"] {
+  border-left-color: var(--danger);
+  color: var(--danger);
+}
+
+.notice-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.notice-text {
+  margin: 0;
+}
+
+.notice-rows {
+  list-style: none;
+  margin: var(--sp-1) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--fs-xs);
+}
+
+.notice-mark {
+  color: var(--accent-text);
+}
+
+.notice-close {
+  all: unset;
+  cursor: pointer;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: 1;
+}
+
+.notice-close:hover,
+.notice-close:focus-visible {
+  color: var(--accent-text);
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+@keyframes notice-in {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* On a phone the stack sits above the bottom nav rail, full width. */
+@media (max-width: 720px) {
+  .notice-stack {
+    left: var(--sp-3);
+    right: var(--sp-3);
+    bottom: calc(var(--rail-h) + env(safe-area-inset-bottom, 0px) + var(--sp-2));
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-panel,
+  .notice-card {
+    animation: none;
+  }
+}
 
 /* A modeless dialog (Modal.js `modeless`, desktop only). The dim is gone and
    the overlay stops catching pointer events, so the GM desks' right-hand
@@ -2042,13 +2243,18 @@ input[type="radio"]:disabled {
   cursor: not-allowed;
 }
 
-/* A whitelisted seat in the creation picker. Dotted rather than coloured, so
+/* A whitelisted seat in the creation picker. Dashed rather than coloured, so
    it still reads as set apart when the card is greyed out — and so the
    aria-pressed outline stays the only thing that means "selected". Only the
    role picker sets the attribute; the other .select-card pickers are
-   unaffected. */
+   unaffected.
+
+   Dashed rather than dotted because the lobby list below now wears the same
+   mark, and two pickers spelling one rule two ways is how a convention starts
+   drifting. `dashed var(--border)` is what .equip-cell.is-empty and
+   .party-slot already use for "set apart, not selected". */
 .select-card[data-whitelisted="true"] {
-  border-style: dotted;
+  border-style: dashed;
 }
 
 /* Column sizing, as intent rather than a number repeated at 20 call sites.
@@ -2109,6 +2315,93 @@ input[type="radio"]:disabled {
 
 /* Square icon button for a table row action (adjudicate, message). Framed by
    default and filled on hover, matching .btn-quiet -> .btn. */
+/* The wide action rack (/ledger, ActionGrid variant="columns"). Sections side
+   by side with a rule between them, each a stack of full-width labelled
+   buttons — the same verbs the narrow .icon-btn rack carries on /character,
+   given the room a full-width page has. */
+.action-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  align-items: flex-start;
+}
+
+.action-column {
+  /* Grows to fill, but only so far: with two sections showing and a 1400px
+     panel, an uncapped column makes a 500px-wide button, which reads as a
+     banner rather than a verb. */
+  flex: 1 1 11rem;
+  max-width: 20rem;
+  min-width: 0;
+  padding-inline: var(--sp-4);
+  border-left: 1px solid var(--border);
+}
+
+.action-column:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+/* Under the ledger's own two-column breakpoint the sections stack, and the
+   rule turns with them — five slivers would be worse than the row it started
+   as. */
+@media (max-width: 900px) {
+  .action-column {
+    flex-basis: 100%;
+    max-width: none;
+    padding-inline: 0;
+    padding-top: var(--sp-3);
+    margin-top: var(--sp-3);
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+
+  .action-column:first-child {
+    padding-top: 0;
+    margin-top: 0;
+    border-top: none;
+  }
+}
+
+.action-tile {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1.2;
+}
+
+.action-tile:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent-text);
+}
+
+.action-tile:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* An instant verb in flight (ActionButton.js `busy`): quieter, not greyed —
+   nothing is wrong, it is just working. */
+.action-tile[data-busy],
+.icon-btn[data-busy] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.action-tile:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
 .icon-btn {
   all: unset;
   cursor: pointer;
@@ -2237,6 +2530,46 @@ input[type="radio"]:disabled {
   color: var(--accent-text);
 }
 
+/* The pending wash — see RailLinkPending.js. With no loading.js anywhere, a
+   click holds the current page on screen, so this is the only thing that says
+   the press landed.
+ 
+   A real node rather than a second pseudo-element on .rail-item, because the
+   active pill below already owns ::before and the two mean different things at
+   the same moment: the pill is where you ARE (still the old route while the
+   next one loads), this is where you clicked. On a rail click they are two
+   different items, and one selector cannot say both.
+ 
+   Always rendered, only opacity animates, so nothing here can move the rail. */
+.rail-item-pending {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: var(--r-sm);
+  background: var(--accent-solid);
+  opacity: 0;
+}
+
+/* The 120ms delay is the point: a prefetched route lands sooner than that and
+   the hint never appears, so it only ever shows up when there was really
+   something to wait for. */
+.rail-item-pending[data-pending="true"] {
+  animation: rail-pending 1.2s 120ms infinite ease-in-out;
+}
+
+@keyframes rail-pending {
+  0% { opacity: 0; }
+  35% { opacity: 0.18; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail-item-pending[data-pending="true"] {
+    animation: none;
+    opacity: 0.18;
+  }
+}
+
 .rail-item[data-active="true"] {
   color: var(--accent-text);
 }
@@ -2303,28 +2636,13 @@ input[type="radio"]:disabled {
   margin-top: auto;
 }
 
-.turn-chip {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 20;
-  border: 1px solid var(--border);
-  background: var(--surface-raised);
-  box-shadow: var(--e-2);
-  padding: 6px 12px;
-  font-size: var(--fs-2xs);
-  letter-spacing: 0.08em;
-  border-radius: var(--radius);
-  color: var(--text);
-}
-
-/* Chat draws the turn in its own header (play/layout.js), so the floating
-   chip is a second copy there — and at phone widths it sat exactly on the
-   composer's ⋯, which is why the sheet could not be opened. The (app) layout
-   mounts the chip for every route, so it is hidden here rather than there. */
-body:has(.chat-shell) .turn-chip {
-  display: none;
-}
+/* .turn-chip is gone. It was the turn stated a second way — a bubble pinned
+   bottom-right of the viewport for every route except Chat, which drew the
+   same fact as a chip in its own header, so the floating one had to be hidden
+   by a `body:has(.chat-shell)` rule wherever the two met. And at phone widths
+   it sat exactly on the composer's ⋯, which is why that sheet could not be
+   opened. Every page wears the header now and the header carries the turn:
+   components/AppHeader.js -> components/TurnMeta.js. */
 
 /* The mobile bottom bar's overflow affordance. On desktop the rail is a tall
    column with room for every item, so neither the More button nor its sheet
@@ -2461,6 +2779,8 @@ body:has(.chat-shell) .turn-chip {
     /* Comfortably over the 44px touch minimum the bottom bar was under. */
     min-height: 48px;
     border-radius: var(--r-sm);
+    /* Anchors .rail-item-pending, which the sheet's links carry too. */
+    position: relative;
   }
 
   .nav-sheet-item svg {
@@ -2473,12 +2793,6 @@ body:has(.chat-shell) .turn-chip {
     color: var(--accent-text);
   }
 
-  .turn-chip {
-    bottom: 76px;
-    right: 10px;
-    font-size: var(--fs-2xs);
-    padding: 4px 8px;
-  }
 }
 
 /* ---- Documents board ------------------------------------------------- */
@@ -2861,6 +3175,20 @@ body:has(.chat-shell) .turn-chip {
      shrinkable, a long meta row lets the header give up height it is actually
      using and the first line clips. */
   flex-shrink: 0;
+}
+
+/* A desk header is a bar, not a toolbar. Its height is whatever its tallest
+   child is plus the 16px above, and a .chip is 23px — so a .btn at `7px 14px`
+   (31px) or a .segmented button at `--sp-2 --sp-3` (33px) sets the height
+   instead, and the bar stands ~10px taller than the ones beside it. /gm/audit
+   carries four such controls (Ago/Clock, Go live, CSV) and was the tell: it
+   was visibly deeper than /gm/turns and wrapped to two rows on a laptop.
+   Scoped to the header, so the same buttons keep their normal size in a body. */
+.desk-header .btn,
+.desk-header .btn-secondary,
+.desk-header .btn-danger,
+.desk-header .segmented button {
+  padding: 3px 10px;
 }
 
 .desk-body {
@@ -3263,6 +3591,59 @@ label.chip {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-1);
+}
+
+/* A chip's aside — a corpse's yield, "✓ current", a price — in the muted
+   face beside the label (ChipPicker.js). */
+.chip .chip-note {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  margin-left: 4px;
+}
+
+/* A stack you are choosing some of (StackRow.js): name · − n + · All. One
+   row does what a checkbox and a "How many?" box used to do between them. */
+.stack-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.stack-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-1) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm);
+}
+
+.stack-row:last-child {
+  border-bottom: 0;
+}
+
+.stack-row[data-picked] .stack-row-name {
+  color: var(--accent-text);
+}
+
+.stack-row-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.stack-row-note {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.stack-row-all {
+  font-size: var(--fs-xs);
+  min-width: 2.6rem;
+  text-align: right;
 }
 
 .audit-pair {
@@ -4160,6 +4541,24 @@ label.chip {
   opacity: 0.7;
 }
 
+/* The buttons under a DM that asks something — an offer's Accept/Decline, a
+   seat's Decline. On Discord these are message components; here they are drawn
+   from the pending row the DM names (db/lib/dmActions.js). */
+.dm-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+/* What replaces them once answered, matching the outcome the bot writes under
+   the DM on Discord. */
+.dm-action-outcome {
+  margin-top: 0.4rem;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
 /* NavRail unread-conversation badge. */
 .rail-item-badge {
   display: inline-flex;
@@ -4286,6 +4685,15 @@ label.chip {
   padding: 1rem;
 }
 
+/* In an ops section the surface IS the page, not a reading column. .desk-card's
+   52rem cap and auto-centring are right on the adjudication and player desks,
+   where a card is something you read; here they left every card floating in the
+   middle of a full-width section under a table that stretched. */
+.ops-main .desk-card {
+  max-width: none;
+  margin: 0;
+}
+
 .ops-section {
   max-width: 46rem;
   display: flex;
@@ -4300,6 +4708,22 @@ label.chip {
    this modifier removes. */
 .ops-section--wide {
   max-width: none;
+}
+
+/* The Bulk actions roster: a scrolling box of check rows rather than a native
+   <select multiple>, which offered no search, no place names and no way to see
+   what you had picked without scrolling it. Capped rather than page-length —
+   the panel beside it has to stay on screen while you scroll the list. */
+.bulk-picker {
+  max-height: 22rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--field-bg);
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
 }
 
 .ops-section-head {
@@ -4742,7 +5166,7 @@ label.chip {
   border-radius: var(--r-md);
 }
 
-/* ---- Chat (/play) ------------------------------------------------- */
+/* ---- Chat (/chat) ------------------------------------------------- */
 
 /* Chat owns its whole screen, the way the (desk) workspaces do: no
    PageShell, no centred column. A chat that scrolled the DOCUMENT would drag
@@ -4760,7 +5184,12 @@ label.chip {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr) 20rem;
+  /* The flanks are properties rather than literals so the ladder below moves
+     two numbers instead of rewriting the template three times — and so
+     anything else that needs to know how wide a column is can ask. */
+  --chat-rail: 15rem;
+  --chat-aside-w: 20rem;
+  grid-template-columns: var(--chat-rail) minmax(0, 1fr) var(--chat-aside-w);
 }
 
 .chat-body--empty {
@@ -4785,9 +5214,62 @@ label.chip {
 }
 
 .chat-aside {
-  overflow-y: auto;
+  /* The panel inside does the scrolling now, not the column. */
+  overflow: hidden;
   border-left: 1px solid var(--border);
   padding: var(--sp-3);
+}
+
+/* The tabbed right column: a strip that holds still, and one panel under it
+   that scrolls on its own. Before this the five sections were stacked down a
+   single scroller and the tallest of them decided how far you travelled to
+   reach the rest. */
+.chat-aside-tabs {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.chat-tabstrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  flex-shrink: 0;
+  margin-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.chat-tab {
+  appearance: none;
+  background: none;
+  border: 0;
+  /* Under the 44px floor the rest of this column is being held to, but a tab
+     is a wide target horizontally and sits in a row of its own. */
+  padding: var(--sp-2) var(--sp-2);
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  cursor: pointer;
+  /* The selected tab is marked by a rule that shares the strip's own border
+     line, so nothing moves by a pixel when the selection changes. */
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.chat-tab:hover {
+  color: var(--text);
+}
+
+.chat-tab[data-open="true"] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.chat-aside-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* The "Playing from the web" chip, in the foot beside the chime toggle. The
@@ -4822,6 +5304,41 @@ label.chip {
   margin-bottom: var(--sp-1);
 }
 
+/* The title is the fold control. A section shut this way keeps showing any
+   place with something unread in it — folding is for shortening a column, not
+   for going deaf — and the count beside the title says how many rows are put
+   away. */
+.chat-section-fold {
+  appearance: none;
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  width: 100%;
+  text-align: left;
+  /* Matches .chat-section-title's own padding, which is set beside it. */
+  color: var(--muted);
+}
+
+.chat-section-fold:hover {
+  color: var(--text);
+}
+
+.chat-fold-mark {
+  font-size: var(--fs-2xs);
+  width: 1em;
+  flex-shrink: 0;
+}
+
+.chat-fold-count {
+  margin-left: auto;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+
 /* A place row and a person row are the same button — a full-width flex
    line with one focus ring — and differ only in padding, colour and the
    active bar. One base, two skins. */
@@ -4835,6 +5352,18 @@ label.chip {
   width: 100%;
   box-sizing: border-box;
   font-size: var(--fs-sm);
+  /* These are the two most-tapped rows on the page and they carried 4px of
+     vertical padding everywhere except inside the phone's ⋯ sheet, which was
+     the only place holding them to the floor the rest of this stylesheet
+     keeps. A coarse pointer gets the floor wherever it is pointing. */
+  min-height: 32px;
+}
+
+@media (pointer: coarse) {
+  .chat-place,
+  .chat-person {
+    min-height: 44px;
+  }
 }
 
 .chat-place:focus-visible,
@@ -4868,10 +5397,23 @@ label.chip {
   font-family: inherit;
 }
 
+/* The name line grew a second thing to hold — the Things drawer hangs a row's
+   weight off its right edge — so it is a row rather than a block. With one
+   child, which is every other caller, it draws exactly as it did. */
 .chat-tip-name {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
   font-weight: 600;
   margin-bottom: var(--sp-1);
+}
+
+.chat-tip-weight {
+  flex: none;
+  font-weight: 400;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
 }
 
 .chat-tip-desc {
@@ -4921,6 +5463,51 @@ label.chip {
   flex-shrink: 0;
 }
 
+/* The title and the place's own words, stacked, so the search button stays on
+   the right of the row rather than beside the second line. min-width: 0 or a
+   long name never truncates inside the flex row. */
+.chat-head-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* Room.description / Location.description / Zone.description, whichever place
+   is open. A button because it opens, but it is a line of the world rather
+   than a control, so it wears no button chrome. */
+/* Zone · Location, above the open place's name. */
+.chat-crumb {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  margin: 0;
+}
+
+.chat-head-desc {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-head-desc[data-open="true"] {
+  white-space: normal;
+  text-overflow: clip;
+  /* A long description must not eat the feed it sits above. */
+  max-height: 8rem;
+  overflow-y: auto;
+}
+
 .chat-quiet {
   flex: 1;
   font-size: var(--fs-sm);
@@ -4934,6 +5521,14 @@ label.chip {
   padding: var(--sp-3) var(--sp-4);
 }
 
+/* A line of prose stops being comfortable to read somewhere past 70-ish
+   characters, and the middle column on a wide monitor is far wider than that.
+   Capped here rather than on .chat-feed so the scrollbar stays at the edge of
+   the column and only the CONTENT is measured. */
+.chat-feed-inner {
+  max-width: 70ch;
+}
+
 
 .chat-row {
   display: flex;
@@ -4945,9 +5540,65 @@ label.chip {
   /* The row is the positioning context for the action bar that floats at its
      top-right. */
   position: relative;
-  /* A line does not blink into existence, it arrives. 80ms is under the
-     threshold where it reads as an animation at all — it just stops the
-     jump. */
+  /* The hover fill wants to read as a band across the feed rather than a
+     box hugging the words, so the row bleeds out to the scroller's padding
+     and pulls its content back to where it already sat. Net effect on the
+     text's position: none. */
+  padding: 1px var(--sp-2);
+  margin-inline: calc(var(--sp-2) * -1);
+  border-radius: var(--r-sm);
+}
+
+/* The row's own class family. It used to be .chat-* mixed with loose Tailwind
+   utilities (min-w-0 flex-1, flex items-baseline gap-2, font-semibold,
+   mono text-xs text-muted), which meant restyling a line meant editing JSX. */
+.chat-row-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.chat-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.chat-row-name {
+  font-weight: 600;
+}
+
+/* Somebody speaking under an alias — a hood, or a forced name like Apex
+   Form's Beast (db/lib/archive.js#feedRowShape). Tinted so a scene can be
+   read by who is in it: an unfamiliar name in a room is a different fact from
+   a name you know, and the column gave them identical weight. */
+.chat-row-name[data-alias="true"] {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.chat-row-time,
+.chat-row-edited {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+/* The row lights up under the pointer, and under the keyboard: without this
+   there was no indication at all of which line the action bar belonged to.
+   Kept to a fill, no border and no movement — a hundred of these scroll past
+   and any of them shifting by a pixel would read as the feed twitching. */
+.chat-row:hover,
+.chat-row:focus-within {
+  background: var(--row-hover);
+}
+
+/* A line does not blink into existence, it arrives. 80ms is under the
+   threshold where it reads as an animation at all — it just stops the jump.
+
+   ONLY A LINE THAT ARRIVED. This used to run on every .chat-row, so opening a
+   place faded its whole backlog in at once — a hundred lines animating
+   together, which is the one thing the effect was meant to avoid. Feed.js
+   sets data-live on a row past the seq the place painted with. */
+.chat-row[data-live="true"] {
   animation: chat-row-in 80ms ease-out;
 }
 
@@ -4958,7 +5609,7 @@ label.chip {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chat-row {
+  .chat-row[data-live="true"] {
     animation: none;
   }
 }
@@ -4980,6 +5631,28 @@ label.chip {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
+  /* Hidden until the row is under the pointer or holds focus. It is always in
+     the DOM now — Feed.js no longer tracks hover in React — which is what
+     lets a keyboard reach it: opacity leaves a button focusable, and focus on
+     one fires :focus-within on the row, which brings the bar back into view.
+     pointer-events keeps an invisible bar from eating clicks meant for the
+     line underneath. */
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chat-row:hover .chat-row-actions,
+.chat-row:focus-within .chat-row-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* No hover on a touch screen, so the bar is simply always there. */
+@media (pointer: coarse) {
+  .chat-row-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 /* Discord's red line: everything below it arrived since you last had this
@@ -5180,9 +5853,30 @@ label.chip {
   padding-left: calc(var(--chat-face) + var(--sp-3));
 }
 
+/* The scroller and the jump-to-bottom pill. The wrapper exists only to give
+   the pill something to be positioned against. */
+.chat-feed-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* "N new ↓", floating over the last line of the feed rather than sitting in a
+   row of its own. As an ordinary flex child it took a whole row out of the
+   scene the moment somebody scrolled up — the feed jumped, which is a strange
+   thing for a control that exists to say the feed has moved on without you. */
 .chat-pill {
-  align-self: center;
-  margin-bottom: var(--sp-2);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: var(--sp-3);
+  z-index: 2;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--e-2);
+  white-space: nowrap;
 }
 
 .chat-composer {
@@ -5196,19 +5890,32 @@ label.chip {
 
 /* ---- The right column: who is here, the place, and you ---- */
 
+/* Each section is a card now. They were a hairline border-bottom and nothing
+   else, which gave a Location's long prose and a one-chip status strip the
+   same weight and made the whole column read as one grey list. A surface, a
+   border and a radius is the same treatment .panel gets everywhere else in
+   the app. */
 .chat-card,
 .chat-here,
 .chat-party,
 .chat-room,
 .chat-travel,
 .chat-you {
-  padding-bottom: var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3);
   margin-bottom: var(--sp-3);
-  border-bottom: 1px solid var(--border);
 }
 
-.chat-you {
-  border-bottom: 0;
+/* Last card in whichever panel is open — there is no run of them to separate
+   from any more. */
+.chat-card:last-child,
+.chat-here:last-child,
+.chat-party:last-child,
+.chat-room:last-child,
+.chat-travel:last-child,
+.chat-you:last-child {
   margin-bottom: 0;
 }
 
@@ -5241,6 +5948,10 @@ label.chip {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--e-3);
+  /* placePanel() hands the portal a maxHeight so a long menu cannot run off
+     the viewport; without a scroller the entries past the fold are simply
+     unreachable. */
+  overflow-y: auto;
 }
 
 /* ThingsDrawer.js's menu, escaped to document.body (portalPlacement.js):
@@ -5401,6 +6112,26 @@ label.chip {
   text-overflow: ellipsis;
 }
 
+/* The trait that opens a way, drawn as that tag's own chip (ChipLabel, so the
+   group colour comes with it). A node is narrow, so the chip may wrap its name
+   over two lines rather than push the card wider — and it sits above the foot
+   so the cost line stays the last thing read. */
+.chat-node .chip,
+.map-exit .chip {
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+/* Everywhere else a .chip is something you tap, so it carries a touch floor.
+   This one is a label printed on a button that is already the tap target, and
+   the floor would only make the node taller. */
+@media (pointer: coarse) {
+  .chat-node .chip,
+  .map-exit .chip {
+    min-height: 0;
+  }
+}
+
 /* The confirm is a strip under the grid, not a modal: you have already
    pointed at where you are going, and a dialog would only cover it up. */
 .chat-travel-confirm {
@@ -5422,9 +6153,12 @@ label.chip {
 
    The cards reuse .equip-slots / .equip-slot rather than a second slot grid,
    because they are the same idea: a fixed number of places, some of them
-   full. What is new is the overflow state. A dashed border already means
-   "empty" on the equipment rack, so the overflow card takes the accent as
-   well — dashed AND accented reads as "occupied, and it costs you", which
+   full — and since the old character sheet's rack went, the party is the
+   only thing left drawing them. What is new is the overflow state. A dashed
+   border already means
+   "empty" on the sheet's equipment board (.equip-cell.is-empty), so the
+   overflow card takes the accent as well — dashed AND accented reads as
+   "occupied, and it costs you", which
    is exactly what a passenger past the saddle is (docs/systemdocs/MAP.md
    §3a). It is never drawn on foot, where there are no seats to overfill. */
 .party-slot {
@@ -5508,6 +6242,13 @@ label.chip {
   margin-bottom: var(--sp-2);
 }
 
+/* A stash chip wrapped in a HoverCard so its description shows on hover
+   (RoomPanel.js). .tag-hover is mono, because the chips it was written for
+   are; these are not, and inheriting it turned the floor into a typewriter. */
+.chat-chip-hover {
+  font-family: inherit;
+}
+
 /* The one bad-news tone, scoped to this column so it cannot leak into the
    chips the rest of the app draws: Overburdened, Dying, Catatonic, and a
    carry line over its cap. */
@@ -5516,14 +6257,23 @@ label.chip {
   border-color: var(--danger);
 }
 
-.chat-move {
+/* The load bar under those chips (play/StatusStrip.js). It is the SHEET's own
+   meter — .depot-meter / .depot-meter-fill, the same pair the Carrying tile
+   draws — so only its spacing is redefined here: it sits under a chip row
+   rather than inside a tile, and .chat-chips has already paid the gap below. */
+.chat-load {
+  margin-top: 0;
   margin-bottom: var(--sp-3);
 }
 
-.chat-move-filed {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
+/* Over the cap, the fill matches the number above it. Opt-in via the data
+   attribute, so the depot's own credit meter is untouched. */
+.depot-meter-fill[data-tone="danger"] {
+  background: var(--danger);
+}
+
+.chat-move {
+  margin-bottom: var(--sp-3);
 }
 
 /* The filed Move, three lines of it. A Move can be a paragraph and the column
@@ -5667,6 +6417,19 @@ label.chip {
   padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
 }
 
+/* Inside the phone's ⋯ sheet the MODAL is the scroller (max-height + overflow
+   above), so the tabbed column must not try to be one as well: a flex child
+   with min-height:0 inside an auto-height parent collapses to nothing. The
+   strip still sits at the top; the sheet scrolls the panel under it. */
+.chat-sheet .chat-aside-tabs {
+  height: auto;
+}
+
+.chat-sheet .chat-aside-panel {
+  overflow-y: visible;
+  min-height: 0;
+}
+
 /* ---- The ladder. Three widths above the phone, one breakpoint each:
 
      >= 1200          15rem | 1fr | 20rem     three columns
@@ -5681,13 +6444,15 @@ label.chip {
    hidden too. */
 @media (max-width: 75rem) {
   .chat-body {
-    grid-template-columns: 12rem minmax(0, 1fr) 17rem;
+    --chat-rail: 12rem;
+    --chat-aside-w: 17rem;
   }
 }
 
 @media (max-width: 56.25rem) {
   .chat-body {
-    grid-template-columns: 11rem minmax(0, 1fr);
+    --chat-rail: 11rem;
+    grid-template-columns: var(--chat-rail) minmax(0, 1fr);
   }
 
   /* Belt and braces: the hook already stops the column mounting. */
@@ -5791,6 +6556,37 @@ label.chip {
   background: var(--row-hover);
 }
 
+/* A mention that resolved to nobody — somebody behind a mask, or a character
+   gone since the line was written. It reads "someone", muted and italic, and
+   deliberately carries no face: the point is that the reader is not being
+   told who, and a blank avatar next to a word would suggest they nearly were.
+   What it replaced was the literal `{char:<cuid>}`, which is not an unresolved
+   reference a reader can make anything of — it is a line that looks broken. */
+.chat-mention--unknown {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ---- Discord's angle-bracket vocabulary (remarkDiscord.js) ---- */
+
+/* A <t:EPOCH:F> rendered as a real time. Framed like a mention rather than set
+   in mono: it sits mid-sentence in prose, and --font-mono is for a column of
+   data, not for a word inside a paragraph. Tabular figures so a relative label
+   ticking over does not shuffle the line. */
+.discord-time {
+  padding: 0 var(--sp-1);
+  border-radius: var(--radius-sm);
+  background: var(--row-hover);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A custom emoji as its name, and @here. Both muted: the picture one stood for
+   is not here, and the ping notified nobody on this side. */
+.discord-emoji,
+.discord-ping {
+  color: var(--muted);
+}
+
 /* "X is typing… ‡" — one line above the composer, six seconds after the last
    event. Reserves no height when empty: a line that appears and disappears
    must not shove the scene up and down as people write. */
@@ -5852,16 +6648,76 @@ label.chip {
 /* A command in the box, as a chip above the text it is taking. Accent-tinted
    and mono, so it reads as a mode the box is IN rather than as something that
    was typed into it — which is the whole tell that the slash parsed. */
-.chat-cmd-chip {
-  align-self: flex-start;
-  padding: 2px var(--sp-2);
+/* COMMAND MODE. A strip across the top of the composer saying what the box
+   is currently for, and how to get out of it. It replaced .chat-cmd-chip, a
+   floating accent-tinted pill that sat above the textarea and read as a
+   bubble stuck to the composer rather than as a state the box was in.
+
+   The accent is a RULE down the leading edge rather than a fill and a border
+   all the way round, which is the quieter half of the same vocabulary. */
+.chat-cmd-strip {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2);
+  margin: calc(var(--sp-1) * -1) calc(var(--sp-2) * -1) var(--sp-1);
+  border-bottom: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+}
+
+.chat-cmd-strip-name {
   font-size: var(--fs-2xs);
-  /* --accent-text for the letters, --accent for the rule. They are different
-     colours on purpose (the header of this file, rule 2). */
   color: var(--accent-text);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent);
-  border-radius: var(--r-sm);
+  flex-shrink: 0;
+}
+
+/* The one line the `/` menu already shows for this command, so the box says
+   what it is about to do rather than only naming it. */
+.chat-cmd-strip-hint {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-cmd-strip-out {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0 var(--sp-1);
+  font: inherit;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.chat-cmd-strip-out:hover {
+  color: var(--text);
+}
+
+/* The keys, spelled out once beside the send. Nothing on the page said Enter
+   would send, and a desktop had no send button at all until 2026-09-09. */
+.chat-composer-keys {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  align-self: center;
+  white-space: nowrap;
+}
+
+/* Only drawn where a command actually caps its text. The refusal used to be
+   the first anybody heard of a limit. */
+.chat-composer-count {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  align-self: center;
+}
+
+.chat-composer-count[data-over="true"] {
+  color: var(--danger);
 }
 
 /* A row of the `/` popover: the name, then what it does. The name is fixed
@@ -6011,4 +6867,1111 @@ label.chip {
 .chat-embed .chat-typing {
   padding-left: var(--sp-3);
   padding-right: var(--sp-3);
+}
+
+/* ── /character ──────────────────────────────────────────────────────────────
+   The character sheet (docs/systemdocs/SHEET.md): a band of numbers, then
+   three columns — bio, the working column, the tag rail.
+
+   It is an ORDINARY SCROLLING PAGE. There is no 100dvh shell and nothing here
+   scrolls inside itself: the band scrolls away with everything else and the
+   document is the one scrollbar, so a player reaches the bottom of the tag
+   rail the way they reach the bottom of any other page. It was built the
+   other way — a fixed shell over three independent scroll regions, the way
+   Chat still works — and a sheet is not a chat: nothing on it arrives while
+   you read, so nothing had to be pinned.
+
+   Numbers are laid out here rather than with utility classes because the tile
+   row and the band share one measure. */
+.sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  /* Room at the bottom for the last card's shadow and the mobile bar. */
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+}
+
+.sheet-band {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+/* align-items: start, so a short column is a short column — with the columns
+   no longer scrolling there is nothing to stretch them to. */
+.ledger-body {
+  display: grid;
+  grid-template-columns: 18rem minmax(0, 1fr) 22rem;
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.ledger-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+/* The banner: portrait and name on the left, the tiles on the right, wrapping
+   under it when the page gets narrow. */
+.ledger-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.ledger-tiles {
+  display: grid;
+  /* auto-fit rather than a fixed five, so the row folds before any tile is
+     narrow enough to wrap "30.5 / 71 lb" onto a second line. The max-width
+     fits all five across when there is room — it was 40rem for the four
+     before the Mood box, which left the Gambit die orphaned on its own row. */
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: var(--sp-2);
+  flex: 1 1 26rem;
+  max-width: 47rem;
+}
+
+.ledger-tile {
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  min-width: 0;
+}
+
+/* A tile with something to say when clicked (why the moves are 0, what moves
+   a mood). Same box, a cursor, and the accent rule while it is open.
+
+   The column flexbox is not decoration. A <button> centres its own content
+   vertically whatever its `display` is, so on a stretched grid row — one made
+   taller by the Carrying tile's weight meter — this tile's heading floated in
+   the middle while every plain-<div> tile beside it kept its heading at the
+   top. `justify-content: flex-start` is what puts it back on the same line as
+   its neighbours'. */
+.ledger-tile-button {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  min-width: 0;
+  text-align: left;
+}
+
+.ledger-tile-button:hover,
+.ledger-tile-button[aria-expanded="true"] {
+  border-color: var(--accent-text);
+}
+
+.ledger-tile-button:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+.ledger-tile-value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  line-height: 1.2;
+  display: block;
+  margin-top: var(--sp-1);
+}
+
+.ledger-tile-value[data-over="true"] {
+  color: var(--accent-text);
+}
+
+/* The Mood box says a WORD, not a number, so it drops the mono face
+   (--font-mono is for data) and takes its colour from a tone rather than a
+   token picked at the call site — the .status-pill rule, same four names. */
+.ledger-tile-value[data-word="true"] {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+.ledger-tile-value[data-tone="muted"] {
+  color: var(--muted);
+}
+
+.ledger-tile-value[data-tone="good"] {
+  color: var(--positive);
+}
+
+.ledger-tile-value[data-tone="warn"] {
+  color: var(--warning);
+}
+
+.ledger-tile-value[data-tone="bad"] {
+  color: var(--danger);
+}
+
+.ledger-tile .depot-meter,
+.ledger-tile-button .depot-meter {
+  margin-top: var(--sp-2);
+}
+
+/* The opened tile's words, under the whole row of tiles. */
+.sheet-tile-detail {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: pre-line;
+}
+
+/* The strip under the tiles: the Move as filed, on the recessed surface
+   the tiles use so the whole band reads as one instrument panel. */
+.ledger-turn {
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+  min-width: 0;
+}
+
+/* The turn card beside the forecast; either alone takes the whole row. */
+.sheet-band-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--sp-2);
+}
+
+/* TurnCard's own spacing was written for the chat column, where everything
+   stacks down a narrow strip. In the band it has a whole row, so the turn
+   chips and the Move button share it — the button at its own width, not a
+   full-width bar under the chip that made the box twice as tall as it needed
+   to be. /chat's YOU column is untouched: this is scoped to .sheet-turn.
+
+   A filed Move puts its words on the line under the chips — it used to open a
+   second chips row and a column of its own, which roughly tripled the box's
+   height the moment somebody filed. Its kind is a quiet word in front of those
+   words now, not a chip in the row above. */
+.sheet-turn .chat-move {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: 0;
+}
+
+.sheet-turn .chat-move > .chat-chips {
+  margin-bottom: 0;
+}
+
+.sheet-turn .chat-buttons {
+  flex: 0 0 auto;
+}
+
+/* The words break the line and take the whole width — they are a paragraph of
+   somebody's own writing — but only two of them until the clamp is clicked. */
+.sheet-turn .chat-move-text {
+  flex: 1 0 100%;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.chat-move-mark {
+  color: var(--muted);
+  margin-right: var(--sp-1);
+}
+
+/* The Move's kind, as a word rather than a badge. It was a .chip in the turn
+   chip row until 2026-09-09 — filled, bordered and fully rounded, which read
+   as a control sitting on top of the player's own sentence. A quiet word in
+   front of the words is all it ever needed to be. */
+.chat-move-kind {
+  color: var(--muted);
+  margin-right: var(--sp-1);
+}
+
+/* The turn's effects read as one wrapping line separated by ·, not a list:
+   four short clauses down a column made the box taller than the turn card
+   beside it. `gap` does the spacing on both sides of every separator, so the
+   markup carries no padding of its own. */
+.sheet-forecast {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--sp-1);
+}
+
+/* The separator is a hairline-quiet mark, not a word, and carries its own
+   right-hand space: it sits INSIDE the item it introduces so a wrap can't
+   strand it at the end of a line, which means `gap` can't do that spacing. */
+.sheet-forecast > span > [aria-hidden="true"] {
+  color: var(--muted);
+  margin-right: var(--sp-1);
+}
+
+/* +N more sits on the end of the line rather than under it, so opening the
+   fold is the only thing that makes the box taller. */
+.sheet-forecast .btn-quiet {
+  padding: 0;
+  margin-left: var(--sp-1);
+}
+
+/* A status chip opened under the strip: the tag's own block, on the recessed
+   surface, at the tooltip's size. */
+.sheet-picked {
+  margin-top: var(--sp-2);
+  max-width: 34rem;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+}
+
+/* ── The action strip (ActionGrid variant="strip") ──
+   One wrapping row of small labelled buttons, the sections split by a
+   hairline. A gated verb is muted, not disabled: clicking it writes its
+   reason to the line under the strip, since the sheet has no tooltips. */
+.action-strip-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.action-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) 0;
+}
+
+.action-strip-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1);
+  padding-right: var(--sp-2);
+  margin-right: var(--sp-2);
+  border-right: 1px solid var(--border);
+}
+
+.action-strip-group:last-child {
+  padding-right: 0;
+  margin-right: 0;
+  border-right: none;
+}
+
+.action-strip-item {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 3px var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.action-strip-item:hover {
+  border-color: var(--accent-text);
+}
+
+.action-strip-item:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+.action-strip-item[data-muted="true"] {
+  color: var(--muted);
+  border-style: dashed;
+}
+
+.action-strip-why {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+/* ── The tag rail (TagRail.js / TagRow.js) ──
+   One card per kind, one row per tag. A row is a button (the name and its
+   note) with the verbs and the value beside it; open, its details follow on
+   the recessed surface. */
+.sheet-rail-head .field input {
+  width: 100%;
+}
+
+.sheet-group + .sheet-group {
+  margin-top: var(--sp-2);
+}
+
+.sheet-group-name {
+  margin: 0 0 2px;
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sheet-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet-row {
+  border-top: 1px solid var(--border);
+}
+
+.sheet-row:first-child {
+  border-top: none;
+}
+
+.sheet-row-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 32px;
+}
+
+.sheet-row-face {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 4px var(--sp-2);
+  border-left: 3px solid var(--border);
+  font-size: var(--fs-sm);
+  line-height: 1.25;
+}
+
+.sheet-row-face:hover .sheet-row-name,
+.sheet-row[data-open="true"] .sheet-row-name {
+  color: var(--accent-text);
+}
+
+.sheet-row-face:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+}
+
+.sheet-row-note {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.sheet-row-value {
+  flex-shrink: 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  padding-right: var(--sp-1);
+}
+
+.sheet-row-value[data-tone="danger"] {
+  color: var(--danger);
+}
+
+/* The verbs: hidden until the row is hovered or holds focus on a pointer
+   device, always drawn on a touch one — there is nothing to hover there. */
+.sheet-row-verbs {
+  display: inline-flex;
+  gap: var(--sp-1);
+  flex-shrink: 0;
+  font-size: var(--fs-xs);
+}
+
+@media (hover: hover) {
+  .sheet-row-verbs {
+    visibility: hidden;
+  }
+
+  .sheet-row-line:hover .sheet-row-verbs,
+  .sheet-row-line:focus-within .sheet-row-verbs,
+  .sheet-row[data-open="true"] .sheet-row-verbs {
+    visibility: visible;
+  }
+}
+
+.sheet-row-details {
+  margin: 0 0 var(--sp-2) var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+}
+
+/* ── The rig (EquipBoard.js) ──
+   One row per slot, one cell per place. A two-hander spans two hand cells. */
+.equip-board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.equip-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* More weapons readied than there are hands — only reachable on a character
+   who filled them before the three-hand rule existed. The count says so, and
+   EquipBoard.js writes the sentence under the row. */
+.equip-row-title [data-over="true"] {
+  color: var(--danger);
+}
+
+.equip-cells {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.equip-cells-wrap {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.equip-cells-wrap > .equip-cell {
+  flex: 0 1 12rem;
+}
+
+.equip-cell {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 44px;
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.equip-cell.is-empty {
+  border-style: dashed;
+  background: transparent;
+}
+
+.equip-cell-face {
+  all: unset;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-xs);
+  line-height: 1.25;
+}
+
+button.equip-cell-face {
+  cursor: pointer;
+}
+
+button.equip-cell-face:hover:not(:disabled) {
+  color: var(--accent-text);
+}
+
+button.equip-cell-face:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+}
+
+.equip-cell-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.equip-cell-fact {
+  font-size: var(--fs-2xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.equip-cell-off {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--sp-2);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.equip-cell-off:hover:not(:disabled) {
+  color: var(--danger);
+}
+
+.equip-cell-off:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+}
+
+/* ── Widths ── */
+@media (max-width: 1180px) {
+  /* The rail goes under the working column first — it is a reference list,
+     and the bio form is the narrow thing that keeps its width best. */
+  .ledger-body {
+    grid-template-columns: 18rem minmax(0, 1fr);
+  }
+
+  .ledger-rail {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+    align-items: start;
+  }
+
+  /* The Tags header is a strip, not a card of rows — it reads as a stray
+     tile if it is left sharing a row with a tall category. */
+  .ledger-rail > .sheet-rail-head {
+    grid-column: 1 / -1;
+  }
+
+  /* Three then two once the band has wrapped. It was two-by-two while there
+     were four tiles; with the Mood box making five, two columns leaves the
+     last one orphaned underneath, which reads as a mistake. */
+  .ledger-tiles {
+    grid-template-columns: repeat(3, minmax(8.5rem, 1fr));
+  }
+}
+
+/* The tabs exist only where the columns cannot sit side by side. */
+.sheet-tabs {
+  display: none;
+  flex-shrink: 0;
+}
+
+@media (max-width: 820px) {
+  .sheet-tabs {
+    display: flex;
+  }
+
+  .ledger-body {
+    display: block;
+  }
+
+  .ledger-rail {
+    display: flex;
+  }
+
+  .ledger-body[data-tab="you"] .ledger-col:not([data-col="you"]),
+  .ledger-body[data-tab="do"] .ledger-col:not([data-col="do"]),
+  .ledger-body[data-tab="tags"] .ledger-col:not([data-col="tags"]) {
+    display: none;
+  }
+
+  .sheet-body {
+    padding-inline: var(--sp-3);
+  }
+}
+
+/* ------------------------------------------------------------------ /map
+   The travel graph over the drawn plate (MAP.md §6). One board, two hosts:
+   the /map route and the overlay on /chat, which is why nothing here assumes
+   a page or a dialog — .map-board fills whatever box it is handed.
+
+   The plate is a raster and does not change with the theme; only the water
+   does, through --map-river and an alpha mask. Everything drawn ON it is
+   tokens all the way down, so the nodes follow the theme even though the art
+   underneath them never will. */
+
+.map-board {
+  display: flex;
+  gap: var(--sp-3);
+  min-height: 0;
+  height: 100%;
+}
+
+.map-board-quiet {
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+/* The route owns the whole screen, the same contract .chat-shell has: a
+   100dvh column that never scrolls the document. A map is the window you look
+   through, so putting one in a centred card was drawing a picture of a map. */
+.map-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.map-shell .map-board {
+  flex: 1;
+  min-height: 0;
+  padding: var(--sp-2);
+}
+
+.map-stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.map-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* The board pans, so the page must not: a two-finger drag over the map is
+     for the map. */
+  touch-action: none;
+  cursor: grab;
+}
+
+.map-svg:active {
+  cursor: grabbing;
+}
+
+/* Pixel art. Smoothing a 2144px plate scaled past 1:1 turns crisp coastline
+   into mush, which is the whole character of the drawing. */
+.map-plate {
+  image-rendering: pixelated;
+}
+
+.map-river {
+  fill: var(--map-river);
+}
+
+/* Underground, the plate is the WRONG picture: the art draws no tunnels, so
+   the caves and the depths are a schematic layer laid over the same
+   coordinates (docs/assets/map-nodes.json). Dropping the drawing back to a
+   ghost keeps the coastline there for orientation — the cave mouth really is
+   under that hillside — without pretending the trees are down there too. */
+.map-stage[data-layer="under"] {
+  background: var(--bg);
+}
+
+.map-svg[data-layer="under"] .map-plate {
+  opacity: 0.13;
+}
+
+.map-svg[data-layer="under"] .map-river {
+  opacity: 0.2;
+}
+
+/* ------------------------------------------------------------ /map · ways */
+
+.map-edge {
+  stroke: var(--border);
+  stroke-width: 5;
+  stroke-linecap: round;
+  fill: none;
+}
+
+/* A way you can see and cannot use. Dashed rather than hidden on purpose:
+   knowing the door is there and shut is what sends you to find the winch or
+   the key. A way you may NOT see never reaches the browser at all — loadMap
+   drops it server-side (MAP.md §2a). */
+.map-edge[data-gate] {
+  stroke: var(--warning);
+  stroke-dasharray: 14 18;
+}
+
+.map-edge[data-gate="closed"] {
+  stroke: var(--muted);
+}
+
+/* A road only your own trait opens. Solid and accented, never dashed — dashed
+   already means "you can see this and cannot use it", and this is the opposite
+   of that. */
+.map-edge[data-opened] {
+  stroke: var(--accent);
+}
+
+/* ----------------------------------------------------------- /map · nodes */
+
+.map-node {
+  cursor: pointer;
+}
+
+/* An element whose only job is to be the hit area, the way .check-hit is one
+   for a checkbox row. A node is about two pixels across on a phone at the zoom
+   floor, and no amount of care makes that tappable.
+
+   fill: transparent, not fill: none — a rect with no fill is not hit-testable,
+   and being hit is the entire point of this one.
+
+   Inert on a mouse. A pointer that lands within a pixel does not want a square
+   swallowing its neighbours' hover, and the desktop board should come out of
+   this change byte for byte. --map-hit is written by applyView on every frame
+   and only ever shrinks the square: HIT is already as wide as a node may be
+   before it reaches the next one along. */
+.map-node-hit {
+  fill: transparent;
+  pointer-events: none;
+}
+
+@media (pointer: coarse) {
+  .map-node-hit {
+    pointer-events: fill;
+    transform-box: fill-box;
+    transform-origin: center;
+    transform: scale(var(--map-hit, 1));
+  }
+}
+
+/* The rim is a thin ring standing off the core, not a band the core sits in.
+   Filled, it read as one fat blob at any zoom and swallowed the zone colour;
+   hollow, the plate shows through the gap and the core keeps its colour.
+   --on-accent rather than a literal white: it is the "light mark on a coloured
+   ground" token, near-white in all three themes and hardcoded nowhere. */
+.map-node-rim {
+  fill: none;
+  stroke: var(--on-accent);
+  stroke-width: 1.5;
+}
+
+.map-node-core {
+  fill: var(--border);
+}
+
+.map-node[data-zone="fortress"] .map-node-core { fill: var(--zone-fortress); }
+.map-node[data-zone="town"] .map-node-core { fill: var(--zone-town); }
+.map-node[data-zone="forest"] .map-node-core { fill: var(--zone-forest); }
+.map-node[data-zone="hills"] .map-node-core { fill: var(--zone-hills); }
+.map-node[data-zone="marshes"] .map-node-core { fill: var(--zone-marshes); }
+.map-node[data-zone="caves"] .map-node-core { fill: var(--zone-caves); }
+.map-node[data-zone="depths"] .map-node-core { fill: var(--zone-depths); }
+
+/* Somewhere you have only ever seen from next door. The core fades and the
+   ring stays, so it reads as an outline — a place on the map you have not
+   filled in yet. Since every node is now one size, this fill is the only thing
+   that says so. */
+.map-node[data-state="seen"] .map-node-core {
+  fill-opacity: 0.3;
+}
+
+.map-node[data-state="seen"] .map-node-label {
+  fill: var(--muted);
+  font-size: 21px;
+}
+
+/* Where you are standing. Already the largest node; the ring is what makes it
+   findable at a glance on a board of fifty. */
+.map-node[data-state="here"] .map-node-rim {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+.map-node[data-reach]:hover .map-node-rim,
+.map-node[data-picked] .map-node-rim {
+  stroke: var(--accent-text);
+  stroke-width: 2.5;
+}
+
+.map-node-label {
+  fill: var(--text);
+  font-size: 24px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 7;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+/* -------------------------------------------------------- /map · controls */
+
+/* Nothing on a desktop: display: contents generates no box, so the two
+   children below keep resolving their own corners against .map-stage exactly
+   as they did before this wrapper existed. It only becomes a real element on
+   a phone, in the 640px block at the foot of this section. */
+.map-hud {
+  display: contents;
+}
+
+.map-layers {
+  position: absolute;
+  top: var(--sp-2);
+  left: var(--sp-2);
+  background: var(--surface);
+}
+
+.map-controls {
+  position: absolute;
+  bottom: var(--sp-2);
+  left: var(--sp-2);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 2px var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+
+.map-count {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+/* The zoom controls are the only way to zoom for anyone who cannot pinch, so
+   they get the full 44px floor DESIGN-SYSTEM.md §9 sets. Scoped here rather
+   than raised in the global coarse-pointer block above, which takes .btn-quiet
+   to 36px at all fifty-odd of its call sites — those are flush text links in a
+   row of prose, and these three are buttons standing alone over a map.
+   touch-action: manipulation for the reason .check-row gives: without it iOS
+   holds every tap back waiting to see whether a second one is coming. */
+@media (pointer: coarse) {
+  .map-controls .btn-quiet,
+  .map-controls .chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: var(--sp-2);
+    touch-action: manipulation;
+  }
+
+  /* A minus sign at --fs-xs centred in a 44px box reads as a speck. */
+  .map-controls .btn-quiet {
+    font-size: var(--fs-sm);
+  }
+}
+
+/* ------------------------------------------------------------ /map · card */
+
+.map-card {
+  width: 17rem;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  /* Room at the foot for the (app) layout's floating turn chip, which is
+     fixed to the bottom-right corner and would otherwise sit on top of
+     Return to game. Chat solves the same collision by hiding the chip and
+     drawing its own; the map has no header of its own to draw one in, so it
+     gets out of the way instead. */
+  padding-bottom: calc(var(--sp-3) + 2.5rem);
+  overflow-y: auto;
+}
+
+/* .chat-section-title carries its own horizontal padding, because in the chat
+   column the rows under it are inset by the same amount. Nothing in this card
+   is: the card's own padding is the left edge, and every name, list item and
+   way out sits on it. Without this the two headings stood 12px in from their
+   own contents. */
+.map-card .chat-section-title {
+  padding-inline: 0;
+}
+
+.map-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  align-items: flex-start;
+}
+
+.map-card-name {
+  font-size: var(--fs-lg);
+  letter-spacing: var(--ls-tight);
+}
+
+/* What is inside a place you have been: its rooms, and your conversations
+   there. Three short lists, not a table — the card is a caption, and the
+   moment this needs columns it wants to be somewhere else. */
+.map-inside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  width: 100%;
+}
+
+.map-inside-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.map-inside-list li {
+  padding: 1px 0;
+}
+
+.map-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  width: 100%;
+}
+
+.map-exits {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.map-exit {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: 4px var(--sp-2);
+  /* Pulled back out again, so the NAME lands on the card's left edge with the
+     rooms and the headings, while the hover band still has room to breathe
+     around it. */
+  margin-inline: calc(var(--sp-2) * -1);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.map-exit:hover {
+  background: var(--row-hover);
+}
+
+.map-exit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.map-exit .mono {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+/* Between the name and the cost on a way out. margin-right:auto keeps the cost
+   pinned to the right edge where the row's space-between put it, instead of the
+   chip pushing it into the middle. */
+.map-via {
+  display: inline-flex;
+  min-width: 0;
+  margin-right: auto;
+}
+
+.map-return {
+  margin-top: auto;
+}
+
+/* The overlay on /chat. .modal-panel is a dialog box -- 46rem wide, rounded,
+   floating on a dim -- and a map in one read as a bubble with a map in it.
+   This takes the screen instead: the whole viewport, no radius, no border.
+   Escape and the backdrop still close it, because it is still a Modal. */
+.map-panel {
+  max-width: none;
+  max-height: none;
+  width: 100vw;
+  height: 100dvh;
+  border: 0;
+  border-radius: 0;
+  padding: var(--sp-3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-panel .map-board {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Phone: the card stops being a column beside the board and becomes a sheet
+   OVER it. It used to be a strip underneath, which cost the board 40% of an
+   already short screen and cropped the plate to a letterbox. Over it, the
+   drawing runs on underneath and anything the sheet covers is one drag away
+   rather than gone.
+
+   The two heights come off whether something is picked and nothing else.
+   Nothing picked, it is a caption and its Ways out list; something picked, it
+   opens far enough that Go is on screen with the place you chose — which is
+   what lets the second tap stop meaning travel (MapBoard.js). */
+@media (max-width: 640px) {
+  .map-board {
+    flex-direction: column;
+    position: relative;
+  }
+
+  .map-stage {
+    position: absolute;
+    inset: 0;
+  }
+
+  .map-card {
+    position: absolute;
+    inset: auto 0 0 0;
+    z-index: 1;
+    width: auto;
+    max-height: 32dvh;
+    border-radius: var(--r-md) var(--r-md) 0 0;
+  }
+
+  .map-card[data-picked] {
+    max-height: 62dvh;
+  }
+
+  /* Gone on a phone. Pinch is the zoom here, and the bar sat over the top-left
+     corner of the plate — Headwaters and the Mountain live under it — to buy
+     back a control nobody was reaching for. Reset goes with it and is no loss:
+     the clamp in applyView means you cannot get lost off the plate, and
+     pinching out to the floor shows the whole thing. */
+  .map-controls {
+    display: none;
+  }
+
+  /* Only the layer switch is left up there, and it is small. The wrapper still
+     takes the position so nothing has to know the other's width; pointer-events
+     step aside so the column's own gaps stay draggable map. */
+  .map-hud {
+    display: flex;
+    position: absolute;
+    inset: var(--sp-2) var(--sp-2) auto var(--sp-2);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-2);
+    pointer-events: none;
+  }
+
+  .map-hud > * {
+    position: static;
+    pointer-events: auto;
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 720px) {
+  /* The bar's height comes off, the same reason .chat-shell takes it off:
+     .app-main carries the fixed bottom bar's clearance, and a full 100dvh
+     would put the card's Ways out list underneath it. */
+  .map-shell {
+    height: calc(100dvh - var(--rail-h) - env(safe-area-inset-bottom, 0px));
+  }
 }
