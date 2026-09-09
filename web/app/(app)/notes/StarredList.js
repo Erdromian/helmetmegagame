@@ -5,6 +5,7 @@ import { unstarNote } from "./actions";
 import { useConfirm } from "../../components/ConfirmProvider";
 import Tooltip from "../../components/Tooltip";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import ChatMarkdown from "@/app/components/ChatMarkdown";
 import EmptyState from "@/app/components/EmptyState";
 import { useTableState, FilterBar } from "@/app/components/DataTable";
 import Pager from "@/app/components/Pager";
@@ -95,7 +96,15 @@ export default function StarredList({ notes }) {
                 </button>
               </Tooltip>
             </div>
-            <p className="whitespace-pre-wrap text-sm">{note.content}</p>
+            {/* The same renderer /play draws the line with. A starred card is a
+                verbatim copy of a scene line, so anything less than the scene's
+                own renderer shows the reader the plumbing: this used to be a
+                bare string, which meant a mention arrived as `{char:<cuid>}` and
+                a `**bold**` as asterisks. Note the two spellings a starred body
+                can carry — a Discord star copies `<@&roleId>`, a web star copies
+                the `{char:…}` token — and only a renderer running both passes
+                draws them the same. */}
+            <ChatMarkdown content={note.content} />
           </div>
         ))}
         {pageRows.length === 0 && <EmptyState>No starred messages match these filters.</EmptyState>}

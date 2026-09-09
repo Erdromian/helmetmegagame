@@ -421,7 +421,30 @@ one answer:
 | `FORCED` | a corpse; anyone holding an `INCAPACITATING_SLUGS` tag; a member of the faction you lead | attaches at once |
 | `CONSENTED` | somebody whose standing agreement to *you* has not lapsed | attaches at once |
 | `ASK` | any other living character standing with you | files an `ESCORT` `Offer` and DMs them |
-| `null` | not standing with you, hooded, yourself, buried, or already following somebody else | not offered |
+| `null` | not standing with you, hooded, yourself, buried, or **willingly** following somebody else | not offered |
+
+**Force beats an arrangement.** The three `FORCED` branches are reached
+*before* the `escortedById` guard, so a captor takes their prisoner off
+whoever is holding them, and the same goes for a corpse and for a member of
+the faction you lead. It read the other way round until a player found it:
+tie somebody up while they were walking with a friend, and the friend kept
+them, because asking first had won the column. `attach()` re-asserted the
+same rule in its `updateMany` WHERE, so it takes a `takeover` flag that only
+a `FORCED` verdict may pass — everybody else keeps the conditional write,
+because the race it guards is real: two people asking the same willing
+follower still resolve to one party.
+
+**A refusal says which rule refused** (`escortRefusal`, the opposite number of
+`escortReason`). It used to be one flat "You can't take them along", which on
+a picker that silently omits whoever it will not take reads as the game
+pretending somebody standing in front of you is not there. `hereWhere` has
+already dropped the far away, the hooded, the buried and yourself before a
+candidate is judged, so after the reordering above the only branch a
+co-located person can hit is *already with somebody* — and that is safe to
+say, because walking with somebody is plain to see. **Their leader is not
+named**: the refusal does not need it. The METAGAMING rule
+(`web/app/components/HereList.js`) is why the sentence arrives on the click
+rather than as a greyed row in the picker.
 
 Three things about it are easy to get wrong:
 

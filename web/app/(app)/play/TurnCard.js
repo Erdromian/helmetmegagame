@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { describeTurn } from "@/lib/turnFormat";
-import { EditIcon } from "@/app/components/icons";
 import { moveKindLabel } from "./MoveDialog";
 
 // When it is, when Moves stop being accepted, and what this character has
@@ -26,7 +25,7 @@ function untilLabel(closesAt, now) {
   return `closes in ${Math.max(1, Math.round(ms / 60_000))} m`;
 }
 
-export default function TurnCard({ turn, move, onFile, onEdit }) {
+export default function TurnCard({ turn, move, onFile }) {
   const [now, setNow] = useState(() => Date.now());
   const [open, setOpen] = useState(false);
 
@@ -54,34 +53,27 @@ export default function TurnCard({ turn, move, onFile, onEdit }) {
             {countdown}
           </span>
         )}
+        {move && <span className="chip">{moveKindLabel(move.kind)}</span>}
       </div>
 
       {move ? (
-        <div className="chat-move-filed">
-          <div className="chat-chips">
-            <span className="chip">{moveKindLabel(move.kind)}</span>
-            {move.editable ? (
-              <button type="button" className="btn-quiet" onClick={onEdit}>
-                <EditIcon />
-                Edit
-              </button>
-            ) : (
-              // Bound, Dying, out cold: the server refuses the edit, so say so
-              // here rather than drawing a button that can only fail.
-              move.blockedReason && <span className="chat-quiet-line">{move.blockedReason}</span>
-            )}
-          </div>
-          {/* Three lines, then it opens: a Move can be a paragraph, and the
-              column is not the place to read the whole of one by default. */}
-          <button
-            type="button"
-            className="chat-move-text"
-            data-open={open ? "true" : undefined}
-            onClick={() => setOpen((was) => !was)}
-          >
-            {move.description}
-          </button>
-        </div>
+        /* A filed Move is final, so there is nothing to press but the words
+           themselves. Its kind joins the chip row above rather than opening a
+           second one, and the text follows behind a » — the house mark for a
+           line quoting somebody's own words. Clamped until clicked: a Move can
+           be a paragraph, and neither surface is the place to read the whole
+           of one by default. */
+        <button
+          type="button"
+          className="chat-move-text"
+          data-open={open ? "true" : undefined}
+          onClick={() => setOpen((was) => !was)}
+        >
+          <span className="chat-move-mark" aria-hidden="true">
+            »
+          </span>
+          {move.description}
+        </button>
       ) : (
         <div className="chat-buttons">
           <button type="button" className="btn" disabled={turn.locked} onClick={onFile}>

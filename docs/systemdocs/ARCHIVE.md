@@ -130,6 +130,22 @@ purpose — the arrivals, deaths and moves they narrate are already in the fold,
 and showing both would print each one twice.
 No avatars, no jump links: the message wipe would have killed the links anyway.
 
+**The words go through `ChatMarkdown`**, the same renderer `/play` draws a line
+with, so a transcript reads the way the scene read. It used to go through
+`RichText`, which renders no Markdown at all — asterisks, `-#` and `||spoilers||`
+all reached the reader literally — *and* resolved the whole catalog, so a
+player could type `{tag:apex-form}` into a message and mint a live chip in the
+transcript. See `CHAT.md`'s renderer section for the scene-or-prose rule and
+the test that holds it.
+
+A **mention** in an archived line prints the name the room heard, off the token
+itself (`{char:<id>|<Name>}`, `PROXYING.md` §6) rather than a live lookup — so a
+disguise or a Mulligan rename after the fact cannot rewrite what a line said,
+the same reason `characterName`, `concealedAlias` and `presentedAvatarPath` are
+frozen columns beside the row. Rows written before that fall back to resolving
+live, and are not backfilled: stamping today's names onto them would be the
+rewrite the freeze exists to prevent.
+
 **The gate.** A past game is any signed-in user's to read. The current game is
 `GameState.archiveVisible` — GMs always, players only when it's on, enforced
 in the page and mirrored in the nav (which also shows the link whenever a

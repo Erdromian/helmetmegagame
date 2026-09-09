@@ -16,6 +16,7 @@ import { useDmState, seedNewestOutbound, addDmRow, noteDmReconnect } from "./dmS
 import NoticeCards from "./NoticeCards";
 import { ConverseDialog } from "./PlacePanel";
 import { addMember } from "./actions";
+import { mentionsCharacter } from "@/app/components/richTokens";
 import { playChime, chimedRecently } from "@/app/components/chime";
 import useChatChimeMuted, { chatChimeMuted } from "@/app/components/useChatChimeMuted";
 import { useSeen, markSeen, seedSeenIfFresh } from "./seenStore";
@@ -516,11 +517,13 @@ export default function Chat({
           // Somebody said your name. The token is what the row is made of on
           // both faces (CHAT.md §5), so this rings for a Discord-origin mention
           // exactly as it does for a web one — and never for your own words.
+          // mentionsCharacter knows both spellings of the token, so the chime
+          // could not stop ringing when the grammar grew a name half.
           if (
             self?.characterId &&
             !isOwnRow(row, self.characterId, self.speakerKey) &&
             typeof row.content === "string" &&
-            row.content.includes(`{char:${self.characterId}}`) &&
+            mentionsCharacter(row.content, self.characterId) &&
             !chatChimeMuted() &&
             !chimedRecently()
           ) {

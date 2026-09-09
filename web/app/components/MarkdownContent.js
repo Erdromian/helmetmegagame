@@ -1,5 +1,8 @@
+"use client";
+
 import ReactMarkdown from "react-markdown";
-import { BASE_PLUGINS, DISCORD_COMPONENTS } from "./markdownPlugins";
+import { MESSAGE_PLUGINS, DISCORD_COMPONENTS } from "./markdownPlugins";
+import MessageToken from "./messageTokens";
 
 // Renders Discord-message markdown (bold/italic/strikethrough/code/quotes/
 // links/lists) as real elements rather than raw asterisks — used anywhere a
@@ -15,16 +18,25 @@ import { BASE_PLUGINS, DISCORD_COMPONENTS } from "./markdownPlugins";
 // the one surface where text written FOR Discord is read on the web, so it
 // needs that pass more than anywhere else.
 //
+// And it renders the {kind:payload} tokens (remarkTokens), which it went
+// without for exactly the same reason and with exactly the same result: a
+// mention typed on either face is stored as `{char:<id>}`, so a DM quoting one
+// — or a starred line, or the transcript — printed a cuid in braces at the
+// reader. The vocabulary is messageTokens.js's short one, shared with
+// ChatMarkdown: a message may name a person, never mint a catalog chip.
+//
 // What it still deliberately does NOT get is remarkChat: no speech tint and no
 // spoilers. A DM is a GM and a player talking, not a scene.
+const COMPONENTS = { richtoken: MessageToken, ...DISCORD_COMPONENTS };
+
 export default function MarkdownContent({ content, className }) {
   if (!content) return null;
 
   return (
     <div className={`markdown-content ${className ?? ""}`}>
       <ReactMarkdown
-        remarkPlugins={BASE_PLUGINS}
-        components={DISCORD_COMPONENTS}
+        remarkPlugins={MESSAGE_PLUGINS}
+        components={COMPONENTS}
         disallowedElements={["img"]}
         unwrapDisallowed
       >

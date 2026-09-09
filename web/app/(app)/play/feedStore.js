@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { mentionsCharacter } from "@/app/components/richTokens";
 
 // The Play page's message store, modelled on the GM inbox's
 // web/app/(desk)/gm/players/liveInbox.js: module-level state read through
@@ -371,7 +372,7 @@ export function isNotableRow(place, row, selfId, selfKey = null) {
   // Your own words are not news, whichever handle the row carries.
   if (isOwnRow(row, selfId, selfKey)) return false;
   if (typeof place === "string" && place.startsWith("conv:")) return true;
-  return typeof row.content === "string" && row.content.includes(`{char:${selfId}}`);
+  return mentionsCharacter(row.content, selfId);
 }
 
 // The newest NOTABLE seq this tab holds for a place, as a string, or null.

@@ -637,69 +637,28 @@ sends `moveWindow(...).cutoffAt` as `closesAt`, and `TurnCard.js` renders
 `closes in N h` from it, or `locked` once the window has shut. Counting to
 `endsAt` told a player they had three hours they did not have.
 
-### 6a-i. Editing a Move already filed
+### 6a-i. A filed Move is final
 
-A filed Move can be **changed** until that same cutoff
-(`db/lib/moves.js#editMove`). The one-Move-a-turn row IS the turn — the
-`@@unique([characterId, turnId])` Action — so there is nothing to cancel and
-re-file; the row is edited in place. It refuses unless every one of these
-holds: the Move belongs to the character asking (ownership and the open turn
-are part of the *query*, never trusted from the post), **the player filed it
-themselves**, Moves are not locked, `status` is `PENDING_TYPE` or `CONFIRMED`,
-`moveReviewStatus` is `OPEN` or `PASSED` (anything else is a GM holding the
-row), the adjudication lock is not live, the character is not blocked from
-ACT (`db/lib/incapacitation.js` — a Bound or Dying character cannot change a
-Move any more than they could file one), and `appliedEffects` is still null.
-The audit row is `move_edited`, with `turnId` set, the previous kind, and
-`kindChanged` in `details`.
+There is no editing a Move once it is filed, and no cancelling one. The
+one-Move-a-turn row IS the turn — the `@@unique([characterId, turnId])`
+Action — so a player gets one Move and it stands. `db/lib/moves.js` exports
+`fileMove` and nothing else; the only way a filed Move changes now is a GM
+doing it from `/gm/dev`.
 
-**Not every Action on a turn was filed by the player.** A lesson writes the
-learner a Gambit and the teacher a Routine (`db/lib/lessons.js`), a confession
-writes the penitent one and the chaplain another (`db/lib/confession.js`), the
-auto-labor pass writes a Labor, a paid zone crossing writes a travel stub, and
-a GM can spend somebody's turn from the dev panel. All of them come out
-`CONFIRMED`/`OPEN` with `appliedEffects` null, which is exactly the shape Edit
-was written for — so they all used to be editable, and re-picking the kind on
-one would have rolled a fresh die for a lesson nobody re-taught. Every one of
-those writers stamps an **`auto:` marker into `gmNotes`**, and
-`moves.js#filedByPlayer` is the single test both faces run against it; the
-refusal is *"That turn is already spoken for."* `myMove` selects `gmNotes` for
-the same reason, so the Edit button is never drawn on one.
+It used to be editable until the cutoff (`editMove`), which brought a fair
+amount of machinery with it: `filedByPlayer` to keep a lesson's or an
+auto-Labor's Action out of a player's hands, and a **once-a-turn cap on
+changing the kind**, because changing kinds re-confirms the row and
+re-confirming rolls — so an uncapped Edit was a re-roll button you could flip
+Gambit → Routine → Gambit on all afternoon. None of that exists any more.
 
-Changing the KIND re-confirms the row: the old Gambit die and any Labor payout
-are cleared and `db/lib/moveConfirm.js#confirmMove` runs again, so switching
-into Gambit rolls a die and switching into Labor rolls the new range. Changing
-only the *text* touches neither — Edit is not a re-roll button, and a Gambit
-that already has a die keeps it.
+Old **`move_edited` rows stay in the audit log** and still render, through the
+`move_` prefix fallback in `web/lib/auditNarrative.js` — which never had a
+sentence for them. Nothing writes another.
 
-Which is why the kind change is **once a turn**. Re-confirming rolls, so an
-uncapped Edit was a re-roll button after all: flip Gambit → Routine → Gambit
-and the die is thrown again, all afternoon, for free. The cap is a ration
-counted off the audit log the way the other three are (`REQUESTS.md` §1a) —
-`move_edited` rows on this turn whose `details.kindChanged` is true — so it
-survives a reload and a second browser tab. A second attempt is refused with
-*"You can change what kind of Move it is once a turn."*, and the text stays
-editable regardless. `myMove` returns the same fact as `kindLocked`, which
-greys the dialog's kind chips and puts that sentence where the help line goes.
-
-The final write is an `updateMany` filtered on `appliedEffects: DbNull` and
-the editable statuses rather than a bare `update` on the id — the staged push
-claims rows under the same `DbNull` filter (`db/lib/stagedPush.js`), and
-between the read and the write a turn can close underneath an open dialog. A
-lost race edits nothing and answers *"That Move has already been settled."*
-
-An edit of a `PENDING_TYPE` row always re-confirms, whether or not the kind
-changed. That status is a draft abandoned half-way through the Discord
-dropdowns; the push skips it and the desk never shows it, so finishing the
-text and leaving it `PENDING_TYPE` would still have cost the player the turn
-silently.
-
-The Discord `#turns` console has no Edit twin yet. A player who filed in the
-Chat can still edit in Chat; a player who filed in Discord can also edit on
-the web, but not the other way round. ‡
-
-`web/lib/auditNarrative.js` has no `move_edited` entry, so `/gm/audit` renders
-that row as its raw slug until somebody writes the sentence.
+The `auto:` marker on `Action.gmNotes` outlives all of this: `db/lib/
+stagedPush.js` tests the same substring, and `web/lib/moves.js` reads the
+markers for the desk's labels.
 
 ## 7. Where the code lives
 

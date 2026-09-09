@@ -4,8 +4,7 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
-import { fileMove, editMove, filedByPlayer, kindChangeUsed } from "@lifeweb/db/lib/moves";
-import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
+import { fileMove } from "@lifeweb/db/lib/moves";
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
@@ -26,6 +25,7 @@ import {
 import {
   ESCORT_SELECT as MOVER_SELECT,
   escortAuthority,
+  escortRefusal,
   escortCandidates,
   partyOf,
   attach,
@@ -54,6 +54,7 @@ import { toggleConceal as concealRule } from "@lifeweb/db/lib/conceal";
 import { shout } from "@lifeweb/db/lib/shout";
 import { castDie } from "@lifeweb/db/lib/roll";
 import { addRoomGuest, removeRoomGuest, roomGuests } from "@lifeweb/db/lib/roomGuests";
+import { presentedNameOf, resolveMemberToken } from "@lifeweb/db/lib/presentedMembers";
 import { notifyPresence } from "@lifeweb/db/lib/presenceNotify";
 import { sceneLine } from "@lifeweb/db/lib/scene";
 import { parsePlaceKey, discordTargetForPlaceKey } from "@lifeweb/db/lib/placeKey";
@@ -618,7 +619,11 @@ export async function bringAlong(targetId) {
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
   const target = await prisma.character.findUnique({ where: { id: targetId ?? "" }, select: MOVER_SELECT });
   const verdict = escortAuthority(me.character, target, openTurn?.number ?? null);
-  if (!verdict) return { ok: false, error: "You can't take them along. ‡" };
+  // Says WHICH rule refused. The picker only lists people you can take, so a
+  // refusal here means the world moved between the list and the click, and
+  // "you can't" with no reason left the player staring at somebody standing
+  // in front of them.
+  if (!verdict) return { ok: false, error: escortRefusal(me.character, target) };
 
   if (verdict === "ASK") {
     if (!openTurn) return { ok: false, error: "No turn is open." };
@@ -628,7 +633,10 @@ export async function bringAlong(targetId) {
     return { ok: true, line: `You asked ${target.name} to come with you. ‡` };
   }
 
-  if (!(await attach(prisma, me.character.id, target.id))) {
+  // A FORCED target is taken, not agreed with, so somebody else holding the
+  // column is not a reason to refuse — escortAuthority already decided that
+  // above and attach must not re-decide it (db/lib/escort.js).
+  if (!(await attach(prisma, me.character.id, target.id, { takeover: verdict === "FORCED" }))) {
     return { ok: false, error: "Somebody else has them. ‡" };
   }
   return { ok: true, line: `${target.name} is with you. ‡` };
@@ -1199,14 +1207,10 @@ export async function submitMove({ moveKind, description } = {}) {
 // Polled beside waitingOnYou, so a Move filed from Discord shows up here
 // without a reload.
 //
-// `editable` is the same predicate db/lib/moves.js#editMove re-checks — a
-// hint for whether to draw the button, never the lock.
+// A filed Move is final, so what comes back is what it says and nothing about
+// changing it — no `editable`, no kind-change ration.
 export async function myMove() {
-  const me = await actor({
-    id: true,
-    discordUserId: true,
-    tags: { select: { tag: { select: { slug: true, name: true } } } },
-  });
+  const me = await actor({ id: true });
   if (me.error) return { ok: false, error: me.error };
 
   const openTurn = await prisma.turn.findFirst({
@@ -1223,28 +1227,10 @@ export async function myMove() {
         id: true,
         moveKind: true,
         description: true,
-        status: true,
-        moveReviewStatus: true,
-        lockExpiresAt: true,
-        appliedEffects: true,
-        // The `auto:` marker that says a lesson, a confession, the auto-labor
-        // pass or a travel stub wrote this row rather than the player
-        // (db/lib/moves.js#filedByPlayer). Without it the Edit button is
-        // offered on a Move nobody filed.
-        gmNotes: true,
       },
     }),
   ]);
   const { cutoffAt, locked, hasLock } = moveWindow(openTurn, { clockFrozen: frozen });
-
-  // The same gate editMove runs (db/lib/incapacitation.js): a Bound or Dying
-  // character cannot change a Move any more than they could file one, so the
-  // button is not drawn rather than drawn and refused.
-  const stuck = blockerFor(me.character.tags ?? [], ACT);
-
-  // Whether the one kind change a turn has already been spent. The dialog
-  // disables the chips with it; db/lib/moves.js#editMove is the lock.
-  const kindLocked = action && !stuck ? await kindChangeUsed(prisma, me.character.id, openTurn.id) : false;
 
   return {
     ok: true,
@@ -1260,59 +1246,10 @@ export async function myMove() {
       locked,
       hasLock,
     },
-    move: action
-      ? {
-          id: action.id,
-          kind: action.moveKind,
-          description: action.description,
-          editable: !stuck && moveIsEditable(action, locked),
-          // Said in the dialog and in place of the button, so a refusal is
-          // never the first the player hears of it.
-          blockedReason: stuck ? `You can't act right now — you're ${stuck.name}. ‡` : null,
-          kindLocked,
-        }
-      : null,
+    move: action ? { id: action.id, kind: action.moveKind, description: action.description } : null,
   };
 }
 
-// Kept beside myMove rather than exported: the page's first paint runs the
-// same test on the row it loaded itself (web/app/(app)/play/page.js).
-function moveIsEditable(action, locked) {
-  if (locked) return false;
-  // A row the game wrote for them — a lesson, a confession, an auto-Labor, a
-  // walk — is not theirs to change (db/lib/moves.js#filedByPlayer).
-  if (!filedByPlayer(action)) return false;
-  if (!["PENDING_TYPE", "CONFIRMED"].includes(action.status)) return false;
-  if (!["OPEN", "PASSED"].includes(action.moveReviewStatus)) return false;
-  if (action.lockExpiresAt && new Date(action.lockExpiresAt).getTime() > Date.now()) return false;
-  return action.appliedEffects == null;
-}
-
-// Changing a Move already filed. The one-Move-a-turn row IS the turn, so
-// there is nothing to cancel and re-file — db/lib/moves.js#editMove edits it
-// in place, and re-rolls only when the KIND changed (never a second die for
-// a Gambit that already has one).
-export async function updateMove({ actionId, moveKind, description } = {}) {
-  const me = await actor();
-  if (me.error) return { ok: false, error: me.error };
-  const result = await editMove(prisma, {
-    character: me.character,
-    actorDiscordUserId: me.discordUserId,
-    actionId,
-    moveKind,
-    description,
-  });
-  if (!result.ok) return { ok: false, error: result.error };
-
-  const parts = ["Changed. The GMs have it. ‡"];
-  const roll = result.roll;
-  if (roll?.gambit) parts.push("The die is cast — you'll see how it fell when the turn ends. ‡");
-  if (roll?.resourceValue != null) {
-    parts.push(`Your day's work (${roll.expression}) came to ${roll.resourceValue > 0 ? "+" : ""}${roll.resourceValue} ⬢. ‡`);
-    if (roll.bonusNote) parts.push(roll.bonusNote);
-  }
-  return { ok: true, line: parts.join(" ") };
-}
 
 // The Bascinet conversation (CHAT.md §2b): everything the game has said to
 // this player by DM, and what they wrote back. The SAME rows the GM desk
@@ -1804,7 +1741,7 @@ export async function lookAt(personRef) {
 
 // The conversation behind a `conv:` key, plus whether this character is in
 // it. Being a member IS the permission, the same gate the bot applies.
-async function conversationHere(character, placeKey) {
+async function conversationHere(character, placeKey, { sightings = null } = {}) {
   const parsed = parsePlaceKey(placeKey);
   if (!parsed || parsed.kind !== "conv") return { error: "That isn't a conversation." };
   const conversation = await prisma.playerThread.findUnique({
@@ -1812,11 +1749,25 @@ async function conversationHere(character, placeKey) {
     select: { id: true, threadId: true, name: true, locationId: true, location: { select: { name: true } } },
   });
   if (!conversation) return { error: "That conversation is gone." };
-  const members = await conversationMembers(prisma, conversation.id);
-  if (!members.some((entry) => entry.characterId === character.id)) {
+
+  // The raw ids stay HERE, on the server. `members` is the presented list and
+  // carries no id for anybody in a hood (db/lib/presentedMembers.js) — which
+  // is also why the membership gate below is answered off `memberIds` rather
+  // than off the rows: your own row is a hood like any other when you are
+  // wearing one, and matching on a withheld id would lock you out of your own
+  // conversation.
+  const memberIds = (
+    await prisma.playerThreadMember.findMany({
+      where: { playerThreadId: conversation.id },
+      orderBy: { createdAt: "asc" },
+      select: { characterId: true },
+    })
+  ).map((row) => row.characterId);
+  if (!memberIds.includes(character.id)) {
     return { error: "You're not in this conversation. ‡" };
   }
-  return { conversation, members };
+  const members = await conversationMembers(prisma, conversation.id, character, { sightings });
+  return { conversation, members, memberIds };
 }
 
 // The private room behind a `room:` key. Two things, not one: your feet at its
@@ -1855,12 +1806,20 @@ export async function placeMembers(placeKey) {
     return { ok: true, members: null, candidates: [] };
   }
 
+  // One sightings Map for the whole answer. It is what decides whether a mask
+  // is DRAWN on a member row (PROXYING.md §5a) — standing somewhere is public,
+  // what is over your face is not — and the strip and the HERE column above it
+  // must agree about it, so they read the same one rather than each asking.
+  const sightings = await lastSightings(prisma, me.character);
+
   let members;
+  let memberIds = [];
   let room = null;
   if (parsed.kind === "conv") {
-    const found = await conversationHere(me.character, placeKey);
+    const found = await conversationHere(me.character, placeKey, { sightings });
     if (found.error) return { ok: false, error: found.error };
     members = found.members;
+    memberIds = found.memberIds;
   } else {
     const found = await privateRoomHere(me.character, placeKey);
     // A public room is not a refusal, it is a place with no strip.
@@ -1870,14 +1829,24 @@ export async function placeMembers(placeKey) {
         : { ok: false, error: found.error };
     }
     room = found.room;
-    members = await roomGuests(prisma, room.id);
+    memberIds = (
+      await prisma.roomGuest.findMany({
+        where: { roomId: room.id },
+        orderBy: { createdAt: "asc" },
+        select: { characterId: true },
+      })
+    ).map((row) => row.characterId);
+    members = await roomGuests(prisma, room.id, me.character, { sightings });
   }
 
   // Everyone standing here who is not already in. Concealed people are
   // absent: a hood has no id to hand this, and letting somebody into a room
   // is not a thing you can do to a person you cannot name.
   const here = await whosHere(prisma, me.character);
-  const inside = new Set(members.map((entry) => entry.characterId));
+  // Off the raw ids, not off `members` — a hooded member carries no id, so
+  // testing the presented rows would offer them in the picker as somebody
+  // outside and let them be "added" to a place they are already in.
+  const inside = new Set(memberIds);
   let candidates = (here.named ?? [])
     .filter((person) => person.characterId !== me.character.id && !inside.has(person.characterId))
     .map((person) => ({
@@ -1952,12 +1921,16 @@ export async function addMember(placeKey, characterId) {
       { kind: DM_KIND.QUIET },
     ).catch(() => {});
 
+    // The presented name in the sentence, not the real one. Adding somebody is
+    // the moment the strip redraws, so this was the line that announced who
+    // was under the hood you had just invited.
+    const shown = await presentedNameOf(prisma, target.id, me.character);
     return {
       ok: true,
       line:
         target.locationId === conversation.locationId
-          ? `${target.name} was added.`
-          : `${target.name} is invited — they'll see this when they reach ${conversation.location?.name ?? "this place"}. ‡`,
+          ? `${shown} was added.`
+          : `${shown} is invited — they'll see this when they reach ${conversation.location?.name ?? "this place"}. ‡`,
     };
   }
 
@@ -1984,7 +1957,25 @@ export async function addMember(placeKey, characterId) {
   return { ok: true, line: result.line };
 }
 
-export async function removeMember(placeKey, characterId) {
+// A character id or a hood token, resolved against the roster of the place
+// the caller has already gated on. Anything that is not a token is passed
+// through as an id and re-checked downstream, which is where a bad id was
+// always going to be refused anyway.
+function resolveMemberRef(ref, memberIds) {
+  const raw = String(ref ?? "").trim();
+  if (!HOOD_TOKEN.test(raw)) return raw;
+  return resolveMemberToken(memberIds, raw);
+}
+
+// `ref` is a character id, or the opaque hood token a concealed member's row
+// carries instead of one (db/lib/presentedMembers.js). Same pair /look takes,
+// and told apart the same way: a token is 32 hex characters and a cuid never
+// is, so the browser never says which it sent.
+//
+// The token resolves only inside the roster of the place it was minted from,
+// which is what makes handing it out safe — it can name somebody in a room you
+// are in and nobody anywhere else.
+export async function removeMember(placeKey, ref) {
   const me = await actor({ id: true, name: true, locationId: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };
   const parsed = parsePlaceKey(placeKey);
@@ -1993,7 +1984,8 @@ export async function removeMember(placeKey, characterId) {
   if (parsed.kind === "conv") {
     const found = await conversationHere(me.character, placeKey);
     if (found.error) return { ok: false, error: found.error };
-    const { conversation } = found;
+    const { conversation, memberIds } = found;
+    const characterId = resolveMemberRef(ref, memberIds);
 
     // ALIVE, the same gate the bot's /remove applies and the same one
     // addMember above already applies: a dead character is off the roster on
@@ -2017,16 +2009,22 @@ export async function removeMember(placeKey, characterId) {
       );
     }
 
-    return { ok: true, line: `${target.name} was removed.` };
+    // The presented name. Showing somebody out is not the moment to announce
+    // who was under the hood.
+    const shown = await presentedNameOf(prisma, target.id, me.character);
+    return { ok: true, line: `${shown} was removed.` };
   }
 
   const found = await privateRoomHere(me.character, placeKey);
   if (found.error) return { ok: false, error: found.error };
 
+  const guestIds = (
+    await prisma.roomGuest.findMany({ where: { roomId: found.room.id }, select: { characterId: true } })
+  ).map((row) => row.characterId);
   const result = await removeRoomGuest(prisma, {
     actor: me.character,
     roomId: found.room.id,
-    characterId,
+    characterId: resolveMemberRef(ref, guestIds),
   });
   if (!result.ok) return { ok: false, error: result.error };
 

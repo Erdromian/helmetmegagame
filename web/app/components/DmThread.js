@@ -132,7 +132,11 @@ function LetterBody({ message }) {
         {meta.replierName && <span className="dm-letter-from">from {meta.replierName}</span>}
       </div>
       {meta.sealed && meta.sealMark && <p className="dm-letter-seal">Sealed. {meta.sealMark}</p>}
-      {text && <div className="dm-letter-text">{text}</div>}
+      {/* Through the renderer, like every other body in this thread. It was a
+          raw string, which is how a letter carrying a mention or a `<t:…>`
+          reached its reader as literal characters — the same gap that put a
+          raw `<t:1757700120:F>` in a lobby DM, one component further down. */}
+      {text && <MarkdownContent content={text} className="dm-letter-text" />}
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { useTableState, FilterBar } from "@/app/components/DataTable";
 import Pager from "@/app/components/Pager";
 import EmptyState from "@/app/components/EmptyState";
 import IconButton from "@/app/components/IconButton";
-import RichText from "@/app/components/RichText";
+import ChatMarkdown from "@/app/components/ChatMarkdown";
 import { EditIcon, TrashIcon, PinIcon } from "@/app/components/icons";
 import { deleteEntry, togglePin } from "./journalActions";
 
@@ -27,9 +27,21 @@ const SORT_OPTIONS = [
 
 // A body long enough to want a fold. Mirrors ExpandableText.js's own
 // character-count heuristic, but that component renders a plain string —
-// this page needs the same clamp-and-More behaviour around RichText's mixed
-// text+chip children instead, so it's a small local twin rather than a prop
-// ExpandableText doesn't have a use for anywhere else.
+// this page needs the same clamp-and-More behaviour around a rendered body
+// instead, so it's a small local twin rather than a prop ExpandableText
+// doesn't have a use for anywhere else.
+//
+// The body goes through ChatMarkdown, the same renderer /play draws a line
+// with. It used to be RichText, which resolved the tokens but rendered no
+// Markdown at all, so a journal entry showed its author literal asterisks —
+// and RichText is the FULL catalog resolver, which meant a player could type
+// {tag:apex-form} into their own journal and mint a live chip out of it.
+// A journal body is player-typed text and gets the short vocabulary.
+//
+// `whitespace-pre-wrap` is gone with it: Markdown owns the layout now, so a
+// blank line is a paragraph and a single newline folds, the way it already
+// does everywhere else the same words could be read. (Not remark-breaks —
+// teaching one surface a different rule is what this change is undoing.)
 function EntryBody({ text }) {
   const [open, setOpen] = useState(false);
   const clean = (text ?? "").trim();
@@ -38,24 +50,24 @@ function EntryBody({ text }) {
   const overflows = clean.length > 320 || clean.split("\n").length > 4;
   if (!overflows) {
     return (
-      <span className="block whitespace-pre-wrap text-sm">
-        <RichText text={clean} />
-      </span>
+      <div className="text-sm">
+        <ChatMarkdown content={clean} />
+      </div>
     );
   }
 
   return (
     <>
-      <span
-        className="block whitespace-pre-wrap text-sm"
+      <div
+        className="text-sm"
         style={
           open
             ? undefined
             : { display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 4, overflow: "hidden" }
         }
       >
-        <RichText text={clean} />
-      </span>
+        <ChatMarkdown content={clean} />
+      </div>
       <button type="button" className="btn-quiet" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
         {open ? "Less" : "More"}
       </button>

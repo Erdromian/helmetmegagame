@@ -6,6 +6,22 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · A filed Move is final, and the rope beats the arrangement
+
+− A Move can no longer be edited once it is filed. You get one Move a turn and it stands; only a GM changes one now
+✎ The filed Move reads on one line on the sheet — its kind joins the turn chips, its words sit under them — instead of opening a second row that tripled the box
+✚ You can now take a prisoner off whoever is walking with them. Tying somebody up used to lose to a friend who had asked first, so a captor could not take their own captive
+✎ Corpses and members of a faction you lead come off somebody else's party the same way. A willing follower still doesn't — you ask a person, you don't take them
+✎ Being told you can't take somebody now says why, instead of the person quietly not being in the list at all
+
+## 2026-09-09 · A name in an old line stays the name that was said
+
+✎ Starred lines, journal entries and the transcript now read the way a line reads in the hall — they were showing raw braces and asterisks instead  
+✎ Mentioning somebody records the name they were going by, so putting on a disguise or taking a new name no longer rewrites what an old line said  
+✎ A conversation's member list shows somebody hooded as a stranger, instead of naming them and drawing their face  
+✚ The @-mention role follows a disguise now, colour and all  
+✎ A journal entry no longer names or draws a disguised character
+
 ## 2026-09-09 · The caves roll the die every time you walk in, not just the first
 
 ✎ Walking back into a cave location you already saw today rolls the Caving Die again — retreating through the dark is still walking through the dark  

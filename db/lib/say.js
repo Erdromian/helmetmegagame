@@ -29,7 +29,7 @@ const {
   presentedIdentity,
 } = require("./presentedIdentity");
 const { mayWritePlace, slowmodeMsFor } = require("./feedAccess");
-const { rolesToTokens } = require("./characterMentions");
+const { rolesToTokens, stampMentionNames } = require("./characterMentions");
 const { noteChant } = require("./riteChant");
 
 // Discord's own ceiling for a message. Kept on the web side too, because the
@@ -183,7 +183,16 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
   // the web renders and the outbox translates back (PROXYING.md §6,
   // db/lib/characterMentions.js). A web send needs no translation in this
   // direction: its composer already writes tokens.
-  const rowContent = source === "DISCORD" ? await rolesToTokens(prisma, text) : text;
+  //
+  // Then every mention is stamped with the name its subject is presenting now,
+  // so the row freezes who it named the same way it already freezes who said
+  // it. Both faces, unconditionally: the web composer writes a name in as it
+  // inserts the chip and this OVERWRITES it, because a server action is a
+  // public endpoint and a posted name is a claim, not a fact.
+  const rowContent = await stampMentionNames(
+    prisma,
+    source === "DISCORD" ? await rolesToTokens(prisma, text) : text,
+  );
 
   // Which name and face this goes out under: forced > concealed > own
   // (db/lib/presentedIdentity.js). Read off the character, never off the
@@ -351,7 +360,14 @@ async function editSpeech(prisma, { characterId, seq, content, gm = false } = {}
   // row has to store as a token; a ✎ on the web already wrote one. Running it
   // unconditionally is safe because rolesToTokens only ever touches a role id
   // that IS a character's name token.
-  const text = await rolesToTokens(prisma, transformed);
+  //
+  // The stamp re-runs over the whole edited text, so a mention ADDED by an
+  // edit freezes the name as it is now. That does re-date a mention the edit
+  // kept, which is the right trade: an edit is fresh writing, the window for
+  // one is five minutes (EDIT_WINDOW_MS), and the alternative is diffing two
+  // strings to decide which tokens are old — a great deal of machinery to
+  // preserve a name that is five minutes stale at worst.
+  const text = await stampMentionNames(prisma, await rolesToTokens(prisma, transformed));
 
   const updated = await prisma.archiveEntry.update({
     where: { id: row.id },

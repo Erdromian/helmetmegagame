@@ -28,7 +28,7 @@
 // barrel — the db/lib/dm.js convention. Require it by path.
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
 const { isUnaffiliated } = require("./factionConstants");
-const { hereWhere } = require("./presence");
+const { hereWhere, notHereMessage } = require("./presence");
 const { escortButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 
@@ -92,10 +92,13 @@ function escortAuthority(leader, target, turnNumber = null) {
   // Location grain, and a corpse is where it lies. Deliberately stricter than
   // the old canDrag, which reached across the whole zone.
   if (target.locationId !== leader.locationId) return null;
-  // Already somebody else's. One leader per follower is the column's own
-  // rule; this is what stops two people tugging at the same prisoner.
-  if (target.escortedById && target.escortedById !== leader.id) return null;
 
+  // FORCE COMES FIRST, and that ordering is the whole point of this block.
+  // The `escortedById` guard below used to sit above these three, so a
+  // friendly arrangement outranked the rope: tie somebody up while they were
+  // walking with a friend and their captor could not take them, because the
+  // friend had the column. A prisoner is not somebody's to keep by having
+  // asked first.
   if (target.status === "DEAD") return "FORCED";
   if (target.status !== "ALIVE") return null;
   // The presence rule, mirrored from db/lib/presence.js#isHere: a hood is the
@@ -111,6 +114,13 @@ function escortAuthority(leader, target, turnNumber = null) {
   if (!isUnaffiliated(leader.faction) && leader.isLeader && target.factionId && target.factionId === leader.factionId) {
     return "FORCED";
   }
+
+  // Somebody else's, and willingly — which is the only kind of follower this
+  // still stops. One leader per follower is the column's own rule, and for
+  // the willing it is also the manners: you ask a person, you don't take them
+  // off somebody. A FORCED target reached its verdict above and never gets
+  // here.
+  if (target.escortedById && target.escortedById !== leader.id) return null;
 
   if (
     turnNumber != null &&
@@ -134,6 +144,29 @@ function escortReason(target, verdict) {
   if (stopper) return stopper.tag.name.toLowerCase();
   if (verdict === "FORCED") return "your faction";
   return null;
+}
+
+// Why they CANNOT be taken, for the answer a click gets. escortReason above
+// is its opposite number and only speaks for people who passed.
+//
+// It exists because the refusal used to be one flat "You can't take them
+// along", which on a picker that silently omits whoever it won't take reads
+// as the game pretending a person standing in front of you isn't there.
+//
+// hereWhere() has already dropped the far away, the hooded, the buried and
+// yourself before a candidate is ever judged, so the branch that actually
+// fires is the last one — and since force now outranks an arrangement, that
+// branch can only be a WILLING follower, whose walking with somebody is
+// plain to see anyway. Their leader is deliberately not named: the refusal
+// does not need it, and naming them would say more than the player asked.
+function escortRefusal(leader, target) {
+  if (!target) return "They aren't here any more. ‡";
+  if (target.buriedAt) return "They're in the ground.";
+  // The one wording every "they aren't here" refusal in the game shares
+  // (db/lib/presence.js), so this one does not invent a second.
+  if (!leader?.locationId || target.locationId !== leader.locationId) return notHereMessage(target);
+  if (target.escortedById && target.escortedById !== leader.id) return "They're already with somebody. ‡";
+  return "You can't take them along. ‡";
 }
 
 // Everyone standing here, each with its verdict. The panel draws the lot:
@@ -177,10 +210,20 @@ async function partyOf(prisma, leaderId, { tx = null } = {}) {
 // updateMany: the WHERE re-asserts that nobody else has claimed them between
 // the check and the write, so two leaders clicking at once means one party
 // and one "somebody just took them".
-async function attach(prisma, leaderId, targetId, { tx = null } = {}) {
+//
+// `takeover` drops that clause, and only a FORCED verdict may pass it — a
+// corpse, anyone helpless, a member of the faction you lead. Those three are
+// taken rather than agreed with, so somebody else already holding the column
+// is not a reason to refuse; escortAuthority reaches their verdict without
+// ever looking at it. The conditional WHERE stays the default because the
+// race it guards is real for everybody else: two people asking the same
+// willing follower still resolve to one party.
+async function attach(prisma, leaderId, targetId, { tx = null, takeover = false } = {}) {
   const db = tx ?? prisma;
   const claimed = await db.character.updateMany({
-    where: { id: targetId, OR: [{ escortedById: null }, { escortedById: leaderId }] },
+    where: takeover
+      ? { id: targetId }
+      : { id: targetId, OR: [{ escortedById: null }, { escortedById: leaderId }] },
     data: { escortedById: leaderId },
   });
   return claimed.count > 0;
@@ -309,6 +352,7 @@ module.exports = {
   ESCORT_SELECT,
   escortAuthority,
   escortReason,
+  escortRefusal,
   escortCandidates,
   partyOf,
   attach,

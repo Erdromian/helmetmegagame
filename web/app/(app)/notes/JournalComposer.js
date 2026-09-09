@@ -4,7 +4,7 @@ import { useLayoutEffect, useMemo, useRef, useState, useTransition } from "react
 import Modal from "@/app/components/Modal";
 import CheckField from "@/app/components/CheckField";
 import FormError from "@/app/components/FormError";
-import RichText from "@/app/components/RichText";
+import ChatMarkdown from "@/app/components/ChatMarkdown";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { JOURNAL_TITLE_MAX_LENGTH, JOURNAL_BODY_MAX_LENGTH, JOURNAL_MAX_LABELS } from "@/lib/constants";
@@ -223,9 +223,14 @@ function JournalComposerBody({ entry, roster, currentTurnNumber, onClose }) {
           </div>
         </label>
 
-        {value.includes("{char:") && (
+        {/* The preview draws through the same renderer JournalList will, so
+            what somebody sees here is what they are about to save. Shown once
+            there is anything to preview rather than only for a mention: the
+            body renders Markdown now, so a `**bold**` is worth seeing back
+            too. */}
+        {value.trim() && (
           <div className="panel p-3 text-sm">
-            <RichText text={value} />
+            <ChatMarkdown content={value} />
           </div>
         )}
 

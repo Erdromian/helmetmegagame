@@ -58,7 +58,8 @@ const { buildMoveModal } = require("../lib/moveModal");
 const { confirmMove } = require("../lib/moveConfirm");
 const { buildSpeakModal } = require("../lib/speakModal");
 const { canSpeakInTarget } = require("../lib/speakTargets");
-const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/interactionGuild");
+const { resolveActingMember, isGmMember, findAliveCharacter, actingCharacter } = require("../lib/interactionGuild");
+const { presentedNameOf } = require("@lifeweb/db/lib/presentedMembers");
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const { postAsCharacterTo, loadVoiceState } = require("../lib/proxy");
 const { prepareSpeech, recordSpeech } = require("@lifeweb/db/lib/say");
@@ -377,6 +378,13 @@ async function handleThreadMemberCommand(interaction, action) {
     return;
   }
 
+  // What to CALL them in the three sentences below. `target.name` is the real
+  // one and these said it out loud, in a channel, about somebody who might be
+  // standing there in a hood — so the whole point of the disguise came apart
+  // at the door. presentedNameOf is the same resolver the web strip and the
+  // HERE column go through (db/lib/presentedMembers.js).
+  const shown = await presentedNameOf(prisma, target.id, await actingCharacter(interaction, { select: { id: true } }));
+
   if (action === "remove") {
     // The ROW is what membership is now (db/lib/conversations.js); the thread
     // member list below is its projection.
@@ -391,7 +399,7 @@ async function handleThreadMemberCommand(interaction, action) {
       await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.*");
       return;
     }
-    await respond(interaction, `» *${target.name} was removed.*`, { fleeting: true });
+    await respond(interaction, `» *${shown} was removed.*`, { fleeting: true });
     return;
   }
 
@@ -418,12 +426,12 @@ async function handleThreadMemberCommand(interaction, action) {
       console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err);
     }
     await notifyLetIn(interaction, target, row.name, row.location?.name, channel.id);
-    await respond(interaction, `» *${target.name} was added.*`, { fleeting: true });
+    await respond(interaction, `» *${shown} was added.*`, { fleeting: true });
     return;
   }
   await respond(
     interaction,
-    `» *${target.name} is invited — they'll see this when they reach ${row.location?.name ?? "this place"}.*`,
+    `» *${shown} is invited — they'll see this when they reach ${row.location?.name ?? "this place"}.*`,
     { fleeting: true },
   );
 }
@@ -480,8 +488,12 @@ async function handleRoomGuestCommand(interaction, action, room) {
     await respond(interaction, "» *That isn't a living character's role.*");
     return;
   }
+  // What to CALL them, for the same reason the conversation half above does
+  // it: a door opening or refusing is not the moment to say who is under the
+  // hood standing in front of it.
+  const shown = await presentedNameOf(prisma, target.id, await actingCharacter(interaction, { select: { id: true } }));
   if (target.locationId !== room.locationId) {
-    await respond(interaction, `» *${target.name} isn't here to be let in.*`);
+    await respond(interaction, `» *${shown} isn't here to be let in.*`);
     return;
   }
 
@@ -498,7 +510,7 @@ async function handleRoomGuestCommand(interaction, action, room) {
     // Calling with an undefined id fails, and the catch below would report it
     // as a missing bot permission — a wrong answer to a question nobody asked.
     if (!target.discordUserId) {
-      await respond(interaction, `» *${target.name} was shown out.*`, { fleeting: true });
+      await respond(interaction, `» *${shown} was shown out.*`, { fleeting: true });
       return;
     }
     try {
@@ -511,7 +523,7 @@ async function handleRoomGuestCommand(interaction, action, room) {
       await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.*");
       return;
     }
-    await respond(interaction, `» *${target.name} was shown out.*`, { fleeting: true });
+    await respond(interaction, `» *${shown} was shown out.*`, { fleeting: true });
     return;
   }
 
@@ -540,7 +552,7 @@ async function handleRoomGuestCommand(interaction, action, room) {
     }
   }
   await notifyLetIn(interaction, target, room.name, room.location?.name, room.discordThreadId);
-  await respond(interaction, `» *${target.name} was let in.*`, {
+  await respond(interaction, `» *${shown} was let in.*`, {
     fleeting: true,
   });
 }
