@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The turn's effects read as one line
+
+✎ What the turn will change now reads as one wrapping line separated by dots, instead of a list that made the box taller than the turn card beside it
+✎ Past three effects the rest fold behind a "+N more"
+✎ The Butcher button's icon is a ham. It was meant to be a cleaver, but an outlined rectangle at that size reads as a saucepan
+− The Carrying tile no longer opens a breakdown when clicked — it is a number like the three beside it
+
 ## 2026-09-09 · A burial and an engraving are heard where they happen
 
 
