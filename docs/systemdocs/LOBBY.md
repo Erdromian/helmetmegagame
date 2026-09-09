@@ -183,8 +183,8 @@ in `after()`, one at a time:
 **You're in. You are the Sheriff.**
 The Town. You start in Town.
 Build your character here: https://ravenheart.quest/character
-The seat is yours until <t:…:F> (<t:…:R>). After that it opens to anyone.
--# Can't make it? Press Decline and the seat goes to somebody else. ‡
+The seat is yours until <t:…:F> (<t:…:R>).
+-# Can't make it? Free the seat up by pressing Decline.
 [ Decline the seat ]
 ```
 
@@ -201,7 +201,7 @@ one-line DM pointing at late join.
 - past `expiresAt`, the entry goes **EXPIRED** — which frees the seat — and
   the player is told late join is open.
 
-`creationWindowHours` is a `GameConfig` knob (default 24).
+`creationWindowHours` is a `GameConfig` knob (default 12).
 
 **Who is mid-window is visible to every GM**, on the Dev Panel's Assignments
 section as **Seats out** (`DEV-PANEL.md` §11b): the ASSIGNED entries with no
