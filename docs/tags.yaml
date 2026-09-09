@@ -3237,18 +3237,6 @@ tags:
     purchasableAfterStart: false
     durationTurns: 2
 
-  mindreading:
-    catalog: gm
-    name: Mindreading
-    category: status
-    group: status-buffs
-    description: "You can use a Gambit to figure out a person's last fulfilled Desire — failure on 1–3, success on 4–6. You must have spoken to them for a while during that turn."
-    pointCost: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    durationTurns: 2
-
   invisible:
     catalog: gm
     name: Invisible
@@ -3645,7 +3633,7 @@ tags:
     name: Bruised
     category: health
     group: health-wounds
-    description: "Tender and purple, it'll heal on its own."
+    description: "Your wound is tender and purple, but it'll heal."
     pointCost: 0
     visible: true
     purchasable: false
@@ -11305,38 +11293,6 @@ tags:
       - pheromones
     sellable: true
     sellablePrice: 5
-
-  succubus-draught:
-    catalog: all
-    name: Succubus Draught
-    category: items
-    group: items-drink
-    description: "A reddish draught. Can be consumed to gain {tag:mindreading}."
-    pointCost: 0
-    tradeable: true
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    consumable: true
-    consumesInto:
-      - mindreading
-    requirement:
-      turnsCost: 1
-      # 2 -> 8. The lover's blood was the gate and it is gone; mindreading for
-      # 2 ⬢ and nothing else would be the cheapest power in the game. ‡
-      resourceCost: 8
-      skills: [brewing-skilled]
-      gambit: false
-      # A real gate again (Chris 2026-09-07): pheromones are gm-catalog, so
-      # this is a HIDDEN recipe now — a butcher's find teaches it.
-      items: [nekker-pheromones]
-    sellable: true
-    # 7 -> 18 with the ingredient: 7 sat below the 8 ⬢ cost alone, and the
-    # pheromones sell for 5 on their own.
-    sellablePrice: 18
 
   raven-draught:
     catalog: all

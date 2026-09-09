@@ -6,6 +6,20 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The edit refusal just says no
+
+✎ Trying to edit something older than five minutes now says "You can't edit that any more." instead of explaining itself
+
+## 2026-09-09 · Mind reading is out of the game
+
+− Mindreading and the Succubus Draught are gone: the tags, the brewing recipe, the row on the player's recipe paper and the BREWING.md entry  
+✎ Bruised says the wound will heal
+
+## 2026-09-09 · The tags say what they are, not what you have
+
+✎ 328 tag descriptions rewritten from the player's pass: object-first wording instead of "You have a…", and the effect stated plainly  
+✎ Relentless costs 7 ⬢ instead of 9 ⬢
+
 ## 2026-09-09 · Both turrets say the same short thing
 
 ✎ The turret lines are much shorter, and both guns now use the same wording — hit, graze, death and the sounds in the yard  
