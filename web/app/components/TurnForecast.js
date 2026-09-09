@@ -1,17 +1,27 @@
 "use client";
 
+import { useState } from "react";
 import { ATE_MEAL_SLUG, FAST_METABOLISM_SLUG, HUNGERLESS_SLUG } from "@lifeweb/db/lib/constants";
 import { chainTokens } from "@/lib/tagChains";
 import ChipText from "./ChipText";
 
-// What changes when the turn turns, as a short list: the tags that run out or
-// become something worse, the crafts and builds that finish, the road you
-// arrive at the end of, and whether there is dinner. Every line is derived
+// What changes when the turn turns, as one wrapping line: the tags that run
+// out or become something worse, the crafts and builds that finish, the road
+// you arrive at the end of, and whether there is dinner. Every item is derived
 // from what the sheet already loaded — nothing here is a second opinion, only
 // the turn passes read forward one step (db/lib/tagExpiryPass.js,
 // hungerPass.js, craft and structure passes, locationTravel.js).
 //
+// The items read INLINE, separated by · rather than one to a line. As a list
+// four short clauses made the box taller than the turn card beside it, for
+// four sentences of six words each. Nothing here ends in a full stop for the
+// same reason — a period before a separator is noise.
+//
 // Renders nothing when nothing changes, so a quiet turn costs no space.
+
+// How many read before the fold. Past this the rest hide behind a +N more.
+const SHOWN = 3;
+
 export default function TurnForecast({
   tags = [],
   openTurnNumber = null,
@@ -20,8 +30,9 @@ export default function TurnForecast({
   travellingTo = null,
   resources = 0,
 }) {
+  const [open, setOpen] = useState(false);
   if (openTurnNumber == null) return null;
-  const lines = [];
+  const items = [];
 
   // A tag on its last turn: either it simply ends, or its chain says what it
   // turns into (TAGS.md §5c). expiresTurn is the absolute turn it is swept
@@ -29,16 +40,16 @@ export default function TurnForecast({
   for (const ct of tags) {
     if (ct.expiresTurn !== openTurnNumber) continue;
     const becomes = chainTokens(ct.tag?.expiresInto);
-    lines.push(
-      <li key={`tag-${ct.tag.id}`}>
+    items.push(
+      <span key={`tag-${ct.tag.id}`}>
         {becomes ? (
           <>
-            {ct.tag.name} → <ChipText text={becomes} /> ‡
+            {ct.tag.name} → <ChipText text={becomes} />
           </>
         ) : (
-          `${ct.tag.name} ends.`
+          `${ct.tag.name} ends`
         )}
-      </li>,
+      </span>,
     );
   }
 
@@ -46,16 +57,18 @@ export default function TurnForecast({
   // line (db/lib/structures.js counts the same way).
   for (const p of craftProjects) {
     if (p.turnsDone + 1 >= p.turnsNeeded) {
-      lines.push(<li key={`project-${p.id}`}>{`${p.quantity > 1 ? `${p.quantity}× ` : ""}${p.tagName} is finished.`}</li>);
+      items.push(
+        <span key={`project-${p.id}`}>{`${p.quantity > 1 ? `${p.quantity}× ` : ""}${p.tagName} is finished`}</span>,
+      );
     }
   }
   for (const s of sitesHere) {
     if (s.status === "UNDER_CONSTRUCTION" && s.turnsDone + 1 >= s.turnsNeeded) {
-      lines.push(<li key={`site-${s.id}`}>{`${s.typeName} is finished.`}</li>);
+      items.push(<span key={`site-${s.id}`}>{`${s.typeName} is finished`}</span>);
     }
   }
 
-  if (travellingTo) lines.push(<li key="travel">{`You arrive at ${travellingTo}. ‡`}</li>);
+  if (travellingTo) items.push(<span key="travel">{`You arrive at ${travellingTo}`}</span>);
 
   // Dinner, the way db/lib/hungerPass.js settles it: Hungerless owes nothing,
   // a meal already eaten covers it, otherwise the flat 1 ⬢ (2 with Fast
@@ -63,20 +76,37 @@ export default function TurnForecast({
   const held = new Set(tags.map((ct) => ct.tag?.slug));
   if (!held.has(HUNGERLESS_SLUG) && !held.has(ATE_MEAL_SLUG)) {
     const cost = held.has(FAST_METABOLISM_SLUG) ? 2 : 1;
-    lines.push(
-      <li key="dinner">
-        {resources >= cost
-          ? `Dinner costs ${cost} ⬢, unless you eat something you're carrying. ‡`
-          : `You can't afford dinner — you'll go Hungry unless you eat something you're carrying. ‡`}
-      </li>,
-    );
+    items.push(<span key="dinner">{resources >= cost ? `You'll consume ${cost} ⬢` : "You'll go hungry"}</span>);
   }
 
-  if (lines.length === 0) return null;
+  if (items.length === 0) return null;
+
+  // Whether to fold is a count, never a measurement of the rendered box —
+  // measuring means writing state from a layout effect, which this repo makes
+  // an error. ExpandableText.js takes the same way out for the same reason.
+  const folded = items.length > SHOWN && !open;
+  const shown = folded ? items.slice(0, SHOWN) : items;
+
   return (
     <div className="ledger-turn">
-      <span className="field-label">When the turn turns</span>
-      <ul className="sheet-forecast">{lines}</ul>
+      <span className="field-label">Turn Effects</span>
+      <div className="sheet-forecast">
+        {/* The separator LEADS its item and shares a box with it, so a wrap
+            can never leave a · dangling at the end of a line. It is also
+            decoration: a reader hearing "middle dot" between every clause is
+            worse off than one hearing nothing. */}
+        {shown.map((item, i) => (
+          <span key={item.key}>
+            {i > 0 && <span aria-hidden="true">·</span>}
+            {item}
+          </span>
+        ))}
+        {items.length > SHOWN && (
+          <button type="button" className="btn-quiet" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+            {open ? "Less" : `+${items.length - SHOWN} more`}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

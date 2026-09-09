@@ -6673,11 +6673,33 @@ label.chip {
   margin-bottom: 0;
 }
 
+/* The turn's effects read as one wrapping line separated by ·, not a list:
+   four short clauses down a column made the box taller than the turn card
+   beside it. `gap` does the spacing on both sides of every separator, so the
+   markup carries no padding of its own. */
 .sheet-forecast {
   margin: 0;
-  padding-left: 1.1em;
   font-size: var(--fs-xs);
   color: var(--text);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--sp-1);
+}
+
+/* The separator is a hairline-quiet mark, not a word, and carries its own
+   right-hand space: it sits INSIDE the item it introduces so a wrap can't
+   strand it at the end of a line, which means `gap` can't do that spacing. */
+.sheet-forecast > span > [aria-hidden="true"] {
+  color: var(--muted);
+  margin-right: var(--sp-1);
+}
+
+/* +N more sits on the end of the line rather than under it, so opening the
+   fold is the only thing that makes the box taller. */
+.sheet-forecast .btn-quiet {
+  padding: 0;
+  margin-left: var(--sp-1);
 }
 
 /* A status chip opened under the strip: the tag's own block, on the recessed
