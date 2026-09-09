@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import {
   LAYER_NAMES,
+  MAX_ACCESSORIES,
   SLOT_TITLES,
   WEAPON_HANDS,
   handsOf,
@@ -349,7 +350,20 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
         if (inSlot.length === 0 && fits.length === 0) return null;
         return (
           <div className="equip-row">
-            <span className="field-label equip-row-title">{SLOT_TITLES.ACCESSORY}</span>
+            <span className="field-label equip-row-title">
+              {SLOT_TITLES.ACCESSORY}
+              {/* Counted like the hands above, and for the same reason: this
+                  row is the one that used to take everything, so the number is
+                  what tells a player it no longer does. `data-over` covers a
+                  character who was already over the cap when it came in. */}
+              <span
+                className="mono"
+                data-over={inSlot.length > MAX_ACCESSORIES ? "true" : undefined}
+              >
+                {" "}
+                {inSlot.length}/{MAX_ACCESSORIES}
+              </span>
+            </span>
             <div className="equip-cells equip-cells-wrap">
               {inSlot.map((ct) => (
                 <WornCell
@@ -360,7 +374,7 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
                   canAct={isSelf}
                 />
               ))}
-              {isSelf && fits.length > 0 && (
+              {isSelf && fits.length > 0 && inSlot.length < MAX_ACCESSORIES && (
                 <EmptyCell label="Add" options={fits} onPick={toggle} pending={pending} />
               )}
             </div>

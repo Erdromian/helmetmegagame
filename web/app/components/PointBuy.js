@@ -28,6 +28,7 @@ import ChipLabel from "./ChipLabel";
 import CheckField from "./CheckField";
 import HoverCard from "./HoverCard";
 import DesireUnlocks from "./DesireUnlocks";
+import TagDetails from "./TagDetails";
 import Select from "./Select";
 
 // The point-buy experience, shared by both stores: a catalog pane on the
@@ -47,33 +48,17 @@ import Select from "./Select";
 // prints it — HoverCard is what makes that workable here. It portals to
 // document.body, so the panel escapes the list's overflow-y-auto instead of
 // being clipped by it, and a click pins it open, which is the whole touch
-// story. Same facts as TagRow below, so a pick reads the same in both places.
+// story.
+//
+// The panel is TagDetails, the same block the sheet's chips and rows render,
+// rather than the shorter hand-rolled one this used to carry. Two panels for
+// one job drifted the way two of anything does: the buying screen never
+// mentioned who else can see a tag, whether it conceals you, what it weighs or
+// how long it lasts — all of which a player is deciding on — and its armour
+// line had been dead for as long as the catalog's projection had no armour
+// columns in it. One block, so a tag reads the same wherever it is met.
 function BuildTagName({ tag }) {
-  const panel = (
-    <>
-      <div className="flex items-start justify-between gap-2">
-        <strong>{tag.name}</strong>
-        {(tag.group?.name || tag.category) && (
-          <span className="text-muted whitespace-nowrap text-xs">
-            {[tag.group?.name, tag.category].filter(Boolean).join(" · ")}
-          </span>
-        )}
-      </div>
-      {/* inTooltip, same as TagChip's description: this is a HoverCard panel,
-          so a nested {tag:…} becomes a real chip, reachable once pinned. */}
-      {tag.description && <ChipText text={tag.description} as="p" inTooltip />}
-      {formatTagRequirement(tag) && (
-        <p className="text-muted">{formatTagRequirement(tag)}</p>
-      )}
-      {formatTagArmor(tag) && <p className="text-muted">{formatTagArmor(tag)}</p>}
-      {prerequisiteNames(tag).length > 0 && (
-        <p style={{ color: "var(--accent-text)" }}>
-          Requires: {prerequisiteNames(tag).join(", ")}
-        </p>
-      )}
-      <DesireUnlocks tag={tag} />
-    </>
-  );
+  const panel = <TagDetails tag={tag} inTooltip />;
   return (
     // color: inherit because .tag-hover declares --text, which would light up
     // the "Granted free" list that is deliberately muted.

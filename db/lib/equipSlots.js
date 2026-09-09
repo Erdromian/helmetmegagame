@@ -12,7 +12,9 @@
 //                      together.
 //   SHIELD             exactly one.
 //   WEAPON             three hands. A tag with Tag.twoHanded takes two.
-//   ACCESSORY          no limit. A badge, spectacles, a fishing rod.
+//   ACCESSORY          four. A badge, spectacles, a fishing rod. Uncapped at
+//                      first, which turned it into the pocket everything that
+//                      fitted nowhere else went into.
 //
 // Two independent code paths flip CharacterTag.equipped — the player's own
 // toggle (web/app/(app)/character/equipActions.js) and the GM/staged batch
@@ -25,6 +27,10 @@
 // See docs/systemdocs/TAGS.md.
 
 const WEAPON_HANDS = 3;
+// A hard cap, not a GameConfig knob like the retired flat count: the number
+// is a rule about what a person can have about them, and the last thing this
+// file needs is a second limit a GM can set to disagree with the slots.
+const MAX_ACCESSORIES = 4;
 const MAX_EQUIP_LAYER = 3;
 const LAYERED_SLOTS = new Set(["HEAD", "BODY", "MOUNT"]);
 const EQUIP_SLOTS = ["HEAD", "BODY", "SHIELD", "WEAPON", "ACCESSORY", "MOUNT"];
@@ -50,7 +56,7 @@ const SLOT_TITLES = {
   MOUNT: "Ride",
 };
 const LAYER_NAMES = {
-  HEAD: ["Liner", "Helm", "Over"],
+  HEAD: ["Liner", "Helm", "Outer"],
   BODY: ["Clothes", "Mail", "Outer"],
   MOUNT: ["Ridden", "Towed"],
 };
@@ -141,17 +147,51 @@ function describeHandsOverflow(tags) {
 }
 
 /**
+ * Where a tag goes and what it costs to put there, as a short label for a
+ * buying menu or a chip. Null for anything that isn't equippable.
+ *
+ * Terse on purpose — it sits in a `<dl>` of one-line answers beside Weight and
+ * Armour, and the sentence a refusal needs is describeSlotClash's job. What it
+ * exists to say is the thing a shopper cannot otherwise work out: that a coif
+ * and a helm stack because they sit at different layers, that a poleaxe eats
+ * two of three hands, and that trinkets run out at four.
+ */
+function describeEquipFit(tag) {
+  const slot = tag?.equipSlot;
+  if (!slot) return null;
+  if (slot === "WEAPON") return `Hands · takes ${tag.twoHanded ? "two" : "one"}`;
+  if (slot === "ACCESSORY") return `${SLOT_TITLES.ACCESSORY} · ${MAX_ACCESSORIES} at once`;
+  const layer = LAYER_NAMES[slot]?.[(tag.equipLayer ?? 0) - 1];
+  return layer ? `${SLOT_TITLES[slot]} · ${layer}` : SLOT_TITLES[slot] ?? null;
+}
+
+/**
+ * Why the accessories do not all fit, or null when they do.
+ *
+ * Names only the EXCESS, the same way describeHandsOverflow does and for the
+ * same reason — a character wearing six trinkets from before the cap needs to
+ * know which two to take off, not to be read their own inventory back.
+ */
+function describeAccessoryOverflow(tags) {
+  const worn = (tags ?? []).map(tagOf).filter((t) => t?.equipSlot === "ACCESSORY");
+  if (worn.length <= MAX_ACCESSORIES) return null;
+  const named = listWords(worn.slice(MAX_ACCESSORIES).map((t) => t.name));
+  return `You can keep ${MAX_ACCESSORIES} things about you: put away ${named}. ‡`;
+}
+
+/**
  * The one question both write paths ask after writing: is this set wearable?
  * @returns {string|null} a player-facing refusal, or null when the set is fine
  */
 function findEquipProblem(tags) {
   const clash = findSlotClash(tags);
   if (clash) return describeSlotClash(clash);
-  return describeHandsOverflow(tags);
+  return describeHandsOverflow(tags) ?? describeAccessoryOverflow(tags);
 }
 
 module.exports = {
   WEAPON_HANDS,
+  MAX_ACCESSORIES,
   MAX_EQUIP_LAYER,
   LAYERED_SLOTS,
   EQUIP_SLOTS,
@@ -159,5 +199,6 @@ module.exports = {
   LAYER_NAMES,
   handsOf,
   handsUsed,
+  describeEquipFit,
   findEquipProblem,
 };

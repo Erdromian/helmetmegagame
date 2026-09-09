@@ -1,5 +1,5 @@
 import { prisma, startingTagSlugs } from "@lifeweb/db";
-import { DESIRE_UNLOCK_SELECT, stripEmptyUnlocks } from "@/lib/referenceData";
+import { TAG_CHIP_FIELDS, stripEmptyUnlocks } from "@/lib/referenceData";
 
 // A buy menu is not a recipe book. It prints a recipe only where the trade
 // that gates it is public knowledge — every wax seal in the game is made by a
@@ -49,79 +49,62 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
   }
   const tags = await prisma.tag.findMany({
     where: or.length === 1 ? or[0] : { OR: or },
-    include: {
-      group: {
-        select: {
-          slug: true,
-          name: true,
-          color: true,
-          requiredTagId: true,
-          // The gate's NAME, for the "Requires: …" line on rows and chips.
-          // Safe to ship: gated tags only ever render for viewers who hold
-          // the gate (unlockedTags / getVisibleTags filter the rest out).
-          requiredTag: { select: { name: true } },
-        },
-      },
-      requiredTag: { select: { name: true } },
-      // `catalogVisibility` rides along only to be read and dropped below: a
-      // recipe gated on a trade the catalog itself hides is not printed here.
+    select: {
+      // The shared shape TagDetails.js was written against. This menu used to
+      // hand-roll its own narrower one, and the two drifted exactly the way
+      // TAG_CHIP_FIELDS exists to stop: the armour columns fell out of it, so
+      // formatTagArmor() had nothing to read and the armour line silently
+      // rendered nothing on the whole buying screen. Spread it, don't retype
+      // it. The group gate and requiredTag ride along inside it.
+      ...TAG_CHIP_FIELDS,
+      // One override, then a buying menu's own business. TAG_CHIP_FIELDS asks
+      // each requirement skill for id/slug/name only, and recipeFields() below
+      // has to know that skill's own catalog gate — without this every skill
+      // reads `undefined !== "ALL"` and EVERY recipe gets redacted. Overridden
+      // here rather than added to the shared select: a chip has no use for it,
+      // and the shared one rides on /gm/turns' busiest query.
       requirementSkills: { select: { id: true, slug: true, name: true, catalogVisibility: true } },
+      purchasable: true,
+      purchasableAfterStart: true,
+      // roleExcluded() reads this off the projection — drop it and Devoted
+      // Follower reappears in a Migrant's menu.
+      excludedRoleSlugs: true,
+      // The whitelist half of the same gate — drop it and Mime's Vow shows
+      // up in every seat's menu.
+      onlyRoleSlugs: true,
+      parentTagId: true,
+      // At most one of these per character (the Beliefs). PointBuy's byId map
+      // is built from this projection, so exclusiveConflict() reads the flag
+      // off it — drop the field and the rule silently stops applying.
+      exclusive: true,
+      // exclusiveConflict() scopes the rule to the group (one Belief, one
+      // Addiction): without the id every exclusive tag looks like one group.
+      groupId: true,
       // conflictingTag() reads conflictsWithIds off this projection — drop it
       // and a conflict silently stops applying in the menu.
       conflictsWith: { select: { id: true } },
-      // Which Desires buying this tag would open. The whole point of the
-      // section on the buying screen, so this is the one place it matters
-      // most (web/app/components/DesireUnlocks.js).
-      ...DESIRE_UNLOCK_SELECT,
+      // Where the thing goes on the body, for TagDetails' "Worn" line. A
+      // shopper buying a coif needs to know it sits under a helm rather than
+      // instead of one, and that a poleaxe eats two of three hands.
+      equipSlot: true,
+      equipLayer: true,
+      twoHanded: true,
     },
   });
-  return tags.map((t) => stripEmptyUnlocks({
-    id: t.id,
-    // The stable identifier. The creation wizard needs it to work out which
-    // titles a build has earned (db/lib/titles.js keys on slugs), since
-    // roles.yaml `starting_tags` carries display names rather than slugs.
-    slug: t.slug,
-    name: t.name,
-    description: t.description,
-    category: t.category,
-    pointCost: t.pointCost,
-    purchasable: t.purchasable,
-    purchasableAfterStart: t.purchasableAfterStart,
-    // roleExcluded() reads this off the projection — drop it and Devoted
-    // Follower reappears in a Migrant's menu.
-    excludedRoleSlugs: t.excludedRoleSlugs,
-    // The whitelist half of the same gate — drop it and Mime's Vow shows
-    // up in every seat's menu.
-    onlyRoleSlugs: t.onlyRoleSlugs,
-    parentTagId: t.parentTagId,
-    requiredTagId: t.requiredTagId,
-    requiredTag: t.requiredTag,
-    // At most one of these per character (the Beliefs). PointBuy's byId map is
-    // built from this projection, so exclusiveConflict() reads the flag off it
-    // — drop the field and the rule silently stops applying in the menu.
-    exclusive: t.exclusive,
-    // exclusiveConflict() scopes the rule to the group (one Belief, one
-    // Addiction): without the id every exclusive tag looks like one group.
-    groupId: t.groupId,
-    group: t.group,
-    // conflictingTag() scope: the plain id array conflictsWith resolves to.
-    conflictsWithIds: t.conflictsWith.map((c) => c.id),
-    removable: t.removable,
-    ...recipeFields(t),
-    // Health tags carry a course as well as a price: how long the affliction
-    // runs untreated, and what it turns into afterwards. Both belong in the
-    // point-buy chip — a player picking up Appendicitis as a drawback should
-    // see where it ends before they take the points for it.
-    defaultDurationTurns: t.defaultDurationTurns,
-    expiresInto: t.expiresInto,
-    // TagChip's "Weight" line. Both halves — an untradeable tag weighs nothing
-    // against the carry cap whatever the column says (web/lib/formatTagWeight.js).
-    weightLbs: t.weightLbs,
-    tradeable: t.tradeable,
-    // Carried through the projection by hand like everything else here — the
-    // relations are on the row but PointBuy only ever sees what this map
-    // builds, so omitting them renders an empty Unlocks section everywhere.
-    desireRequiredBy: t.desireRequiredBy,
-    desireAllRequiredBy: t.desireAllRequiredBy,
-  }));
+  // Spread rather than retyped, for the reason the select above gives: a
+  // hand-copied field list is a second shape that drifts, and every field it
+  // forgets fails silently as a line that renders nothing.
+  //
+  // Two edits on the way out. `conflictsWith` becomes the plain id array
+  // conflictingTag() scopes on, and `catalogVisibility` is dropped: it was
+  // selected only so recipeFields() could decide whether to print the recipe,
+  // and shipping a tag's own catalog gate to the browser tells a reader which
+  // rows are secret.
+  return tags.map(({ conflictsWith, catalogVisibility, ...t }) =>
+    stripEmptyUnlocks({
+      ...t,
+      conflictsWithIds: conflictsWith.map((c) => c.id),
+      ...recipeFields(t),
+    }),
+  );
 }
