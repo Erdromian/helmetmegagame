@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Both turrets say the same short thing
+
+✎ The turret lines are much shorter, and both guns now use the same wording — hit, graze, death and the sounds in the yard  
+✎ Arming the Depot turret is one confirm instead of a confirm and then a second dialog  
+− The Docker's warning about the Depot turret, and the turret half of the Merchant's License  
+− The block telling a Merchant a GM has to put his face on file — the Depot has learned it at character creation for a while now
+
 ## 2026-09-09 · The Play page is Chat now, and it has had a proper going-over
 
 ✎ The page is called Chat, in the rail and in the address bar. Old /play links still work  
