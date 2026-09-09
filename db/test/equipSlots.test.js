@@ -26,7 +26,6 @@ const row = (name, equippedQuantity, opts) => ({ equippedQuantity, tag: tag(name
 const HELM = { equipSlot: "HEAD", equipLayer: 3 };
 const COIF = { equipSlot: "HEAD", equipLayer: 1 };
 const HAT = { equipSlot: "HEAD", equipLayer: 4 };
-const SHIELD = { equipSlot: "SHIELD" };
 const BODY_1 = { equipSlot: "BODY", equipLayer: 1 };
 const SWORD = { equipSlot: "WEAPON" };
 const GREATSWORD = { equipSlot: "WEAPON", twoHanded: true };
@@ -60,10 +59,6 @@ test("findEquipProblem: the same slot, different layers, does not clash", () => 
 test("findEquipProblem: the same slot AND layer clashes, whatever the tags are", () => {
   const msg = findEquipProblem([tag("Helm", HELM), tag("Bascinet", HELM)]);
   assert.equal(msg, "Bascinet and Helm can't both go on your head. ‡");
-});
-
-test("findEquipProblem: SHIELD has no layer, so two shields always clash", () => {
-  assert.ok(findEquipProblem([tag("Buckler", SHIELD), tag("Pavise", SHIELD)]));
 });
 
 test("findEquipProblem: accepts CharacterTag rows (.tag) as well as bare Tags", () => {
@@ -113,23 +108,23 @@ test("handsUsed: sums hands across rows, expanding each by its equippedQuantity"
 });
 
 test("handsUsed: a bare Tag[] with no equippedQuantity counts each entry once", () => {
-  assert.equal(handsUsed([tag("Broadsword", SWORD), tag("Buckler", SHIELD)]), 1);
+  assert.equal(handsUsed([tag("Broadsword", SWORD), tag("Helm", HELM)]), 1);
 });
 
 // --- findEquipProblem: hands overflow -------------------------------------
 
 test("findEquipProblem: exactly WEAPON_HANDS worth of one-handers is fine", () => {
-  assert.equal(WEAPON_HANDS, 3);
-  assert.equal(findEquipProblem([row("Broadsword", 3, SWORD)]), null);
+  assert.equal(WEAPON_HANDS, 4);
+  assert.equal(findEquipProblem([row("Broadsword", 4, SWORD)]), null);
 });
 
 test("findEquipProblem: one sword past the hand cap is refused, naming only the excess", () => {
-  const msg = findEquipProblem([row("Broadsword", 4, SWORD)]);
+  const msg = findEquipProblem([row("Broadsword", 5, SWORD)]);
   assert.equal(msg, "Your hands are full: put away Broadsword before you take up anything else. ‡");
 });
 
 test("findEquipProblem: a two-hander says so inline", () => {
-  const msg = findEquipProblem([row("Broadsword", 2, SWORD), row("Greatsword", 1, GREATSWORD)]);
+  const msg = findEquipProblem([row("Broadsword", 3, SWORD), row("Greatsword", 1, GREATSWORD)]);
   assert.equal(
     msg,
     "Your hands are full: put away Greatsword (two hands) before you take up anything else. ‡",
@@ -137,15 +132,15 @@ test("findEquipProblem: a two-hander says so inline", () => {
 });
 
 test("findEquipProblem: repeated excess names collapse to a count", () => {
-  // Five swords from one stack: three fit, two are excess.
-  const msg = findEquipProblem([row("Broadsword", 5, SWORD)]);
+  // Six swords from one stack: four fit, two are excess.
+  const msg = findEquipProblem([row("Broadsword", 6, SWORD)]);
   assert.equal(msg, "Your hands are full: put away Broadsword ×2 before you take up anything else. ‡");
 });
 
 test("findEquipProblem: a slot clash is reported before a hands overflow", () => {
-  // Two shields clash on the slot rule; hands never even get asked.
-  const msg = findEquipProblem([tag("Buckler", SHIELD), tag("Pavise", SHIELD), row("Broadsword", 4, SWORD)]);
-  assert.equal(msg, "Pavise and Buckler can't both go in your off hand. ‡");
+  // Two helms clash on the layer rule; hands never even get asked.
+  const msg = findEquipProblem([tag("Helm", HELM), tag("Bascinet", HELM), row("Broadsword", 5, SWORD)]);
+  assert.equal(msg, "Bascinet and Helm can't both go on your head. ‡");
 });
 
 // --- findEquipProblem: accessory overflow ---------------------------------
@@ -180,6 +175,6 @@ test("findEquipProblem: accessories never clash on the slot rule, only overflow 
 });
 
 test("findEquipProblem: a hands overflow is reported before an accessory overflow", () => {
-  const msg = findEquipProblem([row("Broadsword", 4, SWORD), row("Badge", 5, BADGE)]);
+  const msg = findEquipProblem([row("Broadsword", 5, SWORD), row("Badge", 5, BADGE)]);
   assert.equal(msg, "Your hands are full: put away Broadsword before you take up anything else. ‡");
 });
