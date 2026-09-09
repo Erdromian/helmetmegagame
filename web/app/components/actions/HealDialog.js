@@ -170,8 +170,8 @@ export default function HealDialog({ mode, presets, onDone, onClose }) {
             {affliction.gambit
               ? " This is beyond routine, so it counts as a Gambit. It uses your Move, a die is rolled, and a poor result can leave them worse off. You'll both know the outcome at the end of the turn."
               : affliction.moveCost?.kind === "free"
-                ? ` First aid doesn't cost a Move — ${pools.healsLeft === 1 ? "1 free treatment" : `${pools.healsLeft ?? "a few"} free treatments`} left today. ‡`
-                : ` This costs ${formatMoveFraction(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move${affliction.moveCost?.kind === "spill" ? ", past today's free first aid" : ""}. ‡`}
+                ? ` First aid doesn't cost a Move — ${pools.healsLeft === 1 ? "1 free treatment" : `${pools.healsLeft ?? "a few"} free treatments`} left this turn. ‡`
+                : ` This costs ${affliction.moveCost?.num === affliction.moveCost?.den ? "your whole Move" : `${formatMoveFraction(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move`}${affliction.moveCost?.kind === "spill" ? ", past this turn's free first aid" : ""}. ‡`}
           </p>
           {/* Quiet, same weight as a Discord -# line: a billed cure files
               today's Move (review fix, round 3). */}

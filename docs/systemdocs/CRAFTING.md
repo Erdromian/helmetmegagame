@@ -115,10 +115,13 @@ and the auto-labor pass pays only characters with **no** Action
 (`autoLaborPass.js`, `LABORING.md`). Four free knives leave the day's labor
 untouched; the fifth costs it.
 
-**The family.** `craftFamily()` (`web/lib/tagRequests.js`) is the recipe's
-first `requirementSkills` slug whose prefix is one of `brewing`, `cooking`,
-`smithing`, `builder`, `crafting` — barbed-net's `fundamentalist` sits
-beside `crafting` and the recipe is crafting. A recipe gated outside the
+**The family.** `craftFamily()` (`web/lib/tagRequests.js`) takes the first of
+`brewing`, `cooking`, `smithing`, `builder`, `crafting` that any of the
+recipe's `requirementSkills` prefixes match — that fixed precedence, not the
+order the skills come back in, since Prisma returns the relation unordered
+and a two-trade recipe's family would otherwise depend on row order.
+Barbed-net's `fundamentalist` sits beside `crafting` and the recipe is
+crafting. A recipe gated outside the
 five trades takes its first skill prefix AS its family (bone-mask is
 `butcher` work, holy water `blessing` work), and one with no skill at all is
 generic `craft` — so EVERY recipe Move-prices by the same arithmetic (Chris

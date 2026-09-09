@@ -162,8 +162,8 @@ export const FAST_PATHS = {
           affliction.gambit
             ? " This is beyond routine, so it counts as a Gambit: it uses your Move, a die is rolled, and a poor result can leave them worse off."
             : billed
-              ? ` This costs ${formatMoveFraction(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move${affliction.moveCost?.kind === "spill" ? ", past today's free first aid" : ""}. ‡`
-              : ` First aid doesn't cost a Move — ${bag.healsLeft === 1 ? "1 free treatment" : `${bag.healsLeft ?? "a few"} free treatments`} left today. ‡`
+              ? ` This costs ${affliction.moveCost?.num === affliction.moveCost?.den ? "your whole Move" : `${formatMoveFraction(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move`}${affliction.moveCost?.kind === "spill" ? ", past this turn's free first aid" : ""}. ‡`
+              : ` First aid doesn't cost a Move — ${bag.healsLeft === 1 ? "1 free treatment" : `${bag.healsLeft ?? "a few"} free treatments`} left this turn. ‡`
         }`,
         confirmLabel: "Treat",
       },

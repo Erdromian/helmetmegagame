@@ -412,7 +412,7 @@ When you 🔍 a character you will see tags marked as visible, such as clearly w
 
 ### Health Tags
 
-Health tags are your wounds, illnesses, and other ailments. A doctor treats them with Heal, based on how severe the tag is and their own Medical skill. The most trivial injuries are free, up to 4 a day for any doctor; anything else always costs at least a quarter of their Move, and the most serious surgeries take a whole Move, 14 ⬢, and a roll of the dice. ‡
+Health tags are your wounds, illnesses, and other ailments. A doctor treats them with Heal, based on how severe the tag is and their own Medical skill. The most trivial injuries are free, up to 4 a turn for any doctor; anything else always costs at least a quarter of their Move, and the gravest surgeries take a whole Move and 14 ⬢ — the very worst of them on a roll of the dice. ‡
 
 Some items cure a specific ailment outright the moment you Consume them, no doctor needed — a tonic, a dressing, a prosthetic fitted onto a lost limb. A few of those still need someone medically trained to apply, even to their own body.
 
