@@ -696,7 +696,7 @@ zones:
               - Sanctuary Key
               - Ravenhearter
               - Medical (Expert)
-              - Brewing (Skilled)
+              - Brewing (Expert)
               - Literate
               - Esculap's Vest
               - Obol x10
@@ -728,7 +728,7 @@ zones:
               - Sanctuary Key
               - Ravenhearter
               - Medical (Skilled)
-              - Brewing (Basic)
+              - Brewing (Skilled)
               - Literate
             doc_elements:
               - townstarting
