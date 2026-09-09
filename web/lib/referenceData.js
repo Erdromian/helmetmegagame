@@ -97,13 +97,16 @@ export function stripWeightless(tag) {
 // Shipping it whole would put every mood figure and every hidden effect one
 // dev-tools inspection away, which is the entire secret.
 //
-// `Tag.cookedFrom` is a separate matter and is NOT in TAG_CHIP_FIELDS at all:
-// a dish says what it tastes of and never what it was made with, so the
-// column must not reach a browser under any circumstances. Do not add it.
+// `Tag.cookedFrom` is dropped outright by the same pass, and is not in
+// TAG_CHIP_FIELDS either: a dish says what it tastes of and never what it was
+// made with. It is cut here as well as left out of the select because the
+// character sheet loads its held tags with a bare `include: { tag: … }`,
+// which takes every column there is — a rule that lives only in a select is
+// a rule the next `include` quietly breaks.
 export function cookedTasteOnly(tag) {
-  if (!tag?.cooked) return tag;
-  const { cooked, ...rest } = tag;
-  return { ...rest, cooked: { taste: cooked.taste ?? "" } };
+  if (!tag?.cooked && !tag?.cookedFrom?.length) return tag;
+  const { cooked, cookedFrom, ...rest } = tag;
+  return cooked ? { ...rest, cooked: { taste: cooked.taste ?? "" } } : rest;
 }
 
 export const TAG_CHIP_FIELDS = {

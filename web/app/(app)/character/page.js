@@ -73,6 +73,7 @@ import {
   DEFAULT_MAX_DRAWBACK_POINTS,
 } from "@/lib/characterCreation";
 import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
+import { cookedTasteOnly } from "@/lib/referenceData";
 import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
@@ -723,6 +724,16 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       .filter((r) => r.group && r.catalogVisibility !== "ALL")
       .map((r) => r.group.slug),
   );
+  // INGREDIENT SLOTS ARE DELIBERATELY NOT CONSULTED HERE, and it matters.
+  // This asks "does this recipe NAME something the catalog hides", which is
+  // what makes a secret recipe secret. A slots recipe names nothing at all —
+  // its ingredients are "any tag with a `cooked` block", which includes
+  // gm-catalog rows like Honey — so reading them the way `items` is read
+  // would mark both meals non-public and hide dinner from the whole game.
+  //
+  // The Honey discovery still works, and works better: it lives in the chip
+  // list now (you can only slot a jar you are holding) rather than in the
+  // recipe line. See COOKING.md and CRAFTING.md §2b.
   function isNonPublicRecipe(tag) {
     return (tag.requirementItems ?? []).some((item) => {
       if (item.kind === "group") return nonAllGroupSlugs.has(item.slug);
@@ -994,11 +1005,19 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // the sheet needs it for two things — the Mood box's word and the Gambit
   // tile's modifier — and both are computed client-side. Nothing renders the
   // figure itself; LedgerBand only ever prints bandOf()'s label.
+  //
+  // COOKING (docs/systemdocs/COOKING.md): the held tags come down with a bare
+  // `include`, which takes every column on Tag — so `cooked` is cut to its
+  // taste and `cookedFrom` is dropped HERE rather than left to a select. A
+  // cook is told what an ingredient tastes of and nothing else, and a dish
+  // never says what it was made with; both would otherwise be one dev-tools
+  // inspection away for every tag on the sheet.
   const sheetCharacter = {
     ...character,
     tags: character.tags.map((ct) => {
-      if (!isPaper(ct.tag)) return ct;
-      const { paperText, ...tag } = ct.tag;
+      const tagRow = cookedTasteOnly(ct.tag);
+      if (!isPaper(ct.tag)) return tagRow === ct.tag ? ct : { ...ct, tag: tagRow };
+      const { paperText, ...tag } = tagRow;
       return {
         ...ct,
         tag: { ...tag, description: paperDescription(ct.tag, viewer), paper: paperView(ct.tag, viewer) },

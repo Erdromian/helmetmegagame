@@ -99,6 +99,12 @@ laborType:
       - coca-leaves  # sells 2 ⬢
       - ravens-eye  # sells 4 ⬢
       - leeches  # sells 2 ⬢
+      # The cooking rework's three hunting finds (docs/systemdocs/COOKING.md).
+      # A hunter is the one labourer who comes home with MEAT, which is what a
+      # cook has had nothing of until now.
+      - boar-loin  # the best cut off the day's kill — sells 4 ⬢
+      - deer-liver  # what a hunter eats first, or sells to somebody who will — sells 3 ⬢
+      - goose-fat  # rendered off a bird nobody else wanted — sells 5 ⬢
       - "+1"
       - "+2"
   fishing:  # ⬢ EV/labor 0.25 · hit 25%
@@ -108,6 +114,10 @@ laborType:
       - leeches  # sells 2 ⬢
       - fish-roe  # sells 2 ⬢
       - old-coin  # sells 1 ⬢
+      # Fishing's own cooking find, everywhere there is water. The zone tables
+      # below are where the water decides WHAT you pull out
+      # (docs/systemdocs/COOKING.md).
+      - crayfish  # a bucket of them off the shallows — sells 3 ⬢
       - nothing
       - nothing
       - "+1"
@@ -118,6 +128,11 @@ laborType:
       - poppy-pods  # sells 2 ⬢
       - coca-leaves  # sells 2 ⬢
       - honey  # sells 2 ⬢
+      # Farming's cooking find (docs/systemdocs/COOKING.md). Deliberately the
+      # commonest and cheapest of the thirteen: a cook should always be able
+      # to get their hands on an onion, and never be excited about it.
+      - onion  # a good day in the beds — sells 2 ⬢
+      - onion  # sells 2 ⬢
       - nothing
       - nothing
       - nothing
@@ -291,6 +306,56 @@ laborTypeZone:
         - graga-corpse  # not sellable
         - graga-corpse  # not sellable
         - aberrant-heart  # sells 55 ⬢
+
+  # WHAT YOU PULL OUT DEPENDS ON THE WATER (docs/systemdocs/COOKING.md). The
+  # crayfish in laborType.fishing above is everywhere; these three are the
+  # local catch, so a cook who wants a particular fish has to go and stand
+  # somewhere particular. Each pools with the global table at the same face,
+  # which roughly halves it — a 6 by the forest river is an eel or an ordinary
+  # find, never a guaranteed eel.
+  fishing:
+    forest:  # river eel
+      6:
+        - river-eel  # slow water under the trees — sells 3 ⬢
+        - river-eel  # sells 3 ⬢
+        - nothing
+        - "+1"
+    marshes:  # lamprey
+      6:
+        - lamprey  # the mire's own fish, and it fastens on — sells 3 ⬢
+        - lamprey  # sells 3 ⬢
+        - nothing
+        - "+1"
+    # Fishing in the dark. There is exactly one thing down here worth eating
+    # and it has no eyes.
+    #
+    # THE GRENADE'S RATE IS NOT 0.1%, AND CANNOT BE. Bascinet asked for
+    # "like .1%" as an extremely rare fishing find. The draw is uniform over
+    # the concatenated pool and this file has no weight field on purpose (see
+    # the header: "repeat an entry to weight it"), so the only lever is repeat
+    # count — and 0.1% per labor would need roughly 150 lines of `blind-fish`
+    # sitting in this table forever. What is written below is ONE grenade in
+    # 12 entries at a face that is itself 1-in-6, pooled with the global
+    # fishing table's 9 entries at the same face: about 0.8% per cave fishing
+    # labor. That is roughly eight times what was asked for.
+    #
+    # Two ways to close the gap, neither taken here: pad this pool out (ugly
+    # but free), or teach db/lib/laborDrops.js a weight column (a small change
+    # to a system this rework was not asked to touch). Bascinet's call.
+    caves:
+      6:
+        - blind-fish  # pale, eyeless, and perfectly good cooked — sells 3 ⬢
+        - blind-fish  # sells 3 ⬢
+        - blind-fish  # sells 3 ⬢
+        - blind-fish  # sells 3 ⬢
+        - blind-fish  # sells 3 ⬢
+        - blind-fish  # sells 3 ⬢
+        - blind-fish  # sells 3 ⬢
+        - blind-fish  # sells 3 ⬢
+        - blind-fish  # sells 3 ⬢
+        - blind-fish  # sells 3 ⬢
+        - blind-fish  # sells 3 ⬢
+        - fragmentation-grenade  # somebody lost it in the water a long time ago — sells 12 ⬢
 
 laborTypeLocation:
   hunting:

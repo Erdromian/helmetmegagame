@@ -212,9 +212,8 @@ half of what that wound took.
 | End the turn INDOORS | +6 | mood pass |
 | End the turn in a HAVEN | +12 | mood pass |
 | Consume anything that lands you tipsy / wasted / unconscious / blind-drunk / high / euphoric | +30 | `consumeTagRequestImpl` |
-| Consume a `lavish-meal` | +30 | same |
 | Consume `tea`, `maggot-milk`, or anything granting `caffeinated` (Coffee) | +15 | same |
-| Consume a `fine-meal` | +15 | same |
+| Eat a **cooked dish** | its own small figure plus its ingredients', §6a | `dishMoodTerms` |
 | Consume a treat — `sweets`, `honey`, `honeyed-cakes`, `fish-roe`, `pumpkin` | +8 | same |
 | Consume a `cigarette`, a `sky-lantern` or a `firecracker` | +8 | same |
 | Consume anything at all that grants `ate-meal` | +5 | same |
@@ -232,8 +231,48 @@ Fine Meal 15 rather than 15+5, and Bliss (which lands two statuses) one drink.
 An Instant Camera is deliberately worth nothing.
 
 A Fine Meal used to be worth nothing at all, on the argument that it only fed a
-noble. It is +15 now — "makes an ordinary person happy" is its own catalog
-line — and it still feeds the noble besides (§7).
+noble. It was +15 for a while — "makes an ordinary person happy" is its own
+catalog line — and it still feeds the noble besides (§7). Both meals left this
+table entirely with the cooking rework; §6a is where they went.
+
+### 6a. A cooked dish
+
+`fine-meal: 15` and `lavish-meal: 30` are **gone** from `CONSUME_RELIEF`. A
+dish is a MINTED row (docs/systemdocs/COOKING.md) whose slug is
+`custom-craft-…`, so it could never have matched a table keyed by slug — and
+a flat figure could not have said what a dish is now for. `ate-meal: 5` stays
+and is genuinely the floor under every meal.
+
+`dishMoodTerms(mealMood, ingredientMoods)` prices one instead, and differs
+from `consumeReliefFor` in three ways that are the whole reason it is a
+separate function:
+
+- It **sums**. A drink is one drink however many statuses it lands, but two
+  delicacies in a Lavish Meal are worth both — otherwise the second slot means
+  nothing.
+- It can be **negative**. A dish made of feces is the worst thing in the game
+  and has to be able to say so.
+- It returns the halves as **two terms, never netted**: `MEAL` for the
+  positive, `DISGUST` for the negative. Only harm is scaled, so netting +45 of
+  saffron against −55 of feces first would charge a scaled −10 instead of an
+  unscaled +45 and an unscaled −55. They are two things that happened at one
+  meal.
+
+The recipe's own figure is deliberately tiny beside its ingredients' — **5**
+for a Fine Meal and **8** for a Lavish, against a range of +45 (saffron) to
+−55 (feces).
+
+**`DISGUST` carries `noMultiplier: true`**, the way `DRIFT` does, so nothing
+in §7 touches it. Three of those rules apply to `kinds: "*"`, and while "Brave
+halves your disgust at eating a liver" is arguable, "the Rite of Rage makes
+feces free" and "holding the right sword makes you immune to disgust" are not.
+Revulsion at what you just swallowed is not a fright.
+
+**Eating is not rationed, and that is deliberate.** `MOVE_MOOD_TURN_CAP`
+counts only terms flagged `move: true`, so three bad meals in one turn land in
+full (clamped at `MOOD_MIN`). The ingredients are the ration: you have to
+*find* three lots of feces, and each dish costs a fraction of a cooking
+Routine. Don't "fix" this.
 
 **The nightly drift** replaced the old one-way decay. Every mood slides
 `MOOD_DRIFT` (**4**) back toward Fine at every close, from *both* sides, never

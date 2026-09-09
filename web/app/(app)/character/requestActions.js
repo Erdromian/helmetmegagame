@@ -1186,7 +1186,17 @@ async function craftRequestImpl({
   );
   // One plan from here on: the ingredients a dish spends are spent the same
   // way, under the same lock, and land in the same `details.consumed`.
-  itemPlan.spend.push(...slotPlan.spend);
+  //
+  // MERGED BY TAG, not concatenated. No recipe today carries both an `items`
+  // block and slots, but nothing stops one, and two entries naming the same
+  // stack would have consumeRecipeItems draw against it twice off two
+  // independent re-reads — the second refusal quoting a count nobody could
+  // make sense of, and `details.consumed` showing two rows for one spend.
+  for (const line of slotPlan.spend) {
+    const existing = itemPlan.spend.find((s) => s.tagId === line.tagId);
+    if (existing) existing.quantity += line.quantity;
+    else itemPlan.spend.push(line);
+  }
   const cookedFrom = slotPlan.cookedFrom;
   // The Death Mask binds a SPECIFIC corpse (the group entry above only
   // proved one is held) — resolved out here for the fast fail, marked

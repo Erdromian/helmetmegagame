@@ -11279,6 +11279,38 @@ tags:
   # --- The apothecary -----------------------------------------------------
   #Needs resources and a special ingredient acquired through RP. GMs need to adjudicate the results,
   #as most of these are spent through Moves, not automatically.
+  #
+  # ===================================================================
+  # MEDICAL REWORK — READ THIS BEFORE WIRING COOKING INTO ANYTHING
+  # ===================================================================
+  #
+  # Every tonic below can go in a meal (docs/systemdocs/COOKING.md), and every
+  # one of them carries a `cooked:` block with a taste, a mood, and NO `into`.
+  #
+  # THAT ABSENCE IS THE DESIGN, NOT AN OVERSIGHT. An ingredient with no
+  # `cooked.into` contributes its own `consumesInto`, read at the moment
+  # somebody eats the dish rather than frozen in when it was cooked. So
+  # whatever the medical rework makes White Honey (or Mercy, or Poppy, or any
+  # of the rest) do, it does in a stew too — for every dish already sitting in
+  # every pocket, on the next bite, with no re-mint and no code.
+  #
+  # So: if you are here from the medical PR looking for the cooking hook,
+  # there isn't one and you probably need to do nothing. Change
+  # `consumesInto` as you were going to. Only two things need a thought:
+  #
+  #   - A NEW medical consumable wants a `cooked:` block of its own — a
+  #     taste and a mood. Leave `into` out.
+  #   - A medicine whose COOKED effect should differ from its raw one is the
+  #     only case that needs `into`, and it is the exception, not the rule.
+  #
+  # The mood on these is 0 on purpose: a tonic contributes its effect and no
+  # mood, because you do not enjoy or resent a taste you are being drugged
+  # with, and a swing on the dial would be a tell. White Honey is the one
+  # exception (+15) — medicine that works is a comfort.
+  #
+  # The same note lives on db/lib/tagShapes.js#normalizeCooked and in
+  # COOKING.md §5, because whoever merges that PR will read exactly one of the
+  # three.
 
   # --- Basic tonics — Brewing (Basic) --------------------------------------
   miasma:
@@ -11369,8 +11401,10 @@ tags:
     sellable: true
     sellablePrice: 4
 
+  # gm-catalog on Bascinet's call: a Cat is one of the hidden recipes, the
+  # way Honey and White Honey are.
   cat:
-    catalog: all
+    catalog: gm
     name: Cat
     category: items
     group: items-drink
@@ -11771,8 +11805,9 @@ tags:
     sellablePrice: 10
     depotPrice: 11
 
+  # gm-catalog on Bascinet's call, same as the Cat above.
   mindbreaker-toxin:
-    catalog: all
+    catalog: gm
     name: Mindbreaker Toxin
     category: items
     group: items-drink

@@ -25,6 +25,7 @@ import { thingGroups } from "./thingRows";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { MERCHANT_LICENSE_SLUG, DEPOT_LOCATION_SLUG, DEPOT_KEYCARD_SLUG } from "@lifeweb/db";
+import { cookedTasteOnly } from "@/lib/referenceData";
 import {
   RESEARCH_TAG_SLUG,
   CATHEDRAL_LOCATION_SLUG,
@@ -207,11 +208,17 @@ async function FreshChat({ userId }) {
         // illiterate, which is the one thing the whole paperwork system exists
         // to prevent (character/page.js strips it the same way). The dialogs
         // fetch the text on demand instead.
+        // The same cut is made for cooking (docs/systemdocs/COOKING.md), and
+        // for the same reason: this select is a bare `include` on Tag, so it
+        // takes `cooked` and `cookedFrom` whole. A cook is told what an
+        // ingredient tastes of and nothing else, and a dish never says what
+        // it was made with.
         const clientSheet = {
           ...sheet,
           tags: (sheet?.tags ?? []).map((ct) => {
-            if (ct.tag?.paperText == null) return ct;
-            const { paperText, ...tag } = ct.tag;
+            const cut = cookedTasteOnly(ct.tag);
+            if (cut?.paperText == null) return cut === ct.tag ? ct : { ...ct, tag: cut };
+            const { paperText, ...tag } = cut;
             return { ...ct, tag };
           }),
         };

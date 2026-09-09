@@ -263,6 +263,7 @@ you pick the right doc — they are never enough to change code with.
 | [`KISS.md`](docs/systemdocs/KISS.md) | You're touching the Kiss verb — the consent handshake, the `KISS` capability and what blocks it, the +15 both sides take, its two rations, or the line the room hears |
 | [`CONFESSION.md`](docs/systemdocs/CONFESSION.md) | You're touching Confess, the `psychological` tag flag, who may hear a confession, or the rule that a chaplain is never shown the sin |
 | [`CRAFTING.md`](docs/systemdocs/CRAFTING.md) | You're touching Craft, Destroy, the four tag capability flags (`craftable` / `removable` / `healable` / `teachable`), multi-turn projects, or who pays for a recipe |
+| [`COOKING.md`](docs/systemdocs/COOKING.md) | You're touching the meals, an ingredient's `cooked:` block, `requirement.ingredientSlots`, the taste line, or **anything that asks what eating a dish does** (`web/lib/cooking.js`) |
 | [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript, `/archive`, or **anything that exports, imports or deletes a game's transcript** — the archive packets and the archive-or-discard wipe |
 | [`CHAT.md`](docs/systemdocs/CHAT.md) | You're touching `/play`, the live feed (`/api/feed`, the SSE hub, the bot's outbox), `ArchiveEntry.seq` / `placeKey`, or the coming "web only" switch |
 | [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents`, `docs/documents.yaml`, `/handbook`, or `docs/handbook.md` |

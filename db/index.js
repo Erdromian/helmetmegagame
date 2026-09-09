@@ -705,6 +705,35 @@ async function resolveNeeds(turn, config) {
           roomTags: { none: {} },
         },
       });
+      // The same sweep, for the same reason, over cooked dishes
+      // (docs/systemdocs/COOKING.md). Every distinct combination of words and
+      // ingredients mints a row, and a busy kitchen makes a lot of them: a
+      // cook who names each night's dinner leaves one behind per night, and
+      // the eaten ones are held by nobody within a turn. Guarded identically
+      // — `ephemeral` and the slug prefix so it can never reach a catalog
+      // row, and `characters`/`roomTags` empty so a dish still in somebody's
+      // pack or on a shelf is left where it is.
+      //
+      // Two guards the disguise sweep above does not need. A custom craft can
+      // be TRADED, so a pending Offer may name a row nobody currently holds —
+      // and an Offer is a real foreign key, so deleting under it would throw
+      // rather than quietly orphan. A CraftProject names its base recipe
+      // rather than a mint today, but it is the same shape of pin and costs
+      // nothing to rule out.
+      //
+      // A swept row leaves a dangling id in old `request_craft_tag` audit
+      // details. Accepted: `details.tagName` is recorded beside it, so a GM
+      // reading the row still sees what was made.
+      await prisma.tag.deleteMany({
+        where: {
+          ephemeral: true,
+          slug: { startsWith: "custom-craft-" },
+          characters: { none: {} },
+          roomTags: { none: {} },
+          offers: { none: {} },
+          craftProjects: { none: {} },
+        },
+      });
       await markDone("expirySweep");
     } catch (err) {
       await passFailed("Expiry sweep", err);

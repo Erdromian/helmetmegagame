@@ -7,6 +7,7 @@ import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { carryStatus } from "@lifeweb/db/lib/carry";
+import { cookedTasteOnly } from "@/lib/referenceData";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 
 // "What can I see from here" — the reads a player-action dialog makes the
@@ -85,7 +86,12 @@ export async function loadActionRoster({ need = [] } = {}) {
   }
   if (wants.has("self")) {
     out.self = {
-      characterTags: character.tags,
+      // Same include as the sheet's, so the same cut: `cooked` down to its
+      // taste, `cookedFrom` gone (docs/systemdocs/COOKING.md).
+      characterTags: character.tags.map((ct) => {
+        const tag = cookedTasteOnly(ct.tag);
+        return tag === ct.tag ? ct : { ...ct, tag };
+      }),
       resources: character.resources,
       carry: carryStatus(character, gameConfig),
     };
