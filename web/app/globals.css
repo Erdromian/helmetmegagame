@@ -1464,10 +1464,28 @@ input[type="radio"]:disabled {
   gap: var(--sp-3);
   font-size: var(--fs-sm);
   cursor: pointer;
+  /* Load-bearing, and it cost /gm/dev a phantom scrollbar. The hidden
+     checkbox below is position:absolute, so without a containing block here
+     it anchors to the nearest positioned ancestor — which on a desk is
+     .app-shell, since .desk-shell and the whole .ops-* block are deliberately
+     unpositioned. The box then sat wherever its row fell in .ops-main's
+     SCROLLED content, thousands of pixels down .app-shell, unclipped by
+     .desk-shell's overflow:hidden (a clipper only clips what it is the
+     containing block for). That stretched the document south into blank
+     space, and clicking a toggle scrolled the focused input into view — i.e.
+     dropped you at the bottom of nothing. Relative with no z-index, so this
+     still creates no stacking context and Modal.js's in-tree overlays are
+     unaffected. */
+  position: relative;
 }
 
 .switch-row input[type="checkbox"] {
   position: absolute;
+  /* Pinned rather than left at its static position: with the row positioned
+     either would do, but an explicit anchor means the rule above is the only
+     thing this control depends on. */
+  top: 0;
+  left: 0;
   opacity: 0;
   width: 1px;
   height: 1px;
@@ -4987,6 +5005,16 @@ label.chip {
 @media (max-width: 720px) {
   .desk-body--ops {
     grid-template-columns: 1fr;
+  }
+
+  /* .desk-shell inverts its height contract down here — the column grows and
+     the PAGE scrolls (see the shared .desk-* mobile block above). These two
+     have to give up scrolling of their own to match, or the section sits in
+     its own box inside a page that is already scrolling and you get two
+     scrollbars fighting. .desk-body--players does the same for its rail. */
+  .ops-nav,
+  .ops-main {
+    overflow-y: visible;
   }
 
   .ops-nav {

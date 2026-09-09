@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The Dev Panel stops scrolling off the bottom of the screen
+
+✎ Flipping a config toggle no longer throws you to the bottom of a blank page  
+✚ On a phone the Dev Panel is one scrolling page instead of a box inside a box
+
 ## 2026-09-09 · Laboring hurts less, and the Depths give up their dead
 
 ✎ A bad roll while laboring is now a clean day about a third of the time, instead of always costing you something  
