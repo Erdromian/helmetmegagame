@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Mind reading is out of the game
+
+− Mindreading and the Succubus Draught are gone: the tags, the brewing recipe, the row on the player's recipe paper and the BREWING.md entry  
+✎ Bruised says the wound will heal
+
 ## 2026-09-09 · The tags say what they are, not what you have
 
 ✎ 328 tag descriptions rewritten from the player's pass: object-first wording instead of "You have a…", and the effect stated plainly  
