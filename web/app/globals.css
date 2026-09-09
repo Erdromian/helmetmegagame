@@ -5978,12 +5978,6 @@ label.chip {
   margin-bottom: var(--sp-3);
 }
 
-.chat-move-filed {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-}
-
 /* The filed Move, three lines of it. A Move can be a paragraph and the column
    is not where the whole of one belongs, so it clamps until it is clicked. */
 .chat-move-text {
@@ -6678,8 +6672,9 @@ label.chip {
    full-width bar under the chip that made the box twice as tall as it needed
    to be. /play's YOU column is untouched: this is scoped to .sheet-turn.
 
-   The filed Move breaks the line and takes the whole width, because it holds
-   a paragraph of somebody's own words and a clamp that opens. */
+   A filed Move adds its kind to the SAME chip row and puts its words on the
+   line under it — it used to open a second chips row and a column of its own,
+   which roughly tripled the box's height the moment somebody filed. */
 .sheet-turn .chat-move {
   display: flex;
   flex-wrap: wrap;
@@ -6696,13 +6691,17 @@ label.chip {
   flex: 0 0 auto;
 }
 
-.sheet-turn .chat-move-filed {
+/* The words break the line and take the whole width — they are a paragraph of
+   somebody's own writing — but only two of them until the clamp is clicked. */
+.sheet-turn .chat-move-text {
   flex: 1 0 100%;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
-/* Its own kind chip and Edit sit in a column with a gap already. */
-.sheet-turn .chat-move-filed .chat-chips {
-  margin-bottom: 0;
+.chat-move-mark {
+  color: var(--muted);
+  margin-right: var(--sp-1);
 }
 
 /* The turn's effects read as one wrapping line separated by ·, not a list:

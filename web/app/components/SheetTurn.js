@@ -8,8 +8,9 @@ import { useRefresh } from "./useRefresh";
 
 // The turn card the Chat's YOU column carries, on the sheet's band: when it
 // is, whether Moves have locked, and the Move you filed — with the same File
-// and Edit that open the same dialog. Same server action, same poll
-// (play/useMyMove.js), so the sheet and the chat cannot disagree.
+// that opens the same dialog. Same server action, same poll
+// (play/useMyMove.js), so the sheet and the chat cannot disagree. There is no
+// Edit: a filed Move is final.
 //
 // Pending offers (a lesson, a binding) still read under it, in the words
 // the old sheet's "This turn" row always used — they are why a Move may not be
@@ -40,21 +41,9 @@ export default function SheetTurn({ moveState, pendingOffers = [] }) {
 
   return (
     <div className="sheet-turn">
-      <TurnCard turn={state.turn} move={state.move} onFile={() => setDialog("move")} onEdit={() => setDialog("edit")} />
+      <TurnCard turn={state.turn} move={state.move} onFile={() => setDialog("move")} />
       {waiting}
       {dialog === "move" && <MoveDialog onClose={() => setDialog(null)} onDone={done} />}
-      {dialog === "edit" && state.move && (
-        <MoveDialog
-          initial={{
-            actionId: state.move.id,
-            kind: state.move.kind,
-            description: state.move.description,
-            kindLocked: state.move.kindLocked,
-          }}
-          onClose={() => setDialog(null)}
-          onDone={done}
-        />
-      )}
     </div>
   );
 }

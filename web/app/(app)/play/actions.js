@@ -4,8 +4,7 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
-import { fileMove, editMove, filedByPlayer, kindChangeUsed } from "@lifeweb/db/lib/moves";
-import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
+import { fileMove } from "@lifeweb/db/lib/moves";
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
@@ -1187,14 +1186,10 @@ export async function submitMove({ moveKind, description } = {}) {
 // Polled beside waitingOnYou, so a Move filed from Discord shows up here
 // without a reload.
 //
-// `editable` is the same predicate db/lib/moves.js#editMove re-checks — a
-// hint for whether to draw the button, never the lock.
+// A filed Move is final, so what comes back is what it says and nothing about
+// changing it — no `editable`, no kind-change ration.
 export async function myMove() {
-  const me = await actor({
-    id: true,
-    discordUserId: true,
-    tags: { select: { tag: { select: { slug: true, name: true } } } },
-  });
+  const me = await actor({ id: true });
   if (me.error) return { ok: false, error: me.error };
 
   const openTurn = await prisma.turn.findFirst({
@@ -1211,28 +1206,10 @@ export async function myMove() {
         id: true,
         moveKind: true,
         description: true,
-        status: true,
-        moveReviewStatus: true,
-        lockExpiresAt: true,
-        appliedEffects: true,
-        // The `auto:` marker that says a lesson, a confession, the auto-labor
-        // pass or a travel stub wrote this row rather than the player
-        // (db/lib/moves.js#filedByPlayer). Without it the Edit button is
-        // offered on a Move nobody filed.
-        gmNotes: true,
       },
     }),
   ]);
   const { cutoffAt, locked, hasLock } = moveWindow(openTurn, { clockFrozen: frozen });
-
-  // The same gate editMove runs (db/lib/incapacitation.js): a Bound or Dying
-  // character cannot change a Move any more than they could file one, so the
-  // button is not drawn rather than drawn and refused.
-  const stuck = blockerFor(me.character.tags ?? [], ACT);
-
-  // Whether the one kind change a turn has already been spent. The dialog
-  // disables the chips with it; db/lib/moves.js#editMove is the lock.
-  const kindLocked = action && !stuck ? await kindChangeUsed(prisma, me.character.id, openTurn.id) : false;
 
   return {
     ok: true,
@@ -1248,59 +1225,10 @@ export async function myMove() {
       locked,
       hasLock,
     },
-    move: action
-      ? {
-          id: action.id,
-          kind: action.moveKind,
-          description: action.description,
-          editable: !stuck && moveIsEditable(action, locked),
-          // Said in the dialog and in place of the button, so a refusal is
-          // never the first the player hears of it.
-          blockedReason: stuck ? `You can't act right now — you're ${stuck.name}. ‡` : null,
-          kindLocked,
-        }
-      : null,
+    move: action ? { id: action.id, kind: action.moveKind, description: action.description } : null,
   };
 }
 
-// Kept beside myMove rather than exported: the page's first paint runs the
-// same test on the row it loaded itself (web/app/(app)/play/page.js).
-function moveIsEditable(action, locked) {
-  if (locked) return false;
-  // A row the game wrote for them — a lesson, a confession, an auto-Labor, a
-  // walk — is not theirs to change (db/lib/moves.js#filedByPlayer).
-  if (!filedByPlayer(action)) return false;
-  if (!["PENDING_TYPE", "CONFIRMED"].includes(action.status)) return false;
-  if (!["OPEN", "PASSED"].includes(action.moveReviewStatus)) return false;
-  if (action.lockExpiresAt && new Date(action.lockExpiresAt).getTime() > Date.now()) return false;
-  return action.appliedEffects == null;
-}
-
-// Changing a Move already filed. The one-Move-a-turn row IS the turn, so
-// there is nothing to cancel and re-file — db/lib/moves.js#editMove edits it
-// in place, and re-rolls only when the KIND changed (never a second die for
-// a Gambit that already has one).
-export async function updateMove({ actionId, moveKind, description } = {}) {
-  const me = await actor();
-  if (me.error) return { ok: false, error: me.error };
-  const result = await editMove(prisma, {
-    character: me.character,
-    actorDiscordUserId: me.discordUserId,
-    actionId,
-    moveKind,
-    description,
-  });
-  if (!result.ok) return { ok: false, error: result.error };
-
-  const parts = ["Changed. The GMs have it. ‡"];
-  const roll = result.roll;
-  if (roll?.gambit) parts.push("The die is cast — you'll see how it fell when the turn ends. ‡");
-  if (roll?.resourceValue != null) {
-    parts.push(`Your day's work (${roll.expression}) came to ${roll.resourceValue > 0 ? "+" : ""}${roll.resourceValue} ⬢. ‡`);
-    if (roll.bonusNote) parts.push(roll.bonusNote);
-  }
-  return { ok: true, line: parts.join(" ") };
-}
 
 // The Bascinet conversation (CHAT.md §2b): everything the game has said to
 // this player by DM, and what they wrote back. The SAME rows the GM desk

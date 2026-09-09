@@ -920,9 +920,9 @@ header instead).
      computed in the browser off an ISO end time on a 60-second tick (absent
      entirely when `moveWindow` reports no lock: a frozen clock or a short
      manual turn has no honest end to count to), and then either the **Move…**
-     button or the Move already filed — its kind as a chip, its text clamped
-     to three lines until clicked, and **Edit ‡** while it is still the
-     player's to change.
+     button or the Move already filed — its kind joining the chip row, and its
+     text behind a `»`, clamped to three lines until clicked. There is no Edit:
+     a filed Move is final (TURN-ENGINE.md §6a-i).
   2. **`StatusStrip.js`** — one wrapping row of data chips: `{n} ⬢`, the carry
      line against the cap, and every held tag whose `Tag.category` is
      **Status** or **Health**. The category test is the sheet's own

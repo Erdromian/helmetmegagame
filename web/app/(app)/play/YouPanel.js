@@ -121,12 +121,7 @@ export default function YouPanel({
     <div className="chat-you">
       <p className="chat-section-title">You</p>
 
-      <TurnCard
-        turn={moveState.turn}
-        move={moveState.move}
-        onFile={() => setDialog("move")}
-        onEdit={() => setDialog("edit")}
-      />
+      <TurnCard turn={moveState.turn} move={moveState.move} onFile={() => setDialog("move")} />
       <StatusStrip resources={status?.resources ?? 0} carry={status?.carry ?? null} tags={status?.tags ?? []} />
       <Things groups={things} />
       <DesiresBlock view={desires} />
@@ -145,18 +140,6 @@ export default function YouPanel({
       <WaitingList rows={waiting} onAnswered={say} />
 
       {dialog === "move" && <MoveDialog onClose={() => setDialog(null)} onDone={say} />}
-      {dialog === "edit" && moveState.move && (
-        <MoveDialog
-          initial={{
-            actionId: moveState.move.id,
-            kind: moveState.move.kind,
-            description: moveState.move.description,
-            kindLocked: moveState.move.kindLocked,
-          }}
-          onClose={() => setDialog(null)}
-          onDone={say}
-        />
-      )}
     </div>
   );
 }

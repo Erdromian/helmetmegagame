@@ -78,15 +78,17 @@ Who this is, where they stand, and:
   grey, Panicking `--danger`) instead of the `data-over` the others use.
 - **This turn** — Chat's `TurnCard` + `MoveDialog`, wrapped in
   `SheetTurn.js`, over the same `play/actions.js#myMove` and the same minute
-  poll (`play/useMyMove.js`, which `YouPanel.js` shares). File or edit the
-  Move from here; a pending lesson or binding reads under it. The turn chip
-  and the **Move…** button sit on ONE line — `.sheet-turn .chat-move` is a
-  wrapping flex row, and the button keeps its natural width instead of
-  stretching into a bar that doubled the box's height. A Move already filed
-  breaks the line and takes the full width under the chips, because it holds a
-  paragraph of somebody's own words and a clamp that opens. The rules are
-  scoped to `.sheet-turn`: `/play`'s YOU column draws the same `TurnCard` and
-  is deliberately untouched.
+  poll (`play/useMyMove.js`, which `YouPanel.js` shares). File the Move from
+  here — a filed one is final, there is no Edit (TURN-ENGINE.md §6a-i) — and a
+  pending lesson or binding reads under it. The turn chip and the **Move…**
+  button sit on ONE line: `.sheet-turn .chat-move` is a wrapping flex row, and
+  the button keeps its natural width instead of stretching into a bar that
+  doubled the box's height. A Move already filed adds its **kind to the same
+  chip row** and puts its own words on the line under it, behind a `»` and
+  clamped to two lines until clicked. It used to open a second chips row and a
+  column of its own, which roughly tripled the box the moment somebody filed.
+  The rules are scoped to `.sheet-turn`: `/play`'s YOU column draws the same
+  `TurnCard` and keeps its own three-line clamp.
 - **Turn Effects** (`TurnForecast.js`) — the turn passes read forward
   one step, as ONE wrapping line separated by `·` rather than a list, and with
   no full stops: four short clauses down a column made the box taller than the

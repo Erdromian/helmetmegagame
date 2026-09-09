@@ -4,14 +4,13 @@ import { useState } from "react";
 import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
 import useActionRunner from "@/app/components/useActionRunner";
-import { submitMove, updateMove } from "./actions";
+import { submitMove } from "./actions";
 
-// One dialog, two callers. With no `initial` it files a Move; with one it
-// changes the Move already filed — the same three kinds and the same box,
-// because a player correcting a typo is doing the thing they just did.
-//
-// It never asks twice: the one-Move-a-turn row IS the turn, so there is no
-// cancel-and-re-file to offer.
+// Filing the one Move a turn. It never asks twice, and there is nothing to
+// come back to: the @@unique([characterId, turnId]) row IS the turn, and a
+// filed Move is final. This dialog used to double as an editor with a
+// once-a-turn cap on changing the kind; the rule now is that you get one Move
+// and it stands.
 
 // The three help lines are Bascinet's own, word for word from the Discord
 // modal's radio group (bot/src/lib/moveModal.js) — so a player reads the same
@@ -28,22 +27,14 @@ export function moveKindLabel(kind) {
   return MOVE_KINDS.find((entry) => entry.value === kind)?.label ?? "Move";
 }
 
-// Said in two places at once — under the disabled chips, and by
-// db/lib/moves.js#editMove when somebody posts around them.
-export const KIND_SPENT = "You can change what kind of Move it is once a turn. ‡";
-
-export default function MoveDialog({ initial = null, onClose, onDone }) {
-  const [kind, setKind] = useState(initial?.kind ?? "ROUTINE");
-  const [body, setBody] = useState(initial?.description ?? "");
+export default function MoveDialog({ onClose, onDone }) {
+  const [kind, setKind] = useState("ROUTINE");
+  const [body, setBody] = useState("");
   const { run, pending, error } = useActionRunner();
   const chosen = MOVE_KINDS.find((k) => k.value === kind);
-  const editing = Boolean(initial);
-  // The kind change is one a turn, because changing it re-rolls. The text is
-  // still free to fix, so the box stays open and only the chips shut.
-  const kindLocked = Boolean(initial?.kindLocked);
 
   return (
-    <Modal open title={editing ? "Change your Move" : "Your Move"} onClose={onClose}>
+    <Modal open title="Your Move" onClose={onClose}>
       <div className="chip-row" role="radiogroup" aria-label="What kind of Move">
         {MOVE_KINDS.map((entry) => (
           <button
@@ -53,14 +44,13 @@ export default function MoveDialog({ initial = null, onClose, onDone }) {
             className="chip"
             data-active={kind === entry.value ? "true" : undefined}
             aria-checked={kind === entry.value}
-            disabled={kindLocked && entry.value !== kind}
             onClick={() => setKind(entry.value)}
           >
             {entry.label}
           </button>
         ))}
       </div>
-      <p className="text-sm text-muted">{kindLocked ? KIND_SPENT : chosen?.help}</p>
+      <p className="text-sm text-muted">{chosen?.help}</p>
       <div className="field">
         <label className="field-label" htmlFor="chat-move">
           What do you do?
@@ -73,21 +63,16 @@ export default function MoveDialog({ initial = null, onClose, onDone }) {
           type="button"
           className="btn"
           disabled={!body.trim() || pending}
-          onClick={() => {
-            const done = {
+          onClick={() =>
+            run(submitMove, { moveKind: kind, description: body }, {
               onOk: (res) => {
                 onDone(res);
                 onClose();
               },
-            };
-            if (editing) {
-              run(updateMove, { actionId: initial.actionId, moveKind: kind, description: body }, done);
-            } else {
-              run(submitMove, { moveKind: kind, description: body }, done);
-            }
-          }}
+            })
+          }
         >
-          {editing ? "Save it" : "File it"}
+          File it
         </button>
       </div>
     </Modal>
