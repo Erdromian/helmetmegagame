@@ -210,11 +210,6 @@ export default async function DevPanelPage({ searchParams }) {
   const currentDay = openTurnRecord ? Math.ceil(openTurnRecord.number / 2) : Math.ceil(((lastTurn?.number ?? 0) + 1) / 2);
   const currentPhase = openTurnRecord?.phase ?? (lastTurn?.phase === "DAWN" ? "DUSK" : "DAWN");
 
-  // Mirrors advanceTurn()'s own phase alternation, so the confirm dialog can
-  // warn about the summaries half of the wipe only when the next turn is a Dawn.
-  const lastForPhase = openTurnRecord ?? lastTurn;
-  const nextPhase = !lastForPhase || lastForPhase.phase === "DUSK" ? "DAWN" : "DUSK";
-
   let locations = [];
   let livingCharacters = [];
   let bulkCharacters = [];
@@ -797,10 +792,7 @@ export default async function DevPanelPage({ searchParams }) {
                 </form>
 
                 {state.phase === "RUNNING" ? (
-                  <EndTurnButton
-                    turnLabel={openTurnRecord ? describeTurn(openTurnRecord).label : null}
-                    wipesSummaries={nextPhase === "DAWN"}
-                  />
+                  <EndTurnButton turnLabel={openTurnRecord ? describeTurn(openTurnRecord).label : null} />
                 ) : (
                   null
                 )}
