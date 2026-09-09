@@ -256,8 +256,8 @@ The rest of the headgear family throws the same way: `concealsIdentity` with no
 `web/public/assets/helms/`, `forcesConceal` without `concealsIdentity`, an
 `equipSlot` on something not `equippable`, an `equipLayer` outside that slot's
 own range — 1–3 on `HEAD` and `BODY`, 1–2 on `MOUNT` — or with no slot, a
-`HEAD`/`BODY` slot with no layer, and a layer on a `SHIELD`. The
-sprite check is the interesting one: it is the only validation here that
+`HEAD`/`BODY` slot with no layer, and a layer on a `WEAPON` or an
+`ACCESSORY`, neither of which has one. The sprite check is the interesting one: it is the only validation here that
 touches the filesystem outside `docs/`, and it deliberately treats a missing
 directory as "cannot check" rather than as a failure, since `web/public` may
 not be laid out the same way inside a Next standalone build.

@@ -10,6 +10,7 @@ import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { formatTagArmor } from "@/lib/formatTagArmor";
 import { formatTagWeight } from "@/lib/formatTagWeight";
 import { chainTokens } from "@/lib/tagChains";
+import { SLOT_TITLES } from "@lifeweb/db/lib/equipSlots";
 import PaperSheet from "./PaperSheet";
 
 // The read-only detail sheet behind a row click on the Tag Catalog: the full
@@ -134,7 +135,10 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
     // is the question a GM building kit actually asks.
     tag.concealSprite ? `Conceal sprite: ${tag.concealSprite}` : null,
     tag.equipSlot
-      ? `Worn: ${tag.equipSlot.toLowerCase()}${tag.equipLayer ? ` · layer ${tag.equipLayer}` : ""}${tag.twoHanded ? " · two hands" : ""}`
+      // The row title the sheet itself uses, not the raw enum: since the off
+      // hand folded into the hands, `equipSlot.toLowerCase()` would have read
+      // "weapon" under a shield.
+      ? `Worn: ${(SLOT_TITLES[tag.equipSlot] ?? tag.equipSlot).toLowerCase()}${tag.equipLayer ? ` · layer ${tag.equipLayer}` : ""}${tag.twoHanded ? " · two hands" : ""}`
       : null,
     // This sheet is the GM's door onto a tag, so it carries the raw numbers
     // the word scale hides everywhere else — tuning a piece of gear against

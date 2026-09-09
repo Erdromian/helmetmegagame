@@ -16,6 +16,12 @@ Entries below predate this format and list files instead.
 ✎ The travel panel counts the boat's extra crossing, which it was quietly leaving out  
 ✚ The GM inspector's Sheet tab shows a character's combined armour, melee and ballistic
 
+## 2026-09-09 · The off hand is gone; you hold four things now
+
+− The Off hand row on the sheet. A shield goes in your hands like anything else, and the row is called Held  
+✎ You have four hands' worth instead of three, which is exactly what a shield plus three hands already allowed, so nobody's kit is refused by this  
+✎ Two shields at once are legal now, because hands are the only limit on what you hold
+
 ## 2026-09-09 · Wanted follows the face, and the Cerberon can hand it out
 
 ✎ A Wanted man is only read as wanted while he is under his own name — a hood or a Disguise Kit's false name now takes it off the read, which is what the tag always said it meant  
