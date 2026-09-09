@@ -13,6 +13,14 @@ Entries below predate this format and list files instead.
 ✎ The archive picks a game by its id only. An old /archive?game=3 link now sends you to the current game rather than resolving to whichever game once held 3  
 ✎ Old archive packets still import: the reader follows the current schema and ignores the number the file carries
 
+## 2026-09-09 · Bascinet's words on the Kiss button
+
+✎ Every line the Kiss verb says is now written rather than drafted, so none of it carries a ‡ any more  
+✎ A hood or a helmet now refuses with "You can't kiss when you have a Hood on" instead of "Not through your Hood"  
+✎ The help under the button is just "Ask somebody for a kiss", and a greyed button says "You can't kiss right now"  
+✎ Asking says "Waiting on response"  
+− The line under the picker explaining the two-hour wait
+
 ## 2026-09-09 · Who's here is back on the page, and the web stops the turn ping
 
 ✎ The people standing where you are are drawn at the top of the Place panel again, so you no longer press a tab to find out who you are in a room with  

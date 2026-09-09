@@ -572,12 +572,6 @@ export default function CreateCharacterWizard({
               You take the Baron&apos;s last name.
             </p>
           )}
-          {earned.length === 0 && (
-            <p className="text-sm text-muted">
-              Your role and tags haven&apos;t earned you a title. Most people in
-              Ravenheart have none — you can earn one in play.
-            </p>
-          )}
           {/* The only place a player sees the join rule before submitting, and
               where Randomize sits so a roll and its result read as one line. */}
           <div className="flex flex-wrap items-center justify-between gap-2">

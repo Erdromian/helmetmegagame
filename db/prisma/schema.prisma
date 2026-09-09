@@ -366,7 +366,7 @@ model GameConfig {
   // before the lobby sweep releases it (docs/systemdocs/LOBBY.md §4). The
   // assignment DM carries the deadline as a Discord timestamp; the reminder
   // goes out six hours before it.
-  creationWindowHours Int @default(24)
+  creationWindowHours Int @default(12)
 
   // When true, the nightly turn-advance cron (bot/src/events/ready.js)
   // skips its automatic advance — bot/src/lib/turnEngine.js#advanceTurn

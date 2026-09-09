@@ -44,7 +44,7 @@ export default function KissDialog({ mode, presets, onDone, onClose }) {
       busy={busy}
       error={error}
       loading={loading && targets.length === 0}
-      empty={!loading && targets.length === 0 ? "There's nobody here to kiss. ‡" : null}
+      empty={!loading && targets.length === 0 ? "There's nobody here to kiss." : null}
       canSubmit={Boolean(target)}
       onClose={onClose}
       onSubmit={onSubmit}
@@ -55,9 +55,6 @@ export default function KissDialog({ mode, presets, onDone, onClose }) {
         value={targetId}
         onChange={setTargetId}
       />
-      <p className="text-xs text-muted">
-        They have to agree. You can ask again in two hours, whatever they say. ‡
-      </p>
     </ActionDialog>
   );
 }

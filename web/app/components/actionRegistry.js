@@ -71,8 +71,7 @@ export const ACTION_HELP = {
     "Confessing a tag is a Gambit. It succeeds on a 5 or a 6. It also takes the confessor's turn.",
   move: "Forcibly move an incapacitated or Bound person. If you're a Leader, you can also move people within your own faction.",
   bind: "Tie someone up. Bound people can be looted or forcefully moved.",
-  kiss:
-    "Ask somebody standing here for a kiss. They have to say yes, and it lifts both your moods. ‡",
+  kiss: "Ask somebody for a kiss.",
   crucify:
     "Put someone standing here on the cross. It needs a Cross built where you stand, and it doesn't spend your Move. They hang there unable to act, and in a turn they are Dying.",
   harm: "Further injure someone who is bound or incapacitated.",
@@ -317,7 +316,7 @@ export const ACTION_SECTIONS = [
         icon: KissIcon,
         label: "Kiss",
         gate: "canKiss",
-        gateReason: "You're in no state to kiss anybody. ‡",
+        gateReason: "You can't kiss right now.",
       },
       { mode: "free", icon: KeyIcon, label: "Free" },
       // NO gate and NO show. Laying in wait needs nothing and says nothing

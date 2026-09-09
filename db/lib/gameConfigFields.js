@@ -46,7 +46,7 @@ const FIELDS = [
     label: "Expected players (until Start)",
   },
   {
-    key: "creationWindowHours", type: "int", group: "creation", default: 24, min: 1, max: 168,
+    key: "creationWindowHours", type: "int", group: "creation", default: 12, min: 1, max: 168,
     label: "Creation window (hours)",
   },
   {

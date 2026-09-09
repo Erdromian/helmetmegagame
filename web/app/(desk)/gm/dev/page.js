@@ -97,24 +97,6 @@ const ASSIGNABLE_SUMMARY = ASSIGNABLE_THREATS.map((t) => ({ slug: t.slug, name: 
 const PHASE_LABEL = { CLOSED: "Closed", LOBBY: "Lobby", RUNNING: "Running", ENDED: "Ended" };
 const PHASE_TONE = { CLOSED: "neutral", LOBBY: "warn", RUNNING: "good", ENDED: "bad" };
 
-// One sentence saying where the game is, for the Game section's lede.
-function phaseLede(state, readyCount, livingCount) {
-  switch (state.phase) {
-    // CLOSED says nothing: the StatusPill beside this lede already reads
-    // "Closed", and a sentence repeating it was the only thing in the section.
-    case "CLOSED":
-      return "";
-    case "LOBBY":
-      return `${readyCount} readied, ${livingCount} character${livingCount === 1 ? "" : "s"} already in. Turns are frozen until Start. ‡`;
-    case "RUNNING":
-      return `${livingCount} living character${livingCount === 1 ? "" : "s"}. The clock ticks at midnight and late join is open. ‡`;
-    case "ENDED":
-      return "The clock is stopped and the archive is open. Resume if that was a mistake. ‡";
-    default:
-      return "";
-  }
-}
-
 // The four numbers a GM opens this section to find, off props the page already
 // built. No query of its own — every one of these is a length.
 function antagonistGlance(seats, parties, rites) {
@@ -182,7 +164,7 @@ export default async function DevPanelPage({ searchParams }) {
 
   // Always fetched: the header needs the open turn regardless of section,
   // and the turn section derives day and phase from the same rows.
-  const [config, state, openTurnRecord, lastTurn, depot, readyCount, livingCount] = await Promise.all([
+  const [config, state, openTurnRecord, lastTurn, depot, readyCount] = await Promise.all([
     prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
     prisma.gameState.upsert({ where: { id: 1 }, update: {}, create: GAME_STATE_CREATE, include: {
       game: {
@@ -196,7 +178,6 @@ export default async function DevPanelPage({ searchParams }) {
     prisma.turn.findFirst({ orderBy: { number: "desc" } }),
     loadDepot(prisma),
     prisma.lobbyEntry.count({ where: { status: "READY" } }),
-    prisma.character.count({ where: { status: "ALIVE" } }),
   ]);
 
   // The GM roster, only when its own section is open — it costs a full guild
@@ -744,9 +725,6 @@ export default async function DevPanelPage({ searchParams }) {
               <section className="ops-section">
                 <div className="ops-section-head">
                   <h2 className="section-title">Game</h2>
-                  {phaseLede(state, readyCount, livingCount) ? (
-                    <p className="ops-lede">{phaseLede(state, readyCount, livingCount)}</p>
-                  ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <StatusPill tone={PHASE_TONE[state.phase]}>{PHASE_LABEL[state.phase]}</StatusPill>
