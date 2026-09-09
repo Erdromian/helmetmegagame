@@ -746,7 +746,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     )
     .map((ct) => ({ slug: ct.tag.slug, name: ct.tag.name }));
   // computeKnownRecipeIds is the shared, pure verdict (web/lib/tagRequests.js)
-  // — last-breath's "medical-expert AND holds an aberrant-heart" discovery
+  // — last-breath's "brewing-expert AND holds an aberrant-heart" discovery
   // gate lives there, directly testable, rather than inlined here.
   const knownRecipeIds = computeKnownRecipeIds(tagCatalog, satisfied, character.tags, {
     visibilityBySlug,

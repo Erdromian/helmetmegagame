@@ -2923,6 +2923,19 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  brewing-expert:
+    catalog: all
+    name: Brewing (Expert)
+    category: skills
+    group: skills-brewing
+    teachable: true
+    description: "You are a master of the still and the mortar. The most demanding tonics and draughts are within your reach. ‡"
+    pointCost: 5
+    parentTag: brewing-skilled
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
   #Cooking
   cooking-basic:
     catalog: all
@@ -6224,7 +6237,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 3
-      skills: [medical-expert]
+      skills: [brewing-expert]
       gambit: false
       items: [antidote, fever-draught, brackenmoss]
     sellable: true
@@ -11565,7 +11578,7 @@ tags:
     requirement:
       turnsCost: 1/2
       resourceCost: 4
-      skills: [medical-skilled]
+      skills: [brewing-skilled]
       gambit: false
     sellable: true
     sellablePrice: 10
@@ -11589,7 +11602,7 @@ tags:
     requirement:
       turnsCost: 1/2
       resourceCost: 3
-      skills: [medical-skilled]
+      skills: [brewing-skilled]
       gambit: false
     sellable: true
     sellablePrice: 9
@@ -11613,7 +11626,7 @@ tags:
     requirement:
       turnsCost: 1/2
       resourceCost: 4
-      skills: [medical-skilled]
+      skills: [brewing-skilled]
       gambit: false
     sellable: true
     sellablePrice: 10
@@ -11641,7 +11654,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 8
-      skills: [medical-expert]
+      skills: [brewing-expert]
       gambit: false
     sellable: true
     sellablePrice: 20
@@ -11673,7 +11686,7 @@ tags:
     requirement:
       turnsCost: 3
       resourceCost: 12
-      skills: [medical-expert]
+      skills: [brewing-expert]
       gambit: false
       items: [aberrant-heart]
     sellable: true
@@ -11879,7 +11892,7 @@ tags:
     requirement:
       turnsCost: 3
       resourceCost: 16
-      skills: [medical-expert]
+      skills: [brewing-expert]
       gambit: false
       items: [cybernetic-core]
     sellable: true
@@ -11905,7 +11918,7 @@ tags:
     requirement:
       turnsCost: 3
       resourceCost: 16
-      skills: [medical-expert]
+      skills: [brewing-expert]
       gambit: false
       items: [cybernetic-core]
     sellable: true

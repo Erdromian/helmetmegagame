@@ -59,7 +59,7 @@ export function craftableTags(tags, heldTagIds = [], knownRecipeIds = null) {
 // (docs/tags.yaml `catalog:`), or — the recipe's OWN catalogVisibility. The
 // second is last-breath's discovery gate (M3 review ruling, recorded in
 // planning/medical-pass-plan.md): the recipe may surface in the Craft menu
-// ONLY for a character who BOTH satisfies medical-expert AND holds an
+// ONLY for a character who BOTH satisfies brewing-expert AND holds an
 // aberrant-heart. Without checking the recipe's own flag, that conjunction
 // would hold only by accident of aberrant-heart's own catalog value —
 // reclassify that ingredient as `catalog: all` later (plausible once the
