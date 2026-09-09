@@ -114,9 +114,22 @@ export default function AvatarField({
             {resetting ? "Resetting…" : "Reset to Default"}
           </button>
         )}
+        {/* The ping is a role mention inside #turns, and Play from the web
+            closes #turns along with every other channel (CHAT.md §6). So the
+            box still records the preference — it is what comes back when they
+            switch back — but the line under it says plainly that nothing will
+            arrive meanwhile, rather than letting them tick a notification that
+            silently cannot be delivered. */}
         <Switch name="turnPingOptIn" defaultChecked={defaultTurnPingOptIn}>
           Ping me when the turn advances
         </Switch>
+        {defaultWebOnly && (
+          <p className="text-sm text-muted">
+            Playing from the web, so this ping has nowhere to arrive — it lives in a Discord
+            channel you are no longer in. Your answer is kept, and the ping comes back if you
+            turn Play from the web off. ‡
+          </p>
+        )}
         {/* The anonymity switch (docs/systemdocs/CHAT.md §6). On, this player's
             Discord account is taken out of every game channel, so a member
             sidebar can no longer say which account is standing in the room.

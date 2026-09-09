@@ -149,7 +149,12 @@ export async function updateCharacterProfile(_prevState, formData) {
   }
 
   await syncCharacterNickname(session.discordUserId, formatBareName(updated)).catch(() => {});
-  await setTurnPingRole(session.discordUserId, updated.turnPingOptIn).catch(() => {});
+  // A web-only player holds no turn-ping role: the ping lives in the #turns
+  // console, and web-only closes #turns to them (db/lib/webOnly.js). NOT read
+  // off `updated` — that row was written before the flip above and still says
+  // whatever they walked in as. A refused flip leaves them where they were.
+  const webOnlyNow = webOnlyError ? character.webOnly : webOnlyWanted;
+  await setTurnPingRole(session.discordUserId, updated.turnPingOptIn && !webOnlyNow).catch(() => {});
   // Kept as a self-heal, not a rename: the name can no longer change here, so
   // this only ever creates a personal role that went missing.
   await ensureCharacterRole(updated).catch(() => {});

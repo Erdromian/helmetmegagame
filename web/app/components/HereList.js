@@ -14,9 +14,10 @@ import { lookAtRow } from "@/app/(app)/chat/actions";
 import { loadPeopleHere } from "@/app/(app)/character/rosterActions";
 import useVisiblePoll from "@/app/(app)/chat/useVisiblePoll";
 
-// HERE: who is standing where you are, and what you can do to them. Drawn in
-// /chat's right-hand column and on /ledger's Actions panel — the same rows,
-// the same menu — which is why it lives here rather than under play/.
+// HERE: who is standing where you are, and what you can do to them. Drawn at
+// the top of /chat's Place panel and on the character sheet's Actions panel —
+// the same rows, the same menu — which is why it lives here rather than under
+// the chat route.
 //
 // The rows come from db/lib/whosHere.js — the same function the "Who's here?"
 // button on the Discord anchor answers with — so the street and the page can
@@ -124,8 +125,9 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
 const HERE_POLL_MS = 60_000;
 
 export default function HereList({
-  // The server's list, or null to read it on mount — /ledger passes null,
-  // because navigating there is the click that asks who is standing here.
+  // The server's list, or null to read it on mount — the character sheet
+  // passes null, because opening it is the click that asks who is standing
+  // here. (/ledger, which this used to name, redirects to /character now.)
   people,
   selfId,
   strip = false,

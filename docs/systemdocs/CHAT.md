@@ -481,6 +481,11 @@ cards described under `ChatAside.js` below:
   padding everywhere except inside the phone's sheet; they hold a floor now,
   44px under a coarse pointer.
 
+**Corrected the same day.** HERE went in as a tab beside the other four, and
+the first playtester to see it said pressing one to find out who is in the room
+was tedious. It is not a tab any more — the people are drawn at the top of the
+Place panel. The reasoning is under `ChatAside.js` below.
+
 ### The wireframes Bascinet chose
 
 Desktop, three columns — `15rem minmax(0,1fr) 20rem`, carried as
@@ -489,6 +494,13 @@ repeated across the media queries below. The right column grew from 17rem in
 the second pass: it is the game suite now, not a button strip. The feed's own
 content is capped at `70ch` (`.chat-feed-inner`) — the scrollbar stays at the
 column's edge and only the words are measured.
+
+The right column below is drawn as the pre-tab stack, which is what it looked
+like when Bascinet picked this. Read it for what is IN the column, not for how
+it is arranged: PLACE, ROOM, TRAVEL and YOU are one tab at a time now, and HERE
+sits at the top of PLACE rather than under the place card. The tab strip runs
+where `[Place] [Zone]` is drawn — those two chips are the place card's own, and
+they stayed.
 
 ```
 ┌───────────────┬────────────────────────────────────────────┬──────────────────────┐
@@ -583,9 +595,10 @@ header, and the rest of the right column comes up as a bottom sheet from the
 └────────────────────────────────────┘
 ```
 
-…and ⋯ opens the sheet, which is the same five sections in the same order the
-column draws them, minus HERE (the phone has the avatar strip under the place
-header instead).
+…and ⋯ opens the sheet, which is the same four tabs in the same order the
+column draws them — the people included, so a sheet titled "Here" now has some.
+The strip under the place header stays: it is faces at a glance, where the
+sheet's rows carry the names, the eye and the person menu.
 
 ### The parts
 
@@ -913,27 +926,76 @@ header instead).
   own, so it keeps Escape, the focus trap and the backdrop `Modal` already
   owns.
 
-  **The five sections are TABS, not a stack** (2026-09-09) — Place · Here ·
-  Room · Travel · You. Three of them are unbounded (the place card is as long
-  as its prose, the travel grid is 6rem per exit, YOU is four sub-blocks plus a
-  waiting list), so stacked down one scroller the tallest of them decided how
-  far you travelled to reach anything under it; and two of them render nothing
-  at all when they have nothing to say, which moved the column's height on
-  every walk. One panel open at a time fixes both. **HERE** is the desktop
-  column's alone — on a phone those rows are the strip `Chat.js` draws under
-  the header, and two pollers on one screen is one too many. **ROOM** appears
-  only when a room is open. Which tab you left open is remembered per browser
-  in `localStorage` through `asideTabStore.js` — `useSyncExternalStore`, never
-  an effect — and a stored tab this place does not have falls back to Place.
-  The `dialogs` node hangs OUTSIDE the panel on purpose: a dialog opened from
-  one tab must not unmount because the reader pressed another.
+  **The sections are TABS, not a stack** (2026-09-09) — Place · Room · Travel ·
+  You. Three of them are unbounded (the place card is as long as its prose, the
+  travel grid is 6rem per exit, YOU is four sub-blocks plus a waiting list), so
+  stacked down one scroller the tallest of them decided how far you travelled
+  to reach anything under it; and two of them render nothing at all when they
+  have nothing to say, which moved the column's height on every walk. One panel
+  open at a time fixes both. **ROOM** appears only when a room is open. Which
+  tab you left open is remembered per browser in `localStorage` through
+  `asideTabStore.js` — `useSyncExternalStore`, never an effect — and a stored
+  tab this place does not have falls back to Place. The `dialogs` node hangs
+  OUTSIDE the panel on purpose: a dialog opened from one tab must not unmount
+  because the reader pressed another.
+
+  **HERE IS NOT A TAB** (2026-09-09, later the same day). It was one for an
+  afternoon, and a playtester said what was wrong with that: *"Bit tedious I
+  think having to click to see who's in the same room. Could be merged with
+  'place' maybe?"* They were right. Who you are standing with is the question
+  the page exists to answer, so you want it answered the whole time rather than
+  on request — and HERE has none of the problem the tabs solve, being as tall
+  as the room is full rather than as long as somebody's prose. So the people
+  are drawn at the top of **PLACE**, which is the tab the column opens on, and
+  the four tabs left are the things you go and look at. The party rack sits
+  BELOW the place card rather than with the people, even though it belongs with
+  them: it fetches its party on mount and draws nothing until that lands, so
+  above the card it shoved the Location's prose down a card-height on every
+  visit to the default tab. Anything that appears late goes under the things
+  that do not.
+
+  The cost of this is named rather than hidden: HERE is unbounded too, one row
+  per occupant, so a launch-day Town can push the place card below the fold of
+  the default tab. A `max-height` with a scroller is the obvious answer and is
+  the wrong one today — the person menu is a plain absolutely-positioned
+  `.chat-menu` inside the list, and an overflow would trap it in a scrollbox.
+  `.chat-menu-portal` exists for exactly that (it is how `placePanel()` escapes
+  its own container); the menu moves onto it first, then the cap.
+
+  **Neither the list nor the party rack is gated on the sheet any more**, and
+  both used to be. The HERE tab was `!inSheet` on the stated grounds that the
+  phone's avatar strip made a second poller — which was never true: `Chat.js`
+  renders the strip with no `poll` prop and `HereList` defaults it off, so the
+  strip has never polled anything. What that gate did cost was real. The sheet
+  is mounted from 900px down (`useAsideFolded.js`) and the strip only appears
+  from 720px down (`globals.css`), so between the two **who is standing here
+  was drawn nowhere at all** — and under 720 the sheet is titled "Here" and had
+  no people in it. The party rack was worse off again: living inside a
+  desktop-only tab, it was unreachable on a phone entirely.
+
+  What that costs is one poll. A desktop reader sitting on Place pays two slow
+  re-reads a minute where the tabbed version paid none until you pressed HERE —
+  which is not new load, it is the load the stacked column always had, and
+  `useVisiblePoll` stands both of them down whenever the BROWSER tab is in the
+  background (it reads `document.visibilityState`, not which aside tab is
+  open — that standing-down comes from the closed panels being unmounted). On a
+  phone both mount only while the ⋯ sheet is open.
+
+  The phone's avatar strip is keyed on the same `hereKey` the column's list
+  uses, exported from `ChatAside.js` for it. It had no key at all, and since
+  `HereList` seeds the server's rows into `useState`, it froze at whatever it
+  first mounted with — so the strip and the sheet's list could sit one above
+  the other disagreeing about who was in the room.
 
   Each section is a **card** — `--surface`, a border and `--r-md`, the same
   treatment `.panel` gets everywhere else. They were a hairline `border-bottom`
   and nothing else, which gave a Location's long prose and a one-chip status
   strip identical weight.
 
-  It owns the affordance list the sections share through `usePlaceActions`:
+  It owns the affordance list the sections share through `usePlaceActions`.
+  The numbers below are the sections, not the tabs — 1 and 2 both sit in the
+  **Place** panel, and the people are drawn ABOVE the place card rather than
+  under it:
   1. **`PlaceCard.js`** — the Location's name, its zone muted under it, a
      `Place` / `Zone` chip pair and the chosen text, always on the page inside
      a scrolling `max-height`. **Place** is `Location.description` plus the
@@ -944,8 +1006,9 @@ header instead).
      and **Converse**, which is otherwise only reachable from a person's row
      in HERE and so left somebody standing alone with no way to open one.
      The old **Examine** dialog is gone: this is what it said.
-  2. **`HereList.js`** (`web/app/components/`, since the sheet draws it too) —
-     everyone standing here, hooded or not, off
+  2. **`HereList.js`** (`web/app/components/`, since `CharacterSheet.js` draws
+     it too) — drawn at the TOP of the Place panel, on every width. Everyone
+     standing here, hooded or not, off
      `db/lib/whosHere.js#whosHere` called with `{ withSightings: true }`. A row
      is a 24px avatar, the presented name (their Role for a fellow member of a
      real faction, `you` on your own) and, **once you have heard them speak**,
@@ -1512,11 +1575,45 @@ switched N minutes ago. You can switch again at HH:MM. ‡"* and **leaves the
 rest of the save standing** — the appearance somebody just typed is not thrown
 away because a cooldown had two minutes left on it.
 
-**What survives either way:** DMs, the turn-ping role (it is a DM, not a
-channel), the OOC report channel (opened by the Player role, not per
-character), guest rows, conversation membership, and the fiction — they still
-stand there and still appear in Who's here?. The places column shows one quiet
-`.chip`, **Playing from the web ‡**.
+**What survives either way:** DMs, the OOC report channel (opened by the Player
+role, not per character), guest rows, conversation membership, and the fiction —
+they still stand there and still appear in Who's here?. The places column shows
+one quiet `.chip`, **Playing from the web ‡**.
+
+**The turn-ping role does NOT survive**, and it used to. The line here said it
+did, on the grounds that a turn ping "is a DM, not a channel" — which was simply
+wrong. The ping is a `<@&DISCORD_TURN_PING_ROLE_ID>` inside the `#turns` console
+(`db/turnCalendar.js#buildTurnAnnouncement`, posted with no `allowed_mentions`
+so it really pings), and `#turns` is opened by the **zone role** this switch has
+just taken away (`db/lib/turnsChannelAccess.js`). So a web-only player was being
+pinged twice a day about a channel they could not open — and since the console is
+deleted and reposted every turn (`db/lib/turnAnnouncement.js#postTurnsConsole`),
+by the time they went looking the message that pinged them was gone. A player
+reported it as ghost pings.
+
+**Two writers enforce it**, and `db/lib/webOnly.js` is deliberately not one of
+them. The Bio save (`web/app/(app)/character/actions.js`) already writes the
+role on the line after it calls `setWebOnly`, and it has to: it is the only
+place that sees somebody *already* web-only ticking the turn-ping box, which
+the flip itself never runs for. Doing it in both was two identical REST calls
+per flip. The other writer is `db/lib/channelDoctor.js`'s `turn-ping` reconcile
+(`turnPingOptIn && !webOnly`) — bidirectional, so that one predicate both takes
+the role off everybody already in the bad state and hands it back the moment
+they switch web-only off, with no backfill script.
+
+Two things to know about that split. `setWebOnly` is an exported `db/lib`
+function with exactly one caller today; a future bot-side caller would skip the
+role and wait on the doctor. And `/gm/dev/characters/[id]` writes the
+`turnPingOptIn` COLUMN (`characterWrite.js`) with no Discord effect at all
+(`planDiscordEffects` has no turn-ping case), so a GM ticking that box also
+waits on the doctor — which predates this change.
+
+The player is told, rather than left to notice: while Play from the web is on,
+the Bio card draws a line under the turn-ping switch saying the ping has
+nowhere to arrive and that their answer is kept for when they switch back
+(`web/app/components/AvatarField.js`). The box still records the preference —
+silently keeping a notification switch that cannot fire is the thing this whole
+entry is about.
 
 Which re-materialisers had to learn the flag is in `CHANNELS.md` §3, and it is
 the list to check against when adding another.

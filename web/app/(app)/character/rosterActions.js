@@ -94,8 +94,9 @@ export async function loadActionRoster({ need = [] } = {}) {
 
 // Who is standing where you are, as db/lib/whosHere.js answers it — the same
 // rows the "Who's here?" button on the Discord anchor gives. Was in
-// play/actions.js; it lives here now because the HERE list is drawn on /ledger
-// as well as /chat. withSightings is what gives a row its face and its eye
+// play/actions.js; it lives here now because the HERE list is drawn on the
+// character sheet (CharacterSheet.js) as well as /chat. (/ledger, which the
+// old comment named, is a bare redirect to /character now.) withSightings is what gives a row its face and its eye
 // (db/lib/sightings.js); the Discord button asks without it, because a list
 // of names has no faces to withhold.
 export async function loadPeopleHere() {

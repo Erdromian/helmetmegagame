@@ -10,10 +10,25 @@
 // ON strips the Location overwrite, the zone role (and with it #turns, whose
 // view grants ride the zone roles — db/lib/turnsChannelAccess.js), every
 // narrowcast overwrite, every private-Room thread and every Conversation
-// thread. OFF puts all of it back. What survives either way: DMs, the turn-ping
-// role, the OOC report channel (role-based, not per-character), RoomGuest rows,
+// thread. OFF puts all of it back. What survives either way: DMs, the OOC
+// report channel (role-based, not per-character), RoomGuest rows,
 // PlayerThreadMember rows, and the fiction — they still stand there and still
 // appear in Who's here?.
+//
+// THE TURN-PING ROLE GOES TOO, and used to be on that list. The argument for
+// keeping it was that a turn ping is a DM rather than a channel, and that was
+// simply wrong: the ping is a <@&role> inside the #turns console
+// (db/turnCalendar.js), a channel this switch has just closed to them. So a
+// web-only player was pinged twice a day about a message they could not open,
+// and the console is deleted and reposted every turn, so by the time they
+// looked there was nothing there at all. A player reported it as ghost pings.
+//
+// That role is NOT taken off here, and deliberately: this function's only
+// caller already writes it on the very next line (web/app/(app)/character/
+// actions.js), because it has to handle the case this function never sees —
+// somebody already web-only who just ticks the turn-ping box. Doing it in both
+// places was two identical REST calls per flip. The channel doctor's
+// `turn-ping` reconcile is the backstop for everybody else.
 //
 // THE ORDER MATTERS. The database flip lands FIRST, inside the cooldown guard,
 // and every Discord call after it is best-effort. A failed REST call must never
@@ -26,10 +41,9 @@
 // deliberately NOT on the @lifeweb/db barrel; require it by path.
 
 const { revokeAllCharacterAccess } = require("./accessSweep");
-const { setGuildNickname } = require("./discordRest");
+const { removeThreadMember, setGuildNickname } = require("./discordRest");
 const { materializeDiscordPresence } = require("./locationMove");
 const { conversationsFor } = require("./conversations");
-const { removeThreadMember } = require("./discordRest");
 const { notifyPresence } = require("./presenceNotify");
 
 // How long a character waits between two flips of the "web only" switch.

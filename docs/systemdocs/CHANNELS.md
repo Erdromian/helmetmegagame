@@ -359,9 +359,13 @@ departed player still reading rooms.
 Location has none of the grants this section describes. No member overwrite on
 the Location channel, no zone role (so no `#summary` and no `#turns`, whose
 view grants ride the zone roles), no narrowcast overwrite, and no membership in
-any Room or Conversation thread. Their DMs, their turn-ping role and the OOC
-report channel are untouched — the report channel is opened by the Player role
-rather than per character, so there was never anything to take away.
+any Room or Conversation thread — **and no turn-ping role**, because the turn
+ping is a `<@&…>` inside the `#turns` console and `#turns` is one of the
+channels the line above has just closed to them. Keeping it meant a ping twice a
+day about a message they could not open, and the console is replaced every turn,
+so it was gone by the time they looked. Their DMs and the OOC report channel are
+untouched — the report channel is opened by the Player role rather than per
+character, so there was never anything to take away.
 
 The fiction does not change: they still stand where they stand, they still show
 in Who's here?, they still hold their keys and their guest rows, and they are
@@ -631,7 +635,8 @@ every mismatch, and — with `apply` — repairs it. **Dry run by default.**
 Two scopes:
 
 - **cheap** — role membership (zone roles vs `Character.zoneId`, turn-ping vs
-  `turnPingOptIn`, cursed vs the dead-and-not-yet-rerolled set), character
+  `turnPingOptIn` **and not `webOnly`**, cursed vs the dead-and-not-yet-rerolled
+  set), character
   roles existing/orphaned, **`location-occupancy`** (below), a
   **`connection-slug`** check that every tag and Role a `LocationLink` names
   actually exists in the catalogs — they cannot be foreign keys, because tags

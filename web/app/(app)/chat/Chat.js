@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import EmptyState from "@/app/components/EmptyState";
 import Modal from "@/app/components/Modal";
-import ChatAside from "./ChatAside";
+import ChatAside, { hereKey } from "./ChatAside";
 import MapBoard from "../map/MapBoard";
 import HereList from "@/app/components/HereList";
 import PlacesColumn, { PlacesTabs } from "./PlacesColumn";
@@ -302,8 +302,10 @@ export default function Chat({
   const closeSheet = useCallback(() => setSheetOpen(false), []);
 
   // The map, over the top of everything. Mounted HERE rather than in
-  // ChatAside because ChatAside renders twice on a phone — the desktop column
-  // and the "Here" sheet — and a Modal in there would be two of them.
+  // ChatAside because Chat owns the one copy of it: ChatAside is written twice
+  // below (the desktop column and the ⋯ sheet) and a Modal inside it would be
+  // two declarations of the same overlay. Only one of the two ever mounts —
+  // they are guarded on `asideFolded` — but the ownership is the point.
   //
   // On a folded viewport it navigates to /map instead of opening. A full-bleed
   // board inside the sheet would be a dialog inside a dialog on the smallest
@@ -769,7 +771,9 @@ export default function Chat({
         {/* On a phone the people are an avatar strip under the place header,
             opening the same per-person menu the column's rows do. It draws
             nowhere else — CSS hides it above 720px. */}
-        {aside && <HereList people={aside.people} selfId={aside.selfId} strip />}
+        {aside && (
+          <HereList key={hereKey(aside.people)} people={aside.people} selfId={aside.selfId} strip />
+        )}
         {factionOpen ? (
           <FactionPanel faction={faction} siloOpen={siloOpen} onSelect={onSelect} />
         ) : dmOpen ? (
@@ -863,7 +867,6 @@ export default function Chat({
             addPlace={addPlace}
             onAddMember={onAddMember}
             onOpenMap={openMap}
-            inSheet
           />
         </Modal>
       )}

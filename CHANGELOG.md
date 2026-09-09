@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Who's here is back on the page, and the web stops the turn ping
+
+✎ The people standing where you are are drawn at the top of the Place panel again, so you no longer press a tab to find out who you are in a room with  
+✚ On a phone the ⋯ sheet finally lists the people, and between 720 and 900 pixels wide — where the sheet is up but the face strip is hidden — they were drawn nowhere at all  
+✚ The party rack is reachable on a phone now; it used to live inside a tab a phone never drew  
+✎ Playing from the web now takes your turn-ping role off too. It was being kept, so you were pinged twice a day about #turns — a channel the switch had just closed to you, carrying a message that is deleted and reposted every turn, so there was nothing there by the time you looked. The Bio card says so, and the ping comes back if you switch off
+
 ## 2026-09-09 · A finished game becomes one file, and leaves the database
 
 ✚ An Archive this game button on /gm/dev. It writes the whole transcript out to one file, checks it reads back, and deletes nothing  
