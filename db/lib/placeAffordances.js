@@ -21,7 +21,7 @@
 const { hasNoticeboard } = require("./noticeboard");
 const { INTERCOM_ROOM_SLUG } = require("./intercom");
 const { BELL_ROOM_SLUG } = require("./bell");
-const { linksFor, gateOperable, canToggleGate, endpoints, isHeldOpen } = require("./locationGraph");
+const { linksFor, gateOperable, endpoints, isHeldOpen } = require("./locationGraph");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 
 // The one room with a big red button on the wall (docs/zones.yaml). Named
@@ -183,16 +183,15 @@ async function affordancesFor(prisma, character) {
     }
   }
 
-  // The gates. The winch is in the watchtower on Discord, and the tower is a
-  // room this character had to be able to reach — so the web offers the gate
-  // only where the same room is open to them.
+  // The gates. Reaching the watchtower IS the permission — the winch is in
+  // the tower, so anyone the tower's `access:` list lets in may work it, on
+  // either face. There is no second opener predicate to disagree with the
+  // room.
   const towerHere = open.some((room) => WATCHTOWER_ROOM_SLUGS.has(room.slug));
   const tagSlugs = (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean);
-  const roleSlug = character.role?.slug ?? null;
   for (const link of links ?? []) {
     if (!gateOperable(link)) continue;
     if (!towerHere) continue;
-    if (!canToggleGate(link, { tagSlugs, roleSlug })) continue;
     const farName = endpoints(link, character.locationId).far.name;
     out.push({
       id: "gate",

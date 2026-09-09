@@ -31,7 +31,6 @@ const {
 const { applyMood } = require("@lifeweb/db/lib/mood");
 const {
   travelOptions,
-  canToggleGate,
   gateOperable,
   endpoints,
   linksFor,
@@ -858,12 +857,10 @@ async function handleTravelOpen(interaction) {
 
 // loc:gate:{linkId} — the Open/Close button on a modular gate's two anchors.
 //
-// The button is only rendered on the watchtower's starter post, which every
-// member of that room can see, so authority is re-checked here rather than
-// trusted — the room's access list and the gate's opener list are two
-// different predicates and need not agree:
-// holding one of the gate's opener tags, or playing one of its opener Roles.
-// A rendered button is a hint, not a lock.
+// The button is only rendered on the watchtower's starter post, so getting
+// into that room is the whole permission model — anyone who can see the
+// winch may pull it. `toggleGate` still re-checks that the clicker is
+// standing at the gate, because a thread member need not be.
 //
 // The flip is a conditional updateMany whose WHERE clause carries the state
 // the clicker saw, the same shape the move cooldown and the mount claim use.

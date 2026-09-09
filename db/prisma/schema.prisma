@@ -1298,11 +1298,11 @@ model LocationVisit {
 ///   hidden           HIDDEN. requiredTagSlug plus omission from the travel
 ///                    list, so a player without the tag never learns the edge
 ///                    is there.
-///   modular          An Open/Close button on both endpoints' anchors.
-///                    Impassable while isOpen is false. openerRoleSlugs are
-///                    Role slugs from docs/roles.yaml and openerTagSlugs are
-///                    Tag slugs; holding any one of them is authority to
-///                    flip it.
+///   modular          An Open/Close button on the WATCHTOWER at the gate.
+///                    Impassable while isOpen is false. Reaching the tower is
+///                    the whole permission model: the room's access: list
+///                    decides who may work the winch, so there is no opener
+///                    list of its own.
 ///   onFoot           Too tight, too steep or too enclosed for a horse or a
 ///                    cart. A MOUNTED character is refused at the threshold —
 ///                    which is the point, because Location.indoors only parks
@@ -1332,6 +1332,10 @@ model LocationLink {
 
   modular         Boolean  @default(false)
   isOpen          Boolean  @default(true)
+  // Orphans since the winch moved into the watchtower and the tower's access:
+  // list became the only thing that decides who may work a gate. Nothing
+  // reads them; db:sync-zones writes them empty. Kept rather than dropped so
+  // the change needs no migration.
   openerRoleSlugs String[]
   openerTagSlugs  String[]
 

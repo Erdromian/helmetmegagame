@@ -161,13 +161,17 @@
 #                                  #   player without it never learns it is
 #                                  #   there. Refuses in the same words a
 #                                  #   nonexistent edge does, deliberately.
-#     modular:                     # an Open/Close button on both endpoints'
-#       roles: [cerberus]          #   anchors. Impassable while shut. `roles`
-#       tags: [cerberon]           #   are Role slugs from docs/roles.yaml and
-#       open: true                 #   `tags` are Tag slugs; holding any one is
-#                                  #   authority to work it. `open` is what the
-#                                  #   gate is BORN as — a re-sync never
-#                                  #   reopens one somebody shut in play.
+#     modular:                     # an Open/Close button on the WATCHTOWER at
+#       open: true                 #   the gate. Impassable while shut. Getting
+#                                  #   into the tower is the whole permission
+#                                  #   model — there is no opener list, so the
+#                                  #   tower's `access:` decides who may work
+#                                  #   the winch. `open` is what the gate is
+#                                  #   BORN as — a re-sync never reopens one
+#                                  #   somebody shut in play.
+#     on_foot: true                # too tight, steep or enclosed for a horse
+#                                  #   or a cart. A MOUNTED character is
+#                                  #   dismounted at the threshold.
 #     keyed: true                  # on crossing, the KEY-HOLDER is DM'd "Leave
 #                                  #   it open for the next 24 hours?". Yes and
 #                                  #   the way ignores its tag and shows in
@@ -516,8 +520,9 @@ zones:
           #
           # The portcullis winch is worked from HERE, not from the Gatehouse
           # anchor and not from the Road: db/lib/roomStarterRow.js puts the
-          # gate button on this room's starter. Hence the access list, which is
-          # everyone the gate's own opener list names.
+          # gate button on this room's starter. Hence the access list: getting
+          # in here IS the authority to work the winch, so it is the only
+          # answer to "who may shut the gate".
           gatehouse-watchtower:
             name: Watchtower
             access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key]
@@ -2224,8 +2229,6 @@ connections:
   - pair: [fortress/gatehouse, fortress/road]
     announce: true_name
     modular:
-      roles: [cerberus, censor, baron, hand]
-      tags: [knighted, cerberon, cerberus-key]
       open: true
 
   # --- Town -------------------------------------------------------------
@@ -2281,8 +2284,6 @@ connections:
   - pair: [caves/customs, caves/caves-approach]
     announce: concealed
     modular:
-      roles: [cerberus, censor, baron, hand]
-      tags: [cerberus-key, cerberon]
       open: true
   - [caves/caves-approach, caves/caves-abandoned-camp]
   - [caves/caves-walkways, caves/caves-brooding-grounds]
@@ -2328,14 +2329,10 @@ connections:
   - pair: [forest/forest-northern-road, town/north-gate]
     announce: concealed
     modular:
-      roles: [cerberus, censor, baron, hand, headman]
-      tags: [knighted, cerberon, cerberus-key]
       open: true
   - pair: [forest/forest-south, town/south-gate]
     announce: concealed
     modular:
-      roles: [cerberus, censor, baron, hand, headman]
-      tags: [knighted, cerberon, cerberus-key]
       open: true
 
   # The Baron's elevator: the Undercroft's deeper passages come out in the

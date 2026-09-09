@@ -201,41 +201,28 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     }
   }
 
-  // Every slug a LocationLink names, checked against the live catalogs.
+  // The locked/hidden tag a LocationLink names, checked against the live
+  // catalog.
   //
-  // These CANNOT be foreign keys and cannot be validated at zone-sync time,
-  // because tags and roles sync AFTER zones (SYNC.md's working order) — the
-  // same trade the room `access:` list makes. So this is where a typo
-  // surfaces, and it matters more here than for a room: a locked way naming
-  // a tag that does not exist is a way nobody can ever pass, and a HIDDEN one
-  // is that plus invisible, so nobody would even report it missing.
+  // It CANNOT be a foreign key and cannot be validated at zone-sync time,
+  // because tags sync AFTER zones (SYNC.md's working order) — the same trade
+  // the room `access:` list makes. So this is where a typo surfaces, and it
+  // matters more here than for a room: a locked way naming a tag that does
+  // not exist is a way nobody can ever pass, and a HIDDEN one is that plus
+  // invisible, so nobody would even report it missing.
   //
   // Report-only. The fix is an edit to docs/zones.yaml, which is the master;
   // there is nothing sensible for --apply to guess.
-  const links = await prisma.locationLink.findMany({ include: { a: true, b: true } });
+  const links = await prisma.locationLink.findMany({ where: { requiredTagSlug: { not: null } }, include: { a: true, b: true } });
   if (links.length > 0) {
-    const [tagSlugs, roleSlugs] = await Promise.all([
-      prisma.tag.findMany({ select: { slug: true } }).then((rows) => new Set(rows.map((r) => r.slug))),
-      prisma.role.findMany({ select: { slug: true } }).then((rows) => new Set(rows.map((r) => r.slug))),
-    ]);
+    const tagSlugs = await prisma.tag
+      .findMany({ select: { slug: true } })
+      .then((rows) => new Set(rows.map((r) => r.slug)));
     for (const link of links) {
+      if (tagSlugs.has(link.requiredTagSlug)) continue;
       const label = `${link.a.name} <-> ${link.b.name}`;
-      const missing = [];
-      if (link.requiredTagSlug && !tagSlugs.has(link.requiredTagSlug)) {
-        missing.push(`${link.hidden ? "hidden" : "locked"} tag "${link.requiredTagSlug}"`);
-      }
-      for (const slug of link.openerTagSlugs ?? []) {
-        if (!tagSlugs.has(slug)) missing.push(`opener tag "${slug}"`);
-      }
-      for (const slug of link.openerRoleSlugs ?? []) {
-        if (!roleSlugs.has(slug)) missing.push(`opener role "${slug}"`);
-      }
-      if (missing.length > 0) {
-        await report("connection-slug", label, `names ${missing.join(", ")} — no such entry (check docs/zones.yaml)`);
-      }
-      if (link.modular && (link.openerTagSlugs ?? []).length === 0 && (link.openerRoleSlugs ?? []).length === 0) {
-        await report("connection-slug", label, "is modular but names no opener — nobody can ever work it");
-      }
+      const kind = link.hidden ? "hidden" : "locked";
+      await report("connection-slug", label, `names ${kind} tag "${link.requiredTagSlug}" — no such tag (check docs/zones.yaml)`);
     }
   }
 

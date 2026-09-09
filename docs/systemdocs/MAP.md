@@ -129,7 +129,6 @@ module that knows an edge could have your location on either side:
 | `linksFor(prisma, locationId)` | every edge touching a location |
 | `linkBetween(prisma, a, b)` | the one edge between two locations, either way round |
 | `crossingCheck(link, { tagSlugs })` | the pure verdict: `{ listed, passable, refusal }` |
-| `canToggleGate(link, { tagSlugs, roleSlug })` | may this character work a modular gate |
 | `resolveNeighbors(prisma, character, locationId)` | every destination, gated and sorted |
 | `travelOptions(…)` | the same, filtered to what may be *shown* |
 
@@ -151,7 +150,7 @@ is why `LocationLink` carries fields rather than one enum.
 | Unmanned gate | `announce: CONCEALED` | posts only what a passer-by would have seen — "An old woman has entered the Gate" |
 | Locked | `requiredTagSlug` | crossing needs the tag, and the way is **listed**, so a player sees the door and learns what opens it |
 | Hidden | `requiredTagSlug` + `hidden` | needs the tag **and** is absent from every travel list. Refuses in the same words a nonexistent edge does, deliberately — a different refusal would tell a player the way is there |
-| Modular | `modular`, `isOpen`, `openerRoleSlugs`, `openerTagSlugs` | an Open/Close button on the **watchtower** at the gate; impassable while shut |
+| Modular | `modular`, `isOpen` | an Open/Close button on the **watchtower** at the gate; impassable while shut. Anyone the tower admits may work it |
 | Keyed | `keyed`, `openUntil` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — yes and the way ignores its tag and becomes listed until the window lapses |
 | On foot | `onFoot` | too tight, steep or enclosed for a horse or a cart. A **mounted** character is dismounted crossing it, same as walking into an indoors Location |
 
@@ -173,18 +172,26 @@ lands at a Town gate. This is also the only thing in the game that suppresses
 an *individual's* arrival — everything else about announcing is a property of
 the edge and treats every traveller alike.
 
-**The winch is in the tower.** A modular gate's Open/Close button renders on
-one Room's starter post — the watchtower at that gate — and on neither
-endpoint's Location anchor, which is where it used to live. The four rooms are
-named in `db/lib/roomStarterRow.js#WATCHTOWER_ROOM_SLUGS`; the row is composed
-by `syncZones.js#roomComponents` and redrawn after a flip by
-`#refreshGateRooms`, which every caller of `refreshLocationAnchor` also calls.
-Two things follow. The tower's `access:` list has to admit everyone the gate's
-`modular:` block authorises, or somebody may work a gate they cannot reach —
-`canToggleGate` accepts an opener **Role**, but room membership is computed
-from held **tags** only. And a tower whose thread is missing renders a flip
-nowhere at all, since there is no longer an anchor copy to fall back on; the
-sync and the channel doctor are the repair.
+**The winch is in the tower, and reaching the tower is the whole permission
+model.** A modular gate's Open/Close button renders on one Room's starter post
+— the watchtower at that gate — and on neither endpoint's Location anchor,
+which is where it used to live. The four rooms are named in
+`db/lib/roomStarterRow.js#WATCHTOWER_ROOM_SLUGS`; the row is composed by
+`syncZones.js#roomComponents` and redrawn after a flip by `#refreshGateRooms`,
+which every caller of `refreshLocationAnchor` also calls.
+
+**Anyone who can see the button may pull it.** A gate used to carry its own
+opener list as well, so two predicates decided one act and had to be kept in
+agreement: the tower's `access:` list is computed from held **tags**, while the
+opener list also accepted a **Role**, so a gate could authorise somebody who
+could not reach it — or admit somebody to the tower who then found the winch
+refused them. Only one of those can be the rule, and the room is the one a
+player can see. `toggleGate` still checks that the clicker is **standing at the
+gate**, because a thread member need not be, and that is the only check left.
+
+A tower whose thread is missing renders a flip nowhere at all, since there is
+no longer an anchor copy to fall back on; the sync and the channel doctor are
+the repair.
 
 Two things about the gating that are easy to get wrong:
 
@@ -255,14 +262,14 @@ equip-shape rather than through `heldTagSlugs`, which returns bare slugs and
 would have counted a stowed horse. The refusal is listed rather than hidden,
 because unequipping the horse is a fix the traveller can apply on the spot.
 
-The **modular button** is `loc:gate:{linkId}` on the Location anchor
-(`db/lib/locationAnchorRow.js#locationGateRow`). Authority is re-checked in the
-handler against the edge's opener Roles and tags; the flip is a conditional
-`updateMany` carrying the state the clicker saw, so two watchmen clicking at
-once means one close and one "somebody just did." Both endpoints' anchors are
-reposted, because the gate has a button on each side. **A re-sync never reopens
-a gate somebody shut in play** — `modular.open` in the YAML is the value a link
-is *born* with, not one the sync re-asserts.
+The **modular button** is `loc:gate:{linkId}` on the watchtower's starter post.
+The handler re-checks only that the clicker is standing at the gate — the room
+they clicked in is the authority for the rest. The flip is a row lock and a
+re-read carrying the state the clicker saw, so two watchmen clicking at once
+means one close and one "somebody just did." Both endpoints are redrawn, since
+either may have a tower. **A re-sync never reopens a gate somebody shut in
+play** — `modular.open` in the YAML is the value a link is *born* with, not one
+the sync re-asserts.
 
 ## 3. What a move costs
 

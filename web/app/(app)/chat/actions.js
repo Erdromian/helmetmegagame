@@ -122,8 +122,9 @@ async function actor(select) {
       // "Play from the web" — nothing here may touch Discord for them
       // (docs/systemdocs/CHAT.md §6).
       webOnly: true,
-      // `role` and the tag slugs are what canToggleGate reads, and
-      // affordancesFor asks it for every gate this character is standing at.
+      // The tag slugs are what the room `access:` lists read, which is what
+      // decides both which rooms this character can enter and — since the
+      // winch lives in the watchtower — which gates they may work.
       role: { select: { slug: true } },
       tags: { select: { tag: { select: { slug: true } } } },
     },

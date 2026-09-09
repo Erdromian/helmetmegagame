@@ -139,19 +139,12 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
 
 // Does this edge have a gate to work at all? Only a modular edge does. The
 // gate button renders off this, on the WATCHTOWER at the gate
-// (db/lib/roomStarterRow.js), and canToggleGate re-checks it server-side.
+// (db/lib/roomStarterRow.js). Getting into that room is the whole permission
+// model — anyone who can see the winch may pull it — so there is no second
+// predicate here; toggleGate only re-checks that the clicker is standing at
+// the gate.
 function gateOperable(link) {
   return Boolean(link?.modular);
-}
-
-// Who may flip a modular gate: anyone holding one of its opener tags, or
-// playing one of its opener Roles. Pure, and re-checked server-side in the
-// button handler — a rendered button is a hint, not a lock.
-function canToggleGate(link, { tagSlugs, roleSlug } = {}) {
-  if (!gateOperable(link)) return false;
-  const held = tagSlugs instanceof Set ? tagSlugs : new Set(tagSlugs ?? []);
-  if ((link.openerTagSlugs ?? []).some((slug) => held.has(slug))) return true;
-  return Boolean(roleSlug && (link.openerRoleSlugs ?? []).includes(roleSlug));
 }
 
 // The destination list for one character standing in one location, already
@@ -354,7 +347,6 @@ module.exports = {
   linkBetween,
   crossingCheck,
   gateOperable,
-  canToggleGate,
   isHeldOpen,
   shouldPromptKeyed,
   resolveNeighbors,

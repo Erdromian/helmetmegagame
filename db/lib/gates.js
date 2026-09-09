@@ -9,15 +9,15 @@
 // bot listened for would have been a second channel to keep alive for one
 // message that only ever fires from a click the bot or the web already
 // answered.
-const { gateOperable, canToggleGate, endpoints, isHeldOpen, KEYED_OPEN_MS } = require("./locationGraph");
+const { gateOperable, endpoints, isHeldOpen, KEYED_OPEN_MS } = require("./locationGraph");
 
-// `character` needs { id, locationId, role: { slug }, tags: [{ tag: { slug } }] }.
+// `character` needs { id, locationId }. Working a gate reads nothing else:
+// the winch is in the watchtower, so the room they clicked in already
+// answered who they are.
 const GATE_CHARACTER_SELECT = {
   id: true,
   name: true,
   locationId: true,
-  role: { select: { slug: true } },
-  tags: { select: { tag: { select: { slug: true } } } },
 };
 
 // Returns { ok: true, opened, farName, locationIds } or { ok: false, error }.
@@ -33,17 +33,11 @@ async function toggleGate(prisma, { character, linkId, actorDiscordUserId }) {
     return { ok: false, error: "You aren't standing at that gate. ‡" };
   }
 
-  const allowed = canToggleGate(link, {
-    tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
-    roleSlug: character.role?.slug ?? null,
-  });
-  if (!allowed) return { ok: false, error: "The gate's mechanism doesn't answer to you. ‡" };
-
   const wantOpen = !link.isOpen;
-  // The permission verdict above read a snapshot, and the flip must not trust
-  // it across time: a re-sync can turn the edge into an ordinary
-  // (non-modular) way, and two watchmen can click in the same second. Lock
-  // the row, re-read, and re-run both predicates.
+  // The checks above read a snapshot, and the flip must not trust it across
+  // time: a re-sync can turn the edge into an ordinary (non-modular) way, and
+  // two watchmen can click in the same second. Lock the row, re-read, and
+  // re-run both predicates.
   let outcome = "flipped";
   await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${link.id} FOR UPDATE`;

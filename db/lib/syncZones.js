@@ -252,8 +252,6 @@ function parseConnection(raw, locationByRef, problems) {
     hidden: false,
     modular: false,
     isOpen: true,
-    openerRoleSlugs: [],
-    openerTagSlugs: [],
     keyed: false,
     onFoot: false,
   };
@@ -315,23 +313,8 @@ function parseConnection(raw, locationByRef, problems) {
     if (typeof modular !== "object" || Array.isArray(modular)) {
       problems.push(`connections ${entry.a} <-> ${entry.b} has a modular that is not a mapping`);
     } else {
-      const slugList = (value, label) => {
-        if (value == null) return [];
-        if (!Array.isArray(value) || value.some((v) => typeof v !== "string")) {
-          problems.push(`connections ${entry.a} <-> ${entry.b} modular.${label} is not a list of slugs`);
-          return [];
-        }
-        return value.map((v) => v.trim()).filter(Boolean);
-      };
       entry.modular = true;
-      entry.openerRoleSlugs = slugList(modular.roles, "roles");
-      entry.openerTagSlugs = slugList(modular.tags, "tags");
       entry.isOpen = modular.open !== false;
-      if (entry.openerRoleSlugs.length === 0 && entry.openerTagSlugs.length === 0) {
-        problems.push(
-          `connections ${entry.a} <-> ${entry.b} is modular but names no roles or tags — nobody could ever open it`,
-        );
-      }
     }
   }
 
@@ -1168,8 +1151,12 @@ async function syncZonesFromYaml(prisma) {
       // The born state, re-asserted as authoring (isOpen itself never is):
       // it is what the Restart wipe resets isOpen to.
       authoredOpen: entry.isOpen,
-      openerRoleSlugs: entry.openerRoleSlugs,
-      openerTagSlugs: entry.openerTagSlugs,
+      // Orphan columns. A gate used to name the Roles and tags that could
+      // work it; now reaching the watchtower is the whole permission model,
+      // so nothing reads these and the sync empties them rather than leaving
+      // a list behind that lies about who may pull the winch.
+      openerRoleSlugs: [],
+      openerTagSlugs: [],
       keyed: entry.keyed,
       onFoot: entry.onFoot,
     };

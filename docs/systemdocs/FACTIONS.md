@@ -145,7 +145,8 @@ behind one.
 means something elsewhere. `web/app/(app)/faction/actions.js#siloKeySlugs`
 grants a silo's whole access list on an accepted **INVITE**, no picker — so a
 lock on the Mess Hall would have handed every new Cerberon a `cerberus-key`,
-which is an opener tag on all four modular gates. That is the faucet the
+which opens all four watchtowers and so the winch of every modular gate
+(`MAP.md` §2a). That is the faucet the
 comment at `actions.js:561` refuses, arriving through `docs/zones.yaml`
 instead of through that file.
 
