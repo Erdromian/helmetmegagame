@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · A name in an old line stays the name that was said
+
+✎ Starred lines, journal entries and the transcript now read the way a line reads in the hall — they were showing raw braces and asterisks instead  
+✎ Mentioning somebody records the name they were going by, so putting on a disguise or taking a new name no longer rewrites what an old line said  
+✎ A conversation's member list shows somebody hooded as a stranger, instead of naming them and drawing their face  
+✚ The @-mention role follows a disguise now, colour and all  
+✎ A journal entry no longer names or draws a disguised character
+
 ## 2026-09-09 · The caves roll the die every time you walk in, not just the first
 
 ✎ Walking back into a cave location you already saw today rolls the Caving Die again — retreating through the dark is still walking through the dark  
