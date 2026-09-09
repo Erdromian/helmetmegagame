@@ -85,8 +85,7 @@ documents:
 
       | Tier | ⬢ | Move | Skill |
       |---|---|---|---|
-      | Dead Simple | 0 | none — shared pool of 4 a turn | Medical (Basic) |
-      | Dead Simple | 1 | none — shared pool of 4 a turn | Medical (Basic) |
+      | Dead Simple | 0–1 | none — shared pool of 4 a turn | Medical (Basic) |
       | Simple | 2 | ¼ | Medical (Basic) |
       | Moderate | 2 | ⅓ | Medical (Skilled) |
       | Severe | 4 | ⅓ | Medical (Skilled) |
@@ -94,13 +93,10 @@ documents:
       | Severe surgery | 14 | whole | Medical (Expert) |
       | Complex surgery | 14 | whole, and a Gambit | Medical (Expert) |
 
-      **Dead Simple — 0 ⬢, no Move**
+      **Dead Simple — 0–1 ⬢, no Move**
 
-      - {tag:minor-bleeding}, {tag:dislocated-shoulder}
-
-      **Dead Simple — 1 ⬢, no Move**
-
-      - {tag:bruised}, {tag:severe-pain}
+      - 0 ⬢ — {tag:minor-bleeding}, {tag:dislocated-shoulder}
+      - 1 ⬢ — {tag:bruised}, {tag:severe-pain}
 
       **Simple — 2 ⬢, ¼ Move**
 
