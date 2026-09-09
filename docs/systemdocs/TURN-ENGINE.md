@@ -248,17 +248,17 @@ each arrived at by getting them wrong first.
    `settleCarry` for every ALIVE character holding a tradeable tag,
    Overburdened, or more ⬢ than the base cap — one transaction each — and the
    overflow drops ride back for the thunk (`CARRY.md` §3).
-8c. **Fear pass** (`db/lib/fearPass.js`, `"fear"` in `TURN_PASSES`) — the
-   nightly settle for the hidden fear dial (`FEAR.md`). Slotted after hunger,
+8c. **Mood pass** (`db/lib/moodPass.js`, `"mood"` in `TURN_PASSES`) — the
+   nightly settle for the mood dial (`MOOD.md`). Slotted after hunger,
    so it sees the final Hunger streak, and after carry, so it sees the final
    sheet; before travel arrival, so a traveller pays the night for the
    Location they ended the day in rather than the one they haven't reached yet.
-   It applies the turn's flat gains and reliefs to `Character.fear`, settles
-   the one status tag the band produces (`db/lib/fear.js#settleFearTag`,
-   `source: TagSource.CONDITION`, same convention the old phobia system used),
+   It applies the turn's flat harms and reliefs to `Character.mood`, slides
+   every dial one step of `MOOD_DRIFT` back toward Fine from either direction,
    and deletes each character's `dined` marker so a fresh turn starts
-   unmarked. Audit action `fear_resolved`; its DMs ride the `tagExpiryDms`
-   channel back on the thunk.
+   unmarked. It settles no tag: the band is a word read off the number, not a
+   row. Audit action `mood_resolved`; its DMs — only the two bands that carry
+   one — ride the `tagExpiryDms` channel back on the thunk.
 8d. **Travel arrival pass** (`db/lib/travelArrivalPass.js`, `"travelArrival"`
    in `TURN_PASSES`) — everyone who spent their Move crossing a zone last turn
    finally lands (`MAP.md` §3). **Last of the passes**, and the slot is
@@ -509,14 +509,14 @@ Full writeup: `REQUESTS.md` §4.
 
 The Disappointed track is gone — no separate tag, no streak counter driving
 it. A noble who ends the turn without the `dined` marker (no fine or lavish
-meal that turn) instead takes +10 fear at the fear pass (8c, `FEAR.md`), the
-same as any other fear gain. Hungerless and Dying nobles are exempt.
+meal that turn) instead takes −10 mood at the mood pass (8c, `MOOD.md`), the
+same as any other harm to the dial. Hungerless and Dying nobles are exempt.
 
 `Character.missedMealStreak` is an orphan column now — nothing writes or
 reads it any more, same as `GameConfig.mindlinkChannelId`. There is no
 player-facing tracker: the sheet's old Dinner row went with the track
 (Bascinet's call, 2026-09-07). A noble learns they skipped dinner the way
-everyone learns about fear — the band tag, and its one-line DM.
+everyone learns about a bad night — the word in the Mood box on their sheet.
 
 ### 5b. The horse's feed
 

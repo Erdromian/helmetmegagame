@@ -205,7 +205,7 @@ import {
   ACT,
   SPEAK,
 } from "@lifeweb/db/lib/incapacitation";
-import { applyFear, consumeReliefFor, woundFearFor, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/fear";
+import { applyMood, consumeReliefFor, woundMoodFor, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/mood";
 import {
   NAME_LIMITS,
   formatCharacterName,
@@ -2366,11 +2366,11 @@ async function consumeTagRequestImpl({ tagId }) {
       quantity: 1,
     }));
 
-  // What this eases (docs/systemdocs/FEAR.md): a drink or a drug by the state
-  // it lands you in, a lavish meal, tea or a cigarette by what it is. The
-  // largest single figure, never a sum — Bliss is one drink. A fine meal
-  // feeds a noble and calms nobody, on purpose.
-  const fearRelief = consumeReliefFor(held.tag.slug, grantSlugs);
+  // What this lifts (docs/systemdocs/MOOD.md): a drink or a drug by the state
+  // it lands you in, a meal, a treat, a hot drink or a smoke by what it is.
+  // The largest single figure, never a sum — Bliss is one drink, and Sweets
+  // is a treat rather than a treat plus a meal.
+  const moodRelief = consumeReliefFor(held.tag.slug, grantSlugs);
 
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, 1);
@@ -2394,7 +2394,7 @@ async function consumeTagRequestImpl({ tagId }) {
     // db/lib/hiddenCures.js. Runs after the ordinary grants and records
     // nothing on the request, on purpose.
     await applyHiddenCures(tx, character.id, held.tag.slug);
-    if (fearRelief) await applyFear(tx, character.id, { kind: "DRINK", base: -fearRelief });
+    if (moodRelief) await applyMood(tx, character.id, { kind: "DRINK", base: moodRelief });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_consume_tag",
@@ -2404,7 +2404,7 @@ async function consumeTagRequestImpl({ tagId }) {
         tagName: held.tag.name,
         granted: granted.map((g) => g.tagName),
         resourcesGranted,
-        fearRelief: fearRelief || undefined,
+        moodRelief: moodRelief || undefined,
         climbed: climbed.map((c) => c.tagName),
       },
     });
@@ -2489,7 +2489,7 @@ async function transferRequestImpl({
   // whole job to lootCharacterRequestImpl rather than growing a second
   // implementation beside it. That is what keeps the helpless gate
   // (INCAPACITATING_SLUGS — Bound, Dying, Paralyzed, Catatonic, or a body),
-  // the ROBBED fear hit and the "your body was searched" notification from
+  // the ROBBED mood hit and the "your body was searched" notification from
   // depending on which button was pressed.
   //
   // It has to land in YOUR hands, the same rule Loot has always had — there is
@@ -2925,6 +2925,7 @@ async function healCharacterRequestImpl({
             diceModifier:
               gambitModifierTotal(character.tags, {
                 hungerStreak: character.hungerStreak,
+                mood: character.mood,
               }) + (surgical ? 1 : 0),
             zoneId: character.zoneId ?? null,
             gmNotes: "auto:heal_gambit",
@@ -2944,7 +2945,8 @@ async function healCharacterRequestImpl({
         aftermathSlugs,
         openTurn?.number ?? null,
       );
-      // Being treated eases half of what the wound cost the nerves (FEAR.md).
+      // Being treated gives back half of what the wound cost the mood
+      // (MOOD.md) — woundMoodFor is signed, hence the minus.
       // Only a routine cure — a gambit heal leaves the affliction on them. The
       // held row's tag was loaded without its group, which the rung needs, so
       // it is re-read here rather than trusted.
@@ -2952,8 +2954,8 @@ async function healCharacterRequestImpl({
         where: { id: held.tagId },
         select: { slug: true, requirementResources: true, requirementTurns: true, requirementGambit: true, group: { select: { slug: true } } },
       });
-      const relief = woundFearFor(woundTag) / 2;
-      if (relief > 0) await applyFear(tx, target.id, { kind: "HEALED", base: -relief });
+      const relief = -woundMoodFor(woundTag) / 2;
+      if (relief > 0) await applyMood(tx, target.id, { kind: "HEALED", base: relief });
     }
 
     await logAudit(tx, {
@@ -3022,7 +3024,7 @@ async function researchRequestImpl({ ingredientSlug }) {
 
   // No `character.location` on the shared include (requireCharacter is every
   // request's loader) — a targeted read off the scalar FK, the same shape
-  // db/lib/fear.js#applyArrivalFear uses for its own Cathedral check.
+  // db/lib/mood.js#applyArrivalMood uses for its own Cathedral check.
   const location = character.locationId
     ? await prisma.location.findUnique({
         where: { id: character.locationId },
@@ -3062,6 +3064,7 @@ async function researchRequestImpl({ ingredientSlug }) {
           diceRoll: rollDie(),
           diceModifier: gambitModifierTotal(character.tags, {
             hungerStreak: character.hungerStreak,
+            mood: character.mood,
           }),
           zoneId: character.zoneId ?? null,
           locationId: character.locationId ?? null,
@@ -3191,8 +3194,8 @@ async function lootCharacterRequestImpl({
       })),
       amount,
     };
-    // Waking up robbed is frightening; a corpse minds nothing (FEAR.md).
-    if (target.status === "ALIVE") await applyFear(tx, target.id, { kind: "ROBBED" });
+    // Waking up robbed is frightening; a corpse minds nothing (MOOD.md).
+    if (target.status === "ALIVE") await applyMood(tx, target.id, { kind: "ROBBED" });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_loot_character",
@@ -3429,8 +3432,8 @@ async function crucifyCharacterRequestImpl({
       expiresTurn,
       stackable: crucified.stackable,
     });
-    // The single most frightening thing that can happen to a person (FEAR.md).
-    await applyFear(tx, target.id, { kind: "CRUCIFIED" });
+    // The single most frightening thing that can happen to a person (MOOD.md).
+    await applyMood(tx, target.id, { kind: "CRUCIFIED" });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_crucify_character",
@@ -3455,7 +3458,7 @@ async function crucifyCharacterRequestImpl({
 // resolved on the spot: a break DMs the torturer everything on the sheet that
 // isn't a wound or a passing status, plus the last three Desires fulfilled,
 // and the Depressed tag lands on the victim. Either way the victim takes the
-// TORTURED fear hit and the torturer's Move is spent. The die and its
+// TORTURED mood hit and the torturer's Move is spent. The die and its
 // arithmetic live in db/lib/torture.js; this file only loads rows and writes.
 //
 // Filed as a ROUTINE already PASSED (fileAutoRoutine) rather than a Gambit:
@@ -3512,9 +3515,10 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
     torturerSlugs,
     targetSlugs,
     equipmentInReach,
-    // Hungry, Afraid and Panic count here as on any Gambit.
+    // Hungry, Afraid and Panicking count here as on any Gambit.
     gambitMods: gambitModifiers(character.tags, {
       hungerStreak: character.hungerStreak,
+      mood: character.mood,
     }),
   });
   const rollLine = formatTortureRoll(result);
@@ -3557,8 +3561,8 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
 
   const outcome = result.success ? "they broke" : "they held out";
   await prisma.$transaction(async (tx) => {
-    // +40, or nothing under Pain Immunity / an Opium High (FEAR.md §6).
-    await applyFear(tx, target.id, { kind: "TORTURED" });
+    // +40, or nothing under Pain Immunity / an Opium High (MOOD.md §6).
+    await applyMood(tx, target.id, { kind: "TORTURED" });
     if (result.success && depressed) {
       // An EVENT grant, so Depressed's conflictsWith (a purchase-time check)
       // does not stop it — the same door a GM grant walks through.
@@ -3947,8 +3951,8 @@ async function claimDesireImpl({
       where: { id: character.id },
       data: { tagPoints: { increment: row.points } },
     });
-    // Getting what you wanted settles the nerves, 10 a point (FEAR.md).
-    await applyFear(tx, character.id, { kind: "DESIRE", base: -DESIRE_RELIEF_PER_POINT * row.points });
+    // Getting what you wanted settles the nerves, 10 a point (MOOD.md).
+    await applyMood(tx, character.id, { kind: "DESIRE", base: DESIRE_RELIEF_PER_POINT * row.points });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_fulfill_desire",
@@ -4318,10 +4322,10 @@ async function mutilateRequestImpl({
       expiresTurn,
       stackable: itemTag.stackable,
     });
-    // A corpse feels nothing. applyFear on a dead row would move a dial
-    // nobody reads and show up in the fear log as a live event.
+    // A corpse feels nothing. applyMood on a dead row would move a dial
+    // nobody reads and show up in the mood log as a live event.
     if (subject.status === "ALIVE")
-      await applyFear(tx, subject.id, { kind: "MUTILATED" });
+      await applyMood(tx, subject.id, { kind: "MUTILATED" });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_mutilate",

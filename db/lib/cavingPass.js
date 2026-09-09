@@ -15,7 +15,7 @@
 const { drawLoot } = require("./cavingLoot");
 const { hasAttribute, SAFE_ATTRIBUTE } = require("./locationAttributes");
 const { addToStack } = require("./tagWrites");
-const { applyFear } = require("./fear");
+const { applyMood } = require("./mood");
 const { rollDie } = require("./moveEffects");
 const { expiryFrom } = require("./turnFormat");
 
@@ -59,7 +59,7 @@ async function rollCaving(prisma, character, turn, location) {
         // A held Musk Lure eats the first TROUBLE in the holder's place
         // (docs/tags.yaml `musk-lure`): the lure is spent, the row lands
         // QUIET with nothing for the Caving lens to deliberate, and the
-        // CAVE_TROUBLE fear never fires — whatever it was followed the
+        // CAVE_TROUBLE mood hit never fires — whatever it was followed the
         // stink instead. The conditional write is the check, the same
         // no-free-overdraw rule the craft spend uses.
         let lured = false;
@@ -92,9 +92,9 @@ async function rollCaving(prisma, character, turn, location) {
             resolvedAt: rowKind === "QUIET" ? new Date() : null,
           },
         });
-        // Something is wrong down here — and the caver knows it (FEAR.md).
+        // Something is wrong down here — and the caver knows it (MOOD.md).
         // Teratophobia triples this one.
-        if (rowKind === "TROUBLE") await applyFear(tx, character.id, { kind: "CAVE_TROUBLE" });
+        if (rowKind === "TROUBLE") await applyMood(tx, character.id, { kind: "CAVE_TROUBLE" });
         return {
           roll: row,
           dm: {

@@ -170,11 +170,11 @@ enum TagSource {
   LESSON
   // Made through the Craft flow (docs/systemdocs/CRAFTING.md).
   CRAFT
-  // A status the game derives from hidden state rather than a person
-  // granting it — today the fear band tags (Uncomfortable … Panic), written
-  // only by db/lib/fear.js#settleFearTag, which owns and clears them. A GM
-  // grant of the same slug is never CONDITION, which is how the settle tells
-  // its own row from a person's and leaves the latter alone.
+  // ORPHAN. A status the game derived from hidden state rather than a person
+  // granting it. Its only user was the fear band (Uncomfortable … Panic),
+  // written by the settle in the old db/lib/fear.js; the mood rework made the
+  // band a derived word on the sheet instead of a tag, and nothing writes
+  // CONDITION now. Kept because this schema drops nothing.
   CONDITION
 }
 
@@ -226,11 +226,11 @@ model GameConfig {
   id                  Int @id @default(1)
   lifewebDecayPerTurn Int @default(10)
 
-  // The one fear knob (docs/systemdocs/FEAR.md): every gain is multiplied by
-  // it, every relief and the nightly decay divided by it. 1 is the tuning as
+  // The one mood knob (docs/systemdocs/MOOD.md): every harm is multiplied by
+  // it, every relief and the nightly drift divided by it. 1 is the tuning as
   // written; 0 switches the system off and the next turn close empties every
   // dial. Live on /gm/dev.
-  fearIntensity Float @default(1)
+  moodIntensity Float @default(1)
 
   // The message wipe (db/lib/messageWipe.js). NOT a GM knob any more — the
   // wipe is how the game works, so it is on and it stays on. The column
@@ -484,7 +484,6 @@ model GameConfig {
   // post — a notice nobody took down is a notice nobody wanted.
   // See docs/systemdocs/PAPERWORK.md.
   noticeExpiryTurns Int @default(10)
-
 }
 
 /// Where a game is in its life. The turn cron and the force-advance button
@@ -1711,13 +1710,13 @@ model Character {
   // write as the counter above.
   zoneMovesBonusUsed Int  @default(0)
 
-  // The movement fear ration (db/lib/fear.js, MOVE_FEAR_TURN_CAP). Same claim-
+  // The movement mood ration (db/lib/mood.js, MOVE_MOOD_TURN_CAP). Same claim-
   // token shape as zoneMovesTurnId above, and not a foreign key for the same
-  // reason. Float because what it counts is the delta that actually landed,
-  // after the multipliers and after GameConfig.fearIntensity — Brave halves a
-  // step to 1, so the total is not an integer.
-  moveFearTurnId  String?
-  moveFearUsed    Float   @default(0)
+  // reason. Float because what it counts is the magnitude that actually
+  // landed, after the multipliers and after GameConfig.moodIntensity — Brave
+  // halves a step to 1, so the total is not an integer.
+  moveMoodTurnId String?
+  moveMoodUsed   Float   @default(0)
 
   // The in-game DAY this character's bird last flew — the same claim token as
   // fastTravelTurnId above, for the same reason and with the same trap. A day
@@ -1739,17 +1738,19 @@ model Character {
   // every other terminal chain (tagExpiryPass.js).
   hungerStreak Int @default(0)
 
-  // The hidden fear dial, 0–100 (docs/systemdocs/FEAR.md). Nothing shows the
-  // number to a player; db/lib/fear.js projects the band it falls in onto one
-  // status tag (Uncomfortable … Panic, `source: CONDITION`). Moved by the
-  // world — wilderness, caves, wounds, hunger, a death nearby — and settled
-  // back by comfort, then decayed at every turn close by db/lib/fearPass.js.
-  // Float because GameConfig.fearIntensity divides. Editable on the Dev Panel.
-  fear Float @default(0)
+  // The mood dial, +64 down to −100 (docs/systemdocs/MOOD.md). Nothing shows
+  // the number to a player; db/lib/mood.js projects the band it falls in onto
+  // one WORD in its own box on the sheet — Happy … Fine … Panicking. Dragged
+  // down by the world (wilderness, caves, wounds, hunger, a death nearby),
+  // lifted by comfort, and slid back toward Fine at every turn close by
+  // db/lib/moodPass.js. Float because GameConfig.moodIntensity divides.
+  // Editable on the Dev Panel. Was `fear`, 0–100 with the sign the other way
+  // up, until the mood rework.
+  mood Float @default(0)
 
   // ORPHAN. The retired Disappointed track (Nobility upkeep) counted missed
   // meals here until 2026-09-06; nothing reads or writes it now — a noble who
-  // skips dinner takes fear instead (db/lib/fearPass.js). Kept, like
+  // skips dinner takes a mood hit instead (db/lib/moodPass.js). Kept, like
   // mindlinkChannelId, because this schema drops no columns; the values are
   // stale history.
   missedMealStreak Int @default(0)
@@ -3252,7 +3253,7 @@ model Note {
 
   // The name the room HEARD, which for a hooded or forced line is the alias
   // rather than the person (bot/src/events/messageReactionAdd.js).
-  characterName    String
+  characterName String
 
   // And the face that went with it, frozen for the same reason
   // ArchiveEntry.presentedAvatarPath is. NULL means the speaker's own face,
@@ -3261,12 +3262,12 @@ model Note {
   // face the starrer could see. A note from before this column draws the
   // question-mark plate instead of a guess.
   presentedAvatarPath String?
-  zoneId           String?
-  zone             Zone?      @relation(fields: [zoneId], references: [id])
-  content          String
-  sentAt           DateTime
-  discordUserId    String
-  createdAt        DateTime   @default(now())
+  zoneId              String?
+  zone                Zone?    @relation(fields: [zoneId], references: [id])
+  content             String
+  sentAt              DateTime
+  discordUserId       String
+  createdAt           DateTime @default(now())
 
   @@unique([discordMessageId, discordUserId])
   @@index([discordUserId])
@@ -4083,7 +4084,7 @@ model RiteAttempt {
   // Who was counted when it fired: [{ characterId, name }].
   participants Json?
   // What the effect did, for the GM panel and the audit trail.
-  result Json?
+  result       Json?
 
   chants RiteChant[]
 
@@ -4114,8 +4115,8 @@ model RiteChant {
   characterId   String
   characterName String
   // The ArchiveEntry.seq of the message, so a GM can find the line.
-  archiveSeq BigInt?
-  saidAt     DateTime @default(now())
+  archiveSeq    BigInt?
+  saidAt        DateTime @default(now())
 
   @@index([attemptId])
 }

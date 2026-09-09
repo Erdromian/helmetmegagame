@@ -21,7 +21,7 @@ import { transferRequest, lootCharacterRequest } from "@/app/(app)/character/req
 // body (docs/systemdocs/CARRY.md).
 //
 // The server paths are unchanged. Out of a person's pockets IS Loot —
-// lootCharacterRequest, with the helpless gate, the fear hit and the "your
+// lootCharacterRequest, with the helpless gate, the mood hit and the "your
 // body was searched" notice — whichever button opened this. Everything else
 // is transferRequest. A concealed person is offered as a destination under
 // an opaque "hood:<token>" key (web/lib/peoplePools.js); the faction silo is

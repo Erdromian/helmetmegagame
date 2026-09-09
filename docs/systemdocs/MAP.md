@@ -83,8 +83,8 @@ customs:
     depot: true
 ```
 
-Two more keys feed the fear dial (`FEAR.md`): `wilderness` marks a Location
-where arriving and ending the turn cost fear (every Forest, Black Hills and
+Two more keys feed the mood dial (`MOOD.md`): `wilderness` marks a Location
+where arriving and ending the turn cost mood (every Forest, Black Hills and
 Marshes Location except the factory, the farms and the marshes village), and
 `haven` marks a Location whose roof gives extra relief at turn close — the
 Inn, the Keep and the Sanctuary.

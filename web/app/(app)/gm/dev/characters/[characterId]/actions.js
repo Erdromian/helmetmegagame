@@ -35,7 +35,7 @@ import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
-import { applyFear, settleFearTag, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/fear";
+import { applyMood, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/mood";
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
 import { gmTransferResources } from "@/lib/gmTransfer";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
@@ -153,9 +153,6 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
 
     if (Object.keys(data).length) {
       await tx.character.update({ where: { id: characterId }, data });
-      // A GM typing 90 into the Fear box should see Panic land on the sheet in
-      // the same Apply (docs/systemdocs/FEAR.md).
-      if ("fear" in data) await settleFearTag(tx, characterId);
     }
 
     // Keyed on the POST-edit faction: promoting someone who is also changing
@@ -699,8 +696,8 @@ async function awardDesireGmImpl({ characterId, slotIndex: rawSlotIndex, slug, t
       where: { id: characterId },
       data: { tagPoints: { increment: value } },
     });
-    // Same relief the player-side claim gives (docs/systemdocs/FEAR.md).
-    await applyFear(tx, characterId, { kind: "DESIRE", base: -DESIRE_RELIEF_PER_POINT * value });
+    // Same relief the player-side claim gives (docs/systemdocs/MOOD.md).
+    await applyMood(tx, characterId, { kind: "DESIRE", base: DESIRE_RELIEF_PER_POINT * value });
     return row;
   });
 

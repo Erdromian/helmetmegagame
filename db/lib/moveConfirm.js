@@ -29,13 +29,13 @@ const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = null } = {}) {
   const diceRoll = action.moveKind === "GAMBIT" ? rollDie() : null;
   // Only a Gambit rolls, so only a Gambit can carry a modifier. diceRoll stays
-  // the RAW roll and the SUM of every contributor (today just Hunger, scaled
-  // to the streak) is stored beside it — see the Action.diceModifier comment in
-  // schema.prisma. The per-contributor breakdown is display-only, below.
-  const modifiers =
-    diceRoll != null ? gambitModifiers(action.character.tags, { hungerStreak: action.character.hungerStreak }) : [];
-  const diceModifier =
-    diceRoll != null ? gambitModifierTotal(action.character.tags, { hungerStreak: action.character.hungerStreak }) : null;
+  // the RAW roll and the SUM of every contributor (Hunger scaled to the
+  // streak, and the bottom two mood bands) is stored beside it — see the
+  // Action.diceModifier comment in schema.prisma. The per-contributor
+  // breakdown is display-only, below.
+  const opts = { hungerStreak: action.character.hungerStreak, mood: action.character.mood };
+  const modifiers = diceRoll != null ? gambitModifiers(action.character.tags, opts) : [];
+  const diceModifier = diceRoll != null ? gambitModifierTotal(action.character.tags, opts) : null;
   // Null for a row written before ranges existed (a leftover "1d4*3"), which
   // then confirms on its flat delta alone rather than throwing.
   const rollResult = action.resourceRollExpression ? rollResourceRange(action.resourceRollExpression) : null;

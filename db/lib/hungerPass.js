@@ -11,7 +11,7 @@ const {
   DYING_SLUG,
 } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
-const { applyFear } = require("./fear");
+const { applyMood } = require("./mood");
 
 const HUNGER_STREAK_CAP = 6;
 
@@ -67,7 +67,7 @@ async function runHungerPass(prisma, turn) {
   }
 
   // A noble's dinner is no longer this pass's business: skipping it costs
-  // fear at the fear pass instead (db/lib/fearPass.js, the `dined` marker).
+  // a mood hit at the mood pass instead (db/lib/moodPass.js, the `dined` marker).
   const gateIds = [hungerlessId, fastMetabolismId, ateMealId].filter(Boolean);
   const characters = await prisma.character.findMany({
     where: { status: "ALIVE" },
@@ -206,16 +206,16 @@ async function runHungerPass(prisma, turn) {
       : []),
   ]);
 
-  // Starving to death's door is frightening (docs/systemdocs/FEAR.md). The
+  // Starving to death's door is frightening (docs/systemdocs/MOOD.md). The
   // grant above is a batch createMany, so the dial moves here, after it lands;
   // the band DMs ride back beside the hunger notices rather than being sent.
-  const fearDms = [];
+  const moodDms = [];
   for (const characterId of newlyDyingIds) {
-    const moved = await applyFear(prisma, characterId, { kind: "DYING", notify: false }).catch((err) => {
-      console.error(`Hunger pass: dying fear failed for ${characterId}:`, err.message ?? err);
+    const moved = await applyMood(prisma, characterId, { kind: "DYING", notify: false }).catch((err) => {
+      console.error(`Hunger pass: dying mood failed for ${characterId}:`, err.message ?? err);
       return null;
     });
-    if (moved?.dm) fearDms.push(moved.dm);
+    if (moved?.dm) moodDms.push(moved.dm);
   }
 
   // DMs are deliberately NOT sent here — the list is handed back and sent
@@ -231,7 +231,7 @@ async function runHungerPass(prisma, turn) {
     recovering: stillHungryAfterEating.length,
     starvedCharacterIds: toStarve.map((character) => character.id),
     hungerNotices,
-    fearDms,
+    moodDms,
     newlyDyingCharacterIds: newlyDyingIds,
   };
 }

@@ -7,17 +7,17 @@
 // it into a larger transaction — the db/lib/dm.js convention.
 const { expiryFrom } = require("./turnFormat");
 
-// A wound landing on a sheet frightens its owner (docs/systemdocs/FEAR.md).
+// A wound landing on a sheet frightens its owner (docs/systemdocs/MOOD.md).
 // Both creators below call this for the row they just made — a stack going up
 // or an already-held tag is not a new wound, so only the `!existing` branches
-// do. Required lazily: db/lib/fear.js is the module that owns the rule, and a
-// top-level require here would be a cycle. Wrapped: a fear hiccup must never
+// do. Required lazily: db/lib/mood.js is the module that owns the rule, and a
+// top-level require here would be a cycle. Wrapped: a mood hiccup must never
 // fail a tag write.
-async function chargeWoundFear(tx, characterId, tagIds) {
+async function chargeWoundMood(tx, characterId, tagIds) {
   try {
-    await require("./fear").applyWoundFear(tx, characterId, tagIds);
+    await require("./mood").applyWoundMood(tx, characterId, tagIds);
   } catch (err) {
-    console.error(`Wound fear failed for ${characterId}:`, err.message ?? err);
+    console.error(`Wound mood failed for ${characterId}:`, err.message ?? err);
   }
 }
 
@@ -36,7 +36,7 @@ async function addToStack(tx, characterId, tagId, quantity, options = {}) {
     const created = await tx.characterTag.create({
       data: { characterId, tagId, source, expiresTurn, quantity: n },
     });
-    await chargeWoundFear(tx, characterId, [tagId]);
+    await chargeWoundMood(tx, characterId, [tagId]);
     return created;
   }
   if (!stackable) return existing;
@@ -190,7 +190,7 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
           expiresTurn,
         },
       });
-      await chargeWoundFear(tx, characterId, [tag.id]);
+      await chargeWoundMood(tx, characterId, [tag.id]);
       granted.push({ tagId: tag.id, tagName: tag.name, added: tag.stackable ? count : 1 });
       continue;
     }

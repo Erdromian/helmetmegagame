@@ -24,8 +24,8 @@ const { offerButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { CHAPLAIN_SLUG, CONFESSION_THRESHOLD, GUILT_RIDDEN_SLUG } = require("./constants");
 
-// What a confession needs to know about each side. hungerStreak feeds the
-// penitent's Gambit modifier, same as a hand-filed Gambit.
+// What a confession needs to know about each side. hungerStreak and mood feed
+// the penitent's Gambit modifier, same as a hand-filed Gambit.
 const CONFESSION_CHARACTER_SELECT = {
   id: true,
   name: true,
@@ -36,6 +36,7 @@ const CONFESSION_CHARACTER_SELECT = {
   buriedAt: true,
   discordUserId: true,
   hungerStreak: true,
+  mood: true,
   tags: {
     select: {
       tagId: true,
@@ -313,6 +314,7 @@ async function acceptConfession(prisma, offer, responder) {
           diceRoll: rollDie(),
           diceModifier: gambitModifierTotal(penitent.tags, {
             hungerStreak: penitent.hungerStreak,
+            mood: penitent.mood,
           }),
           zoneId: penitent.zoneId ?? null,
           gmNotes: "auto:confession",

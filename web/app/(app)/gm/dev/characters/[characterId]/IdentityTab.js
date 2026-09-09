@@ -220,16 +220,16 @@ export default function IdentityTab({ staged, lastNameLocked, factions, location
           </label>
           <label className="field">
             <span className="field-label">
-              Fear
+              Mood
             </span>
             <input
               type="number"
-              min={0}
-              max={100}
+              min={-100}
+              max={64}
               step={1}
-              value={staged.fear ?? 0}
-              onChange={(e) => onField("fear", Number(e.target.value))}
-              className={touched("fear")}
+              value={staged.mood ?? 0}
+              onChange={(e) => onField("mood", Number(e.target.value))}
+              className={touched("mood")}
             />
           </label>
         </div>

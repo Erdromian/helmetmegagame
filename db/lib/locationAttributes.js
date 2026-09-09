@@ -25,7 +25,7 @@
 const GODFLESH_ATTRIBUTE = "godflesh";
 const REFINERY_ATTRIBUTE = "refinery";
 const SAFE_ATTRIBUTE = "safe";
-// The two the fear dial reads (db/lib/fear.js#placeClassOf).
+// The two the mood dial reads (db/lib/mood.js#placeClassOf).
 const WILDERNESS_ATTRIBUTE = "wilderness";
 const HAVEN_ATTRIBUTE = "haven";
 
@@ -73,9 +73,9 @@ const ATTRIBUTES = {
   },
 
   // Open country: nobody lives here, and a night in it wears on you
-  // (docs/systemdocs/FEAR.md). Worn by every Location in the Forest, the Black
+  // (docs/systemdocs/MOOD.md). Worn by every Location in the Forest, the Black
   // Hills and the Marshes that is not a settled place — the Factory, the Farms
-  // and the marsh Village are the exceptions. Walking in costs a little fear,
+  // and the marsh Village are the exceptions. Walking in costs a little mood,
   // ending the turn here costs more, and Rough Camper / Outsider soften it.
   wilderness: {
     describe: () => "**Wilderness**: nobody lives out here, and a night in it wears on you. ‡",

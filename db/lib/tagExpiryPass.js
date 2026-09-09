@@ -9,7 +9,7 @@
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
 
 const { expiryFrom } = require("./turnFormat");
-const { applyWoundFear } = require("./fear");
+const { applyWoundMood } = require("./mood");
 
 // Stackable tags are deliberately out of scope. A stack doesn't expire, it
 // SHEDS (sweepExpiredStacks in db/index.js), so "what does it turn into" has
@@ -100,7 +100,7 @@ async function runTagExpiryPass(prisma, turn) {
   // (docs/systemdocs/TAGS.md §5b). Re-granting would silently reset the timer
   // on a condition they were already most of the way through.
   // Which of these rows will actually LAND — skipDuplicates keeps a held
-  // successor's own clock, and only a row that lands is a new wound to fear.
+  // successor's own clock, and only a row that lands is a new wound at all.
   const alreadyHeld = rows.length
     ? await prisma.characterTag.findMany({
         where: { OR: rows.map((r) => ({ characterId: r.characterId, tagId: r.tagId })) },
@@ -111,10 +111,10 @@ async function runTagExpiryPass(prisma, turn) {
   await prisma.characterTag.createMany({ data: rows, skipDuplicates: true });
 
   // A wound getting worse overnight is the most frightening thing in this
-  // file (docs/systemdocs/FEAR.md). The grant above is a batch, so the dial
+  // file (docs/systemdocs/MOOD.md). The grant above is a batch, so the dial
   // moves here, after it lands; the band DMs ride back with the progression
   // DMs rather than being sent.
-  const fearDms = [];
+  const moodDms = [];
   const landedByCharacter = new Map();
   for (const r of rows) {
     if (heldKeys.has(`${r.characterId}:${r.tagId}`)) continue;
@@ -122,11 +122,11 @@ async function runTagExpiryPass(prisma, turn) {
     landedByCharacter.get(r.characterId).push(r.tagId);
   }
   for (const [characterId, tagIds] of landedByCharacter) {
-    const moved = await applyWoundFear(prisma, characterId, tagIds, { notify: false }).catch((err) => {
-      console.error(`Tag expiry pass: wound fear failed for ${characterId}:`, err.message ?? err);
+    const moved = await applyWoundMood(prisma, characterId, tagIds, { notify: false }).catch((err) => {
+      console.error(`Tag expiry pass: wound mood failed for ${characterId}:`, err.message ?? err);
       return null;
     });
-    if (moved?.dm) fearDms.push(moved.dm);
+    if (moved?.dm) moodDms.push(moved.dm);
   }
 
   // Not sent here — DMs are the one network-bound part of this, and awaiting
@@ -145,7 +145,7 @@ async function runTagExpiryPass(prisma, turn) {
     progressed: progressions.size,
     granted: rows.length,
     unknownSlugs: [...missing],
-    dms: [...dms, ...fearDms],
+    dms: [...dms, ...moodDms],
   };
 }
 

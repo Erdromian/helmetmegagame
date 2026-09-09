@@ -32,7 +32,7 @@ const { expiryFrom } = require("./turnFormat");
 // drift on what it means — the corpse, the archive row, the unequip, the voided
 // offers. Required by path: it is deliberately off the barrel.
 const { applyDeathToRow } = require("./characterDeath");
-const { applyFear } = require("./fear");
+const { applyMood } = require("./mood");
 const { addToStack } = require("./tagWrites");
 
 // Everything a shot needs off a character. Shared because the sweep and the
@@ -139,11 +139,11 @@ async function applyTurretShot(prisma, shot, turn, { deathContent, deathReason }
     };
   }
 
-  // Being shot at and living is frightening whatever landed (FEAR.md) — a
+  // Being shot at and living is frightening whatever landed (MOOD.md) — a
   // graze is still a machinegun going off at you. Wrapped: the gun must fire
   // whether or not the dial moves.
-  await applyFear(prisma, character.id, { kind: "TURRET" }).catch((err) =>
-    console.error(`Turret fear failed for ${character.id}:`, err.message ?? err),
+  await applyMood(prisma, character.id, { kind: "TURRET" }).catch((err) =>
+    console.error(`Turret mood failed for ${character.id}:`, err.message ?? err),
   );
 
   if (!tagSlug) return { kind: "graze", discordUserId: character.discordUserId };
@@ -164,7 +164,7 @@ async function applyTurretShot(prisma, shot, turn, { deathContent, deathReason }
 
   // The wound ladder is non-stackable, so a second bullet on the same turn does
   // not become "Deep Wound x2" — the existing row stands. addToStack is the
-  // shared creator, and it is what charges the wound's fear (FEAR.md) when, and
+  // shared creator, and it is what charges the wound to the mood (MOOD.md) when, and
   // only when, the row is new.
   await addToStack(prisma, character.id, tag.id, 1, { source: "EVENT", expiresTurn, stackable: false });
 

@@ -127,7 +127,7 @@ change have none; every new row sets it.
 
 | Die | Kind | What happens |
 |---|---|---|
-| 1 | `TROUBLE` | Nothing auto-applies. The row lands **unresolved** on the Caving lens for a GM to adjudicate — monsters are a GM call, briefed by the GM-only `cavingmonsters` document (`documents.yaml`). The player gets one short DM immediately: *"Caving Die: 1 — Something is wrong down here. A GM has been notified."* The caver also takes +10 fear, tripled by Teratophobia (`FEAR.md`). |
+| 1 | `TROUBLE` | Nothing auto-applies. The row lands **unresolved** on the Caving lens for a GM to adjudicate — monsters are a GM call, briefed by the GM-only `cavingmonsters` document (`documents.yaml`). The player gets one short DM immediately: *"Caving Die: 1 — Something is wrong down here. A GM has been notified."* The caver also takes −10 mood, tripled by Teratophobia (`MOOD.md`). |
 | 2–5 | `QUIET` | Stamped resolved at creation. No GM attention — the row exists as a record (so the lens' default filter, and a GM skimming the log, both read the truth). The player still gets one line: *"Caving Die: 3 — Nothing happens."* |
 | 6 | `FIND` | Draws a loot tier and a tag (below), grants it, and DMs the player what they found. Also resolved at creation — the grant already landed. |
 
@@ -140,7 +140,7 @@ a die that never rolled, so it now says so in one line.
 hidden butcher craft): when the die lands `TROUBLE` for a holder, one lure is
 spent in the same transaction — the conditional write is the check — and the
 row lands `QUIET`, already resolved, so nothing reaches the Caving lens and
-no `CAVE_TROUBLE` fear fires. The DM says what happened: whatever it was
+no `CAVE_TROUBLE` mood hit fires. The DM says what happened: whatever it was
 followed the stink instead. One lure, one trouble; the next 1 is real.
 
 ## 3. The loot table
@@ -301,7 +301,7 @@ thirteen rooms across the Caves, the Depths, the Black Hills, the Mountain and
 the Headwaters (`docs/zones.yaml`), so the ground is a source and the die is a
 bonus. `purring-maggot` is the loot; **`maggot-milk` is not on the table at
 all** — it is what a holder of Brewing (Basic) makes of one maggot for 1 ⬢, and
-it calms exactly as much as tea does (`db/lib/fear.js` `CONSUME_RELIEF`) while
+it calms exactly as much as tea does (`db/lib/mood.js` `CONSUME_RELIEF`) while
 the raw maggot only poisons.
 
 ## 7. Two catalog fields this update added

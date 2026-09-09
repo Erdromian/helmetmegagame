@@ -168,7 +168,7 @@ async function runResearchPass(prisma, turn) {
           await mintLetterFor(tx, character.id, presentedName, noteText);
           // The ledger: skip recipes this character already researched.
           // Per-character, recipe slug in details — the same AuditLog-as-
-          // ledger idiom as db/lib/fear.js's Cathedral arrival ration.
+          // ledger idiom as db/lib/mood.js's Cathedral arrival ration.
           await tx.auditLog.create({
             data: {
               actorDiscordUserId: "system",

@@ -6552,12 +6552,14 @@ label.chip {
 
 .ledger-tiles {
   display: grid;
-  /* auto-fit rather than a fixed four, so the row folds to two before any
-     tile is narrow enough to wrap "30.5 / 71 lb" onto a second line. */
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  /* auto-fit rather than a fixed five, so the row folds before any tile is
+     narrow enough to wrap "30.5 / 71 lb" onto a second line. The max-width
+     fits all five across when there is room — it was 40rem for the four
+     before the Mood box, which left the Gambit die orphaned on its own row. */
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
   gap: var(--sp-2);
   flex: 1 1 26rem;
-  max-width: 40rem;
+  max-width: 47rem;
 }
 
 .ledger-tile {
@@ -6603,6 +6605,29 @@ label.chip {
 
 .ledger-tile-value[data-over="true"] {
   color: var(--accent-text);
+}
+
+/* The Mood box says a WORD, not a number, so it drops the mono face
+   (--font-mono is for data) and takes its colour from a tone rather than a
+   token picked at the call site — the .status-pill rule, same four names. */
+.ledger-tile-value[data-word="true"] {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+.ledger-tile-value[data-tone="muted"] {
+  color: var(--muted);
+}
+
+.ledger-tile-value[data-tone="good"] {
+  color: var(--positive);
+}
+
+.ledger-tile-value[data-tone="warn"] {
+  color: var(--warning);
+}
+
+.ledger-tile-value[data-tone="bad"] {
+  color: var(--danger);
 }
 
 .ledger-tile .depot-meter,
@@ -7026,10 +7051,11 @@ button.equip-cell-face:focus-visible {
     grid-column: 1 / -1;
   }
 
-  /* Two by two beside the name once the band has wrapped — three across and
-     one orphan underneath reads as a mistake. */
+  /* Three then two once the band has wrapped. It was two-by-two while there
+     were four tiles; with the Mood box making five, two columns leaves the
+     last one orphaned underneath, which reads as a mistake. */
   .ledger-tiles {
-    grid-template-columns: repeat(2, minmax(9rem, 1fr));
+    grid-template-columns: repeat(3, minmax(8.5rem, 1fr));
   }
 }
 

@@ -95,7 +95,7 @@ const THREATS = [
     // /gm/dev/characters/[id] still shows up.
     seatTagSlug: "demoness",
     zone: "Fortress",
-    // Rough Camper: she sleeps where she hunts (docs/systemdocs/FEAR.md).
+    // Rough Camper: she sleeps where she hunts (docs/systemdocs/MOOD.md).
     assign: { tagPoints: 7, tagSlugs: ["demoness", "hungerless", "beautiful", "rough-camper"] },
     spawn: {
       gender: "WOMAN",
@@ -115,7 +115,7 @@ const THREATS = [
     assignable: true,
     seatTagSlug: "judge",
     zone: "Town, or Cave",
-    // Nothing out there frightens him, and little else does (FEAR.md).
+    // Nothing out there frightens him, and little else does (MOOD.md).
     assign: { tagPoints: 17, tagSlugs: ["cruel", "judge", "rough-camper", "outsider", "brave"] },
     spawn: {
       gender: "MAN",

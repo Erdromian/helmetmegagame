@@ -580,7 +580,7 @@ async function releaseMoveLockImpl({ actionId }) {
 
 // A Gambit always carries a fresh roll, a Routine never does, so switching
 // kind rewrites the dice rather than leaving a stale number.
-function normalizeEdits(action, edits, characterTags, hungerStreak) {
+function normalizeEdits(action, edits, characterTags, hungerStreak, mood) {
   const data = {};
 
   const kind = ["GAMBIT", "ROUTINE", "LABOR"].includes(edits.moveKind) ? edits.moveKind : action.moveKind;
@@ -590,10 +590,10 @@ function normalizeEdits(action, edits, characterTags, hungerStreak) {
       data.diceRoll = null;
       data.diceModifier = null;
     } else {
-      // Rolled from the character's current tags/hungerStreak, not whatever
-      // was true when the player submitted.
+      // Rolled from the character's current tags/hungerStreak/mood, not
+      // whatever was true when the player submitted.
       data.diceRoll = rollDie();
-      data.diceModifier = gambitModifierTotal(characterTags, { hungerStreak });
+      data.diceModifier = gambitModifierTotal(characterTags, { hungerStreak, mood });
     }
   }
 
@@ -637,7 +637,7 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
       return { status: "OPEN", note: "Reopened." };
     }
 
-    const data = normalizeEdits(action, edits, action.character.tags, action.character.hungerStreak);
+    const data = normalizeEdits(action, edits, action.character.tags, action.character.hungerStreak, action.character.mood);
 
     if (mode === "save") {
       // Save keeps the edits and leaves status wherever it was.
@@ -809,7 +809,7 @@ async function getCharacterInspectorImpl({ characterId }) {
       : character.zone?.name || "Unassigned",
     resources: character.resources,
     tagPoints: character.tagPoints,
-    gambitModifier: gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak }),
+    gambitModifier: gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak, mood: character.mood }),
     acted,
     currentTurnNumber: openTurn?.number ?? null,
     tags: character.tags.map((ct) => ({

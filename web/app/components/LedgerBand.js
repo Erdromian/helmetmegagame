@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
+import { bandOf } from "@lifeweb/db/lib/mood";
 import StatusStrip from "@/app/(app)/play/StatusStrip";
 import ActionGrid from "./ActionGrid";
 import AvatarZoom from "./AvatarZoom";
@@ -15,13 +16,34 @@ import TurnForecast from "./TurnForecast";
 // writes "Resources" next to a hexagon.
 //
 // A tile with a detail to give is a button: the detail (why the free moves
-// are 0, what holds the carry cap up) reads inline under the tiles when
-// clicked. It used to be a native title=, and this sheet has no tooltips.
-function Tile({ label, value, over = false, hasDetail = false, open = false, onToggle = null, children = null }) {
+// are 0, what moves a mood) reads inline under the tiles. It used to be a
+// native title=, and this sheet has no tooltips — which is why the Mood box
+// hovering OPENS that line rather than floating a bubble over it.
+//
+// `tone` colours the value by meaning rather than by colour, the rule
+// StatusPill.js sets: the stylesheet owns which token a tone gets.
+// `word` drops the mono face, because a word is not data.
+function Tile({
+  label,
+  value,
+  over = false,
+  tone = null,
+  word = false,
+  hasDetail = false,
+  open = false,
+  onToggle = null,
+  onHover = null,
+  children = null,
+}) {
   const body = (
     <>
       <span className="field-label">{label}</span>
-      <span className="ledger-tile-value" data-over={over ? "true" : "false"}>
+      <span
+        className="ledger-tile-value"
+        data-over={over ? "true" : "false"}
+        data-tone={tone ?? undefined}
+        data-word={word ? "true" : undefined}
+      >
         {value}
       </span>
       {children}
@@ -29,14 +51,27 @@ function Tile({ label, value, over = false, hasDetail = false, open = false, onT
   );
   if (!hasDetail) return <div className="ledger-tile">{body}</div>;
   return (
-    <button type="button" className="ledger-tile ledger-tile-button" aria-expanded={open} onClick={onToggle}>
+    <button
+      type="button"
+      className="ledger-tile ledger-tile-button"
+      aria-expanded={open}
+      onClick={onToggle}
+      onMouseEnter={onHover ? () => onHover(true) : undefined}
+      onMouseLeave={onHover ? () => onHover(false) : undefined}
+    >
       {body}
     </button>
   );
 }
 
+// What the Mood box says when you open it. Bascinet's words, verbatim.
+const MOOD_DETAIL =
+  "Certain things, like spending time in the wilderness without the Rough Camper trait or receiving wounds harm " +
+  "your mood. Other things, like listening to music, fulfilling desires, or eating meals boost your mood. A poor " +
+  "mood impacts your Gambit rolls.";
+
 // The band across the top of the sheet — it scrolls away with the rest of the
-// page: who this is and where they stand, the four numbers a player checks
+// page: who this is and where they stand, the five things a player checks
 // before doing anything, then the pieces of the Chat's YOU column that belong
 // on a sheet too — the turn card with its Move, the status strip — and under
 // them what the turn will change and every verb in one strip.
@@ -57,7 +92,8 @@ export default function LedgerBand({
   hasTrumpet = false,
   isSelf = true,
 }) {
-  const gambit = gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak });
+  const gambit = gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak, mood: character.mood });
+  const moodBand = bandOf(character.mood ?? 0);
   const carrying = carry ? `${carry.weightUsed} / ${carry.weightCap}` : null;
   const loadPct = carry
     ? Math.min(100, Math.round((carry.weightUsed / Math.max(carry.weightCap, 1)) * 100))
@@ -69,7 +105,9 @@ export default function LedgerBand({
   // breakdown of what holds its cap up; that came off on purpose — the tile is
   // a number, and a number the whole band reads as read-only should not be the
   // one thing on the row that presses.
-  const [movesOpen, setMovesOpen] = useState(false);
+  // Which tile's detail is open, "moves" or "mood" — one slot, because there
+  // is one paragraph under the row of tiles for both to write into.
+  const [tileOpen, setTileOpen] = useState(null);
   const pickedRow = picked ? character.tags.find((ct) => (ct.tag.id ?? ct.tagId) === picked) ?? null : null;
 
   return (
@@ -139,8 +177,8 @@ export default function LedgerBand({
             value={zoneMoves != null ? zoneMoves : "—"}
             over={zoneMoves === 0}
             hasDetail={Boolean(zoneMovesReason)}
-            open={movesOpen}
-            onToggle={() => setMovesOpen((v) => !v)}
+            open={tileOpen === "moves"}
+            onToggle={() => setTileOpen((was) => (was === "moves" ? null : "moves"))}
           />
           <Tile
             label="Resources"
@@ -162,6 +200,19 @@ export default function LedgerBand({
               </div>
             )}
           </Tile>
+          {/* The mood dial as ONE WORD (docs/systemdocs/MOOD.md) — never the
+              number, which is the whole point of the dial. Fine is grey and
+              Panicking is red; the tone picks the token. */}
+          <Tile
+            label="Mood"
+            value={moodBand?.label ?? "Fine"}
+            tone={moodBand?.tone ?? "muted"}
+            word
+            hasDetail
+            open={tileOpen === "mood"}
+            onToggle={() => setTileOpen((was) => (was === "mood" ? null : "mood"))}
+            onHover={(inside) => setTileOpen((was) => (inside ? "mood" : was === "mood" ? null : was))}
+          />
           {/* The modifier the bot actually rolls the Gambit die against, not a
               second opinion: same module, same arguments as /character's row. */}
           <Tile
@@ -169,7 +220,9 @@ export default function LedgerBand({
             value={gambit ? `${gambit > 0 ? "+" : ""}${gambit}` : "±0"}
             over={Boolean(gambit)}
           />
-          {movesOpen && <p className="sheet-tile-detail">{zoneMovesReason}</p>}
+          {tileOpen && (
+            <p className="sheet-tile-detail">{tileOpen === "moves" ? zoneMovesReason : MOOD_DETAIL}</p>
+          )}
         </div>
       </div>
 

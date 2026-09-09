@@ -28,7 +28,7 @@ const {
   DYING_DM,
 } = require("./lib/hungerPass");
 const { runCarryPass } = require("./lib/carryPass");
-const { runFearPass } = require("./lib/fearPass");
+const { runMoodPass } = require("./lib/moodPass");
 const { runDawnAfflictionPass } = require("./lib/dawnAfflictionPass");
 const { runDepotPass } = require("./lib/depotPass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
@@ -111,10 +111,11 @@ const prisma =
 
 globalForPrisma.prisma = prisma;
 
-// The fear dial DMs a player when their band changes, from hooks deep inside
-// tag writes that have no DM plumbing of their own. Hand it the logged REST
-// sender once, here, where both faces load the client (db/lib/fear.js).
-require("./lib/fear").setFearDmSender((discordUserId, content) => sendDm(prisma, discordUserId, content));
+// The mood dial DMs a player when they drop into Afraid or Panicking, from
+// hooks deep inside tag writes that have no DM plumbing of their own. Hand it
+// the logged REST sender once, here, where both faces load the client
+// (db/lib/mood.js).
+require("./lib/mood").setMoodDmSender((discordUserId, content) => sendDm(prisma, discordUserId, content));
 
 // Hands the Discord circuit breaker somewhere durable to keep its counters.
 // discordRest.js has no prisma dependency (this file requires IT), so the
@@ -225,12 +226,12 @@ const TURN_PASSES = [
   // hunger so it sees the final sheet. See db/lib/dawnAfflictionPass.js.
   "dawnAfflictions",
   "carry",
-  // The fear dial's nightly settle: the place each character sleeps in, the
-  // decay, hunger, a body in the room, a noble's missed dinner. After hunger
-  // (it reads the final streak) and carry (the final sheet), and before
-  // travelArrival, so a traveller pays the night where they set out from.
-  // See db/lib/fearPass.js and docs/systemdocs/FEAR.md.
-  "fear",
+  // The mood dial's nightly settle: the place each character sleeps in, the
+  // drift back toward Fine, hunger, a body in the room, a noble's missed
+  // dinner. After hunger (it reads the final streak) and carry (the final
+  // sheet), and before travelArrival, so a traveller pays the night where they
+  // set out from. See db/lib/moodPass.js and docs/systemdocs/MOOD.md.
+  "mood",
   // After "carry", because the overflow drop can put a corpse on a floor.
   // Pull-based, so it just re-reads where every body's tag ended up.
   "corpseFollow",
@@ -819,12 +820,12 @@ async function resolveNeeds(turn, config) {
 
   const {
     hungerNotices = [],
-    fearDms: hungerFearDms = [],
+    moodDms: hungerMoodDms = [],
     ...summary
   } = hunger ?? {};
   if (hunger) {
-    // Starving into Dying moved the fear dial; the band DM is a tag notice.
-    tagExpiryDms.push(...hungerFearDms);
+    // Starving into Dying moved the mood dial; the band DM is a tag notice.
+    tagExpiryDms.push(...hungerMoodDms);
     await prisma.auditLog
       .create({
         data: {
@@ -888,30 +889,30 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Carry audit log failed:", err));
   }
 
-  // The fear dial's nightly settle (docs/systemdocs/FEAR.md): every ALIVE
-  // character pays or earns the night for where they stand, decays a little,
-  // and has the band tag on their sheet re-projected. See db/lib/fearPass.js.
-  let fear = null;
-  if (!done.has("fear")) {
-    fear = await runFearPass(prisma, turn).catch(async (err) => {
-      await passFailed("Fear", err);
+  // The mood dial's nightly settle (docs/systemdocs/MOOD.md): every ALIVE
+  // character pays or earns the night for where they stand, and slides a
+  // little back toward Fine. See db/lib/moodPass.js.
+  let mood = null;
+  if (!done.has("mood")) {
+    mood = await runMoodPass(prisma, turn).catch(async (err) => {
+      await passFailed("Mood", err);
       return null;
     });
-    if (fear) await markDone("fear");
+    if (mood) await markDone("mood");
   }
-  if (fear) {
-    // "You are now Stressed." is a tag notice like any other; same channel.
-    const { dms: fearDms = [], ...fearSummary } = fear;
-    tagExpiryDms.push(...fearDms);
+  if (mood) {
+    // "You are now Afraid." is a tag notice like any other; same channel.
+    const { dms: moodDms = [], ...moodSummary } = mood;
+    tagExpiryDms.push(...moodDms);
     await prisma.auditLog
       .create({
         data: {
           actorDiscordUserId: "system",
-          actionType: "fear_resolved",
-          details: fearSummary,
+          actionType: "mood_resolved",
+          details: moodSummary,
         },
       })
-      .catch((err) => console.error("Fear audit log failed:", err));
+      .catch((err) => console.error("Mood audit log failed:", err));
   }
 
   // Every dead sheet catches up with wherever its corpse ended up. Last of
