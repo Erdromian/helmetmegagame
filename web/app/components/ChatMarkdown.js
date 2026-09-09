@@ -2,7 +2,7 @@
 
 import { memo, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { CHAT_PLUGINS, DISCORD_COMPONENTS } from "./markdownPlugins";
+import { CHAT_PLUGINS, DISCORD_COMPONENTS, escapeTokenBars } from "./markdownPlugins";
 import MessageToken from "./messageTokens";
 
 // One line of a scene, rendered.
@@ -54,7 +54,7 @@ function ChatMarkdown({ content }) {
   return (
     <div className="markdown-content chat-markdown">
       <ReactMarkdown remarkPlugins={PLUGINS} disallowedElements={["img"]} unwrapDisallowed components={COMPONENTS}>
-        {content}
+        {escapeTokenBars(content)}
       </ReactMarkdown>
     </div>
   );

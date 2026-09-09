@@ -1,7 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
-import { MESSAGE_PLUGINS, DISCORD_COMPONENTS } from "./markdownPlugins";
+import { MESSAGE_PLUGINS, DISCORD_COMPONENTS, escapeTokenBars } from "./markdownPlugins";
 import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
 import { useDocuments } from "./DocumentsProvider";
@@ -140,7 +140,7 @@ export default function DocumentMarkdown({ text }) {
           a: AnchorLink,
         }}
       >
-        {text}
+        {escapeTokenBars(text)}
       </ReactMarkdown>
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
-import { MESSAGE_PLUGINS, DISCORD_COMPONENTS } from "./markdownPlugins";
+import { MESSAGE_PLUGINS, DISCORD_COMPONENTS, escapeTokenBars } from "./markdownPlugins";
 import MessageToken from "./messageTokens";
 
 // Renders Discord-message markdown (bold/italic/strikethrough/code/quotes/
@@ -40,7 +40,7 @@ export default function MarkdownContent({ content, className }) {
         disallowedElements={["img"]}
         unwrapDisallowed
       >
-        {content}
+        {escapeTokenBars(content)}
       </ReactMarkdown>
     </div>
   );
