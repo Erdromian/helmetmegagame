@@ -30,6 +30,16 @@
 # entry at the same roll still applies to everyone, same as before. See
 # LABORDROPS.md §2a.
 #
+# EVERY roll-1 bucket carries its own `nothing` pad, and that is not
+# decoration. The draw is uniform over the CONCATENATION of whichever buckets
+# match, so a pad in `global` alone is diluted the moment a zone bucket joins
+# it — pad one bucket and a 1 still always hurts, for exactly the characters
+# standing somewhere dangerous. The pads deepen as buckets stack (global 30%,
+# hunting 40%, every zone and cross bucket 50%), which is why a hunter in the
+# Depths is slightly SAFER per 1 than a labourer in Town. Add a wound to a
+# roll-1 bucket and you must add pad with it, or you have quietly raised the
+# wound rate everywhere that bucket applies.
+#
 # Basic/skilled on their own are still unconfigured — an unconfigured
 # (bucket, roll) pair simply never contributes to the pool, so a character
 # labors and finds nothing, same as an explicit "nothing" draw. That's the
@@ -48,25 +58,41 @@
 # there's no tag in the catalog that reads as hunting-specific-minor-injury
 # vs farming-specific, so one shared "the day went a little wrong" pool
 # covers all of them. All three are self-clearing in 2-3 turns with no
-# mechanical cost beyond the flavor (LABORDROPS.md §6 has the reasoning).
+# mechanical cost beyond the flavor (LABORDROPS.md §6 has the reasoning) —
+# `laborDrop` in db/lib/moveEffects.js stamps the catalog's durationTurns onto
+# the grant, so they really do tick.
 global:
-  1:  # EV 0.00 ⬢ · hit 100%
+  1:  # EV 0.00 ⬢ · hit 70%
     - bruised  # an ordinary knock, nothing dramatic — not sellable
+    - bruised  # not sellable
+    - bruised  # not sellable
     - vomiting  # something you ate, or just a bad morning — not sellable
+    - vomiting  # not sellable
     - aching  # a long day, nothing more — not sellable
+    - aching  # not sellable
+    - nothing
+    - nothing
+    - nothing
   6:  # EV 1.00 ⬢ · hit 100%
     - obol  # someone dropped it and never noticed — the coin itself, worth 1 ⬢
 
 laborType:
-  hunting:  # ⬢ EV/labor 0.33 · hit 33%
+  hunting:  # ⬢ EV/labor 0.33 · hit 27%
     # A boar doesn't go down quietly, and neither does anything bigger.
     # Minor, self-limiting, medical-basic-or-free injuries only — the
     # zone-specific hunting tables below (laborTypeZone.hunting.*) are
     # where the genuinely dangerous game lives (LABORDROPS.md §2a-adjacent).
-    1:  # own EV 0.00 ⬢ · hit 100% · combined EV 0.00 ⬢ · hit 100%
+    1:  # own EV 0.00 ⬢ · hit 60% · combined EV 0.00 ⬢ · hit 65%
       - minor-bleeding  # a snare wire or a blade gets away from you — not sellable
+      - minor-bleeding  # not sellable
       - minor-wound  # the animal gets one good hit in before it goes down — not sellable
+      - minor-wound  # not sellable
       - sprained-ankle  # a bad step chasing something faster than you — not sellable
+      - sprained-ankle  # not sellable
+      - nothing
+      - nothing
+      - nothing
+      - nothing
     6:  # own EV 2.14 ⬢ · hit 100% · combined EV 2.00 ⬢ · hit 100%
       - nightshade-herb  # a coil left behind at an old camp — sells 2 ⬢
       - poppy-pods  # sells 2 ⬢
@@ -75,7 +101,7 @@ laborType:
       - leeches  # sells 2 ⬢
       - "+1"
       - "+2"
-  fishing:  # ⬢ EV/labor 0.25 · hit 30%
+  fishing:  # ⬢ EV/labor 0.25 · hit 25%
     6:  # own EV 1.56 ⬢ · hit 78% · combined EV 1.50 ⬢ · hit 80%
       - trout-heart  # sells 4 ⬢
       - poppy-pods  # sells 2 ⬢
@@ -86,7 +112,7 @@ laborType:
       - nothing
       - "+1"
       - "+2"
-  farming:  # ⬢ EV/labor 0.20 · hit 28%
+  farming:  # ⬢ EV/labor 0.20 · hit 23%
     6:  # own EV 1.22 ⬢ · hit 67% · combined EV 1.20 ⬢ · hit 70%
       - nightshade-herb  # sells 2 ⬢
       - poppy-pods  # sells 2 ⬢
@@ -110,9 +136,9 @@ zone:
   # work, so nothing extra applies to an ordinary character standing in it —
   # `laborTypeLocation.hunting.forest-cliffs` below is the one deliberate
   # exception, a single dangerous spot inside an otherwise uneventful zone.
-  forest:  # ⬢ EV/labor 0.17 · hit 33%
+  forest:  # ⬢ EV/labor 0.17 · hit 28%
     requiresTag:
-      forester:  # ⬢ EV/labor 0.25 · hit 33%
+      forester:  # ⬢ EV/labor 0.25 · hit 28%
         6:  # own EV 1.67 ⬢ · hit 100% · combined EV 1.50 ⬢ · hit 100%
           - rope  # a coil left behind at an old camp — sells 4 ⬢
           - trail-ration  # provisions someone else didn't need any more — not sellable
@@ -125,10 +151,18 @@ zone:
   # the zone's own words) is also where the two bad entries below come from:
   # a mire that hides more than mud (marshes-woods' sleeping thing, the
   # north marshes' scratched-up cages).
-  marshes:  # ⬢ EV/labor 0.17 · hit 33%
-    1:  # own EV 0.00 ⬢ · hit 100% · combined EV 0.00 ⬢ · hit 100%
-      - deep-wound  # something under the water was not a root — not sellable
+  marshes:  # ⬢ EV/labor 0.17 · hit 27%
+    1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 60%
       - minor-bleeding  # the reeds and the leeches both bite — not sellable
+      - minor-bleeding  # not sellable
+      - minor-bleeding  # not sellable
+      - deep-wound  # something under the water was not a root — not sellable
+      - deep-wound  # not sellable
+      - nothing
+      - nothing
+      - nothing
+      - nothing
+      - nothing
     6:  # own EV 1.00 ⬢ · hit 100% · combined EV 1.00 ⬢ · hit 100%
       - godflesh  # the mud gives up a piece of what it's fed on — not sellable
       - "+1"
@@ -138,24 +172,42 @@ zone:
   # stonework, sheer drops (the Hanging Steps, the Grand Ravine), and a
   # brigand camp sharing the high ground. Danger only; the zone's own name
   # never promised a bonus for it.
-  hills:  # ⬢ EV/labor 0.17 · hit 33%
-    1:  # own EV 0.00 ⬢ · hit 100% · combined EV 0.00 ⬢ · hit 100%
+  hills:  # ⬢ EV/labor 0.17 · hit 27%
+    1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 60%
       - sprained-ankle  # the ground here doesn't forgive a bad step — not sellable
+      - sprained-ankle  # not sellable
+      - sprained-ankle  # not sellable
+      - bruised  # loose stone, and a long way down to the next ledge — not sellable
+      - bruised  # not sellable
+      - nothing
+      - nothing
+      - nothing
+      - nothing
+      - nothing
 
   # "A place of true darkness. The end of the world." (zones.yaml) — the
   # zone-wide entry is deliberately the only thing authored for Depths
   # outside the labor-specific hunting table below; nothing about working
   # here is meant to feel safe.
-  depths:  # ⬢ EV/labor 0.17 · hit 33%
-    1:  # own EV 0.00 ⬢ · hit 100% · combined EV 0.00 ⬢ · hit 100%
+  depths:  # ⬢ EV/labor 0.17 · hit 27%
+    1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 60%
       - deep-wound  # the dark gets a piece of you before you see what did it — not sellable
+      - deep-wound  # not sellable
+      - minor-wound  # you find the low ceiling with your head, again — not sellable
+      - minor-wound  # not sellable
+      - minor-wound  # not sellable
+      - nothing
+      - nothing
+      - nothing
+      - nothing
+      - nothing
 
 location:
   # "A walled garden for growing herbs" behind "ornate galleries" (zones.yaml,
   # manors / manors-garden) — old money, and old money misplaces things.
   # Deliberately not laborType-scoped: whatever work brings you to the
   # Manors, someone here dropped something worth finding.
-  manors:  # ⬢ EV/labor 0.37 · hit 30%
+  manors:  # ⬢ EV/labor 0.37 · hit 25%
     6:  # own EV 2.50 ⬢ · hit 75% · combined EV 2.20 ⬢ · hit 80%
       - purse  # tucked behind a hedge, forgotten mid-errand — not sellable
       - jewelry  # a stray earring, or worse, nobody's come looking for — sells 8 ⬢
@@ -169,15 +221,76 @@ laborTypeZone:
     # the reason forest-cliffs gets its own laborTypeLocation table below
     # instead of a zone-wide entry; this section is the OTHER three zones,
     # where the danger is the whole place rather than one den in it.
-    marshes:  # ⬢ EV/labor 0.29 · hit 33%
-      1:  # own EV 0.00 ⬢ · hit 100% · combined EV 0.00 ⬢ · hit 100%
+    marshes:  # ⬢ EV/labor 0.29 · hit 26%
+      1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 57%
         - grievous-wound  # whatever sleeps in the mire wakes up wrong — not sellable
-    hills:  # ⬢ EV/labor 0.33 · hit 33%
-      1:  # own EV 0.00 ⬢ · hit 100% · combined EV 0.00 ⬢ · hit 100%
+        - deep-wound  # it had hold of you before the water gave it away — not sellable
+        - deep-wound  # not sellable
+        - minor-wound  # you got clear, mostly — not sellable
+        - minor-wound  # not sellable
+        - nothing
+        - nothing
+        - nothing
+        - nothing
+        - nothing
+    hills:  # ⬢ EV/labor 0.33 · hit 26%
+      1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 57%
         - blunt-force-trauma  # gored, thrown, or both, before the kill lands — not sellable
-    depths:  # ⬢ EV/labor 0.33 · hit 33%
-      1:  # own EV 0.00 ⬢ · hit 100% · combined EV 0.00 ⬢ · hit 100%
+        - sprained-ankle  # it went uphill, and you followed — not sellable
+        - sprained-ankle  # not sellable
+        - sprained-ankle  # not sellable
+        - minor-wound  # it turned on you once and then ran — not sellable
+        - nothing
+        - nothing
+        - nothing
+        - nothing
+        - nothing
+    # Faces 5 and 6 are where the Depths pays for itself: something down here
+    # is worth killing, and what you carry out is a body. Zone-scoped rather
+    # than repeated across six Locations on purpose — laborAccess.js refuses a
+    # tier whose location coefficient is missing, and depths-crystal-chambers
+    # is the only Depths Location with no `yield:` block, so hunting is already
+    # impossible there. "Zone-wide" and "every Depths Location with a yield"
+    # are the same set.
+    #
+    # Face 5 is otherwise unconfigured everywhere, so a 5 is a clean draw from
+    # this pool alone. A 6 pools with the global obol and the hunting table,
+    # which halves it — deliberate: a 6 in the Depths is a body or an ordinary
+    # find, a 5 is always a body.
+    depths:  # ⬢ EV/labor 1.57 · hit 43%
+      1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 57%
         - grievous-wound  # something down here hunts back — not sellable
+        - deep-wound  # it got a piece of you on the way down — not sellable
+        - deep-wound  # not sellable
+        - minor-wound  # you heard it before it reached you — not sellable
+        - minor-wound  # not sellable
+        - nothing
+        - nothing
+        - nothing
+        - nothing
+        - nothing
+      5:  # EV 5.50 ⬢ · hit 100%
+        - skinless-corpse  # pink and slimy, and still warm — not sellable
+        - skinless-corpse  # not sellable
+        - skinless-corpse  # not sellable
+        - nekker-corpse  # spindly, and lighter than it looked — not sellable
+        - nekker-corpse  # not sellable
+        - nekker-corpse  # not sellable
+        - graga-corpse  # bloated, and it will not be carried far — not sellable
+        - graga-corpse  # not sellable
+        - graga-corpse  # not sellable
+        - aberrant-heart  # an Aberrant fell here, and this is what was worth taking — sells 55 ⬢
+      6:  # own EV 5.50 ⬢ · hit 100% · combined EV 3.94 ⬢ · hit 100%
+        - skinless-corpse  # not sellable
+        - skinless-corpse  # not sellable
+        - skinless-corpse  # not sellable
+        - nekker-corpse  # not sellable
+        - nekker-corpse  # not sellable
+        - nekker-corpse  # not sellable
+        - graga-corpse  # not sellable
+        - graga-corpse  # not sellable
+        - graga-corpse  # not sellable
+        - aberrant-heart  # sells 55 ⬢
 
 laborTypeLocation:
   hunting:
@@ -186,9 +299,18 @@ laborTypeLocation:
     # toward the edges." Forest stays the safe zone in general (see the
     # `zone.forest` comment above) — this is the one named exception, a
     # single dangerous den inside it, with the payout to match the risk.
-    forest-cliffs:  # ⬢ EV/labor 0.38 · hit 33%
-      1:  # own EV 0.00 ⬢ · hit 100% · combined EV 0.00 ⬢ · hit 100%
+    forest-cliffs:  # ⬢ EV/labor 0.38 · hit 27%
+      1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 60%
         - deep-wound  # whatever denned here doesn't share — not sellable
+        - deep-wound  # not sellable
+        - minor-wound  # it was home, and it made that clear — not sellable
+        - minor-wound  # not sellable
+        - sprained-ankle  # the scree above the den goes out from under you — not sellable
+        - nothing
+        - nothing
+        - nothing
+        - nothing
+        - nothing
       6:  # own EV 3.50 ⬢ · hit 100% · combined EV 2.30 ⬢ · hit 100%
         - "+3"
         - "+4"
@@ -200,7 +322,7 @@ laborTypeLocation:
     # (CAVING.md's own Rare/Extremely-rare loot tiers), heavily padded with
     # `nothing` so a fishing trip here is ordinary nine times in ten and a
     # real find the rest.
-    hills-waterway:  # ⬢ EV/labor 0.65 · hit 28%
+    hills-waterway:  # ⬢ EV/labor 0.65 · hit 23%
       6:  # own EV 7.83 ⬢ · hit 50% · combined EV 3.88 ⬢ · hit 69%
         - salvage-plate  # scrap metal, snagged off the collapsed scaffolding — sells 3 ⬢
         - bastard-sword  # someone went into that water and didn't come out for it — sells 42 ⬢
