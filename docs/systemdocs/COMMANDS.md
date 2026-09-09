@@ -374,7 +374,6 @@ deleted and files nothing.
 |---|---|---|---|
 | Travel | 🗺️ | `loc:open` | The Location picker (§4) |
 | Move | ⚜️ | `move:open` | The Move modal (§5) |
-| Speak | 🔊 | `say:open` | The Speak picker (§5) |
 
 Tracked on `GameConfig.turnsConsoleChannelId` / `turnsConsoleMessageId`.
 
@@ -399,8 +398,7 @@ parsed by literal `startsWith` + `slice`.
 | `conv:room:{locationId}` | Select | Pick which Room to link the Conversation to, then show the Converse modal |
 | `conv:new:{roomId}` | Modal | Create the Conversation |
 | `move:open` | Button | Show the Move modal |
-| `say:open` | Button | Show the Speak picker |
-| `say:pick` | Select | Pick a destination, then show the Speak modal |
+| `say:open` | Button | Retired — answers with a pointer to `/message` (§5) |
 | `heal:pick:{characterId}` | Select | Clear the chosen afflictions |
 | `edit:open:{messageId}` | Button | Show the Edit-message modal, prefilled |
 | `edit:send:{messageId}` | Modal | Rewrite a proxied message |
@@ -490,22 +488,19 @@ file and you must change it in `interactionCreate.js` too.
   silently, and writes the `PlayerThread` row (`locationId`, `roomId`) plus a
   `conversation_opened` `AuditLog` entry.
 
-`say:nav` is the value carried by a **group header** option in the Speak
-picker. Discord select menus have no option groups, so headers are ordinary
-options; picking one re-renders the panel unchanged.
-
 ## 5. Modals
 
-Three modals. All need discord.js >= 14.27 for the component types involved:
+Four modals. All need discord.js >= 14.27 for the component types involved:
 `Label` (18) wrapping a `TextInput` (4), `RadioGroup` (21) or `Checkbox` (23),
 plus a bare `TextDisplay` (10) for the `-#` line.
 
 A modal must be shown within 3 seconds of the interaction and **cannot be
 deferred first**. That is why the Move button opens its modal directly — it
 makes the single cheap cutoff check below and falls through to the modal if
-that read fails, since submit checks it again — while Converse and Speak both
-go through a picker first (enumerating Rooms or threads costs API calls), so
-each picker's handler shows the modal with nothing awaited, and every real
+that read fails, since submit checks it again — and why `/message` tests
+speakability before it acks anything, taking the modal path or the refusal but
+never both. Converse still goes through a picker first (enumerating Rooms costs
+API calls), so its handler shows the modal with nothing awaited and every real
 gate runs on submit instead.
 
 ### Move — `move:new` (`bot/src/lib/moveModal.js`)
@@ -568,34 +563,41 @@ no longer asked per-message — it's the standing `Character.concealed` toggle
 while concealed goes out under `concealedAlias(character)` with no extra
 choice to make on submit.
 
-Destinations come from `bot/src/lib/speakTargets.js#listSpeakTargets`, which
-keeps anything that is **both** a tupper channel and one Discord says the
-member may actually post in. That second test is the live answer to every
-narrowcast rule without a second copy of them, so a channel added later
-appears automatically.
+**There is one entry point, `/message`, and the destination is wherever you
+ran it.** `bot/src/lib/speakTargets.js#canSpeakInTarget` is the only question
+asked: does Discord say this member may post here? That is the live answer to
+every narrowcast rule without a second copy of them, so a channel added later
+works automatically.
 
 "May post in" is two different permissions, and conflating them is a bug:
 
 | Target | Needs |
 |---|---|
-| Text / forum channel | `ViewChannel` + `SendMessages` |
+| Text channel | `ViewChannel` + `SendMessages` |
 | Thread | `ViewChannel` + `SendMessagesInThreads` |
 
-The two thread containers are **never** offered as destinations themselves —
-you cannot post a message to a forum channel, and `#private` denies
-`SendMessages` for `@everyone` by design (`CHANNELS.md` §2). Both are walked
-for their threads on `ViewChannel` alone. A private thread additionally
-requires the member to be in it.
+A standing character holds `SendMessagesInThreads` on the Location channel they
+are in, and `locationChannelSpec` **denies** `SendMessages` to `@everyone`
+there. The deny is the part that carries the rule — taking a bit out of an allow
+mask denies nothing, which is why the street stayed typeable for two days
+(`db/lib/zoneChannelSpec.js`). So `/message` opens on a Room thread, a
+Conversation or the zone `#summary` and refuses on the street, which is the rule
+`CHANNELS.md` §2 states.
 
-Grouped Room / Threads / Broadcast, each group prefixed by a header option and
-its entries carrying a group emoji, capped at Discord's 25 options with the
-overflow counted rather than dropped silently. **Every option value must be
-unique** — Discord rejects the whole payload otherwise, and `discord.js` does
-not check this locally, so each group header carries its own `say:nav:{group}`
-value rather than a shared one.
+Run somewhere you cannot speak — a DM, or `#turns` — it answers with a pointer
+rather than a list. The destination is re-checked on submit anyway: an open
+modal outlives its player walking out of the room.
 
-The destination is re-checked on submit: an ephemeral picker outlives its
-player walking out of the room.
+**Retired: the 🔊 button and its destination picker.** The picker enumerated
+every place a player could speak, grouped Room / Threads / Broadcast. It could
+never list a Room thread or a Conversation: it reached threads only through
+their parent Location channel, and that channel stopped being a designated
+tupper channel when Send came off the street on 2026-09-06 (`CHAT.md` §5b), so
+the branch collecting them was unreachable and the THREADS group was always
+empty — the picker offered `#summary` and `#cerberon` and nothing else.
+`say:open` is now a stub answering with a pointer to `/message`, kept only
+because `#turns` is one rolling message and a console posted before the deploy
+keeps a live button for up to a real day.
 
 ### Intercom — `intercom:send:{roomId}` (`bot/src/lib/intercomModal.js`)
 
@@ -793,7 +795,7 @@ Two smaller rules on the same pair:
 | `bot/src/lib/converseModal.js` | The Converse modal |
 | `bot/src/lib/whisperPoll.js` | The 15-minute Room whisper cron |
 | `bot/src/lib/moveConfirm.js` | Resolving a Move |
-| `bot/src/lib/speakModal.js` | The Speak picker and modal |
+| `bot/src/lib/speakModal.js` | The Speak modal |
 | `bot/src/lib/speakTargets.js` | Where a character may speak |
 | `bot/src/lib/interactionGuild.js` | Guild/member resolution for DM-run commands, the GM gate |
 | `bot/src/events/messageReactionAdd.js` | Every reaction |

@@ -9,8 +9,14 @@ const { buildTurnAnnouncement } = require("@lifeweb/db/turnCalendar");
 const { clockFrozen, readGameState } = require("@lifeweb/db/lib/gameState");
 
 // #turns is one rolling message — announcement, turn banner and the
-// Travel/Move/Speak buttons on a single post that db/lib/turnAnnouncement.js
-// replaces every turn. See the comment there for why it stopped being three.
+// Move/Travel buttons on a single post that db/lib/turnAnnouncement.js
+// replaces every turn. See the comment there for why it stopped being three
+// separate messages.
+//
+// Speak used to be the third button. Its destination picker could never list a
+// Room thread or a Conversation, which is where talk actually happens, so the
+// button is gone and /message — which opens the same modal on the channel you
+// run it in — is the whole feature now.
 //
 // This file is now only the COLD START: at ready, make sure that message
 // exists at all. It normally does, and this does nothing. It matters for a

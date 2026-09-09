@@ -17,7 +17,7 @@ provisioned channels, or a special channel whose registry entry says
 | Channel | Tupper | Summary |
 |---|---|---|
 | A zone's `#summary` (text) | yes | **yes** |
-| A Location's channel (text), and every Room or Conversation thread under it | yes | no |
+| Every Room or Conversation thread under a Location's channel | yes | no |
 | `#cerberon` | yes | no |
 
 The special channels aren't tied to a place, so they're never summary.
@@ -92,12 +92,12 @@ summaries posted from `advanceTurn`'s side effects.
 **Speaking without being seen to type.** Discord fires the typing indicator
 under the player's *real* account, before the proxy ever runs — so composing
 in a channel announces who you are regardless of what the webhook posts. The
-Speak flow (the 🔊 button on the `#turns` console, or `/message`) composes in
-a modal instead: the text arrives as an interaction, and there is no typing
-indicator and no message to delete. `/message` run inside a channel you can
-already speak in posts straight there; that does not hide the typing
-indicator, since you are already in the channel, but it does stop the message
-existing in plain sight before the proxy removes it.
+Speak flow (`/message`) composes in a modal instead: the text arrives as an
+interaction, and there is no typing indicator and no message to delete. It
+posts into whichever channel or thread you ran it in — which does not hide the
+typing indicator if you were already typing there, but it does stop the message
+existing in plain sight under your real name before the proxy removes it. The
+🔊 button that used to front this flow is gone; `COMMANDS.md` §5 says why.
 
 **`recentProxies` is gone** (phase 1 of `CHAT.md`). It was an in-memory map
 tying a proxied message back to its player and character — last 20,000, single

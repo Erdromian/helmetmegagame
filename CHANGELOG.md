@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Speak is a slash command now, not a button
+
+− The 🔊 Speak button on the #turns console  
+✎ /message opens the compose box wherever you run it, and tells you where to run it if you can't speak there  
+✎ The button's destination picker could never list a Room thread or a Conversation, which is exactly where talk happens
+
 ## 2026-09-09 · The Supply Kit says what it is for
 
 ✎ The Supply Kit's description: "Open it to gain resources and a nice surprise."

@@ -56,8 +56,8 @@ const { sendDm } = require("../lib/dm");
 const { escortCandidates, partyOf } = require("@lifeweb/db/lib/escort");
 const { buildMoveModal } = require("../lib/moveModal");
 const { confirmMove } = require("../lib/moveConfirm");
-const { buildSpeakModal, buildSpeakPicker } = require("../lib/speakModal");
-const { listSpeakTargets, canSpeakInTarget, canSpeakInChannel, isNavValue } = require("../lib/speakTargets");
+const { buildSpeakModal } = require("../lib/speakModal");
+const { canSpeakInTarget } = require("../lib/speakTargets");
 const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/interactionGuild");
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const { postAsCharacterTo, loadVoiceState } = require("../lib/proxy");
@@ -1512,45 +1512,17 @@ function optionalText(interaction, customId) {
   }
 }
 
+// The 🔊 Speak button is gone: its destination picker could never list a Room
+// thread or a Conversation (bot/src/lib/speakTargets.js says why), so /message
+// — run in the room you want to speak in — is the whole feature now.
+//
+// This stub stays because #turns is ONE ROLLING MESSAGE replaced each turn
+// (db/lib/turnAnnouncement.js), so a console posted before the deploy keeps a
+// live button for up to a real day, and an unrouted button answers "This
+// application did not respond". Delete it once no such message survives.
 async function handleSpeakOpen(interaction) {
   await ack(interaction);
-
-  const character = await findAliveCharacter(interaction.user.id);
-  if (!character) {
-    await respond(interaction, "» *You don't have a living character.*");
-    return;
-  }
-
-  const { guild, member } = await resolveActingMember(interaction);
-  if (!guild || !member) {
-    await respond(interaction, "» *Couldn't reach the server.*");
-    return;
-  }
-
-  const { options, truncated } = await listSpeakTargets(guild, member);
-  if (options.length === 0) {
-    await respond(interaction, "» *There's nowhere you can speak right now.*");
-    return;
-  }
-
-  const { rows, note } = buildSpeakPicker(options, truncated);
-  await respond(interaction, {
-    content: ["Where would you like to speak?", note].filter(Boolean).join("\n"),
-    components: rows,
-  });
-}
-
-// A modal must be shown within 3 seconds and cannot be deferred first, so
-// nothing is awaited here — the permission re-check lives on submit.
-async function handleSpeakPick(interaction) {
-  const targetId = interaction.values[0];
-  if (isNavValue(targetId)) {
-    await interaction.deferUpdate();
-    return;
-  }
-
-  const cached = interaction.client.channels.cache.get(targetId);
-  await interaction.showModal(buildSpeakModal(targetId, cached ? `#${cached.name}` : null));
+  await respond(interaction, "» *Speak has moved — use /message in the room you want to speak in.* ‡");
 }
 
 async function handleSpeakSubmit(interaction, channelId) {
@@ -1628,15 +1600,21 @@ async function handleSpeakSubmit(interaction, channelId) {
   await respond(interaction, `» *Sent.*\n${messageLink(guild.id, channel.id, posted.webhookMessage.id)}`);
 }
 
-// /message: inside a channel the player can already speak in, skip the
-// picker and post there directly.
+// /message is contextual: it speaks into the channel or thread you ran it in.
+// There is no destination picker any more, so run it somewhere you cannot
+// speak — a DM, or #turns — and it says where to run it instead.
+//
+// showModal IS the acknowledgement and a deferred interaction can no longer
+// open one, so the speakable case must be tested BEFORE anything is acked, and
+// only the refusal branch calls ack().
 async function handleMessageCommand(interaction) {
   const channel = interaction.channel;
   if (interaction.inGuild() && interaction.member && channel && canSpeakInTarget(channel, interaction.member)) {
     await interaction.showModal(buildSpeakModal(channel.id, `#${channel.name}`));
     return;
   }
-  await handleSpeakOpen(interaction);
+  await ack(interaction);
+  await respond(interaction, "» *Run this in the channel or thread you want to speak in.* ‡");
 }
 
 // GM-only, and deliberately not the player medic path
@@ -2123,7 +2101,6 @@ module.exports = {
         if (interaction.customId.startsWith(CONVERSE_ROOM_PREFIX)) {
           return void (await handleConverseRoomPick(interaction));
         }
-        if (interaction.customId === "say:pick") return void (await handleSpeakPick(interaction));
         if (interaction.customId.startsWith("heal:pick:")) {
           return void (await handleHealPick(interaction, interaction.customId.slice("heal:pick:".length)));
         }

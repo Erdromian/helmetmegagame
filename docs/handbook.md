@@ -73,7 +73,7 @@ General questions can be asked in the `#general` channel or by creating a thread
 |---|---|
 | `/move` | Open the Move submission form. |
 | `/location` | Open the Travel picker — walk to a connected Location, or cross into another Zone. |
-| `/message` | Speak as your character directly into a channel. |
+| `/message` | Speak as your character in the room or thread you're in, without typing in it. ‡ |
 | `/roll` | Roll a 1d6 into the channel, for everyone to see. |
 | `/add` | Invite a character into your Conversation. |
 | `/remove` | Remove a character from your Conversation. |
@@ -101,10 +101,9 @@ Bascinet runs for 30 real days. One turn is one of those days, and turns alterna
 
 At the end of each turn the game resolves what happened during it. Move results are posted, Resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
 
-You can find information on the current turn in the `#turns` channel, in addition to the three main controls:  
+You can find information on the current turn in the `#turns` channel, in addition to the two main controls: ‡  
 - **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. You get one free Zone crossing a turn, and an **equipped mount** gives you a second; past those, crossing spends your Move, and once you've acted you can't cross at all. Your sheet shows how many you have left. Either way you arrive immediately, and the picker always lets you bring along anyone you could carry: someone bound or helpless, a body, or a member of your faction if you lead it.  
 - **Move** is used to submit your character's Move for the turn.  
-- **Speak** allows you to post as your character without typing into a channel, helping to obscure your identity.
 
 ### The Wipe
 
@@ -168,9 +167,7 @@ Sometimes turns will have consequences that impact your character. If you were b
 
 As a roleplay game, conversation is at the heart of Bascinet, and the bot is designed to maintain separation between a player's identity and their character. When you send a message to a roleplay channel, the bot will automatically delete your message and post it again under your character name. No special commands or formatting is needed to speak in character.
 
-Sometimes Discord may take a few seconds to update your message with the bot's version, and your username is also visible at the bottom of the channel when typing directly. If you want to ensure neither of these can be used to connect you to your character, you have two options:
-- Press the **Speak** button in the `#turns` channel.
-- Use the `/message` slash command in any channel, including the bot's DMs.
+Sometimes Discord may take a few seconds to update your message with the bot's version, and your username is also visible at the bottom of the channel when typing directly. If you want to ensure neither of these can be used to connect you to your character, use the `/message` slash command in the room you want to speak in. It opens a box to type into, so nothing you write appears under your own name and nobody sees you typing. ‡
 
 ### Channels And Locations
 
@@ -197,7 +194,7 @@ Each Location's channel has a pinned message at the top with its description, th
 | Channel | What it's for |
 |---|---|
 | **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode and is not meant for conversations. |
-| **A Location** (text channel) | The open street. Anyone standing here can talk in the channel itself. |
+| **A Location** (text channel) | The open street. You can see what happens here, but talk belongs in its Rooms — step into one to speak. ‡ |
 | **Rooms** (threads under the Location) | The places inside a Location — the Old Cock Inn on the Square, the Throne Room in the Keep. Public Rooms are open to everyone here. Private Rooms are hidden: you only see one if you hold the right tag, such as a key. |
 
 The three buttons on the pinned message:

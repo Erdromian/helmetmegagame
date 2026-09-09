@@ -236,7 +236,7 @@ its writers find it by exact name (`isTurnsChannel` in
 in `db/lib/turnsChannelAccess.js#syncTurnsChannelAccess`:
 
 - `@everyone` denied `ViewChannel` + `SendMessages` + `AttachFiles`. The
-  channel stays bot-only; the console's Travel/Move/Speak buttons are
+  channel stays bot-only; the console's Move/Travel buttons are
   components, not messages, so nobody needs send.
 - **every** zone role allowed `ViewChannel`. This is the gate. A living
   character holds exactly one zone role from the moment `createCharacter` runs,
