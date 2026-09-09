@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Horses and carts no longer fit in a crate
+
+− The Package button no longer accepts a Horse, Cart, Fishing Boat or Motorcycle  
+✎ They carry no weight, so a crate of one came out at 1 lb and a hand-cart could be walked indoors as anonymous cargo  
+✎ The Depot still ships a horse crated, the same as before
+
 ## 2026-09-09 · A hood works on Discord again, and the Bio card stops taking it off you
 
 ✎ A hood you chose to wear hides you on Discord again. Anything you typed on the website reached the channel under your own name and face, so the hood worked on the website and did nothing where people were reading it.  

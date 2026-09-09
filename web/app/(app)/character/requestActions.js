@@ -58,6 +58,7 @@ import {
 import {
   isTradeable,
   isCrate,
+  isMount,
   addRequirementSatisfied,
   craftFamily,
   needsWorkshop,
@@ -4699,6 +4700,12 @@ async function packageItemsRequestImpl({
     // A crate of crates would nest a consumesInto chain arbitrarily deep, and
     // halving twice is a free carry exploit besides.
     if (isCrate(row.tag)) throw new UserError("You can't crate a crate.");
+    // A mount is not cargo, and the MOUNT slot is weightless on purpose, so a
+    // crate of one came out at crateWeight's floor of 1 lb. The Depot still
+    // ships a horse crated (DEPOT.md §0e) — this refusal is the hand-packed
+    // button only.
+    if (isMount(row.tag))
+      throw new UserError("A mount doesn't fit in a crate. ‡");
     const quantity = Math.min(line.quantity, row.quantity);
     return {
       tagId: row.tagId,
