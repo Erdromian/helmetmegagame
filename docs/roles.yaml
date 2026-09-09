@@ -1490,8 +1490,6 @@ zones:
               - Plebeian Hood
               - Rough Camper
               - Outsider
-            doc_elements:
-              - concealing
           brigand:
             name: Brigand
             intro: >-
@@ -1527,5 +1525,3 @@ zones:
               - Plebeian Hood
               - Rough Camper
               - Outsider
-            doc_elements:
-              - concealing

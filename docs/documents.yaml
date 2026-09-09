@@ -230,7 +230,7 @@ documents:
     description: |-
       When you die, you can rejoin at any time — but you'll be Cursed, meaning you can only start as a Bum or Migrant and you'll suffer a -6 penalty to your starting points.
 
-      To rejoin as any other role, wait until your body is buried or your name is engraved. It is the Church and Mortii's jobs to do so.
+      To rejoin as any other role, wait until your body is buried or your name is engraved. It's the Church and the Mortii's job to help souls pass on.
 
       A ghost has no voice. Your body speaks for you — while it lies unburied it stinks, and the place it is lying in keeps saying so.
   courtstructure:
@@ -473,21 +473,15 @@ documents:
     public: false
     tags: []
     description: ""
-  concealing:
-    name: Concealing Your Identity
-    public: true
-    tags: []
-    description: |-
-      Run `/conceal` (or use the switch on your Character page) to hide your identity until you turn it off. You need a helmet, a hood, or a mask.
-
-      You'll appear as a stranger, but people can still see (using the 🔎 reaction) any visible wounds or gear.
   thepusher:
     name: Pusher
-    public: true
+    public: false
     tags: []
     roles:
-      - censor
       - pusher
+      - cerberus
+      - baron
+      - hand
     description: |-
       The Pusher sells drugs and runs the town's gambling den in the Abandoned Theater. It's his job to keep the peasants satisfied and not rebelling.
 

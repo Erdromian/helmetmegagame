@@ -204,7 +204,7 @@ export function recipeRows(tags) {
       // the thing made, a `keep` entry only has to be to hand, and the row
       // says which.
       const ingredients = (tag.requirementItems ?? []).map((item) => {
-        if (item.keep) return `${item.label} (kept, not used up)`;
+        if (item.keep) return `${item.label} (not used up)`;
         return (item.count ?? 1) > 1 ? `${item.label} ×${item.count}` : item.label;
       });
       return {

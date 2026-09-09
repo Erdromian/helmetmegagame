@@ -85,12 +85,6 @@ export default function RecipesTab({ tags, mySkillIds = null }) {
   return (
     <section className="flex flex-col gap-3">
       <div className="panel flex flex-col gap-3 p-3">
-        {/* Chris's wording (2026-09-05), not yet Bascinet's — hence the mark. */}
-        <p className="text-sm">
-          Not every recipe is shown below. Secret recipes can be found across Ravenheart, and
-          your crafting menu will reveal them if you possess the necessary ingredients and
-          skill. ‡
-        </p>
         <FilterBar
           filterDefs={FILTER_DEFS}
           filters={table.filters}
@@ -238,7 +232,7 @@ function RecipeRow({ row, byId, bySlug, onView }) {
         {row.ration != null && (
           <span className="block text-xs text-muted">
             {row.rationShared
-              ? `Dead Simple: ${row.ration} a turn across all of it ‡`
+              ? `Dead Simple: up to ${row.ration} a turn`
               : `Up to ${row.ration} a turn ‡`}
           </span>
         )}
@@ -255,7 +249,7 @@ function RecipeRow({ row, byId, bySlug, onView }) {
                 {i > 0 && <span className="text-muted">·</span>}
                 <IngredientEntry item={item} bySlug={bySlug} />
                 {item?.keep && (
-                  <span className="text-xs text-muted">(kept, not used up)</span>
+                  <span className="text-xs text-muted">(not used up)</span>
                 )}
               </Fragment>
             ))}
