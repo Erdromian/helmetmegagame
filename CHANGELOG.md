@@ -6,6 +6,9 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · A burial and an engraving are heard where they happen
+
+
 ## 2026-09-09 · Four things about you, and the buying screen tells the whole truth
 
 ✚ You can keep four things about you at once; the equipped rig counts them like it counts hands  
