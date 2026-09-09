@@ -5184,7 +5184,12 @@ label.chip {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr) 20rem;
+  /* The flanks are properties rather than literals so the ladder below moves
+     two numbers instead of rewriting the template three times — and so
+     anything else that needs to know how wide a column is can ask. */
+  --chat-rail: 15rem;
+  --chat-aside-w: 20rem;
+  grid-template-columns: var(--chat-rail) minmax(0, 1fr) var(--chat-aside-w);
 }
 
 .chat-body--empty {
@@ -5299,6 +5304,41 @@ label.chip {
   margin-bottom: var(--sp-1);
 }
 
+/* The title is the fold control. A section shut this way keeps showing any
+   place with something unread in it — folding is for shortening a column, not
+   for going deaf — and the count beside the title says how many rows are put
+   away. */
+.chat-section-fold {
+  appearance: none;
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  width: 100%;
+  text-align: left;
+  /* Matches .chat-section-title's own padding, which is set beside it. */
+  color: var(--muted);
+}
+
+.chat-section-fold:hover {
+  color: var(--text);
+}
+
+.chat-fold-mark {
+  font-size: var(--fs-2xs);
+  width: 1em;
+  flex-shrink: 0;
+}
+
+.chat-fold-count {
+  margin-left: auto;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+
 /* A place row and a person row are the same button — a full-width flex
    line with one focus ring — and differ only in padding, colour and the
    active bar. One base, two skins. */
@@ -5312,6 +5352,18 @@ label.chip {
   width: 100%;
   box-sizing: border-box;
   font-size: var(--fs-sm);
+  /* These are the two most-tapped rows on the page and they carried 4px of
+     vertical padding everywhere except inside the phone's ⋯ sheet, which was
+     the only place holding them to the floor the rest of this stylesheet
+     keeps. A coarse pointer gets the floor wherever it is pointing. */
+  min-height: 32px;
+}
+
+@media (pointer: coarse) {
+  .chat-place,
+  .chat-person {
+    min-height: 44px;
+  }
 }
 
 .chat-place:focus-visible,
@@ -5425,6 +5477,13 @@ label.chip {
 /* Room.description / Location.description / Zone.description, whichever place
    is open. A button because it opens, but it is a line of the world rather
    than a control, so it wears no button chrome. */
+/* Zone · Location, above the open place's name. */
+.chat-crumb {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  margin: 0;
+}
+
 .chat-head-desc {
   appearance: none;
   background: none;
@@ -5462,6 +5521,14 @@ label.chip {
   padding: var(--sp-3) var(--sp-4);
 }
 
+/* A line of prose stops being comfortable to read somewhere past 70-ish
+   characters, and the middle column on a wide monitor is far wider than that.
+   Capped here rather than on .chat-feed so the scrollbar stays at the edge of
+   the column and only the CONTENT is measured. */
+.chat-feed-inner {
+  max-width: 70ch;
+}
+
 
 .chat-row {
   display: flex;
@@ -5480,6 +5547,39 @@ label.chip {
   padding: 1px var(--sp-2);
   margin-inline: calc(var(--sp-2) * -1);
   border-radius: var(--r-sm);
+}
+
+/* The row's own class family. It used to be .chat-* mixed with loose Tailwind
+   utilities (min-w-0 flex-1, flex items-baseline gap-2, font-semibold,
+   mono text-xs text-muted), which meant restyling a line meant editing JSX. */
+.chat-row-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.chat-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.chat-row-name {
+  font-weight: 600;
+}
+
+/* Somebody speaking under an alias — a hood, or a forced name like Apex
+   Form's Beast (db/lib/archive.js#feedRowShape). Tinted so a scene can be
+   read by who is in it: an unfamiliar name in a room is a different fact from
+   a name you know, and the column gave them identical weight. */
+.chat-row-name[data-alias="true"] {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.chat-row-time,
+.chat-row-edited {
+  font-size: var(--fs-xs);
+  color: var(--muted);
 }
 
 /* The row lights up under the pointer, and under the keyboard: without this
@@ -6344,13 +6444,15 @@ label.chip {
    hidden too. */
 @media (max-width: 75rem) {
   .chat-body {
-    grid-template-columns: 12rem minmax(0, 1fr) 17rem;
+    --chat-rail: 12rem;
+    --chat-aside-w: 17rem;
   }
 }
 
 @media (max-width: 56.25rem) {
   .chat-body {
-    grid-template-columns: 11rem minmax(0, 1fr);
+    --chat-rail: 11rem;
+    grid-template-columns: var(--chat-rail) minmax(0, 1fr);
   }
 
   /* Belt and braces: the hook already stops the column mounting. */

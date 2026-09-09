@@ -196,12 +196,19 @@ const FeedRow = memo(function FeedRow({
           />
         )}
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="chat-row-body">
+        {/* A real class family rather than .chat-* mixed with loose Tailwind
+            utilities, so restyling a row is a CSS edit and not a JSX one.
+            data-alias tints the name where somebody is speaking under one, so
+            a scene is scannable by who is in it — a hood reads as a hood at a
+            glance instead of as one more name in the column. */}
         {startsRun && (
-          <div className="flex items-baseline gap-2">
-            <span className="font-semibold">{row.name}</span>
-            <span className="mono text-xs text-muted">{timeLabel(row.sentAt)}</span>
-            {row.editedAt && <span className="text-xs text-muted">(edited)</span>}
+          <div className="chat-row-head">
+            <span className="chat-row-name" data-alias={row.alias ? "true" : undefined}>
+              {row.name}
+            </span>
+            <span className="chat-row-time mono">{timeLabel(row.sentAt)}</span>
+            {row.editedAt && <span className="chat-row-edited">(edited)</span>}
           </div>
         )}
 
@@ -499,6 +506,8 @@ export default function Feed({
   // twice.
   jump = null,
   onJump = null,
+  // Zone · Location, from Chat.js. The open place is the heading under it.
+  crumb = [],
   // The rows page.js server-rendered, and which place they belong to.
   // feedStore.js is a module-level client store, so its server snapshot is
   // empty by construction — without this the SERVER paint of a busy street
@@ -1498,6 +1507,19 @@ export default function Feed({
     <div className="chat-main">
       <div className="chat-head">
         <div className="chat-head-main">
+          {/* Where you are standing, above what you are reading. A
+              conversation and the zone summary are both opened from
+              somewhere, and nothing on the page used to say where. */}
+          {crumb.length > 0 && (
+            <p className="chat-crumb">
+              {crumb.map((name, i) => (
+                <Fragment key={name}>
+                  {i > 0 && <span aria-hidden="true"> · </span>}
+                  {name}
+                </Fragment>
+              ))}
+            </p>
+          )}
           <h1 className="section-title">{place.name}</h1>
           {description && (
             <button
@@ -1549,7 +1571,7 @@ export default function Feed({
           somebody scrolled away from the bottom. */}
       <div className="chat-feed-wrap">
       <div ref={scrollerRef} onScroll={onScroll} className="chat-feed">
-       <div ref={innerRef}>
+       <div ref={innerRef} className="chat-feed-inner">
         {/* The board is nailed to the top of the street, not filed into it in
             the order it went up: a notice is a thing standing there, and it
             has to still be readable after fifty lines of scene. */}
