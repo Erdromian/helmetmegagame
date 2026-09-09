@@ -17,7 +17,6 @@ const { entriesOf } = require("../../lib/yamlEntries");
 const OWNERS = [
   { doc: "smithing", groups: ["items-weapons", "items-armor", "items-headgear", "items-gear"] },
   { doc: "alcoholdrugs", groups: ["items-drink"] },
-  { doc: "meals", groups: ["items-food"] },
 ];
 
 function load(name) {

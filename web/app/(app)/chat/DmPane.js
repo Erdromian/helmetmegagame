@@ -175,7 +175,7 @@ export default function DmPane({ self }) {
         ) : !dm.seeded ? (
           <FeedSkeleton />
         ) : messages.length === 0 ? (
-          <EmptyState>Nothing yet. Bascinet writes here, and so can you. ‡</EmptyState>
+          <EmptyState>Nothing has been said here yet.</EmptyState>
         ) : (
           <DmThread
             messages={messages}

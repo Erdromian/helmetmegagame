@@ -1072,7 +1072,6 @@ zones:
             doc_elements:
               - townstarting
               - alcoholdrugs
-              - meals
               - inn
           inn-staff:
             name: Inn Staff
@@ -1094,7 +1093,6 @@ zones:
             doc_elements:
               - townstarting
               - alcoholdrugs
-              - meals
               - inn
               - independent
   - name: Caves

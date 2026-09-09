@@ -302,21 +302,6 @@ documents:
     tags: []
     description: |-
       The Charon is a one-way spaceship. It'll take its passengers out into space, where a passenger liner called the Leviathan is allegedly waiting for refugees. The Charon's hatch can be accessed through the Undercroft.
-  meals:
-    name: Meals & Kitchens
-    public: true
-    tags:
-      - Cooking (Basic)
-      - Cooking (Skilled)
-      - Nobility
-    description: |-
-      Fine meals make average people happy, but Nobility have them as a baseline. They need to eat them every once in a while or they'll be unhappy. Lavish meals make everyone happy and are valid objects of a Desire.
-
-      **{tag:fine-meal}:** cost 2 ⬢ per meal. You can make up to 4 Fine meals in one Routine Move.
-      **{tag:trail-ration}:** cost 2 ⬢ per ration. Weighs next to nothing — the meal you pack for a long walk. Up to 4 in one Routine Move. ‡
-      **{tag:lavish-meal}:** cost 3 ⬢ per meal, plus one delicacy per meal — {tag:tea} or {tag:sweets} off the Depot's shelf, or {tag:fish-roe} if you can get it. Your pick, and it is used up. You can make up to 3 Lavish meals in one Routine Move. ‡
-
-      **A dish of your own.** Either meal can be cooked as a signature dish for 1 ⬢ extra per meal: you name it and describe it, and it still plainly shows what it is — "Steak Dinner (Lavish Meal)".
   alcoholdrugs:
     name: Alcohol & Drugs
     public: true
