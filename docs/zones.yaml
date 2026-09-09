@@ -1266,7 +1266,7 @@ zones:
     kind: surface
     sort: 4
     description: >-
-      Older woodland across the river, where the barony's writ thins out and then stops. The trees stand further apart than they have any right to and the ground between them is too clear. People who go in come back with stories that do not agree with each other. ‡
+      Ancient buildings layer atop craggy, mossy rocks. You can see the rest of the barony between the branches of the leafless trees.
     locations:
       # Both ways in are `locked: mountaineering` in `connections:`, so the
       # pass gates itself — a Location wears no `access:` list of its own.
@@ -1550,7 +1550,7 @@ zones:
     kind: surface
     sort: 5
     description: >-
-      Standing water from horizon to horizon, threaded by channels somebody dug and reeds nobody planted. The ground here is a rumour. What lives on it has built out of what the water gives up, and what the water gives up is not from around here. ‡
+      Thick reeds crowd open-ended ponds. The western reaches are wooded swamps; placid clearings are rare in the fetid bogs. The east is more open, and eventually leads into an endless landscape of purple wetness.
     locations:
       marshes-village:
         name: Village
@@ -2012,7 +2012,7 @@ zones:
         name: Depths
         sort: 2
         description: >-
-          Below the worked passages, where the stone stops behaving. The walls are cut and the floors are level, and neither was done by anybody who left a name. Cold, and getting colder, and the cold is coming from somewhere. ‡
+          A place of true darkness. The end of the world.
         locations:
           depths-steel-wall:
             name: Steel Wall
