@@ -34,6 +34,10 @@ export default function AvatarField({
   portraitFantasyPartsEnabled = false,
   portraitSelection,
   hasCustomAvatar = false,
+  // Character.gender, so the portrait maker's Randomize draws from the hair
+  // and beard styles that suit it (web/lib/portrait/catalog.js). "NEUTRAL" is
+  // the widest pool, so a missing prop rolls exactly as it did before.
+  gender = "NEUTRAL",
   // While set, the face and the name are the tag's, not the player's: every
   // picture control gives way to one line, and the conceal switch is off and
   // locked. The server actions re-check it (character/actions.js).
@@ -160,6 +164,7 @@ export default function AvatarField({
           onClose={() => setMakerOpen(false)}
           initialSelection={portraitSelection}
           allowFantasy={portraitFantasyPartsEnabled}
+          gender={gender}
         />
       )}
     </div>
