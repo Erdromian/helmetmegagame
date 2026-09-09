@@ -6,6 +6,18 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Fear is now the Mood system, and it goes both ways
+
+✎ Your mood is a word in its own box on the character sheet, between Carrying and Gambit die: Happy, Pleased, Content, Fine, Uncomfortable, Stressed, Anxious, Afraid, Panicking. Grey at Fine, red at Panicking, and hovering it says what moves it  
+✚ A mood can now be GOOD. It runs +64 down to -100, so a drink, a decent meal or a night at the Inn is worth something to somebody who was already calm  
+✚ Eating lifts a mood: any proper meal, a Fine Meal, sweets, honey, honeyed cakes, fish roe, a pumpkin, a coffee, a sky lantern, a firecracker  
+✎ Only Afraid and Panicking are DM'd now, and only on the way in. The other seven bands say nothing — a player crossing into Stressed and back used to get two DMs about it  
+✎ Only Afraid (-1) and Panicking (-2) touch the dice. A good mood is its own reward  
+✎ Every mood drifts back toward Fine overnight now, from either direction — a fright wears off, and so does a good evening  
+− The five Condition tags. The band is read off the number, so a GM can no longer hand-grant one that fights the dial  
+✎ The GM's dial on the Dev Panel is "Mood", -100 to +64, and it finally shows the real value instead of 0 for everybody  
+✎ Tea and a chrism's blessing say what they do in plain words instead of naming tags that no longer exist
+
 ## 2026-09-09 · Horses and carts no longer fit in a crate
 
 − The Package button no longer accepts a Horse, Cart, Fishing Boat or Motorcycle  
